@@ -238,7 +238,7 @@ module procedure_pointers
     procedure(fill_rdm_diag_currdet_t), pointer :: fill_rdm_diag_currdet
 
 
-    ! 
+    !
     ! The two UMAT (2e integral) routines. The second is only used if a
     ! 'stacking' scheme is in use (i.e. caching, memoization etc.)
     procedure(get_umat_el_t), pointer :: get_umat_el

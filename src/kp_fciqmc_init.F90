@@ -1,12 +1,13 @@
 #include "macros.h"
- 
+
 module kp_fciqmc_init
- 
+
     use bit_rep_data
     use bit_reps, only: decode_bit_det, encode_sign
     use constants
     use Parallel_neci, only: iProcIndex, MPISum, MPISumAll, nProcessors
     use kp_fciqmc_data_mod
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -260,14 +261,14 @@ contains
             case("CAS-TRIAL")
                 kp_trial_space_in%tCAS = .true.
                 tSpn = .true.
-                call geti(kp_trial_space_in%occ_cas)  ! Number of electrons in the CAS 
+                call geti(kp_trial_space_in%occ_cas)  ! Number of electrons in the CAS
                 call geti(kp_trial_space_in%virt_cas) ! Number of virtual spin-orbitals in the CAS
             case("RAS-TRIAL")
                 kp_trial_space_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
                 call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
-                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs.
                 call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
                 kp_trial_space_in%ras%size_1 = int(ras_size_1,sp)
                 kp_trial_space_in%ras%size_2 = int(ras_size_2,sp)
@@ -357,7 +358,7 @@ contains
         tPopsAlreadyRead = .false.
         call SetupParameters()
         call InitFCIMCCalcPar()
-        call init_fcimc_fn_pointers() 
+        call init_fcimc_fn_pointers()
 
         write(6,'(/,12("="),1x,a9,1x,12("="))') "KP-FCIQMC"
 
@@ -488,7 +489,7 @@ contains
         ! Allocate the hash table to the spawning array.
         ! The number of MB of memory required to allocate spawn_ht.
         ! Each node requires 16 bytes.
-        nhashes_spawn = 0.8*MaxSpawned
+        nhashes_spawn = int(0.8 * MaxSpawned)
         spawn_ht_mem = nhashes_spawn*16/1000000
         write(6,'(a78,'//int_fmt(spawn_ht_mem,1)//')') "About to allocate hash table to the spawning array. &
                                        &Memory required (MB):", spawn_ht_mem
@@ -532,7 +533,7 @@ contains
         write(6,'(1x,a5)') "Done."
 
         ! If av_mc_excits_kp hasn't been set by the user, just use AvMCExcits.
-        if (av_mc_excits_kp == 0.0_dp) av_mc_excits_kp = AvMCExcits
+        if (near_zero(av_mc_excits_kp)) av_mc_excits_kp = AvMCExcits
 
         ! Initialize
         kp_overlap_mean = 0.0_dp
@@ -705,7 +706,7 @@ contains
         integer, intent(in) :: iconfig, irepeat, nrepeats
 
         integer :: DetHash, nwalkers_int
-        integer :: i
+        integer(int64) :: i
         integer(n_int) :: int_sign(lenof_sign_kp)
         real(dp) :: real_sign(lenof_sign_kp), TotPartsCheck(lenof_sign_kp)
         real(dp) :: nwalkers_target
@@ -774,7 +775,7 @@ contains
                 call set_timer(kp_generate_time)
                 total_time_before = get_total_time(kp_generate_time)
 
-                ! Create the random initial configuration. 
+                ! Create the random initial configuration.
                 if (tInitCorrectNWalkers) then
                     call generate_init_config_this_proc(nwalkers_int, nwalkers_per_site_init, tOccDetermInit)
                 else
@@ -846,7 +847,7 @@ contains
 
         ! Print info about memory usage to the user.
         ! Memory required in MB.
-        mem_reqd = TotWalkers*(NIfTotKP+1)*size_n_int/1000000
+        mem_reqd = int(TotWalkers / 1000000_int64) * (NIfTotKP + 1) * size_n_int
 
         write(6,'(a73,'//int_fmt(mem_reqd,1)//')') "About to allocate array to hold the perturbed &
                                            &ground state. Memory required (MB):", mem_reqd
@@ -941,7 +942,7 @@ contains
         PointTemp => SpawnedParts2
         SpawnedParts2 => SpawnedParts
         SpawnedParts => PointTemp
-        call CompressSpawnedList(ndets, unused_data) 
+        call CompressSpawnedList(ndets, unused_data)
 
         ! Finally, add the determinants in the spawned walker list to the main walker list.
         ! Copy the determinants themselves to CurrentDets.
@@ -1110,7 +1111,7 @@ contains
 
         allocate(init_vec(1,ndets_this_proc), stat=ierr)
         if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
-         
+
         do i = 1, ndets_this_proc
             init_vec(1,i) = h_cast(0.0_dp)
             do j = 1, size(ex_state_labels)
@@ -1132,7 +1133,7 @@ contains
         real(dp), intent(out) :: input_pop(lenof_sign_kp)
         real(dp), intent(out) :: scaling_factor
 
-        integer :: i
+        integer(int64) :: i
         real(dp) :: real_sign(lenof_sign_kp), all_input_pop(lenof_sign_kp)
 
         input_pop = 0.0_dp

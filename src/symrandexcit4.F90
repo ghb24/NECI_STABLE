@@ -698,7 +698,7 @@ contains
 
         ! If there are no excitation from this electron pair, then we should
         ! go no further.
-        if (cc_tot == 0) then
+        if (near_zero(cc_tot)) then
             nJ(1) = 0
             return
         end if
@@ -1362,7 +1362,7 @@ contains
 
             ! And account for the case where this is not a connected excitation
             ! actually this comparison with 0 should be removed..
-            if (cum_sum == 0) then
+            if (near_zero(cum_sum)) then
 !             if (cum_sum < EPS) then
                 pgen = 0
             else
@@ -1488,7 +1488,7 @@ contains
         end do
 
         ! Select a particulor electron, or abort
-        if (cum_sum == 0) then
+        if (near_zero(cum_sum)) then
 !         if (cum_sum < EPS) then
             elec = 0
         else
@@ -1571,7 +1571,7 @@ contains
         end do
 
         ! If there are no choices, then we have to abort...
-        if (cum_val == 0) then
+        if (near_zero(cum_val)) then
             nJ(1) = 0
             return
         end if

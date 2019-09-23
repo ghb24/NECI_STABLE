@@ -21,7 +21,7 @@ module hdiag_from_excit
         real(dp), intent(in) :: hel_old
 
         HElement_t(dp) :: hel
-        
+
         if (IC == 1) then
             hel = get_hdiag_from_sing_excit(nI, ex(:,1), hel_old)
         else if (IC == 2) then
@@ -130,7 +130,7 @@ module hdiag_from_excit
         ! <X|H|X> = 1/2 [ <i|H|i> + <j|H|j> ] + <i|H|j> where i and j are
         ! the two spin-coupled dets which make up X.
 
-        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
         real(dp), intent(in) :: hel_old
 

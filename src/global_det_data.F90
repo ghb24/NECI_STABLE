@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module global_det_data
-  
+
   use SystemData, only: nel
     use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
                         tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, tReplicaEstimates
@@ -29,7 +29,7 @@ module global_det_data
 
     !The integral of imaginary time since the spawing of this determinant.
     integer :: pos_tau_int, len_tau_int
-    
+
     !The integral of shift since the spawning of this determinant.
     integer :: pos_shift_int, len_shift_int
 
@@ -54,7 +54,7 @@ module global_det_data
 
     integer :: pos_spawn_rate, len_spawn_rate
 
-    ! global storage of history of determinants: number of pos/neg spawns and 
+    ! global storage of history of determinants: number of pos/neg spawns and
     ! time since a determinant died
     integer :: len_pos_spawns, len_neg_spawns, len_death_timer, len_occ_time
     integer :: pos_pos_spawns, pos_neg_spawns, pos_death_timer, pos_occ_time
@@ -161,7 +161,7 @@ contains
             len_tot_spawns = 0
             len_acc_spawns = 0
         end if
-        
+
 
         ! If we are using calculating RDMs stochastically, need to include the
         ! average sign and the iteration on which it became occupied.
@@ -230,7 +230,7 @@ contains
              len_death_timer + len_occ_time
 
         if (tPairedReplicas) then
-            replica_est_len = lenof_sign/2
+            replica_est_len = lenof_sign .div. 2
         else
             replica_est_len = lenof_sign
         end if
@@ -270,7 +270,7 @@ contains
         ! As an added safety feature
         global_determinant_data = 0.0_dp
         if(tStoredDets) global_determinants = 0
-                         
+
     end subroutine
 
 
@@ -313,7 +313,7 @@ contains
     end subroutine
 
     function det_diagH(j) result(hel_r)
-        
+
         integer, intent(in) :: j
         real(dp) :: hel_r
 
@@ -332,7 +332,7 @@ contains
     end subroutine
 
     function get_spawn_pop(j, part) result(t)
-        
+
         integer, intent(in) :: j, part
         real(dp) :: t
 
@@ -350,7 +350,7 @@ contains
     end subroutine
 
     function get_all_spawn_pops(j) result(t)
-        
+
         integer, intent(in) :: j
         real(dp), dimension(lenof_sign) :: t
 
@@ -385,7 +385,7 @@ contains
     end subroutine
 
     function get_tau_int(j, run) result(t)
-        
+
         integer, intent(in) :: j,run
         real(dp) :: t
 
@@ -419,7 +419,7 @@ contains
     end subroutine
 
     function get_shift_int(j, run) result(t)
-        
+
         integer, intent(in) :: j, run
         real(dp) :: t
 
@@ -453,7 +453,7 @@ contains
     end subroutine
 
     function get_tot_spawns(j, run) result(t)
-        
+
         integer, intent(in) :: j, run
         real(dp) :: t
 
@@ -461,7 +461,7 @@ contains
 
     end function
 
-    subroutine set_tot_acc_spawns(fvals, ndets, initial) 
+    subroutine set_tot_acc_spawns(fvals, ndets, initial)
       implicit none
       integer, intent(in) :: ndets
       real(dp), intent(in) :: fvals(2*inum_runs, ndets)
@@ -493,7 +493,7 @@ contains
       use hdf5
       implicit none
       integer(hsize_t), intent(in) :: fvals(:)
-      integer, intent(in) :: j
+      integer(int64), intent(in) :: j
 
       integer :: run
       real(dp) :: realVal = 0.0_dp
@@ -507,14 +507,14 @@ contains
 
     subroutine writeFFuncAsInt(ndets, fvals)
       implicit none
-      integer, intent(in) :: ndets
+      integer(int64), intent(in) :: ndets
       integer(n_int), intent(inout) :: fvals(:,:)
 
       integer :: j, k
 
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-      do j = 1, nDets
+      do j = 1, int(nDets)
          do k = 1, inum_runs
             fvals(k,j) = transfer(get_acc_spawns(j,k), fvals(k,j))
          end do
@@ -526,14 +526,14 @@ contains
 
     subroutine writeFFunc(ndets, fvals)
       implicit none
-      integer, intent(in) :: ndets
+      integer(int64), intent(in) :: ndets
       real(dp), intent(inout) :: fvals(:,:)
 
       integer :: j, k
 
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-      do j = 1, nDets
+      do j = 1, int(nDets)
          do k = 1, inum_runs
             fvals(k,j) = get_acc_spawns(j,k)
          end do
@@ -571,7 +571,7 @@ contains
     end subroutine
 
     function get_acc_spawns(j, run) result(t)
-        
+
         integer, intent(in) :: j, run
         real(dp) :: t
 
@@ -762,8 +762,8 @@ contains
         rate = global_determinant_data(pos_spawn_rate, j)
 
     end function
-    
-    subroutine set_spawn_rate(j, rate) 
+
+    subroutine set_spawn_rate(j, rate)
 
         integer, intent(in) :: j
         real(dp), intent(in) :: rate
@@ -823,7 +823,7 @@ contains
     subroutine clock_occ_time(j)
       implicit none
       integer, intent(in) :: j
-      
+
       global_determinant_data(pos_occ_time,j) = global_determinant_data(pos_occ_time,j) + 1
       global_determinant_data(pos_pos_spawns:(pos_death_timer-1),j) = &
            global_determinant_data(pos_pos_spawns:(pos_death_timer-1),j) * &
@@ -836,7 +836,7 @@ contains
     subroutine reset_occ_time(j)
       implicit none
       integer, intent(in) :: j
-      
+
       global_determinant_data(pos_occ_time,j) = 0
     end subroutine reset_occ_time
 
@@ -845,7 +845,7 @@ contains
     subroutine clock_death_timer(j)
       implicit none
       integer, intent(in) :: j
-      
+
       global_determinant_data(pos_death_timer,j) = global_determinant_data(pos_death_timer,j) + 1.0_dp
     end subroutine clock_death_timer
 
@@ -862,20 +862,20 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-    subroutine mark_death(j) 
+    subroutine mark_death(j)
       implicit none
       integer, intent(in) :: j
 
       global_determinant_data(pos_death_timer,j) = -1.0_dp
     end subroutine mark_death
-      
-      
+
+
   !------------------------------------------------------------------------------------------!
 
     subroutine reset_death_timer(j)
       implicit none
       integer, intent(in) :: j
-      
+
       global_determinant_data(pos_death_timer,j) = 0.0_dp
     end subroutine reset_death_timer
 
@@ -887,7 +887,7 @@ contains
     subroutine store_decoding(j, nI)
       implicit none
       integer, intent(in) :: j, nI(nel)
-      
+
       if(tStoredDets) then
          global_determinants(:,j) = nI
       endif
@@ -897,7 +897,7 @@ contains
       implicit none
       integer, intent(in) :: j
       integer :: nI(nel)
-      
+
       if(tStoredDets) then
          nI = global_determinants(:,j)
       else

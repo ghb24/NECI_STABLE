@@ -1,6 +1,6 @@
 module gndts_mod
 
-    use constants, only: n_int 
+    use constants, only: n_int
     use SystemData, only: BasisFN, BasisFNSize, Symmetry, NullBasisFn, LzTot, &
                           tFixLz
     use sort_mod
@@ -14,7 +14,7 @@ module gndts_mod
 contains
 
     ! A recursive version of GNDTS which doesn't require #defines
-    ! This sets up variables, and calls the recursion 
+    ! This sets up variables, and calls the recursion
     subroutine gndts (nel, nhg, brr, nBasisMax, nMrks, tCount, G1, tSpn, LMS, &
                       tParity, SymRestrict, ii, IFDet)
 
@@ -40,7 +40,7 @@ contains
         if (tSpn) then
             kJ%Ms=LMS
         else
-            kJ%Ms=0 
+            kJ%Ms=0
         endif
         if (tFixLz) then
             kJ%Ml=LzTot
@@ -85,7 +85,7 @@ contains
                 ENDDO
                 call sort (nI)
                 CALL GETSYM(NI,NEL,G1,NBASISMAX,KI)
-                CALL GetLz(NI,NEL,KI%Ml) 
+                CALL GetLz(NI,NEL,KI%Ml)
                 IF(.NOT.TPARITY) THEN
                     DO I=1,3
                         KI%k(I)=0
@@ -122,7 +122,7 @@ contains
                               tSpn, LMS, tParity, SymRestrict, ii, iElecs, &
                               iSpins, iElec+1, kJ)
             ENDIF
-        ENDDO    
+        ENDDO
 
     end subroutine
 
@@ -176,7 +176,7 @@ contains
             else
                 call gndts_all_sym_this_proc_r(ilut_list, tCount, ndets, nI, ielec+1)
             end if
-        end do 
+        end do
 
     end subroutine gndts_all_sym_this_proc_r
 

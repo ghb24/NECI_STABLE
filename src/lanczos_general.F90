@@ -66,7 +66,7 @@ module lanczos_general
 
     contains
 
-    ! We're storing alpha and beta arrays in T directly, so let's use getters 
+    ! We're storing alpha and beta arrays in T directly, so let's use getters
     ! and setters to make this easier
     pure function getAlpha(this, i) result (val)
         type(LanczosCalcType), intent(in) :: this
@@ -90,7 +90,7 @@ module lanczos_general
             val = this%super%projected_hamil(i,i-1)
             return
         elseif (i==0) then
-            val = this%beta_0 
+            val = this%beta_0
         else
             val = this%beta_1
         endif
@@ -125,10 +125,6 @@ module lanczos_general
         endif
     end subroutine addVec
 
-    subroutine init_lanczos_vector(lanczos_vector, ground_state_multiplicity, det_list)
-
-    end subroutine
-
     subroutine InitLanczosCalc(this, det_list, print_info, hamil_type, n_states, max_lanczos_vecs, &
             t_store_subspace_basis, t_orthogonalise, max_restarts, energy_precision, ritz_overlap_precision)
         type(LanczosCalcType), intent(out) :: this
@@ -154,7 +150,7 @@ module lanczos_general
             call stop_all(t_r, "Not enough determinants in the space to produce the required number of approximate eigenpairs")
         endif
 
-#if(0)    
+#if(0)
         ! TODO: given a target multiplicity for the many body ground state, an initial
         ! lanczos vector guess is chosen to have a good overlap with each of the
         ! ground_state_multiplicity states in the ground state WF
@@ -187,7 +183,7 @@ module lanczos_general
             safe_malloc(this%current_v, (max_subspace_size))
             safe_malloc(this%old_v, (max_subspace_size))
         endif
-        
+
         ! check for previous allocation of the eigenvector estimates
         if (allocated(this%ritz_vectors)) then
             deallocate(this%ritz_vectors, stat=ierr)
@@ -236,7 +232,7 @@ module lanczos_general
                 write(6, *) det_list(:,lowest_energy_det_indices(i))
                 this%lanczos_vector(lowest_energy_det_indices(i)) = 1.0_dp/sqrt(real(n_states, dp))
             enddo
-            
+
             this%lanczos_vector(:) = this%lanczos_vector(:)/euclidean_norm(this%lanczos_vector(:))
 
             safe_free(lowest_energies)
@@ -287,7 +283,7 @@ module lanczos_general
                     endif
                     if (abs(overlap) > this%orthog_tolerance) then
                         write(6, '(" Largest Ritz vector overlap: ", 5ES16.7)') largest_overlap
-                        call stop_all(t_r, "Ritz vector overlap is unacceptably large") 
+                        call stop_all(t_r, "Ritz vector overlap is unacceptably large")
                     endif
                 enddo
             enddo
@@ -352,8 +348,13 @@ module lanczos_general
 
         if (t_calc_eigenvectors) then
             ! move the eigenvectors out of the working array
+#ifdef __CMPLX
             this%T_eigenvectors(1:N,1:this%n_states) = &
-                cmplx(this%super%projected_hamil_work(1:N, 1:this%n_states))
+                cmplx(this%super%projected_hamil_work(1:N, 1:this%n_states), kind=dp)
+#else
+            this%T_eigenvectors(1:N,1:this%n_states) = &
+                this%super%projected_hamil_work(1:N, 1:this%n_states)
+#endif
         endif
     end subroutine diagonalise_tridiagonal
 
@@ -386,10 +387,11 @@ module lanczos_general
         ! ritz_vectors(n_states, space_size) = T_eigenvectors(n_states, k) x basis_vectors(k, space_size)
         !   we want to do (column-major):
         ! ritz_vectors(space_size, n_states) = T_eigenvectors(k, n_states) x basis_vectors(space_size, k)
-        
+
         type(LanczosCalcType), intent(inout) :: this
         integer, intent(in) :: k
-        
+        integer :: i, j
+
         associate(space_size => this%super%space_size)
 
         if (this%super%t_store_subspace_basis) then
@@ -464,7 +466,7 @@ module lanczos_general
         ms = 0.0_dp
         do i = 1, size(vec)
             ms = ms+real(get_det_ms(det_list(:,i)), dp)*abs(vec(i))**2.0_dp
-        enddo        
+        enddo
         ms = ms*0.5_dp
     end function
 
@@ -486,7 +488,7 @@ module lanczos_general
         if(.not. t_lanczos_store_vecs .and. t_lanczos_orthogonalise) then
             call stop_all(t_r, "storage of Lanczos method basis vectors needed for orthogonalisation")
         endif
-        
+
         ! format specifier formatting!
         ! ensure that enough places are displayed to show convergence to the desired accuracy
         write(main_output_fmt, '("(8X,i4,3X,i2,2x,f",i2,".",i2,",2x,f9.3)")') lanczos_energy_precision+7, lanczos_energy_precision
@@ -514,7 +516,7 @@ module lanczos_general
             current_v => this%current_v, &
             old_v => this%old_v &
         )
-    
+
         ! start Lanczos restart loop
         restart_counter = 0
         do
@@ -524,7 +526,7 @@ module lanczos_general
             call MPIBCast(this%lanczos_vector)
             call MPIBCast(this%super%basis_vectors(:,1))
             ! set lanczos vector 1 to H*first_v
-            call project_hamiltonian_lanczos(this, 1)   
+            call project_hamiltonian_lanczos(this, 1)
 
             if (print_info) then
                 write(6,'(/,1X,"Iteration",4x,"State",12X,"Energy",7X,"Time")'); call neci_flush(6)
@@ -598,13 +600,13 @@ module lanczos_general
                 call MPIBCast(this%lanczos_vector)
             ! end Lanczos main loop
             end do
-            
+
             if (iprocindex==root) then
                 call diagonalise_tridiagonal(this, k, .true.)
                 call compute_ritz_vectors(this, k)
             endif
 
-            ! we now evaluate the quality of the convergence achieved. If a state is sufficiently 
+            ! we now evaluate the quality of the convergence achieved. If a state is sufficiently
             ! well converged, save it and its energy otherwise, add the current best ritz vector
             ! for the state to the restarting Lanczos vector such that we restart with an equal
             ! superposition of the best guesses for the unconverged states.
@@ -628,8 +630,8 @@ module lanczos_general
             if (.not.any(.not.this%t_states_converged)) then
                 exit
             endif
-            
-            ! only normalize the lanczos vector if we are not 
+
+            ! only normalize the lanczos vector if we are not
             ! already converged, as it will be 0 else
             this%lanczos_vector = this%lanczos_vector / euclidean_norm(this%lanczos_vector)
 
@@ -673,7 +675,7 @@ module lanczos_general
               enddo
            endif
         endif
-        
+
         ! how good are the ritz vectors?
         write(6,'(/,1x,"Ritz vector expectation energies:")')
         do i=1, this%n_states

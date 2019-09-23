@@ -283,7 +283,7 @@ contains
     ! Routines to calculate and print 1-RDMs directly after reading in 2-RDMs.
 
     subroutine print_1rdms_from_2rdms_wrapper(rdm_defs, one_rdms, two_rdms, open_shell)
-    
+
         ! Wrapper function to calculate and print 1-RDMs from 2-RDMs, as might
         ! be useful if the user forgot to print 1-RDMs in a calculation.
 

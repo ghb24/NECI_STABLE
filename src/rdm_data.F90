@@ -335,7 +335,7 @@ module rdm_data
     type(timer), save :: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time
 
     ! ---- Data for using adaptive shift mode ------------------------!
-    
+
     ! when using adaptive shift, the RDMs require a correction, namely
     ! the reference contribution
 

@@ -1,5 +1,5 @@
 [neci]
-exe = ../benchmark_build/bin/neci
+exe = ../build/bin/neci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
@@ -29,12 +29,6 @@ extract_program = ./tools/extract.py
 
 [kneci]
 exe = ../build/bin/kneci
-vcs = git
-inputs_args = ('*.inp', '')
-extract_program = ./tools/extract.py
-
-[test_loop]
-exe = ../build/src/test_loop/test_mneci_loop
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py

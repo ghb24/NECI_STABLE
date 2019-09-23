@@ -6,7 +6,7 @@
          use legacy_data, only: irat
          use sym_mod, only: lchksymd
          use SystemData, only: BasisFn
-         use util_mod, only: NECI_ICOPY
+         use util_mod, only: NECI_ICOPY, near_zero
          use MemoryManager, only: TagIntType
          IMPLICIT NONE
          real(dp) BETA,FCK(*),ALAT(3),UMAT(*),ECORE
@@ -26,7 +26,7 @@
          INTEGER*4 INFO
          real(dp) WLRI,WLSI,SI
          INTEGER(TagIntType) ,SAVE :: tagRIJMAT=0,tagWLIST=0
-         INTEGER(TagIntType),SAVE :: tagLSTE=0,tagRJJLIST=0,tagWORK=0 
+         INTEGER(TagIntType),SAVE :: tagLSTE=0,tagRJJLIST=0,tagWORK=0
          type(timer), save :: proc_timer
          character(*),parameter :: thisroutine='WIRHODIAG'
          proc_timer%timer_name=thisroutine
@@ -46,7 +46,7 @@ C.. account for LSTE(0)
 
          CALL NECI_ICOPY(NEL,NI,1,LSTE(1,0),1)
          CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
-         
+
          IF(NLIST.GT.NLMAX) THEN
             WRITE(6,*) "WARNING on excitations"
          ENDIF
@@ -104,7 +104,7 @@ C.. Now we fill the RIJ array
      &            RH,NTAY,-1,ECORE)
                RIJMAT(I*NLIST+J+1)=RH
             ENDDO
-         ENDDO  
+         ENDDO
 
 C.. Diagonalize
          CALL DSYEV('V','L',NLIST,RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
@@ -114,7 +114,7 @@ C.. Diagonalize
          ENDIF
          deallocate(WORK)
          call LogMemDealloc(thisroutine,tagWORK)
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
          SI=0.0_dp
 C.. divide through by highest eigenvalue to stop things blowing up
          DO I=0,NLIST-1
@@ -142,7 +142,7 @@ C         ENDDO
          call halt_timer(proc_timer)
          RETURN
       END
- 
+
          SUBROUTINE WIRD_SUBSET(NI,BETA,I_P,NEL,
      &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &      ECORE)
@@ -256,7 +256,7 @@ C.. List all the dets
      &                  ," | "
          ENDDO
          IF(LSUB) WRITE(36,*)
-C.. Recurse over all lengths of permutation         
+C.. Recurse over all lengths of permutation
          DO IPLEN=0,NLIST
 C.. Initiate with the first IPLEN dets
             NCOUNT=0
@@ -298,7 +298,7 @@ C.. Now we fill the RIJ array
      &            RH,NTAY,-1,ECORE)
                      RIJMAT(I*NLIST+J+1)=RH
                   ENDDO
-               ENDDO  
+               ENDDO
                IF(LSUB) THEN
                   WRITE(38,*)
                   DO I=0,NLIST-1
@@ -321,7 +321,7 @@ C.. Diagonalize
                   WRITE(6,*) 'DYSEV error: ',INFO
                   call stop_all(thisroutine, "DSYEV error")
                ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
                SI=0.0_dp
 C.. divide through by highest eigenvalue to stop things blowing up
                DO I=0,NLIST-1
@@ -352,7 +352,7 @@ C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
 C            ENDDO
 C         ENDDO
                WLSI=LOG(SI)+I_P*LOG(WLIST(NLIST)/RHII)
-              IF(LSUB) 
+              IF(LSUB)
      &         WRITE(36,"(I5,4G25.16)") NLIST,WLRI,WLSI,EXP(WLSI),
      &                  EXP(I_P*WLRI+WLSI)
                SN=SN+EXP(WLSI)
@@ -400,7 +400,7 @@ C         CLOSE(36)
             LSTP(IPOS)=LSTP(IPOS)+1
          ENDIF
          RETURN
-      END 
+      END
 
       INTEGER FUNCTION BINOMIAL(N,R)
          INTEGER N,R,I
@@ -423,7 +423,7 @@ C         CLOSE(36)
          type(timer), save :: proc_timer
          real(dp) RHOIJ(0:I_V,0:I_V)
          real(dp) RIJMAT(I_V,I_V),RHODIAG_CP
-         real(dp) WLIST(I_V),WORK(3*I_V)         
+         real(dp) WLIST(I_V),WORK(3*I_V)
          INTEGER*4 INFO
          INTEGER I,J
          real(dp) SI
@@ -454,7 +454,7 @@ C         WRITE(6,*) (WLIST(I),I=1,I_V)
             WRITE(6,*) 'DYSEV error: ',INFO
             call stop_all(this_routine, "DSYEV error")
          ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
          SI=0.0_dp
 C.. divide through by RHOII^P
          DO I=1,I_V
@@ -473,7 +473,7 @@ C               ENDDO
 C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
 C            ENDDO
 C         ENDDO
-         
+
          call halt_timer(proc_timer)
          RETURN
       END
@@ -493,7 +493,7 @@ C.. See 1/7/04
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
          HElement_t(dp) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
-         real(dp) WLIST(I_V),WORK(3*I_V)         
+         real(dp) WLIST(I_V),WORK(3*I_V)
          HElement_t(dp) NWORK(4*I_V)
          INTEGER*4 INFO
          INTEGER I,J,IMISS,II,IJ
@@ -539,7 +539,7 @@ C         WRITE(6,*) "...",I_V,IMISS
          SI=0.0_dp
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
-C.. remove up to IMISS 
+C.. remove up to IMISS
          IF(TSUB) THEN
             DO I=2,IMISS-1
 CIMISS-1
@@ -556,8 +556,8 @@ CIMISS-1
                WRITE(6,*) 'DYSEV error: ',INFO
                call stop_all(this_routine, "DSYEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the
 C.. appropriate projection onto the root
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -585,8 +585,8 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                WRITE(6,*) 'ZHEEV error: ',INFO
                call stop_all(this_routine, "ZHEEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the
 C.. appropriate projection onto the root
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -619,10 +619,11 @@ C/RII
       END
 C.. See 1/7/04
       RECURSIVE FUNCTION RHODIAG_CPP(RHOIJ,
-     &    I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight) 
+     &    I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight)
      &      RESULT (RHODIAG_CPPRES)
          use constants, only: dp
          use global_utilities
+         use util_mod, only : near_zero
          use HElem
          IMPLICIT NONE
          INTEGER I_P,I_V
@@ -630,7 +631,7 @@ C.. See 1/7/04
          HElement_t(dp) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          HElement_t(dp) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          real(dp) WORK(3*I_V),R
-         real(dp) WLIST(I_V)         
+         real(dp) WLIST(I_V)
          INTEGER*4 INFO
          INTEGER I,J,IMISS,II,IJ
          real(dp) SI,SI2,SS,SS2
@@ -657,7 +658,7 @@ C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='RHODIAG_C2'
          call set_timer(proc_timer,55)
          RIJMAT(1:I_V,1:I_V)=(0.0_dp)
-         IF(DBETA.NE.0.0_dp) DLWDB=0.0_dp
+         IF(.not. near_zero(DBETA)) DLWDB=0.0_dp
          II=0
          DO I=1,I_V+1
             IF(I.NE.IMISS) THEN
@@ -675,7 +676,7 @@ C         WRITE(6,*) "...",I_V,IMISS
          SI=0.0_dp
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
-C.. remove up to IMISS 
+C.. remove up to IMISS
          IF(TSUB) THEN
             DO I=2,IMISS-1
                DD2=0.0_dp
@@ -687,16 +688,16 @@ C.. remove up to IMISS
 !  where g is this graph missing out vertex I.
                 SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
      &            DBETA,DD2,HIJS2,tLogWeight)
-                IF(DBETA.NE.0.0_dp) DLWDB=DLWDB-DD2
+                IF(.not. near_zero(DBETA)) DLWDB=DLWDB-DD2
                ELSE
 ! we return w' E~'
 ! w'[G]E~'[G]=w[G]E~[G]-sum_{g in G} w'[g] E~'[g]
-!SI is w' and DLWDB is E~'  
+!SI is w' and DLWDB is E~'
 !  The next line subtracts out the contribution from this graph, but missing out vertex I.
 !   done recursively, this makes w'[G]E~'[G]
                 SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
      &            DBETA,DD2,HIJS2,tLogWeight)
-                IF(DBETA.NE.0.0_dp) DLWDB=DLWDB-DD2
+                IF(.not. near_zero(DBETA)) DLWDB=DLWDB-DD2
                ENDIF
 C            WRITE(6,*) "SI=",SI
             ENDDO
@@ -709,7 +710,7 @@ C         WRITE(6,*) I_V
                WRITE(6,*) 'DYSEV error: ',INFO
                call stop_all(this_routine, "DSYEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
 C.. divide through by RHOII^P
             DLWT=0.0_dp
             SI2=0.0_dp
@@ -720,7 +721,7 @@ C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=R
                SS=S*RIJMAT(1,I)*RIJMAT(1,I)
                SI2=SI2+SS
-               IF(DBETA.NE.0.0_dp) THEN
+               IF(.not. near_zero(DBETA)) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S2=S*RIJMAT(J,I)*RIJMAT(1,I)
@@ -751,7 +752,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                WRITE(6,*) 'ZHEEV error: ',INFO
                call stop_all(this_routine, "ZHEEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
 C.. divide through by RHOII^P
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -760,7 +761,7 @@ C.. divide through by RHOII^P
                SS=((WLIST(I)/R)**I_P)
                SS2=abs(RIJMAT(1,I))**2
                SI2=SI2+SS*SS2
-               IF(DBETA.NE.0.0_dp) THEN
+               IF(.not. near_zero(DBETA)) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
@@ -811,13 +812,14 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          use constants, only: dp
          use global_utilities
          use HElem
+         use util_mod, only : near_zero
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
          HElement_t(dp) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          HElement_t(dp) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          real(dp) WORK(3*I_V),R
-         real(dp) WLIST(I_V)         
+         real(dp) WLIST(I_V)
          INTEGER*4 INFO
          INTEGER I,J
          real(dp) SI,SI2,SS,SS2
@@ -853,7 +855,7 @@ C         WRITE(6,*) "...",I_V,IMISS
                WRITE(6,*) 'DYSEV error: ',INFO
                call stop_all(this_routine, "DSYEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
 C.. divide through by RHOII^P
             DLWT=0.0_dp
             SI2=0.0_dp
@@ -864,7 +866,7 @@ C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=R
                SS=S*RIJMAT(1,I)*RIJMAT(1,I)
                SI2=SI2+SS
-               IF(DBETA.NE.0.0_dp) THEN
+               IF(.not. near_zero(DBETA)) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S2=S*RIJMAT(J,I)*RIJMAT(1,I)
@@ -886,7 +888,7 @@ C            WRITE(6,*) I_V,DLWDB
                WRITE(6,*) 'ZHEEV error: ',INFO
                call stop_all(this_routine, "ZHEEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
 C.. divide through by RHOII^P
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -895,7 +897,7 @@ C.. divide through by RHOII^P
                SS=((WLIST(I)/R)**I_P)
                SS2=abs(RIJMAT(1,I))**2
                SI2=SI2+SS*SS2
-               IF(DBETA.NE.0.0_dp) THEN
+               IF(.not. near_zero(DBETA)) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
@@ -927,7 +929,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          INTEGER I_V
          type(timer), save :: proc_timer
          HElement_t(dp) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
-         real(dp) WLIST(I_V),WORK(3*I_V)         
+         real(dp) WLIST(I_V),WORK(3*I_V)
          HElement_t(dp) NWORK(4*I_V)
          INTEGER*4 INFO
          INTEGER I,J,II
@@ -966,7 +968,7 @@ C         WRITE(6,*) "...",I_V,IMISS
          SI=0.0_dp
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
-C.. remove up to IMISS 
+C.. remove up to IMISS
          IF(HElement_t_size.EQ.1) THEN
             CALL DSYEV('V','U',I_V,RIJMAT,I_V,
      &            WLIST,WORK,3*I_V,INFO)
@@ -974,8 +976,8 @@ C.. remove up to IMISS
                WRITE(6,*) 'DYSEV error: ',INFO
                call stop_all(this_routine, "DSYEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the
 C.. appropriate projection onto the root
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -1003,8 +1005,8 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                WRITE(6,*) 'ZHEEV error: ',INFO
                call stop_all(this_routine, "ZHEEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the
 C.. appropriate projection onto the root
             SI2=0.0_dp
             DLWT=0.0_dp

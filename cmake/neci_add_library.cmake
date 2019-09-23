@@ -58,8 +58,8 @@
 
 macro( neci_add_library )
 
-    set( options  )
-    set( single_value_args TARGET TYPE OUTPUT_NAME LINKER_LANGUAGE )
+    set( options )
+    set( single_value_args TARGET TYPE OUTPUT_NAME LINKER_LANGUAGE WARNERR)
     set( multi_value_args SOURCES DEFINITIONS TEMPLATED_SOURCES PRIVATE_INCLUDES LIBS )
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
@@ -120,6 +120,18 @@ macro( neci_add_library )
         message( STATUS "Library ${_p_TARGET} using definitions: ${_target_defs}" )
         set_property( TARGET ${_p_TARGET} PROPERTY COMPILE_DEFINITIONS ${_target_defs} )
     endif()
+
+    # set the warn-error flags
+    if (DEFINED _p_WARNERR )
+	if( HAVE_WARNINGS )
+	foreach( _lang C CXX Fortran )
+	    if( CMAKE_${_lang}_COMPILER_LOADED AND DEFINED ${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG )
+	     	target_compile_options(${_p_TARGET} PRIVATE $<$<COMPILE_LANGUAGE:${_lang}>:${${PROJECT_NAME}_${_lang}_WARN_ERROR_FLAG}>)
+	    endif()
+	endforeach()
+	endif()
+    endif()
+
 
     # Add (private) includes
 

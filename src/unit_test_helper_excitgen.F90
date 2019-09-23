@@ -11,7 +11,7 @@ module unit_test_helper_excitgen
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit, MPIEnd
   use UMatCache, only: GetUMatSize, tTransGTID
-  use OneEInts, only: Tmat2D  
+  use OneEInts, only: Tmat2D
   use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
   use bit_reps, only: encode_sign, decode_bit_det
   use DetBitOps, only: EncodeBitDet, DetBitEq
@@ -39,14 +39,14 @@ module unit_test_helper_excitgen
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: ex(2,2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-      
+
       real(dp) :: pgen
-     
+
     end function calc_pgen_t
  end interface
 
- procedure(calc_pgen_t), pointer :: calc_pgen 
-  
+ procedure(calc_pgen_t), pointer :: calc_pgen
+
 contains
 
   subroutine test_excitation_generator(sampleSize, pTot, pNull, numEx, nFound, t_calc_pgen)
@@ -100,13 +100,13 @@ contains
     numEx = 0
     tAllExFound = .false.
     do
-       call GenExcitations3(nI,ilut,nJ,exflag,ex,tPar,tAllExFound,.false.)       
+       call GenExcitations3(nI,ilut,nJ,exflag,ex,tPar,tAllExFound,.false.)
        if(tAllExFound) exit
        call encodeBitDet(nJ,ilutJ)
        numEx = numEx + 1
        allEx(0:NIfDBO,numEx) = ilutJ(0:NIfDBO)
     end do
-    
+
     write(iout,*) "In total", numEx, "excits, (", nSingles,nDoubles,")"
     write(iout,*) "Exciting from", nI
 
@@ -166,11 +166,11 @@ contains
     end do
     nFound = 0
     ! class counts might be required for comparing the pgen
-    call construct_class_counts(nI, classCountOcc, classCountUnocc)    
+    call construct_class_counts(nI, classCountOcc, classCountUnocc)
     do i = 1, numEx
        call extract_sign(allEx(:,i),pgenArr)
        call decode_bit_det(nJ,allEx(:,i))
-       matel = get_helement(nI,nJ)       
+       matel = get_helement(nI,nJ)
        if(pgenArr(1) > eps) then
           nFound = nFound + 1
           write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
@@ -195,7 +195,7 @@ contains
        else
           ! excitations with zero matrix element are not required to be found
           if(abs(matel) < eps) then
-             nFound = nFound + 1          
+             nFound = nFound + 1
           else if(i < nSingles) then
              write(iout,*) "Unfound single excitation", nJ
           else
@@ -210,7 +210,7 @@ contains
     write(iout,*) "In total", numEx, "excitations"
     write(iout,*) "With", nSingles, "single excitation"
     write(iout,*) "Found", nFound, "excitations"
-    
+
   end subroutine test_excitation_generator
 
   !------------------------------------------------------------------------------------------!
@@ -243,10 +243,10 @@ contains
     call SetSysDefaults()
     tReadInt = .true.
 
-    call generate_random_integrals()    
+    call generate_random_integrals()
 
     get_umat_el => get_umat_el_normal
-    
+
     call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
     lms = lmsBase
     call GetUMatSize(nBasis, nel, umatsize)
@@ -255,20 +255,20 @@ contains
 
     call shared_allocate_mpi(umat_win, umat, (/umatsize/))
 
-    call readfciint(UMat,umat_win,nBasis,ecore,.false.)    
+    call readfciint(UMat,umat_win,nBasis,ecore,.false.)
     call SysInit()
     ! required: set up the spin info
-    
+
     call DetInit()
     ! call SpinOrbSymSetup()
-    
+
     call DetPreFreezeInit()
 
     call CalcInit()
     t_pcpp_excitgen = .true.
     call init_excit_gen_store(fcimc_excit_gen_store)
   end subroutine init_excitgen_test
-  
+
   !------------------------------------------------------------------------------------------!
 
   subroutine finalize_excitgen_test()
@@ -276,13 +276,13 @@ contains
     call shared_deallocate_mpi(umat_win, UMat)
     call MPIEnd(.false.)
   end subroutine finalize_excitgen_test
-  
+
   !------------------------------------------------------------------------------------------!
 
   ! generate an FCIDUMP file with random numbers with a given sparsity
   subroutine generate_random_integrals()
     real(dp), parameter :: sparse = 0.9
-    real(dp), parameter :: sparseT = 0.1    
+    real(dp), parameter :: sparseT = 0.1
     integer :: i,j,k,l, iunit
     real(dp) :: r, matel
     ! we get random matrix elements from the cauchy-schwartz inequalities, so
@@ -333,12 +333,12 @@ contains
 
   end subroutine generate_random_integrals
 
-  !------------------------------------------------------------------------------------------!  
+  !------------------------------------------------------------------------------------------!
 
   ! set the reference to the determinant with the first nel orbitals occupied
   subroutine set_ref()
     integer :: i
-    allocate(projEDet(nel,1))    
+    allocate(projEDet(nel,1))
     do i = 1, nel
        projEDet(i,1) = i + 2
     end do
@@ -349,6 +349,6 @@ contains
   subroutine free_ref()
     deallocate(ilutRef)
     deallocate(projEDet)
-  end subroutine free_ref  
-  
+  end subroutine free_ref
+
 end module unit_test_helper_excitgen

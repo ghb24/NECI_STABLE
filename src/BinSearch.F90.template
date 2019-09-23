@@ -61,7 +61,7 @@ contains
                   !This happens when j=i+1.  See if j==Value
                   CompLT=List(j) %(op_lt)s Value()
                   CompGT=List(j) %(op_gt)s Value()
-                  if(.not.CompGT) then 
+                  if(.not.CompGT) then
                      tSuccess=.not.CompLT !If j's not > or <, it must be ==
                      i=j                  !j's not >, so we move up to it.
                   endif
@@ -79,6 +79,6 @@ contains
 !Here i=j=N, but .not.CompLT.  We signal failure and set FoundIndex to 1 before Min.
          FoundIndex=i-1
          RETURN
-    END SUBROUTINE 
+    END SUBROUTINE
 
 end module

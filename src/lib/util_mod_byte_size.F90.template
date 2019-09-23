@@ -198,7 +198,7 @@ contains
 
         %(atype)s, intent(in) :: var
         integer :: byte_sz
-        
+
         byte_sz = %(sz)s
 
     end function

@@ -2,7 +2,7 @@
 type = integer(int32)
 sizeof = sizeof_int32
 dim = :
-elem1 = 
+elem1 =
 alloc_str = dims(1)
 conditional_enable = !defined(SX)
 
@@ -40,7 +40,7 @@ conditional_enable = !defined(SX)
 type = integer(int64)
 sizeof = sizeof_int64
 dim = :
-elem1 = 
+elem1 =
 alloc_str = dims(1)
 
 [int64_2]
@@ -72,7 +72,7 @@ alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 type = real(dp)
 sizeof = sizeof_dp
 dim = :
-elem1 = 
+elem1 =
 alloc_str = dims(1)
 
 [doub2]
@@ -104,7 +104,7 @@ alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 type = real(sp)
 sizeof = sizeof_sp
 dim = :
-elem1 = 
+elem1 =
 alloc_str = dims(1)
 conditional_enable = !defined(SX)
 
@@ -142,7 +142,7 @@ conditional_enable = !defined(SX)
 type = complex(dp)
 sizeof = sizeof_complexdp
 dim = :
-elem1 = 
+elem1 =
 alloc_str = dims(1)
 
 [complex2]
@@ -174,7 +174,7 @@ alloc_str = dims(1), dims(2), dims(3), dims(4), dims(5), dims(6)
 type = logical
 sizeof = sizeof_log
 dim = :
-elem1 = 
+elem1 =
 alloc_str = dims(1)
 
 [log2]
@@ -201,7 +201,7 @@ module shared_alloc
     private
     public :: shared_allocate, shared_deallocate, shared_allocate_iluts
 #endif
-    
+
 #ifdef __SHARED_MEM
     interface
         subroutine alloc_shared_worker (nm, pt, sz, proc) bind(c)
@@ -340,7 +340,7 @@ contains
         ! Assign to a fortran pointer.
         call c_f_pointer (tmp, ptr_tmp, dims_tmp)
 
-        ! Jiggle the pointers, so that the first dimension of the first 
+        ! Jiggle the pointers, so that the first dimension of the first
         ! one goes from 0:dims(1), rather than 1:dims(1)+1
         call iluts_pointer_jig_%(name)s (ptr_tmp2, ptr_tmp, dims)
         ptr => ptr_tmp2

@@ -13,6 +13,7 @@ use bit_reps, only: decode_bit_det
 use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
 use sort_mod, only: sort
 use constants
+use util_mod, only: operator(.isclose.)
 use SystemData, only: nel
 
 implicit none
@@ -94,7 +95,7 @@ contains
        tReferenceChanged = .true.
        call reset_coherence_counter()
     endif
-   
+
   end subroutine update_reference_space
 
 !------------------------------------------------------------------------------------------!
@@ -108,7 +109,7 @@ contains
       integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
       integer(n_int) :: ref_buf(0:NIfTot,maxNRefs), mpi_buf(0:NIfTot,nRefs)
       character(*), parameter :: this_routine = "generate_ref_space"
-      
+
       ! we need to be sure ilutRefAdi has the right size
       call reallocate_ilutRefAdi(maxNRefs)
       if(maxNRefs>0) then
@@ -228,11 +229,15 @@ contains
       integer(n_int), intent(out) :: ref_buf(0:NIfTot,maxNRefs)
       integer, intent(out) :: refs_found
       integer(n_int), allocatable :: tmp(:,:)
-      integer :: i, nBlocks
+
+!       integer :: i, nBlocks
+      integer(int64) :: i
+      integer :: nBlocks
+
       integer, parameter :: blockSize = 5000
       real(dp) :: sgn(lenof_sign)
       real(dp) :: repAvSgn
-      
+
       ref_buf = 0
       refs_found = 0
       nBlocks = 1
@@ -243,7 +248,7 @@ contains
 
       do i = 1, TotWalkers
          call extract_sign(CurrentDets(:,i),sgn)
-         ! either compare the sum of the signed or unsigned walker numbers to the 
+         ! either compare the sum of the signed or unsigned walker numbers to the
          ! initiator threshold
          if(tSignedRepAv) then
             repAvSgn = abs(sum(sgn)/inum_runs)
@@ -255,7 +260,7 @@ contains
 
             ! If the temporary is full, resize it
             if(refs_found > nBlocks*blockSize) then
-               nBlocks = nBlocks + 1 
+               nBlocks = nBlocks + 1
                call resize_ilut_list(tmp,(nBlocks - 1)*blockSize,nBlocks*blockSize)
             endif
 
@@ -266,7 +271,7 @@ contains
 
       ! we only keep at most maxNRefs determinants
       if(refs_found > maxNRefs .and. NoTypeN > 1) then
-         write(*,'(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
+         write(iout,'(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
               " SIs, which is more than the maximum of ", maxNRefs, " - truncating"
          ! in case we found more, take the maxNRefs with the highest population
          call sort(tmp(0:NIfTot,1:refs_found),sign_gt,sign_lt)
@@ -330,15 +335,15 @@ contains
          enddo
          if(iProcIndex == root .and. NoTypeN > 1) &
               write(6,'(A,I5,A,I5,A)') "In total ", all_refs_found, &
-              " SIs were found, which is more than the maximum number of ",& 
-              maxNRefs,  " - truncating"              
+              " SIs were found, which is more than the maximum number of ",&
+              maxNRefs,  " - truncating"
          ! make it look to the outside as though maxNRefs were found
          all_refs_found = maxNRefs
       else
          ! else, take all elements
          si_buf(0:NIfTot,1:all_refs_found) = mpi_buf(0:NIfTot,1:all_refs_found)
       endif
-      
+
       deallocate(mpi_buf)
     end subroutine communicate_threshold_based_SIs
 
@@ -360,9 +365,9 @@ contains
             counter = counter + 1
          endif
       enddo
-      
+
       ! if all SIs meet the minimum population, there is nothing to do
-      if(counter < nRefs) then 
+      if(counter < nRefs) then
          ! first, copy the elements to keep in the first counter slots of ilutRefAdi
          ilutRefAdi(0:NIfTot,1:counter) = tmp(0:NIfTot,1:counter)
          ! now, remove the remaining elements
@@ -370,7 +375,7 @@ contains
 
          ! give a notification
       endif
-            
+
     end subroutine apply_population_threshold
 
 !------------------------------------------------------------------------------------------!
@@ -381,7 +386,7 @@ contains
       implicit none
       character(255), intent(in) :: filename
       integer :: iunit, i, ierr
-      
+
       if(iProcIndex == root) then
          iunit = get_free_unit()
          open(iunit, file = filename, status = 'replace')
@@ -397,13 +402,13 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine print_reference_notification(iStart, iEnd, title, legend)      
+    subroutine print_reference_notification(iStart, iEnd, title, legend)
       implicit none
       integer, intent(in) :: iStart, iEnd
       character(*), intent(in) :: title
       logical, optional :: legend
       integer :: i
-      
+
       if(iProcIndex==root .and. .not. tSuppressSIOutput) then
          ! print out the given SIs sorted according to population
          call sort(ilutRefAdi(0:NIfTot,iStart:iEnd),sign_gt,sign_lt)
@@ -418,7 +423,7 @@ contains
     end subroutine print_reference_notification
 
 !------------------------------------------------------------------------------------------!
-    
+
     subroutine print_bit_rep(ilut)
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -436,7 +441,7 @@ contains
       do j = 1, lenof_sign
          write(iout,"(G16.7)",advance='no') temp_sgn(j)
       enddo
-      
+
       write(iout,'()')
 
     end subroutine print_bit_rep
@@ -446,7 +451,7 @@ contains
     subroutine update_ref_signs()
       implicit none
       integer :: iRef
-      
+
       do iRef = 1, nRefs
          call update_single_ref_sign(iRef)
       enddo
@@ -465,8 +470,8 @@ contains
       integer, intent(in) :: iRef
       integer:: nI(nel), hash_val, index
       real(dp) :: tmp_sgn(lenof_sign), mpi_sgn(lenof_sign)
-      logical :: tSuccess      
-      
+      logical :: tSuccess
+
       call decode_bit_det(nI,ilutRefAdi(:,iRef))
       call hash_table_lookup(nI, ilutRefAdi(:,iRef),NIfDBO,HashIndex,CurrentDets,&
            index,hash_val,tSuccess)
@@ -475,7 +480,7 @@ contains
       else
          tmp_sgn = 0.0_dp
       endif
-      ! This does the trick of communication: We need to get the sign to all 
+      ! This does the trick of communication: We need to get the sign to all
       ! processors, so just sum up the individual ones
       call MPISumAll(tmp_sgn, mpi_sgn)
 
@@ -495,7 +500,7 @@ contains
       integer :: iRef, jRef,  cRef
       integer(n_int) :: ilutRef_new(0:NIfTot,2*nRefs), tmp_ilut(0:NIfTot)
       logical :: missing
-      
+
       cRef = 1
       do iRef = 1 ,nRefs
          ! First, copy the current ilut to a new buffer
@@ -546,12 +551,12 @@ contains
          do i = 1, nRefsIn**cLvl
             ! Get the excitation product corresponding to i
             call get_product_excitation(i, cLvl, nRefsIn, tmp_ilut, t_is_valid)
-            
+
             ! Check, if it is already in the list (e.g. if both tau operators are those of
             ! the reference)
             if(t_is_valid) t_is_valid = ilut_not_in_list(tmp_ilut, prod_buffer, nProds)
-         
-            ! If all excitations were valid and the new ilut is not already in the buffer, 
+
+            ! If all excitations were valid and the new ilut is not already in the buffer,
             ! add it
             if(t_is_valid) then
                nProds = nProds + 1
@@ -560,7 +565,7 @@ contains
          end do
          ! Do this for each targeted product level
       end do
-            
+
       ! Write the buffer to ilutRefAdi
       call reallocate_ilutRefAdi(nProds)
       ! Reassign the number of references
@@ -626,7 +631,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
     subroutine adapt_SIThreshold(nKeep)
-      ! If we have a fixed set of superinitiators, we set the SIThreshold to be at 
+      ! If we have a fixed set of superinitiators, we set the SIThreshold to be at
       ! least the minimum of xi of that set
       implicit none
       ! the number of SIs over which the threshold shall be fixed
@@ -639,7 +644,7 @@ contains
          ! here, we guarantee that no SI is below the threshold
          if(xi < SIThreshold) SIThreshold = xi
       enddo
-      
+
     end subroutine adapt_SIThreshold
 
 !------------------------------------------------------------------------------------------!
@@ -647,7 +652,8 @@ contains
     subroutine generate_type_n_refs()
       use FciMCData, only: CurrentDets, TotWalkers
       implicit none
-      integer :: i, nTOne, nBlocks, run
+      integer :: nTOne, nBlocks, run
+      integer(int64) :: i
       integer(n_int), allocatable :: refBuf(:,:)
       real(dp) :: tmp_sign(lenof_sign)
       logical :: is_tone
@@ -656,7 +662,7 @@ contains
 
       allocate(refBuf(0:NIfTot, allocBlock))
       nBlocks = 1
-            
+
       nTOne = 0
       do i = 1, TotWalkers
          call extract_sign(CurrentDets(:,i), tmp_sign)
@@ -682,7 +688,7 @@ contains
       call add_type_n_refs(refBuf, nTOne)
 
       deallocate(refBuf)
-      
+
     end subroutine generate_type_n_refs
 
 !------------------------------------------------------------------------------------------!
@@ -696,7 +702,7 @@ contains
       integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
       logical :: tSuccess
       integer(MPIArg) :: mpi_refs_found
-      
+
       ! First, communicate the list between the processors
       mpi_refs_found = int(listSize,MPIArg)
       call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
@@ -750,7 +756,7 @@ contains
       real(dp) :: xi
       logical :: is_coherent
       logical :: is_tone
-      
+
       is_tone = .false.
       is_coherent = .false.
 
@@ -758,11 +764,11 @@ contains
       if(mag_of_run(ilut_sign, run) < NoTypeN) return
 
       ! obtain the xi-parameter
-      xi = get_sign_op(ilut) 
+      xi = get_sign_op(ilut)
       ! and compare it to the superinitiator threshold
       if(xi > SIThreshold) is_tone = .true.
     end function check_type_n_ref
-    
+
 !------------------------------------------------------------------------------------------!
 
     subroutine type_n_self_consistency_loop(nKeep)
@@ -776,7 +782,7 @@ contains
       ! we can remove at most nrefs SIs
       do i = 1, nRefs
          ! once we do not remove any SIs, self-consistency is reached
-         if(type_n_self_consistency_step(nKeep)) exit         
+         if(type_n_self_consistency_step(nKeep)) exit
       enddo
 
       ! We need to setup the hashtable anew because the SIs are reordered in
@@ -785,19 +791,19 @@ contains
     end subroutine type_n_self_consistency_loop
 
 !------------------------------------------------------------------------------------------!
-    
+
     function type_n_self_consistency_step(nKeep) result(valid)
       implicit none
       integer, intent(in) :: nKeep
       logical :: valid
       integer :: iRef, min_iRef
       real(dp) :: sub_xi, min_xi
-      
+
       valid = .true.
       min_xi = 1.0_dp
       min_iRef = 1
 
-      ! The first nKeep references are always above the threshold         
+      ! The first nKeep references are always above the threshold
       do iRef = nKeep + 1, nRefs
          ! Get the minimal xi
          sub_xi = get_sign_op(ilutRefAdi(:,iRef))
@@ -813,7 +819,7 @@ contains
          call remove_superinitiator(min_iRef)
          valid = .false.
       endif
-      
+
     end function type_n_self_consistency_step
 
 !------------------------------------------------------------------------------------------!
@@ -829,15 +835,15 @@ contains
       logical :: is_coherent
       integer :: nJRef(nel)
       real(dp) :: signRef(lenof_sign)
-#ifdef __CMPLX 
+#ifdef __CMPLX
       complex(dp) :: tmp
 #endif
       HElement_t(dp) :: h_el
-      
+
       is_coherent = .true.
       ! Obviously, we need the sign to compare coherence
       call extract_sign(ilutRefAdi(:,iRef), signRef)
-      
+
       ! For getting the matrix element, we also need the determinants
       call decode_bit_det(nJRef, ilutRefAdi(:,iRef))
 
@@ -873,13 +879,13 @@ contains
     end function check_sign_coherence
 
 !------------------------------------------------------------------------------------------!
-  
+
   subroutine initialize_c_caches(signedCache, unsignedCache, connections)
     implicit none
     HElement_t(dp), intent(out) :: signedCache
     real(dp), intent(out) :: unsignedCache
     integer, intent(out) :: connections
-    
+
     ! We potentially want to add the diagonal terms here
     signedCache = 0.0_dp
     unsignedCache = 0.0_dp
@@ -889,7 +895,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
   subroutine update_coherence_check(ilut, nI, i, signedCache, unsignedCache, connections)
-    use SystemData, only: tHPHF 
+    use SystemData, only: tHPHF
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_off_diag_helement
     implicit none
@@ -934,18 +940,18 @@ contains
        ! the population
        i_sgn = signsRef(:,i)
        do run = 1, inum_runs
-          connections = connections + mag_of_run(i_sgn,run)/inum_runs
+          connections = int(connections + mag_of_run(i_sgn,run) / inum_runs)
        enddo
     else
        connections = connections + 1
     endif
-       
+
   end subroutine update_coherence_check
 
 !------------------------------------------------------------------------------------------!
 
   subroutine eval_coherence(signedCache, unsignedCache, sgn, connections, staticInit)
-    ! Note that tweakcoherentdoubles and tavcoherentdoubles are mutually exclusive 
+    ! Note that tweakcoherentdoubles and tavcoherentdoubles are mutually exclusive
     ! in the current implementation
     use adi_data, only: tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, &
          nConnection
@@ -958,9 +964,9 @@ contains
     ! Only need to check if we are looking at a double
     !if(unsignedCache > eps .and. connections>=minSIConnect) then
        if(connections<minSIConnect .or. &
-            ! if the connections are weighted, we want to have at least 
+            ! if the connections are weighted, we want to have at least
             ! minimum-number-of-connections*SI-threshold
-            (tWeightedConnections .and. connections < minSIConnect * NoTypeN)) then 
+            (tWeightedConnections .and. connections < minSIConnect * NoTypeN)) then
           staticInit = .false.
           if(unsignedCache > EPS) nConnection = nConnection + 1
        endif
@@ -996,7 +1002,7 @@ contains
     real(dp) :: unsignedCache
     HElement_t(dp) :: signedCache
     integer :: connections
-    
+
     call initialize_c_caches(signedCache, unsignedCache, connections)
     ! Sum up all Hij cj for all superinitiators j
     do iRef = 1, nRefs
@@ -1027,7 +1033,7 @@ contains
     integer :: nRefsOld
 
     if(tVariableNRef) then
-       
+
        nRefsOld = nRefs
        ! average reference population
        cAllNoatHF = sum(AllNoatHF)/inum_runs
@@ -1035,7 +1041,7 @@ contains
        if(abs(targetRefPop - cAllNoatHF) < targetRefPopTol) return
 
        if(tSingleSteps) then
-          if(cAllNoatHF < targetRefPop) then 
+          if(cAllNoatHF < targetRefPop) then
              ! we cannot go below 0 SIs, if we hit 0, disable the adi option
              if(nRefs > 1) then
                 nRefs = nRefs - 1
@@ -1054,7 +1060,7 @@ contains
        ! store the current values for the next step
        lastAllNoatHF = cAllNoatHF
        lastNRefs = nRefsOld
-       
+
        write(6,*) "Now at ", nRefs, " superinitiators"
 
     endif
@@ -1068,11 +1074,11 @@ contains
     implicit none
     integer :: target_nref
     real(dp) :: alpha, beta, cAllNoatHF
-    
+
     target_nref = nRefs
     cAllNoatHF = sum(AllNoatHF)/inum_runs
     ! if the reference population did not change, nothing to do
-    if(lastAllNoatHF == cAllNoatHF) return
+    if (lastAllNoatHF .isclose. cAllNoatHF) return
 
     ! if we did not change the SI threshold, nothing to do
     if(lastNRefs == nRefs) return
@@ -1082,7 +1088,7 @@ contains
     ! here, we really assume exponential behaviour and extrapolate the nRefs that would then
     ! give the reference population closest to the target
     target_nref = int(log(targetRefPop/alpha)/beta)
-    
+
   end function guess_target_nref
 
 !------------------------------------------------------------------------------------------!
@@ -1092,7 +1098,7 @@ contains
     integer :: iRef
 
     call allocate_adi_caches()
-    
+
     do iRef = 1, nRefs
        call decode_bit_det(nIRef(:,iRef),ilutRefAdi(:,iRef))
        call extract_sign(ilutRefAdi(:,iRef), signsRef(:,iRef))
@@ -1117,7 +1123,7 @@ contains
 
   subroutine deallocate_adi_caches()
     implicit none
-    
+
     if(allocated(nIRef)) deallocate(nIRef)
     if(allocated(signsRef)) deallocate(signsRef)
     if(allocated(exLvlRef)) deallocate(exLvlRef)
@@ -1130,12 +1136,12 @@ contains
       integer, intent(in) :: newSize
 
       ! see resize_ilut_list for the implementation
-      call resize_ilut_list(ilutRefAdi, nRefs, newSize)      
+      call resize_ilut_list(ilutRefAdi, nRefs, newSize)
       ! The new number of references
       nRefs = newSize
 
       tUseCaches = .false.
-         
+
     end subroutine resize_ilutRefAdi
 
 !------------------------------------------------------------------------------------------!
@@ -1161,14 +1167,14 @@ contains
       allocate(list(0:NIfTot,newSize), stat = ierr)
       if(ierr .ne. 0) call stop_all(this_routine, "Not enough memory to resize ilut list")
       list = 0
-      
+
       ! Write the old entries of list into the new memory
       if(oldSize < newSize) then
          list(:,1:oldSize) = tmp(:,1:oldSize)
       else
          list(:,1:newSize) = tmp(:,1:newSize)
       endif
-      
+
     end subroutine resize_ilut_list
 
 !------------------------------------------------------------------------------------------!
@@ -1176,15 +1182,15 @@ contains
     subroutine reallocate_ilutRefAdi(size)
       implicit none
       integer, intent(in) :: size
-      
+
       ! reallocate first the ilutref itself
       if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
       allocate(ilutRefAdi(0:NIfTot,size))
       ilutRefAdi = 0_n_int
-      
+
       tSetupSIs = .false.
       tUseCaches = .false.
-      
+
     end subroutine reallocate_ilutRefAdi
 
 !------------------------------------------------------------------------------------------!
@@ -1198,7 +1204,7 @@ contains
       logical :: t_is_new
       integer :: i_ilut
 
-      t_is_new = .true.     
+      t_is_new = .true.
       do i_ilut = 1, buffer_size
          if(DetBitEQ(ilut, buffer(:,i_ilut), NIfD)) t_is_new = .false.
       enddo
@@ -1210,7 +1216,7 @@ contains
       implicit none
       integer, intent(in) :: i, nRefs, cp
       integer :: index
-      
+
       index = mod(i/(nRefs**(cp-1)),nRefs)+1
     end function cpIndex
 
@@ -1222,7 +1228,7 @@ contains
       integer :: nProdsMax
       integer :: cLvl
 
-      ! Gets the maximum number of possible product excitations of nRefs states up 
+      ! Gets the maximum number of possible product excitations of nRefs states up
       ! to a product level of prodLvl
       nProdsMax = 0
       do cLvl = 2, prodLvl
@@ -1237,16 +1243,16 @@ contains
       use adi_data, only: tAllDoubsInitiators, tAdiActive
       implicit none
 
-      write(iout,'()') 
+      write(iout,'()')
       write(iout,*) "Setting all double excitations to initiators"
       write(iout,*) "Using static references"
       write(iout,*) "Further notification on additional references will be given"
       write(iout,'()')
       tAllDoubsInitiators = .true.
       tAdiActive = .true.
-      
+
       ! tSinglePartPhase = .false.
-      
+
     end subroutine enable_adi
 
 !------------------------------------------------------------------------------------------!
@@ -1262,7 +1268,7 @@ contains
       integer, intent(in) :: run
       logical :: is_accessible
       integer :: iRef, exLevel
-      
+
       is_accessible = .false.
       exLevel = -1
       do iRef = 1, nRefs
@@ -1280,14 +1286,14 @@ contains
     subroutine reset_coherence_counter()
       use adi_data, only: nCoherentDoubles
       implicit none
-      
+
       nCoherentDoubles = 0
       nIncoherentDets = 0
       nConnection = 0
     end subroutine reset_coherence_counter
 
 !------------------------------------------------------------------------------------------!
-    
+
     subroutine update_first_reference()
       use FciMCData, only: tSinglePartPhase
       implicit none
@@ -1308,8 +1314,8 @@ contains
          nullify(SIHash)
          first_call = .false.
       endif
-      
-      htBlock = 5*HashLengthFrac*nRefs
+
+      htBlock = int(5 * HashLengthFrac * nRefs)
       if(associated(SIHash)) deallocate(SIHash)
       allocate(SIHash(htBlock))
       call init_hash_table(SIHash)
@@ -1345,13 +1351,13 @@ contains
       integer, intent(in) :: cRef
       integer :: nI(nel), index, hashVal
       logical, intent(out) :: tSuccess
-      
+
       call decode_bit_det(nI, ilut)
       call hash_table_lookup(nI, ilut, NIfDBO, SIHash, ilutRefAdi, index, hashVal, tSuccess)
       ! If the SI is already present, do nothing
       ! TODO: Set flags for multi-replica
       if(tSuccess) return
-      
+
       index = cRef
       ! Else, add a hashtable entry
       call add_hash_table_entry(SIHash, index, hashVal)
@@ -1365,7 +1371,7 @@ contains
       integer :: iRef
       logical :: tSuccess
       character(*), parameter :: this_routine = "assign_SIHash_TZero"
-      
+
       tSuccess = .false.
       ! make sure the hash table has an appropiate size
       call setup_SIHash()
@@ -1374,12 +1380,12 @@ contains
          ! By construction, there can't be duplicates within the type-0 SIs
          if(tSuccess) call stop_all(this_routine, "Duplicate type-0 superinitiator")
       enddo
-            
+
     end subroutine assign_SIHash_TZero
 
 !------------------------------------------------------------------------------------------!
-    
-    subroutine check_superinitiator(ilut, nI, staticInit) 
+
+    subroutine check_superinitiator(ilut, nI, staticInit)
       use hash, only: hash_table_lookup
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -1387,7 +1393,7 @@ contains
       logical, intent(inout) :: staticInit
       integer :: index, hashVal
       logical :: tSuccess
-      
+
       ! Only perform the check if the superinitiators are initialized
       if(tSetupSIs) then
          ! Now, look into the SI-hashtable and return whether nI is there
@@ -1401,10 +1407,10 @@ contains
 
     subroutine clean_adi()
       implicit none
-      
+
       call deallocate_adi_caches()
       if(associated(SIHash)) deallocate(SIHash)
       if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
     end subroutine clean_adi
-    
+
 end module adi_references

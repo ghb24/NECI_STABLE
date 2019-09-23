@@ -23,13 +23,13 @@ MODULE PrecalcData
 !PRE_TAY(3,...)=The precalc vertex level
 !PREIV_MAX = The largest vertex level to be optimised in precalc
         INTEGER PREIV_MAX,PRE_TAY(3,10)
-          
+
 !TRUECYCLES are the cycles needed in the main program to achieve an error specified by TOTALERROR
         INTEGER TRUECYCLES
-          
+
 !USEVAR indicates which precalc optimised values at each vertex level are to be used for each vertex level in the main program.
         INTEGER USEVAR(2:10,8)
-          
+
 !PRE_TAYREAL(1,...)= 'c epsilon' - if the difference between the optimised 'c' parameter and 0.D0 is less than this, then just set it to zero.
 !PRE_TAYREAL(2,...) is the tolerance for convergence onto an optimised parameter in terms of the change in the brent algorithm for the parameter for each iteration.
 !TOTALERROR is a specified desired error in the main program, from which the number of cycles needed will be approximated.
@@ -39,7 +39,7 @@ MODULE PrecalcData
 !GRID/LINEVARPAR gives the parameters for the search when TGRID/LINEVAR is set.
         REAL*8 GRIDVARPAR(2:10,6),LINEVARPAR(2:10,6)
 
-!The following arrays are all used to hold data in the precalc variance calculations. 
+!The following arrays are all used to hold data in the precalc variance calculations.
 !NMEM is excitation generators(if they are saved)
 !PGENLIST is a list of the PGens of the randomly generated graphs
 !GRAPHPARAMS are the weightings that are used in the graph generations

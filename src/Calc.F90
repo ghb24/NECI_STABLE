@@ -45,6 +45,7 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
+    use util_mod, only: near_zero, operator(.isclose.)
 
     implicit none
 
@@ -146,7 +147,7 @@ contains
           AdaptiveShiftThresh = 10
           AdaptiveShiftExpo = 1
           AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
-          tAAS_MatEle = .false. 
+          tAAS_MatEle = .false.
           tAAS_MatEle2 = .false.
           tAAS_MatEle3 = .false.
           tAAS_MatEle4 = .false.
@@ -291,7 +292,7 @@ contains
           HFPopThresh=0
           tSpatialOnlyHash = .false.
           tStoredDets = .false.
-          tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset 
+          tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
           tZeroRef = .false.
           lNoTriples=.false.
@@ -1801,7 +1802,7 @@ contains
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")
-                ! use the density matrix obtained from the initiator space to 
+                ! use the density matrix obtained from the initiator space to
                 ! correct for the adaptive shift
                 tInitsRDMRef = .true.
                 tInitsRDM = .true.
@@ -2138,11 +2139,11 @@ contains
 !can only spawn back on to the determinant from which they came.  This is the star approximation from the CAS space.
                 tTruncInitiator=.true.
              case("AVSPAWN-INITIATORS")
-! Create initiators based on the average spawn onto some determinant                
+! Create initiators based on the average spawn onto some determinant
                 tActivateLAS = .true.
                 if(item < nitems) call getf(spawnSgnThresh)
                 if(item < nitems) call geti(minInitSpawns)
-                
+
              case("DELAY-DEATHS")
                 ! have determinants persits for a number of iterations after their
                 ! occupation reached 0
@@ -2175,10 +2176,10 @@ contains
                 if(item < nitems) call getI(initMaxSenior)
 
              case("ALL-SENIORITY-SURVIVE")
-                ! keep all spawns, regardless of initiator criterium, onto 
+                ! keep all spawns, regardless of initiator criterium, onto
                 ! determinants up to a given Seniority level and excitation level
                 tSpawnSeniorityBased = .true.
-                do while(item < nitems) 
+                do while(item < nitems)
                    ! Default: Max Seniority level 0
                    call geti(maxKeepNOpenBuf)
                    ! Default: Max excit level 8
@@ -2324,7 +2325,7 @@ contains
 
              case("STORE-DETS")
                 ! store all determinants in their decoded form in memory
-                ! this gives a speed-up at the cost of the memory required for storing 
+                ! this gives a speed-up at the cost of the memory required for storing
                 ! all of them
                 tStoredDets = .true.
 
@@ -2956,10 +2957,10 @@ contains
                       ! only using av ignores sign tendency and can overestimate
                       ! the correctness of a sign
                       tAvCoherentDoubles = .true.
-		   case("OFF")
-		      ! do not perform a coherence check
-		      tAvCoherentDoubles = .false.
-		      tWeakCoherentDoubles = .false.
+                   case("OFF")
+                      ! do not perform a coherence check
+                      tAvCoherentDoubles = .false.
+                      tWeakCoherentDoubles = .false.
                    case default
                       ! default is WEAK
                       tAvCoherentDoubles = .true.
@@ -2980,12 +2981,12 @@ contains
              case("DYNAMIC-SUPERINITIATORS")
                 ! Re-evaluate the superinitiators every SIUpdateInterval steps
                 ! Beware, this can be very expensive
-		! By default, it is 100, to turn it off, use 0
+                ! By default, it is 100, to turn it off, use 0
                 call readi(SIUpdateInterval)
 
-       	     case("STATIC-SUPERINITIATORS")
-	        ! Do not re-evaluate the superinitiators
-		SIUpdateInterval = 0
+             case("STATIC-SUPERINITIATORS")
+                ! Do not re-evaluate the superinitiators
+                SIUpdateInterval = 0
 
              case("INITIATOR-COHERENCE-THRESHOLD")
                 ! Set the minimal coherence parameter for superinitiator-related
@@ -3063,8 +3064,8 @@ contains
                 ! set the minimum value for superinitiator population
                 call readf(NoTypeN)
 
-	     case("SUPPRESS-SUPERINITIATOR-OUTPUT")
-	        ! just for backwards-compatibility
+             case("SUPPRESS-SUPERINITIATOR-OUTPUT")
+                ! just for backwards-compatibility
 
              case("WRITE-SUPERINITIATOR-OUTPUT")
                 ! Do not output the newly generated superinitiators upon generation
@@ -3098,7 +3099,7 @@ contains
 
           end do calc
 
-          IF((.not.TReadPops).and.(ScaleWalkers.ne.1.0_dp)) THEN
+          IF(.not. (TReadPops .or. (ScaleWalkers .isclose. 1.0_dp))) THEN
               call report("Can only specify to scale walkers if READPOPS is set",.true.)
           ENDIF
 
@@ -3181,7 +3182,7 @@ contains
 !             call stop_all(this_routine, "G_VNC_FAC LE 0")
 !          ENDIF
 
-          IF(BETAP.NE.0.0_dp) THEN
+          IF(.not. near_zero(BETAP)) THEN
              I_P=NINT(BETA/BETAP)
              IF(.not.tFCIMC) THEN
                  WRITE(6,*) 'BETAP=',BETAP

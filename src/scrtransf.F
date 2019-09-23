@@ -7,7 +7,7 @@ C.. ETRIAL, but ETRIAL not longer has a function
       FUNCTION GETHELEMENT2T(NI,NJ,NEL,NBASISMAX,
      &   NBASIS,ECORE,IC2,BTRANS,NSBASIS,NSPINS)
          use constants, only: dp
-         IMPLICIT NONE      
+         IMPLICIT NONE
          INTEGER NBASIS,NSBASIS,NSPINS
          INTEGER NEL,NI(NEL),NJ(NEL),IC,nBasisMax(5,*),IC2
          real(dp) TOTSUM,ECORE
@@ -17,7 +17,7 @@ C.. ETRIAL, but ETRIAL not longer has a function
          GETHELEMENT2T=0.0_dp
          IF(IC.LT.0) IC=IGETEXCITLEVEL(NI,NJ,NEL)
 C.. if we differ by more than 2 spin orbital, then the hamiltonian
-Celement is 0         
+Celement is 0
          IF(IC.GT.2) RETURN
 C.. SLTCND has IC is # electrons the same in 2 dets
          CALL SLTCNDT(NEL,NBASISMAX,
@@ -35,7 +35,7 @@ C.. The Slater Condon Rules for a transformed basis
          use constants, only: dp
       IMPLICIT NONE
 C..
-C.. 
+C..
       INTEGER IC,NEL,NHG
       INTEGER NDET1(NEL),NDET2(NEL)
       INTEGER N1E(NHG),N2E(NHG)
@@ -54,16 +54,16 @@ C..Also returns the sign change IPTOT
 C..We now check to see which Slater-Condon rule to apply
       COULCOUPLE=1.0_dp
       IF(IC.EQ.(NEL-2)) THEN
-C..Differ by two 
+C..Differ by two
         CALL SCR2T(NEL,NDET1,NDET2,
      &         COULCOUPLE,BTRANS,
      &   NSBASIS,NSPINS,TOTSUM)
       ELSEIF(IC.EQ.(NEL-1)) THEN
-C..Differ by one 
+C..Differ by one
         CALL SCR1T(NEL,NDET1,NDET2,COULCOUPLE,BTRANS,NSBASIS,NSPINS,
      &             TOTSUM)
       ELSEIF(IC.EQ.NEL) THEN
-C..Differ by none 
+C..Differ by none
         CALL SCR0T(NEL,NDET1,COULCOUPLE,BTRANS,NSBASIS,
      &             NSPINS,TOTSUM)
 C.. If we're in the UEG, we need to add in the part of the background
@@ -96,7 +96,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
          INTEGER I,J
          real(dp) SUM1,SUM2,PI
 
-C.. Basis transformation matrix.  
+C.. Basis transformation matrix.
          real(dp) BTRANS(NSBASIS,NSBASIS,NSPINS)
          PI=ACOS(-1.0_dp)
 C..This is the Slater-Condon rule when the two determinants are the
@@ -149,7 +149,7 @@ C.. was (NHG/ISS,NHG/ISS,NHG/ISS,NHG/ISS)
 C.. NB in HF we need to include TMAT element
 
 C..In this routine the determinants differ by only 1 spin orbital
-C..The integers ND1 and ND2 store the spin orbitals that are different 
+C..The integers ND1 and ND2 store the spin orbitals that are different
 C..in each determinant
          ND1=0
          ND2=0
@@ -183,9 +183,9 @@ C..Now we compare NDET2 to NDET1
              IF(IQ.GE.1) GOTO 200
            ENDIF
          ENDDO
-200      CONTINUE 
+200      CONTINUE
 C.. ND2 is the different basis fn in NDET2
-C..The two electron integrals are to be done 
+C..The two electron integrals are to be done
          IQ=0
          DO I=1,NEL
            IF(NDET1(I).NE.ND1) THEN
@@ -193,8 +193,8 @@ C..The two electron integrals are to be done
 C          ID(IQ) = GTID(NDET1(I))
              ID(IQ)=NDET1(I)
              IF(IQ.GE.(NEL-1)) GOTO 500
-           ENDIF 
-         ENDDO 
+           ENDIF
+         ENDDO
 500      CONTINUE
          IF(ND1.EQ.ND2)
      &        call stop_all(this_routine, ' !!! PROBLEM IN SCR1T !!! ')
@@ -234,7 +234,7 @@ C..  NDET1 and NDET2
 C..This routine is the EASIEST of the Slater-Condon rules.
 C..The determinants differ by two spin orbitals.
 C..The arrays ND1 and ND2 contain the integers from determinant 1 and 2
-C..that are NOT common to both.  
+C..that are NOT common to both.
          IMPLICIT NONE
          INTEGER NEL
          INTEGER NSBASIS,NSPINS
@@ -287,7 +287,7 @@ C      ID1 = GTID(ND1(2))
 C..
 C      ID4 = GTID(ND2(1))
 C      ID3 = GTID(ND2(2))
-C..Check the spin combinations of N', N'-1, N and N-1 
+C..Check the spin combinations of N', N'-1, N and N-1
 C      IDS(1:4)=0
 C      CALL GENKRON(G1,NBASISMAX,ND1,ND2,IDS)
 C..N'>N'-1 and N>N-1 *See Levine for rule 3*
@@ -295,7 +295,7 @@ C      TOTSUM=UMAT(ID1,ID2,ID3,ID4)*DFLOAT(IDS(1)*IDS(2))-
 C     &      UMAT(ID1,ID2,ID4,ID3)*DFLOAT(IDS(3)*IDS(4))
 C      IF(TOTSUM.NE.0.0_dp) CALL CHK_MS(NDET1,NDET2,NBASISMAX,
 C     &   NEL,3,G)
-      
+
          CALL GETTRUMATEL(ND1(2),ND1(1),ND2(2),ND2(1),
      &         BTRANS,NSBASIS,NSPINS,TRUMAT)
 C.. the spin checking occurs in GETTRUMATEL
@@ -307,7 +307,7 @@ C.. and also the exchange
 C         SUM2=SUM2-UMAT(ID(I),ID(J),ID(J),ID(I))
          TOTSUM=TOTSUM*COULCOUPLE
          RETURN
-      END 
+      END
 
 C.. Calculate <phi_a phi_b | U | phi_c phi_d> from <u_i u_j|U|u_k u_l>
       SUBROUTINE GETTRUMATEL(A,B,C,D,BTRANS,NSBASIS,NSPINS,TOTSUM)

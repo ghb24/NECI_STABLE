@@ -17,7 +17,7 @@ real(dp) CALCP_SUM(0:1023,3),CALCP_HSUM(0:1023)
 ! Data originally in csf.inc.
 ! The offset of the CSF open shell dets
 integer, parameter :: CSF_NBSTART=100000
- 
+
 end module legacy_data
 
 subroutine legacy_data_dummy

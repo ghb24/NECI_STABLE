@@ -26,7 +26,7 @@ C         INTEGER NI(4,NEL), NJ(4,NEL)
          type(timer), save :: proc_timer
          character(*), parameter :: thisroutine='DMONTECARLO'
 
-C.. NI, NJ are the quantum numbers of 
+C.. NI, NJ are the quantum numbers of
          proc_timer%timer_name=thisroutine
          call set_timer(proc_timer)
 C.. Randomize the seed:
@@ -71,7 +71,7 @@ C.. Calculate RHO_II
          WRITE(6,*) "DLWDB(1)=",DLWDB
          TOT=0.D0
          OPEN(17,FILE="MC",STATUS="UNKNOWN")
-         IEQS=IEQSTEPS          
+         IEQS=IEQSTEPS
          DO IT=1,IEQSTEPS+IMCSTEPS
 C.. Pick a random new determinant
             IJ=0
@@ -123,7 +123,7 @@ C..  NB - this NaN test may not be portable
 C               RAT=WJ/WI
                IF(DLRAT.LT.0.D0) THEN
                   RAT=EXP(DLRAT)
-                  LACC=.TRUE. 
+                  LACC=.TRUE.
                   IF(RAN2(ISEED)*1.0.GT.RAT) LACC=.FALSE.
                ELSE
                   LACC=.TRUE.
@@ -151,7 +151,7 @@ C               WI=WJ
                WLSI=WLSJ
                II=IJ
                CALL NECI_ICOPY(NEL,NJ,1,NI,1)
-            ENDIF      
+            ENDIF
             IF(IEQS.EQ.0) THEN
                TOT=TOT+DLWDB
             ELSE
@@ -268,7 +268,7 @@ C.. We couldn't find it
          COMPLEX*16 FCK(*)
 
          INTEGER, ALLOCATABLE :: LSTE(:)
-         
+
 CNEL,0:NBASIS*NBASIS*NEL*NEL,0:I_HMAX-1)
          INTEGER, ALLOCATABLE :: ICE(:)
          REAL*8, ALLOCATABLE :: RIJLIST(:)
@@ -289,7 +289,7 @@ C0:NBASIS*NBASIS*NEL*NEL,0:I_HMAX-1)
          type(timer), save :: proc_timer
          character(*), parameter :: thisroutine='DMONTECARLO2'
          SUMSQ=0.D0
-C.. NI, NJ are the quantum numbers of 
+C.. NI, NJ are the quantum numbers of
          proc_timer%timer_name=thisroutine
          call set_timer(proc_timer)
 C.. Randomize the seed:
@@ -340,7 +340,7 @@ C.. Hard code the start position as the NEL lowest energy basis fns
          DO I=1,NEL
             LSTDET(I,NFIRST)=NI(I)
          ENDDO
-        IF(NTAY.GE.0) THEN 
+        IF(NTAY.GE.0) THEN
          WRITE(6,*) '<D0|H|D0>=', get_helement (nI, nI, 0)
          WRITE(6,*) '<D0|T|D0>=',CALCT(NI,NEL,G1,NBASIS)
         ENDIF
@@ -408,7 +408,7 @@ C         WRITE(6,*) "W(1)=",
          WRITE(6,STR) "  (",(NI(N),N=1,NEL),")"
          TOT=0.D0
          OPEN(17,FILE="MC",STATUS="UNKNOWN")
-         IEQS=IEQSTEPS          
+         IEQS=IEQSTEPS
          DO IT=1,IEQSTEPS+IMCSTEPS
 
             IF(IT.GT.IEQ1.AND.IT.LE.IEQ2) THEN
@@ -423,7 +423,7 @@ C.. Invalidate the cache
      &          ICE,RIJLIST,NWHTAY,ILOGGING,ECORE,ILMAX,WLRI,WLSI,
      &          DBETAC,DLWDB)
                ENDIF
-            ENDIF               
+            ENDIF
 
 C.. Pick a random new determinant
             IJ=0
@@ -488,12 +488,12 @@ C..     BETA->NHG
                ENDIF
             ELSE
                WLRJ=WLRIS(IND)
-               WLSJ=WLSIS(IND)               
+               WLSJ=WLSIS(IND)
             ENDIF
-           WRITE(17,"(2E25.16)",advance='no') 
+           WRITE(17,"(2E25.16)",advance='no')
      &                            EXP(WLRI*I_P+WLSI),EXP(WLRJ*I_P+WLSJ)
             WRITE(STR,"(A,I3,A,I3,A)") "(A,",NEL,"I3,A,",NEL,"I3,A)"
-           WRITE(17,STR,advance='no') "  (",(NI(N),N=1,NEL),") 
+           WRITE(17,STR,advance='no') "  (",(NI(N),N=1,NEL),")
      &         (",(NJ(N),N=1,NEL),")->"
 C..  At this stage we have decomposed ln W_I = p ln RHO_II + ln S_I
 C..  Although S_I should be >0, our approximation to it may be 0 or <0,
@@ -509,7 +509,7 @@ C.. if we've got a nan as our weight we don't accept
                DLRAT=I_P*(WLRJ-WLRI)+(WLSJ-WLSI)
                IF(DLRAT.LT.0.D0) THEN
                   RAT=EXP(DLRAT)
-                  LACC=.TRUE. 
+                  LACC=.TRUE.
                   IF(RAN2(ISEED)*1.0.GT.RAT) LACC=.FALSE.
                ELSE
                   LACC=.TRUE.
@@ -517,7 +517,7 @@ C.. use up a random number to keep consistency.
                   TT=RAN2(ISEED)
                   TT=TT+1
                ENDIF
-            ENDIF   
+            ENDIF
 C.. We see if we've calculated DLWDB.  If not, a NaN is stored in its place,
 C.. so we must calc it.
 
@@ -567,14 +567,14 @@ C.. if there's space, we store
                II=IJ
                DLWDBC=DLWDB
                CALL NECI_ICOPY(NEL,NJ,1,NI,1)
-            ENDIF      
+            ENDIF
             IF(IEQS.EQ.0) THEN
                TOT=TOT+DLWDBC
                SUMSQ=SUMSQ+DLWDBC*DLWDBC
             ELSE
                IEQS=IEQS-1
             ENDIF
-            WRITE(STR,"(A,I3,A)") "(A,",NEL,"I3,A,2E25.16)"            
+            WRITE(STR,"(A,I3,A)") "(A,",NEL,"I3,A,2E25.16)"
             WRITE(17,STR) "  (",(NI(N),N=1,NEL),")",DLWDBC,TOT
             IF(MOD(IT,100).EQ.0) WRITE(6,*) IT
             IF(MOD(IT,10).EQ.0) CALL FLUSH(17)
@@ -598,7 +598,7 @@ C.. if there's space, we store
          call halt_timer(proc_timer)
       END
 
- 
+
 
 
 C.. Store the dets in a linked list (sorted).
@@ -656,7 +656,7 @@ C.  so this is NAFTER)
             IF(NAFTER.EQ.0) NBEFORE=NODE
             NODE=LSTDET(NEL+2,NODE)
          ENDDO
-         ENDIF         
+         ENDIF
 C.. Create a new node if we can
          IF(NCOUNT.LT.LISTMAX) THEN
             NODE=NCOUNT+1
@@ -697,7 +697,7 @@ C            WRITE(6,*) "Store ",NODE
          REAL*8 RAN2
          type(timer), save :: proc_timer
 
-C.. NI, NJ are the quantum numbers of 
+C.. NI, NJ are the quantum numbers of
          proc_timer%timer_name='DMC       '
          call set_timer(proc_timer)
 C.. Randomize the seed:
@@ -725,7 +725,7 @@ C.. Now find which number determinant this corresponds to
          WRITE(6,*) "WLSI(1)=",WLSI
          TOT=0.D0
          OPEN(17,FILE="MC",STATUS="UNKNOWN")
-         IEQS=IEQSTEPS          
+         IEQS=IEQSTEPS
          DO IT=1,IEQSTEPS+IMCSTEPS
 C.. Pick a random new determinant
             IJ=0
@@ -762,7 +762,7 @@ C..  NB - this NaN test may not be portable
 C               RAT=WJ/WI
                IF(DLRAT.LT.0.D0) THEN
                   RAT=EXP(DLRAT)
-                  LACC=.TRUE. 
+                  LACC=.TRUE.
                   RNUM=RAN2(ISEED)*1.D0
                   IF(RNUM.GT.RAT) LACC=.FALSE.
                ELSE
@@ -778,7 +778,7 @@ C.. use up a random number to keep consistency.
                WLSI=WLSJ
                II=IJ
                CALL NECI_ICOPY(NEL,NJ,1,NI,1)
-            ENDIF      
+            ENDIF
             IF(IEQS.EQ.0) THEN
                TOT=TOT+DLWDB
                SUMSQ=SUMSQ+DLWDB*DLWDB
@@ -840,7 +840,7 @@ C.. Now pick these orbitals randomly until we find one of the right spin
 C.. CHeck spin
             IF(G1(BRR(J))%Ms.NE.G1(IEL)%Ms) J=0
          ENDDO
-         IGETENEIGHBOURDEG=BRR(J)  
+         IGETENEIGHBOURDEG=BRR(J)
          RETURN
       END
 
