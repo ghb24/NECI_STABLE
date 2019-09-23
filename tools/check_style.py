@@ -81,7 +81,8 @@ def output_errors(errors):
     for file_path in errors:
         for line_number, style_errors_on_line in errors[file_path].items():
             for style_error in style_errors_on_line:
-                print(style_error.report(file_path, line_number))
+                # python is 0 indexed. Go to 1 indexed line number for output
+                print(style_error.report(file_path, line_number + 1))
 
 
 def get_files(start_dir):

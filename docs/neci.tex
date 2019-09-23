@@ -1457,6 +1457,21 @@ and a range of other guidelines.
 			optimised or debug builds.
 		\end{warningbox}
 
+	\headitem{Floating point comparison and integer division}
+
+    It is usually a bad idea to test floating point numbers
+    for (in-)equality using \code{==} or \code{/=}.
+    Equality should rather be tested with an expression like
+    $ |a - b| < \epsilon$.
+    In the \code{util_mod} module there are \code{near_zero}
+    and \code{operator(.isclose.)} which should be used for this purpose.
+
+    If one divides two integers \code{5 / 3 == 1} the result gets truncated
+    to the nearest integer.
+    Sometimes this is not wanted, and the compiler warns about it.
+    For this reason one should use \code{5 .div. 3} to make it explicit
+    that integer division is indeed wanted.
+
 	\headitem{Modules and interfaces}
 		\begin{itemize}
 			\item
@@ -1469,18 +1484,25 @@ and a range of other guidelines.
             module module_name
 
             	! To the extent possible, include statements should be at the
-				! beginning of a module, and not elsewhere.
+              ! beginning of a module, and not elsewhere.
+              ! If possible they should import only actually used identifiers.
             	use SystemData, only: nel, tHPHF
             	use module_data
             	use constants
             	implicit none
 
-            	! Add an interface to an external (non-modularised) function
+              ! To the extent possible, declare all identifiers of
+              !   a module as private by default
+              !   and export explicitly with the public keyword.
+              private
+              public :: sub_name, fn_name
+
+                ! Add an interface to an external (non-modularised) function
             	interface external_fn
             		function splat_it(in_val) result(ret_val) &
 											  bind(c, name='symbol_name')
             			! n.b. interface statements shield from modular includes
-            			use constants
+            			import :: dp
             			implicit none
             			integer, intent(in) :: in_val
             			real(dp) :: ret_val
@@ -1501,7 +1523,7 @@ and a range of other guidelines.
 
             	[pure|elemental] function fn_name(in_val) result(ret_val)
 
-            		! This is a description of what the function does does
+            		! This is a description of what the function does
 
             		integer, intent(in) :: in_val
             		real(dp) :: ret_val
