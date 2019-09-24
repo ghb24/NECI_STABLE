@@ -961,9 +961,6 @@ contains
                     frequency_bins_para(ind) = frequency_bins_para(ind) + 1
                 else
                     above_max_para = above_max_para + 1
-                    print *, "Warning: parallel excitation H_ij/pgen above max_frequency_bound!"
-                    print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
-                    print *, " Consider increasing the bound!"
 #ifdef __DEBUG
                     print *, "mat_ele: ", mat_ele
                     print *, "pgen: ", pgen
@@ -1035,9 +1032,6 @@ contains
 
                 else
                     above_max_anti = above_max_anti + 1
-                    print *, "Warning: anti-parallel excitation H_ij/pgen above max_frequency_bound!"
-                    print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
-                    print *, " Consider increasing the bound!"
 #ifdef __DEBUG
                     print *, "mat_ele: ", mat_ele
                     print *, "pgen: ", pgen
@@ -1239,9 +1233,6 @@ contains
 
         else
             above_max_doubles = above_max_doubles + 1
-            print *, "Warning: excitation H_ij/pgen above max_frequency_bound!"
-            print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
-            print *, " Consider increasing the bound!"
         end if
 
         if (ratio > gamma_doub) gamma_doub = ratio

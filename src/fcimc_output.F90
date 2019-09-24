@@ -1771,11 +1771,11 @@ contains
             endif
 #else
             if(tMolpro) then
-                write (*,*) '*WARNING* - Number of particles/determinants &
+                write (iout,*) '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
                                  &Errors imminent. Increase MEMORYFACWALKERS, or reduce rate of growth.'
             else
-                write (*,*) '*WARNING* - Number of particles/determinants &
+                write (iout,*) '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory on task ', iProcIndex, '. &
                                  &Errors imminent. Increase MEMORYFACPART, or reduce rate of growth.'
             endif
@@ -1801,11 +1801,11 @@ contains
                     endif
 #else
                     if(tMolpro) then
-                        write (*,*) '*WARNING* - Highest processor spawned &
+                        write (iout,*) '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
                                          &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                     else
-                        write (*,*) '*WARNING* - Highest processor spawned &
+                        write (iout,*) '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
                                          &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                     endif
@@ -1828,11 +1828,11 @@ contains
                 endif
 #else
                 if(tMolpro) then
-                    write (*,*) '*WARNING* - Highest processor spawned &
+                    write (iout,*) '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
                                      &Errors imminent. Increase MEMORYFACSPAWNED, or reduce spawning rate.'
                 else
-                    write (*,*) '*WARNING* - Highest processor spawned &
+                    write (iout,*) '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory on task ',iProcIndex,' .&
                                      &Errors imminent. Increase MEMORYFACSPAWN, or reduce spawning rate.'
                 endif

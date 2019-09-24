@@ -1128,8 +1128,6 @@ MODULE UMatCache
          ENDIF
       end function HasKPoints
 
-
-
     elemental function GTID (gInd) result(id)
 
         ! Convert spin orbital index to spacial orbital index if required

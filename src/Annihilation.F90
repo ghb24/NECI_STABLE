@@ -199,7 +199,7 @@ module AnnihilationMod
 #ifdef __DEBUG
             write(6,*) MaxIndex,MaxSpawned
 #else
-            write(*,*) 'On task ',iProcIndex,': ',MaxIndex,MaxSpawned
+            write(iout,*) 'On task ',iProcIndex,': ',MaxIndex,MaxSpawned
 #endif
             call Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")

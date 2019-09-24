@@ -271,7 +271,7 @@ contains
 
       ! we only keep at most maxNRefs determinants
       if(refs_found > maxNRefs .and. NoTypeN > 1) then
-         write(*,'(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
+         write(iout,'(A,I5,A,I5,A,I5,A)') "On proc ", iProcIndex, " found ", refs_found, &
               " SIs, which is more than the maximum of ", maxNRefs, " - truncating"
          ! in case we found more, take the maxNRefs with the highest population
          call sort(tmp(0:NIfTot,1:refs_found),sign_gt,sign_lt)

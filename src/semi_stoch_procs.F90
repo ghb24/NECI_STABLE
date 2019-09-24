@@ -955,9 +955,9 @@ contains
                        &Semi-Stochastic initialisation'
             write(6,*) 'Please increase MEMORYFACSPAWN'
 #else
-            write(*,*) 'Spawned parts array will not be big enough for &
+            write(iout,*) 'Spawned parts array will not be big enough for &
                        &Semi-Stochastic initialisation on task ', iProcIndex
-            write(*,*) 'Please increase MEMORYFACSPAWN'
+            write(iout,*) 'Please increase MEMORYFACSPAWN'
 #endif
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
@@ -1023,9 +1023,9 @@ contains
                                &semi-stochastic initialisation'
                     write(6,*) 'Please increase MEMORYFACSPAWN'
 #else
-                    write(*,*) 'Spawned parts array too small for &
+                    write(iout,*) 'Spawned parts array too small for &
                                &semi-stochastic initialisation on task ', iProcIndex
-                    write(*,*) 'Please increase MEMORYFACSPAWN'
+                    write(iout,*) 'Please increase MEMORYFACSPAWN'
 #endif
                     call stop_all(this_routine, 'Insufficient memory assigned')
                 end if

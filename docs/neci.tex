@@ -1484,24 +1484,24 @@ and a range of other guidelines.
             module module_name
 
             	! To the extent possible, include statements should be at the
-              ! beginning of a module, and not elsewhere.
-              ! If possible they should import only actually used identifiers.
+                ! beginning of a module, and not elsewhere.
+                ! If possible they should import only actually used identifiers.
             	use SystemData, only: nel, tHPHF
             	use module_data
             	use constants
             	implicit none
 
-              ! To the extent possible, declare all identifiers of
-              !   a module as private by default
-              !   and export explicitly with the public keyword.
-              private
-              public :: sub_name, fn_name
+                ! To the extent possible, declare all identifiers of
+                !   a module as private by default
+                !   and export explicitly with the public keyword.
+                private
+                public :: sub_name, fn_name
 
-            	! Add an interface to an external (non-modularised) function
+                ! Add an interface to an external (non-modularised) function
             	interface external_fn
-            		function splat_it(in_val) result(ret_val) &
+            	    function splat_it(in_val) result(ret_val) &
 											  bind(c, name='symbol_name')
-            			! n.b. interface statements shield from modular includes
+            		    ! n.b. interface statements shield from modular includes
             			import :: dp
             			implicit none
             			integer, intent(in) :: in_val
@@ -3153,7 +3153,7 @@ of the code. This cause a large array of changes to the compiled code:
 				The 4-index integrals are specified with the format
 				\code{Z i j k l}, where \code{Z} is the \code{real} or
 				\code{complex} element, and the indices are integers. All
-				indices are one-based. Indices are in {\bf chemical notation}!
+				indices are one-based. Indices are in \textbf{chemical notation}!
 
 			\headitem{2-index integrals}
 				The 2-index integrals are specified in the same way with the

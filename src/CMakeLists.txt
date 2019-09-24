@@ -6,6 +6,7 @@ set( SRC_FILES
     adi_references.F90
     adi_initiators.F90
     adi_data.F90
+    aliasSampling.F90
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
@@ -165,9 +166,11 @@ set( SRC_FILES
     SystemData.F90
     System_neci.F90
     tau_search.F90
+    tc_precomputed_excitgen.F90
     trial_wf_gen.F90
     trial_ht_procs.F90
     UMatCache.F90
+    unit_test_helper_excitgen.F90
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
