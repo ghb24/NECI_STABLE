@@ -2,10 +2,10 @@
 !.. Calculate RHO = exp(-(BETA/P)H) matrix element <I|RHO|J> (= RHO_IJ)
 !.. Trotter = RHO ~ exp(-(BETA/P)H'/2)exp(-(BETA/P)U')exp(-(BETA/P)H'/2)
 !.. where H' is the diag part of H, and U' is the non-diag
-!.. 
+!..
 !.. NTAY is the order of the Taylor expansion for U'
 !.. IC is the number of basis fns by which NI and NJ differ (or -1 if not known)
-!.. 
+!..
 SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
                      NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
       Use Determinants, only: get_helement, nUHFDet, &
@@ -18,12 +18,12 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       INTEGER I_P,NTAY(2),NEL,NBASIS
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
       real(dp) BETA,ECORE
-      LOGICAL tSameD      
+      LOGICAL tSameD
       INTEGER NMSH,IGETEXCITLEVEL
       type(timer), save :: proc_timer
       TYPE(BasisFN) G1(*)
       complex(dp) FCK(*)
-      real(dp) ALAT(3)  
+      real(dp) ALAT(3)
       HElement_t(dp) hE,UExp,B,EDIAG
       character(*), parameter :: this_routine = 'CALCRHO2'
       IF(NTAY(1).LT.0) THEN
@@ -54,7 +54,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       ELSE
          tSAMED=.FALSE.
       ENDIF
-          
+
       IF(tStoreAsExcitations.AND.nI(1).eq.-1.AND.nJ(1).eq.-1) THEN
 !Store as excitations.
          IF(NTAY(2).NE.3) call stop_all(this_routine, "Store as Excitations only works for Fock-Partition-Lowdiag")
@@ -134,7 +134,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
       ELSEIF(NTAY(2).EQ.5) THEN
 !Fock-Partition-DCCorrect-LowDiag
 !Partition with Trotter with H(0) having just the Fock Operators.  Taylor diagonal to zeroeth order, and off-diag to 1st.
-! Instead of 
+! Instead of
          IF(tSAMED) THEN
             call GetH0ElementDCCorr(nUHFDet,nI,nEl,G1,nBasis,NMAX,ECore,EDiag)
             RH=EXP(-B*EDiag)
@@ -187,7 +187,7 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !.. the 1 at the ends ensures K.NE. I or J, as this would make
 !.. <I|U'|K> or <K|U'|J> zero (U' has a zero diag)
          CALL GENEXCIT(NI,2,NBASIS,NEL,LSTI,ICI,NLISTI,1,G1,.TRUE.,     &
-     &         NBASISMAX,.FALSE.)                                     
+     &         NBASISMAX,.FALSE.)
          CALL GENEXCIT(NJ,2,NBASIS,NEL,LSTJ,ICJ,NLISTJ,1,G1,.TRUE.,     &
      &         NBASISMAX,.FALSE.)
          I=1
@@ -200,19 +200,19 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
                J=J+1
                CMP=ICMPDETS(LSTI(1,I),LSTJ(1,J),NEL)
             ENDDO
-            IF(CMP.EQ.0) THEN 
+            IF(CMP.EQ.0) THEN
                SUM1=SUM1+  get_helement (nI, lstI(:,I)) * &
                            get_helement(lstJ(:,J), nJ)
             ENDIF
             I=I+1
-         
+
          ENDDO
          RHO2ORDERND2=SUM1
          RETURN
       END
 
 !  Get a matrix element of the double-counting corrected unperturbed Hamiltonian.
-!  This is just the sum of the Hartree-Fock eigenvalues 
+!  This is just the sum of the Hartree-Fock eigenvalues
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
       subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,nBasis,NMAX,ECore,hEl)
          use constants, only: dp

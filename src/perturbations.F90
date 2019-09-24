@@ -60,8 +60,8 @@ contains
         if (size(perturbs) > 1) then
             ! Just allocate these arrays to be the same size as the CurrentDets
             ! array.
-            allocate(temp_dets_1(0:NIfTot, MaxWalkersPart), stat=ierr) 
-            allocate(temp_dets_2(0:NIfTot, MaxWalkersPart), stat=ierr) 
+            allocate(temp_dets_1(0:NIfTot, MaxWalkersPart), stat=ierr)
+            allocate(temp_dets_2(0:NIfTot, MaxWalkersPart), stat=ierr)
 
             ! Apply the first perturbation.
             ndets_pert_1 = ndets_init
@@ -132,7 +132,7 @@ contains
             ! Copy the ilut so that we don't alter the input list.
             ilut = dets_in(:,i)
             call perturb_det(ilut, perturb)
-            
+
             if (all(ilut(0:NIfDBO) == 0_n_int)) then
                 nremoved = nremoved + 1
             else
@@ -147,7 +147,7 @@ contains
 
         ! Send perturbed determinants to their new processors.
         call SendProcNewParts(ndets, tSingleProc=.false.)
- 
+
         ! The result of SendProcNewParts is now stored in an array pointed to
         ! by SpawnedParts2. We want it in an array pointed to by SpawnedParts,
         ! so swap the pointers around.
@@ -222,7 +222,7 @@ contains
 
             ! Now, determine whether or not the application of these operators
             ! introduces a minus sign.
-            
+
             ! This is done in two steps. First, we find the number of
             ! minus signs introduced assuming all of the operators in the
             ! perturbation operator are already ordered by their NECI orbital
@@ -266,7 +266,7 @@ contains
             do i = 1, perturb%nannihilate
                 do j = 0, NIfD
                     ! Create a mask which has 0's in all orbitals which might be
-                    ! passed in the ordering, and 1's elsewhere. 
+                    ! passed in the ordering, and 1's elsewhere.
                     if (j < a_elems(i)) then
                         new_mask(j) = 0_n_int
                     else if (j == a_elems(i)) then

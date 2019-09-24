@@ -19,20 +19,20 @@ subroutine InitRIBasis(nBasisMax,Len)
    nBasis=int(nB,sizeof_int)
    WRITE(6,*) "Q-Chem auxiliary basis", nAuxBasis, " basis functions:", nBasis
    nBasisMax(1:5,1:3)=0
-   Len=2*nBasis 
+   Len=2*nBasis
 !.. Note that it's a read in basis.
    nBasisMax(3,3)=1
    nBasisMax(4,1)=-1
    nBasisMax(4,2)=1
 !.. Correspond to ISS=0
    nBasisMax(1,3)=0
-!.. Setup Max Sym 
+!.. Setup Max Sym
    nBasisMax(5,2)=0
    CLOSE(29)
 END
 
 SUBROUTINE GetRI2EInt(a,b,c,d,res)
-   use constants, only: dp 
+   use constants, only: dp
    use UMatCache
    implicit none
    integer a,b,c,d

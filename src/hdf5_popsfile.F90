@@ -270,6 +270,8 @@ contains
 #else
         CurrWalkers = 0
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
+        ! just takes care of compiler warnings, this code is actually unreachable
+        dets = 0
 #endif
 
     end function
@@ -809,7 +811,7 @@ contains
         if(tAutoAdaptiveShift) then
            allocate(fvals(2*inum_runs,TotWalkers))
            ! get the statistics of THIS processor
-           call writeFFuncAsInt(TotWalkers, fvals)
+           call writeFFuncAsInt(int(TotWalkers), fvals)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, &
                 fvals, arr_2d_dims(fvals), &
@@ -912,6 +914,7 @@ contains
         ! (calcdata has to be read in after the walkers, ugh)
         call read_log_scalar(grp_id, nm_tauto, tPopAutoAdaptiveShift, &
              default = .false._int32, required=.false.)
+
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
         allocate(pops_num_parts(tmp_lenof_sign), stat = ierr)
@@ -1386,7 +1389,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),int(CurrWalkers))
               end if
            end do
         else
@@ -1406,7 +1409,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),int(CurrWalkers))
               end if
            end do
 

@@ -57,7 +57,7 @@ module kp_fciqmc_data_mod
     ! same order.
     real(dp), allocatable :: krylov_helems(:)
     ! The hash is table used to access determinant data in krylov_vecs.
-    type(ll_node), pointer :: krylov_vecs_ht(:) 
+    type(ll_node), pointer :: krylov_vecs_ht(:)
 
     ! These arrays are used if tExcitedStateKP = .false. in calc_projected_hamil
     ! in semi-stochasti calculations. They are used to store the deterministic
@@ -232,5 +232,5 @@ module kp_fciqmc_data_mod
     ! After which iteration should we start performing the orthogonalisation
     ! step?
     integer :: orthog_kp_iter
-    
+
 end module

@@ -12,7 +12,8 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, nOccOrbs, &
-                          nClosedOrbs, irrepOrbOffset, nIrreps, tNConservingGAS
+                          nClosedOrbs, irrepOrbOffset, nIrreps, t_pcpp_excitgen,&
+                          tNConservingGAS
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -142,6 +143,7 @@ module fcimc_initialisation
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
+    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search, max_death_cpt
     use fcimc_helper, only: CalcParentFlag, update_run_reference
@@ -155,6 +157,7 @@ module fcimc_initialisation
     use Parallel_neci
     use FciMCData
     use util_mod
+    use fortran_strings, only: str
     use sort_mod
     use sym_mod
     use HElem
@@ -178,7 +181,7 @@ contains
         real(dp) :: UpperTau,r
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(len=12) :: abstr
-        character(len=24) :: filename, filename2
+        character(len=40) :: filename, filename2
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
         INTEGER :: HFLz,ChosenOrb,step,SymFinal, run
         integer(int64) :: SymHF
@@ -234,10 +237,8 @@ contains
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
-            abstr=''
-            write(abstr,'(I2)') iProcIndex
-            abstr='LOCALPOPS-'//adjustl(abstr)
-            OPEN(11,FILE=abstr,STATUS='UNKNOWN')
+            abstr = 'LOCALPOPS-'//str(iProcIndex)
+            OPEN(11, FILE=abstr, STATUS='UNKNOWN')
         ENDIF
 
         IF(iProcIndex.eq.Root) THEN
@@ -1403,7 +1404,7 @@ contains
 
             if (tRDMOnFly) then
                 if (tPairedReplicas) then
-                    nrdms_standard = lenof_sign/2
+                    nrdms_standard = lenof_sign .div. 2
                 else
                     nrdms_standard = lenof_sign
                 end if
@@ -1580,6 +1581,9 @@ contains
         ! Initialise excitation generation storage
         call init_excit_gen_store (fcimc_excit_gen_store)
 
+        ! initialize excitation generator
+        if(t_pcpp_excitgen) call init_pcpp_excitgen()
+
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
             & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
@@ -1636,7 +1640,7 @@ contains
         endif
         if (tTrialWavefunction) then
             if (tPairedReplicas) then
-                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
+                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs .div. 2, .true.)
             else
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
@@ -1708,7 +1712,7 @@ contains
         ! kill all walkers and remove them from the hash table. In this
         ! case, we must set the initiator flags for spawning to occupied
         ! determinants before this occurs.
-        if (tPreCond .and. tau == 1.0_dp) tSetInitFlagsBeforeDeath = .true.
+        if (tPreCond .and. (tau .isclose. 1.0_dp)) tSetInitFlagsBeforeDeath = .true.
 
         ! Make sure we are performing death *after* communication, in cases
         ! where this is essential.
@@ -1764,8 +1768,10 @@ contains
         elseif (tGen_4ind_weighted) then
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
-            generate_excitation => gen_excit_4ind_reverse
-        else
+           generate_excitation => gen_excit_4ind_reverse
+        elseif (t_pcpp_excitgen) then
+           generate_excitation => gen_rand_excit_pcpp
+         else
             generate_excitation => gen_rand_excit
         endif
         ! In the main loop, we only need to find out if a determinant is
@@ -2089,7 +2095,7 @@ contains
       ! workspace query, get how much tmp memory we need
       call dgeev('N','V',count,S2,count,eigs,eigsImag,void,count,evs,count,work,-1,err)
       ! allocate work array
-      lwork = work(1)
+      lwork = int(work(1))
       deallocate(work)
       allocate(work(lwork))
       ! diagonalize S2
@@ -2122,7 +2128,7 @@ contains
          if(iProcIndex.eq.proc) then
             HDiag = get_diagonal_matel(nI,initSpace(:,i))
             DetHash = FindWalkerHash(nI,size(HashIndex))
-            TotWalkersTmp = TotWalkers
+            TotWalkersTmp = int(TotWalkers)
             tmpSgn = eigs(i)
             call encode_sign(initSpace(:,i),tmpSgn)
             if(tHPHF) then
@@ -2557,7 +2563,10 @@ contains
         ! Use the code generated for the KPFCIQMC excited state calculations
         ! to initialise the FCIQMC simulation.
 
-        integer :: nexcit, ndets_this_proc, i, det(nel)
+!         integer :: nexcit, ndets_this_proc, i, det(nel)
+        integer :: nexcit, ndets_this_proc, det(nel)
+        integer(int64) :: i
+
         type(basisfn) :: sym
         real(dp) :: evals(inum_runs/nreplicas)
         HElement_t(dp), allocatable :: evecs_this_proc(:,:)
@@ -2606,7 +2615,9 @@ contains
 
         HElement_t(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
-        integer :: run, j
+!         integer :: run, j
+        integer(int64) :: j
+        integer :: run
         integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
@@ -2972,7 +2983,7 @@ contains
 
         if(tHPHF) write(iout,*) "Converting into HPHF space. Total HPHF CAS functions: ",nHPHFCAS
 
-        if((InitialPart.eq.1).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
+        if((InitialPart .isclose. 1._dp).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
             !Here, all the walkers will be assigned to the CAS wavefunction.
             !InitialPart = 1 by default
             write(iout,"(A)") "All walkers specified in input will be distributed according to the CAS wavefunction."
@@ -3162,7 +3173,7 @@ contains
 
         write(iout,"(A,2G25.15)") "MP2 energy calculated: ",MP2Energy,MP2Energy+Hii
 
-        if((InitialPart.eq.1).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
+        if((InitialPart .isclose. 1._dp).or.(InitialPart >= (InitWalkers*nNodes)-50)) then
             !Here, all the walkers will be assigned to the MP1 wavefunction.
             !InitialPart = 1 by default
             write(iout,"(A)") "All walkers specified in input will be distributed according to the MP1 wavefunction."
@@ -3945,22 +3956,19 @@ contains
         endif
         if(exists) then
             !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
-
-            extension=1
+            extension = 1
             do while(.true.)
-                abstr=''
-                write(abstr,'(I12)') extension
-                if(tMolpro) then
-                    abstr='FCIQMCStats.'//adjustl(abstr)
+                if (tMolpro) then
+                    abstr = 'FCIQMCStats.'//str(extension)
                 else
-                    abstr='FCIMCStats.'//adjustl(abstr)
-                endif
-                inquire(file=trim(adjustl(abstr)),exist=exists)
-                if(.not.exists) exit
-                extension=extension+1
-                if(extension.gt.10000) then
-                    call stop_all(t_r,"Error finding free FCIMCStats name")
-                endif
+                    abstr = 'FCIMCStats.'//str(extension)
+                end if
+                inquire(file=trim(adjustl(abstr)), exist=exists)
+                if (.not. exists) exit
+                extension = extension + 1
+                if (extension > 10000) then
+                    call stop_all(t_r, "Error finding free FCIMCStats name")
+                end if
             enddo
 
             !We have got a unique filename
@@ -4172,7 +4180,7 @@ contains
       if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. (tAllDoubsInitiators .or. &
            tAllSingsInitiators)) then
         tDynamicCoreSpace = .true.
-	coreSpaceUpdateCycle = SIUpdateInterval
+        coreSpaceUpdateCycle = SIUpdateInterval
       endif
     end subroutine setup_dynamic_core
 
@@ -4182,7 +4190,7 @@ contains
       use bit_rep_data, only: test_flag
       ! initialize the norm_psi, norm_psi_squared
       implicit none
-      integer :: j
+      integer(int64) :: j
       real(dp) :: sgn(lenof_sign)
       logical :: tIsStateDeterm
 

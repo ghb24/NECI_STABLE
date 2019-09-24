@@ -38,7 +38,7 @@ contains
             ! There's no need to explicitly make the RDM hermitian here, as the
             ! integrals are already hermitian -- when we calculate the energy,
             ! it comes out in the wash.
-            
+
             ! Print out the relevant 2-RDMs.
             if (final_output .or. (tWriteMultRDMs .and. (mod((Iter+PreviousCycles-IterRDMStart)+1,IterWriteRDMs) .eq. 0))) then
 
@@ -163,7 +163,7 @@ contains
         RDMEnergy1 = 0.0_dp
         RDMEnergy2 = 0.0_dp
         RDMEnergy = 0.0_dp
-    
+
         do i = 1, SpatOrbs
             iSpin = 2 * i
 
@@ -175,11 +175,11 @@ contains
 
                 do a = 1, SpatOrbs
 
-                    ! Adding in contributions effectively from the 1-RDM (although these are calculated 
+                    ! Adding in contributions effectively from the 1-RDM (although these are calculated
                     ! from the 2-RDM).
                     call calc_1RDM_and_1RDM_energy(rdm, one_rdm, i, j, a, iSpin,jSpin, Norm_2RDM, &
                                                    RDMEnergy_Inst, RDMEnergy1, final_output)
-                    
+
                     do b = a, SpatOrbs
 
                         Ind2_aa = ( ( (b-2) * (b-1) ) / 2 ) + a
@@ -189,7 +189,7 @@ contains
                         ! In spin or spatial orbitals.
                         Coul = real(UMAT(UMatInd(i, j, a, b)), dp)
                         Exch = real(UMAT(UMatInd(i, j, b, a)), dp)
-                        
+
                         if ((i .ne. j) .and. (a .ne. b)) then
                             ! Cannot get i=j or a=b contributions in aaaa.
 
@@ -197,9 +197,9 @@ contains
                                 Coul_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*a, 2*b)),dp)
                                 Coul_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*a-1, 2*b-1)),dp)
                                 Exch_aaaa = real(UMAT(UMatInd(2*i, 2*j, 2*b, 2*a)),dp)
-                                Exch_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*b-1, 2*a-1)),dp)     
+                                Exch_bbbb = real(UMAT(UMatInd(2*i-1, 2*j-1, 2*b-1, 2*a-1)),dp)
 
-                                if (tRDMInstEnergy) then 
+                                if (tRDMInstEnergy) then
                                     RDMEnergy_Inst = RDMEnergy_Inst + (rdm%aaaa(Ind1_aa,Ind2_aa) &
                                                       *( Coul_aaaa - Exch_aaaa ) )
                                     RDMEnergy_Inst = RDMEnergy_Inst + (rdm%bbbb(Ind1_aa,Ind2_aa) &
@@ -211,7 +211,7 @@ contains
                                 RDMEnergy2 = RDMEnergy2 + ( rdm%bbbb_full(Ind1_aa,Ind2_aa) &
                                                       * Norm_2RDM * ( Coul_bbbb - Exch_bbbb ) )
 
-                            else 
+                            else
 
                                 if (tRDMInstEnergy) then
                                     RDMEnergy_Inst = RDMEnergy_Inst + (rdm%aaaa(Ind1_aa,Ind2_aa) &
@@ -219,19 +219,19 @@ contains
                                 end if
 
                                 RDMEnergy2 = RDMEnergy2 + ( rdm%aaaa_full(Ind1_aa,Ind2_aa) &
-                                                        * Norm_2RDM * ( Coul - Exch ) ) 
+                                                        * Norm_2RDM * ( Coul - Exch ) )
 
                                 if (tOpenShell) then
-                                    if (tRDMInstEnergy) then 
+                                    if (tRDMInstEnergy) then
                                         RDMEnergy_Inst = RDMEnergy_Inst + (rdm%bbbb(Ind1_aa,Ind2_aa) &
                                                       * ( Coul - Exch ) )
                                     end if
 
                                     RDMEnergy2 = RDMEnergy2 + ( rdm%bbbb_full(Ind1_aa,Ind2_aa) &
                                                       * Norm_2RDM * ( Coul - Exch ) )
-                                end if 
+                                end if
 
-                            end if  
+                            end if
 
 
                             if (Ind1_aa .eq. Ind2_aa) then
@@ -254,16 +254,16 @@ contains
                                                                     *  Coul_abab )
                                 end if
                                 RDMEnergy2 = RDMEnergy2 + ( rdm%abab_full(Ind1_ab,Ind2_ab) &
-                                                        * Norm_2RDM * Coul_abab ) 
+                                                        * Norm_2RDM * Coul_abab )
 
                                 if (tRDMInstEnergy) then
                                     RDMEnergy_Inst = RDMEnergy_Inst + ( rdm%baba(Ind1_ab,Ind2_ab) &
                                                                     *  Coul_baba )
                                 end if
                                 RDMEnergy2 = RDMEnergy2 + ( rdm%baba_full(Ind1_ab,Ind2_ab) &
-                                                        * Norm_2RDM * Coul_baba ) 
+                                                        * Norm_2RDM * Coul_baba )
 
-                            else 
+                            else
                                 if (tRDMInstEnergy) then
                                     RDMEnergy_Inst = RDMEnergy_Inst + ( rdm%abab(Ind1_ab,Ind2_ab) &
                                                                     *  Coul )
@@ -272,11 +272,11 @@ contains
                                 end if
 
                                 RDMEnergy2 = RDMEnergy2 + ( rdm%abab_full(Ind1_ab,Ind2_ab) &
-                                                        * Norm_2RDM * Coul ) 
+                                                        * Norm_2RDM * Coul )
                                 if (tOpenShell) RDMEnergy2 = RDMEnergy2 + ( rdm%baba_full(Ind1_ab,Ind2_ab) &
-                                                        * Norm_2RDM * Coul) 
+                                                        * Norm_2RDM * Coul)
 
-                            end if 
+                            end if
 
                             if (Ind1_ab .eq. Ind2_ab) then
                                 Trace_2RDM_normalised = Trace_2RDM_normalised + &
@@ -291,7 +291,7 @@ contains
                                 Exch_abba = real(UMAT(UMatInd(2*i, 2*j-1, 2*b, 2*a-1)), dp)
                                 Exch_baab = real(UMAT(UMatInd(2*i-1, 2*j, 2*b-1, 2*a)), dp)
 
-                                if (tRDMInstEnergy) then 
+                                if (tRDMInstEnergy) then
                                     RDMEnergy_Inst = RDMEnergy_Inst - ( rdm%abba(Ind1_aa,Ind2_aa) &
                                                                     * Exch_abba )
                                     RDMEnergy_Inst = RDMEnergy_Inst - ( rdm%baab(Ind1_aa,Ind2_aa) &
@@ -299,13 +299,13 @@ contains
                                 end if
 
                                 RDMEnergy2 = RDMEnergy2 - ( rdm%abba_full(Ind1_aa,Ind2_aa) &
-                                                        * Norm_2RDM * Exch_abba ) 
+                                                        * Norm_2RDM * Exch_abba )
                                 RDMEnergy2 = RDMEnergy2 - ( rdm%baab_full(Ind1_aa,Ind2_aa) &
-                                                        * Norm_2RDM * Exch_baab ) 
+                                                        * Norm_2RDM * Exch_baab )
 
-                            else 
+                            else
 
-                                if (tRDMInstEnergy) then 
+                                if (tRDMInstEnergy) then
                                     RDMEnergy_Inst = RDMEnergy_Inst - ( rdm%abba(Ind1_aa,Ind2_aa) &
                                                                     * Exch )
                                     if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst - ( rdm%baab(Ind1_aa,Ind2_aa) &
@@ -313,18 +313,18 @@ contains
                                 end if
 
                                 RDMEnergy2 = RDMEnergy2 - ( rdm%abba_full(Ind1_aa,Ind2_aa) &
-                                                        * Norm_2RDM * Exch ) 
+                                                        * Norm_2RDM * Exch )
                                 if (tOpenShell) RDMEnergy2 = RDMEnergy2 - ( rdm%baab_full(Ind1_aa,Ind2_aa) &
-                                                        * Norm_2RDM * Exch ) 
+                                                        * Norm_2RDM * Exch )
 
-                           end if 
+                           end if
 
                        else if ( (i .eq. j) .or. (a .eq. b) )then
                             ! i = j or a = b
                             ! abab has both abab and abba elements in them effectively.
                             ! half will have non-zero coul, and half non-zero exchange.
                             ! For abab/baba Exch = 0, and for abba/baab Coul=0
-                            ! abba/baab saved in abab/baba. Changes the sign. 
+                            ! abba/baab saved in abab/baba. Changes the sign.
                             if (tStoreSpinOrbs) then
                                 Coul_abab = real(UMAT(UMatInd(2*i, 2*j-1, 2*a, 2*b-1)), dp)
                                 Coul_baba = real(UMAT(UMatInd(2*i-1, 2*j, 2*a-1, 2*b)), dp)
@@ -336,8 +336,8 @@ contains
                                     if (tRDMInstEnergy) then
                                         RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%abab(Ind1_ab,Ind2_ab) &
                                                                           * (Coul_abab+Exch_abba)
-                               
-                                    end if 
+
+                                    end if
 
                                     RDMEnergy2 = RDMEnergy2 + 0.5_dp * rdm%abab_full(Ind1_ab,Ind2_ab) &
                                                               * Norm_2RDM * (Coul_abab+Exch_abba)
@@ -353,7 +353,7 @@ contains
                                                                           *  (Coul_abab+Exch_baab)
                                         RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%baba(Ind1_ab,Ind2_ab) &
                                                                           *  (Coul_baba+Exch_abba)
-                                    end if 
+                                    end if
 
                                     RDMEnergy2 = RDMEnergy2 +  0.5_dp * rdm%abab_full(Ind1_ab,Ind2_ab) &
                                                                * Norm_2RDM * (Coul_abab+Exch_baab)
@@ -374,7 +374,7 @@ contains
                                                                     *(Coul_abab+Exch_abba)
                                         RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%baba(Ind1_ab,Ind2_ab) &
                                                                     * (Coul_baba+Exch_baab)
-                                    end if 
+                                    end if
 
                                     RDMEnergy2 = RDMEnergy2 + 0.5_dp * rdm%abab_full(Ind1_ab,Ind2_ab) &
                                                             * Norm_2RDM * (Coul_abab+Exch_abba)
@@ -386,13 +386,13 @@ contains
 
                             else
 
-                                if (tRDMInstEnergy) then 
+                                if (tRDMInstEnergy) then
                                     RDMEnergy_Inst = RDMEnergy_Inst + 0.5_dp * rdm%abab(Ind1_ab,Ind2_ab) &
                                                                     * (Coul+Exch)
                                     if (tOpenShell) RDMEnergy_Inst = RDMEnergy_Inst  &
                                                                     + 0.5_dp *rdm%baba(Ind1_ab,Ind2_ab) &
                                                                     *  (Coul+Exch)
-                                end if 
+                                end if
 
                                 RDMEnergy2 = RDMEnergy2 + 0.5_dp * rdm%abab_full(Ind1_ab,Ind2_ab) &
                                                         * Norm_2RDM * (Coul+Exch)
@@ -402,7 +402,7 @@ contains
                                                         + 0.5_dp * rdm%baba_full(Ind1_ab,Ind2_ab) &
                                                         * Norm_2RDM * (Coul+Exch)
 
-                            end if 
+                            end if
 
                             if (Ind1_ab .eq. Ind2_ab) then
                                 Trace_2RDM_normalised = Trace_2RDM_normalised + &
@@ -410,7 +410,7 @@ contains
                                 if (tOpenShell) then
                                     Trace_2RDM_normalised = Trace_2RDM_normalised + &
                                                     rdm%baba_full(Ind1_ab,Ind2_ab) * Norm_2RDM
-                                end if  
+                                end if
                             end if
 
                         end if
@@ -431,7 +431,7 @@ contains
         call halt_timer(RDMEnergy_Time)
 
     end subroutine Calc_Energy_from_RDM
-    
+
     function calc_2rdm_spin_estimate(rdm, Norm_2RDM_Inst) result(spin_est)
 
         ! Return the (unnormalised) estimate of <S^2> from the instantaneous
@@ -441,7 +441,7 @@ contains
         use rdm_data, only: tOpenShell
         use RotateOrbsData, only: SpatOrbs
         use SystemData, only: nel
- 
+
         type(rdm_t), intent(in) :: rdm
         real(dp), intent(in) :: Norm_2RDM_Inst
 
@@ -476,7 +476,7 @@ contains
             spin_est = spin_est - 6*rdm%abab(Ind1_ab, Ind1_ab)
             if (tOpenShell) spin_est = spin_est - 6*rdm%baba(Ind1_ab, Ind1_ab)
 
-        end do 
+        end do
 
         spin_est = spin_est + 3*real(nel,dp)/Norm_2RDM_Inst
 
@@ -520,11 +520,11 @@ contains
 
         allocate(one_rdm%Lagrangian(SpatOrbs,SpatOrbs), stat=ierr)
         one_rdm%Lagrangian(:,:) = 0.0_dp
-        
+
         ! We will begin by calculating the Lagrangian in chemical notation - we will explicitely calculate
         ! both halves (X_pq and X_qp) in order to check if it is symmetric or not.
-        !  - a symmetric Lagrangian is important in allowing us to use the derivative overlap matrix rather than the 
-        !    coupled-perturbed coefficients when calculating the Forces later on 
+        !  - a symmetric Lagrangian is important in allowing us to use the derivative overlap matrix rather than the
+        !    coupled-perturbed coefficients when calculating the Forces later on
         !    (see Sherrill, Analytic Gradients of CI Energies eq38)
 
         write(6,'(/,"Calculating the Lagrangian, X, from the final density matrices.")')
@@ -540,7 +540,7 @@ contains
                         ! Adding in contributions effectively from the 1-RDM.
                         ! We made sure earlier that the 1RDM is contructed, so we can call directly from this.
                         if (tOpenShell) then
-                            ! Include both aa and bb contributions 
+                            ! Include both aa and bb contributions
                             one_rdm%Lagrangian(p,q) = one_rdm%Lagrangian(p,q) + &
                                                       (one_rdm%matrix(SymLabelListInv_rot(2*q),SymLabelListInv_rot(2*r)))*&
                                                       real(TMAT2D(pSpin,rSpin),8)*Norm_1RDM
@@ -554,17 +554,17 @@ contains
                         end if
 
                         do s = 1, SpatOrbs
-                
+
                             ! Here we're looking to start adding on the contributions from the 2-RDM and the 2-el integrals
                             ! For X(p,q), these have the form 0.5*Sum_rst[(pr|st)[2RDM_qrst + 2RDM_rqst]]
-                            
-                            ! NOTE: In some notations, the factor of a half goes *inside* the 2RDM - 
+
+                            ! NOTE: In some notations, the factor of a half goes *inside* the 2RDM -
                             ! consistent with Yamaguchi etc (see eq 11 in Sherrill, Analytic Gradients
                             ! of CI energies).  We will keep it outside for now, consistent with the storage
                             ! within neci
 
                             do t = 1, SpatOrbs
-                                
+
                                 !Integral (pr|st) = <ps|rt>
                                 !Give indices in PHYSICAL NOTATION
                                 !NB, FCIDUMP is labelled in chemical notation
@@ -572,14 +572,14 @@ contains
 
                                 qrst = Find_Spatial_2RDM_Chem(rdm, q, r, s, t, Norm_2RDM)
                                 rqst = Find_Spatial_2RDM_Chem(rdm, r, q, s, t, Norm_2RDM)
-                                
+
                                 one_rdm%Lagrangian(p,q) = one_rdm%Lagrangian(p,q) + 0.5_dp*Coul*(qrst+rqst)
                             end do
                         end do
                     end do
                 end do
             end do
-       
+
             !! Now symmetrise (make hermitian, such that X_pq = X_qp) the Lagrangian X
 
             Max_Error_Hermiticity = 0.0_dp
@@ -611,7 +611,7 @@ contains
         ! This routine calculates the 1-RDM part of the RDM energy, and
         ! also constructs the 1-RDM if required, both from the 2-RDM.
 
-        ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a) 
+        ! gamma(i,j) = [1/(NEl - 1)] * SUM_a Gamma(i,a,j,a)
         ! want to calculate:    gamma(i,j) * h_ij
         ! h_ij => TMAT2D(iSpin,jSpin)
         ! iSpin = 2*i, jSpin = 2*j -> alpha orbs
@@ -639,8 +639,8 @@ contains
         integer :: jSpin_abba, jSpin_baab
         logical :: t_abab_only, t_opposite_contri
 
-        ! for i a -> j a excitation, when lined up as min max -> min max, 
-        ! if a's are aligned, only a b a b arrays contain single excitations, 
+        ! for i a -> j a excitation, when lined up as min max -> min max,
+        ! if a's are aligned, only a b a b arrays contain single excitations,
         ! if a's not aligned, a b b a.
         ! all a a a a will contain single excitations.
 
@@ -650,8 +650,8 @@ contains
             Ind1_1e_ab = ( ( (max(i,a)-1) * max(i,a) ) / 2 ) + min(i,a)
             Ind2_1e_ab = ( ( (max(j,a)-1) * max(j,a) ) / 2 ) + min(j,a)
             if (Ind1_1e_ab.ne.Ind2_1e_ab) then
-            ! For Gamma elements corresponding to 1-RDMs ( Gamma(i,a,j,a) ), 
-            ! we're only considering i =< j 
+            ! For Gamma elements corresponding to 1-RDMs ( Gamma(i,a,j,a) ),
+            ! we're only considering i =< j
             ! therefore we need to sum in the opposite contribution too if i ne j.
                 t_opposite_contri = .true.
             else  ! no opposite contribution from i = j term
@@ -665,22 +665,22 @@ contains
                 jSpin_abab = jSpin
                 iSpin_baba = iSpin-1
                 jSpin_baba = jSpin-1
-                t_abab_only = .false. 
+                t_abab_only = .false.
             else if ((i .gt. a) .or. (j .gt. a) )then
                 ! a i a j->  i & j alpha for baba and beta for abab
                 iSpin_abab = iSpin-1
                 jSpin_abab = jSpin-1
                 iSpin_baba = iSpin
                 jSpin_baba = jSpin
-                t_abab_only = .false. 
+                t_abab_only = .false.
             else if ((i .eq. a) .and. (j .eq. a) )then
-                ! a a a a -> i = a = j  abab and baba saved in abab array only! 
+                ! a a a a -> i = a = j  abab and baba saved in abab array only!
                 ! -> count twice for close shell systems (fac_doublecount)
                 iSpin_abab = iSpin
                 jSpin_abab = jSpin
                 iSpin_baba = iSpin-1
                 jSpin_baba = jSpin-1
-                t_abab_only = .true. 
+                t_abab_only = .true.
                 if (.not. tOpenShell) fac_doublecount = 2.0_dp
             end if
 
@@ -712,7 +712,7 @@ contains
                                        * (1.0_dp / real(NEl - 1,dp)) )
                     end if
                 end if
-            end if 
+            end if
 
             RDMEnergy1 = RDMEnergy1 + fac_doublecount*( (rdm%abab_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM) &
                                                * real(TMAT2D(iSpin_abab,jSpin_abab),dp) &
@@ -741,7 +741,7 @@ contains
 
 
             if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. final_output) then
-               
+
                 if (.not. tOpenShell) then
                  ! Spatial orbitals
                     one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
@@ -754,7 +754,7 @@ contains
                                          + ( rdm%abab_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
                                                  * (1.0_dp / real(NEl - 1,dp)) )
 
-                else                      
+                else
                    one_rdm%matrix(SymLabelListInv_rot(iSpin_abab),SymLabelListInv_rot(jSpin_abab)) = &
                            one_rdm%matrix(SymLabelListInv_rot(iSpin_abab),SymLabelListInv_rot(jSpin_abab)) &
                                        + ( rdm%abab_full(Ind1_1e_ab,Ind2_1e_ab) * Norm_2RDM &
@@ -763,7 +763,7 @@ contains
                    if (t_opposite_contri)  one_rdm%matrix(SymLabelListInv_rot(jSpin_abab),SymLabelListInv_rot(iSpin_abab)) = &
                            one_rdm%matrix(SymLabelListInv_rot(jSpin_abab),SymLabelListInv_rot(iSpin_abab)) &
                                        + ( rdm%abab_full(Ind2_1e_ab,Ind1_1e_ab) * Norm_2RDM &
-                                       * (1.0_dp / real(NEl - 1,dp)) ) 
+                                       * (1.0_dp / real(NEl - 1,dp)) )
 
                    if (.not. t_abab_only) then
                        one_rdm%matrix(SymLabelListInv_rot(iSpin_baba),SymLabelListInv_rot(jSpin_baba)) = &
@@ -784,17 +784,17 @@ contains
                 end if
 
            end if
- 
+
        end if ! abab & baba terms
 
        ! abba & baab & aaaa & bbbb terms
-       if ((i.ne.a).and.(j.ne.a)) then   
+       if ((i.ne.a).and.(j.ne.a)) then
            Ind1_1e_aa = ( ( (max(i,a)-2) * (max(i,a)-1) ) / 2 ) + min(i,a)
            Ind2_1e_aa = ( ( (max(j,a)-2) * (max(j,a)-1) ) / 2 ) + min(j,a)
 
            if (Ind1_1e_aa.ne.Ind2_1e_aa) then
-           ! For Gamma elements corresponding to 1-RDMs (eg Gamma(i,a,a,j) ), 
-           ! we're only considering i =< j 
+           ! For Gamma elements corresponding to 1-RDMs (eg Gamma(i,a,a,j) ),
+           ! we're only considering i =< j
            ! therefore we need to sum in the opposite contribution too.
                t_opposite_contri = .true.
            else  ! no opposite contribution from i = j term
@@ -802,7 +802,7 @@ contains
            end if
 
            !abba & baab terms
-           if ((i.ne.j).and.((i.lt.a).and.(j.gt.a)).or.((i.gt.a).and.(j.lt.a))) then 
+           if ((i.ne.j).and.((i.lt.a).and.(j.gt.a)).or.((i.gt.a).and.(j.lt.a))) then
                if ((i.lt.a).and.(j.gt.a))then
                    ! i a a j -> i & j alpha for abba and beta for baab
                    iSpin_abba = iSpin
@@ -848,7 +848,7 @@ contains
                                                   * (1.0_dp / real(NEl - 1,dp)) )
                    end if
 
-               end if 
+               end if
 
                RDMEnergy1 = RDMEnergy1 - ( (rdm%abba_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
                                                   * real(TMAT2D(iSpin_abba,jSpin_abba),dp) &
@@ -874,7 +874,7 @@ contains
                                                   * real(TMAT2D(jSpin_baab,iSpin_baab),dp) &
                                                   * (1.0_dp / real(NEl - 1,dp)) )
                end if
-                                                  
+
                if ((tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) .and. final_output) then
                    if (.not. tOpenShell) then
                    ! Spatial orbitals
@@ -891,12 +891,12 @@ contains
                        one_rdm%matrix(SymLabelListInv_rot(iSpin_abba),SymLabelListInv_rot(jSpin_abba)) = &
                               one_rdm%matrix(SymLabelListInv_rot(iSpin_abba),SymLabelListInv_rot(jSpin_abba)) &
                                           - ( rdm%abba_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
-                                                  * (1.0_dp / real(NEl - 1,dp)) ) 
+                                                  * (1.0_dp / real(NEl - 1,dp)) )
 
                        if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(jSpin_abba),SymLabelListInv_rot(iSpin_abba)) = &
                               one_rdm%matrix(SymLabelListInv_rot(jSpin_abba),SymLabelListInv_rot(iSpin_abba)) &
                                           - ( rdm%baab_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
-                                                  * (1.0_dp / real(NEl - 1,dp)) ) 
+                                                  * (1.0_dp / real(NEl - 1,dp)) )
 
                        one_rdm%matrix(SymLabelListInv_rot(iSpin_baab),SymLabelListInv_rot(jSpin_baab)) = &
                               one_rdm%matrix(SymLabelListInv_rot(iSpin_baab),SymLabelListInv_rot(jSpin_baab)) &
@@ -908,7 +908,7 @@ contains
                                           - ( rdm%abba_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
                                                   * (1.0_dp / real(NEl - 1,dp)) )
                    end if
-               end if                   
+               end if
 
            end if ! end of abba and baab terms
 
@@ -918,7 +918,7 @@ contains
            else
                Parity_Factor = -1.0_dp
            end if
-          
+
            if (tRDMInstEnergy) then
                RDMEnergy_Inst = RDMEnergy_Inst + &
                           ( (rdm%aaaa(Ind1_1e_aa,Ind2_1e_aa) ) &
@@ -940,7 +940,7 @@ contains
                                                 * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor)
                end if
 
-           end if 
+           end if
 
            RDMEnergy1 = RDMEnergy1 + &
                            ( (rdm%aaaa_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM) &
@@ -968,38 +968,38 @@ contains
                    one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) = &
                             one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j)) &
                                         + ( rdm%aaaa_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
                    if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) = &
                             one_rdm%matrix(SymLabelListInv_rot(j),SymLabelListInv_rot(i)) &
                                         + ( rdm%aaaa_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
                else
 
                    one_rdm%matrix(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) = &
                             one_rdm%matrix(SymLabelListInv_rot(iSpin),SymLabelListInv_rot(jSpin)) &
                                         + ( rdm%aaaa_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
                    if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) = &
                             one_rdm%matrix(SymLabelListInv_rot(jSpin),SymLabelListInv_rot(iSpin)) &
                                         + ( rdm%aaaa_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-                   one_rdm%matrix(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) = & 
+                   one_rdm%matrix(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) = &
                             one_rdm%matrix(SymLabelListInv_rot(iSpin-1),SymLabelListInv_rot(jSpin-1)) &
                                         + ( rdm%bbbb_full(Ind1_1e_aa,Ind2_1e_aa) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
 
-                   if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) = & 
+                   if (t_opposite_contri) one_rdm%matrix(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) = &
                             one_rdm%matrix(SymLabelListInv_rot(jSpin-1),SymLabelListInv_rot(iSpin-1)) &
                                         + ( rdm%bbbb_full(Ind2_1e_aa,Ind1_1e_aa) * Norm_2RDM &
-                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor ) 
+                                                * (1.0_dp / real(NEl - 1,dp)) * Parity_Factor )
                end if
            end if
 
-       end if 
+       end if
 
     end subroutine calc_1RDM_and_1RDM_energy
 
@@ -1025,9 +1025,9 @@ contains
         integer :: myname, ifil, intrel, iout
         integer :: Sym_i, Sym_j, Sym_ij
         integer :: Sym_k, Sym_l, Sym_kl
-        integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym, 
+        integer, dimension(8) :: iact, ldact !iact(:) # of active orbs per sym,
                                              !ldact(:) - # Pairs of orbs that multiply to give given sym
-        integer, dimension(8) :: icore, iclos 
+        integer, dimension(8) :: icore, iclos
         integer, dimension(nSymLabels):: blockstart1, blockstart2
         integer, dimension(nSymLabels) :: elements_assigned1, elements_assigned2
         integer :: FC_Lag_Len  ! Length of the Frozen Core Lagrangian
@@ -1066,7 +1066,7 @@ contains
             ifil = 1
             ! ^- cgk: might want to use nexfre(igrsav) for these two.
             iout = molpro_get_iout()
-            ! ^- thise one should come from common/tapes. 
+            ! ^- thise one should come from common/tapes.
             ldact(:) = 0
             iact(:) = 0
             Len_1RDM = 0
@@ -1075,9 +1075,9 @@ contains
             blockstart2(:) = 0
             elements_assigned1(:) = 0
             elements_assigned2(:) = 0
-            
+
             ! Find out the number of orbital pairs that multiply to a given sym (ldact).
-            do i = 1, SpatOrbs  
+            do i = 1, SpatOrbs
                 ! Run over spatial orbitals.
                 do j = 1,  i    ! i .ge. j
                     Sym_i=SpinOrbSymLabel(2*i)  ! Consider only alpha orbitals.
@@ -1094,16 +1094,16 @@ contains
                 ! Find position of each symmetry block in sym-packed forms of RDMS 1 & 2.
                 blockstart1(i+1)=Len_1RDM+1 ! N.B. Len_1RDM still being updated in this loop.
                 blockstart2(i+1)=Len_2RDM+1 ! N.B. Len_2RDM still being updated in this loop.
-                
+
                 ! Count the number of active orbitals of the given symmetry.
                 iact(i+1)=SymLabelCounts2(2,ClassCountInd(1,i,0)) !Count the number of active orbitals of the given symmetry.
                 Len_1RDM=Len_1RDM+(iact(i+1)*(iact(i+1)+1)/2) ! add on # entries in sym-packed 1RDM for sym i.
-                
+
                 Len_2RDM = Len_2RDM + (ldact(i+1))**2 ! Assumes no frozen orbitals.
             end do
 
             FCLag_Len = SpatOrbs**2  ! Arbitrarily set this for now - we will not be printing it whilst nfrozen=0
-            
+
             ! Allocate arrays accordingly.
             allocate(SymmetryPacked1RDM(Len_1RDM))
             allocate(SymmetryPackedLagrangian(Len_1RDM))
@@ -1111,7 +1111,7 @@ contains
             allocate(FC_Lagrangian(FCLag_Len))
 
             FC_Lagrangian(:) = 0  ! Frozen-core Lagrandian -- whilst we do all electron calcs.
-            
+
             ! Constructing the Symmetry Packed arrays.
             ! We convert our 1RDM, Lagrangian and  2RDM into the required Molpro
             ! symmetry-packed format 2RDM is stored as a full square matrix,
@@ -1158,9 +1158,9 @@ contains
 
                             if (Sym_kl .eq. Sym_ij) then
                                 posn2=blockstart2(Sym_ij+1) + elements_assigned2(Sym_ij+1)
-                            
+
                                 ! Extracts spat orb chemical notation term from spin
-                                ! separated physical notation RDMs 
+                                ! separated physical notation RDMs
                                 ijkl = Find_Spatial_2RDM_Chem(rdm, i, j, k, l, Norm_2RDM)
                                 jikl = Find_Spatial_2RDM_Chem(rdm, j, i, k, l, Norm_2RDM)
 
@@ -1171,16 +1171,16 @@ contains
                     end do
                 end do
             end do
-            
+
             call molpro_dump_mcscf_dens_for_grad(myname,ifil, &
                 icore, iclos, iact, nEL, isyref, ms2, iblkq,&
                 iseccr, istat1, SymmetryPacked1RDM, Len_1RDM, &
                 SymmetryPacked2RDM, Len_2RDM, SymmetryPackedLagrangian, &
                 Len_1RDM, FC_Lagrangian, FC_Lag_Len, &
                 iout, intrel)
-            
+
         end if
-        
+
     end subroutine convert_mats_Molpforces
 
     subroutine molpro_set_igrdsav(igrsav_)
@@ -1199,7 +1199,7 @@ contains
 #endif
 
     end subroutine molpro_set_igrdsav
-    
+
     subroutine molpro_get_reference_info(iWfRecord, iWfSym)
 
         integer :: iWfSym,iWfRecord
@@ -1218,7 +1218,7 @@ contains
 #endif
 
     end subroutine molpro_get_reference_info
-    
+
     function molpro_get_iout() result(iiout)
 
         integer :: iiout
@@ -1243,8 +1243,8 @@ contains
         !  Use the following subroutine to dump the information needed for molpro
         !  forces calculations, such that it is in the exact format that molpro
         !  would have dumped from a MCSCF calculation.  When interfaced with Molpro,
-        !  I understand that the molpro equivalent of this routine should be called. 
-    
+        !  I understand that the molpro equivalent of this routine should be called.
+
         integer,                            intent(inout) :: name
         integer,                            intent(inout) :: ifil
         integer, dimension(8),              intent(in)    :: icore
@@ -1322,7 +1322,7 @@ contains
         header(1+29) = iabs(istat1)
         lhead = 30/intrel
         igrsav = 10*(name-1) + ifil
-      
+
         name = igrsav/10
         ifil = igrsav-10*name
 
@@ -1372,7 +1372,7 @@ contains
     ! gexpec,dm
     ! {fciqmc,iterations=10000,timestep=0.05,targetwalkers=10000,2RDMonFly,dipoles;core;orbital,2103.2}
 
-    ! Notes: 
+    ! Notes:
     !  o The orbitals used by the fciqmc module have to be the RHF orbitals, not the casscf natural ones.
     !  o The occ directive has to encompass the *whole* space
     !  o If core orbitals want to be frozen in the subsequent fciqmc calclation, then include these orbitals as 'closed'
@@ -1388,14 +1388,14 @@ contains
     ! wf,14,1,0;
     ! restrict,2,2,3.1,4.1;  !This defines a set of orbitals which must be doubly occupied in all configurations to cut down the
     ! restrict,2,2,1.2,1.3;  !size of the space, but ensure that the integrals are still calculated over the whole active space
-    ! restrict,0,0,10.1,11.1,12.1,13.1,14.1;  !These are orbitals which must remain unoccupied to further 
+    ! restrict,0,0,10.1,11.1,12.1,13.1,14.1;  !These are orbitals which must remain unoccupied to further
                                               !reduce the size of the space
     ! restrict,0,0,3.2,4.2,5.2,6.2;
     ! restrict,0,0,3.3,4.3,5.3,6.3;
     ! iprint,density,civector}
     ! gexpec,dm
     ! {fciqmc,ITERATIONS=20,MAXATREF=50000,targetWALKERS=10000000;
-    !   orbital,2103.2 }         
+    !   orbital,2103.2 }
          !Note no 'core' directive included, since the core orbitals are 'closed' in the casscf and so will be ignored.
 
     subroutine CalcDipoles(one_rdm, Norm_1RDM)
@@ -1483,7 +1483,7 @@ contains
 
                 end do
             end do
-                
+
             write(6,*) "Size of symmetry packed array: ", isize
             write(6,*) "Symmetry packed 1RDM: ", SymmetryPacked1RDM(:)
             dipmom(:) = 0.0_dp

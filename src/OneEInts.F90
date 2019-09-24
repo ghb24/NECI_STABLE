@@ -1,6 +1,6 @@
 module OneEInts
 
-! For calculating, storing and retrieving the one electron integrals, <i|h|j>, where 
+! For calculating, storing and retrieving the one electron integrals, <i|h|j>, where
 ! h is the one-particle Hamiltonian operator and i and j are spin-orbitals.
 ! Variables associated with this usually have TMAT in the name.
 
@@ -20,11 +20,11 @@ public
 ! For storing the <i|h|j> elements which are non-zero by symmetry.
 ! Ranges from -1 to N, where N is the # of non-zero elements. The -1
 ! element is used to return the zero value.  Used for Abelian symmetries,
-! where i and j must span the same representation in order for <i|h|j> 
+! where i and j must span the same representation in order for <i|h|j>
 ! to be non-zero.
 ! The symmetries used in Dalton and Molpro are all Abelian.
 HElement_t(dp), dimension(:), POINTER :: TMATSYM
-! For non-Abelian symmetries, we store the entire <i|h|j> matrix, as 
+! For non-Abelian symmetries, we store the entire <i|h|j> matrix, as
 ! the direct products of the representations can contain the totally
 ! symmetric representation (and are not necessarily the same).  We could
 ! compress this in a similar fashion at some point.
@@ -44,7 +44,7 @@ HElement_t(dp), dimension(:,:,:), pointer :: OneEPropInts2
 ! True if using TMatSym in CPMD (currently only if using k-points, which form
 ! an Abelian group).
 logical tCPMDSymTMat
-logical tOneElecDiag    !Indicates that the one-electron integral matrix is diagonal - 
+logical tOneElecDiag    !Indicates that the one-electron integral matrix is diagonal -
                         !basis functions are eigenstates of KE operator.
 
 ! Memory book-keeping tags
@@ -59,7 +59,7 @@ integer(TagIntType) :: tagPropCore=0
 contains
 
       pure INTEGER FUNCTION TMatInd(I,J)
-        ! In: 
+        ! In:
         !    i,j: spin orbitals.
         ! Return the index of the <i|h|j> element in TMatSym2.
         ! We assume a restricted calculation.  We note that TMat is a Hermitian matrix.
@@ -70,14 +70,14 @@ contains
         !   Arrange basis into blocks of the same symmetry, ie so TMat is of a block
         !   (but not necessarily block diagonal) nature.  Order the blocks by their
         !   symmetry index.
-        !   Within each block, convert i and j to a spatial index and label by the 
+        !   Within each block, convert i and j to a spatial index and label by the
         !   (energy) order in which they come within that symmetry: i->k,j->l.
         !   We only need to store the upper diagonal of each block:
         !        blockind=k*(k-1)/2+l, l<k.
         !   The overall index depends on the number of non-zero integrals in the blocks
         !   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
         !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
-        !   If the element is zero by symmetry, return -1 (TMatSym(-1) is set to 0). 
+        !   If the element is zero by symmetry, return -1 (TMatSym(-1) is set to 0).
         use SystemData, only: Symmetry, BasisFN
         use SymData, only: SymClasses,StateSymMap,SymLabelIntsCum
         IMPLICIT NONE
@@ -85,7 +85,7 @@ contains
         integer A,B,symI,symJ,Block,ind,K,L
         A=mod(I,2)
         B=mod(J,2)
-        !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed 
+        !If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry disallowed
 !therefore have a zero integral (apart from in UHF - might cause problem if we want this)
         IF(A.ne.B) THEN
             TMatInd=-1
@@ -94,7 +94,7 @@ contains
         !To convert to spatial orbitals
         K=(I+1)/2
         L=(J+1)/2
-        
+
         symI=SYMCLASSES(K)
         symJ=SYMCLASSES(L)
 
@@ -123,11 +123,11 @@ contains
             RETURN
         ENDIF
       END FUNCTION TMatInd
-     
+
 
 
       INTEGER FUNCTION NEWTMatInd(I,J)
-      ! In: 
+      ! In:
       !    i,j: spin orbitals.
       ! Return the index of the <i|h|j> element in TMatSym2.
       ! See notes for TMatInd. Used post-freezing.
@@ -137,7 +137,7 @@ contains
         INTEGER I,J,A,B,symI,symJ,Block,ind,K,L
         A=mod(I,2)
         B=mod(J,2)
-        ! If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry 
+        ! If TMatInd = -1, then the spin-orbitals have different spins, or are symmetry
 !disallowed therefore have a zero integral (apart from in UHF - might cause problem if we want this)
         IF(A.ne.B) THEN
             NEWTMatInd=-1
@@ -146,7 +146,7 @@ contains
         !To convert to spatial orbitals
         K=(I+1)/2
         L=(J+1)/2
-        
+
         symI=SYMCLASSES2(K)
         symJ=SYMCLASSES2(L)
 
@@ -172,7 +172,7 @@ contains
         ENDIF
       END FUNCTION NewTMatInd
 
-    
+
     elemental function GetTMatEl (i, j) result(ret)
 
         ! Return the one electron integral <i|h|j>
@@ -214,7 +214,7 @@ contains
     end function GetTMatEl
 
     function GetPropIntEl(i,j,iprop) result(integral)
-        
+
 !       use OneEInts, only: OneEPropInts
         integer, intent(in) :: i, j, iprop
         real(dp) :: integral
@@ -224,7 +224,7 @@ contains
     end function
 
       FUNCTION GetNewTMatEl(I,J)
-      ! In: 
+      ! In:
       !    i,j: spin orbitals.
       ! Return <i|h|j>, the "TMat" element.
       ! Used post-freezing. See also GetTMatEl.
@@ -264,7 +264,7 @@ contains
         use SymData, only: SymLabelIntsCum,SymLabelIntsCum2,SymLabelCountsCum2
         IMPLICIT NONE
         INTEGER II,I,J,NBASIS,iunit
-        
+
         iunit = get_free_unit()
         open(iunit, file="TMATSYMLABEL", status="unknown")
         IF(associated(SYMLABELINTSCUM)) THEN
@@ -329,13 +329,13 @@ contains
         WRITE(iunit,*) "*********************************"
         CALL neci_flush(iunit)
       END SUBROUTINE WriteTMat
-        
+
 !Routine to calculate number of elements allocated for TMAT matrix
       SUBROUTINE CalcTMATSize(nBasis,iSize)
       use SymData, only: SymLabelCounts,nSymLabels
       INTEGER :: iSize,nBasis,basirrep,i,Nirrep
 
-          IF(tCPMDSymTMat) THEN 
+          IF(tCPMDSymTMat) THEN
               iSize=0
               Nirrep=NSYMLABELS
               do i=1,Nirrep
@@ -354,7 +354,7 @@ contains
 
       END SUBROUTINE CalcTMATSize
 
-      SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)   
+      SUBROUTINE SetupTMAT(nBASIS,iSS,iSize)
         ! In:
         !    nBasis: number of basis functions (orbitals).
         !    iSS: ratio of nBasis to the number of spatial orbitals.
@@ -372,13 +372,13 @@ contains
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize, iunit
         character(*), parameter :: thisroutine = 'SetupTMAT'
-        
+
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
-        ! TMAT.  
+        ! TMAT.
         if (tCPMD) tCPMDSymTMat=tKP
         if (tVASP) tCPMDSymTMat=.true.
-        IF(tCPMDSymTMat) THEN 
+        IF(tCPMDSymTMat) THEN
             ! Set up info for indexing scheme (see TMatInd for full description).
             Nirrep=NSYMLABELS
             nBi=nBasis/iSS
@@ -454,7 +454,7 @@ contains
             !iSize=iSize+2
             !This is to allow the index of '-1' in the array to give a zero value
             !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
-            
+
             Allocate(TMATSYM(-1:iSize),STAT=ierr)
             Call LogMemAlloc('TMATSym',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM,ierr)
             TMATSYM=(0.0_dp)
@@ -462,7 +462,7 @@ contains
         ELSE
 
             if(tOneElecDiag) then
-                ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal. 
+                ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal.
                 iSize=nBasis
                 Allocate(TMAT2D(nBasis,1),STAT=ierr)
                 call LogMemAlloc('TMAT2D',nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
@@ -475,22 +475,22 @@ contains
                 call LogMemAlloc('TMAT2D',nBasis*nBasis,HElement_t_size*8,thisroutine,tagTMat2D)
                 TMAT2D=(0.0_dp)
             endif
-        
+
         ENDIF
-    
+
       END SUBROUTINE SetupTMAT
 
       subroutine SetupPropInts(nBasis)
- 
+
         use HElem, only: HElement_t_size
         use LoggingData, only: iNumPropToEst
         use MemoryManager, only: LogMemalloc
- 
+
         implicit none
         integer, intent(in) :: nBasis
         integer :: ierr,iSize
         character(*),parameter :: t_r = 'SetupPropertyInts'
- 
+
         ! Using a square array to hold <i|h|j> (incl. elements which are
         ! zero by symmetry).
         Allocate(OneEPropInts(nBasis,nBasis,iNumPropToEst),STAT=ierr)
@@ -500,27 +500,27 @@ contains
         Allocate(PropCore(iNumPropToEst),STAT=ierr)
         call LogMemAlloc('PropCore',iNumPropToEst,dp,t_r,tagPropCore)
         PropCore = 0.0d0
- 
+
       end subroutine SetupPropInts
 
       subroutine SetupPropInts2(nBasisFrz)
- 
+
         use HElem, only: HElement_t_size
         use LoggingData, only: iNumPropToEst
         use MemoryManager, only: LogMemalloc
- 
+
         implicit none
         integer, intent(in) :: nBasisFrz
         integer :: ierr,iSize
         character(*),parameter :: t_r = 'SetupPropertyInts2'
- 
+
         ! Using a square array to hold <i|h|j> (incl. elements which are
         ! zero by symmetry).
         Allocate(OneEPropInts2(nBasisFrz,nBasisFrz,iNumPropToEst),STAT=ierr)
         iSize = NBasisFrz*NBasisFrz*iNumPropToEst
         call LogMemAlloc('OneEPropInts2',iSize,HElement_t_size*8,t_r,tagOneEPropInts2)
         OneEPropInts2 = (0.0_dp)
- 
+
       end subroutine SetupPropInts2
 
       SUBROUTINE SetupTMAT2(nBASISFRZ,iSS,iSize)
@@ -542,13 +542,13 @@ contains
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize, iunit
         character(*),parameter :: thisroutine='SetupTMAT2'
-        
+
         ! If this is a CPMD k-point calculation, then we're operating
         ! under Abelian symmetry: can use George's memory efficient
         ! TMAT.
         if (tCPMD) tCPMDSymTMat=tKP
         if (tVASP) tCPMDSymTMat=.true.
-        IF(tCPMDSymTMat) THEN 
+        IF(tCPMDSymTMat) THEN
             ! Set up info for indexing scheme (see TMatInd for full description).
             Nirrep=NSYMLABELS
             nBi=nBasisFRZ/iSS
@@ -613,7 +613,7 @@ contains
             !iSize=iSize+2
             !This is to allow the index of '-1' in the array to give a zero value
             !Refer to TMatSym(-1) for when <i|h|j> is zero by symmetry.
-            
+
             Allocate(TMATSYM2(-1:iSize),STAT=ierr)
             CALL LogMemAlloc('TMatSym2',iSize+2,HElement_t_size*8,thisroutine,tagTMATSYM2,ierr)
             TMATSYM2=(0.0_dp)
@@ -621,7 +621,7 @@ contains
         ELSE
 
             if(tOneElecDiag) then
-                ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal. 
+                ! In the UEG, the orbitals are eigenfunctions of KE operator, so TMAT is diagonal.
                 iSize=nBasisFRZ
                 Allocate(TMAT2D2(nBasisFRZ,1),STAT=ierr)
                 call LogMemAlloc('TMAT2D2',nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
@@ -634,10 +634,10 @@ contains
                 call LogMemAlloc('TMAT2D2',nBasisFRZ*nBasisFRZ,HElement_t_size*8,thisroutine,tagTMat2D2)
                 TMAT2D2=(0.0_dp)
             endif
-        
+
         ENDIF
       END SUBROUTINE SetupTMat2
-    
+
 
 
       SUBROUTINE DestroyTMat(NEWTMAT)
@@ -665,7 +665,7 @@ contains
       END SUBROUTINE DestroyTMat
 
       SUBROUTINE DestroyPropInts()
- 
+
         use MemoryManager, only: LogMemDealloc
         implicit none
         character(*),parameter :: t_r = 'DestroyPropInts'
@@ -677,7 +677,7 @@ contains
             Deallocate(OneEPropInts2)
         end if
         Deallocate(PropCore)
- 
+
       END SUBROUTINE DestroyPropInts
 
       SUBROUTINE SwapTMat(NBASIS,NHG,GG)
@@ -710,7 +710,7 @@ contains
       END SUBROUTINE SwapTMat
 
       SUBROUTINE SwapOneEPropInts(nBasisFrz,iNum)
- 
+
         ! IN: iNum is the number of perturbation operator used in the calculation
         ! During freezing, we need to know the OneEPropInts arrays both pre- and
         ! post-freezing.  Once freezing is done, clear all the pre-freezing
@@ -734,7 +734,7 @@ contains
         OneEPropInts => OneEPropInts2
 
         NULLIFY(OneEPropInts2)
- 
+
       END SUBROUTINE SwapOneEPropInts
 
 end module OneEInts

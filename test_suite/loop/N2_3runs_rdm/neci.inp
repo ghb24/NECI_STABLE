@@ -1,5 +1,5 @@
 Title
- 
+
 System read
     electrons  6
     nonuniformrandexcits 4ind-weighted-2
@@ -7,12 +7,14 @@ System read
     freeformat
     system-replicas 2
 endsys
- 
+
 calc
     methods
         method vertex fcimc
     endmethods
- 
+
+    definedet 1-6
+
     totalwalkers 500
     diagshift .05
     shiftdamp .02
@@ -33,7 +35,7 @@ calc
     startsinglepart 10
     rdmsamplingiters 100
 endcalc
- 
+
 logging
     highlypopwrite 50
     print-spin-resolved-RDMs

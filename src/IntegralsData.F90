@@ -41,10 +41,10 @@ INTEGER(TagIntType) :: tagFCK=0
 INTEGER :: NMAX
 real(dp) :: CST
 
-! from Calc      
+! from Calc
 real(dp) :: ChemPot
 ! Set if we need virtual orbitals  (usually set).  Will be unset (by Calc readinput) if I_VMAX=1 and TENERGY is false
-Logical :: tNeedsVirts  
+Logical :: tNeedsVirts
 
 ! Details to permit reversing freezing for convenience.
 integer :: nel_pre_freezing

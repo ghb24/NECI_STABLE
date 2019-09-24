@@ -46,7 +46,7 @@ contains
 
   subroutine set_adi_flags(ilut, nI, sgn, ex)
     use bit_rep_data, only: flag_adi_checked
-    ! This sets the adi flags (flag_adi_checked and flag_static_init) 
+    ! This sets the adi flags (flag_adi_checked and flag_static_init)
     ! for a given ilut
     implicit none
     integer(n_int), intent(inout) :: ilut(0:NIfTot)
@@ -113,7 +113,7 @@ contains
 
     staticInit = .false.
     tCCache = tWeakCoherentDoubles .or. tAvCoherentDoubles
-    
+
     exLevel = 0
     if(tCCache) call initialize_c_caches(signedCache, unsignedCache,connections)
     ! Important : Only compare to the already initialized reference
@@ -132,7 +132,7 @@ contains
              ! Check if we are sign-coherent if this is desired
              if(unset_incoherent_initiator(exLevel, ilut, nI, sgn, i, staticInit, run)) &
                                 ! If we find the determinant to be incoherent, we do not apply
-                                ! the ADI rules and instead 
+                                ! the ADI rules and instead
                   return
 
              if(tCCache)&
@@ -144,7 +144,7 @@ contains
 
              ! If desired, also set singles as initiators
              call set_single_initiator(exLevel, staticInit)
-             ! We have to keep looping over the SIs, even if we already have a double, 
+             ! We have to keep looping over the SIs, even if we already have a double,
              ! if we want to compute Xi. Else, we can exit if we found a valid double
              if(staticInit .and. .not. tCCache) exit
           endif
@@ -179,7 +179,7 @@ contains
     if(tStrictCoherentDoubles .and. (exLevel > 0)) then
        if(.not. check_sign_coherence(ilut,nI,sgn,iRef,run)) then
           ! If not, do not let the determinant be an initiator
-          ! Note that this strikes anytime, even if it is coherent with 
+          ! Note that this strikes anytime, even if it is coherent with
           ! the reference to which it is the double, but not with some other one
           ! (if we have e.g. another reference that is a single)
           tSuspendADI = .true.

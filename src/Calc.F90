@@ -45,6 +45,7 @@ MODULE Calc
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
+    use util_mod, only: near_zero, operator(.isclose.)
 
     implicit none
 
@@ -2953,10 +2954,10 @@ contains
                       ! only using av ignores sign tendency and can overestimate
                       ! the correctness of a sign
                       tAvCoherentDoubles = .true.
-		   case("OFF")
-		      ! do not perform a coherence check
-		      tAvCoherentDoubles = .false.
-		      tWeakCoherentDoubles = .false.
+                   case("OFF")
+                      ! do not perform a coherence check
+                      tAvCoherentDoubles = .false.
+                      tWeakCoherentDoubles = .false.
                    case default
                       ! default is WEAK
                       tAvCoherentDoubles = .true.
@@ -2977,12 +2978,12 @@ contains
              case("DYNAMIC-SUPERINITIATORS")
                 ! Re-evaluate the superinitiators every SIUpdateInterval steps
                 ! Beware, this can be very expensive
-		! By default, it is 100, to turn it off, use 0
+                ! By default, it is 100, to turn it off, use 0
                 call readi(SIUpdateInterval)
 
-       	     case("STATIC-SUPERINITIATORS")
-	        ! Do not re-evaluate the superinitiators
-		SIUpdateInterval = 0
+             case("STATIC-SUPERINITIATORS")
+                ! Do not re-evaluate the superinitiators
+                SIUpdateInterval = 0
 
              case("INITIATOR-COHERENCE-THRESHOLD")
                 ! Set the minimal coherence parameter for superinitiator-related
@@ -3060,8 +3061,8 @@ contains
                 ! set the minimum value for superinitiator population
                 call readf(NoTypeN)
 
-	     case("SUPPRESS-SUPERINITIATOR-OUTPUT")
-	        ! just for backwards-compatibility
+             case("SUPPRESS-SUPERINITIATOR-OUTPUT")
+                ! just for backwards-compatibility
 
              case("WRITE-SUPERINITIATOR-OUTPUT")
                 ! Do not output the newly generated superinitiators upon generation
@@ -3095,7 +3096,7 @@ contains
 
           end do calc
 
-          IF((.not.TReadPops).and.(ScaleWalkers.ne.1.0_dp)) THEN
+          IF(.not. (TReadPops .or. (ScaleWalkers .isclose. 1.0_dp))) THEN
               call report("Can only specify to scale walkers if READPOPS is set",.true.)
           ENDIF
 
@@ -3178,7 +3179,7 @@ contains
 !             call stop_all(this_routine, "G_VNC_FAC LE 0")
 !          ENDIF
 
-          IF(BETAP.NE.0.0_dp) THEN
+          IF(.not. near_zero(BETAP)) THEN
              I_P=NINT(BETA/BETAP)
              IF(.not.tFCIMC) THEN
                  WRITE(6,*) 'BETAP=',BETAP

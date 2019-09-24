@@ -17,5 +17,5 @@ Compiler bugs
 3. PGI has issues with custom operators and public/private declarations in modules.
    If these go away, remove the comments from the relevant sections of util_mod.
 4. gfortran throws a wobbly about labelling a past function as an operator unless
-   the passed function is also called directly. See the workaround in 
+   the passed function is also called directly. See the workaround in
    lib/quicksort.F90.template

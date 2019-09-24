@@ -108,7 +108,7 @@ contains
                     rdms(i)%abab_inst(:,:) = 0.0_dp
 
                     memory_alloc = memory_alloc + (rdm_size_2**2)*8
-                    memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8 
+                    memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8
 
                     ! Extra arrays for open shell systems.
                     if (tOpenShell) then
@@ -177,7 +177,7 @@ contains
                         end if
 
                     end if
-                    
+
                     rdms(i)%aaaa => rdms(i)%aaaa_inst
                     rdms(i)%abba => rdms(i)%abba_inst
                     rdms(i)%abab => rdms(i)%abab_inst
@@ -219,7 +219,7 @@ contains
 
                     memory_alloc = memory_alloc + (rdm_size_2**2)*8
                     memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8
-                    
+
                     rdms(i)%aaaa => rdms(i)%aaaa_full
                     rdms(i)%abba => rdms(i)%abba_full
                     rdms(i)%abab => rdms(i)%abab_full
@@ -243,7 +243,7 @@ contains
                         rdms(i)%baba_full(:,:) = 0.0_dp
                         memory_alloc = memory_alloc + (rdm_size_2**2)*8
                         memory_alloc_root = memory_alloc_root + (rdm_size_2**2)*8
-          
+
                         rdms(i)%bbbb => rdms(i)%bbbb_full
                         rdms(i)%baab => rdms(i)%baab_full
                         rdms(i)%baba => rdms(i)%baba_full
@@ -254,7 +254,7 @@ contains
 
         end if
 
-        ! Open file to keep track of RDM estimates. 
+        ! Open file to keep track of RDM estimates.
         if ((iProcIndex .eq. 0) .and. print_2rdm_est) then
             rdm_write_unit_old = get_free_unit()
             open(rdm_write_unit_old, file='RDMEstimates_old', status='unknown', position='append')
@@ -315,7 +315,7 @@ contains
         real(dp) :: Temp_RDM_Element
         character(len=*), parameter :: t_r = 'Read_In_RDMs_old'
 
-        if (iProcIndex .eq. 0) then 
+        if (iProcIndex .eq. 0) then
 
             if (RDMExcitLevel .eq. 1) then
 
@@ -347,7 +347,7 @@ contains
 
                 ! The TwoRDMs will have been printed exactly as they were.
                 ! Without having been made hermitian, without being
-                ! normalised, and in spatial orbitals. 
+                ! normalised, and in spatial orbitals.
 
                 ! Only read in the 2-RDMs (the 1-RDM becomes redundant).
                 inquire(file='TwoRDM_POPS_aaaa_old.1', exist=exists_aaaa)
@@ -365,7 +365,7 @@ contains
                     RDM_unit = get_free_unit()
                     open(RDM_unit, file='TwoRDM_POPS_aaaa_old.1', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
+                        read(RDM_unit,iostat=FileEnd) i, j, a, b, Temp_RDM_Element
                         if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_aaaa_old.1")
                         if (FileEnd .lt. 0) exit
 
@@ -377,7 +377,7 @@ contains
 
                     open(RDM_unit, file='TwoRDM_POPS_abab_old.1', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit, iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
+                        read(RDM_unit, iostat=FileEnd) i, j, a, b, Temp_RDM_Element
                         if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_abab_old.1")
                         if (FileEnd .lt. 0) exit
 
@@ -389,7 +389,7 @@ contains
 
                     open(RDM_unit, file='TwoRDM_POPS_abba_old.1', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit,iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
+                        read(RDM_unit,iostat=FileEnd) i, j, a, b, Temp_RDM_Element
                         if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_abba_old.1")
                         if (FileEnd .lt. 0) exit
 
@@ -413,7 +413,7 @@ contains
                     RDM_unit = get_free_unit()
                     open(RDM_unit, file='TwoRDM_POPS_bbbb_old.1', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit, iostat=FileEnd) i, j, a, b, Temp_RDM_Element 
+                        read(RDM_unit, iostat=FileEnd) i, j, a, b, Temp_RDM_Element
                         if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_bbbb_old.1")
                         if (FileEnd .lt. 0) exit
 
@@ -425,7 +425,7 @@ contains
 
                     open(RDM_unit, file='TwoRDM_POPS_baba_old.1', status='old', form='unformatted')
                     do while (.true.)
-                        read(RDM_unit, iostat = FileEnd) i, j, a, b, Temp_RDM_Element 
+                        read(RDM_unit, iostat = FileEnd) i, j, a, b, Temp_RDM_Element
                         if (FileEnd.gt.0) call stop_all(t_r, "Error reading TwoRDM_POPS_baba_old.1")
                         if (FileEnd.lt.0) exit
 
@@ -437,7 +437,7 @@ contains
 
                     open(RDM_unit,file='TwoRDM_POPS_baab_old.1',status='old',form='unformatted')
                     do while (.true.)
-                        read(RDM_unit, iostat = FileEnd) i, j, a, b, Temp_RDM_Element 
+                        read(RDM_unit, iostat = FileEnd) i, j, a, b, Temp_RDM_Element
                         if (FileEnd .gt. 0) call stop_all(t_r, "Error reading TwoRDM_POPS_baab_old.1")
                         if (FileEnd .lt. 0) exit
 
@@ -506,7 +506,7 @@ contains
             if (RDMExcitLevel .eq. 1) then
                 call Finalise_1e_RDM_old(one_rdms(i)%matrix, one_rdms(i)%rho_ii, i, Norm_1RDM, .true.)
             else
-                ! We always want to calculate one final RDM energy, whether or not we're 
+                ! We always want to calculate one final RDM energy, whether or not we're
                 ! calculating the energy throughout the calculation.
                 ! Unless of course, only the 1-RDM is being calculated.
 

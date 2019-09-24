@@ -43,5 +43,5 @@ module neci_intfce
    real(dp) pGen
    real(dp) Arr(nBasis,2)
   END SUBROUTINE GenExcitProb
- end interface 
+ end interface
 end module neci_intfce

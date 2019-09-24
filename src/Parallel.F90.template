@@ -1587,7 +1587,7 @@ contains
             call stop_all (t_r, 'MPI Error. Terminating.')
 
         call MPI_Comm_size (CommGlobal, nProcess, ierr)
-	
+
         !initialize intra node and inter node communicators
 #ifdef __SHARED_MEM
         !the 'intra' range is the full node for now.
@@ -1973,8 +1973,10 @@ contains
        integer(MPIArg) :: ierr
 
 #ifdef PARALLEL
+#ifdef __SHARED_MEM
         call mpi_comm_free(mpi_comm_intra,ierr)
         call mpi_comm_free(mpi_comm_inter,ierr)
+#endif
         if(.not.tExternal) then
             call MPI_Finalize(ierr)
         endif

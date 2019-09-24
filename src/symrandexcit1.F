@@ -7,7 +7,7 @@
       SUBROUTINE SymGenRandExcitIt2(NI,NEL,EXCITTYPES,
      &               CLASSES,
      &               SYMPRODIND,ILUT,ORBPAIRS,iTotal,ISEED,
-     &               NK,IC,PGEN,EXCITMAT,TPARITY)      
+     &               NK,IC,PGEN,EXCITMAT,TPARITY)
          use CalcData, only: ExcitFuncs
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          USE symexcit2
@@ -34,8 +34,8 @@
          INTEGER SymProdInd(2,3,1:*)
          INTEGER nK(nEl)
          INTEGER iSeed
-         real(dp) RAN2   
-!.. irst generate a random excitation 
+         real(dp) RAN2
+!.. irst generate a random excitation
 
          PGEN=1.0_dp/ITOTAL
 !         I=ITOTAL
