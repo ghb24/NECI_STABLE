@@ -1,7 +1,7 @@
 #include "macros.h"
 module pcpp_excitgen
   use constants
-  use aliasSampling, only: aliasSampler_t
+  use aliasSampling, only: aliasSampler_t, clear_sampler_array
   use bit_reps, only: niftot
   use SystemData, only: nel, nBasis, G1, BRR, symmax, Symmetry
   use sym_mod, only: symprod, symconj
@@ -25,7 +25,7 @@ module pcpp_excitgen
   type(aliasSampler_t) :: double_elec_one_sampler
   type(aliasSampler_t), allocatable :: double_elec_two_sampler(:)
 
-  type(aliasSampler_t), allocatable :: double_hole_one_sampler(:,:) 
+  type(aliasSampler_t), allocatable :: double_hole_one_sampler(:,:)
   ! there is one sampler per spin/symmetry of the last electron
   type(aliasSampler_t), allocatable :: double_hole_two_sampler(:,:,:)
 
@@ -90,7 +90,7 @@ contains
 
   subroutine generate_double_pcpp(nI, elec_map, ilut, nJ, excitMat, tParity, pGen)
     implicit none
-    ! given the initial determinant (both as nI and ilut), create a random single excitation
+    ! given the initial determinant (both as nI and ilut), create a random double excitation
     ! given by nJ/ilutnJ/excitMat with probability pGen. tParity indicates the fermi sign
     ! picked up by applying the excitation operator
     ! Input: nI - determinant to excite from
@@ -123,7 +123,7 @@ contains
 
     call double_elec_one_sampler%sample(umElec1,pSGen1)
     src1 = elec_map(umElec1)
-    
+
     ! in very rare cases, no mapping is possible in the first place
     ! then, abort
     if(invalid_mapping(src1)) then
@@ -132,10 +132,10 @@ contains
        pGen = pSGen1
        return
     endif
-    
+
     call double_elec_two_sampler(src1)%sample(umElec2,pSGen2)
     src2 = elec_map(umElec2)
-    
+
     ! it is possible to not be able to map the second electron if
     ! the first mapping occupied the only available slot
     if(invalid_mapping(src2,src1)) then
@@ -203,7 +203,7 @@ contains
 
       sym= symprod(G1(src1)%Sym,G1(src2)%Sym)
       sym = symprod(sym,symconj(G1(tgt)%Sym))
-      
+
     end function getTgtSym
 
     function getTgtSpin(tgt) result(ms)
@@ -224,7 +224,7 @@ contains
          ms = 1 - getSpinIndex(tgt)
       endif
     end function getTgtSpin
-      
+
     function invalid_mapping(src,src2) result(abort)
       ! check if the mapping was successful
       ! Input: src - electron we want to know about: did the mapping succeed?
@@ -245,7 +245,7 @@ contains
          ExcitMat(1,1) = src
          if(present(src2)) ExcitMat(1,2) = src2
       endif
-      
+
     end function invalid_mapping
 
     function abort_excit(tgt,tgt2) result(abort)
@@ -257,14 +257,14 @@ contains
       integer, intent(in) :: tgt
       integer, optional, intent(in) :: tgt2
       logical :: abort
-      
+
       abort = IsOcc(ilut,tgt) .or. (tgt == 0)
       if(present(tgt2)) abort = abort .or. tgt==tgt2
       if(abort) then
          nJ = 0
          ExcitMat(1,1) = src1
          ExcitMat(1,2) = src2
-         ExcitMat(2,1) = tgt         
+         ExcitMat(2,1) = tgt
          if(present(tgt2)) then
             ExcitMat(2,2) = tgt2
          else
@@ -290,7 +290,7 @@ contains
     !        excitMat - on return, excitation matrix nI -> nJ
     !        tParity - on return, the parity of the excitation nI -> nJ
     !        pGen - on return, the probability of generating the excitation nI -> nJ
-    
+
     integer, intent(in) :: nI(nel)
     integer, intent(in) :: elec_map(nel)
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -305,10 +305,10 @@ contains
     ! get a random electron
     call single_elec_sampler%sample(src,pGen)
 
-    ! map the electron to the current determinant    
+    ! map the electron to the current determinant
     src = elec_map(src)
 
-    ! get a random associated orbital    
+    ! get a random associated orbital
     call single_hole_sampler(src)%sample(tgt,pHole)
 
     if(IsOcc(ilut,tgt)) then
@@ -330,7 +330,7 @@ contains
 
   !------------------------------------------------------------------------------------------!
   ! Functions that map orbital and electron indices between reference and current determinant
-  !------------------------------------------------------------------------------------------!  
+  !------------------------------------------------------------------------------------------!
 
   pure function create_elec_map(ilut) result(map)
     ! Create a map to transfer orbitals between the current det (nI)
@@ -367,7 +367,7 @@ contains
           end do
        endif
     end do
-    
+
   end function create_elec_map
 
   !------------------------------------------------------------------------------------------!
@@ -499,7 +499,7 @@ contains
       implicit none
       real(dp) :: w(nBasis,0:symmax-1,0:spinMax)
       integer :: j,b,iSym,iSpin
-      integer :: aerr        
+      integer :: aerr
 
       ! there is one table for each symmetry and each starting orbital
       allocate(double_hole_two_sampler(nBasis,0:symmax-1,0:spinMax), stat = aerr)
@@ -589,15 +589,15 @@ contains
       allocate(single_hole_sampler(nBasis), stat = aerr)
 
       ! each table has probabilities for all given virtual orbitals a (some of them might
-      ! be 0, this has no additional cost)    
+      ! be 0, this has no additional cost)
       do i = 1, nBasis
          w = 0.0_dp
          do a = 1, nBasis
             ! we never want to sample the source orbital
             if(i.ne.a) &
                  ! store the accumulated matrix elements (= un-normalized probability) with
-                 ! the corresponding symmetry (if spins of a/i are different, w is 0)            
-                 w(a) = acc_doub_matel(i,a)            
+                 ! the corresponding symmetry (if spins of a/i are different, w is 0)
+                 w(a) = acc_doub_matel(i,a)
          end do
 
          call single_hole_sampler(i)%setupSampler(w)
@@ -682,18 +682,6 @@ contains
     deallocate(double_hole_two_sampler)
   contains
 
-    subroutine clear_sampler_array(arr)
-      ! call the destructor on all elements of an array, then deallocate it
-      type(aliasSampler_t), allocatable :: arr(:)
-
-      integer :: i
-
-      do i = 1, size(arr)
-         call arr(i)%samplerDestructor()
-      end do
-      deallocate(arr)
-    end subroutine clear_sampler_array
-
   end subroutine finalize_pcpp_excitgen
 
 
@@ -749,7 +737,7 @@ contains
   end function pp_weight_function
 
   !------------------------------------------------------------------------------------------!
-  
+
   function symAllowed(a,b) result(allowed)
     ! Check if a transition from a to be is symmetry-allowed
     ! Input: a,b - orbitals to check
@@ -775,7 +763,7 @@ contains
 
     ms = mod(orb,2)
   end function getSpinIndex
-  
+
   !------------------------------------------------------------------------------------------!
 
   pure subroutine intswap(a,b)
@@ -785,7 +773,7 @@ contains
     integer :: tmp
 
     tmp = a
-    a = b 
+    a = b
     b = tmp
   end subroutine intswap
 

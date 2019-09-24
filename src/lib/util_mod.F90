@@ -128,7 +128,7 @@ contains
                 i = i + nint(sign(1.0_dp, num))
         end if
 
-    end function
+      end function stochastic_round_r
 
     subroutine print_cstr (str) bind(c, name='print_cstr')
 
@@ -294,6 +294,39 @@ contains
 
       end subroutine addToIntArray
 
+!--- Indexing utilities
+
+   function fuseIndex(q,p) result(ind)
+     ! fuse p,q into one symmetric index
+     ! the resulting index is not contigious in p or q
+     ! Input: p,q - 2d-array indices
+     ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
+      implicit none
+      integer, intent(in) :: p,q
+      integer :: ind
+
+      ! qp and pq are considered to be the same index
+      ! -> permutational symmetry
+
+      if(p > q) then
+         ind = q + p*(p-1)/2
+      else
+         ind = p + q*(q-1)/2
+      end if
+    end function fuseIndex
+
+    function linearIndex(p,q,dim) result(ind)
+      ! fuse p,q into one contiguous index
+      ! the resulting index is contiguous in q
+      ! Input: p,q - 2d-array indices
+      !        dim - dimension of the underlying array in q-direction
+      ! Output: ind - contiguous 1d-array index
+      implicit none
+      integer, intent(in) :: p,q,dim
+      integer :: ind
+
+      ind = q + (p-1) * dim
+    end function linearIndex
 
 !--- Numerical utilities ---
 

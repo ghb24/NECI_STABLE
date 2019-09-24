@@ -4,8 +4,7 @@ MODULE System
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tPairedReplicas, tInitializeCSF, &
-                        S2Init
-
+                        S2Init, tDynamicAvMCEx
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use constants
@@ -181,6 +180,8 @@ MODULE System
       tUEGNewGenerator = .false.
       tGen_4ind_2 = .false.
       tGen_4ind_2_symmetric = .false.
+      t_pcpp_excitgen = .false.
+      t_pchb_excitgen = .false.
 
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
@@ -990,6 +991,10 @@ system: do
                     case("PCPP")
                        ! the precomputed power-pitzer excitation generator
                        t_pcpp_excitgen = .true.
+
+                    case("PCHB")
+                       ! the precomputed heat-bath excitation generator (uniform singles)
+                       t_pchb_excitgen = .true.
                     case("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this

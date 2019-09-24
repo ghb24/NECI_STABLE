@@ -191,7 +191,7 @@ contains
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 &
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
-                  &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
+                  &32.|Semistoch|/|Psi|  33.MaxCycSpawn  34.InvalidExcits  35. ValidExcits"
            if (tTrialWavefunction .or. tStartTrialLater) then
               write(fcimcstats_unit, "(A)", advance = 'no') &
                    "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
@@ -289,7 +289,7 @@ contains
                 norm_psi, &                           !27
                 curr_S2, &                            !28
                 PartsDiffProc, &                      !29
-                all_max_cyc_spawn                     !30.
+                all_max_cyc_spawn                     !30
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(7(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &              ! 31. 32
@@ -392,7 +392,7 @@ contains
 
             write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
-                                   &i13,2g16.7)",advance = 'no') &
+                                   &i13,4g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(1), &                              ! 2.
                 AllTotParts(1) - AllTotPartsOld(1), &      ! 3.
@@ -424,7 +424,9 @@ contains
                 AbsProjE(1), &                             ! 30.
                 PartsDiffProc, &                           ! 31.
                 norm_semistoch(1)/norm_psi(1), &           ! 32.
-                all_max_cyc_spawn                          ! 33.
+                all_max_cyc_spawn, &                       ! 33
+                allNInvalidExcits, &
+                allNValidExcits
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &              ! 34.

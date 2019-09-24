@@ -246,6 +246,8 @@ logical :: tGen_4ind_unbound = .false.
 
 ! flag for the pre-computed power-pitzer excitaion generator
 logical :: t_pcpp_excitgen = .false.
+! flag for the pre-computed heat-bath excitation generator
+logical :: t_pchb_excitgen = .false.
 
 ! also implement a next-nearest neighbor Hubbard model implementation:
 ! for k-space hubbard, this only affects the diagonal part!
