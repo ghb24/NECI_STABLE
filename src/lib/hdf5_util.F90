@@ -1010,7 +1010,7 @@ contains
 
         call read_int64_1d_dataset_8(parent, nm, buf, exists, default, &
                                      required)
-        val = buf
+        val = int(buf, int32)
 
     end subroutine
 

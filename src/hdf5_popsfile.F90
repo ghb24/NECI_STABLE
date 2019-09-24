@@ -422,15 +422,15 @@ contains
         call MPIAllReduce(cnt_opp, MPI_MAX, max_cnt_opp)
         call MPIAllReduce(cnt_par, MPI_MAX, max_cnt_par)
 
-        if (max_gam_sing /= 0) &
+        if (.not. near_zero(max_gam_sing)) &
             call write_dp_scalar(tau_grp, nm_gam_sing, max_gam_sing)
-        if (max_gam_doub /= 0) &
+        if (.not. near_zero(max_gam_doub)) &
             call write_dp_scalar(tau_grp, nm_gam_doub, max_gam_doub)
-        if (max_gam_opp /= 0) &
+        if (.not. near_zero(max_gam_opp)) &
             call write_dp_scalar(tau_grp, nm_gam_opp, max_gam_opp)
-        if (max_gam_par /= 0) &
+        if (.not. near_zero(max_gam_par)) &
             call write_dp_scalar(tau_grp, nm_gam_par, max_gam_par)
-        if (max_max_death_cpt /= 0) &
+        if (.not. near_zero(max_max_death_cpt)) &
             call write_dp_scalar(tau_grp, nm_max_death, max_max_death_cpt)
         if (all_en_sing) &
             call write_log_scalar(tau_grp, nm_en_sing, all_en_sing)
@@ -948,7 +948,7 @@ contains
         ! this as uniformly as possible. Also calculate the associated data
         ! offsets
         counts = all_count / nProcessors
-        rest=mod(all_count,nProcessors)
+        rest = int(mod(all_count, nProcessors))
         if(rest.gt.0) counts(0:rest-1)=counts(0:rest-1)+1
 
         if (sum(counts) /= all_count .or. any(counts < 0)) &
@@ -1232,7 +1232,7 @@ contains
         ! Iterate through walkers in temp_ilut+temp_sgns and determine the target processor.
         onepart=0
         sendcount=0
-        do j = 1, block_size
+        do j = 1, int(block_size)
             onepart(0:sizeilut-1)=temp_ilut(:,j)
             onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
             ! Which processor does this determinant live on?
@@ -1252,7 +1252,7 @@ contains
            if (.false.) then
 #endif
               !elements that don't have to be communicated are written to SpawnedParts2
-              do j = 1, block_size
+              do j = 1, int(block_size)
                  if(targetproc(j).eq.p) then
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
@@ -1264,7 +1264,7 @@ contains
               end do
            else
               !elements that have to be sent to other procs are written to SpawnedParts
-              do j = 1, block_size
+              do j = 1, int(block_size)
                  if(targetproc(j).eq.p) then
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
@@ -1514,7 +1514,7 @@ contains
          allocate(tmp_sgns(lenof_sign,num_signs),stat=ierr)
 
          ! and clone the signs to match lenof_sign numbers per entry
-         do i = 1, num_signs
+         do i = 1, int(num_signs)
             ! depending on if we want to remove or add replicas,
             ! shrink or expand the signs
             if(tmp_lenof_sign > lenof_sign) then
