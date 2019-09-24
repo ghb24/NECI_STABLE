@@ -16,7 +16,6 @@ endmethods
 memoryfacspawn 4.0
 memoryfacpart 2.0
 truncinitiator
-keepdoubspawns
 addtoinitiator 3
 walkcontgrow
 diagshift 0.0
@@ -32,7 +31,6 @@ stochastic-hf-spawning
 allrealcoeff
 realspawncutoff 0.5
 load-balance-blocks off
-death-before-comms
 endcalc
 
 integral

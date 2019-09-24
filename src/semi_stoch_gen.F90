@@ -190,23 +190,26 @@ contains
 
         if (tWriteCore) call write_core_space()
 
-
         write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
-        call calc_determ_hamil_sparse()
-#if !defined(__CMPLX)
-        if (t_print_core_info) then 
-           ! i think i also want information, like the energy and the 
-           ! eigenvectors of the core-space
-           call diagonalize_core_non_hermitian(e_values, e_vectors)
-           if (t_choose_trial_state) then
-              gs_energy = e_values(trial_excit_choice(1))
-           else
-              gs_energy = e_values(1)
-           end if
-
-           root_print "semi-stochastic space GS energy: ", gs_energy
+        if (tAllSymSectors .or. tReltvy .or. nOccAlpha <= 1 .or. nOccBeta <= 1) then
+            ! In the above cases the faster generation is not implemented, so
+            ! use the original algorithm.
+            call set_timer(SemiStoch_Hamil_Time)
+            if (tHPHF) then
+                call calc_determ_hamil_sparse_hphf()
+            else
+                call calc_determ_hamil_sparse()
+            end if
+            call halt_timer(SemiStoch_Hamil_Time)
+            write(6,'("Total time (seconds) taken for Hamiltonian generation:", f9.3)') &
+               get_total_time(SemiStoch_Hamil_Time)
+        else
+            if (tHPHF) then
+                call calc_determ_hamil_opt_hphf()
+            else
+                call calc_determ_hamil_opt()
+            end if
         end if
-#endif
 
         if (tRDMonFly) call generate_core_connections()
 

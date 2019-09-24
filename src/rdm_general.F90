@@ -952,9 +952,11 @@ contains
       integer :: run
       
       rdmC = 0.0_dp
-      do run = 1, inum_runs, 2
-         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(run+1)
-      end do
+      if(inum_runs > 1) then
+         do run = 1, inum_runs, 2
+            rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(run+1)
+         end do
+      end if
 
     end function getRDMCorrectionTerm
 
