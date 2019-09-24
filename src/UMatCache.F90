@@ -48,7 +48,6 @@ MODULE UMatCache
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
       HElement_t(dp), Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
-      HElement_t(dp), Pointer :: UMat2DExch(:,:) => null()
       LOGICAL :: tUMat2D, tDeferred_Umat2d
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
@@ -1406,7 +1405,6 @@ MODULE UMatCache
 
         nBI = numBasisIndices(nBasis)
         allocate(UMat2D(nBI,nBI))
-        allocate(UMat2DExch(nBI,nBI))
 
         do i = 1, nBI
            do j = 1, nBI
@@ -1417,8 +1415,6 @@ MODULE UMatCache
               ! and have contiguous access)
               ! store the integrals <ij|ij> in UMat2D
               UMat2D(j,i) = get_umat_el(idN,idX,idN,idX)
-              ! same for the integrals <ij|ji> in UMat2DExch
-              UMat2DExch(j,i) = get_umat_el(idN,idX,idX,idN)
            end do
         end do
       end subroutine SetupUMat2d_dense
@@ -1429,8 +1425,7 @@ MODULE UMatCache
         implicit none
 
         ! deallocate auxiliary arrays storing the integrals <ij|ij> and <ij|ji>
-        deallocate(UMat2dExch)
-        deallocate(UMat2d)
+        if(associated(UMat2d)) deallocate(UMat2d)
       end subroutine freeUmat2d_dense
 
 

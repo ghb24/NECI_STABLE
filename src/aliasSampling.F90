@@ -34,7 +34,6 @@ module aliasSampling
      procedure :: getRand
 
      ! this hurts, but the array class has to have a mean of setting the pointers
-     ! WHY ARE THERE NO FRIENDS IN FORTRAN !!!! THIS IS NOT OOP
      procedure :: setBiasTablePtr
      procedure :: setAliasTablePtr
   end type aliasTable_t

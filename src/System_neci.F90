@@ -871,8 +871,6 @@ system: do
             CALL GetiLong(CalcDetCycles)
             CALL GetiLong(CalcDetPrint)
 
-!            tDynamicAvMCEx = .true.
-
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
 !CYCLETHRUORBS can be useful if we have small basis sets or v high restrictive symmetry and will eliminate

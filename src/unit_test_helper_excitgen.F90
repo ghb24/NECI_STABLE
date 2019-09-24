@@ -35,14 +35,14 @@ module unit_test_helper_excitgen
        use constants
        use SymExcitDataMod, only: scratchSize
        use SystemData, only: nel
-      implicit none
-      integer, intent(in) :: nI(nel)
-      integer, intent(in) :: ex(2,2), ic
-      integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+       implicit none
+       integer, intent(in) :: nI(nel)
+       integer, intent(in) :: ex(2,2), ic
+       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
 
-      real(dp) :: pgen
+       real(dp) :: pgen
 
-    end function calc_pgen_t
+     end function calc_pgen_t
  end interface
 
  procedure(calc_pgen_t), pointer :: calc_pgen
