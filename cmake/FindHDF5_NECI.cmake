@@ -57,7 +57,10 @@ if ( HAVE_BUILD_HDF5 )
 
     # Create the external build projcet
 
-	set(HDF_DIR ${CMAKE_CURRENT_BINARY_DIR}/hdf5)
+	set(HDF_DIR "${CMAKE_CURRENT_BINARY_DIR}/hdf5")
+    # Some systems use ${HDF_DIR}/lib, others use ${HDF_DIR}/lib64.
+    # Make sure to consistently use one of them.
+    set(HDF_LIB_DIR "lib")
 	include(ExternalProject)
 	ExternalProject_Add(
 		hdf5
@@ -76,7 +79,7 @@ if ( HAVE_BUILD_HDF5 )
 		# URL_MD5 4467c25ed9c0b126b194a4d9d66c29ac
 		# -- Configure step --
 		SOURCE_DIR ${HDF_DIR}
-		CONFIGURE_COMMAND env ${_configure_override} ${HDF_DIR}/configure --enable-parallel --enable-fortran --enable-fortran2003 --prefix=${HDF_DIR}
+		CONFIGURE_COMMAND env ${_configure_override} ${HDF_DIR}/configure --enable-parallel --enable-fortran --enable-fortran2003 --prefix=${HDF_DIR} --libdir=${HDF_DIR}/${HDF_LIB_DIR}
 		# -- Build step ------
 		BUILD_COMMAND "" #make && make install
 		BUILD_IN_SOURCE 1
@@ -93,11 +96,9 @@ if ( HAVE_BUILD_HDF5 )
     # Add the appropriate variable components
 
     set( HDF5_FOUND on )
-    # [W.D]: here is a problem.. on some configurations the libs get installes to lib64/ with the new 1.8.19 hdf5..
-    # but how do i detect this beforehand? or try to add both?? or make sure it gets installed to the same place all the time?
-    set( HDF5_LIBRARIES ${HDF_DIR}/lib/libhdf5.a dl ${ZLIB_LIBRARIES} )
-    set( HDF5_Fortran_LIBRARIES  ${HDF_DIR}/lib/libhdf5_fortran.a )
-    set( HDF5_INCLUDE_DIRS  ${HDF_DIR}/include )
+    set( HDF5_LIBRARIES "${HDF_DIR}/${HDF_LIB_DIR}/libhdf5.a dl ${ZLIB_LIBRARIES}" )
+    set( HDF5_Fortran_LIBRARIES "${HDF_DIR}/${HDF_LIB_DIR}/libhdf5_fortran.a" )
+    set( HDF5_INCLUDE_DIRS "${HDF_DIR}/include" )
     set( HDF5_Fortran_INCLUDE_DIRS )
 
 else() # Not building hdf5 ...
