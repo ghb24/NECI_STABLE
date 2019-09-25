@@ -96,9 +96,9 @@ if ( HAVE_BUILD_HDF5 )
     # Add the appropriate variable components
 
     set( HDF5_FOUND on )
-    set( HDF5_LIBRARIES "${HDF_DIR}/${HDF_LIB_DIR}/libhdf5.a dl ${ZLIB_LIBRARIES}" )
-    set( HDF5_Fortran_LIBRARIES "${HDF_DIR}/${HDF_LIB_DIR}/libhdf5_fortran.a" )
-    set( HDF5_INCLUDE_DIRS "${HDF_DIR}/include" )
+    set( HDF5_LIBRARIES ${HDF_DIR}/${HDF_LIB_DIR}/libhdf5.a dl ${ZLIB_LIBRARIES} )
+    set( HDF5_Fortran_LIBRARIES ${HDF_DIR}/${HDF_LIB_DIR}/libhdf5_fortran.a )
+    set( HDF5_INCLUDE_DIRS ${HDF_DIR}/include )
     set( HDF5_Fortran_INCLUDE_DIRS )
 
 else() # Not building hdf5 ...
