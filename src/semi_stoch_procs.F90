@@ -96,6 +96,7 @@ contains
             end do
 #else
             do i = 1, determ_sizes(iProcIndex)
+               ! get the re-scaled shift accounting for undersampling error
                do  part_type = 1, inum_runs
                   scaledDiagSft(part_type) = DiagSft(part_type) * shiftScaleFunction(&
                        abs(full_determ_vecs(part_type,i+determ_displs(iProcIndex))))
