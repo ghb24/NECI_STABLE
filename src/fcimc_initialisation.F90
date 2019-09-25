@@ -89,7 +89,8 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement, scaleFunction
+                                  new_child_stats, get_conn_helement, scaleFunction, &
+                                  shiftScaleFunction
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -118,7 +119,7 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction
+                                 expCOScaleFunction, expShiftScaleFunction, constShiftScaleFunction
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -1796,6 +1797,12 @@ contains
         case default
            call stop_all(t_r,"Invalid scale function specified")
         end select
+
+        if(tAllAdaptiveShift) then
+           shiftScaleFunction => expShiftScaleFunction
+        else
+           shiftScaleFunction => constShiftScaleFunction
+        end if
 
     end subroutine init_fcimc_fn_pointers
 

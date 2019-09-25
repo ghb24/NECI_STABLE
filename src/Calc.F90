@@ -28,7 +28,8 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, &
-                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
+                         tAllAdaptiveShift, cAllAdaptiveShift
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -398,6 +399,11 @@ contains
           sFAlpha = 1.0_dp
           sFBeta = 1.0_dp
           sFTag = 0
+
+          ! shift scaling with local population
+          tAllAdaptiveShift = .false.
+          ! First calculations indicate that this is a reasonable value
+          cAllAdaptiveShift = 2
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -2721,7 +2727,13 @@ contains
                 ! to indicate (de-)excitation
                 if (item < nitems) then
                     call geti(occ_virt_level)
-                end if
+                 end if
+
+              case("ALL-ADAPTIVE-SHIFT")
+                 ! scale the shift down per determinant depending on the local population
+                 tAllAdaptiveShift = .true.
+                 ! optional argument: value of the parameter of the scaling function
+                 if(item < nitems) call getf(cAllAdaptiveShift)
 
              case("ALL-DOUBS-INITIATORS")
                 ! Set all doubles to be treated as initiators
