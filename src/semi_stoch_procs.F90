@@ -17,6 +17,7 @@ module semi_stoch_procs
     use SystemData, only: nel, t_non_hermitian, tHPHF, g1
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Determinants, only: get_helement
+    use procedure_pointers, only: shiftScaleFunction
     use timing_neci
 #if !defined(__CMPLX)
     use unit_test_helpers, only: eig
@@ -53,7 +54,7 @@ contains
         use DetBitOps, only: DetBitEQ
 
         integer :: i, j, ierr, run, part_type
-
+        real(dp) :: scaledDiagSft(inum_runs)
         call MPIBarrier(ierr)
 
         call set_timer(SemiStoch_Comms_Time)
@@ -101,10 +102,16 @@ contains
             ! sparse_core_ham.
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
-                do part_type  = 1, lenof_sign
-                    partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
+               do part_type  = 1, lenof_sign
+                  partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
+                       ! scale the shift using the abs of this run's complex coefficient
+                       shiftScaleFunction(&
+                       sqrt(full_determ_vecs(min_part_type(part_type_to_run(part_type)),&
+                       i+determ_displs(iProcIndex))**2 + &
+                       full_determ_vecs(max_part_type(part_type_to_run(part_type)),&
+                       i+determ_displs(iProcIndex))**2)) *  &
                        DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
-                enddo
+               enddo
             end do
 #else
             do i = 1, determ_sizes(iProcIndex)
