@@ -2,7 +2,7 @@ module constants
 
 !All use of mpi routines come from this module
 #ifdef PARALLEL
-#ifndef CBINDMPI 
+#ifndef CBINDMPI
 use mpi
 #endif
 #endif
@@ -15,6 +15,7 @@ integer, parameter :: dp = selected_real_kind(15,307)
 integer, parameter :: qp = selected_real_kind(33,4931)
 integer, parameter :: int32 = selected_int_kind(8)
 integer, parameter :: int64 = selected_int_kind(15)
+integer, parameter :: cLineSize = 8
 
 real(dp), parameter ::  PI    = 3.1415926535897932384626433832795028841971693993751_dp
 real(dp), parameter ::  PI2   = 9.8696044010893586188344909998761511353136994072408_dp
@@ -22,7 +23,7 @@ real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333
 real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753769_dp
 real(dp), parameter :: EPS = 0.0000000000001_dp
 real(dp), parameter :: INFINITY = huge(1.0_dp)
-!real(dp), parameter ::  Root2 = sqrt(2.0_dp)   !Removed since sun comiler didn't like this: bug 3853 
+!real(dp), parameter ::  Root2 = sqrt(2.0_dp)   !Removed since sun comiler didn't like this: bug 3853
 
 integer :: temp
 integer, parameter :: sizeof_int = kind(temp)   !Default integer size (not necessarily = no. bytes)
@@ -32,7 +33,7 @@ integer, parameter :: bytes_int = bits_int/8
 !integer, parameter :: sizeof_int = selected_int_kind(digits(huge(temp)))   !Default integer size (not necessarily = no. bytes)
 
 logical :: temp2=.true.
-integer, parameter :: sizeof_log = kind(temp2) 
+integer, parameter :: sizeof_log = kind(temp2)
 
 integer, parameter :: sizeof_int32 = 4
 integer, parameter :: sizeof_int64 = 8
@@ -75,7 +76,7 @@ integer, parameter :: maxExcit = 3
 !Complex integrals, double replica
     integer, parameter :: nreplicas = 2
     integer, parameter :: lenof_sign = 4
-    integer, parameter :: inum_runs = 2          
+    integer, parameter :: inum_runs = 2
     integer, parameter :: lenof_sign_kp = 4
     integer, parameter :: lenof_sign_max = lenof_sign
     integer, parameter :: inum_runs_max = inum_runs
@@ -173,5 +174,8 @@ integer, parameter :: end_int_rdm = bits_int_rdm - 1
         logical :: init, mc_out, prepend
     end type
 
+! Typedef for HDF5 variables
+integer, parameter :: hdf_err = int32
+integer, parameter :: hdf_log = int32
 
 end module constants

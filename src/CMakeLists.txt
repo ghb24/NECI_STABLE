@@ -6,6 +6,7 @@ set( SRC_FILES
     adi_references.F90
     adi_initiators.F90
     adi_data.F90
+    aliasSampling.F90
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
@@ -23,6 +24,7 @@ set( SRC_FILES
     csf.F90
     csf_old.F
     davidson_neci.F90
+    davidson_semistoch.F90
     default_sets.F90
     DetBitOps.F90
     DetCalcData.F90
@@ -39,6 +41,7 @@ set( SRC_FILES
     exact_spectrum.F90
     excit.F
     excit_parity.F90
+    fast_determ_hamil.F90
     FciMCData.F90
     fcimc_helper.F90
     fcimc_initialisation.F90
@@ -61,6 +64,7 @@ set( SRC_FILES
     hamiltonian_linalg.F90
     hdf5_popsfile.F90
     hdiag.F
+    hdiag_from_excit.F90
     HElem.F90
     hfbasis.F
     HFCalc.F90
@@ -74,6 +78,7 @@ set( SRC_FILES
     init_coul2D.F
     init_coul.F
     initial_trial_states.F90
+    initiator_space_procs.F90
     input.F90
     IntegralsData.F90
     Integrals_neci.F90
@@ -88,6 +93,9 @@ set( SRC_FILES
     lanczos_wrapper.F90
     legacy_data.F90
     lineup.F
+    LMat_aux.F90
+    LMat_calc.F90
+    LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
     load_balancer.F90
@@ -108,6 +116,7 @@ set( SRC_FILES
     Parallel_Calc.F90
     ParallelHelper.F90
     parallel_workarounds.F90
+    pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
     proc_ptrs.F90
@@ -129,6 +138,7 @@ set( SRC_FILES
     read_psi.F
     readri.F90
     replica_data.F90
+    replica_estimates.F90
     rhodiag.F
     RhoElement.F90
     rootfind.F
@@ -170,6 +180,8 @@ set( SRC_FILES
     trial_wf_gen.F90
     trial_ht_procs.F90
     UMatCache.F90
+    tc_precomputed_excitgen.F90
+    unit_test_helper_excitgen.F90
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
@@ -216,6 +228,7 @@ set( TEMPLATED_SRC_FILES
     BinSearch.F90.template
     Parallel.F90.template
     shared_memory_mpi.F90.template
+    scalar_shared_memory_mpi.F90.template
     lib/quicksort.F90.template
     lib/util_mod_byte_size.F90.template
     lib/util_mod_comparisons.F90.template
@@ -295,3 +308,4 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
 
 endforeach()
 
+add_subdirectory( test_loop )

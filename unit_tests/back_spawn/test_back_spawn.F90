@@ -357,7 +357,7 @@ contains
         nI(1) = 1
         niftot = 1
         allocate(mask_virt_ilut(0:niftot,1))
-        call EncodeBitDet(mask_virt_ni, mask_virt_ilut)
+        call EncodeBitDet(mask_virt_ni(:,1), mask_virt_ilut(:,1))
 
         ! for this code i might not need G1 and dSFMT_init..
 
@@ -436,7 +436,7 @@ contains
         allocate(projedet(1,1));        projedet(1,1) = 2
         allocate(ilutref(0:niftot,1));  ilutref = 0_n_int
 
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         nel = 1
 
@@ -464,7 +464,7 @@ contains
         call dSFMT_init(123)
 
         projedet(1,1) = 1
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         ! but to a test where there is a fixed result
         call pick_occupied_orbital_single(nI, ilut, src, cc_index, run, pgen, orb)
@@ -503,7 +503,7 @@ contains
         allocate(projedet(1,1)); projedet(1,1) = 1
         allocate(ilutref(0:niftot,1))
 
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         allocate(ilutI(0:niftot)); ilutI = 0_n_int
         call EncodeBitDet(nI, ilutI)
@@ -557,7 +557,7 @@ contains
         nbasis = 2
         allocate(projedet(1,1)); projedet(1,1) = 1
         allocate(ilutref(0:niftot,1)) 
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         print *, "" 
         print *, "testing: pick_occupied_orbital() "
@@ -589,7 +589,7 @@ contains
         ! nah i am just entering the first if-statement of the routine with 
         ! these settings.. 
         projedet(1,1) = 2
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         ispn = 1
         call pick_occupied_orbital(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
@@ -606,7 +606,7 @@ contains
 
         ! and a succesful one.. 
         projedet(1,1) = 1
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         nI = 2
         call EncodeBitDet(nI, ilutI)
@@ -651,7 +651,7 @@ contains
         allocate(projedet(1,1));        projedet(1,1) = 1
 
         allocate(ilutref(0:niftot,1))
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         print *, "" 
         print *, "testing: pick_second_occupied_orbital() " 
@@ -717,7 +717,7 @@ contains
         niftot = 1
         allocate(mask_virt_ni(1,1)); mask_virt_ni(1,1) = 1
         allocate(mask_virt_ilut(0:niftot,1))
-        call EncodeBitDet(mask_virt_ni, mask_virt_ilut)
+        call EncodeBitDet(mask_virt_ni(:,1), mask_virt_ilut(:,1))
 
         print *, ""
         print *, "testing: pick_virtual_electrons_double_hubbard() "
@@ -743,7 +743,7 @@ contains
 
         deallocate(mask_virt_ni)
         allocate(mask_virt_ni(2,1)); mask_virt_ni(:,1) = [1,2]
-        call EncodeBitDet(mask_virt_ni, mask_virt_ilut)
+        call EncodeBitDet(mask_virt_ni(:,1), mask_virt_ilut(:,1))
 
         call pick_virtual_electrons_double_hubbard(nI, run, elecs, src, ispn, pgen)
 
@@ -776,7 +776,7 @@ contains
         niftot = 1
         allocate(mask_virt_ni(1,1)); mask_virt_ni(1,1) = 2
         allocate(mask_virt_ilut(0:niftot,1))
-        call EncodeBitDet(mask_virt_ni, mask_virt_ilut)
+        call EncodeBitDet(mask_virt_ni(:,1), mask_virt_ilut(:,1))
 
         print *, "" 
         print *, "testing: pick_virtual_electron_single() " 
@@ -829,7 +829,7 @@ contains
         nBasis = 2
         allocate(projedet(1,1)); projedet = 1
         allocate(ilutref(0:niftot,1)) 
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         ! i also want to include k-point restriction in picking orbital a!
         src = [1,2]
@@ -882,7 +882,7 @@ contains
         ! nah i am just entering the first if-statement of the routine with 
         ! these settings.. 
         projedet(1,1) = 2
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         ispn = 1
         call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, run, pgen, cum_sum, orb)
@@ -900,7 +900,7 @@ contains
 
         ! and a succesful one.. 
         projedet(1,1) = 1
-        call EncodeBitDet(projedet, ilutref)
+        call EncodeBitDet(projedet(:,1), ilutref(:,1))
 
         nI = 2
         call EncodeBitDet(nI, ilutI)
@@ -942,7 +942,6 @@ contains
 
         call encode_mask_virt(mask_virt_ni(:,1), mask_virt_ilut(:,1)) 
         call encode_mask_virt(mask_virt_ni(:,2), mask_virt_ilut(:,2))
-
 
         call assert_true(all(mask_virt_ilut(:,1) /= 0_n_int))
         call assert_true(all(mask_virt_ilut(:,2) /= 0_n_int))

@@ -59,7 +59,11 @@ MODULE SymExcitDataMod
         logical :: tFilled
         integer, pointer :: dorder_i (:) => null()
         integer, pointer :: dorder_j (:) => null()
+        integer, pointer :: elec_map (:) => null()
         integer :: nopen
+        ! cache the picked electrons + their pgen
+        integer :: pq(2)
+        real(dp) :: pPick
     end type
 
 END MODULE SymExcitDataMod

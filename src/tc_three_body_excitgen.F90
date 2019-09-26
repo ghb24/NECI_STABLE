@@ -1,9 +1,8 @@
 #include "macros.h"
 module tc_three_body_excitgen
   use constants
-  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1,t_ueg_3_body,&
-                        tTrcorrExgen,tTrcorrRandExgen,tLatticeGens, tContact,&
-                        t_exclude_3_body_excits
+  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_ueg_3_body,&
+                        tContact, t_exclude_3_body_excits
   use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
@@ -17,7 +16,7 @@ module tc_three_body_excitgen
   use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
        createSingleExcit, createDoubExcit, construct_class_counts,      &
        gen_rand_excit 
-  use SymExcitDataMod, only: pDoubNew
+  use procedure_pointers, only: generate_two_body_excitation
   contains
 
     subroutine gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
@@ -37,9 +36,6 @@ module tc_three_body_excitgen
 
       real(dp) :: r
 
-
-      pDoubNew = pDoubles
-
       r = genrand_real2_dSFMT()
       ! select if a triple shall be generate
       if(r < pTriples) then
@@ -48,43 +44,10 @@ module tc_three_body_excitgen
          pGen = pGen * pTriples
          IC = 3
       else
-        if(tTrcorrExgen) then
-
-                call  gen_ueg_excit (nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, tParity, &
-                              pGen, HelGen, store, part_type)
-
-              pGen =  pGen * pDoubles             
-              ic = 2
-
-        elseif(TLatticeGens) then
-
-                call  gen_rand_excit (nI, ilut, nJ, ilutJ, exFlag, ic,ExcitMat,tParity, &
-                              pGen, HelGen, store, part_type)
-
-              pGen =  pGen * pDoubles             
-              ic = 2
-
-        else
-         HElGen = 0.0_dp
-
-         ! create the store%classcounts
-         if(.not. store%tFilled) then
-            call construct_class_counts(nI, store%ClassCountOcc, store%ClassCountUnocc)
-            store%tFilled = .true.
-         end if
-         ! if no triple is generated, fall back to the normal excitation generation
-         ! we need a uniform excitgen as evaluating matrix elements is too expensive
-         if(r < (pTriples + pDoubles)) then
-            call CreateDoubExcit(nI,nJ,store%ClassCountUnocc,ilut,ExcitMat,tParity,pGen)
-            ic = 2
-         else
-            call CreateSingleExcit(nI,nJ,store%ClassCountOcc, store%ClassCountUnocc, &
-                 ilut, ExcitMat, tParity, pGen)
-            ic = 1
-         endif
-       end if  
+         call generate_two_body_excitation(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
+              tParity, pGen, HelGen, store, part_type)
+         pGen = pGen * (1.0 - pTriples)
       endif
-
     end subroutine gen_excit_mol_tc
 
 !------------------------------------------------------------------------------------------!
@@ -215,29 +178,18 @@ module tc_three_body_excitgen
          pTriples = 0.0_dp
          return
       endif
-      ! rescale pSingles/pDoubles
-      ! only required if not continuing a run w rescaled values
-      if(.not.tReadPTriples) then
-         if(t_ueg_3_body)then
-            pDoubles = p_doubles_input
-            pTriples = 1.0_dp-pDoubles
-            pSingles = 0.0
-         else
-            pSingles = pSingles * (1.0_dp-pTriples)
-            pDoubles = pDoubles * (1.0_dp-pTriples)
-            write(iout,*) "Reset pSingles to ", pSingles
-            write(iout,*) "Reset pDoubles to ", pDoubles    
-         endif
-      endif
       write(iout,*) "pTriples set to ", pTriples
-
+      ! pSingles and pDoubles add to 1, and pTriples is an additional bias not to do
+      ! a two-body excitation
       if (tContact) then
 !       We do not have those kind of excitations for triples, where all the
 !       fermions are up or down.
         p0A = 0.0_dp
         p0B = 0.0_dp
 !       We determine the rate uniformly between all the possible exciations 
-        p2B = dfloat(nOccBeta-1)/dfloat(nel-2)
+        p2B= choose(nOccBeta,2)*nOccAlpha
+        normalization = p2B + choose(nOccAlpha,2)*nOccBeta
+        p2B = p2B/normalization
       else
       ! scale the probabilities with the number of possible picks
         normalization = choose(nel,3)

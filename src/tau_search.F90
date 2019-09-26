@@ -9,7 +9,7 @@ module tau_search
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, & 
                           t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
-                          t_exclude_3_body_excits, t_ueg_3_body
+                          t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -107,6 +107,7 @@ contains
         enough_doub = .false.
         enough_opp = .false.
         enough_par = .false.
+        enough_trip = .false.
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau == 0) then
@@ -196,11 +197,11 @@ contains
             ! Log the details if necessary!
             tmp_prob = prob / pSingles
             tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_sing) &
-                gamma_sing = tmp_gamma
-            
+            if (tmp_gamma > gamma_sing) then
+               gamma_sing = tmp_gamma
+            endif
             ! And keep count!
-            if (.not. enough_sing) then
+            if (.not. enough_sing .and. gamma_sing > 0) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
             endif
@@ -214,7 +215,7 @@ contains
                 gamma_sing_spindiff1 = tmp_gamma
             
             ! And keep count!
-            if (.not. enough_sing) then
+            if (.not. enough_sing .and. tmp_gamma > 0) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
             endif
@@ -223,47 +224,17 @@ contains
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoubles
 
-            if (consider_par_bias) then 
-                if (same_spin(ex(1,1),ex(1,2))) then 
-                    tmp_prob = tmp_prob / pParallel
-                    tmp_gamma = abs(matel) / tmp_prob
-                    if (tmp_gamma > gamma_par) then
-                        gamma_par = tmp_gamma
-                    end if
-            
-                    ! And keep count
-                    if (.not. enough_par) then
-                        cnt_par = cnt_par + 1
-                        if (cnt_par > cnt_threshold) enough_par = .true.
-                        if (enough_opp .and. enough_par) enough_doub = .true.
-                    end if
-                else
-                    tmp_prob = tmp_prob / (1.0_dp - pParallel)
-                    tmp_gamma = abs(matel) / tmp_prob
-                    if (tmp_gamma > gamma_opp) then
-                        gamma_opp = tmp_gamma
-                    end if
-        
-                    ! And keep count
-                    if (.not. enough_opp) then
-                        cnt_opp = cnt_opp + 1
-                        if (cnt_opp > cnt_threshold) enough_opp = .true.
-                        if (enough_opp .and. enough_par) enough_doub = .true.
-                    end if
-                end if
-            else
-                ! We are not playing around with the same/opposite spin bias
-                ! then we should just treat doubles like the singles
-                tmp_gamma = abs(matel) / tmp_prob
-                if (tmp_gamma > gamma_doub) gamma_doub = tmp_gamma
-            
-                ! And keep count
-                if (.not. enough_doub) then
-                    cnt_doub = cnt_doub + 1
-                    if (cnt_doub > cnt_threshold) enough_doub = .true.
-                end if
+            ! We are not playing around with the same/opposite spin bias
+            ! then we should just treat doubles like the singles
+            tmp_gamma = abs(matel) / tmp_prob
+            if (tmp_gamma > gamma_doub) gamma_doub = tmp_gamma
+
+            ! And keep count
+            if (.not. enough_doub .and. tmp_gamma > 0) then
+               cnt_doub = cnt_doub + 1
+               if (cnt_doub > cnt_threshold) enough_doub = .true.
             end if
-     
+
         case(4) 
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoub_spindiff1
@@ -273,7 +244,7 @@ contains
             if (tmp_gamma > gamma_doub_spindiff1) &
                 gamma_doub_spindiff1 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
@@ -288,7 +259,7 @@ contains
             if (tmp_gamma > gamma_doub_spindiff2) &
                 gamma_doub_spindiff2 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
@@ -313,7 +284,49 @@ contains
                 if (cnt_trip > cnt_threshold) enough_trip = .true.
             endif
 
-        end select
+         end select
+
+         ! We need to deal with the doubles
+         if (getExcitationType(ex, ic)==2 .and. consider_par_bias) then
+            ! In this case, distinguish between parallel and oppisite spins
+            if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
+               tmp_prob = tmp_prob / pParallel
+               tmp_gamma = abs(matel) / tmp_prob
+               if (tmp_gamma > gamma_par) &
+                    gamma_par = tmp_gamma
+
+               ! And keep count
+               if (.not. enough_par ) then
+                  cnt_par = cnt_par + 1
+                  if (cnt_par > cnt_threshold) enough_par = .true.
+                  if (enough_opp .and. enough_par) enough_doub = .true.
+               end if
+            else
+               tmp_prob = tmp_prob / (1.0_dp - pParallel)
+               tmp_gamma = abs(matel) / tmp_prob
+               if (tmp_gamma > gamma_opp) &
+                    gamma_opp = tmp_gamma
+
+               ! And keep count
+               if (.not. enough_opp .and. tmp_gamma > 0) then
+                  cnt_opp = cnt_opp + 1
+                  if (cnt_opp > cnt_threshold) enough_opp = .true.
+                  if (enough_opp .and. enough_par) enough_doub = .true.
+               end if
+            end if
+         else
+            ! We are not playing around with the same/opposite spin bias
+            ! then we should just treat doubles like the singles
+            tmp_gamma = abs(matel) / tmp_prob
+            if (tmp_gamma > gamma_doub) &
+                 gamma_doub = tmp_gamma
+
+            ! And keep count
+            if (.not. enough_doub .and. tmp_gamma > 0) then
+               cnt_doub = cnt_doub + 1
+               if (cnt_doub > cnt_threshold) enough_doub = .true.
+            end if
+         end if
 
      end subroutine
 
@@ -437,7 +450,7 @@ contains
                 if (checkS + checkD + checkT > 1) then
                     pparallel_new = gamma_par / (gamma_opp + gamma_par)
                     psingles_new = gamma_sing * pparallel_new &
-                                 / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
+                                 / (gamma_par + gamma_sing * pparallel_new)
                     pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
                     tau_new = psingles_new * max_permitted_spawn &
                                   / gamma_sing
@@ -474,7 +487,7 @@ contains
             ! Get the probabilities and tau that correspond to the stored
             ! values
             if (checkS + checkD + checkT > 1) then
-                psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
+                psingles_new = max(gamma_sing / (gamma_sing + gamma_doub), prob_min_thresh)
                 pTriples_new = max(gamma_trip / gamma_sum, prob_min_thresh)
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1/gamma_sum
@@ -585,7 +598,7 @@ contains
         if ((checkS + checkD + checkT > 1)) then
            if((psingles_new > 1e-5_dp .or. tNoSinglesPossible) &
                 .and. psingles_new < (1.0_dp - 1e-5_dp) .and. &
-                (t_3_body_excits .and. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp .or. &
+                (.not.t_mol_3_body .or. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp .or. &
                 t_exclude_3_body_excits)) then
 
               if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
@@ -597,11 +610,11 @@ contains
                          ", pDoubles(st->s't') = ", pDoub_spindiff2_new
                  else
                     root_print "Updating singles/doubles bias. pSingles = ", psingles_new
-                    root_print " pDoubles = ", 1.0_dp - pSingles_new - pTriples_new
+                    root_print " pDoubles = ", (1.0_dp - pSingles_new)*(1.0 - pTriples_new)
                  endif
               end if
 
-              if(t_exclude_3_body_excits) then 
+              if(t_exclude_3_body_excits.or..not.t_mol_3_body) then 
                  pTriples_new = 0.0_dp
               else if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
                  root_print "Updating triple-excitation bias. pTriples =", pTriples_new
@@ -616,7 +629,7 @@ contains
                  pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
                  ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
               else
-                 pDoubles = 1.0_dp - pSingles - pTriples
+                 pDoubles = 1.0_dp - pSingles
               endif
            end if
         endif

@@ -16,8 +16,10 @@ module fcimc_initialisation
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
+                          nClosedOrbs, irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
-                          nOccOrbs, tNoSinglesPossible
+                          nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
+                          t_pchb_excitgen
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
@@ -41,14 +43,17 @@ module fcimc_initialisation
                         use_spawn_hash_table, tReplicaSingleDetStart, RealSpawnCutoff, &
                         ss_space_in, trial_space_in, init_trial_in, trial_shift_iter, &
                         tContTimeFCIMC, tContTimeFull, tMultipleInitialRefs, &
-                        initial_refs, trial_init_reorder, tStartTrialLater, &
-                        ntrial_ex_calc, tPairedReplicas, tMultiRefShift, &
+                        initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
+                        ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
-                        tInitializeCSF, S2Init, corespacewalkers, tSpinProject
+                        tInitializeCSF, S2Init, tSpinProject, tWalkContGrow, tSkipRef, &
+                        tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
+                        tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEn2Init, i_space_in, &
+                        tInitiatorSpace
 
     use spin_project, only: init_yama_store, clean_yama_store
     use adi_data, only: tReferenceChanged, tAdiActive, &
@@ -100,11 +105,13 @@ module fcimc_initialisation
     use GenRandSymExcitCSF, only: gen_csf_excit
     use GenRandSymExcitNUMod, only: gen_rand_excit, init_excit_gen_store, &
                                     clean_excit_gen_store
+    use replica_estimates, only: open_replica_est_file
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement, scaleFunction
+                                  new_child_stats, get_conn_helement, scaleFunction, &
+                                  generate_two_body_excitation
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -133,7 +140,7 @@ module fcimc_initialisation
                                  attempt_create_trunc_spawn, &
                                  new_child_stats_hist_hamil, &
                                  new_child_stats_normal, &
-                                 null_encode_child, attempt_die_normal, &
+                                 null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
                                  expCOScaleFunction
     use csf_data, only: csf_orbital_mask
@@ -145,6 +152,7 @@ module fcimc_initialisation
     use semi_stoch_gen, only: init_semi_stochastic, end_semistoch, &
                               enumerate_sing_doub_kpnt
     use semi_stoch_procs, only: return_mp1_amp_and_mp2_energy
+    use initiator_space_procs, only: init_initiator_space
     use kp_fciqmc_data_mod, only: tExcitedStateKP
     use sym_general_mod, only: ClassCountInd
     use trial_wf_gen, only: init_trial_wf, end_trial_wf
@@ -153,6 +161,7 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
+    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen
     use csf, only: get_csf_helement
 
     use tau_search, only: init_tau_search, max_death_cpt
@@ -169,7 +178,7 @@ module fcimc_initialisation
     use sltcnd_mod, only: sltcnd_0
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
          ThisRDMIter
-
+    use rdm_data, only: nrdms_transition_input
     use Parallel_neci
 
     use FciMCData
@@ -205,6 +214,7 @@ module fcimc_initialisation
     use OneEInts, only: tmat2d
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
+    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen
     implicit none
 
 contains
@@ -248,12 +258,23 @@ contains
         SemiStoch_Multiply_Time%timer_name='SemiStochMultiplyTime'
         Trial_Search_Time%timer_name='TrialSearchTime'
         SemiStoch_Init_Time%timer_name='SemiStochInitTime'
+        SemiStoch_Hamil_Time%timer_name='SemiStochHamilTime'
+        SemiStoch_Davidson_Time%timer_name='SemiStochDavidsonTime'
         Trial_Init_Time%timer_name='TrialInitTime'
+        InitSpace_Init_Time%timer_name='InitSpaceTime'
         kp_generate_time%timer_name='KPGenerateTime'
         Stats_Comms_Time%timer_name='StatsCommsTime'
         subspace_hamil_time%timer_name='SubspaceHamilTime'
         exact_subspace_h_time%timer_name='ExactSubspace_H_Time'
         subspace_spin_time%timer_name='SubspaceSpinTime'
+        var_e_time%timer_name='VarEnergyTime'
+        precond_e_time%timer_name='PreCondEnergyTime'
+        proj_e_time%timer_name='ProjEnergyTime'
+        rescale_time%timer_name='RescaleTime'
+        death_time%timer_name='DeathTime'
+        hash_test_time%timer_name='HashTestTime'
+        hii_test_time%timer_name='HiiTestTime'
+        init_flag_time%timer_name='InitFlagTime'
 
         ! Initialise allocated arrays with input data
         TargetGrowRate(:) = InputTargetGrowRate
@@ -788,8 +809,11 @@ contains
             end if
         end if
 
-!Calculate Hii
-        IF(tHPHF) THEN
+!Calculate Hii (unless suppressed)
+        if(tZeroRef) then
+           TempHii = 0.0_dp
+        else IF(tHPHF) THEN
+
             TempHii = hphf_diag_helement (HFDet, iLutHF)
         ELSE
             TempHii = get_helement (HFDet, HFDet, 0)
@@ -943,6 +967,7 @@ contains
         AllENumCyc(:)=0.0_dp
         AllENumCycAbs = 0.0_dp
         AllHFCyc(:)=0.0_dp
+        all_cyc_proje_denominator = 1.0_dp
 !        AllDetsNorm=0.0_dp
         AllNoAborted=0
         AllNoRemoved=0
@@ -971,8 +996,6 @@ contains
         ! Set the flag to indicate that no shift adjustment has been made
         tfirst_cycle = .true.
 
-        corespaceWalkers = 0.0_dp
-
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
@@ -989,6 +1012,11 @@ contains
         rdmCorrectionFactor = 0.0_dp
         InstRDMCorrectionFactor = 0.0_dp
         ThisRDMIter = 0.0_dp
+        ! initialize excitation number trackers
+        nInvalidExcits = 0
+        nValidExcits = 0
+        allNInvalidExcits = 0
+        allNValidExcits = 0
 !            if (tReltvy) then
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
 !                write(mswalkercounts_unit, "(A)") "# ms real    imag    magnitude"
@@ -1001,7 +1029,6 @@ contains
               RealSpawnCutoff = sFBeta
            endif
         endif
-
         tNoSinglesPossible = t_k_space_hubbard .or. tUEG .or. tNoSinglesPossible
 
         if(.not. allocated(allInitsPerExLvl)) allocate(allInitsPerExLvl(maxInitExLvlWrite))
@@ -1329,6 +1356,7 @@ contains
             write(iout, '("Truncating determinant space at a maximum of ",i3," &
                     &unpaired electrons.")') trunc_nopen_max
         endif
+
         
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
@@ -1352,7 +1380,7 @@ contains
     ! initial walkers, and reading from a file if needed
     SUBROUTINE InitFCIMCCalcPar()
         INTEGER :: ierr,iunithead
-        logical :: formpops, binpops
+        logical :: formpops, binpops, tStartedFromCoreGround
         INTEGER :: error,MemoryAlloc,PopsVersion
         character(*), parameter :: t_r = 'InitFCIMCPar', this_routine = t_r
         integer :: PopBlockingIter
@@ -1594,6 +1622,13 @@ contains
             NoatHF(:)=0.0_dp
             InstNoatHF(:)=0.0_dp
 
+            ! Has been moved to guarantee initialization before first load balancing
+            ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
+            
+            tFillingStochRDMonFly = .false.      
+            tFillingExplicRDMonFly = .false.      
+            !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
+
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops .and. .not.tPopsAlreadyRead) then
                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
@@ -1608,8 +1643,8 @@ contains
                     !Initialise walkers according to a CAS diagonalisation.
                     call InitFCIMC_CAS()
 
-                else if (tOrthogonaliseReplicas .and. &
-                         .not. tReplicaSingleDetStart) then
+                else if (tTrialInit .or. (tOrthogonaliseReplicas .and. &
+                         .not. tReplicaSingleDetStart)) then
 
                     call InitFCIMC_trial()
 
@@ -1667,6 +1702,10 @@ contains
         ! Initialise excitation generation storage
         call init_excit_gen_store (fcimc_excit_gen_store)
 
+        ! initialize excitation generator
+        if(t_pcpp_excitgen) call init_pcpp_excitgen()
+        if(t_pchb_excitgen) call init_pchb_excitgen()
+
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then 
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
             & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
@@ -1683,11 +1722,6 @@ contains
             if (tOldRDMs) call InitRDMs_old(nrdms_standard)
         end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
-        ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
-
-        tFillingStochRDMonFly = .false.      
-        tFillingExplicRDMonFly = .false.      
-        !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
 
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.
@@ -1707,7 +1741,8 @@ contains
               tSemiStochastic = .false.
               semistoch_shift_iter = 1
            else
-              call init_semi_stochastic(ss_space_in)
+              call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
+              if (tStartedFromCoreGround .and. tSetInitialRunRef) call set_initial_run_references()
            endif
         endif
 
@@ -1758,83 +1793,152 @@ contains
 #endif
 
         if (t_cepa_shift) call init_cepa_shifts()
-
         ! Set up the reference space for the adi-approach
 	! in real-time, we do this in the real-time init
         call setup_reference_space(tReadPops)
 
         ! in fixed-n0, the variable shift mode and everything connected is
         ! controlled over the reference population
-        if(tFixedN0) tSinglePartPhase = .true.
+        if(tFixedN0) then
+            if(tReadPops .and. .not. tWalkContGrow) then
+                tSkipRef = .true.
+                tSinglePartPhase = .false.
+            else
+                tSkipRef = .false.
+                tSinglePartPhase = .true.
+            end if
+        end if
 
-         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
-         
+        if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
+
          ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
          ! by the number of alpha and beta electrons and the number of orbitals
          ! and can hence be precomputed
          if(t_mol_3_body) call setup_mol_tc_excitgen(hfdet)
+
+        if (tInitiatorSpace) call init_initiator_space(i_space_in)
+
+        if (tReplicaEstimates) then
+            if (.not. tPairedReplicas) then
+                call stop_all(this_routine, "The paired-replicas option must be used the logging &
+                                            &block, in order to calculate replica estimates.)")
+            end if
+
+            if (tSemiStochastic) allocate(tDetermSpawnedTo(determ_sizes(iProcIndex)))
+
+            call open_replica_est_file()
+        end if
+
+        ! When should we perform death before communication?
+        ! For integer walkers, do death before comms just so the tests don't fail (or need updating).
+        if (.not. tAllRealCoeff) then
+            tDeathBeforeComms = .true.
+        end if
+        if (t_back_spawn .or. t_back_spawn_flex) then 
+            tDeathBeforeComms = .true.
+        end if
+
+        ! For FCIQMC with preconditioning and a time step of 1, death will
+        ! kill all walkers and remove them from the hash table. In this
+        ! case, we must set the initiator flags for spawning to occupied
+        ! determinants before this occurs.
+        if (tPreCond .and. tau == 1.0_dp) tSetInitFlagsBeforeDeath = .true.
+
+        ! Make sure we are performing death *after* communication, in cases
+        ! where this is essential.
+        if (tPreCond .and. tDeathBeforeComms) then
+            call stop_all(this_routine, "With preconditioning, death must &
+                                        &be performed after communication.")
+        end if
+        if (tReplicaEstimates .and. tDeathBeforeComms) then
+            call stop_all(this_routine, "In order to calculate replica estimates, &
+                                        &death must be performed after communication.")
+        end if
+        if (tEN2Init .and. (.not. tTruncInitiator)) then
+            call stop_all(this_routine, "Cannot calculate the EN2 correction to initiator &
+                                        &error as the initiator method is not in use.")
+        end if
+
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
       character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
-      if(t_mol_3_body.or.t_ueg_3_body) then
-         generate_excitation => gen_excit_mol_tc
-      else if(t_3_body_excits) then
+      if(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body) then
          if (t_uniform_excits) then 
             generate_excitation => gen_excit_uniform_k_space_hub_transcorr
          else
             generate_excitation => gen_excit_k_space_hub_transcorr
          endif
       elseif (tHPHF) then
-            generate_excitation => gen_hphf_excit
-      elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
-            if (tHUB .and. tLatticeGens) then 
-                ! for now the hubbard + back-spawn still uses the old 
-                ! genrand excit gen
-                generate_excitation => gen_excit_back_spawn_hubbard
-            else if (tUEGNewGenerator .and. tLatticeGens) then 
-                generate_excitation => gen_excit_back_spawn_ueg_new
-            else if (tUEG .and. tLatticeGens) then 
-                generate_excitation => gen_excit_back_spawn_ueg
-            else 
-                generate_excitation => gen_excit_back_spawn
-            end if
-      elseif (tUEGNewGenerator) then
-            generate_excitation => gen_ueg_excit
-      elseif (tCSF) then
-            generate_excitation => gen_csf_excit
-      elseif (tPickVirtUniform) then
-            ! pick-uniform-random-mag is on
-            if (tReltvy) then
-                generate_excitation => gen_rand_excit_Ex_Mag
+         generate_excitation => gen_hphf_excit
+      elseif (t_ueg_3_body) then
+            if(tTrcorrExgen) then
+                generate_excitation => gen_ueg_excit
+            elseif(TLatticeGens) then 
+                generate_excitation => gen_rand_excit
             else
-                generate_excitation => gen_rand_excit3
+                call stop_all(t_r,"Excitation generator has not been set!")
             endif
+      elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
+         if (tHUB .and. tLatticeGens) then 
+            ! for now the hubbard + back-spawn still uses the old 
+            ! genrand excit gen
+            generate_excitation => gen_excit_back_spawn_hubbard
+         else if (tUEGNewGenerator .and. tLatticeGens) then 
+            generate_excitation => gen_excit_back_spawn_ueg_new
+         else if (tUEG .and. tLatticeGens) then 
+            generate_excitation => gen_excit_back_spawn_ueg
+         else 
+            generate_excitation => gen_excit_back_spawn
+         end if
+      elseif (tUEGNewGenerator) then
+         generate_excitation => gen_ueg_excit
+      elseif (tCSF) then
+         generate_excitation => gen_csf_excit
+      elseif (tPickVirtUniform) then
+         ! pick-uniform-random-mag is on
+         if (tReltvy) then
+            generate_excitation => gen_rand_excit_Ex_Mag
+         else
+            generate_excitation => gen_rand_excit3
+         endif
       elseif (tGenHelWeighted) then
-            generate_excitation => gen_excit_hel_weighted
+         generate_excitation => gen_excit_hel_weighted
       elseif (tGen_4ind_2) then
-           generate_excitation => gen_excit_4ind_weighted2
+         generate_excitation => gen_excit_4ind_weighted2
       elseif (tGen_4ind_weighted) then
-           generate_excitation => gen_excit_4ind_weighted
+         generate_excitation => gen_excit_4ind_weighted
       elseif (tGen_4ind_reverse) then
-            generate_excitation => gen_excit_4ind_reverse
+         generate_excitation => gen_excit_4ind_reverse
+      elseif (t_pcpp_excitgen) then
+         generate_excitation => gen_rand_excit_pcpp
+      elseif (t_pchb_excitgen) then
+         generate_excitation => gen_rand_excit_pchb
       else
-            generate_excitation => gen_rand_excit
+         generate_excitation => gen_rand_excit
       endif
-        ! In the main loop, we only need to find out if a determinant is
-        ! connected to the reference det or not (so no ex. level above 2 is
-        ! required). Except in some cases where we need to know the maximum
-        ! excitation level
-        if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
-            max_calc_ex_level = nel
-        else
-            if (t_3_body_excits) then 
-                max_calc_ex_level = 3
-            else 
-                max_calc_ex_level = 2
-            end if
-        endif
+      ! if we are using the 3-body excitation generator, embed the chosen excitgen
+      ! in the three-body one
+      if(t_mol_3_body) then
+         ! yes, fortran pointers work this way
+         generate_two_body_excitation => generate_excitation
+         generate_excitation => gen_excit_mol_tc
+      endif
+      
+      ! In the main loop, we only need to find out if a determinant is
+      ! connected to the reference det or not (so no ex. level above 2 is
+      ! required). Except in some cases where we need to know the maximum
+      ! excitation level
+      if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
+         max_calc_ex_level = nel
+      else
+         if (t_3_body_excits) then 
+            max_calc_ex_level = 3
+         else 
+            max_calc_ex_level = 2
+         end if
+      endif
 
         ! How many children should we spawn given an excitation?
         if (tTruncCas .or. tTruncSpace .or. &
@@ -1888,8 +1992,8 @@ contains
                                 &i8, " blooms occurred.")'
         else
             ! Use this variable to store the bloom cutoff level.
-            InitiatorWalkNo = 25.0_dp
-            bloom_warn_string = '("Bloom of more than 25 on ", a, " excit: &
+            InitiatorWalkNo = 3.0_dp
+            bloom_warn_string = '("Bloom of more than 3 on ", a, " excit: &
                                 &A max of ", f10.2, " particles created. ", &
                                 &i8, " blooms occurred.")'
         endif
@@ -1898,7 +2002,11 @@ contains
         ! Perform the correct statistics on new child particles
         new_child_stats => new_child_stats_normal
 
-        attempt_die => attempt_die_normal
+        if (tPreCond) then
+            attempt_die => attempt_die_precond
+        else
+            attempt_die => attempt_die_normal
+        end if
 
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
@@ -2190,7 +2298,7 @@ contains
                ! the spin-flipped version is stored
                if(DetBitLT(initSpace(:,i),ilutJ,NIfD).eq.1) cycle
             endif
-            call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,pos,HDiag)
+            call AddNewHashDet(TotWalkersTmp,initSpace(:,i),DetHash,nI,HDiag,pos,err)
             TotWalkers = TotWalkersTmp
          end if
          ! reset the reference?
@@ -2374,6 +2482,7 @@ contains
 
         integer :: run, DetHash
         real(dp) , dimension(lenof_sign) :: InitialSign
+        real(dp) :: h_temp
 
         if (tOrthogonaliseReplicas) then
             call InitFCIMC_HF_orthog()
@@ -2411,8 +2520,18 @@ contains
             ! deterministic space.
             if (tSemiStochastic) call set_flag (CurrentDets(:,1), flag_deterministic)
 
-            ! HF energy is equal to 0 (by definition)
-            call set_det_diagH(1, 0.0_dp)
+            ! if no reference energy is used, explicitly get the HF energy
+            if(tZeroRef) then
+               if(tHPHF) then
+                  h_temp = hphf_diag_helement(HFDet, ilutHF)
+               else
+                  h_temp = get_helement(HFDet,HFDet,0)
+               endif
+            else
+               ! HF energy is equal to 0 (when used as reference energy)
+               h_temp = 0.0_dp
+            end if
+            call set_det_diagH(1, h_temp)
             HFInd = 1
 
             call store_decoding(1,HFDet)
@@ -2627,7 +2746,7 @@ contains
 
         deallocate(evecs_this_proc)
 
-        call set_initial_run_references()
+        if (tSetInitialRunRef) call set_initial_run_references()
 
         ! Add an initialisation check on symmetries.
         if ((.not. tHub) .and. (.not. tUEG)) then
@@ -3649,6 +3768,17 @@ contains
             endif
         ENDIF
 
+        if (pSinglesIn > 1.e-12_dp) then
+            pSingles = pSinglesIn
+            pDoubles = 1.0_dp - pSinglesIn
+            write (iout,'(" Using the input value of pSingles:",1x, f14.6)') pSingles
+            write (iout,'(" Using the input value of pSingles:",1x, f14.6)') pDoubles
+        end if
+        if (pParallelIn > 1.e-12_dp) then
+            write (iout,'(" Using the input value of pSingles:",1x, f14.6)') pParallelIn
+            pParallel = pParallelIn
+        end if
+
     END SUBROUTINE CalcApproxpDoubles
 
 
@@ -4047,71 +4177,79 @@ contains
                 call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
             end do
 
-        else
-            if (.not. tOrthogonaliseReplicas) then
+        else if (tOrthogonaliseReplicas) then
 
-                ! This is the normal case. All simultions are essentially doing
-                ! the same thing...
+            tReplicaReferencesDiffer = .true.
 
-                do run = 1, inum_runs
-                    ilutRef(:, run) = ilutHF
-                    ProjEDet(:, run) = HFDet
-                end do
+            ! The first replica is just a normal FCIQMC simulation.
+            ilutRef(:, 1) = ilutHF
+            ProjEDet(:, 1) = HFDet
 
-                ! And make sure that the rest of the code knows this
-                tReplicaReferencesDiffer = .false.
+            found_orbs = 0
+            do run = 2, inum_runs
 
-            else
+                ! Now we want to find the lowest energy single excitation with
+                ! the same symmetry as the reference site.
+                do i = 1, nel
+                    ! Find the excitations, and their energy
+                    orb = HFDet(i)
+                    cc_idx = ClassCountInd(orb)
+                    label_idx = SymLabelCounts2(1, cc_idx)
+                    norb = OrbClassCount(cc_idx)
 
-                tReplicaReferencesDiffer = .true.
-
-                ! The first replica is just a normal FCIQMC simulation.
-                ilutRef(:, 1) = ilutHF
-                ProjEDet(:, 1) = HFDet
-
-                found_orbs = 0
-                do run = 2, inum_runs
-
-                    ! Now we want to find the lowest energy single excitation with
-                    ! the same symmetry as the reference site.
-                    do i = 1, nel
-                        ! Find the excitations, and their energy
-                        orb = HFDet(i)
-                        cc_idx = ClassCountInd(orb)
-                        label_idx = SymLabelCounts2(1, cc_idx)
-                        norb = OrbClassCount(cc_idx)
-
-                        ! nb. sltcnd_0 does not depend on the ordering of the det,
-                        !     so we don't need to do any sorting here.
-                        energies(i) = 9999999.9_dp
-                        do j = 1, norb
-                            orb2 = SymLabelList2(label_idx + j - 1)
-                            if ((.not. any(orb2 == HFDet)) .and. &
-                                (.not. any(orb2 == found_orbs))) then
-                                det = HFDet
-                                det(i) = orb2
-                                hdiag = real(sltcnd_0(det), dp)
-                                if (hdiag < energies(i)) then
-                                    energies(i) = hdiag
-                                    orbs(i) = orb2
-                                end if
+                    ! nb. sltcnd_0 does not depend on the ordering of the det,
+                    !     so we don't need to do any sorting here.
+                    energies(i) = 9999999.9_dp
+                    do j = 1, norb
+                        orb2 = SymLabelList2(label_idx + j - 1)
+                        if ((.not. any(orb2 == HFDet)) .and. &
+                            (.not. any(orb2 == found_orbs))) then
+                            det = HFDet
+                            det(i) = orb2
+                            hdiag = real(sltcnd_0(det), dp)
+                            if (hdiag < energies(i)) then
+                                energies(i) = hdiag
+                                orbs(i) = orb2
                             end if
-                        end do
+                        end if
                     end do
-
-                    ! Which of the electrons that is excited gives the lowest energy?
-                    i = minloc(energies, 1)
-                    found_orbs(run) = orbs(i)
-
-                    ! Construct that determinant, and set it as the reference.
-                    ProjEDet(:, run) = HFDet
-                    ProjEDet(i, run) = orbs(i)
-                    call sort(ProjEDet(:, run))
-                    call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
-
                 end do
 
-            end if
+                ! Which of the electrons that is excited gives the lowest energy?
+                i = minloc(energies, 1)
+                found_orbs(run) = orbs(i)
+
+                ! Construct that determinant, and set it as the reference.
+                ProjEDet(:, run) = HFDet
+                ProjEDet(i, run) = orbs(i)
+                call sort(ProjEDet(:, run))
+                call EncodeBitDet(ProjEDet(:, run), ilutRef(:, run))
+
+            end do
+
+        else if (tPreCond) then
+
+            do run = 1, inum_runs
+                ilutRef(:, run) = ilutHF
+                ProjEDet(:, run) = HFDet
+            end do
+
+            ! And make sure that the rest of the code knows this
+            tReplicaReferencesDiffer = .true.
+
+        else
+
+            ! This is the normal case. All simultions are essentially doing
+            ! the same thing...
+
+            do run = 1, inum_runs
+                ilutRef(:, run) = ilutHF
+                ProjEDet(:, run) = HFDet
+            end do
+
+            ! And make sure that the rest of the code knows this
+            tReplicaReferencesDiffer = .false.
+
         end if
 
         write(6,*) 'Generated reference determinants:'

@@ -183,9 +183,7 @@ MODULE SymExcit3
 
 
 
-    ENDSUBROUTINE GenExcitations3
-
-
+      ENDSUBROUTINE GenExcitations3
 
     SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).

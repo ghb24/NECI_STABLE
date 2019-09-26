@@ -34,9 +34,9 @@ module procedure_pointers
 
         !
         ! Generic attempt create routine
-        function attempt_create_t (nI, ilutI, wSign, nJ, ilutJ, prob, HElGen,&
+        function attempt_create_t (nI, ilutI, wSign, nJ, ilutJ, prob, HElGen, &
                                    ic, ex, tPar, exLevel, part_type, &
-                                   AvSignCurr, RDMBiasFacCurr) result(child)
+                                   AvSignCurr, RDMBiasFacCurr, precond_fac) result(child)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -52,8 +52,9 @@ module procedure_pointers
             real(dp), intent(inout) :: prob
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
+            real(dp), intent(in) :: precond_fac
             HElement_t(dp), intent(inout) :: HElGen
-            real(dp) :: child(lenof_sign)    
+            real(dp) :: child(lenof_sign)
 
         end function
 
@@ -211,6 +212,17 @@ module procedure_pointers
 
         end function
 
+        ! generic lMat element routine (3e integrals)
+        function get_lmat_el_t(a,b,c,i,j,k) result(hel)
+          use constants
+          implicit none
+
+          integer, value :: a,b,c
+          integer, value :: i,j,k
+          HElement_t(dp) :: hel
+
+        end function get_lmat_el_t
+
 !         subroutine generate_all_excits_t(nI, n_excits, det_list) 
 !             use SystemData, only: nel 
 !             use constants, only: n_int
@@ -266,11 +278,20 @@ module procedure_pointers
 
         end function scale_function_t
 
+        pure function lMatInd_t(a,b,c,i,j,k) result(index)
+          use constants, only: int64
+          implicit none
+          integer(int64), value :: a,b,c ! occupied orb indices
+          integer(int64), value :: i,j,k ! unoccupied orb
+          integer(int64) :: index
+        end function lMatInd_t
+
     end interface
 
     !
     ! And here are the stored procedure pointers (for use in FCIQMC)
     procedure(generate_excitation_t), pointer :: generate_excitation
+    procedure(generate_excitation_t), pointer :: generate_two_body_excitation
     procedure(attempt_create_t), pointer :: attempt_create
     procedure(get_spawn_helement_t), pointer :: get_spawn_helement
     procedure(get_spawn_helement_t), pointer :: get_conn_helement
@@ -295,5 +316,9 @@ module procedure_pointers
     procedure(sltcnd_3_t), pointer :: sltcnd_3
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
+
+    ! indexing function of the six-index integrals
+    procedure(get_lmat_el_t), pointer :: get_lmat_el
+    procedure(get_lmat_el_t), pointer :: get_lmat_el_symInternal
 
 end module

@@ -32,7 +32,7 @@ MODULE GenRandSymExcitNUMod
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin, &
                           tUEG2, kvec, tAllSymSectors, NMAXX, NMAXY, NMAXZ, &
-                          tOrbECutoff, OrbECutoff
+                          tOrbECutoff, OrbECutoff, t_pcpp_excitgen
     use CalcData, only: tSpinProject, t_back_spawn, t_back_spawn_flex
     use FciMCData, only: pDoubles, pSingles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
@@ -3190,6 +3190,8 @@ MODULE GenRandSymExcitNUMod
 
         call clean_excit_gen_store (store)
 
+        store%tFilled = .false.
+
         allocate(store%ClassCountOcc(ScratchSize1))
         allocate(store%ClassCountUnocc(ScratchSize2))
         allocate(store%scratch3(ScratchSize3))
@@ -3212,7 +3214,7 @@ MODULE GenRandSymExcitNUMod
             allocate(store%dorder_j(nel))
         endif
 
-
+        if(t_pcpp_excitgen) allocate(store%elec_map(nel))
 
     end subroutine
 
@@ -3247,7 +3249,11 @@ MODULE GenRandSymExcitNUMod
         if (associated(store%dorder_j)) then
             deallocate(store%dorder_j)
             nullify(store%dorder_j)
-        endif
+         endif
+         if(associated(store%elec_map)) then
+            deallocate(store%elec_map)
+            nullify(store%elec_map)
+         end if
 
     end subroutine
 

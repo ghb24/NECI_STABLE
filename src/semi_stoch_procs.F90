@@ -11,9 +11,9 @@ module semi_stoch_procs
     use constants
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
                          SpawnedParts, TotWalkers, CurrentDets, core_space, &
-                         MaxSpawned,indices_of_determ_states, ilutRef
+                         MaxSpawned,indices_of_determ_states, ilutRef, determ_last
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
-    use sparse_arrays, only: sparse_core_ham
+    use sparse_arrays, only: sparse_core_ham, approx_ham
     use SystemData, only: nel, t_non_hermitian, tHPHF
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     use Determinants, only: get_helement
@@ -97,7 +97,7 @@ contains
             ! sparse_core_ham.
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
-                do part_type  = 1, lenof_sign 
+                do part_type  = 1, lenof_sign
                     partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
                        DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
                 enddo
@@ -111,7 +111,7 @@ contains
 
             ! Now multiply the vector by tau to get the final projected vector.
             partial_determ_vecs = partial_determ_vecs * tau
-            
+
             do i = 1, determ_sizes(iProcIndex)
                 do part_type  = 1, lenof_sign
                     run = part_type_to_run(part_type)
@@ -167,6 +167,172 @@ contains
 
     end subroutine determ_projection_kp_hamil
 
+    subroutine determ_projection_no_death()
+
+        ! This subroutine gathers together partial_determ_vecs from each processor so
+        ! that the full vector for the whole deterministic space is stored on each processor.
+        ! It then performs the deterministic multiplication of the projector on this full vector.
+
+        use DetBitOps, only: DetBitEQ
+        use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
+        use FciMCData, only: SemiStoch_Multiply_Time, core_ham_diag
+        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+
+        integer :: i, j, ierr, run, part_type
+
+        call MPIBarrier(ierr)
+
+        call set_timer(SemiStoch_Comms_Time)
+
+        call MPIAllGatherV(partial_determ_vecs, full_determ_vecs, &
+                            determ_sizes, determ_displs)
+
+        call halt_timer(SemiStoch_Comms_Time)
+
+        call set_timer(SemiStoch_Multiply_Time)
+
+        if (determ_sizes(iProcIndex) >= 1) then
+
+            ! Perform the multiplication.
+
+            partial_determ_vecs = 0.0_dp
+
+#ifdef __CMPLX
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    do run = 1, inum_runs
+                        partial_determ_vecs(min_part_type(run),i) = partial_determ_vecs(min_part_type(run),i) - &
+                            Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) +&
+                            Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
+                        partial_determ_vecs(max_part_type(run),i) = partial_determ_vecs(max_part_type(run),i) - &
+                            Aimag(sparse_core_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) -&
+                            Real(sparse_core_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
+                    end do
+                end do
+            end do
+#else
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, sparse_core_ham(i)%num_elements
+                    partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
+                        sparse_core_ham(i)%elements(j)*full_determ_vecs(:,sparse_core_ham(i)%positions(j))
+                end do
+            end do
+#endif
+
+            ! Remove contribution from the diagonal elements, since the
+            ! propagator has no diagonal.
+            do i = 1, determ_sizes(iProcIndex)
+                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
+                   core_ham_diag(i) * full_determ_vecs(:,i+determ_displs(iProcIndex))
+            end do
+
+            ! Now multiply the vector by tau to get the final projected vector.
+            partial_determ_vecs = partial_determ_vecs * tau
+
+            do i = 1, determ_sizes(iProcIndex)
+                do part_type  = 1, lenof_sign
+                    run = part_type_to_run(part_type)
+                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                        partial_determ_vecs(part_type, i) = 0.0_dp
+                    end if
+                end do
+            end do
+
+        end if
+
+        call halt_timer(SemiStoch_Multiply_Time)
+
+    end subroutine determ_projection_no_death
+
+    subroutine determ_proj_approx()
+
+        ! This subroutine gathers together partial_determ_vecs from each processor so
+        ! that the full vector for the whole deterministic space is stored on each processor.
+        ! It then performs the deterministic multiplication of the projector on this full vector.
+
+        use FciMCData, only: partial_determ_vecs, full_determ_vecs, SemiStoch_Comms_Time
+        use FciMCData, only: SemiStoch_Multiply_Time
+        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+        use DetBitOps, only: DetBitEQ
+
+        integer :: i, j, ierr, run, part_type
+
+        call MPIBarrier(ierr)
+
+        call set_timer(SemiStoch_Comms_Time)
+
+        call MPIAllGatherV(partial_determ_vecs, full_determ_vecs, &
+                            determ_sizes, determ_displs)
+
+        call halt_timer(SemiStoch_Comms_Time)
+
+        call set_timer(SemiStoch_Multiply_Time)
+
+        if (determ_sizes(iProcIndex) >= 1) then
+
+            ! For the moment, we're only adding in these contributions when we need the energy
+            ! This will need refinement if we want to continue with the option of inst vs true full RDMs
+            ! (as in another CMO branch).
+
+            ! Perform the multiplication.
+
+            partial_determ_vecs = 0.0_dp
+
+#ifdef __CMPLX
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, approx_ham(i)%num_elements
+                    do run = 1, inum_runs
+                        partial_determ_vecs(min_part_type(run),i) = partial_determ_vecs(min_part_type(run),i) - &
+                            Real(approx_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),approx_ham(i)%positions(j)) +&
+                            Aimag(approx_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),approx_ham(i)%positions(j))
+                        partial_determ_vecs(max_part_type(run),i) = partial_determ_vecs(max_part_type(run),i) - &
+                            Aimag(approx_ham(i)%elements(j))*full_determ_vecs(min_part_type(run),approx_ham(i)%positions(j)) -&
+                            Real(approx_ham(i)%elements(j))*full_determ_vecs(max_part_type(run),approx_ham(i)%positions(j))
+                    end do
+                end do
+            end do
+#else
+            do i = 1, determ_sizes(iProcIndex)
+                do j = 1, approx_ham(i)%num_elements
+                    partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
+                        approx_ham(i)%elements(j)*full_determ_vecs(:,approx_ham(i)%positions(j))
+                end do
+            end do
+#endif
+
+            ! Now add shift*full_determ_vecs to account for the shift, not stored in
+            ! approx_ham.
+#ifdef __CMPLX
+            do i = 1, determ_sizes(iProcIndex)
+                do part_type  = 1, lenof_sign
+                    partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
+                       DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
+                enddo
+            end do
+#else
+            do i = 1, determ_sizes(iProcIndex)
+                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
+                   DiagSft * full_determ_vecs(:,i+determ_displs(iProcIndex))
+            end do
+#endif
+
+            ! Now multiply the vector by tau to get the final projected vector.
+            partial_determ_vecs = partial_determ_vecs * tau
+
+            do i = 1, determ_sizes(iProcIndex)
+                do part_type  = 1, lenof_sign
+                    run = part_type_to_run(part_type)
+                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                        partial_determ_vecs(part_type, i) = 0.0_dp
+                    end if
+                end do
+            end do
+        end if
+
+        call halt_timer(SemiStoch_Multiply_Time)
+
+    end subroutine determ_proj_approx
+
     subroutine average_determ_vector()
 
         use FciMCData, only: Iter, IterRDMStart
@@ -196,7 +362,7 @@ contains
 
     function is_core_state(ilut, nI) result (core_state)
 
-        use FciMCData, only: ll_node, determ_space_size_int
+        use FciMCData, only: determ_space_size_int
         use hash, only: FindWalkerHash
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -216,6 +382,36 @@ contains
         end do
 
     end function is_core_state
+
+    function core_space_pos(ilut, nI) result (pos)
+
+        use FciMCData, only: ll_node, determ_space_size_int
+        use hash, only: FindWalkerHash
+        use sparse_arrays, only: core_ht
+
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: nI(:)
+        integer :: i, hash_val
+        character(len=*), parameter :: t_r = "core_space_pos"
+
+        integer :: pos
+
+        pos = 0
+
+        hash_val = FindWalkerHash(nI, determ_space_size_int)
+
+        do i = 1, core_ht(hash_val)%nclash
+            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash_val)%ind(i)) )) then
+                pos = core_ht(hash_val)%ind(i)
+                return
+            end if
+        end do
+
+        if (pos == 0) then
+            call stop_all(t_r, "State not found in core hash table.")
+        end if
+
+    end function core_space_pos
 
     function check_determ_flag(ilut) result (core_state)
     
@@ -346,42 +542,46 @@ contains
 
     end subroutine store_whole_core_space
 
-    subroutine initialise_core_hash_table()
+    subroutine initialise_core_hash_table(ilut_list, space_size, hash_table)
 
         use bit_reps, only: decode_bit_det
-        use FciMCData, only: core_space
         use hash, only: FindWalkerHash
+        use sparse_arrays, only: core_hashtable
         use SystemData, only: nel
+
+        integer(n_int), intent(in) :: ilut_list(0:,:)
+        integer, intent(in) :: space_size
+        type(core_hashtable), allocatable, intent(out) :: hash_table(:)
 
         integer :: nI(nel)
         integer :: i, ierr, hash_val
 
-        allocate(core_ht(determ_space_size), stat=ierr)
+        allocate(hash_table(space_size), stat=ierr)
 
-        do i = 1, determ_space_size
-            core_ht(i)%nclash = 0
+        do i = 1, space_size
+            hash_table(i)%nclash = 0
         end do
 
         ! Count the number of states with each hash value.
-        do i = 1, determ_space_size
-            call decode_bit_det(nI, core_space(:,i))
-            hash_val = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-            core_ht(hash_val)%nclash = core_ht(hash_val)%nclash + 1
+        do i = 1, space_size
+            call decode_bit_det(nI, ilut_list(:,i))
+            hash_val = FindWalkerHash(nI, int(space_size,sizeof_int))
+            hash_table(hash_val)%nclash = hash_table(hash_val)%nclash + 1
         end do
 
-        do i = 1, determ_space_size
-            allocate(core_ht(i)%ind(core_ht(i)%nclash), stat=ierr)
-            core_ht(i)%ind = 0
+        do i = 1, space_size
+            allocate(hash_table(i)%ind(hash_table(i)%nclash), stat=ierr)
+            hash_table(i)%ind = 0
             ! Reset this for now.
-            core_ht(i)%nclash = 0
+            hash_table(i)%nclash = 0
         end do
 
-        ! Now fill in the indices of the states in core_space.
-        do i = 1, determ_space_size
-            call decode_bit_det(nI, core_space(:,i))
-            hash_val = FindWalkerHash(nI, int(determ_space_size,sizeof_int))
-            core_ht(hash_val)%nclash = core_ht(hash_val)%nclash + 1
-            core_ht(hash_val)%ind(core_ht(hash_val)%nclash) = i
+        ! Now fill in the indices of the states in the space.
+        do i = 1, space_size
+            call decode_bit_det(nI, ilut_list(:,i))
+            hash_val = FindWalkerHash(nI, int(space_size, sizeof_int))
+            hash_table(hash_val)%nclash = hash_table(hash_val)%nclash + 1
+            hash_table(hash_val)%ind(hash_table(hash_val)%nclash) = i
         end do
 
     end subroutine initialise_core_hash_table
@@ -549,28 +749,32 @@ contains
         use load_balance_calcnodes, only: DetermineDetNode
 
         integer, intent(in) :: ilut_list_size
-        integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:ilut_list_size)
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer(MPIArg), intent(out) :: num_states_procs(0:nProcessors-1)
         integer(n_int), allocatable, dimension(:,:) :: temp_list
         integer, allocatable, dimension(:) :: proc_list
         integer :: nI(nel)
         integer :: i, ierr
+        integer :: width, max_ind
         integer :: counter(0:nProcessors-1)
         integer(TagIntType) :: TempConTag, ProcListTag
         character(len=*), parameter :: t_r = "sort_space_by_proc"
 
+        width = int(size(ilut_list, 1), MPIArg)
+        max_ind = width - 1
+
         allocate(proc_list(ilut_list_size), stat=ierr)
         call LogMemAlloc('proc_list', ilut_list_size, sizeof_int, t_r, ProcListTag, ierr)
 
-        allocate(temp_list(0:NIfTot, ilut_list_size), stat=ierr)
-        call LogMemAlloc('con_space_temp', ilut_list_size*(NIfTot+1), size_n_int, t_r, &
+        allocate(temp_list(0:max_ind, ilut_list_size), stat=ierr)
+        call LogMemAlloc('temp_list', ilut_list_size*width, size_n_int, t_r, &
                          TempConTag, ierr)
 
         num_states_procs = 0
 
         ! Create a list, proc_list, with the processor numbers of the corresponding iluts.
         do i = 1, ilut_list_size
-            call decode_bit_det(nI, ilut_list(:,i))
+            call decode_bit_det(nI, ilut_list(0:NIfTot,i))
             proc_list(i) = DetermineDetNode(nel,nI,0)
             num_states_procs(proc_list(i)) = int(num_states_procs(proc_list(i)) + 1, MPIArg)
         end do
@@ -582,10 +786,10 @@ contains
 
         do i = 1, ilut_list_size
             counter(proc_list(i)) = counter(proc_list(i)) + 1 
-            temp_list(:, counter(proc_list(i))) = ilut_list(:,i)
+            temp_list(0:NIfTot, counter(proc_list(i))) = ilut_list(0:NIfTot,i)
         end do
 
-        ilut_list = temp_list
+        ilut_list(:,1:ilut_list_size) = temp_list(:,1:ilut_list_size)
 
         deallocate(temp_list, stat=ierr)
         deallocate(proc_list, stat=ierr)
@@ -901,7 +1105,7 @@ contains
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
-        integer, intent(in) :: source_size
+        integer(int64), intent(in) :: source_size
         integer(n_int), intent(in) :: source(0:NIfTot, source_size)
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
@@ -933,7 +1137,7 @@ contains
             ! Is this determinant more populated than the smallest? First in
             ! the list is always the smallest.
             if (sign_curr_real > smallest_sign) then
-                largest_walkers(:,smallest_pos) = CurrentDets(:,i)
+                largest_walkers(:,smallest_pos) = source(:,i)
 
                 ! Instead of resorting, just find new smallest sign and position.
                 call extract_sign(largest_walkers(:,1),low_sign)
@@ -1013,79 +1217,62 @@ contains
     end subroutine return_largest_indices
 
     subroutine start_walkers_from_core_ground(tPrintInfo)
-
+        use bit_reps, only: encode_sign
+        use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
+        use Parallel_neci, only: MPISumAll
+        implicit none
+      
         logical, intent(in) :: tPrintInfo
         integer :: i, counter, ierr
-        real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
-        real(dp), allocatable :: temp_determ_vec(:)
+        real(dp) :: eigenvec_pop, eigenvec_pop_tot, pop_sign(lenof_sign)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
-        real(dp), allocatable :: e_values(:), e_vectors(:,:), gs_vector(:)
-        real(dp) :: gs_energy
+        type(davidson_ss) :: dc
 
         if (tPrintInfo) then
-            root_print "Using the deterministic ground state as initial walker configuration."
+            write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
+            write(6,'(a34)') "Performing Davidson calculation..."
+            call neci_flush(6)
         end if
 
-!         if (t_non_hermitian) then
-            root_print "Performing full diagonalisation..."
-            call diagonalize_core_non_hermitian(e_values, e_vectors)
+        ! Call the Davidson routine to find the ground state of the core space.
+        call perform_davidson_ss(dc, .true.)
 
-!         if_root
-            if (t_choose_trial_state) then
-                root_print " chosen state: ", trial_excit_choice(1), &
-                    "with energy: ", e_values(trial_excit_choice(1))
-                gs_vector = e_vectors(:,trial_excit_choice(1))
-            else
-                root_print " ground-state energy: ", e_values(1)
-                gs_vector = e_vectors(:,1)
-            end if
-!         end_if_root
-
-!         else
-! 
-!             if (tPrintInfo) then
-!                 write(6,'(a34)') "Performing Davidson calculation..."
-!                 call neci_flush(6)
-!             end if
-! 
-!             call diagonalize_core(gs_energy, gs_vector)
-! 
-!         end if
-
-        if (iProcIndex == root) then
-            eigenvec_pop = 0.0_dp
-            do i = 1, determ_space_size
-                eigenvec_pop = eigenvec_pop + abs(gs_vector(i))
-            end do
-            if (tStartSinglePart) then 
-                gs_vector = gs_vector * InitialPart / eigenvec_pop
-            else
-                gs_vector = gs_vector * InitWalkers / eigenvec_pop
-            end if
+        if (tPrintInfo) then
+            write(6,'(a30)') "Davidson calculation complete."
+            write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') dc%davidson_eigenvalue
+            call neci_flush(6)
         end if
 
-        root_print "eigenvector: ", gs_vector
+        ! We need to normalise this vector to have the correct 'number of walkers'.
+        eigenvec_pop = 0.0_dp
+        do i = 1, determ_sizes(iProcIndex)
+            eigenvec_pop = eigenvec_pop + abs(dc%davidson_eigenvector(i))
+        end do
+        call MPISumAll(eigenvec_pop, eigenvec_pop_tot)
 
-        allocate(temp_determ_vec(determ_sizes(iProcIndex)))
-        ! i hope the order of the components did not get messed up.. 
-        call MPIScatterV(real(gs_vector,dp), determ_sizes, determ_displs, &
-            temp_determ_vec, determ_sizes(iProcIndex), ierr)
+        if (tStartSinglePart) then
+            dc%davidson_eigenvector = dc%davidson_eigenvector*InitialPart/eigenvec_pop_tot
+        else
+            dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
+        end if
 
-        ! Finally, copy these amplitudes across to the corresponding states in CurrentDets.
+        ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
-                pop_sign = temp_determ_vec(counter)
+                pop_sign = dc%davidson_eigenvector(counter)
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
+
+        call destroy_davidson_ss(dc)
 
     end subroutine start_walkers_from_core_ground
 
     subroutine diagonalize_core(e_value, e_vector)
         real(dp), intent(out)  :: e_value
-        real(dp), intent(out), allocatable :: e_vector(:)
+        HElement_t(dp), intent(out), allocatable :: e_vector(:)
         type(DavidsonCalcType) :: davidsonCalc
         integer :: ierr
         character(*), parameter :: t_r = "diagonalize_core"
@@ -1110,7 +1297,6 @@ contains
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
         call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
-
 
     end subroutine diagonalize_core
 
@@ -1139,7 +1325,8 @@ contains
 
 
     subroutine diagonalize_core_non_hermitian(e_values, e_vectors)
-        real(dp), allocatable, intent(out) :: e_values(:), e_vectors(:,:)
+        real(dp), allocatable, intent(out) :: e_values(:)
+        HElement_t(dp), allocatable :: e_vectors(:,:)
         HElement_t(dp), allocatable :: full_H(:,:)
         integer i, nI(nel)
 
@@ -1155,18 +1342,12 @@ contains
         ! build the full Hamiltonian
 !         if (iProcIndex == root) then
             call calc_determin_hamil_full(full_H)
-
-           root_print "deterministic hamiltonian:"
-!         if_root
-!             call print_matrix(full_H)
-!         end_if_root
-
             allocate(e_values(size(full_H,1)))
             allocate(e_vectors(size(full_H,1),size(full_H,1)))
             e_values = 0.0_dp
             e_vectors = 0.0_dp
 
-            call eig(real(full_H,dp), e_values, e_vectors)
+            call eig(full_H, e_values, e_vectors)
 
             ! maybe we also want to start from a different eigenvector in 
             ! this case? this would be practial for the hubbard problem case..
@@ -1411,6 +1592,10 @@ contains
         if (allocated(determ_displs)) then
             deallocate(determ_displs, stat=ierr)
             if (ierr /= 0) write(6,'("Error when deallocating determ_displs:",1X,i8)') ierr
+        end if
+        if (allocated(determ_last)) then
+            deallocate(determ_last, stat=ierr)
+            if (ierr /= 0) write(6,'("Error when deallocating determ_last:",1X,i8)') ierr
         end if
 
     end subroutine end_semistoch

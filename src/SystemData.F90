@@ -175,6 +175,7 @@ INTEGER :: nBasisMax(5,7) = 0
 real(dp) :: ALAT(5)
 real(dp) :: ECore
 INTEGER :: nBasis
+integer(int64) :: nBI
 integer :: nMax
 integer :: nnr
 integer :: nocc
@@ -314,7 +315,6 @@ real(dp), allocatable :: excit_cache(:,:,:)
 
 ! also use an additional flag to indicate that 3-body excitations are possible
 logical :: t_3_body_excits = .false. 
-logical :: tHDF5LMat = .false.
 
 ! make a general Flag to indicat a non-hermitian Hamiltonian
 logical :: t_non_hermitian = .false.
@@ -326,6 +326,11 @@ character(20) :: lattice_type
 
 ! i need 
 integer :: length_x = 1, length_y = 1, length_z = 1
+! flag for the pre-computed power-pitzer excitaion generator
+logical :: t_pcpp_excitgen = .false.
+! flag for the pre-computed heat-bath excitation generator
+logical :: t_pchb_excitgen = .false.
+
 ! also implement a next-nearest neighbor Hubbard model implementation: 
 ! for k-space hubbard, this only affects the diagonal part! 
 real(dp) :: nn_bhub = 0.0_dp

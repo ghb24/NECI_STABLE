@@ -31,12 +31,13 @@ module excit_gens_int_weighted
                                     construct_class_counts, &
                                     RandExcitSymLabelProd
     use constants
-    use get_excit, only: make_double, make_single
+    use get_excit, only: make_double, make_single, exciteIlut
     use sort_mod
     use util_mod
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
                            ija_orbs_para, ija_orbs_anti, ija_bins_sing, ija_orbs_sing
     use Parallel_neci, only: iProcIndex
+    use LMat_mod, only: get_lmat_el
 
     implicit none
     save
@@ -348,7 +349,7 @@ contains
                     sum_pair(1) = cum_sums(1)
                     sum_pair(2) = cum_sums(1) - int_cpt(2)
                 end if
-                
+
                 ! Deal with cases when there are no available excitations
                 ! with the given pathway.
                 If (any(sum_pair < EPS)) then
@@ -365,7 +366,7 @@ contains
 
         else
             ! IC /= 1, 2 --> not connected by the excitation generator.
-            ! 
+            !
             ! If we are hitting here, then earlier checks have failed. We can
             ! return the correct (zero) value at runtime, but really this
             ! should be fixed elsewhere
@@ -491,7 +492,7 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = "pgen_single_4ind"
 
-        integer :: cc_index, label_index, norb, n_id(nel), id_src, id_tgt
+        integer :: cc_index, label_index, norb, ex(2), id_src, id_tgt
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt, cpt_tgt
         HElement_t(dp) :: hel
@@ -502,37 +503,27 @@ contains
         ! The class count index of the target orbital is known
         cc_index = ClassCountInd (get_spin(tgt), SpinOrbSymLabel(tgt), &
                                   G1(tgt)%Ml)
-         
+
         ! How many orbitals of the correct symmetry are there?
         norb = OrbClassCount(cc_index)
         label_index = SymLabelCounts2(1, cc_index)
 
         ! Some ids for utility
         id_src = gtID(src)
-        n_id = gtID(nI)
-
+        ex(1) = src
+        
         ! Generate the cumulative sum, as used in the excitation generator,
         ! and store the relevant term for generating the excitation.
         cum_sum = 0
         do i = 1, norb
             orb = SymLabelList2(label_index + i - 1)
             if (IsNotOcc(ilutI, orb)) then
-                hel = 0
-                id_tgt = gtID(orb)
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
-                                             n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) then
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
-                                                  id_tgt)
-                    end if
-                end do
-                hel = hel + GetTMATEl(src, orb)
-                cpt = abs_l1(hel)
+               ex(2) = orb
+               hel = sltcnd_1(nI,ex,.false.)
+               cpt = abs_l1(hel)
 
-                if (t_matele_cutoff) then 
-                    if (cpt < matele_cutoff) then 
+                if (t_matele_cutoff) then
+                    if (cpt < matele_cutoff) then
                         cpt = 0.0_dp
                     end if
                 end if
@@ -563,17 +554,17 @@ contains
         real(dp) :: cum_sum, cumulative_arr(OrbClassCount(cc_index)), r
         real(dp) :: cpt_arr(OrbClassCount(cc_index))
         integer :: orb, norb, label_index, orb_index, i, j
-        integer :: n_id(nel), id_src, id
+        integer :: id_src, id, ex(2)
         HElement_t(dp) :: hel
         real(dp) :: cpt
-        
+
         ! How many orbitals of the correct symmetry are there?
         norb = OrbClassCount(cc_index)
         label_index = SymLabelCounts2(1, cc_index)
 
         ! Spatial orbital IDs
-        n_id = gtID(nI)
         id_src = gtID(src)
+        ex(1) = src
         ASSERT(tExch)
 
         ! Construct the cumulative list of strengths
@@ -593,22 +584,14 @@ contains
                 !cum_sum = cum_sum &
                 !        + abs_l1(GetTMATEl(src, orb))
 
-                ! This is based on an extract from sltcnd_1. We can assume
-                ! tExch, and SymLabelList2 ensures the spins are equal
-                id = gtID(orb)
-                ! for transcorrelation, change the order of the indices!
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id, n_id(j), id_src, n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) &
-                        hel = hel - get_umat_el (id, n_id(j), n_id(j), id_src)
-                end do
-                hel = hel + GetTMATEl(src, orb)
-
+                ! This is based on an extract from sltcnd_1.
+                ! set the excitation we consider
+                ex(2) = orb
+                hel = sltcnd_1(nI,ex,.false.)
             end if
 
             ! And store the values for later searching
-            cpt = abs_l1(hel) 
+            cpt = abs_l1(hel)
 
             if (t_matele_cutoff) then
                 if (cpt < matele_cutoff) cpt = 0.0_dp
@@ -620,21 +603,21 @@ contains
 
         end do
 
-        !  for testing purposes: 
-!         if (cum_sum < UMatEps) then 
+        !  for testing purposes:
+!         if (cum_sum < UMatEps) then
 !             print *, "===================================="
 !             print *, "single excitation: "
-!             print *, "norb: ", norb 
+!             print *, "norb: ", norb
 !             print *, "cum_sum: ", cum_sum
 !             print *, " cumulative_arr: ", cumulative_arr
-!             print *, "nI: ", nI 
+!             print *, "nI: ", nI
 !             print *, "src: ", src
 !         end if
 
         ! Select a particular orbital to use, or abort.
-        ! ok i really think we have to be consistent with this matrix element 
-        ! cutoff.. because i think by ignoring some, we allow other excitations 
-        ! which should have 0 matrix element to slip through and cause major 
+        ! ok i really think we have to be consistent with this matrix element
+        ! cutoff.. because i think by ignoring some, we allow other excitations
+        ! which should have 0 matrix element to slip through and cause major
         ! headache..
         if (cum_sum < EPS) then
             orb = 0
@@ -642,8 +625,8 @@ contains
             return
         end if
 
-        if (t_log_ija) then 
-            if (cum_sum < ija_thresh) then 
+        if (t_log_ija) then
+            if (cum_sum < ija_thresh) then
                 ija_bins_sing(id_src) = ija_bins_sing(id_src) + 1
                 ija_orbs_sing(id_src) = norb
             end if
@@ -660,7 +643,7 @@ contains
 
 
 
-    
+
     subroutine gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen, store)
 
         integer, intent(in) :: nI(nel)
@@ -704,7 +687,7 @@ contains
             nJ(1) = 0
             return
         end if
-    
+
         ! Pick a specific pairing of spin-symmetries
         r = genrand_real2_dSFMT() * cc_tot
         cc_i = binary_search_first_ge (cc_cum, r)
@@ -749,12 +732,7 @@ contains
         ! And generate the actual excitation.
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, par)
-        ilutJ = ilutI
-        clr_orb (ilutJ, src(1))
-        clr_orb (ilutJ, src(2))
-        set_orb (ilutJ, orbs(1))
-        set_orb (ilutJ, orbs(2))
-
+        ilutJ = exciteIlut(ilutI,src,orbs)
     end subroutine
 
     subroutine pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pgen, pBias, pAA)
@@ -1035,39 +1013,39 @@ contains
         else
             ! Include the contribution of this term sqrt(<ia|ia>)
             inda = gtID(orba)
-!             
-!             if (t_iiaa .and. t_ratio) then 
-!                 ! ok.. maybe i have to talk to ali about that, what he 
-!                 ! meant with this splitting of p(a|ij) = p(j)*p(a|i) 
+!
+!             if (t_iiaa .and. t_ratio) then
+!                 ! ok.. maybe i have to talk to ali about that, what he
+!                 ! meant with this splitting of p(a|ij) = p(j)*p(a|i)
 !                 ! because i am not sure about that ..
-!                 ! althoug i should be carefull if we do not divide by 
-!                 ! 0 here.. 
-!                 ! NOTE: by testing it was seen that the ratio approach causes the 
-!                 ! pgens to be much too low and thus the H_ij/pgen ratios to 
+!                 ! althoug i should be carefull if we do not divide by
+!                 ! 0 here..
+!                 ! NOTE: by testing it was seen that the ratio approach causes the
+!                 ! pgens to be much too low and thus the H_ij/pgen ratios to
 !                 ! explode
-! 
-!                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda) / & 
+!
+!                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda) / &
 !                            max(abs(get_umat_el(indj, inda, indj, inda)), 0.0001_dp))) &
-!                         + sqrt(abs(get_umat_el(indj, inda, indi, inda) / & 
+!                         + sqrt(abs(get_umat_el(indj, inda, indi, inda) / &
 !                            max(abs(get_umat_el(indi, inda, indj, inda)), 0.0001_dp)))
 
-            if (t_iiaa) then 
-                
+            if (t_iiaa) then
+
                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda)))
 
-!             else if (t_ratio) then 
-!                 ! also here i have to check if i actually should take care 
-!                 ! of the indj influence.. 
-! 
-!                 contrib = sqrt(abs(UMat2D(max(indi, inda), min(indi, inda))) / & 
+!             else if (t_ratio) then
+!                 ! also here i have to check if i actually should take care
+!                 ! of the indj influence..
+!
+!                 contrib = sqrt(abs(UMat2D(max(indi, inda), min(indi, inda))) / &
 !                            max(abs(UMat2D(max(indj, inda), min(indj, inda))), 0.0001_dp)) &
-!                         + sqrt(abs(UMat2D(max(indj, inda), min(indj, inda))) / & 
+!                         + sqrt(abs(UMat2D(max(indj, inda), min(indj, inda))) / &
 !                            max(abs(UMat2D(max(indi, inda), min(indi, inda))), 0.0001_dp))
 
-            else 
+            else
 
                 contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
-                
+
             end if
 
         end if
@@ -1120,37 +1098,37 @@ contains
             ! sqrt((ii|aa) + (jj|aa))
             inda = gtID(orba)
 
-            if (t_iiaa .and. t_ratio) then 
-                ! ok.. maybe i have to talk to ali about that, what he 
-                ! meant with this splitting of p(a|ij) = p(j)*p(a|i) 
+            if (t_iiaa .and. t_ratio) then
+                ! ok.. maybe i have to talk to ali about that, what he
+                ! meant with this splitting of p(a|ij) = p(j)*p(a|i)
                 ! because i am not sure about that ..
-                ! althoug i should be carefull if we do not divide by 
-                ! 0 here.. 
+                ! althoug i should be carefull if we do not divide by
+                ! 0 here..
 
-                contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda) / & 
+                contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda) / &
                            max(abs(get_umat_el(indj, inda, indj, inda)), 0.0001_dp))) &
-                        + sqrt(abs(get_umat_el(indj, inda, indj, inda) / & 
+                        + sqrt(abs(get_umat_el(indj, inda, indj, inda) / &
                            max(abs(get_umat_el(indi, inda, indi, inda)), 0.0001_dp)))
 
-            else if (t_iiaa) then 
-                
-                contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda))) & 
+            else if (t_iiaa) then
+
+                contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda))) &
                         + sqrt(abs(get_umat_el(indj, inda, indj, inda)))
 
-            else if (t_ratio) then 
-                ! also here i have to check if i actually should take care 
-                ! of the indj influence.. 
+            else if (t_ratio) then
+                ! also here i have to check if i actually should take care
+                ! of the indj influence..
 
-                contrib = sqrt(abs(UMat2D(max(indi, inda), min(indi, inda))) / & 
+                contrib = sqrt(abs(UMat2D(max(indi, inda), min(indi, inda))) / &
                            max(abs(UMat2D(max(indj, inda), min(indj, inda))), 0.0001_dp)) &
-                        + sqrt(abs(UMat2D(max(indj, inda), min(indj, inda))) / & 
+                        + sqrt(abs(UMat2D(max(indj, inda), min(indj, inda))) / &
                            max(abs(UMat2D(max(indi, inda), min(indi, inda))), 0.0001_dp))
 
-            else 
+            else
 
 
                 contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))&
-                        + sqrt(abs_l1(UMat2D(max(indj, inda), min(indj, inda))))
+                     + sqrt(abs_l1(UMat2D(max(indj, inda), min(indj, inda))))
             end if
             !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), inda, inda))) + &
             !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), inda, inda)))
@@ -1204,20 +1182,20 @@ contains
             cum_sum = 0.0_dp
             srcid = gtID(src)
             do i = 1, norb
-            
+
                 orb = SymLabelList2(label_index + i - 1)
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
                     cum_sum = cum_sum + same_spin_pair_contrib(&
-                                             srcid(1), srcid(2), orb, orb_pair)
+                         srcid(1), srcid(2), orb, orb_pair)
                 end if
                 cumulative_arr(i) = cum_sum
 
             end do
 
         else
-            
+
             t_par = .false.
-            ! The two electrons have differing spin. Therefore, only the 
+            ! The two electrons have differing spin. Therefore, only the
             ! electron-hole interaction with the same spin is required.
             ms = class_count_ms(cc_index)
             if (ms == G1(src(1))%Ms) then
@@ -1241,8 +1219,8 @@ contains
 
         end if
 
-        ! also check here ig the problem is overall low pgens for certain 
-        ! excitations 
+        ! also check here ig the problem is overall low pgens for certain
+        ! excitations
 
 
         ! If there are no available orbitals to pair with, we need to abort
@@ -1251,29 +1229,29 @@ contains
             return
         end if
 
-        ! do i need the matele cutoff here too? i shouldnt.. 
+        ! do i need the matele cutoff here too? i shouldnt..
         ! check in debug mode!
 #ifdef __DEBUG
-        if (t_matele_cutoff) then 
-            if (cum_sum < matele_cutoff) then 
+        if (t_matele_cutoff) then
+            if (cum_sum < matele_cutoff) then
                 call stop_all(this_routine, &
                     "although matrix-cutoff something slipped through..")
             end if
         end if
 #endif
 
-        ! the dead end we want to log are here actually.. 
-        if (t_log_ija .and. cum_sum < ija_thresh) then 
-            ! here source is not yet sorted! 
+        ! the dead end we want to log are here actually..
+        if (t_log_ija .and. cum_sum < ija_thresh) then
+            ! here source is not yet sorted!
             ! but only take the unique (ij) combinations!
-            ! and do i want to have more information? 
-            ! maybe i want to know how many symmetry allowed orbitals there 
+            ! and do i want to have more information?
+            ! maybe i want to know how many symmetry allowed orbitals there
             ! are for this kind of excitation... yes!
-            ! and maybe i only want to store the spatial orbitals and 
-            ! the info if it is a parallel spin excitation or an opposite 
-            ! spin excitation.. this would reduce the output amount even 
-            ! farther yes! 
-            if (t_par) then 
+            ! and maybe i only want to store the spatial orbitals and
+            ! the info if it is a parallel spin excitation or an opposite
+            ! spin excitation.. this would reduce the output amount even
+            ! farther yes!
+            if (t_par) then
                 ija_bins_para(minval(srcid),maxval(srcid),gtID(orb_pair)) = &
                     ija_bins_para(minval(srcid),maxval(srcid),gtID(orb_pair)) + 1
 
@@ -1286,12 +1264,12 @@ contains
 
             end if
         end if
-        
-!         if (cum_sum < 1.0e-4_dp) then 
+
+!         if (cum_sum < 1.0e-4_dp) then
 !             print *, "========================================"
-!             if (t_par) then 
+!             if (t_par) then
 !                 print *, "parallel double excitation: "
-!             else 
+!             else
 !                 print *, "opposite double excitation: "
 !             end if
 !             print *, "norb: ", norb
@@ -1401,7 +1379,7 @@ contains
         else if (ic == 2) then
 
             ! Obviously bias by pDoubles...
-            pgen = pDoubles 
+            pgen = pDoubles
 
             ! We want to select a pair of orbitals in a way which is biased
             ! towards pairs with opposing spins. This takes a simple form.
@@ -1434,7 +1412,7 @@ contains
                     e_sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
                                                        SpinOrbSymLabel(src(2)))
                     e_sum_ml = sum(G1(src)%Ml)
-                    
+
                     ! Calculate the cross HElements
                     if (e_ispn == iSpn .and. e_sym_prod == sym_product &
                         .and. e_sum_ml == sum_ml) then
@@ -1474,7 +1452,7 @@ contains
 
         else
             ! IC /= 1, 2 --> not connected by the excitation generator.
-            ! 
+            !
             ! If we are hitting here, then earlier checks have failed. We can
             ! return the correct (zero) value at runtime, but really this
             ! should be fixed elsewhere
@@ -1589,7 +1567,7 @@ contains
             cum_arr(src_elec) = cum_sum
 
         end do
-        
+
         ! Select a particulor electron, or abort
         if (cum_sum == 0) then
 !         if (cum_sum < EPS) then
@@ -1722,7 +1700,7 @@ contains
 
 
     subroutine pick_hole_pair_biased (ilut, orbs, pgen, sym_prod, sum_ml, ispn)
-        
+
         ! This is a biased version of pick_hole_pair below. Whereas the
         ! other function picks hole pairs entirely uniformly throughout the
         ! space, this function biases that selection towards picking opposite
@@ -1813,7 +1791,7 @@ contains
 
     end function
 
-    
+
     subroutine pick_hole_pair (ilut, orbs, pgen, sym_prod, sum_ml, ispn)
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -2022,9 +2000,15 @@ contains
         logical, parameter :: tlinear = .true.
         logical, parameter :: tlinear2 = .false.
 
-        real(dp) :: cum_list(nel), cum_sum, cpt, final_cpt, r
-        real(dp) :: cum_sum_ii, cum_list_ii(nel), cpt_ii, cpt_jj
-        integer :: i, ind1, ind2, inds(nel)
+        real(dp) :: cum_sum, cpt, final_cpt, r
+        real(dp), allocatable, save :: cum_list(:), cum_list_ii(:)
+        real(dp) :: cum_sum_ii, cpt_ii, cpt_jj
+        integer :: i, ind1, ind2
+        integer, allocatable, save :: inds(:)
+
+        if (.not. allocated(cum_list)) allocate(cum_list(nel))
+        if (.not. allocated(cum_list_ii)) allocate(cum_list_ii(nel))
+        if (.not. allocated(inds)) allocate(inds(nel))
 
         ! Pick the first electron uniformly, or according to <ii|ii>,
         ! and then pick the second electron according to <ji|ji>
@@ -2164,7 +2148,7 @@ contains
         ! Enumerate possibilities for the first electron, and select the
         ! relevant orbitals.
         inds = gtID(nI)
-        ind1 = gtID(orbs)        
+        ind1 = gtID(orbs)
         cpt = 1.0_dp
         if (tlinear) then
             cum_sum1 = 0

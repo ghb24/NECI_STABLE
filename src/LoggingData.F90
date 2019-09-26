@@ -23,12 +23,12 @@ module LoggingData
     LOGICAL tRoHistOneElInts
     LOGICAL tROHistVirtCoulomb,tPrintInts,tHistEnergies,tTruncRODump,tRDMonFly,tDiagRDM,tDo_Not_Calc_2RDM_est
     LOGICAL tPrintFCIMCPsi,tCalcFCIMCPsi,tPrintSpinCoupHEl,tIterStartBlock,tHFPopStartBlock,tInitShiftBlocking
-    LOGICAL tTruncDumpbyVal, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib 
+    LOGICAL tTruncDumpbyVal, tPrintRODump, tno_RDMs_to_read, tReadRDMs, tNoNewRDMContrib
     LOGICAL tWriteTransMat,tPrintOrbOcc,tHistInitPops,tPrintOrbOccInit, tWriteMultRDMs
-    LOGICAL twrite_normalised_RDMs, tWriteSpinFreeRDM, twrite_RDMs_to_read 
+    LOGICAL twrite_normalised_RDMs, tWriteSpinFreeRDM, twrite_RDMs_to_read
     LOGICAL tNoNOTransform, tPrint1RDM, tPrintInitiators
     INTEGER NoACDets(2:4),iPopsPartEvery,iWriteHistEvery,NHistEquilSteps
-    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs 
+    INTEGER IterRDMonFly, RDMExcitLevel, RDMEnergyIter, IterWriteRDMs
     INTEGER FCIMCDebug !FciMC Debugging Level 0-6.  Default 0
 
     ! Logical(4) datatypes for compilation with builds of openmpi that don't
@@ -44,7 +44,7 @@ module LoggingData
     LOGICAL, ALLOCATABLE :: DoubsUEGStore(:,:,:)
     LOGICAL :: tBlockEveryIteration
     LOGICAL tLogDets       ! Write out the DETS and SymDETS files.
-    LOGICAL tLogComplexPops     ! Write out complex walker information 
+    LOGICAL tLogComplexPops     ! Write out complex walker information
     LOGICAL tLogEXLEVELStats    ! Write L_{0,1,2} norms of weights by exlevel
     LOGICAL tMCOutput
     logical :: tDumpForcesInfo
@@ -101,7 +101,7 @@ module LoggingData
     integer, allocatable :: RotNOs(:)
     integer(TagIntType) :: tagRotNOs
 
-    ! If not true then don't output data tables to FCIMCStats, INITIATORStats or standard output. 
+    ! If not true then don't output data tables to FCIMCStats, INITIATORStats or standard output.
     logical :: tPrintDataTables
 
     ! Should we output the load-balanced distribution?
@@ -126,11 +126,11 @@ module LoggingData
     ! The name of the integral file for each of the property to be estimated
     character(100), allocatable :: EstPropFile(:)
 
-    ! like rdms, as it is a bit similar, access the double occupancy 
+    ! like rdms, as it is a bit similar, access the double occupancy
     ! measurement in the logging section!
-    logical :: t_calc_double_occ = .false. 
-    ! also use a optional input parameter to start averaging the 
-    ! double occupancy only after a certain number of steps after the 
+    logical :: t_calc_double_occ = .false.
+    ! also use a optional input parameter to start averaging the
+    ! double occupancy only after a certain number of steps after the
     ! shift changes
     integer :: equi_iter_double_occ = 0
     logical :: t_calc_double_occ_av = .false.
@@ -142,7 +142,7 @@ module LoggingData
 !     real(dp) :: n_double_occ_loc, n_double_occ_all
     ! [Werner Dobrautz 4.4.2017]
     ! changes belonging to the histogram tau-search
-    ! for now always print out the histograms at the end, maybe change that 
+    ! for now always print out the histograms at the end, maybe change that
     ! behavior in the future
     logical :: t_print_frq_histograms = .true.
 
@@ -153,21 +153,21 @@ module LoggingData
     ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
     logical :: t_no_append_stats = .false.
 
-    ! for giovanni introduce a new keyword to print out the spin-resolved 
+    ! for giovanni introduce a new keyword to print out the spin-resolved
     ! 2-rdms, especially for systems with ms /= 0
     logical :: t_spin_resolved_rdms = .false.
 
-    ! Alis idea to histogram bad p(a|ij) with the triplet (aij) 
-    logical :: t_log_ija = .false. 
-    ! i need bins of (nbasis,nbasis,nbasis) size (although i guess spatial 
+    ! Alis idea to histogram bad p(a|ij) with the triplet (aij)
+    logical :: t_log_ija = .false.
+    ! i need bins of (nbasis,nbasis,nbasis) size (although i guess spatial
     ! orbitals would be enough)
-    ! store more information for these.. but how do i MPI communicate that? 
-    ! not now! 
+    ! store more information for these.. but how do i MPI communicate that?
+    ! not now!
     ! do it seperately for singles and parallel and opposite spin excitations
     ! and also store the number of symmetry allowed orbitals! just to check
     integer, allocatable :: ija_bins_sing(:), all_ija_bins_sing(:), &
-                            ija_bins_para(:,:,:), all_ija_bins(:,:,:), & 
-                            ija_bins_anti(:,:,:), & 
+                            ija_bins_para(:,:,:), all_ija_bins(:,:,:), &
+                            ija_bins_anti(:,:,:), &
                             ija_orbs_sing(:), all_ija_orbs_sing(:), &
                             ija_orbs_para(:,:,:), all_ija_orbs(:,:,:), &
                             ija_orbs_anti(:,:,:)
@@ -194,4 +194,6 @@ module LoggingData
     ! for transcorrelated approach: do we separately keep track of the TC part of
     ! the correlation energy
     logical :: tLogKMatProjE
+    ! histogram the matrix elements of the six-index operator
+    logical :: tHistLMat
 end module LoggingData

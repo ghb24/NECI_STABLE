@@ -340,6 +340,7 @@ module rdm_data
     ! the reference contribution
 
     real(dp) :: rdmCorrectionFactor, InstRDMCorrectionFactor, ThisRDMIter
+    logical :: tApplyLC = .true.
 
     ! ---- Data for the explicit RDM code -----------------------------
 

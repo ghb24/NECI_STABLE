@@ -37,7 +37,7 @@ module k_space_hubbard
                          excit_gen_store_type, pSingles
 
     use CalcData, only: tau, t_hist_tau_search, t_hist_tau_search_option, &
-                        p_doubles_input, p_parallel_input, t_fill_frequency_hists
+                        p_doubles_input, pParallelIn, t_fill_frequency_hists
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
@@ -471,7 +471,7 @@ contains
             ! use pSingles for triples! 
             ! BE CAREFUL and dont get confused! 
             pSingles = 1.0_dp - pDoubles
-            pParallel = p_parallel_input
+            pParallel = pParallelIn
 
         end if
 

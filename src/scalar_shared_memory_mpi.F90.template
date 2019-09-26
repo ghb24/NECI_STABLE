@@ -1,0 +1,73 @@
+[int]
+type1=integer(int32)
+name=int
+mpitype=MPI_INTEGER4
+sizeb=4
+
+[int64]
+type1=integer(int64)
+name=int64
+mpitype=MPI_INTEGER8
+sizeb=8
+
+[doub]
+type1=real(dp)
+name=doub
+mpitype=MPI_DOUBLE_PRECISION
+sizeb=dp
+
+[comp]
+type1=complex(dp)
+name=comp
+mpitype=MPI_DOUBLE_COMPLEX
+sizeb=(2*dp)
+
+===================
+
+module scalar_shared_memory_mpi
+  use Parallel_neci
+  use constants
+  implicit none
+
+! interface for the variadic allocation used when the shared memory option is disabled
+  interface variadic_allocate
+      module procedure variadic_allocate_1_%(name)s
+      module procedure variadic_allocate_2_%(name)s
+  end interface
+
+  contains
+
+    subroutine MPIBCast_inter_byte(p_shm,nbytes)
+      %(type1)s:: p_shm
+      integer:: nbytes
+      integer(MPIArg):: ierr
+
+      !only task 0 of each shared memory task range does the MPI communication
+      if (iProcIndex_intra.eq.0) then
+         call mpi_bcast(p_shm,int(nbytes,MPIArg), &
+              MPI_BYTE,0_MPIArg,mpi_comm_inter,ierr)
+      end if
+
+    end subroutine
+
+    subroutine variadic_allocate_1(p_shm, dims)
+      implicit none
+      %(type1)s, pointer :: p_shm(:)
+      integer(int64) :: dims(1)
+      
+      allocate(p_shm(dims(1)))
+    end subroutine
+
+    subroutine variadic_allocate_2(p_shm, dims)
+      implicit none
+      %(type1)s, pointer :: p_shm(:,:)
+      integer(int64):: dims(2)
+      
+      allocate(p_shm(dims(1),dims(2)))
+    end subroutine
+
+end module
+
+supermodule scalar_shared_memory_mpi
+   implicit none
+end supermodule

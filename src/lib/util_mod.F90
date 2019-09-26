@@ -47,8 +47,17 @@ module util_mod
         module procedure abs_l1_sp
         module procedure abs_l1_cdp
         module procedure abs_l1_csp
-    end interface
+     end interface abs_l1
 
+     interface fuseIndex
+        module procedure fuseIndex_int32
+        module procedure fuseIndex_int64
+     end interface fuseIndex
+
+     interface intSwap
+        module procedure intSwap_int64
+        module procedure intSwap_int32
+     end interface intSwap
 
     ! sds: It would be nice to use a proper private/public interface here,
     !      BUT PGI throws a wobbly on using the public definition on
@@ -104,7 +113,8 @@ contains
                 i = i + nint(sign(1.0_dp, num))
         end if
 
-    end function
+      end function stochastic_round_r
+       
 
     subroutine print_cstr (str) bind(c, name='print_cstr')
 
@@ -270,7 +280,93 @@ contains
            
       end subroutine addToIntArray
 
+!--- Indexing utilities
 
+   function fuseIndex_int32(q,p) result(ind)
+     ! fuse p,q into one symmetric index
+     ! the resulting index is not contigious in p or q
+     ! Input: p,q - 2d-array indices
+     ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
+      implicit none
+      integer, intent(in) :: p,q
+      integer :: ind
+
+      ! qp and pq are considered to be the same index
+      ! -> permutational symmetry
+      ! implemented in terms of fuseIndex_int64
+      ind = fuseIndex_int64(int(q,int64),int(p,int64))
+    end function fuseIndex_int32
+    
+!------------------------------------------------------------------------------------------!
+
+    pure function fuseIndex_int64(x,y) result(xy)
+      ! create a composite index out of two indices, assuming they are unordered
+      ! i.e. their ordering does not matter
+      ! Input: p,q - 2d-array indices
+      ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q      
+      implicit none
+      integer(int64), intent(in) :: x,y
+      integer(int64) :: xy
+
+      if(x < y) then
+         xy = x + y*(y-1)/2
+      else
+         xy = y + x*(x-1)/2
+      endif
+    end function fuseIndex_int64
+
+!------------------------------------------------------------------------------------------!
+
+    pure subroutine intswap_int32(a,b)
+      ! exchange the value of two integers a,b
+      ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)      
+      integer, intent(inout) :: a,b
+      integer :: tmp
+      
+      tmp = a
+      a = b 
+      b = tmp
+    end subroutine intswap_int32
+
+!------------------------------------------------------------------------------------------!
+    
+
+    pure subroutine intswap_int64(a,b)
+      ! exchange the value of two integers a,b
+      ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
+      integer(int64), intent(inout) :: a,b
+      integer(int64) :: tmp
+      
+      tmp = a
+      a = b 
+      b = tmp
+    end subroutine intswap_int64
+
+!------------------------------------------------------------------------------------------!
+
+    pure subroutine pairSwap(a,i,b,j)
+      ! exchange a pair of integers
+      integer(int64), intent(inout) :: a,i,b,j
+
+      call intswap(a,b)
+      call intswap(i,j)
+    end subroutine pairSwap
+
+!------------------------------------------------------------------------------------------!        
+
+    function linearIndex(p,q,dim) result(ind)
+      ! fuse p,q into one contiguous index
+      ! the resulting index is contiguous in q
+      ! Input: p,q - 2d-array indices
+      !        dim - dimension of the underlying array in q-direction
+      ! Output: ind - contiguous 1d-array index
+      implicit none
+      integer, intent(in) :: p,q,dim
+      integer :: ind
+
+      ind = q + (p-1) * dim
+    end function linearIndex
+    
 !--- Numerical utilities ---
 
     ! If all of the compilers supported ieee_arithmetic

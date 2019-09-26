@@ -41,7 +41,7 @@ MODULE ISKRandExcit
         character(*), parameter :: this_routine='gen_ISK_excit'
         logical :: tSignOrig,tSwapped,tSame_ISK,tCrossConnected,tSignCross
         integer(n_int) :: iLutnJSym(0:NIfTot)
-        integer :: nJSym(NEl),CrossIC,CrossEx(2,2)
+        integer :: nJSym(NEl),CrossIC,CrossEx(2,maxExcit)
         real(dp) :: pGen2
 
         !First, generate a random excitation from the determinant which is given in the argument

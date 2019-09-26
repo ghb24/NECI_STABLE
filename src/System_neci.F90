@@ -4,7 +4,7 @@ MODULE System
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tPairedReplicas, tInitializeCSF, &
-                        S2Init
+                        S2Init, tDynamicAvMcEx
     use FciMCData, only: tGenMatHEl
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -15,6 +15,7 @@ MODULE System
     use lattice_mod, only: lattice, lat
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
+    use tc_three_body_data, only: tSymBrokenLMat, tSpinCorrelator, LMatEps, tSparseLMat
     use ParallelHelper, only: iprocindex, root
  
     IMPLICIT NONE
@@ -63,6 +64,7 @@ MODULE System
       tHPHF=.false.
       tMaxHLGap=.false.
       UMatEps = 1.0e-8
+      LMatEps = 1.0e-10
       tExactSizeSpace=.false.
       iRanLuxLev=3      !This is the default level of quality for the random number generator.
       tNoSymGenRandExcits=.false.
@@ -195,10 +197,8 @@ MODULE System
       t_trcorr_gausscutoff = .false.
       t_ueg_dump = .false.
       t_exclude_3_body_excits = .false.
-      t_ueg_3_body = .false.
-      t_ueg_transcorr = .false.
-      t_trcorr_gausscutoff = .false.
-      t_ueg_dump = .false.
+      t_pcpp_excitgen = .false.
+      t_pchb_excitgen = .false.
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
@@ -217,7 +217,6 @@ MODULE System
       tTrcorrExgen = .true.                
       tTrCorrRandExgen = .false.                
       t12FoldSym = .false.
-      tHDF5LMat = .false.
       tInfSumTCCalc= .false.
       tInfSumTCPrint= .false.
       tInfSumTCRead= .false.
@@ -231,6 +230,7 @@ MODULE System
       Tperiodicinmom=.false.
       tTrcorrExgen = .true.                
       tTrCorrRandExgen = .false.                
+      tSpinCorrelator = .false.
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
@@ -404,8 +404,8 @@ system: do
            tRIIntegrals = .true.
         case("READCACHEINTS")
            tCacheFCIDUMPInts=.true.
-        case("HDF5-INTEGRALS")
-           tHDF5LMat = .true.
+        case("SPIN-CORRELATOR")           
+           tSpinCorrelator = .true.
         case("ELECTRONS","NEL")
             call geti(NEL)
         case("SPIN-RESTRICT")
@@ -576,6 +576,10 @@ system: do
                trans_corr_param = 0.1_dp
            end if
            t_non_hermitian = .true. 
+
+        case("NONHERMITIAN")
+           ! just use a non-hermitian Hamiltonian, no additional tweaks
+           t_non_hermitian = .true.
 
         case('MOLECULAR-TRANSCORR')
             t_non_hermitian = .true.
@@ -1272,6 +1276,8 @@ system: do
             CALL GetiLong(CalcDetCycles)
             CALL GetiLong(CalcDetPrint)
 
+!            tDynamicAvMCEx = .true.
+
         case("NONUNIFORMRANDEXCITS")
 !This indicates that the new, non-uniform O[N] random excitation generators are to be used.
 !CYCLETHRUORBS can be useful if we have small basis sets or v high restrictive symmetry and will eliminate
@@ -1388,6 +1394,14 @@ system: do
                         tGen_4ind_2 = .true.
                         tGen_4ind_part_exact = .true.
                         tGen_4ind_2_symmetric = .true.
+
+                    case("PCPP")
+                       ! the precomputed power-pitzer excitation generator
+                       t_pcpp_excitgen = .true.
+
+                    case("PCHB")
+                       ! the precomputed heat-bath excitation generator (uniform singles)
+                       t_pchb_excitgen = .true.
                     case("UEG")
                         ! Use the new UEG excitation generator.
                         ! TODO: This probably isn't the best way to do this
@@ -1412,6 +1426,10 @@ system: do
             !
             ! By default, this parameter is 10-e8, but it can be changed here.
             call readf(UMatEps)
+
+         case("LMATEPSILON")
+            ! Six-index integrals are screened, too, with the default being 1e-10
+            call readf(LMatEps)
 
         case("NOSINGEXCITS")
 !This will mean that no single excitations are ever attempted to be generated.
@@ -3203,6 +3221,8 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
    real(dp) ::  dUnscaledEnergy
    integer :: kvecX, kvecY, kvecZ
    !==================================
+   ! initialize unscaled energy for the case of not using tUEGTrueEnergies
+   dunscaledEnergy = 0.0_dp
    if (tUEG2) then
       ! kvectors in cartesian coordinates                
       kvecX=k_lattice_vectors(1,1)*I+k_lattice_vectors(2,1)*J+k_lattice_vectors(3,1)*K

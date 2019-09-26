@@ -23,7 +23,6 @@ MODULE UMatCache
     use HElem, only: HElement_t_size
 
     use legacy_data, only: irat
-    
     use procedure_pointers, only: get_umat_el
 
       IMPLICIT NONE
@@ -361,7 +360,7 @@ MODULE UMatCache
          IMPLICIT NONE
          INTEGER nBasis,iSS
          INTEGER iPairs,nBi,nEl,noccup
-         INTEGER(int64) :: iSize
+         INTEGER(int64), intent(out) :: iSize
          IF(tStoreSpinOrbs) THEN
              iSS=1
          ELSE
@@ -1139,8 +1138,6 @@ MODULE UMatCache
             HasKPoints=.FALSE.
          ENDIF
       end function HasKPoints
-
-
 
     elemental function GTID (gInd) result(id)
 

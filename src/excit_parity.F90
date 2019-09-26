@@ -1,3 +1,4 @@
+#include "macros.h"
 module get_excit
 
     use constants
@@ -71,8 +72,8 @@ contains
 
     subroutine make_double (nI, nJ, elec1, elec2, tgt1, tgt2, ex, tParity)
 
-        integer, intent(in) :: nI(nel), elec1, elec2, tgt1, tgt2
-        integer, intent(out) :: ex(2,2), nJ(nel)
+        integer, intent(in) :: nI(:), elec1, elec2, tgt1, tgt2
+        integer, intent(inout) :: ex(2,2), nJ(:)
         logical, intent(out) :: tParity
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'make_double'
@@ -162,7 +163,7 @@ contains
         
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then 
+        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then
             print *, "nI: ", nI
             print *, "nJ: ", nJ
             print *, "elecs: ", ex(1,:)
@@ -172,6 +173,21 @@ contains
 #endif
 
     end subroutine
+
+    function exciteIlut(ilut,src,orbs) result(ilutJ)
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer, intent(in) :: src(2), orbs(2)
+      integer(n_int) :: ilutJ(0:NIfTot)
+
+      ilutJ = ilut
+      clr_orb (ilutJ, src(1))
+      clr_orb (ilutJ, src(2))
+      set_orb (ilutJ, orbs(1))
+      set_orb (ilutJ, orbs(2))
+      
+    end function exciteIlut
+
 
 
 end module

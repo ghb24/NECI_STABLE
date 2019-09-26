@@ -8,7 +8,7 @@ contains
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
          use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz,tUHF
          use SystemData , only : tMolpro,tReadFreeFormat,tReltvy, nclosedOrbs, nOccOrbs
-         use SystemData , only : nIrreps
+         use SystemData , only : nIrreps, t_non_hermitian
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
          use util_mod, only: get_free_unit
@@ -224,7 +224,7 @@ contains
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat,SYMMAX,tReltvy, irrepOrbOffset, nIrreps
+         use SystemData, only: tReadFreeFormat,SYMMAX,tReltvy, irrepOrbOffset, nIrreps,t_non_hermitian
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -640,7 +640,7 @@ contains
          use constants, only: dp,sizeof_int
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
-         use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF
+         use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF, t_non_hermitian
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
          use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
@@ -656,7 +656,7 @@ contains
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
          real(dp), intent(out) :: ECORE
-         HElement_t(dp), intent(out) :: UMAT(:)
+         HElement_t(dp), intent(inout) :: UMAT(:)
          integer(MPIArg) :: umat_win
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
@@ -909,17 +909,19 @@ contains
                     ! Have read in T_ij.  Check it's consistent with T_ji
                     ! (if T_ji has been read in).
                    diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
-                   IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp) then
+                   IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp .and. .not. t_non_hermitian) then
                         WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                         CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                    ENDIF
 
                    TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
+                   if(.not. t_non_hermitian) then
 #ifdef __CMPLX
-                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
+                      TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
 #else
-                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
+                      TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
 #endif
+                   endif
                 enddo
              ELSE
 !.. 2-e integrals
@@ -1052,7 +1054,7 @@ contains
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,ECORE)
          use constants, only: dp,int64,sizeof_int
-         use SystemData, only: Symmetry, BasisFN
+         use SystemData, only: Symmetry, BasisFN, t_non_hermitian
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM
          use util_mod, only: get_free_unit
@@ -1105,8 +1107,10 @@ contains
 !.. These are stored as spinorbitals (with elements between different spins being 0
             TMAT2D(2*I-1,2*J-1)=Z
             TMAT2D(2*I,2*J)=Z
-            TMAT2D(2*J-1,2*I-1)=Z
-            TMAT2D(2*J,2*I)=Z
+            if(.not. t_non_hermitian) then
+               TMAT2D(2*J-1,2*I-1)=Z
+               TMAT2D(2*J,2*I)=Z
+            endif
          ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)

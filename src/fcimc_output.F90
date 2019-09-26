@@ -15,7 +15,7 @@ module fcimc_output
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
-                        tSemiStochastic, allCorespaceWalkers, &
+                        tSemiStochastic, &
                         tGlobalInitFlag, t_truncate_spawns, tTimedDeaths
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -27,7 +27,8 @@ module fcimc_output
     use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
-    use Determinants, only: write_det
+    use hphf_integrals, only: hphf_diag_helement
+    use Determinants, only: write_det, get_helement
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
     use rdm_data, only: en_pert_main
@@ -36,6 +37,10 @@ module fcimc_output
     use constants
     use sort_mod
     use util_mod
+    use tc_three_body_data, only: tLMatCalc, lMatCalcStatsIters, &
+                                  lMatCalcHit,   lMatCalcTot,    lMatCalcHUsed,   lMatCalcHSize, &
+                                  lMatABCalcHit, lMatABCalcTot,  lMatABCalcHUsed, lMatABCalcHSize
+    use LMat_calc, only: ycoulombAB_exists  
     implicit none
 
 contains
@@ -45,6 +50,8 @@ contains
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
         character(17) trunc_caption
+
+        call getProjEOffset()
 
         IF(iProcIndex.eq.root) THEN
 !Print out initial starting configurations
@@ -148,11 +155,16 @@ contains
                   &20.ProjE.ThisIter  21.HFInstShift  22.TotInstShift  &
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 29.Inst S^2 30.AbsProjE &
-                  &31.|Semistoch|/|Psi|   32.PartsDiffProc"
+                  &31.PartsDiffProc    32.|Semistoch|/|Psi|     33.MaxCycSpawn"
            if (tTrialWavefunction .or. tStartTrialLater) then 
                   write(fcimcstats_unit2, "(A)", advance = 'no') &
-                  "  33.TrialNumerator  34.TrialDenom  35.TrialOverlap"
+                  "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
+              trunc_caption = "  37. TruncWeight"
+           else
+              trunc_caption = "  34. TruncWeight"
            end if
+           if(t_truncate_spawns) write(fcimcstats_unit2, "(A)", advance = 'no') &
+                trunc_caption
 
            write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
@@ -181,7 +193,7 @@ contains
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 &
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
-                  &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
+                  &32.|Semistoch|/|Psi|  33.MaxCycSpawn  34.InvalidExcits  35. ValidExcits"
            if (tTrialWavefunction .or. tStartTrialLater) then 
               write(fcimcstats_unit, "(A)", advance = 'no') &
                    "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
@@ -204,6 +216,9 @@ contains
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
         real(dp) :: projE(inum_runs)
+
+        ! get the offset for the projected energy (i.e. reference energy)
+        call getProjEOffset()
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
@@ -257,7 +272,7 @@ contains
                 aimag(projectionE), &                   !8.     Im   \sum[ nj H0j / n0 ]
                 real(proje_iter, dp), &                 !9.     
                 aimag(proje_iter), &                    !10.
-                real(proje_iter,dp) + Hii, &            !11.
+                real(proje_iter,dp) + OutputHii, &            !11.
                 AllNoatHF(1), &                         !12.
                 AllNoatHF(2), &                         !13.
                 AllNoatDoubs, &                         !14.
@@ -276,7 +291,7 @@ contains
                 norm_psi, &                           !27
                 curr_S2, &                            !28
                 PartsDiffProc, &                      !29
-                all_max_cyc_spawn                     !30.
+                all_max_cyc_spawn                     !30.                
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(7(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &              ! 31. 32
@@ -353,7 +368,7 @@ contains
                 0.0_dp, &                                  ! 20.
                 HFShift(2), &                              ! 21.
                 InstShift(2), &                            ! 22.
-                proje_iter(2) + Hii, &                     ! 23.
+                proje_iter(2) + OutputHii, &                     ! 23.
                 (AllHFCyc(2) / StepsSft), &                ! 24.
                 (AllENumCyc(2) / StepsSft), &              ! 25.
                 AllNoatHF(2) / norm_psi(2), &              ! 26.
@@ -369,6 +384,9 @@ contains
                     (tot_trial_denom(2) / StepsSft), &
                     abs(tot_trial_denom(2) / (norm_psi(2)*StepsSft))
                 end if
+                if(t_truncate_spawns) then
+                   write(fcimcstats_unit2, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
+                endif
                 
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
@@ -376,7 +394,7 @@ contains
 
             write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
-                                   &i13,2g16.7)",advance = 'no') &
+                                   &i13,4g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(1), &                              ! 2.
                 AllTotParts(1) - AllTotPartsOld(1), &      ! 3.
@@ -399,7 +417,7 @@ contains
                 0.0_dp, &                                  ! 20.
                 HFShift(1), &                              ! 21.
                 InstShift(1), &                            ! 22.
-                proje_iter(1) + Hii, &                     ! 23.
+                proje_iter(1) + OutputHii, &                     ! 23.
                 (AllHFCyc(1) / StepsSft), &                ! 24.
                 (AllENumCyc(1) / StepsSft), &              ! 25.
                 AllNoatHF(1) / norm_psi(1), &              ! 26.
@@ -408,7 +426,9 @@ contains
                 AbsProjE(1), &                             ! 30.
                 PartsDiffProc, &                           ! 31.
                 norm_semistoch(1)/norm_psi(1), &           ! 32.
-                all_max_cyc_spawn                          ! 33.
+                all_max_cyc_spawn, &                       ! 33
+                allNInvalidExcits, &
+                allNValidExcits
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &              ! 34.
@@ -478,6 +498,21 @@ contains
                 write (EXLEVELStats_unit, '()', advance='yes')
             endif ! tLogEXLEVELStats
 
+            if (tMCOutput .and. tLMatCalc .and. mod(Iter, lMatCalcStatsIters) == 0) then
+                write(iout, *) "============ LMatCalc Caching Stats ==============="
+                write(iout, *) "LMatCalc Cache Fill Ratio: ", lMatCalcHUsed/real(lMatCalcHSize)
+                write(iout, *) "LMatCalc Cache Hit Rate  : ", lMatCalcHit/real(lMatCalcTot)
+                lMatCalcHit = 0
+                lMatCalcTot = 0
+
+                if (ycoulombAB_exists) then
+                    write(iout, *) "LMatABCalc Cache Fill Ratio: ", lMatABCalcHUsed/real(lMatABCalcHSize)
+                    write(iout, *) "LMatABCalc Cache Hit Rate  : ", lMatABCalcHit/real(lMatABCalcTot)
+                    lMatABCalcHit = 0
+                    lMatABCalcTot = 0
+                end if
+                write(iout, *) "==================================================="
+            end if
 
             if(tMCOutput) then
                 call neci_flush(iout)
@@ -542,6 +577,8 @@ contains
         integer :: p, q, iGf, run
         logical :: init
         real(dp) :: l1_norm
+
+        call getProjEOffset()
         ! Provide default 'initial' option
         if (present(initial)) then
             state%init = initial
@@ -592,24 +629,17 @@ contains
 #endif
 #endif
                 call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
-                if(.not. tSemiStochastic) then
-                   call stats_out(state,.false., sum(AllNoBorn), 'No. born')
-                else
-                   call stats_out(state,.false., allCorespaceWalkers/inum_runs, &
-                        'Walkers in corespace')
-                endif
+                call stats_out(state,.false., sum(AllNoBorn), 'No. born')
                 call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
                 call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
                 call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
 #ifdef __CMPLX
-                call stats_out(state,.true., real(proje_iter_tot) + Hii, &
+                call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
                                'Tot. Proj. E')
-                !call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
-                 !              'Im. Tot. Proj. E')
                 call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
 #else
-                call stats_out(state,.true., proje_iter_tot + Hii, &
+                call stats_out(state,.true., proje_iter_tot + OutputHii, &
                                'Tot. Proj. E')
 #endif
             end if
@@ -643,10 +673,10 @@ contains
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ')')
 #ifdef __CMPLX
-                call stats_out (state, .false., real(proje_iter(p) + Hii), &
-                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., aimag(proje_iter(p) + Hii), &
-                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ')')
+                call stats_out (state, .false., real(proje_iter(p) + OutputHii), &
+                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., aimag(proje_iter(p) + OutputHii), &
+                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ")")
 
                 call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
                                 'ProjE Denom real (' // trim(adjustl(tmpc)) // ')')
@@ -654,11 +684,11 @@ contains
                                 'ProjE Denom imag (' // trim(adjustl(tmpc)) // ')')
 
                 call stats_out (state, .false., &
-                                real((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-                                'ProjE Num real (' // trim(adjustl(tmpc)) // ')')
+                                real((AllENumCyc(p) + OutputHii*AllHFCyc(p))) / StepsSft,&
+                                'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., &
-                                aimag((AllENumCyc(p) + Hii*AllHFCyc(p))) / StepsSft,&
-                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ')')
+                                aimag((AllENumCyc(p) + OutputHii*AllHFCyc(p))) / StepsSft,&
+                                'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
                                     real(tot_trial_numerator(p) / StepsSft), &
@@ -675,12 +705,13 @@ contains
                                     'TrialE Denom imag (' // trim(adjustl(tmpc)) // ')')
                 end if
 #else
-                call stats_out (state, .false., proje_iter(p) + Hii, &
-                                'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., all_cyc_proje_denominator(p) / StepsSft, &
-                                'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., AllENumCyc(p) / StepsSft,  &
-                                'ProjE Num (' // trim(adjustl(tmpc)) // ')')
+                call stats_out (state, .false., proje_iter(p) + OutputHii, &
+                                'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
+                                'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
+                call stats_out (state, .false., &
+                                (AllENumCyc(p) + OutputHii*AllHFCyc(p)) / StepsSft,&
+                                'ProjE Num (' // trim(adjustl(tmpc)) // ")")
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
                                     tot_trial_numerator(p) / StepsSft, &
@@ -1852,5 +1883,26 @@ contains
         endif
 
     end subroutine end_iteration_print_warn 
+
+    subroutine getProjEOffset()
+      ! get the offset of the projected energy versus the total energy, 
+      ! which is the reference energy
+
+      implicit none
+      ! if the reference energy is used as an offset to the hamiltonian (default behaviour)
+      ! just get it
+      if(.not.tZeroRef) then
+         OutputHii = Hii         
+      ! else, calculate the reference energy
+      else if (tHPHF) then
+         OutputHii = hphf_diag_helement (ProjEDet(:,1), &
+              iLutRef(:,1))
+      else
+         OutputHii = get_helement (ProjEDet(:,1), &
+              ProjEDet(:,1), 0)
+      endif
+
+
+    end subroutine getProjEOffset
 
 end module

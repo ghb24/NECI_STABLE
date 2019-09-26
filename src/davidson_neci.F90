@@ -9,7 +9,7 @@ module davidson_neci
     use FciMCData, only: hamiltonian, DavidsonTag
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
-    use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
+    use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather    
     use ParallelHelper, only: root
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
@@ -224,6 +224,7 @@ module davidson_neci
         if (print_info) write(6,'(1x,"done.",/)'); call neci_flush(6)
 
         end associate
+
     end subroutine InitDavidsonCalc
 
     subroutine subspace_expansion(this, basis_index)
@@ -266,7 +267,6 @@ module davidson_neci
         integer :: lwork, info
         real(dp), allocatable, dimension(:) :: work
         real(dp) :: eigenvalue_list(basis_index)
-
         ! Scrap space for the diagonaliser.
         lwork = max(1,3*basis_index-1)
         allocate(work(lwork))
@@ -282,21 +282,20 @@ module davidson_neci
         ! lwork is the length of the work array.
         ! info = 0 on output is diagonalisation is successful.
         call dsyev(&
-            'V', &
-            'U', &
-            basis_index, &
-            this%super%projected_hamil_work(1:basis_index,1:basis_index), &
-            basis_index, &
-            eigenvalue_list, &
-            work, &
-            lwork, &
-            info &
-        )
-
-        this%davidson_eigenvalue = eigenvalue_list(1)
+             'V', &
+             'U', &
+             basis_index, &
+             this%super%projected_hamil_work(1:basis_index,1:basis_index), &
+             basis_index, &
+             eigenvalue_list, &
+             work, &
+             lwork, &
+             info &
+             )
+        
         ! The first column stores the ground state.
+        this%davidson_eigenvalue = eigenvalue_list(1)
         this%eigenvector_proj(1:basis_index) = this%super%projected_hamil_work(1:basis_index,1)
-
         deallocate(work)
 
         ! eigenvector_proj stores the eigenstate in the basis of vectors stored in the array
@@ -358,6 +357,7 @@ module davidson_neci
         else
             call multiply_hamil_and_vector(this%super, this%temp_in, this%temp_out)
         end if
+
     end subroutine project_hamiltonian
 
     subroutine calculate_residual(this, basis_index)
@@ -383,6 +383,7 @@ module davidson_neci
     end subroutine calculate_residual
 
     subroutine calculate_residual_norm(this)
+
         type(DavidsonCalcType), intent(inout) :: this
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2
