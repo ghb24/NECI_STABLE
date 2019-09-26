@@ -97,7 +97,7 @@ program test_molecular_tc
       ! assign the the sixindex access functions
       tSparseLMat = .true.
       tHDF5LMat = .true.
-      call initializeLMatInd()
+      call initializeLMatPtrs()
     end subroutine setup_tests
 
     subroutine run_lmat_test()
