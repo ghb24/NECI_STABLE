@@ -1,12 +1,18 @@
 module LMat_calc
+#ifdef __USE_HDF5
   use hdf5
+#endif
   use hdf5_util
   use tc_three_body_data
   use LMat_Indexing, only: lMatIndSym, lMatIndSpin
   implicit none
 
   double precision, allocatable :: qwprod(:,:,:), ycoulomb(:,:,:,:), ycoulombAB(:,:,:,:)
+#ifdef __USE_HDF5
   integer(hsize_t) :: nBasis, nGrid
+#else
+  integer :: nGrid
+#endif
   logical :: ycoulombAB_exists
   integer(int64), allocatable :: lMatCalcHKeys(:)
   double precision, allocatable :: lMatCalcHVals(:)
@@ -22,11 +28,13 @@ module LMat_calc
     character(*), parameter :: nm_grp = "tcfactors", nm_nBasis = "nBasis", nm_nGrid = "nGrid", &
                                nm_weights="weights", nm_mo_vals="mo_vals", nm_ycoulomb="ycoulomb", nm_ycoulombAB="ycoulombAB"
     double precision, allocatable :: mo_vals(:,:), weights(:)
+#ifdef __USE_HDF5
     integer(hid_t) :: err, file_id, grp_id, dataset, type_id
     integer(hsize_t) :: weights_dims(1), mo_vals_dims(2), ycoulomb_dims(4)
+#endif
     integer i, a, b
     character(*), parameter :: this_routine = "readLMatFactors"
-
+#ifdef __USE_HDF5
     write(iout,*) "**************** Reading TcFactors File ****************"
     call h5open_f(err)
 
@@ -147,6 +155,9 @@ module LMat_calc
     endif
 
     write(iout,*) "********************************************************"
+#else
+    call stop_all(this_routine, 'HDF5 support not enabled at compile time')
+#endif
   end subroutine readLMatFactors
 
 
@@ -166,7 +177,7 @@ module LMat_calc
 
   
   function lMatCalc(i,k,m,j,l,n) result (matel)
-    integer, intent(in) :: i,j,k,l,m,n
+    integer(int64), intent(in) :: i,j,k,l,m,n
     HElement_t(dp) :: matel
     integer(int64) :: hashKey, hashInd
     integer :: ii
@@ -219,7 +230,8 @@ module LMat_calc
   end function
 
   function lMatABCalc(i,k,m,j,l,n, spinMixture) result (matel)
-    integer, intent(in) :: i,j,k,l,m,n, spinMixture
+    integer(int64), intent(in) :: i,j,k,l,m,n
+    integer, intent(in) :: spinMixture
     HElement_t(dp) :: matel
     integer(int64) :: hashKey, hashInd
     integer :: ii
