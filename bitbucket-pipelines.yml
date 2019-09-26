@@ -22,7 +22,7 @@ pipelines:
       - make -j neci test_neci
       - echo "done building release version"
       - echo "running unit tests"
-      - ctest -R test_neci\d*
+      - ctest -R test_neci.*
       - echo "unit tests passed"
 
  branches:
