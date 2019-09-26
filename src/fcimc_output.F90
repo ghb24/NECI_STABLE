@@ -37,6 +37,10 @@ module fcimc_output
     use constants
     use sort_mod
     use util_mod
+    use tc_three_body_data, only: tLMatCalc, lMatCalcStatsIters, &
+                                  lMatCalcHit,   lMatCalcTot,    lMatCalcHUsed,   lMatCalcHSize, &
+                                  lMatABCalcHit, lMatABCalcTot,  lMatABCalcHUsed, lMatABCalcHSize
+    use LMat_calc, only: ycoulombAB_exists  
     implicit none
 
 contains
@@ -494,6 +498,21 @@ contains
                 write (EXLEVELStats_unit, '()', advance='yes')
             endif ! tLogEXLEVELStats
 
+            if (tMCOutput .and. tLMatCalc .and. mod(Iter, lMatCalcStatsIters) == 0) then
+                write(iout, *) "============ LMatCalc Caching Stats ==============="
+                write(iout, *) "LMatCalc Cache Fill Ratio: ", lMatCalcHUsed/real(lMatCalcHSize)
+                write(iout, *) "LMatCalc Cache Hit Rate  : ", lMatCalcHit/real(lMatCalcTot)
+                lMatCalcHit = 0
+                lMatCalcTot = 0
+
+                if (ycoulombAB_exists) then
+                    write(iout, *) "LMatABCalc Cache Fill Ratio: ", lMatABCalcHUsed/real(lMatABCalcHSize)
+                    write(iout, *) "LMatABCalc Cache Hit Rate  : ", lMatABCalcHit/real(lMatABCalcTot)
+                    lMatABCalcHit = 0
+                    lMatABCalcTot = 0
+                end if
+                write(iout, *) "==================================================="
+            end if
 
             if(tMCOutput) then
                 call neci_flush(iout)

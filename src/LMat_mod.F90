@@ -10,12 +10,13 @@ module LMat_mod
   use hash, only: add_hash_table_entry, clear_hash_table
   use ParallelHelper, only: iProcIndex_intra
   use tc_three_body_data, only: tDampKMat, tDampLMat, tSpinCorrelator, lMatEps, &
-       tHDF5LMat, tSymBrokenLMat, tSparseLMat, lMat_t
+       tHDF5LMat, tSymBrokenLMat, tSparseLMat, lMat_t, tLMatCalc
   use procedure_pointers, only: get_lmat_el, get_lmat_el_symInternal
   use LoggingData, only: tHistLMat
   use LMat_aux, only: diffSpinPos, dampLMatel
   use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter, &
        lMatIndSpin
+  use LMat_calc, only: readlMatFactors, freelMatFactors, lMatCalc, lMatABCalc
 #ifdef __USE_HDF5
   use hdf5
 #endif
@@ -105,34 +106,45 @@ module LMat_mod
           integer(int64) :: index
           integer :: spinPos
           type(lMat_t), pointer :: lMatPtr
+          real(dp) :: lMatVal
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
 
-             ! pick the lMat object used here according to the spin-relation
-             if(tSameSpin) then                
-                lMatPtr => lMat                
-                ! the indexing function is contained in the lMat object                      
-                index = lMatPtr%indexFunc(ida,idb,idc,idp,idq,idr)                
+             if(tLMatCalc)then
+                if(tSameSpin) then
+                    lMatVal = lMatCalc(ida,idb,idc,idp,idq,idr)
+                else
+                    spinPos = diffSpinPos(p,q,r,a,b,c)
+                    lMatVal = lMatABCalc(ida,idb,idc,idp,idq,idr, spinPos)
+                end if
              else
-                ! for different spins, check which one is the different one and
-                ! call the index function accordingly
-                lMatPtr => lMatAB
-                spinPos = diffSpinPos(p,q,r,a,b,c)
-                ! the different-spin LMat assumes the first electron in the
-                ! index function has the different spin (the order of the other two does
-                ! not matter)
-                select case(spinPos)
-                case(1)
-                   index = lMatPtr%indexFunc(ida,idb,idc,idp,idq,idr)
-                case(2)
-                   index = lMatPtr%indexFunc(idb,ida,idc,idq,idp,idr)
-                case(3)
-                   index = lMatPtr%indexFunc(idc,idb,ida,idr,idq,idp)
-                end select
-             endif      
-             matel = matel + sgn * real(lMatAccess(lMatPtr,index),dp)             
-
+                 ! pick the lMat object used here according to the spin-relation
+                 if(tSameSpin) then                
+                    lMatPtr => lMat                
+                    ! the indexing function is contained in the lMat object                      
+                    index = lMatPtr%indexFunc(ida,idb,idc,idp,idq,idr)                
+                 else
+                    ! for different spins, check which one is the different one and
+                    ! call the index function accordingly
+                    lMatPtr => lMatAB
+                    spinPos = diffSpinPos(p,q,r,a,b,c)
+                    ! the different-spin LMat assumes the first electron in the
+                    ! index function has the different spin (the order of the other two does
+                    ! not matter)
+                    select case(spinPos)
+                    case(1)
+                       index = lMatPtr%indexFunc(ida,idb,idc,idp,idq,idr)
+                    case(2)
+                       index = lMatPtr%indexFunc(idb,ida,idc,idq,idp,idr)
+                    case(3)
+                       index = lMatPtr%indexFunc(idc,idb,ida,idr,idq,idp)
+                    end select
+                 endif
+                 lMatVal = real(lMatAccess(lMatPtr,index),dp)
+             endif
+             matel = matel + sgn * lMatVal
           endif
+
         end subroutine addMatelContribution
         
       end function get_lmat_el_base
@@ -363,15 +375,19 @@ module LMat_mod
 
       call initializeLMatPtrs()
 
-      ! now, read lmat from file
-      call readLMatArray(LMat,"TCDUMP","tcdump.h5")
-      ! for spin-dependent LMat, also read the opp. spin matrices 
-      if(tSpinCorrelator) then
-         ! they break permutational symmetry w.r.t spin, so the cheapest solution is
-         ! to have three instances, one for each spin-permutation
-         ! (the alternatives are: spin-orbitals with full symmetry or spatial orbitals
-         ! without spin symmetry - both more expensive)
-         call readLMatArray(LMatAB,"TCDUMPAB","tcdumpab.h5")
+      if(tLMatCalc) then
+           call readLMatFactors("tcfactors.h5")
+      else
+          ! now, read lmat from file
+          call readLMatArray(LMat,"TCDUMP","tcdump.h5")
+          ! for spin-dependent LMat, also read the opp. spin matrices 
+          if(tSpinCorrelator) then
+             ! they break permutational symmetry w.r.t spin, so the cheapest solution is
+             ! to have three instances, one for each spin-permutation
+             ! (the alternatives are: spin-orbitals with full symmetry or spatial orbitals
+             ! without spin symmetry - both more expensive)
+             call readLMatArray(LMatAB,"TCDUMPAB","tcdumpab.h5")
+          end if
       end if
     end subroutine readLMat
 
@@ -488,9 +504,12 @@ module LMat_mod
       implicit none
       character(*), parameter :: t_r = "freeLMat"
 
-      call deallocLMatArray(LMatAB)
-      call deallocLMatArray(LMat)
-
+      if(tLMatCalc) then
+          call freeLMatFactors()
+      else
+          call deallocLMatArray(LMatAB)
+          call deallocLMatArray(LMat)
+      end if
       contains 
 
         subroutine deallocLMatArray(LMatLoc)

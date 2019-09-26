@@ -5,7 +5,7 @@ module Integrals_neci
                           tFixLz, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, LMS, ECore, &
                           t_new_real_space_hubbard, t_trans_corr_hop, t_mol_3_body, &
-                          tStoreSpinOrbs, nBI
+                          tStoreSpinOrbs, nBI, t12FoldSym
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
@@ -53,7 +53,7 @@ module Integrals_neci
     use LoggingData, only: tLogKMatProjE
     use kMatProjE, only: readKMat, freeKMat, readSpinKMat
     use tc_three_body_data, only: tDampKMat, tUseKMat, tSpinCorrelator, tHDF5LMat, &
-         tSymBrokenLMat, tSparseLMat
+         tSymBrokenLMat, tSparseLMat, tLMatCalc, LMatCalcHFactor, LMatABCalcHFactor
     implicit none
 
 contains
@@ -120,6 +120,10 @@ contains
       IF(Feb08) THEN
          NTAY(2)=3
       ENDIF
+
+      tLMatCalc = .false.
+      lMatCalcHFactor = 1.0
+      lMatABCalcHFactor = 1.0
 
     end subroutine SetIntDefaults
 
@@ -381,6 +385,25 @@ contains
            
         case("DMATEPSILON")
           call readf(DMatEpsilon)
+
+        case("LMATCALC")
+          
+            if(tSymBrokenLMat .or. t12FoldSym)then
+               call report("LMATCALC assumes 48-fold symmetry",.true.)
+          end if
+
+          tLMatCalc = .true.
+
+          if (item.lt.nitems) then
+           call readf(lMatCalcHFactor)
+          end if
+
+          if (item.lt.nitems) then
+            call readf(lMatABCalcHFactor)
+          else
+            lMatABCalcHFactor = lMatCalcHFactor
+          end if
+
         case("ENDINT")
              exit integral
         case default
@@ -724,7 +747,7 @@ contains
       endif      
 
       if(t_mol_3_body) call readLMat()
-      
+
       tUseKMat = tDampKMat .or. tLogKMatProjE
       if(tUseKMat) then
          ! the k-Matrix can be read in separated into different contributions, 

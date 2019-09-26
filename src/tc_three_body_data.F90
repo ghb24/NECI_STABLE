@@ -46,4 +46,14 @@ module tc_three_body_data
   end type lMat_t  
   
   
+
+  logical :: tLMatCalc !Calculate LMat on the fly. tcfactors.h5 is required.
+  real :: lMatCalcHFactor !Size of hash table used to cache LMat values as a fraction of total LMat size.
+  integer(int64) :: lMatCalcHSize, lMatCalcHUsed !Size of hash table and number of entries used
+  integer :: lMatCalcTot, lMatCalcHit !Total calls of lMatCalc and the number of times the value found in cache.
+  integer :: lMatCalcStatsIters = 100 !How often to print lMatCalc statistics.
+
+  real :: lMatABCalcHFactor !Size of hash table used to cache LMatAB values as a fraction of total LMatAB size.
+  integer(int64) :: lMatABCalcHSize, lMatABCalcHUsed !Size of hash table and number of entries used
+  integer :: lMatABCalcTot, lMatABCalcHit !Total calls of lMatABCalc and the number of times the value found in cache.
 end module tc_three_body_data
