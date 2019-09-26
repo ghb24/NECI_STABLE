@@ -280,11 +280,9 @@ module tc_three_body_excitgen
          if(pickAlpha) then
             nOcc = nOccAlpha
             ms = 3
-            pgen = pgen * p0B/(p0B+p0A)
          else
             nOcc = nOccBeta
             ms = -3
-            pgen = pgen * p0A/(p0B+p0A)
          endif
          call get_missing_elec(nI,elecs,nOcc,2,pickAlpha,pgen)
          pgen = pgen * 3.0_dp

@@ -112,10 +112,10 @@ module LMat_mod
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
 
-             if(tLMatCalc)then
-                if(tContact) then
+             if(tContact) then
                     lMatVal = get_lmat_ueg(ida,idb,idc,idp,idq,idr)
-                else if(tSameSpin) then
+             else if(tLMatCalc)then
+                if(tSameSpin) then
                     lMatVal = lMatCalc(ida,idb,idc,idp,idq,idr)
                 else
                     spinPos = diffSpinPos(p,q,r,a,b,c)
@@ -147,7 +147,6 @@ module LMat_mod
                  lMatVal = real(lMatAccess(lMatPtr,index),dp)
              endif
              matel = matel + sgn * lMatVal
->>>>>>> molecular-transcorr
           endif
 
         end subroutine addMatelContribution
@@ -247,7 +246,7 @@ module LMat_mod
       implicit none
 
       ! some typical array dimensions useful in the indexing functions
-      strideInner = fuseIndex(nBI,nBI)
+      strideInner = fuseIndex(int(nBI),int(nBI))
       strideOuter = strideInner**2
       ! set the LMatInd function pointer
       if(t12FoldSym) then

@@ -1630,9 +1630,11 @@ close(10)
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         use util_mod, only: get_free_unit
+        use constants, only: int64
         HElement_t(dp) :: hel
         integer :: i, j, k, l, a, b, c, iss, id1, id2, id3, id4,ms2,nelec,i0,norb,i_unit
-integer :: l1,l2,l3,r1,r2,r3,k1(3),k2(3),k3(3)
+        integer(int64) :: l1,l2,l3,r1,r2,r3
+        integer  :: k1(3),k2(3),k3(3)
         real(dp) :: G, G2,energy,ak(3),bk(3),ck(3),a2,b2,c2
         real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax
         logical :: tCoulomb, tExchange  
@@ -1683,7 +1685,7 @@ close(i_unit)
 
         !========= L mat ========================
         if(.not.t_ueg_3_body)stop
-i_unit=get_free_unit() 
+        i_unit=get_free_unit() 
         open(i_unit,file='TCDUMP',status='unknown',access='append')
         do l1=1,norb
         do l2=l1,norb
@@ -1692,11 +1694,7 @@ i_unit=get_free_unit()
         do r2=2,norb
         do r3=3,norb
 
-hel=get_lmat_ueg(l1,l2,l3,r1,r2,r3)
-        if(dabs(hel)>1.d-8)then
-        write(i_unit,'(1x,e23.16,6I4)')hel,l1,l2,l3,r1,r2,r3
-        !           print '(1x,e23.16,6I4)', hel,l1,l2,l3,r1,r2,r3
-        end if
+                hel=get_lmat_ueg(l1,l2,l3,r1,r2,r3)
 
         end do
         end do
@@ -1708,16 +1706,17 @@ hel=get_lmat_ueg(l1,l2,l3,r1,r2,r3)
 
 
 
-close(i_unit)
+        close(i_unit)
         end if
         stop
         end subroutine 
 
-function get_lmat_ueg (l1,l2,l3,r1,r2,r3) result(hel)
+        function get_lmat_ueg (l1,l2,l3,r1,r2,r3) result(hel)
 
         use SystemData, only: dimen
-        integer, intent(in) :: l1,l2,l3,r1,r2,r3
-integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
+        use constants, only: int64
+        integer(int64), intent(in) :: l1,l2,l3,r1,r2,r3
+        integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
         real(dp) :: hel,ak(3),bk(3),ck(3),a2,b2,c2
         i=(l1-1)*2+1
         j=(l2-1)*2+1
@@ -1733,15 +1732,15 @@ integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
         ! The Uniform Electron Gas
         k1(1) = G1(i)%k(1) - G1(a)%k(1)
         k1(2) = G1(i)%k(2) - G1(a)%k(2)
-k1(3) = G1(i)%k(3) - G1(a)%k(3)
+        k1(3) = G1(i)%k(3) - G1(a)%k(3)
 
         k2(1) = G1(j)%k(1) - G1(b)%k(1)
         k2(2) = G1(j)%k(2) - G1(b)%k(2)
-k2(3) = G1(j)%k(3) - G1(b)%k(3)
+        k2(3) = G1(j)%k(3) - G1(b)%k(3)
 
         k3(1) = G1(k)%k(1) - G1(c)%k(1)
         k3(2) = G1(k)%k(2) - G1(c)%k(2)
-k3(3) = G1(k)%k(3) - G1(c)%k(3)
+        k3(3) = G1(k)%k(3) - G1(c)%k(3)
 
         if(all((k1+k2+k3)==0)) then
         ak(1) = -2 * PI * k1(1) / ALAT(1)
@@ -1752,22 +1751,22 @@ k3(3) = G1(k)%k(3) - G1(c)%k(3)
         bk(3) = -2 * PI * k2(3) / ALAT(3)
         ck(1) = -2 * PI * k3(1) / ALAT(1)
         ck(2) = -2 * PI * k3(2) / ALAT(2)                
-ck(3) = -2 * PI * k3(3) / ALAT(3)
+        ck(3) = -2 * PI * k3(3) / ALAT(3)
 
 
         a2=ak(1)*ak(1)+ak(2)*ak(2)+ak(3)*ak(3)
         b2=bk(1)*bk(1)+bk(2)*bk(2)+bk(3)*bk(3)
-c2=ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3)
+        c2=ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3)
 
         hel= uu_tc(a2)*uu_tc(b2)*(ak(1)*bk(1)+ak(2)*bk(2)+ak(3)*bk(3))&
         +uu_tc(a2)*uu_tc(c2)*(ak(1)*ck(1)+ak(2)*ck(2)+ak(3)*ck(3))&
-+uu_tc(b2)*uu_tc(c2)*(bk(1)*ck(1)+bk(2)*ck(2)+bk(3)*ck(3))
+        +uu_tc(b2)*uu_tc(c2)*(bk(1)*ck(1)+bk(2)*ck(2)+bk(3)*ck(3))
         !           hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2/3
         ! a permutation factor 3 is missing in other place, so here we ignore the /3
         hel=hel/(ALAT(1) * ALAT(2) * ALAT(3))**2
 
         else
-        hel=0.0
+        hel=0.d0
         end if
         else
         print *, 'at moment Lmat is only available for 3D UEG'
@@ -1776,7 +1775,7 @@ c2=ck(1)*ck(1)+ck(2)*ck(2)+ck(3)*ck(3)
 
         end function
 
-function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
+        function get_lmat_ua (l1,l2,l3,r1,r2,r3) result(hel)
         use SystemData, only: dimen, TranscorrCutoff,PotentialStrength,TranscorrGaussCutoff,t_trcorr_gausscutoff
         integer, intent(in) :: l1,l2,l3,r1,r2,r3
         integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)

@@ -1864,7 +1864,7 @@ contains
     subroutine init_fcimc_fn_pointers()
       character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
-      if(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body) then
+      if(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
          if (t_uniform_excits) then 
             generate_excitation => gen_excit_uniform_k_space_hub_transcorr
          else
