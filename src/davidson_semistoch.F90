@@ -352,7 +352,7 @@ module davidson_semistoch
                 basis_index,&
                 work,&
                 lwork,&
-                info,&
+                info&
                 )
 
            ! the eigenvalues do not come out sorted the way we would like, so get the

@@ -453,6 +453,8 @@ contains
          write(*,*) "Attempting to spawn particle onto processor: ", proc
          write(*,*) "No memory slots available for this spawn."
          write(*,*) "Please increase MEMORYFACSPAWN"
+         write(6,*) ValidSpawnedList
+         write(6,*) InitialSpawnedSlots         
 #endif
       end if
     end function checkValidSpawnedList

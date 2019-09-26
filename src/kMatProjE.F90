@@ -279,7 +279,7 @@ module kMatProjE
 
 ! kmat has the same access pattern as umat, so use UMatInd as indexing function
 ! the index of the largest element
-      kMatSize = UMatInd(nBI,nBI,nBI,nBI)
+      kMatSize = UMatInd(int(nBI),int(nBI),int(nBI),int(nBI))
     end function determineKMatSize
 
 !------------------------------------------------------------------------------!    
