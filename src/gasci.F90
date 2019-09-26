@@ -32,71 +32,52 @@ module gasci
 #else
       integer(n_int), parameter :: oddBits = 1431655765_n_int
 #endif
-
+      nOrbs = nBasis / 2
       gas_unit = get_free_unit()
       open(gas_unit, file="GASOrbs",status='old')
-      nOrbs = nBasis/2
-      read(gas_unit,*) iGAS(1:nOrbs)
+         read(gas_unit,*) iGAS(1:nOrbs)
+      close(gas_unit)
       nGAS = maxval(iGAS)
-      allocate(gasOrbs(0:NIfD,nGAS))
-      gasOrbs = 0_n_int
+      allocate(gasOrbs(0:NIfD, nGAS))
+      gasOrbs(:, :) = 0_n_int
       do iOrb = 1, nOrbs
          ! now write the orbitals read in to the current GAS
          ! set both the alpha- and the beta-spin orbital
-         call setOrb(gasOrbs(:,iGAS(iOrb)),2*iOrb)
-         call setOrb(gasOrbs(:,iGAS(iOrb)),2*iOrb-1)
+         call setOrb(gasOrbs(:, iGAS(iOrb)), 2 * iOrb)
+         call setOrb(gasOrbs(:, iGAS(iOrb)), 2 * iOrb - 1)
       end do
 
       ! now set up the auxiliary gas lookup tables
-      allocate(gasSpinOrbs(0:NIfD,nGAS,2))
+      allocate(gasSpinOrbs(0:NIfD, nGAS,2))
       ! gasSpinOrbs is the same as gasOrbs, but spin resolved
       ! convention: odd numbers have ms=1, even have ms=2
-      gasSpinOrbs(:,:,1) = iand(gasOrbs,ishft(oddBits,1))
-      gasSpinOrbs(:,:,2) = iand(gasOrbs,oddBits)
+      gasSpinOrbs(:,:,1) = iand(gasOrbs, ishft(oddBits, 1))
+      gasSpinOrbs(:,:,2) = iand(gasOrbs, oddBits)
 
       allocate(gasTable(nBasis))
       ! gasTable contains the active space index for each spin orbital
       ! it is the same as iGAS for spin orbitals
       do iOrb = 1, nOrbs
-         gasTable(2*iOrb) = iGAS(iOrb)
-         gasTable(2*iOrb-1) = iGAS(iOrb)
+         gasTable(2 * iOrb) = iGAS(iOrb)
+         gasTable(2 * iOrb - 1) = iGAS(iOrb)
       end do
 
-      allocate(gasSpinOrbList(nBasis,nGAS,2))
+      allocate(gasSpinOrbList(nBasis, nGAS, 2))
       allocate(gasSize(nGAS))
       gasSize = 0
       ! an integer list version of gasSpinOrbs (instead of binary the format)
       do iOrb = 1, nOrbs
          gasSize(iGAS(iOrb)) = gasSize(iGAS(iOrb)) + 1
-         gasSpinOrbList(gasSize(iGAS(iOrb)),iGAS(iOrb),1) = 2*iOrb
-         gasSpinOrbList(gasSize(iGAS(iOrb)),iGAS(iOrb),2) = 2*iOrb-1
+         gasSpinOrbList(gasSize(iGAS(iOrb)), iGAS(iOrb), 1) = 2 * iOrb
+         gasSpinOrbList(gasSize(iGAS(iOrb)), iGAS(iOrb), 2) = 2 * iOrb-1
       end do
 
       do iOrb = 1, nGAS
-         write(iout, *) "Number of orbs in GAS", iOrb, "is", sum(popCnt(gasOrbs(:,iOrb)))
+         write(iout, *) &
+            &"Number of orbs in GAS", iOrb, "is", sum(popCnt(gasOrbs(:,iOrb)))
       end do
 
       contains
-
-        subroutine splitLine(line,vals,n)
-          implicit none
-          character(*), intent(in) :: line
-          integer, intent(out) :: vals(:)
-          integer, intent(out) :: n
-
-          integer :: status, buffer(1000)
-
-          n = 1
-          do
-             ! use a buffer to catch exceptions
-             read(line,'(A)',iostat=status) buffer(1:n)
-             if(status.ne.0) exit
-             vals(1:n) = buffer(1:n)
-             n=n+1
-          end do
-          ! we overcounted by 1 because we started at 1
-          n = n - 1
-        end subroutine splitLine
 
        subroutine setOrb(ilut,orb)
           implicit none
@@ -110,7 +91,7 @@ module gasci
         end subroutine setOrb
     end subroutine loadGAS
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     subroutine clearGAS()
       if (allocated(gasSize)) deallocate(gasSize)
@@ -120,7 +101,7 @@ module gasci
       if (allocated(gasOrbs)) deallocate(gasOrbs)
     end subroutine clearGAS
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     function isValidExcit(ilutI,ilutJ) result(valid)
       ! check if the excitation from ilutI to ilutJ is valid within the GAS
@@ -169,7 +150,7 @@ module gasci
 
     end function isValidExcit
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     subroutine generate_nGAS_excitation(nI, ilutI, nJ, ilutJ, exFlag, ic, &
                                           ex, tParity, pGen, hel, store, part_type)
@@ -214,7 +195,7 @@ module gasci
 
     end subroutine generate_nGAS_excitation
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     subroutine generate_nGAS_single(nI,ilutI,nJ,ilutJ,ex,par,pgen)
       implicit none
@@ -253,7 +234,7 @@ module gasci
 
     end subroutine generate_nGAS_single
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     subroutine generate_nGAS_double(nI,ilutI,nJ,ilutJ,ex,par,pgen)
       implicit none
@@ -348,7 +329,7 @@ module gasci
 
     end subroutine generate_nGAS_double
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     function get_pgen_pick_weighted_hole(nI, src1, src2, tgt1, tgt2) result(pgenVal)
       implicit none
@@ -374,7 +355,7 @@ module gasci
 
     end function get_pgen_pick_weighted_hole
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     function get_pgen_pick_hole_from_active_space(ilut, srcGASInd, ms) result(pgenVal)
       implicit none
@@ -393,7 +374,7 @@ module gasci
       endif
     end function get_pgen_pick_hole_from_active_space
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     function get_cumulative_list(gasList, nI, src1, src2, tgt1, ic) result(cSum)
       implicit none
@@ -434,7 +415,7 @@ module gasci
         end subroutine addToCumulative
     end function get_cumulative_list
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     function pick_weighted_hole(nI, src1, src2, tgt1, ic, ms, srcGASInd, pgen) result(tgt)
       implicit none
@@ -480,7 +461,7 @@ module gasci
 
     end function pick_weighted_hole
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     function pick_hole_from_active_space(ilutI, nI, srcGASInd, ms, r, pgen) result(tgt)
       implicit none
@@ -548,7 +529,7 @@ module gasci
       end function validTarget
     end function pick_hole_from_active_space
 
-!------------------------------------------------------------------------------------------!
+!----------------------------------------------------------------------------!
 
     function sort_unique(list) result(output)
       ! sorts an array of unique integers,
