@@ -788,7 +788,7 @@ module fcimc_pointed_fns
       
       real(dp), intent(in) :: ci
       real(dp) :: Si
-#ifdef __DEBUG
+#ifdef _WARNING_WORKAROUND
       ! Disable compiler warnings
       real(dp) :: dummy
       dummy = ci
