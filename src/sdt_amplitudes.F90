@@ -1,3 +1,5 @@
+! Module to collect and average the CI coefficients
+! from equilibration until the end of the calculation
 module sdt_amplitudes
 
   use bit_reps, only: extract_sign, decode_bit_det, encode_sign, niftot, nifd
@@ -42,7 +44,7 @@ contains
     deallocate(ciCoeff_storage)
   end subroutine fin_ciCoeff
 
-
+  !it prints not-averaged CI coeffs collected directly from last iter
   subroutine print_snapshot_ci_coeff
     integer :: i, ic, ex(2,3),icI
     real(dp) :: sign_tmp(lenof_sign)
@@ -54,11 +56,12 @@ contains
 
     write(iout,*) 'CI level =', n_store_ci_level
 
+    !main loop over the excitation level of the coeffs to be collected,
+    !where 0 is the reference, 1 singles, 2 doubles and so on...
     do icI = 0, n_store_ci_level
       do i = 1, TotWalkers
         ic = 4
         call get_bit_excitmat(iLutRef(:,1),CurrentDets(:,i),ex,ic)
-!!        ic = FindBitExcitLevel(ilutRef(:,1),CurrentDets(:,i))
         call extract_sign(CurrentDets(:,i), sign_tmp)
         call GetBitExcitation(ilutRef(:,1),CurrentDets(:,i),ex,tPar)
         if(tPar) sign_tmp = -sign_tmp
@@ -66,10 +69,6 @@ contains
           select case(icI)
           case(0)
             AllNoatHf = -sign_tmp
-            write(iout,*) 'REFERENCE:      - N el.=',nel,'N basis=',nbasis
-            write(iout,*) 'Total Walkers = ', TotWalkers
-            write(iout,*) sign_tmp,AllNoatHf,sign_tmp(1),AllNoatHf(1), &
-                          sign_tmp(1)/AllNoatHf(1)
           case(1)
             write(21,'(G20.12,2I5)') sign_tmp/AllNoatHf(1),ex(1,1),ex(2,1)-nel
           case(2)
@@ -89,54 +88,45 @@ contains
   end subroutine print_snapshot_ci_coeff
 
 
+  !it prints averaged CI coeffs collected during the calcualtion
   subroutine print_averaged_ci_coeff
-    integer :: i, ic, ex(2,3), icI
+    integer :: i, ic, ex(2,3),icI,RefDet(nel)!!,nIEx(nel)
     real(dp) :: sign_tmp(lenof_sign)
     logical  :: tPar
 
-!    to sort the excitations i need to
-!    call sort(ciCoeff_storage)
-!    present in quickLib
+    ! Kai told me there is already a subroutine to call in neci to sort
+    ! the excitations, sth like: call sort(ciCoeff_storage), somewhere
+    ! in quickLib?
+    ! In the end I wrote my own sorting subroutine to organize the
+    ! coefficients as needed depending on the case
 
     open (unit=31,file='SINGLES-AV',status='replace')
     open (unit=32,file='DOUBLES-AV',status='replace')
     open (unit=33,file='TRIPLES-AV',status='replace')
-!    write(31,*) '&FCI NBASIS=', nbasis,',', 'NELEC=', nel
-!    write(31,*) '&END'
-!    write(32,*) '&FCI NBASIS=', nbasis,',', 'NELEC=', nel
-!    write(32,*) '&END'
-!    write(33,*) '&FCI NBASIS=', nbasis,',', 'NELEC=', nel
-!    write(33,*) '&END'
 
     do icI = 0, n_store_ci_level
        do i = 1, first_free_entry
           ic = 4
           call get_bit_excitmat(iLutRef(:,1),ciCoeff_storage(:,i),ex,ic)
-!!          ic = FindBitExcitLevel(ilutRef(:,1),ciCoeff_storage(:,i))
+!          ic = FindBitExcitLevel(ilutRef(:,1),ciCoeff_storage(:,i))
           if(icI.eq.ic) then
             call extract_sign(ciCoeff_storage(:,i),sign_tmp)
             call GetBitExcitation(ilutRef(:,1),ciCoeff_storage(:,i),ex,tPar)
             if(tPar) sign_tmp = -sign_tmp
              select case(icI)
              case(0)
-!!                call extract_sign(ciCoeff_storage(:,i),sign_tmp)
                 AllNoatHf = -sign_tmp/nCyc
-                write(iout,*) 'REFERENCE-AV:    - N el.=',nel,'N basis=',nbasis
-                write(iout,*) 'Total S+D+T = ', first_free_entry, 'nCyc=', nCyc
-                write(iout,*) sign_tmp/nCyc,AllNoatHf,sign_tmp(1),AllNoatHf(1),&
-                     (sign_tmp(1)/nCyc)/AllNoatHf(1)
+                RefDet = projEDet(:,1)
+!                write(iout,*) 'Total S+D+T = ', first_free_entry, 'nCyc=', nCyc
+!                write(iout,*) sign_tmp/nCyc,AllNoatHf,sign_tmp(1),AllNoatHf(1),&
+!                     (sign_tmp(1)/nCyc)/AllNoatHf(1)
              case(1)
-!!                call extract_sign(ciCoeff_storage(:,i),sign_tmp)
                 write(31,'(G20.12,2I5)') sign_tmp/(AllNoatHf(1)*nCyc), & 
                                          ex(1,1),ex(2,1)
              case(2) 
-!!                call extract_sign(ciCoeff_storage(:,i),sign_tmp)
-!                write(iout,'(A)',advance='no') 'DOUBLES-AV:'
                 write(32,'(G20.12,4I5)') sign_tmp/(AllNoatHf(1)*nCyc),ex(1,1),&
                                          ex(2,1),ex(1,2),ex(2,2)
              case(3)
-!!                call extract_sign(ciCoeff_storage(:,i),sign_tmp)
-!                write(iout,'(A)',advance='no') 'TRIPLES-AV:'
                 write(33,'(G20.12,6I5)') sign_tmp/(AllNoatHf(1)*nCyc),ex(1,1),&
                                          ex(2,1),ex(1,2),ex(2,2),ex(1,3),ex(2,3)
              end select
@@ -147,7 +137,7 @@ contains
     close(31)
     close(32)
     close(33)
-    call sorting()
+    call sorting(RefDet)
     call fin_ciCoeff()
   end subroutine print_averaged_ci_coeff
 
@@ -159,7 +149,9 @@ contains
 
     ! loop through all occupied determinants 
     do i = 1, TotWalkers
+       !definition of the maximal excitation level
        ic = 4
+       !extraction of the excitation level from every determinant
        call get_bit_excitmat(iLutRef(:,1),CurrentDets(:,i),ex,ic)
        if(ic < 4) then
           call extract_sign(CurrentDets(:,i), sign_tmp)
@@ -171,7 +163,7 @@ contains
   end subroutine storeCiCoeffs
 
 
-
+  !it updates the CI coeffs storage list
   subroutine cache_sign(sgn, nIEx, ex)
     integer :: hash_value ,ind
     integer, intent(in) :: nIEx(nel), ex(2,3)
@@ -183,6 +175,7 @@ contains
     ! encode the determinant into bit representation (ilut)
     call EncodeBitDet(nIEx,ilut)
     call hash_table_lookup(nIEx,ilut,NIfD,hash_table_ciCoeff,ciCoeff_storage,ind,hash_value,tSuccess)
+    ! tSuccess is true when the coeff is found in the hash_table; so it gets updated
     if(tSuccess) then
        call extract_sign(ciCoeff_storage(:,ind),sign_tmp)
        sign_tmp = sign_tmp + sgn
@@ -190,7 +183,8 @@ contains
 !           write(iout,*) 'sign_tmp = sign_tmp + sgn = ', sign_tmp, sgn
 !        endif
     call encode_sign(ciCoeff_storage(:,ind),sign_tmp)
-    ! else: add a new entry to our CI coeff storage
+
+    ! tSuccess is false, then add a new entry to the CI coeffs storage
     else
        first_free_entry = first_free_entry + 1
        ! encode the determinant into bit representation (ilut)
@@ -206,13 +200,19 @@ contains
   end subroutine cache_sign
 
 
-  subroutine sorting
+  ! it allows to sort the averaged CI coeffs and list them in 2 different ways
+  ! 1. CLOSED orbs (alpha,beta) + OPEN orbs (alpha) + RELATIVE VIR orbs (beta) + LEFT VIR orbs (alpha,beta)
+  ! 2. OCC(alpha) + OCC(beta) + VIR(alpha) + VIR(beta)a -> TODO
+  subroutine sorting(RefDet)
 
     Implicit none
  
     double precision :: x
     double precision,allocatable :: S(:,:),D(:,:,:,:),T(:,:,:,:,:,:)
-    integer :: i,j,k,a,b,c,z
+    integer :: i,j,k,a,b,c,z,p,Iopen(nel),iop,iMax,spo,aa,jj
+    integer, intent(in) :: RefDet(nel)
+    logical  :: check,noMatch,openEl,ClosedShellCase
+    logical  :: aNoMatch,bNoMatch,cNoMatch,iNoMatch,jNoMatch,kNoMatch
  
     open (unit=101,file='SINGLES-AV',status='old', action='read')
     open (unit=102,file='DOUBLES-AV',status='old', action='read')
@@ -227,38 +227,165 @@ contains
     S(:,:)=0.d0
     D(:,:,:,:)=0.d0
     T(:,:,:,:,:,:)=0.d0
- 
-    do
-      read(101,*,IOSTAT=z) x,i,a
-      S(i,a) = x
-     if (z<0) then
-       exit
-     endif
+
+    openEl=.false.
+    ClosedShellCase=.true.
+
+    ! TODO: - in way 1. of listing is not included the sorting of the open-shell
+    !         RefDet with one or more virtual spatial orbs in between two occupied
+    !         spin orbitals, e.g., p=4,6,8,... 
+    do z=2,nel
+      p = RefDet(z) - RefDet(z-1)
+      if((p.gt.1).and.(.not.openEl)) then
+        Iopen(1)=RefDet(z-1)
+        Iopen(2)=RefDet(z)
+        openEl=.true.
+        ClosedShellCase=.false.
+      else if((p.gt.1).and.(openEl)) then
+        iop=iop+1
+        Iopen(iop)=RefDet(z)
+      endif
     enddo
-    close (101)
+
+    ! normal reading for closed-shell systems
+    if(ClosedShellCase) then
+      do
+        read(101,*,IOSTAT=z) x,i,a
+        S(i,a)=x
+        if (z<0) then
+          exit
+        endif
+      enddo
+      close (101)
+
+      do
+        read(102,*,IOSTAT=z) x,i,a,j,b
+        D(i,a,j,b) = x
+        if (z<0) then
+          exit
+        endif
+      enddo
+      close (102)
+
+      do
+        read(103,*,IOSTAT=z) x,i,a,j,b,k,c
+        T(i,a,j,b,k,c) = x
+        if (z<0) then
+          exit
+        endif
+      enddo
+      close (103)
+
+    ! open-shell systems require a specific reading in order to 
+    ! reorganize the alpha and beta spin orbitals to make it
+    ! readable in Molpro as efficiently as possible
+    else
+
+      iMax=iop
+      if (MOD(Iopen(iMax),2).eq.1) spo=1
+      if (MOD(Iopen(iMax),2).eq.0) spo=-1
+
+      do
+        read(101,*,IOSTAT=z) x,i,a
+        iNoMatch=.true.
+        aNoMatch=.true.
+        do iop=1,iMax
+          if((i.eq.Iopen(iop)).and.(iNoMatch)) then
+            i=nel-iMax+iop
+            iNoMatch=.false.
+          endif
+          if((a.eq.Iopen(iop)+spo).and.(aNoMatch)) then
+            a=nel+iop
+            aNoMatch=.false.
+          endif
+        enddo
+        S(i,a)=x
+        if (z<0) then
+          exit
+        endif
+      enddo
+      close (101)
  
-    do
-      read(102,*,IOSTAT=z) x,i,a,j,b
-      D(i,a,j,b) = x
-     if (z<0) then
-       exit
-     endif
-    enddo
-    close (102)
+      do
+        read(102,*,IOSTAT=z) x,i,a,j,b
+        iNoMatch=.true.
+        jNoMatch=.true.
+        aNoMatch=.true.
+        bNoMatch=.true.
+        do iop=1,iMax
+          if((i.eq.Iopen(iop)).and.(iNoMatch)) then
+            i=nel-iMax+iop
+            iNoMatch=.false.
+          endif
+          if((j.eq.Iopen(iop)).and.(jNoMatch)) then
+            j=nel-iMax+iop
+            jNoMatch=.false.
+          endif
+          if((a.eq.Iopen(iop)+spo).and.(aNoMatch)) then
+!            write(iout,*) x,a, '-> nel+iop = ',nel, '+',iop,'=',nel+iop
+            a=nel+iop
+            aNoMatch=.false.
+          endif
+          if((b.eq.Iopen(iop)+spo).and.(bNoMatch)) then
+            b=nel+iop
+            bNoMatch=.false.
+          endif
+        enddo
+          D(i,a,j,b) = x 
+        if (z<0) then
+          exit
+        endif
+      enddo
+      close (102)
  
-    do
-      read(103,*,IOSTAT=z) x,i,a,j,b,k,c
-      T(i,a,j,b,k,c) = x
-     if (z<0) then
-       exit
-     endif
-    enddo
-    close (103)
+      do
+        read(103,*,IOSTAT=z) x,i,a,j,b,k,c
+        iNoMatch=.true.
+        jNoMatch=.true.
+        kNoMatch=.true.
+        aNoMatch=.true.
+        bNoMatch=.true.
+        cNoMatch=.true.
+        do iop=1,iMax
+          if((i.eq.Iopen(iop)).and.(iNoMatch)) then
+            i=nel-iMax+iop
+            iNoMatch=.false.
+          endif
+          if((j.eq.Iopen(iop)).and.(jNoMatch)) then
+            j=nel-iMax+iop
+            jNoMatch=.false.
+          endif
+          if((k.eq.Iopen(iop)).and.(kNoMatch)) then
+            k=nel-iMax+iop
+            kNoMatch=.false.
+          endif
+          if((a.eq.Iopen(iop)+spo).and.(aNoMatch)) then
+            a=nel+iop
+            aNoMatch=.false.
+          endif
+          if((b.eq.Iopen(iop)+spo).and.(bNoMatch)) then
+            b=nel+iop
+            bNoMatch=.false.
+          endif
+          if((c.eq.Iopen(iop)+spo).and.(cNoMatch)) then
+            c=nel+iop
+            cNoMatch=.false.
+          endif
+        enddo
+        T(i,a,j,b,k,c) = x
+        if (z<0) then
+          exit
+        endif
+      enddo
+      close (103)
+
+    endif
 
     do i = 1,nel
       do a = nel+1,nbasis 
         if(abs(S(i,a)).ne.0) then 
-          write(31,'(G20.12,2I5)') S(i,a),i,a-nel
+          write(31,'(G20.12,2I5)') S(i,a),i,a
+!          write(31,'(G20.12,2I5)') S(i,a),i,a-nel
         end if
       end do
     end do
@@ -268,7 +395,8 @@ contains
         do a = nel+1,nbasis 
           do b = a+1, nbasis
             if(abs(D(i,a,j,b)).ne.0 .and. i.lt.j) then 
-              write(32,'(G20.12,4I5)') D(i,a,j,b),i,a-nel,j,b-nel
+              write(32,'(G20.12,4I5)') D(i,a,j,b),i,a,j,b
+!              write(32,'(G20.12,4I5)') D(i,a,j,b),i,a-nel,j,b-nel
             end if
           end do
         end do
@@ -282,7 +410,8 @@ contains
             do b = a+1, nbasis
               do c = b+1, nbasis
                 if(abs(T(i,a,j,b,k,c)).ne.0 .and. i.lt.j .and. j.lt.k) then 
-                  write(33,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a-nel,j,b-nel,k,c-nel
+                  write(33,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a,j,b,k,c
+!                  write(33,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a-nel,j,b-nel,k,c-nel
                 end if
               enddo
             enddo
