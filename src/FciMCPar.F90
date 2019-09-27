@@ -567,7 +567,9 @@ module FciMCParMod
             ![E.V. 13.08.2019]
             if ((t_store_ci_coeff).and.(n_iter_after_equ.ge.0) .and. all(.not. tSinglePartPhase)) then
                if ((iter - maxval(VaryShiftIter)) .eq. n_iter_after_equ + 1) then
-                  write(iout,*) 'START AVERAGING CI COEFFICIENTS'
+                  write(iout,*) ''
+                  write(iout,*) '*** START CI COEFFICIENTS COLLECTION ***'
+                  write(iout,*) ''
                   call storeCiCoeffs()
                else if ((iter - maxval(VaryShiftIter)) .gt. n_iter_after_equ + 1) then
                   call storeCiCoeffs()

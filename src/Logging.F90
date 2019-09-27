@@ -203,13 +203,16 @@ MODULE Logging
         select case(w)
 
         case('CI-COEFFICIENTS')                                                                                                 
-            t_store_ci_coeff = .true.
-            if (item < nitems) then
-               call readi(n_iter_after_equ)
-            end if                                                                                                              
-            if (item < nitems) then
-               call readi(n_store_ci_level)
-        end if
+          t_store_ci_coeff = .true.
+          if (item < nitems) then
+             call readi(n_iter_after_equ)
+          end if                                                                                                              
+          if (item < nitems) then
+             call readi(sorting_way)
+          end if                                                                                                              
+          if (item < nitems) then
+             call readi(n_store_ci_level)
+          end if
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)

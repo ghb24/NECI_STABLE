@@ -10,7 +10,7 @@ module sdt_amplitudes
                        VaryShiftIter, iter
   use hash, only: hash_table_lookup,add_hash_table_entry,init_hash_table, &
                   clear_hash_table
-  use LoggingData, only: n_store_ci_level
+  use LoggingData, only: n_store_ci_level,sorting_way
   use SystemData, only: nel,nbasis
   
   implicit none
@@ -53,8 +53,6 @@ contains
     open (unit=21,file='SINGLES',status='replace')
     open (unit=22,file='DOUBLES',status='replace')
     open (unit=23,file='TRIPLES',status='replace')
-
-    write(iout,*) 'CI level =', n_store_ci_level
 
     !main loop over the excitation level of the coeffs to be collected,
     !where 0 is the reference, 1 singles, 2 doubles and so on...
@@ -104,6 +102,13 @@ contains
     open (unit=32,file='DOUBLES-AV',status='replace')
     open (unit=33,file='TRIPLES-AV',status='replace')
 
+    write(iout,*) ''
+!    write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
+    write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
+    write(iout,*) '*** CI COEFFICIENTS ***'
+    write(iout,*) ''
+    write(iout,*) 'Maximum excitation level of the CI coeffs =', n_store_ci_level
+
     do icI = 0, n_store_ci_level
        do i = 1, first_free_entry
           ic = 4
@@ -138,6 +143,11 @@ contains
     close(32)
     close(33)
     call sorting(RefDet)
+
+    write(iout,*) 'CI coefficients written in ASCII files'
+    write(iout,*) ''
+    write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
+
     call fin_ciCoeff()
   end subroutine print_averaged_ci_coeff
 
@@ -201,15 +211,17 @@ contains
 
 
   ! it allows to sort the averaged CI coeffs and list them in 2 different ways
-  ! 1. CLOSED orbs (alpha,beta) + OPEN orbs (alpha) + RELATIVE VIR orbs (beta) + LEFT VIR orbs (alpha,beta)
-  ! 2. OCC(alpha) + OCC(beta) + VIR(alpha) + VIR(beta)a -> TODO
+  ! 1. OCC(alpha) + OCC(beta) + VIR(alpha) + VIR(beta) -> TODO
+  ! 2. CLOSED orbs (alpha,beta) + OPEN orbs (alpha) + RELATIVE VIR orbs (beta) + LEFT VIR orbs (alpha,beta)
   subroutine sorting(RefDet)
 
     Implicit none
  
     double precision :: x
     double precision,allocatable :: S(:,:),D(:,:,:,:),T(:,:,:,:,:,:)
-    integer :: i,j,k,a,b,c,z,p,Iopen(nel),iop,iMax,spo,aa,jj
+    integer :: i,j,k,a,b,c,z,p,Iopen(nel),iop,iMax,spo
+    integer :: ial,ialMax,ialVir,ialVirMax,ibe,ibeMax,ibeVir,ibeVirMax    
+    integer :: Ialpha(nel),Ibeta(nel),IalphaVir(nbasis-nel),IbetaVir(nbasis-nel)
     integer, intent(in) :: RefDet(nel)
     logical  :: check,noMatch,openEl,ClosedShellCase
     logical  :: aNoMatch,bNoMatch,cNoMatch,iNoMatch,jNoMatch,kNoMatch
@@ -231,14 +243,12 @@ contains
     openEl=.false.
     ClosedShellCase=.true.
 
-    ! TODO: - in way 1. of listing is not included the sorting of the open-shell
-    !         RefDet with one or more virtual spatial orbs in between two occupied
-    !         spin orbitals, e.g., p=4,6,8,... 
     do z=2,nel
       p = RefDet(z) - RefDet(z-1)
       if((p.gt.1).and.(.not.openEl)) then
         Iopen(1)=RefDet(z-1)
-        Iopen(2)=RefDet(z)
+        iop=2
+        Iopen(iop)=RefDet(z)
         openEl=.true.
         ClosedShellCase=.false.
       else if((p.gt.1).and.(openEl)) then
@@ -246,44 +256,213 @@ contains
         Iopen(iop)=RefDet(z)
       endif
     enddo
+    iMax=iop
+    if (MOD(Iopen(iMax),2).eq.1) spo=1
+    if (MOD(Iopen(iMax),2).eq.0) spo=-1
+
 
     ! normal reading for closed-shell systems
     if(ClosedShellCase) then
+
+    write(iout,*) '***Reading coefficients in CLOSED-SHELL SYSTEM***'
+
       do
         read(101,*,IOSTAT=z) x,i,a
-        S(i,a)=x
         if (z<0) then
           exit
         endif
+        S(i,a)=x
       enddo
       close (101)
 
       do
         read(102,*,IOSTAT=z) x,i,a,j,b
-        D(i,a,j,b) = x
         if (z<0) then
           exit
         endif
+        D(i,a,j,b) = x
       enddo
       close (102)
 
       do
         read(103,*,IOSTAT=z) x,i,a,j,b,k,c
-        T(i,a,j,b,k,c) = x
         if (z<0) then
           exit
         endif
+        T(i,a,j,b,k,c) = x
       enddo
       close (103)
 
+
     ! open-shell systems require a specific reading in order to 
     ! reorganize the alpha and beta spin orbitals to make it
-    ! readable in Molpro as efficiently as possible
-    else
+    ! readable in Molpro as efficiently as possible. Here there
+    ! are implemented 2 different ways:
+    else if(sorting_way.eq.1) then
 
-      iMax=iop
-      if (MOD(Iopen(iMax),2).eq.1) spo=1
-      if (MOD(Iopen(iMax),2).eq.0) spo=-1
+    write(iout,*) 'Reading coefficients in OPEN-SHELL SYSTEM'
+    write(iout,*) 'Coefficients listed in 1st way:'
+    write(iout,*) '  OCC(alpha),OCC(beta),VIR(alpha),VIR(beta)'
+
+
+      ial=0
+      ibe=0
+      do z=1,nel
+        if (MOD(RefDet(z),2).eq.1) then
+          ial=ial+1
+          Ialpha(ial)=RefDet(z)
+        write(iout,*) 'a_occ' ,ial,Ialpha(ial)
+        else if (MOD(RefDet(z),2).eq.0) then
+          ibe=ibe+1
+          Ibeta(ibe)=RefDet(z)
+        write(iout,*) 'b_occ' ,ibe,Ibeta(ibe)
+        endif
+      enddo
+      ialMax=ial
+      ibeMax=ibe
+
+      ialVir=0
+      ibeVir=0
+      do i=1,nbasis
+        j=0
+        do z=1,nel
+          if(i.eq.RefDet(z)) j=2
+        enddo
+        if(j.eq.2) cycle
+        if (MOD(i,2).eq.1) then
+          ialVir=ialVir+1
+          IalphaVir(ialVir)=i
+        write(iout,*) 'a' ,ialVir,IalphaVir(ialVir)
+        else if (MOD(i,2).eq.0) then
+          ibeVir=ibeVir+1
+          IbetaVir(ibeVir)=i
+        write(iout,*) 'b' ,ibeVir,IbetaVir(ibeVir)
+        endif
+      enddo
+      ialVirMax=ialVir
+      ibeVirMax=ibeVir
+
+      write(iout,*) ialMax,ibeMax,ialVirMax,ibeVirMax
+
+
+      do
+        read(101,*,IOSTAT=z) x,i,a
+        iNoMatch=.true.
+        aNoMatch=.true.
+        do ial=1,ialMax
+          if(i.eq.Ialpha(ial).and.iNoMatch) then
+            i=ial
+            iNoMatch=.false.
+          endif
+        enddo
+        do ibe=1,ibeMax
+          if(i.eq.Ibeta(ibe).and.iNoMatch) then
+            i=ialMax+ibe
+            iNoMatch=.false.
+          endif
+        enddo
+        do ialVir=1,ialVirMax
+          if(a.eq.IalphaVir(ialVir).and.aNoMatch) then
+            a=nel+ialVir
+            aNoMatch=.false.
+          endif
+        enddo
+        do ibeVir=1,ibeVirMax
+          if(a.eq.IbetaVir(ibeVir).and.aNoMatch) then
+            a=nel+ialVirMax+ibeVir
+            aNoMatch=.false.
+          endif
+        enddo
+        if (z<0) then
+          exit
+        endif
+        S(i,a) = x
+      enddo
+      close (101)
+
+      do
+        read(102,*,IOSTAT=z) x,i,a,j,b
+        iNoMatch=.true.
+        jNoMatch=.true.
+        aNoMatch=.true.
+        bNoMatch=.true.
+        do ial=1,ialMax
+          if(i.eq.Ialpha(ial).and.iNoMatch) then
+            i=ial
+            iNoMatch=.false.
+          else if(j.eq.Ialpha(ial).and.jNoMatch) then
+            j=ial
+            jNoMatch=.false.
+          endif
+        enddo
+        do ibe=1,ibeMax
+          if(i.eq.Ibeta(ibe).and.iNoMatch) then
+            i=ialMax+ibe
+            iNoMatch=.false.
+          else if(j.eq.Ibeta(ibe).and.jNoMatch) then
+            j=ialMax+ibe
+            jNoMatch=.false.
+          endif
+        enddo
+        do ialVir=1,ialVirMax
+          if(a.eq.IalphaVir(ialVir).and.aNoMatch) then
+            a=nel+ialVir
+            aNoMatch=.false.
+          else if(b.eq.IalphaVir(ialVir).and.bNoMatch) then
+            b=nel+ialVir
+            bNoMatch=.false.
+          endif
+        enddo
+        do ibeVir=1,ibeVirMax
+          if(a.eq.IbetaVir(ibeVir).and.aNoMatch) then
+            a=nel+ialVirMax+ibeVir
+            aNoMatch=.false.
+          else if(b.eq.IbetaVir(ibeVir).and.bNoMatch) then
+            b=nel+ialVirMax+ibeVir
+            bNoMatch=.false.
+          endif
+        enddo
+        if (z<0) then
+          exit
+        endif
+        D(i,a,j,b) = x
+      enddo
+      close (102)
+
+      do
+        read(103,*,IOSTAT=z) x,i,a,j,b,k,c
+        if (z<0) then
+          exit
+        endif
+        T(i,a,j,b,k,c) = x
+      enddo
+      close (103)
+
+
+    else if(sorting_way.eq.2) then
+    ! TODO: in this way 2. of listing is not included yet the sorting of the open-shell
+    !       RefDet with one or more virtual spatial orbs in between two occupied
+    !       spin orbitals, e.g., p=4,6,8,... 
+
+    write(iout,*) 'Reading coefficients in OPEN-SHELL SYSTEM'
+    write(iout,*) 'Coefficients listed in 2nd way:'
+    write(iout,*) '  CLOSED(alpha,beta),OPEN(alpha),OPEN(beta),VIRTUALS(alpha,beta)'
+
+!      write(iout,*) 'PRINT OUTPUT: RefDet  = ', RefDet
+!      write(iout,*) 'PRINT OUTPUT: p  = ', p
+!      write(iout,*) 'PRINT OUTPUT: iMax = ', iMax
+!      write(iout,*) 'PRINT OUTPUT: Iopen(1) = ', Iopen(1)
+!      write(iout,*) 'PRINT OUTPUT: Iopen(2) = ', Iopen(2)
+!      write(iout,*) 'PRINT OUTPUT: Iopen(3) = ', Iopen(3)
+!      write(iout,*) 'PRINT OUTPUT: Iopen(iMax) = ', Iopen(iMax)
+!      write(iout,*) 'PRINT OUTPUT: spo = ', spo
+!      write(iout,*) 'PRINT OUTPUT: Iopen(iMax) = ', Iopen(iMax)
+!      write(iout,*) 'PRINT OUTPUT: MOD(Iopen(iMax),2) = ', MOD(Iopen(iMax),2)
+!      write(iout,*) 'PRINT OUTPUT: nel = ', nel
+!      write(iout,*) 'PRINT OUTPUT: iop = ', iop
+!      write(iout,*) 'PRINT OUTPUT: Iopen(iop)+spo = ', Iopen(iop)+spo
+!      write(iout,*) 'PRINT OUTPUT: Iopen(1)+spo = ', Iopen(1)+spo
+ 
 
       do
         read(101,*,IOSTAT=z) x,i,a
@@ -380,6 +559,7 @@ contains
       close (103)
 
     endif
+
 
     do i = 1,nel
       do a = nel+1,nbasis 
