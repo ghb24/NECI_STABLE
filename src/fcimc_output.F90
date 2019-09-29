@@ -48,6 +48,7 @@ contains
         character(256) label
         character(32) tchar_r, tchar_i, tchar_j, tchar_k
         character(17) trunc_caption
+        character(38) validExCaption
 
         call getProjEOffset()
 
@@ -191,14 +192,17 @@ contains
                   &23.Tot-Proj.E.ThisCyc   24.HFContribtoE  25.NumContribtoE &
                   &26.HF weight    27.|Psi|     28.Inst S^2 &
                   &29.Inst S^2   30.AbsProjE   31.PartsDiffProc &
-                  &32.|Semistoch|/|Psi|  33.MaxCycSpawn"
+                  &32.|Semistoch|/|Psi|  33.MaxCycSpawn "
            if (tTrialWavefunction .or. tStartTrialLater) then
               write(fcimcstats_unit, "(A)", advance = 'no') &
                    "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
-              trunc_caption = "  37. TruncWeight"
+              validExCaption = "  37.InvalidExcits  38. ValidExcits  "
+              trunc_caption = "  39. TruncWeight  "
            else
-              trunc_caption = "  34. TruncWeight"
+              trunc_caption = "  36. TruncWeight  "
+              validExCaption = "  34.InvalidExcits  35. ValidExcits  "
            end if
+           write(fcimcstats_unit, "(A)", advance = 'no') validExCaption
            if(t_truncate_spawns) write(fcimcstats_unit, "(A)", advance = 'no') &
                 trunc_caption
 
@@ -289,7 +293,7 @@ contains
                 norm_psi, &                           !27
                 curr_S2, &                            !28
                 PartsDiffProc, &                      !29
-                all_max_cyc_spawn                     !30.
+                all_max_cyc_spawn                     !30
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(7(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &              ! 31. 32
@@ -392,7 +396,7 @@ contains
 
             write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
-                                   &i13,2g16.7)",advance = 'no') &
+                                   &i13,4g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(1), &                              ! 2.
                 AllTotParts(1) - AllTotPartsOld(1), &      ! 3.
@@ -424,13 +428,16 @@ contains
                 AbsProjE(1), &                             ! 30.
                 PartsDiffProc, &                           ! 31.
                 norm_semistoch(1)/norm_psi(1), &           ! 32.
-                all_max_cyc_spawn                          ! 33.
+                all_max_cyc_spawn                          ! 33
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &              ! 34.
                     (tot_trial_denom(1) / StepsSft), &                  ! 35.
                     abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft)))  ! 36.
-                end if
+                 end if
+                 write(fcimcstats_unit, "(2g16.7)", advance = 'no') &
+                      allNInvalidExcits, & ! 34/37.
+                      allNValidExcits      ! 35/38.
                 if(t_truncate_spawns) then
                    write(fcimcstats_unit, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
                 endif

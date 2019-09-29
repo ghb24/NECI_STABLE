@@ -12,8 +12,8 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, nOccOrbs, &
-                          nClosedOrbs, irrepOrbOffset, nIrreps, t_pcpp_excitgen,&
-                          tNConservingGAS
+                          nClosedOrbs, irrepOrbOffset, nIrreps, t_pcpp_excitgen, &
+                          t_pchb_excitgen, tNConservingGAS
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use dSFMT_interface, only: dSFMT_init
     use CalcData, only: G_VMC_Seed, MemoryFacPart, TauFactor, StepsSftImag, &
@@ -94,7 +94,8 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement, scaleFunction
+                                  new_child_stats, get_conn_helement, scaleFunction, &
+                                  shiftScaleFunction
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -125,7 +126,7 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction
+                                 expCOScaleFunction, expShiftScaleFunction, constShiftScaleFunction
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -154,6 +155,7 @@ module fcimc_initialisation
     use sltcnd_mod, only: sltcnd_0
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
          ThisRDMIter
+    use rdm_data, only: nrdms_transition_input
     use Parallel_neci
     use FciMCData
     use util_mod
@@ -168,6 +170,7 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use gasci, only: generate_nGAS_excitation, clearGAS
+    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen
     implicit none
 
 contains
@@ -936,6 +939,12 @@ contains
         rdmCorrectionFactor = 0.0_dp
         InstRDMCorrectionFactor = 0.0_dp
         ThisRDMIter = 0.0_dp
+
+        ! initialize excitation number trackers
+        nInvalidExcits = 0
+        nValidExcits = 0
+        allNInvalidExcits = 0
+        allNValidExcits = 0
 !            if (tReltvy) then
 !                ! write out the column headings for the MSWALKERCOUNTS
 !                open(mswalkercounts_unit, file='MSWALKERCOUNTS', status='UNKNOWN')
@@ -1094,58 +1103,6 @@ contains
 !        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
 !                       ^ Removed by GLM as believed not necessary
 
-        ! [Werner Dobrautz 5.5.2017:]
-        ! if this is a continued run from a histogramming tau-search
-        ! and a restart of the tau-search is not forced by input, turn
-        ! both the new and the old tau-search off!
-        ! i cannot do it here, since this is called before the popsfile read-in
-        if (t_previous_hist_tau) then
-            ! i have to check for tau-search option and stuff also, so that
-            ! the death tau adaption is still used atleast! todo!
-            tSearchTau = .false.
-            t_hist_tau_search = .false.
-            t_fill_frequency_hists = .false.
-            Write(iout,*) "Turning OFF the tau-search, since continued run!"
-        end if
-
-        ! [W.D.] I guess I want to initialize that before the tau-search,
-        ! or otherwise some pgens get calculated incorrectly
-        if (t_back_spawn .or. t_back_spawn_flex) then
-            call init_back_spawn()
-        end if
-
-        ! also i should warn the user if this is a restarted run with a
-        ! set delay in the back-spawning method:
-        ! is there actually a use-case where someone really wants to delay
-        ! a back-spawn in a restarted run?
-        if (tReadPops .and. back_spawn_delay /= 0) then
-            call Warning_neci(t_r, &
-                "Do you really want a delayed back-spawn in a restarted run?")
-        end if
-
-
-        if (tSearchTau) then
-            call init_tau_search()
-
-            ! [Werner Dobrautz 4.4.2017:]
-            if (t_hist_tau_search) then
-                ! some setup went wrong!
-                call Stop_All(t_r, &
-                    "Input error! both standard AND Histogram tau-search chosen!")
-            end if
-
-        else if (t_hist_tau_search) then
-            call init_hist_tau_search()
-
-        else
-            ! Add a couple of checks for sanity
-            if (nOccAlpha == 0 .or. nOccBeta == 0) then
-                pParallel = 1.0_dp
-            end if
-            if (nOccAlpha == 1 .and. nOccBeta == 1) then
-                pParallel = 0.0_dp
-            end if
-        end if
 
         IF(abs(StepsSftImag) > 1.0e-12_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
@@ -1583,6 +1540,57 @@ contains
 
         ! initialize excitation generator
         if(t_pcpp_excitgen) call init_pcpp_excitgen()
+        if(t_pchb_excitgen) call init_pchb_excitgen()
+        ! [W.D.] I guess I want to initialize that before the tau-search,
+        ! or otherwise some pgens get calculated incorrectly
+        if (t_back_spawn .or. t_back_spawn_flex) then
+           call init_back_spawn()
+        end if
+        ! also i should warn the user if this is a restarted run with a
+        ! set delay in the back-spawning method:
+        ! is there actually a use-case where someone really wants to delay
+        ! a back-spawn in a restarted run?
+        if (tReadPops .and. back_spawn_delay /= 0) then
+           call Warning_neci(t_r, &
+                "Do you really want a delayed back-spawn in a restarted run?")
+        end if
+
+        ! [Werner Dobrautz 5.5.2017:]
+        ! if this is a continued run from a histogramming tau-search
+        ! and a restart of the tau-search is not forced by input, turn
+        ! both the new and the old tau-search off!
+        ! i cannot do it here, since this is called before the popsfile read-in
+        if (t_previous_hist_tau) then
+           ! i have to check for tau-search option and stuff also, so that
+           ! the death tau adaption is still used atleast! todo!
+           tSearchTau = .false.
+           t_hist_tau_search = .false.
+           t_fill_frequency_hists = .false.
+           Write(iout,*) "Turning OFF the tau-search, since continued run!"
+        end if
+
+        if (tSearchTau) then
+           call init_tau_search()
+
+           ! [Werner Dobrautz 4.4.2017:]
+           if (t_hist_tau_search) then
+              ! some setup went wrong!
+              call Stop_All(t_r, &
+                   "Input error! both standard AND Histogram tau-search chosen!")
+           end if
+
+        else if (t_hist_tau_search) then
+           call init_hist_tau_search()
+
+        else
+           ! Add a couple of checks for sanity
+           if (nOccAlpha == 0 .or. nOccBeta == 0) then
+              pParallel = 1.0_dp
+           end if
+           if (nOccAlpha == 1 .and. nOccBeta == 1) then
+              pParallel = 0.0_dp
+           end if
+        end if
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
@@ -1771,6 +1779,8 @@ contains
            generate_excitation => gen_excit_4ind_reverse
         elseif (t_pcpp_excitgen) then
            generate_excitation => gen_rand_excit_pcpp
+        elseif(t_pchb_excitgen) then
+           generate_excitation => gen_rand_excit_pchb
          else
             generate_excitation => gen_rand_excit
         endif
@@ -1869,6 +1879,12 @@ contains
         case default
            call stop_all(t_r,"Invalid scale function specified")
         end select
+
+        if(tAllAdaptiveShift) then
+           shiftScaleFunction => expShiftScaleFunction
+        else
+           shiftScaleFunction => constShiftScaleFunction
+        end if
 
     end subroutine init_fcimc_fn_pointers
 

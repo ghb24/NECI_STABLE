@@ -33,7 +33,7 @@ contains
     ! test the mapping of electrons
     call test_elec_mapping()
     ! run the excitgen test: do nSamples excitations, and compare them with all possible excits
-    call test_excitation_generator(nSamples,pTot,pNull,numEx,nFound)
+    call test_excitation_generator(nSamples,pTot,pNull,numEx,nFound,.false.)
     ! make sure all excitations are found
     call assert_equals(numEx,nFound)
     ! make sure the probability is normalized - we don't require pNull to match exactly (that would mean generating all possible null excitations)

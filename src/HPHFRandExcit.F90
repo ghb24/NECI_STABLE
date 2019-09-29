@@ -12,7 +12,7 @@ MODULE HPHFRandExcitMod
     use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, &
-                          tUEG, tUEGNewGenerator
+                          tUEG, tUEGNewGenerator, t_pchb_excitgen
     use IntegralsData, only: UMat, fck, nMax
     use SymData, only: nSymLabels
     use dSFMT_interface, only : genrand_real2_dSFMT
@@ -32,6 +32,7 @@ MODULE HPHFRandExcitMod
     use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: excit_gen_store_type
     use excit_gen_5, only: calc_pgen_4ind_weighted2, gen_excit_4ind_weighted2
+    use pchb_excitgen, only: calc_pgen_pchb, gen_rand_excit_pchb
     use sort_mod
     use HElem
     use CalcData, only: t_matele_cutoff, matele_cutoff, t_back_spawn, t_back_spawn_flex
@@ -191,6 +192,9 @@ MODULE HPHFRandExcitMod
             call gen_excit_4ind_weighted2(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pGen, Hel, &
                                           store)
+        else if (t_pchb_excitgen) then
+            call gen_rand_excit_pchb(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
+                                 tSignOrig, pGen, HEl, store)
         else
             call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
                                  tSignOrig, pGen, HEl, store)
@@ -1010,6 +1014,8 @@ MODULE HPHFRandExcitMod
                                                 ClassCountUnocc2)
             else if (tGen_4ind_reverse) then
                 pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
+            else if (t_pchb_excitgen) then
+                pgen = calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2)
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

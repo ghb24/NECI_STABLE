@@ -146,6 +146,11 @@ MODULE FciMCData
       integer :: sfTag
       real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
+      ! scaling of shift
+      ! if true, the shift is always scaled with the population on each det
+      logical :: tAllAdaptiveShift = .false.
+      ! control parameter for shift scaling
+      real(dp) :: cAllAdaptiveShift
       ! flag to indicate that the number of spawns shall be tracked
       logical :: tLogNumSpawns
       ! total truncated weight
@@ -449,6 +454,9 @@ MODULE FciMCData
 
 !      ! Excitation generation storage
       type(excit_gen_store_type) :: fcimc_excit_gen_store
+
+      ! auxiliary variables used to determine AvMCExcits on the fly
+      integer :: nInvalidExcits, nValidExcits, allNInvalidExcits, allNValidExcits
 
       ! Tau searching variables
       ! tSearchTau specifies if we are searching tau

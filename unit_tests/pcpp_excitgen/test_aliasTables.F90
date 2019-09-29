@@ -55,19 +55,6 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine create_rand_probs(w)
-    real(dp), intent(out) :: w(:)
-    integer :: i
-    ! create some random probabilities
-    do i = 1, size(w)
-       w(i) = genrand_real2_dSFMT()
-    end do
-    ! normalize the probs
-    w = w / sum(w)
-  end subroutine create_rand_probs
-
-  !------------------------------------------------------------------------------------------!
-
   function get_diff(hist,nSamples,w) result(diff)
     integer, intent(in) :: hist(:), nSamples
     real(dp), intent(in) :: w(:)
@@ -142,5 +129,19 @@ contains
     call assert_true(sum(abs(probs-w)) < eps)
   end subroutine test_aliasSampler
 
+  !------------------------------------------------------------------------------------------!
+
+    subroutine create_rand_probs(w)
+      ! fill an array with a normalized distribution of uniform random numbers
+      ! Input: w - array of reals, on return filled with random numbers
+      real(dp), intent(out) :: w(:)
+      integer :: i
+      ! create some random probabilities
+      do i = 1, size(w)
+         w(i) = genrand_real2_dSFMT()
+      end do
+      ! normalize the probs
+      w = w / sum(w)
+    end subroutine create_rand_probs
 
 end program test_aliasTables

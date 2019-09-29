@@ -110,6 +110,7 @@ set( SRC_FILES
     Parallel_Calc.F90
     ParallelHelper.F90
     parallel_workarounds.F90
+    pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
     proc_ptrs.F90
@@ -158,7 +159,7 @@ set( SRC_FILES
     symrandexcit1.F
     symrandexcit2.F90
     symrandexcit3.F90
-	symrandexcit_Ex_Mag.F90
+    symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
     symrandexcit_csf.F90

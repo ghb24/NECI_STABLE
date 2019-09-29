@@ -18,8 +18,8 @@ module unit_test_helper_excitgen
   use SymExcit3, only: countExcitations3, GenExcitations3
   use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet, &
        fcimc_excit_gen_store
-  use SymExcitDataMod, only: excit_gen_store_type
-  use GenRandSymExcitNUMod, only: init_excit_gen_store
+  use SymExcitDataMod, only: excit_gen_store_type, scratchSize
+  use GenRandSymExcitNUMod, only: init_excit_gen_store, construct_class_counts
   use Calc, only: CalcInit, SetCalcDefaults
   use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
   use Determinants, only: DetInit, DetPreFreezeInit, get_helement
@@ -30,9 +30,26 @@ module unit_test_helper_excitgen
   integer, parameter :: nBasisBase = 12
   integer, parameter :: lmsBase = -1
 
+  abstract interface
+     function calc_pgen_t(nI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+       use constants
+       use SymExcitDataMod, only: scratchSize
+       use SystemData, only: nel
+       implicit none
+       integer, intent(in) :: nI(nel)
+       integer, intent(in) :: ex(2,2), ic
+       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
+
+       real(dp) :: pgen
+
+     end function calc_pgen_t
+ end interface
+
+ procedure(calc_pgen_t), pointer :: calc_pgen
+
 contains
 
-  subroutine test_excitation_generator(sampleSize, pTot, pNull, numEx, nFound)
+  subroutine test_excitation_generator(sampleSize, pTot, pNull, numEx, nFound, t_calc_pgen)
     ! Test an excitation generator by creating a large number of excitations and
     ! compare the generated excits with a precomputed list of all excitations
     ! We thus make sure that
@@ -42,6 +59,7 @@ contains
     integer, intent(in) :: sampleSize
     real(dp), intent(out) :: pTot, pNull
     integer, intent(out) :: numEx, nFound
+    logical, intent(in) :: t_calc_pgen
     integer :: nI(nel), nJ(nel)
     integer :: i, ex(2,2), exflag
     integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
@@ -50,10 +68,12 @@ contains
     integer :: j, nSingles, nDoubles
     integer(n_int), allocatable :: allEx(:,:)
     real(dp) :: pgenArr(lenof_sign)
-    real(dp) :: matel, matelN
+    real(dp) :: matel, matelN, pgenCalc
     logical :: exDoneDouble(0:nBasis,0:nBasis,0:nBasis,0:nBasis)
     logical :: exDoneSingle(0:nBasis,0:nBasis)
     integer :: ic, part, nullExcits
+    integer :: ClassCountOcc(scratchSize), ClassCountUnocc(scratchSize)
+    character(*), parameter :: t_r = "test_excitation_generator"
     HElement_t(dp) :: HEl
     exDoneDouble = .false.
     exDoneSingle = .false.
@@ -87,6 +107,9 @@ contains
        allEx(0:NIfDBO,numEx) = ilutJ(0:NIfDBO)
     end do
 
+    write(iout,*) "In total", numEx, "excits, (", nSingles,nDoubles,")"
+    write(iout,*) "Exciting from", nI
+
     ! set the biases for excitation generation
     pParallel = 0.5_dp
     pSingles = 0.1_dp
@@ -112,8 +135,8 @@ contains
        ! an excitaion
        if(.not. tFound .and. .not. nJ(1)==0) then
           call decode_bit_det(nJ,ilutJ)
-          write(iout,*) "Error: Invalid excitation", nJ
-          stop
+          write(iout,*) "Created excitation", nJ
+          call stop_all(t_r, "Error: Invalid excitation")
        endif
        ! check if the generated excitation is invalid, if it is, mark this specific constellation
        ! so we do not double-count when calculating pNull
@@ -142,19 +165,42 @@ contains
        matelN = matelN + abs(get_helement(nI,nJ))
     end do
     nFound = 0
-    write(iout,*) "Exciting from", nI
+    ! class counts might be required for comparing the pgen
+    call construct_class_counts(nI, classCountOcc, classCountUnocc)
     do i = 1, numEx
        call extract_sign(allEx(:,i),pgenArr)
        call decode_bit_det(nJ,allEx(:,i))
+       matel = get_helement(nI,nJ)
        if(pgenArr(1) > eps) then
           nFound = nFound + 1
-          matel = get_helement(nI,nJ)
           write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
                abs(matel)/(pgenArr(1)*matelN)
-       else if(i < nSingles) then
-          write(iout,*) "Unfound single excitation", nJ
+
+          ! compare the stored pgen to the directly computed one
+          if(t_calc_pgen) then
+             if(i > nSingles) then
+                ic = 2
+             else
+                ic = 1
+             endif
+             ex(1,1) = 2
+             call getBitExcitation(ilut,allEx(:,i),ex,tPar)
+             pgenCalc = calc_pgen(nI, ex, ic, ClassCountOcc, ClassCountUnocc)
+             if(abs(pgenArr(1)-pgenCalc) > eps) then
+                write(iout,*) "Stored: ", pgenArr(1), "calculated:", pgenCalc
+                write(iout,*) "For excit", nJ
+                call stop_all(t_r, "Incorrect pgen")
+             endif
+          endif
        else
-          write(iout,*) "Unfound double excitation", nJ, matel
+          ! excitations with zero matrix element are not required to be found
+          if(abs(matel) < eps) then
+             nFound = nFound + 1
+          else if(i < nSingles) then
+             write(iout,*) "Unfound single excitation", nJ
+          else
+             write(iout,*) "Unfound double excitation", nJ, matel
+          endif
        endif
        pTot = pTot + pgenArr(1)
     end do

@@ -1,7 +1,7 @@
 #include "macros.h"
 module pcpp_excitgen
   use constants
-  use aliasSampling, only: aliasSampler_t
+  use aliasSampling, only: aliasSampler_t, clear_sampler_array
   use bit_reps, only: niftot
   use SystemData, only: nel, nBasis, G1, BRR, symmax, Symmetry
   use sym_mod, only: symprod, symconj
@@ -90,7 +90,7 @@ contains
 
   subroutine generate_double_pcpp(nI, elec_map, ilut, nJ, excitMat, tParity, pGen)
     implicit none
-    ! given the initial determinant (both as nI and ilut), create a random single excitation
+    ! given the initial determinant (both as nI and ilut), create a random double excitation
     ! given by nJ/ilutnJ/excitMat with probability pGen. tParity indicates the fermi sign
     ! picked up by applying the excitation operator
     ! Input: nI - determinant to excite from
@@ -681,18 +681,6 @@ contains
     end do
     deallocate(double_hole_two_sampler)
   contains
-
-    subroutine clear_sampler_array(arr)
-      ! call the destructor on all elements of an array, then deallocate it
-      type(aliasSampler_t), allocatable :: arr(:)
-
-      integer :: i
-
-      do i = 1, size(arr)
-         call arr(i)%samplerDestructor()
-      end do
-      deallocate(arr)
-    end subroutine clear_sampler_array
 
   end subroutine finalize_pcpp_excitgen
 
