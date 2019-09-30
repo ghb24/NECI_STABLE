@@ -1811,7 +1811,12 @@ contains
                     call getf(AAS_SameSpin)
                 end if
             case("AAS-CONST")
+                !Adds a positive constant to both the numerator and denominator
+                !in auto-adaptive-shift's modification factor 
                 call getf(AAS_Const)
+                if(AAS_Const<0.0)then
+                    call stop_all(t_r, 'AAS-CONST should be greater than or equal zero.')
+                end if
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")
