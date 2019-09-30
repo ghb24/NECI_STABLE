@@ -17,7 +17,6 @@ module pchb_excitgen
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
-  use ParallelHelper, only: iProcIndex_intra
   implicit none
 
   type(aliasSamplerArray_t) :: pchb_sampler
@@ -226,7 +225,6 @@ module pchb_excitgen
       pDoubNew = 0.0
 
       ! tell about the memory cost
-      write(iout,*) "Finished PCHB excitation generator initialization"
       write(iout,*) "PCHB excitation generator requires", memCost/2.0_dp**30, "GB of memory"
     contains
 

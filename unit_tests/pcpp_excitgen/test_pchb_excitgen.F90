@@ -40,8 +40,8 @@ contains
 
     ! free memory
     call free_ref()
-    call finalize_pchb_excitgen()
     call finalize_excitgen_test()
+    call finalize_pchb_excitgen()
   end subroutine pchb_test_driver
 
 end program test_pcpp_excitgen
