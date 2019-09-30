@@ -9,6 +9,7 @@ module pchb_excitgen
   use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
        projEDet, pParallel, pDoubles
   use sltcnd_mod, only: sltcnd_excit
+  use shared_memory_mpi
   use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
   use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
@@ -21,7 +22,8 @@ module pchb_excitgen
   type(aliasSamplerArray_t) :: pchb_sampler
   integer(TagIntType) :: tagTgtOrbs, tagPCHBSampler, tagAllowed
   ! the mappings sampling index -> (a,b) and ab -> sampling index
-  integer, allocatable :: tgtOrbs(:,:,:), allowedOrbs(:,:)
+  integer(int32), pointer :: allowedOrbs(:,:), tgtOrbs(:,:,:)
+  integer(MPIArg) :: win_tgt, win_allowed
 
   contains
 
@@ -112,7 +114,12 @@ module pchb_excitgen
       ! get a pair of orbitals using the precomputed weights
       call pchb_sampler%aSample(ij,ab,pGenHoles)
       ! split the index ab (using a table containing mapping ab -> (a,b))
-      orbs = tgtOrbs(:,ij,ab)
+      ! catch exception of no possible excitation
+      if(ab == 0) then
+         orbs = 0
+      else
+         orbs = tgtOrbs(:,ij,ab)
+      endif
 
       ! check if the picked orbs are a valid choice - if they are the same, match one
       ! occupied orbital or are zero (maybe because there are no allowed picks for
@@ -196,7 +203,8 @@ module pchb_excitgen
       ! 1. setup the lookup table for the mapping ab -> (a,b)
       ! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
       implicit none
-      integer :: ab, a, b, abMax, ijMax
+      integer :: ab, a, b
+      integer :: abMax, ijMax
       integer :: nBI
       integer :: aerr
       integer(int64) :: memCost
@@ -235,13 +243,13 @@ module pchb_excitgen
         integer(int64) :: tgtOrbsCost, allowedOrbsCost
 
         ! initialize the mapping ab -> (a,b)
-        allocate(tgtOrbs(2,ijMax,0:abMax), stat = aerr)
-        tgtOrbsCost = 2*ijMax*(1+abMax)
+        call shared_allocate_mpi(win_tgt, tgtOrbs, (/2_int64,int(ijMax,int64),int(abMax,int64)/))
+        tgtOrbsCost = 2*ijMax*abMax
         call LogMemAlloc("tgtOrbs",int(tgtOrbsCost),4,t_r,tagTgtOrbs)
         memCost = memCost + tgtOrbsCost*4
 
         ! and the inverse mapping: (a,b) -> ab (contiguously sampled index)
-        allocate(allowedOrbs(ijMax,abMax), stat = aerr)
+        call shared_allocate_mpi(win_allowed, allowedOrbs, (/int(ijMax,int64),int(abMax,int64)/))
         allowedOrbsCost = ijMax*abMax
         call LogMemAlloc("abAllowed",int(allowedOrbsCost),4,t_r,tagAllowed)
         memCost = memCost + allowedOrbsCost*4
@@ -340,8 +348,11 @@ module pchb_excitgen
       call pchb_sampler%samplerArrayDestructor()
       call LogMemDealloc(t_r, tagPCHBSampler)
 
-      if(allocated(tgtOrbs)) deallocate(tgtOrbs)
+      if(associated(tgtOrbs)) call shared_deallocate_mpi(win_tgt, tgtOrbs)
       call LogMemDealloc(t_r, tagTgtOrbs)
+
+      if(associated(allowedOrbs)) call shared_deallocate_mpi(win_allowed, allowedOrbs)
+      call LogMemDealloc(t_r, tagAllowed)
 
     end subroutine finalize_pchb_sampler
 
