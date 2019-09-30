@@ -262,11 +262,10 @@ module pchb_excitgen
 
         write(iout,*) "Determining memory requirements"
 
-        ! the number of possible (i.e. allowed) excitations per ij
-        allocate(abAllowed(ijMax))
-        abAllowed= 0_int64
-
         if(iProcIndex_intra == 0) then
+           ! the number of possible (i.e. allowed) excitations per ij
+           allocate(abAllowed(ijMax))
+           abAllowed= 0_int64
            ! probe the required size of
            do i = 1, nBasis
               ex(1,1) = i
@@ -295,40 +294,40 @@ module pchb_excitgen
                  end do
               end do
            end do
-        endif
 
-        ! allocate the sampler and set the internal pointers
-        call pchb_sampler%setupSamplerArray(int(ijMax,int64),abAllowed)
-        ! Log the allocation
-        call LogMemAlloc("pchb sampler",int(sum(abAllowed)),8,t_r,tagPCHBSampler)
-        ! Inform about memory cost
-        memCost = memCost + sum(abAllowed)*24.0_dp
+           ! allocate the sampler and set the internal pointers
+           call pchb_sampler%setupSamplerArray(int(ijMax,int64),abAllowed)
+           ! Log the allocation
+           call LogMemAlloc("pchb sampler",int(sum(abAllowed)),8,t_r,tagPCHBSampler)
+           ! Inform about memory cost
+           memCost = memCost + sum(abAllowed)*24.0_dp
 
-        write(iout,*) "Setting up sampler"
+           write(iout,*) "Setting up sampler"
 
-        ! now, create the probability tables
-        do i = 1, nBasis
-           ! the loop over electrons works the same as in probing
-           ex(1,1) = i
-           do j = 1, i-1
-              ex(1,2) = j
-              ij = fuseIndex(i,j)
-              ! weights per pair
-              allocate(w(abAllowed(ij)), stat = aerr)
+           ! now, create the probability tables
+           do i = 1, nBasis
+              ! the loop over electrons works the same as in probing
+              ex(1,1) = i
+              do j = 1, i-1
+                 ex(1,2) = j
+                 ij = fuseIndex(i,j)
+                 ! weights per pair
+                 allocate(w(abAllowed(ij)), stat = aerr)
 
-              ! loop over all pairs for which pgen is nonzero
-              do ab = 1, abAllowed(ij)
-                 ex(2,:) = tgtOrbs(:,ij,ab)
-                 ! and get the (nonzero) weight
-                 w(ab) = get_weight(ex)
+                 ! loop over all pairs for which pgen is nonzero
+                 do ab = 1, abAllowed(ij)
+                    ex(2,:) = tgtOrbs(:,ij,ab)
+                    ! and get the (nonzero) weight
+                    w(ab) = get_weight(ex)
+                 end do
+
+                 call pchb_sampler%setupEntry(ij,w)
+                 deallocate(w)
               end do
-
-              call pchb_sampler%setupEntry(ij,w)
-              deallocate(w)
            end do
-        end do
 
-        deallocate(abAllowed)
+           deallocate(abAllowed)
+        end if
 
       end subroutine setup_pchb_sampler
 
