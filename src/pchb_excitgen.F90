@@ -9,7 +9,8 @@ module pchb_excitgen
   use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
        projEDet, pParallel, pDoubles
   use sltcnd_mod, only: sltcnd_excit
-  use UMatCache, only: gtID
+  use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+  use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
   use util_mod, only: fuseIndex, linearIndex
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
@@ -18,16 +19,18 @@ module pchb_excitgen
   implicit none
 
   type(aliasSamplerArray_t) :: pchb_sampler
-  integer, allocatable :: tgtOrbs(:,:)
+  integer(TagIntType) :: tagTgtOrbs, tagPCHBSampler, tagAllowed
+  ! the mappings sampling index -> (a,b) and ab -> sampling index
+  integer, allocatable :: tgtOrbs(:,:,:), allowedOrbs(:,:)
 
-  contains 
+  contains
 
     ! this is the interface routine: for singles, use the uniform excitgen
     ! for doubles, the precomputed heat-bath weights
     subroutine gen_rand_excit_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tpar, &
          pgen, helgen, store, part_type)
       implicit none
-    ! The interface is common to all excitation generators, see proc_ptrs.F90      
+    ! The interface is common to all excitation generators, see proc_ptrs.F90
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel), ic, ex(2,2)
@@ -83,7 +86,7 @@ module pchb_excitgen
       !        excitMat - on return, excitation matrix nI -> nJ
       !        tParity - on return, the parity of the excitation nI -> nJ
       !        pGen - on return, the probability of generating the excitation nI -> nJ
-      
+
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel)
@@ -96,7 +99,7 @@ module pchb_excitgen
       integer :: orbs(2), srcID(2), ab
       real(dp) :: pGenHoles
       logical :: invalid
-      
+
       ! first, pick two random elecs
       call pick_biased_elecs(nI,elecs,src,sym_prod,ispn,sum_ml,pgen)
 
@@ -109,7 +112,7 @@ module pchb_excitgen
       ! get a pair of orbitals using the precomputed weights
       call pchb_sampler%aSample(ij,ab,pGenHoles)
       ! split the index ab (using a table containing mapping ab -> (a,b))
-      orbs = tgtOrbs(:,ab)
+      orbs = tgtOrbs(:,ij,ab)
 
       ! check if the picked orbs are a valid choice - if they are the same, match one
       ! occupied orbital or are zero (maybe because there are no allowed picks for
@@ -142,9 +145,9 @@ module pchb_excitgen
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: ex(2,2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-      
+
       real(dp) :: pgen
-      
+
       if(ic==1) then
          ! single excitations are the job of the uniform excitgen
          call calc_pgen_symrandexcit2(nI,ex,ic,ClassCount2, ClassCountUnocc2, pDoubles, pGen)
@@ -162,9 +165,9 @@ module pchb_excitgen
       implicit none
       integer, intent(in) :: ex(2,2)
       real(dp) :: pgen
-      integer :: ab, ij
+      integer :: ab, ij, tgt
 
-      ! the probability of picking the two electrons: they are chosen uniformly         
+      ! the probability of picking the two electrons: they are chosen uniformly
       if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
          pgen = pParallel / par_elec_pairs
       else
@@ -174,8 +177,15 @@ module pchb_excitgen
       ! look up the probability for this excitation in the sampler
       ij = fuseIndex(ex(1,1),ex(1,2))
       ab = fuseIndex(ex(2,1),ex(2,2))
-      pgen = pgen * pchb_sampler%aGetProb(ij,ab)
-      
+      ! the sampling index
+      tgt = allowedOrbs(ij,ab)
+      if(tgt == 0) then
+         ! sampling index 0 means ab is not in the sampled set, hence pgen is 0
+         pgen = 0.0_dp
+      else
+         pgen = pgen * pchb_sampler%aGetProb(ij,tgt)
+      endif
+
     end function calc_double_pgen_pchb
 
   !------------------------------------------------------------------------------------------!
@@ -186,77 +196,153 @@ module pchb_excitgen
       ! 1. setup the lookup table for the mapping ab -> (a,b)
       ! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
       implicit none
-      integer :: ab, a, b, abMax
+      integer :: ab, a, b, abMax, ijMax
+      integer :: nBI
       integer :: aerr
-      ! initialize the mapping ab -> (a,b)
+      integer(int64) :: memCost
+      character(*), parameter :: t_r = "init_pchb_excitgen"
+
+      ! total memory cost
+      memCost = 0_int64
+      write(iout,*) "Initializing pchb excitation generator"
+      ! number of spatial orbitals
+      nBI= numBasisIndices(nBasis)
+      ! number of possible source/target orbital pairs
+      ijMax = fuseIndex(nBasis,nBasis)
       abMax = fuseIndex(nBasis,nBasis)
-      allocate(tgtOrbs(2,0:abMax), stat = aerr)
-      do a = 1, nBasis
-         do b = 1, a-1
-            ab = fuseIndex(a,b)
-            tgtOrbs(1,ab) = b
-            tgtOrbs(2,ab) = a
-         end do
-      end do
-
-      ! enable catching exceptions
-      tgtOrbs(:,0) = 0
-
       ! setup the alias table
       call setup_pchb_sampler()
 
       ! this is some bias used internally by CreateSingleExcit - not used here
       pDoubNew = 0.0
+
+      ! tell about the memory cost
+      write(iout,*) "PCHB excitation generator requires", memCost/2.0_dp**30, "GB of memory"
     contains
 
       subroutine setup_pchb_sampler()
+        ! This first determines the required memory for each pair of electrons,
+        ! and lists the possible target orbitals. Then, the samplers are allocated
+        ! accordingly, and seeded with these weights. Only nonzero weights are considered,
+        ! this both reduces memory cost and fixes an extremely rare bug where a zero-weight excitation
+        ! can be generated due to rounding errors.
         implicit none
         integer :: i,j
-        integer :: ij, ijMax
+        integer :: ij
         integer :: ex(2,2)
         real(dp), allocatable :: w(:)
-        ! number of possible source orbital pairs
-        ijMax = fuseIndex(nBasis,nBasis)
-        call pchb_sampler%setupSamplerArray(int(ijMax,int64),int(abMax,int64))
+        integer(int64), allocatable :: abAllowed(:)
+        integer(int64) :: tgtOrbsCost, allowedOrbsCost
 
-        ! weights per 
-        allocate(w(abMax), stat = aerr)        
+        ! initialize the mapping ab -> (a,b)
+        allocate(tgtOrbs(2,ijMax,0:abMax), stat = aerr)
+        tgtOrbsCost = 2*ijMax*(1+abMax)
+        call LogMemAlloc("tgtOrbs",int(tgtOrbsCost),4,t_r,tagTgtOrbs)
+        memCost = memCost + tgtOrbsCost*4
+
+        ! and the inverse mapping: (a,b) -> ab (contiguously sampled index)
+        allocate(allowedOrbs(ijMax,abMax), stat = aerr)
+        allowedOrbsCost = ijMax*abMax
+        call LogMemAlloc("abAllowed",int(allowedOrbsCost),4,t_r,tagAllowed)
+        memCost = memCost + allowedOrbsCost*4
+
+        ! enable catching exceptions
+        tgtOrbs = 0
+        allowedOrbs = 0
+
+        write(iout,*) "Determining memory requirements"
+        ! the number of possible (i.e. allowed) excitations per ij
+        allocate(abAllowed(ijMax))
+        abAllowed= 0_int64
+        ! probe the required size of
         do i = 1, nBasis
            ex(1,1) = i
            ! as we order a,b, we can assume j < i (j==i is not possible)
            do j = 1, i-1
-              w = 0.0_dp
               ex(1,2) = j
               ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
               ! weights to prepare the sampler
+              ij = fuseIndex(i,j)
               do a = 1, nBasis
                  ex(2,2) = a
                  do b = 1, a-1
                     ab = fuseIndex(a,b)
                     ! ex(2,:) is in ascending order
                     ex(2,1) = b
-                    ! use the actual matrix elements as weights
-                    w(ab) = abs(sltcnd_excit(projEDet(:,1),2,ex,.false.))
+                    ! use the actual matrix elements as weights - only store nonzero weights
+                    if(get_weight(ex) > eps) then
+                       abAllowed(ij) = abAllowed(ij) + 1
+                       ! memorize the target orbitals
+                       tgtOrbs(1,ij,abAllowed(ij)) = b
+                       tgtOrbs(2,ij,abAllowed(ij)) = a
+                       ! memorize the index of ab in the sampling range
+                       allowedOrbs(ij,ab) = abAllowed(ij)
+                    endif
                  end do
               end do
-              ij = fuseIndex(i,j)
-              call pchb_sampler%setupEntry(ij,w)
            end do
         end do
 
-        deallocate(w)
+        ! allocate the sampler and set the internal pointers
+        call pchb_sampler%setupSamplerArray(int(ijMax,int64),abAllowed)
+        ! Log the allocation
+        call LogMemAlloc("pchb sampler",int(sum(abAllowed)),8,t_r,tagPCHBSampler)
+        ! Inform about memory cost
+        memCost = memCost + sum(abAllowed)*24.0_dp
+
+        write(iout,*) "Setting up sampler"
+
+        ! now, create the probability tables
+        do i = 1, nBasis
+           ! the loop over electrons works the same as in probing
+           ex(1,1) = i
+           do j = 1, i-1
+              ex(1,2) = j
+              ij = fuseIndex(i,j)
+              ! weights per pair
+              allocate(w(abAllowed(ij)), stat = aerr)
+
+              ! loop over all pairs for which pgen is nonzero
+              do ab = 1, abAllowed(ij)
+                 ex(2,:) = tgtOrbs(:,ij,ab)
+                 ! and get the (nonzero) weight
+                 w(ab) = get_weight(ex)
+              end do
+
+              call pchb_sampler%setupEntry(ij,w)
+              deallocate(w)
+           end do
+        end do
+
+        deallocate(abAllowed)
+
       end subroutine setup_pchb_sampler
+
+      function get_weight(ex) result(weight)
+        ! Defines how excitations are weighted
+        ! Input: ex - excitation matrix
+        ! Output weight - the unnormalized probability of drawing this excitation with given electrons
+        implicit none
+        integer, intent(in) :: ex(2,2)
+        real(dp) :: weight
+        ! weight the excitations with the matrix elements
+        weight = abs(sltcnd_excit(projEDet(:,1),2,ex,.false.))
+      end function get_weight
     end subroutine init_pchb_excitgen
-    
+
   !------------------------------------------------------------------------------------------!
 
     subroutine finalize_pchb_sampler()
       ! deallocate the sampler and the mapping ab -> (a,b)
       implicit none
+      character(*), parameter :: t_r = "finalize_pchb_sampler"
 
       call pchb_sampler%samplerArrayDestructor()
-      deallocate(tgtOrbs)
-     
+      call LogMemDealloc(t_r, tagPCHBSampler)
+
+      if(allocated(tgtOrbs)) deallocate(tgtOrbs)
+      call LogMemDealloc(t_r, tagTgtOrbs)
+
     end subroutine finalize_pchb_sampler
-    
+
   end module pchb_excitgen
