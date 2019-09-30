@@ -42,29 +42,14 @@ sizeb=(2*sizeof_dp)
 #####################
 
 [arr_int]
-dim=:,:
-rank=2
-type1=integer(int32)
+type1=integer(int32), dimension(:)
 mpitype=MPI_INTEGER4
 sizeb=4
 
 [arr_int64]
-dim=:,:
-rank=2
-type1=integer(int64)
+type1=integer(int64), dimension(:)
 mpitype=MPI_INTEGER8
 sizeb=8
-
-#####################
-# 2-D Arrays
-#####################
-
-[arr2d_int]
-dim=:,:,:
-rank=3
-type1=integer(int32)
-mpitype=MPI_INTEGER4
-sizeb=4
 
 ===================
 
