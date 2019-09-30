@@ -259,73 +259,70 @@ module pchb_excitgen
         allowedOrbs = 0
 
         write(iout,*) "Determining memory requirements"
-
-        if(iProcIndex_intra == 0) then
-           ! the number of possible (i.e. allowed) excitations per ij
-           allocate(abAllowed(ijMax))
-           abAllowed= 0_int64
-           ! probe the required size of
-           do i = 1, nBasis
-              ex(1,1) = i
-              ! as we order a,b, we can assume j < i (j==i is not possible)
-              do j = 1, i-1
-                 ex(1,2) = j
-                 ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
-                 ! weights to prepare the sampler
-                 ij = fuseIndex(i,j)
-                 do a = 1, nBasis
-                    ex(2,2) = a
-                    do b = 1, a-1
-                       ab = fuseIndex(a,b)
-                       ! ex(2,:) is in ascending order
-                       ex(2,1) = b
-                       ! use the actual matrix elements as weights - only store nonzero weights
-                       if(get_weight(ex) > eps) then
-                          abAllowed(ij) = abAllowed(ij) + 1
-                          ! memorize the target orbitals
-                          tgtOrbs(1,ij,abAllowed(ij)) = b
-                          tgtOrbs(2,ij,abAllowed(ij)) = a
-                          ! memorize the index of ab in the sampling range
-                          allowedOrbs(ij,ab) = abAllowed(ij)
-                       endif
-                    end do
+        ! the number of possible (i.e. allowed) excitations per ij
+        allocate(abAllowed(ijMax))
+        abAllowed= 0_int64
+        ! probe the required size of
+        do i = 1, nBasis
+           ex(1,1) = i
+           ! as we order a,b, we can assume j < i (j==i is not possible)
+           do j = 1, i-1
+              ex(1,2) = j
+              ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
+              ! weights to prepare the sampler
+              ij = fuseIndex(i,j)
+              do a = 1, nBasis
+                 ex(2,2) = a
+                 do b = 1, a-1
+                    ab = fuseIndex(a,b)
+                    ! ex(2,:) is in ascending order
+                    ex(2,1) = b
+                    ! use the actual matrix elements as weights - only store nonzero weights
+                    if(get_weight(ex) > eps) then
+                       abAllowed(ij) = abAllowed(ij) + 1
+                       ! memorize the target orbitals
+                       tgtOrbs(1,ij,abAllowed(ij)) = b
+                       tgtOrbs(2,ij,abAllowed(ij)) = a
+                       ! memorize the index of ab in the sampling range
+                       allowedOrbs(ij,ab) = abAllowed(ij)
+                    endif
                  end do
               end do
            end do
+        end do
 
-           ! allocate the sampler and set the internal pointers
-           call pchb_sampler%setupSamplerArray(int(ijMax,int64),abAllowed)
-           ! Log the allocation
-           call LogMemAlloc("pchb sampler",int(sum(abAllowed)),8,t_r,tagPCHBSampler)
-           ! Inform about memory cost
-           memCost = memCost + sum(abAllowed)*24.0_dp
+        ! allocate the sampler and set the internal pointers
+        call pchb_sampler%setupSamplerArray(int(ijMax,int64),abAllowed)
+        ! Log the allocation
+        call LogMemAlloc("pchb sampler",int(sum(abAllowed)),8,t_r,tagPCHBSampler)
+        ! Inform about memory cost
+        memCost = memCost + sum(abAllowed)*24.0_dp
 
-           write(iout,*) "Setting up sampler"
+        write(iout,*) "Setting up sampler"
 
-           ! now, create the probability tables
-           do i = 1, nBasis
-              ! the loop over electrons works the same as in probing
-              ex(1,1) = i
-              do j = 1, i-1
-                 ex(1,2) = j
-                 ij = fuseIndex(i,j)
-                 ! weights per pair
-                 allocate(w(abAllowed(ij)), stat = aerr)
+        ! now, create the probability tables
+        do i = 1, nBasis
+           ! the loop over electrons works the same as in probing
+           ex(1,1) = i
+           do j = 1, i-1
+              ex(1,2) = j
+              ij = fuseIndex(i,j)
+              ! weights per pair
+              allocate(w(abAllowed(ij)), stat = aerr)
 
-                 ! loop over all pairs for which pgen is nonzero
-                 do ab = 1, abAllowed(ij)
-                    ex(2,:) = tgtOrbs(:,ij,ab)
-                    ! and get the (nonzero) weight
-                    w(ab) = get_weight(ex)
-                 end do
-
-                 call pchb_sampler%setupEntry(ij,w)
-                 deallocate(w)
+              ! loop over all pairs for which pgen is nonzero
+              do ab = 1, abAllowed(ij)
+                 ex(2,:) = tgtOrbs(:,ij,ab)
+                 ! and get the (nonzero) weight
+                 w(ab) = get_weight(ex)
               end do
-           end do
 
-           deallocate(abAllowed)
-        end if
+              call pchb_sampler%setupEntry(ij,w)
+              deallocate(w)
+           end do
+        end do
+
+        deallocate(abAllowed)
 
       end subroutine setup_pchb_sampler
 
@@ -343,7 +340,7 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
-    subroutine finalize_pchb_excitgen()
+    subroutine finalize_pchb_sampler()
       ! deallocate the sampler and the mapping ab -> (a,b)
       implicit none
       character(*), parameter :: t_r = "finalize_pchb_sampler"
@@ -357,6 +354,6 @@ module pchb_excitgen
       if(associated(allowedOrbs)) call shared_deallocate_mpi(win_allowed, allowedOrbs)
       call LogMemDealloc(t_r, tagAllowed)
 
-    end subroutine finalize_pchb_excitgen
+    end subroutine finalize_pchb_sampler
 
   end module pchb_excitgen
