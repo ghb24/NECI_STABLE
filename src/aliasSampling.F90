@@ -405,7 +405,7 @@ contains
 
     ! the probability of drawing anything from an empty sampler is 0
     if(.not.associated(this%probs)) then
-       prob = 1.0
+       prob = 0.0
     else
        prob = this%probs(tgt)
     endif
@@ -453,11 +453,10 @@ contains
   ! required for larger systems)
   !------------------------------------------------------------------------------------------!
 
-  subroutine setupSamplerArray(this, nEntries, entrySizes)
+  subroutine setupSamplerArray(this, nEntries, entrySize)
     implicit none
     class(aliasSamplerArray_t) :: this
-    integer(int64), intent(in) :: nEntries
-    integer(int64), intent(in) :: entrySizes(nEntries)
+    integer(int64), intent(in) :: nEntries, entrySize
     integer(int64) :: totalSize
     integer(int64) :: iEntry, windowStart, windowEnd
     real(dp), pointer :: probPtr(:)
@@ -468,17 +467,17 @@ contains
 
     ! all entries in the array use the same shared memory window, just different
     ! portions of it
-    totalSize = sum(entrySizes)
+    totalSize = nEntries * entrySize
     call safe_shared_memory_alloc(this%allProbsShmw, this%allProbs, totalSize)
     call safe_shared_memory_alloc(this%allBiasShmw, this%allBiasTable, totalSize)
     if(associated(this%allAliasTable)) &
          call shared_deallocate_mpi(this%allAliasShmw, this%allAliasTable)
     call shared_allocate_mpi(this%allAliasShmw, this%allAliasTable, (/totalSize/))
 
-    windowStart = 1
     do iEntry = 1, nEntries
        ! from where to where this entry has memory access in the shared resources
-       windowEnd = windowStart + entrySizes(iEntry) - 1
+       windowStart = (iEntry-1)*entrySize + 1
+       windowEnd = windowStart + entrySize - 1
 
        ! set this entry's pointers
        probPtr => this%allProbs(windowStart:windowEnd)
@@ -489,9 +488,6 @@ contains
 
        biasPtr => this%allBiasTable(windowStart:windowEnd)
        call this%samplerArray(iEntry)%setBiasPtr(biasPtr)
-
-       ! where the next segment starts
-       windowStart = windowEnd + 1
     end do
 
   end subroutine setupSamplerArray

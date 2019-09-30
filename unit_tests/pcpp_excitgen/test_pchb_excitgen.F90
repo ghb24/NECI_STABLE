@@ -5,12 +5,12 @@ program test_pcpp_excitgen
   use unit_test_helper_excitgen
   use procedure_pointers, only: generate_excitation
   implicit none
-
+  
   call init_fruit()
   call pchb_test_driver()
   call fruit_summary()
   call fruit_finalize()
-
+  
 contains
 
   subroutine pchb_test_driver()
@@ -36,7 +36,7 @@ contains
     ! make sure all excits have been found
     call assert_equals(numEx,nFound)
     ! and the total prob is 1.0
-    call assert_true(abs(1.0-pTot) < 0.0001)
+    call assert_true(abs(1.0-pTot) < 0.01)
 
     ! free memory
     call free_ref()
