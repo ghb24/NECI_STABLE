@@ -15,7 +15,7 @@ module fcimc_pointed_fns
                         tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
                         tAAS_Add_Diag, tPrecond
     use DetCalcData, only: FciDetIndex, det
-    use procedure_pointers, only: get_spawn_helement
+    use procedure_pointers, only: get_spawn_helement, shiftScaleFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use load_balance, only: scaleFunction
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
@@ -623,7 +623,10 @@ module fcimc_pointed_fns
                     shift = DiagSft(i)*tmp**AdaptiveShiftExpo
                 else
                     shift = DiagSft(i)
-                endif
+                 endif
+                 ! rescale the shift depending only on the local population
+                if(tAllAdaptiveShift) shift = shift * shiftScaleFunction(mag_of_run(RealwSign,i))
+
                 fac(i)=tau*(Kii-shift)
                 ! And for tau searching purposes
                 call log_death_magnitude (Kii - shift)
@@ -771,7 +774,7 @@ module fcimc_pointed_fns
 
 !------------------------------------------------------------------------------------------!
 
-    function powerScaleFunction(hdiag) result(Si)
+    pure function powerScaleFunction(hdiag) result(Si)
       implicit none
 
       real(dp), intent(in) :: hdiag
@@ -782,7 +785,7 @@ module fcimc_pointed_fns
 
 !------------------------------------------------------------------------------------------!
 
-    function expScaleFunction(hdiag) result(Si)
+    pure function expScaleFunction(hdiag) result(Si)
       implicit none
 
       real(dp), intent(in) :: hdiag
@@ -793,7 +796,7 @@ module fcimc_pointed_fns
 
 !------------------------------------------------------------------------------------------!
 
-    function expCOScaleFunction(hdiag) result(Si)
+    pure function expCOScaleFunction(hdiag) result(Si)
       implicit none
 
       real(dp), intent(in) :: hdiag
@@ -804,7 +807,7 @@ module fcimc_pointed_fns
 
 !------------------------------------------------------------------------------------------!
 
-    function negScaleFunction(hdiag) result(Si)
+    pure function negScaleFunction(hdiag) result(Si)
       implicit none
 
       real(dp), intent(in) :: hdiag
@@ -813,5 +816,38 @@ module fcimc_pointed_fns
       Si = -1
 
     end function negScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    pure function expShiftScaleFunction(ci) result(Si)
+      implicit none
+      ! Scale function for the shift: S' = (1 - exp(-ci/c)) * S
+      ! Input: ci - walker number of given determinant
+      ! Output: Si - scaling factor for the shift
+      real(dp), intent(in) :: ci
+      real(dp) :: Si
+
+      Si = 1.0 - exp(-ci/cAllAdaptiveShift)
+
+    end function expShiftScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    pure function constShiftScaleFunction(ci) result(Si)
+      implicit none
+      ! Scale function for the shift: S' = S in absence of all-adaptive-shift
+      ! Input: ci - walker number of given determinant
+      ! Output: Si - scaling factor for the shift
+
+      real(dp), intent(in) :: ci
+      real(dp) :: Si
+#ifdef __DEBUG
+      ! Disable compiler warnings
+      real(dp) :: dummy
+      dummy = ci
+#endif
+
+      Si = 1.0
+    end function constShiftScaleFunction
 
 end module

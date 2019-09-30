@@ -547,7 +547,7 @@ MODULE Logging
 !If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2,
 ! only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found.
             calcrdmonfly_in_inp = .true.
-            tRDMonFly=.true.
+            tRDMonFly = .true.
             tCheckHighestPop = .true.
             call readi(RDMExcitLevel)
             call readi(IterRDMonFly)
@@ -575,15 +575,15 @@ MODULE Logging
 !> The syntax is ``RDMlinspace  start n_samples  step``.
 !> The RDMExcitLevel is set to three in this routine.
             RDMlinspace_in_inp = .true.
-            tRDMonFly=.true.
+            tRDMonFly = .true.
             tCheckHighestPop = .true.
 
-            call readi(iSampleRDMIters)
+            RDMExcitLevel = 3
+            call readi(IterRDMonFly)
             call readi(n_samples)
             call readi(RDMEnergyIter)
 
-            RDMExcitLevel = 3
-            IterRDMOnFly = iSampleRDMIters + (n_samples - 1) * RDMEnergyIter
+            iSampleRDMIters = n_samples * RDMEnergyIter
 #if defined(__PROG_NUMRUNS)
           ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
