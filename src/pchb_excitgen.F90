@@ -96,7 +96,7 @@ module pchb_excitgen
       integer :: orbs(2), srcID(2), ab
       real(dp) :: pGenHoles
       logical :: invalid
-      
+
       ! first, pick two random elecs
       call pick_biased_elecs(nI,elecs,src,sym_prod,ispn,sum_ml,pgen)
 
@@ -116,6 +116,13 @@ module pchb_excitgen
       ! the given source) abort
       invalid = (any(orbs==0) .or. any(orbs(1) == nI) &
            .or. any(orbs(2) == nI)) .or. (orbs(1) == orbs(2))
+      ! unfortunately, there is a super-rare case when, due to floating point error,
+      ! an excitation with pGen=0 is created. Those are invalid, too      
+      if(pGenHoles < eps) then
+         invalid = .true.
+         ! Yes, print. Those events are signficant enough to be always noted in the output
+         print *, "WARNING: Generated excitation with probability of 0"
+      endif
 
       pGen = pGen * pGenHoles
       if(invalid) then
@@ -164,7 +171,7 @@ module pchb_excitgen
       real(dp) :: pgen
       integer :: ab, ij
 
-      ! the probability of picking the two electrons: they are chosen uniformly         
+      ! the probability of picking the two electrons: they are chosen uniformly
       if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
          pgen = pParallel / par_elec_pairs
       else
@@ -188,6 +195,11 @@ module pchb_excitgen
       implicit none
       integer :: ab, a, b, abMax
       integer :: aerr
+      integer(int64) :: memCost
+
+      write(iout,*) "Allocating PCHB excitation generator objects"
+      ! total memory cost
+      memCost = 0_int64
       ! initialize the mapping ab -> (a,b)
       abMax = fuseIndex(nBasis,nBasis)
       allocate(tgtOrbs(2,0:abMax), stat = aerr)
@@ -205,6 +217,8 @@ module pchb_excitgen
       ! setup the alias table
       call setup_pchb_sampler()
 
+      write(iout,*) "Finished excitation generator initialization"
+      write(iout,*) "Excitation generator requires", memCost/2.0**30, "GB of memory"
       ! this is some bias used internally by CreateSingleExcit - not used here
       pDoubNew = 0.0
     contains
@@ -218,9 +232,10 @@ module pchb_excitgen
         ! number of possible source orbital pairs
         ijMax = fuseIndex(nBasis,nBasis)
         call pchb_sampler%setupSamplerArray(int(ijMax,int64),int(abMax,int64))
-
-        ! weights per 
-        allocate(w(abMax), stat = aerr)        
+        memCost = memCost + abMax*ijMax*24
+        write(iout,*) "Generating samplers for PCHB excitation generator"
+        ! weights per pair
+        allocate(w(abMax), stat = aerr)
         do i = 1, nBasis
            ex(1,1) = i
            ! as we order a,b, we can assume j < i (j==i is not possible)
@@ -247,16 +262,16 @@ module pchb_excitgen
         deallocate(w)
       end subroutine setup_pchb_sampler
     end subroutine init_pchb_excitgen
-    
+
   !------------------------------------------------------------------------------------------!
 
-    subroutine finalize_pchb_sampler()
+    subroutine finalize_pchb_excitgen()
       ! deallocate the sampler and the mapping ab -> (a,b)
       implicit none
 
       call pchb_sampler%samplerArrayDestructor()
       deallocate(tgtOrbs)
-     
-    end subroutine finalize_pchb_sampler
-    
+
+    end subroutine finalize_pchb_excitgen
+
   end module pchb_excitgen
