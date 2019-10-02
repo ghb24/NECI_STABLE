@@ -48,7 +48,8 @@ module fcimc_helper
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
                         tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
                         tAAS_SpinScaled, AAS_SameSpin, AAS_OppSpin, tPrecond, &
-                        tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit
+                        tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, &
+                        allowedSpawnSign
     use adi_data, only: tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
@@ -133,7 +134,7 @@ contains
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
-        logical :: list_full
+        logical :: list_full, allowed_child
         character(*), parameter :: this_routine = 'create_particle'
 
         logical :: parent_init
@@ -189,7 +190,13 @@ contains
         ! If the parent was an initiator then set the initiator flag for the
         ! child, to allow it to survive.
         if (tTruncInitiator) then
-            if (test_flag(ilutI, get_initiator_flag(part_type))) then
+           allowed_child = .false.
+           ! optionally: allow all spawns with a given sign
+           if(allowedSpawnSign.ne.0) then
+              if(allowedSpawnSign * child(part_type) * SignCurr(part_type)> 0) &
+                   allowed_child = .true.
+           endif
+            if (allowed_child .or. test_flag(ilutI, get_initiator_flag(part_type))) then
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
             endif
         end if

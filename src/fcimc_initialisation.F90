@@ -144,7 +144,7 @@ module fcimc_initialisation
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
-    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen
+    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search, max_death_cpt
     use fcimc_helper, only: CalcParentFlag, update_run_reference
@@ -169,7 +169,7 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen
+    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
     implicit none
 
 contains
@@ -1102,58 +1102,6 @@ contains
 !        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
 !                       ^ Removed by GLM as believed not necessary
 
-        ! [Werner Dobrautz 5.5.2017:]
-        ! if this is a continued run from a histogramming tau-search
-        ! and a restart of the tau-search is not forced by input, turn
-        ! both the new and the old tau-search off!
-        ! i cannot do it here, since this is called before the popsfile read-in
-        if (t_previous_hist_tau) then
-            ! i have to check for tau-search option and stuff also, so that
-            ! the death tau adaption is still used atleast! todo!
-            tSearchTau = .false.
-            t_hist_tau_search = .false.
-            t_fill_frequency_hists = .false.
-            Write(iout,*) "Turning OFF the tau-search, since continued run!"
-        end if
-
-        ! [W.D.] I guess I want to initialize that before the tau-search,
-        ! or otherwise some pgens get calculated incorrectly
-        if (t_back_spawn .or. t_back_spawn_flex) then
-            call init_back_spawn()
-        end if
-
-        ! also i should warn the user if this is a restarted run with a
-        ! set delay in the back-spawning method:
-        ! is there actually a use-case where someone really wants to delay
-        ! a back-spawn in a restarted run?
-        if (tReadPops .and. back_spawn_delay /= 0) then
-            call Warning_neci(t_r, &
-                "Do you really want a delayed back-spawn in a restarted run?")
-        end if
-
-
-        if (tSearchTau) then
-            call init_tau_search()
-
-            ! [Werner Dobrautz 4.4.2017:]
-            if (t_hist_tau_search) then
-                ! some setup went wrong!
-                call Stop_All(t_r, &
-                    "Input error! both standard AND Histogram tau-search chosen!")
-            end if
-
-        else if (t_hist_tau_search) then
-            call init_hist_tau_search()
-
-        else
-            ! Add a couple of checks for sanity
-            if (nOccAlpha == 0 .or. nOccBeta == 0) then
-                pParallel = 1.0_dp
-            end if
-            if (nOccAlpha == 1 .and. nOccBeta == 1) then
-                pParallel = 0.0_dp
-            end if
-        end if
 
         IF(abs(StepsSftImag) > 1.0e-12_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
@@ -1592,6 +1540,56 @@ contains
         ! initialize excitation generator
         if(t_pcpp_excitgen) call init_pcpp_excitgen()
         if(t_pchb_excitgen) call init_pchb_excitgen()
+        ! [W.D.] I guess I want to initialize that before the tau-search,
+        ! or otherwise some pgens get calculated incorrectly
+        if (t_back_spawn .or. t_back_spawn_flex) then
+           call init_back_spawn()
+        end if
+        ! also i should warn the user if this is a restarted run with a
+        ! set delay in the back-spawning method:
+        ! is there actually a use-case where someone really wants to delay
+        ! a back-spawn in a restarted run?
+        if (tReadPops .and. back_spawn_delay /= 0) then
+           call Warning_neci(t_r, &
+                "Do you really want a delayed back-spawn in a restarted run?")
+        end if
+
+        ! [Werner Dobrautz 5.5.2017:]
+        ! if this is a continued run from a histogramming tau-search
+        ! and a restart of the tau-search is not forced by input, turn
+        ! both the new and the old tau-search off!
+        ! i cannot do it here, since this is called before the popsfile read-in
+        if (t_previous_hist_tau) then
+           ! i have to check for tau-search option and stuff also, so that
+           ! the death tau adaption is still used atleast! todo!
+           tSearchTau = .false.
+           t_hist_tau_search = .false.
+           t_fill_frequency_hists = .false.
+           Write(iout,*) "Turning OFF the tau-search, since continued run!"
+        end if
+
+        if (tSearchTau) then
+           call init_tau_search()
+
+           ! [Werner Dobrautz 4.4.2017:]
+           if (t_hist_tau_search) then
+              ! some setup went wrong!
+              call Stop_All(t_r, &
+                   "Input error! both standard AND Histogram tau-search chosen!")
+           end if
+
+        else if (t_hist_tau_search) then
+           call init_hist_tau_search()
+
+        else
+           ! Add a couple of checks for sanity
+           if (nOccAlpha == 0 .or. nOccBeta == 0) then
+              pParallel = 1.0_dp
+           end if
+           if (nOccAlpha == 1 .and. nOccBeta == 1) then
+              pParallel = 0.0_dp
+           end if
+        end if
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
@@ -2039,6 +2037,10 @@ contains
 
         ! Cleanup adi caches
         call clean_adi()
+
+        ! Cleanup excitation generator
+        if(t_pcpp_excitgen) call finalize_pcpp_excitgen()
+        if(t_pchb_excitgen) call finalize_pchb_excitgen()
 
         if (tSemiStochastic) call end_semistoch()
 

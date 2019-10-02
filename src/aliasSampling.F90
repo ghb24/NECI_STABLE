@@ -172,7 +172,7 @@ contains
           ! set the alias of the underfull to be the other
           this%aliasTable(j) = i
           ! correct the bias
-          this%biasTable(i) = this%biasTable(i) + this%biasTable(j) - 1
+          this%biasTable(i) = this%biasTable(i) + this%biasTable(j) - 1.0_dp
 
           ! unmark j
           cU = cU - 1
@@ -331,7 +331,8 @@ contains
     if(sum(arr) < eps) then
        write(iout,*) &
             "Warning: trying to initialize sampler with empty probability distribution"
-       ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
+       ! if we reach this point, probs is uninitialized -> null it
+       this%probs => null()
        return
     endif
 

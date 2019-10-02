@@ -154,6 +154,7 @@ real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
 logical :: tAAS_SpinScaled !Scale AAS weights of same-spin excitations different from opposit-spin
 real(dp) :: AAS_SameSpin, AAS_OppSpin
+real(dp) :: AAS_Const
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
@@ -308,6 +309,12 @@ logical :: tPureInitiatorSpace
 
 ! Run FCIQMC in the truncated space of all connections to the initiator space
 logical :: tAllConnsPureInit
+
+! Allow all spawns with (no) sign change
+! The modi here are:  0, no changes to initiator approx are made
+!                     >0 (commonly 1), same-sign spawns are always allowed
+!                     <0 (commonly -1), opp. sign spawns are always allowed
+integer :: allowedSpawnSign = 0
 
 ! If this is true, don't allow non-initiators to spawn to another non-initiator,
 ! even if it is occupied.
