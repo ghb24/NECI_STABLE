@@ -168,8 +168,6 @@ MODULE Logging
 #else
       tFCIMCStats2 = .false.
 #endif
-      tWriteUnocc = .false.
-
       t_hist_fvals = .true.
       enGrid = 100
       arGrid = 100

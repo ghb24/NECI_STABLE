@@ -23,7 +23,7 @@ module fcimc_initialisation
                         tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &
                         VirtCASOrbs, StepsSft, tStartSinglePart, InitWalkers, &
-                        tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, tAVReps, &
+                        tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
@@ -37,9 +37,9 @@ module fcimc_initialisation
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
-                        t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
+                        t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
+                        tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
                         tInitializeCSF, S2Init, tWalkContGrow, tSkipRef, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
@@ -2043,8 +2043,6 @@ contains
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
-
-        if(allocated(maxKeepExLvl)) deallocate(maxKeepExLvl)
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -4139,16 +4137,13 @@ contains
 
     subroutine setup_adi()
       ! We initialize the flags for the adi feature
-      use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
-           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, tReadRefs, maxNRefs, nRefsSings, nRefsDoubs, &
-           SIUpdateOffset
+      use adi_data, only: tSetDelayAllDoubsInits, tDelayAllDoubsInits, &
+           tAllDoubsInitiators, tDelayGetRefs, &
+           NoTypeN, tReadRefs, maxNRefs, SIUpdateOffset
       use CalcData, only: InitiatorWalkNo
-      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi, &
            reset_coherence_counter
       implicit none
-      maxNRefs = max(nRefsSings,nRefsDoubs)
-
       call reallocate_ilutRefAdi(maxNRefs)
 
       ! If using adi with dynamic SIs, also use a dynamic corespace by default
@@ -4159,18 +4154,15 @@ contains
          tAllDoubsInitiators = .false.
          tDelayAllDoubsInits = .true.
       endif
-      if(tSetDelayAllSingsInits .and. tAllSingsInitiators) then
-         tAllSingsInitiators = .false.
-         tDelayAllSingsInits = .true.
-      endif
 
       ! Check if we want to get the references right away
       if(.not. (tReadRefs .or. tReadPops)) tDelayGetRefs = .true.
-      if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
+      if(tDelayAllDoubsInits) tDelayGetRefs = .true.
       ! Give a status message
-      if(tAllDoubsInitiators) call enable_adi()
-      if(tAllSingsInitiators .or. tAllDoubsInitiators) &
-           tAdiActive = .true.
+      if(tAllDoubsInitiators) then
+         call enable_adi()
+         tAdiActive = .true.
+      endif
 
       ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
       ! needs some time to equilibrate
@@ -4185,14 +4177,13 @@ contains
 
     subroutine setup_dynamic_core()
       use CalcData, only: tDynamicCoreSpace, coreSpaceUpdateCycle,tIntervalSet
-      use adi_data, only: tAllDoubsInitiators, tAllSingsInitiators
+      use adi_data, only: tAllDoubsInitiators
       implicit none
 
       ! Enable dynamic corespace if both
       ! a) using adi with dynamic SIs (default)
       ! b) no other keywords regarding the dynamic corespace are given
-      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. (tAllDoubsInitiators .or. &
-           tAllSingsInitiators)) then
+      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. tAllDoubsInitiators) then
         tDynamicCoreSpace = .true.
         coreSpaceUpdateCycle = SIUpdateInterval
       endif

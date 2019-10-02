@@ -7,18 +7,18 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
-nmcyc 15000
+nmcyc 4000
 totalwalkers 20000
 tau 0.005
 startsinglepart
 truncinitiator
 addtoinitiator 3
-all-doubs-initiators 1
+superinitiators
 superinitiator-population-threshold 1
 static-superinitiators
-coherent-references off
+coherent-superinitiators off
 shiftdamp 0.03
 stepsshift 25
 jump-shift

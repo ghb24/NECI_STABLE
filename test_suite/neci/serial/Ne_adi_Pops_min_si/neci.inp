@@ -22,8 +22,7 @@ truncinitiator
 addtoinitiator 3
 allrealcoeff
 realspawncutoff 0.01
-all-doubs-initiators 30
-all-sings-initiators
+superinitiators 30
 superinitiator-population-threshold 10
 min-si-connections 2
 readpops
