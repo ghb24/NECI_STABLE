@@ -23,7 +23,7 @@ contains
         ! calls all required finalisation routines.
 
         use EN2MOLCAS, only : NECI_E
-        use SystemData, only : tMolcas
+        use SystemData, only : called_as_lib
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo
         use LoggingData, only: tDipoles, tWrite_normalised_RDMs
@@ -122,9 +122,8 @@ contains
         if (RDMExcitLevel /= 1 .and. iProcIndex == 0) then
             call write_rdm_estimates(rdm_defs, rdm_estimates, .true., print_2rdm_est)
         end if
-        if (print_2rdm_est .and. tMolcas) then
+        if (print_2rdm_est .and. called_as_lib) then
             NECI_E = rdm_estimates%energy_num(1) / rdm_estimates%norm(1)
-            call MPIBarrier(ierr)
             call MPIBCast(NECI_E)
             write(6,*) 'NECI_E at rdm_finalising.F90 ', NECI_E
         end if
