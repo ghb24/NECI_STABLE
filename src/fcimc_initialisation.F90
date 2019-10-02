@@ -39,7 +39,7 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
+                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, &
                         tInitializeCSF, S2Init, tWalkContGrow, tSkipRef, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
@@ -1410,9 +1410,6 @@ contains
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
             if(tAutoAdaptiveShift)then
-                if(tAAS_Reverse.and. SpawnInfoWidth<inum_runs)then
-                    SpawnInfoWidth = inum_runs
-                end if
                 allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), &
                          SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
                 log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
@@ -2040,7 +2037,7 @@ contains
 
         ! Cleanup excitation generator
         if(t_pcpp_excitgen) call finalize_pcpp_excitgen()
-        if(t_pchb_excitgen) call finalize_pchb_excitgen()        
+        if(t_pchb_excitgen) call finalize_pchb_excitgen()
 
         if (tSemiStochastic) call end_semistoch()
 

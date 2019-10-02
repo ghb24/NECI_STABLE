@@ -148,8 +148,6 @@ logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e
 logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
 logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted moves.
 logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
-logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
-logical :: tAAS_Reverse_Weighted !Scale the reverse weights down by the number of walkers on the parent
 real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
 logical :: tAAS_SpinScaled !Scale AAS weights of same-spin excitations different from opposit-spin

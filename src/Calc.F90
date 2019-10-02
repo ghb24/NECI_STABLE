@@ -157,8 +157,6 @@ contains
           AAS_SameSpin = 1.0
           AAS_DenCut = 0.5
           AAS_Const = 0.0
-          tAAS_Reverse = .false.
-          tAAS_Reverse_Weighted = .false.
           tAAS_Add_Diag = .false.
           tInitsRDMRef = .false.
           tInitsRDM = .false.
@@ -1805,11 +1803,6 @@ contains
                 AdaptiveShiftThresh = 0.0
             case("AAS-DEN-CUT")
                 call getf(AAS_DenCut)
-            case("AAS-REVERSE")
-                tAAS_Reverse = .true.
-            case("AAS-REVERSE-WEIGHTED")
-                tAAS_Reverse = .true.
-                tAAS_Reverse_Weighted = .true.
             case("AAS-ADD-DIAG")
                 tAAS_Add_Diag = .true.
             case("AAS-SPIN-SCALED")
@@ -1822,7 +1815,7 @@ contains
                 end if
             case("AAS-CONST")
                 !Adds a positive constant to both the numerator and denominator
-                !in auto-adaptive-shift's modification factor 
+                !in auto-adaptive-shift's modification factor
                 call getf(AAS_Const)
                 if(AAS_Const<0.0)then
                     call stop_all(t_r, 'AAS-CONST should be greater than or equal zero.')
