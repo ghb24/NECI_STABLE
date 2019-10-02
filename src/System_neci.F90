@@ -206,7 +206,6 @@ MODULE System
       tInfSumTCCalc= .false.
       tInfSumTCPrint= .false.
       tInfSumTCRead= .false.
-      tRPA_tc= .true.
       PotentialStrength=1.0_dp
       TranscorrCutoff=0
       TranscorrIntCutoff=0
@@ -215,20 +214,7 @@ MODULE System
       TUnitary=.false.
       Tperiodicinmom=.false.
       tTrcorrExgen = .true.                
-      tTrCorrRandExgen = .false.                
       t12FoldSym = .false.
-      tInfSumTCCalc= .false.
-      tInfSumTCPrint= .false.
-      tInfSumTCRead= .false.
-      tRPA_tc= .true.
-      PotentialStrength=1.0_dp
-      TranscorrCutoff=0
-      TranscorrIntCutoff=0
-      TranscorrGaussCutoff=1.d0
-      TContact=.false.
-      TUnitary=.false.
-      Tperiodicinmom=.false.
-      tTrcorrExgen = .true.                
       tTrCorrRandExgen = .false.                
       tSpinCorrelator = .false.
 
@@ -744,7 +730,8 @@ system: do
            endif
 
        !Options for turn off the RPA term(only: transcorrelated homogeneous 1D
-       !gas with contact interaction)
+       !gas with contact interaction), tRPA_tc is set to true for two particles,
+       ! but it is turned off, if 3-body interactions are used
          case("NORPATC")
            tRPA_tc=.false.
 
@@ -759,7 +746,7 @@ system: do
                 stop 'Contact interaction only for 1D!'
 
        ! Contact interaction forthe three dimensional Fermi gas in the unitary
-       ! regime
+       ! interaction
          case("CONTACTINTERACTIONUNITARY")
            tContact=.true.
            tUnitary=.true.
