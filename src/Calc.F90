@@ -156,6 +156,7 @@ contains
           AAS_OppSpin = 1.0
           AAS_SameSpin = 1.0
           AAS_DenCut = 0.5
+          AAS_Const = 0.0
           tAAS_Reverse = .false.
           tAAS_Reverse_Weighted = .false.
           tAAS_Add_Diag = .false.
@@ -472,6 +473,7 @@ contains
           tPureInitiatorSpace = .false.
           tSimpleInit = .false.
           tAllConnsPureInit = .false.
+          allowedSpawnSign = 0
 
           tDetermProjApproxHamil = .false.
 
@@ -1646,6 +1648,18 @@ contains
                 tSimpleInit = .true.
             CASE("INITIATOR-SPACE-CONNS")
                 tAllConnsPureInit = .true.
+            case("ALLOW-SIGNED-SPAWNS")
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("POS")
+                      allowedSpawnSign = 1
+                   case("NEG")
+                      allowedSpawnSign = -1
+                   end select
+                else
+                   allowedSpawnSign = 1
+                endif
             case("DOUBLES-INITIATOR")
                 i_space_in%tDoubles = .true.
             case("HF-CONN-INITIATOR")
@@ -1805,6 +1819,13 @@ contains
                 end if
                 if (item.lt.nitems) then
                     call getf(AAS_SameSpin)
+                end if
+            case("AAS-CONST")
+                !Adds a positive constant to both the numerator and denominator
+                !in auto-adaptive-shift's modification factor 
+                call getf(AAS_Const)
+                if(AAS_Const<0.0)then
+                    call stop_all(t_r, 'AAS-CONST should be greater than or equal zero.')
                 end if
              case("INITS-PROJE")
                 ! deprecated
