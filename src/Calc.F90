@@ -152,9 +152,6 @@ contains
           tAAS_MatEle2 = .false.
           tAAS_MatEle3 = .false.
           tAAS_MatEle4 = .false.
-          tAAS_SpinScaled = .false.
-          AAS_OppSpin = 1.0
-          AAS_SameSpin = 1.0
           AAS_DenCut = 0.5
           AAS_Const = 0.0
           tAAS_Add_Diag = .false.
@@ -1805,14 +1802,6 @@ contains
                 call getf(AAS_DenCut)
             case("AAS-ADD-DIAG")
                 tAAS_Add_Diag = .true.
-            case("AAS-SPIN-SCALED")
-                tAAS_SpinScaled = .true.
-                if (item.lt.nitems) then
-                    call getf(AAS_OppSpin)
-                end if
-                if (item.lt.nitems) then
-                    call getf(AAS_SameSpin)
-                end if
             case("AAS-CONST")
                 !Adds a positive constant to both the numerator and denominator
                 !in auto-adaptive-shift's modification factor

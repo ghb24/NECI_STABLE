@@ -150,8 +150,6 @@ logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted move
 logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
 real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
-logical :: tAAS_SpinScaled !Scale AAS weights of same-spin excitations different from opposit-spin
-real(dp) :: AAS_SameSpin, AAS_OppSpin
 real(dp) :: AAS_Const
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.

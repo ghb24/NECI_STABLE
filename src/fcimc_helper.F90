@@ -48,8 +48,7 @@ module fcimc_helper
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2,&
-                        tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
-                        tAAS_SpinScaled, AAS_SameSpin, AAS_OppSpin, tPrecond, &
+                        tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, tPrecond, &
                         tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, allowedSpawnSign
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
@@ -242,17 +241,6 @@ contains
                 weight_rej = 1.0_dp
             end if
 
-            if(tAAS_SpinScaled)then
-                if(ic==2)then
-                    if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
-                        weight_acc = weight_acc * AAS_SameSpin
-                        weight_rej = weight_rej * AAS_SameSpin
-                    else
-                        weight_acc = weight_acc * AAS_OppSpin
-                        weight_rej = weight_rej * AAS_OppSpin
-                    end if
-                end if
-            end if
             !Enocde weight, which is real, as an integer
             SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
             SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
