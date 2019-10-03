@@ -29,7 +29,7 @@ module FciMCParMod
                            compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
-                           t_store_ci_coeff, n_iter_after_equ 
+                           t_store_ci_coeff, n_iter_after_equ, n_store_ci_level
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -169,6 +169,17 @@ module FciMCParMod
         shift_err = 1.0_dp
 
         TDebug = .false.  ! Set debugging flag
+
+        if ((t_store_ci_coeff) .and. (n_store_ci_level.gt.3)) then
+           write(iout,*) ''
+           write(iout,*) '*******************************************'
+           write(iout,*) '                 !WARNING!'
+           write(iout,*) ' CI COEFFICIENTS collection for excitation'
+           write(iout,*) ' levels higher than 3 is not implemented'
+           write(iout,*) '*******************************************'
+           write(iout,*) ''
+           t_store_ci_coeff=.false.
+        endif
                     
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
 !Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
@@ -565,16 +576,20 @@ module FciMCParMod
 
 
             ![E.V. 13.08.2019]
-            if ((t_store_ci_coeff).and.(n_iter_after_equ.ge.0) .and. all(.not. tSinglePartPhase)) then
-               if ((iter - maxval(VaryShiftIter)) .eq. n_iter_after_equ + 1) then
-                  write(iout,*) ''
-                  write(iout,*) '*** START CI COEFFICIENTS COLLECTION ***'
-                  write(iout,*) ''
-                  call storeCiCoeffs()
-               else if ((iter - maxval(VaryShiftIter)) .gt. n_iter_after_equ + 1) then
-                  call storeCiCoeffs()
-               end if
+            if ((t_store_ci_coeff).and.all(.not.tSinglePartPhase).and.(iter-maxval(VaryShiftIter)).eq.n_iter_after_equ) then
+                write(iout,*) ''
+                write(iout,*) '*** START CI COEFFICIENTS COLLECTION ***'
+                write(iout,*) ''
+                call storeCiCoeffs()
+            else if ((t_store_ci_coeff).and.all(.not.tSinglePartPhase).and.(iter-maxval(VaryShiftIter)).gt.n_iter_after_equ) then
+                call storeCiCoeffs()
+            else if ((t_store_ci_coeff).and.all(.not.tSinglePartPhase).and.(iter.eq.NMCyc)) then
+                t_store_ci_coeff=.false.
+                write(iout,*) ''
+                write(iout,*) '***CI COEFFICIENTS COLLECTION HAS NOT OCCURRED: NMCyc too small***'
+                write(iout,*) ''
             end if
+
 
             if (tRDMonFly .and. all(.not. tSinglePartPhase)) then
                 ! If we wish to calculate the energy, have started accumulating the RDMs, 
@@ -658,7 +673,7 @@ module FciMCParMod
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
 
 
-        ![E.V. 13.08.2019]                                                                                                       
+        ![E.V. 13.08.2019]
         if(t_store_ci_coeff) then
            call print_snapshot_ci_coeff()
            call print_averaged_ci_coeff()

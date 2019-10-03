@@ -10,7 +10,7 @@ module sdt_amplitudes
                        VaryShiftIter, iter
   use hash, only: hash_table_lookup,add_hash_table_entry,init_hash_table, &
                   clear_hash_table
-  use LoggingData, only: n_store_ci_level,sorting_way
+  use LoggingData, only: n_store_ci_level,sorting_way,n_iter_after_equ
   use SystemData, only: nel,nbasis
   
   implicit none
@@ -105,7 +105,13 @@ contains
     write(iout,*) ''
 !    write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
     write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
+    write(iout,*) ''
     write(iout,*) '*** CI COEFFICIENTS ***'
+      if (n_iter_after_equ.lt.0) then
+        write(iout,*) ''
+        write(iout,*) "!CI coefficients collection better starts after equilibration:"
+        write(iout,*) "  -> set number of iterations after equilibration greater or equal to 0"
+      endif
     write(iout,*) ''
     write(iout,*) 'Maximum excitation level of the CI coeffs =', n_store_ci_level
 
@@ -144,7 +150,7 @@ contains
     close(33)
     call sorting(RefDet)
 
-    write(iout,*) 'CI coefficients written in ASCII files'
+    write(iout,*) '-> CI coefficients written in ASCII files'
     write(iout,*) ''
     write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
 
@@ -220,7 +226,7 @@ contains
     double precision :: x
     double precision,allocatable :: S(:,:),D(:,:,:,:),T(:,:,:,:,:,:)
     integer :: i,j,k,a,b,c,z,p,Iopen(nel),iop,iMax,spo
-    integer :: ial,ialMax,ialVir,ialVirMax,ibe,ibeMax,ibeVir,ibeVirMax    
+    integer :: ial,ialMax,ialVir,ialVirMax,ibe,ibeMax,ibeVir,ibeVirMax,Itot(nbasis) 
     integer :: Ialpha(nel),Ibeta(nel),IalphaVir(nbasis-nel),IbetaVir(nbasis-nel)
     integer, intent(in) :: RefDet(nel)
     logical  :: check,noMatch,openEl,ClosedShellCase
@@ -301,25 +307,74 @@ contains
     else if(sorting_way.eq.1) then
 
     write(iout,*) 'Reading coefficients in OPEN-SHELL SYSTEM'
-    write(iout,*) 'Coefficients listed in 1st way:'
+    write(iout,*) 'Coefficients listed in way 1:'
     write(iout,*) '  OCC(alpha),OCC(beta),VIR(alpha),VIR(beta)'
 
-
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! MODE 1
+!!      ial=0
+!!      do z=1,nel
+!!        if (MOD(RefDet(z),2).eq.1) then
+!!          ial=ial+1
+!!          Itot(ial)=RefDet(z)
+!!        endif
+!!      enddo
+!!      ialMax=ial
+!!      ibe=0
+!!      do z=1,nel
+!!        if (MOD(RefDet(z),2).eq.0) then
+!!          ibe=ibe+1
+!!          Itot(ialMax+ibe)=RefDet(z)
+!!        endif
+!!      enddo
+!!      ibeMax=ibe
+!!      if(ialMax+ibeMax.ne.nel) write(iout,*) 'WARNING: not matching number of electrons!'
+!!
+!!      ialVir=0
+!!      do i=1,nbasis
+!!        j=0
+!!        do z=1,nel
+!!          if(i.eq.RefDet(z)) j=2
+!!        enddo
+!!        if(j.eq.2) cycle
+!!        if (MOD(i,2).eq.1) then
+!!          ialVir=ialVir+1
+!!          Itot(nel+ialVir)=i
+!!        endif
+!!      enddo
+!!      ialVirMax=ialVir
+!!      ibeVir=0
+!!      do i=1,nbasis
+!!        j=0
+!!        do z=1,nel
+!!          if(i.eq.RefDet(z)) j=2
+!!        enddo
+!!        if(j.eq.2) cycle
+!!        if (MOD(i,2).eq.0) then
+!!          ibeVir=ibeVir+1
+!!          Itot(nel+ialVirMax+ibeVir)=i
+!!        endif
+!!      enddo
+!!      ibeVirMax=ibeVir
+!!      if(nel+ialVirMax+ibeVirMax.ne.nbasis) write(iout,*) 'WARNING: not matching number of orbitals!'
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!! MODE 2
       ial=0
       ibe=0
       do z=1,nel
         if (MOD(RefDet(z),2).eq.1) then
           ial=ial+1
           Ialpha(ial)=RefDet(z)
-        write(iout,*) 'a_occ' ,ial,Ialpha(ial)
         else if (MOD(RefDet(z),2).eq.0) then
           ibe=ibe+1
           Ibeta(ibe)=RefDet(z)
-        write(iout,*) 'b_occ' ,ibe,Ibeta(ibe)
         endif
       enddo
       ialMax=ial
       ibeMax=ibe
+      if(ialMax+ibeMax.ne.nel) write(iout,*) 'WARNING: not matching number of electrons!'
 
       ialVir=0
       ibeVir=0
@@ -332,46 +387,42 @@ contains
         if (MOD(i,2).eq.1) then
           ialVir=ialVir+1
           IalphaVir(ialVir)=i
-        write(iout,*) 'a' ,ialVir,IalphaVir(ialVir)
         else if (MOD(i,2).eq.0) then
           ibeVir=ibeVir+1
           IbetaVir(ibeVir)=i
-        write(iout,*) 'b' ,ibeVir,IbetaVir(ibeVir)
         endif
       enddo
       ialVirMax=ialVir
       ibeVirMax=ibeVir
+      if(nel+ialVirMax+ibeVirMax.ne.nbasis) write(iout,*) 'WARNING: not matching number of orbitals!'
 
-      write(iout,*) ialMax,ibeMax,ialVirMax,ibeVirMax
-
+      do z=1,nbasis
+        if(z.le.ialMax) then
+          Itot(z)=Ialpha(z)
+        else if(z.le.nel) then
+          Itot(z)=Ibeta(z-ialMax)
+        else if(z.le.nel+ialVirMax) then
+          Itot(z)=IalphaVir(z-nel)
+        else if(z.le.nbasis) then
+          Itot(z)=IbetaVir(z-nel-ialVirMax)
+        endif
+      enddo
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
 
       do
         read(101,*,IOSTAT=z) x,i,a
-        iNoMatch=.true.
-        aNoMatch=.true.
-        do ial=1,ialMax
-          if(i.eq.Ialpha(ial).and.iNoMatch) then
-            i=ial
-            iNoMatch=.false.
-          endif
+        do p=1,nel
+           if(i.eq.Itot(p)) then
+              i=p
+              exit
+           endif
         enddo
-        do ibe=1,ibeMax
-          if(i.eq.Ibeta(ibe).and.iNoMatch) then
-            i=ialMax+ibe
-            iNoMatch=.false.
-          endif
-        enddo
-        do ialVir=1,ialVirMax
-          if(a.eq.IalphaVir(ialVir).and.aNoMatch) then
-            a=nel+ialVir
-            aNoMatch=.false.
-          endif
-        enddo
-        do ibeVir=1,ibeVirMax
-          if(a.eq.IbetaVir(ibeVir).and.aNoMatch) then
-            a=nel+ialVirMax+ibeVir
-            aNoMatch=.false.
-          endif
+        do p=nel+1,nbasis
+           if(a.eq.Itot(p)) then
+              a=p
+              exit
+           endif
         enddo
         if (z<0) then
           exit
@@ -381,60 +432,263 @@ contains
       close (101)
 
       do
-        read(102,*,IOSTAT=z) x,i,a,j,b
-        iNoMatch=.true.
-        jNoMatch=.true.
-        aNoMatch=.true.
-        bNoMatch=.true.
-        do ial=1,ialMax
-          if(i.eq.Ialpha(ial).and.iNoMatch) then
-            i=ial
-            iNoMatch=.false.
-          else if(j.eq.Ialpha(ial).and.jNoMatch) then
-            j=ial
-            jNoMatch=.false.
-          endif
+         read(102,*,IOSTAT=z) x,i,a,j,b
+!!!!!!!!!!!!!!!!!!!
+        do p=1,nel
+           if(i.eq.Itot(p)) then
+              i=p
+              exit
+           endif
         enddo
-        do ibe=1,ibeMax
-          if(i.eq.Ibeta(ibe).and.iNoMatch) then
-            i=ialMax+ibe
-            iNoMatch=.false.
-          else if(j.eq.Ibeta(ibe).and.jNoMatch) then
-            j=ialMax+ibe
-            jNoMatch=.false.
-          endif
+        do p=1,nel
+           if(j.eq.Itot(p)) then
+              j=p
+              exit
+           endif
         enddo
-        do ialVir=1,ialVirMax
-          if(a.eq.IalphaVir(ialVir).and.aNoMatch) then
-            a=nel+ialVir
-            aNoMatch=.false.
-          else if(b.eq.IalphaVir(ialVir).and.bNoMatch) then
-            b=nel+ialVir
-            bNoMatch=.false.
-          endif
+        do p=nel+1,nbasis
+           if(a.eq.Itot(p)) then
+              a=p
+              exit
+           endif
         enddo
-        do ibeVir=1,ibeVirMax
-          if(a.eq.IbetaVir(ibeVir).and.aNoMatch) then
-            a=nel+ialVirMax+ibeVir
-            aNoMatch=.false.
-          else if(b.eq.IbetaVir(ibeVir).and.bNoMatch) then
-            b=nel+ialVirMax+ibeVir
-            bNoMatch=.false.
-          endif
+        do p=nel+1,nbasis
+           if(b.eq.Itot(p)) then
+              b=p
+              exit
+           endif
         enddo
-        if (z<0) then
-          exit
-        endif
-        D(i,a,j,b) = x
+!!!!!!!!!!!!!!!!!!!
+!         iNoMatch=.true.
+!         jNoMatch=.true.
+!         aNoMatch=.true.
+!         bNoMatch=.true.
+!         do ial=1,ialMax
+!            if(i.eq.Ialpha(ial).and.iNoMatch) then
+!              i=ial
+!              iNoMatch=.false.
+!            else if(j.eq.Ialpha(ial).and.jNoMatch) then
+!              j=ial
+!              jNoMatch=.false.
+!            endif
+!         enddo
+!         do ibe=1,ibeMax
+!            if(i.eq.Ibeta(ibe).and.iNoMatch) then
+!              i=ialMax+ibe
+!              iNoMatch=.false.
+!            else if(j.eq.Ibeta(ibe).and.jNoMatch) then
+!              j=ialMax+ibe
+!              jNoMatch=.false.
+!            endif
+!         enddo
+!         do ialVir=1,ialVirMax
+!            if(a.eq.IalphaVir(ialVir).and.aNoMatch) then
+!              a=nel+ialVir
+!              aNoMatch=.false.
+!            else if(b.eq.IalphaVir(ialVir).and.bNoMatch) then
+!              b=nel+ialVir
+!              bNoMatch=.false.
+!            endif
+!         enddo
+!         do ibeVir=1,ibeVirMax
+!            if(a.eq.IbetaVir(ibeVir).and.aNoMatch) then
+!              a=nel+ialVirMax+ibeVir
+!              aNoMatch=.false.
+!            else if(b.eq.IbetaVir(ibeVir).and.bNoMatch) then
+!              b=nel+ialVirMax+ibeVir
+!              bNoMatch=.false.
+!            endif
+!         enddo
+         if (z<0) then
+            exit
+         endif
+         D(i,a,j,b) = x
+         D(j,a,i,b) = x
+         D(i,b,j,a) = x
+         D(j,b,i,a) = x
       enddo
       close (102)
 
       do
         read(103,*,IOSTAT=z) x,i,a,j,b,k,c
-        if (z<0) then
-          exit
-        endif
-        T(i,a,j,b,k,c) = x
+!!!!!!!!!!!!!!!!!!!
+        do p=1,nel
+           if(i.eq.Itot(p)) then
+              i=p
+              exit
+           endif
+        enddo
+        do p=1,nel
+           if(j.eq.Itot(p)) then
+              j=p
+              exit
+           endif
+        enddo
+        do p=1,nel
+           if(k.eq.Itot(p)) then
+              k=p
+              exit
+           endif
+        enddo
+        do p=nel+1,nbasis
+           if(a.eq.Itot(p)) then
+              a=p
+              exit
+           endif
+        enddo
+        do p=nel+1,nbasis
+           if(b.eq.Itot(p)) then
+              b=p
+              exit
+           endif
+        enddo
+        do p=nel+1,nbasis
+           if(c.eq.Itot(p)) then
+              c=p
+              exit
+           endif
+        enddo
+!!!!!!!!!!!!!!!!!!!
+!         iNoMatch=.true.
+!         jNoMatch=.true.
+!         kNoMatch=.true.
+!         aNoMatch=.true.
+!         bNoMatch=.true.
+!         cNoMatch=.true.
+!         do ial=1,ialMax
+!            if(i.eq.Ialpha(ial).and.iNoMatch) then
+!              i=ial
+!              iNoMatch=.false.
+!            else if(j.eq.Ialpha(ial).and.jNoMatch) then
+!              j=ial
+!              jNoMatch=.false.
+!            else if(k.eq.Ialpha(ial).and.kNoMatch) then
+!              k=ial
+!              kNoMatch=.false.
+!            endif
+!         enddo
+!         do ibe=1,ibeMax
+!            if(i.eq.Ibeta(ibe).and.iNoMatch) then
+!              i=ialMax+ibe
+!              iNoMatch=.false.
+!            else if(j.eq.Ibeta(ibe).and.jNoMatch) then
+!              j=ialMax+ibe
+!              jNoMatch=.false.
+!            else if(k.eq.Ibeta(ibe).and.kNoMatch) then
+!              k=ialMax+ibe
+!              kNoMatch=.false.
+!            endif
+!         enddo
+!         do ialVir=1,ialVirMax
+!            if(a.eq.IalphaVir(ialVir).and.aNoMatch) then
+!              a=nel+ialVir
+!              aNoMatch=.false.
+!            else if(b.eq.IalphaVir(ialVir).and.bNoMatch) then
+!              b=nel+ialVir
+!              bNoMatch=.false.
+!            else if(c.eq.IalphaVir(ialVir).and.cNoMatch) then
+!              c=nel+ialVir
+!              cNoMatch=.false.
+!            endif
+!         enddo
+!         do ibeVir=1,ibeVirMax
+!            if(a.eq.IbetaVir(ibeVir).and.aNoMatch) then
+!              a=nel+ialVirMax+ibeVir
+!              aNoMatch=.false.
+!            else if(b.eq.IbetaVir(ibeVir).and.bNoMatch) then
+!              b=nel+ialVirMax+ibeVir
+!              bNoMatch=.false.
+!            else if(c.eq.IbetaVir(ibeVir).and.cNoMatch) then
+!              c=nel+ialVirMax+ibeVir
+!              cNoMatch=.false.
+!            endif
+!         enddo
+         if (z<0) then
+            exit
+         endif
+         !main
+         T(i,a,j,b,k,c) = x
+
+         T(i,a,k,b,j,c) = x
+!         T(i,a,k,c,j,b) = x
+         T(i,b,k,a,j,c) = x
+         T(i,b,k,c,j,a) = x
+         T(i,c,k,a,j,b) = x
+         T(i,c,k,b,j,a) = x
+
+         T(j,a,i,b,k,c) = x
+         T(j,a,i,c,k,b) = x
+         T(j,b,i,a,k,c) = x
+         T(j,b,i,c,k,a) = x
+         T(j,c,i,a,k,b) = x
+         T(j,c,i,b,k,a) = x
+
+         T(j,a,k,b,i,c) = x
+         T(j,a,k,c,i,b) = x
+         T(j,b,k,a,i,c) = x
+         T(j,b,k,c,i,a) = x
+         T(j,c,k,a,i,b) = x
+         T(j,c,k,b,i,a) = x
+
+         T(k,a,i,b,j,c) = x
+         T(k,a,i,c,j,b) = x
+         T(k,b,i,a,j,c) = x
+         T(k,b,i,c,j,a) = x
+         T(k,c,i,a,j,b) = x
+         T(k,c,i,b,j,a) = x
+
+         T(k,a,j,b,i,c) = x
+         T(k,a,j,c,i,b) = x
+         T(k,b,j,a,i,c) = x
+         T(k,b,j,c,i,a) = x
+         T(k,c,j,a,i,b) = x
+         T(k,c,j,b,i,a) = x
+
+         !main
+!        T(i,a,j,b,k,c) = x
+
+         T(i,a,j,c,k,b) = x
+         T(i,a,k,c,j,b) = x
+         T(j,a,i,c,k,b) = x
+         T(j,a,k,c,i,b) = x
+         T(k,a,i,c,j,b) = x
+         T(k,a,j,c,i,b) = x
+
+         T(i,b,j,a,k,c) = x
+         T(i,b,k,a,j,c) = x
+         T(j,b,i,a,k,c) = x
+         T(j,b,k,a,i,c) = x
+         T(k,b,i,a,j,c) = x
+         T(k,b,j,a,i,c) = x
+
+         T(i,b,j,c,k,a) = x
+         T(i,b,k,c,j,a) = x
+         T(j,b,i,c,k,a) = x
+         T(j,b,k,c,i,a) = x
+         T(k,b,i,c,j,a) = x
+         T(k,b,j,c,i,a) = x
+
+         T(i,c,j,a,k,b) = x
+         T(i,c,k,a,j,b) = x
+         T(j,c,i,a,k,b) = x
+         T(j,c,k,a,i,b) = x
+         T(k,c,i,a,j,b) = x
+         T(k,c,j,a,i,b) = x
+
+         T(i,c,j,b,k,a) = x
+         T(i,c,k,b,j,a) = x
+         T(j,c,i,b,k,a) = x
+         T(j,c,k,b,i,a) = x
+         T(k,c,i,b,j,a) = x
+         T(k,c,j,b,i,a) = x
+
+         !main
+!        T(i,a,j,b,k,c) = x
+         T(i,a,k,c,j,b) = x
+         T(j,b,i,a,k,c) = x
+         T(j,b,k,c,i,a) = x
+         T(k,c,i,a,j,b) = x
+         T(k,c,j,b,i,a) = x
       enddo
       close (103)
 
@@ -445,23 +699,8 @@ contains
     !       spin orbitals, e.g., p=4,6,8,... 
 
     write(iout,*) 'Reading coefficients in OPEN-SHELL SYSTEM'
-    write(iout,*) 'Coefficients listed in 2nd way:'
+    write(iout,*) 'Coefficients listed in way 2:'
     write(iout,*) '  CLOSED(alpha,beta),OPEN(alpha),OPEN(beta),VIRTUALS(alpha,beta)'
-
-!      write(iout,*) 'PRINT OUTPUT: RefDet  = ', RefDet
-!      write(iout,*) 'PRINT OUTPUT: p  = ', p
-!      write(iout,*) 'PRINT OUTPUT: iMax = ', iMax
-!      write(iout,*) 'PRINT OUTPUT: Iopen(1) = ', Iopen(1)
-!      write(iout,*) 'PRINT OUTPUT: Iopen(2) = ', Iopen(2)
-!      write(iout,*) 'PRINT OUTPUT: Iopen(3) = ', Iopen(3)
-!      write(iout,*) 'PRINT OUTPUT: Iopen(iMax) = ', Iopen(iMax)
-!      write(iout,*) 'PRINT OUTPUT: spo = ', spo
-!      write(iout,*) 'PRINT OUTPUT: Iopen(iMax) = ', Iopen(iMax)
-!      write(iout,*) 'PRINT OUTPUT: MOD(Iopen(iMax),2) = ', MOD(Iopen(iMax),2)
-!      write(iout,*) 'PRINT OUTPUT: nel = ', nel
-!      write(iout,*) 'PRINT OUTPUT: iop = ', iop
-!      write(iout,*) 'PRINT OUTPUT: Iopen(iop)+spo = ', Iopen(iop)+spo
-!      write(iout,*) 'PRINT OUTPUT: Iopen(1)+spo = ', Iopen(1)+spo
  
 
       do
