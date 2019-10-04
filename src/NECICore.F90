@@ -18,6 +18,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
     !=                iCacheFlag=3: reuse and keep the cache.
     !=    tCPMD: True if doing a CPMD-based calculation.
     !=    tVASP: True if doing a VASP-based calculation.
+    !=    call_as_lib: True if called as subroutine from external code.
     !=    int_name is the name of the integral file to read in if necessary
     !=    filename is the name of the input file to read in if necessary
 
@@ -46,12 +47,11 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
     Implicit none
     integer,intent(in) :: iCacheFlag
     logical,intent(in) :: tCPMD,tVASP,tMolpro_local,call_as_lib
-    character(64), intent(in), optional :: filename_in, int_name
+    character(*), intent(in), optional :: filename_in, int_name
     type(timer), save :: proc_timer
     integer :: ios,iunit,iunit2,i,j,isfreeunit
     character(*), parameter :: this_routine = 'NECICore'
-    character(1024) :: Filename
-    character(64) :: cString
+    character(:), allocatable :: Filename
     logical :: toverride_input,tFCIDUMP_exist
     type(kp_fciqmc_data) :: kp
 

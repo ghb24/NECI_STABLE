@@ -55,7 +55,6 @@ contains
                 READ(iunit,FCI)
              ELSE
                 INQUIRE(FILE=FCIDUMP_name,EXIST=exists,UNFORMATTED=fmat)
-                write(*, *) 'ASDF', FCIDUMP_name
                 IF(.not.exists) THEN
                     CALL Stop_All('InitFromFCID','FCIDUMP file does not exist')
                 ENDIF
