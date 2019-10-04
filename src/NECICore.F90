@@ -52,7 +52,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
     character(*), parameter :: this_routine = 'NECICore'
     character(1024) :: Filename
     character(64) :: cString
-    logical :: toverride_input,tFCIDUMP_exist,tMOLCASinput
+    logical :: toverride_input,tFCIDUMP_exist
     type(kp_fciqmc_data) :: kp
 
     tMolpro = tMolpro_local
@@ -359,9 +359,11 @@ subroutine NECICalcEnd(iCacheFlag)
     if(tCalcPropEst) call DestroyPropInts
     call SysCleanup()
     call clean_replica_arrays()
+
 #ifndef _MOLCAS_
     call clean_parallel()
 #endif
+
     if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
     if(allocated(SymInvLabel)) deallocate(SymInvLabel)
     if(allocated(ValidSpawnedList)) deallocate(ValidSpawnedList)

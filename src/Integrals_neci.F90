@@ -7,7 +7,6 @@ module Integrals_neci
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
                          nTypes, gen2CPMDInts, tDFInts
-    use util_mod, only: get_nan
     use vasp_neci_interface
     use IntegralsData
     use shared_memory_mpi

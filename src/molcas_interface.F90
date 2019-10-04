@@ -1,20 +1,15 @@
-module en2molcas
-   implicit NONE
-   save
-   real(8) :: NECI_E
-end module en2molcas
-
 subroutine NECImain(NECIen)
-  use en2molcas, only : NECI_E
-  use NECICore_mod, only : NECICore
-  character(64) :: dummy1, dummy2
-  real(8), intent (out) :: NECIen
-  write(6,*) "STARTING NECI from Molcas"
-  dummy1 = 'FCIDUMP'
-  dummy2 = 'FCINP'
- ! Indicate not called by CPMD, VASP, Molpro
-  call NECICore(0, .false., .false., .false., .true., dummy1, dummy2)
- ! Once we got excited states energies we will add them here to ENER array.
-!        write(6,*) 'NECI_E in necimain', NECI_E
-  NECIen = NECI_E
+
+    use constants, only : dp
+    use rdm_finalising, only : RDM_energy
+    use NECICore_mod, only : NECICore
+    implicit none
+    character(64), parameter :: int_name = 'FCIDUMP', fci_inp = 'FCINP'
+    real(dp), intent (out) :: NECIen
+
+    write(6, *) "STARTING NECI from Molcas"
+    call NECICore(0, .false., .false., .false., .true., int_name, fci_inp)
+    ! Once we got excited states energies we will add them here to ENER array.
+    NECIen = RDM_energy
+
 end subroutine NECImain
