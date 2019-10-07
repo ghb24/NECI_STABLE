@@ -136,21 +136,23 @@ logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/
 logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically updating one det. One flag for each run.
 integer :: N0_Target !The target reference population in fixed-N0 mode
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
-logical :: tAdaptiveShift !Make shift depends on the population
-real(dp) :: AdaptiveShiftSigma !Population which below the shift is set to zero
-real(dp) :: AdaptiveShiftF1 !Shift modification factor at AdaptiveShiftSigma
-real(dp) :: AdaptiveShiftF2 !Shift modification factor at InitiatorWalkNo
+logical :: tAdaptiveShift !Whether any of the adaptive shift schemes is used
+logical :: tLinearAdaptiveShift !Make shift depends on the population linearly
+real(dp) :: LAS_Sigma !Population which below the shift is set to zero
+real(dp) :: LAS_F1 !Shift modification factor at AdaptiveShiftSigma
+real(dp) :: LAS_F2 !Shift modification factor at InitiatorWalkNo
 logical :: tAutoAdaptiveShift !Let the modification factor of adaptive shift be computed autmatically
-real(dp) :: AdaptiveShiftThresh !Number of spawn under which below the shift is set to zero (in auto-adaptive-shift)
-real(dp) :: AdaptiveShiftExpo !Exponent of the modification factor, value 1 is default. values 0 means going back to full shift.
-real(dp) :: AdaptiveShiftCut  !The modification factor should never go below this.
+real(dp) :: AAS_Thresh !Number of spawn under which below the shift is set to zero
+real(dp) :: AAS_Expo !Exponent of the modification factor, value 1 is default. values 0 means going back to full shift.
+real(dp) :: AAS_Cut  !The modification factor should never go below this.
 logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e. sum_{accepted} |H_ij| / sum_{all attempts} |H_ij|
 logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
 logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted moves.
 logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
 real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
-logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
 real(dp) :: AAS_Const
+logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
+real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.

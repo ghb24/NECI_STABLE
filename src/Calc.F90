@@ -29,8 +29,7 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
-                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
-                         tAllAdaptiveShift, cAllAdaptiveShift
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -141,20 +140,22 @@ contains
           tFixTrial(:) = .false.
           TrialTarget = 0.0
           tAdaptiveShift = .false.
-          AdaptiveShiftSigma = 1.0
-          AdaptiveShiftF1 = 0.0
-          AdaptiveShiftF2 = 1.0
+          tLinearAdaptiveShift = .false.
+          LAS_Sigma = 1.0
+          LAS_F1 = 0.0
+          LAS_F2 = 1.0
+          tExpAdaptiveShift = .false.
+          EAS_Scale = 2.0
           tAutoAdaptiveShift = .false.
-          AdaptiveShiftThresh = 10
-          AdaptiveShiftExpo = 1
-          AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
+          AAS_Thresh = 10
+          AAS_Expo = 1
+          AAS_Cut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
           tAAS_MatEle = .false.
           tAAS_MatEle2 = .false.
           tAAS_MatEle3 = .false.
           tAAS_MatEle4 = .false.
           AAS_DenCut = 0.5
           AAS_Const = 0.0
-          tAAS_Add_Diag = .false.
           tInitsRDMRef = .false.
           tInitsRDM = .false.
           tApplyLC = .true.
@@ -438,11 +439,6 @@ contains
           sFAlpha = 1.0_dp
           sFBeta = 1.0_dp
           sFTag = 0
-
-          ! shift scaling with local population
-          tAllAdaptiveShift = .false.
-          ! First calculations indicate that this is a reasonable value
-          cAllAdaptiveShift = 2
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -1751,57 +1747,65 @@ contains
                 end if
                 tTrialShift = .true.
                 StepsSft = 1
-            case("ADAPTIVE-SHIFT")
-                if (item.lt.nitems) then
-                    call getf(AdaptiveShiftSigma)
-                end if
-                if (item.lt.nitems) then
-                    call getf(AdaptiveShiftF1)
-                    if(AdaptiveShiftF1<0.0 .or. AdaptiveShiftF1>1.0)then
-                        call stop_all(t_r, 'AdaptiveShiftF1 is a scaling parameter and should be between 0.0 and 1.0')
-                    end if
-                end if
-                if (item.lt.nitems) then
-                    call getf(AdaptiveShiftF2)
-                    if(AdaptiveShiftF2<0.0 .or. AdaptiveShiftF2>1.0)then
-                        call stop_all(t_r, 'AdaptiveShiftF2 is a scaling parameter and should be between 0.0 and 1.0')
-                    end if
-                end if
+            case("LINEAR-ADAPTIVE-SHIFT")
+                ! scale the shift down per determinant linearly depending on the local population
                 tAdaptiveShift = .true.
+                tLinearAdaptiveShift = .true.
+                if (item.lt.nitems) then
+                    call getf(LAS_Sigma)
+                end if
+                if (item.lt.nitems) then
+                    call getf(LAS_F1)
+                    if(LAS_F1<0.0 .or. LAS_F1>1.0)then
+                        call stop_all(t_r, 'F1 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
+                end if
+                if (item.lt.nitems) then
+                    call getf(LAS_F2)
+                    if(LAS_F2<0.0 .or. LAS_F2>1.0)then
+                        call stop_all(t_r, 'F2 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
+                end if
+            case("EXP-ADAPTIVE-SHIFT")
+                ! scale the shift down per determinant exponentailly depending on the local population
+                tAdaptiveShift = .true.
+                tExpAdaptiveShift = .true.
+                ! optional argument: value of the parameter of the scaling function
+                if(item < nitems) call getf(EAS_Scale)
+
             case("AUTO-ADAPTIVE-SHIFT")
-                tAutoAdaptiveShift = .true.
+                ! scale the shift down per determinant depending on the ratio of its rejected spawns
                 tAdaptiveShift = .true.
+                tAutoAdaptiveShift = .true.
                 if (item.lt.nitems) then
-                    call getf(AdaptiveShiftThresh)
+                    call getf(AAS_Thresh)
                 end if
 
                 if (item.lt.nitems) then
-                    call getf(AdaptiveShiftExpo)
+                    call getf(AAS_Expo)
                 end if
 
                 if (item.lt.nitems) then
-                    call getf(AdaptiveShiftCut)
+                    call getf(AAS_Cut)
                 end if
             case("AAS-MATELE")
                 tAAS_MatEle = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
-                AdaptiveShiftThresh = 0.0
+                AAS_Thresh = 0.0
             case("AAS-MATELE2")
                 tAAS_MatEle2 = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
-                AdaptiveShiftThresh = 0.0
+                AAS_Thresh = 0.0
             case("AAS-MATELE3")
                 tAAS_MatEle3 = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
-                AdaptiveShiftThresh = 0.0
+                AAS_Thresh = 0.0
             case("AAS-MATELE4")
                 tAAS_MatEle4 = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
-                AdaptiveShiftThresh = 0.0
+                AAS_Thresh = 0.0
             case("AAS-DEN-CUT")
                 call getf(AAS_DenCut)
-            case("AAS-ADD-DIAG")
-                tAAS_Add_Diag = .true.
             case("AAS-CONST")
                 !Adds a positive constant to both the numerator and denominator
                 !in auto-adaptive-shift's modification factor
@@ -2917,12 +2921,6 @@ contains
                 if (item < nitems) then
                     call geti(occ_virt_level)
                  end if
-
-              case("ALL-ADAPTIVE-SHIFT")
-                 ! scale the shift down per determinant depending on the local population
-                 tAllAdaptiveShift = .true.
-                 ! optional argument: value of the parameter of the scaling function
-                 if(item < nitems) call getf(cAllAdaptiveShift)
 
              case("ALL-DOUBS-INITIATORS")
                 ! Set all doubles to be treated as initiators

@@ -963,43 +963,18 @@ contains
 
     function avFFunc(DetSgn,DetPosition) result(AvFmu)
       ! get fmu
-      use CalcData, only: AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
-           InitiatorWalkNo, tAutoAdaptiveShift, AdaptiveShiftThresh
-      use global_det_data, only: get_acc_spawns, get_tot_spawns
+      use procedure_pointers, only: shiftFactorFunction
       implicit none
       real(dp), intent(in) :: DetSgn(lenof_sign)
       integer, intent(in) :: DetPosition
       real(dp) :: AvFmu
 
       integer :: run
-      real(dp) :: population, fmu, tot
+      real(dp) :: fmu
 
       AvFmu = 1.0_dp
       do run = 1, inum_runs
-         population = mag_of_run(DetSgn,run)
-         if(population > InitiatorWalkNo) then
-            ! initiators have f=1
-            fmu = 1.0_dp
-         else
-            ! use the f-function used in the adaptive shift
-            if(tAutoAdaptiveShift) then
-               tot = get_tot_spawns(DetPosition, run)
-               if(tot > AdaptiveShiftThresh) then
-                  fmu = get_acc_spawns(DetPosition, run) / tot
-               else
-                  fmu = 0.0_dp
-               endif
-            else
-               if(population < adaptiveShiftSigma) then
-                  fmu = 0.0_dp
-               else
-                  fmu = AdaptiveShiftF1 + (population - AdaptiveShiftSigma) * &
-                       (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
-               endif
-            endif
-
-         endif
-
+         fmu = shiftFactorFunction(DetPosition, run, mag_of_run(DetSgn,run))
          AvFmu = AvFmu * fmu
       end do
       AvFmu = dressedFactor(AvFmu ** (1.0_dp/real(inum_runs,dp)))

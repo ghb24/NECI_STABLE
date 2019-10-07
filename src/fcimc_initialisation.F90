@@ -39,11 +39,12 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, &
+                        maxKeepExLvl, tAutoAdaptiveShift, AAS_Cut, &
                         tInitializeCSF, S2Init, tWalkContGrow, tSkipRef, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
-                        tInitiatorSpace, i_space_in
+                        tInitiatorSpace, i_space_in, tLinearAdaptiveShift,&
+                        tExpAdaptiveShift
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -95,7 +96,7 @@ module fcimc_initialisation
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement, scaleFunction, &
-                                  shiftScaleFunction
+                                  shiftFactorFunction
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -126,7 +127,8 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction, expShiftScaleFunction, constShiftScaleFunction
+                                 expCOScaleFunction, expShiftFactorFunction, constShiftFactorFunction, &
+                                 linearShiftFactorFunction, autoShiftFactorFunction
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -581,13 +583,13 @@ contains
         ENDIF
         HFConn=nSingles+nDoubles
 
-        if(AdaptiveShiftCut<0.0)then
+        if(tAutoAdaptiveShift .and. AAS_Cut<0.0)then
             !The user did not specify the value, use this as a default
            if(HFConn > 0) then
-              AdaptiveShiftCut = 1.0_dp/HFConn
+              AAS_Cut = 1.0_dp/HFConn
            else
               ! if the HF is disconnected (can happen in rare corner cases), set it to 0
-              AdaptiveShiftCut = 0.0_dp
+              AAS_Cut = 0.0_dp
            endif
         end if
 
@@ -1874,10 +1876,14 @@ contains
            call stop_all(t_r,"Invalid scale function specified")
         end select
 
-        if(tAllAdaptiveShift) then
-           shiftScaleFunction => expShiftScaleFunction
+        if(tExpAdaptiveShift) then
+           shiftFactorFunction => expShiftFactorFunction
+        elseif(tLinearAdaptiveShift) then
+           shiftFactorFunction => linearShiftFactorFunction
+        elseif(tAutoAdaptiveShift) then
+           shiftFactorFunction => autoShiftFactorFunction
         else
-           shiftScaleFunction => constShiftScaleFunction
+           shiftFactorFunction => constShiftFactorFunction
         end if
 
     end subroutine init_fcimc_fn_pointers
