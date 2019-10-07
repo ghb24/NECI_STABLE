@@ -2876,6 +2876,62 @@ contains
                  ! optional argument: value of the parameter of the scaling function
                  if(item < nitems) call getf(cAllAdaptiveShift)
 
+                 ! Throw an error when a removed keyword is used - this way, a clear error
+                 ! is displayed, when an old input file with one of these keywords is used
+              case("DELAY-DEATHS")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword DELAY-DEATHS has been removed")
+
+              case("AVERAGE-REPLICAS")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword AVERAGE-REPLICAS has been removed")
+
+              case("REPLICA-COHERENT-INITS")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword REPLICA-COHERENT-INITS has been removed")
+
+              case("ALL-SENIORITY-INITS")
+                 ! Outdated Keyword
+                 call stop_all(t_r,"Keyword ALL-SENIORITY-INITS has been removed")
+
+              case("ALL-SENIORITY-SURVIVE")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword ALL-SENIORITY-SURVIVE has been removed")
+
+              case("LARGE-MATEL-SURVIVE")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword LARGE-MATEL-SURVIVE has been removed")
+
+              case("ALL-DOUBS-INITIATORS")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keywords ALL-DOUBS-INITIATORS and ALL-SINGS-INITIATORS have been replaced by keyword SUPERINITIATORS")
+
+              case("ALL-SINGS-INITIATORS")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keywords ALL-SINGS-INITIATORS and ALL-DOUBS-INITIATORS have been replaced by keyword SUPERINITIATORS")
+
+              case("ALL-DOUBS-INITIATORS-DELAY")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keywords ALL-DOUBS-INITIATORS-DELAY and ALL-SINGS-INITIATORS-DELAY have been replaced by keyword SUPERINITIATORS-DELAY")
+
+              case("ALL-SINGS-INITIATORS-DELAY")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keywords ALL-SINGS-INITIATORS-DELAY and ALL-DOUBS-INITIATORS-DELAY have been replaced by keyword SUPERINITIATORS-DELAY")
+
+              case("EXCITATION-PRODUCT-REFERENCES")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keyword EXCITATION-PRODUCT-REFERENCES has been removed")
+
+              case("SECONDARY-SUPERINITIATORS")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keyword SECONDARY-SUPERINITIATORS has been removed")
+
              case("SUPERINITIATORS")
                 ! Set all doubles to be treated as initiators
                 ! If truncinitiator is not set, this does nothing
@@ -2889,9 +2945,19 @@ contains
                 if(item < nitems) call geti(allDoubsInitsDelay)
                 tSetDelayAllDoubsInits = .true.
 
+             case("READ-REFERENCES")
+                ! Outdated keyword
+                call stop_all(t_r,&
+                     "Keyword READ-REFERENCES has been removed, please use READ-SUPERINITIATORS")
+
              case("READ-SUPERINITIATORS")
                 ! Instead of generating new superinitiators, read in existing ones
                 tReadRefs = .true.
+
+             case("COHERENT-REFERENCES")
+                ! Outdated keyword
+                call stop_all(t_r,&
+                     "Keyword COHERENT-REFERENCES has been removed, please use COHERENT-SUPERINITIATORS")
 
              case("COHERENT-SUPERINITIATORS")
                 ! Only make those doubles/singles initiators that are sign coherent
