@@ -144,7 +144,7 @@ module fcimc_initialisation
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
-    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen
+    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
     use csf, only: get_csf_helement
     use tau_search, only: init_tau_search, max_death_cpt
     use fcimc_helper, only: CalcParentFlag, update_run_reference
@@ -170,7 +170,7 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use gasci, only: generate_nGAS_excitation, clearGAS
-    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen
+    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
     implicit none
 
 contains
@@ -2042,6 +2042,10 @@ contains
         call clean_adi()
 
         call clearGAS()
+
+        ! Cleanup excitation generator
+        if(t_pcpp_excitgen) call finalize_pcpp_excitgen()
+        if(t_pchb_excitgen) call finalize_pchb_excitgen()
 
         if (tSemiStochastic) call end_semistoch()
 
