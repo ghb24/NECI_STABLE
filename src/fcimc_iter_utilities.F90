@@ -21,7 +21,7 @@ module fcimc_iter_utils
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tCoupleCycleOutput
     use tau_search, only: update_tau
     use rdm_data, only: en_pert_main
     use Parallel_neci
@@ -1136,30 +1136,49 @@ contains
 
     end subroutine rezero_iter_stats_update_cycle
 
-    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs)
+    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs, &
+         t_do_update_arg)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
         logical, intent(in) :: replica_pairs
+        ! optional argument: if false is passed, do not do the shift update and diagnostics,
+        !                    only produce output
+        logical, intent(in), optional :: t_do_update_arg
+        logical :: t_do_update
 
         call communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
-        call collate_iter_data (iter_data, replica_pairs)
-        call iter_diagnostics ()
-        if(tRestart) return
-        call population_check ()
-        call update_shift (iter_data)
-        if (tPrintDataTables) then
+        ! TODO: Use the def_default macro once available
+        if(present(t_do_update_arg)) then
+           t_do_update = t_do_update_arg
+        else
+           t_do_update = .true.
+        endif
+
+        ! This is what defines the update of the shift - only done then
+        if(t_do_update) then        
+           call collate_iter_data (iter_data, replica_pairs)
+           call iter_diagnostics ()
+           if(tRestart) return
+           call population_check ()
+           call update_shift (iter_data)
+        endif
+        ! make sure that either:
+        ! a) update cycle and output are coupled or
+        ! b) this is not an update call
+        if (tPrintDataTables .and. (tCoupleCycleOutput .or. .not. t_do_update)) then
             if (tFCIMCStats2) then
                 call write_fcimcstats2(iter_data_fciqmc)
             else
                 call WriteFCIMCStats ()
             end if
         end if
-        
-        call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
-    end subroutine calculate_new_shift_wrapper
+        ! Simple output does not require a reset of temporaries
+        if(t_do_update) call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
+
+      end subroutine calculate_new_shift_wrapper
 
     subroutine update_iter_data(iter_data)
 

@@ -53,9 +53,9 @@ module fcimc_initialisation
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
-                           iWritePopsEvery, tRDMOnFly, &
+                           iWritePopsEvery, tRDMOnFly, tCoupleCycleOutput, StepsPrint, &
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
-                           tHistInitPops, OrbOccsTag, tHistEnergies, &
+                           tHistInitPops, OrbOccsTag, tHistEnergies, tMCOutput, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
@@ -1119,7 +1119,15 @@ contains
             StepsSft=NINT(StepsSftImag/Tau)
             IF(StepsSft.eq.0) StepsSft=1
             WRITE(iout,*) "StepsShift set to: ",StepsSft
-        ENDIF
+         ENDIF
+
+         ! StepsPrint < 1 while not coupling update and output cycle means no std output
+         if(.not. tCoupleCycleOutput .and. StepsPrint < 1) then
+            tMCOutput = .false.
+            ! But there shall be output in the FCIMCStats file
+            ! There is no specified output cycle, so we default to the shift cycle -> couple them
+            tCoupleCycleOutput = .true.
+         endif
 
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) then

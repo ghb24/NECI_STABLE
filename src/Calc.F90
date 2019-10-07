@@ -1647,7 +1647,8 @@ contains
                     & 'FIXED-N0' or 'TRIAL-SHIFT' is already specified and sets this parameter to 1."
                 else
                     call geti(StepsSft)
-                end if
+                 end if
+
             case("FIXED-N0")
 #ifdef __CMPL
                 call stop_all(t_r, 'FIXED-N0 currently not implemented for complex')
