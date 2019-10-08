@@ -1118,11 +1118,11 @@ contains
                 ! Loop over all RDMs beings sampled.
                 do irdm = 1, rdm_defs%nrdms
                     if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                       write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//',".",'&
+                       write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//'",".",'&
                              //int_fmt(state_labels(1,irdm),0)//')') irdm
                     else
-                        write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//&
-                             ',".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                        write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//&
+                             ',".",'//int_fmt(state_labels(1,irdm),0)//'","_",'&
                              //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
                              state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
                     end if
