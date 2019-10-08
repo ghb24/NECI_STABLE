@@ -8,7 +8,7 @@ rm -f unsorted_tags
 # store the result in a temporary file and use ctags to append its tags
 # to 'unsorted_tags' file.
 find . \( -iname \*.F -o -iname \*.F90 \) \
-    -execdir cpp -I . -I .. -w -D "HElement_t=real" {} {}.tmp \; \
+    -execdir cpp -I . -I .. -w -D "HElement_t=COMPLEX" {} {}.tmp \; \
     -exec ctags --excmd=number -a  -f "unsorted_tags" \
     --sort=no --line-directives=yes --language-force=fortran {}.tmp \; \
     -exec rm {}.tmp \;
