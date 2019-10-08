@@ -10,7 +10,7 @@ module AnnihilationMod
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
                           tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
-                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse, tNonInitsForRDMs, &
+                          tNonInitsForRDMs, &
                           tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
                           tSimpleInit, tAllConnsPureInit
     use DetCalcData, only: Det, FCIDetIndex
@@ -226,7 +226,6 @@ module AnnihilationMod
         integer(n_int) :: cum_det(0:nifbcast), temp_det(0:nifbcast)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
-        real(dp) :: weight_rev, weights_rev(inum_runs)
         integer :: run
 
         integer :: nI_spawn(nel)
@@ -241,11 +240,7 @@ module AnnihilationMod
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time, 20)
 
-        if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-            call sort(SpawnedParts(:,1:ValidSpawned), SpawnInfo(:,1:ValidSpawned),ilut_lt, ilut_gt)
-        else
-            call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
-        endif
+        call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
 
 
         call halt_timer(Sort_time)
@@ -303,11 +298,6 @@ module AnnihilationMod
 
                 ! Transfer all info to the other array.
                 SpawnedParts2(:, VecInd) = SpawnedParts(:, BeginningBlockDet)
-                if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                    SpawnInfo2(:, VecInd) = 0
-                    run = int(SpawnInfo(SpawnRun, BeginningBlockDet))
-                    SpawnInfo2(run, VecInd) = SpawnInfo(SpawnWeightRev, BeginningBlockDet)
-                end if
 
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! SpawnedParts contains the determinants spawned on (Dj),
@@ -395,10 +385,6 @@ module AnnihilationMod
                 Spawned_Parents_Index(2,VecInd) = 0
             end if
 
-            if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                weights_rev(:) = 0.0_dp
-            end if
-
             do i = BeginningBlockDet, EndBlockDet
                 ! if logged, accumulate the number of spawn events
                 if(tLogNumSpawns) then
@@ -417,11 +403,6 @@ module AnnihilationMod
                                                     VecInd, Parent_Array_Ind)
 
                end do
-               if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                   weight_rev = transfer(SpawnInfo(SpawnWeightRev, i), weight_rev)
-                   run = int(SpawnInfo(SpawnRun, i))
-                   weights_rev(run) = weights_rev(run) + weight_rev
-               end if
             end do ! Loop over particle type.
 
 
@@ -441,11 +422,6 @@ module AnnihilationMod
 
 
                SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
-               if(tAutoAdaptiveShift .and. tAAS_Reverse) then
-                  do run = 1, inum_runs
-                     SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
-                  end do
-               endif
                 if (tPreCond .or. tReplicaEstimates) then
                     SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
                 end if
@@ -940,7 +916,7 @@ module AnnihilationMod
         integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: ScaledOccupiedThresh, scFVal, diagH, weight_rev
+        real(dp) :: ScaledOccupiedThresh, scFVal, diagH
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
@@ -1099,14 +1075,6 @@ module AnnihilationMod
                  call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
                       CurrentDets(:,PartInd), TempCurrentSign)
               end if
-
-              if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                 do run = 1, inum_runs
-                    weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                    call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                    call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                 end do
-              end if
            else
 
 
@@ -1179,13 +1147,6 @@ module AnnihilationMod
                             diagH, PartInd, err)
                        ! abort upon error
                        if(err.ne.0) return
-                       if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                          do run = 1, inum_runs
-                             weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                             call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                             call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                          end do
-                       end if
                     end if
                  end if
               else
@@ -1227,13 +1188,6 @@ module AnnihilationMod
                             diagH, PartInd, err)
                        ! abort annihilation upon error
                        if(err.ne.0) return
-                       if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                          do run = 1, inum_runs
-                             weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                             call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                             call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                          end do
-                       end if
                     end if
                  end if
               end if
@@ -1606,22 +1560,11 @@ module AnnihilationMod
                 run = int(SpawnInfo(SpawnRun,i))
                 weight_acc = transfer(SpawnInfo(SpawnWeightAcc, i), weight_acc) !weight is a real encoded in an integer. Decoded it!
                 weight_rej = transfer(SpawnInfo(SpawnWeightRej, i), weight_rej) !weight is a real encoded in an integer. Decoded it!
-                if(tAAS_Reverse)then
-                    if(SpawnInfo(SpawnAccepted,i)==1)then
-                        !We add only half the weight for accepted spawns,
-                        !because we expect the reverse spawning to compensate for the other half (on average)
-                        call update_tot_spawns(ParentIdx, run, 0.5*weight_acc)
-                        call update_acc_spawns(ParentIdx, run, 0.5*weight_acc)
-                    else
-                        call update_tot_spawns(ParentIdx, run, weight_rej)
-                    end if
+                if(SpawnInfo(SpawnAccepted,i)==1)then
+                    call update_tot_spawns(ParentIdx, run, weight_acc)
+                    call update_acc_spawns(ParentIdx, run, weight_acc)
                 else
-                    if(SpawnInfo(SpawnAccepted,i)==1)then
-                        call update_tot_spawns(ParentIdx, run, weight_acc)
-                        call update_acc_spawns(ParentIdx, run, weight_acc)
-                    else
-                        call update_tot_spawns(ParentIdx, run, weight_rej)
-                    end if
+                    call update_tot_spawns(ParentIdx, run, weight_rej)
                 end if
             end do
         end do

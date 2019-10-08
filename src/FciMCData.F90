@@ -146,11 +146,6 @@ MODULE FciMCData
       integer :: sfTag
       real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
-      ! scaling of shift
-      ! if true, the shift is always scaled with the population on each det
-      logical :: tAllAdaptiveShift = .false.
-      ! control parameter for shift scaling
-      real(dp) :: cAllAdaptiveShift
       ! flag to indicate that the number of spawns shall be tracked
       logical :: tLogNumSpawns
       ! total truncated weight
