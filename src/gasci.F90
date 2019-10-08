@@ -432,11 +432,12 @@ contains
         ! srcGASInd the random number is to be supplied as r
         ! nI is the source determinant, nJBase the one from which we obtain
         ! the ket of the matrix element by single excitation
-        integer, intent(in) :: nI(nel)
-        integer, intent(in) :: src1, src2, tgt1, ic, spin_idx, iGAS
+        integer, intent(in) :: nI(nel), src1, src2, tgt1, ic, spin_idx, iGAS
         real(dp), intent(inout) :: pgen
 
-        integer :: tgt, nOrbs, GAS_list(GAS_size(iGAS))
+        integer :: tgt
+
+        integer :: nOrbs, GAS_list(GAS_size(iGAS))
         real(dp) :: r, cSum(GAS_size(iGAS))
 
         ! initialize auxiliary variables
