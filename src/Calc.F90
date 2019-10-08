@@ -1747,7 +1747,7 @@ contains
                 end if
                 tTrialShift = .true.
                 StepsSft = 1
-            case("LINEAR-ADAPTIVE-SHIFT")
+            case("LINEAR-ADAPTIVE-SHIFT", "ADAPTIVE-SHIFT")
                 ! scale the shift down per determinant linearly depending on the local population
                 tAdaptiveShift = .true.
                 tLinearAdaptiveShift = .true.
@@ -1766,7 +1766,7 @@ contains
                         call stop_all(t_r, 'F2 is a scaling parameter and should be between 0.0 and 1.0')
                     end if
                 end if
-            case("EXP-ADAPTIVE-SHIFT")
+            case("EXP-ADAPTIVE-SHIFT", "ALL-ADAPTIVE-SHIFT")
                 ! scale the shift down per determinant exponentailly depending on the local population
                 tAdaptiveShift = .true.
                 tExpAdaptiveShift = .true.
