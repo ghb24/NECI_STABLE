@@ -9,13 +9,13 @@ rm -f unsorted_tags
 # to 'unsorted_tags' file.
 find . \( -iname \*.F -o -iname \*.F90 \) \
     -execdir cpp -I . -I .. -w -D "HElement_t=real" {} {}.tmp \; \
-    -exec ~/bin/ctags/ctags --excmd=number -a  -f "unsorted_tags" \
+    -exec ctags --excmd=number -a  -f "unsorted_tags" \
     --sort=no --line-directives=yes --language-force=fortran {}.tmp \; \
     -exec rm {}.tmp \;
 
 # Suprisingly, 'ctags' works well with template files
 find . -iname \*.template \
-    -exec  ~/bin/ctags/ctags -a  -f "unsorted_tags" \
+    -exec  ctags -a  -f "unsorted_tags" \
     --excmd=number  --sort=no --language-force=fortran {} \; 
 
 # For some reason, using 'ctags' above with '--sort=yes' option leads to 
