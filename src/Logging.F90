@@ -1,19 +1,19 @@
 #include "macros.h"
 
 MODULE Logging
-            
+
     use constants, only: dp, int64, nreplicas
     use input_neci
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
-                        tPairedReplicas, tReplicaEstimates
+                        tPairedReplicas, tReplicaEstimates, iSampleRDMIters
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
     use hist_data, only: iNoBins, tHistSpawn, BinRange
-    use errors, only: Errordebug 
+    use errors, only: Errordebug
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
 ! RT_M_Merge: There seems to be no conflict here, so use both
@@ -23,6 +23,8 @@ MODULE Logging
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
 
     IMPLICIT NONE
+
+    logical, public :: RDMlinspace_in_inp, calcrdmonfly_in_inp
 
     contains
 
@@ -130,7 +132,7 @@ MODULE Logging
       RDMExcitLevel=1
       tDo_Not_Calc_2RDM_est = .false.
       tExplicitAllRDM = .false.
-      twrite_normalised_RDMs = .true. 
+      twrite_normalised_RDMs = .true.
       tWriteSpinFreeRDM = .false.
       twrite_RDMs_to_read = .false.
       tno_RDMs_to_read = .false.
@@ -196,6 +198,7 @@ MODULE Logging
         logical :: eof
         logical tUseOnlySingleReplicas
         integer :: i, line, ierr
+        integer :: n_samples
         character(100) :: w
         character(100) :: PertFile(3)
         character(*), parameter :: t_r = 'LogReadInput'
@@ -249,7 +252,7 @@ MODULE Logging
 !This is the iteration interval period to write out the blocking files.
             call readi(iWriteBlockingEvery)
         case("SAVEBLOCKING")
-!In this case, blocking files are not overwritten each time they are printed out, but 
+!In this case, blocking files are not overwritten each time they are printed out, but
             tSaveBlocking=.true.
         case("ERRORBLOCKING")
 !Performs blocking analysis on the errors in the instantaneous projected energy to get the error involved.
@@ -278,23 +281,23 @@ MODULE Logging
             ENDIF
 
         case("BLOCKINGSTARTITER")
-!This keyword can be used if we want to start the blocking error analysis at a particular iteration.            
+!This keyword can be used if we want to start the blocking error analysis at a particular iteration.
 !If it is a negative integer, then this means that the blocking will start when we come out of fixed shift mode.
             tIterStartBlock=.true.
             tHFPopStartBlock=.false.
             call readi(IterStartBlocking)
 
         case("SHIFTBLOCKINGSTARTITER")
-!This keyword can be used if we want to start the blocking error analysis of the shift at a particular 
-!iteration after the shift begins to change.            
+!This keyword can be used if we want to start the blocking error analysis of the shift at a particular
+!iteration after the shift begins to change.
             call stop_all(t_r,'SHIFTBLOCKINGSTARTITER option deprecated')
 
-        case("BLOCKINGSTARTHFPOP")            
+        case("BLOCKINGSTARTHFPOP")
 !This keyword can be used if we want to start the blocking error analysis at a particular HF population.
 !The current default is 100.
             tHFPopStartBlock=.true.
             call readi(HFPopStartBlocking)
- 
+
         case("ROFCIDUMP")
 !Turning this option on prints out a new FCIDUMP file at the end of the orbital rotation.  At the moment, the rotation is very slow
 !so this will prevent us having to do the transformation every time we run a calculation on a particular system
@@ -321,7 +324,7 @@ MODULE Logging
             enddo
 
         case("MULTTRUNCROFCIDUMP")
-!This option allows us to specify multiple truncations, so that one calculation will print out multiple 
+!This option allows us to specify multiple truncations, so that one calculation will print out multiple
 !ROFCIDUMP files with different
 !levels of truncation - prevents us from having to do multiple identical CISD calculations to get the different truncations.
             tTruncRODump=.true.
@@ -333,8 +336,8 @@ MODULE Logging
                 call readi(NoTruncOrbs(i))
             enddo
 
-        case("MULTTRUNCVALROFCIDUMP")     
-!This option allows us to specify particular cutoffs values for the eigenvalues - and print out multiply 
+        case("MULTTRUNCVALROFCIDUMP")
+!This option allows us to specify particular cutoffs values for the eigenvalues - and print out multiply
 !ROFCIDUMP files with orbitals
 !with eigenvalues below these removed.
             tTruncRODump=.true.
@@ -348,13 +351,13 @@ MODULE Logging
             enddo
 
         case("WRITETRANSFORMMAT")
-!This option writes out the transformation matrix used to convert the HF orbitals into the natural orbitals.  
+!This option writes out the transformation matrix used to convert the HF orbitals into the natural orbitals.
 !This can then be read into
-!QChem to produce the natural orbital cube files and then visualise them using VMD.  Note : Currently, 
+!QChem to produce the natural orbital cube files and then visualise them using VMD.  Note : Currently,
 !because of Fortran 90's weird dealings
-!with writing and reading binary - this option is only compatible with QChem if the code is compiled using 
-!PGI - this will be fixed at 
-!some stage.  Also - QChem INTDUMP files must be used to be compatible.  
+!with writing and reading binary - this option is only compatible with QChem if the code is compiled using
+!PGI - this will be fixed at
+!some stage.  Also - QChem INTDUMP files must be used to be compatible.
             tWriteTransMat=.true.
 
 
@@ -397,6 +400,7 @@ MODULE Logging
 !This option creates a histogram of the <ij|kl> terms where i<k and j<l.
             IF(item.lt.nitems) THEN
                 call readu(w)
+                tROHistOffDiag = (w /= 'OFF')
                 select case(w)
                     case("OFF")
                         tROHistOffDiag=.false.
@@ -416,7 +420,7 @@ MODULE Logging
             ELSE
                 tROHistDoubExc=.true.
             ENDIF
- 
+
        case("ROHISTSINGEXC")
 !This option creates a histogram of the single excitation hamiltonian elements.
             IF(item.lt.nitems) THEN
@@ -440,7 +444,7 @@ MODULE Logging
             ELSE
                 tROHistER=.true.
             ENDIF
-  
+
        case("ROHISTONEElINTS")
 !This option creates a histogram of the one electron integrals, the <i|h|i> terms.
             IF(item.lt.nitems) THEN
@@ -452,7 +456,7 @@ MODULE Logging
             ELSE
                 tROHistOneElInts=.true.
             ENDIF
-         
+
 
        case("ROHISTONEPARTORBEN")
 !This option creates a histogram of the one particle orbital energies, epsilon_i = <i|h|i> + sum_j [<ij||ij>].
@@ -465,7 +469,7 @@ MODULE Logging
             ELSE
                 tROHistOnePartOrbEn=.true.
             ENDIF
- 
+
        case("ROHISTVIRTCOULOMB")
 !This option creates a histogram of the coulomb integrals, <ij|ij>, where i and j are both virtual and i<j.
             IF(item.lt.nitems) THEN
@@ -477,7 +481,7 @@ MODULE Logging
             ELSE
                 tROHistVirtCoulomb=.true.
             ENDIF
-        
+
         case("PRINTINTEGRALS")
 !This option prints 2 files containing the values of certain integrals at each rotation iteration.  This is so that we can see the
 !effect the rotation is having on all values, other than just the one we are max/minimising.
@@ -485,8 +489,8 @@ MODULE Logging
 
         case("PRINTTRICONNECTIONS")
 !This option takes each generated pair of determinant and excitation and finds 3rd determinant to make up a triangular connection.
-!The product of the three connecting elements are then histogrammed in two separate files. 
-!In one, the triangular connections that combine 
+!The product of the three connecting elements are then histogrammed in two separate files.
+!In one, the triangular connections that combine
 !to be sign coherent are recorded, and in the other, those which are sign incoherent.
             CALL Stop_All(t_r,"PRINTTRICONNECTIONS option depreciated")
 !            call readf(TriConMax)
@@ -494,7 +498,7 @@ MODULE Logging
 !            tPrintTriConnections=.true.
 
         case("HISTTRICONNELEMENTS")
-!This keyword takes the above triangles of connected determinants and histograms each connecting 
+!This keyword takes the above triangles of connected determinants and histograms each connecting
 !element that contributes to the triangle.
 !It then prints these according to whether they are single or double connecting elements.
 !It also prints a histogram and the average size of the Hjk elements (regardless of whether or not they are zero).
@@ -505,7 +509,7 @@ MODULE Logging
 !            tHistTriConHEls=.true.
 
         case("PRINTHELACCEPTSTATS")
-!This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts 
+!This keyword prints out an extra file that keeps track of the H elements involved in spawning attempts
 !that are accepted or not accepted.
 !It prints out the average H elements where spawning is accepted and the average where it is not accepted.
             CALL Stop_All(t_r,"PRINTHELACCEPTSTATS option depreciated")
@@ -516,8 +520,8 @@ MODULE Logging
             tPrintSpinCoupHEl=.true.
 
         case("HISTINITIATORPOPS")
-!This option prints out a file (at every HistInitPopsIter iteration) containing the 
-!natural log of the populations of the initiator determinants 
+!This option prints out a file (at every HistInitPopsIter iteration) containing the
+!natural log of the populations of the initiator determinants
 !and the number with this population. The range of populations histogrammed goes from ln(N_add) -> ln(1,000,000) with 50,000 bins.
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
@@ -545,10 +549,11 @@ MODULE Logging
 #endif
 
         case("CALCRDMONFLY")
-!This keyword sets the calculation to calculate the reduced density matrix on the fly.  
+!This keyword sets the calculation to calculate the reduced density matrix on the fly.
 !This starts at IterRDMonFly iterations after the shift changes.
-!If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2, 
-! only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found. 
+!If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2,
+! only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found.
+            calcrdmonfly_in_inp = .true.
             tRDMonFly=.true.
             tCheckHighestPop = .true.
             call readi(RDMExcitLevel)
@@ -564,12 +569,44 @@ MODULE Logging
 #elif defined(__DOUBLERUN)
             tPairedReplicas = .true.
 #endif
+            if (IterRDMOnFly < semistoch_shift_iter) then
+                call stop_all(t_r,"Semi-stochastic needs to be &
+                    &turned on before RDMs are turned on.")
+            else if (IterRDMOnFly < trial_shift_iter) then
+                call stop_all(t_r,"Trial wavefunctions needs to be &
+                    &turned on before RDMs are turned on.")
+            end if
 
-            if (IterRDMOnFly < semistoch_shift_iter) call stop_all(t_r,"Semi-stochastic needs to be turned on before &
-                                                                        &RDMs are turned on.")
+        case("RDMLINSPACE")
+!> This keyword is an improved way to specify the RDM sampling intervals.
+!> The syntax is ``RDMlinspace  start n_samples  step``.
+!> The RDMExcitLevel is set to three in this routine.
+            RDMlinspace_in_inp = .true.
+            tRDMonFly=.true.
+            tCheckHighestPop = .true.
 
-            if (IterRDMOnFly < trial_shift_iter) call stop_all(t_r,"Trial wavefunctions needs to be turned on before &
-                                                                        &RDMs are turned on.")
+            call readi(iSampleRDMIters)
+            call readi(n_samples)
+            call readi(RDMEnergyIter)
+
+            RDMExcitLevel = 3
+            IterRDMOnFly = iSampleRDMIters + (n_samples - 1) * RDMEnergyIter
+#if defined(__PROG_NUMRUNS)
+          ! With this option, we want to use pairs of replicas.
+            if (.not. tUseOnlySingleReplicas) then
+                tPairedReplicas = .true.
+                nreplicas = 2
+            end if
+#elif defined(__DOUBLERUN)
+            tPairedReplicas = .true.
+#endif
+            if (IterRDMOnFly < semistoch_shift_iter) then
+                call stop_all(t_r,"Semi-stochastic needs to be &
+                    &turned on before RDMs are turned on.")
+            else if (IterRDMOnFly < trial_shift_iter) then
+                call stop_all(t_r,"Trial wavefunctions needs to be &
+                    &turned on before RDMs are turned on.")
+            end if
 
         case("OLDRDMS")
 ! Accumulate RDMs using the old RDM code.
@@ -605,33 +642,33 @@ MODULE Logging
             t_no_append_stats = .true.
 
         case("DIAGFLYONERDM")
-!This sets the calculation to diagonalise the *1* electron reduced density matrix.   
+!This sets the calculation to diagonalise the *1* electron reduced density matrix.
 !The eigenvalues give the occupation numbers of the natural orbitals (eigenfunctions).
             tDiagRDM=.true.
-        
+
         case("FULLHFAV")
             !Continue to accumulate the average of N_HF even when it goes to zero
             !Necessary for good RDM accumulation in systems with small N_HF (i.e. multireference)
             tFullHFAv=.true.
 
         case("NONOTRANSFORM")
-! This tells the calc that we don't want to print the NO_TRANSFORM matrix.            
+! This tells the calc that we don't want to print the NO_TRANSFORM matrix.
 ! i.e. the diagonalisation is just done to get the correlation entropy.
             tNoNOTransform = .true.
 
         case("PRINTONERDM")
-! This prints the OneRDM, regardless of whether or not we are calculating just the 1-RDM, or the 2-RDM.            
+! This prints the OneRDM, regardless of whether or not we are calculating just the 1-RDM, or the 2-RDM.
             tPrint1RDM = .true.
 
         case("PRINTRODUMP")
             tPrintRODump=.true.
             tROFciDump = .true.
-! This is to do with the calculation of the MP2 or CI natural orbitals.  
-!This should be used if we want the transformation matrix of the 
-! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e. 
-!the integrals don't need to be transformed).  This is so that at the end 
-! of a calculation, we may get the one body reduced density matrix from the 
-!wavefunction we've found, and then use the MOTRANSFORM file printed to 
+! This is to do with the calculation of the MP2 or CI natural orbitals.
+!This should be used if we want the transformation matrix of the
+! natural orbitals to be found, but no ROFCIDUMP file to be printed (i.e.
+!the integrals don't need to be transformed).  This is so that at the end
+! of a calculation, we may get the one body reduced density matrix from the
+!wavefunction we've found, and then use the MOTRANSFORM file printed to
 ! visualise the natural orbitals with large occupation numbers.
 
         case("FORCECAUCHYSCHWARZ")
@@ -648,15 +685,15 @@ MODULE Logging
             call readi(local_cutoff)
             call readf(occ_numb_diff)
 ! This is to rotate the obtained natural orbitals (NOs) again in order to obtain
-! symmetry broken NOs: pairs of NOs whose occupation numbers differ by less 
+! symmetry broken NOs: pairs of NOs whose occupation numbers differ by less
 ! than the specified threshold occ_numb_diff (relative difference, i.e. difference
-! divided by absolute value) will be rotated so as to 
+! divided by absolute value) will be rotated so as to
 ! maximally localise them using and Edminston Ruedenberg type localisation
 ! local_cutoff is the index of the spatial orbital which is the borderline
-! for performing localisation or delocalisation of the NO: all chosen NOs pairs with 
+! for performing localisation or delocalisation of the NO: all chosen NOs pairs with
 ! orbital index less or equal to (and hence occupation numbers larger than)
 ! this orbital will be delocalised while the others will be localised
-! If BREAKSYMNOS is specified rottwo gives number of pairs to rotate, rotthree the 
+! If BREAKSYMNOS is specified rottwo gives number of pairs to rotate, rotthree the
 ! number of triples to rotate and rotfour the number of quadruples to rotate
 ! If BREAKSYMNOS is not present these will be ignored
 ! A new FCIDUMP file (BSFCIDUMP) with the rotated NOs is printed out
@@ -665,7 +702,7 @@ MODULE Logging
             tBreakSymNOs = .true.
 ! This is another option for BROKENSYMNOS p1 p2... t1 t2 t3... q1 q2 q3 q4...
 ! This contains just an ordered list of the spatial orbital indices of the NOs
-! to rotate, firstly the doubles, then triples, then quadruples (the number of 
+! to rotate, firstly the doubles, then triples, then quadruples (the number of
 ! pairs, triples and quadruples is specified with the BROKENSYMNOS options), e.g.
 ! BROKENSYMNOS 2 1 1 0 0.1
 ! BREAKSYMNOS 3 4 4 5 1 5 6 7 8 9 10
@@ -689,8 +726,8 @@ MODULE Logging
                                &sampled, so this option is only needed if one wants to turn this off.")
 
         case("CALC-2RDM-ESTIMATES")
-!This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.            
-!For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this 
+!This takes the 1 and 2 electron RDM and calculates the energy using the RDM expression.
+!For this to be calculated, RDMExcitLevel must be = 3, so there is a check to make sure this
 !is so if the CALCRDMENERGY keyword is present.
             IF(item.lt.nitems) THEN
                 call readu(w)
@@ -701,11 +738,11 @@ MODULE Logging
             ELSE
                 tDo_Not_Calc_2RDM_est = .false.
             ENDIF
-        
+
         case("CALC-PROP-ESTIMATES")
-!Calculate the estimates of the one-electron properties using 1 electron RDM and 1 electron 
+!Calculate the estimates of the one-electron properties using 1 electron RDM and 1 electron
 !property integrals. It uses all the different RDMs that have been estimated and get the
-!corresponding property estimations.  
+!corresponding property estimations.
             tCalcPropEst=.true.
             if(nitems==1) then
                 call stop_all(t_r,"Please specify the name of the integral file corresponding the property")
@@ -723,14 +760,14 @@ MODULE Logging
             tRDMInstEnergy=.false.
 
         case("EXPLICITALLRDM")
-!Explicitly calculates all the elements of the RDM.            
+!Explicitly calculates all the elements of the RDM.
             tExplicitAllRDM = .true.
 
         case("WRITEINITIATORS")
             ! Requires a popsfile to be written out.  Writes out the initiator
-            ! populations. 
+            ! populations.
             tPrintInitiators = .true.
-        
+
         case("WRITERDMSTOREAD")
             ! Writes out the unnormalised RDMs (in binary), so they can be read
             ! back in, and the calculations restarted at a later point This is
@@ -741,15 +778,15 @@ MODULE Logging
                 call readu(w)
                 select case(w)
                     case("OFF")
-                        tno_RDMs_to_read = .true. 
-                        twrite_RDMs_to_read = .false. 
+                        tno_RDMs_to_read = .true.
+                        twrite_RDMs_to_read = .false.
                 end select
             ELSE
-                twrite_RDMs_to_read = .true. 
-                tno_RDMs_to_read = .false. 
+                twrite_RDMs_to_read = .true.
+                tno_RDMs_to_read = .false.
             ENDIF
 
-        case("NONORMRDMS")            
+        case("NONORMRDMS")
             ! Does not print out the normalised (final) RDMs - to be used if
             ! you know the calculation will not be converged, and don't want to
             ! take up disk space.
@@ -759,39 +796,39 @@ MODULE Logging
             tWriteSpinFreeRDM = .true.
 
         case("READRDMS")
-! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart. 
+! Read in the RDMs from a previous calculation, and continue accumulating the RDMs from the very beginning of this restart.
             tReadRDMs = .true.
-        
+
         case("NONEWRDMCONTRIB")
-            ! To be used with READRDMs.  This option makes sure that we don't add in any 
+            ! To be used with READRDMs.  This option makes sure that we don't add in any
             ! new contributions to the RDM if filling stochastically
-            ! This is useful if we want to read in an RDM from another calculation and then 
+            ! This is useful if we want to read in an RDM from another calculation and then
             ! just print out the analysis, without adding in any more information.
             tNoNewRDMContrib = .true.
 
         case("WRITERDMSEVERY")
-! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.  
+! Write out the normalised, hermitian RDMs every IterWriteRDMs iterations.
             tWriteMultRDMs = .true.
             call readi(IterWriteRDMs)
 
         case("THRESHOCCONLYRDMDIAG")
-            ! Only add in a contribution to the diagonal elements of the RDM if the average sign 
+            ! Only add in a contribution to the diagonal elements of the RDM if the average sign
             ! of the determinant is greater than [ThreshOccRDM]
             tThreshOccRDMDiag = .true.
             call Getf(ThreshOccRDM)
 
         case("DUMPFORCESINFO")
-! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces, 
+! Using the finalised 2RDM, calculate the Lagrangian X used for the calculation of the forces,
 !and dump all these in Molpro-friendly format
             tDumpForcesInfo = .true.
-        
+
         case("PRINTLAGRANGIAN")
             ! Print out the Lagrangian X to file (Only works in conjuction with DUMPFORCESINFO: otherwise, this option does nothing)
             tPrintLagrangian = .true.
-        
+
         case("AUTOCORR")
 !This is a Parallel FCIMC option - it will calculate the largest weight MP1 determinants and histogramm them
-!HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is 
+!HF Determinant is always histogrammed. NoACDets(2) is number of doubles. NoACDets(3) is number of triples and NoACDets(4) is
 !number of quads to histogram.
             TAutoCorr=.true.
             CALL Stop_All("LogReadInput","The ACF code has been commented out in the FCIMCPar module")
@@ -814,31 +851,31 @@ MODULE Logging
                 OffDiagMax=-OffDiagMax
             ENDIF
         case("HISTSPAWN")
-!This option will histogram the spawned wavevector, averaged over all previous iterations. 
+!This option will histogram the spawned wavevector, averaged over all previous iterations.
 !It scales horrifically and can only be done for small systems
-!which can be diagonalized. It requires a diagonalization initially to work. 
+!which can be diagonalized. It requires a diagonalization initially to work.
 !It can write out the average wavevector every iWriteHistEvery.
             tHistSpawn=.true.
             IF(item.lt.nitems) call readi(iWriteHistEvery)
         case("HISTHAMIL")
-!This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically 
+!This option will histogram the spawned hamiltonian, averaged over all previous iterations. It scales horrifically
 !and can only be done for small systems
 !which can be diagonalized. It will write out the hamiltonian every iWriteHamilEvery.
             call stop_all(t_r,'HISTHAMIL option deprecated')
         case("BLOCKEVERYITER")
-!This will block the projected energy every iteration with the aim of achieving accurate error estimates. 
+!This will block the projected energy every iteration with the aim of achieving accurate error estimates.
 !However, this does require a small amount of additional communication.
             tBlockEveryIteration=.true.
         case("PRINTFCIMCPSI")
             tPrintFCIMCPsi=.true.
             tCalcFCIMCPsi=.true.
         case("HISTEQUILSTEPS")
-!This option sets the histogramming to only be done after the specified number of iterations.            
+!This option sets the histogramming to only be done after the specified number of iterations.
             call readi(NHistEquilSteps)
         case("PRINTORBOCCS")
-!This option initiates the above histogramming of determinant populations and then at the end of the 
-!spawning uses these to find the normalised  
-!contribution of each orbital to the total wavefunction.  
+!This option initiates the above histogramming of determinant populations and then at the end of the
+!spawning uses these to find the normalised
+!contribution of each orbital to the total wavefunction.
             tPrintOrbOcc=.true.
             IF(item.lt.nitems) call readi(StartPrintOrbOcc)
 
@@ -846,9 +883,9 @@ MODULE Logging
             call stop_all(t_r, 'This option (PRINTDOUBSUEG) has been deprecated')
 
         case("PRINTORBOCCSINIT")
-!This option initiates the above histogramming of determinant populations and then 
-!at the end of the spawning uses these to find the normalised  
-!contribution of each orbital to the total wavefunction.  
+!This option initiates the above histogramming of determinant populations and then
+!at the end of the spawning uses these to find the normalised
+!contribution of each orbital to the total wavefunction.
             tPrintOrbOcc=.true.
             tPrintOrbOccInit=.true.
             IF(item.lt.nitems) call readi(StartPrintOrbOcc)
@@ -862,7 +899,7 @@ MODULE Logging
             IF(item.lt.nitems) THEN
                 call readi(iWritePopsEvery)
                 IF(iWritePopsEvery.lt.0) THEN
-!If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will 
+!If a negative argument is supplied to iWritePopsEvery, then the POPSFILE will
 !never be written out, even at the end of a simulation.
 !If it is exactly zero, this will be the same as without any argument, and a
 !popsfile will only be written out in the instance of a clean exit
@@ -881,11 +918,11 @@ MODULE Logging
             call readf(PopsfileTimer)   !Write out a POPSFILE every "PopsfileTimer" hours.
 
         case("BINARYPOPS")
-            ! This means that the popsfile (full or reduced) will now be 
-            ! written out in binary format. This should now take up less 
+            ! This means that the popsfile (full or reduced) will now be
+            ! written out in binary format. This should now take up less
             ! space, and be written quicker.
             !
-            ! By default, all particles are written into the popsfile. If 
+            ! By default, all particles are written into the popsfile. If
             ! a minimum weight is proveded, only those particles with at ]east
             ! that weight are included.
             tBinPops= .true.
@@ -922,7 +959,7 @@ MODULE Logging
             IF(item.lt.nitems) call readi(NoHistBins)
             IF(item.lt.nitems) call readf(MaxHistE)
         case("ZEROPROJE")
-! This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy 
+! This is for FCIMC when reading in from a POPSFILE. If this is on, then the energy
 ! estimator will be restarted.
             TZeroProjE=.true.
         case("WAVEVECTORPRINT")
@@ -1085,7 +1122,7 @@ MODULE Logging
             tHistExcitToFrom = .true.
 
 !         case("PRINT-FREQUENCY-HISTOGRAMS")
-!             ! option to print out the histograms used in the tau-search! 
+!             ! option to print out the histograms used in the tau-search!
 !             ! note: but for now they are always printed by default
 !             t_print_frq_histograms = .true.
 
@@ -1119,13 +1156,13 @@ MODULE Logging
             tOutputLoadDistribution = .true.
 
         case("DOUBLE-OCCUPANCY")
-            ! new functionality to measure the mean double occupancy 
-            ! as this is a only diagonal quantitity I decided to detach it 
-            ! from the RDM calculation, although it could be calculated 
+            ! new functionality to measure the mean double occupancy
+            ! as this is a only diagonal quantitity I decided to detach it
+            ! from the RDM calculation, although it could be calculated
             ! from the RDMs and this should be used to test this functionality!
-            ! Also, as it is a diagonal quantity, we need to unbias the 
-            ! quantitiy by using the replica trick, just like for the 
-            ! RDMs! Also this should be tested, to what extend the 
+            ! Also, as it is a diagonal quantity, we need to unbias the
+            ! quantitiy by using the replica trick, just like for the
+            ! RDMs! Also this should be tested, to what extend the
             ! quantity differs in a biased and unbiased calculation
 
             t_calc_double_occ = .true.
@@ -1137,14 +1174,14 @@ MODULE Logging
             end if
 
         case ("PRINT-SPIN-RESOLVED-RDMS")
-            ! for giovanni enable the output of the spin-resolved rdms not 
+            ! for giovanni enable the output of the spin-resolved rdms not
             ! only for ROHF calculations
             t_spin_resolved_rdms = .true.
 
-        case ("LOG-IJA") 
-            t_log_ija = .true. 
+        case ("LOG-IJA")
+            t_log_ija = .true.
 
-            if (item < nitems) then 
+            if (item < nitems) then
                 call getf(ija_thresh)
             end if
 

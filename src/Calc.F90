@@ -57,6 +57,8 @@ MODULE Calc
 
     implicit none
 
+    logical, public :: RDMsamplingiters_in_inp
+
 contains
 
     subroutine SetCalcDefaults()
@@ -693,7 +695,9 @@ contains
 
             case("RDMSAMPLINGITERS")
                 !How many iterations do we want to sample the RDM for?
+                RDMsamplingiters_in_inp = .true.
                 call readi(iSampleRDMIters)
+
             case("CYCLES")
                 call readi(NWHTAY(1,1))
                 if ( I_HMAX .ne. -7.and.                              &
@@ -1673,14 +1677,14 @@ contains
             case("CAS-INITIATOR")
                 i_space_in%tCAS = .true.
                 tSpn = .true.
-                call geti(i_space_in%occ_cas)  !Number of electrons in CAS 
+                call geti(i_space_in%occ_cas)  !Number of electrons in CAS
                 call geti(i_space_in%virt_cas)  !Number of virtual spin-orbitals in CAS
             case("RAS-INITIATOR")
                 i_space_in%tRAS = .true.
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
                 call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
-                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs.
                 call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
                 i_space_in%ras%size_1 = int(ras_size_1,sp)
                 i_space_in%ras%size_2 = int(ras_size_2,sp)

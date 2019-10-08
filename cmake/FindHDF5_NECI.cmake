@@ -158,6 +158,7 @@ if ( NOT HDF5_NECI_FOUND )
 				endif()
 			endif()
 		endforeach()
+
     else()
         if ( HDF5_NECI_FIND_REQUIRED )
             message(FATAL_ERROR "Package HDF5 required but not found")

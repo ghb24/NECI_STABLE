@@ -929,6 +929,9 @@ contains
         NoInitDets=0
         NoNonInitDets=0
         NoAtDoubs = 0.0_dp
+        NoSIInitsConflicts = 0
+        NoInitsConflicts = 0
+        avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
         NoExtraInitDoubs=0
@@ -1606,6 +1609,13 @@ contains
             NoatHF(:)=0.0_dp
             InstNoatHF(:)=0.0_dp
 
+            ! Has been moved to guarantee initialization before first load balancing
+            ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
+            
+            tFillingStochRDMonFly = .false.      
+            tFillingExplicRDMonFly = .false.      
+            !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
+
             ! If we have a popsfile, read the walkers in now.
             if(tReadPops .and. .not.tPopsAlreadyRead) then
                call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
@@ -1693,11 +1703,6 @@ contains
             if (tOldRDMs) call InitRDMs_old(nrdms_standard)
         end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
-        ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
-
-        tFillingStochRDMonFly = .false.      
-        tFillingExplicRDMonFly = .false.      
-        !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
 
         !If the iteration specified to start filling the RDM has already been, want to 
         !start filling as soon as possible.

@@ -1,27 +1,28 @@
-#image: dobrautz/neci_base:14.04
 # i have two more images, which mimick the office setting, prepared now: 
-#image: dobrautz/neci_base:opensuse13.2
+# TODO: build the newest open-suse leap image
+
 image: dobrautz/neci_base:opensuse42.3
 
+options:
+  docker: true
+
+
 pipelines:
+  # default setup: only build neci for all branches and run neci unit tests, do not do any testsuite runs!
+  #   to save pipeline minutes
  default: 
   - step: 
+     size: 2x
      script: 
-        # first do the debug build + hdf5 
-      #- echo "building debug version + hdf5!"
       - rm -rf build 
       - mkdir build 
       - cd build 
-      #- cmake -DENABLE_BUILD_HDF5=On -DENABLE_HDF5=On -DCMAKE_BUILD_TYPE=Debug ..
-      #- make -j neci mneci kneci kmneci dneci
-      #- echo "done building debug version. clean up!"
-      #- rm -rf * 
-      - echo "building release version + hdf5!"
-      - cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON ..
-      - make -j 
-      - echo "done building release version + hdf5!"
+      - echo "building release version"
+      - cmake ..
+      - make -j neci test_neci
+      - echo "done building release version"
       - echo "running unit tests"
-      - ctest
+      - ctest -R test_neci.*
       - echo "unit tests passed"
       - echo "running limited test_suite(to save build-minutes)"
       - useradd temp
@@ -82,124 +83,45 @@ pipelines:
        - testcode.py 
        - echo "the question is does this flag it as succesfull only if it passes??"
 
-  test_suite_single: 
-   - step: 
-      script: 
-       - echo "test to run test_suite:"
-       - rm -rf build
-       - mkdir build 
-       - cd build 
-       - cmake .. 
-       - make -j neci
-       - cd ../test_suite 
-         # i have to run mpi as non root.. do some workaround
-       - adduser temp
-       - su -c "/testcode/bin/testcode.py -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
-         # - /testcode/bin/testcode.py -c neci/parallel/C_Solid
-       - echo "the question is does this flag it as succesfull only if it passes??"
-
-  test_suite_single_serial:
-    - step:
-       script: 
-        - echo "test to run test_suite:"
-        - rm -rf build
-        - mkdir build 
-        - cd build 
-        - cmake .. 
-        - make -j neci
-        - cd ../test_suite 
-        - /testcode/bin/testcode.py -c neci/serial/2x2_real_space_hubbard
-        - echo "the question is does this flag it as succesfull only if it passes??"
-
-  full_test_suite:
+ branches:
+   # for the master branch pushes run the full compilation, unit tests and part of the testsuite
+   master:
     - step: 
-       script:
-         # try and run the full test_suite, to see how long it takes.. 
-        - rm -rf build 
-        - mkdir build 
-        - cd build 
-        - cmake .. 
-        - make -j 
-        - cd ../test_suite 
-        - adduser temp
-        - su -c "/testcode/bin/testcode.py -vvv" -s /bin/sh temp 
-        - echo "everything passed!"
-
-  debug_build: 
-    - step: 
+       size: 2x
        script: 
         - rm -rf build 
         - mkdir build 
         - cd build 
-        - cmake -DENABLE_BUILD_HDF5=On -DENABLE_HDF5=On -DCMAKE_BUILD_TYPE=Debug ..
-        - make -j neci mneci kneci kmneci dneci
-        - cd ../test_suite
-        - adduser temp
-        - su -c "/testcode/bin/testcode.py -vvv" -s /bin/sh temp
-        - echo "debug build + test_suite passed!"
-
-
-  build_docker_image:
-    - step:
-       script:
-         - docker version
-         # i have to figure out how to safely store my credentials in env variables.. 
-         #- docker build -t dobrautz/neci_base:testsuite .
-         #- docker login --username $DOCKER_USERNAME --password $DOCKER_PASSWORD
-         #- docker push dobrautz/neci_base:testsuite
-
-  build_hdf5:
-    - step:
-       script: 
-         # test to build neci + hdf5 (without using a docker image with hdf5.. 
-         # caching this hdf5 dependency(since the cache gets deleted every week any way would 
-         # be an optimal combination.. 
-        - rm -rf build 
-        - mkdir build 
-        - cd build 
-        - cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON ..
-        - make -j hdf5 
-        - make -j neci 
-
-  unit_tests: 
-    # give it a go with also including the unit-tests in the pipelin
-    - step:
-       script:
-        - rm -rf build
-        - mkdir build 
-        - cd build 
+        - echo "building release version"
         - cmake ..
         - make -j 
-          # maybe i can call the unit_tests more elegantly..
-        - ctest 
-
-  full:
-    # do the full testing i acutally want to do for every commit to master.. 
-    - step: 
-       script:
-         # first do the debug build + hdf5 
-        - echo "building debug version + hdf5!"
-        - rm -rf build 
-        - mkdir build 
-        - cd build 
-        - cmake -DENABLE_BUILD_HDF5=On -DENABLE_HDF5=On -DCMAKE_BUILD_TYPE=Debug ..
-        - make -j neci mneci kneci kmneci dneci
-        - echo "done building debug version. clean up!"
-        - rm -rf * 
-        - echo "building release version + hdf5!"
-        - cmake -DENABLE_BUILD_HDF5=ON -DENABLE_HDF5=ON ..
-        - make -j 
-        - echo "done building release version + hdf5!"
+        - echo "done building release version"
         - echo "running unit tests"
         - ctest
         - echo "unit tests passed"
         - echo "running limited test_suite(to save build-minutes)"
-        - adduser temp
+        - useradd temp
+        - cd ../test_suite
         - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
 
 
+ custom:
+   # this is an optional full run, if one chooses to test a specific branch fully
+  - step: 
+     size: 2x
+     script: 
+      - rm -rf build 
+      - mkdir build 
+      - cd build 
+      - echo "building release version"
+      - cmake ..
+      - make -j 
+      - echo "done building release version"
+      - echo "running unit tests"
+      - ctest
+      - echo "unit tests passed"
+      - echo "running limited test_suite(to save build-minutes)"
+      - useradd temp
+      - cd ../test_suite
+      - su -c "/testcode/bin/testcode.py -c dneci/double_occ/hub_2x2 -c kmneci/Rn_lanczos_fci -c kneci/C_221_int -c mneci/cfqmc/HeHe_5_states -c neci/parallel/C_Solid -vvv" -s /bin/sh temp
 
-options:
-  docker: true
-
-      

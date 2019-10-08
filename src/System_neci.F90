@@ -2821,6 +2821,8 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
    real(dp) ::  dUnscaledEnergy
    integer :: kvecX, kvecY, kvecZ
    !==================================
+   ! initialize unscaled energy for the case of not using tUEGTrueEnergies
+   dunscaledEnergy = 0.0_dp
    if (tUEG2) then
       ! kvectors in cartesian coordinates                
       kvecX=k_lattice_vectors(1,1)*I+k_lattice_vectors(2,1)*J+k_lattice_vectors(3,1)*K

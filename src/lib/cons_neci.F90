@@ -2,7 +2,7 @@ module constants
 
 !All use of mpi routines come from this module
 #ifdef PARALLEL
-#ifndef CBINDMPI 
+#ifndef CBINDMPI
 use mpi
 #endif
 #endif
@@ -32,7 +32,7 @@ integer, parameter :: bytes_int = bits_int/8
 !integer, parameter :: sizeof_int = selected_int_kind(digits(huge(temp)))   !Default integer size (not necessarily = no. bytes)
 
 logical :: temp2=.true.
-integer, parameter :: sizeof_log = kind(temp2) 
+integer, parameter :: sizeof_log = kind(temp2)
 
 integer, parameter :: sizeof_int32 = 4
 integer, parameter :: sizeof_int64 = 8
@@ -72,7 +72,7 @@ integer, parameter :: sizeof_sp = 4
 !Complex integrals, double replica
     integer, parameter :: nreplicas = 2
     integer, parameter :: lenof_sign = 4
-    integer, parameter :: inum_runs = 2          
+    integer, parameter :: inum_runs = 2
     integer, parameter :: lenof_sign_kp = 4
     integer, parameter :: lenof_sign_max = lenof_sign
     integer, parameter :: inum_runs_max = inum_runs
@@ -170,5 +170,8 @@ integer, parameter :: end_int_rdm = bits_int_rdm - 1
         logical :: init, mc_out, prepend
     end type
 
+! Typedef for HDF5 variables
+integer, parameter :: hdf_err = int32
+integer, parameter :: hdf_log = int32
 
 end module constants

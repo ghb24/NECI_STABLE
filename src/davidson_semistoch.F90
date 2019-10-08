@@ -82,7 +82,7 @@ module davidson_semistoch
 
         if (print_info) write(6,'(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
 
-        do i = 2, max_num_davidson_iters
+        do i = 2, min(max_num_davidson_iters, this%space_size)
 
             start_time = MPI_WTIME()
 
@@ -285,17 +285,33 @@ module davidson_semistoch
         ! t <- t - (t,v)v
         ! for each basis vector v, where (t,v) denotes the dot product.
         do i = 1, basis_index - 1
-            dot_prod = dot_product(this%basis_vectors(:,basis_index), this%basis_vectors(:,i))
+            if (this%space_size_this_proc > 0) then
+                dot_prod = dot_product(this%basis_vectors(:,basis_index), this%basis_vectors(:,i))
+            else
+                dot_prod = 0.0_dp
+            end if
+
             call MPISumAll(dot_prod, dot_prod_tot)
-            this%basis_vectors(:, basis_index) = this%basis_vectors(:, basis_index) - dot_prod_tot*this%basis_vectors(:,i)
+
+            if (this%space_size_this_proc > 0) then
+                this%basis_vectors(:, basis_index) = this%basis_vectors(:, basis_index) - dot_prod_tot*this%basis_vectors(:,i)
+            end if
         end do
 
-        ! Finally we calculate the norm of the new basis vector and then normalise it to have a norm of 1.
-        ! The new basis vector is stored in the next available column in the basis_vectors array.
-        norm = dot_product(this%basis_vectors(:,basis_index), this%basis_vectors(:,basis_index))
+        if (this%space_size_this_proc > 0) then
+            ! Finally we calculate the norm of the new basis vector and then normalise it to have a norm of 1.
+            ! The new basis vector is stored in the next available column in the basis_vectors array.
+            norm = dot_product(this%basis_vectors(:,basis_index), this%basis_vectors(:,basis_index))
+        else
+            norm = 0.0_dp
+        end if
+
         call MPISumAll(norm, norm_tot)
         norm = sqrt(norm_tot)
-        this%basis_vectors(:,basis_index) = this%basis_vectors(:,basis_index)/norm
+
+        if (this%space_size_this_proc > 0) then
+            this%basis_vectors(:,basis_index) = this%basis_vectors(:,basis_index)/norm
+        end if
 
     end subroutine subspace_expansion_ss
 
@@ -355,17 +371,19 @@ module davidson_semistoch
         ! beta = 0.0_dp.
         ! output y = davidson_eigenvector.
         ! 1 is the incremenet of the elements of y.
-        call dgemv('N', &
-                   this%space_size_this_proc, &
-                   basis_index, &
-                   1.0_dp, &
-                   this%basis_vectors(:,1:basis_index), &
-                   this%space_size_this_proc, &
-                   this%eigenvector_proj(1:basis_index), &
-                   1, &
-                   0.0_dp, &
-                   this%davidson_eigenvector, &
-                   1)
+        if (this%space_size_this_proc > 0) then
+            call dgemv('N', &
+                       this%space_size_this_proc, &
+                       basis_index, &
+                       1.0_dp, &
+                       this%basis_vectors(:,1:basis_index), &
+                       this%space_size_this_proc, &
+                       this%eigenvector_proj(1:basis_index), &
+                       1, &
+                       0.0_dp, &
+                       this%davidson_eigenvector, &
+                       1)
+        end if
         
     end subroutine subspace_extraction_ss
 
@@ -387,7 +405,12 @@ module davidson_semistoch
         ! Hence, we only need to calculate the final column, and use this to update the final
         ! row also.
         do i = 1, basis_index
-            dot_prod = dot_product(this%basis_vectors(:, i), this%multiplied_basis_vectors(:,basis_index))
+            if (this%space_size_this_proc > 0) then
+                dot_prod = dot_product(this%basis_vectors(:, i), this%multiplied_basis_vectors(:,basis_index))
+            else
+                dot_prod = 0.0_dp
+            end if
+
             call MPISumAll(dot_prod, dot_prod_all)
 
             this%projected_hamil(i, basis_index) = dot_prod_all
@@ -428,18 +451,20 @@ module davidson_semistoch
         type(davidson_ss), intent(inout) :: this
         integer, intent(in) :: basis_index
 
-        ! This routine calculates the residual, r, corresponding to the new estimate of the
-        ! ground state, stored in davidson_eigenvector. This is defined as
-        ! r = Hv - Ev,
-        ! where H is the Hamiltonian, v is the ground state vector estimate and E is the 
-        ! ground state energy estimate.
+        if (this%space_size_this_proc > 0) then
+            ! This routine calculates the residual, r, corresponding to the new estimate of the
+            ! ground state, stored in davidson_eigenvector. This is defined as
+            ! r = Hv - Ev,
+            ! where H is the Hamiltonian, v is the ground state vector estimate and E is the 
+            ! ground state energy estimate.
 
-        ! Calculate r = Hv - Ev:
-        ! Note that, here, eigenvector_proj holds the components of v in the Krylov basis,
-        ! and multiplied_basis_vectors holds the Krylov vectors multiplied by H, hence
-        ! the matmul below does indeed retturn Hv.
-        this%residual = matmul(this%multiplied_basis_vectors(:,1:basis_index), this%eigenvector_proj(1:basis_index))
-        this%residual = this%residual - this%davidson_eigenvalue*this%davidson_eigenvector
+            ! Calculate r = Hv - Ev:
+            ! Note that, here, eigenvector_proj holds the components of v in the Krylov basis,
+            ! and multiplied_basis_vectors holds the Krylov vectors multiplied by H, hence
+            ! the matmul below does indeed retturn Hv.
+            this%residual = matmul(this%multiplied_basis_vectors(:,1:basis_index), this%eigenvector_proj(1:basis_index))
+            this%residual = this%residual - this%davidson_eigenvalue*this%davidson_eigenvector
+        end if
 
     end subroutine calculate_residual_ss
 
@@ -451,8 +476,14 @@ module davidson_semistoch
 
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2
-        this%residual_norm = dot_product(this%residual, this%residual)
+        if (this%space_size_this_proc > 0) then
+            this%residual_norm = dot_product(this%residual, this%residual)
+        else
+            this%residual_norm = 0.0_dp
+        end if
+
         call MPISumAll(this%residual_norm, residual_norm_tot)
+
         this%residual_norm = sqrt(residual_norm_tot)
 
     end subroutine calculate_residual_norm_ss
