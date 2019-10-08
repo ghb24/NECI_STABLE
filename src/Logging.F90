@@ -32,7 +32,7 @@ MODULE Logging
       implicit none
 
       ! By default, the output is given by the shift cycle
-      StepsPrint = 0
+      StepsPrint = 10
       tCoupleCycleOutput = .true.
       
       tDipoles = .false.

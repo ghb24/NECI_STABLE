@@ -224,6 +224,7 @@ contains
         ! Initialize
         AllTotParts = 0.0_dp
         AllTotPartsOld = 0.0_dp
+        AllTotPartsLastOutput = 0.0_dp
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
@@ -828,12 +829,15 @@ contains
         max_death_cpt = 0.0_dp
         NoDied=0
         HFCyc=0.0_dp
+        HFOut=0.0_dp
         ENumCyc=0.0_dp
+        ENumOut=0.0_dp
         ENUmCycAbs = 0.0_dp
         VaryShiftCycles=0
         AvDiagSft(:)=0.0_dp
         SumDiagSft(:)=0.0_dp
         SumWalkersCyc(:)=0.0_dp
+        SumWalkersOut(:)=0.0_dp
 !        SumDiagSftAbort=0.0_dp
 !        AvDiagSftAbort=0.0_dp
         NoAborted(:)=0.0_dp
@@ -864,6 +868,7 @@ contains
         AllGrowRateAbort(:)=0
 !        AllMeanExcitLevel=0.0_dp
         AllSumWalkersCyc(:)=0
+        AllSumWalkersOut(:)=0.0_dp
         AllAvSign=0.0_dp
         AllAvSignHFD=0.0_dp
         AllNoBorn(:)=0
@@ -871,8 +876,10 @@ contains
         AllNoDied(:)=0
         AllAnnihilated(:)=0
         AllENumCyc(:)=0.0_dp
+        AllENumOut(:)=0.0_dp
         AllENumCycAbs = 0.0_dp
         AllHFCyc(:)=0.0_dp
+        AllHFOut(:)=0.0_dp
 !        AllDetsNorm=0.0_dp
         AllNoAborted=0
         AllNoRemoved=0
@@ -1128,6 +1135,9 @@ contains
             ! There is no specified output cycle, so we default to the shift cycle -> couple them
             tCoupleCycleOutput = .true.
          endif
+         ! Coupling output and shift update means these two are the same
+         if(tCoupleCycleOutput) StepsPrint = StepsSft
+         if(StepsPrint == StepsSft) tCoupleCycleOutput = .true.
 
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) then
@@ -1509,7 +1519,9 @@ contains
             CALL neci_flush(iout)
 
         ENDIF   !End if initial walkers method
-            
+
+        ! There was no last output, use the same value as for the shift update
+        AllTotPartsLastOutput = AllTotPartsOld
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
 

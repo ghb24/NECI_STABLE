@@ -90,7 +90,7 @@ module LoggingData
     logical :: tFCIMCStats2
 
     ! optional: have a specified output interval
-    integer :: StepsPrint = 0
+    integer :: StepsPrint
     ! flag to indicate whether output and shift update cycle shall be coupled
     logical :: tCoupleCycleOutput = .true.
 

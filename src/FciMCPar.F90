@@ -758,7 +758,7 @@ module FciMCParMod
             write (iout,'(1X,a34,1X,i18)') 'Min number of determinants/process:',MinWalkers
             write (iout,'(1X,a34,1X,i18,/)') 'Max number of determinants/process:',MaxWalkers
         end if
-       
+
         ! Automatic error analysis.
         call error_analysis(tSinglePartPhase(1),iBlockingIter(1),mean_ProjE_re,ProjE_Err_re,  &
             mean_ProjE_im,ProjE_Err_im,mean_Shift,Shift_Err,tNoProjEValue,tNoShiftValue)
