@@ -815,14 +815,13 @@ module fcimc_pointed_fns
       integer, intent(in) :: run
       real(dp), intent(in) :: pop
       real(dp) :: f
-#ifdef __DEBUG
+#ifdef __WARNING_WORKAROUND
       ! Disable compiler warnings
       real(dp) :: dummy
       dummy = pos
       dummy = run
-      dummy = pop 
+      dummy = pop
 #endif
-
       f = 1.0
     end function constShiftFactorFunction
 
@@ -839,7 +838,7 @@ module fcimc_pointed_fns
       integer, intent(in) :: run
       real(dp), intent(in) :: pop
       real(dp) :: f, slope
-#ifdef __DEBUG
+#ifdef __WARNING_WORKAROUND
       ! Disable compiler warnings
       real(dp) :: dummy
       dummy = pos
