@@ -1,10 +1,11 @@
 #include "macros.h"
 
-module NECICore_mod
-    implicit none
-    private
-    public :: NECICore
-contains
+! Because of optional arguments, an explicit interface for NECICore
+! is required if you want to call it.
+! You get it, with an ``#include "NECICore.h"``.
+! One can't use modules because of required compiler independence.
+
+
 Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,filename_in)
     != NECICore is the main outline of the NECI Program.
     != It provides a route for calling NECI when accessed as a library, rather
@@ -45,19 +46,21 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
     USE MolproPlugin
 
     Implicit none
-    integer,intent(in) :: iCacheFlag
-    logical,intent(in) :: tCPMD,tVASP,tMolpro_local,call_as_lib
+    integer, intent(in), optional :: iCacheFlag
+    logical, intent(in), optional :: tCPMD, tVASP, tMolpro_local, call_as_lib
     character(*), intent(in), optional :: filename_in, int_name
     type(timer), save :: proc_timer
-    integer :: ios,iunit,iunit2,i,j,isfreeunit
+    integer :: ios,iunit,iunit2,i,j,isfreeunit, iCacheFlag_
     character(*), parameter :: this_routine = 'NECICore'
     character(:), allocatable :: Filename
-    logical :: toverride_input,tFCIDUMP_exist
+    logical :: toverride_input,tFCIDUMP_exist, tCPMD_, tVASP_
     type(kp_fciqmc_data) :: kp
 
-    tMolpro = tMolpro_local
-    called_as_lib = call_as_lib
-
+    def_default(iCacheFlag_, iCacheFlag, 0)
+    def_default(tCPMD_, tCPMD, .false.)
+    def_default(tVASP_, tVASP, .false.)
+    def_default(tMolpro, tMolpro_local, .false.)
+    def_default(called_as_lib, call_as_lib, .false.)
     def_default(FCIDUMP_name, int_name, 'FCIDUMP')
     def_default(filename, filename_in, '')
 
@@ -70,7 +73,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
     neci_MPINodes_called = .false.
 
     ! Do the program initialisation.
-    call NECICodeInit(tCPMD,tVASP)
+    call NECICodeInit(tCPMD_,tVASP_)
 
     proc_timer%timer_name='NECICUBE  '
     call set_timer(proc_timer)
@@ -115,7 +118,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
     end if
 
     ios=0
-    if (.not. (tCPMD .or. tVASP)) then
+    if (.not. (tCPMD_ .or. tVASP_)) then
         ! CPMD and VASP calculations call the input parser *before* they call
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
         ! easily from within the CPMD/VASP input files.
@@ -125,13 +128,13 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
 
     call MPINodes(tUseProcsAsNodes)  ! Setup MPI Node information - this is dependent upon knowing the job type configurations.
 
-    call NECICalcInit(iCacheFlag)
+    call NECICalcInit(iCacheFlag_)
 
 !   Actually do the calculations we're meant to.  :-)
     call CalcDoCalc(kp)
 
 !   And all done: pick up after ourselves and settle down for a cup of tea.
-    call NECICalcEnd(iCacheFlag)
+    call NECICalcEnd(iCacheFlag_)
 
     call halt_timer(proc_timer)
 
@@ -147,7 +150,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
             endif
         endif
     endif
-    call NECICodeEnd(tCPMD,tVASP)
+    call NECICodeEnd(tCPMD_,tVASP_)
 
     return
 End Subroutine NECICore
@@ -387,4 +390,3 @@ subroutine NECICalcEnd(iCacheFlag)
 
     return
 end subroutine NECICalcEnd
-end module NECICore_mod

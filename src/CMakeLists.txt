@@ -100,7 +100,7 @@ set( SRC_FILES
     MolproPlugin.F90
     PluginGuest.cpp
     NatOrbs.F90
-    NECICore_mod.F90
+    NECICore.F90
     neci_intfce.F90
     OneEInts.F90
     orthogonalise.F90
@@ -176,7 +176,6 @@ set( SRC_FILES
     tau_search_hist.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
-    necimain.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90

@@ -2,8 +2,8 @@ subroutine NECImain(fcidmp, input_name, NECIen)
 
     use constants, only : dp, iout
     use rdm_finalising, only : RDM_energy
-    use NECICore_mod, only : NECICore
     implicit none
+#include "NECICore.h"
     character(*), intent(in) :: fcidmp, input_name
     real(dp), intent (out) :: NECIen
 

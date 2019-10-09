@@ -5,15 +5,12 @@
     subroutine neci_main_c () bind(c)
         use NECICore_mod, only : NECICore
         implicit none
-        character(64) :: dummy1,dummy2
 
 #ifdef __DEBUG
         write(6,*) 'STARTING NECI'
 #endif
-        dummy1=' '
-        dummy2=' '
         ! Indicate not called by CPMD, VASP, Molpro
-        call NECICore (0, .false., .false., .false., .false., dummy1, dummy2)
+        call NECICore()
 
     end subroutine
 
@@ -22,18 +19,18 @@
     ! necimain is the entry point for a standalone NECI.  It reads in an
     ! input, and then runs the NECI Core
     program NECI
-        use NECICore_mod, only : NECICore
         implicit none
-        character(64) :: dummy1,dummy2
+
+#include "NECICore.h"
 
 #ifdef __DEBUG
         write(6,*) "STARTING NECI"
 #endif
 
-        dummy1=' '
-        dummy2=' '
+!         dummy1=' '
+!         dummy2=' '
         ! Indicate not called by CPMD, VASP, Molpro
-        call NECICore(0, .False., .False., .false., .false., dummy1, dummy2)
+        call NECICore()
 
     end program NECI
 
