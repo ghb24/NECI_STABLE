@@ -14,7 +14,8 @@ module gasci
     implicit none
 
     private
-    public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS
+    public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS, &
+        tSpinConservingGAS
 
     integer :: nGAS
 
