@@ -159,9 +159,12 @@ contains
           tFixTrial(:) = .false.
           TrialTarget = 0.0
           tAdaptiveShift = .false.
+          tCoreAdaptiveShift = .false.
           AdaptiveShiftSigma = 1.0
           AdaptiveShiftF1 = 0.0
           AdaptiveShiftF2 = 1.0
+          tExpAdaptiveShift = .false.
+          EAS_Scale = 2.0
           tAutoAdaptiveShift = .false.
           AdaptiveShiftThresh = 10
           AdaptiveShiftExpo = 1
@@ -1863,6 +1866,17 @@ contains
                     end if
                 end if
                 tAdaptiveShift = .true.
+            case("EXP-ADAPTIVE-SHIFT", "ALL-ADAPTIVE-SHIFT")
+                ! scale the shift down per determinant exponentailly depending on the local population
+!                 tAdaptiveShift = .true.
+                tExpAdaptiveShift = .true.
+                ! optional argument: value of the parameter of the scaling function
+                if(item < nitems) call getf(EAS_Scale)
+
+            case("CORE-ADAPTIVE-SHIFT")
+                ! also apply the adaptive shift in the corespace
+                tCoreAdaptiveShift = .true.
+
             case("AUTO-ADAPTIVE-SHIFT")
                 tAutoAdaptiveShift = .true.
                 tAdaptiveShift = .true.

@@ -21,11 +21,11 @@ module fcimc_pointed_fns
                         tTruncInitiator, tSkipRef, t_truncate_unocc, &
                         tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
                         tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
-                        tAAS_Add_Diag
+                        tAAS_Add_Diag, EAS_Scale, tExpAdaptiveShift
 
     use DetCalcData, only: FciDetIndex, det
 
-    use procedure_pointers, only: get_spawn_helement
+    use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
 
     use fcimc_helper, only: CheckAllowedTruncSpawn
 
@@ -803,6 +803,10 @@ module fcimc_pointed_fns
                         tmp = AdaptiveShiftCut
                     endif
                     shift = DiagSft(i)*tmp**AdaptiveShiftExpo
+
+                else if (tExpAdaptiveShift) then 
+                    shift = DiagSft(i) * shiftFactorFunction(DetPosition, i, &
+                        mag_of_run(RealwSign,i))
                 else
                     shift = DiagSft(i)
                 endif
@@ -938,5 +942,32 @@ module fcimc_pointed_fns
       Si = -1
       
     end function negScaleFunction
+
+!------------------------------------------------------------------------------------------!
+
+    pure function expShiftFactorFunction(pos, run, pop) result(f)
+      implicit none
+      ! Exponential scale function for the shift
+      ! Input: pos - position of given determinant in CurrentDets
+      ! Input: run - run for which the factor is needed
+      ! Input: pop - population of given determinant
+      ! Output: f - scaling factor for the shift
+      integer, intent(in) :: pos
+      integer, intent(in) :: run
+      real(dp), intent(in) :: pop
+      real(dp) :: f
+#ifdef __DEBUG
+      ! Disable compiler warnings
+      real(dp) :: dummy
+      dummy = pos
+      dummy = run
+#endif
+
+      f = 1.0 - exp(-pop/EAS_Scale)
+
+    end function expShiftFactorFunction
+
+!------------------------------------------------------------------------------------------!
+
 
 end module

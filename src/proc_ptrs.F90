@@ -220,6 +220,23 @@ module procedure_pointers
 
         end function scale_function_t
 
+        pure function shift_factor_function_t(pos, run , pop) result(f)
+          ! Scale facotr function for adpative shift
+          ! Input: pos - position of given determinant in CurrentDets
+          ! Input: run - run for which the factor is needed
+          ! Input: pop - population of given determinant
+          ! Output: f - scaling factor for the shift
+          use constants
+          implicit none
+
+          integer, intent(in) :: pos 
+          integer, intent(in) :: run
+          real(dp), intent(in) :: pop
+          real(dp) :: f
+
+        end function shift_factor_function_t
+
+
     end interface
 
     !
@@ -244,5 +261,6 @@ module procedure_pointers
 
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
+    procedure(shift_factor_function_t), pointer :: shiftFactorFunction
 
 end module

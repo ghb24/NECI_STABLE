@@ -53,7 +53,8 @@ module fcimc_initialisation
                         ScaleWalkers, tSpinProject, tFixedN0, tRCCheck, &
                         t_trunc_nopen_diff, maxKeepExLvl, &
                         tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
-                        tInitializeCSF, S2Init, t_guga_back_spawn
+                        tInitializeCSF, S2Init, t_guga_back_spawn,&
+                        tExpAdaptiveShift
 
     use spin_project, only: init_yama_store, clean_yama_store
 
@@ -114,7 +115,8 @@ module fcimc_initialisation
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
-                                  new_child_stats, get_conn_helement, scaleFunction
+                                  new_child_stats, get_conn_helement, scaleFunction, &
+                                  shiftFactorFunction
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -145,7 +147,7 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction
+                                 expCOScaleFunction, expShiftFactorFunction
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -2023,6 +2025,9 @@ contains
            call stop_all(t_r,"Invalid scale function specified")
         end select
 
+        if(tExpAdaptiveShift) then
+           shiftFactorFunction => expShiftFactorFunction
+       end if
     end subroutine init_fcimc_fn_pointers
 
     subroutine DeallocFCIMCMemPar()
