@@ -583,7 +583,7 @@ module FciMCParMod
                 call storeCiCoeffs()
             else if ((t_store_ci_coeff).and.all(.not.tSinglePartPhase).and.(iter-maxval(VaryShiftIter)).gt.n_iter_after_equ) then
                 call storeCiCoeffs()
-            else if ((t_store_ci_coeff).and.all(.not.tSinglePartPhase).and.(iter.eq.NMCyc)) then
+            else if ((t_store_ci_coeff).and.(iter.eq.NMCyc)) then
                 t_store_ci_coeff=.false.
                 write(iout,*) ''
                 write(iout,*) '***CI COEFFICIENTS COLLECTION HAS NOT OCCURRED: NMCyc too small***'

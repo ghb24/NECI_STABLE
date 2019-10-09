@@ -216,19 +216,20 @@ contains
   end subroutine cache_sign
 
 
-  ! it allows to sort the averaged CI coeffs and list them in 2 different ways
-  ! 1. OCC(alpha) + OCC(beta) + VIR(alpha) + VIR(beta) -> TODO
-  ! 2. CLOSED orbs (alpha,beta) + OPEN orbs (alpha) + RELATIVE VIR orbs (beta) + LEFT VIR orbs (alpha,beta)
+  ! it sorts the averaged CI coeffs and list them in different ways.
+  ! the sorting way can be chosen from the input for open-shell systems
   subroutine sorting(RefDet)
 
     Implicit none
  
+    integer, intent(in) :: RefDet(nel)
     double precision :: x
     double precision,allocatable :: S(:,:),D(:,:,:,:),T(:,:,:,:,:,:)
-    integer :: i,j,k,a,b,c,z,p,Iopen(nel),iop,iMax,spo
-    integer :: ial,ialMax,ialVir,ialVirMax,ibe,ibeMax,ibeVir,ibeVirMax,Itot(nbasis) 
-    integer :: Ialpha(nel),Ibeta(nel),IalphaVir(nbasis-nel),IbetaVir(nbasis-nel)
-    integer, intent(in) :: RefDet(nel)
+!    double precision :: x,S(nel,nbasis-nel),D(nel,nbasis-nel,nel,nbasis-nel)
+!    double precision :: T(nel,nbasis-nel,nel,nbasis-nel,nel,nbasis-nel)
+    integer :: i,j,k,a,b,c,z,p,Iopen(nel),iop,iMax,spo,indCoeff(3),indCoeffV(3),Nind
+    integer :: ial,ialMax,ialVir,ialVirMax,ibe,ibeMax,ibeVir,ibeVirMax,Itot(nbasis),signCI 
+!    integer :: Ialpha(nel),Ibeta(nel),IalphaVir(nbasis-nel),IbetaVir(nbasis-nel)
     logical  :: check,noMatch,openEl,ClosedShellCase
     logical  :: aNoMatch,bNoMatch,cNoMatch,iNoMatch,jNoMatch,kNoMatch
  
@@ -260,57 +261,33 @@ contains
       else if((p.gt.1).and.(openEl)) then
         iop=iop+1
         Iopen(iop)=RefDet(z)
+      else if(p.eq.1.and.(.not.openEl).and.z.eq.nel.and.MOD(RefDet(z),2).eq.1) then
+        iop=1
+        Iopen(iop)=RefDet(z)
+        ClosedShellCase=.false.
       endif
     enddo
     iMax=iop
     if (MOD(Iopen(iMax),2).eq.1) spo=1
     if (MOD(Iopen(iMax),2).eq.0) spo=-1
 
-
-    ! normal reading for closed-shell systems
     if(ClosedShellCase) then
-
-    write(iout,*) '***Reading coefficients in CLOSED-SHELL SYSTEM***'
-
-      do
-        read(101,*,IOSTAT=z) x,i,a
-        if (z<0) then
-          exit
-        endif
-        S(i,a)=x
-      enddo
-      close (101)
-
-      do
-        read(102,*,IOSTAT=z) x,i,a,j,b
-        if (z<0) then
-          exit
-        endif
-        D(i,a,j,b) = x
-      enddo
-      close (102)
-
-      do
-        read(103,*,IOSTAT=z) x,i,a,j,b,k,c
-        if (z<0) then
-          exit
-        endif
-        T(i,a,j,b,k,c) = x
-      enddo
-      close (103)
+      write(iout,*) 'Sorting coefficients in CLOSED-SHELL SYSTEM'
+    else
+      write(iout,*) 'Sorting coefficients in OPEN-SHELL SYSTEM'
+    endif
 
 
-    ! open-shell systems require a specific reading in order to 
-    ! reorganize the alpha and beta spin orbitals to make it
-    ! readable in Molpro as efficiently as possible. Here there
-    ! are implemented 2 different ways:
-    else if(sorting_way.eq.1) then
+   ! open-shell systems require a specific reading in order to reorganize
+   ! the alpha and beta spin orbitals to make it readable in Molpro as
+   ! efficiently as possible. Here 2 different ways are implemented:
+    if(sorting_way.eq.1) then
 
-    write(iout,*) 'Reading coefficients in OPEN-SHELL SYSTEM'
-    write(iout,*) 'Coefficients listed in way 1:'
-    write(iout,*) '  OCC(alpha),OCC(beta),VIR(alpha),VIR(beta)'
+      write(iout,*) 'Coefficients listed in way 1:'
+      write(iout,*) '  OCC(alpha),OCC(beta),VIR(alpha),VIR(beta)'
 
       ial=0
+      ! loop to find all the alpha electrons
       do z=1,nel
         if (MOD(RefDet(z),2).eq.1) then
           ial=ial+1
@@ -319,6 +296,7 @@ contains
       enddo
       ialMax=ial
       ibe=0
+      ! loop to find all the beta electrons
       do z=1,nel
         if (MOD(RefDet(z),2).eq.0) then
           ibe=ibe+1
@@ -329,6 +307,7 @@ contains
       if(ialMax+ibeMax.ne.nel) write(iout,*) 'WARNING: not matching number of electrons!'
 
       ialVir=0
+      ! loop to find all the non-occupied alpha spin orbitals
       do i=1,nbasis
         j=0
         do z=1,nel
@@ -342,6 +321,7 @@ contains
       enddo
       ialVirMax=ialVir
       ibeVir=0
+      ! loop to find all the non-occupied beta spin orbitals
       do i=1,nbasis
         j=0
         do z=1,nel
@@ -356,187 +336,121 @@ contains
       ibeVirMax=ibeVir
       if(nel+ialVirMax+ibeVirMax.ne.nbasis) write(iout,*) 'WARNING: not matching number of orbitals!'
 
+      ! loop to read all the single CI coeff and convert them in the new ordering
       do
-        read(101,*,IOSTAT=z) x,i,a
+        read(101,*,IOSTAT=z) x,indCoeff(1),indCoeffV(1)
         do p=1,nel
-           if(i.eq.Itot(p)) then
-              i=p
+           if(indCoeff(1).eq.Itot(p)) then
+              indCoeff(1)=p
               exit
            endif
         enddo
         do p=nel+1,nbasis
-           if(a.eq.Itot(p)) then
-              a=p
+           if(indCoeffV(1).eq.Itot(p)) then
+              indCoeffV(1)=p
               exit
            endif
         enddo
         if (z<0) then
           exit
         endif
-        S(i,a) = x
+        S(indCoeff(1),indCoeffV(1)) = x
       enddo
       close (101)
 
+      ! loop to read all the double CI coeff and convert them in the new ordering
       do
-         read(102,*,IOSTAT=z) x,i,a,j,b
-        do p=1,nel
-           if(i.eq.Itot(p)) then
-              i=p
-              exit
-           endif
+        read(102,*,IOSTAT=z) x,indCoeff(1),indCoeffV(1),indCoeff(2),indCoeffV(2)
+        Nind=2
+        do i=1,Nind
+           do p=1,nel
+              if(indCoeff(i).eq.Itot(p)) then
+                 indCoeff(i)=p
+                 exit
+              endif
+           enddo
+           do p=nel+1,nbasis
+              if(indCoeffV(i).eq.Itot(p)) then
+                 indCoeffV(i)=p
+                 exit
+              endif
+           enddo
         enddo
-        do p=1,nel
-           if(j.eq.Itot(p)) then
-              j=p
-              exit
-           endif
-        enddo
-        do p=nel+1,nbasis
-           if(a.eq.Itot(p)) then
-              a=p
-              exit
-           endif
-        enddo
-        do p=nel+1,nbasis
-           if(b.eq.Itot(p)) then
-              b=p
-              exit
-           endif
-        enddo
-         if (z<0) then
+        if (z<0) then
             exit
-         endif
-         D(i,a,j,b) = x
-         D(j,a,i,b) = x
-         D(i,b,j,a) = x
-         D(j,b,i,a) = x
+        endif
+
+      ! INSERTION SORT
+        signCI=1
+        do i=2,Nind
+          do j=i,2,-1
+            if (indCoeff(j).lt.indCoeff(j-1)) then
+              call swap(indCoeff(j),indCoeff(j-1))
+              signCI=-signCI
+            else
+              exit
+            endif
+          enddo
+        enddo
+        do i=2,Nind
+          do j=i,2,-1
+            if (indCoeffV(j).lt.indCoeffV(j-1)) then
+              call swap(indCoeffV(j),indCoeffV(j-1))
+              signCI=-signCI
+            else
+              exit
+            endif
+          enddo
+        enddo
+        D(indCoeff(1),indCoeffV(1),indCoeff(2),indCoeffV(2)) = signCI*x
       enddo
       close (102)
 
+      ! loop to read all the triple CI coeff and convert them in the new ordering
       do
-        read(103,*,IOSTAT=z) x,i,a,j,b,k,c
-        do p=1,nel
-           if(i.eq.Itot(p)) then
-              i=p
-              exit
-           endif
+        read(103,*,IOSTAT=z) x,indCoeff(1),indCoeffV(1),indCoeff(2),indCoeffV(2),indCoeff(3),indCoeffV(3)
+        Nind=3
+        do i=1,Nind
+           do p=1,nel
+              if(indCoeff(i).eq.Itot(p)) then
+                 indCoeff(i)=p
+                 exit
+              endif
+           enddo
+           do p=nel+1,nbasis
+              if(indCoeffV(i).eq.Itot(p)) then
+                 indCoeffV(i)=p
+                 exit
+              endif
+           enddo
         enddo
-        do p=1,nel
-           if(j.eq.Itot(p)) then
-              j=p
+        if (z<0) then
+           exit
+        endif
+
+      ! INSERTION SORT
+        signCI=1
+        do i=2,Nind
+          do j=i,2,-1
+            if (indCoeff(j).lt.indCoeff(j-1)) then
+              call swap(indCoeff(j),indCoeff(j-1))
+              signCI=-signCI
+            else
               exit
-           endif
+            endif
+          enddo
         enddo
-        do p=1,nel
-           if(k.eq.Itot(p)) then
-              k=p
+        do i=2,Nind
+          do j=i,2,-1
+            if (indCoeffV(j).lt.indCoeffV(j-1)) then
+              call swap(indCoeffV(j),indCoeffV(j-1))
+              signCI=-signCI
+            else
               exit
-           endif
+            endif
+          enddo
         enddo
-        do p=nel+1,nbasis
-           if(a.eq.Itot(p)) then
-              a=p
-              exit
-           endif
-        enddo
-        do p=nel+1,nbasis
-           if(b.eq.Itot(p)) then
-              b=p
-              exit
-           endif
-        enddo
-        do p=nel+1,nbasis
-           if(c.eq.Itot(p)) then
-              c=p
-              exit
-           endif
-        enddo
-         if (z<0) then
-            exit
-         endif
-         !main
-         T(i,a,j,b,k,c) = x
-
-         T(i,a,k,b,j,c) = x
-!         T(i,a,k,c,j,b) = x
-         T(i,b,k,a,j,c) = x
-         T(i,b,k,c,j,a) = x
-         T(i,c,k,a,j,b) = x
-         T(i,c,k,b,j,a) = x
-
-         T(j,a,i,b,k,c) = x
-         T(j,a,i,c,k,b) = x
-         T(j,b,i,a,k,c) = x
-         T(j,b,i,c,k,a) = x
-         T(j,c,i,a,k,b) = x
-         T(j,c,i,b,k,a) = x
-
-         T(j,a,k,b,i,c) = x
-         T(j,a,k,c,i,b) = x
-         T(j,b,k,a,i,c) = x
-         T(j,b,k,c,i,a) = x
-         T(j,c,k,a,i,b) = x
-         T(j,c,k,b,i,a) = x
-
-         T(k,a,i,b,j,c) = x
-         T(k,a,i,c,j,b) = x
-         T(k,b,i,a,j,c) = x
-         T(k,b,i,c,j,a) = x
-         T(k,c,i,a,j,b) = x
-         T(k,c,i,b,j,a) = x
-
-         T(k,a,j,b,i,c) = x
-         T(k,a,j,c,i,b) = x
-         T(k,b,j,a,i,c) = x
-         T(k,b,j,c,i,a) = x
-         T(k,c,j,a,i,b) = x
-         T(k,c,j,b,i,a) = x
-
-         !main
-!        T(i,a,j,b,k,c) = x
-
-         T(i,a,j,c,k,b) = x
-         T(i,a,k,c,j,b) = x
-         T(j,a,i,c,k,b) = x
-         T(j,a,k,c,i,b) = x
-         T(k,a,i,c,j,b) = x
-         T(k,a,j,c,i,b) = x
-
-         T(i,b,j,a,k,c) = x
-         T(i,b,k,a,j,c) = x
-         T(j,b,i,a,k,c) = x
-         T(j,b,k,a,i,c) = x
-         T(k,b,i,a,j,c) = x
-         T(k,b,j,a,i,c) = x
-
-         T(i,b,j,c,k,a) = x
-         T(i,b,k,c,j,a) = x
-         T(j,b,i,c,k,a) = x
-         T(j,b,k,c,i,a) = x
-         T(k,b,i,c,j,a) = x
-         T(k,b,j,c,i,a) = x
-
-         T(i,c,j,a,k,b) = x
-         T(i,c,k,a,j,b) = x
-         T(j,c,i,a,k,b) = x
-         T(j,c,k,a,i,b) = x
-         T(k,c,i,a,j,b) = x
-         T(k,c,j,a,i,b) = x
-
-         T(i,c,j,b,k,a) = x
-         T(i,c,k,b,j,a) = x
-         T(j,c,i,b,k,a) = x
-         T(j,c,k,b,i,a) = x
-         T(k,c,i,b,j,a) = x
-         T(k,c,j,b,i,a) = x
-
-         !main
-!        T(i,a,j,b,k,c) = x
-         T(i,a,k,c,j,b) = x
-         T(j,b,i,a,k,c) = x
-         T(j,b,k,c,i,a) = x
-         T(k,c,i,a,j,b) = x
-         T(k,c,j,b,i,a) = x
+        T(indCoeff(1),indCoeffV(1),indCoeff(2),indCoeffV(2),indCoeff(3),indCoeffV(3)) = signCI*x
       enddo
       close (103)
 
@@ -546,108 +460,142 @@ contains
     !       RefDet with one or more virtual spatial orbs in between two occupied
     !       spin orbitals, e.g., p=4,6,8,... 
 
-    write(iout,*) 'Reading coefficients in OPEN-SHELL SYSTEM'
-    write(iout,*) 'Coefficients listed in way 2:'
-    write(iout,*) '  CLOSED(alpha,beta),OPEN(alpha),OPEN(beta),VIRTUALS(alpha,beta)'
- 
+      write(iout,*) 'Coefficients listed in way 2:'
 
-      do
-        read(101,*,IOSTAT=z) x,i,a
-        iNoMatch=.true.
-        aNoMatch=.true.
-        do iop=1,iMax
-          if((i.eq.Iopen(iop)).and.(iNoMatch)) then
-            i=nel-iMax+iop
-            iNoMatch=.false.
-          endif
-          if((a.eq.Iopen(iop)+spo).and.(aNoMatch)) then
-            a=nel+iop
-            aNoMatch=.false.
-          endif
-        enddo
-        S(i,a)=x
-        if (z<0) then
-          exit
-        endif
-      enddo
-      close (101)
- 
-      do
-        read(102,*,IOSTAT=z) x,i,a,j,b
-        iNoMatch=.true.
-        jNoMatch=.true.
-        aNoMatch=.true.
-        bNoMatch=.true.
-        do iop=1,iMax
-          if((i.eq.Iopen(iop)).and.(iNoMatch)) then
-            i=nel-iMax+iop
-            iNoMatch=.false.
-          endif
-          if((j.eq.Iopen(iop)).and.(jNoMatch)) then
-            j=nel-iMax+iop
-            jNoMatch=.false.
-          endif
-          if((a.eq.Iopen(iop)+spo).and.(aNoMatch)) then
-!            write(iout,*) x,a, '-> nel+iop = ',nel, '+',iop,'=',nel+iop
-            a=nel+iop
-            aNoMatch=.false.
-          endif
-          if((b.eq.Iopen(iop)+spo).and.(bNoMatch)) then
-            b=nel+iop
-            bNoMatch=.false.
-          endif
-        enddo
-          D(i,a,j,b) = x 
-        if (z<0) then
-          exit
-        endif
-      enddo
-      close (102)
- 
-      do
-        read(103,*,IOSTAT=z) x,i,a,j,b,k,c
-        iNoMatch=.true.
-        jNoMatch=.true.
-        kNoMatch=.true.
-        aNoMatch=.true.
-        bNoMatch=.true.
-        cNoMatch=.true.
-        do iop=1,iMax
-          if((i.eq.Iopen(iop)).and.(iNoMatch)) then
-            i=nel-iMax+iop
-            iNoMatch=.false.
-          endif
-          if((j.eq.Iopen(iop)).and.(jNoMatch)) then
-            j=nel-iMax+iop
-            jNoMatch=.false.
-          endif
-          if((k.eq.Iopen(iop)).and.(kNoMatch)) then
-            k=nel-iMax+iop
-            kNoMatch=.false.
-          endif
-          if((a.eq.Iopen(iop)+spo).and.(aNoMatch)) then
-            a=nel+iop
-            aNoMatch=.false.
-          endif
-          if((b.eq.Iopen(iop)+spo).and.(bNoMatch)) then
-            b=nel+iop
-            bNoMatch=.false.
-          endif
-          if((c.eq.Iopen(iop)+spo).and.(cNoMatch)) then
-            c=nel+iop
-            cNoMatch=.false.
-          endif
-        enddo
-        T(i,a,j,b,k,c) = x
-        if (z<0) then
-          exit
-        endif
-      enddo
-      close (103)
+      if(ClosedShellCase) then
 
+         write(iout,*) '  CLOSED(alpha,beta),VIRTUALS(alpha,beta)'
+
+         do
+           read(101,*,IOSTAT=z) x,i,a
+           if (z<0) then
+             exit
+           endif
+           S(i,a)=x
+         enddo
+         close (101)
+
+         do
+           read(102,*,IOSTAT=z) x,i,a,j,b
+           if (z<0) then
+             exit
+           endif
+           D(i,a,j,b) = x
+         enddo
+         close (102)
+
+         do
+           read(103,*,IOSTAT=z) x,i,a,j,b,k,c
+           if (z<0) then
+             exit
+           endif
+           T(i,a,j,b,k,c) = x
+         enddo
+         close (103)
+
+      else
+
+         write(iout,*) '  CLOSED(alpha,beta),OPEN(alpha),OPEN(beta),VIRTUALS(alpha,beta)'
+ 
+         do
+           read(101,*,IOSTAT=z) x,i,a
+           iNoMatch=.true.
+           aNoMatch=.true.
+           do iop=1,iMax
+             if((i.eq.Iopen(iop)).and.(iNoMatch)) then
+               i=nel-iMax+iop
+               iNoMatch=.false.
+             endif
+             if((a.eq.Iopen(iop)+spo).and.(aNoMatch)) then
+               a=nel+iop
+               aNoMatch=.false.
+             endif
+           enddo
+           S(i,a)=x
+           if (z<0) then
+             exit
+           endif
+         enddo
+         close (101)
+ 
+         do
+           read(102,*,IOSTAT=z) x,i,a,j,b
+           iNoMatch=.true.
+           jNoMatch=.true.
+           aNoMatch=.true.
+           bNoMatch=.true.
+           do iop=1,iMax
+             if((i.eq.Iopen(iop)).and.(iNoMatch)) then
+               i=nel-iMax+iop
+               iNoMatch=.false.
+             endif
+             if((j.eq.Iopen(iop)).and.(jNoMatch)) then
+               j=nel-iMax+iop
+               jNoMatch=.false.
+             endif
+             if((a.eq.Iopen(iop)+spo).and.(aNoMatch)) then
+!               write(iout,*) x,a, '-> nel+iop = ',nel, '+',iop,'=',nel+iop
+               a=nel+iop
+               aNoMatch=.false.
+             endif
+             if((b.eq.Iopen(iop)+spo).and.(bNoMatch)) then
+               b=nel+iop
+               bNoMatch=.false.
+             endif
+           enddo
+           D(i,a,j,b) = x 
+           if (z<0) then
+             exit
+           endif
+         enddo
+         close (102)
+ 
+         do
+           read(103,*,IOSTAT=z) x,i,a,j,b,k,c
+           iNoMatch=.true.
+           jNoMatch=.true.
+           kNoMatch=.true.
+           aNoMatch=.true.
+           bNoMatch=.true.
+           cNoMatch=.true.
+           do iop=1,iMax
+             if((i.eq.Iopen(iop)).and.(iNoMatch)) then
+               i=nel-iMax+iop
+               iNoMatch=.false.
+             endif
+             if((j.eq.Iopen(iop)).and.(jNoMatch)) then
+               j=nel-iMax+iop
+               jNoMatch=.false.
+             endif
+             if((k.eq.Iopen(iop)).and.(kNoMatch)) then
+               k=nel-iMax+iop
+               kNoMatch=.false.
+             endif
+             if((a.eq.Iopen(iop)+spo).and.(aNoMatch)) then
+               a=nel+iop
+               aNoMatch=.false.
+             endif
+             if((b.eq.Iopen(iop)+spo).and.(bNoMatch)) then
+               b=nel+iop
+               bNoMatch=.false.
+             endif
+             if((c.eq.Iopen(iop)+spo).and.(cNoMatch)) then
+               c=nel+iop
+               cNoMatch=.false.
+             endif
+           enddo
+           T(i,a,j,b,k,c) = x
+           if (z<0) then
+             exit
+           endif
+         enddo
+         close (103)
+
+      endif
     endif
 
 
+   ! writing the CI coefficients in the ASCII files
     do i = 1,nel
       do a = nel+1,nbasis 
         if(abs(S(i,a)).ne.0) then 
@@ -688,5 +636,13 @@ contains
     end do
  
   end subroutine sorting
+
+  subroutine swap(a,b)
+    integer,intent(inout) :: a,b
+    integer                :: c
+    c=a
+    a=b
+    b=c
+  end subroutine swap
 
 end module sdt_amplitudes
