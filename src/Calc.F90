@@ -140,6 +140,7 @@ contains
           tFixTrial(:) = .false.
           TrialTarget = 0.0
           tAdaptiveShift = .false.
+          tCoreAdaptiveShift = .false.
           tLinearAdaptiveShift = .false.
           LAS_Sigma = 1.0
           LAS_F1 = 0.0
@@ -1772,6 +1773,10 @@ contains
                 tExpAdaptiveShift = .true.
                 ! optional argument: value of the parameter of the scaling function
                 if(item < nitems) call getf(EAS_Scale)
+
+            case("CORE-ADAPTIVE-SHIFT")
+               ! Also apply the adaptive shift in the corespace
+               tCoreAdaptiveShift = .true.
 
             case("AUTO-ADAPTIVE-SHIFT")
                 ! scale the shift down per determinant depending on the ratio of its rejected spawns

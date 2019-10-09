@@ -84,26 +84,40 @@ contains
             ! sparse_core_ham.
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
+               ! Only scale the shift for the corespace when the option is set
+               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
+                  do part_type = 1, inum_runs
+                     ! scale the shift using the abs of this run's complex coefficient
+                     scaledDiagSft(part_type) = &
+                     shiftFactorFunction(&
+                          indices_of_determ_states(i), part_type,&
+                          sqrt(full_determ_vecs(min_part_type(part_type),&
+                          i+determ_displs(iProcIndex))**2 + &
+                          full_determ_vecs(max_part_type(part_type),&
+                          i+determ_displs(iProcIndex))**2)) *  DiagSft(part_type)
+                  end do
+               else
+                  scaledDiagSft = DiagSft
+               endif
+
                do part_type  = 1, lenof_sign
                   partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
-                       ! scale the shift using the abs of this run's complex coefficient
-                       shiftFactorFunction(&
-                       indices_of_determ_states(i), part_type,&
-                       sqrt(full_determ_vecs(min_part_type(part_type_to_run(part_type)),&
-                       i+determ_displs(iProcIndex))**2 + &
-                       full_determ_vecs(max_part_type(part_type_to_run(part_type)),&
-                       i+determ_displs(iProcIndex))**2)) *  &
-                       DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
+                       scaledDiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
                enddo
             end do
 #else
             do i = 1, determ_sizes(iProcIndex)
-               ! get the re-scaled shift accounting for undersampling error
-               do  part_type = 1, inum_runs
-                  scaledDiagSft(part_type) = DiagSft(part_type) * shiftFactorFunction(&
-                       indices_of_determ_states(i), part_type,&
-                       abs(full_determ_vecs(part_type,i+determ_displs(iProcIndex))))
-               end do
+               ! Only scale the shift for the corespace when the option is set
+               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
+                  ! get the re-scaled shift accounting for undersampling error
+                  do  part_type = 1, inum_runs
+                     scaledDiagSft(part_type) = DiagSft(part_type) * shiftFactorFunction(&
+                          indices_of_determ_states(i), part_type,&
+                          abs(full_determ_vecs(part_type,i+determ_displs(iProcIndex))))
+                  end do
+               else
+                  scaledDiagSft = DiagSft
+               endif
                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
                     scaledDiagSft * full_determ_vecs(:,i+determ_displs(iProcIndex))
             end do
