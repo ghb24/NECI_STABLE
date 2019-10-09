@@ -8,7 +8,7 @@ subroutine NECImain(fcidmp, input_name, NECIen)
     real(dp), intent (out) :: NECIen
 
     write(iout, *) "STARTING NECI from Molcas"
-    call NECICore(0, .false., .false., .false., .true., fcidmp, input_name)
+    call NECICore(call_as_lib=.true., int_name=fcidmp, filename_in=input_name)
     ! Once we got excited states energies we will add them here to ENER array.
     NECIen = RDM_energy
 
