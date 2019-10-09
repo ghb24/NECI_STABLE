@@ -85,7 +85,7 @@ contains
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
                ! Only scale the shift for the corespace when the option is set
-               if(tCoreAdaptiveShift .and. tAutoAdaptiveShift) then
+               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
                   do part_type = 1, inum_runs
                      ! scale the shift using the abs of this run's complex coefficient
                      scaledDiagSft(part_type) = &
@@ -108,7 +108,7 @@ contains
 #else
             do i = 1, determ_sizes(iProcIndex)
                ! Only scale the shift for the corespace when the option is set
-               if(tCoreAdaptiveShift .and. tAutoAdaptiveShift) then
+               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
                   ! get the re-scaled shift accounting for undersampling error
                   do  part_type = 1, inum_runs
                      scaledDiagSft(part_type) = DiagSft(part_type) * shiftFactorFunction(&
