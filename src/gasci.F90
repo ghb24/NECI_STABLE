@@ -253,7 +253,7 @@ contains
 
         integer :: elecs(2), src(2), sym_product, ispn, sum_ml, tgt(2)
         integer :: srcGAS(2)
-        integer :: ms, nJBase(nel)
+        integer :: spin_idx, nJBase(nel)
         real(dp) :: r, pgen_pick1, pgen_pick2
         logical :: tExchange
         ! assuming that there are possible excitations within each active space,
@@ -273,32 +273,35 @@ contains
         ! get the spin of the target orbital
         if (tExchange) then
             if (r > 0.5_dp) then
-                ms = 1
+                spin_idx = 1
                 r = 2 * (r - 0.5_dp)
             else
-                ms = 2
+                spin_idx = 2
                 r = 2 * (0.5_dp - r)
             end if
             pgen = pgen * 0.5_dp
         else
-            ms = get_spin(src(1))
+            spin_idx = get_spin(src(1))
         end if
         tgt = 0
         ! the first hole is chosen randomly from the first active space
-        tgt(1) = pick_hole_from_active_space(ilutI, nI, srcGAS(1), ms, r, pgen_pick1)
+        tgt(1) = pick_hole_from_active_space(&
+                ilutI, nI, srcGAS(1), spin_idx, r, pgen_pick1)
         if (tgt(1) == 0) then
             call zeroResult()
             return
         end if
 
         if (tExchange) then
-            ! we picked the first spin randomly, now the second elec has the opposite spin
-            ms = 3 - ms
+            ! we picked the first spin randomly,
+            ! now the second elec has the opposite spin
+            spin_idx = 3 - spin_idx
         else
-            ms = get_spin(src(2))
+            spin_idx = get_spin(src(2))
         end if
         ! the second hole is chosen in a weighted fashion
-        tgt(2) = pick_weighted_hole(nI, src(1), src(2), tgt(1), 2, ms, srcGAS(2), pgen_pick1)
+        tgt(2) = pick_weighted_hole(&
+            nI, src(1), src(2), tgt(1), 2, spin_idx, srcGAS(2), pgen_pick1)
         if (any(tgt == 0) .or. tgt(1) == tgt(2)) then
             call zeroResult()
             return
@@ -359,9 +362,9 @@ contains
         ! we know gasList contains tgt2, so we can look up its index with binary search
         gasInd2 = binary_search_first_ge(gasList, tgt2)
         if (gasInd2 == 1) then
-            pgenVal = cSum(1) / cSum(nOrbs)
+            pgenVal = cSum(1)
         else
-            pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1)) / cSum(nOrbs)
+            pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1))
         end if
 
     end function get_pgen_pick_weighted_hole
@@ -388,13 +391,15 @@ contains
 
 !----------------------------------------------------------------------------!
 
-    function get_cumulative_list(GAS_list, nI, src1, src2, tgt1, ic) result(cSum)
-        integer, intent(in) :: GAS_list(:), nI(nel), ic, src1, src2, tgt1
-        real(dp) :: cSum(size(GAS_list))
+    function get_cumulative_list( &
+            Orb_list, occ_Orb_list, src1, src2, tgt1, ic) result(cSum)
+        integer, intent(in) :: &
+            Orb_list(:), occ_Orb_list(nel), ic, src1, src2, tgt1
+        real(dp) :: cSum(size(Orb_list))
 
         integer :: ex(2, 2), i, nOrbs
 
-        nOrbs = size(GAS_list)
+        nOrbs = size(Orb_list)
         ex(1, 1) = src1
         if (ic == 2) then
             ex(1, 2) = src2
@@ -409,15 +414,21 @@ contains
             call addToCumulative(i, cSum(i - 1))
         end do
 
+        cSum(:) = cSum(:) / cSum(nOrbs)
+
     contains
 
         subroutine addToCumulative(i, previous)
             integer, intent(in) :: i
             real(dp), intent(in) :: previous
+            integer :: tgt
 
-            if (.not. (ex(2, 1) == GAS_list(i) .or. any(nI == GAS_list(i)))) then
-                ex(2, ic) = GAS_list(i)
-                cSum(i) = abs(sltcnd_excit(nI, ic, ex, .false.)) + previous
+            tgt = Orb_list(i)
+
+            if (all(occ_Orb_list /= tgt) .and. ex(2, 1) /= tgt) then
+                ex(2, ic) = Orb_list(i)
+                cSum(i) = abs(sltcnd_excit(occ_Orb_list, ic, ex, .false.)) &
+                          + previous
             else
                 cSum(i) = previous
             end if
@@ -447,7 +458,7 @@ contains
         cSum = get_cumulative_list(GAS_list, nI, src1, src2, tgt1, ic)
 
         ! now, pick with the weight from the cumulative list
-        r = genrand_real2_dSFMT() * cSum(nOrbs)
+        r = genrand_real2_dSFMT()
 
         ! there might not be such an excitation
         if (cSum(nOrbs) > 0) then
@@ -456,9 +467,9 @@ contains
 
             ! adjust pgen with the probability for picking tgt from the cumulative list
             if (tgt == 1) then
-                pgen = pgen * cSum(1) / cSum(nOrbs)
+                pgen = pgen * cSum(1)
             else
-                pgen = pgen * (cSum(tgt) - cSum(tgt - 1)) / cSum(nOrbs)
+                pgen = pgen * (cSum(tgt) - cSum(tgt - 1))
             end if
 
             ! convert to global orbital index
