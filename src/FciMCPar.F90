@@ -20,7 +20,7 @@ module FciMCParMod
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
                         tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
                         tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
-                        tTimedDeaths, lingerTime
+                        tTimedDeaths, lingerTime, tCoreAdaptiveShift
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
                         tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -1204,7 +1204,9 @@ module FciMCParMod
 
             ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
             if(tAdaptiveShift .and. all(.not. tSinglePartPhase)) then
-               call SumCorrectionContrib(SignCurr,j)
+               ! Only add the contribution from the corespace if it is explicitly demanded
+               if((.not. tCoreDet) .or. tCoreAdaptiveShift) &
+                    call SumCorrectionContrib(SignCurr,j)
             endif
 
             ! The current diagonal matrix element is stored persistently.
