@@ -1,4 +1,4 @@
-#include 'macros.h'
+#include "macros.h"
 
 module NECICore_mod
     implicit none
