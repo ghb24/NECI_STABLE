@@ -137,6 +137,7 @@ logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically upd
 integer :: N0_Target !The target reference population in fixed-N0 mode
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
 logical :: tAdaptiveShift !Whether any of the adaptive shift schemes is used
+logical :: tCoreAdaptiveShift = .false. ! Whether the adaptive shift is also applied to the corespace
 logical :: tLinearAdaptiveShift !Make shift depends on the population linearly
 real(dp) :: LAS_Sigma !Population which below the shift is set to zero
 real(dp) :: LAS_F1 !Shift modification factor at AdaptiveShiftSigma
