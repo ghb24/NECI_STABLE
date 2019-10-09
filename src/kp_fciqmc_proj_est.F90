@@ -200,7 +200,7 @@ contains
                     end if
 
                     ! If any (valid) children have been spawned.
-                    if (.not. (any(near_zero(child_sign)) .or. ic == 0 .or. ic > 2)) then
+                    if (.not. (all(near_zero(child_sign)) .or. ic == 0 .or. ic > 2)) then
 
                         call create_particle_kp_estimates(nI_child, ilut_child, child_sign, tNearlyFull)
 
