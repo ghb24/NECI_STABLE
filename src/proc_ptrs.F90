@@ -233,11 +233,10 @@ module procedure_pointers
     procedure(new_child_stats_t), pointer :: new_child_stats
     procedure(attempt_die_t), pointer :: attempt_die
     procedure(extract_bit_rep_avsign_t), pointer :: extract_bit_rep_avsign
-    procedure(fill_rdm_diag_currdet_old_t), pointer :: fill_rdm_diag_currdet_old
     procedure(fill_rdm_diag_currdet_t), pointer :: fill_rdm_diag_currdet
 
 
-    ! 
+    !
     ! The two UMAT (2e integral) routines. The second is only used if a
     ! 'stacking' scheme is in use (i.e. caching, memoization etc.)
     procedure(get_umat_el_t), pointer :: get_umat_el

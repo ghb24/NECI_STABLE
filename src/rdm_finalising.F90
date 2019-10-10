@@ -83,7 +83,7 @@ contains
             ! Output banner for start of 1-RDM section in the output.
             write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 1-RDMS",1x,57("="))')
 
-            if (RDMExcitLevel == 1) call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm, .false.)
+            if (RDMExcitLevel == 1) call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm)
 
             if (iProcIndex == 0) then
                 call calc_rho_ii_and_sum_n(one_rdms, norm_1rdm, SumN_Rho_ii)
@@ -94,7 +94,7 @@ contains
 
                     if (RDMExcitLevel == 1 .or. tPrint1RDM) then
                         ! Write out the final, normalised, hermitian OneRDM.
-                        call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., .false.)
+                        call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true.)
                     end if
                 end do
             end if
@@ -1144,7 +1144,7 @@ contains
 
     ! ------- Routines for finalising 1-RDMs ---------------------------------
 
-    subroutine finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm, tOldRDMs)
+    subroutine finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm)
 
         ! This routine takes the 1-RDM (matrix), sums it across processors,
         ! normalises it, makes it hermitian, and prints out the 'popsfile'
@@ -1159,7 +1159,6 @@ contains
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         real(dp), intent(out) :: norm_1rdm(size(one_rdms))
-        logical, intent(in) :: tOldRDMs
 
         integer :: irdm, ierr
         real(dp) :: SumN_Rho_ii(size(one_rdms))
@@ -1180,7 +1179,7 @@ contains
         if (iProcIndex == 0) then
             do irdm = 1, size(one_rdms)
                 ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-                if (twrite_RDMs_to_read) call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .false., tOldRDMs)
+                if (twrite_RDMs_to_read) call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .false.)
             end do
 
             if (RDMExcitLevel == 1) then
@@ -1370,7 +1369,7 @@ contains
 
     end subroutine make_1e_rdm_hermitian
 
-    subroutine write_1rdm(rdm_defs, one_rdm, irdm, norm_1rdm, tNormalise, tOldRDMs)
+    subroutine write_1rdm(rdm_defs, one_rdm, irdm, norm_1rdm, tNormalise)
 
         ! This routine writes out the OneRDM. If tNormalise is true, we are
         ! printing the normalised, hermitian matrix. Otherwise, norm_1rdm is
@@ -1387,7 +1386,7 @@ contains
         real(dp), intent(in) :: one_rdm(:,:)
         integer, intent(in) :: irdm
         real(dp), intent(in) :: norm_1rdm
-        logical, intent(in) :: tNormalise, tOldRDMs
+        logical, intent(in) :: tNormalise
 
         integer :: i, j, iSpat, jSpat, one_rdm_unit
         logical :: is_transition_rdm
@@ -1407,38 +1406,28 @@ contains
 #ifdef _MOLCAS_
             call molcas_open(one_rdm_unit, "ONERDM")
 #else
-            if (tOldRDMs) then
-                write(filename, '("OneRDM_old.",'//int_fmt(irdm,0)//')') irdm
-                open(one_rdm_unit, file=trim(filename), status='unknown')
+            if (is_transition_rdm) then
+                write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                             //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                    state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
             else
-                if (is_transition_rdm) then
-                    write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                 //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
-                else
-                    write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
-                end if
-                open(one_rdm_unit, file=trim(filename), status='unknown')
+                write(filename, '("OneRDM.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
             end if
+            open(one_rdm_unit, file=trim(filename), status='unknown')
 #endif
         else
             ! Only every write out 1 of these at the moment.
             write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
             call neci_flush(6)
             one_rdm_unit = get_free_unit()
-            if (tOldRDMs) then
-                write(filename, '("OneRDM_POPS_old.",'//int_fmt(irdm,0)//')') irdm
-                open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
+            if (is_transition_rdm) then
+                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                                  //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                    state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
             else
-                if (is_transition_rdm) then
-                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                      //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
-                else
-                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
-                end if
-                open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
+                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
             end if
+            open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
         end if
 
         ! Currently always printing 1-RDM in spin orbitals.

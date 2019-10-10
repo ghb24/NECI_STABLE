@@ -283,7 +283,7 @@ contains
     ! Routines to calculate and print 1-RDMs directly after reading in 2-RDMs.
 
     subroutine print_1rdms_from_2rdms_wrapper(rdm_defs, one_rdms, two_rdms, open_shell)
-    
+
         ! Wrapper function to calculate and print 1-RDMs from 2-RDMs, as might
         ! be useful if the user forgot to print 1-RDMs in a calculation.
 
@@ -321,11 +321,11 @@ contains
         call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_norm_all, open_shell)
 
         ! we need to finalise the 1rdms
-        call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm, .false.)
+        call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm)
 
         if(iProcIndex==0) then
            do irdm = 1, size(one_rdms)
-              call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., .false.)
+              call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true.)
            end do
         endif
 
@@ -364,7 +364,7 @@ contains
         call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_norm_all)
 
         do irdm = 1, size(one_rdms)
-            call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, 1.0_dp, .true., .false.)
+            call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, 1.0_dp, .true.)
         end do
 
     end subroutine print_1rdms_from_sf2rdms_wrapper
