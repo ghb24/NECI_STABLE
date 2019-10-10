@@ -18,7 +18,7 @@ stepsshift 75
 load-balance-blocks off
 truncinitiator
 addtoinitiator 3
-all-adaptive-shift 2
+exp-adaptive-shift 2
 endcalc
 
 logging
