@@ -106,7 +106,6 @@ module FciMCParMod
         use rdm_data, only: rdm_estimates, two_rdm_main, two_rdm_recv, two_rdm_recv_2
         use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions, en_pert_main
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
-        use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
         USE MolproPlugin, only : MolproPluginResult
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
