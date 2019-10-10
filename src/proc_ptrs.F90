@@ -165,11 +165,9 @@ module procedure_pointers
             use bit_rep_data, only: NIfTot
             use constants
             use rdm_data, only: one_rdm_t
-            use rdm_data_old, only: rdm_t
             use SystemData, only: nel
             implicit none
 
-            type(rdm_t), intent(inout) :: rdm
             type(one_rdm_t), intent(inout) :: one_rdm
             integer, intent(in) :: irdm
             integer(n_int), intent(in) :: ilutI(0:NIfTot)

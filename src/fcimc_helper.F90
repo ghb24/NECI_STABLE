@@ -1982,7 +1982,6 @@ contains
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
-        use rdm_data_old, only: rdms, one_rdms_old
         use semi_stoch_procs, only: check_determ_flag
 
         integer, intent(in) :: DetCurr(nel)

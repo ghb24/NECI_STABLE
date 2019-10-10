@@ -883,9 +883,7 @@ module AnnihilationMod
         ! to zero.  These will be deleted at the end of the total annihilation
         ! step.
 
-        use rdm_data_old, only: rdms, one_rdms_old
         use rdm_data, only: rdm_definitions, two_rdm_spawn, one_rdms
-        use rdm_filling_old, only: check_fillRDM_DiDj_old
         use rdm_filling, only: check_fillRDM_DiDj
 
         type(fcimc_iter_data), intent(inout) :: iter_data
