@@ -1568,22 +1568,26 @@ and a range of other guidelines.
         avoid extraneous whitespace in the following situations.
 
         \begin{lstlisting}
-    ! Immediately inside parentheses:
+    ! No whitespace immediately inside parentheses:
         Yes: spam(ham(1), f(eggs, 2))
         No:  spam( ham( 1 ), f( eggs, 2 ) )
-    ! Immediately before the open parenthesis that starts
+    ! No whitespace immediately before the open parenthesis that starts
     ! the argument list of a function call or array indexing:
         Yes: spam(1)
         No:  spam (1)
+    ! But there should be white space before the opening parenthesis
+    ! of the conditional in an if statement.
+        Yes: if (condition1 .and. condition2) then
+        No: if(condition1 .and. condition2) then
 
-    ! Immediately before a comma, semicolon, or colon:
+    ! No whitespace immediately before a comma, semicolon, or colon:
         Yes:
             use module, only: cool_function
             integer, allocatable :: A(:, :)
         No:
             use module , only : cool_function
             integer , allocatable :: A(: , :)
-    ! Don't use spaces around the = sign when used to
+    ! No whitespace around the = sign when used to
     ! call a function with a keyword argument.
         Yes: pow(2, n=3)
         No: pow(2, n = 3)
