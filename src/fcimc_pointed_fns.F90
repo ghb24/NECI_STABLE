@@ -11,11 +11,11 @@ module fcimc_pointed_fns
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, &
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
                         tTruncInitiator, tSkipRef, t_truncate_unocc, &
-                        tAdaptiveShift, AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
-                        tAutoAdaptiveShift, AdaptiveShiftThresh, AdaptiveShiftExpo, AdaptiveShiftCut, &
-                        tAAS_Add_Diag, tPrecond, AAS_Const
+                        tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
+                        tAutoAdaptiveShift, AAS_Thresh, AAS_Expo, AAS_Cut, &
+                        tPrecond, AAS_Const, EAS_Scale
     use DetCalcData, only: FciDetIndex, det
-    use procedure_pointers, only: get_spawn_helement, shiftScaleFunction
+    use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
     use load_balance, only: scaleFunction
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
@@ -576,57 +576,19 @@ module fcimc_pointed_fns
 #else
         real(dp) :: rat(1)
 #endif
-        real(dp) :: shift, population, slope, tot, acc, tmp
+        real(dp) :: shift
 
         do i=1, inum_runs
             !If we are fixing the population of reference det, skip death/birth
             if(tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
                 fac(i)=0.0
             else
-                if(tAdaptiveShift .and. .not. tAutoAdaptiveShift)then
-                    population = mag_of_run(realwSign, i)
-                    if(population>InitiatorWalkNo)then
-                        shift = DiagSft(i)
-                    elseif(population<AdaptiveShiftSigma)then
-                        shift = 0.0
-                    else
-                        if(InitiatorWalkNo .isclose. AdaptiveShiftSigma)then
-                            !In this case the slope is ill-defined.
-                            !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
-                            shift = 0.0
-                        else
-                            !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
-                            slope = (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
-                            shift = DiagSft(i)*(AdaptiveShiftF1+(population-AdaptiveShiftSigma)*slope)
-                        end if
-                    end if
-                elseif(tAutoAdaptiveShift)then
-                    population = mag_of_run(realwSign, i)
-                    tot = get_tot_spawns(DetPosition, i)
-                    acc = get_acc_spawns(DetPosition, i)
-                    if(tAAS_Add_Diag)then
-                        tot = tot + Kii*tau
-                        acc = acc + Kii*tau
-                    end if
-                    if(population>InitiatorWalkNo)then
-                        tmp = 1.0
-                    elseif(tot>AdaptiveShiftThresh)then
-                        tmp = acc/tot
-                    else
-                        tmp = 0.0
-                    endif
-                    !The factor is actually never zero, because at least the parent is occupied
-                    !As a heuristic, we use the connectivity of HF
-                    if(tmp<AdaptiveShiftCut)then
-                        tmp = AdaptiveShiftCut
-                    endif
-                    tmp = (tmp+AAS_Const)/(1+AAS_Const)
-                    shift = DiagSft(i)*tmp**AdaptiveShiftExpo
+                 ! rescale the shift
+                if(tAdaptiveShift) then
+                    shift = DiagSft(i) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign,i))
                 else
                     shift = DiagSft(i)
-                 endif
-                 ! rescale the shift depending only on the local population
-                if(tAllAdaptiveShift) shift = shift * shiftScaleFunction(mag_of_run(RealwSign,i))
+                end if
 
                 fac(i)=tau*(Kii-shift)
                 ! And for tau searching purposes
@@ -646,8 +608,6 @@ module fcimc_pointed_fns
                         fac(i) = min(2.0_dp, fac(i))
                     end do
                 else
-                   print *, "Acc spawns", acc
-                   print *, "Tot spawns", tot
                    print *, "Diag sft", DiagSft
                    print *, "Death probability", fac
                     call stop_all(t_r, "Death probability > 2: Algorithm unstable. Reduce timestep.")
@@ -820,35 +780,119 @@ module fcimc_pointed_fns
 
 !------------------------------------------------------------------------------------------!
 
-    pure function expShiftScaleFunction(ci) result(Si)
+    pure function expShiftFactorFunction(pos, run, pop) result(f)
       implicit none
-      ! Scale function for the shift: S' = (1 - exp(-ci/c)) * S
-      ! Input: ci - walker number of given determinant
-      ! Output: Si - scaling factor for the shift
-      real(dp), intent(in) :: ci
-      real(dp) :: Si
-
-      Si = 1.0 - exp(-ci/cAllAdaptiveShift)
-
-    end function expShiftScaleFunction
-
-!------------------------------------------------------------------------------------------!
-
-    pure function constShiftScaleFunction(ci) result(Si)
-      implicit none
-      ! Scale function for the shift: S' = S in absence of all-adaptive-shift
-      ! Input: ci - walker number of given determinant
-      ! Output: Si - scaling factor for the shift
-
-      real(dp), intent(in) :: ci
-      real(dp) :: Si
+      ! Exponential scale function for the shift
+      ! Input: pos - position of given determinant in CurrentDets
+      ! Input: run - run for which the factor is needed
+      ! Input: pop - population of given determinant
+      ! Output: f - scaling factor for the shift
+      integer, intent(in) :: pos
+      integer, intent(in) :: run
+      real(dp), intent(in) :: pop
+      real(dp) :: f
 #ifdef __DEBUG
       ! Disable compiler warnings
       real(dp) :: dummy
-      dummy = ci
+      dummy = pos
+      dummy = run
 #endif
 
-      Si = 1.0
-    end function constShiftScaleFunction
+      f = 1.0 - exp(-pop/EAS_Scale)
+
+    end function expShiftFactorFunction
+
+!------------------------------------------------------------------------------------------!
+
+    pure function constShiftFactorFunction(pos, run, pop) result(f)
+      implicit none
+      ! Dummy scale function for the shift: S' = S
+      ! Input: pos - position of given determinant in CurrentDets
+      ! Input: run - run for which the factor is needed
+      ! Input: pop - population of given determinant
+      ! Output: f - scaling factor for the shift
+      integer, intent(in) :: pos
+      integer, intent(in) :: run
+      real(dp), intent(in) :: pop
+      real(dp) :: f
+#ifdef __WARNING_WORKAROUND
+      ! Disable compiler warnings
+      real(dp) :: dummy
+      dummy = pos
+      dummy = run
+      dummy = pop
+#endif
+      f = 1.0
+    end function constShiftFactorFunction
+
+!------------------------------------------------------------------------------------------!
+
+    pure function linearShiftFactorFunction(pos, run, pop) result(f)
+      implicit none
+      ! Piecewise-linear scale function for the shift
+      ! Input: pos - position of given determinant in CurrentDets
+      ! Input: run - run for which the factor is needed
+      ! Input: pop - population of given determinant
+      ! Output: f - scaling factor for the shift
+      integer, intent(in) :: pos
+      integer, intent(in) :: run
+      real(dp), intent(in) :: pop
+      real(dp) :: f, slope
+#ifdef __WARNING_WORKAROUND
+      ! Disable compiler warnings
+      real(dp) :: dummy
+      dummy = pos
+      dummy = run
+#endif
+
+      if(pop>InitiatorWalkNo)then
+          f = 1.0
+      elseif(pop<LAS_Sigma)then
+          f = 0.0
+      else
+          if(InitiatorWalkNo .isclose. LAS_Sigma)then
+              !In this case the slope is ill-defined.
+              !Since initiators are strictly large than InitiatorWalkNo, set shift to zero
+              f = 0.0
+          else
+              !Apply linear modifcation that equals F1 at Sigma and F2 at InitatorWalkNo
+              slope = (LAS_F2-LAS_F1)/(InitiatorWalkNo-LAS_Sigma)
+              f = (LAS_F1+(pop-LAS_Sigma)*slope)
+          end if
+      end if
+    end function linearShiftFactorFunction
+!------------------------------------------------------------------------------------------!
+
+    pure function autoShiftFactorFunction(pos, run, pop) result(f)
+      implicit none
+      ! Scale function for the shift based on the ratio of reject spawns
+      ! Input: pos - position of given determinant in CurrentDets
+      ! Input: run - run for which the factor is needed
+      ! Input: pop - population of given determinant
+      ! Output: f - scaling factor for the shift
+      integer, intent(in) :: pos
+      integer, intent(in) :: run
+      real(dp), intent(in) :: pop
+      real(dp) :: f, tot, acc, tmp
+
+      tot = get_tot_spawns(pos, run)
+      acc = get_acc_spawns(pos, run)
+
+      if(pop>InitiatorWalkNo)then
+          tmp = 1.0
+      elseif(tot>AAS_Thresh)then
+          tmp = acc/tot
+      else
+          tmp = 0.0
+      endif
+      !The factor is actually never zero, because at least the parent is occupied
+      !As a heuristic, we use the connectivity of HF
+      if(tmp<AAS_Cut)then
+          tmp = AAS_Cut
+      endif
+      tmp = (tmp+AAS_Const)/(1+AAS_Const)
+      f = tmp**AAS_Expo
+
+    end function autoShiftFactorFunction
 
 end module

@@ -45,9 +45,9 @@ module fcimc_helper
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, &
-                        tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
-                        tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
-                        tAAS_SpinScaled, AAS_SameSpin, AAS_OppSpin, tPrecond, &
+                        tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2,&
+                        tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
+                        tPrecond, &
                         tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, &
                         allowedSpawnSign
     use adi_data, only: tSignedRepAv
@@ -237,58 +237,10 @@ contains
                 weight_rej = 1.0_dp
             end if
 
-            if(tAAS_SpinScaled)then
-                if(ic==2)then
-                    if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
-                        weight_acc = weight_acc * AAS_SameSpin
-                        weight_rej = weight_rej * AAS_SameSpin
-!                        write(6, *) "SameSpin", AAS_SameSpin
-                    else
-                        weight_acc = weight_acc * AAS_OppSpin
-                        weight_rej = weight_rej * AAS_OppSpin
-!                        write(6, *) "OppSpin", AAS_OppSpin
-                    end if
-                end if
-            end if
             !Enocde weight, which is real, as an integer
             SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
             SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
 
-            if(tAAS_Reverse)then
-                if(tAAS_MatEle)then
-                    weight_rev = abs(matel)
-                else if(tAAS_MatEle2) then
-                    weight_den = abs(det_diagH(ParentPos) - DiagSft(run))
-                    if(weight_den<AAS_DenCut)then
-                        weight_den = AAS_DenCut
-                    end if
-                    weight_rev = abs(matel)/weight_den
-                else if(tAAS_MatEle3) then
-                    weight_rev = 1.0_dp
-                else if(tAAS_MatEle4) then
-                    weight_den = abs(det_diagH(ParentPos))
-                    if(weight_den<AAS_DenCut)then
-                        weight_den = AAS_DenCut
-                    end if
-                    weight_rev = abs(matel)/weight_den
-                else
-                    weight_rev = 1.0_dp
-                end if
-                if(tAAS_Reverse_Weighted)then
-                    weight_rev = weight_rev/mag_of_run(SignCurr, run)
-                endif
-                if(tAAS_SpinScaled)then
-                    if(ic==2)then
-                        if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
-                            weight_rev = weight_rev * AAS_SameSpin
-                        else
-                            weight_rev = weight_rev * AAS_OppSpin
-                        end if
-                    end if
-                end if
-                !Enocde weight, which is real, as an integer
-                SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)) = transfer(weight_rev, SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)))
-            end if
         end if
 
         ! store global data - number of spawns

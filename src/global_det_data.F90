@@ -448,7 +448,7 @@ contains
 
     end subroutine
 
-    function get_tot_spawns(j, run) result(t)
+    pure function get_tot_spawns(j, run) result(t)
 
         integer, intent(in) :: j, run
         real(dp) :: t
@@ -566,7 +566,7 @@ contains
 
     end subroutine
 
-    function get_acc_spawns(j, run) result(t)
+    pure function get_acc_spawns(j, run) result(t)
 
         integer, intent(in) :: j, run
         real(dp) :: t
