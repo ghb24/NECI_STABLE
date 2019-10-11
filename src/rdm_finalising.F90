@@ -17,6 +17,8 @@ module rdm_finalising
 
     implicit none
 
+    real(dp) :: RDM_energy
+
 contains
 
     subroutine finalise_rdms(rdm_defs, one_rdms, two_rdms, rdm_recv, rdm_recv_2, en_pert, spawn, rdm_estimates,tInitsRDMs)
@@ -24,8 +26,7 @@ contains
         ! Wrapper routine, called at the end of a simulation, which in turn
         ! calls all required finalisation routines.
 
-        use EN2MOLCAS, only : NECI_E
-        use SystemData, only : tMolcas
+        use SystemData, only : called_as_lib
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo
         use LoggingData, only: tDipoles, tWrite_normalised_RDMs
@@ -134,11 +135,10 @@ contains
             call write_rdm_estimates(rdm_defs, rdm_estimates, .true., print_2rdm_est, &
                  tInitsRDMs)
         end if
-        if (print_2rdm_est .and. tMolcas) then
-            NECI_E = rdm_estimates%energy_num(1) / rdm_estimates%norm(1)
-            call MPIBarrier(ierr)
-            call MPIBCast(NECI_E)
-            write(6,*) 'NECI_E at rdm_finalising.F90 ', NECI_E
+        if (print_2rdm_est .and. called_as_lib) then
+            RDM_energy = rdm_estimates%energy_num(1) / rdm_estimates%norm(1)
+            call MPIBCast(RDM_energy)
+            write(6,*) 'RDM_energy at rdm_finalising.F90 ', RDM_energy
         end if
 
         call halt_timer(FinaliseRDMs_Time)
@@ -1443,9 +1443,6 @@ contains
             write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
             call neci_flush(6)
             one_rdm_unit = get_free_unit()
-#ifdef _MOLCAS_
-            call molcas_open(one_rdm_unit, "ONERDM")
-#else
             if (tOldRDMs) then
                 write(filename, '("OneRDM_old.",'//int_fmt(irdm,0)//')') irdm
                 open(one_rdm_unit, file=trim(filename), status='unknown')
@@ -1461,7 +1458,6 @@ contains
                 end if
                 open(one_rdm_unit, file=trim(filename), status='unknown')
             end if
-#endif
         else
             ! Only every write out 1 of these at the moment.
             write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')

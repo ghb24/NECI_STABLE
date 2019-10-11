@@ -480,9 +480,6 @@ contains
         ! the individual matrices from each processor, and calling the
         ! diagonalisation routines if we want to get the occupation numbers.
 
-#ifdef _MOLCAS_
-        USE EN2MOLCAS, only : NECI_E
-#endif
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo, tDipoles
         use Parallel_neci, only: iProcIndex, MPIBarrier, MPIBCast, MPISumAll
