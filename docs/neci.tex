@@ -1159,12 +1159,12 @@ TODO
 \subsection{Using CTAGS with VIM}
 
 It is useful, especially for new developers, to be able to easily navigate through NECI code.
-A simple solution for Vim users is to generate a \code{tags} file containing the names of all functions and global variables and their locations. 
+A simple solution for Vim users is to generate a \code{tags} file containing the names of all functions and global variables and their locations.
 Vim automatically reads this file from the current directory, if it exists, and use it to facilitate code navigation. Then you can jump to the deceleration of a variable or a function
 by putting the cursor over it and pressing \code{Ctrl+]} . To go back, press \code{Ctrl+t}.
 Other tag-related commands are explained here: \url{https://vim.fandom.com/wiki/Browsing_programs_with_tags}.
 
-To generate the tags file, a program called \code{ctags} is needed. It is installed  by default in many Linux distributions, but this version is most probably the one called  \code {ctags (GNU Emacs)} and does not support the options we need. The required version is \code{Exuberant Ctags} or its derivative \code{Universal Ctags} which you can be downloaded from here: \url{https://github.com/universal-ctags/ctags}. 
+To generate the tags file, a program called \code{ctags} is needed. It is installed  by default in many Linux distributions, but this version is most probably the one called  \code {ctags (GNU Emacs)} and does not support the options we need. The required version is \code{Exuberant Ctags} or its derivative \code{Universal Ctags} which you can be downloaded from here: \url{https://github.com/universal-ctags/ctags}.
 
 Once you installed the correct version and made sure it is the default one,  \footnote{Executing \code{ctags --version} should print either \code{Universal Ctags} or \code{Exuberant Ctags} but not \code{ctags (GNU Emacs)}} go to the source directory of NECI and run the script \code{gen_vim_tags.sh} which is available in the tools directory
 \begin{lstlisting}[gobble=4]
@@ -1266,7 +1266,15 @@ and a range of other guidelines.
 			\item
 				\code{COMMON} blocks for sharing data between files.
 		\end{packed_itemize}
-		All of these features do, or have appeared, in NECI at some point. It is also highly advised that \code{intent} arguments should be used for all argument declarations. This both improves performance, and the ability of others to quickly identify what the routine is attempting to do.
+		All of these features do, or have appeared, in NECI at some point.
+        It is also highly advised that \code{intent} arguments
+        should be used for all argument declarations.
+        This both improves performance, and the ability of
+        others to quickly identify what the routine is attempting to do.
+
+        Regarding code layout the PEP8 guidelines of the python language
+        lead to well readable code and are mostly applicable to Fortran
+        as well. (\url{https://www.python.org/dev/peps/pep-0008/})
 
 	\headitem{CAPITAL letters}
 		Fortran is a case insensitive programming language.
@@ -1361,6 +1369,52 @@ and a range of other guidelines.
 		stored in procedure pointers. These routines must exactly match the
 		definition of the relevant \code{abstract interface}, which may
 		be more general than is required for the specific case.
+
+    The arguments should be sorted by non optional
+    \code{in}, \code{inout}, \code{out} and then optional arguments.
+    The declaration of dummy arguments should appear in the same
+    order as the argument list.
+    There should be an empty line between dummy argument declarations
+    and local variable declarations.
+
+    If a procedure is often, but not always, called with the same argument
+    think about making it \code{optional} using the \code{def_default}
+    macro and introduce a placeholder local variable with appended
+    underscore.
+
+    If possible add the \code{pure} attribute.
+    This shows the human that there are no side effects and makes
+    parallelization and encapsulation easier.
+
+    If a function is \code{pure} and operates on scalars, add
+    the \code{elemental} attribute to automatically map it elementwise
+    onto arrays.
+
+    The following toy function is pure, can be applied onto arrays
+    and scalars alike.
+    If the exponent is ommited, it defaults to squaring.
+
+    \begin{lstlisting}
+
+    elemental function pow(x, n) result(res)
+        integer, intent(in) :: x
+        integer, intent(in), optional :: n
+        integer :: n_
+
+        integer :: i
+
+        def_default(n_, n, 2)
+
+        res = 1
+        do i = 1, n
+            res = res * x
+        end do
+    end function
+
+    pow([1, 3, 5]) -> [1, 9, 25]
+    pow([1, 3, 5], 3) -> [1, 27, 125]
+
+    \end{lstlisting}
 
 	\headitem{Data types}
 		With the exception of small integers being directly assigned to known
@@ -1497,6 +1551,108 @@ and a range of other guidelines.
     Sometimes this is not wanted, and the compiler warns about it.
     For this reason one should use \code{5 .div. 3} to make it explicit
     that integer division is indeed wanted.
+=======
+    \headitem{Operator Layout}
+        Always surround these binary operators with a single space on either side:
+        assignment (\code{=}), comparisons (\code{==, <, >, /=, <=, >=}),
+        Booleans (\code{.and., .or., .not.}).
+
+        If operators with different priorities are used, consider adding
+        whitespace around the operators with the lowest priority(ies).
+        Use your own judgment; however, never use more than one space,
+        and always have the same amount of whitespace on both sides
+        of a binary operator.
+
+        \begin{lstlisting}
+        ! Recommended
+            i = i + 1
+            x = x*2 - 1
+            hypot2 = x*x + y*y
+            c = (a+b) * (a-b)
+
+        ! Also possible
+            x = x * 2 - 1
+            hypot2 = x * x + y * y
+            c = (a + b) * (a - b)
+
+        ! Forbidden
+            i=i+1
+        \end{lstlisting}
+
+        Line breaks should happen before binary operators.
+        \begin{lstlisting}
+        ! No: operators sit far away from their operands
+            income = gross_wages + &
+                     taxable_interest + &
+                     (dividends - qualified_dividends) - &
+                     ira_deduction - &
+                     student_loan_interest
+
+        ! Yes: easy to match operators with operands
+            income = gross_wages &
+                     + taxable_interest &
+                     + (dividends - qualified_dividends) &
+                     - ira_deduction &
+                     - student_loan_interest
+        \end{lstlisting}
+
+        Use the new C-style relational operators.
+        \begin{lstlisting}
+        ! Recommended
+              ==   /=   <    <=    >   >=
+        ! Forbidden
+              .EQ. .NE. .LT. .LE. .GT. .GE.
+        \end{lstlisting}
+
+    \headitem{Whitespace in Expressions}
+        Put whitespace after commata but
+        avoid extraneous whitespace in the following situations.
+
+        \begin{lstlisting}
+    ! No whitespace immediately inside parentheses:
+        Yes: spam(ham(1), f(eggs, 2))
+        No:  spam( ham( 1 ), f( eggs, 2 ) )
+    ! No whitespace immediately before the open parenthesis that starts
+    ! the argument list of a function call or array indexing:
+        Yes: spam(1)
+        No:  spam (1)
+    ! But there should be white space before the opening parenthesis
+    ! of the conditional in an if statement.
+        Yes: if (condition1 .and. condition2) then
+        No: if(condition1 .and. condition2) then
+
+    ! No whitespace immediately before a comma, semicolon, or colon:
+        Yes:
+            use module, only: cool_function
+            integer, allocatable :: A(:, :)
+        No:
+            use module , only : cool_function
+            integer , allocatable :: A(: , :)
+    ! No whitespace around the = sign when used to
+    ! call a function with a keyword argument.
+        Yes: pow(2, n=3)
+        No: pow(2, n = 3)
+        \end{lstlisting}
+        In a slice the colon acts like a binary operator,
+        and should have equal amounts on either side
+        (treating it as the operator with the lowest priority).
+        In an extended slice, both colons must have the same amount
+        of spacing applied.
+        Exception: when a slice parameter is omitted, the space is omitted.
+        \begin{lstlisting}
+    ! Yes
+        ham(1:9), ham(1:9:3), ham(:9:3), ham(1::3), ham(1:9:)
+        ham(lower:upper), ham(lower:upper:), ham(lower::step)
+        ham(lower+offset : upper+offset)
+        ham(: upper_fn(x) : step_fn(x)), ham(:: step_fn(x))
+        ham(lower + offset : upper + offset)
+
+    ! No
+        ham(lower + offset:upper + offset)
+        ham(1: 9), ham(1 :9), ham(1:9 :3)
+        ham(lower : : upper)
+        ham( : upper)
+        \end{lstlisting}
 
 	\headitem{Modules and interfaces}
 		\begin{itemize}

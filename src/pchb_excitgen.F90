@@ -211,7 +211,7 @@ module pchb_excitgen
       call setup_pchb_sampler()
 
       write(iout,*) "Finished excitation generator initialization"
-      write(iout,*) "Excitation generator requires", memCost/2.0**30, "GB of memory"
+      write(iout,*) "Excitation generator requires", real(memCost,dp)/2.0_dp**30, "GB of memory"
       ! this is some bias used internally by CreateSingleExcit - not used here
       pDoubNew = 0.0
     contains
