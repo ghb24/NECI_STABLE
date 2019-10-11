@@ -116,13 +116,6 @@ module pchb_excitgen
       ! the given source) abort
       invalid = (any(orbs==0) .or. any(orbs(1) == nI) &
            .or. any(orbs(2) == nI)) .or. (orbs(1) == orbs(2))
-      ! unfortunately, there is a super-rare case when, due to floating point error,
-      ! an excitation with pGen=0 is created. Those are invalid, too      
-      if(pGenHoles < eps) then
-         invalid = .true.
-         ! Yes, print. Those events are signficant enough to be always noted in the output
-         print *, "WARNING: Generated excitation with probability of 0"
-      endif
 
       pGen = pGen * pGenHoles
       if(invalid) then
