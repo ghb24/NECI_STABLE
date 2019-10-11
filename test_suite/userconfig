@@ -1,17 +1,17 @@
 [neci]
-exe = ../gfortran_build/bin/neci
+exe = ../build/bin/neci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [mneci]
-exe = ../gfortran_build/bin/mneci
+exe = ../build/bin/mneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [dneci]
-exe = ../gfortran_build/bin/dneci
+exe = ../build/bin/dneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
@@ -22,13 +22,13 @@ default_program = neci
 diff = vimdiff
 
 [kmneci]
-exe = ../gfortran_build/bin/kmneci
+exe = ../build/bin/kmneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
 
 [kneci]
-exe = ../gfortran_build/bin/kneci
+exe = ../build/bin/kneci
 vcs = git
 inputs_args = ('*.inp', '')
 extract_program = ./tools/extract.py
