@@ -1167,7 +1167,7 @@ module AnnihilationMod
                  if (tTruncSpawn) then
                     ! Needs to be truncated away, and a contribution
                     ! added to the EN2 correction.
-                    call add_en2_pert_for_trunc_calc(i, nJ, SignTemp, iter_data)
+                    call add_en2_pert_for_trunc_calc(i, nJ, SpawnedSign, iter_data)
                  else
                     do j = 1, lenof_sign
                        ! truncate the spawn if required

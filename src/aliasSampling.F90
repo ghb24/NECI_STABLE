@@ -251,7 +251,10 @@ contains
     ! random position in arr
     pos = int(sizeArr*r)+1
     ! remainder of the integer conversion
-    bias = sizeArr*r + 1 - pos
+    ! floating point errors can lead to very small negative values of bias here
+    ! this would allow for picking elements which have probability 0 (-> biasTable entry 0)
+    ! -> ensure that bias>=0
+    bias = max(sizeArr*r + 1.0_dp - real(pos,dp),0.0_dp)
 
     if(bias < this%biasTable(pos)) then
        ind = pos

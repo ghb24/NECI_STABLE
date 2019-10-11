@@ -197,9 +197,9 @@ contains
               write(fcimcstats_unit, "(A)", advance = 'no') &
                    "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
               validExCaption = "  37.InvalidExcits  38. ValidExcits  "
-              trunc_caption = "  39. TruncWeight  "
+              trunc_caption = "  39. TruncWeight"
            else
-              trunc_caption = "  36. TruncWeight  "
+              trunc_caption = "  36. TruncWeight"
               validExCaption = "  34.InvalidExcits  35. ValidExcits  "
            end if
            write(fcimcstats_unit, "(A)", advance = 'no') validExCaption
