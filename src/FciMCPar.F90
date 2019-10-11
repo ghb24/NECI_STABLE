@@ -11,7 +11,7 @@ module FciMCParMod
                         tOrthogonaliseReplicas, orthogonalise_iter, tNonInitsForRDMs, &
                         tDetermHFSpawning, use_spawn_hash_table, tInitsRDMRef, &
                         ss_space_in, s_global_start, tContTimeFCIMC, tInitsRDM, &
-                        trial_shift_iter, tStartTrialLater, tAVReps, &
+                        trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, tSimpleInit, &
@@ -20,14 +20,14 @@ module FciMCParMod
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
                         tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
                         tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
-                        tTimedDeaths, lingerTime, tCoreAdaptiveShift
-    use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
-                        tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
+                        tCoreAdaptiveShift
+    use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
+                        tDelayAllDoubsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
                         SIUpdateOffset
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
-                           compare_amps_period, PopsFileTimer, tOldRDMs, tWriteUnocc, &
+                           compare_amps_period, PopsFileTimer, tOldRDMs, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
                            t_hist_fvals, enGrid, arGrid
@@ -71,8 +71,8 @@ module FciMCParMod
     use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop, get_death_timer, &
-                               clock_death_timer, mark_death, get_tot_spawns, get_acc_spawns, &
+                               update_tau_int, set_spawn_pop, &
+                               get_tot_spawns, get_acc_spawns, &
                                replica_est_len
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
@@ -328,11 +328,6 @@ module FciMCParMod
                  .and. all(.not. tSinglePartPhase))) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
-               ! And/or the all-sings-initiator procedure
-               if(tDelayAllSingsInits) then
-                  tAllSingsInitiators = .true.
-                  tAdiActive = .true.
-               endif
                ! If desired, we now set up the references for the purpose of the
                ! all-doubs-initiators
                if(tDelayGetRefs) then
@@ -1177,28 +1172,8 @@ module FciMCParMod
             if(IsUnoccDet(SignCurr)) then
                !It has been removed from the hash table already
                !Add to the "freeslot" list
-               if(.not. tTimedDeaths) then
-                  iEndFreeSlot=iEndFreeSlot+1
-                  FreeSlot(iEndFreeSlot)=j
-               else
-                  ! clock the death timer
-                  tau_dead = get_death_timer(j)
-                  ! we need to distinguish lingering from actually dead determinants
-                  ! this is done via the death timer: if it is <0, the det is dead
-                  if(tau_dead .ge. 0) then
-                     call clock_death_timer(j)
-                     ! if the determinant exceedes its linger time, kill it
-                     if(int(tau_dead) > lingerTime) then
-                        call RemoveHashDet(HashIndex, DetCurr, j)
-                        ! mark this determinant as dead
-                        call mark_death(j)
-                     endif
-                  else
-                     ! this determinant has been removed from the hashtable
-                     iEndFreeSlot=iEndFreeSlot+1
-                     FreeSlot(iEndFreeSlot)=j
-                  endif
-               endif
+               iEndFreeSlot=iEndFreeSlot+1
+               FreeSlot(iEndFreeSlot)=j
                cycle
             endif
 

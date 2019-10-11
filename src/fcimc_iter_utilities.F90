@@ -20,7 +20,7 @@ module fcimc_iter_utils
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, tWriteUnocc, &
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
          AllInitsPerExLvl, initsPerExLvl
     use tau_search, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor

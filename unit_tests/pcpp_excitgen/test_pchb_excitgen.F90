@@ -5,12 +5,12 @@ program test_pcpp_excitgen
   use unit_test_helper_excitgen
   use procedure_pointers, only: generate_excitation
   implicit none
-  
+
   call init_fruit()
   call pchb_test_driver()
   call fruit_summary()
   call fruit_finalize()
-  
+
 contains
 
   subroutine pchb_test_driver()

@@ -3,7 +3,7 @@ module adi_references
 use Parallel_neci
 use FciMCData, only: ilutRef, TotWalkers, CurrentDets
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
-     nTZero, SIHash, tAdiActive, tSetupSIs, NoTypeN, superInitiatorLevel, tSetupSIs, &
+     tAdiActive, tSetupSIs, NoTypeN, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
      targetRefPop, lastAllNoatHF, lastNRefs, tVariableNRef, maxNRefs, minSIConnect, &
      nIncoherentDets, nConnection, tWeightedConnections, tSignedRepAv
@@ -31,7 +31,7 @@ contains
 !------------------------------------------------------------------------------------------!
 
   subroutine update_reference_space(tPopPresent)
-    use adi_data, only: tReadRefs, tProductReferences, nExProd
+    use adi_data, only: tReadRefs
     use LoggingData, only: ref_filename
     implicit none
     logical, intent(in) :: tPopPresent
@@ -62,16 +62,7 @@ contains
           call print_reference_notification(nRead+1,nRefs,"Superinitiators from population")
        endif
        ! Then, add the product references
-       if(tGen) then
-          if(tProductReferences) then
-             nRCOld = nRefs
-             call add_product_references(nRefs, nExProd)
-             call update_ref_signs()
-             ! And prompt the output message
-             call print_reference_notification(nRCOld + 1, nRefs, &
-                  "Superinitiators created from excitation products")
-          endif
-       else
+       if(.not.tGen) then
           ! If we did not do anything, only take one reference
           call reallocate_ilutRefAdi(1)
           ilutRefAdi(:,1) = ilutRef(:,1)
@@ -79,15 +70,6 @@ contains
           call print_reference_notification(1,1, &
                "Using only the reference determinant as superinitiator")
        endif
-
-       ! Fill the hashtable for the SIs
-       call assign_SIHash_TZero()
-
-       ! These are now the t-0 references
-       nTZero = nRefs
-
-       ! If we also used t-n (n>0) references (now called superinitiators), add them now
-       if(superInitiatorLevel > 0) call add_derived_refs()
 
        call fill_adi_caches()
 
@@ -529,107 +511,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine add_product_references(nRefsIn, prodLvl)
-      implicit none
-      integer, intent(in) :: nRefsIn
-      integer, intent(in) :: prodLvl
-      integer(n_int) :: tmp_ilut(0:NIfTot)
-      integer(n_int), allocatable :: prod_buffer(:,:)
-      integer :: nProdsMax, nProds, i, cLvl
-      logical :: t_is_valid
-
-      ! Get the maximum number of product excitations
-      nProdsMax = maxProdEx(nRefsIn, prodLvl)
-
-      ! Setup the buffer
-      allocate(prod_buffer(0:NifTot,nProdsMax))
-      prod_buffer(:,1:nRefsIn) = ilutRefAdi(:,1:nRefsIn)
-      nProds = nRefsIn
-
-      do cLvl = 2, prodLvl
-         ! For each product level, get all possible product excitations
-         do i = 1, nRefsIn**cLvl
-            ! Get the excitation product corresponding to i
-            call get_product_excitation(i, cLvl, nRefsIn, tmp_ilut, t_is_valid)
-
-            ! Check, if it is already in the list (e.g. if both tau operators are those of
-            ! the reference)
-            if(t_is_valid) t_is_valid = ilut_not_in_list(tmp_ilut, prod_buffer, nProds)
-
-            ! If all excitations were valid and the new ilut is not already in the buffer,
-            ! add it
-            if(t_is_valid) then
-               nProds = nProds + 1
-               prod_buffer(:,nProds) = tmp_ilut
-            endif
-         end do
-         ! Do this for each targeted product level
-      end do
-
-      ! Write the buffer to ilutRefAdi
-      call reallocate_ilutRefAdi(nProds)
-      ! Reassign the number of references
-      nRefs = nProds
-      ilutRefAdi = prod_buffer(:,1:nProds)
-
-      deallocate(prod_buffer)
-    end subroutine add_product_references
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine get_product_excitation(i, cLvl, nRefs, tmp_ilut, isValid)
-      use DetBitOps, only: CountBits
-      use bit_rep_data, only: NIfD
-      implicit none
-      integer, intent(in) :: i, cLvl, nRefs
-      integer(n_int), intent(out) :: tmp_ilut(0:NIfTot)
-      logical, intent(out) :: isValid
-      integer(n_int) :: tau(0:NIfTot), tau_cc(0:NIfTot)
-      integer :: cp
-
-      tmp_ilut = ilutRef(:,1)
-      isValid = .true.
-      tau_cc = 0_n_int
-      ! By getting the cLvl excitation operators that correspond to i
-      do cp = 1, cLvl
-         ! Store the excitation operators in tau
-         tau = IEOR(ilutRefAdi(:,cpIndex(i,nRefs,cp)),ilutRef(:,1))
-
-         ! Check if we do not annihilate something twice
-         if(any(IAND(tau_cc(0:NIfD),tau(0:NIfD)) .ne. 0_n_int)) then
-            isValid = .false.
-            exit
-         endif
-         ! And apply it on the temporary iLut
-         tau_cc(0:NIfD) = IEOR(tau_cc(0:NIfD),tau(0:NIfD))
-
-      end do
-
-      ! Check if it's valid, if not, go to the next value of i
-      if(CountBits(tmp_ilut,NIfD) .ne. nEl) isValid = .false.
-      tmp_ilut(0:NIfD) = IEOR(tmp_ilut(0:NIfD), tau_cc(0:NIfD))
-    end subroutine get_product_excitation
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine add_derived_refs()
-      implicit none
-      integer :: level, nRCOld
-      character :: type
-
-      ! Add sign-coherent states as superinitiators
-      do level = 1, superInitiatorLevel
-         nRCOld = nRefs
-         call generate_type_n_refs()
-         write(type,'(i1)') level
-         ! Print the type-n superinitiators of the current level
-         call print_reference_notification(nRCOld + 1, nRefs, "Type-"//type//&
-              " superinitiators")
-      enddo
-    end subroutine add_derived_refs
-
-!------------------------------------------------------------------------------------------!
-
     subroutine adapt_SIThreshold(nKeep)
       ! If we have a fixed set of superinitiators, we set the SIThreshold to be at
       ! least the minimum of xi of that set
@@ -646,181 +527,6 @@ contains
       enddo
 
     end subroutine adapt_SIThreshold
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine generate_type_n_refs()
-      use FciMCData, only: CurrentDets, TotWalkers
-      implicit none
-      integer :: nTOne, nBlocks, run
-      integer(int64) :: i
-      integer(n_int), allocatable :: refBuf(:,:)
-      real(dp) :: tmp_sign(lenof_sign)
-      logical :: is_tone
-      integer, parameter :: allocBlock = 100
-      character(*), parameter :: this_routine = "generate_type_one_refs"
-
-      allocate(refBuf(0:NIfTot, allocBlock))
-      nBlocks = 1
-
-      nTOne = 0
-      do i = 1, TotWalkers
-         call extract_sign(CurrentDets(:,i), tmp_sign)
-         ! Check if a determinant should be a type-1 reference (on any run)
-         is_tone = .false.
-         do run = 1, inum_runs
-            is_tone = is_tone .or. check_type_n_ref(CurrentDets(:,i), tmp_sign, run)
-            ! TODO: Set the flag for the corresponding run
-         enddo
-         if(is_tone) then
-            nTOne = nTOne + 1
-            ! If we exceed the memory of the buffer, add another block
-            if(nTOne > nBlocks*allocBlock) then
-               nBlocks = nBlocks + 1
-               call resize_ilut_list(refBuf, (nBlocks-1) * allocBlock ,nBlocks * allocBlock)
-            endif
-            ! Add the determinant to the temporary list
-            refBuf(:,nTOne) = CurrentDets(:,i)
-         endif
-      end do
-
-      ! And construct the array of new superinitiators
-      call add_type_n_refs(refBuf, nTOne)
-
-      deallocate(refBuf)
-
-    end subroutine generate_type_n_refs
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine add_type_n_refs(list, listSize)
-      implicit none
-      integer, intent(in) :: listSize
-      integer(n_int), intent(in) :: list(0:NIfTot,listSize)
-      integer(n_int), allocatable :: mpi_buf(:,:), buffer(:,:)
-      integer :: nRCOld, i, nNew, all_refs_found, ierr
-      integer(MPIArg) :: refs_found_per_proc(0:nProcessors-1), refs_displs(0:nProcessors-1)
-      logical :: tSuccess
-      integer(MPIArg) :: mpi_refs_found
-
-      ! First, communicate the list between the processors
-      mpi_refs_found = int(listSize,MPIArg)
-      call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
-      all_refs_found = sum(refs_found_per_proc)
-
-      ! We only now know the required size of the temporaries
-      allocate(mpi_buf(0:NIfTot, all_refs_found))
-      allocate(buffer(0:NIfTot, all_refs_found))
-
-      refs_displs(0) = 0
-      do i = 1, nProcessors - 1
-         refs_displs(i) = refs_displs(i-1) + refs_found_per_proc(i-1)
-      enddo
-      ! Store them on all processors
-      call MPIAllGatherV(list(0:NIfTot, 1:listSize), mpi_buf, &
-           refs_found_per_proc, refs_displs)
-
-      nRCOld = nRefs
-      nNew = 0
-      ! we need to allocate the buffer to maximum size because adding to the
-      ! hashtable requires the target array (here: ilutRefAdi) to have sufficient size
-      call resize_ilutRefAdi(nRefs + all_refs_found)
-      ! note that we only need the allocation, the reassignment of nRefs is pointless
-      ! First, pick those iluts from list, which are not already present in ilutRefAdi
-      do i = 1, all_refs_found
-         call add_superinitiator_to_hashtable(mpi_buf(:,i), nRCOld + nNew + 1, tSuccess)
-         if(.not. tSuccess) then
-            nNew = nNew + 1
-            buffer(:,nNew) = mpi_buf(:,i)
-         endif
-      enddo
-      ! resize the ilutRefAdi array
-      call resize_ilutRefAdi(nRCOld + nNew)
-      ! and add the new iluts
-      ilutRefAdi(:,(nRCOld + 1):(nRCOld + nNew)) = buffer(:,1:nNew)
-      ! and then check the self-consistency condition, keeping the old SIs
-      if(nNew  >0) call type_n_self_consistency_loop(nRCOld)
-
-      deallocate(mpi_buf)
-      deallocate(buffer)
-    end subroutine add_type_n_refs
-
-!------------------------------------------------------------------------------------------!
-
-    function check_type_n_ref(ilut, ilut_sign, run) result(is_tone)
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      ! We pass the sign as an extra argument to prevent redundant extraction
-      real(dp), intent(in) :: ilut_sign(lenof_sign)
-      integer, intent(in) :: run
-      real(dp) :: xi
-      logical :: is_coherent
-      logical :: is_tone
-
-      is_tone = .false.
-      is_coherent = .false.
-
-      ! Only consider those determinants with a sufficient population
-      if(mag_of_run(ilut_sign, run) < NoTypeN) return
-
-      ! obtain the xi-parameter
-      xi = get_sign_op(ilut)
-      ! and compare it to the superinitiator threshold
-      if(xi > SIThreshold) is_tone = .true.
-    end function check_type_n_ref
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine type_n_self_consistency_loop(nKeep)
-      implicit none
-      integer, intent(in) :: nKeep
-      integer :: i
-
-      ! first, we fix the threshold to be at least the minimum of the first nKeep SIs xi
-      call adapt_SIThreshold(nKeep)
-
-      ! we can remove at most nrefs SIs
-      do i = 1, nRefs
-         ! once we do not remove any SIs, self-consistency is reached
-         if(type_n_self_consistency_step(nKeep)) exit
-      enddo
-
-      ! We need to setup the hashtable anew because the SIs are reordered in
-      ! the process of self-consistency loop
-      call assign_SIHash_TZero()
-    end subroutine type_n_self_consistency_loop
-
-!------------------------------------------------------------------------------------------!
-
-    function type_n_self_consistency_step(nKeep) result(valid)
-      implicit none
-      integer, intent(in) :: nKeep
-      logical :: valid
-      integer :: iRef, min_iRef
-      real(dp) :: sub_xi, min_xi
-
-      valid = .true.
-      min_xi = 1.0_dp
-      min_iRef = 1
-
-      ! The first nKeep references are always above the threshold
-      do iRef = nKeep + 1, nRefs
-         ! Get the minimal xi
-         sub_xi = get_sign_op(ilutRefAdi(:,iRef))
-         ! And the corresponding SI
-         if(sub_xi < min_xi) then
-            min_xi = sub_xi
-            min_iRef = iRef
-         endif
-      end do
-
-      ! and throw out the SI with minimal xi if below threshold
-      if(min_xi < SIThreshold) then
-         call remove_superinitiator(min_iRef)
-         valid = .false.
-      endif
-
-    end function type_n_self_consistency_step
 
 !------------------------------------------------------------------------------------------!
 
@@ -1257,32 +963,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    function test_ref_double(ilut, run) result(is_accessible)
-      ! We check if a target determinant for a spawn is valid in the sense
-      ! that we allow any non-initiator to spawn there.
-      ! This is an experimental and potentially dangerous feature as it can
-      ! lead to sign instabilities
-      use adi_data, only: tAccessibleDoubles, tAccessibleSingles
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer, intent(in) :: run
-      logical :: is_accessible
-      integer :: iRef, exLevel
-
-      is_accessible = .false.
-      exLevel = -1
-      do iRef = 1, nRefs
-         exLevel = FindBitExcitLevel(ilutRefAdi(:,iRef), ilut)
-         if(exLevel == 0) is_accessible = .true.
-         if(tAccessibleDoubles .and. exLevel == 2) is_accessible = .true.
-         if(tAccessibleSingles .and. exLevel == 1) is_accessible = .true.
-         if(is_accessible) exit
-      end do
-    end function test_ref_double
-
-
-!------------------------------------------------------------------------------------------!
-
     subroutine reset_coherence_counter()
       use adi_data, only: nCoherentDoubles
       implicit none
@@ -1300,26 +980,6 @@ contains
 
       call setup_reference_space(all(.not. tSinglePartPhase))
     end subroutine update_first_reference
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine setup_SIHash()
-      use adi_data, only:  htBlock
-      use FciMCData, only: HashLengthFrac
-      use hash, only: init_hash_table
-      implicit none
-      logical, save :: first_call = .true.
-
-      if(first_call) then
-         nullify(SIHash)
-         first_call = .false.
-      endif
-
-      htBlock = int(5 * HashLengthFrac * nRefs)
-      if(associated(SIHash)) deallocate(SIHash)
-      allocate(SIHash(htBlock))
-      call init_hash_table(SIHash)
-    end subroutine setup_SIHash
 
 !------------------------------------------------------------------------------------------!
 
@@ -1343,73 +1003,10 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine add_superinitiator_to_hashtable(ilut, cRef, tSuccess)
-      use hash, only: add_hash_table_entry, hash_table_lookup
-      use bit_reps, only: decode_bit_det
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer, intent(in) :: cRef
-      integer :: nI(nel), index, hashVal
-      logical, intent(out) :: tSuccess
-
-      call decode_bit_det(nI, ilut)
-      call hash_table_lookup(nI, ilut, NIfDBO, SIHash, ilutRefAdi, index, hashVal, tSuccess)
-      ! If the SI is already present, do nothing
-      ! TODO: Set flags for multi-replica
-      if(tSuccess) return
-
-      index = cRef
-      ! Else, add a hashtable entry
-      call add_hash_table_entry(SIHash, index, hashVal)
-    end subroutine add_superinitiator_to_hashtable
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine assign_SIHash_TZero()
-      use hash, only: clear_hash_table, fill_in_hash_table
-      implicit none
-      integer :: iRef
-      logical :: tSuccess
-      character(*), parameter :: this_routine = "assign_SIHash_TZero"
-
-      tSuccess = .false.
-      ! make sure the hash table has an appropiate size
-      call setup_SIHash()
-      do iRef = 1, nRefs
-         call add_superinitiator_to_hashtable(ilutRefAdi(:,iRef), iRef, tSuccess)
-         ! By construction, there can't be duplicates within the type-0 SIs
-         if(tSuccess) call stop_all(this_routine, "Duplicate type-0 superinitiator")
-      enddo
-
-    end subroutine assign_SIHash_TZero
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine check_superinitiator(ilut, nI, staticInit)
-      use hash, only: hash_table_lookup
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer, intent(in) :: nI(nel)
-      logical, intent(inout) :: staticInit
-      integer :: index, hashVal
-      logical :: tSuccess
-
-      ! Only perform the check if the superinitiators are initialized
-      if(tSetupSIs) then
-         ! Now, look into the SI-hashtable and return whether nI is there
-         call hash_table_lookup(nI, ilut, NIfDBO, SIHash, ilutRefAdi, &
-              index, hashVal, tSuccess)
-         if(tSuccess) staticInit = .true.
-      endif
-    end subroutine check_superinitiator
-
-!------------------------------------------------------------------------------------------!
-
     subroutine clean_adi()
       implicit none
 
       call deallocate_adi_caches()
-      if(associated(SIHash)) deallocate(SIHash)
       if(allocated(ilutRefAdi)) deallocate(ilutRefAdi)
     end subroutine clean_adi
 

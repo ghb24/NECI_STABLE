@@ -8,8 +8,7 @@ module AnnihilationMod
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
-                          tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
-                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
+                          tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
                           tNonInitsForRDMs, &
                           tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
                           tSimpleInit, tAllConnsPureInit
@@ -34,7 +33,7 @@ module AnnihilationMod
                             CalcHashTableStats, get_diagonal_matel, RemoveHashDet
     use searching
     use hash
-    use global_det_data, only: det_diagH, store_spawn, get_death_timer, &
+    use global_det_data, only: det_diagH, store_spawn, &
                                update_tot_spawns, update_acc_spawns, get_tot_spawns, get_acc_spawns
     use procedure_pointers, only: scaleFunction
     use hphf_integrals, only: hphf_diag_helement
@@ -987,8 +986,7 @@ module AnnihilationMod
                     ! decide whether to abort it or not.
                     if (is_run_unnocc(CurrentSign,run)) then
                        if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
-                            .not. tDetermState .and. ((.not. tTimedDeaths) .or. &
-                            get_death_timer(PartInd) < 0)) then
+                            .not. tDetermState) then
                           ! Walkers came from outside initiator space.
                           NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                           iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
@@ -1055,8 +1053,7 @@ module AnnihilationMod
                     ! away. Remove it from the hash index array so that
                     ! no others find it (it is impossible to have another
                     ! spawned walker yet to find this determinant).
-                    if(.not. tTimedDeaths) &
-                         call RemoveHashDet(HashIndex, nJ, PartInd)
+                    call RemoveHashDet(HashIndex, nJ, PartInd)
                  end if
               end if
 
@@ -1209,7 +1206,7 @@ module AnnihilationMod
         call halt_timer(BinSearch_time)
 
         ! Update remaining number of holes in list for walkers stats.
-        if ((iStartFreeSlot > iEndFreeSlot) .or. tTimedDeaths) then
+        if ((iStartFreeSlot > iEndFreeSlot)) then
            ! All slots filled
            HolesInList = 0
         else
@@ -1325,25 +1322,7 @@ module AnnihilationMod
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
         ! same if the spawn matrix element was large enough
-        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type)) .and. &
-             .not. test_flag(ilut_spwn, flag_large_matel)
-
-        ! optionally keep spawns up to a given seniority level + excitaion level
-        if(abort .and. tSpawnSeniorityBased) then
-           ! get the seniority level
-           nopen = count_open_orbs(ilut_spwn)
-           if(nopen < numMaxExLvlsSet) then
-              maxExLvl = 0
-              ! get the corresponding max excitation level
-              do while(maxExLvl == 0)
-                 maxExLvl = maxKeepExLvl(nopen+1)
-                 nopen = nopen + 1
-                 if(nopen >= numMaxExLvlsSet) exit
-              end do
-              ! if we are below this level, keep the spawn anyway
-              if(FindBitExcitLevel(ilutHF, ilut_spwn) <= maxExLvl) abort = .false.
-           end if
-        end if
+        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
 
     end function test_abort_spawn
 
