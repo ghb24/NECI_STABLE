@@ -20,8 +20,8 @@ class TabCharacter:
         return 'Tab characters in {}:{}'.format(file_path, line_number)
 
     @staticmethod
-    def defined_for(file_path):
-        return file_path.endswith(('.f', '.F', '.f90', '.F90', '.c'))
+    def defined_for(path):
+        return _fortran_suffix(path) or _NECI_template_suffix(path)
 
 
 class TrailingSpace:
@@ -35,8 +35,9 @@ class TrailingSpace:
         return 'Trailing blanks in {}:{}'.format(file_path, line_number)
 
     @staticmethod
-    def defined_for(file_path):
-        return True
+    def defined_for(path):
+        return (_fortran_suffix(path) or _C_suffix(path)
+                or _NECI_template_suffix(path))
 
 
 class WriteStar:
@@ -50,8 +51,8 @@ class WriteStar:
         return '"write(*" in {}:{}'.format(file_path, line_number)
 
     @staticmethod
-    def defined_for(file_path):
-        return file_path.endswith(('.f', '.F', '.f90', '.F90'))
+    def defined_for(path):
+        return _fortran_suffix(path) or _NECI_template_suffix(path)
 
 
 def run_tests_per_file(file_path, style_errors):
@@ -95,6 +96,19 @@ def parse_args():
     parser.add_argument('src_dir', type=str, help='src directory to check')
     args = parser.parse_args()
     return args.src_dir
+
+
+def _fortran_suffix(path):
+    return path.endswith(('.f', '.F', '.f90', '.F90'))
+
+
+def _C_suffix(path):
+    return path.endswith('.c')
+
+
+def _NECI_template_suffix(path):
+    return path.endswith(
+        tuple((f'{suff}.template' for suff in ('.f', '.F', '.f90', '.F90'))))
 
 
 if __name__ == '__main__':

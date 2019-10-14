@@ -229,7 +229,7 @@ module procedure_pointers
           use constants
           implicit none
 
-          integer, intent(in) :: pos 
+          integer, intent(in) :: pos
           integer, intent(in) :: run
           real(dp), intent(in) :: pop
           real(dp) :: f
