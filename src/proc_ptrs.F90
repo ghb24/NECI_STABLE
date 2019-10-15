@@ -53,7 +53,7 @@ module procedure_pointers
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
             real(dp), intent(in) :: precond_fac
-            HElement_t(dp), intent(in) :: HElGen
+            HElement_t(dp), intent(inout) :: HElGen
             real(dp) :: child(lenof_sign)
 
         end function
@@ -116,7 +116,7 @@ module procedure_pointers
 
         !
         ! Generic particle death routine
-        function attempt_die_t (nI, Kii, wSign, exLevel) result(ndie)
+        function attempt_die_t (nI, Kii, wSign, exLevel, DetPosition) result(ndie)
 
             use SystemData, only: nel
             use constants
@@ -124,6 +124,7 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel), exLevel
             real(dp), intent(in) :: Kii, wSign(lenof_sign)
+            integer, intent(in), optional :: DetPosition
             real(dp), dimension(lenof_sign) :: ndie
 
         end function
@@ -180,7 +181,7 @@ module procedure_pointers
 
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_t (spawn, one_rdms, ilutI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet)
+        subroutine fill_rdm_diag_currdet_t (spawn, one_rdms, ilutI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet, tLC)
 
             use bit_rep_data, only: NIfTot
             use constants
@@ -193,7 +194,7 @@ module procedure_pointers
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
             integer, intent(in) :: nI(nel), ExcitLevelI
             real(dp), intent(in) :: av_sign(:), iter_occ(:)
-            logical, intent(in), optional :: tCoreSpaceDet
+            logical, intent(in), optional :: tCoreSpaceDet, tLC
 
         end subroutine
 
@@ -210,7 +211,7 @@ module procedure_pointers
 
         end function
 
-        function scale_function_t(hdiag) result(Si)
+        pure function scale_function_t(hdiag) result(Si)
           use constants
           implicit none
 
@@ -219,6 +220,21 @@ module procedure_pointers
 
         end function scale_function_t
 
+        pure function shift_factor_function_t(pos, run , pop) result(f)
+          ! Scale facotr function for adpative shift
+          ! Input: pos - position of given determinant in CurrentDets
+          ! Input: run - run for which the factor is needed
+          ! Input: pop - population of given determinant
+          ! Output: f - scaling factor for the shift
+          use constants
+          implicit none
+
+          integer, intent(in) :: pos
+          integer, intent(in) :: run
+          real(dp), intent(in) :: pop
+          real(dp) :: f
+
+        end function shift_factor_function_t
 
     end interface
 
@@ -237,7 +253,7 @@ module procedure_pointers
     procedure(fill_rdm_diag_currdet_t), pointer :: fill_rdm_diag_currdet
 
 
-    ! 
+    !
     ! The two UMAT (2e integral) routines. The second is only used if a
     ! 'stacking' scheme is in use (i.e. caching, memoization etc.)
     procedure(get_umat_el_t), pointer :: get_umat_el
@@ -245,5 +261,7 @@ module procedure_pointers
 
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
+    ! the function used to scale the shift
+    procedure(shift_factor_function_t), pointer :: shiftFactorFunction
 
 end module

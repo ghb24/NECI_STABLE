@@ -14,7 +14,7 @@ module searching
     use sparse_arrays, only: trial_ht, con_ht
     use SystemData, only: nel
     use timing_neci, only: set_timer, halt_timer
-    use util_mod, only: binary_search_custom
+    use util_mod, only: binary_search_custom, operator(.div.)
 
     implicit none
 
@@ -46,7 +46,7 @@ contains
 
     END SUBROUTINE LinSearchParts
 
-!Do a binary search in CurrentDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and 
+!Do a binary search in CurrentDets, between the indices of MinInd and MaxInd. If successful, tSuccess will be true and
 !PartInd will be a coincident determinant. If there are multiple values, the chosen one may be any of them...
 !If failure, then the index will be one less than the index that the particle would be in if it was present in the list.
 !(or close enough!)
@@ -84,14 +84,14 @@ contains
                 RETURN
             ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
 !The value of the determinant at N is LESS than the determinant we're looking for. Therefore, move the lower
-!bound of the search up to N.  However, if the lower bound is already equal to N then the two bounds are 
+!bound of the search up to N.  However, if the lower bound is already equal to N then the two bounds are
 !consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN
 
 
                 IF(i.eq.MaxInd-1) THEN
-!This deals with the case where we are interested in the final/first entry in the list. Check the final entry 
+!This deals with the case where we are interested in the final/first entry in the list. Check the final entry
 !of the list and leave.  We need to check the last index.
                     Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
                     IF(Comp.eq.0) THEN
@@ -203,7 +203,7 @@ contains
                 end if
             end do
         end if
-        
+
         ! If it wasn't in the trial space, check to see if it is in the connected space.
         if (con_space_size > 0) then
             hash_val = FindWalkerHash(nI, con_space_size)
@@ -247,7 +247,7 @@ contains
     end subroutine get_con_amp_trial_space
 
     subroutine add_trial_energy_contrib(ilut, RealwSign, ireplica)
-    
+
         integer(n_int), intent(in) :: ilut(0:)
         real(dp), intent(in) :: RealwSign
         integer, intent(in) :: ireplica
@@ -293,7 +293,7 @@ contains
     end subroutine add_trial_energy_contrib
 
     subroutine return_EN_trial_contrib(nI, ilut, amp)
-    
+
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:)
         real(dp), intent(out) :: amp(lenof_sign)
@@ -308,10 +308,10 @@ contains
                 hash_val = FindWalkerHash(nI, con_space_size)
                 do i = 1, con_ht(hash_val)%nclash
                     if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                        do istate = 1, lenof_sign/2
+                        do istate = 1, lenof_sign .div. 2
                             amp(istate*2-1) = transfer(con_ht(hash_val)%states(NIfDBO+istate,i), amp(istate*2-1))
                             amp(istate*2) = amp(istate*2-1)
-                        end do 
+                        end do
                         return
                     end if
                 end do
@@ -330,9 +330,9 @@ contains
 
     end subroutine return_EN_trial_contrib
 
-    ! This is the same as BinSearchParts1, but this time, it searches though the 
-    ! full list of determinants created by the full diagonalizer when the 
-    ! histogramming option is on. 
+    ! This is the same as BinSearchParts1, but this time, it searches though the
+    ! full list of determinants created by the full diagonalizer when the
+    ! histogramming option is on.
     !
     ! This is outside the module so it is accessible to AnnihilateMod
     subroutine BinSearchParts2(iLut, MinInd, MaxInd, PartInd, tSuccess)
@@ -367,7 +367,7 @@ contains
             N=(i+j)/2       !Find the midpoint of the two indices
     !        WRITE(iout,*) i,j,n
 
-            ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is 
+            ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is
             ! more or 0 if they are the same
             Comp=DetBitLT(FCIDets(:,N),iLut(:),NIfDBO)
 
@@ -377,15 +377,15 @@ contains
                 PartInd=N
                 RETURN
             ELSEIF((Comp.eq.1).and.(i.ne.N)) THEN
-                ! The value of the determinant at N is LESS than the determinant 
-                ! we're looking for. Therefore, move the lower bound of the 
+                ! The value of the determinant at N is LESS than the determinant
+                ! we're looking for. Therefore, move the lower bound of the
                 ! search up to N. However, if the lower bound is already equal to
                 ! N then the two bounds are consecutive and we have failed...
                 i=N
             ELSEIF(i.eq.N) THEN
 
                 IF(i.eq.MaxInd-1) THEN
-                    ! This deals with the case where we are interested in the 
+                    ! This deals with the case where we are interested in the
                     ! final/first entry in the list. Check the final entry of the
                     ! list and leave. We need to check the last index.
                     Comp=DetBitLT(FCIDets(:,i+1),iLut(:),NIfDBO)

@@ -6,6 +6,7 @@ set( SRC_FILES
     adi_references.F90
     adi_initiators.F90
     adi_data.F90
+    aliasSampling.F90
     Annihilation.F90
     bit_rep_data.F90
     BitReps.F90
@@ -108,6 +109,7 @@ set( SRC_FILES
     Parallel_Calc.F90
     ParallelHelper.F90
     parallel_workarounds.F90
+    pchb_excitgen.F90
     perturbations.F90
     Popsfile.F90
     proc_ptrs.F90
@@ -132,7 +134,6 @@ set( SRC_FILES
     replica_estimates.F90
     rhodiag.F
     RhoElement.F90
-    rootfind.F
     RotateOrbsData.F90
     RotateOrbs.F90
     RPA.F90
@@ -157,7 +158,7 @@ set( SRC_FILES
     symrandexcit1.F
     symrandexcit2.F90
     symrandexcit3.F90
-	symrandexcit_Ex_Mag.F90
+    symrandexcit_Ex_Mag.F90
     symrandexcit4.F90
     symrandexcit5.F90
     symrandexcit_csf.F90
@@ -166,9 +167,11 @@ set( SRC_FILES
     SystemData.F90
     System_neci.F90
     tau_search.F90
+    tc_precomputed_excitgen.F90
     trial_wf_gen.F90
     trial_ht_procs.F90
     UMatCache.F90
+    unit_test_helper_excitgen.F90
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
@@ -194,6 +197,7 @@ set( SRC_FILES
     lib/timing.F90
     lib/util_mod.F90
     lib/util_mod_fmt.F90
+    lib/fortran_strings.f90
     rdms_old/rdm_data_old.F90
     rdms_old/rdm_estimators_old.F90
     rdms_old/rdm_filling_old.F90
@@ -212,6 +216,7 @@ set( TEMPLATED_SRC_FILES
     lib/util_mod_comparisons.F90.template
     lib/util_mod_cpts.F90.template
     lib/util_mod_numerical.F90.template
+    lib/util_mod_epsilon_close.F90.template
 )
 
 
@@ -271,6 +276,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
             "${HDF5_NECI_DEFINITIONS}"
 
         LIBS "${_library_link_libs}"
+	WARNERR ${${PROJECT_NAME}_${_config}_WARNERR}
     )
 
     message(STATUS "Adding executable for configuration ${_config}")

@@ -164,7 +164,7 @@ contains
 
         call return_perturbed_ground_spec(left_perturb_spectral, sl_ilut_list, pert_ground_left, left_pert_norm)
         call return_perturbed_ground_spec(right_perturb_spectral, sl_ilut_list, sl_vecs(:,1), right_pert_norm)
-        
+
         ! Normalise the perturbed wave function, currently stored in sl_vecs(:,1),
         ! so that it can be used as the first lanczos vector.
         sl_vecs(:,1) = sl_vecs(:,1)*sqrt(pops_norm)/right_pert_norm
@@ -294,7 +294,7 @@ contains
         ndets_tot = sum(ndets_sl)
 
         allocate(full_eigenvecs(ndets_this_proc, ndets_tot))
-        
+
         ! The following operation returns the components of the eigenvectors in
         ! the full basis in the columns of full_eigenvecs.
         ! sl_hamil will now store the eigenvectors in the Lanczos basis in its
@@ -327,7 +327,7 @@ contains
         deallocate(full_eigenvecs)
 
     end subroutine print_sl_eigenvecs
-    
+
     subroutine output_spectrum(neigv, eigv, spec_low, spec_high)
 
         use util_mod, only: get_free_unit

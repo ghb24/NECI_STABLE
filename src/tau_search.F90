@@ -27,6 +27,7 @@ module tau_search
     use sym_general_mod, only: SymAllowedExcit
     use Parallel_neci
     use constants
+    use util_mod, only: near_zero, operator(.isclose.)
     implicit none
 
     real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
@@ -68,7 +69,7 @@ contains
         ! early
         cnt_sing = 0
         cnt_doub = 0
-        
+
         cnt_opp = 0
         cnt_par = 0
         enough_sing = .false.
@@ -77,14 +78,14 @@ contains
         enough_par = .false.
 
         ! Unless it is already specified, set an initial value for tau
-        if (.not. tRestart .and. .not. tReadPops .and. tau == 0) then
+        if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
             call FindMaxTauDoubs()
         end if
 
         write(6,*) 'Using initial time-step: ', tau
-        
+
         ! Set the maximum spawn size
-        if (MaxWalkerBloom == -1) then
+        if (MaxWalkerBloom .isclose. -1._dp) then
             ! No maximum manually specified, so we set the limit of spawn
             ! size to either the initiator criterion, or to 5 otherwise
             if (tTruncInitiator) then
@@ -141,7 +142,7 @@ contains
         real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
-      
+
         select case(getExcitationType(ex, ic))
         case(1)
             ! no spin changing
@@ -150,7 +151,7 @@ contains
             tmp_gamma = abs(matel) / tmp_prob
             if (tmp_gamma > gamma_sing) &
                 gamma_sing = tmp_gamma
-            
+
             ! And keep count!
             if (.not. enough_sing .and. gamma_sing > 0) then
                 cnt_sing = cnt_sing + 1
@@ -164,14 +165,14 @@ contains
             tmp_gamma = abs(matel) / tmp_prob
             if (tmp_gamma > gamma_sing_spindiff1) &
                 gamma_sing_spindiff1 = tmp_gamma
-            
+
             ! And keep count!
             if (.not. enough_sing .and. tmp_gamma > 0) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
             endif
-           
-        case(2) 
+
+        case(2)
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoubles
 
@@ -186,7 +187,7 @@ contains
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
 
-        case(4) 
+        case(4)
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoub_spindiff1
             ! We are not playing around with the same/opposite spin bias
@@ -200,7 +201,7 @@ contains
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
 
-        case(5) 
+        case(5)
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoub_spindiff2
 
@@ -225,7 +226,7 @@ contains
                 tmp_gamma = abs(matel) / tmp_prob
                 if (tmp_gamma > gamma_par) &
                     gamma_par = tmp_gamma
-        
+
                 ! And keep count
                 if (.not. enough_par ) then
                     cnt_par = cnt_par + 1
@@ -237,7 +238,7 @@ contains
                 tmp_gamma = abs(matel) / tmp_prob
                 if (tmp_gamma > gamma_opp) &
                     gamma_opp = tmp_gamma
-        
+
                 ! And keep count
                 if (.not. enough_opp .and. tmp_gamma > 0) then
                     cnt_opp = cnt_opp + 1
@@ -251,14 +252,14 @@ contains
         tmp_gamma = abs(matel) / tmp_prob
         if (tmp_gamma > gamma_doub) &
             gamma_doub = tmp_gamma
-        
+
             ! And keep count
             if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             end if
         end if
-           
+
     end subroutine
 
     subroutine log_death_magnitude (mult)
@@ -288,7 +289,7 @@ contains
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
         if (.not. tSearchTau) then
-            
+
             ! Check that the override has actually occurred.
             ASSERT(tSearchTauOption)
             ASSERT(tSearchTauDeath)
@@ -303,7 +304,7 @@ contains
                ! If this actually constrains tau, then adjust it!
                if (tau_death < tau) then
                   tau = tau_death
-                  
+
                   root_print "******"
                   root_print "WARNING: Updating time step due to particle death &
                        &magnitude"
@@ -366,12 +367,12 @@ contains
                 else
                     pparallel_new = pParallel
                     psingles_new = pSingles
-                    if(gamma_sing > EPS .and. gamma_par > EPS .and. gamma_opp > EPS) then 
+                    if(gamma_sing > EPS .and. gamma_par > EPS .and. gamma_opp > EPS) then
                        tau_new = max_permitted_spawn * &
                             min(pSingles / gamma_sing, &
                             min(pDoubles * pParallel / gamma_par, &
-                            pDoubles * pParallel / gamma_opp))
-                    else                       
+                            pDoubles * (1.0 - pParallel) / gamma_opp))
+                    else
                        ! if no spawns happened, do nothing
                        tau_new = tau
                     endif
@@ -457,7 +458,7 @@ contains
 
             if (abs(tau - tau_new) / tau > 0.001_dp) then
                 if (t_min_tau) then
-                    if (tau_new < min_tau_global) then 
+                    if (tau_new < min_tau_global) then
                         root_print "new time-step less than min_tau! set to min_tau:", min_tau_global
 
                         tau_new = min_tau_global
@@ -479,7 +480,7 @@ contains
             .and. psingles_new < (1.0_dp - 1e-5_dp)) then
 
             if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                if (tReltvy) then 
+                if (tReltvy) then
                     root_print "Updating spin-excitation class biases. pSingles(s->s) = ", &
                         psingles_new, ", pSingles(s->s') = ", psing_spindiff1_new, &
                         ", pDoubles(st->st) = ", 1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2, &
@@ -517,7 +518,7 @@ contains
 
         ! Routine to find an upper bound to tau, by consideration of the
         ! singles and doubles connected to the reference determinant
-        ! 
+        !
         ! Obviously, this make assumptions about the possible range of pgen,
         ! so may actually give a tau that is too SMALL for the latest
         ! excitation generators, which is exciting!
@@ -538,7 +539,7 @@ contains
 
         if(tCSF) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
 
-        if(MaxWalkerBloom.eq.-1) then
+        if(MaxWalkerBloom .isclose. -1._dp) then
             !No MaxWalkerBloom specified
             !Therefore, assume that we do not want blooms larger than n_add if initiator,
             !or 5 if non-initiator calculation.
@@ -548,7 +549,7 @@ contains
                 nAddFac = 5.0_dp    !Won't allow more than 5 particles at a time
             endif
         else
-            nAddFac = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event. 
+            nAddFac = real(MaxWalkerBloom,dp) !Won't allow more than MaxWalkerBloom particles to spawn in one event.
         endif
 
         Tau = 1000.0_dp
@@ -672,7 +673,7 @@ contains
             endif
 
         enddo
-                
+
         call clean_excit_gen_store (store)
         call clean_excit_gen_store (store2)
         if(tKPntSym) deallocate(EXCITGEN)

@@ -9,6 +9,7 @@ module rdm_explicit
 
     use bit_rep_data, only: NIfTot
     use constants
+    use util_mod, only: near_zero
     use SystemData, only : tReltvy
 
     implicit none
@@ -96,13 +97,13 @@ contains
 
         call MPISumAll(ExcNorm, allNode_norm)
         ExcNorm = allNode_norm
- 
+
         do i = 1, Det
 
             ! But if the actual number of determinants on this processor is
             ! less than the number we're running through, feed in 0
             ! determinants and 0 sign.
-            if (Histogram(1, i) .eq. 0.0_dp) then
+            if (near_zero(Histogram(1, i))) then
                 iLutnI(:) = 0
                 blank_det = .true.
             else
@@ -135,7 +136,7 @@ contains
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
         logical, intent(in) :: blank_det
         integer :: i
-        
+
         ! Set up excitation arrays.
         ! These are blocked according to the processor the excitation would be
         ! on if occupied. In each block, the first entry is the sign of
@@ -164,7 +165,7 @@ contains
         end if
 
         ! Out of here we will get a filled ExcDjs array with all the single or
-        ! double excitations from Dj, this will be done for each proc. 
+        ! double excitations from Dj, this will be done for each proc.
         if (.not. blank_det) call GenExcDjs(iLutnI)
 
         ! We then need to send the excitations to the relevant processors.
@@ -190,7 +191,7 @@ contains
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
         logical, intent(in) :: blank_det
         integer :: i
-        
+
         ! Set up excitation arrays.
         ! These are blocked according to the processor the excitation would be
         ! on if occupied. In each block, the first entry is the sign of
@@ -218,7 +219,7 @@ contains
         end if
 
         ! Out of here we will get a filled ExcDjs array with all the single or
-        ! double excitations  from Dj, this will be done for each proc. 
+        ! double excitations  from Dj, this will be done for each proc.
         if (.not. blank_det) call Gen_Hist_ExcDjs(iLutnI)
 
         ! We then need to send the excitations to the relevant processors.
@@ -346,7 +347,7 @@ contains
                 Proc = DetermineDetNode(nel, nJ, 0)
                 !This will return a value between 0 -> nProcessors-1
                 Doub_ExcDjs(:,Doub_ExcList(Proc)) = iLutnJ(:)
-                ! All the double excitations from this particular nI are being 
+                ! All the double excitations from this particular nI are being
                 ! stored in Doub_ExcDjs.
 
                 Doub_ExcList(Proc) = Doub_ExcList(Proc)+1
@@ -399,10 +400,10 @@ contains
         call extract_bit_rep (iLutnI, nI, RealHistPos, FlagsDi)
 
         HistPos = int(RealHistPos)
-        
+
         SignDi(1) = AllHistogram(1, HistPos(1))/ExcNorm
         SignDi(lenof_sign) = AllHistogram(1,HistPos(1))/ExcNorm
-        
+
         if (RDMExcitLevel == 1) then
             call fill_diag_1rdm(one_rdms, nI, SignDi)
         else
@@ -413,7 +414,7 @@ contains
         ! Zeros in ExcitMat3 starts off at the first single excitation.
         ExcitMat3(:,:) = 0
 
-        ! This becomes true when all the excitations have been found.        
+        ! This becomes true when all the excitations have been found.
         tAllExcitFound = .false.
 
         do while (.not. tAllExcitFound)
@@ -489,7 +490,7 @@ contains
 
                 Doub_ExcList(Proc) = Doub_ExcList(Proc) + 1
 
-                ! Want a quick test to see if arrays are getting full.            
+                ! Want a quick test to see if arrays are getting full.
                 if (Doub_ExcList(Proc) .gt. nint(TwoEl_Gap*(Proc+1))) then
                     write(6,*) 'Proc', Proc
                     write(6,*) 'Doub_ExcList', Doub_ExcList
@@ -527,7 +528,7 @@ contains
             ! to send for each processor (but goes from 1, not 0).
             sendcounts(i+1) = int(Sing_ExcList(i)-(nint(OneEl_Gap*i)+1), MPIArg)
 
-            ! disps is the first slot for each processor - 1.            
+            ! disps is the first slot for each processor - 1.
             disps(i+1) = nint(OneEl_Gap*i, MPIArg)
         end do
 
@@ -570,7 +571,7 @@ contains
                 ! want to send for each processor (but goes from 1, not 0).
                 sendcounts(i+1) = int(Doub_ExcList(i)-(nint(TwoEl_Gap*i)+1),MPIArg)
 
-                ! disps is the first slot for each processor - 1.            
+                ! disps is the first slot for each processor - 1.
                 disps(i+1) = nint(TwoEl_Gap*i,MPIArg)
             end do
 
@@ -609,7 +610,7 @@ contains
             call Doub_SearchOccDets(doub_recvcounts, doub_recvdisps)
 
         end if
-        
+
     end subroutine SendProcExcDjs
 
     subroutine Send_Hist_ProcExcDjs()
@@ -680,7 +681,7 @@ contains
                 ! want to send for each processor (but goes from 1, not 0).
                 sendcounts(i+1) = int(Doub_ExcList(i)-(nint(TwoEl_Gap*i)+1),MPIArg)
 
-                ! disps is the first slot for each processor - 1.            
+                ! disps is the first slot for each processor - 1.
                 disps(i+1) = nint(TwoEl_Gap*i,MPIArg)
             end do
 
@@ -759,7 +760,7 @@ contains
 
                 do j = StartDets+1, (NoDets+StartDets-1)
 
-                    ! D_i is in the first spot - start from the second.                
+                    ! D_i is in the first spot - start from the second.
                     iLutnJ(:) = Sing_ExcDjs2(:,j)
                     ! This binary searches CurrentDets between 1 and
                     ! TotWalkers for determinant iLutnJ. If found, tDetFound
@@ -772,7 +773,7 @@ contains
                         ! involved in the excitation from D_i -> D_j and the parity.
                         Ex(:,:) = 0
                         ! Ex(1,1) goes in as the max number of excitations -
-                        ! we know this is an excitation of level RDMExcitLevel. 
+                        ! we know this is an excitation of level RDMExcitLevel.
                         Ex(1,1) = 1
                         tParity = .false.
 
@@ -806,7 +807,7 @@ contains
                 end do
             end if
         end do
-      
+
     end subroutine Sing_SearchOccDets
 
     subroutine Doub_SearchOccDets(recvcounts,recvdisps)
@@ -853,18 +854,18 @@ contains
                     if (tDetFound) then
                         ! Determinant occupied; add c_i*c_j to the relevant
                         ! element of nElRDM. Need to first find the orbitals
-                        ! involved in the excitation from D_i -> D_j and 
+                        ! involved in the excitation from D_i -> D_j and
                         ! the parity.
                         Ex(:,:) = 0
                         ! Ex(1,1) goes in as the max number of excitations -
-                        ! we know this is an excitation of level RDMExcitLevel. 
+                        ! we know this is an excitation of level RDMExcitLevel.
                         Ex(1,1) = 2
                         tParity = .false.
 
                         call extract_bit_rep (CurrentDets(:,PartInd), nJ, SignDj, FlagsDj)
 
                         ! Ex(1,:) comes out as the orbital(s) excited from,
-                        ! Ex(2,:) comes out as the orbital(s) excited to. 
+                        ! Ex(2,:) comes out as the orbital(s) excited to.
                         call GetExcitation(nI, nJ, NEl, Ex, tParity)
 
                         if (Ex(1,1) .le. 0) call Stop_All('SearchOccDets',&
@@ -883,7 +884,7 @@ contains
                 end do
             end if
         end do
-      
+
     end subroutine Doub_SearchOccDets
 
     subroutine Sing_Hist_SearchOccDets(recvcounts,recvdisps)
@@ -933,7 +934,7 @@ contains
 
                 do j=StartDets+1,(NoDets+StartDets-1)
 
-                    ! D_i is in the first spot - start from the second.                
+                    ! D_i is in the first spot - start from the second.
                     iLutnJ(:) = Sing_ExcDjs2(:,j)
                     ! This binary searches CurrentDets between 1 and TotWalkers
                     ! for determinant iLutnJ. If found, tDetFound will be true,
@@ -950,7 +951,7 @@ contains
                         ! parity.
                         Ex(:,:) = 0
                         ! Ex(1,1) goes in as the max number of excitations - we
-                        ! know this is an excitation of level RDMExcitLevel. 
+                        ! know this is an excitation of level RDMExcitLevel.
                         Ex(1,1) = 1
                         tParity = .false.
 
@@ -959,7 +960,7 @@ contains
                         SignDj = AllHistogram(1,PartInd)/ExcNorm
 
                         ! Ex(1,:) comes out as the orbital(s) excited from,
-                        ! Ex(2,:) comes out as the orbital(s) excited to.    
+                        ! Ex(2,:) comes out as the orbital(s) excited to.
                         call GetExcitation(nI, nJ, NEl, Ex, tParity)
 
                         if (Ex(1,1).le.0) call Stop_All('Sing_SearchOccDets',&
@@ -981,13 +982,13 @@ contains
                             call fill_spawn_rdm_singles(two_rdm_spawn, nI, Ex_symm, full_sign)
                         end if
 
-                        ! No normalisation factor just yet - possibly need to revise.                    
+                        ! No normalisation factor just yet - possibly need to revise.
                     end if
 
                 end do
             end if
         end do
-      
+
     end subroutine Sing_Hist_SearchOccDets
 
     subroutine Doub_Hist_SearchOccDets(recvcounts,recvdisps)
@@ -1034,7 +1035,7 @@ contains
 
                 do j = StartDets + 1, (NoDets+StartDets-1)
 
-                    ! D_i is in the first spot - start from the second. 
+                    ! D_i is in the first spot - start from the second.
                     iLutnJ(:) = Doub_ExcDjs2(:,j)
 
                     ! This binary searches CurrentDets between 1 and TotWalkers
@@ -1052,7 +1053,7 @@ contains
                         ! the parity.
                         Ex(:,:) = 0
                         ! Ex(1,1) goes in as the max number of excitations - we
-                        ! know this is an excitation of level RDMExcitLevel. 
+                        ! know this is an excitation of level RDMExcitLevel.
                         Ex(1,1) = 2
                         tParity = .false.
 
@@ -1060,7 +1061,7 @@ contains
                         SignDj = AllHistogram(1,PartInd)/ExcNorm
 
                         ! Ex(1,:) comes out as the orbital(s) excited from,
-                        ! Ex(2,:) comes out as the orbital(s) excited to. 
+                        ! Ex(2,:) comes out as the orbital(s) excited to.
                         call GetExcitation(nI, nJ, NEl, Ex, tParity)
 
                         if (Ex(1,1) .le. 0) call Stop_All('SearchOccDets', 'nJ is not the correct excitation of nI.')
@@ -1078,7 +1079,7 @@ contains
                 end do
             end if
         end do
-      
+
     end subroutine Doub_Hist_SearchOccDets
 
 end module rdm_explicit

@@ -1,3 +1,4 @@
+#include "macros.h"
 module get_excit
 
     use constants
@@ -160,6 +161,21 @@ contains
 #endif
 
     end subroutine
+
+    function exciteIlut(ilut,src,orbs) result(ilutJ)
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer, intent(in) :: src(2), orbs(2)
+      integer(n_int) :: ilutJ(0:NIfTot)
+
+      ilutJ = ilut
+      clr_orb (ilutJ, src(1))
+      clr_orb (ilutJ, src(2))
+      set_orb (ilutJ, orbs(1))
+      set_orb (ilutJ, orbs(2))
+
+    end function exciteIlut
+
 
 
 end module

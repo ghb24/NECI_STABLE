@@ -14,9 +14,11 @@ module semi_stoch_procs
                          MaxSpawned,indices_of_determ_states, ilutRef, determ_last
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
     use sparse_arrays, only: sparse_core_ham, approx_ham
+    use procedure_pointers, only: shiftFactorFunction
     use SystemData, only: nel
     use timing_neci
     use adi_data, only: tSignedRepAv
+    use global_det_data, only: set_tot_acc_spawns
 
     implicit none
 
@@ -34,7 +36,7 @@ contains
         use DetBitOps, only: DetBitEQ
 
         integer :: i, j, ierr, run, part_type
-
+        real(dp) :: scaledDiagSft(inum_runs)
         call MPIBarrier(ierr)
 
         call set_timer(SemiStoch_Comms_Time)
@@ -82,15 +84,42 @@ contains
             ! sparse_core_ham.
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
-                do part_type  = 1, lenof_sign
-                    partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
-                       DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
-                enddo
+               ! Only scale the shift for the corespace when the option is set
+               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
+                  do part_type = 1, inum_runs
+                     ! scale the shift using the abs of this run's complex coefficient
+                     scaledDiagSft(part_type) = &
+                     shiftFactorFunction(&
+                          indices_of_determ_states(i), part_type,&
+                          sqrt(full_determ_vecs(min_part_type(part_type),&
+                          i+determ_displs(iProcIndex))**2 + &
+                          full_determ_vecs(max_part_type(part_type),&
+                          i+determ_displs(iProcIndex))**2)) *  DiagSft(part_type)
+                  end do
+               else
+                  scaledDiagSft = DiagSft
+               endif
+
+               do part_type  = 1, lenof_sign
+                  partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
+                       scaledDiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
+               enddo
             end do
 #else
             do i = 1, determ_sizes(iProcIndex)
-                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
-                   DiagSft * full_determ_vecs(:,i+determ_displs(iProcIndex))
+               ! Only scale the shift for the corespace when the option is set
+               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
+                  ! get the re-scaled shift accounting for undersampling error
+                  do  part_type = 1, inum_runs
+                     scaledDiagSft(part_type) = DiagSft(part_type) * shiftFactorFunction(&
+                          indices_of_determ_states(i), part_type,&
+                          abs(full_determ_vecs(part_type,i+determ_displs(iProcIndex))))
+                  end do
+               else
+                  scaledDiagSft = DiagSft
+               endif
+               partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
+                    scaledDiagSft * full_determ_vecs(:,i+determ_displs(iProcIndex))
             end do
 #endif
 
@@ -329,7 +358,7 @@ contains
         ! If this condition is met then RDM energies were added in on the
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
-        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then 
+        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then
             full_determ_vecs_av = 0.0_dp
             write(6,*) "Reset fdv av at iteration ", iter
         end if
@@ -400,7 +429,7 @@ contains
     end function core_space_pos
 
     function check_determ_flag(ilut) result (core_state)
-    
+
         ! The reason for using this instead of just using test_flag is that test_flag
         ! crashes if flags are not being used. Calling this function therefore makes
         ! things neater!
@@ -474,7 +503,7 @@ contains
             ! The number of non-zero elements in this array will be almost the same as in
             ! the core Hamiltonian array, except the diagonal element is not considered,
             ! so there will actually be one less.
-            allocate(core_connections(i)%elements(sparse_core_ham(i)%num_elements-1)) 
+            allocate(core_connections(i)%elements(sparse_core_ham(i)%num_elements-1))
             allocate(core_connections(i)%positions(sparse_core_ham(i)%num_elements-1))
 
             ! The total number of non-zero elements in row i.
@@ -775,7 +804,7 @@ contains
         end do
 
         do i = 1, ilut_list_size
-            counter(proc_list(i)) = counter(proc_list(i)) + 1 
+            counter(proc_list(i)) = counter(proc_list(i)) + 1
             temp_list(0:NIfTot, counter(proc_list(i))) = ilut_list(0:NIfTot,i)
         end do
 
@@ -800,7 +829,7 @@ contains
         integer :: nI(nel)
         real(dp) :: tmpH
 
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers)
             call decode_bit_det(nI, CurrentDets(:,i))
 
             if (tHPHF) then
@@ -941,7 +970,9 @@ contains
         real(dp) :: walker_sign(lenof_sign)
         type(ll_node), pointer :: temp_node
         logical :: tSuccess
+        integer :: ierr
         character(*), parameter :: this_routine = 'add_core_states_currentdet'
+        real(dp), allocatable :: fvals(:,:)
 
         nwalkers = int(TotWalkers,sizeof_int)
 
@@ -952,12 +983,22 @@ contains
                        &Semi-Stochastic initialisation'
             write(6,*) 'Please increase MEMORYFACSPAWN'
 #else
-            write(*,*) 'Spawned parts array will not be big enough for &
+            write(iout,*) 'Spawned parts array will not be big enough for &
                        &Semi-Stochastic initialisation on task ', iProcIndex
-            write(*,*) 'Please increase MEMORYFACSPAWN'
+            write(iout,*) 'Please increase MEMORYFACSPAWN'
 #endif
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
+
+        ! we need to reorder the adaptive shift data, too
+        if(tAutoAdaptiveShift) then
+           ! the maximally required buffer size is the current size of the
+           ! determinant list plus the size of the semi-stochastic space (in case
+           ! all core-dets are new)
+           allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)
+           if(ierr.ne.0) call stop_all(this_routine, &
+                "Failed to allocate buffer for adaptive shift data")
+        endif
 
         ! First find which CurrentDet states are in the core space.
         ! The warning above refers to this bit of code: If a core determinant is not in the
@@ -986,13 +1027,15 @@ contains
                 ! Copy the amplitude of the state across to SpawnedParts.
                 call extract_sign(CurrentDets(:,PartInd), walker_sign)
                 call encode_sign(SpawnedParts(:,i), walker_sign)
+                if(tAutoAdaptiveShift) call cache_fvals(i,PartInd)
             else
                 ! This will be a new state added to CurrentDets.
                 nwalkers = nwalkers + 1
+                ! no auto-adaptive shift data available
+                if(tAutoAdaptiveShift) fvals(:,i) = 0.0_dp
             end if
 
         end do
-
         ! Next loop through CurrentDets and move all non-core states to after the last
         ! core state slot in SpawnedParts.
         i_non_core = determ_sizes(iProcIndex)
@@ -1008,22 +1051,24 @@ contains
                                &semi-stochastic initialisation'
                     write(6,*) 'Please increase MEMORYFACSPAWN'
 #else
-                    write(*,*) 'Spawned parts array too small for &
+                    write(iout,*) 'Spawned parts array too small for &
                                &semi-stochastic initialisation on task ', iProcIndex
-                    write(*,*) 'Please increase MEMORYFACSPAWN'
+                    write(iout,*) 'Please increase MEMORYFACSPAWN'
 #endif
                     call stop_all(this_routine, 'Insufficient memory assigned')
                 end if
-                
+
                 SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
+                if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
             end if
         end do
-
         ! Now copy all the core states in SpawnedParts into CurrentDets.
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
             CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
+            ! also re-order the adaptive shift data if auto-adapive shift is used
         end do
+        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, nwalkers)
 
         call clear_hash_table(HashIndex)
 
@@ -1055,11 +1100,25 @@ contains
 
         TotWalkers = int(nwalkers, int64)
 
+        contains
+
+          subroutine cache_fvals(i,j)
+            use global_det_data, only: get_acc_spawns, get_tot_spawns
+            implicit none
+            integer, intent(in) :: i,j
+            integer :: run
+
+            do run = 1, inum_runs
+               fvals(run,i) = get_acc_spawns(j,run)
+               fvals(run+inum_runs,i) = get_tot_spawns(j,run)
+            end do
+          end subroutine cache_fvals
+
     end subroutine add_core_states_currentdet_hash
 
     subroutine return_most_populated_states(n_keep, largest_walkers, norm)
 
-        ! Return the most populated states in CurrentDets on *this* processor only. 
+        ! Return the most populated states in CurrentDets on *this* processor only.
         ! Also return the norm of these states, if requested.
 
         use bit_reps, only: extract_sign
@@ -1306,7 +1365,7 @@ contains
         end if
 
         ! If the relevant excitation from the Hartree-Fock takes electrons from orbitals
-        ! (i,j) to (a,b), then denom will be equal to 
+        ! (i,j) to (a,b), then denom will be equal to
         ! \epsilon_a + \epsilon_b - \epsilon_i - \epsilon_j
         ! as required in the denominator of the MP1 amplitude and MP2 energy.
         denom = Fii - H0tmp
@@ -1337,7 +1396,7 @@ contains
         use searching, only: hash_search_trial, bin_search_trial
         use SystemData, only: nel
 
-        integer :: i
+        integer(int64) :: i
         integer :: nI(nel)
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
@@ -1438,5 +1497,5 @@ contains
         end if
 
     end subroutine end_semistoch
-    
+
 end module semi_stoch_procs

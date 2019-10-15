@@ -22,11 +22,10 @@ truncinitiator
 addtoinitiator 3
 allrealcoeff
 realspawncutoff 0.01
-all-doubs-initiators 3
-all-sings-initiators 3
+superinitiators 3
 superinitiator-population-threshold 0
 static-superinitiators
-coherent-references off
+coherent-superinitiators off
 readpops
 load-balance-blocks off
 endcalc

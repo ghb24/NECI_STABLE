@@ -1027,14 +1027,14 @@ contains
 ! Now dealing with the zero body part of the property integrals if needed
 
        IF(tCalcPropEst) then
-          write(*,*) 'PropCore before freezing:', PropCore
+          write(iout, *) 'PropCore before freezing:', PropCore
           DO A=1,NFROZEN
              AB=BRR(A)
              ! Ecore' = Ecore + sum_a <a|h|a> where a is a frozen spin orbital
              ! TMATEL is the one electron integrals <a|h|a>.
              DO B=1,iNumPropToEst
                 PropCore(B)=PropCore(B)+GetPropIntEl(AB,AB,B)
-                write(*,*) '1', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
+                write(iout, *) '1', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
              ENDDO
           ENDDO
 
@@ -1043,10 +1043,10 @@ contains
              AB=BRR(A)
              DO B=1,iNumPropToEst
                 PropCore(B)=PropCore(B)+GetPropIntEl(AB,AB,B)
-                write(*,*) '2', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
+                write(iout,*) '2', PropCore(B), AB, B, GetPropIntEl(AB,AB,B)
              ENDDO
           ENDDO
-          write(*,*) 'PropCore after freezing:', PropCore
+          write(iout,*) 'PropCore after freezing:', PropCore
        ENDIF
 
 

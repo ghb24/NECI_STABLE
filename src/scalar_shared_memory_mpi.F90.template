@@ -54,7 +54,6 @@ module scalar_shared_memory_mpi
       implicit none
       %(type1)s, pointer :: p_shm(:)
       integer(int64) :: dims(1)
-      
       allocate(p_shm(dims(1)))
     end subroutine
 
@@ -62,7 +61,6 @@ module scalar_shared_memory_mpi
       implicit none
       %(type1)s, pointer :: p_shm(:,:)
       integer(int64):: dims(2)
-      
       allocate(p_shm(dims(1),dims(2)))
     end subroutine
 

@@ -8,7 +8,7 @@ contains
 
     pure function one_elec_int(i, j) result(integral)
 
-        use OneEInts, only: GetTMatEl
+      use OneEInts, only: GetTMatEl
 
         integer, intent(in) :: i, j
         real(dp) :: integral
@@ -35,7 +35,7 @@ contains
     end function two_elec_int
 
     function GetPropInts(i,j,iprop) result(integral)
-        
+
         use OneEInts, only: OneEPropInts
         integer, intent(in) :: i, j, iprop
         real(dp) :: integral

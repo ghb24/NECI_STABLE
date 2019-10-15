@@ -108,13 +108,17 @@ contains
 
                  ! Wavefunction output values
                  SumENum(inum_runs), AllSumENum(inum_runs), &
+                 InitsENumCyc(inum_runs), AllInitsENumCyc(inum_runs), &
                  ProjectionE(inum_runs), &
                  proje_iter(inum_runs), &
+                 inits_proje_iter(inum_runs), &
                  AbsProjE(inum_runs), &
                  trial_numerator(inum_runs), tot_trial_numerator(inum_runs), &
                  trial_denom(inum_runs), tot_trial_denom(inum_runs), &
                  trial_num_inst(inum_runs), tot_trial_num_inst(inum_runs), &
                  trial_denom_inst(inum_runs), tot_trial_denom_inst(inum_runs), &
+                 init_trial_denom(inum_runs), init_trial_numerator(inum_runs), &
+                 tot_init_trial_denom(inum_runs), tot_init_trial_numerator(inum_runs), &
                  sum_proje_denominator(inum_runs), &
                  all_sum_proje_denominator(inum_runs), &
                  cyc_proje_denominator(inum_runs), &
@@ -211,6 +215,7 @@ contains
                    AccRat, &
                    AllHFCyc, OldAllHFCyc, &
                    ENumCyc, AllENumCyc, ENumCycAbs, AllENumCycAbs, &
+                   InitsENumCyc, AllInitsEnumCyc, &
                    ProjECyc, &
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
@@ -224,6 +229,7 @@ contains
 
                    SumENum, AllSumENum, ProjectionE, &
                    proje_iter, AbsProjE, &
+                   inits_proje_iter, &
                    trial_numerator, tot_trial_numerator, &
                    trial_denom, tot_trial_denom, &
                    trial_num_inst, tot_trial_num_inst, &
@@ -302,7 +308,8 @@ contains
         integer(int64), intent(in) :: ndets
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
 
-        integer :: i, run
+        integer :: run
+        integer(int64) :: i
         real(dp) :: real_sign(lenof_sign)
         character(*), parameter :: t_r = 'set_initial_global_data'
 
@@ -359,7 +366,7 @@ contains
         do run = 1, inum_runs
 
             ! Calculate the projected energy for this iteration.
-            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
+            if (.not. near_zero(ARR_RE_OR_CPLX(AllSumNoAtHF,run))) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
 
             ! Keep track of where the particles are

@@ -31,7 +31,7 @@ module excit_gens_int_weighted
                                     construct_class_counts, &
                                     RandExcitSymLabelProd
     use constants
-    use get_excit, only: make_double, make_single
+    use get_excit, only: make_double, make_single, exciteIlut
     use sort_mod
     use util_mod
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
@@ -313,6 +313,11 @@ contains
                 pgen = 0
                 return
             else
+               if(abs(cpt_tgt)<eps) then
+                  write(iout,*) "Error: ", cpt_tgt, "invalid excitation input"
+                  cc_j = get_paired_cc_ind(cc_i_final, sym_product, sum_ml, iSpn)
+                  write(iout,*) "Namely", cc_i_final, "to", cc_j, "(should be", cc_j_final, ")"
+               endif
                 pgen = pgen * cpt_tgt / cum_sum
             end if
 
@@ -693,7 +698,7 @@ contains
 
         ! If there are no excitation from this electron pair, then we should
         ! go no further.
-        if (cc_tot == 0) then
+        if (near_zero(cc_tot)) then
             nJ(1) = 0
             return
         end if
@@ -742,14 +747,8 @@ contains
         ! And generate the actual excitation.
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, par)
-        ilutJ = ilutI
-        clr_orb (ilutJ, src(1))
-        clr_orb (ilutJ, src(2))
-        set_orb (ilutJ, orbs(1))
-        set_orb (ilutJ, orbs(2))
-
+        ilutJ = exciteIlut(ilutI,src,orbs)
     end subroutine
-
 
     subroutine pick_biased_elecs (nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
 
@@ -1363,7 +1362,7 @@ contains
 
             ! And account for the case where this is not a connected excitation
             ! actually this comparison with 0 should be removed..
-            if (cum_sum == 0) then
+            if (near_zero(cum_sum)) then
 !             if (cum_sum < EPS) then
                 pgen = 0
             else
@@ -1489,7 +1488,7 @@ contains
         end do
 
         ! Select a particulor electron, or abort
-        if (cum_sum == 0) then
+        if (near_zero(cum_sum)) then
 !         if (cum_sum < EPS) then
             elec = 0
         else
@@ -1572,7 +1571,7 @@ contains
         end do
 
         ! If there are no choices, then we have to abort...
-        if (cum_val == 0) then
+        if (near_zero(cum_val)) then
             nJ(1) = 0
             return
         end if
