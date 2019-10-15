@@ -108,7 +108,8 @@ def _C_suffix(path):
 
 def _NECI_template_suffix(path):
     return path.endswith(
-        tuple((f'{suff}.template' for suff in ('.f', '.F', '.f90', '.F90'))))
+        tuple(('{}.template'.format(suff)
+              for suff in ('.f', '.F', '.f90', '.F90'))))
 
 
 if __name__ == '__main__':
