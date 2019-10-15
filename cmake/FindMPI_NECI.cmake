@@ -9,43 +9,33 @@
 
 if ( NOT MPI_NECI_FOUND )
 
-    find_package( MPI )
-
-    # Map the output of the find to the MPI_NECI finder
-    set( MPI_NECI_FOUND ${MPI_FOUND})
-
     # If we are using ifort, and we have not found the mpiifort wrapper, then it is normally a good
     # idea to force things. Otherwise FindMPI can end up finding the GNU stuff, especially when using
     # mpi.ibm
     #
     # This HACK can be easily disabled in a toolchain file, or on the commandline, by setting the variable
     # ${PROJECT_NAME}_SIMPLE_MPI_SEARCH
-    if ( MPI_FOUND AND CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" )
+    if ( CMAKE_Fortran_COMPILER_ID STREQUAL "Intel" )
         if ( NOT DEFINED ENABLE_INTEL_MPI_OVERRIDE OR ENABLE_INTEL_MPI_OVERRIDE )
-            get_filename_component( _wrapper_nm ${MPI_Fortran_COMPILER} NAME )
-            if( NOT _wrapper_nm STREQUAL "mpiifort" )
-                message(STATUS "=======================================================================")
-                message(STATUS "")
-                message(STATUS "  Intel MPI wrapper override: FORCING the use of mpiifort, mpiicc, mpiicpc")
-                message(STATUS "")
-                message(STATUS "  If this is not what you want disable by running CMake with -DENABLE_INTEL_MPI_OVERRIDE=OFF ")
-                message(STATUS "  Alternatively set the ENABLE_INTEL_MPI_OVERRIDE variable to OFF in a toolchain file.")
-                message(STATUS "")
-                message(STATUS "=======================================================================")
-                set( MPI_Fortran_COMPILER mpiifort )
-                set( MPI_C_COMPILER mpiicc )
-                set( MPI_CXX_COMPILER mpiicpc )
-                find_package( MPI )
-#                if ( MPI_FOUND )
-#					set( CMAKE_Fortran_COMPILER ${MPI_Fortran_COMPILER} CACHE STRING "" FORCE)
-#					set( CMAKE_C_COMPILER ${MPI_C_COMPILER} CACHE STRING "" FORCE)
-#					set( CMAKE_CXX_COMPILER ${MPI_CXX_COMPILER} CACHE STRING "" FORCE)
-#                else()
-#                    message( WARNING "No appropriate MPI wrapper found for ifort" )
-#                endif()
-            endif()
+            message(STATUS "=======================================================================")
+            message(STATUS "")
+            message(STATUS "  Intel MPI wrapper override: FORCING the use of mpiifort, mpiicc, mpiicpc")
+            message(STATUS "")
+            message(STATUS "  If this is not what you want disable by running CMake with -DENABLE_INTEL_MPI_OVERRIDE=OFF ")
+            message(STATUS "  Alternatively set the ENABLE_INTEL_MPI_OVERRIDE variable to OFF in a toolchain file.")
+            message(STATUS "")
+            message(STATUS "=======================================================================")
+            set( MPI_Fortran_COMPILER mpiifort )
+            set( MPI_C_COMPILER mpiicc )
+            set( MPI_CXX_COMPILER mpiicpc )
         endif()
     endif()
+
+    find_package( MPI )
+
+    # Map the output of the find to the MPI_NECI finder
+    set( MPI_NECI_FOUND ${MPI_FOUND})
+
 
     if( MPI_FOUND)
         set(MPI_NECI_LIBRARIES ${MPI_LIBRARIES})

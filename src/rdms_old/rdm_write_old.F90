@@ -207,16 +207,6 @@ contains
             call neci_flush(6)
             ! This takes the TwoRDM_aaaa, and if tWriteMultPops is true (and given that we've put
             ! .true. in the 3rd position, it'll find the next unused TwoRDM_aaaa.X file name.
-#ifdef _MOLCAS_
-            aaaa_RDM_unit = get_free_unit()
-            call molcas_open(aaaa_RDM_unit,'TWORDM1')
-
-            abab_RDM_unit = get_free_unit()
-            call molcas_open(abab_RDM_unit,'TWORDM2')
-
-            abba_RDM_unit = get_free_unit()
-            call molcas_open(abba_RDM_unit,'TWORDM3')
-#else
             write(stem, '("TwoRDM_aaaa_old.",'//int_fmt(rdm_label,0)//')') rdm_label
             call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_aaaa_name)
             aaaa_RDM_unit = get_free_unit()
@@ -231,7 +221,6 @@ contains
             call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_abba_name)
             abba_RDM_unit = get_free_unit()
             open(abba_RDM_unit, file=TwoRDM_abba_name, status='unknown')
-#endif
             if (tOpenShell) then
                 write(stem, '("TwoRDM_bbbb_old.",'//int_fmt(rdm_label,0)//')') rdm_label
                 call get_unique_filename(trim(stem), tWriteMultRDMs, .true., 1, TwoRDM_bbbb_name)

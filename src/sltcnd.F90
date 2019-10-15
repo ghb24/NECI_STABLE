@@ -76,7 +76,7 @@ contains
         logical, intent(in), optional :: tParity
         character(*), parameter :: this_routine = 'sltcnd_excit'
 
-        if (IC /= 0 .and. .not. present(tParity)) &
+        if (IC /= 0 .and. .not. (present(tParity) .and. present(ex))) &
             call stop_all (this_routine, "ex and tParity must be provided to &
                           &sltcnd_excit for all IC /= 0")
 

@@ -117,7 +117,7 @@ logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
 logical :: tSTDInits
 logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
-LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
+LOGICAL :: tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
 logical :: tL2GrowRate
 logical :: tAllRealCoeff, tUseRealCoeffs
@@ -170,17 +170,6 @@ logical :: tStoredDets
 ! Do we truncate spawning based on the number of unpaired electrons
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
-
-! are determinants with low number of open orbs always inits?
-logical :: tSeniorityInits
-integer :: initMaxSenior
-! do we keep certain spawns up to a given excitation + seniority level
-logical :: tSpawnSeniorityBased
-integer, allocatable :: maxKeepExLvl(:)
-integer :: numMaxExLvlsSet
-! do we keep certain spawns based on the matrix element (w.r. to initiator criterium)
-logical :: tLargeMatelSurvive
-real(dp) :: spawnMatelThresh
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
@@ -347,7 +336,6 @@ integer :: pops_norm_unit
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric
 integer :: orthogonalise_iter
-logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 ! Information on a trial space to create trial excited states with.
 type(subspace_in) :: init_trial_in
 
@@ -476,10 +464,9 @@ real(dp) :: n_truncate_spawns = 3.0_dp
 
 ! flags for global storage
 logical :: tLogAverageSpawns, tActivateLAS
-logical :: tTimedDeaths
 ! threshold value to make something an initiator based on spawn coherence
 real(dp) :: spawnSgnThresh
-integer :: minInitSpawns, lingerTime
+integer :: minInitSpawns
 
 ! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
 !            above_max_doubles = 0

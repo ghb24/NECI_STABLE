@@ -6,8 +6,8 @@ module load_balance
                         tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas, tau, tSeniorInitiators, &
-                        t_activate_decay, tTimedDeaths, tAutoAdaptiveShift
-    use global_det_data, only: global_determinant_data, reset_death_timer, &
+                        t_activate_decay, tAutoAdaptiveShift
+    use global_det_data, only: global_determinant_data, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH, store_decoding, &
@@ -506,7 +506,6 @@ contains
 
         ! we reset the death timer, so this determinant can linger again if
         ! it died before
-        call reset_death_timer(DetPosition)
 
         ! we add the determinant to the cache
         call store_decoding(DetPosition, nJ)
@@ -634,8 +633,7 @@ contains
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
-                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. &
-                     .not. tTimedDeaths) then
+                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet = AnnihilatedDet + 1
                 else
 
@@ -664,8 +662,7 @@ contains
                                    CurrentSign(j) = 0.0_dp
                                    call nullify_ilut_part(CurrentDets(:,i), j)
                                    call decode_bit_det(nI, CurrentDets(:,i))
-                                   if (IsUnoccDet(CurrentSign) .and. &
-                                        .not. tTimedDeaths) then
+                                   if (IsUnoccDet(CurrentSign)) then
                                       call RemoveHashDet(HashIndex, nI, i)
                                       ! also update both the number of annihilated dets
                                       AnnihilatedDet = AnnihilatedDet + 1

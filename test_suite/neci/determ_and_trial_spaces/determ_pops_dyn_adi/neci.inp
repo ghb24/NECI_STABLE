@@ -21,8 +21,7 @@ nmcyc 400
 semi-stochastic
 pops-core 110
 dynamic-core 150
-all-doubs-initiators 100
-all-sings-initiators
+superinitiators 100
 superinitiator-population-threshold 10
 readpops
 truncinitiator

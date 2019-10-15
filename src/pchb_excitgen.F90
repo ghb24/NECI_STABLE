@@ -25,14 +25,14 @@ module pchb_excitgen
   real(dp), allocatable :: pExch(:)
   integer, allocatable :: tgtOrbs(:,:)
 
-  contains 
+  contains
 
     ! this is the interface routine: for singles, use the uniform excitgen
     ! for doubles, the precomputed heat-bath weights
     subroutine gen_rand_excit_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tpar, &
          pgen, helgen, store, part_type)
       implicit none
-    ! The interface is common to all excitation generators, see proc_ptrs.F90      
+    ! The interface is common to all excitation generators, see proc_ptrs.F90
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel), ic, ex(2,2)
@@ -88,7 +88,7 @@ module pchb_excitgen
       !        excitMat - on return, excitation matrix nI -> nJ
       !        tParity - on return, the parity of the excitation nI -> nJ
       !        pGen - on return, the probability of generating the excitation nI -> nJ
-      
+
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel)
@@ -175,9 +175,8 @@ module pchb_excitgen
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: ex(2,2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-      
       real(dp) :: pgen      
-      
+
       if(ic==1) then
          ! single excitations are the job of the uniform excitgen
          call calc_pgen_symrandexcit2(nI,ex,ic,ClassCount2, ClassCountUnocc2, pDoubles, pGen)
@@ -265,7 +264,7 @@ module pchb_excitgen
       call setup_pchb_sampler()
 
       write(iout,*) "Finished excitation generator initialization"
-      write(iout,*) "Excitation generator requires", memCost/2.0**30, "GB of memory"
+      write(iout,*) "Excitation generator requires", real(memCost,dp)/2.0_dp**30, "GB of memory"
       ! this is some bias used internally by CreateSingleExcit - not used here
       pDoubNew = 0.0
     contains

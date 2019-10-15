@@ -15,7 +15,7 @@ module fcimc_output
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
                         StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
-                        tGlobalInitFlag, t_truncate_spawns, tTimedDeaths
+                        tGlobalInitFlag, t_truncate_spawns
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
@@ -197,9 +197,9 @@ contains
               write(fcimcstats_unit, "(A)", advance = 'no') &
                    "  34.TrialNumerator  35.TrialDenom  36.TrialOverlap"
               validExCaption = "  37.InvalidExcits  38. ValidExcits  "
-              trunc_caption = "  39. TruncWeight  "
+              trunc_caption = "  39. TruncWeight"
            else
-              trunc_caption = "  36. TruncWeight  "
+              trunc_caption = "  36. TruncWeight"
               validExCaption = "  34.InvalidExcits  35. ValidExcits  "
            end if
            write(fcimcstats_unit, "(A)", advance = 'no') validExCaption

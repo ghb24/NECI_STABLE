@@ -669,13 +669,13 @@ contains
     call clear_sampler_array(double_elec_two_sampler)
     do j = 1, size(double_hole_one_sampler,1)
        do k = 1, size(double_hole_one_sampler,2)
-          call double_hole_one_sampler(j,k)%samplerDestructor()
+          call double_hole_one_sampler(j,k-1)%samplerDestructor()
        end do
     end do
     do j = 1, size(double_hole_two_sampler,1)
        do k = 1, size(double_hole_two_sampler,2)
           do l = 1, size(double_hole_two_sampler,3)
-             call double_hole_two_sampler(j,k,l)%samplerDestructor()
+             call double_hole_two_sampler(j,k-1,l-1)%samplerDestructor()
           end do
        end do
     end do
