@@ -24,7 +24,7 @@ memoryfacspawn 3.0
 stepsshift 25
 truncinitiator
 addtoinitiator 3
-all-doubs-initiators 200
+superinitiators 200
 superinitiator-population-threshold 10
 seed 20
 allrealcoeff
