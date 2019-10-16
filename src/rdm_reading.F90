@@ -283,7 +283,7 @@ contains
     ! Routines to calculate and print 1-RDMs directly after reading in 2-RDMs.
 
     subroutine print_1rdms_from_2rdms_wrapper(rdm_defs, one_rdms, two_rdms, open_shell)
-    
+
         ! Wrapper function to calculate and print 1-RDMs from 2-RDMs, as might
         ! be useful if the user forgot to print 1-RDMs in a calculation.
 
@@ -341,7 +341,6 @@ contains
 
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_definitions_t, one_rdm_t, rdm_list_t
-        use rdm_estimators, only: calc_rdm_trace
         use rdm_finalising, only: calc_1rdms_from_spinfree_2rdms, write_1rdm
 
         type(rdm_definitions_t), intent(in) :: rdm_defs

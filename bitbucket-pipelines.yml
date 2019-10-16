@@ -1,4 +1,4 @@
-# i have two more images, which mimick the office setting, prepared now: 
+# i have two more images, which mimick the office setting, prepared now:
 # TODO: build the newest open-suse leap image
 
 image: dobrautz/neci_base:opensuse42.3
@@ -10,13 +10,13 @@ options:
 pipelines:
   # default setup: only build neci for all branches and run neci unit tests, do not do any testsuite runs!
   #   to save pipeline minutes
- default: 
-  - step: 
+ default:
+  - step:
      size: 2x
-     script: 
-      - rm -rf build 
-      - mkdir build 
-      - cd build 
+     script:
+      - rm -rf build
+      - mkdir build
+      - cd build
       - echo "building release version"
       - cmake ..
       - make -j neci test_neci
@@ -28,15 +28,15 @@ pipelines:
  branches:
    # for the master branch pushes run the full compilation, unit tests and part of the testsuite
    master:
-    - step: 
+    - step:
        size: 2x
-       script: 
-        - rm -rf build 
-        - mkdir build 
-        - cd build 
+       script:
+        - rm -rf build
+        - mkdir build
+        - cd build
         - echo "building release version"
         - cmake ..
-        - make -j 
+        - make -j
         - echo "done building release version"
         - echo "running unit tests"
         - ctest
@@ -49,15 +49,15 @@ pipelines:
 
  custom:
    # this is an optional full run, if one chooses to test a specific branch fully
-  - step: 
+  - step:
      size: 2x
-     script: 
-      - rm -rf build 
-      - mkdir build 
-      - cd build 
+     script:
+      - rm -rf build
+      - mkdir build
+      - cd build
       - echo "building release version"
       - cmake ..
-      - make -j 
+      - make -j
       - echo "done building release version"
       - echo "running unit tests"
       - ctest

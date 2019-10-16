@@ -101,7 +101,7 @@ contains
 
         ! Consider single excitations
         if (bSingle .and. gen_store%gen_singles) then
-            ! Find the next possible single excitation. Loop over 
+            ! Find the next possible single excitation. Loop over
             ! electrons, and vacant orbitals. Interrupt loop when we
             ! find what we need.
             do i = i, nel
@@ -126,7 +126,7 @@ contains
                     ! Cannot excite to the source of the excitation
                     if (is_in_pair(orb1, orbI)) cycle
 
-                    ! Cannot excite to a doubly occupied orbital. If 
+                    ! Cannot excite to a doubly occupied orbital. If
                     ! singly occupied, can only excite to the unoccupied
                     ! bit!
                     if (IsOcc(ilutI, orbI)) then
@@ -166,7 +166,7 @@ contains
                     orb2 = nI(e2);    orb2a = ab_pair(orb2)
 
                     ! If either of these is the beta electron from a doubly
-                    ! occupied pair, and they are not from the same pair, 
+                    ! occupied pair, and they are not from the same pair,
                     ! cycle
                     if ( ((IsOcc(ilutI, orb1a) .and. is_beta(orb1)) .or.&
                           (IsOcc(ilutI, orb2a) .and. is_beta(orb2))) .and. &
@@ -205,7 +205,7 @@ contains
                         orbI = SymLabelList2(ind1 + i1)
                         orbJ = SymLabelList2(ind2 + i2)
 
-                        ! If the two symmetries are the same, only generate 
+                        ! If the two symmetries are the same, only generate
                         ! each pair one way around...
                         if (sym1 == sym2 .and. orbJ < orbI) cycle
 
@@ -384,7 +384,7 @@ contains
 
             call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
             if (tSinglesOnly) ex_flag = 1
-            
+
             do while(.true.)
 
                 call generate_connection_normal(nI, original_space(0:NIfTot,i), nJ, ilutJ, ex_flag, excit, &

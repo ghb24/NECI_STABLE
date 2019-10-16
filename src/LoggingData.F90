@@ -34,7 +34,7 @@ module LoggingData
     ! Logical(4) datatypes for compilation with builds of openmpi that don't
     ! have support for logical(8). Gah.
     logical :: tExplicitAllRDM, tChangeVarsRDM
-
+    logical :: tPopAutoAdaptiveShift
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs
@@ -147,6 +147,10 @@ module LoggingData
     ! behavior in the future
     logical :: t_print_frq_histograms = .true.
 
+    ! up to which exLvl we track the number of initiators per exLvl
+    integer :: maxInitExLvlWrite
+    integer, allocatable :: initsPerExLvl(:), allInitsPerExLvl(:)
+
     ! if this is true, force moving fcimcstats and initiatorstats files, and accumulate stats in new files
     logical :: t_no_append_stats = .false.
 
@@ -176,5 +180,8 @@ module LoggingData
     ! for the output of the references in the adi-mode
     logical :: tWriteRefs
     character(255) :: ref_filename
+    ! for the histogramming of the acceptance rates used in the adaptive shift mode
+    logical :: t_hist_fvals
+    integer :: enGrid, arGrid
 
 end module LoggingData

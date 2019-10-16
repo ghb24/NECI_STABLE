@@ -5,11 +5,11 @@
 !C.. 1/6/05 - This will not work - as one disconnects a matrix
 !C.. progressively, the sparsity in the remaining elements decreases
 !C.. dramatically.  Code unfinished
-      REAL*8 FUNCTION FMCPR3STARJ(NI,BETA,I_P,NEL,                      
+      REAL*8 FUNCTION FMCPR3STARJ(NI,BETA,I_P,NEL,
      &   NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
      &   RHOEPS,LSTE,ICE,LIST,L,LT,NWHTAY,
      &   ILOGGING,TSYM,ECORE,ILMAX,DBETA,DLWDB)
-            
+
          use determinants, only: get_helement
          use constants, only: dp
 
@@ -41,7 +41,7 @@
          REAL*8 CONMAT(*)
          INTEGER CONLIST(*)
          LOGICAL TBR
-         
+
          POINTER (IP_CONMAT,CONMAT),(IP_CONLIST,CONLIST)
 
          REAL*8 TH,C,S,T,TAU,ARP,ARQ
@@ -72,7 +72,7 @@
      &            NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,
      &            RH,NTAY,ICE(I),ECORE)
                IF(ABS(RH).GT.RHOEPS) THEN
-                  IF(NLCUR.NE.I) 
+                  IF(NLCUR.NE.I)
      &              CALL NECI_ICOPY(NEL,LSTE(1,I),1,
      &                    LSTE(1,NLCUR),1)
                   ICE(NLCUR)=ICE(I)
@@ -178,7 +178,7 @@
 !C.. both are connected to the same node so do both at the same time
                            IPTR=IPTR+1
                            JPTR=JPTR+1
-                        ENDIF                        
+                        ENDIF
                      ENDDO
                   ENDIF
                ENDDO

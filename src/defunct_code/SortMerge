@@ -40,7 +40,7 @@
                                    set_part_init_time
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
-        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot)
         INTEGER :: ips
         HElement_t :: HDiagTemp
         real(dp) :: HDiag
@@ -115,7 +115,7 @@
 ! Insert DetCurr into its position in the completely merged list (i-1 elements
 ! below it still to be inserted).
            CurrentDets(:,ips+i-1)=list2(:,i)
-           
+
            ! Merge in the new trial and connected vector amplitudes.
            if (tTrialWavefunction) then
                if (tTrialState) then
@@ -126,7 +126,7 @@
                    ncon = ncon - 1
                end if
            end if
-           
+
            ! We want to calculate the diagonal hamiltonian matrix element for
            ! the new particle to be merged.
            call decode_bit_det (nJ, list2(:,i))
@@ -141,7 +141,7 @@
 
            ! Store the initial iteration for this created particle
            call set_part_init_time(ips+i-1, TotImagTime)
-           
+
            if (tFillingStochRDMonFly) then
                if (lenof_sign == 2) then
                    call set_av_sgn(ips+i-1, (/0.0_dp, 0.0_dp/))
@@ -151,7 +151,7 @@
                    call set_iter_occ(ips+i-1, (/0.0_dp/))
                end if
            end if
-               
+
 ! Next element to be inserted must be smaller than DetCurr, so must be inserted
 ! at (at most) at ips-1.
 ! If nlisto=0 then all remaining elements in list2 must be inserted directly
@@ -171,7 +171,7 @@
         return
     END SUBROUTINE MergeListswH
 
-!This routine is the same as MergeListswH, but will not generate the diagonal 
+!This routine is the same as MergeListswH, but will not generate the diagonal
 !hamiltonian matrix elements to go with the inserted determinants
     SUBROUTINE MergeLists(nlist1,nlist2,list2)
         USE FciMCParMOD , only : Hii,CurrentDets
@@ -182,7 +182,7 @@
         use constants, only : n_int, dp
         IMPLICIT NONE
         INTEGER :: nlisto,nlist1,nlist2,i
-        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot) 
+        INTEGER(KIND=n_int) :: list2(0:NIfTot,1:nlist2),DetCurr(0:NIfTot)
         INTEGER :: ips
         INTEGER :: j
 !        LOGICAL :: tbin
@@ -217,7 +217,7 @@
 !           write(6,'(20i15)') (list1(:,j),j=1,nlist1+nlist2)
 
            CurrentDets(0:NIfTot,ips+i-1)=list2(0:NIfTot,i)
-               
+
 !           write(6,*) ' newly inserted member on position:'                             &
 !     & ,ips+i-1,' of value:',list2(:,i)
 !           write(6,*) 'new list with insertion in it:'
@@ -234,7 +234,7 @@
         return
     END SUBROUTINE MergeLists
 !..............................................................................
-!..find the position in list such that 
+!..find the position in list such that
 !.. list(0:NIfTot,ipos-1) < DetCurr(0:NIfTot)
 !.. list(0:NIfTot,ipos) ge DetCurr(0:NIfTot)
 !..list is assumed to be in increasing order
@@ -262,7 +262,7 @@
  100    continue
 !..if num is larger than the last element of list,
 !.. return ipos as nup+1
-        if(DetBitLT(CurrentDets(0:NIfTot,nup),DetCurr(:),NIfDBO).eq.1) then 
+        if(DetBitLT(CurrentDets(0:NIfTot,nup),DetCurr(:),NIfDBO).eq.1) then
            ipos=nup+1
            return
         endif
@@ -283,34 +283,34 @@
 
         CompPart=DetBitLT(CurrentDets(0:NIfTot,ncurr),DetCurr(:),NIfDBO)
 
-!.. if list(ncurr) gt num then the upper bound to the 
+!.. if list(ncurr) gt num then the upper bound to the
 !.. list can be shifted to nup
 !        if(list(ncurr).gt.num) nup=ncurr
         if(CompPart.eq.-1) THEN
             nup=ncurr
         else
-!..if list(ncurr) le num then the lower bound can be 
+!..if list(ncurr) le num then the lower bound can be
 !.. can be shifted to ncurr
             nlo=ncurr
         endif
 !..
 !.. list(ncurr).eq.num
-        if(CompPart.eq.0) then 
-           write(6,"(I8)",advance='no') ncurr 
+        if(CompPart.eq.0) then
+           write(6,"(I8)",advance='no') ncurr
            call WriteBitDet(6,CurrentDets(:,ncurr),.true.)
            call stop_all("Search","When merging lists, no entries should exist on both lists")
 !..check to see if the previous member is less than num.
 !.. if so, return ipose=ncurr
            if(DetBitLT(CurrentDets(0:NIfTot,ncurr-1),DetCurr(:),NIfDBO).eq.1) then
 !           if(list(ncurr-1).lt.num) then
-              ipos=ncurr 
+              ipos=ncurr
               return
            endif
 !..check to see if the next member of list is ge num
 !.. if so, return ipos=ncurr
            if(DetBitLT(CurrentDets(0:NIfTot,ncurr+1),DetCurr(:),NIfDBO).eq.-1) then
 !           if(list(ncurr+1).gt.num) then
-              ipos=ncurr 
+              ipos=ncurr
               return
            endif
         endif
@@ -319,7 +319,7 @@
 !        continue
 !..simple linear search. At the moment, you cannot get here.
 !        do i=1,n
-!           if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:),NIfDBO).ne.1) then 
+!           if(DetBitLT(CurrentDets(0:NIfTot,i),DetCurr(:),NIfDBO).ne.1) then
 !             ipos=i
 !             return
 !           endif
@@ -327,7 +327,7 @@
 !        ipos=n+1
     END SUBROUTINE Search
 !..............................................................................
-!..find the position in list such that 
+!..find the position in list such that
 !.. list(0:NIfTot,ipos-1) < DetCurr(0:NIfTot)
 !.. list(0:NIfTot,ipos) ge DetCurr(0:NIfTot)
 !..list is assumed to be in increasing order
@@ -351,7 +351,7 @@
  100    continue
 !..if num is larger than the last element of list,
 !.. return ipos as nup+1
-        if(DetBitLT(list(:,nup),DetCurr(:),NIfDBO).eq.1) then 
+        if(DetBitLT(list(:,nup),DetCurr(:),NIfDBO).eq.1) then
            ipos=nup+1
            return
         endif
@@ -372,31 +372,31 @@
 
         CompPart=DetBitLT(list(:,ncurr),DetCurr(:),NIfDBO)
 
-!.. if list(ncurr) gt num then the upper bound to the 
+!.. if list(ncurr) gt num then the upper bound to the
 !.. list can be shifted to nup
 !        if(list(ncurr).gt.num) nup=ncurr
         if(CompPart.eq.-1) THEN
             nup=ncurr
         else
-!..if list(ncurr) le num then the lower bound can be 
+!..if list(ncurr) le num then the lower bound can be
 !.. can be shifted to ncurr
             nlo=ncurr
         endif
 !..
 !.. list(ncurr).eq.num
-        if(CompPart.eq.0) then 
+        if(CompPart.eq.0) then
 !..check to see if the previous member is less than num.
 !.. if so, return ipose=ncurr
            if(DetBitLT(list(:,ncurr-1),DetCurr(:),NIfDBO).eq.1) then
 !           if(list(ncurr-1).lt.num) then
-              ipos=ncurr 
+              ipos=ncurr
               return
            endif
 !..check to see if the next member of list is ge num
 !.. if so, return ipos=ncurr
            if(DetBitLT(list(:,ncurr+1),DetCurr(:),NIfDBO).eq.-1) then
 !           if(list(ncurr+1).gt.num) then
-              ipos=ncurr 
+              ipos=ncurr
               return
            endif
         endif
@@ -405,7 +405,7 @@
 !        continue
 !!..simple linear search. At the moment, you cannot get here.
 !        do i=1,n
-!           if(DetBitLT(list(:,i),DetCurr(:),NIfDBO).ne.1) then 
+!           if(DetBitLT(list(:,i),DetCurr(:),NIfDBO).ne.1) then
 !             ipos=i
 !             return
 !           endif

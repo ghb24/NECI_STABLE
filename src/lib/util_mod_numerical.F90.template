@@ -23,7 +23,7 @@ fmtstr = g20.12e3
 =========================
 
 module util_mod_numerical
-    
+
     ! This module deals with templated things that must be numbers.
     !
     ! Particularly, +, -, <, >, <=, >= must be defined

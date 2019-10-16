@@ -50,13 +50,13 @@ subroutine stop_all (sub_name, error_msg)
     write (6,'(a11)') 'EXITING...'
     call neci_flush (6)
 #else
-    write (*,'(/a7)') 'ERROR.'
-    write (*,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
-    write (*,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
+    write (6,'(/a7)') 'ERROR.'
+    write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
+    write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
 #ifdef PARALLEL
-    write (*,'(a12,15X,i5)') 'Processor: ',iProcIndex
+    write (6,'(a12,15X,i5)') 'Processor: ',iProcIndex
 #endif
-    write (*,'(a11)') 'EXITING...'
+    write (6,'(a11)') 'EXITING...'
 #endif
 
     ! Also push this to the stderr unit, so it hopefully ends up somewhere
@@ -75,7 +75,7 @@ subroutine stop_all (sub_name, error_msg)
     call MPIStopAll(error_str)
 #else
 !    stop error_str
-    stop 
+    stop
 #endif
 
 end subroutine stop_all
@@ -97,8 +97,8 @@ character(*), intent(in) :: sub_name,error_msg
 write (6,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
 write (6,'(a/)') adjustl(error_msg)
 #else
-write (*,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-write (*,'(a/)') adjustl(error_msg)
+write (6,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
+write (6,'(a/)') adjustl(error_msg)
 #endif
 
 return

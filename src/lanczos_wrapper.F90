@@ -33,7 +33,7 @@ contains
 
         integer, intent(in) :: det_list(:,:)
         integer, intent(in) :: ndets
-        integer, intent(in) :: nexcit 
+        integer, intent(in) :: nexcit
         real(dp), intent(out) :: evals(:)
         real(dp), intent(out) :: evecs(:,:)
 
