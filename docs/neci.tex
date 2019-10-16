@@ -567,7 +567,8 @@ The first line of the input is always \texttt{title}, the last line is always \t
 
 \subsection{SYSTEM Block}
 The SYSTEM block specifies the properties of the physical system that is
-considered.
+considered. The block starts with the \texttt{system} keyword and ends with
+the \texttt{endsys} keyword. 
 
 \begin{description}
   \codeitem{system}
@@ -581,6 +582,8 @@ considered.
     \codeitem{ueg}
     Uses the Hamiltonian of the uniform electron gas in a box.
   \end{description}
+  \codeitem{endsys}
+  Terminates the SYSTEM block.  
   \codeitem{electrons $n$, nel $n$}
   Sets the number of electrons to $n$
   \codeitem{spin-restrict $m$}
@@ -633,8 +636,6 @@ considered.
   Specifies the number of wave functions that shall be evolved in
   parallel. The argument $n$ is the number of
   wave functions (replicas). Requires \texttt{mneci} or \texttt{kmneci}.
-  \codeitem{endsys}
-  Terminates the SYSTEM block.
 \end{description}
 \subsubsection{Excitation generation options}
 \begin{description}
@@ -708,11 +709,14 @@ considered.
   
   \subsection{CALC Block}
   The CALC block is used to set options concerning the simulation parameters
-  and modes of FCIQMC.
+  and modes of FCIQMC. The block starts with the \texttt{calc} keyword and
+  ends with the \texttt{endcalc} keyword.
 
   \begin{description}
     \codeitem{calc}
     Starts the CALC block
+    \codeitem{endcalc}
+    Terminates the CALC block    
     \codeitem{seed $s$}
     Sets the seed of the random number generator to $s$. This can be used to
     specifically probe for stochastic effects, but is generally not required.
@@ -744,8 +748,6 @@ considered.
     \codeitem{maxwalkerbloom $n$}
     Gives a warning when more than $n$ walkers are spawned in a single
     spawning event.
-    \codeitem{endcalc}
-    Terminates the CALC block
   \end{description}
 
   \subsubsection{Population control options}
@@ -1140,25 +1142,30 @@ considered.
 
   \subsubsection{METHODS Block}
   The METHODS block is a subblock of CALC, i.e. it is specified inside the
-  CALC block. It sets the main algorithm to be used in the calculation.
+  CALC block. It sets the main algorithm to be used in the calculation. The
+  subblock is started with the \texttt{methods} keyword and terminated with
+  the \texttt{endmethods} keyword.
   \begin{description}
     \codeitem{methods}
     Starts the METHODS block
+    \codeitem{endmethods}
+    Terminates the METHODS block.    
     \codeitem{method $mode$}
     Sets the algorithm to be executed. The relevant choice for $mode$ is
     VERTEX FCIMC to run an FCIQMC calculation. Alternative choices are
     DETERM-PROJ to run a deterministic calculation and SPECTRAL-LANCZOS to
     calculate a spectrum using the lanczos algorithm.
-    \codeitem{endmethods}
-    Terminates the METHODS block.
   \end{description}
 
   \subsection{INTEGRAL Block}
   The INTEGRAL block can be used to freeze orbitals and set properties of the
-  integrals.
+  integrals. The block is started with the \texttt{integral} keyword and
+  terminated with the \texttt{endint} keyword.
   \begin{description}
     \codeitem{integral}
     Starts the INTEGRAL block.
+    \codeitem{endint}
+    Terminates the INTEGRAL block.    
     \codeitem{freeze $n$ $m$}
       Freeze $n$ core and $m$ virtual orbitals which are not to be
       considered active in this calculation. The orbitals are selected
@@ -1175,18 +1182,20 @@ considered.
       \codeitem{partiallyfreezevirt $n_\text{orb}$ $n_\text{els}$}
         Freeze $n_\text{orb}$ virtual orbitals partially. This means at most
         $n_\text{els}$ electrons are now allowed in these orbitals.        
-    \codeitem{endint}
-    Terminates the INTEGRAL block.
   \end{description}
 
   \subsection{KP-FCIQMC Block}
   This block enables the Krylov-projected FCIQMC (KPFCIQMC) method \footnote{N. S. Blunt, Ali
     Alavi, George H. Booth, Phys. Rev. Lett. 115, 050603} which is fully implemented
   in NECI. It requires \texttt{dneci} or \texttt{mneci} to be run. When
-  specifying the KP-FCIQMC block, the METHODS block should be omitted.
+  specifying the KP-FCIQMC block, the METHODS block should be omitted. This
+  block is started with the \texttt{kp-fciqmc} keyword and terminated with
+  the \texttt{end-kp-fciqmc} keyword.
   \begin{description}
-    \codeitem{kp-fciqcm}
+    \codeitem{kp-fciqmc}
     Starts the KP-FCIQMC block
+    \codeitem{end-kp-fciqmc}
+    Terminates the KP-FCIQMC block.    
     \codeitem{num-krylov-vecs $N$}
     $N$ specifies the total number of Krylov vectors to sample.
     \codeitem{num-iters-between-vecs $N$}
@@ -1270,8 +1279,6 @@ considered.
     in the Calc block. This is relevant for spectral calculations when
     starting from a perturbed \texttt{POPSFILE} wave function, where the
     initial population is not easily controlled.
-    \codeitem{end-kp-fciqmc}
-    Terminates the KP-FCIQMC block.
   \end{description}
     In spectral calculations, one also typically wants to consider a particular
     perturbation operator acting on the ground state wave functions. Therefore,
@@ -1295,13 +1302,20 @@ considered.
 
     \subsection{LOGGING Block}
     The LOGGING block specifies the output of the calculation and which
-    status information of the calculation shall be collected.
+    status information of the calculation shall be collected. This block is
+    started with the \texttt{logging} keyword and terminated with the
+    \texttt{endlog} keyword.
     \begin{description}
       \codeitem{logging}
       Starts the LOGGING block.
+      \codeitem{endlog}
+      Terminates the LOGGING block.      
       \codeitem{highlypopwrite $n$}
       Print out the $n$ most populated determinants at the end of the
       calculation. Is enabled by default with $n=15$.
+      \codeitem{inits-exlvl-write $n$}
+      Sets the excitation level up to which the number of initiators is logged
+      to $n$. Defaults to $n=8$.
       \codeitem{popsfile $n$}
       Save the current wave function on disk at the end of the
       calculation. Can be used to initialize subsequent calculations and
@@ -1319,6 +1333,11 @@ considered.
       \codeitem{nomcoutput}
       Suppress the printing of iteration information to stdout. This data is
       still written to disk.
+    \end{description}
+    \subsubsection{RDM output options}
+    These options control how the RDMs are printed. For a description of how
+    the RDMs are calculated and the content of the files, please see section \ref{sec:rdms}.
+    \begin{description}
       \codeitem{calcrdmonfly $i$ $step$ $start$}
       Calculate RDMs stochastically over the course of the calculation. Starts
       sampling RDMs after $start$ iterations, and outputs an average every $step$
@@ -1334,10 +1353,28 @@ considered.
       \codeitem{printonerdm}
       Always output the 1-RDMs to a file, regardless of which RDMs are
       calculated. May compute the 1-RDMs from the 2-RDMs.
+		\codeitem{writerdmstoread off}
+	The presence of this keyword overrides the default.  If the OFF word is present, the unnormalised \code{TwoRDM_POPS_a***}
+    files will definitely not be printed, otherwise they definitely will be, regardless of the state of the
+    \code{popsfile/binarypops} keywords.
+
+    \codeitem{readrdms}
+    This keyword tells the calculation to read in the \code{TwoRDM_POPS_a***} files from a previous calculation.  The
+    restarted calc then continues to fill these RDMs from the very first iteration regardless of the value put with
+    the \code{calcrdmonfly} keyword.  The calculation will crash if one of the \code{TwoRDM_POPS_a***} files are missing.  If
+    the \code{readrdms} keyword is present, but the calc is doing a \code{StartSinglePart} run, the \code{TwoRDM_POPS_a***} files
+    will be ignored.
+
+    \codeitem{nonormrdms}
+    This will prevent the final, normalised \code{TwoRDM_a***} matrices from being printed.  These files can be quite
+    large, so if the calculation is definitely not going to be converged, this keyword may be useful.
+
+    \codeitem{writerdmsevery iter}
+    This will write the normalised \code{TwoRDM_a***} matrices every \code{iter} iterations while the RDMs are being
+    filled.  At the moment, this must be a multiple of the frequency with which the energy is calculated.  The
+    files will be labelled with incrementing values - \code{TwoRDM_a***.1} is the first, and then next \code{TwoRDM_a***.2} etc.      
       \codeitem{printrodump}
       Output the integrals of the natural orbitals to a file.
-      \codeitem{endlog}
-      Terminates the LOGGING block.
     \end{description}
 
 \section{Useful References Containing Technical Details}
@@ -1491,7 +1528,7 @@ N. S. Blunt, Ali Alavi, George H. Booth, Phys. Rev. Lett. 115, 050603
     The method has only been implemented with RHF calculations and with $M_s=0$.
 
 \section{RDM generation}
-
+\label{sec:rdms}
 Currently the 2-RDMs can only be calculated for closed shell systems.  However, calculation and
 diagonalisation of only the 1-RDM is set up for either open shell or closed shell systems.
 
@@ -1530,25 +1567,9 @@ memory and in simulation time, so may be useful for rough-and-ready calculations
 %more memory.  As the SR method is inherently biased anyway, this is not too great a concern.
 Reducing the effect of the bias in the SR method can be done by applying a cutoff to the diagonal contributions, such that
 contributions are only added in if the average sign of the determinant at the time of adding in the contribution exceeds
-some preset parameter.  (See THRESHOCCONLYRDMDIAG)
-
-To perform a calculation, use
-    \begin{lstlisting}[gobble=4]
-		calcrdmonfly RDMLevel RDMIterStart RDMEnergyIter
-    \end{lstlisting}
-
-    It requires 3 integers.
-    The first refers to the type of RDMs to calculate.  A value of 1 will calculate only the 1-RDM.  Any other
-    value will calculate the 2-RDM (which contains the information of the 1-RDM).  The second integer
-    is the number of iterations after the shift has begun to change that we want to begin filling the RDMs.
-    Finally, if the 2-RDMs are being calculated, the RDM energy will be automatically obtained at the
-    end of the calculation.  The 3rd integer refers to how often (every RDMEnergyIter iterations) we want
-    to additionally calculate and print the energy during the calculation.  This will be ignored if only
-    calculating the 1-RDM.
-    Clearly making RDMEnergyIter very large will mean the energy is only calculated with a softexit, or this can
-    also be achieved by using \code{CalcRdmEnergy OFF}.
-
-    The RDM energy is one measure of the accuracy of the RDMs.  Also printed by default are the maximum error in the
+some preset parameter.
+When calculating RDMs, the RDM energy will be printed at the end of the
+calculation, which is one measure of the accuracy of the RDMs.  Also printed by default are the maximum error in the
     hermiticity (2-RDM(i,j;a,b) - 2-RDM(a,b;i,j)) and the sum of the absolute errors.
 
 \subsection{Reading in / Writing out the RDMs for restarting calculations}
@@ -1563,34 +1584,6 @@ To perform a calculation, use
     \code{popsfile/binarypops} keywords - i.e. if a wavefunction popsfile is being printed and the RDMs are being filled,
 	a RDM \code{POPSFILE} will be also.
 	If only the 1-RDM is being calculated, \code{OneRDM_POPS/OneRDM} files will be printed in the same way.
-    The following options can override/modify these defaults.
-
-	\begin{description}
-		\codeitem{writerdmstoread off}
-	The presence of this keyword overrides the default.  If the OFF word is present, the unnormalised \code{TwoRDM_POPS_a***}
-    files will definitely not be printed, otherwise they definitely will be, regardless of the state of the
-    \code{popsfile/binarypops} keywords.
-
-\codeitem{readrdms}
-	This keyword tells the calculation to read in the \code{TwoRDM_POPS_a***} files from a previous calculation.  The
-    restarted calc then continues to fill these RDMs from the very first iteration regardless of the value put with
-	the \code{calcrdmonfly} keyword.  The calculation will crash if one of the \code{TwoRDM_POPS_a***} files are missing.  If
-	the \code{readrdms} keyword is present, but the calc is doing a \code{StartSinglePart} run, the \code{TwoRDM_POPS_a***} files
-    will be ignored.
-
-\codeitem{nonormrdms}
-	This will prevent the final, normalised \code{TwoRDM_a***} matrices from being printed.  These files can be quite
-    large, so if the calculation is definitely not going to be converged, this keyword may be useful.
-
-\codeitem{writerdmsevery iter}
-	This will write the normalised \code{TwoRDM_a***} matrices every \code{iter} iterations while the RDMs are being
-    filled.  At the moment, this must be a multiple of the frequency with which the energy is calculated.  The
-	files will be labelled with incrementing values - \code{TwoRDM_a***.1} is the first, and then next \code{TwoRDM_a***.2} etc.
-\end{description}
-
-\section{Outputs of NECI}
-
-TODO
 
 \section{Performing error analysis}
     Data from an FCIQMC calculation is usually correlated. As a result,
