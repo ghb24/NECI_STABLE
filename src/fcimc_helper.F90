@@ -1131,9 +1131,11 @@ contains
         real(dp) :: scaledInitiatorWalkNo
         logical :: init_flag
 
-        ! the initiator threshold shall be unscaled
-        scaledInitiatorWalkNo = InitiatorWalkNo
-
+        if(tEScaleWalkers) then
+           scaledInitiatorWalkNo = InitiatorWalkNo * scaleFunction(hdiag)
+        else
+           scaledInitiatorWalkNo = InitiatorWalkNo
+        endif
         ! option to use the average population instead of the local one
         ! for purpose of initiator threshold
         if(tGlobalInitFlag) then
