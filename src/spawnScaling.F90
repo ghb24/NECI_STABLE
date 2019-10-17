@@ -7,6 +7,7 @@ module spawnScaling
   ! After a number of spawning attempts at this level equal to the factor, we
   ! decrease the level again.
   use constants
+  use fcimc_helper, only: decide_num_to_spawn
   use CalcData, only: initiatorWalkNo
   use FciMCData, only: tEScaleWalkers
   use procedure_pointers, only: scaleFunction
@@ -113,15 +114,23 @@ contains
 
     if(tRescale .and. .not. near_zero(threshold)) then
        ! rescale this spawn down to the threshold
-       factor = max(ceiling(nSpawn / threshold), 1)           
-       spawnScale(scaleLevel+1) = spawnScale(scaleLevel) * factor
-       ! increase the scaleLevel by 1 IF the new factor is not excessive
-       if(spawnScale(scaleLevel+1) < maxScaleFactor) then
-          scaleLevel = scaleLevel + 1
-       else
-          ! this would be excessive, do not scale
-          factor = 1
-       end if
+       ! this is essentially a stochastic round with some unused arguments
+       call decide_num_to_spawn(nSpawn / threshold, hdiag, 1.0_dp, factor)
+       factor = max(factor, 1)
+       ! if the factor turned out to be one, no action is required
+       if(factor > 1) then
+          spawnScale(scaleLevel+1) = spawnScale(scaleLevel) * factor
+          ! increase the scaleLevel by 1 IF the new factor is not excessive
+          if(spawnScale(scaleLevel+1) < maxScaleFactor) then
+             scaleLevel = scaleLevel + 1
+             if(scaleLevel > 2) then
+                print *, "WARNING: Recursive rescaling required"
+             endif
+          else
+             ! this would be excessive, do not scale
+             factor = 1
+          end if
+       endif
     else
        ! no scaling required
        factor = 1

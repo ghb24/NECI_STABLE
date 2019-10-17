@@ -1401,8 +1401,6 @@ module FciMCParMod
                             ! unbias by attempting an extra scaleFactor - 1 spawns with at
                             ! least this scaleLevel
                             if(scaleFactor > 1) then
-                               print *, "WARNING: Spawn exceeding threshold. Scaling down by", &
-                                    scaleFactor
                                WalkersToSpawn = WalkersToSpawn + scaleFactor - 1
                                ! count the number of spawns at this level
                                call setLeveLTimer()
