@@ -104,7 +104,7 @@ contains
 #ifdef __CMPLX
             tRestart = .false.
             do run = 1, inum_runs
-                if (sum(AllTotParts(min_part_type(run):max_part_type(run))) ==0 )  then
+                if (near_zero(sum(AllTotParts(min_part_type(run):max_part_type(run)))))  then
                     write(iout,"(A)") "All particles have died. Restarting."
                     tRestart=.true.
                     exit
@@ -740,9 +740,9 @@ contains
       function relative_trial_numerator(tt_numerator, tt_denom, replica_pairs) &
            result(rel_tot_trial_numerator)
         implicit none
-        real(dp), intent(in) :: tt_numerator(inum_runs), tt_denom(inum_runs)
+        HElement_t(dp), intent(in) :: tt_numerator(inum_runs), tt_denom(inum_runs)
         logical, intent(in) :: replica_pairs
-        real(dp) :: rel_tot_trial_numerator(inum_runs)
+        HElement_t(dp) :: rel_tot_trial_numerator(inum_runs)
         integer :: run
 
         if (.not. qmc_trial_wf) then
