@@ -755,9 +755,6 @@ the \texttt{endsys} keyword.
     Dynamically update the number of spawns attempted per walker. Can be used
     if the excitation generator creates a lot of invalid excitations, but
     should be avoided else.
-    \codeitem{maxWalkerBloom $n$}
-    Gives a warning when more than $n$ walkers are spawned in a single
-    spawning event.
   \end{description}
 
   \subsubsection{Population control options}
@@ -859,6 +856,9 @@ the \texttt{endsys} keyword.
     arguments are optional, $n$ defaults to $3$. If UNOCC is given the
     truncation is restricted to spawns onto unoccupied. Useful in combination
     with hist-tau-search.
+    \codeitem{maxWalkerBloom $n$}
+    The time step is scaled such that at most $n$ walkers are spawned in a
+    single attempt, with the scaling being guessed from previous spawning attempts.
   \end{description}
 
   \subsubsection{Wave function initialization options}
@@ -1166,7 +1166,7 @@ the \texttt{endsys} keyword.
     VERTEX FCIMC to run an FCIQMC calculation. Alternative choices are
     DETERM-PROJ to run a deterministic calculation and SPECTRAL-LANCZOS to
     calculate a spectrum using the lanczos algorithm.
-  \end{description}
+  \end{description}  
 
   \subsection{INTEGRAL Block}
   The INTEGRAL block can be used to freeze orbitals and set properties of the
@@ -1330,9 +1330,12 @@ the \texttt{endsys} keyword.
       continue the run. This is enabled by default. $n$ is optional and, when
       given, specifies that every $n$ iteration, the wave function shall be
       saved. Setting $n=-1$ disables this option.
+      \codeitem{popsFileTimer $n$}
+      Write out a the wave function to disk every $n$ minutes, each time
+      overwriting the last output.
       \codeitem{hdf5-pops-write}
       Sets the format to write the wave function to HDF5. Requires building
-      with the \texttt{ENABLE-HDF5} cmake option.      
+      with the \texttt{ENABLE-HDF5} cmake option.
       \codeitem{highlyPopWrite $n$}
       Print out the $n$ most populated determinants at the end of the
       calculation. Is enabled by default with $n=15$.
@@ -1344,6 +1347,20 @@ the \texttt{endsys} keyword.
       \codeitem{nomcoutput}
       Suppress the printing of iteration information to stdout. This data is
       still written to disk.
+    \end{description}
+    \subsubsection{Semi-stochastic output options}
+    \begin{description}
+      \codeitem{write-core}
+      When performing a semi-stochastic calculation, adding this option
+      to the Logging block will cause the core space determinants to be
+      written to a file called CORESPACE. These can then be further read
+      in and used in subsequent semi-stochastic options using the
+      \texttt{read-core} option in the CALC block.
+      \codeitem{write-most-pop-core-end $n$}
+      At the end of a calculation, output the $n$ most populated
+      determinants to a file called CORESPACE. This can further be read
+      in and used as the core space in subsequent calculations using the
+      \texttt{read-core} option.      
     \end{description}
     \subsubsection{RDM output options}
     These options control how the RDMs are printed. For a description of how
@@ -1383,7 +1400,10 @@ the \texttt{endsys} keyword.
     \codeitem{writeRdmsEvery $iter$}
     This will write the normalised \code{TwoRDM_a***} matrices every $iter$ iterations while the RDMs are being
     filled.  At the moment, this must be a multiple of the frequency with which the energy is calculated.  The
-    files will be labelled with incrementing values - \code{TwoRDM_a***.1} is the first, and then next \code{TwoRDM_a***.2} etc.      
+    files will be labelled with incrementing values - \code{TwoRDM_a***.1} is
+    the first, and then next \code{TwoRDM_a***.2} etc.
+    \codeitem{write-spin-free-rdm}
+    Output the spin-free 2-RDMs to disk at the end of the calculation.
       \codeitem{printRoDump}
       Output the integrals of the natural orbitals to a file.
     \end{description}
@@ -1419,22 +1439,6 @@ KP-FCIQMC:
 \item Krylov-projected quantum Monte Carlo
 N. S. Blunt, Ali Alavi, George H. Booth, Phys. Rev. Lett. 115, 050603
 \end{itemize}
-
-    The following semi-stochastic related options should be added to the
-    LOGGING block.
-    \begin{description}
-		\codeitem{write-core}
-            When performing a semi-stochastic calculation, adding this option
-            to the Logging block will cause the core space determinants to be
-            written to a file called CORESPACE. These can then be further read
-            in and used in subsequent semi-stochastic options using the
-            read-core option in the Calc block.
-		\codeitem{write-most-pop-core-end $n$}
-            At the end of a calculation, output the $n$ most populated
-            determinants to a file called CORESPACE. This can further be read
-            in and used as the core space in subsequent calculations using the
-            read-core option.
-    \end{description}
 
     \section{Trial wave functions}
     \label{sec:trial}
