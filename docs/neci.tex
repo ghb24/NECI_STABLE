@@ -28,6 +28,10 @@
 % Use paragraph spacing, rather than indentation. This is generally easier
 % to read on a screen (especially for technical documentation).
 \usepackage{parskip}
+% define custom colors used in the description of keywords
+\usepackage[dvipsnames]{xcolor}
+\definecolor{mred}{rgb}{0.9, 0.1, 0.1}
+\definecolor{oblue}{rgb}{0.1, 0.1, 0.9}
 
 % An itemize with a bit less space floating around
 \newenvironment{packed_enum}{
@@ -563,7 +567,13 @@ file is organized in blocks, with each block being started and terminated by a
 dedicated keyword. Each block can contain a number of keywords to specify
 options. Here, a list of the blocks and their respective keywords is given.
 
-The first line of the input is always \texttt{title}, the last line is always \texttt{end}.
+The first line of the input is always \texttt{title}, the last line is always
+\texttt{end}.
+
+Some keywords are mandatory, those are marked in \textcolor{mred}{red} and are
+given at the beginning of the description of each paragraph. Then come
+recommended options, marked in \textcolor{oblue}{blue}, followed by further
+options given in black.
 
 \subsection{SYSTEM Block}
 The SYSTEM block specifies the properties of the physical system that is
@@ -571,7 +581,7 @@ considered. The block starts with the \texttt{system} keyword and ends with
 the \texttt{endsys} keyword. 
 
 \begin{description}
-  \codeitem{system}
+  \codeitem{\textcolor{mred}{system}}
   Starts the SYSTEM block. Has one mandatory additional argument to specify
   the type of the system. The options are
   \begin{description}
@@ -582,13 +592,18 @@ the \texttt{endsys} keyword.
     \codeitem{ueg}
     Uses the Hamiltonian of the uniform electron gas in a box.
   \end{description}
-  \codeitem{endsys}
+  \codeitem{\textcolor{mred}{endsys}}
   Terminates the SYSTEM block.  
-  \codeitem{electrons $n$, nel $n$}
+  \codeitem{\textcolor{mred}{electrons $n$, nel $n$}}
   Sets the number of electrons to $n$
   \codeitem{spin-restrict $m$}
   Sets the total $S_z$ quantum number to $\frac{m}{2}$. The argument $m$ is
   optional and defaults to 0.
+  \codeitem{hphf $s$}
+  Uses a basis of (anti-)symmetric combinations of Slater determinants with
+  respect to global spin-flip. $s=0$ indicates anti-symmetric combinations,
+  $s=1$ symmetric combinations. This is useful to exclude unwanted spin
+  configurations. For example, no triplet states can occur for \texttt{hphf 0}.  
   \codeitem{sym $k_x$ $k_y$ $k_z$ $s$}
   Specifies the symmetry of the target state. The first three arguments set
   the momentum $(k_x,k_y,k_z)$ and are only used for Hubbard and ueg-type
@@ -597,24 +612,19 @@ the \texttt{endsys} keyword.
   \codeitem{lztot}
   Set the total $L_s$ quantum number. Has one mandatory additional argument,
   which is the value of $L_s$.  
-  \codeitem{usebrillouintheorem}
+  \codeitem{useBrillouinTheorem}
   Assume that single excitations have zero matrix elements with the
   reference. By default, this is determined automatically.
-  \codeitem{nobrillouintheorem}
+  \codeitem{noBrillouinTheorem}
   Always assume that single excitations have nozero matrix elements with the
   reference.
-  \codeitem{umatepsilon $\epsilon$}
+  \codeitem{umatEpsilon $\epsilon$}
   Defines a threshold value $\epsilon$ below which matrix elements of the Hamiltonian are
   rounded to 0. Defaults to $10^{-8}$.
   \codeitem{diagonaltmat}
   Assume the kinetic operator is diagonal in the given basis set.
-  \codeitem{nosingexcits}
+  \codeitem{noSingExcits}
   Assume there is no coupling between single excitations in the Hamiltonian.
-  \codeitem{hphf $s$}
-  Uses a basis of (anti-)symmetric combinations of Slater determinants with
-  respect to global spin-flip. $s=0$ indicates anti-symmetric combinations,
-  $s=1$ symmetric combinations. This is useful to exclude unwanted spin
-  configurations. For example, no triplet states can occur for \texttt{hphf 0}.
   \codeitem{rohf}
   Use restricted open-shell integrals.
   \codeitem{read\_rofcidump}
@@ -623,13 +633,13 @@ the \texttt{endsys} keyword.
   Uses spin orbitals instead of spatial orbtials for addressing the
   integrals. This can be used if the integrals depend on the spin of the
   orbitals.
-  \codeitem{molpromimic}
+  \codeitem{molproMimic}
   Use the same orbital ordering as molpro, mimicking the behaviour of calling
   NECI from molpro.
-  \codeitem{complexorbs\_realints}
+  \codeitem{complexOrbs\_realInts}
   The orbitals are complex, but not the integrals. This reduces the symmetry
   of the 4-index integrals. Only affects \texttt{kneci} and \texttt{kmneci} calculations.
-  \codeitem{complexwalkers-realints}
+  \codeitem{complexWalkers-realInts}
   The integrals and orbitals are real, but the wave function shall be
   complex. Only affects \texttt{kneci} and \texttt{kmneci} calculations.
   \codeitem{system-replicas $n$}
@@ -639,11 +649,16 @@ the \texttt{endsys} keyword.
 \end{description}
 \subsubsection{Excitation generation options}
 \begin{description}
-  \codeitem{nonuniformrandexcits}
+  \codeitem{\textcolor{oblue}{nonUniformRandExcits}}
   Use a non-uniform random excitation generator for picking the move in the
   FCIQMC spawn step. This can significantly speed up the calculation. Requires an additional
   argument, that can be chosen from the following
   \begin{description}
+   \codeitem{\textcolor{oblue}{pchb}}
+    Generates excitations weighted directly with the matrix elements using pre-computed
+    alias tables. This excitation generator is extremely fast, while
+    maintaining high acceptance rates and is generally recommended when
+    memory is not an issue.    
     \codeitem{nosymgen}
     Generate all possible excitations, regardless of symmetry. Might have a
     low acceptance rate.
@@ -660,11 +675,6 @@ the \texttt{endsys} keyword.
     \texttt{4-ind-weighted} and optimizations as \texttt{4ind-weighted-2}, but
     uses more accurate estimates, having higher acceptance rates. This
     excitation generator has high acceptance rates at negligible memory cost.
-    \codeitem{pchb}
-    Generates excitations weighted directly with the matrix elements using pre-computed
-    alias tables. This excitation generator is extremely fast, while
-    maintaining high acceptance rates and is generally recommended when
-    memory is not an issue.
     \codeitem{pcpp}
     The pre-computed power-pitzer excitation generator \footnote{V. Neufeld,
       A. Thom, J. Chem. Theory Comput.2019151127-140}. Has low memory cost and
@@ -713,22 +723,22 @@ the \texttt{endsys} keyword.
   ends with the \texttt{endcalc} keyword.
 
   \begin{description}
-    \codeitem{calc}
+    \codeitem{\textcolor{mred}{calc}}
     Starts the CALC block
-    \codeitem{endcalc}
-    Terminates the CALC block    
+    \codeitem{\textcolor{mred}{endcalc}}
+    Terminates the CALC block
+    \codeitem{\textcolor{oblue}{time $t$}}
+    Set the maximum time $t$ in minutes the calculation is allowed to
+    run. After $t$ minutes, the calculation will end.
+    \codeitem{\textcolor{oblue}{nmcyc $n$}}
+    Set the maximum number of iterations the calculation is allowed to
+    do. After $n$ iterations, the calculation will end.    
     \codeitem{seed $s$}
     Sets the seed of the random number generator to $s$. This can be used to
     specifically probe for stochastic effects, but is generally not required.
-    \codeitem{averagemcexcits $x$}
+    \codeitem{averageMcExcits $x$}
     Sets the average number of spawning attempts from each walker to $x$.
-    \codeitem{time $t$}
-    Set the maximum time $t$ in minutes the calculation is allowed to
-    run. After $t$ minutes, the calculation will end.
-    \codeitem{nmcyc $n$}
-    Set the maximum number of iterations the calculation is allowed to
-    do. After $n$ iterations, the calculation will end.
-    \codeitem{rdmsamplingiters $n$}
+    \codeitem{rdmSamplingIters $n$}
     Set the maximum number of iterations used for sampling the RDMs to
     $n$. After $n$ iterations of sampling RDMs, the calculation will end.
     \codeitem{load-balance-blocks OFF}
@@ -738,37 +748,37 @@ the \texttt{endsys} keyword.
     \codeitem{energy}
     Additionally calculate and print the ground state energy using an exact
     diagonalization technique.
-    \codeitem{averagemcexcits $n$}
+    \codeitem{averageMcExcits $n$}
     The number of spawns to attempt per walker. Defaults to $1$ and should not
     be changed without good reason.
-    \codeitem{adjust-averagemcexcits}
+    \codeitem{adjust-averageMcExcits}
     Dynamically update the number of spawns attempted per walker. Can be used
     if the excitation generator creates a lot of invalid excitations, but
     should be avoided else.
-    \codeitem{maxwalkerbloom $n$}
+    \codeitem{maxWalkerBloom $n$}
     Gives a warning when more than $n$ walkers are spawned in a single
     spawning event.
   \end{description}
 
   \subsubsection{Population control options}
   \begin{description}
-    \codeitem{totalwalkers $n$}
+    \codeitem{\textcolor{mred}{totalWalkers $n$}}
     Sets the targeted number of walkers to $n$. This means, the shift will be
     varied to keep the walker number constant once it reaches $n$.
-    \codeitem{diagshift $S$}
+    \codeitem{\textcolor{oblue}{diagShift $S$}}
     Set the initial value of the shift to $S$. A value of $S<0$ is not
     recommended, as it will decrease the population from the beginning.
-    \codeitem{shiftdamp $\zeta$}
+    \codeitem{\textcolor{oblue}{shiftDamp $\zeta$}}
     Set the damping factor used in the shift update scheme to
     $\zeta$. Defaults to $10$.
-    \codeitem{stepssft $n$}
+    \codeitem{\textcolor{oblue}{stepsSft $n$}}
     Sets the number of steps per update cycle of the shift to $n$. Defaults to
     $100$.
     \codeitem{fixed-n0 $n_0$}
     Instead of varying the shift to fix the total number of walkers, keep the
     number of walkers at the reference fixed at $n_0$. Automatically sets
-    \texttt{stepssft 1} and overwrites any \texttt{stepssft} options given.
-    \codeitem{targetgrowrate $grow$ $walks$}
+    \texttt{stepsSft 1} and overwrites any \texttt{stepssft} options given.
+    \codeitem{targetGrowRate $grow$ $walks$}
     When the number of walkers in the calculation exceeds $walk$, the shift is
     iteratively adjusted to maintain a fixed grow rate $grow$ until reaching
     the requested number of total walkers.
@@ -783,7 +793,7 @@ the \texttt{endsys} keyword.
     \codeitem{trunc-nopen $n$}
     Restrict the Hilbert space of the calculation to those determinants with
     at most $n$ unpaired electrons.
-    \codeitem{avgrowthrate OFF}
+    \codeitem{avGrowthRate OFF}
     Average the change in walker number used to calculate the shift. This is
     enabled by default and has one optional argument OFF, which, when given,
     turns the option off.
@@ -791,22 +801,22 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Real walker coefficient options}
   \begin{description}
-    \codeitem{allrealcoeff}
+    \codeitem{\textcolor{oblue}{allRealCoeff}}
     Allow determinants to have non-integer population. There is a minimal
     population below which the population of a determinant will be rounded
     stochastically. This defaults to $1$.
-    \codeitem{realcoeffbyexcitlevel $n$}
-    Allow all determinants up to an excitation level of $n$ to have
-    non-integer population.
-    \codeitem{realspawncutoff $x$}
+    \codeitem{\textcolor{oblue}{realSpawnCutoff $x$}}
     Continuous real spawning will be performed, unless the spawn has
     weight less than x. In this case, the weight of the spawning will
     be stochastically rounded up to x or down to zero, such that the
     average weight of the spawning does not change. This is a method of
     removing very low weighted spawnings from the spawned list, which
     require extra memory, processing and communication. A reasonable
-    value for x is 0.01.
-    \codeitem{setoccupiedthresh $x$}
+    value for x is 0.01.    
+    \codeitem{realCoeffbyExcitLevel $n$}
+    Allow all determinants up to an excitation level of $n$ to have
+    non-integer population.
+    \codeitem{setOccupiedThresh $x$}
     Set the value for the minimum walker weight in the main walker
     list. If, after all annihilation has been performed, any
     determinants have a total weight of less than x, then the weight
@@ -816,31 +826,32 @@ the \texttt{endsys} keyword.
     \codeitem{energy-scaled-walker $mode$ $\alpha$ $\beta$}
     Scales the occupied threshold with the energy of a
     determinant. Has three optional arguments and requires
-    \texttt{allrealcoeff}. The argument $mode$ can be one of EXPONENTIAL,
+    \texttt{allRealCoeff}. The argument $mode$ can be one of EXPONENTIAL,
     POWER, EXP-BOUND or NEGATIVE and defaults to POWER. Both $\alpha$ and
     $\beta$ default to 1 and \texttt{realspawncutoff} $\beta$ is implied.
   \end{description}  
 
   \subsubsection{Time-step options}
   \begin{description}
-    \codeitem{tau $\tau$ SEARCH}
+    \codeitem{\textcolor{mred}{tau $\tau$} SEARCH}
     Sets the timestep per iteration to $\tau$. Has one optional argument
     SEARCH. If given, the time-step will be iteratively updated to keep the
     calculation stable.
-    \codeitem{max-tau $\tau_\text{max}$}
-    Sets the maximal value of the time-step to $\tau_\text{max}$. Defaults to $1$.
+    \codeitem{\textcolor{oblue}{hist-tau-search $c$ $nbins$ $bound$}}
+    Update the time-step based on histogramming of the ratio
+    $\frac{H_{ij}}{p(i|j)}$. Not compatible with the tau $\tau$ SEARCH
+    option. The three arguments $c$, $nbins$ and $bound$ are
+    optional. $0<c<1$ is the fraction of the histogram used for determining
+    the new timestep, $nbins$ the number of bins in the histogram and $bound$
+    is the maximum value of $\frac{H_{ij}}{p(i|j)}$ to be stored.
+    \codeitem{\textcolor{oblue}{max-tau $\tau_\text{max}$}}
+    Sets the maximal value of the time-step to $\tau_\text{max}$. Defaults to
+    $1$.    
     \codeitem{min-tau $\tau_\text{min}$}
     Sets the minimal value of the time-step to $\tau_\text{min}$ and enables
     the iterative update of the time-step. Defaults to
     $10^{-7}$. The argument $\tau_\text{min}$ is optional.
-    \codeitem{hist-tau-search $cutoff$ $nbins$ $bound$}
-    Update the time-step based on histogramming of the ratio
-    $\frac{H_{ij}}{p(i|j)}$. Not compatible with the tau $\tau$ SEARCH
-    option. The three arguments $cutoff$, $nbins$ and $bound$ are
-    optional. $0<cutoff<1$ is the fraction of the histogram used for determining
-    the new timestep, $nbins$ the number of bins in the histogram and $bound$
-    is the maximum value of $\frac{H_{ij}}{p(i|j)}$ to be stored.
-    \codeitem{keeptaufixed}
+    \codeitem{keepTauFixed}
     Do never update $\tau$ and the related parameter $p_\text{singles}$,
     $p_\text{doubles}$ or $p_\text{parallel}$.
     \codeitem{truncate-spawns $n$ UNOCC}
@@ -852,27 +863,27 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Wave function initialization options}
   \begin{description}
-    \codeitem{readpops}
+    \codeitem{\textcolor{oblue}{walkContGrow}}
+    When reading in a wave function from a file, do not set the shift or enter
+    variable shift mode.    
+    \codeitem{\textcolor{oblue}{defineDet $det$}}
+    Sets the reference determinant of the calculation to $det$. If no other
+    initialisation is specified, this will also be the initial
+    wave function. The format can either be a comma-separated list of spin
+    orbitals, a range of spin orbitals (like 12-24) or a combination of both.    
+    \codeitem{readPops}
     Read in the wave function from a file and use the read-in wave function
     for initialisation. In addition to the wave function, also the time-step
     and the shift are read in from the file. This starts the calculation in
     variable shift mode, maintaining a constant walker number, unless
-    \texttt{walkcontgrow} is given.
+    \texttt{walkContGrow} is given.
     \codeitem{readpops-changeref}
     Allow the reference determinant to be updated after reading in a
     wave function.
-    \codeitem{walkcontgrow}
-    When reading in a wave function from a file, do not set the shift or enter
-    variable shift mode.
-    \codeitem{startinglepart $n$}
+    \codeitem{startSinglePart $n$}
     Initialise the wave function with $n$ walkers on the reference only unless
     specified differently. The argument $n$ is optional and defaults to $1$.
-    \codeitem{definedet $det$}
-    Sets the reference determinant of the calculation to $det$. If no other
-    initialisation is specified, this will also be the initial
-    wave function. The format can either be a comma-separated list of spin
-    orbitals, a range of spin orbitals (like 12-24) or a combination of both.
-    \codeitem{proje-changref $frac$ $min$}
+    \codeitem{proje-changeRef $frac$ $min$}
     Allow the reference to change if a determinant obtains $frac$ times the
     population of the current reference and the latter has a population of at
     least $min$. Both arguments are optional and default to $1.2$ and $50$,
@@ -883,28 +894,28 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Initiator options}
   \begin{description}
-    \codeitem{truncinitiator}
+    \codeitem{\textcolor{oblue}{truncInitiator}}
     Use the initiator method \footnote{D. Cleland, G.H. Booth, A. Alavi,
       J. Chem. Phys. 132, 041103 (2010)}.
-    \codeitem{addtoinitiator $x$}
+    \codeitem{\textcolor{oblue}{addToInitiator $x$}}
     Sets the initiator threshold to $x$, so any determinant with more than $x$
     walkers will be an initiator.
     \codeitem{senior-initiators $age$}
     Makes any determinant that has a half-time of at least $age$ iterations an
     initiator. $age$ is optional and defaults to $1$.
-    \codeitem{superinitiator $n$}
+    \codeitem{superInitiator $n$}
     Create a list of $n$ superinitiators, from which all connected
     determinants are set to be initiators. The superinitiators are chosen
     according to population. $n$ is optional and defaults to $1$. 
-    \codeitem{coherent-superinitiators $mode$}
+    \codeitem{coherent-superInitiators $mode$}
     Apply a restriction on the sign-coherence between a determinant and any
     connected superinitiator to determine whether it becomes an initiator due
     to connection. The optional argument $mode$ can be chosen from STRICT,
     WEAK, XI, AV and OFF. The default is WEAK and is enabled by default if the
-    \texttt{superinitiators} keyword is given.
-    \codeitem{dynamic-superinitiators $n$}
+    \texttt{superInitiators} keyword is given.
+    \codeitem{dynamic-superInitiators $n$}
     Updates the list of superinitiators every $n$ steps. This is enabled by default with
-    $n=100$ if the \texttt{superinitiators} keyword is given. A value of 0
+    $n=100$ if the \texttt{superInitiators} keyword is given. A value of 0
     indicates no update. This implies the \texttt{dynamic-core $n$} option
     (with the same $n$) unless specified otherwise.
     \codeitem{allow-signed-spawns $mode$}
@@ -961,6 +972,13 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Adaptive shift options}
   \begin{description}
+    \codeitem{auto-adpative-shift $t$ $\alpha$ $c$}
+    Scale the shift per determinant based on the acceptance rate on a
+    determinant. Has three optional arguments. The first is the threshold value $t$ which
+    is the minimal number of spawning attempts from a determinant over the full calculation
+    required before the shift is scaled, with a default of $10$. The second is
+    the scaling exponent $\alpha$ with a default of $1$ and the last is the
+    minimal scaling factor, which uses $\frac{1}{\text{HF conn.}}$ as default.    
     \codeitem{linear-adaptive-shift $\sigma$ $f_1$ $f_2$}
     Scale the shift per determinant linearly with the population of a determinant. All arguments are optional
     and define the function used for scaling. $\sigma$ gives the minimal
@@ -974,13 +992,6 @@ the \texttt{endsys} keyword.
     \codeitem{core-adaptive-shift}
     By default, determinants in the corespace are always applied the full
     shift. Using this option also scales the shift in the corespace.
-    \codeitem{auto-adpative-shift $t$ $\alpha$ $c$}
-    Scale the shift per determinant based on the acceptance rate on a
-    determinant. Has three optional arguments. The first is the threshold value $t$ which
-    is the minimal number of spawning attempts from a determinant over the full calculation
-    required before the shift is scaled, with a default of $10$. The second is
-    the scaling exponent $\alpha$ with a default of $1$ and the last is the
-    minimal scaling factor, which uses $\frac{1}{\text{HF conn.}}$ as default.
     \codeitem{aas-matele2}
     Uses the matrix elements for determining the scaling factor in the \texttt{auto-adaptive-shift}. The recommended option to scale the shift.
   \end{description}
@@ -1004,12 +1015,11 @@ the \texttt{endsys} keyword.
   
   \subsubsection{Semi-stochastic options}
   \begin{description}
-    \codeitem{semi-stochastic}
+    \codeitem{\textcolor{oblue}{semi-stochastic}}
     Turn on the semi-stochastic adaptation.
-    \codeitem{dynamic-core $n$}
-    Update the core space every $n$ iterations, where $n$ is optional and
-    defaults to $400$. This is enabled by default if the
-    \texttt{superinitiators} option is given.
+    \codeitem{\textcolor{oblue}{pops-core $n$}}
+    When starting from a POPSFILE, this option will use the $n$ most
+    populated determinants from the popsfile to form the core space.    
     \codeitem{doubles-core}
     Use the reference determinant and all single and double excitations
     from it to form the core space.
@@ -1045,24 +1055,28 @@ the \texttt{endsys} keyword.
     \codeitem{fci-core}
     Use all determinants to form the core space. A fully deterministic
     projection is therefore performed with this option.
-    \codeitem{pops-core $n$}
-    When starting from a POPSFILE, this option will use the $n$ most
-    populated determinants from the popsfile to form the core space.
     \codeitem{read-core}
     Use the determinants in the CORESPACE file to form the core space.
     A CORESPACE file can be created by using the write-core option in
     the LOGGING block.
+    \codeitem{dynamic-core $n$}
+    Update the core space every $n$ iterations, where $n$ is optional and
+    defaults to $400$. This is enabled by default if the
+    \texttt{superinitiators} option is given.    
     \end{description}
 
   \subsubsection{Trial wave function options}
   \begin{description}
-    \codeitem{trial-wavefunction $n$}
+    \codeitem{\textcolor{oblue}{trial-wavefunction $n$}}
     Use a trial wave function to obtain an estimate for the energy, as
     described in \ref{sec:trial}. The argument $n$ is optional, when given,
     the trial wave function will be initialised $n$ iterations after the
     variable shift mode started, else, at the start of the calculation. The
     trial wave function is defined through one of the following keywords
     \begin{description}
+    \codeitem{\textcolor{oblue}{pops-trial $n$}}
+    When starting from a POPSFILE, this option will use the $n$ most
+    populated determinants from the popsfile to form the trial space.      
     \codeitem{doubles-trial}
     Use the reference determinant and all single and double excitations
     from it to form the trial space.
@@ -1098,18 +1112,15 @@ the \texttt{endsys} keyword.
     \codeitem{fci-trial}
     Use all determinants to form the trial space. A fully deterministic
     projection is therefore performed with this option.
-    \codeitem{pops-trial $n$}
-    When starting from a POPSFILE, this option will use the $n$ most
-    populated determinants from the popsfile to form the trial space.
     \end{description}
   \end{description}
 
     \subsubsection{Memory options}
   \begin{description}
-    \codeitem{memoryfacpart $x$}
+    \codeitem{memoryFacPart $x$}
     Sets the factor between the allocated space for the wave function and the
     required memory for the specified number of walkers to $x$. Defaults to $10$.
-    \codeitem{memoryfacspawn $x$}
+    \codeitem{memoryFacSpawn $x$}
     Sets the factor between the allocated space for new spawns and the estimate of
     required memory for the spawns of the specified number of walkers on a
     single processor to $x$. The memory required for spawns increases, the more
@@ -1125,7 +1136,7 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Reduced density matrix (RDM) options}
   \begin{description}
-    \codeitem{rdmsamplingiters $n$}
+    \codeitem{rdmSamplingIters $n$}
     Set the number of iterations for sampling the RDMs to $n$. After $n$
     iterations of sampling, the calculation ends.
     \codeitem{inits-rdm}
@@ -1146,11 +1157,11 @@ the \texttt{endsys} keyword.
   subblock is started with the \texttt{methods} keyword and terminated with
   the \texttt{endmethods} keyword.
   \begin{description}
-    \codeitem{methods}
+    \codeitem{\textcolor{mred}{methods}}
     Starts the METHODS block
-    \codeitem{endmethods}
+    \codeitem{\textcolor{mred}{endmethods}}
     Terminates the METHODS block.    
-    \codeitem{method $mode$}
+    \codeitem{\textcolor{mred}{method $mode$}}
     Sets the algorithm to be executed. The relevant choice for $mode$ is
     VERTEX FCIMC to run an FCIQMC calculation. Alternative choices are
     DETERM-PROJ to run a deterministic calculation and SPECTRAL-LANCZOS to
@@ -1171,15 +1182,15 @@ the \texttt{endsys} keyword.
       considered active in this calculation. The orbitals are selected
       according to orbital energy, the $n$ lowest and $m$ highest orbitals in
       energy are frozen.
-      \codeitem{freezeinner $n$ $m$}
+      \codeitem{freezeInner $n$ $m$}
       Freeze $n$ core and $m$ virtual orbitals which are not to be
       considered active in this calculation. The orbitals are selected
       according to orbital energy, the $n$ highest and $m$ lowest orbitals in
       energy are frozen.
-      \codeitem{partiallyfreeze $n_\text{orb}$ $n_\text{holes}$}
+      \codeitem{partiallyFreeze $n_\text{orb}$ $n_\text{holes}$}
         Freeze $n_\text{orb}$ core orbitals partially. This means at most
         $n_\text{holes}$ holes are now allowed in these orbitals.
-      \codeitem{partiallyfreezevirt $n_\text{orb}$ $n_\text{els}$}
+      \codeitem{partiallyFreezeVirt $n_\text{orb}$ $n_\text{els}$}
         Freeze $n_\text{orb}$ virtual orbitals partially. This means at most
         $n_\text{els}$ electrons are now allowed in these orbitals.        
   \end{description}
@@ -1306,28 +1317,28 @@ the \texttt{endsys} keyword.
     started with the \texttt{logging} keyword and terminated with the
     \texttt{endlog} keyword.
     \begin{description}
-      \codeitem{logging}
+      \codeitem{\textcolor{oblue}{logging}}
       Starts the LOGGING block.
-      \codeitem{endlog}
-      Terminates the LOGGING block.      
-      \codeitem{highlypopwrite $n$}
-      Print out the $n$ most populated determinants at the end of the
-      calculation. Is enabled by default with $n=15$.
-      \codeitem{inits-exlvl-write $n$}
-      Sets the excitation level up to which the number of initiators is logged
-      to $n$. Defaults to $n=8$.
+      \codeitem{\textcolor{oblue}{endlog}}
+      Terminates the LOGGING block.
+      \codeitem{\textcolor{oblue}{hdf5-popsfile}}
+      Sets the format to read and write the wave function to HDF5. Requires building
+      with the \texttt{ENABLE-HDF5} cmake option.
       \codeitem{popsfile $n$}
       Save the current wave function on disk at the end of the
       calculation. Can be used to initialize subsequent calculations and
       continue the run. This is enabled by default. $n$ is optional and, when
       given, specifies that every $n$ iteration, the wave function shall be
       saved. Setting $n=-1$ disables this option.
-      \codeitem{hdf5-popsfile}
-      Sets the format to read and write the wave function to HDF5. Requires building
-      with the \texttt{ENABLE-HDF5} cmake option.
       \codeitem{hdf5-pops-write}
       Sets the format to write the wave function to HDF5. Requires building
-      with the \texttt{ENABLE-HDF5} cmake option.
+      with the \texttt{ENABLE-HDF5} cmake option.      
+      \codeitem{highlyPopWrite $n$}
+      Print out the $n$ most populated determinants at the end of the
+      calculation. Is enabled by default with $n=15$.
+      \codeitem{inits-exlvl-write $n$}
+      Sets the excitation level up to which the number of initiators is logged
+      to $n$. Defaults to $n=8$.
       \codeitem{binarypops}
       Sets the format to write the wave function to binary.
       \codeitem{nomcoutput}
@@ -1338,42 +1349,42 @@ the \texttt{endsys} keyword.
     These options control how the RDMs are printed. For a description of how
     the RDMs are calculated and the content of the files, please see section \ref{sec:rdms}.
     \begin{description}
-      \codeitem{calcrdmonfly $i$ $step$ $start$}
+      \codeitem{calcRdmOnfly $i$ $step$ $start$}
       Calculate RDMs stochastically over the course of the calculation. Starts
       sampling RDMs after $start$ iterations, and outputs an average every $step$
       iterations. $i$ indicates whether only 1-RDMs (1), only 2-RDMs (2) or
       both are produced.
-      \codeitem{rdmlinspace $start$ $n$ $step$}
+      \codeitem{rdmLinSpace $start$ $n$ $step$}
       A more user friendly version of \texttt{calcrdmonfly} and \texttt{rdmsamplingiters}, this samples both
       1- and 2-RDMs starting at iteration $start$, outputting an average every
       $step$ iterations $n$ times, then ending the calculation.
-      \codeitem{diagflyonerdm}
+      \codeitem{diagFlyOneRdm}
       Diagonalise the 1-RDMs, yielding the occupation numbers of the natural
       orbitals.
-      \codeitem{printonerdm}
+      \codeitem{printOneRdm}
       Always output the 1-RDMs to a file, regardless of which RDMs are
       calculated. May compute the 1-RDMs from the 2-RDMs.
-		\codeitem{writerdmstoread off}
-	The presence of this keyword overrides the default.  If the OFF word is present, the unnormalised \code{TwoRDM_POPS_a***}
+      \codeitem{writeRdmsToRead off}
+      The presence of this keyword overrides the default.  If the OFF word is present, the unnormalised \code{TwoRDM_POPS_a***}
     files will definitely not be printed, otherwise they definitely will be, regardless of the state of the
     \code{popsfile/binarypops} keywords.
 
-    \codeitem{readrdms}
+    \codeitem{readRdms}
     This keyword tells the calculation to read in the \code{TwoRDM_POPS_a***} files from a previous calculation.  The
     restarted calc then continues to fill these RDMs from the very first iteration regardless of the value put with
-    the \code{calcrdmonfly} keyword.  The calculation will crash if one of the \code{TwoRDM_POPS_a***} files are missing.  If
-    the \code{readrdms} keyword is present, but the calc is doing a \code{StartSinglePart} run, the \code{TwoRDM_POPS_a***} files
+    the \code{calcRdmOnFly} keyword.  The calculation will crash if one of the \code{TwoRDM_POPS_a***} files are missing.  If
+    the \code{readRdms} keyword is present, but the calc is doing a \code{StartSinglePart} run, the \code{TwoRDM_POPS_a***} files
     will be ignored.
 
-    \codeitem{nonormrdms}
+    \codeitem{noNormRdms}
     This will prevent the final, normalised \code{TwoRDM_a***} matrices from being printed.  These files can be quite
     large, so if the calculation is definitely not going to be converged, this keyword may be useful.
 
-    \codeitem{writerdmsevery iter}
-    This will write the normalised \code{TwoRDM_a***} matrices every \code{iter} iterations while the RDMs are being
+    \codeitem{writeRdmsEvery $iter$}
+    This will write the normalised \code{TwoRDM_a***} matrices every $iter$ iterations while the RDMs are being
     filled.  At the moment, this must be a multiple of the frequency with which the energy is calculated.  The
     files will be labelled with incrementing values - \code{TwoRDM_a***.1} is the first, and then next \code{TwoRDM_a***.2} etc.      
-      \codeitem{printrodump}
+      \codeitem{printRoDump}
       Output the integrals of the natural orbitals to a file.
     \end{description}
 
