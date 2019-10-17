@@ -1403,7 +1403,6 @@ module FciMCParMod
                             if(scaleFactor > 1) then
                                print *, "WARNING: Spawn exceeding threshold. Scaling down by", &
                                     scaleFactor
-                               print *, "Scale factor is now", currentSpawnScale()
                                WalkersToSpawn = WalkersToSpawn + scaleFactor - 1
                                ! count the number of spawns at this level
                                call setLeveLTimer()
