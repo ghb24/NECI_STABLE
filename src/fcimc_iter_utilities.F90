@@ -401,8 +401,9 @@ contains
         ! Allow room to receive up to 1000 elements.
         real(dp) :: recv_arr(1000)
         ! Equivalent arrays for HElement_t variables.
-        HElement_t(dp) :: send_arr_helem(100)
-        HElement_t(dp) :: recv_arr_helem(100)
+        integer, parameter :: arr_helem_size = 300
+        HElement_t(dp) :: send_arr_helem(arr_helem_size)
+        HElement_t(dp) :: recv_arr_helem(arr_helem_size)
         ! Equivalent arrays for EXLEVELStats (of exactly required size).
         real(dp) :: send_arr_WNorm(3*(NEl+1)*inum_runs), &
                     recv_arr_WNorm(3*(NEl+1)*inum_runs)
@@ -595,7 +596,7 @@ contains
         sizes(14) = size(ENumOut)
 
 
-        if (sum(sizes(1:14)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+        if (sum(sizes(1:14)) > arr_helem_size) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
