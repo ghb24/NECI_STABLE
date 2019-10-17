@@ -92,7 +92,7 @@ contains
         write(6,'(/,1x,a49,/)') "Beginning finite-temperature Lanczos calculation."
         call neci_flush(6)
 
-        expected_ndets_tot = choose(nbasis, nel)
+        expected_ndets_tot = int(choose(nbasis, nel))
         write(6,*) "Expected number:", expected_ndets_tot
         call neci_flush(6)
 
@@ -123,7 +123,7 @@ contains
         end do
 
         ndets_tot = int(sum(ndets_ftlm), sizeof_int)
-        expected_ndets_tot = choose(nbasis, nel)
+        expected_ndets_tot = int(choose(nbasis, nel))
         if (ndets_tot /= expected_ndets_tot) then
             write(6,*) "ndets counted:", ndets_tot, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &
@@ -192,13 +192,13 @@ contains
         do i = 1, counts(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
                 lanc_vecs(i, ivec+1) = lanc_vecs(i, ivec+1) + &
-                    sparse_ham(i)%elements(j)*full_vec(sparse_ham(i)%positions(j))        
+                    sparse_ham(i)%elements(j)*full_vec(sparse_ham(i)%positions(j))
             end do
         end do
-        
+
         overlap = dot_product(lanc_vecs(:,ivec+1), lanc_vecs(:,ivec))
         call MPISumAll(overlap,tot_overlap)
-        
+
         if (ivec == 1) then
             lanc_vecs(:,ivec+1) = lanc_vecs(:,ivec+1) - tot_overlap*lanc_vecs(:,ivec)
         else
@@ -286,7 +286,7 @@ contains
         write(ftlm_unit,'()')
 
     end subroutine subspace_extraction_ftlm
-    
+
     subroutine add_in_contribs_to_energy()
 
         integer :: i, j

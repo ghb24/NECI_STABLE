@@ -1670,7 +1670,33 @@ calculation, which is one measure of the accuracy of the RDMs.  Also printed by 
 	\item Model calculations?
 	\item Tools for processing POPSFILES?
 \end{itemize}
+\subsection{Using CTAGS with VIM}
 
+It is useful, especially for new developers, to be able to easily navigate through NECI code.
+A simple solution for Vim users is to generate a \code{tags} file containing the names of all functions and global variables and their locations.
+Vim automatically reads this file from the current directory, if it exists, and use it to facilitate code navigation. Then you can jump to the deceleration of a variable or a function
+by putting the cursor over it and pressing \code{Ctrl+]} . To go back, press \code{Ctrl+t}.
+Other tag-related commands are explained here: \url{https://vim.fandom.com/wiki/Browsing_programs_with_tags}.
+
+To generate the tags file, a program called \code{ctags} is needed. It is installed  by default in many Linux distributions, but this version is most probably the one called  \code {ctags (GNU Emacs)} and does not support the options we need. The required version is \code{Exuberant Ctags} or its derivative \code{Universal Ctags} which you can be downloaded from here: \url{https://github.com/universal-ctags/ctags}.
+
+Once you installed the correct version and made sure it is the default one,  \footnote{Executing \code{ctags --version} should print either \code{Universal Ctags} or \code{Exuberant Ctags} but not \code{ctags (GNU Emacs)}} go to the source directory of NECI and run the script \code{gen_vim_tags.sh} which is available in the tools directory
+\begin{lstlisting}[gobble=4]
+	 cd neci/src
+    ../tools/gen_vim_tags.sh
+ \end{lstlisting}
+ This script does some tricks using the preprocessor to solve issues with handling macros in NECI files.  Without these, \code{ctags} would miss many variables due to parsing issues.
+The script generates the necessary \code{tags} file in the current directory and code navigation should become available for all source files in this directory.
+
+
+\paragraph{Note} \code{tags} is simply a text file with the symbol's name,  the file where its defined, and the line number . There is no automatic magic happening behind the scenes as one would expect from a full-fledged IDE. \emph{Therefore, whenever the code changes, you need to explicitly re-generate the \code{tags} file}. Otherwise, Vim will simply jump to the old positions of the symbols.
+
+\paragraph{Tip} Another useful tool is \code{Tagbar} plugin for Vim which lists all functions/variables in the current file in a side window. Using this plugin does not require the \code{tags} file, because it generates its own tags on-the-fly. However, you will need to install an updated version of \code{ctags} executable. All necessary details are explained on the plugin's homepage: \url{https://github.com/majutsushi/tagbar}
+
+
+\paragraph{EMACS Usage}
+Like Vim, Emacs accepts  \code{TAGS} file (notice the capital letters).
+This file can similarly be generated using \code{gen_emacs_tags.sh}, then you can use \code{Meta+.} to jump to definition and \code{Meta+*} to go back. Other tag-related commands are explained here: \url{https://www.emacswiki.org/emacs/EmacsTags}.
 
 \chapter{Working in NECI}
 In many ways, NECI is a fairly hostile environment to code, especially for
@@ -2025,6 +2051,21 @@ and a range of other guidelines.
 			optimised or debug builds.
 		\end{warningbox}
 
+	\headitem{Floating point comparison and integer division}
+
+    It is usually a bad idea to test floating point numbers
+    for (in-)equality using \code{==} or \code{/=}.
+    Equality should rather be tested with an expression like
+    $ |a - b| < \epsilon$.
+    In the \code{util_mod} module there are \code{near_zero}
+    and \code{operator(.isclose.)} which should be used for this purpose.
+
+    If one divides two integers \code{5 / 3 == 1} the result gets truncated
+    to the nearest integer.
+    Sometimes this is not wanted, and the compiler warns about it.
+    For this reason one should use \code{5 .div. 3} to make it explicit
+    that integer division is indeed wanted.
+=======
     \headitem{Operator Layout}
         Always surround these binary operators with a single space on either side:
         assignment (\code{=}), comparisons (\code{==, <, >, /=, <=, >=}),
@@ -2139,18 +2180,25 @@ and a range of other guidelines.
             module module_name
 
             	! To the extent possible, include statements should be at the
-				! beginning of a module, and not elsewhere.
+                ! beginning of a module, and not elsewhere.
+                ! If possible they should import only actually used identifiers.
             	use SystemData, only: nel, tHPHF
             	use module_data
             	use constants
             	implicit none
 
-            	! Add an interface to an external (non-modularised) function
+                ! To the extent possible, declare all identifiers of
+                !   a module as private by default
+                !   and export explicitly with the public keyword.
+                private
+                public :: sub_name, fn_name
+
+                ! Add an interface to an external (non-modularised) function
             	interface external_fn
-            		function splat_it(in_val) result(ret_val) &
+            	    function splat_it(in_val) result(ret_val) &
 											  bind(c, name='symbol_name')
-            			! n.b. interface statements shield from modular includes
-            			use constants
+            		    ! n.b. interface statements shield from modular includes
+            			import :: dp
             			implicit none
             			integer, intent(in) :: in_val
             			real(dp) :: ret_val

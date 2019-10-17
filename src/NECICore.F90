@@ -50,10 +50,10 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
     logical, intent(in), optional :: tCPMD, tVASP, tMolpro_local, call_as_lib
     character(*), intent(in), optional :: filename_in, int_name
     type(timer), save :: proc_timer
-    integer :: ios,iunit,iunit2,i,j,isfreeunit, iCacheFlag_
+    integer :: ios, iunit, iunit2, i, j, isfreeunit, iCacheFlag_
     character(*), parameter :: this_routine = 'NECICore'
     character(:), allocatable :: Filename
-    logical :: toverride_input,tFCIDUMP_exist, tCPMD_, tVASP_
+    logical :: toverride_input, tFCIDUMP_exist, tCPMD_, tVASP_
     type(kp_fciqmc_data) :: kp
 
     def_default(iCacheFlag_, iCacheFlag, 0)

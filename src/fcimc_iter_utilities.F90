@@ -11,19 +11,19 @@ module fcimc_iter_utils
                         FracLargerDet, tKP_FCIQMC, MaxNoatHF, SftDamp, &
                         nShiftEquilSteps, TargetGrowRateWalk, tContTimeFCIMC, &
                         tContTimeFull, pop_change_min, tPositiveHFSign, &
-                        qmc_trial_wf, nEquilSteps, t_hist_tau_search, &
+                        qmc_trial_wf, nEquilSteps, t_hist_tau_search, AvMCExcits, &
                         t_hist_tau_search_option, tFixedN0, tSkipRef, N0_Target, &
-                        tTrialShift, tFixTrial, TrialTarget, tEN2
+                        tTrialShift, tFixTrial, TrialTarget, tEN2, tDynamicAvMCEx
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tFCIMCStats2, tPrintDataTables, tLogEXLEVELStats
     use semi_stoch_procs, only: recalc_core_hamil_diag
     use bit_rep_data, only: NIfD, NIfTot, NIfDBO
     use hphf_integrals, only: hphf_diag_helement
-    use global_det_data, only: set_det_diagH
     use Determinants, only: get_helement
-    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av
+    use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
+         AllInitsPerExLvl, initsPerExLvl
     use tau_search, only: update_tau
-    use rdm_data, only: en_pert_main
+    use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
     use fcimc_initialisation
     use fcimc_output
@@ -57,7 +57,7 @@ contains
 
         ! Calculate the acceptance ratio
         if (tContTimeFCIMC .and. .not. tContTimeFull) then
-           if(abs(real(cont_spawn_attempts)) > eps) then 
+           if(abs(real(cont_spawn_attempts)) > eps) then
               AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
            else
               AccRat = 0.0_dp
@@ -107,7 +107,7 @@ contains
                 endif
             enddo
 #else
-            if ((AllTotParts(1).eq.0).or.(AllTotParts(inum_runs).eq.0))  then
+            if (near_zero(AllTotParts(1)) .or. near_zero(AllTotParts(inum_runs)))  then
                 write(iout,"(A)") "All particles have died. Restarting."
                 tRestart=.true.
             else
@@ -151,6 +151,15 @@ contains
             return
         endif
 
+        ! update the number of spawning attempts per walker
+        if(tDynamicAvMCEx) then
+           if(allNValidExcits /= 0) then
+              ! we try to have approx. one valid excitation generated per walker
+              AvMCExcits = (allNValidExcits + allNInvalidExcits)/(allNValidExcits)
+              write(6,*) "Now spawning ", AvMCExcits, " times per walker"
+           endif
+        end if
+
     end subroutine iter_diagnostics
 
     subroutine population_check ()
@@ -190,7 +199,7 @@ contains
                 ! This testing routine is only called once every update
                 ! cycle. The 1.5 gives us a buffer to cope with particle
                 ! growth
-                TempSpawnedPartsSize = maxval(iHighestPop) * 1.5
+                TempSpawnedPartsSize = int(maxval(iHighestPop) * 1.5)
                 allocate_temp_parts = .true.
                 !write(6,*) 1.5 * maxval(iHighestPop), TempSpawnedPartsSize
             end if
@@ -220,7 +229,7 @@ contains
         !      of error here, by ignoring the fractional part...
         ! [Werner Dobrautz 15.5.2017:]
         ! maybe this samll error here is the cause of the failed test_suite
-        ! runs.. 
+        ! runs..
         if (tReplicaReferencesDiffer) then
 
             do run = 1, inum_runs
@@ -248,7 +257,7 @@ contains
             ! populations seperately...
             if (run /= 1 .and. .not. tReplicaReferencesDiffer) &
                 exit
-            
+
             ! What are the change conditions?
 #ifdef __CMPLX
             if (tReplicaReferencesDiffer) then
@@ -265,9 +274,9 @@ contains
 #endif
 !            write(iout,*) "***",AllNoAtHF,FracLargerDet,pop_change, pop_highest,proc_highest
             ! Do we need to do a change?
-            ! is this a valid comparison?? we ware comparing a real(dp) pop_change 
+            ! is this a valid comparison?? we ware comparing a real(dp) pop_change
             ! with a (now) 32 bit integer..
-            if (pop_change < real(pop_highest(run),dp) .and. & 
+            if (pop_change < real(pop_highest(run),dp) .and. &
                 real(pop_highest(run),dp) > pop_change_min) then
 
                 if (tChangeProjEDet) then
@@ -285,9 +294,9 @@ contains
 
                     ! Communicate the change to all dets and print out.
                     ! [W.D. 15.5.2017:]
-                    ! we are typecasting here too.. 
-                    ! we are casting a 32 bit int to a 64 bit ... 
-                    ! that could cause troubles! 
+                    ! we are typecasting here too..
+                    ! we are casting a 32 bit int to a 64 bit ...
+                    ! that could cause troubles!
 !                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
 !                                    int(proc_highest(run),n_int))
                     call MPIBcast (HighestPopDet(0:NIfTot, run), NIfTot+1, &
@@ -314,7 +323,7 @@ contains
                         tCheckHighestPopOnce = .false.
                     endif
 
-                ! Or are we restarting the calculation with the reference 
+                ! Or are we restarting the calculation with the reference
                 ! det switched?
 #ifdef __CMPLX
                 elseif (tRestartHighPop .and. &
@@ -327,7 +336,7 @@ contains
                     ! Here we are restarting the simulation with a new
                     ! reference. See above block for doing it on the fly.
                     !
-                    
+
                     ! Broadcast the changed det to all processors
 !                     call MPIBcast (HighestPopDet(:,run), NIfTot+1, &
 !                                    int(proc_highest(run),n_int))
@@ -335,7 +344,7 @@ contains
                                    int(proc_highest(run),sizeof_int))
 
                     call update_run_reference(HighestPopDet(:, run), run)
-                    
+
                     ! Only update the global reference energies if they
                     ! correspond to run 1 (which is used for those)
                     if (run == 1) then
@@ -357,7 +366,7 @@ contains
     end subroutine population_check
 
     subroutine communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
-      
+
         ! This routine sums all estimators and stats over all processes.
 
         ! We want this to be done in as few MPI calls as possible. Therefore, all
@@ -444,20 +453,14 @@ contains
         sizes(26) = 1 ! nspawned (single int, not an array)
         ! communicate the inst_double_occ and the coherence numbers
         sizes(27) = 1
-        sizes(28) = 1
-        sizes(29) = 1
-        sizes(30) = 1
-        ! Perturbation correction
-        sizes(31) = 1
-        ! replica-initiator statistics
-        sizes(32) = 1
-        sizes(33) = 1
-        sizes(34) = 1
         ! truncated weight
-        sizes(35) = 1
+        sizes(28) = 1
+        ! inits per ex lvl
+        sizes(29) = size(initsPerExLvl)
+        sizes(30) = 1
+        sizes(31) = 1
 
-
-        if (sum(sizes(1:34)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:31)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -491,17 +494,13 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
-        ! coherence conflict with SIs
-        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = nCoherentDoubles
-        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nIncoherentDets
-        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nConnection
-        ! sign conflicts between replicas
-        low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = NoSIInitsConflicts;
-        low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = NoInitsConflicts;
-        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = avSigns;
         ! truncated weight
-        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = truncatedWeight;        
-        
+        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = truncatedWeight;
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = initsPerExLvl;
+        ! excitation number trackers
+        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nInvalidExcits;
+        low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nValidExcits;
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -539,17 +538,15 @@ contains
         low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
-        ! double occ: 
+        ! double occ:
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
-        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(29) - 1; AllIncoherentDets = recv_arr(low);
-        low = upp + 1; upp = low + sizes(30) - 1; AllConnection = recv_arr(low);
-        ! replica-averaged initiators
-        low = upp + 1; upp = low + sizes(32) - 1; AllNoSIInitsConflicts = recv_arr(low);
-        low = upp + 1; upp = low + sizes(33) - 1; AllNoInitsConflicts = recv_arr(low);
-        low = upp + 1; upp = low + sizes(34) - 1; AllAvSigns = recv_arr(low);
         ! truncated weight
-        low = upp + 1; upp = low + sizes(35) - 1; AllTruncatedWeight = recv_arr(low);
+        low = upp + 1; upp = low + sizes(28) - 1; AllTruncatedWeight = recv_arr(low);
+        ! initiators per excitation level
+        low = upp + 1; upp = low + sizes(29) - 1; AllInitsPerExLvl = nint(recv_arr(low:upp));
+        ! excitation number trackers
+        low = upp + 1; upp = low + sizes(30) - 1; allNInvalidExcits = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(31) - 1; allNValidExcits = nint(recv_arr(low));
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -564,10 +561,13 @@ contains
             sizes(7) = size(trial_denom)
             sizes(8) = size(trial_num_inst)
             sizes(9) = size(trial_denom_inst)
+            sizes(10) = size(init_trial_numerator)
+            sizes(11) = size(init_trial_denom)
         end if
-        if (tEN2) sizes(10) = 1
+        if (tEN2) sizes(12) = 1
+        sizes(13) = size(InitsEnumCyc)
 
-        if (sum(sizes(1:10)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+        if (sum(sizes(1:11)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
@@ -581,10 +581,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
             low = upp + 1; upp = low + sizes(9) - 1; send_arr_helem(low:upp) = trial_denom_inst;
+            low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low:upp) = init_trial_numerator;
+            low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = init_trial_denom;
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low) = en_pert_main%ndets;
+           low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low) = en_pert_main%ndets;
         endif
+        low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = InitsENumCyc;
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -600,10 +603,13 @@ contains
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(9) - 1; tot_trial_denom_inst = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(10) - 1; tot_init_trial_numerator = recv_arr_helem(low:upp);
+            low = upp + 1; upp = low + sizes(11) - 1; tot_init_trial_denom = recv_arr_helem(low:upp);
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(10) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
+           low = upp + 1; upp = low + sizes(12) - 1; en_pert_main%ndets_all = int(recv_arr_helem(low));
         endif
+        low = upp + 1; upp = low + sizes(13) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -660,7 +666,7 @@ contains
            tSearchTauDeath = ltmp
         end if
 
-        if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. .not. tFillingStochRDMOnFly) then   
+        if ((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. .not. tFillingStochRDMOnFly) then
             call update_tau()
 
         ! [Werner Dobrautz 4.4.2017:]
@@ -676,31 +682,36 @@ contains
                 ! make it relative to the HF energy.
                 if (ntrial_excits == 1) then
                     tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
+                    tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*&
+                         trial_energies(1))
                 else
                     if (replica_pairs) then
                         do run = 2, inum_runs, 2
                             tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
                                 tot_trial_denom(run-1:run)*trial_energies(run/2)
+                            tot_init_trial_numerator(run-1:run) = tot_init_trial_numerator(run-1:run) + &
+                                tot_init_trial_denom(run-1:run)*trial_energies(run/2)
                         end do
                     else
                         tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
+                        tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*trial_energies)
                     end if
                 end if
             end if
         end if
-        
 
-        ! quick fix for the double occupancy: 
-        if (t_calc_double_occ_av) then 
+
+        ! quick fix for the double occupancy:
+        if (t_calc_double_occ_av) then
             ! sum up the squared norm after shift has set in TODO
             ! and use the mean value if multiple runs are used
-            ! still thinking about if i only want to calc it after 
+            ! still thinking about if i only want to calc it after
             ! equilibration
 !             if (iter > nEquilSteps) then
-                sum_norm_psi_squared = sum_norm_psi_squared + & 
+                sum_norm_psi_squared = sum_norm_psi_squared + &
                     sum(all_norm_psi_squared)/real(inum_runs,dp)
 
-                ! and also sum up the double occupancy: 
+                ! and also sum up the double occupancy:
                 sum_double_occ = sum_double_occ + all_inst_double_occ
 !             end if
         end if
@@ -716,13 +727,13 @@ contains
                 "Assertation failed: all(iter_data%update_growth_tot.eq.AllTotParts-AllTotPartsOld)")
         endif
 #endif
-    
+
     end subroutine collate_iter_data
 
     subroutine update_shift (iter_data)
 
         use CalcData, only: tInstGrowthRate, tL2GrowRate
-     
+
         type(fcimc_iter_data), intent(in) :: iter_data
         integer(int64) :: tot_walkers
         logical, dimension(inum_runs) :: tReZeroShift
@@ -740,7 +751,7 @@ contains
         ! collate_iter_data --> The values used are only valid on Root
         if (iProcIndex == Root) then
 
-           if(tL2GrowRate) then 
+           if(tL2GrowRate) then
               ! use the L2 norm to determine the growrate
               do run = 1, inum_runs
                  AllGrowRate(run) = norm_psi(run) / old_norm_psi(run)
@@ -749,7 +760,7 @@ contains
            else if(tInstGrowthRate) then
 
               ! Calculate the growth rate simply using the two points at
-              ! the beginning and the end of the update cycle. 
+              ! the beginning and the end of the update cycle.
               do run = 1, inum_runs
                  lb = min_part_type(run)
                  ub = max_part_type(run)
@@ -832,7 +843,7 @@ contains
                                 write (iout, '(a,i14)') 'Beginning to average shift value on iteration: ',iter + PreviousCycles
                             VaryShiftCycles(run) = VaryShiftCycles(run) + 1
                             SumDiagSft(run) = SumDiagSft(run) + DiagSft(run)
-                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)                            
+                            AvDiagSft(run) = SumDiagSft(run) / real(VaryShiftCycles(run), dp)
                         endif
                     else
                         !Keep shift equal to input till target reference population is reached.
@@ -858,7 +869,7 @@ contains
 
                 else !not Fixed-N0 and not Trial-Shift
                     if (TSinglePartPhase(run)) then
-                        tot_walkers = InitWalkers * int(nNodes,int64)
+                        tot_walkers = int(InitWalkers, int64) * int(nNodes, int64)
 
 #ifdef __CMPLX
                         if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
@@ -932,10 +943,11 @@ contains
 
                     endif ! tSinglePartPhase(run) or not
 
-                    ! How should the shift change for the entire ensemble of walkers 
+                    ! How should the shift change for the entire ensemble of walkers
                     ! over all processors.
-                    if (((.not. tSinglePartPhase(run)).or.(TargetGrowRate(run).ne.0.0_dp)) .and.&
-                        .not. defer_update(run)) then
+                    if (.not. (tSinglePartPhase(run) &
+                               .and. near_zero(TargetGrowRate(run)) &
+                               .or. defer_update(run))) then
 
                         !In case we want to continue growing, TargetGrowRate > 0.0_dp
                         ! New shift value
@@ -1024,7 +1036,7 @@ contains
 
                  ! Calculate the projected energy.
 
-                 if ((AllSumNoatHF(run) /= 0.0_dp)) then
+                 if (.not. near_zero(AllSumNoatHF(run))) then
                     ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
                  endif
@@ -1032,6 +1044,8 @@ contains
                     proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
                     AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
+                         + proje_ref_energy_offsets(run)
+                    inits_proje_iter(run) = (AllInitsENumCyc(run)) / (all_cyc_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
                  endif
 
@@ -1051,6 +1065,8 @@ contains
             endif
             if(abs(sum(all_cyc_proje_denominator(1:inum_runs))) > EPS) then
                proje_iter_tot = sum(AllENumCyc(1:inum_runs)) &
+                    / sum(all_cyc_proje_denominator(1:inum_runs))
+               inits_proje_iter_tot = sum(AllInitsENumCyc(1:inum_runs)) &
                     / sum(all_cyc_proje_denominator(1:inum_runs))
             endif
 
@@ -1078,13 +1094,13 @@ contains
             endif
         enddo
 
-    end subroutine update_shift 
+    end subroutine update_shift
 
     subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
-        
+
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new_all
-        
+
         ! Zero all of the variables which accumulate for each iteration.
 
         IterTime = 0.0_sp
@@ -1095,6 +1111,7 @@ contains
         SpawnFromSing = 0.0_dp
         NoDied = 0.0_dp
         ENumCyc = 0.0_dp
+        InitsENumCyc = 0.0_dp
         ENumCycAbs = 0.0_dp
         HFCyc = 0.0_dp
         cyc_proje_denominator=0.0_dp
@@ -1110,7 +1127,7 @@ contains
         !OldAllHFCyc is the average HF value for this update cycle
         OldAllHFCyc = AllHFCyc/real(StepsSft,dp)
         !OldAllAvWalkersCyc gives the average number of walkers per iteration in the last update cycle
-        !TODO CMO: are these summed across real/complex? 
+        !TODO CMO: are these summed across real/complex?
         OldAllAvWalkersCyc = AllSumWalkersCyc/real(StepsSft,dp)
 
         ! Also the cumulative global variables
@@ -1134,6 +1151,13 @@ contains
         ! reset the truncated weight
         truncatedWeight = 0.0_dp
 
+        ! reset the logged number of initiators
+        initsPerExLvl = 0
+
+        ! and the number of excits
+        nInvalidExcits = 0
+        nValidExcits = 0
+
     end subroutine rezero_iter_stats_update_cycle
 
     subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs)
@@ -1156,7 +1180,7 @@ contains
                 call WriteFCIMCStats ()
             end if
         end if
-        
+
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
     end subroutine calculate_new_shift_wrapper
@@ -1172,7 +1196,7 @@ contains
 
     end subroutine update_iter_data
 
-    
+
 
     !Fix the overlap with trial wavefunction by enforcing the value of a random determinant of the trial space
     !As long as the shift equals the trial energy, this should still give the right dynamics.
@@ -1201,7 +1225,7 @@ contains
             call extract_sign (CurrentDets(:,j), SignCurr)
             if (.not. IsUnoccDet(SignCurr) .and. test_flag(CurrentDets(:,j), flag_trial)) then
                 trial_count = trial_count + 1
-                trial_indices(trial_count) = j 
+                trial_indices(trial_count) = j
                 amps(trial_count) = abs(current_trial_amps(1,j))
                 total_amp = total_amp + amps(trial_count)
                 !Update the overlap
@@ -1238,7 +1262,7 @@ contains
         !Enforcing an update of the random determinant of the random processor
         if(iProcIndex .eq. proc_idx) then
             !Choose a random determinant
-            do j=2, trial_count 
+            do j=2, trial_count
                 amps(j) = amps(j)+amps(j-1)
             end do
             det_idx = trial_indices(binary_search_first_ge(amps(1:trial_count), genrand_real2_dSFMT() * amps(trial_count)))

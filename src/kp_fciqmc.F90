@@ -38,6 +38,7 @@ module kp_fciqmc
     use SystemData, only: nel, lms, nbasis, tAllSymSectors, nOccAlpha, nOccBeta
     use SystemData, only: tRef_Not_HF
     use timing_neci, only: set_timer, halt_timer
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -158,7 +159,7 @@ contains
                             fcimc_excit_gen_store%tFilled = .false.
 
                             call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                                  fcimc_excit_gen_store)
+                                                  idet, fcimc_excit_gen_store)
 
                             ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                                  max_calc_ex_level)
@@ -221,7 +222,7 @@ contains
                                 do ireplica = 1, lenof_sign
 
                                     call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
-                                    
+
                                     do ispawn = 1, nspawn
 
                                         ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -260,14 +261,14 @@ contains
                                         end if
 
                                         ! If any (valid) children have been spawned.
-                                        if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+                                        if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
                                             call new_child_stats (iter_data_fciqmc, ilut_parent, &
                                                                   nI_child, ilut_child, ic, ex_level_to_ref, &
                                                                   child_sign, parent_flags, ireplica)
 
                                             call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                                   ireplica, ilut_parent, iter_data_fciqmc)
+                                                                                   ireplica, ilut_parent, iter_data_fciqmc, ierr)
 
                                         end if ! If a child was spawned.
 
@@ -297,7 +298,7 @@ contains
                         call set_timer(annihil_time)
 
                         call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
-                        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
+                        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, ierr)
 
                         TotWalkers = int(TotWalkersNew, int64)
 
@@ -525,7 +526,7 @@ contains
                         fcimc_excit_gen_store%tFilled = .false.
 
                         call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, &
-                                              fcimc_excit_gen_store)
+                                              idet, fcimc_excit_gen_store)
 
                         ex_level_to_ref = FindBitExcitLevel(iLutRef(:,1), ilut_parent, &
                              max_calc_ex_level)
@@ -578,7 +579,7 @@ contains
                         do ireplica = 1, lenof_sign
 
                             call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
-                            
+
                             do ispawn = 1, nspawn
 
                                 ! Zero the bit representation, to ensure no extraneous data gets through.
@@ -616,7 +617,7 @@ contains
                                 end if
 
                                 ! If any (valid) children have been spawned.
-                                if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+                                if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
                                     call new_child_stats (iter_data_fciqmc, ilut_parent, &
                                                           nI_child, ilut_child, ic, ex_level_to_ref,&
@@ -624,7 +625,7 @@ contains
 
 
                                     call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                                                                           ireplica, ilut_parent, iter_data_fciqmc)
+                                                                           ireplica, ilut_parent, iter_data_fciqmc, ierr)
 
                                 end if ! If a child was spawned.
 
@@ -652,7 +653,7 @@ contains
                     call set_timer(annihil_time)
 
                     call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
-                    call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc)
+                    call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, ierr)
 
                     TotWalkers = int(TotWalkersNew, int64)
 

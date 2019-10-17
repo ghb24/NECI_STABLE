@@ -97,6 +97,14 @@ tolerance = (1e-7, None, 'final_energy_2')
 program = mneci
 tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 
+[mneci/rdm/Ne_hphf/]
+program = mneci
+tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
+
+[mneci/rdm/Ne_hphf_back_spawn/]
+program = mneci
+tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
+
 [neci/parallel/HeHe_SS_Doubles/]
 program = mneci
 tolerance = (1e-9, None, 'final_energy_1')
@@ -106,6 +114,7 @@ program = dneci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
+tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 
 [hdf5/neci/*/]
 program = neci

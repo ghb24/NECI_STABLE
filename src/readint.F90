@@ -11,7 +11,7 @@ contains
          use SystemData , only : nIrreps
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
-         use util_mod, only: get_free_unit
+         use util_mod, only: get_free_unit, near_zero
          IMPLICIT NONE
          logical, intent(in) :: tbin
          integer, intent(out) :: nBasisMax(5,*),LEN,LMS
@@ -612,12 +612,12 @@ contains
          use Parallel_neci
          use shared_memory_mpi
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
-         use util_mod, only: get_free_unit
+         use util_mod, only: get_free_unit, near_zero
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
          logical, intent(in) :: tReadFreezeInts
          real(dp), intent(out) :: ECORE
-         HElement_t(dp), intent(out) :: UMAT(:)
+         HElement_t(dp), intent(inout) :: UMAT(:)
          integer(MPIArg) :: umat_win
          HElement_t(dp) Z
          COMPLEX(dp) :: CompInt
@@ -850,7 +850,7 @@ contains
                     ! Have read in T_ij.  Check it's consistent with T_ji
                     ! (if T_ji has been read in).
                    diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
-                   IF(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1) /= 0.0_dp .and. diff > 1.0e-7_dp) then
+                   IF(.not. near_zero(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)) .and. diff > 1.0e-7_dp) then
                         WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                         CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                    ENDIF
@@ -946,7 +946,7 @@ contains
 
              do while(start_ind <= UMatSize)
                 !use MPI_BYTE for transfer to be independent of the data type of UMat
-                bytecount=int(end_ind-start_ind+1,sizeof_int)*sizeof(UMat(1))
+                bytecount = int(end_ind - start_ind + 1_int64) * int(sizeof(UMat(1)))
                 call MPIBCast_inter_byte(UMat(start_ind),bytecount)
                 start_ind = end_ind + 1
                 end_ind = min(UMatSize, end_ind + chunk_size)
@@ -1068,7 +1068,7 @@ contains
 
       SUBROUTINE ReadPropInts(iProp,nBasis,iNumProp,PropFile,CoreVal,OneElInts)
 
-      use constants, only: dp, int64
+      use constants, only: dp, int64, iout
       use util_mod, only: get_free_unit
       use SymData, only: PropBitLen,nProp
       use SystemData, only: UMatEps, tROHF, tReltvy
@@ -1097,7 +1097,7 @@ contains
       if(iProcIndex.eq.0) then
           iunit = get_free_unit()
           file_name = PropFile
-          write(*,*) 'Reading integral from the file:', trim(file_name)
+          write(iout,*) 'Reading integral from the file:', trim(file_name)
           open(iunit,FILE=file_name,STATUS='OLD')
           read(iunit,FCI)
       end if

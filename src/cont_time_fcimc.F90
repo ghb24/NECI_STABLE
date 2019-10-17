@@ -44,7 +44,8 @@ contains
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
-        integer :: part_type, ic_hf, nopen, MaxIndex
+
+        integer :: part_type, ic_hf, nopen, err, MaxIndex
         logical :: survives
 
         if (lenof_sign /= 1) then
@@ -67,7 +68,7 @@ contains
         do j = 1, int(TotWalkers, sizeof_int)
 
             fcimc_excit_gen_store%tFilled = .false.
-            call extract_bit_rep(CurrentDets(:, j), det, sgn, flags, &
+            call extract_bit_rep(CurrentDets(:, j), det, sgn, flags, j, &
                                  fcimc_excit_gen_store)
 
             ! As the main list is not contiguous, skip (but store) empty sites.
@@ -84,14 +85,14 @@ contains
                 end do
                 write(iout, '(a)', advance='no') '] '
                 call WriteBitDet(iout, CurrentDets(:,j), .true.)
-                call neci_flush(iout) 
+                call neci_flush(iout)
             end if
 
             ! Global stored data to make things efficient
             hdiag = det_diagH(j)
             if (tContTimeFull) then
                 rate = get_spawn_rate(j)
-                ASSERT(rate == spawn_rate_full(det, CurrentDets(:,j)))
+                ASSERT(rate .isclose. spawn_rate_full(det, CurrentDets(:,j)))
             end if
 
             ! Calculate the flags that ought to be carried through
@@ -130,7 +131,7 @@ contains
 
             ! If this particle has been completely destroyed, then remove it
             ! from the simulation
-            if (all(sgn == 0)) then
+            if (all(near_zero(sgn))) then
                 call remove_hash_table_entry(HashIndex, det, j)
 
                 ! And add to the "freeslot" list
@@ -154,7 +155,8 @@ contains
         ! Send walkers to the correct nodes, and annihilate
         call set_timer(annihil_time)
         call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
-        call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data)
+        call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data, err)
+
         TotWalkers = TotWalkersNew
         call halt_timer(annihil_time)
         IFDEBUG(FCIMCDebug, 2) write(iout, '("Finished annihilation")')
@@ -185,7 +187,7 @@ contains
 
         real(dp) :: time, child(lenof_sign), dt, rate_adj, rate_spwn
         real(dp) :: hdiag_spwn, spwn_sgn
-        integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y, nopen_spwn
+        integer :: nspawn, spawn_sgn, det_spwn(nel), ic, i, y, nopen_spwn, err
         integer(n_int) :: ilut_spwn(0:NIfTot)
         logical :: child_survives
         HElement_t(dp) :: hoffdiag, htmp, hdiag_spawn
@@ -288,7 +290,7 @@ contains
                 ! this far)
                 ! TODO: Ensure that the child iluts passed into this routine
                 !       don't have the initiator flag set
-                if (spwn_sgn /= 0) then
+                if (.not. near_zero(spwn_sgn)) then
                     child = 0
                     child(part_type) = spwn_sgn
 
@@ -300,16 +302,16 @@ contains
                         end do
                         write(iout, '("] ")', advance='no')
                         call write_det(6, det_spwn, .true.)
-                        call neci_flush(iout) 
+                        call neci_flush(iout)
                     end if
 
                     if (use_spawn_hash_table) then
-                        call create_particle_with_hash_table( &
+                        call create_particle_with_hash_table(&
                                          det_spwn, ilut_spwn, child, &
-                                         part_type, ilut, iter_data)
+                                         part_type, ilut, iter_data, err)
                     else
                         call create_particle(det_spwn, ilut_spwn, child, &
-                                             part_type, hdiag_spawn, ilut)
+                                             part_type, hdiag_spawn, err, ilut)
                     end if
                 end if
 
