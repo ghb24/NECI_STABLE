@@ -448,6 +448,9 @@ contains
           tOutputInitsRDM = .false.
           tNonVariationalRDMs = .false.
 
+          ! scaling of spawns
+          tScaleBlooms = .false.
+
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -3058,6 +3061,11 @@ contains
                      call readf(sFBeta)
                 ! set the cutoff to the minimal value
                 RealSpawnCutoff = sFBeta
+
+             case("SCALE-SPAWNS")
+                ! scale down potential blooms to prevent instability
+                ! increases the number of spawns to unbias for scaling
+                tScaleBlooms = .true.
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

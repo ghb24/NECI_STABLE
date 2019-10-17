@@ -187,6 +187,9 @@ real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
+! Options for dynamic rescaling of spawn attempts + blooms
+logical :: tScaleBlooms = .false.
+
 real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 
 ! The average number of excitations to be performed from each walker.

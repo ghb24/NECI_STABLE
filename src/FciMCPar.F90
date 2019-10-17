@@ -20,7 +20,7 @@ module FciMCParMod
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
                         tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
                         tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
-                        tCoreAdaptiveShift
+                        tCoreAdaptiveShift, tScaleBlooms
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
                         tDelayAllDoubsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -100,6 +100,8 @@ module FciMCParMod
     use back_spawn, only: init_back_spawn
 
     use sltcnd_mod, only: sltcnd_excit
+    use spawnScaling, only: setLevelTimer, resetScale, updateLevelTimer, currentSpawnScale, &
+         scaleCondition
 
 #ifdef MOLPRO
     use outputResult
@@ -973,7 +975,8 @@ module FciMCParMod
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
         logical :: signChanged, newlyOccupied
-        real(dp) :: currArg, spawnArg, tau_dead
+        real(dp) :: currArg, spawnArg
+        integer :: scaleFactor
         ! how many entries were added to (the end of) CurrentDets in the last iteration
         integer, save :: detGrowth = 0
 
@@ -1298,10 +1301,14 @@ module FciMCParMod
                 ! up by AvMCExcits if attempting multiple excitations from
                 ! each walker (default 1.0_dp).
                call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
+               ! loop counter
+               p = 0
+               ! scale factor for spawns
+               call resetScale()
+               do ! this loop shall be executed WalkersToSpawn times, but additional spawns
+                  ! might be requested during execution
 
-                do p = 1, WalkersToSpawn
-
-                    ! Zero the bit representation, to ensure no extraneous
+                  ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0_n_int
                     child = 0.0_dp
@@ -1383,7 +1390,25 @@ module FciMCParMod
                         if (tTrialWavefunction) then
                             call clr_flag(iLutnJ, flag_trial)
                             call clr_flag(iLutnJ, flag_connected)
-                        end if
+                         end if
+
+                         ! option: if too much weight is spawned, scale this spawn
+                         ! down and unbiad with extra spawns
+                         if(tScaleBlooms) then
+                            call scaleCondition(abs(child(part_type)), HDiagCurr, &
+                                 scaleFactor)
+                            child(part_type) = child(part_type) / real(currentSpawnScale(),dp)
+                            ! unbias by attempting an extra scaleFactor - 1 spawns with at
+                            ! least this scaleLevel
+                            if(scaleFactor > 1) then
+                               print *, "WARNING: Spawn exceeding threshold. Scaling down by", &
+                                    scaleFactor
+                               print *, "Scale factor is now", currentSpawnScale()
+                               WalkersToSpawn = WalkersToSpawn + scaleFactor - 1
+                               ! count the number of spawns at this level
+                               call setLeveLTimer()
+                            endif
+                         endif
 
                         ! If using a preconditioner, update the child weight for statistics
                         ! (mainly for blooms and hence updating the time step).
@@ -1410,8 +1435,14 @@ module FciMCParMod
                            exit
                         end if
 
-                    end if ! (child /= 0), Child created.
+                     end if ! (child /= 0), Child created.
 
+                    ! loop counter
+                     p = p + 1
+                    ! After WalkersToSpawn executions, exit
+                     if(p >= WalkersToSpawn) exit
+
+                     call updateLevelTimer()
                 end do ! Cycling over mulitple particles on same determinant.
 
             end do   ! Cycling over 'type' of particle on a given determinant.

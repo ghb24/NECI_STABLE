@@ -414,7 +414,7 @@ contains
         acceptances(part_type_to_run(part_type)) = &
             acceptances(part_type_to_run(part_type)) + maxval(abs(child_sign))
 
-    end subroutine create_particle_with_hash_table
+      end subroutine create_particle_with_hash_table
 
     ! This routine sums in the energy contribution from a given walker and
     ! updates stats such as mean excit level AJWT added optional argument
@@ -1630,8 +1630,8 @@ contains
         endif
 
 
-    end function CheckAllowedTruncSpawn
-
+      end function CheckAllowedTruncSpawn
+      
 !Routine which takes a set of determinants and returns the ground state energy
     subroutine LanczosFindGroundE(Dets,DetLen,GroundE,ProjGroundE,tInit)
         use DetCalcData, only : NKRY,NBLK,B2L,nCycle

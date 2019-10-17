@@ -335,10 +335,10 @@ module fcimc_pointed_fns
                  n_truncate_spawns .and. .not. tEScaleWalkers) then
                ! does not work with scaled walkers, as the scaling factor is not
                ! computed here for performance reasons (it was a huge performance bottleneck)
-                ! TODO: add some additional output if this event happens
-                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
-                truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
-                nSpawn = sign(n_truncate_spawns, nspawn)
+               ! TODO: add some additional output if this event happens
+               write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+               truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
+               nSpawn = sign(n_truncate_spawns, nspawn)
 
             end if
 
@@ -411,7 +411,7 @@ module fcimc_pointed_fns
         endif
 
         ! Avoid compiler warnings
-        iUnused = walkExcitLevel
+        iUnused = walkExcitLevel        
     end function
 
     !
