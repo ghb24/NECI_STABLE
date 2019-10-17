@@ -9,15 +9,20 @@ module pchb_excitgen
   use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
        projEDet, pParallel, pDoubles
   use sltcnd_mod, only: sltcnd_excit
-  use UMatCache, only: gtID
+  use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
-  use util_mod, only: fuseIndex, linearIndex
+  use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
   implicit none
 
-  type(aliasSamplerArray_t) :: pchb_sampler
+  ! there are three pchb_samplers:
+  ! 1 - same-spin case
+  ! 2 - opp spin case without exchange
+  ! 3 - opp spin case with exchange
+  type(aliasSamplerArray_t) :: pchb_samplers(3)
+  real(dp), allocatable :: pExch(:)
   integer, allocatable :: tgtOrbs(:,:)
 
   contains
@@ -89,27 +94,48 @@ module pchb_excitgen
       integer, intent(out) :: nJ(nel)
       integer(n_int), intent(out) :: ilutJ(0:NIfTot)
       integer, intent(out) :: ex(2,2)
-      real(dp), intent(out) :: pgen
+      real(dp), intent(out) :: pGen
       logical, intent(out) :: tpar
 
       integer :: elecs(2), src(2), sym_prod, ispn, sum_ml, ij
-      integer :: orbs(2), srcID(2), ab
+      integer :: orbs(2), ab
       real(dp) :: pGenHoles
       logical :: invalid
+      integer :: spin(2), samplerIndex
 
       ! first, pick two random elecs
-      call pick_biased_elecs(nI,elecs,src,sym_prod,ispn,sum_ml,pgen)
-
-      ! convert to spatial orbitals if required
-      srcID = gtID(src)
-
+      call pick_biased_elecs(nI,elecs,src,sym_prod,ispn,sum_ml,pGen)
+      if(src(1) > src(2)) call intswap(src(1),src(2))
+      
       invalid = .false.
       ! use the sampler for this electron pair -> order of src electrons does not matter
-      ij = fuseIndex(src(1),src(2))
+      ij = fuseIndex(gtID(src(1)),gtID(src(2)))
+      ! the spin of the electrons: 0 - alpha, 1 - beta
+      spin = getSpinIndex(src)
+      ! determine type of spin-excitation: same-spin, opp spin w exchange, opp spin w/o exchange
+      if(is_beta(src(1)) .eqv. is_beta(src(2))) then
+         ! same spin
+         samplerIndex = 1
+      else
+         ! else, pick exchange with...some ij-spin bias
+         if(genrand_real2_dSFMT() < pExch(ij)) then
+            samplerIndex = 3
+            ! adjust pgen
+            pGen = pGen * pExch(ij)
+            ! the spins of the target are the opposite of the source spins
+            call intswap(spin(1),spin(2))
+         else
+            samplerIndex = 2
+            ! adjust pgen
+            pGen = pGen * (1.0_dp - pExch(ij))
+         endif
+      endif
       ! get a pair of orbitals using the precomputed weights
-      call pchb_sampler%aSample(ij,ab,pGenHoles)
+      call pchb_samplers(samplerIndex)%aSample(ij,ab,pGenHoles)
       ! split the index ab (using a table containing mapping ab -> (a,b))
       orbs = tgtOrbs(:,ab)
+      ! convert orbs to spin-orbs with the same spin 
+      orbs = 2*orbs - spin
 
       ! check if the picked orbs are a valid choice - if they are the same, match one
       ! occupied orbital or are zero (maybe because there are no allowed picks for
@@ -138,12 +164,18 @@ module pchb_excitgen
   !------------------------------------------------------------------------------------------!
 
     function calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+      ! Calculate the probability of generating a given excitation with the pchb excitgen
+      ! Input: nI - determinant to start from
+      !        ex - 2x2 excitation matrix
+      !        ic - excitation level
+      !        ClassCount2 - symmetry information of the determinant
+      !        ClassCountUnocc2 - symmetry information of the virtual orbitals
+      ! Output: pGen - probability of drawing this excitation with the pchb excitgen
       implicit none
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: ex(2,2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-
-      real(dp) :: pgen
+      real(dp) :: pgen      
 
       if(ic==1) then
          ! single excitations are the job of the uniform excitgen
@@ -159,22 +191,40 @@ module pchb_excitgen
   !------------------------------------------------------------------------------------------!
 
     function calc_double_pgen_pchb(ex) result(pgen)
+      ! Calculate the probability of drawing a given double excitation ex
+      ! Input: ex - 2x2 excitation matrix
+      ! Output: pgen - probability of generating this double with the pchb double excitgen
       implicit none
       integer, intent(in) :: ex(2,2)
       real(dp) :: pgen
-      integer :: ab, ij
+      integer :: ab, ij, nex(2,2), samplerIndex
 
+      ! spatial orbitals of the excitation
+      nex = gtID(ex)
+      ij = fuseIndex(nex(1,1),nex(1,2))      
       ! the probability of picking the two electrons: they are chosen uniformly
-      if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
+      ! check which sampler was used
+      if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
          pgen = pParallel / par_elec_pairs
+         ! same-spin case
+         samplerIndex = 1
       else
          pgen = (1.0_dp - pParallel) / AB_elec_pairs
+         ! excitations without spin-exchange OR to the same spatial orb
+         if((is_beta(ex(1,1)) .eqv. is_beta(ex(2,1))) .or. (nex(2,1) == nex(2,2))) then
+            ! opp spin case without exchange
+            samplerIndex = 2
+            pgen = pgen * (1 - pExch(ij))
+         else
+            ! opp spin case with exchange
+            samplerIndex = 3
+            pgen = pgen * pExch(ij)
+         endif
       end if
 
       ! look up the probability for this excitation in the sampler
-      ij = fuseIndex(ex(1,1),ex(1,2))
-      ab = fuseIndex(ex(2,1),ex(2,2))
-      pgen = pgen * pchb_sampler%aGetProb(ij,ab)
+      ab = fuseIndex(nex(2,1),nex(2,2))
+      pgen = pgen * pchb_samplers(samplerIndex)%aGetProb(ij,ab)
 
     end function calc_double_pgen_pchb
 
@@ -187,23 +237,26 @@ module pchb_excitgen
       ! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
       implicit none
       integer :: ab, a, b, abMax
-      integer :: aerr
+      integer :: aerr, nBI
       integer(int64) :: memCost
+      integer :: samplerIndex
 
       write(iout,*) "Allocating PCHB excitation generator objects"
       ! total memory cost
       memCost = 0_int64
+      ! number of spatial orbs
+      nBI = numBasisIndices(nBasis)
       ! initialize the mapping ab -> (a,b)
-      abMax = fuseIndex(nBasis,nBasis)
+      abMax = fuseIndex(nBI,nBI)
       allocate(tgtOrbs(2,0:abMax), stat = aerr)
-      do a = 1, nBasis
-         do b = 1, a-1
+      do a = 1, nBI
+         do b = 1, a
             ab = fuseIndex(a,b)
             tgtOrbs(1,ab) = b
             tgtOrbs(2,ab) = a
          end do
       end do
-
+      
       ! enable catching exceptions
       tgtOrbs(:,0) = 0
 
@@ -218,42 +271,81 @@ module pchb_excitgen
 
       subroutine setup_pchb_sampler()
         implicit none
-        integer :: i,j
+        integer :: i,j, iSampler
         integer :: ij, ijMax
         integer :: ex(2,2)
         real(dp), allocatable :: w(:)
+        real(dp), allocatable :: pNoExch(:)
         ! number of possible source orbital pairs
-        ijMax = fuseIndex(nBasis,nBasis)
-        call pchb_sampler%setupSamplerArray(int(ijMax,int64),int(abMax,int64))
-        memCost = memCost + abMax*ijMax*24
+        ijMax = fuseIndex(nBI,nBI)
+        ! allocate the bias for picking an exchange excitation
+        allocate(pExch(ijMax), stat = aerr)
+        pExch = 0.0_dp
+        ! temporary storage for the unnormalized prob of not picking an exchange excitation
+        allocatE(pNoExch(ijMax), stat = aerr)
+        pNoExch = 1.0_dp
+        memCost = memCost + abMax*ijMax*24*3
         write(iout,*) "Generating samplers for PCHB excitation generator"
         ! weights per pair
         allocate(w(abMax), stat = aerr)
-        do i = 1, nBasis
-           ex(1,1) = i
-           ! as we order a,b, we can assume j < i (j==i is not possible)
-           do j = 1, i-1
-              w = 0.0_dp
-              ex(1,2) = j
-              ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
-              ! weights to prepare the sampler
-              do a = 1, nBasis
-                 ex(2,2) = a
-                 do b = 1, a-1
-                    ab = fuseIndex(a,b)
-                    ! ex(2,:) is in ascending order
-                    ex(2,1) = b
-                    ! use the actual matrix elements as weights
-                    w(ab) = abs(sltcnd_excit(projEDet(:,1),2,ex,.false.))
+        ! initialize the three samplers
+        do samplerIndex = 1, 3
+           ! allocate: all samplers have the same size
+           call pchb_samplers(samplerIndex)%setupSamplerArray(int(ijMax,int64),int(abMax,int64))
+           do i = 1, nBI
+              ! map i to alpha spin (arbitrary choice)
+              ex(1,1) = 2*i
+              ! as we order a,b, we can assume j <= i 
+              do j = 1, i
+                 w = 0.0_dp
+                 ! for samplerIndex == 1, j is alpha, else, j is beta
+                 ex(1,2) = map_orb(j,(/1/))
+                 ! for each (i,j), get all matrix elements <ij|H|ab> and use them as
+                 ! weights to prepare the sampler
+                 do a = 1, nBI
+                    ! a is alpha for same-spin (1) and opp spin w/o exchange (2)
+                    ex(2,2) = map_orb(a,(/1,2/))
+                    do b = 1, a
+                       ! exception: for sampler 3, a!=b
+                       if(samplerIndex == 3 .and. a==b) cycle
+                       ab = fuseIndex(a,b)
+                       ! ex(2,:) is in ascending order
+                       ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
+                       ex(2,1) = map_orb(b,(/1,3/))
+                       ! use the actual matrix elements as weights
+                       w(ab) = abs(sltcnd_excit(projEDet(:,1),2,ex,.false.))
+                    end do
                  end do
+                 ij = fuseIndex(i,j)
+                 call pchb_samplers(samplerIndex)%setupEntry(ij,w)
+                 if(samplerIndex == 3) pExch(ij) = sum(w)
+                 if(samplerIndex == 2) pNoExch(ij) = sum(w)
               end do
-              ij = fuseIndex(i,j)
-              call pchb_sampler%setupEntry(ij,w)
            end do
         end do
 
+        ! normalize the exchange bias
+        pExch = pExch / (pExch + pNoExch)
+
         deallocate(w)
       end subroutine setup_pchb_sampler
+
+      function map_orb(orb, alphaSamplers) result(sorb)
+        ! map spatial orbital to the spin orbital matching the current samplerIndex
+        ! Input: orb - spatial orbital to be mapped
+        !        alphaSamplers - list of samplerIndex values for which the mapping shall be to alpha
+        ! Output: sorb - corresponding spin orbital
+        integer, intent(in) :: orb
+        integer, intent(in) :: alphaSamplers(:)
+        integer :: sorb
+
+        if(any(samplerIndex == alphaSamplers)) then
+           sorb = 2*orb
+        else
+           sorb = 2*orb - 1
+        endif
+      end function map_orb
+      
     end subroutine init_pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
@@ -261,9 +353,13 @@ module pchb_excitgen
     subroutine finalize_pchb_excitgen()
       ! deallocate the sampler and the mapping ab -> (a,b)
       implicit none
+      integer :: samplerIndex
 
-      call pchb_sampler%samplerArrayDestructor()
+      do samplerIndex = 1, 3
+         call pchb_samplers(samplerIndex)%samplerArrayDestructor()
+      end do
       deallocate(tgtOrbs)
+      deallocate(pExch)
 
     end subroutine finalize_pchb_excitgen
 
