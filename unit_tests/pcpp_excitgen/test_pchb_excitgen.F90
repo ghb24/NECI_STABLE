@@ -19,7 +19,7 @@ contains
     integer :: numEx, nFound
     ! There can be some excitations with really low matrix elements -> we need a lot
     ! of samples to hit all
-    integer, parameter :: nSamples = 10000000
+    integer, parameter :: nSamples = 50000000
 
     ! set the excitation generator to pchb
     generate_excitation => gen_rand_excit_pchb
