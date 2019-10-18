@@ -20,7 +20,7 @@ module fcimc_pointed_fns
     use load_balance, only: scaleFunction
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot, test_flag
-    use bit_reps, only: get_initiator_flag
+    use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run
     use tau_search, only: log_death_magnitude, log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
@@ -877,8 +877,8 @@ module fcimc_pointed_fns
 
       tot = get_tot_spawns(pos, run)
       acc = get_acc_spawns(pos, run)
-
-      if(pop>InitiatorWalkNo)then
+    
+      if(test_flag(CurrentDets(:, pos), get_initiator_flag_by_run(run)))then
           tmp = 1.0
       elseif(tot>AAS_Thresh)then
           tmp = acc/tot
