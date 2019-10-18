@@ -26,14 +26,14 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          nAuxBasis=lenrec
          WRITE(6,*) "DALTON/SITUS basis.", nBasis, " basis functions."
          nBasisMax(1:5,1:3)=0
-         Len=2*nBasis 
+         Len=2*nBasis
 !.. Note that it's a read in basis.
          nBasisMax(3,3)=1
          nBasisMax(4,1)=-1
          nBasisMax(4,2)=1
 !.. Correspond to ISS=0
          nBasisMax(1,3)=0
-!.. Setup Max Sym 
+!.. Setup Max Sym
          nBasisMax(5,2)=0
          tStoreSpinOrbs=.false.     !DF cannot cope currently with UHF/ROHF
       END
@@ -111,7 +111,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          select case(iDFMethod)
          case(3)
             call DFCalcInvFitInts(0.5_dp)
-            WRITE(6,*) "Calculating B matrix" 
+            WRITE(6,*) "Calculating B matrix"
             do i=1,nBasisPairs
                do j=1,nAuxBasis
                   r=0
@@ -124,7 +124,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
 !DFInts now contains B_ij,P = sum_Q (ij|Q)[(Q|u|P)^1/2]
          case(4)
             call DFCalcInvFitInts(-0.5_dp)
-            WRITE(6,*) "Calculating B matrix" 
+            WRITE(6,*) "Calculating B matrix"
             do i=1,nBasisPairs
                do j=1,nAuxBasis
                   r=0
@@ -144,13 +144,13 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          ENDIF
          call SetupUMat2D_df
       END
-      
+
 !.. Get a 2-el integral.  a,b,c,d are indices. <ab|1/r12|cd>
 !DFCoeffs(x,yz) is (x|yz)
 !DFInts(x,yz) is (x|u|yz)
 !DFFitInts(x,y) is (x|u|y)
       SUBROUTINE GetDF2EInt(a,b,c,d,res)
-         use constants, only: dp 
+         use constants, only: dp
          use UMatCache
          implicit none
          integer a,b,c,d
@@ -158,7 +158,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          integer x,y
          real(dp) res
          character(*), parameter :: this_routine='GetDF2EInt'
-         
+
          res=0.0_dp
          x=GetDFIndex(a,c)
          y=GetDFIndex(b,d)
@@ -197,7 +197,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
       END
 
 
-     
+
 !.. return a DF pair index - i<j (although the pairs are ordered 11 21 22 31 32 33 41 42 ...
       INTEGER FUNCTION GetDFIndex(i,j)
          IMPLICIT NONE
@@ -207,7 +207,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
          else
             GetDFIndex=j+i*(i-1)/2
          endif
-      END 
+      END
       SUBROUTINE ReadDalton2EIntegrals(nBasis,UMat2D,tUMat2D)
          use constants, only: dp,sp
          implicit none
@@ -320,7 +320,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
             G1(i)%Sym=TotSymRep()
             Brr(i)=i
          enddo
-      END 
+      END
 
 
 !.. Get a 2-el integral.  a,b,c,d are indices. <ab|1/r12|cd>
@@ -329,7 +329,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
 !DFFitInts(x,y) is (x|u|y)
 !This is slower but calculates more accurately.
       SUBROUTINE GetDF2EInt2OrderOverlap(a,b,c,d,res)
-         use constants, only: dp 
+         use constants, only: dp
          use UMatCache
          implicit none
          integer a,b,c,d
@@ -353,7 +353,7 @@ SUBROUTINE InitDFBasis(nBasisMax,Len)
       END
 
       SUBROUTINE GetDF2EInt2OrderCoulomb(a,b,c,d,res)
-         use constants, only: dp 
+         use constants, only: dp
          use UMatCache
          implicit none
          integer a,b,c,d

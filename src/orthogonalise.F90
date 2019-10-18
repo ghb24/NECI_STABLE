@@ -123,7 +123,7 @@ contains
                     end if
 
                     sgn(tgt_run) = sgn(tgt_run) + delta_real
-#endif                        
+#endif
                 end do
 
                 call encode_sign(CurrentDets(:,j), sgn)
@@ -171,7 +171,7 @@ contains
                 ! (a+ib)*(a-ib) = a^2 + b^2
                 norms(tgt_run) = norms(tgt_run) &
                     + sgn(min_part_type(tgt_run))**2 + sgn(max_part_type(tgt_run))**2
-#else                
+#else
                 norms(tgt_run) = norms(tgt_run) + sgn(tgt_run)**2
 #endif
                 do run = tgt_run + 1, inum_runs
@@ -216,7 +216,7 @@ contains
                     overlaps_real(tgt_run, run) = overlaps_real(tgt_run, run) &
                                            + sgn(run)*sgn(tgt_run)
                     overlaps_real(run, tgt_run) = overlaps_real(tgt_run, run)
-#endif                    
+#endif
                 end do
 
             end do
@@ -257,7 +257,7 @@ contains
         !      can be collected using AllTotWalkers (which may end up with far
         !      too many walkers).
         TotWalkersNew = int(TotWalkers)
-        call CalcHashTableStats(TotWalkersNew, iter_data) 
+        call CalcHashTableStats(TotWalkersNew, iter_data)
         TotWalkers = TotWalkersNew
 
     end subroutine orthogonalise_replicas
@@ -279,12 +279,12 @@ contains
         ! Underscores denote the excited state label and uperscores represent
         ! the replica label (i.e. 1 or 2):
 
-        ! |psi_2^1'> = |psi_2^1> - (|psi_1^1><psi_1^2|psi_2^1> + 
+        ! |psi_2^1'> = |psi_2^1> - (|psi_1^1><psi_1^2|psi_2^1> +
         !                           |psi_1^2><psi_1^1|psi_2^1>)/(2<psi_1^1|psi_1^2>)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer :: tgt_state, src_state, run, j, irep, imod1, imod2, TotWalkersNew
-        real(dp) :: norms(inum_runs/2), overlaps(inum_runs, inum_runs)
+        real(dp) :: norms(inum_runs .div. 2), overlaps(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig(2), delta, r
         logical :: tCoreDet
         character(len=*), parameter :: this_routine = "orthogonalise_replica_pairs"
@@ -421,7 +421,7 @@ contains
         !      can be collected using AllTotWalkers (which may end up with far
         !      too many walkers).
         TotWalkersNew = int(TotWalkers)
-        call CalcHashTableStats(TotWalkersNew, iter_data) 
+        call CalcHashTableStats(TotWalkersNew, iter_data)
         TotWalkers = TotWalkersNew
 
 #endif
@@ -429,7 +429,7 @@ contains
     end subroutine orthogonalise_replica_pairs
 
     subroutine orthogonalise_replicas_2runs (iter_data)
-        
+
         ! complex walkers not supported here. This routine is never called: deprecated code?
 
         ! Apply a Gram Schmidt orthogonalisation to the different system
@@ -469,7 +469,7 @@ contains
 
         ! Calculate the change
         do j = 1, int(TotWalkers, sizeof_int)
-            
+
             ! Adjust the wavefunctions
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) cycle
@@ -530,7 +530,7 @@ contains
         !      can be collected using AllTotWalkers (which may end up with far
         !      to many walkers).
         TotWalkersNew = int(TotWalkers)
-        call CalcHashTableStats(TotWalkersNew, iter_data) 
+        call CalcHashTableStats(TotWalkersNew, iter_data)
         TotWalkers = TotWalkersNew
 
     end subroutine
@@ -684,7 +684,7 @@ contains
         !      can be collected using AllTotWalkers (which may end up with far
         !      to many walkers).
         TotWalkersNew = int(TotWalkers)
-        call CalcHashTableStats(TotWalkersNew, iter_data) 
+        call CalcHashTableStats(TotWalkersNew, iter_data)
         TotWalkers = TotWalkersNew
 
     end subroutine

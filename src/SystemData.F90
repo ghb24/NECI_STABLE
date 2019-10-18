@@ -8,8 +8,9 @@ implicit none
 save
 
 integer :: symmax ! Max number of irreps to deal with. Value computed in GETFCIBASIS readint.f90
-logical :: tMolpro,tMolcas  !True if the code has been called from Molpro or Molcas
-logical :: tMolproMimic !True if the code is being run from standalone neci, but designed to mimic the runtime 
+logical :: called_as_lib  !True if the code has been called as library procedure
+logical :: tMolpro  !True if the code has been called from Molpro
+logical :: tMolproMimic !True if the code is being run from standalone neci, but designed to mimic the runtime
                         !behaviour of molpro
 character(12) :: MolproID
 
@@ -31,7 +32,7 @@ logical :: tShakeIter, tRotateOccOnly, tDoubExcMin, tUseHFOrbs, tRotateOrbs
 logical :: tNonUniRandExcits, tNoSymGenRandExcits, tLagrange, tShakeApprox
 logical :: tShake, tRotateVirtOnly, tMaxHLGap, tCacheFCIDUMPInts
 logical :: tKPntSym        !Are we using KPoint symmetry?
-logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP, but all 
+logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP, but all
                                 !orbitals have been rotated to be real. This requires all
                                 !kpoints to be at the gamma point or BZ boundary.
                                 !At the reading in, the integrals will be converted to reals,
@@ -39,7 +40,7 @@ logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP,
 logical :: tReadFreeFormat,tReltvy
 
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
-logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
+logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in
                           ! spin-orbital notation
 
 logical :: tPickVirtUniform ! Use the 3rd generation, random excitation
@@ -50,8 +51,8 @@ logical :: tISKFuncs      ! Only for use in systems where the kpoint mesh has in
                           ! integrals are real.
 logical :: tOddS_HPHF     !If this is true, and you are using HPHF, then it will converge onto an Odd S HPHF state.
 logical :: tAntisym_MI    !Antisymmetric MI functions.
-logical :: tComplexOrbs_RealInts    !We are using complex orbitals, but real integrals. 
-                                    !Therefore, check the mom sym before looking up integral, 
+logical :: tComplexOrbs_RealInts    !We are using complex orbitals, but real integrals.
+                                    !Therefore, check the mom sym before looking up integral,
                                     !since we only have 4x perm sym.
 logical :: tComplexWalkers_RealInts !We are using real orbitals, but complex walkers
 integer :: iParity(5), nMaxX, nMaxY, nMaxZ, nMSH, coulDampOrb, elecPairs
@@ -79,7 +80,7 @@ integer :: csf_trunc_level ! Max nopen for CSFs if tTruncateCSF enabled. Above
 ! Inputs for CSFs
 logical :: tCSFOld        ! Use (Alex's) old CSF code
 logical :: tCSF           ! Use CSFs
-logical :: tTruncateCSF   ! Use determinants not CSFs for nopen > 
+logical :: tTruncateCSF   ! Use determinants not CSFs for nopen >
                           ! csf_trunc_level
 
 ! Calculate size of FCI determinant space using MC
@@ -99,7 +100,7 @@ integer :: k_momentum(3) ! UEG parameter for total momentum
 logical :: tOrbECutoff ! Whether we're using a spherical cutoff in momentum space or not
 logical :: tgCutoff ! Whether we're using a spherical cutoff for the momentum transfer vector
 real(dp) :: gCutoff ! Spherical cutoff for the momentum transfer vector
-logical :: tMP2UEGRestrict ! Restricts the MP2 sum over a single electron pair, specified by: 
+logical :: tMP2UEGRestrict ! Restricts the MP2 sum over a single electron pair, specified by:
 integer :: kiRestrict(3), kjRestrict(3) ! ki/kj pair
 integer :: kiMsRestrict, kjMsRestrict ! and their spins
 logical :: tMadelung ! turning on self-interaction term
@@ -183,9 +184,9 @@ real(dp) :: OMEGA
 logical :: tSpinPolar
 INTEGER :: iSpinSkip ! Often referred to as ISS.
 
-!From Calc  
+!From Calc
 real(dp) :: Beta
-        
+
 !Renewed for compile
 
 ! List of orbital energies.
@@ -199,11 +200,11 @@ real(dp) :: Beta
 !     ordered by spin-orbital index.  Arr(10,2) is the energy of the 10th
 !     spin-orbital (given the index scheme in use).
 ! Reallocated with the correct (new) size during freezing.
-real(dp), pointer :: Arr(:,:) 
+real(dp), pointer :: Arr(:,:)
 INTEGER(TagIntType) :: tagArr
 
 ! Lists orbitals in energy order. i.e. Brr(1) is the lowest energy orbital
-INTEGER, pointer :: BRR(:) 
+INTEGER, pointer :: BRR(:)
 INTEGER(TagIntType) :: tagBrr
 
 Type(BasisFN), pointer :: G1(:)  ! Info about the basis functions.
@@ -250,7 +251,7 @@ logical :: tGiovannisBrokenInit
 ! use keyword twisted-bc [real, real] in System Block of input 
 ! twist value is in values of periodicity (2*pi/L) for cubic and (pi/L) for 
 ! tilted lattice
-logical :: t_twisted_bc = .false. 
+logical :: t_twisted_bc = .false.
 real(dp) :: twisted_bc(3) = 0.0_dp
 
 ! flags for the use of open boundary conditions in the real-space 
@@ -331,12 +332,12 @@ logical :: t_pcpp_excitgen = .false.
 ! flag for the pre-computed heat-bath excitation generator
 logical :: t_pchb_excitgen = .false.
 
-! also implement a next-nearest neighbor Hubbard model implementation: 
-! for k-space hubbard, this only affects the diagonal part! 
+! also implement a next-nearest neighbor Hubbard model implementation:
+! for k-space hubbard, this only affects the diagonal part!
 real(dp) :: nn_bhub = 0.0_dp
 
-! do a quick test with different weightings of picking orbitals (a) 
-logical :: t_iiaa = .false., t_ratio = .false. 
+! do a quick test with different weightings of picking orbitals (a)
+logical :: t_iiaa = .false., t_ratio = .false.
 
 ! spin-dependent transcorrelation 
 logical :: t_spin_dependent_transcorr = .false.

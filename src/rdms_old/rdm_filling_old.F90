@@ -49,7 +49,7 @@ contains
                         (abs(curr_sign(ind2)) < 1.0e-10 .and. abs(get_iter_occ_standard(idet, ind2)) > 1.0e-10_dp) .or. &
                         (abs(curr_sign(ind1)) > 1.0e-10 .and. abs(get_iter_occ_standard(idet, ind1)) < 1.0e-10_dp) .or. &
                         (abs(curr_sign(ind2)) > 1.0e-10 .and. abs(get_iter_occ_standard(idet, ind2)) < 1.0e-10_dp)) then
-                           
+
                         ! At least one of the signs has just gone to zero or just become reoccupied
                         ! so we need to consider adding in diagonal elements and connections to HF
                         ! The block that's just ended was occupied in at least one population.
@@ -76,7 +76,7 @@ contains
         ! j --> Which element of the main list CurrentDets are we considering?
         ! IterLastRDMFill is the number of iterations since the last time the
         ! RDM contributions were added in (often the frequency of the RDM
-        ! energy calculation). 
+        ! energy calculation).
 
         ! For the instantaneous RDMs we need to multiply the RDM contributions
         ! by either this, or the number of iterations the determinant has been
@@ -145,7 +145,7 @@ contains
                 call Fill_Diag_RDM(rdm, one_rdm, nI, AvSignCurr_sing/sqrt(2.0_dp), tCoreSpaceDet, IterRDM)
 
                 ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
-                ! divide stored C_X by sqrt(2). 
+                ! divide stored C_X by sqrt(2).
                 ! Add in I.
                 call FindExcitBitDetSym(iLutnI, SpinCoupDet)
                 call decode_bit_det(nSpinCoup, SpinCoupDet)
@@ -157,10 +157,10 @@ contains
 
                 ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
                 ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
-                ! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
+                ! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double
                 ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
                 HPHFExcitLevel = FindBitExcitLevel(iLutnI, SpinCoupDet, 2)
-                if (HPHFExcitLevel .le. 2) then 
+                if (HPHFExcitLevel .le. 2) then
                     call Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nSpinCoup, IterRDM*AvSignCurr_sing(1)/sqrt(2.0_dp), &
                                               (real(SignFac,dp)*AvSignCurr_sing(nreplicas))/sqrt(2.0_dp), .true.)
                 end if
@@ -227,9 +227,9 @@ contains
 
     subroutine Add_RDM_HFConnections_Norm_old(rdm, one_rdm, irdm, iLutJ, nJ, AvSignJ, AvSignHF, walkExcitLevel, IterRDM)
 
-        ! This is called when we run over all TotWalkers in CurrentDets.    
+        ! This is called when we run over all TotWalkers in CurrentDets.
         ! It is called for each CurrentDet which is a single or double of the HF.
-        ! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
+        ! It explicitly adds in the HF - S/D connection, as if the HF were D_i and
         ! the single or double D_j. This is the standard full space RDM calc (No HPHF).
         ! In this case the diagonal elements wll already be taken care of.
 
@@ -353,12 +353,12 @@ contains
         end if
 
     end subroutine check_fillRDM_DiDj_old
- 
+
     subroutine DiDj_Found_FillRDM_old(rdms, one_rdms, Spawned_No, iLutJ, realSignJ)
 
         ! This routine is called when we have found a Di (or multiple Di's)
         ! spawning onto a Dj with sign /= 0 (i.e. occupied). We then want to
-        ! run through all the Di, Dj pairs and add their coefficients 
+        ! run through all the Di, Dj pairs and add their coefficients
         ! (with appropriate de-biasing factors) into the 1 and 2 electron RDM.
 
         use bit_reps, only: decode_bit_det
@@ -378,7 +378,7 @@ contains
         real(dp) :: part_realSignI
         integer :: dest_part_type, source_part_type
 
-        ! Spawning from multiple parents, to iLutJ, which has SignJ.        
+        ! Spawning from multiple parents, to iLutJ, which has SignJ.
 
         ! We are at position Spawned_No in the SpawnedParts array.
         ! Spawned_Parents_Index(1,Spawned_No) is therefore the start position
@@ -390,14 +390,14 @@ contains
         ! Run through all Di's.
 
         do i = Spawned_Parents_Index(1,Spawned_No), &
-                Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
+                Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1
 
             if (DetBitEQ(iLutHF_True, Spawned_Parents(0:NIfDBO,i), NIfDBO)) then
                 ! We've already added HF - S, and HF - D symmetrically.
                 ! Any connection with the HF has therefore already been added.
                 cycle
             end if
-            
+
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
             call decode_bit_det (nJ, iLutJ)
 
@@ -405,7 +405,7 @@ contains
 
             ! The original spawning event (and the RealSignI) came from this
             ! population.
-            source_part_type = Spawned_Parents(NIfDBO+2,i)
+            source_part_type = int(Spawned_Parents(NIfDBO+2,i))
 
             ! Get the index of the sign of the replica that is paired with
             ! this replica. Also get the label of the RDM to which this
@@ -442,7 +442,7 @@ contains
         ! It takes to HPHF functions, and calculates what needs to be summed
         ! into the RDMs.
 
-        ! If the two HPHF determinants we're considering consist of I + I' and 
+        ! If the two HPHF determinants we're considering consist of I + I' and
         ! J + J', where X' is the spin coupled (all spins flipped) version of X,
         ! then we have already considered the I -> J excitation. And if I and
         ! J are connected by a double excitation, tDoubleConnection is true
@@ -566,10 +566,10 @@ contains
         end if
 
         if ((Ex(1,2) .eq. 0) .and. (Ex(2,2) .eq. 0)) then
-            
+
             ! Di and Dj are separated by a single excitation.
             ! Add in the contribution from this pair into the 1-RDM.
-            
+
             call Fill_Sings_RDM(rdm, one_rdm, nI, Ex, tParity, realSignI, realSignJ, tFill_CiCj_Symm)
 
         else if (RDMExcitLevel /= 1) then
@@ -583,9 +583,9 @@ contains
 
     end subroutine Add_RDM_From_IJ_Pair_old
 
-! =======================================================================================    
-! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
-! =======================================================================================    
+! =======================================================================================
+! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT
+! =======================================================================================
 
     subroutine Fill_Diag_RDM(rdm, one_rdm, nI, realSignDi, tCoreSpaceDetIn, RDMItersIn)
 
@@ -612,7 +612,7 @@ contains
         logical :: tCoreSpaceDet
 
         ScaleContribFac = 1.0
-        
+
         RDMIters = 1
         if (present(RDMItersIn)) RDMIters = RDMItersIn
 
@@ -625,17 +625,17 @@ contains
             ! strictly do not require corrections.
             if (tThreshOccRDMDiag .and. (abs(RealSignDi(1)) .le. ThreshOccRDM)) ScaleContribFac = 0.0_dp
         end if
-        
+
         if (RDMExcitLevel .eq. 1) then
             do i = 1, nel
                 if (tOpenShell) then
                     iInd = SymLabelListInv_rot(nI(i))
-                else 
+                else
                     ! SymLabelListInv_rot will be in spat orbitals too.
                     iInd = SymLabelListInv_rot(gtID(nI(i)))
                 end if
                 one_rdm%matrix(iInd,iInd) = one_rdm%matrix(iInd,iInd) &
-                                          + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters )*ScaleContribFac 
+                                          + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters )*ScaleContribFac
             end do
         else
             ! Only calculating 2-RDM.
@@ -648,8 +648,8 @@ contains
                 ! and jSpat >= iSpat (can only be equal if different spin).
                 do j = i+1, nel
                     jSpat = gtID(nI(j))
-                     if (tOpenShell) jSpat = (nI(j)-1)/2 + 1 
-               
+                     if (tOpenShell) jSpat = (nI(j)-1)/2 + 1
+
                     ! Either alpha alpha or beta beta -> aaaa/bbbb arrays.
                     if ( ((mod(nI(i),2) .eq. 1) .and. (mod(nI(j),2) .eq. 1)) .or. &
                         ((mod(nI(i),2) .eq. 0) .and. (mod(nI(j),2) .eq. 0)) ) then
@@ -692,7 +692,7 @@ contains
                                                + ( realSignDi(1) * realSignDi(nreplicas) * RDMIters)*ScaleContribFac
                             end if
 
-                       end if 
+                       end if
 
                     end if
 
@@ -738,13 +738,13 @@ contains
                 iInd = gtID(Ex(1,1))
                 aInd = gtID(Ex(2,1))   ! These two must have the same spin.
             end if
-            Indik = SymLabelListInv_rot(iInd)    ! Position of i 
+            Indik = SymLabelListInv_rot(iInd)    ! Position of i
             Indak = SymLabelListInv_rot(aInd)    ! Position of a.
-            
+
             ! Adding to 1-RDM(i,a), ci.cj effectively.
             one_rdm%matrix( Indik, Indak ) = one_rdm%matrix( Indik, Indak ) + (ParityFactor * realSignDi * realSignDj)
 
-            if (tFill_CiCj_Symm) then                                
+            if (tFill_CiCj_Symm) then
                 one_rdm%matrix( Indak, Indik ) = one_rdm%matrix( Indak, Indik ) + (ParityFactor * realSignDi * realSignDj)
             end if
         else
@@ -754,7 +754,7 @@ contains
             ! except for the i and a. Any of the N-1 other electrons can be
             ! annihilated and created in the same orbital. So we run over
             ! all k = all N-1 other occupied orbitals.
-            
+
             iSpat = gtID(Ex(1,1))
             aSpat = gtID(Ex(2,1))  ! These two must have the same spin.
             if (tOpenShell) then
@@ -770,7 +770,7 @@ contains
                 if (nI(k) .ne. Ex(1,1)) then
 
                     if ((iSpat .eq. kSpat) .or. (aSpat .eq. kSpat)) then
-                        ! It is possible for i = k or a = k if they 
+                        ! It is possible for i = k or a = k if they
                         ! have different spins. the only arrays with
                         ! i = j or a = b are abab/baba.
                         ! -> abba/baab terms must be reordered to
@@ -844,7 +844,7 @@ contains
 
                         else if (aSpat .eq. kSpat) then
 
-                            if (iSpat .gt. kSpat) then 
+                            if (iSpat .gt. kSpat) then
                                 if ( (mod(Ex(1,1),2) .eq. 1) .or. (.not. tOpenShell) )then ! ki, ka -> second index beta
                                     rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                          realSignDi * realSignDj )
@@ -888,12 +888,12 @@ contains
                         if ( ((mod(Ex(1,1),2) .eq. 1) .and. (mod(nI(k),2) .eq. 1)) .or. &
                              ((mod(Ex(1,1),2) .eq. 0) .and. (mod(nI(k),2) .eq. 0)) ) then
 
-                            ! 2-RDM(i,j,a,b) is defined to have i < j and a < b, as that is how the unique 
+                            ! 2-RDM(i,j,a,b) is defined to have i < j and a < b, as that is how the unique
                             ! indices are defined for i,j and a,b.
                             ! But the parity is defined so that the i -> a excitation is aligned.
 
                             ! I.e. we're adding these as nI(k),Ex(1,1) -> nI(k), Ex(2,1)
-                            ! So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need 
+                            ! So if Ex(1,1) < nI(k), or Ex(2,1) < nI(k) then we need
                             ! to switch the parity.
                             ParityFactor2 = ParityFactor
                             if ((Ex(1,1) .lt. nI(k)) .and. (Ex(2,1) .gt. nI(k))) &
@@ -905,7 +905,7 @@ contains
                             Indik = ( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
                             Indak = ( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
 
-                            ! nI(k) even or odd. odd=bbbb, even=aaaa.                          
+                            ! nI(k) even or odd. odd=bbbb, even=aaaa.
                             if ((mod(nI(k),2) .eq. 0) .or. (.not. tOpenShell)) then
                                 rdm%aaaa( Indik, Indak ) = rdm%aaaa( Indik, Indak ) + ( ParityFactor2 * &
                                                                                     realSignDi * realSignDj )
@@ -923,19 +923,19 @@ contains
                                 end if
                             end if
 
-                        ! either abab/baba or abba/baab array. 
+                        ! either abab/baba or abba/baab array.
                         ! we distinguish between these because i<j and a<b.
                         else   ! abab/baba or abba/baab
 
                             if ( (Ex(1,1) .lt. nI(k)) .and. (Ex(2,1) .lt. nI(k)) ) then
-                            !i k a k -> abab/baba 
+                            !i k a k -> abab/baba
 
-                                ! It is possible for i = k or j = k if they are spat orbitals 
+                                ! It is possible for i = k or j = k if they are spat orbitals
                                 ! and have different spins.
                                 Indik = ( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
                                 Indak = ( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
-                                ! Ex(1,1) (i spin orb): first index even or odd 
+                                ! Ex(1,1) (i spin orb): first index even or odd
                                 if ((mod(Ex(1,1),2).eq.0) .or. (.not. tOpenShell)) then
                                     rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
@@ -948,24 +948,24 @@ contains
                                                                                  realSignDi * realSignDj )
                                     if (tFill_CiCj_Symm) then
                                             rdm%baba( Indak, Indik ) = rdm%baba( Indak, Indik ) + ( ParityFactor * &
-                                                                                    realSignDi * realSignDj ) 
+                                                                                    realSignDi * realSignDj )
                                     end if
                                 end if
 
                             else if ( (Ex(1,1) .gt. nI(k)) .and. (Ex(2,1) .gt. nI(k)) ) then
-                            ! k i k a -> abab/baba 
+                            ! k i k a -> abab/baba
 
                                 Indik = ( ( (max(iSpat,kSpat)-1) * max(iSpat,kSpat) ) / 2 ) + min(iSpat,kSpat)
                                 Indak = ( ( (max(aSpat,kSpat)-1) * max(aSpat,kSpat) ) / 2 ) + min(aSpat,kSpat)
 
-                                !Ex(1,1) (i spin orb): second index even or odd 
+                                !Ex(1,1) (i spin orb): second index even or odd
                                 if ((mod(Ex(1,1),2).eq.1) .or. (.not. tOpenShell)) then
                                     rdm%abab( Indik, Indak ) = rdm%abab( Indik, Indak ) + ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
 
                                     if (tFill_CiCj_Symm) then
                                         rdm%abab( Indak, Indik ) = rdm%abab( Indak, Indik ) + ( ParityFactor * &
-                                                                                    realSignDi * realSignDj ) 
+                                                                                    realSignDi * realSignDj )
                                     end if
                                 else if (mod(Ex(1,1),2).eq.0) then
                                     rdm%baba( Indik, Indak ) = rdm%baba( Indik, Indak ) + ( ParityFactor * &
@@ -973,19 +973,19 @@ contains
 
                                     if (tFill_CiCj_Symm) then
                                             rdm%baba( Indak, Indik ) = rdm%baba( Indak, Indik ) + ( ParityFactor * &
-                                                                                    realSignDi * realSignDj )  
+                                                                                    realSignDi * realSignDj )
                                     end if
                                 end if
 
 
-                            else if ( (Ex(1,1) .gt. nI(k)) .and. (Ex(2,1) .lt. nI(k)) ) then 
+                            else if ( (Ex(1,1) .gt. nI(k)) .and. (Ex(2,1) .lt. nI(k)) ) then
                             ! k i a k -> abba/baab
 
                                 ! Ind doesn't include diagonal terms (when iSpat = jSpat).
                                 Indik = ( ( (max(iSpat,kSpat)-2) * (max(iSpat,kSpat)-1) ) / 2 ) + min(iSpat,kSpat)
                                 Indak = ( ( (max(aSpat,kSpat)-2) * (max(aSpat,kSpat)-1) ) / 2 ) + min(aSpat,kSpat)
 
-                                !i spin orb: second odd or even. 
+                                !i spin orb: second odd or even.
                                 if ((mod(Ex(1,1),2) .eq. 1) .or. (.not. tOpenShell))then
                                     rdm%abba( Indik, Indak ) = rdm%abba( Indik, Indak ) - ( ParityFactor * &
                                                                                  realSignDi * realSignDj )
@@ -1009,7 +1009,7 @@ contains
                                     end if
                                 end if
 
-                            else if ( (Ex(1,1) .lt. nI(k)) .and. (Ex(2,1) .gt. nI(k)) ) then 
+                            else if ( (Ex(1,1) .lt. nI(k)) .and. (Ex(2,1) .gt. nI(k)) ) then
                             ! i k k a -> abba/baab
 
                                 ! Ind doesn't include diagonal terms (when iSpat = jSpat).
@@ -1044,10 +1044,10 @@ contains
                         end if !abab/baba or abba/baab
                     end if  ! not (iSpat.eq.kSpat).or.(aSpat.eq.kSpat))
 
-                end if 
-            end do 
+                end if
+            end do
 
-        end if  
+        end if
 
     end subroutine Fill_Sings_RDM
 
@@ -1076,15 +1076,15 @@ contains
 
         iSpat = gtID(Ex(1,1))
         jSpat = gtID(Ex(1,2))       ! Ex(1,1) < Ex(1,2)
-        aSpat = gtID(Ex(2,1)) 
+        aSpat = gtID(Ex(2,1))
         bSpat = gtID(Ex(2,2))       ! Ex(2,1) < Ex(2,2)
 
-        if (tOpenShell)then 
+        if (tOpenShell)then
             iSpat = (Ex(1,1)-1)/2 + 1
             jSpat = (Ex(1,2)-1)/2 + 1
             aSpat = (Ex(2,1)-1)/2 + 1
             bSpat = (Ex(2,2)-1)/2 + 1
-        end if         
+        end if
 
         if ((iSpat .eq. jSpat) .or. (aSpat .eq. bSpat)) then
 
@@ -1175,10 +1175,10 @@ contains
                                                                     realSignDi * realSignDj )
                     end if
                 end if
-                
+
             ! Either alpha beta or beta alpha -> abab array.
             else
-                
+
                 ! If when ordering i < j and a < b, is it abab or abba.
 
                 ! i and a are the same spin -> abab/baba.
@@ -1279,20 +1279,20 @@ contains
             ! for an iteration where we wouldn't normally need the energy
             IterRDM = mod((Iter + PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
         end if
-        
+
         Ex = 0
 
         ! Cycle over all core dets on this process.
         do i = 1, determ_sizes(iProcIndex)
             iLutI = core_space(:,determ_displs(iProcIndex)+i)
-                         
+
             ! Connections to the HF are added in elsewhere, so skip them here.
             if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
-           
+
             AvSignI = full_determ_vecs_av(:,determ_displs(iProcIndex)+i)
 
             call decode_bit_det(nI,iLutI)
- 
+
             do j = 1, sparse_core_ham(i)%num_elements-1
                 ! Running over all non-zero off-diag matrix elements
                 ! Connections to whole space (1 row), excluding diagonal elements
@@ -1302,12 +1302,12 @@ contains
                 ! so we need to shuffle up to the range of indices corresponding
                 ! to this proc (using determ_displs) and then select the
                 ! correct one, i.
-                
+
                 iLutJ = core_space(:,core_connections(i)%positions(j))
 
                 ! Connections to the HF are added in elsewhere, so skip them here.
                 if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
-                
+
                 AvSignJ = full_determ_vecs_av(:,core_connections(i)%positions(j))
 
                 connect_elem = core_connections(i)%elements(j)
@@ -1334,12 +1334,12 @@ contains
                     if (IC == 1) then
                         ! Single excitation - contributes to 1- and 2-RDM
                         ! (if calculated).
-                         
+
                         ! Note: get_bit_excitmat may be buggy (DetBitOps),
                         ! but will do for now as we need the Ex...
                         call get_bit_excitmat(iLutI(0:NIfD),iLutJ(0:NIfD), SingEx, IC)
                         Ex(:,1) = SingEx(:,1)
-                       
+
                         ! No need to explicitly fill symmetrically as we'll
                         ! generate pairs of determinants both ways around using
                         ! the connectivity matrix.
@@ -1351,7 +1351,7 @@ contains
                         end do
 
                     else if ((IC == 2) .and. (RDMExcitLevel /= 1)) then
-                        
+
                         ! Note: get_bit_excitmat may be buggy (DetBitOps),
                         ! but will do for now as we need the Ex...
                         call get_bit_excitmat(iLutI(0:NIfD), iLutJ(0:NIfD), Ex, IC)

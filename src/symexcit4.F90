@@ -35,7 +35,7 @@ module SymExcit4
         integer, allocatable :: elecSpinOrbs(:)
         ! selected unoccupied spin orbitals
         integer, allocatable :: holeSpinOrbs(:)
-        ! the difference of the numbers of beta spin orbitals being vacated 
+        ! the difference of the numbers of beta spin orbitals being vacated
         ! and filled by the excitation
         integer :: spinDiff
         ! the overall ml of the selected occ orbs
@@ -66,14 +66,14 @@ module SymExcit4
 
         allocate(session%nI(nEl))
         allocate(session%holes(nBasis-nEl))
-        
+
         session%nI = nI
         session%minRank = minRank
         session%maxRank = maxRank
         session%minSpinDiff = minSpinDiff
         session%maxSpinDiff = maxSpinDiff
         session%rank = minRank
-        call InitExcitVecs(session) 
+        call InitExcitVecs(session)
         i = 1
         do orb = 1, nBasis
             if (.not. any(session%nI==orb)) then
@@ -159,7 +159,7 @@ module SymExcit4
                     return
                 else
                     tReachedLimit = .true.
-                    return 
+                    return
                 endif
             else if (vec(i+1)-vec(i)>1) then
                 vec(i) = vec(i) + 1
@@ -206,7 +206,7 @@ module SymExcit4
             ! reset bot occupied and unoccupied indices
             call ResetIndices(session%elecIndices, session%rank)
             call ResetIndices(session%holeIndices, session%rank)
-        else 
+        else
             tReachedLimit = .true.
         endif
     end subroutine GoToNextRank
@@ -278,7 +278,7 @@ module SymExcit4
         integer :: elecIdx, elecOrb, holeOrb
         nJ = session%nI
         holes = session%holes
-        
+
         tParity = .false. ! even parity
 
         do i = 1, session%rank
@@ -335,7 +335,7 @@ module SymExcit4
             !
             ! for a hole orbital greater than the electron orbital
             ! the insertion point is at elecIdx + switchedElecs
-            ! 
+            !
             ! 2 switched elecs
             ! use a temporary array nJtmp
             !
@@ -355,7 +355,7 @@ module SymExcit4
             ! nJtmp(elecIdx+switchedElecs+1:nEl) = nJ(elecIdx+switchedElecs+1:nEl)
             !    ( 1, 4, 5, 7 )
             !
-            ! 
+            !
             ! the second excitation is 4 -> 2
             !
             ! likewise, for an electron orbital greater than the hole
@@ -364,7 +364,7 @@ module SymExcit4
             ! but there are 0 switched elements, so simply do
             ! nJ(elecIdx) = holeOrb
 
-            
+
             ! we can't just take elecIdx from session%elecIndices, because of the re-ordering
             ! that occurs in this loop, so first we have to find it
 
@@ -412,7 +412,7 @@ module SymExcit4
         ! this is defined in symrandexcit2.F90, but it is external to the
         ! main module defined therein
         logical :: IsMomAllowedDetAnyParent
-        
+
         tAllExcitFound = .false.
 
         if (.not. session%tInitialised) then
@@ -459,7 +459,7 @@ module SymExcit4
             endif
 
             ! first, dereference the indices
-            call setSpinOrbs(session)               
+            call setSpinOrbs(session)
             ! we now have a new set of session%rank electron-hole pairs
             ! to return an nJ, the selection must satisfy the following criteria
             ! 1. total spin difference between occupied and unoccupied spin orbs must
@@ -531,7 +531,7 @@ module SymExcit4
         do i = 1, exFlag
             excitMat(:,i) = (/ session%elecSpinOrbs(i), session%holeSpinOrbs(i) /)
         enddo
-        
+
     end subroutine
 
     subroutine CountExcitations4(nI, minRank, maxRank, minSpinDiff, maxSpinDiff, tot)
@@ -543,7 +543,7 @@ module SymExcit4
         type(excitGenSessionType) :: session
 
         session = InitExcitGenSession(nI, minRank, maxRank, minSpinDiff, maxSpinDiff)
-        
+
         tot = 0
         tAllExcitFound = .false.
         do while(.true.)

@@ -12,7 +12,7 @@ C.. A stub containing dummy functions in CPMD, which will appear on linking appr
          UMATEL=0.0_dp
       END
 
-      SUBROUTINE CPMDANTISYMINTEL(G1,UMat2D,HarInt,NStates) 
+      SUBROUTINE CPMDANTISYMINTEL(G1,UMat2D,HarInt,NStates)
          use constants, only: dp
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -39,7 +39,7 @@ C         OCC=F(ISTATE)
          OCC=0.0_dp
          istate=istate
       END
-      
+
       SUBROUTINE CPMDGEN1EINTS(INTS,XIS)
          use constants, only: dp
          use CPMDData, only: nStates

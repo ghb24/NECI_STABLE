@@ -42,12 +42,12 @@ module spin_project
         integer :: nyama
     end type
     type(yama_storage_type), allocatable, target :: y_storage(:)
-    
+
 contains
 
     subroutine init_yama_store ()
 
-        ! Calculate all of  the allowed Yamanouchi symbols with the given 
+        ! Calculate all of  the allowed Yamanouchi symbols with the given
         ! values of S, Ms for all allowed unpaired electrons.
 
         integer :: nopen, ncsf
@@ -352,9 +352,9 @@ contains
                 ret = ret + (tmp * tmp)
             enddo
         !endif
-        
+
     end function
-    
+
     function get_spawn_helement_spin_proj (nI, nJ, ilutI, ilutJ, ic, ex, &
                                          tParity, HElGen) result (hel)
 
@@ -370,7 +370,7 @@ contains
         logical, intent(in) :: tParity
         HElement_t(dp), intent(in) :: HElGen
         HElement_t(dp) :: hel
-        
+
         integer :: iUnused
         integer(n_int) :: iUnused2
         logical :: lUnused
@@ -418,7 +418,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(in) :: exFlag
-        integer, intent(out) :: nJ(nel) 
+        integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
         integer, intent(out) :: ic, ex(2,maxExcit)
         real(dp), intent(out) :: pGen
@@ -554,7 +554,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         real(dp) :: elem, r, rat, rUnused
         integer :: i, iUnused
 
-        ! If we are not allowing death, or we are below the cutoff for 
+        ! If we are not allowing death, or we are below the cutoff for
         ! consideration, then the particle cannot die
         if (spin_proj_no_death .or. &
             sum(abs(realwSign(1:lenof_sign))) < spin_proj_cutoff) then
@@ -582,7 +582,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         else
             do i = 1, lenof_sign
                 rat = elem * abs(realwSign(i))
-                
+
                 ndie(i) = real(int(rat),dp)
                 rat = rat - real(ndie(i), dp)
                 !print*, 'RAT die', rat

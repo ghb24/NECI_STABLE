@@ -66,7 +66,7 @@ contains
 
 
     subroutine init_hist_spin_dist_local (nopen, ncsf)
-    
+
         integer, intent(in) :: ncsf, nopen
         integer :: open_orbs(nel), dorder(nel), ierr, orb, i, S, tmp
         integer :: nfound, nup, ndets, fd
@@ -165,7 +165,7 @@ contains
             ! This could be a forall, but PGI doesn't like it.
             do i = 1, ncsf
                 hist_csf_coeffs(nfound, i) = &
-                    csf_coeff(yamas(i,:), dorder, nopen) 
+                    csf_coeff(yamas(i,:), dorder, nopen)
             enddo
             write(fd,fmt_str) p_ilut(0:NIfD), hist_csf_coeffs(nfound, :)
 
@@ -217,7 +217,7 @@ contains
 
                 ! Output to file
                 write(fd, *) all_hist(0:NIfD, i), dble(sgn)/nsteps
-                
+
                 ! Add csf contribs
                 do j = 1, ubound(csf_contrib, 2)
                     csf_contrib(:,j) = csf_contrib(:,j) + &
@@ -232,7 +232,7 @@ contains
             ! Open csf histogram file
             write(fname, '("csf-hist-",a)') trim(adjustl(iterstr))
             open(unit=fd, file=trim(fname), status='replace')
-            
+
             ! Output csf components to hist file
             do i = 1, ubound(csf_contrib, 2)
                 write(fd,*) csf_contrib(:,i)/nsteps
@@ -296,7 +296,7 @@ contains
 
         ! Should we add this ilut to the histogram?
         ilut_tmp = spatial_bit_det (ilut)
-        
+
         if (DetBitEq(ilut_tmp, ilut_spindist)) then
             pos = binary_search (hist_spin_dist, ilut, NIfD+1)
             if (pos < 0) then
@@ -328,10 +328,13 @@ contains
         real(dp) :: delta(lenof_sign)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_hist_spawn'
-        
+
         if (ExcitLevel == nel) then
             call BinSearchParts2 (ilut, HistMinInd(ExcitLevel), det, PartInd,&
                                   tSuccess)
+            ! CCMC doesn't sum particle contributions in order, so we must
+            ! search the whole space again!
+            if (tFCIMC) HistMinInd(ExcitLevel) = PartInd
         elseif (ExcitLevel == 0) then
             PartInd = 1
             tSuccess = .true.
@@ -429,7 +432,7 @@ contains
         character(*), parameter :: t_r = "add_hist_energies"
 
         integer(n_int) :: iUnused
-        
+
         bin = int(HDiag / BinRange) + 1
         if (bin > iNoBins) &
             call stop_all (t_r, "Histogramming energies higher than the &
@@ -505,7 +508,7 @@ contains
                 coeff = coeff * sgn(1)
                 y_storage(nopen)%coeff(k) = y_storage(nopen)%coeff(k) + coeff
             enddo
-            
+
         enddo
 
         ! Sum all of the S components --> get values.
@@ -533,7 +536,7 @@ contains
             do S = LMS, nel, 2
                 S2 = S2 + real(S * (S + 2) * S_coeffs(S),dp) / 4
             enddo
-            
+
             write(6,*) 'Scoeffs', iter, S_coeffs
             write(6,*) 'Scsf2', S2
             write(6,*) 'norm compare', norm, all_norm_psi_squared
@@ -597,7 +600,7 @@ contains
 
 
     end subroutine
-    
+
     subroutine sum_cpts_S (spin_cpts, dorder, ncsf, nopen, sgn, S)
 
         real(dp), intent(inout) :: spin_cpts(0:nel)
@@ -618,7 +621,7 @@ contains
             spin_cpts (S) = spin_cpts(S) + coeff
 
         enddo
-    
+
     end subroutine
 
     function calc_s_squared (only_init) result (ssq)
@@ -626,7 +629,7 @@ contains
         ! Calculate the instantaneous value of S^2 for the walkers stored
         ! in CurrentDets
         !
-        ! --> This could be generalised to an arbitrary list of iluts. We 
+        ! --> This could be generalised to an arbitrary list of iluts. We
         !     would also then need to calculate the value of psi_squared
 
         real(dp) :: ssq(inum_runs), tmp(inum_runs)
@@ -673,7 +676,7 @@ contains
     end function
 
     function calc_s_squared_multi () result (ssq)
-    
+
         integer :: max_linked, max_per_proc, max_spawned
         real(dp), dimension(inum_runs) :: ssq
         type(timer), save :: s2_timer
@@ -723,7 +726,7 @@ contains
 
             ! Clear transmission lists
             proc_pos = proc_pos_init
-            
+
             if (running) then
 
                 ! Generate items, add to list (and use the sgn of initial
@@ -765,7 +768,7 @@ contains
                 if (j > TotWalkers) running = .false.
 
             endif
-            
+
             ! How many elements are there in each list?
             send_count = proc_pos - proc_pos_init
             if (any(send_count > max_per_proc)) &
@@ -902,7 +905,7 @@ contains
                     start_pos = start_pos + nsend
 
                 endif
-                
+
                 ! Broadcast to all processors
                 call MPIBcast (recv_dets(:,1:nsend), iProcIndex == p)
 
@@ -937,7 +940,7 @@ contains
                 ssq(run) = 0.0_dp
             else
                 ssq(run) = real(ssq_sum(run),dp) / psi_squared(run)
-             
+
                 ! TODO: n.b. This is a hack. LMS appears to contain -2Ms of the
                 !            system. I am somewhat astounded I haven't noticed
                 !            this before...
@@ -1062,7 +1065,7 @@ contains
 
 
     subroutine init_hist_excit_tofrom()
-        
+
         integer :: ierr
         character(*), parameter :: t_r = 'init_hist_excit_tofrom'
 

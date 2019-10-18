@@ -25,8 +25,8 @@ C ===================================================================
 
 
       SUBROUTINE HUBKIN(I,J,K,NBASISMAX,BHUB,TTILT,TOTSUM,TREAL)
-C returns the non-interacting energy of state with 
-C..quatum numbers (i,j,k) for Hubbard model of 
+C returns the non-interacting energy of state with
+C..quatum numbers (i,j,k) for Hubbard model of
 C..lengths (LX,LY,LZ) PBC.
 C..Returned in sum
       use constants, only: Pi, Pi2, THIRD,dp
@@ -62,7 +62,7 @@ CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
              TOTSUM=COS(2*PI*(I + tb_x)/LX)
              nn = cos(2*pi*(I + tb_x + J * tb_y)/LX)
          end if
-         IF(LY.GT.1) then 
+         IF(LY.GT.1) then
              TOTSUM=TOTSUM+COS(2*PI*(J + tb_y)/LY)
              nn = cos(2*pi*(I + tb_x - (J + tb_y))/LY)
          end if
@@ -74,8 +74,8 @@ CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
       END
 
       SUBROUTINE HUBKINN(I,J,K,NBASISMAX,BHUB,TTILT,TOTSUM,TREAL)
-C returns the non-interacting energy of state with 
-C..quatum numbers (i,j,k) for Hubbard model of 
+C returns the non-interacting energy of state with
+C..quatum numbers (i,j,k) for Hubbard model of
 C..lengths (LX,LY,LZ).  NON-PBC
 C..Returned in sum
       use constants, only: dp
@@ -90,10 +90,10 @@ C..Returned in sum
           TOTSUM = 0.0_dp
           return
       else
+      LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
+      LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
+      LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
       IF(TTILT) THEN
-       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
-       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
-       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
        AX=NBASISMAX(1,4)
        AY=NBASISMAX(2,4)
 
@@ -168,18 +168,18 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                         IF(LZ.EQ.1) TOTSUM=TOTSUM+BHUB
                      ENDIF
                   ENDIF
-                  ! make this more general to also use open BC and a 
+                  ! make this more general to also use open BC and a
                   ! tilted real-space lattice
                   if (.not. t_open_bc_x .and. .not. t_open_bc_y) then
-                      IF(DX+DY+DZ.EQ.1..or.sum(temp_k) == 1) then
+                      IF(DX+DY+DZ == 1 .or. sum(temp_k) == 1) then
                           if (G1(I)%Ms.EQ.G1(J)%MS) THEN
 !This is for if the site can interact with a periodic image.
                             TMAT2D(I,J)=TOTSUM
                             IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
                            end if
                       ENDIF
-                  else 
-                      if (DX+DY+DZ==1.and.G1(I)%Ms.EQ.G1(J)%MS) THEN 
+                  else
+                      if (DX+DY+DZ==1.and.G1(I)%Ms.EQ.G1(J)%MS) THEN
                         TMAT2D(I,J)=TOTSUM
                         IF(iProcIndex.eq.0) WRITE(10,*) I,J,TOTSUM
                       end if
@@ -235,8 +235,8 @@ C.. Non-tilted, not pbc
          IF(TREAL) NBASISMAX(1,3)=NBASISMAX(1,3)+4
 C         IF(.NOT.TPBC.AND..NOT.TREAL) THEN
 C.. non-pbc has Huckel MOs starting k from 1
-C            NBASISMAX(1,1)=1 
-C            NBASISMAX(2,1)=1 
+C            NBASISMAX(1,1)=1
+C            NBASISMAX(2,1)=1
 C            NBASISMAX(3,1)=1
 C            NBASISMAX(1,2)=NMAXX
 C            NBASISMAX(2,2)=NMAXY
@@ -287,14 +287,14 @@ C.. Indicate tilted
 C.. Not periodic boundaries
             NBASISMAX(1,3)=3
          ENDIF
-         NBASISMAX(1,2)=int(real(NMAXX,dp)*                          
+         NBASISMAX(1,2)=int(real(NMAXX,dp)*
      &          (real(ITILTX+ITILTY,dp)/2.0_dp),sizeof_int)
          NBASISMAX(1,1)=-NBASISMAX(1,2)
 C+1-MOD(NMAXX,2)
          IF(NMAXY.NE.NMAXX)
      &      call stop_all(this_routine,
      &                   'CANNOT HANDLE NON-SQUARE TILTED HUBBARD')
-         NBASISMAX(2,2)=int(real(NMAXX,dp)*        
+         NBASISMAX(2,2)=int(real(NMAXX,dp)*
      &          (real(ITILTY+ITILTX,dp)/2.0_dp),sizeof_int)
          NBASISMAX(2,1)=-NBASISMAX(2,2)
 C+1-MOD(NMAXX,2)
@@ -337,14 +337,14 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          character(*),parameter:: this_routine='GenHubMomIrrepsSymTable'
          nSym=nBasis/2
          WRITE(6,"(A,I3,A)") "Generating abelian symmetry table with",
-     &    nBasis/2 , " generators for Hubbard momentum" 
+     &    nBasis/2 , " generators for Hubbard momentum"
 
 C.. Now generate a list of sym labels.
          write (6,*) 'SIZES',nSymLabels, nBasis, allocated(symlabels),
-     &     associated(symclasses), allocated(symconjtab), 
+     &     associated(symclasses), allocated(symconjtab),
      &     allocated(symtable)
          if (allocated(SymLabels)) then
-             write (6,'(a/a)') 
+             write (6,'(a/a)')
      &                'Warning: symmetry info already allocated.',
      &                'Deallocating and reallocating.'
              deallocate(SymLabels)
@@ -400,7 +400,7 @@ C.. Setup the symmetry product table
          DO I=1,nBasis/2
             NQNS%k=-G1(I*2)%k
             CALL RoundSym(NQNS,nBasisMax)
-            if (t_k_space_hubbard) then 
+            if (t_k_space_hubbard) then
                 ! i could actually include the symmetry rounding in the 
                 ! get_orb_from_k_vec functionality!
                 ! i was doing this incorrectly.. i want the spin orbital
@@ -409,7 +409,7 @@ C.. Setup the symmetry product table
             else
                 J=iFindBasisFn(NQNS,G1,nBasis)
             end if
-            IF(J.EQ.0) THEN 
+            IF(J.EQ.0) THEN
                WRITE(6,*) "Cannot Find symmetry conjugate to basis fn ",
      &            I*2
                call stop_all(this_routine,
@@ -421,13 +421,13 @@ C.. Setup the symmetry product table
                CALL AddElecSym(J*2,G1,nBasisMax,S)
                CALL RoundSym(S,nBasisMax)
                NQNs%k=S%k
-               if (t_k_space_hubbard) then 
+               if (t_k_space_hubbard) then
                    k = lat%get_orb_from_k_vec(S%k,2)
-               else 
+               else
                    K=iFindBasisFn(NQNS,G1,nBasis)
                end if
 
-               IF(K.EQ.0) THEN 
+               IF(K.EQ.0) THEN
                 WRITE(6,*) "Cannot find symmetry product of basis fns ",
      &               I*2, J*2
                   call stop_all(this_routine,
@@ -446,7 +446,7 @@ C.. Setup the symmetry product table
             WRITE(6,*) I,SymConjTab(I)
          ENDDO
       End
-     
+
 !Hubbard Sym Reps are different from normal ones.  In hubbard, we have split degenerate sets into 1D subcomponents,
 !  but a complete degenerate set will count as a sym rep (i.e. if it is filled, its sym can be discounted),
 !  not just one of the subcomponents
@@ -461,13 +461,12 @@ C.. Setup the symmetry product table
          INTEGER NBASIS,BRR(NBASIS)
          real(dp) ARR(NBASIS)
          character(*), parameter :: this_routine='GenHubSymReps'
-         
+
 C.. now work out which reps are degenerate and label them
          if (allocated(SymReps)) deallocate(symreps)
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
-         
          ! this does not make sense.. 
          SYMREPS = 0
          DO I=1,NBASIS
@@ -565,7 +564,7 @@ C.. we have a new rep
                 IF(G%k(3).GT.NBASISMAX(3,2).OR.G%k(3).LT.NBASISMAX(3,1))
      &              TALLOW=.FALSE.
             ENDIF
-        ENDIF         
+        ENDIF
         KALLOWED=TALLOW
         RETURN
       END FUNCTION KALLOWED

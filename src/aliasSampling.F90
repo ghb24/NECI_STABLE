@@ -4,17 +4,17 @@ module aliasSampling
   use constants
   use shared_memory_mpi
   use ParallelHelper, only: iProcIndex_intra
-  use dSFMT_interface , only : genrand_real2_dSFMT  
+  use dSFMT_interface , only : genrand_real2_dSFMT
   implicit none
 
   private
   public :: aliasSampler_t, aliasTable_t, aliasSamplerArray_t, clear_sampler_array
-  
+
   ! type for tables: contains everything you need to get a random number
   ! with given biases
   type aliasTable_t
      private
-     ! WARNING: DO NOT MANUALLY RE-ASSIGN THESE POINTERS, THIS WILL MOST LIKELY BREAK STUFF     
+     ! WARNING: DO NOT MANUALLY RE-ASSIGN THESE POINTERS, THIS WILL MOST LIKELY BREAK STUFF
      ! this is the table of bias
      real(dp), pointer :: biasTable(:) => null()
      ! this is the lookup table for the resulting random number
@@ -34,7 +34,6 @@ module aliasSampling
      procedure :: getRand
 
      ! this hurts, but the array class has to have a mean of setting the pointers
-     ! WHY ARE THERE NO FRIENDS IN FORTRAN !!!! THIS IS NOT OOP
      procedure :: setBiasTablePtr
      procedure :: setAliasTablePtr
   end type aliasTable_t
@@ -47,8 +46,8 @@ module aliasSampling
      private
      ! alias table used for sampling
      type(aliasTable_t) :: table
-     ! WARNING: DO NOT MANUALLY RE-ASSIGN THIS POINTER, THIS WILL MOST LIKELY BREAK STUFF          
-     ! the probabilities     
+     ! WARNING: DO NOT MANUALLY RE-ASSIGN THIS POINTER, THIS WILL MOST LIKELY BREAK STUFF
+     ! the probabilities
      real(dp), pointer :: probs(:) => null()
      ! the shm window for the probabilities
      integer(MPIArg) :: probsShmw
@@ -75,7 +74,7 @@ module aliasSampling
   !------------------------------------------------------------------------------------------!
   ! sampler array class - required for technical reasons: we need multiple samplers to share
   ! the same shared memory windows
-  !------------------------------------------------------------------------------------------!  
+  !------------------------------------------------------------------------------------------!
 
   type aliasSamplerArray_t
      private
@@ -90,7 +89,7 @@ module aliasSampling
    contains
      ! constructor
      procedure :: setupSamplerArray
-     procedure :: setupEntry     
+     procedure :: setupEntry
      ! destructor
      procedure :: samplerArrayDestructor
      ! get a random element and the generation probability from one of the samplers
@@ -105,7 +104,7 @@ contains
   !------------------------------------------------------------------------------------------!
 
   subroutine setupTable(this, arr)
-    ! pseudo-constructor for alias tables      
+    ! pseudo-constructor for alias tables
     ! Input: arr - array containing the (not necessarily normalized) probabilities we
     !              want to use for sampling
     implicit none
@@ -122,7 +121,7 @@ contains
 
     call safe_shared_memory_alloc(this%biasTableShmw, this%biasTable, arrSize)
     if(associated(this%aliasTable)) &
-         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)    
+         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)
     call shared_allocate_mpi(this%aliasTableShmw, this%aliasTable, (/arrSize/))
 
     call this%initTable(arr)
@@ -133,11 +132,11 @@ contains
 
   subroutine initTable(this,arr)
     ! Input: arr - array containing the (not necessarily normalized) probabilities we
-    !              want to use for sampling    
+    !              want to use for sampling
     implicit none
     class(aliasTable_t) :: this
     real(dp), intent(in) :: arr(:)
-    
+
     integer :: i,j,cV, cU
     integer(int64) :: arrSize
     integer, allocatable :: overfull(:), underfull(:)
@@ -145,7 +144,7 @@ contains
     arrSize = size(arr)
 
     ! as this is shared memory, only node-root has to do this
-    if(iProcIndex_intra .eq. 0) then
+    if(iProcIndex_intra == 0) then
        ! initialize the probabilities
        this%biasTable = arr/sum(arr)*arrSize
 
@@ -155,7 +154,7 @@ contains
 
        cV = 0
        cU = 0
-       do i = 1, arrSize
+       do i = 1, int(arrSize)
           call assignLabel(i)
        end do
        ! we now labeled each entry
@@ -163,8 +162,8 @@ contains
        ! it is more efficient to start with the largest biases
        ! -> reverse overfull
        overfull(1:cV) = overfull(cV:1:-1)
-       do 
-          if((cV .eq. 0) .or. (cU .eq. 0)) then            
+       do
+          if((cV == 0) .or. (cU == 0)) then
              exit
           end if
           ! pick one overfull and one underfull index
@@ -173,7 +172,7 @@ contains
           ! set the alias of the underfull to be the other
           this%aliasTable(j) = i
           ! correct the bias
-          this%biasTable(i) = this%biasTable(i) + this%biasTable(j) - 1
+          this%biasTable(i) = this%biasTable(i) + this%biasTable(j) - 1.0_dp
 
           ! unmark j
           cU = cU - 1
@@ -188,7 +187,7 @@ contains
 
     endif
 
-  contains 
+  contains
 
     subroutine assignLabel(i)
       integer, intent(in) :: i
@@ -216,9 +215,8 @@ contains
       endif
 
     end subroutine roundTo1
-        
-  end subroutine initTable
 
+  end subroutine initTable
   !------------------------------------------------------------------------------------------!
 
   subroutine tableDestructor(this)
@@ -239,10 +237,9 @@ contains
     ! Draw a random number from an alias table created with the corresponding probabilities
     ! A bit tricky: this cannot be pure because a random number has to be drawn from
     ! the rng
-    ! (maybe can be resolved, but current implementation requires side-effects for random numbers)
     ! output: ind - random number between 1 and the size of the array used to create the
     !               aliasTable object
-    implicit none    
+    implicit none
     class(aliasTable_t) :: this
     integer :: ind
     real(dp) :: r, bias
@@ -254,7 +251,10 @@ contains
     ! random position in arr
     pos = int(sizeArr*r)+1
     ! remainder of the integer conversion
-    bias = sizeArr*r + 1 - pos
+    ! floating point errors can lead to very small negative values of bias here
+    ! this would allow for picking elements which have probability 0 (-> biasTable entry 0)
+    ! -> ensure that bias>=0
+    bias = max(sizeArr*r + 1.0_dp - real(pos,dp),0.0_dp)
 
     if(bias < this%biasTable(pos)) then
        ind = pos
@@ -277,7 +277,7 @@ contains
   end subroutine setBiasTablePtr
 
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine setAliasTablePtr(this,ptr)
     ! Input: ptr - new target for the aliasTable
     implicit none
@@ -286,7 +286,7 @@ contains
 
     this%aliasTable => ptr
   end subroutine setAliasTablePtr
-  
+
   !------------------------------------------------------------------------------------------!
   ! Initialization / Finalization routines of the sampler
   !------------------------------------------------------------------------------------------!
@@ -307,7 +307,7 @@ contains
        ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
        return
     endif
-    
+
     ! initialize the alias table
     call this%table%setupTable(arr)
     arrSize = size(arr)
@@ -320,12 +320,12 @@ contains
   end subroutine setupSampler
 
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine initSampler(this, arr)
     ! load the probability distribution from arr into this
     ! we only use this in the sampler array, but fortran has no friend classes, so its public
     ! Input: arr - array containing the (not necessarily normalized) probabilities we
-    !              want to use for sampling    
+    !              want to use for sampling
     implicit none
     class(aliasSampler_t) :: this
     real(dp), intent(in) :: arr(:)
@@ -334,7 +334,8 @@ contains
     if(sum(arr) < eps) then
        write(iout,*) &
             "Warning: trying to initialize sampler with empty probability distribution"
-       ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
+       ! if we reach this point, probs is uninitialized -> null it
+       this%probs => null()
        return
     endif
 
@@ -344,22 +345,22 @@ contains
   end subroutine initSampler
 
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine initProbs(this, arr)
     ! load the probability distribution from arr into this%probs
     ! Input: arr - array containing the (not necessarily normalized) probabilities we
-    !              want to use for sampling    
+    !              want to use for sampling
     implicit none
     class(aliasSampler_t) :: this
     real(dp), intent(in) :: arr(:)
 
     ! the array is shared memory, so only node-root has to do this
-    if(iProcIndex_intra.eq.0) then
+    if(iProcIndex_intra == 0) then
        ! the probabilities are taken from input and normalized
        this%probs = arr / sum(arr)
-    end if    
+    end if
   end subroutine initProbs
-  
+
   !------------------------------------------------------------------------------------------!
 
   subroutine samplerDestructor(this)
@@ -373,7 +374,7 @@ contains
   end subroutine samplerDestructor
 
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine sample(this, tgt, prob)
     ! draw a random element from 1:size(this%probs) with the probabilities listed in prob
     ! Input: tgt - on return, this is a random number in the sampling range of this
@@ -395,7 +396,7 @@ contains
     prob = this%probs(tgt)
   end subroutine sample
 
-    !------------------------------------------------------------------------------------------!
+  !------------------------------------------------------------------------------------------!
 
   pure function getProb(this, tgt) result(prob)
     ! Returns the probability to draw tgt from this sampler
@@ -428,7 +429,7 @@ contains
   end subroutine setProbsPtr
 
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine setBiasPtr(this,ptr)
     ! Input: ptr - new target for the bias table
     implicit none
@@ -439,7 +440,7 @@ contains
   end subroutine setBiasPtr
 
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine setAliasPtr(this,ptr)
     ! Input: ptr - new target for the alias table
     implicit none
@@ -461,7 +462,7 @@ contains
     class(aliasSamplerArray_t) :: this
     integer(int64), intent(in) :: nEntries, entrySize
     integer(int64) :: totalSize
-    integer :: iEntry, windowStart, windowEnd
+    integer(int64) :: iEntry, windowStart, windowEnd
     real(dp), pointer :: probPtr(:)
     real(dp), pointer :: biasPtr(:)
     integer, pointer :: aliasPtr(:)
@@ -476,7 +477,7 @@ contains
     if(associated(this%allAliasTable)) &
          call shared_deallocate_mpi(this%allAliasShmw, this%allAliasTable)
     call shared_allocate_mpi(this%allAliasShmw, this%allAliasTable, (/totalSize/))
-    
+
     do iEntry = 1, nEntries
        ! from where to where this entry has memory access in the shared resources
        windowStart = (iEntry-1)*entrySize + 1
@@ -492,7 +493,7 @@ contains
        biasPtr => this%allBiasTable(windowStart:windowEnd)
        call this%samplerArray(iEntry)%setBiasPtr(biasPtr)
     end do
-    
+
   end subroutine setupSamplerArray
 
   !------------------------------------------------------------------------------------------!
@@ -519,7 +520,7 @@ contains
     call safe_shared_memory_dealloc(this%allProbsShmw, this%allProbs)
     if(associated(this%allAliasTable)) &
          call shared_deallocate_mpi(this%allAliasShmw, this%allAliasTable)
-    
+
     ! TODO: null all entry-pointers
   end subroutine samplerArrayDestructor
 
@@ -554,13 +555,13 @@ contains
 
     prob = this%samplerArray(iEntry)%getProb(tgt)
   end function aGetProb
-  
+
   !------------------------------------------------------------------------------------------!
   ! Auxiliary functions to prevent code duplication
   !------------------------------------------------------------------------------------------!
 
   subroutine safe_shared_memory_alloc(win,ptr,size)
-    ! wrapper for shared_allocate_mpi that tests if the pointer is associated          
+    ! wrapper for shared_allocate_mpi that tests if the pointer is associated
     ! Input: win - MPI shared memory window for internal MPI usage
     !        ptr - pointer to be allocated, on return points to a shared memory segment of given size
     !        size - size of the memory segment to be allocated
@@ -570,7 +571,7 @@ contains
     integer(int64) :: size
 
     ! if pointer was allocated prior, re-allocate the probabilities
-    ! WARNING: DO NOT MANUALLY RE-ASSIGN ptr, THIS WILL MOST LIKELY BREAK STUFF    
+    ! WARNING: DO NOT MANUALLY RE-ASSIGN ptr, THIS WILL MOST LIKELY BREAK STUFF
     call safe_shared_memory_dealloc(win,ptr)
     call shared_allocate_mpi(win, ptr, (/size/))
   end subroutine safe_shared_memory_alloc
@@ -588,23 +589,23 @@ contains
     real(dp), pointer :: ptr(:)
 
     ! assume that if ptr is associated, it points to mpi shared memory
-    if(associated(ptr)) call shared_deallocate_mpi(win, ptr)    
+    if(associated(ptr)) call shared_deallocate_mpi(win, ptr)
   end subroutine safe_shared_memory_dealloc
-  
+
   !------------------------------------------------------------------------------------------!
   ! Public non-member function to deallocate 1d-arrays of samplers (common task)
   !------------------------------------------------------------------------------------------!
-  
-    subroutine clear_sampler_array(arr)
-      ! call the destructor on all elements of an array, then deallocate it
-      type(aliasSampler_t), allocatable :: arr(:)
 
-      integer :: i
+  subroutine clear_sampler_array(arr)
+    ! call the destructor on all elements of an array, then deallocate it
+    type(aliasSampler_t), allocatable :: arr(:)
 
-      do i = 1, size(arr)
-         call arr(i)%samplerDestructor()
-      end do
-      deallocate(arr)
-    end subroutine clear_sampler_array
-  
+    integer :: i
+
+    do i = 1, size(arr)
+       call arr(i)%samplerDestructor()
+    end do
+    deallocate(arr)
+  end subroutine clear_sampler_array
+
 end module aliasSampling

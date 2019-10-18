@@ -1,8 +1,8 @@
 #include "macros.h"
 
-MODULE ISKRandExcit 
-!ISK (Inversion-Symmetry K-point) wavefunctions are a linear combinations of two determinants, 
-!where all orbitals are exchanged with 
+MODULE ISKRandExcit
+!ISK (Inversion-Symmetry K-point) wavefunctions are a linear combinations of two determinants,
+!where all orbitals are exchanged with
 !the equivalent orbital where the k-points of all occupied orbitals have been switched.
 !In simple notation we will consider an excitation where determinants i and j are in the original ISK,
 !and determinants a and b in the excited ISK.
@@ -11,7 +11,7 @@ MODULE ISKRandExcit
 !This means that only one constituent determinant will be considered in the space.
 
     use SystemData, only: nel, tCSF
-    use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize 
+    use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize
     use HPHFRandExcitMod, only: CalcNonUniPGen
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, TestClosedShellDet
@@ -28,7 +28,7 @@ MODULE ISKRandExcit
     subroutine gen_ISK_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                tParity, pGen, HEl, store)
         use FciMCData, only: tGenMatHEl
-        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutnI(0:niftot)
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
@@ -64,7 +64,7 @@ MODULE ISKRandExcit
 !Find the inverse
             call returned_invsym(nJ,nJSym,iLutnJ,iLutnJSym,.true.,tSwapped)
 
-!Calculate whether the 'cross-term' is non-zero. i.e. is the original determinant connected to the 
+!Calculate whether the 'cross-term' is non-zero. i.e. is the original determinant connected to the
 !inverse determinant of the excitation.
             if(tSwapped) then
                 !We have swapped the excitation, so that iLutnJ now contains the cross determinant
@@ -99,7 +99,7 @@ MODULE ISKRandExcit
                     write(6,*) tSwapped
                     call stop_all(this_routine,"Dodgy logic - this should not be self-inv")
                 endif
-                
+
                 if(tGenMatHEl) then
                 endif
             endif
@@ -171,8 +171,8 @@ MODULE ISKRandExcit
 !Function to determine whether a determinant is its own self inverse when inverted.
 !If it is (returns true), then there is no other determinant in the ISK function.
 !Input: the determinant to test, in both natural ordered, and bit representations.
-!TODO: This could be sped up by a factor of two, since we only actually need to 
-!search through half of the electrons, since if it is symmetric, then the other 
+!TODO: This could be sped up by a factor of two, since we only actually need to
+!search through half of the electrons, since if it is symmetric, then the other
 !half should be inverses of ones that we've already tested!
     pure function is_self_inverse(nI,iLut) result(tSelfInv)
         integer, intent(in) :: nI(Nel)
@@ -218,7 +218,7 @@ MODULE ISKRandExcit
 !        write(6,*) "Original det: ",nI(:)
 !        write(6,*) "Inv det: ",nISym(:)
 
-        ! iLutnI is 'less' than iLutSym, so iLutSym is the determinant with 
+        ! iLutnI is 'less' than iLutSym, so iLutSym is the determinant with
         ! the first open-shell = alpha. Swap them around.
         i=DetBitLT(iLutnI,iLutnISym,NIfD)
         if(i.eq.1) then
@@ -245,7 +245,7 @@ MODULE ISKRandExcit
 !Other routines for finding permutations look at excitations between normal-ordered
 !determinants which are excitations of each other, and are therefore no use here.
     subroutine find_invsym_permut(nINonOrder,nIOrder,tPermute)
-        use util_mod, only : swap 
+        use util_mod, only : swap
         integer, intent(in) :: nINonOrder(NEl),nIOrder(Nel)
         logical, intent(out) :: tPermute
         integer :: nITemp(NEl),permute,i,j,orb
@@ -329,9 +329,9 @@ MODULE ISKRandExcit
 
     end subroutine find_invsym_det
 
-!This routine will take an ISK nI, and find Iterations number of excitations of it. It will then histogram these, 
+!This routine will take an ISK nI, and find Iterations number of excitations of it. It will then histogram these,
 !summing in 1/pGen for every occurance of
-!the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the 
+!the excitation. This means that all excitations should be 0 or 1 after enough iterations. It will then count the
 !excitations and compare the number to the
 !number of excitations generated using the full enumeration excitation generation.
     SUBROUTINE TestGenRandISKExcit(nI,Iterations,pDoub)
@@ -435,7 +435,7 @@ MODULE ISKRandExcit
         iMaxExcit=0
         nStore(1:6)=0
         DEALLOCATE(EXCITGEN)
-        
+
         CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,.TRUE.,nExcitMemLen,nJ,iMaxExcit,nStore,3)
         ALLOCATE(EXCITGEN(nExcitMemLen(1)),stat=ierr)
         IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
@@ -509,7 +509,7 @@ MODULE ISKRandExcit
         enddo
 
         WRITE(6,*) "There are ",iUniqueHPHF," unique ISK wavefunctions from the ISK given."
-        
+
         WRITE(6,*) "There are ",iUniqueBeta," unique ISK wavefunctions from the inverted determinant, " &
         & //"which are not in the alpha version."
         IF(iUniqueBeta.ne.0) THEN
@@ -602,7 +602,7 @@ MODULE ISKRandExcit
             ENDIF
 
             Weights(PartInd)=Weights(PartInd)+(1.0_dp/pGen)
-             
+
 !Check excitation
 !            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
 
@@ -611,7 +611,7 @@ MODULE ISKRandExcit
         call MPISumAll(Weights,AllWeights)
 
         if(iProcIndex.eq.Root) then
-        
+
             iunit = get_free_unit()
             OPEN(iunit,FILE="PGenHist",STATUS="UNKNOWN")
 
@@ -648,4 +648,4 @@ MODULE ISKRandExcit
     END SUBROUTINE TestGenRandISKExcit
 
 
-END MODULE ISKRandExcit 
+END MODULE ISKRandExcit

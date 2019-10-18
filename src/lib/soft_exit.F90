@@ -2,7 +2,7 @@
 ! JSS, based almost entirely on work by GHB.
 ! Somewhat tidied by SDS, due to expansion of options.
 
-! During the calculation, test for the existence of the file CHANGEVARS.  
+! During the calculation, test for the existence of the file CHANGEVARS.
 
 ! Various input options can be given in CHANGEVARS, including the ability
 ! to modify parameters or cause the code to perform a "soft exit" as soon
@@ -12,7 +12,7 @@
 ! CHANGEVARS.
 
 ! Two procedures are provided:
-! 
+!
 ! * CHANGEVARS reads the CHANGEVARS input file (if it exists) and sets the
 !   relevant variables accordingly.
 ! * test_SoftExit is a function which is a simple wrapper around CHANGEVARS
@@ -30,10 +30,10 @@
 
 ! *******************************************************
 ! Supported options: (n.b. mutiple values may be changed at once)
-! 
-!   EXCITE  XXX          Will change the excitation level of the simulation 
+!
+!   EXCITE  XXX          Will change the excitation level of the simulation
 !                        (< 0 or > NEl sets it to the full space)
-!   TRUNCATECAS  XXX XXX Will change the CAS of the simulation (< 0 or > NEl 
+!   TRUNCATECAS  XXX XXX Will change the CAS of the simulation (< 0 or > NEl
 !                        sets it to the full space)
 !   SOFTEXIT             Exit cleanly from the program
 !   WRITEPOPS            Write a current popsfile
@@ -44,68 +44,68 @@
 !   DIAGSHIFT XXX        Change the shift
 !   SHIFTDAMP XXX        Change the shift damping parameter
 !   STEPSSHIFT XXX       Change the length of the update cycle
-!   SINGLESBIAS XXX      Change the singles bias for the non-uniform random 
+!   SINGLESBIAS XXX      Change the singles bias for the non-uniform random
 !                        excitation generator
 !   ZEROPROJE            Re-zero the averaged energy estimators
 !   ZEROHIST             Re-ezero the averaged histogramming vectors
-!   PARTIALLYFREEZE XXX XXX 
-!                        Change the number of holes/electrons in the core 
+!   PARTIALLYFREEZE XXX XXX
+!                        Change the number of holes/electrons in the core
 !                        valence region
 !   PARTIALLYFREEZEVIRT XXX XXX
-!                        Change the number of electrons in the partially 
+!                        Change the number of electrons in the partially
 !                        frozen virtual region
 !   PRINTERRORBLOCKING   Print the blocking analysis
 !   STARTERRORBLOCKING   Sart the blocking analysis
 !   RESTARTERRORBLOCKING Restart the blocking analysis
 !   PRINTSHIFTBLOCKING   Print the shift blocking analysis
 !   RESTARTSHIFTBLOCKING Restart the shift blocking analysis
-!   EQUILSTEPS XXX       Change the number of steps to ignore in the 
+!   EQUILSTEPS XXX       Change the number of steps to ignore in the
 !                        averaging of the energy and the shift.
-!   STARTHIST            Begin histogramming the determinant populations if 
-!                        the tCalcFCIMCPsi is on and the histogramming has 
+!   STARTHIST            Begin histogramming the determinant populations if
+!                        the tCalcFCIMCPsi is on and the histogramming has
 !                        been set up.
-!   HISTEQUILSTEPS XXX   Change the iteration at which the histogramming 
+!   HISTEQUILSTEPS XXX   Change the iteration at which the histogramming
 !                        begins to the value specified.
-!   TRUNCINITIATOR       Expand the CAS calculation to a TRUNCINITIATOR 
-!                        calculation if DELAYTRUNCINITIATOR is present in 
+!   TRUNCINITIATOR       Expand the CAS calculation to a TRUNCINITIATOR
+!                        calculation if DELAYTRUNCINITIATOR is present in
 !                        the input.
 !   ADDTOINIT XXX        Change the cutt-off population for which walkers are
-!                        added to the initiator space.  Pop must be *above* 
+!                        added to the initiator space.  Pop must be *above*
 !                        specified value.
-!   SCALEHF XXX          Scale the number of walkers at HF by the specified 
+!   SCALEHF XXX          Scale the number of walkers at HF by the specified
 !                        factor
 !   PRINTHIGHPOPDET      Print the determinant with the highest population of
 !                        different sign to the HF.
 !   CHANGEREFDET         Change the reference determinant to the det with the
 !                        highest population
-!   RESTARTHIGHPOP       Restart the calculation with same parameters but a 
+!   RESTARTHIGHPOP       Restart the calculation with same parameters but a
 !                        new reference determinant
-!   SPIN-PROJECT         Change the interval between applications of 
+!   SPIN-PROJECT         Change the interval between applications of
 !                        stochastic spin projection. If 0, disable it.
 !                        If -1, disable FCIQMC propagation.
 !   SPIN-PROJECT-GAMMA   Change the delta-gamma value used for stochastic
 !                        spin projection
 !   SPIN-PROJECT-SHIFT   Change the spin projection shift value.
 !   REFSHIFT             Change the default use of the shift to now keep HF populations constant.
-!   CALCRDMONFLY XXX XXX XXX  
-!                        Stochastically calculate the reduced density 
-!                        matrices.  The first integer specifies the 
-!                        XXX-electron RDM (3 for both 1 and 2).  The second 
-!                        is the number of iterations after the shift starts 
-!                        changing, to start filling the RDM, and the 
-!                        third is the frequency the energy is calculated 
+!   CALCRDMONFLY XXX XXX XXX
+!                        Stochastically calculate the reduced density
+!                        matrices.  The first integer specifies the
+!                        XXX-electron RDM (3 for both 1 and 2).  The second
+!                        is the number of iterations after the shift starts
+!                        changing, to start filling the RDM, and the
+!                        third is the frequency the energy is calculated
 !                        and printed.
 !   CALCEXPLICITRDM XXX XXX XXX
-!                        Same as above, but the RDM is filled using the 
+!                        Same as above, but the RDM is filled using the
 !                        explicit algorithm.
-!   FILLRDMITER XXX      Change the number of iterations after the shift has 
+!   FILLRDMITER XXX      Change the number of iterations after the shift has
 !                        changed that the RDM are filled from.
 !   DIAGFLYONERDM        Requests to diagonalise the 1-RDM at the end.
-!   REFSHIFT             Change the default use of the shift to now keep HF 
+!   REFSHIFT             Change the default use of the shift to now keep HF
 !                        populations constant.
 !   TIME                 Specify a total elapsed-time before the calculation
 !                        performs an automatic soft-exit. If specified as -1,
-!                        we don't stop automatically. 
+!                        we don't stop automatically.
 ! **********************************************************
 
 module soft_exit
@@ -163,10 +163,10 @@ contains
         !
         ! Out: tSingBiasChange - true if the single bias is changed.
         !      tSoftExitFound  - true if a SOFTEXIT is requested.
-        !      tWritePopsFound - true if the output of a POPSFILE has been 
+        !      tWritePopsFound - true if the output of a POPSFILE has been
         !                        requested.
         ! Other changes are made directly to the modules concerned
-        
+
         integer, parameter :: excite = 1, truncatecas = 2, softexit = 3, &
                               writepops = 4, varyshift = 5, nmcyc = 6, &
                               tau = 7, diagshift = 8, shiftdamp = 9, &
@@ -189,7 +189,7 @@ contains
                               spin_project_spawn_initiators = 34, &
                               spin_project_no_death = 35, &
                               spin_project_iter_count = 36, trunc_nopen = 37, &
-                              targetgrowrate = 38, refshift = 39, & 
+                              targetgrowrate = 38, refshift = 39, &
                               calc_rdm = 40, calc_explic_rdm = 41, &
                               fill_rdm_iter = 42, diag_one_rdm = 43, &
                               time = 44
@@ -470,7 +470,7 @@ contains
 
                     if ( ((occCASOrbs>nel) .and. (VirtCASOrbs>nBasis - nel)) &
                         .or. (occCASORbs < 0) .or. (VirtCASORbs < 0) ) then
-                        ! CAS space is equal to or greater than the full 
+                        ! CAS space is equal to or greater than the full
                         ! space, or one of the arguments is less than zero.
                         tTruncCAS = .false.
                         root_print 'Expanding CAS to the full space.'
@@ -505,7 +505,7 @@ contains
                         tSinglePartPhase(run) = .false.
                         VaryShiftIter(run) = iter
                         write(6,*) 'Request to vary the shift detected on a node on iteration: ',iter
-                        
+
                         ! If specified, jump the value of the shift to that
                         ! predicted by the projected energy
                         if (tJumpShift) &
@@ -621,7 +621,7 @@ contains
                     tPartFreezeVirt = .true.
                 endif
             endif
-            
+
             ! Print blocking analysis here.
             if (opts_selected(printerrorblocking)) then
                 root_print 'Printing blocking analysis at this point.'
@@ -705,7 +705,7 @@ contains
                            &to the initiator space changed to ', &
                            InitiatorWalkNo
             endif
-            
+
             ! Scale the number of walkers on the HF det
             if (opts_selected(scalehf)) then
                 call MPIBcast (HFScaleFactor, tSource)
@@ -833,7 +833,7 @@ contains
                 endif
             endif
 
-            ! varyshift according to reference population 
+            ! varyshift according to reference population
             if (opts_selected(refshift)) then
                 tShiftonHFPop = .true.
                 write(6,*) 'Request to change default shift action to REFSHIFT &
@@ -842,7 +842,7 @@ contains
 
             ! Initialise calculation of the stochastic RDM.
             if (opts_selected(calc_rdm)) then
-                tChangeVarsRDM = .true. 
+                tChangeVarsRDM = .true.
                 call MPIBCast (tChangeVarsRDM, tSource)
                 call MPIBCast (RDMExcitLevel, tSource)
                 call MPIBCast (IterRDMonFly_new, tSource)
@@ -874,7 +874,7 @@ contains
                                &HPHF.'
                     root_print 'Ignoring request.'
                 else
-                    tChangeVarsRDM = .true. 
+                    tChangeVarsRDM = .true.
                     tExplicitAllRDM = .true.
                     call MPIBCast (tChangeVarsRDM, tSource)
                     call MPIBCast (tExplicitAllRDM, tSource)
@@ -905,18 +905,18 @@ contains
                 if (IterRDMonFly_new .le. (Iter - maxval(VaryShiftIter))) then
                     root_print 'New value of IterRDMonFly is LESS than or EQUAL TO &
                                &the current iteration number'
-                    root_print 'The number of iterations after the shift change & 
+                    root_print 'The number of iterations after the shift change &
                                &to start filling the RDM has been left at ', IterRDMonFly_value
                 elseif(tRDMonFly) then
                     IterRDMonFly_value = IterRDMonFly_new
                     if(tExplicitAllRDM) then
                         if(RDMExcitLevel.eq.3) then
                             root_print 'The 1 and 2 electron reduced density matrices &
-                                      &will be EXPLICITLY filled ' 
+                                      &will be EXPLICITLY filled '
                             root_print 'from the following number of iterations after the &
                                       &shift changes ', IterRDMonFly_value
                         else
-                            root_print 'The ',RDMExcitLevel,' electron reduced density & 
+                            root_print 'The ',RDMExcitLevel,' electron reduced density &
                                       &matrices will be EXPLICITLY filled '
                             root_print 'from the following number of iterations after the &
                                       &shift changes ', IterRDMonFly_value
@@ -924,12 +924,12 @@ contains
                     else
                         if(RDMExcitLevel.eq.3) then
                             root_print 'The 1 and 2 electron reduced density matrices &
-                                      &will be STOCHASTICALLY filled ' 
+                                      &will be STOCHASTICALLY filled '
                             root_print 'from the following number of iterations after the &
                                       &shift changes ', IterRDMonFly_value
                         else
-                            root_print 'The ',RDMExcitLevel,' electron reduced density & 
-                                      &matrices will be STOCHASTICALLY filled ' 
+                            root_print 'The ',RDMExcitLevel,' electron reduced density &
+                                      &matrices will be STOCHASTICALLY filled '
                             root_print 'from the following number of iterations after the &
                                       &shift changes ', IterRDMonFly_value
                         endif

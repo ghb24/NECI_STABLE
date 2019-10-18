@@ -80,7 +80,7 @@ contains
         call MPIBarrier(ierr, tTimeIn=.false.)
 
         call set_timer(SemiStoch_Init_Time)
-        
+
         write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
 
         allocate(determ_sizes(0:nProcessors-1))
@@ -106,12 +106,12 @@ contains
             call neci_flush(6)
             ! from my understanding npops refers to the total core space size
             do run = 1, inum_runs
-                write(6,'("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run)*0.1)
+                write(6,'("Estimated size of core space:",1X,i5)') int(AllNoInitDets(run) * 0.1_dp)
                 call neci_flush(6)
-                if (int(AllNoInitDets(run)*0.1) > 50000) then
+                if (int(AllNoInitDets(run) * 0.1_dp) > 50000) then
                     core_in%npops = 50000
                 else
-                    core_in%npops = int(AllNoInitDets(run)*0.1)
+                    core_in%npops = int(AllNoInitDets(run) * 0.1_dp)
                 end if
             end do
             ! might also need to check if the total space is too large so that
@@ -303,7 +303,7 @@ contains
 
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
-        if (core_in%tPops) call generate_space_most_populated(core_in%npops, & 
+        if (core_in%tPops) call generate_space_most_populated(core_in%npops, &
                                     core_in%tApproxSpace, core_in%nApproxSpace, SpawnedParts, space_size, CurrentDets, TotWalkers)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. tCSFCore) then
@@ -490,8 +490,8 @@ contains
                     HEl = get_helement(HFDet, nI, ilutHF, ilut)
                     ! [W.D. 15.5.2017:]
                     ! is this still enough, even for Hamiltonians containing
-                    ! complex entries?? 
-                    ! and why is the cast to real(dp) done here?? 
+                    ! complex entries??
+                    ! and why is the cast to real(dp) done here??
 !                     if (abs(real(HEl,dp)) < 1.e-12_dp) cycle
                     if (abs(HEl) < 1.e-12_dp) cycle
                 end if
@@ -1041,9 +1041,9 @@ contains
         ! In: tApproxSpace - If true then only find *approximately* the best
         !         space, to save memory (although in many cases it will end up
         !         finding the best space).
-        ! In: nApproxSpace - factor that defines how many states are kept on each 
-        !         process if tApproxSpace is true, 1 =< nApproxSpace =< nProcessors. 
-        !         The larger nApproxSpace, the more memory is consumed and the slower  
+        ! In: nApproxSpace - factor that defines how many states are kept on each
+        !         process if tApproxSpace is true, 1 =< nApproxSpace =< nProcessors.
+        !         The larger nApproxSpace, the more memory is consumed and the slower
         !         (but more accurate) the semi-stochastic initialisation is.
         ! In/Out: ilut_list - List of determinants generated.
         ! In/Out: space_size - Number of determinants in the generated space.
@@ -1071,7 +1071,8 @@ contains
         integer(n_int) :: temp_ilut(0:NIfTot)
         integer(n_int), dimension(:,:), allocatable :: largest_states
         integer, allocatable, dimension(:) :: indices_to_keep
-        integer :: i, j, ierr, ind, n_pops_keep, min_ind, max_ind, n_states_this_proc
+        integer :: j, ierr, ind, n_pops_keep, min_ind, max_ind, n_states_this_proc
+        integer(int64) :: i
         integer(TagIntType) :: TagA, TagB, TagC, TagD
         character (len=*), parameter :: t_r = "generate_space_most_populated"
         integer :: nzero_dets
@@ -1124,7 +1125,7 @@ contains
         do i = 1, nProcessors-1
             disps(i) = disps(i-1) + lengths(i-1)
         end do
-        
+
 
         ! Return the most populated states in source on *this* processor.
         call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states, &
@@ -1383,7 +1384,7 @@ contains
             ! If a determinant is returned (if we did not find the final one last time.)
             if (.not. tAllExcitFound) then
                 call return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
-                
+
                 pos = binary_search_real(amp_list, -abs(amp), 1.0e-8_dp)
 
                 ! If pos is less then there isn't another determinant with the same amplitude
@@ -1576,8 +1577,8 @@ contains
     !        else
     !            call generate_heisenberg_fci_r(ispin+1, up_spins, nsites, nup, ilut_list, space_size)
     !        end if
-    !    end do 
-    !    
+    !    end do
+    !
     !end subroutine generate_heisenberg_fci_r
 
     subroutine generate_fci_core(ilut_list, space_size)
@@ -1760,7 +1761,7 @@ contains
                     if(.not.texist) call stop_all(t_r,'"DETFILE" file cannot be found')
                     open(iunit, file='DETFILE', status='old', position='append')
                 end if
-                
+
                 do j = 1, space_size
                     do k = 0, NIfDBO
                         write(iunit, '(i24)', advance='no') SpawnedParts(k,j)
@@ -1805,7 +1806,7 @@ contains
       call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
 
       ! Changing the semi-stochastic space can involve some roundings
-      ! if determinants with population < realSpawnCutoff stop being 
+      ! if determinants with population < realSpawnCutoff stop being
       ! in the corespace. Then, we need to log these events.
       iter_data_fciqmc%update_growth = iter_data_fciqmc%update_growth + iter_data_fciqmc%nborn &
            - iter_data_fciqmc%nremoved
@@ -1822,11 +1823,11 @@ contains
       implicit none
 
       integer :: i
-      
+
       do i = 1, MaxWalkersPart
          call clr_flag(CurrentDets(:,i),flag_deterministic)
       end do
-      
+
     end subroutine reset_core_space
 
 !------------------------------------------------------------------------------------------!

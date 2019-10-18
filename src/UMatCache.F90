@@ -8,7 +8,7 @@ MODULE UMatCache
 
     use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts, t_non_hermitian
 
-    use util_mod, only: swap, get_free_unit, NECI_ICOPY
+    use util_mod, only: swap, get_free_unit, NECI_ICOPY, near_zero
 
     use sort_mod
 
@@ -77,7 +77,7 @@ MODULE UMatCache
      INTEGER, DIMENSION(:), POINTER :: INVBRR => null()
      INTEGER, DIMENSION(:), POINTER :: INVBRR2 => null()
 
-!NOCC is number of occupied spatial orbitals - needed for test in UMATInd, thought would be quicker 
+!NOCC is number of occupied spatial orbitals - needed for test in UMATInd, thought would be quicker
 !than passing it in each time.
 !Freezetransfer is a temporary measure to tell UMATIND when the freezing of orbitals is occuring.
       INTEGER :: NOCC
@@ -85,9 +85,9 @@ MODULE UMatCache
 
 
 ! Book-keeping information
-! nSlotsInit is the number of slots requested on input.  If the number required is less, 
+! nSlotsInit is the number of slots requested on input.  If the number required is less,
 !then the lower value is allocated
-! If nSlotsInit is set to 0, then general <ij|u|kl> element caching is not performed, but 
+! If nSlotsInit is set to 0, then general <ij|u|kl> element caching is not performed, but
 !UMat2D <ij|u|ij> and <ij|u|ji> is.  For nSlotsInit=-1 neither is performed.
       INTEGER nSlotsInit,nMemInit
 
@@ -430,7 +430,7 @@ MODULE UMatCache
 
             UMatCacheData=(0.0_dp)
             UMATLABELS(1:nSlots,1:nPairs)=0
-!If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in 
+!If tSmallUMat is set here, and have set tCacheFCIDUMPInts, then we need to read in
 !the <ik|u|jk> integrals from the FCIDUMP file, then disperse them using the
 !FillUMatCache routine. Otherwise, we need to read in all the integrals.
             if (.not.tSmallUMat.and.tReadInCache) then
@@ -976,7 +976,7 @@ MODULE UMatCache
               CALL Stop_All("CacheFCIDUMP","Overwriting UMATLABELS")
           ENDIF
           UMATLABELS(CacheInd(A),A)=B
-          IF(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp).ne.0.0_dp) THEN
+          IF(.not. near_zero(REAL(UMatCacheData(nTypes-1,CacheInd(A),A),dp))) THEN
               CALL Stop_All("CacheFCIDUMP","Overwriting when trying to fill cache.")
           ENDIF
           UMatCacheData(nTypes-1,CacheInd(A),A)=Z
@@ -1283,7 +1283,7 @@ MODULE UMatCache
 ! \|/
 !  adcb .* -> dabc .*<>
 
-!Now consider what must occur to the other integral in the slot to recover pair 
+!Now consider what must occur to the other integral in the slot to recover pair
 !(abcd,cbad).  0 indicates 1st in slot, 1 means 2nd.  * indicated conjg.
 !
 !  ..    abcd  cbad  0  1
@@ -1296,9 +1296,9 @@ MODULE UMatCache
 !  **<>  dcba  bcda  0* 1
 
 
-! Of the type, bit zero indicates which of the two integrals in a slot to use.  
+! Of the type, bit zero indicates which of the two integrals in a slot to use.
 !Bit 1 is set if the integral should be complex conjugated.
-!   Bit 2 is set if the other integral in the slot should be complex conjugated 
+!   Bit 2 is set if the other integral in the slot should be complex conjugated
 !if we are to have the structure (<ij|kl>,<kj|il>) in the slot.
 !      This is only used by CacheUMatEl when adding a slot to the cache.
 !
@@ -1399,7 +1399,7 @@ MODULE UMatCache
         else
            iSS = 2
         endif
-        
+
         ! number of distinct indices of the integrals
         nBI = nBasis / iSS
       end function numBasisIndices
@@ -1410,11 +1410,11 @@ MODULE UMatCache
         implicit none
         integer, intent(in) :: nBasis
         integer :: nBI, i, j, idX, idN
-        
+
         nBI = numBasisIndices(nBasis)
         if(.not.associated(UMat2D)) allocate(UMat2D(nBI,nBI))
         if(.not.associated(UMat2DExch)) allocate(UMat2DExch(nBI,nBI))
-        
+
         do i = 1, nBI
            do j = 1, nBI
               idX = max(i,j)
@@ -1424,8 +1424,6 @@ MODULE UMatCache
               ! and have contiguous access)
               ! store the integrals <ij|ij> in UMat2D
               UMat2D(j,i) = get_umat_el(idN,idX,idN,idX)
-              ! same for the integrals <ij|ji> in UMat2DExch
-              UMat2DExch(j,i) = get_umat_el(idN,idX,idX,idN)
            end do
         end do
       end subroutine SetupUMat2d_dense
@@ -1434,7 +1432,7 @@ MODULE UMatCache
 
       subroutine freeUmat2d_dense()
         implicit none
-        
+
         ! deallocate auxiliary arrays storing the integrals <ij|ij> and <ij|ji>
         if(associated(UMat2dExch)) deallocate(UMat2dExch)
         if(associated(UMat2d)) deallocate(UMat2d)
@@ -1451,7 +1449,6 @@ MODULE UMatCache
         allocate(UMat3d(nBI,nBI,nBI))
         allocate(UMat3dExch(nBI,nBI,nBI))
 
-        
       end subroutine SetupUMat3d_dense
 
     function get_2d_umat_el(idj,idi) result(hel)

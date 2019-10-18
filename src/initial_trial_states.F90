@@ -7,6 +7,7 @@ module initial_trial_states
     use kp_fciqmc_data_mod
     use SystemData, only: t_non_hermitian
     use unit_test_helpers, only: eig, print_matrix
+    use util_mod, only: operator(.div.)
 
     implicit none
 
@@ -65,7 +66,7 @@ contains
 
         ! Choose the correct generating routine.
         if (space_in%tHF)       call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops)     call generate_space_most_populated(space_in%npops, & 
+        if (space_in%tPops)     call generate_space_most_populated(space_in%npops, &
                                     space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, CurrentDets, TotWalkers)
         if (space_in%tRead)     call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles)  call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
@@ -143,7 +144,7 @@ contains
             if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
             evec_abs = 0.0_dp
         endif
-            
+
         ! Perform the Lanczos procedure in parallel.
         if (t_non_hermitian) then 
             call stop_all(t_r, &
@@ -155,7 +156,7 @@ contains
         if (iProcIndex == root) then
             evals = lanczosCalc%eigenvalues(1:nexcit)
             evecs = lanczosCalc%eigenvectors(1:lanczosCalc%super%space_size, 1:nexcit)
-            
+
             ! For consistency between compilers, enforce a rule for the sign of
             ! the eigenvector. To do this, make sure that the largest component
             ! of each vector is positive. The largest component is found using
@@ -262,7 +263,7 @@ contains
 
         ! Choose the correct generating routine.
         if (space_in%tHF)       call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops)     call generate_space_most_populated(space_in%npops, & 
+        if (space_in%tPops)     call generate_space_most_populated(space_in%npops, &
                                     space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, CurrentDets, TotWalkers)
         if (space_in%tRead)     call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles)  call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
@@ -299,7 +300,7 @@ contains
 
 
         ! [W.D. 15.5.2017:]
-        ! is the sort behaving different, depending on the compiler? 
+        ! is the sort behaving different, depending on the compiler?
         ! since different references for different compilers..??
 
         call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)
@@ -334,10 +335,10 @@ contains
             allocate(evec_abs(ndets_all_procs), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
             evec_abs = 0.0_dp
-            
 
-            ! [W.D.] 
-            ! here the change to the previous implementation comes.. 
+
+            ! [W.D.]
+            ! here the change to the previous implementation comes..
             ! previously frsblk_wrapper was called..
             ! try to brint that back??
             ! yes that was the problem! so bring it back for non-complex
@@ -367,7 +368,7 @@ contains
                                 ilut_list(:,j))
                 else
                    H_tmp(i,j) = get_helement(det_list(:,i),det_list(:,j),ilut_list(:,i),ilut_list(:,j))
-                end if 
+                end if
               end do
             end do
 ! The H matrix if ready. Now diagonalize it.
@@ -482,7 +483,7 @@ contains
                 call sort(temp_reorder, evecs)
             end if
 
-!             print *, "eigen-values: ", evals 
+!             print *, "eigen-values: ", evals
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
             allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)
@@ -546,7 +547,7 @@ contains
         character(len=*), parameter :: this_routine = "calc_trial_states_qmc"
 
         if (paired_replicas) then
-            ASSERT(nexcit == lenof_sign/2)
+            ASSERT(nexcit == (lenof_sign .div. 2))
         else
             ASSERT(nexcit == lenof_sign)
         end if
@@ -556,7 +557,7 @@ contains
 
         ! Choose the correct generating routine.
         if (space_in%tHF)       call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
-        if (space_in%tPops)     call generate_space_most_populated(space_in%npops, & 
+        if (space_in%tPops)     call generate_space_most_populated(space_in%npops, &
                                     space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, CurrentDets, TotWalkers)
         if (space_in%tRead)     call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles)  call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
@@ -618,7 +619,7 @@ contains
         character(*), parameter :: this_routine = 'get_qmc_trial_weights'
 
         if (paired_replicas) then
-            ASSERT(nexcit == lenof_sign/2)
+            ASSERT(nexcit == (lenof_sign .div. 2))
         else
             ASSERT(nexcit == lenof_sign)
         end if
@@ -628,8 +629,8 @@ contains
         ! Loop over all trial states.
         do i = 1, ntrial
             ! Check the QMC hash table to see if this state exists in the
-            ! QMC list. 
-            call decode_bit_det(nI, trial_iluts(:,i)) 
+            ! QMC list.
+            call decode_bit_det(nI, trial_iluts(:,i))
             call hash_table_lookup(nI, trial_iluts(:,i), NIfDBO, qmc_ht, &
                                    qmc_iluts, ind, hash_val, found)
             if (found) then
@@ -703,7 +704,7 @@ contains
 
         integer, intent(in) :: ndets_this_proc
         HElement_t(dp), intent(in) :: init_vecs(:,:)
-        integer(n_int), intent(in) :: trial_iluts(0:,:) 
+        integer(n_int), intent(in) :: trial_iluts(0:,:)
         logical, intent(in) :: semistoch_started
         logical, intent(in), optional :: paired_replicas
 

@@ -21,7 +21,7 @@ module errors
 
     contains
 
-    !Perform automatic FCIMC blocking analysis, reading in whether we have started varying the shift or not, 
+    !Perform automatic FCIMC blocking analysis, reading in whether we have started varying the shift or not,
     !and which iteration we did so, and
     !returning the mean and error for all energy estimates.
     subroutine error_analysis(tSingPartPhase,iShiftVary,mean_ProjE_re,ProjE_Err_re, &
@@ -128,7 +128,7 @@ module errors
                 write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
                     & //"will be simple average over "
                 write(6,"(A)") "all iterations (including growth phase), which may contain correlated " &
-                    & //"sampling bias. Use with caution." 
+                    & //"sampling bias. Use with caution."
                 write(6,"(A)") "Manual reblocking or continued running suggested for accurate " &
                     & //"projected energy estimate."
                 tNoProjEValue = .true.
@@ -148,7 +148,7 @@ module errors
                 write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
                     & //"will be simple average over "
                 write(6,"(A)") "all iterations (including growth phase), which may contain correlated " &
-                    & //"sampling bias. Use with caution." 
+                    & //"sampling bias. Use with caution."
                 write(6,"(A)") "Manual reblocking or continued running suggested for accurate " &
                     & //"projected energy estimate."
                 tNoProjEValue = .true.
@@ -184,7 +184,7 @@ module errors
                     write(6,"(A)") "Skipping blocking analysis of projected energy, and energy estimate " &
                         & //"will be simple average over "
                     write(6,"(A)") "all iterations (including growth phase), which may contain correlated " &
-                        & //"sampling bias. Use with caution." 
+                        & //"sampling bias. Use with caution."
                     write(6,"(A)") "Continued running suggested for accurate projected energy estimate."
                     tNoProjEValue = .true.
                 endif
@@ -266,7 +266,7 @@ module errors
                     " Relative error: ", abs(error_num/mean_num)
             endif
         endif
-        ! write(6,*) "OVERALL", mean2/mean1, "+-", 
+        ! write(6,*) "OVERALL", mean2/mean1, "+-",
         !abs(mean2/mean1)*((abs(error1/mean1))**2.0_dp+(abs(error2/mean2))**2.0_dp)**0.5_dp
         ! this is before the covariance, so don't print it now
 
@@ -279,7 +279,7 @@ module errors
                     mean_shift, " +/- ", shift_Err, " Relative error: ", abs(shift_Err/mean_shift)
             endif
         endif
-        
+
         ! STEP 6) Refine statistics using covariance
         if(.not.tNoProjEValue) then
             covariance_re=calc_covariance(pophf_data,numerator_data)
@@ -300,8 +300,8 @@ module errors
                 if(ErrorDebug.gt.0) then
                     write(6,"(A,F20.8)") "Covariance correction (Re):", correction_re
                     write(6,"(A,F20.8)") "Covariance correction (Im):", correction_im
-                    write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Re): ", mean_ProjE_re, " +/- ", ProjE_Err_re 
-                    write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Im): ", mean_ProjE_im, " +/- ", ProjE_Err_im 
+                    write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Re): ", mean_ProjE_re, " +/- ", ProjE_Err_re
+                    write(6,"(A,F20.10,A,G20.8)") "Final projected energy (Im): ", mean_ProjE_im, " +/- ", ProjE_Err_im
                 endif
             else
                 if(ErrorDebug.gt.0) then
@@ -393,13 +393,13 @@ module errors
         length=size(this,1)
         allocate(that(length))
         that=this
-        blocking_events=int(log(real(size(that),dp))/log(2.0_dp)-1.0_dp) 
+        blocking_events=int(log(real(size(that),dp))/log(2.0_dp)-1.0_dp)
                 ! Yuck! This justs finds the
                 ! expected number of reblocking analyses automatically
         allocate(mean_array(blocking_events+1))
         allocate(error_array(blocking_events+1))
         allocate(eie_array(blocking_events+1))
-        
+
         iunit = 0
         if(tPrint) then
             iunit = get_free_unit()
@@ -412,7 +412,7 @@ module errors
         mean_array(1)=mean
         error_array(1)=error
         eie_array(1)=eie
-        do i=1,blocking_events 
+        do i=1,blocking_events
             call reblock_data(that,blocklength)
             call analyze_data(that,mean,error,eie)
             mean_array(i+1)=mean
@@ -426,16 +426,16 @@ module errors
         if(tPrint) then
             if(iValue.eq.1) then
                 write(6,"(A,I7)") "Number of blocks assumed for calculation of error in projected energy denominator: ", &
-                    length/corrlength 
+                    length/corrlength
             elseif(iValue.eq.2) then
                 write(6,"(A,I7)") "Number of blocks assumed for calculation of error in projected energy numerator: ", &
-                    length/corrlength 
+                    length/corrlength
             elseif(iValue.eq.3) then
                 write(6,"(A,I7)") "Number of blocks assumed for calculation of error in shift: ",   &
-                    length/corrlength 
+                    length/corrlength
             elseif(iValue.eq.4) then
                 write(6,"(A,I7)") "Number of blocks assumed for calculation of error in Im projected energy numerator: ", &
-                    length/corrlength 
+                    length/corrlength
             else
                 call stop_all(t_r,"Error in iValue")
             endif
@@ -468,11 +468,11 @@ module errors
         real(dp) :: curr_S2_init,AbsProjE
         integer(int64) :: iters,validdata,datapoints,totdets
         real(dp), dimension(lenof_sign) :: insthf
-        
+
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
         if(tMolpro .and. .not. tMolproMimic) then
-            filename = 'FCIQMCStats_' // adjustl(MolproID) 
+            filename = 'FCIQMCStats_' // adjustl(MolproID)
             inquire(file=filename,exist=exists)
             if (.not. exists) then
                 write(iout,*) 'No FCIQMCStats file found for error analysis'
@@ -520,7 +520,7 @@ module errors
                         imwalkers, &                       !6.
                         reproje, &                !7.     real \sum[ nj H0j / n0 ]
                         improje, &                   !8.     Im   \sum[ nj H0j / n0 ]
-                        reinstproje, &                 !9.     
+                        reinstproje, &                 !9.
                         iminstproje, &                    !10.
                         tote, &       ! Tot.ProjE.iter (Re)
                         insthf(1), &                         !11.
@@ -567,7 +567,7 @@ module errors
                 if(eof.lt.0) then
                     call stop_all(t_r,"Should not be at end of file")
                 elseif(eof.gt.0) then
-                    ! This is normally due to a difficulty reading NaN or 
+                    ! This is normally due to a difficulty reading NaN or
                     ! Infinity. Assume that this occurs when NoAtRef --> 0.
                     ! Therefore we can safely wipe the stats.
                     if (iters > iShiftVary) then
@@ -656,7 +656,7 @@ module errors
                         imwalkers, &                       !6.
                         reproje, &                !7.     real \sum[ nj H0j / n0 ]
                         improje, &                   !8.     Im   \sum[ nj H0j / n0 ]
-                        reinstproje, &                 !9.     
+                        reinstproje, &                 !9.
                         iminstproje, &                    !10.
                         tote,  &     ! Tot.PorjE.iter (Rm)
                         insthf(1), &                         !11.
@@ -712,7 +712,7 @@ module errors
                 if(eof.lt.0) then
                     call stop_all(t_r,"Should not be at end of file")
                 elseif(eof.gt.0) then
-                    ! This is normally due to a difficulty reading NaN or 
+                    ! This is normally due to a difficulty reading NaN or
                     ! Infinity. Assume that this occurs when NoAtRef --> 0.
                     ! Therefore, we should not be trying to store the stats,
                     ! and can ignore the error.
@@ -924,7 +924,7 @@ module errors
     ! Reduces the data vector for Flyvbjerg and Petersen blocking analysis
     ! by a factor of blocklength (commonly 2, only tested for 2)
     ! General routine, does not require global data
-        
+
         real(dp), allocatable :: this(:)
         integer :: length,new_length,ind_end,i,j
         real(dp), allocatable :: tmp(:)
@@ -946,7 +946,7 @@ module errors
         j=1 ! lazy but foolproof - counting elements
         do i=1,length,blocklength
             ind_end=i+blocklength-1 ! integer addition is disgusting
-            if (ind_end.le.length) then 
+            if (ind_end.le.length) then
                 tmp(j)=average_vector(this(i:ind_end))
             endif
             j=j+1
@@ -959,19 +959,19 @@ module errors
         this=0.0_dp
         this=tmp
         deallocate(tmp)
-        
+
     end subroutine reblock_data
 
     function average_vector(this)
     ! Returns average of a vector
     ! General routine, does not require global data
-        
+
         real(dp) :: this(:)
         integer :: length
         integer :: i
         real(dp) :: s ! sum of array elements
         real(dp) :: average_vector
-        
+
         s=0
         length=size(this,1)
         do i=1,length
@@ -988,12 +988,12 @@ module errors
     subroutine print_vector(this,filename)
     ! Just prints a vector (useful for debug)
     ! General routine, does not require global data
-        
+
         real(dp) :: this(:)
         character(len=*), intent(in), optional :: filename
         integer :: length
         integer :: i,iunit
-        
+
         length=size(this,1)
         iunit = get_free_unit()
         if (present(filename)) open(iunit,file=filename)
@@ -1029,21 +1029,21 @@ module errors
 
         monotonic=.true.
         length=size(these_errors)
-        do i=2,length 
+        do i=2,length
             if (these_errors(i).lt.these_errors(i-1)) monotonic=.false.
         enddo
         if (monotonic.and.tPrint) then
             if(iValue.eq.1) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*denominator of projected energy*" 
+                    & //"*denominator of projected energy*"
             elseif(iValue.eq.2) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*numerator of projected energy*" 
+                    & //"*numerator of projected energy*"
             elseif(iValue.eq.3) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*"
             elseif(iValue.eq.4) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*imaginary numerator of projected energy*" 
+                    & //"*imaginary numerator of projected energy*"
             else
                 call stop_all(t_r,"Unknown iValue passed in")
             endif
@@ -1052,15 +1052,15 @@ module errors
         elseif(monotonic.and.(ErrorDebug.gt.0)) then
             if(iValue.eq.1) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*denominator of projected energy*" 
+                    & //"*denominator of projected energy*"
             elseif(iValue.eq.2) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*numerator of projected energy*" 
+                    & //"*numerator of projected energy*"
             elseif(iValue.eq.3) then
-                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*" 
+                write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for *shift*"
             elseif(iValue.eq.4) then
                 write(6,"(A)") "WARNING: Error increases monotonically on the blocking graph for " &
-                    & //"*imaginary numerator of projected energy*" 
+                    & //"*imaginary numerator of projected energy*"
             else
                 call stop_all(t_r,"Unknown iValue passed in")
             endif
@@ -1095,7 +1095,7 @@ module errors
     function calc_covariance(this,that)
     ! Covariance between two arrays
     ! General routine, no global data
-        
+
         real(dp), intent(in) :: this(:),that(:)
         integer :: length1,length2
         integer :: i
@@ -1124,7 +1124,7 @@ module errors
 
     end function calc_covariance
 
-    
+
     !Routine to just calculate errors from FCIMCStats file
     subroutine Standalone_Errors()
         use sym_mod, only: getsym
@@ -1167,7 +1167,7 @@ module errors
         isymh=int(RefSym%Sym%S,sizeof_int)+1
         write (iout,10101) iroot,isymh
 10101   format(//'RESULTS FOR STATE',i2,'.',i1/'====================='/)
-        write (iout,'('' Current reference energy'',T52,F19.12)') Hii 
+        write (iout,'('' Current reference energy'',T52,F19.12)') Hii
         if(tNoProjEValue) then
             write(iout,'('' No projected energy value could be obtained'',T52)')
         else
@@ -1187,7 +1187,7 @@ module errors
 
         !Do shift and projected energy agree?
         write(iout,"(A)")
-        if(tNoProjEValue.and.tNoShiftValue) return 
+        if(tNoProjEValue.and.tNoShiftValue) return
         EnergyDiff = abs(mean_Shift-mean_ProjE_re)
         if(EnergyDiff.le.sqrt(shift_err**2+ProjE_Err_re**2)) then
             write(iout,"(A,F15.8)") " Projected and shift energy estimates agree " &

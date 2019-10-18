@@ -45,7 +45,7 @@ contains
     end function
 
     function CSFGetHelement (nI, nJ) result(hel_ret)
-        
+
         ! Calculate the H-matrix element between two CSFs (nI, nJ)
         ! This is a wrapper function to allow working arrays to be on the
         ! stack.
@@ -125,11 +125,11 @@ contains
         ! Assume Ms is maintained as Ms==S
         ! .or. (Ms(1).ne.Ms(2))) then
         if (bBothCSF .and. (S(1).ne.S(2))) then
-            hel_ret = (0) 
+            hel_ret = (0)
             return
         endif
 
-        ! Use the maximal Ms value that we can (fewest determinants 
+        ! Use the maximal Ms value that we can (fewest determinants
         ! required)
         Ms(1) = minval(S)
         Ms(2) = Ms(1)
@@ -299,9 +299,9 @@ contains
                                    result(hel_ret)
 
         ! The worker function for the above wrapper for calculating the
-        ! H-matrix elements between a CSF and a normal determinant. By using 
+        ! H-matrix elements between a CSF and a normal determinant. By using
         ! a wrapper in this way, we can easily place the working arrays on the
-        ! stack rather than using heap allocation (and therefore logging), or 
+        ! stack rather than using heap allocation (and therefore logging), or
         ! using pure function spaghetti code in the variable declarations.
         !
         ! n.b. nI/iLutI indicate the CSF, nJ/iLutJ --> The determinant.
@@ -359,7 +359,7 @@ contains
     function get_csf_helement_0 (nI, nopen, nclosed, nup, ndets, coeffs1, &
                                  coeffs2, dets1, det_sum, bEqual) &
                                  result(hel_ret)
-        
+
         ! The local worker function for calculating Helements between two CSFs
         ! which differ by 0 spatial orbitals (i.e. only differ by Yamanouchi
         ! symbols, or not at all).
@@ -430,7 +430,7 @@ contains
                 idN = min(id(i), id(j))
 
                 hel2 = get_umat_el(idN, idX, idX, idN)
-                
+
                 do det=1,ndets
                     if (abs(coeffs1(det)) > 1.0e-12_dp .and. abs(coeffs2(det)) > 1.0e-12_dp) then
                         ! Only include terms with matching Ms values.
@@ -462,7 +462,7 @@ contains
 
             do while (elecs(1) /= -1)
                 ! The slow bit. Which determinant is this (to index coeffs
-                ! array). 
+                ! array).
                 ! TODO: Is it quicker to re-calc the coeff?
 
                 ! Get the position in list of dets. Alternative to det_pos.
@@ -499,7 +499,7 @@ contains
         if (bEqual) then
             hel_ret = hel_ret + (ECore)
         endif
-        
+
     end function
 
     function get_csf_helement_2 (nI, nJ, iLutI, iLutJ, nopen, nclosed, &
@@ -651,7 +651,7 @@ contains
                 endif
                 cycle
             endif
-            
+
             ! For each valid determinant in CSF1, loop through all of the
             ! connected determinants on the other determinant.
             if (abs(coeffs1(i)) > 1.0e-12_dp) then
@@ -717,7 +717,7 @@ contains
     end function
 
     subroutine det_hel_2_pair (elecA, elecB, nopen, det)
-        
+
         ! Pick pairs of electrons from the specified 'determinant'. The
         ! determinant contains only 1s and 0s, relating to the alpha and beta
         ! electrons. Pick pairs only in a standard order (1s before 0s),
@@ -784,7 +784,7 @@ contains
         ! (nop_uniq of them, specified in uniq_id) are in a canonical order
         ! (all 1s then 0s), then mark that position in dets_change as true.
         ! Helper function for get_csf_helement_2.
-        ! 
+        !
         ! In:  dets        - The array of determinants, open orbitals filled
         !                    with permutations summing to 2Ms.
         !      nclosed     - Number of paired electrons
@@ -813,16 +813,16 @@ contains
                     dets_change(i) = .false.
                     exit
                 endif
-            enddo                    
+            enddo
         enddo
 
     end subroutine
 
     subroutine csf_get_bit_perm (nopen, nup, ndets, ilut)
-    
+
         ! As for csf_get_dets, but working with a bit representation of the
         ! permutation rather than separate integers
-        
+
         use constants, only: bits_n_int
         integer, intent(in) :: ndets, nup, nopen
         integer(kind=n_int), intent(out) :: ilut(NIfY,ndets)
@@ -856,10 +856,10 @@ contains
     end subroutine
 
     integer function det_pos (det, nopen, ndown, perm)
-        
+
         ! Obtain an index for the number of the permutation generated
         ! according to the ordering used in csf_get_dets.
-        ! See: The art of Computer Programming, volume 4, Fascicle 3, pg. 
+        ! See: The art of Computer Programming, volume 4, Fascicle 3, pg.
         !
         ! In:  det   - An array of 0s, 1s which have been permuted
         !      nopen - Size of array det
@@ -903,7 +903,7 @@ contains
         ! permutation generated if we switch the values at indices perm(1:2)
         ! Note that det(perm(1)) /= det(perm(2)) (one must equal 1, the other
         ! must equal 2).
-        ! 
+        !
         ! Currently this assumes that nopen <= bits_n_int. This is reasonable as a CSF
         ! of that size would be unfeasible to use - we assume that on such a
         ! large system we would be using TRUNCATE-CSF. This might change with
@@ -1109,7 +1109,7 @@ contains
     end subroutine
 
     pure subroutine csf_get_yamas (nopen, sfinal, yama, ncsf_max)
-        
+
         ! Obtain all possible Yamanouchi symbols for for the system
         !
         ! In:  nopen    - Number of open shell electrons
@@ -1156,7 +1156,7 @@ contains
         enddo
         yama(:,1) = 1
     end subroutine
-        
+
     integer elemental function csf_alpha_beta (num, det)
 
         ! Convert num (a member of CI) to an alpha or beta spin orbital where
@@ -1196,7 +1196,7 @@ contains
     end subroutine
 
     subroutine get_csf_bit_yama (nI, yama)
-        
+
         ! Extract the Yamanouchi symbol from the supplied CSF as part of
         ! a bit determinant - the same as part of the bit det obtained by
         ! EncodeBitDet.
@@ -1222,10 +1222,10 @@ contains
     end subroutine
 
     subroutine csf_to_old_csf (nI, nJ)
-        
+
         ! Convert the CSF to the old representation (Alex's rep.) for testing
         ! purposes.
-        
+
         use legacy_data, only: CSF_NBSTART
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
@@ -1269,7 +1269,7 @@ contains
         ! and the Ms value for the specified csf.
         ! NB. The Ms value is no longer being used. We ASSERT that Ms == STOT
 
-        integer, intent(in) :: NI(nel) 
+        integer, intent(in) :: NI(nel)
         integer(kind=n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(out) :: nopen, nclosed
         integer, intent(out) :: S, Ms
@@ -1293,7 +1293,7 @@ contains
             ! Closed shell until they are no longer paired.
             if ((.not.open_shell) .and. &
                 btest(NI(i),csf_yama_bit)) open_shell = .true.
-                
+
             if (.not. open_shell) then
                 nclosed = nclosed + 1
             else
@@ -1348,7 +1348,7 @@ contains
 
         integer, intent(inout) :: spins(:)
         integer, intent(in) :: Ms
-        integer :: no_dets 
+        integer :: no_dets
 
         integer :: nopen, nup, nchoose, pos, i
         integer :: choice(ubound(spins,1)), perm(ubound(spins,1))
@@ -1405,7 +1405,7 @@ contains
         !        Ms    - 2 * The required Ms value for the determinant
         ! InOut: nI    - The CSF to consider, and the determinant to return
         ! Ret:         - The number of determinants chosen from
-        
+
         integer, intent(inout) :: nI(nel)
         integer, intent(in) :: nopen
         integer, intent(in) :: Ms
@@ -1541,13 +1541,13 @@ contains
 
         ! Apply a specified Ms value to the csf, where we apply Ms/2
         !
-        ! 
+        !
 
         integer, intent(inout) :: NI(nel)
         integer, intent(in) :: nopen
         integer, intent(in) :: Ms
         integer i, ndown
-        
+
         ndown = (nopen - MS)/2
         do i=1,ndown
             NI(nel-i+1) = ibclr(NI(nel-i+1), csf_ms_bit)
@@ -1621,7 +1621,7 @@ contains
     end function
 
     ! The Clebsch-Gordon coefficient with total spin S, projected
-    ! component of spin M, with state with spin change 
+    ! component of spin M, with state with spin change
     ! spin=(+/-)0.5 and projected spin change sig=(+/-)0.5
     real(dp) pure function clbgrdn(S,M,spin,sig)
         real(dp), intent(in) :: S, M, spin, sig
@@ -1664,7 +1664,7 @@ contains
         !
         ! In:  iluts   - An array of bit representations of determinants to
         !                use.
-        !      coeffs  - (optional) The coefficients to use for the 
+        !      coeffs  - (optional) The coefficients to use for the
         !                determinants provided. If not provided, use the sign
         !                value from the iluts.
         ! Ret: s_final - 2*S (i.e. return an integer value).

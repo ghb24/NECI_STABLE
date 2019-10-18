@@ -185,7 +185,7 @@ contains
       clr_orb (ilutJ, src(2))
       set_orb (ilutJ, orbs(1))
       set_orb (ilutJ, orbs(2))
-      
+
     end function exciteIlut
 
 

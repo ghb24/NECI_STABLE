@@ -10,6 +10,7 @@
          use CPMDData, only: nStates,NKPTrans,nKPS,nRotOp
          use sym_mod, only: ComposeAbelianSym, GenKPtIrreps
          use sym_mod, only: DECOMPOSEREP, GENIRREPS, GENSYMTABLE
+         use util_mod, only: near_zero
          IMPLICIT NONE
          INTEGER LEN,nBasisMax(5,*), BRR(LEN)
          TYPE(BASISFN) G1(LEN)
@@ -116,7 +117,7 @@ C.. group
             NROT=NKPTRANS
          ENDIF
       END
-      
+
       SUBROUTINE GENCPMDSYMREPS(G1,NBASIS,ARR)
          use constants, only: dp
          use CPMDData, only: DegenTol
@@ -141,6 +142,7 @@ C.. group
          use CPMDData, only: nStates,Rot_Label,tSpaceGp,Group_Char
          use CPMDData, only: Rot_Char
          use sym_mod, only: WriteIrrepTab
+         use util_mod, only: near_zero
          use constants
          IMPLICIT NONE
          INTEGER I,J
@@ -166,7 +168,7 @@ C.. rotational labels.  We will need to compare each pair of t&r labels
 C.. with a stored list.
             WRITE(6,*) "Using space group representation."
             DO I=1,NSTATES
-               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.0_dp,0.0_dp)) THEN
+               IF(near_zero(SYMLABELCHARS(1,ROT_LABEL(I)))) THEN
 C.. we've found an uninitialized symlabel - fill it
                   DO J=1,NROT
 C.. Indices need to be inverted so cannot straight ICOPY
@@ -179,7 +181,7 @@ C.. Indices need to be inverted so cannot straight ICOPY
 C.. point group
             WRITE(6,*) "Using point group representation."
             DO I=1,NSTATES
-               IF(SYMLABELCHARS(1,ROT_LABEL(I)).EQ.(0.0_dp,0.0_dp)) THEN
+               IF(near_zero(SYMLABELCHARS(1,ROT_LABEL(I)))) THEN
 C.. we've found an uninitialized symlabel - fill it
                   DO J=1,NROT
 C.. Indices need to be inverted so cannot straight ICOPY
@@ -243,7 +245,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          call set_timer(proc_timer)
 
          ECORE=EIONION
-         WRITE(6,*) "Core Energy:", ECORE 
+         WRITE(6,*) "Core Energy:", ECORE
          NLOCK=(NEL+1)/2
          IF(TORDER) THEN
 C.. We have to cache all states, as we don't, as yet, know which ones we're going to freeze because we have to reorder.
@@ -272,7 +274,7 @@ C.. Set the UMAT cache to cache things in the lowest possible position
             CALL SETUMATCACHEFLAG(1)
 C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
             CALL SETUPUMAT2D(G1,HarInt)
-            ! Must now calculate the hartree integrals and periodic integrals 
+            ! Must now calculate the hartree integrals and periodic integrals
             ! (otherwise done in CPMDAntiSymIntEl) if not using UMAT2D.
             if(.not.TUMAT2D) call CalcHarPIInts(HarInt,NStatesUsed)
             CALL SETUMATCACHEFLAG(0)
@@ -327,7 +329,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
 !                      if (F.gt.1.0e-5_dp) then
 !                          ! Get exchange integral <ik|kj>
 !                          if (K.gt.nStatesUsed) then
-!                              write (6,"(a,i4,a,f10.6)") 
+!                              write (6,"(a,i4,a,f10.6)")
 !     &                             "Top frozen state ",K,
 !     &                             " has occupation number",F
 !                              stop "Top Frozen states occupied."
@@ -348,7 +350,7 @@ C.. Now we order it if we need to
          IF(TORDER) THEN
             WRITE(6,*) "Re-ordering CPMD orbitals according ",
      &        "to one-electron energies."
-           call sort (diagTMAT(nlock+1:nStatesUsed), 
+           call sort (diagTMAT(nlock+1:nStatesUsed),
      &                stateOrder(nlock+1:nStatesUsed))
 !           CALL NECI_SORT2(NSTATESUSED-NLOCK,DIAGTMAT(NLOCK+1),
 !     &         STATEORDER(NLOCK+1))
@@ -398,4 +400,4 @@ C.. Set the UMAT cache to cache normally again
             call LogMemDealloc(this_routine,tagPIInt)
          endif
          call halt_timer(proc_timer)
-      END   
+      END

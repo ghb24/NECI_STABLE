@@ -43,20 +43,20 @@ contains
         ! Mitigate warnings
         HelGen = 0.0_dp; iUnused=exFlag; iUnused=store%nopen
 
-        ! W.D: 
-        ! split this functionality to allow back-spawning to reuse code 
+        ! W.D:
+        ! split this functionality to allow back-spawning to reuse code
         call gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar,ex, pgen)
         ic = 2
 
     end subroutine gen_ueg_excit
 
     subroutine gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar, ex, pgen)
-        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
-        logical, intent(out) :: tPar 
-        real(dp), intent(out) :: pgen 
+        logical, intent(out) :: tPar
+        real(dp), intent(out) :: pgen
 
         integer :: elecs(2), eleci, elecj, ispn, orba, orbb, orbi, orbj
         real(dp) :: pelec, cum_sum, elem, porb, r, cum_arr(nBasis)
@@ -79,14 +79,14 @@ contains
         ! If this is also unoccupied, then contribute to the cumulative list
         ! for making selections
         if (TContact) then
-                call create_ab_list_ua(nI,ilutI, [orbi,orbj], cum_arr, cum_sum) 
+                call create_ab_list_ua(nI,ilutI, [orbi,orbj], cum_arr, cum_sum)
         else
-                call create_ab_list_ueg(ilutI, [orbi,orbj], cum_arr, cum_sum) 
+                call create_ab_list_ueg(ilutI, [orbi,orbj], cum_arr, cum_sum)
         endif
 
         ! If there are no available excitations, then we need to reject this
         ! excitation
-        if (cum_sum < EPS) then 
+        if (cum_sum < EPS) then
             nJ(1) = 0
             pgen = 0.0_dp
             return
@@ -97,7 +97,7 @@ contains
         r = genrand_real2_dSFMT() * cum_sum
         orba = binary_search_first_ge(cum_arr, r)
 
-        ! write a cleaner implementation 
+        ! write a cleaner implementation
         orbb = get_orb_from_kpoints(orbi, orbj, orba)
 
         ! Calculate the orbital selection probability
@@ -116,8 +116,8 @@ contains
 
     end subroutine gen_double_ueg
 
-    subroutine pick_uniform_elecs(elecs, pelec) 
-        integer, intent(out) :: elecs(2) 
+    subroutine pick_uniform_elecs(elecs, pelec)
+        integer, intent(out) :: elecs(2)
         real(dp), intent(out) :: pelec
 
         integer :: ind, eleci, elecj
@@ -152,7 +152,7 @@ contains
 
                 if (is_allowed_ueg_k_vector(src(1), src(2), orba)) then
 
-                    orbb = get_orb_from_kpoints(src(1), src(2), orba) 
+                    orbb = get_orb_from_kpoints(src(1), src(2), orba)
 
                    ! n.b. we enforce strict selection a-b, not b-a
                     if (orbb > orba .and. IsNotOcc(ilutI, orbb)) then
@@ -221,52 +221,52 @@ contains
 
     end subroutine create_ab_list_ua
 
-     function calc_pgen_ueg(nI, ilutI, ex, ic) result(pgen) 
+     function calc_pgen_ueg(nI, ilutI, ex, ic) result(pgen)
         ! i also have to write a pgen recalculator for the pgens with this 
         ! new UEG excitation generator.. i am a bit confused why this has 
         ! not been done yet i have to admit.. 
         ! and i need this function if i want to use it with HPHF.. 
         integer, intent(in) :: nI(nel), ex(2,2), ic
-        integer(n_int), intent(in) :: ilutI(0:niftot) 
+        integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
 
         real(dp) :: p_elec, p_orb, cum_arr(nBasis), cum_sum
         integer :: src(2), orb_a, tgt(2)
 
-        if (ic /= 2) then 
+        if (ic /= 2) then
             pgen = 0.0_dp
-            return 
+            return
         end if
 
         src = get_src(ex)
         tgt = get_tgt(ex)
 
-        ! i should return 0 if b < a.. since those excitations 
-        ! are never created.. but are the actually called ever? hm.. 
-        ! the question is how does the ex() determination work actually? 
-        ! is it ever possible in the HPHF case eg. that b > a when 
+        ! i should return 0 if b < a.. since those excitations
+        ! are never created.. but are the actually called ever? hm..
+        ! the question is how does the ex() determination work actually?
+        ! is it ever possible in the HPHF case eg. that b > a when
         ! comparing two dets? hm.. check!
-!         if (tgt(1) > tgt(2)) then 
-!             pgen = 0.0_dp 
-!             return 
+!         if (tgt(1) > tgt(2)) then
+!             pgen = 0.0_dp
+!             return
 !         end if
 
-        ! now the real part.. 
-        p_elec = 1.0_dp /real(ElecPairs, dp) 
+        ! now the real part..
+        p_elec = 1.0_dp /real(ElecPairs, dp)
 
         orb_a = tgt(1)
 
         ! i need to recalct the cum_arr
         call create_ab_list_ueg(ilutI, src, cum_arr, cum_sum)
 
-        if (cum_sum < EPS) then 
-            pgen = 0.0_dp 
-            return 
+        if (cum_sum < EPS) then
+            pgen = 0.0_dp
+            return
         end if
-        ! and now i have to check orba probability 
-        if (orb_a == 1) then 
-            p_orb = cum_arr(1) / cum_sum 
-        else 
+        ! and now i have to check orba probability
+        if (orb_a == 1) then
+            p_orb = cum_arr(1) / cum_sum
+        else
             p_orb = (cum_arr(orb_a) - cum_arr(orb_a - 1)) / cum_sum
         end if
 

@@ -20,7 +20,7 @@ contains
 
         iscsf = btest(nI(1),csf_test_bit)
     end function
-    
+
     subroutine csf_sort_det_block (dets, ndets, nopen)
 
         ! Sort a set of determinants, sorted as if they were a csf (closed
@@ -50,7 +50,7 @@ contains
             dets(npos:npos+1,:) = tmp_dets(i:i+1,:)
             npos = npos + 2
         enddo
-        ! Any remaining open electrons will be untouched.            
+        ! Any remaining open electrons will be untouched.
     end subroutine
-    
+
 end module

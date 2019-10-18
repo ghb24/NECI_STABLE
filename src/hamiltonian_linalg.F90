@@ -29,7 +29,7 @@ module hamiltonian_linalg
         integer :: hamil_type
         ! The dimension of the vector space we are working in, as determined by the number
         ! of rows and columns in the Hamiltonian matrix.
-        integer :: space_size 
+        integer :: space_size
         ! For parallel calculations, store all spaces sizes on each processor
         integer(MPIArg), allocatable, dimension(:) :: space_sizes
         ! For parallel calculations, this vector is the size of the space on this processor. This
@@ -39,7 +39,7 @@ module hamiltonian_linalg
         ! displacements necessary for communication of H |ket>
         ! (formerly davidson_disps)
         integer(MPIArg), allocatable, dimension(:) :: partial_H_ket_disps
-        ! All algorithms for solving large eigenproblems involve a unitary rotation of the 
+        ! All algorithms for solving large eigenproblems involve a unitary rotation of the
         ! Hamiltonian into a smaller basis. basis_vectors(:,i) is the ith such unit vector
         HElement_t(dp), allocatable, dimension(:,:) :: basis_vectors
         ! the location in the basis is the HF determinant
@@ -117,7 +117,7 @@ module hamiltonian_linalg
         character(*), parameter :: t_r = "InitHamiltonianCalc"
         integer(MPIArg) :: mpi_temp
         real(dp), allocatable :: hamil_diag_temp(:)
-       
+
         this%hamil_type = hamil_type
         this%t_store_subspace_basis = t_store_subspace_basis
         this%t_orthogonalise = t_orthogonalise
@@ -227,8 +227,8 @@ module hamiltonian_linalg
                 /inner_product(this%basis_vectors(:,i), this%basis_vectors(:,i))
         enddo
         !v = v/euclidean_norm(v)
-        end associate        
-        
+        end associate
+
     end subroutine orthogonalise_against_previous_basis_vectors
 
     subroutine build_full_hamiltonian_from_sparse(this, full_ham)
@@ -490,13 +490,15 @@ module hamiltonian_linalg
 
         do i = 1, this%space_sizes(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
+#ifdef __CMPLX
                 this%partial_H_ket(i) = this%partial_H_ket(i) + &
                     sparse_ham(i)%elements(j)*output_vector(sparse_ham(i)%positions(j))
+#endif
             end do
         end do
 #ifdef __CMPLX
         call MPIGatherV(this%partial_H_ket, output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
-#else 
+#else
         call MPIGatherV(cmplx(this%partial_H_ket,0.0_dp,dp), output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
 #endif
         !call MPIGatherV(this%partial_H_ket, output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
@@ -536,6 +538,7 @@ module hamiltonian_linalg
         complex(dp), intent(out) :: output_vector(:)
         character(*), parameter :: t_r = "mult_hamil_vector_direct_ci_complex"
 
+        output_vector = 0.0d0
         call stop_all(t_r, "not yet implemented for complex CI coefficients")
 
     end subroutine mult_hamil_vector_direct_ci_complex

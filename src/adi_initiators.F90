@@ -1,6 +1,6 @@
 #include "macros.h"
 module adi_initiators
-  use adi_data, only: ilutRefAdi, nRefs, tAllDoubsInitiators, tAllSingsInitiators, tAdiActive, &
+  use adi_data, only: ilutRefAdi, nRefs, tAllDoubsInitiators, tAdiActive, &
        nExChecks, nExCheckFails
   use bit_rep_data, only: test_flag, NIfTot, extract_sign
   use bit_reps, only: set_flag, clr_flag, decode_bit_det
@@ -46,7 +46,7 @@ contains
 
   subroutine set_adi_flags(ilut, nI, sgn, ex)
     use bit_rep_data, only: flag_adi_checked
-    ! This sets the adi flags (flag_adi_checked and flag_static_init) 
+    ! This sets the adi flags (flag_adi_checked and flag_static_init)
     ! for a given ilut
     implicit none
     integer(n_int), intent(inout) :: ilut(0:NIfTot)
@@ -105,15 +105,16 @@ contains
     real(dp), intent(in) :: sgn(lenof_sign)
     integer, intent(in) :: run, nI(nel), ex
     integer :: exLevel, i
-    logical :: staticInit, tCCache, tCouplingPossible
+    logical :: staticInit, tCCache, tCouplingPossible, tSI
     ! cache for the weak coherence check
     HElement_t(dp) :: signedCache
     real(dp) :: unsignedCache
     integer :: connections
 
+    tSI = .false.
     staticInit = .false.
     tCCache = tWeakCoherentDoubles .or. tAvCoherentDoubles
-    
+
     exLevel = 0
     if(tCCache) call initialize_c_caches(signedCache, unsignedCache,connections)
     ! Important : Only compare to the already initialized reference
@@ -123,7 +124,6 @@ contains
        if(tUseCaches) then
           if(abs(ex - exLvlRef(i)) > max_ex_level) tCouplingPossible = .false.
        endif
-       ! TODO: Check if i marks a superinitiator for the current run
        nExChecks = nExChecks + 1
        if(tCouplingPossible) then
           exLevel = FindBitExcitLevel(ilutRefAdi(:,i),ilut)
@@ -132,19 +132,18 @@ contains
              ! Check if we are sign-coherent if this is desired
              if(unset_incoherent_initiator(exLevel, ilut, nI, sgn, i, staticInit, run)) &
                                 ! If we find the determinant to be incoherent, we do not apply
-                                ! the ADI rules and instead 
+                                ! the ADI rules and instead
                   return
 
-             if(tCCache)&
-                  call update_coherence_check(ilut, nI, i, &
-                  signedCache, unsignedCache, connections)
+             if(tCCache) then
+                call update_coherence_check(ilut, nI, i, &
+                     signedCache, unsignedCache, connections)
+                if(exLevel == 0) tSI = .true.
+             endif
 
              ! Set the doubles to initiators
-             call set_double_initiator(exLevel, staticInit)
-
-             ! If desired, also set singles as initiators
-             call set_single_initiator(exLevel, staticInit)
-             ! We have to keep looping over the SIs, even if we already have a double, 
+             call set_si_initiator(exLevel, staticInit)
+             ! We have to keep looping over the SIs, even if we already have a double,
              ! if we want to compute Xi. Else, we can exit if we found a valid double
              if(staticInit .and. .not. tCCache) exit
           endif
@@ -153,7 +152,8 @@ contains
        endif
     enddo
 
-    if(tCCache .and. staticInit) &
+    ! superinitiators themselves are always static initiators -> no coherence check then
+    if(tCCache .and. staticInit .and. .not.tSI) &
     call eval_coherence(signedCache, unsignedCache, sgn(run), connections, staticInit)
 
   end function adi_criterium
@@ -179,7 +179,7 @@ contains
     if(tStrictCoherentDoubles .and. (exLevel > 0)) then
        if(.not. check_sign_coherence(ilut,nI,sgn,iRef,run)) then
           ! If not, do not let the determinant be an initiator
-          ! Note that this strikes anytime, even if it is coherent with 
+          ! Note that this strikes anytime, even if it is coherent with
           ! the reference to which it is the double, but not with some other one
           ! (if we have e.g. another reference that is a single)
           tSuspendADI = .true.
@@ -191,27 +191,15 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine set_double_initiator(exLevel, staticInit)
+  subroutine set_si_initiator(exLevel, staticInit)
     implicit none
     integer, intent(in) :: exLevel
     logical, intent(inout) :: staticInit
 
-    if(exLevel == 2 .and. tAllDoubsInitiators) then
+    if(exLevel <= 2 .and. tAllDoubsInitiators) then
        staticInit = .true.
     endif
-  end subroutine set_double_initiator
-
-  !------------------------------------------------------------------------------------------!
-
-  subroutine set_single_initiator(exLevel, staticInit)
-    implicit none
-    integer, intent(in) :: exLevel
-    logical, intent(inout) :: staticInit
-
-    if(exLevel == 1 .and. tAllSingsInitiators) then
-       staticInit = .true.
-    endif
-  end subroutine set_single_initiator
+  end subroutine set_si_initiator
 
   !------------------------------------------------------------------------------------------!
 end module adi_initiators

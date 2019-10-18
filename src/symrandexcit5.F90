@@ -52,7 +52,7 @@ contains
         real(dp) :: pgen2
         real(dp) :: cum_arr(nbasis)
 
-#ifdef __DEBUG 
+#ifdef __DEBUG
         HElement_t(dp) :: temp_hel
 #endif
 
@@ -159,12 +159,12 @@ contains
                                    cum_sums(1), cum_arr, .true.)
             if (int_cpt(1) > EPS) then
                 ! [W.D.]
-                ! this threshold is also really arbitrary.. 
+                ! this threshold is also really arbitrary..
                 ! todo: investigate that!
-                ! it has to be atleast twice the integral cut-off to be 
-                ! anywhere consistent.. although also that is kind of 
-                ! strange.. 
-                ! now.. i would have to be 2*sqrt(umateps) .. but also that.. 
+                ! it has to be atleast twice the integral cut-off to be
+                ! anywhere consistent.. although also that is kind of
+                ! strange..
+                ! now.. i would have to be 2*sqrt(umateps) .. but also that..
                 ! just remove it i guess..
                 call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
                                      cum_sums(2))
@@ -186,7 +186,7 @@ contains
             end if
 
             ! i think i also have to deal with divisions by zero here
-            ! in a correct way, when removing the lower pgen threshold. 
+            ! in a correct way, when removing the lower pgen threshold.
             if (any(cum_sums < EPS)) then
                 cum_sums = 1.0_dp
                 int_cpt = 0.0_dp
@@ -242,10 +242,10 @@ contains
         call pick_weighted_elecs(nI, elecs, src, sym_product, ispn, sum_ml, &
                                  pgen)
 
-        ! then first pick (a) orbital: 
-        ! for opposite spin excitations (a) is restricted to be a beta orbital! 
-        ! and the probability is split p(a|ij) = p(j)*p(a|i) 
-        ! except in the symmetric excitation generator, which isn't used 
+        ! then first pick (a) orbital:
+        ! for opposite spin excitations (a) is restricted to be a beta orbital!
+        ! and the probability is split p(a|ij) = p(j)*p(a|i)
+        ! except in the symmetric excitation generator, which isn't used
         ! ever anyway..
         orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
 
@@ -255,13 +255,13 @@ contains
             cc_a = ClasSCountInd(orbs(1))
             cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
 
-            ! pick the last orbitals weighted with the exact matrix 
-            ! element 
+            ! pick the last orbitals weighted with the exact matrix
+            ! element
             orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
                               cum_sum(2))
         end if
 
-        ! what does this assert do?  do i have to pick the electrons in a 
+        ! what does this assert do?  do i have to pick the electrons in a
         ! certain order??
         ASSERT((.not. (is_beta(orbs(2)) .and. .not. is_beta(orbs(1)))) .or. tGen_4ind_2_symmetric)
         if (any(orbs == 0)) then
@@ -271,22 +271,22 @@ contains
         end if
 
         ! can i exit right away if this happens??
-        ! i am pretty sure this means 
-        if (any(cum_sum < EPS)) then 
+        ! i am pretty sure this means
+        if (any(cum_sum < EPS)) then
            cum_sum = 1.0_dp
            int_cpt = 0.0_dp
         end if
-        
+
         ! Calculate the pgens. Note that all of these excitations can be
         ! selected as both A--B or B--A. So these need to be calculated
         ! explicitly.
         ASSERT(tGen_4ind_part_exact)
         if ((is_beta(orbs(1)) .eqv. is_beta(orbs(2))) .or. tGen_4ind_2_symmetric) then
 
-            ! in the case of parallel spin excitations or symmetrice excitation 
-            ! generation(but does actually someone use that?) we have to 
-            ! calculate the probability of picking the holes the other 
-            ! way around 
+            ! in the case of parallel spin excitations or symmetrice excitation
+            ! generation(but does actually someone use that?) we have to
+            ! calculate the probability of picking the holes the other
+            ! way around
             call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
                                    sum_pair(1), cum_arr, .false.)
             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
@@ -297,7 +297,7 @@ contains
             sum_Pair = 1.0_dp
         end if
 
-        if (any(sum_pair < EPS)) then 
+        if (any(sum_pair < EPS)) then
             cpt_pair = 0.0_dp
             sum_pair = 1.0_dp
         end if
@@ -415,9 +415,9 @@ contains
         ! there is no selection avaialable
         call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
         cum_sum = cum_arr(nbasis)
-        ! ok this equivalence is also not good.. 
+        ! ok this equivalence is also not good..
 !         if (cum_sum == 0) then
-        if (cum_sum < EPS) then 
+        if (cum_sum < EPS) then
             orb = 0
             return
         end if
@@ -444,7 +444,7 @@ contains
 
     subroutine pgen_select_a_orb(ilut, src, orb, iSpn, cpt, cum_sum, &
                                  cum_arr, first)
-        
+
         ! This calculates the probability of selecting the A orbital with the
         ! parameters as specified
         !

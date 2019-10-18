@@ -10,7 +10,7 @@ module CalcData
 ! This type refers to data that specifies 'optimised' spaces. It is passed to
 ! the routine generate_optimised_core. See this routine for an explanation.
 type opt_space_data
-    ! The number of generation loops for the algorithm to perform. 
+    ! The number of generation loops for the algorithm to perform.
     integer :: ngen_loops = 1
     ! If true then perform cutoff of determinants each iteration by using
     ! amplitudes les than the values in cutoff_amps, else perform cutoff using the
@@ -72,7 +72,7 @@ type subspace_in
 
     ! Paremeters for RAS space calculations.
     type(ras_parameters) :: ras
-    
+
     ! If this is true then set a limit on the maximum deterministic space size.
     logical :: tLimitSpace = .false.
     ! This is maximum number of elements in the deterministic space, if tLimitDetermSpace is true.
@@ -83,9 +83,9 @@ type subspace_in
     ! slightly unoptimal, but should be very good, and sometimes exactly the
     ! same as when this logical is false. Only applies to the pops-* options.
     logical :: tApproxSpace = .false.
-    ! if tApproxSpace is true, then nApproxSpace times target pops-core space is the size of the array  
-    ! kept on each processor, 1 =< nApproxSpace =< nProcessors. The larger nApproxSpace, the more  
-    ! memory is consumed and the slower (but more accurate) is the semi-stochastic initialisation   
+    ! if tApproxSpace is true, then nApproxSpace times target pops-core space is the size of the array
+    ! kept on each processor, 1 =< nApproxSpace =< nProcessors. The larger nApproxSpace, the more
+    ! memory is consumed and the slower (but more accurate) is the semi-stochastic initialisation
     ! (see subroutine generate_space_most_populated).
     integer :: nApproxSpace = 10
     ! When using the tMP1Core option, this specifies how many determinants to keep.
@@ -118,7 +118,7 @@ logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
 logical :: tSTDInits
 logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
-LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
+LOGICAL :: tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
 logical :: tL2GrowRate
 logical :: tAllRealCoeff, tUseRealCoeffs
@@ -139,24 +139,25 @@ logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically upd
 integer :: N0_Target !The target reference population in fixed-N0 mode
 
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
-logical :: tAdaptiveShift !Make shift depends on the population
-real(dp) :: AdaptiveShiftSigma !Population which below the shift is set to zero
-real(dp) :: AdaptiveShiftF1 !Shift modification factor at AdaptiveShiftSigma
-real(dp) :: AdaptiveShiftF2 !Shift modification factor at InitiatorWalkNo
+logical :: tAdaptiveShift !Whether any of the adaptive shift schemes is used
+logical :: tCoreAdaptiveShift = .false. ! Whether the adaptive shift is also applied to the corespace
+logical :: tLinearAdaptiveShift !Make shift depends on the population linearly
+real(dp) :: LAS_Sigma !Population which below the shift is set to zero
+real(dp) :: LAS_F1 !Shift modification factor at AdaptiveShiftSigma
+real(dp) :: LAS_F2 !Shift modification factor at InitiatorWalkNo
 logical :: tAutoAdaptiveShift !Let the modification factor of adaptive shift be computed autmatically
-real(dp) :: AdaptiveShiftThresh !Number of spawn under which below the shift is set to zero (in auto-adaptive-shift)
-real(dp) :: AdaptiveShiftExpo !Exponent of the modification factor, value 1 is default. values 0 means going back to full shift.
-real(dp) :: AdaptiveShiftCut  !The modification factor should never go below this.
+real(dp) :: AAS_Thresh !Number of spawn under which below the shift is set to zero
+real(dp) :: AAS_Expo !Exponent of the modification factor, value 1 is default. values 0 means going back to full shift.
+real(dp) :: AAS_Cut  !The modification factor should never go below this.
 logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e. sum_{accepted} |H_ij| / sum_{all attempts} |H_ij|
 logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
 logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted moves.
 logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
 logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
-logical :: tAAS_Reverse_Weighted !Scale the reverse weights down by the number of walkers on the parent
 real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
-logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
-logical :: tAAS_SpinScaled !Scale AAS weights of same-spin excitations different from opposit-spin
-real(dp) :: AAS_SameSpin, AAS_OppSpin
+real(dp) :: AAS_Const
+logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
+real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
@@ -203,6 +204,7 @@ integer :: multiSpawnThreshold
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
+! Optionally: allow this number to change during runtime
 logical :: tDynamicAvMCEx
 integer :: iReadWalkersRoot !The number of walkers to read in on the head node in each batch during a popsread
 
@@ -217,8 +219,8 @@ real(dp) :: MemoryFacSpawn,SinglesBias,TauFactor,StepsSftImag
 real(dp) :: MemoryFacInit
 
 real(dp), allocatable, target :: DiagSft(:)
-! for consistency with forgetting the walkcontgrow keyword and hdf5 read-in 
-! use a temporary storage of the read-in diags-shift 
+! for consistency with forgetting the walkcontgrow keyword and hdf5 read-in
+! use a temporary storage of the read-in diags-shift
 real(dp), allocatable :: hdf5_diagsft(:)
 
 real(dp) :: GraphEpsilon
@@ -327,6 +329,12 @@ logical :: tPureInitiatorSpace
 ! Run FCIQMC in the truncated space of all connections to the initiator space
 logical :: tAllConnsPureInit
 
+! Allow all spawns with (no) sign change
+! The modi here are:  0, no changes to initiator approx are made
+!                     >0 (commonly 1), same-sign spawns are always allowed
+!                     <0 (commonly -1), opp. sign spawns are always allowed
+integer :: allowedSpawnSign = 0
+
 ! If this is true, don't allow non-initiators to spawn to another non-initiator,
 ! even if it is occupied.
 logical :: tSimpleInit
@@ -418,12 +426,12 @@ logical :: tMultiRefShift = .false.
 integer :: calc_seq_no
 
 ! introduce a min_tau value to set a minimum of tau for the automated tau
-! search 
-logical :: t_min_tau = .false. 
+! search
+logical :: t_min_tau = .false.
 real(dp) :: min_tau_global = 1.0e-7_dp
 
-! alis suggestion: have an option after restarting to keep the time-step 
-! fixed to the values obtained from the POPSFILE 
+! alis suggestion: have an option after restarting to keep the time-step
+! fixed to the values obtained from the POPSFILE
 logical :: t_keep_tau_fixed = .false.
 
 ! for the transcorrelated hubbard make it possible to use input-dependent 
@@ -436,15 +444,15 @@ character(255) :: aliasStem
 logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
 logical :: t_fill_frequency_hists = .false.
 
-! also use a logical, read-in in the case of a continued run, which turns 
-! off the tau-search independent of the input and uses the time-step 
-! pSingles and pDoubles values from the previous calculation. 
+! also use a logical, read-in in the case of a continued run, which turns
+! off the tau-search independent of the input and uses the time-step
+! pSingles and pDoubles values from the previous calculation.
 logical :: t_previous_hist_tau = .false.
 
-! it can be forced to do a tau-search again, if one provides an additional 
-! input restart-hist-tau-search in addition to the the hist-tau-search 
+! it can be forced to do a tau-search again, if one provides an additional
+! input restart-hist-tau-search in addition to the the hist-tau-search
 ! keyword in case the tau-search is not converged enough
-logical :: t_restart_hist_tau = .false. 
+logical :: t_restart_hist_tau = .false.
 
 ! use a global variable for this control: 
 logical :: t_consider_par_bias = .false.
@@ -457,12 +465,12 @@ logical :: t_test_order = .false.
 ! (in the restart case for now!)
 integer :: hist_search_delay = 0
 
-! maybe also introduce a mixing between the old and new quantities in the 
+! maybe also introduce a mixing between the old and new quantities in the
 ! histogramming tau-search, since it is a stochastic process now
 logical :: t_mix_ratios = .false.
 ! and choose a mixing ration p_new = (1-mix_ratio)*p_old + mix_ratio * p_new
-! for now default it to 1.0_dp, meaning if it is not inputted, i only 
-! take the new contribution, like it is already done, and if it is 
+! for now default it to 1.0_dp, meaning if it is not inputted, i only
+! take the new contribution, like it is already done, and if it is
 ! inputted, without an additional argument default it to 0.7_dp
 real(dp) :: mix_ratio = 1.0_dp
 ! use default values for bin-width and number of bins and a max ratio:
@@ -473,59 +481,60 @@ real(dp) :: frq_ratio_cutoff = 0.999_dp
 
 logical :: t_test_hist_tau = .false.
 ! real(dp) :: frq_step_size = 0.1_dp
-! 
-! 
-! ! i need bin arrays for all types of possible spawns: 
+!
+!
+! ! i need bin arrays for all types of possible spawns:
 ! integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
 !                         frequency_bins_anti(:), frequency_bins_doubles(:), &
 !                         frequency_bins(:)
-! 
-! ! for the rest of the tau-search, reuse the quantities from the "standard" 
-! ! tau search, like enough_sing, etc. although they are not global yet.. 
+!
+! ! for the rest of the tau-search, reuse the quantities from the "standard"
+! ! tau search, like enough_sing, etc. although they are not global yet..
 ! ! so maybe define new ones to not get confused
 ! integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_para_hist
-! 
+!
 ! logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
 
-! and i also need to truncate the spawns maybe: 
-logical :: t_truncate_spawns = .false. 
+! and i also need to truncate the spawns maybe:
+logical :: t_truncate_spawns = .false.
 logical :: t_truncate_unocc, t_truncate_multi
 logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 3.0_dp
+
 
 ! flags for global storage
 logical :: tLogAverageSpawns, tActivateLAS
 logical :: tTimedDeaths
 ! threshold value to make something an initiator based on spawn coherence
 real(dp) :: spawnSgnThresh
-integer :: minInitSpawns, lingerTime
+integer :: minInitSpawns
 
 ! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
 !            above_max_doubles = 0
 
-! and make the change to always read the psingles etc. quantity from 
-! previous runs: 
+! and make the change to always read the psingles etc. quantity from
+! previous runs:
 logical :: t_read_probs = .true.
 
-! introduce a cutoff for the matrix elements, to be more consistent with 
+! introduce a cutoff for the matrix elements, to be more consistent with
 ! UMATEPS (let the default be zero, so no matrix elements are ignored!)
 logical :: t_matele_cutoff = .false.
 real(dp) :: matele_cutoff = EPS
 
-! alis new idea to increase the chance of non-initiators to spawn to 
+! alis new idea to increase the chance of non-initiators to spawn to
 ! already occupied determinant
 logical :: t_back_spawn = .false., t_back_spawn_option = .false.
 ! logical to control where first orbital is chosen from
 logical :: t_back_spawn_occ_virt = .false.
-! also use an integer to maybe start the backspawning later, or otherwise 
+! also use an integer to maybe start the backspawning later, or otherwise
 ! it may never correctly grow
 integer :: back_spawn_delay = 0
 
-! new more flexible implementation: 
+! new more flexible implementation:
 logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
-! also make an combination of the flexible with occ-virt with an additional 
+! also make an combination of the flexible with occ-virt with an additional
 ! integer which manages the degree of how much you want to de-excite
-! change now: we also want to enable to increase the excitation by possibly 
+! change now: we also want to enable to increase the excitation by possibly
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
 

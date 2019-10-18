@@ -22,14 +22,14 @@ module pchb_excitgen
   type(aliasSamplerArray_t) :: pchb_sampler
   integer, allocatable :: tgtOrbs(:,:)
 
-  contains 
+  contains
 
     ! this is the interface routine: for singles, use the uniform excitgen
     ! for doubles, the precomputed heat-bath weights
     subroutine gen_rand_excit_pchb(nI, ilutI, nJ, ilutJ, exFlag, ic, ex, tpar, &
          pgen, helgen, store, part_type)
       implicit none
-    ! The interface is common to all excitation generators, see proc_ptrs.F90      
+    ! The interface is common to all excitation generators, see proc_ptrs.F90
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
@@ -85,7 +85,7 @@ module pchb_excitgen
       !        excitMat - on return, excitation matrix nI -> nJ
       !        tParity - on return, the parity of the excitation nI -> nJ
       !        pGen - on return, the probability of generating the excitation nI -> nJ
-      
+
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel)
@@ -98,7 +98,7 @@ module pchb_excitgen
       integer :: orbs(2), srcID(2), ab
       real(dp) :: pGenHoles
       logical :: invalid
-      
+
       ! first, pick two random elecs
       call pick_biased_elecs(nI,elecs,src,sym_prod,ispn,sum_ml,pgen)
 
@@ -144,9 +144,9 @@ module pchb_excitgen
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: ex(2,2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-      
+
       real(dp) :: pgen
-      
+
       if(ic==1) then
          ! single excitations are the job of the uniform excitgen
          call calc_pgen_symrandexcit2(nI,ex,ic,ClassCount2, ClassCountUnocc2, pDoubles, pGen)
@@ -166,7 +166,7 @@ module pchb_excitgen
       real(dp) :: pgen
       integer :: ab, ij
 
-      ! the probability of picking the two electrons: they are chosen uniformly         
+      ! the probability of picking the two electrons: they are chosen uniformly
       if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
          pgen = pParallel / par_elec_pairs
       else
@@ -177,7 +177,7 @@ module pchb_excitgen
       ij = fuseIndex(ex(1,1),ex(1,2))
       ab = fuseIndex(ex(2,1),ex(2,2))
       pgen = pgen * pchb_sampler%aGetProb(ij,ab)
-      
+
     end function calc_double_pgen_pchb
 
   !------------------------------------------------------------------------------------------!
@@ -190,6 +190,11 @@ module pchb_excitgen
       implicit none
       integer :: ab, a, b, abMax
       integer :: aerr
+      integer(int64) :: memCost
+
+      write(iout,*) "Allocating PCHB excitation generator objects"
+      ! total memory cost
+      memCost = 0_int64
       ! initialize the mapping ab -> (a,b)
       abMax = fuseIndex(nBasis,nBasis)
       allocate(tgtOrbs(2,0:abMax), stat = aerr)
@@ -207,6 +212,8 @@ module pchb_excitgen
       ! setup the alias table
       call setup_pchb_sampler()
 
+      write(iout,*) "Finished excitation generator initialization"
+      write(iout,*) "Excitation generator requires", real(memCost,dp)/2.0_dp**30, "GB of memory"
       ! this is some bias used internally by CreateSingleExcit - not used here
       pDoubNew = 0.0
     contains
@@ -224,8 +231,10 @@ module pchb_excitgen
 
         pcWeightOffset = getPCWeightOffset()
 
-        ! weights per 
-        allocate(w(abMax), stat = aerr)        
+        memCost = memCost + abMax*ijMax*24
+        write(iout,*) "Generating samplers for PCHB excitation generator"
+        ! weights per pair
+        allocate(w(abMax), stat = aerr)
         do i = 1, nBasis
            ex(1,1) = i
            ! as we order a,b, we can assume j < i (j==i is not possible)
@@ -255,16 +264,16 @@ module pchb_excitgen
       end subroutine setup_pchb_sampler
 
     end subroutine init_pchb_excitgen
-    
+
   !------------------------------------------------------------------------------------------!
 
-    subroutine finalize_pchb_sampler()
+    subroutine finalize_pchb_excitgen()
       ! deallocate the sampler and the mapping ab -> (a,b)
       implicit none
 
       call pchb_sampler%samplerArrayDestructor()
       deallocate(tgtOrbs)
-     
-    end subroutine finalize_pchb_sampler
-    
+
+    end subroutine finalize_pchb_excitgen
+
   end module pchb_excitgen

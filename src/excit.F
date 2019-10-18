@@ -10,7 +10,7 @@
 !1 2 3 4 -> 1 2 5 6 , it would give 3->5 and 4->6 with a +ve parity
 !because no interchanges were required to line up the dets
 !1 2 3 4 -> 1 3 5 6 we would swap 2 and 3 around to give a negative parity and have  2->5 and 4->6
-!so I just need to work out how much the common orbitals between the determinants have moved between 
+!so I just need to work out how much the common orbitals between the determinants have moved between
 !the ordered list of orbitals. If its an even number, parity is positive (false), otherwise negative (true).
 
 !ExcitMat(1,*) are the **indices** in the determinant to vacate from nI (the i,j pair)
@@ -30,7 +30,7 @@
          use SystemData , only : NEl
          use lattice_mod, only: sort_unique
          implicit none
-         integer, intent(in) :: ic 
+         integer, intent(in) :: ic
          integer, intent(inout) :: ExcitMat(2,ic)
          integer, intent(inout) :: nI(nel)
          logical, intent(out) :: tParity
@@ -42,12 +42,12 @@
 
          ! adapt this for double excitations now.. 
 #ifdef __DEBUG
-        if (IC < 0 .or. ic > 3) then 
+        if (IC < 0 .or. ic > 3) then
             call stop_all(this_routine, "wrong ic!")
         end if
 #endif
 
-        if (ic == 3 .or. ic == 2) then 
+        if (ic == 3 .or. ic == 2) then
         !Ensure i<j and a<b
             ExcitMat(1,:) = sort_unique(ExcitMat(1,:))
             ExcitMat(2,:) = sort_unique(ExcitMat(2,:))
@@ -111,7 +111,7 @@
                 if (sort_elecs(k) == 1) then 
                     i = 0
                     nI(1) = sort_orbs(k)
-                else 
+                else
                     do i = sort_elecs(k)-1, 1, -1
                         if (sort_orbs(k) > nI(i)) then 
                             nI(i+1) = sort_orbs(k)
@@ -131,7 +131,6 @@
         end do
 
         tParity = btest(pos_moved, 0)
-        
 
 !          ! adapt this code below for double excitations now!
 !          do k=1,IC
@@ -281,7 +280,7 @@
 !         enddo
 
          RETURN
-     
+
       END SUBROUTINE FindExcitDet
 
 
@@ -541,7 +540,7 @@ C.. if we've excited at least one elec
 C.. we check whether we're allowed this excitation owing to sym
 C                  CALL WRITEDET(6,NEXCIT,NEL,.TRUE.)
                   IF(TSYM) THEN
-                     CALL GETSYM(NEXCIT,NEL,G1,NBASISMAX,ISYM2)   
+                     CALL GETSYM(NEXCIT,NEL,G1,NBASISMAX,ISYM2)
                      LSYM=LCHKSYM(ISYM,ISYM2)
                   ELSE
                      LSYM=.TRUE.

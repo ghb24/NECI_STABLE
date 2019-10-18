@@ -1,14 +1,14 @@
 ! This function is based on the principle that the correlation energy of a system is simply the sum of
 ! the hamiltonian elements between HF and each excitation, multiplied by the probability of a random
 ! walker populating the determinant in the long time limit, normalised by the probability of the random
-! walker populating the HF determinant. Because of this, all graphs can be calculated from a discrete 
-! diffusion problem. In this case, the principle is used to calculate the energy of the star graph, by 
+! walker populating the HF determinant. Because of this, all graphs can be calculated from a discrete
+! diffusion problem. In this case, the principle is used to calculate the energy of the star graph, by
 ! picking a determinant of the graph at random (including HF), and then pushing electron density onto
 ! connected determinants according to the hamiltonian matrix element connecting them. This can be consdered a
 ! local application of the hamiltonian matrix a random determinant, and so the correct energy should be eventually
 ! converged upon.
 
-!This is a flawed principle, as it does not take into account the fact that the hamiltonian is not unitary, and so 
+!This is a flawed principle, as it does not take into account the fact that the hamiltonian is not unitary, and so
 !this approach will not give the right number - hence the walker population must increase, giving rise to FCIMC.
 !This code works, but is based on wrong assumptions.
 
@@ -42,7 +42,7 @@ MODULE MCStarMod
 
 !The intermediate weights and energys of the star graph, calculated with the updated wavevector are stored
     TYPE(HElement) :: TempEnergyxw,TempWeight
-      
+
     contains
 
     SUBROUTINE MCStar(Weight,Energyxw)
@@ -53,7 +53,7 @@ MODULE MCStarMod
         IMPLICIT NONE
         TYPE(HDElement) :: Weight,Energyxw
         CHARACTER(len=*), PARAMETER :: this_routine='MCStar'
-        
+
         OPEN(63,file='MCStarStats',Status='unknown')
         IF(HElementSize.ne.1) STOP 'Only real orbitals allowed in MCStar so far'
         Weight=HDElement(0.D0)
@@ -113,7 +113,7 @@ MODULE MCStarMod
         type(timer), save :: proc_timerFindStar
         CHARACTER(len=*), PARAMETER :: this_routine='FindStarExcits'
         INTEGER :: ierr,ExcitCount
-        LOGICAL :: TCountExcits 
+        LOGICAL :: TCountExcits
 
         proc_timerFindStar%timer_name='FindStarExcits'
         call set_timer(proc_timerFindStar)
@@ -145,22 +145,22 @@ MODULE MCStarMod
         i=0
         ExcitInfo(i,0)=Hii
         ExcitInfo(i,1)=Hii
-                    
+
         do while(.true.)
             CALL GenSymExcitIt2(FDet,NEl,G1,nBasis,nBasisMax,.false.,nExcit,nJ,iExcit,0,nStore,exFlag)
             IF(nJ(1).eq.0) exit
 
 !Calculate and store Hij element
             rh=GetHElement2(FDet,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,iExcit,ECore)
-            
+
             if(rh .agt. 0.D0) then
                i=i+1
-               
+
                ExcitInfo(i,1)=rh
 
 !Calculate a value which will be equal to the change in total probability if the HF determinant is chosen in a propagation step
                 HFReNorm=HFReNorm+((ABS(ExcitInfo(i,1)%v))**2)
-               
+
 !Calculate and store H_jj elements
                ExcitInfo(i,0)=GetHElement2(nJ,nJ,NEl,nBasisMax,G1,nBasis,Brr,nMsh,fck,nMax,ALat,UMat,0,ECore)
 
@@ -247,7 +247,7 @@ MODULE MCStarMod
 !This subroutine applies the hamiltonian to a *normalised* vector (the one in "Eigenvector"), either stochastically trough repeated
 !choosing of a determinant in the vector, according to some probability distribution, and a local application of the
 !hamiltonian, (TStoch=.true.), or in one shot to all determinants (TStoch=.false.) - equivalent to the matrix multiplication
-!of the vector by the star matrix. If TStoch=.true., then Iters defines the number of determinants to pick from the 
+!of the vector by the star matrix. If TStoch=.true., then Iters defines the number of determinants to pick from the
 !vector to propagate.
     SUBROUTINE SingleHApp(TStoch)
         use CalcData , only : Iters
@@ -263,7 +263,7 @@ MODULE MCStarMod
 
             NormFactor=1.D0
             CALL AZZERO(VectorChange,(NoExcits+1)*HElementSize)
-            
+
 !In this case, the probability of picking any determinant is uniform across all determinants in the graph.
             Prob=1.D0/(NoExcits+1)
 
@@ -304,7 +304,7 @@ MODULE MCStarMod
 !                    WRITE(6,*) "ROOT PICKED"
 !Renormalise the VectorChange each time - this is not strictly necessary, but can be simplified if not for debugging purposes
                     NormFactor=0.D0
-                    
+
                     do j=1,NoExcits
 !Add to the wavevector components of the excitations Hij
 !However, since the determinant was chosen with a certain probability, this needs to be divided out
@@ -323,7 +323,7 @@ MODULE MCStarMod
 !                    WRITE(6,*) "EXCIT PICKED",Iterations
 !We need to store the normalisation factor for the previous VectorChange (i.e. sum pf probs)
 !though in this case it should always be one
-                    
+
 !The root is increased by a proportion given by Hij
 !The original values of the eigenvectors are needed to avoid renormalisation
                     OrigRoot=VectorChange(0)%v
@@ -342,12 +342,12 @@ MODULE MCStarMod
 !                    do j=0,NoExcits
 !                        NormFactor=NormFactor+((VectorChange(j)%v)**2)
 !                    enddo
-                
+
                 ENDIF
 
 !Although only really need to do this at the end, renormalise VectorChange fully
                 NormFactor=SQRT(NormFactor)
-                    
+
 !If desired, write out all components of VectorChange
                 WRITE(3,"(I8)",advance='no') Iterations
                 do j=0,NoExcits
@@ -356,7 +356,7 @@ MODULE MCStarMod
                 WRITE(3,*) ""
 
             enddo
-            
+
             do j=0,NoExcits
 !Return final wavevector in Eigenvector array
                 Eigenvector(j)=VectorChange(j)
@@ -398,7 +398,7 @@ MODULE MCStarMod
 
     RETURN
     END SUBROUTINE SingleHApp
-            
+
 !In this routine, the hamiltonian is continually applied to the hamiltonian, and the energy updated.
 !This should converge to the ground state, though it is not strictly the power method.
     SUBROUTINE PowerMethDiag()
@@ -408,7 +408,7 @@ MODULE MCStarMod
         TYPE(HElement) :: TempWeight,TempEnergyxw,Norm
         REAL*8 :: StarEnergy
         INTEGER :: It,j
-        
+
         Delta=HElement(DeltaH)
 
         do It=1,Iters
@@ -448,8 +448,8 @@ MODULE MCStarMod
 
         END SUBROUTINE PowerMethDiag
 
-!In this routine, determinants are picked stochastically, and those determinants are operated on by the Hamiltonian. 
-!If the root is picked, then the weight of all excitations are increased according to the size of their Hij values, 
+!In this routine, determinants are picked stochastically, and those determinants are operated on by the Hamiltonian.
+!If the root is picked, then the weight of all excitations are increased according to the size of their Hij values,
 !and the root component is increased by Hii. If an excitation is chosen, then the root increases by Hij, and the
 !excitation chosen is increased by Hjj.
     SUBROUTINE PropagateLocalWavevector()
@@ -464,7 +464,7 @@ MODULE MCStarMod
         TYPE(HElement) :: Delta,ProbAll
         TYPE(HElement) , ALLOCATABLE :: ChangeVect(:)
         INTEGER , ALLOCATABLE :: TimesUpdated(:)
-        
+
         proc_timerProp%timer_name='PropLocalWaveVec'
         call set_timer(proc_timerProp)
         ALLOCATE(ChangeVect(0:NoExcits),Stat=ierr)
@@ -473,7 +473,7 @@ MODULE MCStarMod
         CALL LogMemAlloc('TimesUpdated',NoExcits+1,4,this_routine,TimesUpdatedTag)
 
         IF(.not.TStoch) HApp=NoExcits+1
-            
+
 
         Delta=HElement(DeltaH)
         Prob=1.D0/(NoExcits+1)
@@ -516,7 +516,7 @@ MODULE MCStarMod
                 IF(i.eq.0) THEN
 !Root is selected to propagate from...
 !                    WRITE(6,*) "ROOT PICKED"
-                
+
                     do j=0,NoExcits
 !                        ChangeVect(i)=ChangeVect(i)+(ExcitInfo(j,1)*Eigenvector(j))/ProbAll
                         ChangeVect(i)=ChangeVect(i)+(ExcitInfo(j,1)*Eigenvector(j))
@@ -526,7 +526,7 @@ MODULE MCStarMod
                 ELSE
 !Excitation i is selected to propagate from...
 !                    WRITE(6,*) "EXCIT PICKED"
-                
+
                     ChangeVect(i)=ChangeVect(i)+(ExcitInfo(i,1)*Eigenvector(0))+(ExcitInfo(i,0)*Eigenvector(i))
 !                    ChangeVect(i)=ChangeVect(i)+((ExcitInfo(i,1)*Eigenvector(0))/ProbAll)+((ExcitInfo(i,0)*Eigenvector(i))/ProbAll)
 !                    Eigenvector(i)=Eigenvector(i)-(Delta*(ExcitInfo(i,1)*Eigenvector(0))+(ExcitInfo(i,0)*Eigenvector(i)))
@@ -546,9 +546,9 @@ MODULE MCStarMod
                 TempEnergyxw=TempEnergyxw+(ExcitInfo(i,1)*Eigenvector(i))
             enddo
             TempWeight=Eigenvector(0)
-                
+
             StarEnergy=TempEnergyxw%v/TempWeight%v
-            
+
 !            WRITE(3,"(I8)",advance='no') Iterations
 !            do j=0,NoExcits
 !                WRITE(3,"(G25.14)",advance='no') TestVect(j)%v/Norm%v
@@ -566,7 +566,7 @@ MODULE MCStarMod
 
         DEALLOCATE(ChangeVect)
         CALL LogMemDealloc(this_routine,ChangeVectTag)
-        
+
         call halt_timer(proc_timerProp)
 
     END SUBROUTINE PropagateLocalWavevector
@@ -592,7 +592,7 @@ MODULE MCStarMod
             StarMat(1,i)=ExcitInfo(i-1,1)%v
         enddo
         StarMat(1,1)=ExcitInfo(0,0)%v
-        
+
 !        do i=1,NoExcits+1
 !            do j=1,NoExcits+1
 !                WRITE(14,"F20.14,$") StarMat(i,j)
@@ -622,7 +622,7 @@ MODULE MCStarMod
 END MODULE MCStarMod
 
 
-!!In this routine, determinants are picked stochastically according to the magnitude of their component of 
+!!In this routine, determinants are picked stochastically according to the magnitude of their component of
 !!the wavevector at that time squared. If the root is picked, then the weight of all excitations are increased
 !!according to the size of their rij/rhii values, and the root component is increased by 1. Normalisation constants
 !!are also increased accordingly. If an excitation is chosen, then the root increases by rij/rhii, and the
@@ -635,7 +635,7 @@ END MODULE MCStarMod
 !        REAL*8 :: r,RAN2,StarEnergy,OrigRoot,OrigExcit,NormCheck,prob
 !        CHARACTER(len=*), PARAMETER :: this_routine='PropLocalWaveVec'
 !        TYPE(HElement) :: Delta,Norm,TestVect(0:NoExcits)
-!        
+!
 !        proc_timerProp%timer_name='PropLocalWaveVec'
 !        call set_timer(proc_timerProp)
 !        CALL AZZERO(TestVect,(NoExcits+1)*HElementSize)
@@ -706,15 +706,15 @@ END MODULE MCStarMod
 !                TempWeight=HElement(0.D0)
 !!                Norm=HElement(NormFactor)
 !!                NormFactor=0.D0
-!                
+!
 !                do j=1,NoExcits
 !!Add to the wavevector components of the excitations Hij
-!!However, since the determinant was chosen with probability given by the component squared, 
+!!However, since the determinant was chosen with probability given by the component squared,
 !!one of these factors needs to be divided out to achieve the correct weighting of each determiant
 !!                    Eigenvector(j)=Eigenvector(j)-(Delta*(ExcitInfo(j,1)/Eigenvector(0))*Norm)
 !                    Eigenvector(j)=Eigenvector(j)-(ExcitInfo(j,1)/Eigenvector(0))*Norm)
 !!                    TestVect(j)=TestVect(j)+(ExcitInfo(j,1)*Eigenvector(0)/HElement(prob))
-!                   
+!
 !!                    NormFactor=NormFactor+((Eigenvector(j)%v)**2)
 !!Calculate energy again...
 !!                    TempEnergyxw=TempEnergyxw+(ExcitInfo(j,1)*Eigenvector(j))
@@ -726,7 +726,7 @@ END MODULE MCStarMod
 !                TestVect(0)=TestVect(0)+(Hii*Eigenvector(0)/HElement(prob))
 !!                TestVect(0)=TestVect(0)+(Hii/Eigenvector(0))
 !!                NormFactor=NormFactor+(Eigenvector(0)%v)**2
-!                
+!
 !!                NormFactor=SQRT(NormFactor)
 !!                do j=0,NoExcits
 !!                    Eigenvector(j)=Eigenvector(j)/HElement(NormFactor)
@@ -745,7 +745,7 @@ END MODULE MCStarMod
 !!Excitation i is selected to propagate from...
 !!                WRITE(6,*) "EXCIT PICKED"
 !!                Norm=HElement(NormFactor)
-!                
+!
 !!The root is increased by a proportion given by rhij/rhii, divided by the component of the eigenvector chosen
 !!The original values of the eigenvectors are needed to avoid renormalisation
 !!                OrigRoot=Eigenvector(0)%v
@@ -784,7 +784,7 @@ END MODULE MCStarMod
 !!                TempWeight=Eigenvector(0)
 !
 !            ENDIF
-!                
+!
 !!            StarEnergy=TempEnergyxw%v/TempWeight%v
 !!Renormalise TestVect
 !            Norm=HElement(0.D0)
@@ -800,7 +800,7 @@ END MODULE MCStarMod
 !!            WRITE(63,"(I15,2G22.14)") Iterations+1,StarEnergy,NormFactor
 !
 !        enddo
-!        
+!
 !        call halt_timer(proc_timerProp)
 !
 !    END SUBROUTINE PropagateLocalWavevector

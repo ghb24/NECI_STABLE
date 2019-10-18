@@ -109,7 +109,7 @@ contains
         ! j --> Which element of the main list CurrentDets are we considering?
         ! IterLastRDMFill is the number of iterations since the last time the
         ! RDM contributions were added in (often the frequency of the RDM
-        ! energy calculation). 
+        ! energy calculation).
 
         ! For the instantaneous RDMs we need to multiply the RDM contributions
         ! by either this, or the number of iterations the determinant has been
@@ -147,7 +147,7 @@ contains
         if(.not. tUseDet) then
            tUseDet = all_runs_are_initiator(ilutnI)
         endif
-        
+
         if(present(tLagrCorr)) then
            tLC = tLagrCorr
         else
@@ -184,7 +184,7 @@ contains
                  end if
 
                  ! C_X D_X = C_X / sqrt(2) [ D_I +/- D_I'] - for open shell dets,
-                 ! divide stored C_X by sqrt(2). 
+                 ! divide stored C_X by sqrt(2).
                  ! Add in I.
                  call FindExcitBitDetSym(iLutnI, SpinCoupDet)
                  call decode_bit_det(nSpinCoup, SpinCoupDet)
@@ -202,10 +202,10 @@ contains
 
                  ! For HPHF we're considering < D_I + D_I' | a_a+ a_b+ a_j a_i | D_I + D_I' >
                  ! Not only do we have diagonal < D_I | a_a+ a_b+ a_j a_i | D_I > terms, but also cross terms
-                 ! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double 
+                 ! < D_I | a_a+ a_b+ a_j a_i | D_I' > if D_I and D_I' can be connected by a single or double
                  ! excitation. Find excitation level between D_I and D_I' and add in the contribution if connected.
                  HPHFExcitLevel = FindBitExcitLevel(iLutnI, SpinCoupDet, 2)
-                 if (HPHFExcitLevel <= 2) then 
+                 if (HPHFExcitLevel <= 2) then
                     call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nSpinCoup, &
                          IterRDM_new*av_sign(1::2)/sqrt(2.0_dp), &
                          (real(SignFac,dp)*av_sign(2::2))/sqrt(2.0_dp))
@@ -246,7 +246,7 @@ contains
 
      endif
 
-     contains 
+     contains
 
        subroutine applyRDMCorrection()
          implicit none
@@ -301,9 +301,9 @@ contains
 
     subroutine Add_RDM_HFConnections_Norm(spawn, one_rdms, iLutJ, nJ, AvSignJ, AvSignHF, walkExcitLevel, IterRDM)
 
-        ! This is called when we run over all TotWalkers in CurrentDets.    
+        ! This is called when we run over all TotWalkers in CurrentDets.
         ! It is called for each CurrentDet which is a single or double of the HF.
-        ! It explicitly adds in the HF - S/D connection, as if the HF were D_i and 
+        ! It explicitly adds in the HF - S/D connection, as if the HF were D_i and
         ! the single or double D_j. This is the standard full space RDM calc (No HPHF).
         ! In this case the diagonal elements wll already be taken care of.
 
@@ -406,13 +406,13 @@ contains
         end if
 
     end subroutine check_fillRDM_DiDj
- 
+
     subroutine DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, real_sign_j_all, &
          tNonInits)
 
         ! This routine is called when we have found a Di (or multiple Di's)
         ! spawning onto a Dj with sign /= 0 (i.e. occupied). We then want to
-        ! run through all the Di, Dj pairs and add their coefficients 
+        ! run through all the Di, Dj pairs and add their coefficients
         ! (with appropriate de-biasing factors) into the 1 and 2 electron RDM.
 
         use bit_reps, only: decode_bit_det
@@ -436,7 +436,7 @@ contains
         integer(n_int) :: source_flags
         logical :: spawning_from_ket_to_bra, tNonInitParent
 
-        ! Spawning from multiple parents, to iLutJ, which has SignJ.        
+        ! Spawning from multiple parents, to iLutJ, which has SignJ.
 
         ! We are at position Spawned_No in the SpawnedParts array.
         ! Spawned_Parents_Index(1,Spawned_No) is therefore the start position
@@ -448,14 +448,14 @@ contains
         ! Run through all Di's.
 
         do i = Spawned_Parents_Index(1,Spawned_No), &
-                Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1 
+                Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1
 
             if (DetBitEQ(iLutHF_True, Spawned_Parents(0:NIfDBO,i), NIfDBO)) then
                 ! We've already added HF - S, and HF - D symmetrically.
                 ! Any connection with the HF has therefore already been added.
                 cycle
             end if
-            
+
             call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
             call decode_bit_det (nJ, iLutJ)
 
@@ -464,9 +464,9 @@ contains
             if(abs(realSignI)<eps) cycle
 
             ! The original spawning event (and the RealSignI) came from this
-            ! population.            
-            source_part_type = Spawned_Parents(NIfDBO+3,i)
-            
+            ! population.
+            source_part_type = int(Spawned_Parents(NIfDBO+3,i))
+
             ! if we only sum in initiator contriubtions, check the flags here
             if(.not. (tNonInits .and. tNonInitsForRDMs)) then
                tNonInitParent = .false.
@@ -483,7 +483,7 @@ contains
             ! Loop over all RDMs to which the simulation with label
             ! source_part_type contributes to.
             do irdm = 1, rdm_defs%nrdms_per_sim(source_part_type)
-                ! Get the label of the simulation that is paired with this, 
+                ! Get the label of the simulation that is paired with this,
                 ! replica, for this particular RDM.
                 dest_part_type = rdm_defs%sim_pairs(irdm, source_part_type)
 
@@ -557,7 +557,7 @@ contains
         ! It takes to HPHF functions, and calculates what needs to be summed
         ! into the RDMs.
 
-        ! If the two HPHF determinants we're considering consist of I + I' and 
+        ! If the two HPHF determinants we're considering consist of I + I' and
         ! J + J', where X' is the spin coupled (all spins flipped) version of X,
         ! then we have already considered the I -> J excitation. And if I and
         ! J are connected by a double excitation, tDoubleConnection is true
@@ -694,16 +694,16 @@ contains
         endif
 
         if ((Ex(1,2) .eq. 0) .and. (Ex(2,2) .eq. 0)) then
-            
+
             ! Di and Dj are separated by a single excitation.
             ! Add in the contribution from this pair into the 1-RDM.
-            
+
             if (RDMExcitLevel == 1) then
                 call fill_sings_1rdm(one_rdms, Ex, tParity, realSignI, realSignJ, .false.)
             else
                 call fill_spawn_rdm_singles(spawn, nI, Ex, full_sign)
             end if
-    
+
         else if (RDMExcitLevel /= 1) then
 
             ! Otherwise Di and Dj are connected by a double excitation.
@@ -732,7 +732,7 @@ contains
                 end associate
             end do
         end do
-        
+
     end subroutine fill_spawn_rdm_diag
 
     subroutine fill_spawn_rdm_singles(spawn, nI, Ex, full_sign)
@@ -760,12 +760,12 @@ contains
                 end if
             end associate
         end do
-        
+
     end subroutine fill_spawn_rdm_singles
 
-! =======================================================================================    
-! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT    
-! =======================================================================================    
+! =======================================================================================
+! THESE NEXT ROUTINES ARE GENERAL TO BOTH STOCHASTIC AND EXPLICIT
+! =======================================================================================
 
     subroutine fill_diag_1rdm(one_rdms, nI, contrib_sign, tCoreSpaceDetIn, RDMItersIn, tLagrCorr)
 
@@ -926,22 +926,22 @@ contains
             ! for an iteration where we wouldn't normally need the energy
             IterRDM = mod((Iter + PreviousCycles - IterRDMStart + 1), RDMEnergyIter)
         end if
-        
+
         Ex = 0
 
         ! Cycle over all core dets on this process.
         do i = 1, determ_sizes(iProcIndex)
             iLutI = core_space(:,determ_displs(iProcIndex)+i)
-                         
+
             ! Connections to the HF are added in elsewhere, so skip them here.
             if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
-           
+
             do irdm = 1, rdm_defs%nrdms
                 AvSignI(irdm) = full_determ_vecs_av(rdm_defs%sim_labels(2,irdm), determ_displs(iProcIndex)+i)
             end do
 
             call decode_bit_det(nI,iLutI)
- 
+
             do j = 1, sparse_core_ham(i)%num_elements-1
                 ! Running over all non-zero off-diag matrix elements
                 ! Connections to whole space (1 row), excluding diagonal elements
@@ -951,12 +951,12 @@ contains
                 ! so we need to shuffle up to the range of indices corresponding
                 ! to this proc (using determ_displs) and then select the
                 ! correct one, i.
-                
+
                 iLutJ = core_space(:,core_connections(i)%positions(j))
 
                 ! Connections to the HF are added in elsewhere, so skip them here.
                 if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
-                
+
                 do irdm = 1, rdm_defs%nrdms
                     AvSignJ(irdm) = full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), core_connections(i)%positions(j))
                 end do
@@ -980,12 +980,12 @@ contains
                     if (IC == 1) then
                         ! Single excitation - contributes to 1- and 2-RDM
                         ! (if calculated).
-                         
+
                         ! Note: get_bit_excitmat may be buggy (DetBitOps),
                         ! but will do for now as we need the Ex...
                         call get_bit_excitmat(iLutI(0:NIfD),iLutJ(0:NIfD), SingEx, IC)
                         Ex(:,1) = SingEx(:,1)
-                       
+
                         ! No need to explicitly fill symmetrically as we'll
                         ! generate pairs of determinants both ways around using
                         ! the connectivity matrix.
@@ -1006,6 +1006,6 @@ contains
             end do
         end do
 
-    end subroutine fill_RDM_offdiag_deterministic 
+    end subroutine fill_RDM_offdiag_deterministic
 
 end module rdm_filling

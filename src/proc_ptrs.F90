@@ -269,7 +269,7 @@ module procedure_pointers
           HElement_t(dp) :: hel
         end function sltcnd_3_t
 
-        function scale_function_t(hdiag) result(Si)
+        pure function scale_function_t(hdiag) result(Si)
           use constants
           implicit none
 
@@ -285,6 +285,22 @@ module procedure_pointers
           integer(int64), value :: i,j,k ! unoccupied orb
           integer(int64) :: index
         end function lMatInd_t
+
+        pure function shift_factor_function_t(pos, run , pop) result(f)
+          ! Scale facotr function for adpative shift
+          ! Input: pos - position of given determinant in CurrentDets
+          ! Input: run - run for which the factor is needed
+          ! Input: pop - population of given determinant
+          ! Output: f - scaling factor for the shift
+          use constants
+          implicit none
+
+          integer, intent(in) :: pos
+          integer, intent(in) :: run
+          real(dp), intent(in) :: pop
+          real(dp) :: f
+
+        end function shift_factor_function_t
 
     end interface
 
@@ -303,7 +319,7 @@ module procedure_pointers
     procedure(fill_rdm_diag_currdet_t), pointer :: fill_rdm_diag_currdet
 
 
-    ! 
+    !
     ! The two UMAT (2e integral) routines. The second is only used if a
     ! 'stacking' scheme is in use (i.e. caching, memoization etc.)
     procedure(get_umat_el_t), pointer :: get_umat_el
@@ -316,6 +332,8 @@ module procedure_pointers
     procedure(sltcnd_3_t), pointer :: sltcnd_3
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
+    ! the function used to scale the shift
+    procedure(shift_factor_function_t), pointer :: shiftFactorFunction
 
     ! indexing function of the six-index integrals
     procedure(get_lmat_el_t), pointer :: get_lmat_el

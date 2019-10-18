@@ -44,7 +44,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    type(timer), save :: proc_timer
    integer :: I,J,II,A,B,nStatesUsed
    HElement_t(dp) :: HarXC,HarXCSum
-   
+
    proc_timer%timer_name='VASPInitInts'
    call set_timer(proc_timer)
    ! ECore=EIonIon???
@@ -80,7 +80,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
       TMATSYM(TMatInd(II+1,II+1))=(eigv(I))-HarXC
       write (10,*) I,J,TMATSYM(TMatInd(II+1,II+1))
    end do
-   
+
 
    if (tOrder) then
       call Stop_All('VASPInitIntegrals','tOrder not implemented in VASP interface yet.')
@@ -89,7 +89,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    close (10)
 
    call halt_timer(proc_timer)
-   
+
    return
 end subroutine VASPInitIntegrals
 

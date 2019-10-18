@@ -19,11 +19,11 @@ MODULE SymExcitDataMod
     ! Do we want to extract seperate alpha and beta orbital lists when
     ! decoding the bit determinants in the main FCIMC loop?
     logical :: tBuildSpinSepLists = .false.
-!This is set up in SpinOrbSymSetup, and is a default ClassCount excitation generator, 
+!This is set up in SpinOrbSymSetup, and is a default ClassCount excitation generator,
 !from which it is then easier to set up the determinant specific ones.
-    INTEGER , ALLOCATABLE :: OrbClassCount(:)  
+    INTEGER , ALLOCATABLE :: OrbClassCount(:)
     !This is set up in SpinOrbSymSetup for the hubbard model, indicies are kx, ky, kz and a spin index value
-    INTEGER , ALLOCATABLE :: kPointToBasisFn(:,:,:,:) 
+    INTEGER , ALLOCATABLE :: kPointToBasisFn(:,:,:,:)
     INTEGER :: kTotal(3) !This is the total momentum of the reference configuration
 
     INTEGER , ALLOCATABLE :: SpinOrbSymLabel(:)        !Find symmetry label (for symexcit routines: 0 -> nSymLabels-1) from BasisFn
@@ -40,7 +40,7 @@ MODULE SymExcitDataMod
         ! These are pointers rather than allocatable as a result of the
         ! GetNextSpawner functionality in CCMC. As this has been removed,
         ! these could now be swapped back to allocatable.
-        ! 
+        !
         ! --> Must ensure that init/clean_excit_gen_store is NEVER called on
         !     a store object being used in that way.
         integer, pointer :: ClassCountOcc(:) => null()
@@ -61,9 +61,6 @@ MODULE SymExcitDataMod
         integer, pointer :: dorder_j (:) => null()
         integer, pointer :: elec_map (:) => null()
         integer :: nopen
-        ! cache the picked electrons + their pgen
-        integer :: pq(2)
-        real(dp) :: pPick
     end type
 
 END MODULE SymExcitDataMod

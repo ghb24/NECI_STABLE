@@ -72,7 +72,7 @@ module davidson_neci
 
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
-        
+
         call InitDavidsonCalc(this, print_info, hamil_type_in)
 
         if (print_info) write(6,'(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
@@ -109,7 +109,7 @@ module davidson_neci
     end subroutine perform_davidson
 
     subroutine InitDavidsonCalc(this, print_info, hamil_type)
-    
+
         ! This subroutine initialises the Davdison method by allocating the necessary arrays,
         ! defining the initial basis vector and projected Hamiltonian, and setting an initial
         ! guess at the ground state eigenvalue. It also calculates the corresponding residual
@@ -119,7 +119,7 @@ module davidson_neci
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings
         use ras, only: find_ras_size
         use util_mod, only: int_fmt
-        
+
         type(DavidsonCalcType), intent(inout) :: this
 
         logical, intent(in) :: print_info
@@ -325,7 +325,7 @@ module davidson_neci
                    0.0_dp, &
                    this%davidson_eigenvector, &
                    1)
-        
+
     end subroutine subspace_extraction
 
     subroutine project_hamiltonian(this, basis_index)
@@ -368,10 +368,10 @@ module davidson_neci
         ! This routine calculates the residual, r, corresponding to the new estimate of the
         ! ground state, stored in davidson_eigenvector. This is defined as
         ! r = Hv - Ev,
-        ! where H is the Hamiltonian, v is the ground state vector estimate and E is the 
+        ! where H is the Hamiltonian, v is the ground state vector estimate and E is the
         ! ground state energy estimate.
 
-        if (iProcIndex == root) then 
+        if (iProcIndex == root) then
             ! Calculate r = Hv - Ev:
             ! Note that, here, eigenvector_proj holds the components of v in the Krylov basis,
             ! and multiplied_basis_vectors holds the Krylov vectors multiplied by H, hence

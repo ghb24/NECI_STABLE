@@ -25,7 +25,7 @@ module pcpp_excitgen
   type(aliasSampler_t) :: double_elec_one_sampler
   type(aliasSampler_t), allocatable :: double_elec_two_sampler(:)
 
-  type(aliasSampler_t), allocatable :: double_hole_one_sampler(:,:) 
+  type(aliasSampler_t), allocatable :: double_hole_one_sampler(:,:)
   ! there is one sampler per spin/symmetry of the last electron
   type(aliasSampler_t), allocatable :: double_hole_two_sampler(:,:,:)
 
@@ -123,7 +123,7 @@ contains
 
     call double_elec_one_sampler%sample(umElec1,pSGen1)
     src1 = elec_map(umElec1)
-    
+
     ! in very rare cases, no mapping is possible in the first place
     ! then, abort
     if(invalid_mapping(src1)) then
@@ -132,10 +132,10 @@ contains
        pGen = pSGen1
        return
     endif
-    
+
     call double_elec_two_sampler(src1)%sample(umElec2,pSGen2)
     src2 = elec_map(umElec2)
-    
+
     ! it is possible to not be able to map the second electron if
     ! the first mapping occupied the only available slot
     if(invalid_mapping(src2,src1)) then
@@ -203,7 +203,7 @@ contains
 
       sym= symprod(G1(src1)%Sym,G1(src2)%Sym)
       sym = symprod(sym,symconj(G1(tgt)%Sym))
-      
+
     end function getTgtSym
 
     function getTgtSpin(tgt) result(ms)
@@ -217,14 +217,14 @@ contains
       integer :: ms
 
       ! if the electrons have the same spin, return the spin index of tgt
-      if(G1(src1)%MS.eq.G1(src2)%MS) then
+      if(G1(src1)%MS == G1(src2)%MS) then
          ms = getSpinIndex(tgt)
       else
          ! else, the opposite spin index
          ms = 1 - getSpinIndex(tgt)
       endif
     end function getTgtSpin
-      
+
     function invalid_mapping(src,src2) result(abort)
       ! check if the mapping was successful
       ! Input: src - electron we want to know about: did the mapping succeed?
@@ -236,8 +236,8 @@ contains
       integer, optional, intent(in) :: src2
       logical :: abort
 
-      abort = src.eq.0
-      if(present(src2)) abort = abort .or. (src.eq.src2)
+      abort = src == 0
+      if(present(src2)) abort = abort .or. (src == src2)
       if(abort) then
          nJ = 0
          tParity = .false.
@@ -245,7 +245,7 @@ contains
          ExcitMat(1,1) = src
          if(present(src2)) ExcitMat(1,2) = src2
       endif
-      
+
     end function invalid_mapping
 
     function abort_excit(tgt,tgt2) result(abort)
@@ -257,14 +257,14 @@ contains
       integer, intent(in) :: tgt
       integer, optional, intent(in) :: tgt2
       logical :: abort
-      
-      abort = IsOcc(ilut,tgt) .or. (tgt.eq.0)
+
+      abort = IsOcc(ilut,tgt) .or. (tgt == 0)
       if(present(tgt2)) abort = abort .or. tgt==tgt2
       if(abort) then
          nJ = 0
          ExcitMat(1,1) = src1
          ExcitMat(1,2) = src2
-         ExcitMat(2,1) = tgt         
+         ExcitMat(2,1) = tgt
          if(present(tgt2)) then
             ExcitMat(2,2) = tgt2
          else
@@ -290,7 +290,7 @@ contains
     !        excitMat - on return, excitation matrix nI -> nJ
     !        tParity - on return, the parity of the excitation nI -> nJ
     !        pGen - on return, the probability of generating the excitation nI -> nJ
-    
+
     integer, intent(in) :: nI(nel)
     integer, intent(in) :: elec_map(nel)
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -305,10 +305,10 @@ contains
     ! get a random electron
     call single_elec_sampler%sample(src,pGen)
 
-    ! map the electron to the current determinant    
+    ! map the electron to the current determinant
     src = elec_map(src)
 
-    ! get a random associated orbital    
+    ! get a random associated orbital
     call single_hole_sampler(src)%sample(tgt,pHole)
 
     if(IsOcc(ilut,tgt)) then
@@ -330,7 +330,7 @@ contains
 
   !------------------------------------------------------------------------------------------!
   ! Functions that map orbital and electron indices between reference and current determinant
-  !------------------------------------------------------------------------------------------!  
+  !------------------------------------------------------------------------------------------!
 
   pure function create_elec_map(ilut) result(map)
     ! Create a map to transfer orbitals between the current det (nI)
@@ -367,7 +367,7 @@ contains
           end do
        endif
     end do
-    
+
   end function create_elec_map
 
   !------------------------------------------------------------------------------------------!
@@ -412,9 +412,9 @@ contains
                i = refDet(iEl)
                j = refDet(jEl)
                do a = 1, nBasis
-                  if(.not.any(a.eq.(/i,j/))) then
+                  if(.not.any(a == (/i,j/))) then
                      do b = 1, nBasis
-                        if(.not.any(b.eq.(/a,i,j/))) then
+                        if(.not.any(b == (/a,i,j/))) then
                            call set_ex(ex,i,j,a,b)
                            w(iEl) = w(iEl) + abs(sltcnd_excit(refDet,2,ex,tPar))
                         endif
@@ -447,9 +447,9 @@ contains
             j = refDet(jEl)
             if(i.ne.j) then
                do a = 1, nBasis
-                  if(.not.any(a.eq.(/i,j/))) then
+                  if(.not.any(a == (/i,j/))) then
                      do b = 1, nBasis
-                        if(.not.any(b.eq.(/i,j,a/))) then
+                        if(.not.any(b == (/i,j,a/))) then
                            call set_ex(ex,i,j,a,b)
                            w(jEl) = w(jEl) + abs(sltcnd_excit(refDet,2,ex,tPar))
                         end if
@@ -499,7 +499,7 @@ contains
       implicit none
       real(dp) :: w(nBasis,0:symmax-1,0:spinMax)
       integer :: j,b,iSym,iSpin
-      integer :: aerr        
+      integer :: aerr
 
       ! there is one table for each symmetry and each starting orbital
       allocate(double_hole_two_sampler(nBasis,0:symmax-1,0:spinMax), stat = aerr)
@@ -589,15 +589,15 @@ contains
       allocate(single_hole_sampler(nBasis), stat = aerr)
 
       ! each table has probabilities for all given virtual orbitals a (some of them might
-      ! be 0, this has no additional cost)    
+      ! be 0, this has no additional cost)
       do i = 1, nBasis
          w = 0.0_dp
          do a = 1, nBasis
             ! we never want to sample the source orbital
             if(i.ne.a) &
                  ! store the accumulated matrix elements (= un-normalized probability) with
-                 ! the corresponding symmetry (if spins of a/i are different, w is 0)            
-                 w(a) = acc_doub_matel(i,a)            
+                 ! the corresponding symmetry (if spins of a/i are different, w is 0)
+                 w(a) = acc_doub_matel(i,a)
          end do
 
          call single_hole_sampler(i)%setupSampler(w)
@@ -633,7 +633,7 @@ contains
       if(symAllowed(src,tgt)) then
          do b = 1, nBasis
             ! loop over all non-occupied orbitals
-            if(.not.any(b.eq.refDet(:))) then
+            if(.not.any(b == refDet(:))) then
                do j = 1, nel
                   ! get the excited determinant D_j^b used for the matrix element
                   if(symAllowed(refDet(j),b)) then
@@ -669,13 +669,13 @@ contains
     call clear_sampler_array(double_elec_two_sampler)
     do j = 1, size(double_hole_one_sampler,1)
        do k = 1, size(double_hole_one_sampler,2)
-          call double_hole_one_sampler(j,k)%samplerDestructor()
+          call double_hole_one_sampler(j,k-1)%samplerDestructor()
        end do
     end do
     do j = 1, size(double_hole_two_sampler,1)
        do k = 1, size(double_hole_two_sampler,2)
           do l = 1, size(double_hole_two_sampler,3)
-             call double_hole_two_sampler(j,k,l)%samplerDestructor()
+             call double_hole_two_sampler(j,k-1,l-1)%samplerDestructor()
           end do
        end do
     end do
@@ -744,7 +744,7 @@ contains
   end function pp_weight_function
 
   !------------------------------------------------------------------------------------------!
-  
+
   function symAllowed(a,b) result(allowed)
     ! Check if a transition from a to be is symmetry-allowed
     ! Input: a,b - orbitals to check
@@ -753,7 +753,7 @@ contains
     integer, intent(in) :: a,b
     logical :: allowed
 
-    allowed = same_spin(a,b) .and. (G1(a)%Sym%s.eq.G1(b)%Sym%s)
+    allowed = same_spin(a,b) .and. (G1(a)%Sym%s == G1(b)%Sym%s)
   end function symAllowed
 
   !------------------------------------------------------------------------------------------!

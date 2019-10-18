@@ -5,7 +5,10 @@ set( ${PROJECT_NAME}_C_FLAGS_CLUSTER "-ipo" )
 
 # Warning flags ...
 
-set( ${PROJECT_NAME}_CXX_WARNING_FLAGS "-w3 -diag-disable:remark" )
+# https://stackoverflow.com/questions/27343360/how-to-turn-on-icc-icpc-warnings
+set( ${PROJECT_NAME}_CXX_WARNING_FLAGS "-Wall -Warray-bounds -Wchar-subscripts -Wcomment -Wenum-compare -Wformat -Wuninitialized -Wmaybe-uninitialized -Wmain -Wnarrowing -Wnonnull -Wparentheses -Wpointer-sign -Wreorder -Wreturn-type -Wsign-compare -Wsequence-point -Wtrigraphs -Wunused-function -Wunused-but-set-variable -Wunused-variable -Wwrite-strings -diag-disable:remark" )
+# Treat errors as warnings
+set( ${PROJECT_NAME}_CXX_WARN_ERROR_FLAG "-Werror")
 
 # Treat 32bit/64bit compilation differently
 

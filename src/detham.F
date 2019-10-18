@@ -1,4 +1,4 @@
-      SUBROUTINE DETHAM(NDET,NEL,NMRKS, HAMIL,LAB,NROW,TCOUNT, 
+      SUBROUTINE DETHAM(NDET,NEL,NMRKS, HAMIL,LAB,NROW,TCOUNT,
      &  ICMAX,GC,TMC)
       use global_utilities
       use constants, only: dp, n_int, eps
@@ -11,6 +11,7 @@
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
       use lattice_mod, only: get_helement_lattice
+      use util_mod, only: near_zero
       IMPLICIT NONE
       HElement_t(dp) HAMIL(*)
       INTEGER NDET,NEL
@@ -42,7 +43,7 @@ C..   Now we need to match up any two determinants
          ELSE
            IBEG=IBEG+NROW(KI-1)
          ENDIF
-         IF(TMC) THEN 
+         IF(TMC) THEN
            IBEGJ=1
            STEP=1
            IMAXJ=NDET
@@ -70,7 +71,7 @@ C..   Now we need to match up any two determinants
               if (KI == KJ) then
                 totsum = hphf_diag_helement(NMRKS(:,KI), ilutI)
               else
-                totsum = hphf_off_diag_helement(NMRKS(:,KI), 
+                totsum = hphf_off_diag_helement(NMRKS(:,KI),
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
             else if (t_lattice_model) then 
@@ -90,7 +91,7 @@ C..   Now we need to match up any two determinants
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
-            IF(abs(TOTSUM)>EPS .OR. (KI.EQ.KJ)) THEN
+            IF(.not. near_zero(TOTSUM) .OR. KI == KJ) THEN
                GC=GC+1
 C..   Stores the number of non-zero elements in each row
                NROW(KI)=NROW(KI)+1
@@ -150,7 +151,7 @@ C..
         IF(IFLG.EQ.1) call stop_all(t_r, ' PROBLEM IN TWO DIFFER ')
         IF(IFLG.EQ.2) call stop_all(t_r, ' PROBLEM IN ONE DIFFER ')
         IF(IFLG.EQ.3) call stop_all(t_r, ' PROBLEM IN SAME ')
-      ENDIF 
+      ENDIF
 C..
       RETURN
       END

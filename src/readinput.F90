@@ -56,22 +56,9 @@ MODULE ReadInput_neci
         ir=get_free_unit()              !default to a free unit which we'll open below
         If(trim(adjustl(cFilename)) .ne. '') Then
             Write(6,*) "Reading from file: ", Trim(cFilename)
-#ifdef _MOLCAS_
-           allocate(tmparr(10))
-           call f_Inquire('FCINP',tExists)
-           if(tExists) then
-              Call Molcas_Open(ir,'FCINP')
-!              call molcas_open_ext2(ir,'FCINP','SEQUENTIAL','FORMATTED',100,.false.,1,'OLD',.false.)
-              Rewind(ir)
-           else
-              call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
-           end if
-           deallocate(tmparr)
-#else
             inquire(file=cFilename,exist=tExists)
             if (.not.tExists) call stop_all('ReadInputMain','File '//Trim(cFilename)//' does not exist.')
             Open(ir,File=cFilename,Status='OLD',err=99,iostat=ios)
-#endif
         ElseIf(neci_iArgC().gt.0) then
     ! We have some arguments we can process instead
 #ifdef BLUEGENE_HACKS

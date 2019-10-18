@@ -12,7 +12,7 @@ module fcimc_initialisation
                           tHistSpinDist, tPickVirtUniform, tGen_4ind_reverse, &
                           tGenHelWeighted, tGen_4ind_weighted, tLatticeGens, &
                           tUEGNewGenerator, tGen_4ind_2, tReltvy, t_new_real_space_hubbard, &
-                          t_lattice_model, t_tJ_model, t_heisenberg_model, & 
+                          t_lattice_model, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, t_3_body_excits, omega, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
@@ -32,7 +32,7 @@ module fcimc_initialisation
                         tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &
                         VirtCASOrbs, StepsSft, tStartSinglePart, InitWalkers, &
-                        tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, tAVReps, &
+                        tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, &
@@ -49,12 +49,12 @@ module fcimc_initialisation
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
-                        tInitializeCSF, S2Init, tSpinProject, tWalkContGrow, tSkipRef, &
+                        tAutoAdaptiveShift, AAS_Cut, &
+                        tInitializeCSF, S2Init, tWalkContGrow, tSkipRef, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
-                        tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEn2Init, i_space_in, &
-                        tInitiatorSpace
-
+                        tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
+                        tInitiatorSpace, i_space_in, tLinearAdaptiveShift,&
+                        tExpAdaptiveShift, tSpinProject
     use spin_project, only: init_yama_store, clean_yama_store
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
@@ -111,7 +111,7 @@ module fcimc_initialisation
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement, scaleFunction, &
-                                  generate_two_body_excitation
+                                  generate_two_body_excitation, shiftFactorFunction
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -142,7 +142,8 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction
+                                 expCOScaleFunction, expShiftFactorFunction, constShiftFactorFunction, &
+                                 linearShiftFactorFunction, autoShiftFactorFunction
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -161,7 +162,7 @@ module fcimc_initialisation
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
     use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
-    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen
+    use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
     use csf, only: get_csf_helement
 
     use tau_search, only: init_tau_search, max_death_cpt
@@ -184,6 +185,8 @@ module fcimc_initialisation
     use FciMCData
 
     use util_mod
+
+    use fortran_strings, only: str
 
     use sort_mod
 
@@ -214,7 +217,8 @@ module fcimc_initialisation
     use OneEInts, only: tmat2d
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
-    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen
+
+    use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
     implicit none
 
 contains
@@ -229,21 +233,21 @@ contains
         CHARACTER(len=*), PARAMETER :: t_r='SetupParameters'
         CHARACTER(*), parameter :: this_routine = t_r
         CHARACTER(len=12) :: abstr
-        character(len=24) :: filename, filename2
+        character(len=40) :: filename, filename2
         LOGICAL :: tSuccess,tFoundOrbs(nBasis),FoundPair,tSwapped,tAlreadyOcc
         INTEGER :: HFLz,ChosenOrb,step,SymFinal, run
         integer(int64) :: SymHF
         integer(n_int), allocatable :: dummy_list(:,:)
 
 !        CALL MPIInit(.false.)       !Initialises MPI - now have variables iProcIndex and nProcessors
-        WRITE(iout,*) 
+        WRITE(iout,*)
         if(nProcessors.gt.1) then
             WRITE(iout,*) "Performing Parallel FCIQMC...."
         else
             write(iout,*) "Performing single-core FCIQMC...."
         endif
-        WRITE(iout,*) 
-        
+        WRITE(iout,*)
+
 !Set timed routine names
         Walker_Time%timer_name='WalkerTime'
         Annihil_Time%timer_name='AnnihilTime'
@@ -286,10 +290,8 @@ contains
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
-            abstr=''
-            write(abstr,'(I2)') iProcIndex
-            abstr='LOCALPOPS-'//adjustl(abstr)
-            OPEN(11,FILE=abstr,STATUS='UNKNOWN')
+            abstr = 'LOCALPOPS-'//str(iProcIndex)
+            OPEN(11, FILE=abstr, STATUS='UNKNOWN')
         ENDIF
 
         IF(iProcIndex.eq.Root) THEN
@@ -412,7 +414,7 @@ contains
         ALLOCATE(ProjEDet(NEl, inum_runs), stat=ierr)
 
         IF(ierr.ne.0) CALL Stop_All(t_r,"Cannot allocate memory for iLutRef")
-        
+
         ! The reference / projected energy determinants are the same as the
         ! HF determinant.
         call assign_reference_dets()
@@ -485,8 +487,8 @@ contains
         ENDIF
 
 !Do a whole lot of tests to see if we can use Brillouins theorem or not.
-        IF(tBrillouinsDefault) CALL CheckforBrillouins() 
-        
+        IF(tBrillouinsDefault) CALL CheckforBrillouins()
+
 !test the encoding of the HFdet to bit representation.
         ! Test that the bit operations are working correctly...
         ! TODO: Move this to using the extract_bit_det routines to test those
@@ -568,14 +570,14 @@ contains
             WRITE(iout,*) "Symmetry now set up in terms of spin orbitals"
             WRITE(iout,*) "I strongly suggest you check that the reference energy is correct."
         ENDIF
-        ! From now on, the orbitals are contained in symlabellist2 and 
-        ! symlabelcounts2 rather than the original arrays. These are stored 
-        ! using spin orbitals. Assume that if we want to use the non-uniform 
+        ! From now on, the orbitals are contained in symlabellist2 and
+        ! symlabelcounts2 rather than the original arrays. These are stored
+        ! using spin orbitals. Assume that if we want to use the non-uniform
         ! random excitation generator, we also want to use the NoSpinSym full
-        ! excitation generators if they are needed. 
+        ! excitation generators if they are needed.
 
         CALL GetSym(iand(HFDet, csf_orbital_mask),NEl,G1,NBasisMax,HFSym)
-        
+
         Sym_Psi=INT(HFSym%Sym%S,sizeof_int)  !Store the symmetry of the wavefunction for later
         WRITE(iout,"(A,I10)") "Symmetry of reference determinant is: ",INT(HFSym%Sym%S,sizeof_int)
 
@@ -613,7 +615,7 @@ contains
             WRITE(iout,'(A)') "Starting with only the reference determinant in the fixed initiator space."
         ENDIF
 
-        ! Setup excitation generator for the HF determinant. If we are using 
+        ! Setup excitation generator for the HF determinant. If we are using
         ! assumed sized excitgens, this will also be assumed size.
         IF(tUEG.or.tHub.or.tNoSingExcits) THEN
             exflag=2
@@ -641,13 +643,13 @@ contains
         ENDIF
         HFConn=nSingles+nDoubles
 
-        if(AdaptiveShiftCut<0.0)then
+        if(tAutoAdaptiveShift .and. AAS_Cut<0.0)then
             !The user did not specify the value, use this as a default
            if(HFConn > 0) then
-              AdaptiveShiftCut = 1.0_dp/HFConn
+              AAS_Cut = 1.0_dp/HFConn
            else
               ! if the HF is disconnected (can happen in rare corner cases), set it to 0
-              AdaptiveShiftCut = 0.0_dp
+              AAS_Cut = 0.0_dp
            endif
         end if
 
@@ -675,10 +677,10 @@ contains
                 endif
             endif
         endif
-        
+
         ! Option tRandomiseHashOrbs has now been removed.
         ! Its behaviour is now considered default
-        ! --> Create a random mapping for the orbitals 
+        ! --> Create a random mapping for the orbitals
         ALLOCATE(RandomOrbIndex(nBasis),stat=ierr)
         IF(ierr.ne.0) THEN
             CALL Stop_All(t_r,"Error in allocating RandomOrbIndex")
@@ -1002,7 +1004,7 @@ contains
 
         nExChecks = 0
         nExCheckFails = 0
-        
+
         ! 0-initialize truncated weight
         truncatedWeight = 0.0_dp
         AllTruncatedWeight = 0.0_dp
@@ -1162,7 +1164,7 @@ contains
 !        CALL MPI_Type_create_f90_integer(18,mpilongintegertype,error)
 !        CALL MPI_Type_commit(mpilongintegertype,error)
         IF(tUseBrillouin) THEN
-            WRITE(iout,"(A)") "Brillouin theorem in use for calculation of projected energy." 
+            WRITE(iout,"(A)") "Brillouin theorem in use for calculation of projected energy."
         ENDIF
 !        WRITE(iout,*) "Non-uniform excitation generators in use."
         if (.not. (t_k_space_hubbard .and. t_trans_corr_2body)) then 
@@ -1195,11 +1197,11 @@ contains
             t_hist_tau_search = .false.
             t_fill_frequency_hists = .false.
             Write(iout,*) "Turning OFF the tau-search, since continued run!"
-        end if 
+        end if
 
         ! [W.D.] I guess I want to initialize that before the tau-search, 
         ! or otherwise some pgens get calculated incorrectly
-        if (t_back_spawn .or. t_back_spawn_flex) then 
+        if (t_back_spawn .or. t_back_spawn_flex) then
             call init_back_spawn()
         end if
 
@@ -1207,7 +1209,7 @@ contains
         ! set delay in the back-spawning method: 
         ! is there actually a use-case where someone really wants to delay 
         ! a back-spawn in a restarted run? 
-        if (tReadPops .and. back_spawn_delay /= 0) then 
+        if (tReadPops .and. back_spawn_delay /= 0) then
             call Warning_neci(t_r, &
                 "Do you really want a delayed back-spawn in a restarted run?")
         end if
@@ -1215,11 +1217,11 @@ contains
 
         ! can i initialize the k-space hubbard here already? 
         ! because we need information for the tau-search already.. 
-        if (t_k_space_hubbard) then 
+        if (t_k_space_hubbard) then
             call init_k_space_hubbard()
         end if
 
-        if (t_new_real_space_hubbard) then 
+        if (t_new_real_space_hubbard) then
             call init_real_space_hubbard
         end if
 ! 
@@ -1227,13 +1229,13 @@ contains
             call init_tau_search()
 
             ! [Werner Dobrautz 4.4.2017:]
-            if (t_hist_tau_search) then 
+            if (t_hist_tau_search) then
                 ! some setup went wrong! 
                 call Stop_All(t_r, &
                     "Input error! both standard AND Histogram tau-search chosen!")
             end if
 
-        else if (t_hist_tau_search) then 
+        else if (t_hist_tau_search) then
             call init_hist_tau_search()
 
         else
@@ -1284,14 +1286,14 @@ contains
         ELSE
             TSinglePartPhase(:)=.false.
         ENDIF
-        
+
         IF(ICILevel.ne.0) THEN
 !We are truncating the excitations at a certain value
             TTruncSpace=.true.
             WRITE(iout,'(A,I4)') "Truncating the S.D. space at determinants will an excitation level w.r.t. HF of: ",ICILevel
         ENDIF
         IF(tTruncCAS.or.tStartCAS) THEN
-            ! We are truncating the FCI space by only allowing excitations 
+            ! We are truncating the FCI space by only allowing excitations
             ! in a predetermined CAS space.
             ! The following line has already been written out if we are doing
             ! a CAS calculation.
@@ -1299,18 +1301,18 @@ contains
 !            WRITE(iout,'(A,I4,A,I5)') "Truncating the S.D. space as &
 !                                   &determinants must be within a CAS of ", &
 !                                   OccCASOrbs, " , ", VirtCASOrbs
-            ! The SpinInvBRR array is required for the tTruncCAS option. Its 
-            ! properties are explained more fully in the subroutine. 
+            ! The SpinInvBRR array is required for the tTruncCAS option. Its
+            ! properties are explained more fully in the subroutine.
 
             CALL CreateSpinInvBRR()
 
-            ! CASmax is the max spin orbital number (when ordered 
+            ! CASmax is the max spin orbital number (when ordered
             ! energetically) within the chosen active space.
-            ! Spin orbitals with energies larger than this maximum value must 
+            ! Spin orbitals with energies larger than this maximum value must
             ! be unoccupied for the determinant to be in the active space.
             CASmax=NEl+VirtCASorbs
 
-            ! CASmin is the max spin orbital number below the active space.  
+            ! CASmin is the max spin orbital number below the active space.
             ! As well as the above criteria, spin orbitals with energies
             ! equal to, or below that of the CASmin orbital must be completely
             ! occupied for the determinant to be in the active space.
@@ -1357,7 +1359,7 @@ contains
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
-        
+
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
 !        do i=1,NEl
@@ -1399,7 +1401,7 @@ contains
         integer :: perturb_ncreate, perturb_nannihilate
         integer :: nrdms_standard, nrdms_transition
         character(255) :: identifier
-        real(dp) :: dummy(lenof_sign)        
+        real(dp) :: dummy(lenof_sign)
         !default
         Popinum_runs=1
         ! set default pops version, this should not have any functional impact, 
@@ -1449,8 +1451,8 @@ contains
                     read_nnodes = 0
                     PopBalanceBlocks = -1
                 elseif(PopsVersion.eq.4) then
-                    ! The only difference between 3 & 4 is just that 4 reads 
-                    ! in via a namelist, so that we can add more details 
+                    ! The only difference between 3 & 4 is just that 4 reads
+                    ! in via a namelist, so that we can add more details
                     ! whenever we want.
                     call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
@@ -1519,7 +1521,7 @@ contains
 
             if (tRDMOnFly) then
                 if (tPairedReplicas) then
-                    nrdms_standard = lenof_sign/2
+                    nrdms_standard = lenof_sign .div. 2
                 else
                     nrdms_standard = lenof_sign
                 end if
@@ -1539,7 +1541,7 @@ contains
             ! If we are doing cont time, then initialise it here
             call init_cont_time()
 
-            ! set the dummies for trial wavefunction connected space 
+            ! set the dummies for trial wavefunction connected space
             ! load balancing before trial wf initialization
             if(tTrialWavefunction) then
                allocate(con_send_buf(0,0))
@@ -1574,9 +1576,6 @@ contains
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
             if(tAutoAdaptiveShift)then
-                if(tAAS_Reverse.and. SpawnInfoWidth<inum_runs)then
-                    SpawnInfoWidth = inum_runs
-                end if
                 allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), &
                          SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
                 log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
@@ -1624,9 +1623,9 @@ contains
 
             ! Has been moved to guarantee initialization before first load balancing
             ! Initialises RDM stuff for both explicit and stochastic calculations of RDM.
-            
-            tFillingStochRDMonFly = .false.      
-            tFillingExplicRDMonFly = .false.      
+
+            tFillingStochRDMonFly = .false.
+            tFillingExplicRDMonFly = .false.
             !One of these becomes true when we have reached the relevant iteration to begin filling the RDM.
 
             ! If we have a popsfile, read the walkers in now.
@@ -1649,7 +1648,7 @@ contains
                     call InitFCIMC_trial()
 
                 else if(tInitializeCSF) then
-                   
+
                    call InitFCIMC_CSF()
 
                 else !Set up walkers on HF det
@@ -1660,11 +1659,11 @@ contains
                     else
                         write(iout,"(A,I16)") "Initial number of walkers per processor chosen to be: ", nint(InitWalkers)
                     endif
-                   
+
                     call InitFCIMC_HF()
 
                 endif   !tStartmp1
-            endif  
+            endif
             print *, "tLatticeGens=",tLatticeGens
             if(t_ueg_3_body.and.tTrcorrExgen)tLatticeGens = .false.
             print *,"ptriples,pdoubles=",ptriples,pdoubles,psingles
@@ -1676,6 +1675,7 @@ contains
             CALL neci_flush(iout)
 
         ENDIF   !End if initial walkers method
+
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
 
@@ -1705,25 +1705,75 @@ contains
         ! initialize excitation generator
         if(t_pcpp_excitgen) call init_pcpp_excitgen()
         if(t_pchb_excitgen) call init_pchb_excitgen()
+        ! [W.D.] I guess I want to initialize that before the tau-search,
+        ! or otherwise some pgens get calculated incorrectly
+        if (t_back_spawn .or. t_back_spawn_flex) then
+           call init_back_spawn()
+        end if
+        ! also i should warn the user if this is a restarted run with a
+        ! set delay in the back-spawning method:
+        ! is there actually a use-case where someone really wants to delay
+        ! a back-spawn in a restarted run?
+        if (tReadPops .and. back_spawn_delay /= 0) then
+           call Warning_neci(t_r, &
+                "Do you really want a delayed back-spawn in a restarted run?")
+        end if
 
-        IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then 
+        ! [Werner Dobrautz 5.5.2017:]
+        ! if this is a continued run from a histogramming tau-search
+        ! and a restart of the tau-search is not forced by input, turn
+        ! both the new and the old tau-search off!
+        ! i cannot do it here, since this is called before the popsfile read-in
+        if (t_previous_hist_tau) then
+           ! i have to check for tau-search option and stuff also, so that
+           ! the death tau adaption is still used atleast! todo!
+           tSearchTau = .false.
+           t_hist_tau_search = .false.
+           t_fill_frequency_hists = .false.
+           Write(iout,*) "Turning OFF the tau-search, since continued run!"
+        end if
+
+        if (tSearchTau) then
+           call init_tau_search()
+
+           ! [Werner Dobrautz 4.4.2017:]
+           if (t_hist_tau_search) then
+              ! some setup went wrong!
+              call Stop_All(t_r, &
+                   "Input error! both standard AND Histogram tau-search chosen!")
+           end if
+
+        else if (t_hist_tau_search) then
+           call init_hist_tau_search()
+
+        else
+           ! Add a couple of checks for sanity
+           if (nOccAlpha == 0 .or. nOccBeta == 0) then
+              pParallel = 1.0_dp
+           end if
+           if (nOccAlpha == 1 .and. nOccBeta == 1) then
+              pParallel = 0.0_dp
+           end if
+        end if
+
+        IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
             & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
         endif
-        
+
         if (tSpinProject) then
             if (inum_runs.eq.2) call stop_all(this_routine,"Code not yet set up to do a double run &
                     & with tSpinProject. E.g. when calling the main loop, tSinglePartPhase is now length 2")
             call init_yama_store ()
         endif
-    
+
         if (tRDMonFly) then
             call init_rdms(nrdms_standard, nrdms_transition)
             if (tOldRDMs) call InitRDMs_old(nrdms_standard)
         end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
 
-        !If the iteration specified to start filling the RDM has already been, want to 
+        !If the iteration specified to start filling the RDM has already been, want to
         !start filling as soon as possible.
         if (tRDMonFly) then
             do run=1,inum_runs
@@ -1763,7 +1813,7 @@ contains
         endif
         if (tTrialWavefunction) then
             if (tPairedReplicas) then
-                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs/2, .true.)
+                call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs .div. 2, .true.)
             else
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
@@ -1834,7 +1884,7 @@ contains
         if (.not. tAllRealCoeff) then
             tDeathBeforeComms = .true.
         end if
-        if (t_back_spawn .or. t_back_spawn_flex) then 
+        if (t_back_spawn .or. t_back_spawn_flex) then
             tDeathBeforeComms = .true.
         end if
 
@@ -1842,7 +1892,7 @@ contains
         ! kill all walkers and remove them from the hash table. In this
         ! case, we must set the initiator flags for spawning to occupied
         ! determinants before this occurs.
-        if (tPreCond .and. tau == 1.0_dp) tSetInitFlagsBeforeDeath = .true.
+        if (tPreCond .and. (tau .isclose. 1.0_dp)) tSetInitFlagsBeforeDeath = .true.
 
         ! Make sure we are performing death *after* communication, in cases
         ! where this is essential.
@@ -1864,32 +1914,53 @@ contains
     subroutine init_fcimc_fn_pointers()
       character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
-      if(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
-         if (t_uniform_excits) then 
+        if(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
+           if (t_uniform_excits) then
             generate_excitation => gen_excit_uniform_k_space_hub_transcorr
-         else
+           else
             generate_excitation => gen_excit_k_space_hub_transcorr
-         endif
-      elseif (tHPHF) then
+           endif
+        elseif (tHPHF) then
          generate_excitation => gen_hphf_excit
-      elseif (t_ueg_3_body) then
+        elseif (t_ueg_3_body) then
             if(tTrcorrExgen) then
                 generate_excitation => gen_ueg_excit
-            elseif(TLatticeGens) then 
+            elseif(TLatticeGens) then
                 generate_excitation => gen_rand_excit
+            endif
+        elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
+            if (tHUB .and. tLatticeGens) then
+                ! for now the hubbard + back-spawn still uses the old
+                ! genrand excit gen
+                generate_excitation => gen_excit_back_spawn_hubbard
+            else if (tUEGNewGenerator .and. tLatticeGens) then
+                generate_excitation => gen_excit_back_spawn_ueg_new
+            else if (tUEG .and. tLatticeGens) then
+                generate_excitation => gen_excit_back_spawn_ueg
+            else
+                generate_excitation => gen_excit_back_spawn
+            end if
+        elseif (tUEGNewGenerator) then
+            generate_excitation => gen_ueg_excit
+        elseif (tCSF) then
+            generate_excitation => gen_csf_excit
+        elseif (tPickVirtUniform) then
+            ! pick-uniform-random-mag is on
+            if (tReltvy) then
+                generate_excitation => gen_rand_excit_Ex_Mag
             else
                 call stop_all(t_r,"Excitation generator has not been set!")
             endif
-      elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then 
-         if (tHUB .and. tLatticeGens) then 
+      elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
+         if (tHUB .and. tLatticeGens) then
             ! for now the hubbard + back-spawn still uses the old 
             ! genrand excit gen
             generate_excitation => gen_excit_back_spawn_hubbard
-         else if (tUEGNewGenerator .and. tLatticeGens) then 
+         else if (tUEGNewGenerator .and. tLatticeGens) then
             generate_excitation => gen_excit_back_spawn_ueg_new
-         else if (tUEG .and. tLatticeGens) then 
+         else if (tUEG .and. tLatticeGens) then
             generate_excitation => gen_excit_back_spawn_ueg
-         else 
+         else
             generate_excitation => gen_excit_back_spawn
          end if
       elseif (tUEGNewGenerator) then
@@ -1925,7 +1996,7 @@ contains
          generate_two_body_excitation => generate_excitation
          generate_excitation => gen_excit_mol_tc
       endif
-      
+
       ! In the main loop, we only need to find out if a determinant is
       ! connected to the reference det or not (so no ex. level above 2 is
       ! required). Except in some cases where we need to know the maximum
@@ -1948,7 +2019,7 @@ contains
                 attempt_create => attempt_create_trunc_spawn
             else
                 attempt_create => att_create_trunc_spawn_enc
-            endif        
+            endif
         else
             attempt_create => attempt_create_normal
         endif
@@ -2025,6 +2096,16 @@ contains
         case default
            call stop_all(t_r,"Invalid scale function specified")
         end select
+
+        if(tExpAdaptiveShift) then
+           shiftFactorFunction => expShiftFactorFunction
+        elseif(tLinearAdaptiveShift) then
+           shiftFactorFunction => linearShiftFactorFunction
+        elseif(tAutoAdaptiveShift) then
+           shiftFactorFunction => autoShiftFactorFunction
+        else
+           shiftFactorFunction => constShiftFactorFunction
+        end if
 
     end subroutine init_fcimc_fn_pointers
 
@@ -2186,11 +2267,13 @@ contains
         ! Cleanup adi caches
         call clean_adi()
 
+        ! Cleanup excitation generator
+        if(t_pcpp_excitgen) call finalize_pcpp_excitgen()
+        if(t_pchb_excitgen) call finalize_pchb_excitgen()
+
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
-
-        if(allocated(maxKeepExLvl)) deallocate(maxKeepExLvl)
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -2224,7 +2307,7 @@ contains
       real(dp) :: HFWeight(inum_runs)
       logical :: tSuccess
       character(*), parameter :: t_r = "InitFCIMC_CSF"
-      
+
 
       ! get the number of open orbitals
       nOpen = sum(nOccOrbs) - sum(nClosedOrbs)
@@ -2237,7 +2320,7 @@ contains
       call generateInitSpace()
       if(allocated(openSubspace)) deallocate(openSubspace)
       ! we now have initSpace(:,:) with iluts belonging to all possible initial
-      ! dets (i.e. all dets contributing to the target CSF) -> construct S2 
+      ! dets (i.e. all dets contributing to the target CSF) -> construct S2
       allocate(S2(count,count))
       do i  = 1, count
          do j = 1, count
@@ -2254,7 +2337,7 @@ contains
       ! workspace query, get how much tmp memory we need
       call dgeev('N','V',count,S2,count,eigs,eigsImag,void,count,evs,count,work,-1,err)
       ! allocate work array
-      lwork = work(1)
+      lwork = int(work(1))
       deallocate(work)
       allocate(work(lwork))
       ! diagonalize S2
@@ -2273,11 +2356,11 @@ contains
       eigs = evs(:,i)
 !      normalization = minval(eigs)
       rawWeight = sum(abs(eigs))
-      normalization = InitialPart / rawWeight 
+      normalization = InitialPart / rawWeight
 
 !      refLoc = maxloc(eigs)
       eigs = eigs * normalization
-      
+
       TotWalkers = 0
       iStartFreeSlot = 1
       iEndFreeSlot = 0
@@ -2287,13 +2370,13 @@ contains
          if(iProcIndex.eq.proc) then
             HDiag = get_diagonal_matel(nI,initSpace(:,i))
             DetHash = FindWalkerHash(nI,size(HashIndex))
-            TotWalkersTmp = TotWalkers
+            TotWalkersTmp = int(TotWalkers)
             tmpSgn = eigs(i)
             call encode_sign(initSpace(:,i),tmpSgn)
             if(tHPHF) then
                call FindDetSpinSym(nI,nJ,nel)
                call encodebitdet(nJ,ilutJ)
-               ! if initSpace(:,i) is not the det of the HPHF pair we are storing, 
+               ! if initSpace(:,i) is not the det of the HPHF pair we are storing,
                ! skip this - the correct contribution will be stored once
                ! the spin-flipped version is stored
                if(DetBitLT(initSpace(:,i),ilutJ,NIfD).eq.1) cycle
@@ -2313,7 +2396,7 @@ contains
       else
          HFWeight = 0.0_dp
       endif
-          
+
       AllTotParts = InitialPart
       AllTotPartsOld = InitialPart
       OldAllAvWalkersCyc = InitialPart
@@ -2325,8 +2408,8 @@ contains
       deallocate(eigs)
       deallocate(S2)
       deallocate(initSpace)
-      contains 
-        
+      contains
+
   !------------------------------------------------------------------------------------------!
 
         subroutine generateOpenOrbIluts()
@@ -2364,7 +2447,7 @@ contains
           ! use the reference to determine which orbitals shall participate
           iElBase = 1
           nIBase = 0
-          ! generate a list of open orbitals 
+          ! generate a list of open orbitals
           iOpen = 0
           openOrbList = 0
           do i = 1, nel
@@ -2441,7 +2524,7 @@ contains
           integer(n_int) :: splus(0:NIfTot), sminus(0:NIfTot)
           real(dp) :: matel
           integer :: k,m,nI(nel),upOrb,downOrb
-          
+
           matel = 0.0_dp
           if(DetBitEq(ilutA,ilutB,NIfD)) then
              matel = matel + real(lms * (lms+2),dp) / 4.0_dp
@@ -2556,7 +2639,7 @@ contains
             endif
 
             ! set initial values for global control variables.
-            
+
             TotWalkers = 1
             TotWalkersOld = 1
             NoatHF(:) = InitialSign(:)
@@ -2653,7 +2736,7 @@ contains
                     call encode_det(CurrentDets(:, site), ilutRef(:, run))
                     hash_val = FindWalkerHash(ProjEDet(:, run), nWalkerHashes)
                     call add_hash_table_entry(HashIndex, site, hash_val)
-                    
+
                     ! Clear all the flags and sign
                     call clear_all_flags(CurrentDets(:, site))
                     call nullify_ilut(CurrentDets(:, site))
@@ -2681,7 +2764,7 @@ contains
                 if (.not. tStartSinglePart) &
                     call stop_all(this_routine, "Only startsinglepart supported")
                 call encode_part_sign(CurrentDets(:,site), InitialPart, min_part_type(run))
-                
+
                 ! Initial control values
                 TotWalkers = site
                 TotWalkersOld = site
@@ -2708,7 +2791,7 @@ contains
             AllTotPartsOld(:) = InitialPart
             AllNoAbortedOld(:) = InitialPart
             OldAllHFCyc(:) = InitialPart
-            
+
             TotWalkersOld = TotWalkers
         end if
 
@@ -2719,7 +2802,10 @@ contains
         ! Use the code generated for the KPFCIQMC excited state calculations
         ! to initialise the FCIQMC simulation.
 
-        integer :: nexcit, ndets_this_proc, i, det(nel)
+!         integer :: nexcit, ndets_this_proc, i, det(nel)
+        integer :: nexcit, ndets_this_proc, det(nel)
+        integer(int64) :: i
+
         type(basisfn) :: sym
         real(dp) :: evals(inum_runs/nreplicas)
         HElement_t(dp), allocatable :: evecs_this_proc(:,:)
@@ -2768,7 +2854,9 @@ contains
 
         HElement_t(dp) :: largest_coeff, sgn
         integer(n_int) :: largest_det(0:NIfTot)
-        integer :: run, j
+!         integer :: run, j
+        integer(int64) :: j
+        integer :: run
         integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
@@ -2796,8 +2884,8 @@ contains
                 ! Find the largest det on any processor (n.b. discard the
                 ! non-integer part. This isn't all that important).
                 ! [W.D. 15.5.2017:]
-                ! for the test suite problems, maybe it is important.. 
-                ! because there seems to be some compiler dependent 
+                ! for the test suite problems, maybe it is important..
+                ! because there seems to be some compiler dependent
                 ! differences..
                 call MPIAllReduceDatatype(&
                     (/int(abs(largest_coeff), int32), int(iProcIndex, int32)/), 1, &
@@ -2825,7 +2913,7 @@ contains
 
     subroutine InitFCIMC_CAS()
 
-        ! Routine to initialise the particle distribution according to a CAS diagonalisation. 
+        ! Routine to initialise the particle distribution according to a CAS diagonalisation.
         ! This hopefully will help with close-lying excited states of the same sym.
 
         type(BasisFN) :: CASSym
@@ -2880,7 +2968,7 @@ contains
         allocate(CASBrr(1:CASSpinBasisSize))
         allocate(CASDet(1:OccCasOrbs))
         do i=1,CASSpinBasisSize
-            !Run through the cas space, and create an array which will map these orbtials to the 
+            !Run through the cas space, and create an array which will map these orbtials to the
             !orbitals they actually represent.
             CASBrr(i)=BRR(i+(NEl-OccCasorbs))
         enddo
@@ -2956,7 +3044,7 @@ contains
         Allocate(W(nEval),stat=ierr)    !Eigenvalues
         W=0.0_dp
         if(ierr.ne.0) call stop_all(this_routine,"Error allocating")
-        
+
         write(iout,*) "Calculating hamiltonian..."
         allocate(nRow(nCASDet),stat=ierr)
         nRow=0
@@ -3142,7 +3230,7 @@ contains
 
         if(tHPHF) write(iout,*) "Converting into HPHF space. Total HPHF CAS functions: ",nHPHFCAS
 
-        if((InitialPart.eq.1).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
+        if((InitialPart .isclose. 1._dp).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
             !Here, all the walkers will be assigned to the CAS wavefunction.
             !InitialPart = 1 by default
             write(iout,"(A)") "All walkers specified in input will be distributed according to the CAS wavefunction."
@@ -3173,7 +3261,7 @@ contains
             if(iProcIndex.eq.iNode) then
                 !Number parts on this det = PartFac*Amplitude
                 amp=CK(i,1)*PartFac
-                
+
                 if (tRealCoeffByExcitLevel) ExcitLevel=FindBitExcitLevel(iLutnJ, iLutRef, nEl)
                 if (tAllRealCoeff .or. &
                     & (tRealCoeffByExcitLevel.and.(ExcitLevel.le.RealCoeffExcitThresh))) then
@@ -3263,7 +3351,7 @@ contains
 
         deallocate(CK,W,Hamil,CASBrr,CASDet,CASFullDets)
 
-    end subroutine InitFCIMC_CAS 
+    end subroutine InitFCIMC_CAS
 
     !Routine to initialise the particle distribution according to the MP1 wavefunction.
     !This hopefully will help with close-lying excited states of the same sym.
@@ -3332,7 +3420,7 @@ contains
 
         write(iout,"(A,2G25.15)") "MP2 energy calculated: ",MP2Energy,MP2Energy+Hii
 
-        if((InitialPart.eq.1).or.(InitialPart.ge.(InitWalkers*nNodes)-50)) then
+        if((InitialPart .isclose. 1._dp).or.(InitialPart >= (InitWalkers*nNodes)-50)) then
             !Here, all the walkers will be assigned to the MP1 wavefunction.
             !InitialPart = 1 by default
             write(iout,"(A)") "All walkers specified in input will be distributed according to the MP1 wavefunction."
@@ -3340,14 +3428,14 @@ contains
             write(iout,"(A)") "Setting initial shift to equal MP2 correlation energy"
             DiagSft=MP2Energy
             !PartFac is the number of walkers that should reside on the HF determinant
-            !in an intermediate normalised MP1 wavefunction. 
+            !in an intermediate normalised MP1 wavefunction.
             PartFac=(real(InitWalkers,dp)* real(nNodes,dp))/TotMP1Weight
         else
             !Here, not all walkers allowed will be initialised to the MP1 wavefunction.
             write(iout,"(A,G15.5,A)") "Initialising ",InitialPart, " walkers according to the MP1 distribution."
             write(iout,"(A,G15.5)") "Shift will remain fixed until the walker population reaches ",InitWalkers*nNodes
             !PartFac is the number of walkers that should reside on the HF determinant
-            !in an intermediate normalised MP1 wavefunction. 
+            !in an intermediate normalised MP1 wavefunction.
             PartFac=real(InitialPart,dp)/TotMP1Weight
             tSinglePartPhase(:)=.true.
         endif
@@ -3393,7 +3481,7 @@ contains
                         endif
                     end if
                 end if
-                
+
                 if (abs(NoWalkers) > 1.0e-12_dp) then
                     call encode_det(CurrentDets(:,DetIndex),iLutnJ)
                     call clear_all_flags(CurrentDets(:,DetIndex))
@@ -3404,7 +3492,7 @@ contains
 
                     ! Store the diagonal matrix elements
                     if(tHPHF) then
-                        HDiagTemp = hphf_diag_helement(nJ,iLutnJ) 
+                        HDiagTemp = hphf_diag_helement(nJ,iLutnJ)
                     else
                         HDiagTemp = get_helement(nJ,nJ,0)
                     endif
@@ -3439,7 +3527,7 @@ contains
                 endif
             endif   !End if desired node
 
-            
+
         enddo
 
         !Now for the walkers on the HF det
@@ -3468,7 +3556,7 @@ contains
                     enddo
                 endif
                 call set_det_diagH(DetIndex, 0.0_dp)
-                
+
                 ! store the determinant
                 call store_decoding(DetIndex, HFDet)
 
@@ -3499,7 +3587,7 @@ contains
         else
             NoatHF(:)=0.0_dp
         endif
-            
+
         TotWalkers=DetIndex-1   !This is the number of occupied determinants on each node
         TotWalkersOld=TotWalkers
 
@@ -3524,19 +3612,19 @@ contains
     SUBROUTINE CheckforBrillouins()
         INTEGER :: i,j
         LOGICAL :: tSpinPair
-       
+
 
 !Standard cases.
         IF((tHub.and.tReal).or.(tRotatedOrbs).or.((LMS.ne.0).and.(.not.tUHF)).or.tReltvy) THEN
-!Open shell, restricted.            
+!Open shell, restricted.
             tNoBrillouin=.true.
         ELSE
-!Closed shell restricted, or open shell unrestricted are o.k.            
+!Closed shell restricted, or open shell unrestricted are o.k.
             tNoBrillouin=.false.
             tUseBrillouin=.true.
         ENDIF
 
-!Special case of complex orbitals.        
+!Special case of complex orbitals.
         IF(tFixLz.and.(.not.tNoBrillouin)) THEN
             WRITE(iout,*) "Turning Brillouins theorem off since we are using non-canonical complex orbitals"
             tNoBrillouin=.true.
@@ -3546,35 +3634,35 @@ contains
         ! No Brillouins if it's a restricted HF calc.
         tSpinPair = .false.
         IF(tDefineDet.and.(LMS.eq.0).and.(.not.tUHF)) THEN
-            ! If we are defining our own reference determinant, we want to 
-            ! find out if it is open shell or closed to know whether or not 
+            ! If we are defining our own reference determinant, we want to
+            ! find out if it is open shell or closed to know whether or not
             ! brillouins theorem holds.
             !
-            ! If LMS/=0, then it is easy and must be open shell, otherwise 
+            ! If LMS/=0, then it is easy and must be open shell, otherwise
             ! we need to consider the occupied orbitals.
             do i=1,(NEl-1),2
-                ! Assuming things will probably go alpha beta alpha beta, 
-                ! run through each alpha and see if there's a corresponding 
+                ! Assuming things will probably go alpha beta alpha beta,
+                ! run through each alpha and see if there's a corresponding
                 ! beta.
                 tSpinPair=.false.
                 IF(MOD(BRR(FDet(i)),2).ne.0) THEN
-!Odd energy, alpha orbital.                    
+!Odd energy, alpha orbital.
                     IF(BRR(FDet(i+1)).ne.(BRR(FDet(i))+1)) THEN
                         ! Check the next orbital to see if it's the beta (will
-                        ! be alpha+1 when ordered by energy). If not, check 
-                        ! the other orbitals for the beta, as it's possible 
+                        ! be alpha+1 when ordered by energy). If not, check
+                        ! the other orbitals for the beta, as it's possible
                         ! the orbitals are ordered weird (?).
                         do j=1,NEl
-                            IF(BRR(FDet(j)).eq.(BRR(FDet(i))+1)) tSpinPair=.true. 
+                            IF(BRR(FDet(j)).eq.(BRR(FDet(i))+1)) tSpinPair=.true.
                         enddo
                     ELSE
                         tSpinPair=.true.
                     ENDIF
                 ELSE
-!Even energy, beta orbital. The corresponding alpha will be beta-1.                    
+!Even energy, beta orbital. The corresponding alpha will be beta-1.
                     IF(BRR(FDet(i+1)).ne.(BRR(FDet(i))-1)) THEN
                         do j=1,NEl
-                            IF(BRR(FDet(j)).eq.(BRR(FDet(i))-1)) tSpinPair=.true. 
+                            IF(BRR(FDet(j)).eq.(BRR(FDet(i))-1)) tSpinPair=.true.
                         enddo
                     ELSE
                         tSpinPair=.true.
@@ -3646,11 +3734,11 @@ contains
 
         else
             if (tKPntSym) THEN
-                if (t_k_space_hubbard) then 
+                if (t_k_space_hubbard) then
                     ! change this to the new implementation
                     call gen_all_excits_k_space_hubbard(HFDet, nDoubles, dummy_list)
                 else
-                    call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.) 
+                    call enumerate_sing_doub_kpnt(exFlag, .false., nSingles, nDoubles, .false.)
                 end if
             else
                 call CountExcitations3(HFDet_loc,exflag,nSingles,nDoubles)
@@ -3755,7 +3843,7 @@ contains
 !            WRITE(iout,"(A,F14.6,A,F14.6)") "pDoubles set to: ",pDoubles, " rather than (without bias): ", &
 !                & real(nDoub,dp)/real(iTotal,dp)
         ELSE
-            if (tReltvy) then 
+            if (tReltvy) then
                 write (iout,'(A)') " Where s and t are alpha or beta spin function labels: "
                 write (iout,'(A30,F14.6)') " pSingles(s->s) set to: ", pSingles
                 write (iout,'(A30,F14.6)') " pSingles(s->s') set to: ", pSing_spindiff1
@@ -3786,7 +3874,7 @@ contains
 
     SUBROUTINE CreateSpinInvBRR()
 
-    ! Create an SpinInvBRR containing spin orbitals, 
+    ! Create an SpinInvBRR containing spin orbitals,
     ! unlike 'createInvBRR' which only has spatial orbitals.
     ! This is used for the FixCASshift option in establishing whether or not
     ! a determinant is in the complete active space.
@@ -3795,28 +3883,28 @@ contains
     !    nBasis: size of basis
     ! SpinInvBRR is the inverse of BRR.  SpinInvBRR(j)=i: the j-th lowest energy
     ! orbital corresponds to the i-th orbital in the original basis.
-    ! i.e the position in SpinInvBRR now corresponds to the orbital number and 
-    ! the value to the relative energy of this orbital. 
-    
+    ! i.e the position in SpinInvBRR now corresponds to the orbital number and
+    ! the value to the relative energy of this orbital.
+
         IMPLICIT NONE
         INTEGER :: I,t,ierr
         CHARACTER(len=*), PARAMETER :: this_routine='CreateSpinInvBrr'
 
         IF(ALLOCATED(SpinInvBRR)) return
-            
+
         ALLOCATE(SpinInvBRR(NBASIS),STAT=ierr)
         CALL LogMemAlloc('SpinInvBRR',NBASIS,4,this_routine,SpinInvBRRTag,ierr)
-            
+
         SpinInvBRR(:)=0
-        
+
         t=0
         do I=1,NBASIS
             t=t+1
             SpinInvBRR(BRR(I))=t
         end do
-        
+
         return
-        
+
     END SUBROUTINE CreateSpinInvBRR
 
    subroutine SetupValidSpawned(WalkerListSize)
@@ -3832,15 +3920,15 @@ contains
       !However, when reading in (and not continuing to grow) it should be equal to the number of dets in the popsfile
       MaxSpawned=NINT(MemoryFacSpawn*WalkerListSize*inum_runs)
 !            WRITE(iout,"(A,I14)") "Memory allocated for a maximum particle number per node for spawning of: ",MaxSpawned
-            
+
 !      WRITE(iout,"(A)") "*Direct Annihilation* in use...Explicit load-balancing disabled."
       ALLOCATE(ValidSpawnedList(0:nNodes-1),stat=ierr)
       ! InitialSpawnedSlots is now filled later, once the number of particles
       ! wanted is known
       !(it can change according to the POPSFILE).
       ALLOCATE(InitialSpawnedSlots(0:nNodes-1),stat=ierr)
-      ! InitialSpawnedSlots now holds the first free position in the 
-      ! newly-spawned list for each processor, so it does not need to be 
+      ! InitialSpawnedSlots now holds the first free position in the
+      ! newly-spawned list for each processor, so it does not need to be
       ! reevaluated each iteration.
 !      MaxSpawned=NINT(MemoryFacSpawn*InitWalkers)
       Gap=REAL(MaxSpawned,dp)/REAL(nNodes,dp)
@@ -3876,11 +3964,11 @@ contains
      if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
         ! first, try to ramp up the RDMEnergyIter to meet the coreSpaceUpdateCycle
         frac = coreSpaceUpdateCycle/RDMEnergyIter
-        RDMEnergyIter = coreSpaceUpdateCycle/frac        
+        RDMEnergyIter = coreSpaceUpdateCycle/frac
         write(6,*) "Update cycle of semi-stochastic space and RDM sampling interval"&
              //" out of sync. "
         write(6,*) "Readjusting RDM sampling interval to ", RDMEnergyIter
-        
+
         ! now, if this did not succeed, adjust the coreSpaceUpdateCycle
         if(mod(coreSpaceUpdateCycle,RDMEnergyIter) .ne. 0) then
            coreSpaceUpdateCycle = coreSpaceUpdateCycle - &
@@ -3914,7 +4002,7 @@ contains
             if(lowLoop.ne.1) write(iout,*) "Error here!"
         endif
         write(iout,*) "Total ij pairs: ",ElecPairs
-        write(iout,*) "Considering ij pairs from: ",LowLoop," to ",HighLoop  
+        write(iout,*) "Considering ij pairs from: ",LowLoop," to ",HighLoop
 !        write(iout,*) "HFDet: ",HFDet(:)
 
         do i=LowLoop,HighLoop   !Looping over electron pairs on this processor
@@ -3940,12 +4028,12 @@ contains
             endif
             if (tMP2UEGRestrict) then
                 if (.not. ( &
-                ( kiRestrict(1).eq.ki(1).and.kiRestrict(2).eq.ki(2).and.kiRestrict(3).eq.ki(3) .and. & 
-                kjRestrict(1).eq.kj(1).and.kjRestrict(2).eq.kj(2).and.kjRestrict(3).eq.kj(3) .and. & 
+                ( kiRestrict(1).eq.ki(1).and.kiRestrict(2).eq.ki(2).and.kiRestrict(3).eq.ki(3) .and. &
+                kjRestrict(1).eq.kj(1).and.kjRestrict(2).eq.kj(2).and.kjRestrict(3).eq.kj(3) .and. &
                 kjMsRestrict.eq.G1(Orbi)%Ms.and.kiMsRestrict.eq.G1(Orbj)%Ms ) .or. &
                 ! the other way round
-                ( kiRestrict(1).eq.kj(1).and.kiRestrict(2).eq.kj(2).and.kiRestrict(3).eq.kj(3) .and. & 
-                kjRestrict(1).eq.ki(1).and.kjRestrict(2).eq.ki(2).and.kjRestrict(3).eq.ki(3) .and. & 
+                ( kiRestrict(1).eq.kj(1).and.kiRestrict(2).eq.kj(2).and.kiRestrict(3).eq.kj(3) .and. &
+                kjRestrict(1).eq.ki(1).and.kjRestrict(2).eq.ki(2).and.kjRestrict(3).eq.ki(3) .and. &
                 kiMsRestrict.eq.G1(Orbi)%Ms.and.kjMsRestrict.eq.G1(Orbj)%Ms ) ) &
                 ) cycle
                 write(iout,*) "Restricting calculation to i,j pair: ",Orbi,Orbj
@@ -4093,7 +4181,7 @@ contains
 
 !        write(iout,*) "mp2: ",mp2
         mp2all=0.0_dp
-        
+
         !Sum contributions across nodes.
         call MPISumAll(mp2,mp2all)
         write(iout,"(A,2G25.15)") "MP2 energy calculated: ",MP2All,MP2All+Hii
@@ -4121,24 +4209,22 @@ contains
         endif
         if(exists) then
             !We already have an FCIMCStats file - move it to the end of the list of FCIMCStats files.
-
-            extension=1
+            extension = 1
             do while(.true.)
-                abstr=''
-                write(abstr,'(I12)') extension
-                if(tMolpro) then
-                    abstr='FCIQMCStats.'//adjustl(abstr)
+                if (tMolpro) then
+                    abstr = 'FCIQMCStats.'//str(extension)
                 else
-                    abstr='FCIMCStats.'//adjustl(abstr)
-                endif
-                inquire(file=trim(adjustl(abstr)),exist=exists)
-                if(.not.exists) exit
-                extension=extension+1
-                if(extension.gt.10000) then
-                    call stop_all(t_r,"Error finding free FCIMCStats name")
-                endif
+                    abstr = 'FCIMCStats.'//str(extension)
+                end if
+                inquire(file=trim(adjustl(abstr)), exist=exists)
+                if (.not. exists) exit
+                extension = extension + 1
+                if (extension > 10000) then
+                    call stop_all(t_r, "Error finding free FCIMCStats name")
+                end if
             enddo
-            
+
+
             !We have got a unique filename
             !Do not use system call
 !            command = 'mv' // ' FCIMCStats ' // abstr
@@ -4293,38 +4379,32 @@ contains
 
     subroutine setup_adi()
       ! We initialize the flags for the adi feature
-      use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
-           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, tReadRefs, maxNRefs, nRefsSings, nRefsDoubs, &
-           SIUpdateOffset
+      use adi_data, only: tSetDelayAllDoubsInits, tDelayAllDoubsInits, &
+           tAllDoubsInitiators, tDelayGetRefs, &
+           NoTypeN, tReadRefs, maxNRefs, SIUpdateOffset
       use CalcData, only: InitiatorWalkNo
-      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi, &
            reset_coherence_counter
       implicit none
-      maxNRefs = max(nRefsSings,nRefsDoubs)
-
       call reallocate_ilutRefAdi(maxNRefs)
 
       ! If using adi with dynamic SIs, also use a dynamic corespace by default
       call setup_dynamic_core()
- 
+
       ! Check if one of the keywords is specified as delayed
       if(tSetDelayAllDoubsInits .and. tAllDoubsInitiators) then
          tAllDoubsInitiators = .false.
          tDelayAllDoubsInits = .true.
       endif
-      if(tSetDelayAllSingsInits .and. tAllSingsInitiators) then
-         tAllSingsInitiators = .false.
-         tDelayAllSingsInits = .true.
-      endif
-      
+
       ! Check if we want to get the references right away
       if(.not. (tReadRefs .or. tReadPops)) tDelayGetRefs = .true.
-      if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
+      if(tDelayAllDoubsInits) tDelayGetRefs = .true.
       ! Give a status message
-      if(tAllDoubsInitiators) call enable_adi()
-      if(tAllSingsInitiators .or. tAllDoubsInitiators) &
-           tAdiActive = .true. 
+      if(tAllDoubsInitiators) then
+         call enable_adi()
+         tAdiActive = .true.
+      endif
 
       ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
       ! needs some time to equilibrate
@@ -4332,23 +4412,22 @@ contains
       SIUpdateOffset = 0
 
       ! Initialize the logging variables
-      call reset_coherence_counter()      
+      call reset_coherence_counter()
     end subroutine setup_adi
 
 !------------------------------------------------------------------------------------------!
 
     subroutine setup_dynamic_core()
       use CalcData, only: tDynamicCoreSpace, coreSpaceUpdateCycle,tIntervalSet
-      use adi_data, only: tAllDoubsInitiators, tAllSingsInitiators
+      use adi_data, only: tAllDoubsInitiators
       implicit none
-      
+
       ! Enable dynamic corespace if both
       ! a) using adi with dynamic SIs (default)
       ! b) no other keywords regarding the dynamic corespace are given
-      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. (tAllDoubsInitiators .or. &
-           tAllSingsInitiators)) then
+      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. tAllDoubsInitiators) then
         tDynamicCoreSpace = .true.
-	coreSpaceUpdateCycle = SIUpdateInterval
+        coreSpaceUpdateCycle = SIUpdateInterval
       endif
     end subroutine setup_dynamic_core
 
@@ -4358,7 +4437,7 @@ contains
       use bit_rep_data, only: test_flag
       ! initialize the norm_psi, norm_psi_squared
       implicit none
-      integer :: j
+      integer(int64) :: j
       real(dp) :: sgn(lenof_sign)
       logical :: tIsStateDeterm
 
@@ -4394,7 +4473,7 @@ contains
 
 end module fcimc_initialisation
 
-! This routine will change the reference determinant to DetCurr. It will 
+! This routine will change the reference determinant to DetCurr. It will
 ! also re-zero all the energy estimators, since they now correspond to
 ! projection onto a different determinant.
 !
@@ -4412,7 +4491,7 @@ subroutine ChangeRefDet(DetCurr)
 
     WRITE(iout,"(A)") "*** Changing the reference determinant ***"
     WRITE(iout,"(A)") "Switching reference and zeroing energy counters - restarting simulation"
-!        
+!
 !Initialise variables for calculation on each node
     Iter=1
     CALL DeallocFCIMCMemPar()

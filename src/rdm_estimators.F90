@@ -259,12 +259,12 @@ contains
         call calc_rdm_spin(rdm, rdm_norm, rdm_spin)
         call MPISumAll(rdm_spin, est%spin_num)
 
-        if (tCalcPropEst) then 
+        if (tCalcPropEst) then
             ! Estimate of the properties using different property integrals
-            ! and all the standard and transition rdms. 
+            ! and all the standard and transition rdms.
             call calc_rdm_prop(rdm, rdm_prop)
             call MPISumAll(rdm_prop, est%property)
-            ! Add the contribution from the core (zero body) part of the perturbation. 
+            ! Add the contribution from the core (zero body) part of the perturbation.
             do iprop = 1, iNumPropToEst
                 est%property(iprop,:) = est%property(iprop,:) + est%norm*PropCore(iprop)
             end do
@@ -331,7 +331,7 @@ contains
                         do iprop=1,iNumPropToEst
                             write(est%write_unit,'(3x,es20.13)', advance='no') &
                                 est%property_inst(iprop,irdm)
-                        end do 
+                        end do
                     end if
                     write(est%write_unit, '(3x,es20.13)', advance='no') &
                         est%norm_inst(irdm)
@@ -341,7 +341,7 @@ contains
                         do iprop = 1, iNumPropToEst
                             write(est%write_unit,'(3x,es20.13)', advance='no') &
                                 est%property_inst(iprop,irdm)
-                        enddo 
+                        enddo
                     endif
                 end do
                 write(est%write_unit,'()')
@@ -358,7 +358,7 @@ contains
                         do iprop = 1, iNumPropToEst
                             write(est%write_unit,'(3x,es20.13)', advance='no') &
                                 est%property(iprop,irdm)
-                        end do 
+                        end do
                     end if
                     write(est%write_unit, '(3x,es20.13)', advance='no') &
                         est%norm(irdm)
@@ -368,7 +368,7 @@ contains
                         do iprop=1,iNumPropToEst
                             write(est%write_unit,'(3x,es20.13)',advance='no') &
                                 est%property(iprop,irdm)
-                        enddo 
+                        enddo
                     endif
                 end do
                 write(est%write_unit, '()')
@@ -650,9 +650,9 @@ contains
     subroutine calc_hermitian_errors(rdm, rdm_recv, spawn, rdm_norm, max_error_herm_all, sum_error_herm_all)
 
         ! Calculate the hermiticity errors, i.e.
-        ! 
+        !
         ! \Gamma_{ij,kl} - \Gamma_{kl,ij}^*,
-        ! 
+        !
         ! which should be equal to zero for an exact 2-RDM.
 
         ! Specifically we return the largest such error, and the sum of all
@@ -740,7 +740,7 @@ contains
         end do
 
         ! The input 2-RDM wasn't normalised, so need to normalise these.
-        max_error_herm = max_error_herm/rdm_norm 
+        max_error_herm = max_error_herm/rdm_norm
         sum_error_herm = sum_error_herm/rdm_norm
 
        ! Find the largest error and sum of errors across all processors.

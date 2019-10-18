@@ -87,7 +87,7 @@ subroutine get_available_file(file_prefix,file_suffix,filename,fileunit,info,&
 !OUTPUT:
 !  filename: = file_prefix//file_suffix unless this file already exists in which
 !           case it sill be
-!              file_prefixNNNfile_suffix 
+!              file_prefixNNNfile_suffix
 !           where NNN is a 3 digit integer
 !  fileunit: unit number available for file to be opened
 !  info: 0 = all's well
@@ -159,7 +159,7 @@ end subroutine get_available_file
 
 subroutine name_mol_file(mol_name,filename,info)
 !INPUT:
-!  mol_name = name of the molecule 
+!  mol_name = name of the molecule
 !OUTPUT:
 !  filename: = <mol_name>_NNN.mol   where NNN = 3 digit integer
 !  info: 0 = all's well
@@ -203,15 +203,15 @@ subroutine name_tmp_file(tmpfile,operation,info,filetag,inlist)
 !                                      chosen name and flags an error if there
 !                                      is a conflict.
 !  call name_tmp_file(tmpfile,'inq',inuse) = inquire if the file is in use.
-!                                      inlist = .true. if file is in list 
+!                                      inlist = .true. if file is in list
 !                                             = .false. if not.
 !  call name_tmp_file(tmpfile,'out') = write out file information to standard
 !                                      output.
 !The optional third argument governs stopping:
-!If present, no stops are executed here, rather, if an error occurs, then 
+!If present, no stops are executed here, rather, if an error occurs, then
 !info < 0 is returned, else, info = 0 is returned.
 !
-!INPUT/OUTPUT: 
+!INPUT/OUTPUT:
 !  tmpfile    character(10)
 !INPUT:
 !  operation  character(3)       Operation to be performed
@@ -221,7 +221,7 @@ subroutine name_tmp_file(tmpfile,operation,info,filetag,inlist)
 !
 !Given an input filename <tmpfile>, this routine attempts to find a suitable
 !file name that can be used for a temporary file. The criteria used are:
-! tmpfile = 
+! tmpfile =
 ! 'TMP_______' :: find an available file of the form TMP_<number>
 !                 where <number> is a 3 digit number starting from 0.
 ! ''           :: same as above
@@ -274,7 +274,7 @@ select case(operation)
 case('get','GET')
   select case(tmpfile)
   case('',tmp_file_name)
-    !Find a temporary file 
+    !Find a temporary file
     loop1: do indx = 0, max_count
       call number2ascii(indx,name3)
       filename = tmp_name7//name3
@@ -563,16 +563,16 @@ subroutine getunit(iunit)
 !------------------------
 !Returns the first available unused unit number.
 !A very handy routine for getting unit numbers for temporary
-!usage. Avoids conflicts with main unit numbers used in 
+!usage. Avoids conflicts with main unit numbers used in
 !the calling code.
 !NOTE: Successive calls to this routine must be alternated with
-!      OPEN commands. Else the same unit number will be returned 
+!      OPEN commands. Else the same unit number will be returned
 !      each time!!!
 !
 !NOTE: Put special unit numbers in ispecial() below. These will not
 !      be used.
 !
-!OUTPUT: 
+!OUTPUT:
 !-------
 !IUNIT = INTEGER : first available free unit number.
 !
@@ -598,7 +598,7 @@ unit: do i = 1, maximum_unit_numbers
  inquire(unit=i,opened=isitopen)
  if (.not.isitopen) then
   !this is the unit number we need
-  iunit=i 
+  iunit=i
   exit unit
  endif
 enddo unit
@@ -622,7 +622,7 @@ end subroutine getunit
 
   subroutine my_timer(operation,title) !,debug)
   !Based on Wojtek's timing routine.
-  !operation : One of 
+  !operation : One of
   !           'enter' : entering routine/function
   !           'exit'  : exiting
   !           'report': write it all out nicely
@@ -669,7 +669,7 @@ end subroutine getunit
   !
   select case(my_operation)
     case('enter')
-      posn = find_title(my_title) 
+      posn = find_title(my_title)
       if (posn.eq.-1) then
         !this is a new entry in the table
         current_len = current_len + 1
@@ -865,6 +865,6 @@ k=nr-100*i-10*j
 str(1:1)=digits(i)
 str(2:2)=digits(j)
 str(3:3)=digits(k)
-! 
+!
 return
 end subroutine number2ascii

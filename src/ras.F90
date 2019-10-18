@@ -198,7 +198,7 @@ contains
         n_elec_2 = tot_nelec - n_elec_1 - n_elec_3
 
         ! For the current (orb, elec) vertex to be allowed, it must lie within one of three
-        ! trapeziums, defined by the RAS parameters. The first corresponds to RAS1 orbitals, 
+        ! trapeziums, defined by the RAS parameters. The first corresponds to RAS1 orbitals,
         ! the second to RAS2 orbitals and the third to RAS3 orbitals. The three if statements
         ! below correspond to these three cases, and the if statements within to the
         ! trapeziums which they must lie in.
@@ -214,7 +214,7 @@ contains
             if (orb+(tot_nelec-elec) <= tot_norbs .and. &
                 orb+(tot_nelec-elec) >= tot_norbs-(ras%size_3-n_elec_3) .and. &
                 elec >= (n_elec_1+n_elec_2)) not_allowed = .false.
-        
+
         else
             ! If a RAS2 orbital.
             if (orb-(elec-n_elec_1) <= ras%size_1+(ras%size_2-n_elec_2) .and. &
@@ -281,7 +281,7 @@ contains
         call generate_first_full_string(string, ras, ras_class)
         symmetries(1) = get_abelian_sym(string)
         addresses(1) = 1
-        
+
         ! Loop over all possible strings in this class, and store the symmetry of each.
         do i = 2, ras_class%class_size
             call generate_next_string(string, ras, ras_class, none_left)
