@@ -17,7 +17,7 @@ module spawnScaling
   public :: setLevelTimer, resetScale, updateLevelTimer, currentSpawnScale, &
          scaleCondition, initSpawnScaling, finalizeSpawnScaling
   ! Fraction of an initiator that is ok to spawn in a single attempt
-  real(dp) :: perSpawnInitRatio = 2.0_dp
+  real(dp) :: perSpawnInitRatio = 1.001_dp
   ! Maximum recursion depth for rescaling
   integer :: maxScaleLevel = 15
   ! Maximum scale factor (everything above is deemed unstable)
