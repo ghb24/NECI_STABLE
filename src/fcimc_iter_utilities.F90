@@ -529,13 +529,26 @@ contains
         low = upp + 1; upp = low + sizes(26) - 1; send_arr(low:upp) = nspawned;
         ! double occ change:
         low = upp + 1; upp = low + sizes(27) - 1; send_arr(low:upp) = inst_double_occ
+
+        if(tTruncInitiator) then
+           low = upp + 1; upp = low + sizes(28) -1; send_arr(low:upp) = doubleSpawns;
+        endif
+        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = nCoherentDoubles
+        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nIncoherentDets
+        low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nConnection
+
+        if (t_spin_measurements) then
+            low = upp + 1; upp = low + sizes(32) -1; send_arr(low:upp) = inst_spin_diff
+            low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = inst_spatial_doub_occ
+        end if
         ! truncated weight
-        low = upp + 1; upp = low + sizes(28) - 1; send_arr(low:upp) = truncatedWeight;
+        low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = truncatedWeight;
         ! initiators per excitation level
-        low = upp + 1; upp = low + sizes(29) - 1; send_arr(low:upp) = initsPerExLvl;
+        low = upp + 1; upp = low + sizes(35) - 1; send_arr(low:upp) = initsPerExLvl;
         ! excitation number trackers
-        low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nInvalidExcits;
-        low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nValidExcits;
+        low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = nInvalidExcits;
+        low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = nValidExcits;
+
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -655,7 +668,7 @@ contains
             low = upp + 1; upp = low + sizes(11) - 1; tot_init_trial_denom = recv_arr_helem(low:upp);
         end if
         if (tEN2) then
-           low = upp + 1; upp = low + sizes(12) - 1; en_pert_main%ndets_all = int(recv_arr_helem(low));
+           low = upp + 1; upp = low + sizes(12) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
         endif
         low = upp + 1; upp = low + sizes(13) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
 

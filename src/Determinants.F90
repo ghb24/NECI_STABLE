@@ -385,7 +385,7 @@ contains
 !                 return
 !             endif
 !         endif
-        
+
         if (t_lattice_model) then 
             temp_ic = ic 
             hel = get_helement_lattice(nI, nJ, temp_ic) 

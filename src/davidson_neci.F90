@@ -9,7 +9,7 @@ module davidson_neci
     use FciMCData, only: hamiltonian, DavidsonTag
     use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
-    use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather    
+    use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather
     use ParallelHelper, only: root
     use ras_data
     use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
@@ -292,7 +292,7 @@ module davidson_neci
              lwork, &
              info &
              )
-        
+
         ! The first column stores the ground state.
         this%davidson_eigenvalue = eigenvalue_list(1)
         this%eigenvector_proj(1:basis_index) = this%super%projected_hamil_work(1:basis_index,1)
