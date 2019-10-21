@@ -863,7 +863,7 @@ end module
 
     integer function neci_iargc()
         implicit none
-#if defined(CBINDMPI) && !defined(MOLPRO)
+#if defined(CBINDMPI)
         interface
             function c_argc () result(ret) bind(c)
                 use iso_c_hack
@@ -871,12 +871,6 @@ end module
             end function
         end interface
         neci_iargc = c_argc()
-#elif defined(MOLPRO_f2003)
-        integer command_argument_count
-        neci_iargc=command_argument_count()
-#elif defined(MOLPRO)
-        integer iargc
-        neci_iargc=iargc()
 #else
         integer :: command_argument_count
         neci_iargc = command_argument_count ()
@@ -906,7 +900,7 @@ end module
         ! Eliminate compiler warnings
         j = i
 
-#if defined(CBINDMPI) && !defined(MOLPRO)
+#if defined(CBINDMPI)
         ! Define interfaces that we need
         interface
             pure function c_getarg_len (i) result(ret) bind(c)
@@ -928,8 +922,6 @@ end module
 
 #elif defined NAGF95
         call getarg(i, str)
-#elif defined(MOLPRO) && !defined(MOLPRO_f2003)
-        call getarg(i, str)
 #elif defined(BLUEGENE_HACKS)
         call getarg(int(i, 4), str)
 #elif defined(__OPEN64__) || defined(__PATHSCALE__)
@@ -943,11 +935,6 @@ end module
 
 
     subroutine neci_flush(un)
-#ifdef MOLPRO
-    implicit none
-    integer, intent(in) :: un
-    flush(un)
-#else
 #ifdef NAGF95
     USe f90_unix, only: flush
     use constants, only: int32
@@ -965,7 +952,6 @@ end module
         call flush(dummy)
 #else
         call flush(un)
-#endif
 #endif
 #endif
     end subroutine neci_flush

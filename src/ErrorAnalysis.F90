@@ -1127,10 +1127,6 @@ module errors
     subroutine Standalone_Errors()
         use sym_mod, only: getsym
         USE MolproPlugin, only : MolproPluginResult
-#ifdef MOLPRO
-        use outputResult
-        integer :: nv,ityp(1)
-#endif
         real(dp) :: mean_ProjE_re,mean_ProjE_im,mean_Shift
         real(dp) :: ProjE_Err_re,ProjE_Err_im,Shift_Err
         logical :: tNoProjEValue,tNoShiftValue
@@ -1138,10 +1134,6 @@ module errors
         TYPE(BasisFn) RefSym
         HElement_t(dp) :: h_tmp
         real(dp) :: Hii,BestEnergy,EnergyDiff
-#ifdef MOLPRO
-        real(dp) :: get_scalar
-        include "common/molen"
-#endif
 
         !Automatic error analysis
         call error_analysis(tSinglePartPhase(1),iBlockingIter(1),mean_ProjE_re,ProjE_Err_re,  &
@@ -1208,21 +1200,6 @@ module errors
         write(iout,"(A,F20.8,A,G15.6)") " Total shift energy     ", &
             mean_shift+Hii," +/- ",shift_err
 
-#ifdef MOLPRO
-        call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
-        if (iroot.eq.1) call clearvar('ENERGY')
-        ityp(1)=1
-        call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
-        do i=10,2,-1
-            gesnam(i)=gesnam(i-1)
-            energ(i)=energ(i-1)
-        enddo
-        gesnam(i) = 'FCIQMC'
-        energ(i) = get_scalar("ENERGY")
-        call output_result('FCIQMC','FCIQMC_ERR',min(ProjE_Err_re,shift_err),iroot,isymh)
-        if (iroot.eq.1) call clearvar('FCIQMC_ERR')
-        call setvar('FCIQMC_ERR',min(ProjE_Err_re,shift_err),'AU',ityp,1,nv,iroot)
-#endif
         CALL MolproPluginResult('ENERGY',[BestEnergy])
         CALL MolproPluginResult('FCIQMC_ERR',[min(ProjE_Err_re,shift_err)])
         write(iout,"(/)")

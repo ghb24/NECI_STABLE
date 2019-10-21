@@ -1038,9 +1038,6 @@ contains
         real(dp), allocatable :: SymmetryPackedLagrangian(:)
         real(dp), allocatable :: FC_Lagrangian(:)
         integer :: iWfRecord, iWfSym
-#ifdef MOLPRO
-        character(len=*), parameter :: t_r='convert_mats_Molpforces'
-#endif
 
 #ifdef __int64
         intrel = 1
@@ -1058,9 +1055,6 @@ contains
             iseccr = 0          ! record number for core orbitals
             istat1 = 1        !ground state
             isyref = Sym_Psi + 1  !spatial symmetry of the wavefunction
-#ifdef MOLPRO
-            if (isyref .ne. iWfSym) call stop_all(t_r,"NECI and common/cref do not agree on irrep of wave function")
-#endif
             ms2 = LMS  !2 * M_s
             myname = 5001 !Arbitrary file names
             ifil = 1
@@ -1187,49 +1181,28 @@ contains
 
         integer, intent(in) :: igrsav_
 
-#ifdef MOLPRO
-        include "common/cwsave"
-        ! tell gradient programs where gradient information is stored
-        igrsav = igrsav_
-#else
         character(len=*), parameter :: t_r = 'molpro_set_igrdsav'
         integer :: iunused
         call stop_all(t_r,'Should be being called from within MOLPRO')
         iunused = igrsav_
-#endif
 
     end subroutine molpro_set_igrdsav
     
     subroutine molpro_get_reference_info(iWfRecord, iWfSym)
 
         integer :: iWfSym,iWfRecord
-#ifdef MOLPRO
-        include "common/code"
-        include "common/cref"
-        ! wf(1) should contain the record number, as integer, of the last used orbital set.
-        iWfRecord = wf(1)
-        iWfSym = isyref
-#else
         integer :: iunused
         iWfRecord = 21402
 
         ! ELiminate warnings
         iunused = iWfSym
-#endif
 
     end subroutine molpro_get_reference_info
     
     function molpro_get_iout() result(iiout)
 
         integer :: iiout
-#ifdef MOLPRO
-        include "common/tapes"
-        ! output i/o unit for main output (usually 6, but might be different
-        ! if in logfile mode, e.g., during geometry optimization)
-        iiout = iout
-#else
         iiout = 6
-#endif
 
     end function molpro_get_iout
 
@@ -1298,12 +1271,8 @@ contains
 
         real(dp) :: runused
 
-#ifdef MOLPRO
-        character(len=6), parameter :: label='MCGRAD'
-#else
         character(*), parameter :: t_r = 'molpro_dump_mcscf_dens_for_grad'
         call stop_all(t_r,'Should not be here if not running through molpro')
-#endif
 
         ncore = 0
 
@@ -1325,16 +1294,6 @@ contains
       
         name = igrsav/10
         ifil = igrsav-10*name
-
-#ifdef MOLPRO
-        call reserv(lhead+lden1+lden2+leps+lepsc,ifil,name,-1)
-        call writem(header,lhead,ifil,name,0,label)
-        call writem(den1,lden1,ifil,name,lhead,label)
-        call writem(den2,lden2,ifil,name,lhead+lden1,label)
-        call writem(eps,leps,ifil,name,lhead+lden1+lden2,label)
-        if (ncore.ne.0) call writem(epsc,lepsc,ifil,name,&
-                      lhead+lden1+lden2+leps,label)
-#endif
 
         write(iout,20) istat1,isyref,name,ifil
 !       call setf(2,recmc,1)
@@ -1401,20 +1360,6 @@ contains
     subroutine CalcDipoles(one_rdm, Norm_1RDM)
 
         use rdm_data, only: one_rdm_t
-#ifdef MOLPRO
-        use GenRandSymExcitNUMod, only: RandExcitSymLabelProd, ClassCountInd
-        use outputResult
-        use RotateOrbsData, only: SpatOrbs
-        use SymData, only: Sym_Psi,nSymLabels
-        use SymExcitDataMod, only: SpinOrbSymLabel,SymLabelCounts2
-
-        integer, dimension(nSymLabels) :: elements_assigned1, blockstart1
-        real(dp) :: dipmom(3),znuc(3),zcor(3)
-        real(dp), allocatable :: SymmetryPacked1RDM(:),zints(:,:)
-        integer :: i, j, ipr, Sym_i, Sym_j, Sym_ij,
-        integer :: posn1, isize, isyref, mxv, iout, ierr
-        integer :: nt_frz(8), ntd_frz(8)
-#endif
         ! The only thing needed is the 1RDM (normalized)
         type(one_rdm_t), intent(in) :: one_rdm
         real(dp), intent(in) :: Norm_1RDM
@@ -1422,108 +1367,7 @@ contains
         character(len=*), parameter :: t_r='CalcDipoles'
         real(dp) :: runused
 
-#ifdef MOLPRO
-
-        if (iProcIndex .eq. 0) then
-            iout = molpro_get_iout()
-            ! We need to work out
-            ! a) how molpro symmetry-packs UHF integrals (ROHF would be fine though)
-            ! b) Ensure that the 1RDM is correctly calculated for UHF (It is always allocated as spatorbs)
-            ! c) Modify this routine for contracting over spin-orbitals
-            if (tOpenShell) call stop_all(t_r,'Not working for ROHF/UHF')
-
-            isyref = Sym_Psi + 1 ! Spatial symmetry of the wavefunction.
-
-            ! Size of symmetry packed arrays (spatial).
-            isize = 0
-            blockstart1(:) = 0
-            do i = 0, nSymLabels-1
-                ! Find position of each symmetry block in sym-packed forms of RDMS 1 & 2.
-                blockstart1(i+1) = isize + 1 ! N.B. Len_1RDM still being updated in this loop.
-
-                isize = isize + (SymLabelCounts2(2,ClassCountInd(1,i,0))* &
-                    (SymLabelCounts2(2,ClassCountInd(1,i,0))+1))/2 ! Counting alpha orbitals.
-            end do
-
-            nt_frz(:) = 0
-            ntd_frz(:) = 0
-            do i = 0,nSymLabels-1
-                nt_frz(i+1) = SymLabelCounts2(2,ClassCountInd(1,i,0))
-            end do
-
-            do i = 2, 8
-                ntd_frz(i) = ntd_frz(i-1) + (nt_frz(i-1)*(nt_frz(i-1)+1))/2
-            end do
-
-            elements_assigned1(:) = 0
-            allocate(SymmetryPacked1RDM(isize))
-            SymmetryPacked1RDM(:) = 0.0_dp
-            do i = 1, SpatOrbs ! Run over spatial orbitals, ALL ELECTRON ONLY.
-                do j = 1, i ! i .ge. j
-                    Sym_i = SpinOrbSymLabel(2*i)  ! Consider only alpha orbitals.
-                    Sym_j = SpinOrbSymLabel(2*j)
-                    Sym_ij = RandExcitSymLabelProd(Sym_i, Sym_j)
-                    if (Sym_ij .eq. 0) then
-                        if ((Sym_i+1) .gt. nSymLabels) call stop_all(t_r,'Error')
-                        posn1 = blockstart1(Sym_i+1) + elements_assigned1(Sym_i+1)
-                        if ((posn1 .gt. isize) .or. (posn1 .lt. 1)) then
-                            call stop_all(t_r,'Error filling rdm')
-                        end if
-
-                        SymmetryPacked1RDM(posn1) = one_rdm%matrix(SymLabelListInv_rot(i),SymLabelListInv_rot(j))*Norm_1RDM
-                        if (i .ne. j) then
-                            ! Double the off-diagonal elements of the 1RDM, so
-                            ! that when we contract over the symmetry packed
-                            ! representation of the 1RDM, it is as if we are
-                            ! also including the other half of the matrix
-                            SymmetryPacked1RDM(posn1) = 2.0_dp*SymmetryPacked1RDM(posn1)
-                        end if
-                        elements_assigned1(Sym_i+1) = elements_assigned1(Sym_i+1) + 1
-                    end if
-
-                end do
-            end do
-                
-            write(6,*) "Size of symmetry packed array: ", isize
-            write(6,*) "Symmetry packed 1RDM: ", SymmetryPacked1RDM(:)
-            dipmom(:) = 0.0_dp
-
-            call clearvar('DMX')
-            call clearvar('DMY')
-            call clearvar('DMZ')
-
-            allocate(zints(isize,3),stat=ierr)
-            if (ierr .ne. 0) then
-                write(6,*) "Alloc failed: ",ierr
-                call stop_all(t_r,'Alloc failed')
-            end if
-            ! This now goes through an F77 wrapper file so that we can access the
-            ! common blocks and check that the size of the symmetry packed arrays
-            ! is correct.
-            call GetDipMomInts(zints, isize, znuc, zcor, nt_frz, ntd_frz)
-
-            do ipr = 1, 3
-!                call pget(zints,ipr,znuc,zcor)
-
-                ! Now, contract.
-                do i = 1, isize
-                    dipmom(ipr) = dipmom(ipr) - zints(i,ipr)*SymmetryPacked1RDM(i)
-                end do
-                dipmom(ipr) = dipmom(ipr) + znuc(ipr) - zcor(ipr)
-            end do
-
-            write(iout,'(/,"DIPOLE MOMENT:",1X,3f15.8,/)') dipmom(1:3)
-            call output_result('FCIQMC','Dipole moment', dipmom(1:3), 1, isyref, numberformat='3f15.8', debye=.TRUE.)
-            mxv = 1
-            call setvar('DMX', dipmom(1), 'AU', 1, 1, mxv, -1)
-            call setvar('DMY', dipmom(2), 'AU', 1, 1, mxv, -1)
-            call setvar('DMZ', dipmom(3), 'AU', 1, 1, mxv, -1)
-            deallocate(zints, SymmetryPacked1RDM)
-        end if
-
-#else
         call warning_neci(t_r, 'Cannot compute dipole moments if not running within molpro. Exiting...')
-#endif
 
         ! Eliminate compiler warnings
         runused = norm_1rdm

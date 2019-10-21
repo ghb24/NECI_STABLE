@@ -12,17 +12,19 @@ module sdt_amplitudes
                   clear_hash_table
   use LoggingData, only: n_store_ci_level,sorting_way,n_iter_after_equ
   use SystemData, only: nel,nbasis
+  use sort_mod, only: sort
+  use DetBitOps, only: ilut_lt, ilut_gt
   
   implicit none
 
   integer(n_int), allocatable :: ciCoeff_storage(:,:)
   integer :: hash_table_ciCoeff_size, first_free_entry = 0
   type(ll_node), pointer :: hash_table_ciCoeff(:)
-  integer :: iout = 6
-  integer :: nCyc, storSize
-  real(dp), allocatable :: ciCoeff_storage_S(:,:)
-  real(dp), allocatable :: ciCoeff_storage_D(:,:,:,:)
-  real(dp), allocatable :: ciCoeff_storage_T(:,:,:,:,:,:)
+  integer :: nCyc, iout = 6
+!  integer :: storSize
+!  real(dp), allocatable :: ciCoeff_storage_S(:,:)
+!  real(dp), allocatable :: ciCoeff_storage_D(:,:,:,:)
+!  real(dp), allocatable :: ciCoeff_storage_T(:,:,:,:,:,:)
 
 contains
 
@@ -31,7 +33,7 @@ contains
     nCyc = 0
     first_free_entry = 0
     hash_table_ciCoeff_size = 50000
-    storSize = nbasis
+!    storSize = nbasis
     call init_hash_table(hash_table_ciCoeff)
     allocate(hash_table_ciCoeff(hash_table_ciCoeff_size))
     allocate(ciCoeff_storage(0:NIfTot,hash_table_ciCoeff_size))
@@ -92,11 +94,14 @@ contains
     real(dp) :: sign_tmp(lenof_sign)
     logical  :: tPar
 
-    ! Kai told me there is already a subroutine to call in neci to sort
-    ! the excitations, sth like: call sort(ciCoeff_storage), somewhere
-    ! in quickLib?
+    ! There is a subroutine to call in neci to sort the excitations,
+    ! lib/quicksort.F90.template: the relevant subroutine is:
+    ! sort_mod::sort
     ! In the end I wrote my own sorting subroutine to organize the
     ! coefficients as needed depending on the case
+
+!    call sort(ciCoeff_storage(:,1:first_free_entry), ilut_lt, ilut_gt)
+!    call sort(ciCoeff_storage(:,1:first_free_entry), indices_lt, indices_gt)
 
     open (unit=31,file='SINGLES-AV',status='replace')
     open (unit=32,file='DOUBLES-AV',status='replace')
@@ -276,6 +281,39 @@ contains
     else
       write(iout,*) 'Sorting coefficients in OPEN-SHELL SYSTEM'
     endif
+
+!    ! normal reading for closed-shell systems
+!    if(ClosedShellCase) then
+!
+!      write(iout,*) 'Coefficients listed in way:'
+!      write(iout,*) '  OCC(alpha,beta),VIR(alpha,beta)'
+!
+!      do
+!        read(101,*,IOSTAT=z) x,i,a
+!        if (z<0) then
+!          exit
+!        endif
+!        S(i,a)=x
+!      enddo
+!      close (101)
+!
+!      do
+!        read(102,*,IOSTAT=z) x,i,a,j,b
+!        if (z<0) then
+!          exit
+!        endif
+!        D(i,a,j,b) = x
+!      enddo
+!      close (102)
+!
+!      do
+!        read(103,*,IOSTAT=z) x,i,a,j,b,k,c
+!        if (z<0) then
+!          exit
+!        endif
+!        T(i,a,j,b,k,c) = x
+!      enddo
+!      close (103)
 
 
    ! open-shell systems require a specific reading in order to reorganize

@@ -96,10 +96,6 @@ module FciMCParMod
 
     use sltcnd_mod, only: sltcnd_excit
 
-#ifdef MOLPRO
-    use outputResult
-#endif
-
     implicit none
 
     !array for timings of the main compute loop
@@ -117,9 +113,6 @@ module FciMCParMod
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 
-#ifdef MOLPRO
-        integer :: nv, ityp(1)
-#endif
         integer :: iroot, isymh
         real(dp) :: Weight, Energyxw, BestEnergy
         INTEGER :: error, irdm
@@ -142,11 +135,6 @@ module FciMCParMod
 
         real(dp):: lt_imb
         integer:: rest
-
-#ifdef MOLPRO
-        real(dp) :: get_scalar
-        include "common/molen"
-#endif
 
         ! Procedure pointer temporaries
         procedure(generate_excitation_t), pointer :: ge_tmp
@@ -893,29 +881,6 @@ module FciMCParMod
             end do
         end if
 
-#ifdef MOLPRO
-        call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
-        if (iroot.eq.1) call clearvar('ENERGY')
-        ityp(1)=1
-        call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
-        do i=10,2,-1
-            gesnam(i)=gesnam(i-1)
-            energ(i)=energ(i-1)
-        enddo
-        gesnam(i) = 'FCIQMC'
-        energ(i) = get_scalar("ENERGY")
-        if(.not.(tNoShiftValue.and.tNoProjEValue)) then
-            call output_result('FCIQMC','FCIQMC_ERR',BestErr,iroot,isymh)
-            if (iroot.eq.1) call clearvar('FCIQMC_ERR')
-            call setvar('FCIQMC_ERR',BestErr,'AU',ityp,1,nv,iroot)
-!            do i=10,2,-1
-!                gesnam(i)=gesnam(i-1)
-!                energ(i)=energ(i-1)
-!            enddo
-!            gesnam(i) = 'FCIQMC_ERR'
-!            energ(i) = get_scalar("FCIQMC_ERR")
-        endif
-#endif
         CALL MolproPluginResult('ENERGY',[BestEnergy])
         CALL MolproPluginResult('FCIQMC_ERR',[min(ProjE_Err_re,shift_err)])
         write(iout,"(/)")

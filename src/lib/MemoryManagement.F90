@@ -144,9 +144,7 @@ contains
     integer(li), intent(in), optional :: MemSize
     logical, intent(in), optional :: print_err
     integer(li) :: MaxMemBytes
-#if defined(MOLPRO)
-    integer(li), parameter :: MaxMemLimit=8192   !It would be nice to get this straight from molpro.
-#elif !defined(_MOLCAS_)
+#if !defined(_MOLCAS_)
     integer(li), parameter :: MaxMemLimit=MAXMEM ! Obtained via CPP in the makefile. MAXMEM in MB.
 #endif
 
@@ -201,9 +199,7 @@ contains
 !       Deal with debug options at a later date.
 !       debug = gmemdebug
 
-#ifndef MOLPRO
         write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',real(MaxMemBytes,dp)/(1024**2),' MB'
-#endif
     end if
 
     return
