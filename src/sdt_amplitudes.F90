@@ -3,8 +3,9 @@
 module sdt_amplitudes
 
   use bit_reps, only: extract_sign, decode_bit_det, encode_sign, niftot, nifd
-  use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int
+  use constants, only: dp, lenof_sign, EPS, n_int, bits_n_int,int64
   use DetBitOps, only: get_bit_excitmat, FindBitExcitLevel, EncodeBitDet
+  use util_mod, only: near_zero, operator(.isclose.)
   use FciMCData, only: TotWalkers, iLutRef, CurrentDets, AllNoatHf, projedet, &
                        HashIndex, CurrentDets, ll_node, norm_psi, ilutHF, &
                        VaryShiftIter, iter
@@ -14,7 +15,7 @@ module sdt_amplitudes
   use SystemData, only: nel,nbasis
   use sort_mod, only: sort
   use DetBitOps, only: ilut_lt, ilut_gt
-  
+
   implicit none
 
   integer(n_int), allocatable :: ciCoeff_storage(:,:)
@@ -48,7 +49,8 @@ contains
 
   !it prints not-averaged CI coeffs collected directly from last iter
   subroutine print_snapshot_ci_coeff
-    integer :: i, ic, ex(2,3),icI
+    integer :: ic, ex(2,3),icI
+    integer(int64) :: i
     real(dp) :: sign_tmp(lenof_sign)
     logical  :: tPar
 
@@ -137,9 +139,9 @@ contains
 !                write(iout,*) sign_tmp/nCyc,AllNoatHf,sign_tmp(1),AllNoatHf(1),&
 !                     (sign_tmp(1)/nCyc)/AllNoatHf(1)
              case(1)
-                write(31,'(G20.12,2I5)') sign_tmp/(AllNoatHf(1)*nCyc), & 
+                write(31,'(G20.12,2I5)') sign_tmp/(AllNoatHf(1)*nCyc), &
                                          ex(1,1),ex(2,1)
-             case(2) 
+             case(2)
                 write(32,'(G20.12,4I5)') sign_tmp/(AllNoatHf(1)*nCyc),ex(1,1),&
                                          ex(2,1),ex(1,2),ex(2,2)
              case(3)
@@ -162,13 +164,14 @@ contains
     call fin_ciCoeff()
   end subroutine print_averaged_ci_coeff
 
-  
+
   subroutine storeCiCoeffs
-    integer :: i, ic, ex(2,3),nIEx(nel)
+    integer :: ic, ex(2,3),nIEx(nel)
+    integer(int64) :: i
     real(dp) :: sign_tmp(lenof_sign)
     nCyc = nCyc + 1
 
-    ! loop through all occupied determinants 
+    ! loop through all occupied determinants
     do i = 1, TotWalkers
        !definition of the maximal excitation level
        ic = 4
@@ -190,7 +193,7 @@ contains
     integer, intent(in) :: nIEx(nel), ex(2,3)
     real(dp), intent(in) :: sgn(lenof_sign)
     real(dp) :: sign_tmp(lenof_sign)
-    integer(n_int) :: ilut(0:NIfTot) 
+    integer(n_int) :: ilut(0:NIfTot)
     logical :: tSuccess
 
     ! encode the determinant into bit representation (ilut)
@@ -226,25 +229,25 @@ contains
   subroutine sorting(RefDet)
 
     Implicit none
- 
+
     integer, intent(in) :: RefDet(nel)
     double precision :: x
     double precision,allocatable :: S(:,:),D(:,:,:,:),T(:,:,:,:,:,:)
 !    double precision :: x,S(nel,nbasis-nel),D(nel,nbasis-nel,nel,nbasis-nel)
 !    double precision :: T(nel,nbasis-nel,nel,nbasis-nel,nel,nbasis-nel)
     integer :: i,j,k,a,b,c,z,p,Iopen(nel),iop,iMax,spo,indCoeff(3),indCoeffV(3),Nind
-    integer :: ial,ialMax,ialVir,ialVirMax,ibe,ibeMax,ibeVir,ibeVirMax,Itot(nbasis),signCI 
+    integer :: ial,ialMax,ialVir,ialVirMax,ibe,ibeMax,ibeVir,ibeVirMax,Itot(nbasis),signCI
 !    integer :: Ialpha(nel),Ibeta(nel),IalphaVir(nbasis-nel),IbetaVir(nbasis-nel)
     logical  :: check,noMatch,openEl,ClosedShellCase
     logical  :: aNoMatch,bNoMatch,cNoMatch,iNoMatch,jNoMatch,kNoMatch
- 
+
     open (unit=101,file='SINGLES-AV',status='old', action='read')
     open (unit=102,file='DOUBLES-AV',status='old', action='read')
     open (unit=103,file='TRIPLES-AV',status='old', action='read')
     open (unit=31,file='SINGLES-AV-OR',status='replace')
     open (unit=32,file='DOUBLES-AV-OR',status='replace')
     open (unit=33,file='TRIPLES-AV-OR',status='replace')
- 
+
     allocate(S(nel,nbasis))
     allocate(D(nel,nbasis,nel,nbasis))
     allocate(T(nel,nbasis,nel,nbasis,nel,nbasis))
@@ -496,7 +499,7 @@ contains
     else if(sorting_way.eq.2) then
     ! TODO: in this way 2. of listing is not included yet the sorting of the open-shell
     !       RefDet with one or more virtual spatial orbs in between two occupied
-    !       spin orbitals, e.g., p=4,6,8,... 
+    !       spin orbitals, e.g., p=4,6,8,...
 
       write(iout,*) 'Coefficients listed in way 2:'
 
@@ -534,7 +537,7 @@ contains
       else
 
          write(iout,*) '  CLOSED(alpha,beta),OPEN(alpha),OPEN(beta),VIRTUALS(alpha,beta)'
- 
+
          do
            read(101,*,IOSTAT=z) x,i,a
            iNoMatch=.true.
@@ -555,7 +558,7 @@ contains
            endif
          enddo
          close (101)
- 
+
          do
            read(102,*,IOSTAT=z) x,i,a,j,b
            iNoMatch=.true.
@@ -581,13 +584,13 @@ contains
                bNoMatch=.false.
              endif
            enddo
-           D(i,a,j,b) = x 
+           D(i,a,j,b) = x
            if (z<0) then
              exit
            endif
          enddo
          close (102)
- 
+
          do
            read(103,*,IOSTAT=z) x,i,a,j,b,k,c
            iNoMatch=.true.
@@ -632,11 +635,10 @@ contains
       endif
     endif
 
-
    ! writing the CI coefficients in the ASCII files
     do i = 1,nel
-      do a = nel+1,nbasis 
-        if(abs(S(i,a)).ne.0) then 
+      do a = nel+1,nbasis
+        if(.not. near_zero(S(i,a))) then
           write(31,'(G20.12,2I5)') S(i,a),i,a
 !          write(31,'(G20.12,2I5)') S(i,a),i,a-nel
         end if
@@ -645,9 +647,9 @@ contains
 
     do j = 2,nel
       do i = 1, nel-1
-        do a = nel+1,nbasis 
+        do a = nel+1,nbasis
           do b = a+1, nbasis
-            if(abs(D(i,a,j,b)).ne.0 .and. i.lt.j) then 
+            if(.not. near_zero(D(i,a,j,b)) .and. i.lt.j) then
               write(32,'(G20.12,4I5)') D(i,a,j,b),i,a,j,b
 !              write(32,'(G20.12,4I5)') D(i,a,j,b),i,a-nel,j,b-nel
             end if
@@ -659,10 +661,10 @@ contains
     do k = 3,nel
       do j = 2, nel-1
         do i = 1, nel-2
-          do a = nel+1,nbasis 
+          do a = nel+1,nbasis
             do b = a+1, nbasis
               do c = b+1, nbasis
-                if(abs(T(i,a,j,b,k,c)).ne.0 .and. i.lt.j .and. j.lt.k) then 
+                if(.not. near_zero(T(i,a,j,b,k,c)) .and. i.lt.j .and. j.lt.k) then
                   write(33,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a,j,b,k,c
 !                  write(33,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a-nel,j,b-nel,k,c-nel
                 end if
@@ -672,7 +674,7 @@ contains
         enddo
       enddo
     end do
- 
+
   end subroutine sorting
 
   subroutine swap(a,b)
