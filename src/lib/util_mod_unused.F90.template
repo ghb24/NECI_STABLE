@@ -1,0 +1,34 @@
+[comp]
+type = complex(kind=dp)
+
+[real]
+type = real(kind=sp)
+
+[doub]
+type = real(kind=dp)
+
+
+=========================
+
+module util_mod_unused
+    use constants
+    implicit none
+
+    private
+    public :: unused
+
+    interface unused
+        module procedure unused_%(name)s
+    end interface
+
+contains
+
+    elemental subroutine unused_%(name)s(x)
+        %(type)s, intent(in) :: x
+        %(type)s :: tmp
+
+        if (.false.) then
+            tmp = x
+        end if
+    end subroutine
+end module
