@@ -1,4 +1,4 @@
-\documentclass[a4paper,notitlepage]{scrreprt}
+\documentclass[a4paper,notitlepage,dvipsnames]{scrreprt}
 \usepackage{listings} % For source code presentation
 \usepackage{needspace}
 \usepackage{color}
@@ -29,7 +29,7 @@
 % to read on a screen (especially for technical documentation).
 \usepackage{parskip}
 % define custom colors used in the description of keywords
-\usepackage[dvipsnames]{xcolor}
+\usepackage{xcolor}
 \definecolor{mred}{rgb}{0.9, 0.1, 0.1}
 \definecolor{oblue}{rgb}{0.1, 0.1, 0.9}
 
@@ -578,7 +578,7 @@ options given in black.
 \subsection{SYSTEM Block}
 The SYSTEM block specifies the properties of the physical system that is
 considered. The block starts with the \texttt{system} keyword and ends with
-the \texttt{endsys} keyword. 
+the \texttt{endsys} keyword.
 
 \begin{description}
   \codeitem{\textcolor{mred}{system}}
@@ -593,7 +593,7 @@ the \texttt{endsys} keyword.
     Uses the Hamiltonian of the uniform electron gas in a box.
   \end{description}
   \codeitem{\textcolor{mred}{endsys}}
-  Terminates the SYSTEM block.  
+  Terminates the SYSTEM block.
   \codeitem{\textcolor{mred}{electrons $n$, nel $n$}}
   Sets the number of electrons to $n$
   \codeitem{spin-restrict $m$}
@@ -603,7 +603,7 @@ the \texttt{endsys} keyword.
   Uses a basis of (anti-)symmetric combinations of Slater determinants with
   respect to global spin-flip. $s=0$ indicates anti-symmetric combinations,
   $s=1$ symmetric combinations. This is useful to exclude unwanted spin
-  configurations. For example, no triplet states can occur for \texttt{hphf 0}.  
+  configurations. For example, no triplet states can occur for \texttt{hphf 0}.
   \codeitem{sym $k_x$ $k_y$ $k_z$ $s$}
   Specifies the symmetry of the target state. The first three arguments set
   the momentum $(k_x,k_y,k_z)$ and are only used for Hubbard and ueg-type
@@ -611,7 +611,7 @@ the \texttt{endsys} keyword.
   only used for ab-initio systems.
   \codeitem{lztot}
   Set the total $L_s$ quantum number. Has one mandatory additional argument,
-  which is the value of $L_s$.  
+  which is the value of $L_s$.
   \codeitem{useBrillouinTheorem}
   Assume that single excitations have zero matrix elements with the
   reference. By default, this is determined automatically.
@@ -658,7 +658,7 @@ the \texttt{endsys} keyword.
     Generates excitations weighted directly with the matrix elements using pre-computed
     alias tables. This excitation generator is extremely fast, while
     maintaining high acceptance rates and is generally recommended when
-    memory is not an issue.    
+    memory is not an issue.
     \codeitem{nosymgen}
     Generate all possible excitations, regardless of symmetry. Might have a
     low acceptance rate.
@@ -684,7 +684,7 @@ the \texttt{endsys} keyword.
   Generates uniform excitations using momentum conservation. Requires the
   \texttt{kpoints} keyword.
 \end{description}
-  
+
   \subsubsection{Hubbard model and UEG options}
   \begin{description}
     \codeitem{cell $x$ $y$ $z$}
@@ -716,7 +716,7 @@ the \texttt{endsys} keyword.
     Replaces each site with a tilted $t_x$ by $t_y$ lattice. Recommended to be
     used only with \texttt{cell 1 1 1}.
   \end{description}
-  
+
   \subsection{CALC Block}
   The CALC block is used to set options concerning the simulation parameters
   and modes of FCIQMC. The block starts with the \texttt{calc} keyword and
@@ -732,7 +732,7 @@ the \texttt{endsys} keyword.
     run. After $t$ minutes, the calculation will end.
     \codeitem{\textcolor{oblue}{nmcyc $n$}}
     Set the maximum number of iterations the calculation is allowed to
-    do. After $n$ iterations, the calculation will end.    
+    do. After $n$ iterations, the calculation will end.
     \codeitem{seed $s$}
     Sets the seed of the random number generator to $s$. This can be used to
     specifically probe for stochastic effects, but is generally not required.
@@ -809,7 +809,7 @@ the \texttt{endsys} keyword.
     average weight of the spawning does not change. This is a method of
     removing very low weighted spawnings from the spawned list, which
     require extra memory, processing and communication. A reasonable
-    value for x is 0.01.    
+    value for x is 0.01.
     \codeitem{realCoeffbyExcitLevel $n$}
     Allow all determinants up to an excitation level of $n$ to have
     non-integer population.
@@ -826,7 +826,7 @@ the \texttt{endsys} keyword.
     \texttt{allRealCoeff}. The argument $mode$ can be one of EXPONENTIAL,
     POWER, EXP-BOUND or NEGATIVE and defaults to POWER. Both $\alpha$ and
     $\beta$ default to 1 and \texttt{realspawncutoff} $\beta$ is implied.
-  \end{description}  
+  \end{description}
 
   \subsubsection{Time-step options}
   \begin{description}
@@ -843,7 +843,7 @@ the \texttt{endsys} keyword.
     is the maximum value of $\frac{H_{ij}}{p(i|j)}$ to be stored.
     \codeitem{\textcolor{oblue}{max-tau $\tau_\text{max}$}}
     Sets the maximal value of the time-step to $\tau_\text{max}$. Defaults to
-    $1$.    
+    $1$.
     \codeitem{min-tau $\tau_\text{min}$}
     Sets the minimal value of the time-step to $\tau_\text{min}$ and enables
     the iterative update of the time-step. Defaults to
@@ -865,12 +865,12 @@ the \texttt{endsys} keyword.
   \begin{description}
     \codeitem{\textcolor{oblue}{walkContGrow}}
     When reading in a wave function from a file, do not set the shift or enter
-    variable shift mode.    
+    variable shift mode.
     \codeitem{\textcolor{oblue}{defineDet $det$}}
     Sets the reference determinant of the calculation to $det$. If no other
     initialisation is specified, this will also be the initial
     wave function. The format can either be a comma-separated list of spin
-    orbitals, a range of spin orbitals (like 12-24) or a combination of both.    
+    orbitals, a range of spin orbitals (like 12-24) or a combination of both.
     \codeitem{readPops}
     Read in the wave function from a file and use the read-in wave function
     for initialisation. In addition to the wave function, also the time-step
@@ -906,7 +906,7 @@ the \texttt{endsys} keyword.
     \codeitem{superInitiator $n$}
     Create a list of $n$ superinitiators, from which all connected
     determinants are set to be initiators. The superinitiators are chosen
-    according to population. $n$ is optional and defaults to $1$. 
+    according to population. $n$ is optional and defaults to $1$.
     \codeitem{coherent-superInitiators $mode$}
     Apply a restriction on the sign-coherence between a determinant and any
     connected superinitiator to determine whether it becomes an initiator due
@@ -978,7 +978,7 @@ the \texttt{endsys} keyword.
     is the minimal number of spawning attempts from a determinant over the full calculation
     required before the shift is scaled, with a default of $10$. The second is
     the scaling exponent $\alpha$ with a default of $1$ and the last is the
-    minimal scaling factor, which uses $\frac{1}{\text{HF conn.}}$ as default.    
+    minimal scaling factor, which uses $\frac{1}{\text{HF conn.}}$ as default.
     \codeitem{linear-adaptive-shift $\sigma$ $f_1$ $f_2$}
     Scale the shift per determinant linearly with the population of a determinant. All arguments are optional
     and define the function used for scaling. $\sigma$ gives the minimal
@@ -1012,14 +1012,14 @@ the \texttt{endsys} keyword.
     \codeitem{replica-single-det-start}
     Starts each replica from a different excited determinant.
   \end{description}
-  
+
   \subsubsection{Semi-stochastic options}
   \begin{description}
     \codeitem{\textcolor{oblue}{semi-stochastic}}
     Turn on the semi-stochastic adaptation.
     \codeitem{\textcolor{oblue}{pops-core $n$}}
     When starting from a POPSFILE, this option will use the $n$ most
-    populated determinants from the popsfile to form the core space.    
+    populated determinants from the popsfile to form the core space.
     \codeitem{doubles-core}
     Use the reference determinant and all single and double excitations
     from it to form the core space.
@@ -1062,7 +1062,7 @@ the \texttt{endsys} keyword.
     \codeitem{dynamic-core $n$}
     Update the core space every $n$ iterations, where $n$ is optional and
     defaults to $400$. This is enabled by default if the
-    \texttt{superinitiators} option is given.    
+    \texttt{superinitiators} option is given.
     \end{description}
 
   \subsubsection{Trial wave function options}
@@ -1076,7 +1076,7 @@ the \texttt{endsys} keyword.
     \begin{description}
     \codeitem{\textcolor{oblue}{pops-trial $n$}}
     When starting from a POPSFILE, this option will use the $n$ most
-    populated determinants from the popsfile to form the trial space.      
+    populated determinants from the popsfile to form the trial space.
     \codeitem{doubles-trial}
     Use the reference determinant and all single and double excitations
     from it to form the trial space.
@@ -1160,13 +1160,13 @@ the \texttt{endsys} keyword.
     \codeitem{\textcolor{mred}{methods}}
     Starts the METHODS block
     \codeitem{\textcolor{mred}{endmethods}}
-    Terminates the METHODS block.    
+    Terminates the METHODS block.
     \codeitem{\textcolor{mred}{method $mode$}}
     Sets the algorithm to be executed. The relevant choice for $mode$ is
     VERTEX FCIMC to run an FCIQMC calculation. Alternative choices are
     DETERM-PROJ to run a deterministic calculation and SPECTRAL-LANCZOS to
     calculate a spectrum using the lanczos algorithm.
-  \end{description}  
+  \end{description}
 
   \subsection{INTEGRAL Block}
   The INTEGRAL block can be used to freeze orbitals and set properties of the
@@ -1176,7 +1176,7 @@ the \texttt{endsys} keyword.
     \codeitem{integral}
     Starts the INTEGRAL block.
     \codeitem{endint}
-    Terminates the INTEGRAL block.    
+    Terminates the INTEGRAL block.
     \codeitem{freeze $n$ $m$}
       Freeze $n$ core and $m$ virtual orbitals which are not to be
       considered active in this calculation. The orbitals are selected
@@ -1192,7 +1192,7 @@ the \texttt{endsys} keyword.
         $n_\text{holes}$ holes are now allowed in these orbitals.
       \codeitem{partiallyFreezeVirt $n_\text{orb}$ $n_\text{els}$}
         Freeze $n_\text{orb}$ virtual orbitals partially. This means at most
-        $n_\text{els}$ electrons are now allowed in these orbitals.        
+        $n_\text{els}$ electrons are now allowed in these orbitals.
   \end{description}
 
   \subsection{KP-FCIQMC Block}
@@ -1206,7 +1206,7 @@ the \texttt{endsys} keyword.
     \codeitem{kp-fciqmc}
     Starts the KP-FCIQMC block
     \codeitem{end-kp-fciqmc}
-    Terminates the KP-FCIQMC block.    
+    Terminates the KP-FCIQMC block.
     \codeitem{num-krylov-vecs $N$}
     $N$ specifies the total number of Krylov vectors to sample.
     \codeitem{num-iters-between-vecs $N$}
@@ -1360,7 +1360,7 @@ the \texttt{endsys} keyword.
       At the end of a calculation, output the $n$ most populated
       determinants to a file called CORESPACE. This can further be read
       in and used as the core space in subsequent calculations using the
-      \texttt{read-core} option.      
+      \texttt{read-core} option.
     \end{description}
     \subsubsection{RDM output options}
     These options control how the RDMs are printed. For a description of how
