@@ -635,7 +635,7 @@ the \texttt{endsys} keyword.
   orbitals.
   \codeitem{molproMimic}
   Use the same orbital ordering as molpro, mimicking the behaviour of calling
-  NECI from molpro.
+  NECI from molpro. First nelec/2 orbitals  sorted by diagonal elements of the Fock matrix are considered to be occupied, and the rest to be virtual. Each sector is then sorted separately by symmetry labels.
   \codeitem{complexOrbs\_realInts}
   The orbitals are complex, but not the integrals. This reduces the symmetry
   of the 4-index integrals. Only affects \texttt{kneci} and \texttt{kmneci} calculations.
