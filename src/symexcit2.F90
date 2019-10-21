@@ -1,9 +1,10 @@
 MODULE SymExcit2
-      
+
       use CalcData , only : G_VMC_EXCITWEIGHT,G_VMC_EXCITWEIGHTS,CUR_VERT,EXCITFUNCS
       use CalcData , only : TUPOWER
       use IntegralsData, only: ChemPot
       use constants, only: dp
+      use util_mod, only : near_zero
       IMPLICIT NONE
 
       TYPE ExcitWeight
@@ -16,7 +17,7 @@ MODULE SymExcit2
       END TYPE ExcitWeight
 ! Size in terms of reals.
       integer, PARAMETER :: ExcitWeightSize=3
-      CONTAINS 
+      CONTAINS
 
 !  Enumerate the weights of all possible determinants to excite from in a given excittype.
       SUBROUTINE EnumExcitFromWeights(ExcitType, ews,OrbPairs, SymProdInd,Norm,iCount,Arr,nBasis)
@@ -55,7 +56,7 @@ MODULE SymExcit2
                        ews,Norm,iCount,Arr,nBasis)
          ENDDO
       END subroutine
-!  Enumerate the excitations and weights of excitations of a given ExcitType.  
+!  Enumerate the excitations and weights of excitations of a given ExcitType.
       SUBROUTINE EnumExcitWeights(ExcitType,iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,NBASISMAX,Arr,NBASIS)
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -163,7 +164,7 @@ MODULE SymExcit2
          ExWeights(iCount)%Weight=R
          Norm=Norm+R
       END subroutine
-         
+
 ! Add the weight of the 'from' excitation to the list in ExWeights
 ! I,J are from
       SUBROUTINE AddExcitFromWeight(I,J,ExWeights,Norm,iCount,Arr,nBasis)
@@ -243,6 +244,7 @@ MODULE SymExcit2
          use procedure_pointers, only: get_umat_el
          use SystemData, only: BasisFN
          use global_utilities
+         use util_mod, only: near_zero
          IMPLICIT NONE
          INTEGER nBasisMax(5,*),NBASIS
 !  We fake ISS
@@ -253,7 +255,7 @@ MODULE SymExcit2
          real(dp) WEIGHT,W2
          HElement_t(dp) W
          real(dp) Arr(nBasis,2)
-         IF(G_VMC_EXCITWEIGHT(CUR_VERT).EQ.0.0_dp) THEN
+         IF(near_zero(G_VMC_EXCITWEIGHT(CUR_VERT))) THEN
             WEIGHT=1.0_dp
          ELSE
 !            proc_timer%timer_name='UMATELWT'
@@ -272,7 +274,7 @@ MODULE SymExcit2
 !            call halt_timer(proc_timer)
          ENDIF
          IF(.not.EXCITFUNCS(10)) THEN
-             IF((EXCITFUNCS(1)).and.(g_VMC_ExcitWeights(3,CUR_VERT).NE.0.0_dp)) THEN
+             IF((EXCITFUNCS(1)).and.(.not. near_zero(g_VMC_ExcitWeights(3,CUR_VERT)))) THEN
                 W2=ABS(((Arr(I,2)+Arr(J,2))-(Arr(K,2)+Arr(L,2))))
                 IF(ABS(W2).LT.1.0e-2_dp) W2=1.0e-2_dp
                 Weight=Weight*W2**g_VMC_ExcitWeights(3,CUR_VERT)
@@ -315,7 +317,7 @@ MODULE SymExcit2
          RETURN
       END subroutine
 
-!We wish to calculate what excitation class the excitation NI->NJ falls into, with the appropriate 
+!We wish to calculate what excitation class the excitation NI->NJ falls into, with the appropriate
 ! IFROM class and index within that, IFROMINDEX, and ITO class, and index within that. ITOINDEX
 ! After that, we generate the probability that nJ would be an excitation from nI.
 
@@ -378,7 +380,7 @@ MODULE SymExcit2
          ENDDO
 !.. Now to find the appropriate iTo index:
          Sym=SYMPROD( G1(iExcit(2,1))%Sym, G1(iExcit(2,2))%Sym)
-!..  Find which SymPairProd it corresponds to 
+!..  Find which SymPairProd it corresponds to
 !.. SYMPAIRPRODS(1:NSYMPAIRPRODS) contains the list of all SYMPRODs available, the number of pairs of
 !.. symlabels (listed in SymStatePairs), and the index of the start of this list
 !.. For a given (unique) SymPairProds(J)%Sym, I=SymPairProds(J)%Index.
@@ -386,7 +388,7 @@ MODULE SymExcit2
          CALL FindSymProd(Sym,SymPairProds,nSymPairProds,iTo)
 !.. There are three values of ISPN.  ISPN=1 is beta beta, ISPN=2 is alpha, beta and beta, alpha.  ISPN=3 is alpha alpha
          iSpn=(G1(iExcit(1,1))%Ms+G1(iExcit(1,2))%Ms)/2+2
-!.. Now find which excittype we correspons to 
+!.. Now find which excittype we correspons to
          K=1
          DO WHILE(ExcitTypes(1,K).NE.2.OR.ExcitTypes(2,K).NE.iSpn.OR.ExcitTypes(3,K).NE.iFrom.OR.ExcitTypes(4,K).NE.iTo)
             K=K+1
@@ -414,7 +416,7 @@ MODULE SymExcit2
          iFromIndex=I
          deallocate(ews)
          call LogMemDealloc(thisroutine,tagEWS)
-!  pGen is the prob of choosing a specific FROM (given having chosen iExcitType proportional 
+!  pGen is the prob of choosing a specific FROM (given having chosen iExcitType proportional
 !to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
 
@@ -426,7 +428,7 @@ MODULE SymExcit2
          Norm=0.0_dp
          CALL EnumExcitWeights(ExcitTypes(1,iExcitType),iFromIndex,iLUT,ews,OrbPairs,SymProdInd,Norm,iCount,nBasisMax,Arr,nBasis)
 !.. Find the (a,b) pair
-!.. The prob of all possible excitations in this iTo 
+!.. The prob of all possible excitations in this iTo
          DO I=1,nToPairs
             IF(ews(I)%A.EQ.iExcit(2,1).AND.ews(I)%B.EQ.iExcit(2,2)) THEN
                pGen=pGen*ews(I)%Weight
@@ -435,7 +437,7 @@ MODULE SymExcit2
          ENDDO
          pGen=pGen/Norm    ! The norm of the TOs
 !  pGen is the prob of choosing a specific TO (given the FROM, and the iExcitType)
-!           times prob of choosing a specific FROM (given having chosen iExcitType 
+!           times prob of choosing a specific FROM (given having chosen iExcitType
 !proportional to the number of excitations in each iExcitType)
 !           times the prob of choosing iExcitType
          deallocate(ews)
@@ -484,22 +486,22 @@ MODULE SymExcit2
 !=  Classify and store each possible pair of orbitals under its symmetry product, [].
 !=  With each of the symmetry products [], calculate []' such that []x[]'
 !=  contains the totally symmetric rep.
-!=  We do this by checking whether any of the []' in the 
+!=  We do this by checking whether any of the []' in the
 !=  global symprods table multiply by [] to give the symmetric rep.
 
 != Excitation Generator Scaling   Timing                    Memory
-!=---- 
+!=----
 !=SSE_CreateClassList(Classes, *ClassCount)
 !=
 != Create Class List              O(N)                      4 N
 !=   Gives NCL =O(NSYM)
 !=
-!= Create Class Remainder info    O(NCL)                    
+!= Create Class Remainder info    O(NCL)
 !=----
 !=SSE_CreateClassSymProds(nPr,nPairs,nCl,SymProds,SymProdCount,*ClassCount,Classes)
 !=SSEA_CreateClassSymProds(nPr,nCl,SymProds,SymProdCount,*ClassCount,Classes)  !  Better scaling
 !=
-!= Create Class Sym Product info  O(NCL^2)                  4 NPR 
+!= Create Class Sym Product info  O(NCL^2)                  4 NPR
 !=   Gives NPR ~= NCL^2
 !=    for abelian  NPR<=NSYM
 !=
@@ -514,7 +516,7 @@ MODULE SymExcit2
 !=    to the symmetry product
 !=                                                                   For abelian, this isn't
 !=                                  [ O(NCL^2) ]          [ NSYM ]   needed as we can very easily
-!=                                                                   determine this from a list of 
+!=                                                                   determine this from a list of
 !=                                                                   occs sorted by sym.  We should
 !=                                                                   store counts however
 !=
@@ -537,7 +539,7 @@ MODULE SymExcit2
 !=    single excitations          O(NCL^3)
 !=                                  [ NSYM ]
 != --- Exit here for init
-!= 
+!=
 !=----
 !=SSE_StoreSingles(nExcitTypes,nCl,Classes,ThisClassCount,ExcitTupes)
 !=
@@ -546,7 +548,7 @@ MODULE SymExcit2
 !=----
 !=SSE_StoreDoubles(nPr,nSymPairProds,nAllowPPS,ExcitTypes,nExcitTypes,SymProds,SymProdInd)
 != Store doubles classes          O(NPR NSYM)               O(NPR^2)
-!=                                  [ NSYM^2 ]               [ NSYM^2 ] 
+!=                                  [ NSYM^2 ]               [ NSYM^2 ]
       subroutine symsetupexcits3_worker (nI, nel, g1, nbasis, store, &
                                  SPIin, ETin, NAPin, OPin, tCount, iCount, &
                                  classes, ilut, symprods, iLevel, iMinElec1, &
@@ -587,11 +589,11 @@ MODULE SymExcit2
          INTEGER nCl,nExcitTypes,nPr
 
          LOGICAL ISUHFDET
- 
-         INTEGER I         
+
+         INTEGER I
          type(timer), save :: proc_timer
          proc_timer%timer_name='SYMSUEXCIT'
-         
+
          call set_timer(proc_timer,65)
          Call SymSetupExcits_CreateClassList(nI,nEl,Classes, &
       iMinElec1, iMaxElec1, ThisClassCount, PrevClassCount,ClassCount, &
@@ -650,7 +652,7 @@ MODULE SymExcit2
 !..                WRITE(6,"(A,Z10)") "LUT: ",ILUT(I)
 !..            ENDDO
          ENDIF
-!.. Now look through the list of our pairs.  For each pair sym of the complete list which has a 
+!.. Now look through the list of our pairs.  For each pair sym of the complete list which has a
 !.. symmetric product with any of our pair syms, we work out how many allowed pairs there are in
 !.. the complete list, and store that value in NALLOWPPS
          IF(STORE(3).EQ.0) THEN
@@ -706,7 +708,7 @@ MODULE SymExcit2
             STORE(5)=2*3*(NPR+1)
 !.. indicate that these are lengths
             STORE(6)=0
-           
+
             deallocate(nAllowPPS)
             deallocate(OrbPairs)
             deallocate(SymProdInd)
@@ -775,7 +777,7 @@ MODULE SymExcit2
          INTEGER, pointer :: DSTORE(:)
 !  STORE contains lengths of various components of the excitation generator
          INTEGER STORE(6)
-!  STORE2 will contain the indices of various components of the excitation 
+!  STORE2 will contain the indices of various components of the excitation
 !generator within the memory NMEM, and is passed to SYMSETUPEXCITS2
          INTEGER STORE2(6)
          INTEGER ICOUNT
@@ -784,7 +786,7 @@ MODULE SymExcit2
          LOGICAL TSETUP
          INTEGER ILEVEL,Pos1,Pos2,Pos3
          INTEGER iMinElec1, iMaxElec1
-         
+
          IF(TSETUP) THEN
 !.. This is the first time we've been called for setup.
 !  We pass information back in STORE, but actually hold it in STORE2 during the SYMSETUPEXCITS2
@@ -801,7 +803,7 @@ MODULE SymExcit2
 !SYMPRODIND - Indexing system for ORBPAIRS. NPR is the number of symmetry classes, which for abelian
 ! symmetry will always be less than or equal to nSymLabels, so we need a total of (nSymLabels+1)*6
 
-!For 'extras', we want space for ILUT (NBASIS/32+1+NIfY) and CLASSES (SymClassSize*NEL) 
+!For 'extras', we want space for ILUT (NBASIS/32+1+NIfY) and CLASSES (SymClassSize*NEL)
                    STORE(1)=SymClassSize*NEl+(nBasis/32)+1    !ILUT and CLASSES
                    STORE(2)=5*(3*nSymPairProds+2*nSymLabels)    !EXCITTYPES (Could be compressed)
                    STORE(3)=0   !Do not need to store nAllowPPS
@@ -840,7 +842,7 @@ MODULE SymExcit2
             ELSE    !Second setup excitgen run - fill memory
 
                IF(tAssumeSizeExcitgen) THEN
-!If we have an assumed size excitgen, things are a little different. We can only use these 
+!If we have an assumed size excitgen, things are a little different. We can only use these
 !assumed sized excitation generators, if we are only
 ! using them to create random excitations as we are not storing iterator information to save space.
 
@@ -848,9 +850,9 @@ MODULE SymExcit2
 ! 2         NEXCITTYPES
 ! 3                                 -    SymClassSize*NEL+NIfTot+3                                 DSTORE
 ! SymClassSize*NEL+NIfTot+4      -    SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+2  EXCITTYPES
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+3      -    
+! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+3      -
 !SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+2  ORBPAIRS
-! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -   
+! SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+3   -
 !SymClassSize*NEL+NIfTot+1+15*nSymPairProds+10*nSymLabels+NEL*(NEL-1)+(nSymLabels+1)*6+2  SYMPRODIND
 
 ! DSTORE(1)      -   SymClassSize*NEL         CLASSES
@@ -880,7 +882,7 @@ MODULE SymExcit2
                             &allocate SymProdsTemp Memory")
                    ENDIF
 
-!Call SymSetupExcits3. Since we are not storing symprods, DStore is shorter than normal, 
+!Call SymSetupExcits3. Since we are not storing symprods, DStore is shorter than normal,
 !and we just pass through a temporary array to hold it.
                     ! n.b. nAllowPPS not extant
                     CALL SYMSETUPEXCITS3(NI,NEL,G1,NBASIS,STORE2,&
@@ -927,7 +929,7 @@ MODULE SymExcit2
 !..                              This last is the end of DSTORE i.e. MEM(STORE(2)-1)
 
                    NMEM(1:23)=0
-                   ICOUNT=24  
+                   ICOUNT=24
 !.. Put the indices in store
                    DO I=1,5
                       STORE2(I)=ICOUNT
@@ -992,7 +994,7 @@ MODULE SymExcit2
 !            WRITE(6,"(A)",advance='no'), "->"
 !            IF(NJ(1).NE.0) THEN
 !               CALL WRITEDET(6,NJ,NEL,.TRUE.)
-!            ELSE 
+!            ELSE
 !               WRITE(6,*) "(    0,)"
 !            ENDIF
          ENDIF

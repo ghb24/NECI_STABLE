@@ -2,7 +2,7 @@ subroutine environment_report(tCPMD)
 
 != Print out a summary of the environment:
 !=   * When the code was compiled
-!=   * The version control system (VCS) repository id of the codebase. 
+!=   * The version control system (VCS) repository id of the codebase.
 !=   * Whether the codebase contains local changes.
 !=   * The working directory.
 !=   * The host computer.
@@ -17,7 +17,7 @@ subroutine environment_report(tCPMD)
 != and ifort gave segmentation faults when they were used.
 
 != In:
-!=   tCPMD: true if doing a CPMD-based calculation.  CPMD already prints out the 
+!=   tCPMD: true if doing a CPMD-based calculation.  CPMD already prints out the
 !=          directory and host names, so we avoid printing duplicate information.
 
 #ifdef NAGF95
@@ -67,5 +67,5 @@ write (6,'(1X,"Started running on",1X,i2.2,"/",i2.2,"/",i4.4,1X,"at",1X,i2.2,2("
 
 write (6,'(1X,64("="),/)')
 
-return 
+return
 end subroutine environment_report

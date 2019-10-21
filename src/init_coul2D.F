@@ -1,7 +1,7 @@
 C==========================================================
-C.. Routines needed for the initialisation of the Fourier 
+C.. Routines needed for the initialisation of the Fourier
 C.. Method of evaluating the Coulomb integrals
-C  ========================================================              
+C  ========================================================
       SUBROUTINE INITFOU2D(NMESHX,CK,NMAX,
      &     A,TALPHA,ALPHA,OMEGA,ZIA)
       use constants, only: dp,sp
@@ -10,16 +10,16 @@ C  ========================================================
       IMPLICIT NONE
       integer :: NMESHX,NMAX
       complex(dp) CK(NMESHX,NMESHX,NMESHX)
-      complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX) 
+      complex(dp) ZIA(-NMESHX/2:NMESHX/2,NMAX,NMAX)
       real(dp) A(3),OMEGA,ALPHA
       real(dp) t1,t2,t3,t(2)
       LOGICAL TALPHA
       INTEGER, SAVE :: IFIRST=0
-!      SAVE IFIRST 
+!      SAVE IFIRST
 C..
-      IF(IFIRST.EQ.1) RETURN 
+      IF(IFIRST.EQ.1) RETURN
       IFIRST=1
-C..      
+C..
       T1 = neci_etime(t)
       CALL GEN_CK_FFT2D(NMESHX,CK,A,TALPHA,ALPHA,OMEGA)
       CALL GEN_ZIA(NMESHX,NMAX,ZIA)
@@ -27,13 +27,14 @@ C..
       T3=(T2-T1)
       WRITE(6,*) 'V0=',CK(NMESHX/2+1,NMESHX/2+1,NMESHX/2+1)
       WRITE(6,*) ' TIME FOR INITIALISATION:',T3/1000.0_dp
-C..      
-      RETURN 
+C..
+      RETURN
       END
 C =========================================================
       SUBROUTINE GEN_CK_FFT2D(N,DIST,A,TALPHA,ALPHA,OMEGA)
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp,pi,int64
+      use util_mod, only : near_zero
       IMPLICIT NONE
 #if !defined(__alpha) || !defined(__SGI)
       !INTEGER FFTW_R2HC
@@ -120,7 +121,7 @@ C..
 #if defined(NAGF95) || defined(__GFORTRAN__) || defined(BLUEGENE_HACKS)
       call stop_all(t_r,"No ERF in NAG?")
 #endif
-    
+
 C..
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
@@ -130,9 +131,9 @@ c          DO K=-N/2,N/2-1
             Y=real(J,dp)*HSTEPY
             Z=real(K,dp)*HSTEPZ
             AUX=X*X+Y*Y+Z*Z
-            IF(AUX.NE.0.0_dp) THEN
-              IF(TALPHA) THEN 
-                R=SQRT(AUX) 
+            IF(.not. near_zero(AUX)) THEN
+              IF(TALPHA) THEN
+                R=SQRT(AUX)
 #if !defined(NAGF95) && !defined(__GFORTRAN__) && !defined(BLUEGENE_HACKS)
                 AUX=1.0_dp/R*(-1)**(I+J)*DERF(R/ALPHA)
 #endif
@@ -140,7 +141,7 @@ c          DO K=-N/2,N/2-1
                 AUX=1.0_dp/SQRT(AUX)*(-1)**(I+J)
               ENDIF
             ELSE
-              IF(TALPHA) THEN 
+              IF(TALPHA) THEN
                 AUX=(2.0_dp/SQRT(PI)/ALPHA)*(-1)**(I+J)
               ELSE
                 AUX=real(N/2,dp)*(-1)**(I+J)
@@ -159,17 +160,17 @@ C..FFT parameters
       N2=N
       N3=N
       LA1=N1
-      LA2=N2 
+      LA2=N2
 C..Initialise FFT
       CALL ZFFT3DI( N1, N2, N3, COEFF)
-C..FORWARD TRANSFORM 
+C..FORWARD TRANSFORM
       CALL ZFFT3D(-1, N1, N2, N3, DIST, LA1, LA2, COEFF )
-#elif __alpha 
+#elif __alpha
       N1=N
       N2=N
       N3=N
       LA1=N1
-      LA2=N2 
+      LA2=N2
       CALL ZFFT_3D('C','C','F',DIST,DIST,N1,N2,N3,LA1,LA2,1,1,1)
 #else
       N1=N
@@ -196,7 +197,7 @@ c      call dfftw_print_plan(plan)
       call stop_all("gen_ck_fft2d","FFTW disabled")
 #endif
 #endif
-C..Shift origin and normalise 
+C..Shift origin and normalise
       DO I=-N/2,N/2-1
         DO J=-N/2,N/2-1
 C          DO K=-N/2,N/2-1
@@ -205,11 +206,11 @@ C          DO K=-N/2,N/2-1
 C/dfloat(n1*n2)
 C          enddo
         enddo
-      enddo      
-C..the short-range correction for alpha 
-      IF(TALPHA) THEN 
+      enddo
+C..the short-range correction for alpha
+      IF(TALPHA) THEN
 
-       OMEGAP=4.0_dp*OMEGA  
+       OMEGAP=4.0_dp*OMEGA
         DO I=-N/2,N/2-1
           DO J=-N/2,N/2-1
 C           DO K=-N/2,N/2-1
@@ -219,7 +220,7 @@ C           DO K=-N/2,N/2-1
               GZ=0
 C..PI*K/A(3)
               G=SQRT(GX*GX+GY*GY+GZ*GZ)
-              IF(G.NE.0.0_dp) THEN 
+              IF (.not. near_zero(G)) THEN
 c sum=2 Pi * erf(a G/2)/G/omegap
 #if !defined(NAGF95) && !defined(__GFORTRAN__) && !defined(BLUEGENE_HACKS)
                 SUM=2.0_dp*PI*DERF(ALPHA*G/2)/OMEGAP/G
@@ -228,14 +229,14 @@ C                AUX=EXP(-G2*ALPHA2/4.0_dp)
 C                SUM=4.0_dp*PI*(1.0_dp-AUX)/OMEGAP/G2
               ELSE
                  SUM=ALPHA/(SQRT(PI)*OMEGAP)
-C                SUM=PI*ALPHA2/OMEGAP 
+C                SUM=PI*ALPHA2/OMEGAP
               ENDIF
               DIST(I,J,K)=DIST(I,J,K)+CMPLX(SUM,0.0_dp,dp)
 C            ENDDO
           ENDDO
         ENDDO
       ENDIF
-C..Inverse transform 
+C..Inverse transform
 c      CALL ZFFT3D( 1, N1, N2, N3, DIST, LA1, LA2, COEFF )
 C.test fft
 C       X=  0.2

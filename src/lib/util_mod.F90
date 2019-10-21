@@ -1,19 +1,51 @@
+#include "macros.h"
+
 module util_mod
     use util_mod_comparisons
     use util_mod_numerical
     use util_mod_byte_size
     use util_mod_cpts
+    use util_mod_epsilon_close
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
     use iso_c_hack
 
-    ! We want to use the builtin etime intrinsic with ifort to 
+    ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
 #ifdef __IFORT
     use ifport, only: etime
 #endif
     implicit none
+
+
+    ! sds: It would be nice to use a proper private/public interface here,
+    !      BUT PGI throws a wobbly on using the public definition on
+    !      a new declared operator. --> "Empty Operator" errors!
+    !      to fix when compilers work!
+!    private
+
+!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
+!    public :: factrl, choose, int_fmt, binary_search
+!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+
+
+!     private
+!     public :: neci_etime,&
+!         NECI_ICOPY, get_unique_filename, get_free_unit, int_fmt,&
+!         strlen_wrap, record_length,&
+!         find_next_comb,&
+!         swap, choose
+!     public :: binary_search, binary_search_custom, binary_search_first_ge
+!     public :: abs_l1
+!     public :: tbs_, abs_sign,&
+!         error_function, error_function_c,&
+!         get_nan,&
+!         isclose, operator(.isclose.), near_zero,&
+!         operator(.arrlt.), operator(.arrgt.), operator(.div.)
+!     public :: stochastic_round_r
+!     public :: pDoubles, pSingles
+!     public :: set_timer, halt_timer
 
     interface
         pure function strlen_wrap (str) result(len) bind(c)
@@ -36,6 +68,10 @@ module util_mod
         end function
     end interface
 
+    interface operator(.div.)
+        module procedure div_int32, div_int64
+    end interface
+
     interface abs_sign
         module procedure abs_int4_sign
         module procedure abs_int8_sign
@@ -48,18 +84,6 @@ module util_mod
         module procedure abs_l1_cdp
         module procedure abs_l1_csp
     end interface
-
-
-    ! sds: It would be nice to use a proper private/public interface here,
-    !      BUT PGI throws a wobbly on using the public definition on
-    !      a new declared operator. --> "Empty Operator" errors!
-    !      to fix when compilers work!
-!    private
-
-!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
-!    public :: factrl, choose, int_fmt, binary_search
-!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
-
 contains
 
     function stochastic_round (r) result(i)
@@ -89,7 +113,7 @@ contains
 
     function stochastic_round_r (num, r) result(i)
 
-        ! Perform the stochastic rounding of the above function where the 
+        ! Perform the stochastic rounding of the above function where the
         ! random number is already specified.
 
         real(dp), intent(in) :: num, r
@@ -104,7 +128,7 @@ contains
                 i = i + nint(sign(1.0_dp, num))
         end if
 
-    end function
+      end function stochastic_round_r
 
     subroutine print_cstr (str) bind(c, name='print_cstr')
 
@@ -131,15 +155,15 @@ contains
 
     end subroutine
 
-    ! routine to calculation the absolute magnitude of a complex integer 
+    ! routine to calculation the absolute magnitude of a complex integer
     ! variable (to nearest integer)
     pure real(dp) function abs_int4_sign(sgn)
         integer(int32), intent(in) :: sgn(lenof_sign/inum_runs)
 
 #ifdef __CMPLX
             abs_int4_sign=real(int(sqrt(real(sgn(1),dp)**2+real(sgn(2),dp)**2)),dp)
-            ! The integerisation here is an approximation, but one that is 
-            ! used in the integer algorithm, so is retained in this real 
+            ! The integerisation here is an approximation, but one that is
+            ! used in the integer algorithm, so is retained in this real
             ! version of the algorithm
 #else
             abs_int4_sign=abs(sgn(1))
@@ -243,6 +267,67 @@ contains
          RETURN
       END SUBROUTINE NECI_ICOPY
 
+      subroutine addToIntArray(arr,ind,elem)
+        implicit none
+        integer, intent(inout), allocatable :: arr(:)
+        integer, intent(in) :: ind, elem
+
+        integer, allocatable :: tmp(:)
+        integer :: nelems
+
+        if(allocated(arr)) then
+           nelems = size(arr)
+
+           if(ind > nelems) then
+              ! resize the array
+              allocate(tmp(nelems))
+              tmp = arr
+              deallocate(arr)
+              allocate(arr(ind), source = 0)
+              arr(1:nelems) = tmp(1:nelems)
+           endif
+        else
+           allocate(arr(ind), source = 0)
+        endif
+
+        arr(ind) = elem
+
+      end subroutine addToIntArray
+
+!--- Indexing utilities
+
+   function fuseIndex(q,p) result(ind)
+     ! fuse p,q into one symmetric index
+     ! the resulting index is not contigious in p or q
+     ! Input: p,q - 2d-array indices
+     ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
+      implicit none
+      integer, intent(in) :: p,q
+      integer :: ind
+
+      ! qp and pq are considered to be the same index
+      ! -> permutational symmetry
+
+      if(p > q) then
+         ind = q + p*(p-1)/2
+      else
+         ind = p + q*(q-1)/2
+      end if
+    end function fuseIndex
+
+    function linearIndex(p,q,dim) result(ind)
+      ! fuse p,q into one contiguous index
+      ! the resulting index is contiguous in q
+      ! Input: p,q - 2d-array indices
+      !        dim - dimension of the underlying array in q-direction
+      ! Output: ind - contiguous 1d-array index
+      implicit none
+      integer, intent(in) :: p,q,dim
+      integer :: ind
+
+      ind = q + (p-1) * dim
+    end function linearIndex
+
 !--- Numerical utilities ---
 
     ! If all of the compilers supported ieee_arithmetic
@@ -310,6 +395,24 @@ contains
             enddo
         endif
     end function choose
+
+    elemental integer(int32) function div_int32(a, b)
+        integer(int32), intent(in) :: a, b
+#ifdef _WARNING_WORKAROUND_
+        div_int32 = int(real(a, kind=sp) / real(b, kind=sp), kind=int32)
+#else
+        div_int32 = a / b
+#endif
+    end function
+
+    elemental integer(int64) function div_int64(a, b)
+        integer(int64), intent(in) :: a, b
+#ifdef _WARNING_WORKAROUND_
+        div_int64 = int(real(a, kind=dp) / real(b, kind=dp), kind=int64)
+#else
+        div_int64 = a / b
+#endif
+    end function
 
 !--- Comparison of subarrays ---
 
@@ -752,8 +855,8 @@ contains
 
         use constants, only: dp
         use iso_c_hack
-        implicit none 
-      
+        implicit none
+
         real(dp), intent(in) :: argument
         real(dp) :: res
 
@@ -773,11 +876,11 @@ contains
 
 
     function error_function(argument) result(res)
-        
+
         use constants, only: dp
         use iso_c_hack
-        implicit none 
-      
+        implicit none
+
         real(dp), intent(in) :: argument
         real(dp) :: res
 
@@ -838,7 +941,7 @@ contains
 #ifdef __IFORT
         ! intels etime takes a real(4)
         real(4) :: ioTime(2)
-        ! Ifort defines etime directly in its compatibility modules. 
+        ! Ifort defines etime directly in its compatibility modules.
         ! Avoid timing inaccuracies from using cpu_time on cerebro.
         ret = real(etime(ioTime),dp)
         time = real(ioTime,dp)
@@ -856,7 +959,6 @@ contains
 #endif
 
     end function neci_etime
-
 end module
 
 !Hacks for compiler specific system calls.
@@ -1010,9 +1112,8 @@ end module
 
         integer, target :: var
         type(c_ptr) :: addr
-        
+
         addr = c_loc(var)
 
     end function
 #endif
-

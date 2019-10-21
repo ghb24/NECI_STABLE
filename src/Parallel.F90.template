@@ -1572,7 +1572,7 @@ contains
             call stop_all (t_r, 'MPI Error. Terminating.')
 
         call MPI_Comm_size (CommGlobal, nProcess, ierr)
-	
+
         !initialize intra node and inter node communicators
 #ifdef __SHARED_MEM
         !the 'intra' range is the full node for now.

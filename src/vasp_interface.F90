@@ -38,7 +38,7 @@ contains
       write (6,*) 'kp'
       do i=1,nKP
          write (6,*) vasp_kpnts(:,i)
-      end do 
+      end do
       nEl=vasp_nEl*nKP
 
       allocate(KPNTInd(nStates))
@@ -60,7 +60,7 @@ contains
             UMat2D(i,j)=(vasp_umat2d(i,j))
          end do
       end do
-      
+
       return
    end subroutine NECIReceiveVASPData
 

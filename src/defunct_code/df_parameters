@@ -11,13 +11,13 @@ integer, parameter :: par_max_l = 5  !max number of symmetries for integrals
                                      !contain symmetries up to G.
 integer, parameter :: par_max_rank = par_max_l - 1
 !
-!(B) Parameters used by basis_parser: 
+!(B) Parameters used by basis_parser:
 integer, parameter :: par_maxprims = 1000    !maximum number of primitives
 integer, parameter :: par_maxshells = 1000   !maximum number of shells
 integer, parameter :: par_maxatoms = 500     !max no of atoms
 !
 !(C) Parameters in polarizability and multipole moment modules:
-integer, parameter :: par_max_freq = 500     !max number of frequencies 
+integer, parameter :: par_max_freq = 500     !max number of frequencies
 integer, parameter :: par_max_sites = 500    !max number of sites
 !Maximum order upto which transformation matrices have been coded for
 !transforming polarizabilities/moments computed using primitive multipole moment
@@ -28,7 +28,7 @@ integer, parameter :: par_max_sites = 500    !max number of sites
 !polarizability tensors that can be computed by this code.):
 integer, parameter :: par_maxrank_cart_trans = 3
 integer, parameter :: par_maxrank_spher_trans = 4
-!For most applications the maximum rank of polarizabilities/moments will be 
+!For most applications the maximum rank of polarizabilities/moments will be
 !equal to par_maxrank_spher_trans. So define a maximum rank parameter for
 !properties:
 integer, parameter :: par_maxrank_prop = par_maxrank_spher_trans
@@ -37,7 +37,7 @@ integer, parameter :: par_maxrank_prop = par_maxrank_spher_trans
 real(dp), parameter :: epsilon_machine = 1.0e-15_dp
 real(dp), parameter :: epsilon_significant = 1.0e-8_dp
 !
-!(E) Number of temp and molecule files that can be generated and the 
+!(E) Number of temp and molecule files that can be generated and the
 !default name:
 integer, parameter :: max_tmp_files = 1000
 character(10), parameter :: tmp_file_name = 'TMP_______'
@@ -65,7 +65,7 @@ real(dp), parameter :: pi = 3.1415926535897932384626433832795028841968_dp
 !=======================
 !(1) Integral cutoff value:
 real(dp), parameter :: par_integral_cutoff = 1.0e-16_dp
-!(2) Exponent of dummy s-function used to obtain 2- and 3-index integrals 
+!(2) Exponent of dummy s-function used to obtain 2- and 3-index integrals
 !from the 4-index integrals computed by GAMINT:
 !This choice of the dummy s-function exponent gives > 16 decimal accuracy for
 !integrals of basis functions less than 10 a.u. from the s-function, and

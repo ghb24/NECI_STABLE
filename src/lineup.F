@@ -1,7 +1,9 @@
       SUBROUTINE LINEUP(N,LST1,LST2,NBASIS,L1E,L2E,IFLAG,IPTOT)
       use util_mod, only: NECI_ICOPY
-      INTEGER N, LST1(N), LST2(N)
-      INTEGER LIST1(N),LIST2(N),L1E(NBASIS),L2E(NBASIS),
+      implicit none
+      INTEGER :: N, LST1(N), LST2(N), nBasis, I, iC, iFlag, iP1, iP2,
+     &    iPTot, j, iP
+      INTEGER :: LIST1(N),LIST2(N),L1E(NBASIS),L2E(NBASIS),
      &    LD(NBASIS)
 
       CALL NECI_ICOPY(N,LST1,1,LIST1,1)
@@ -14,12 +16,12 @@ C..
          LD(I)=L1E(I)-L2E(I)
          IF(LD(I).GT.0) IC=IC+1
       ENDDO
-      IF(IC.GT.2) THEN 
+      IF(IC.GT.2) THEN
 C        WRITE(6,*) ' MORE THAN TWO DIFFER'
         IFLAG=3
         RETURN
       ENDIF
-      IF(IC.EQ.0) THEN 
+      IF(IC.EQ.0) THEN
 C        WRITE(6,*) ' THE TWO ARE THE SAME'
         CALL ASCENDING_ORDER(N,LIST1,IP1)
         CALL ASCENDING_ORDER(N,LIST2,IP2)
@@ -30,13 +32,13 @@ C        WRITE(6,*) ' TOTAL SIGN CHANGE:',IPTOT
         IFLAG=0
         RETURN
       ENDIF
-      IF(IC.EQ.1) THEN 
+      IF(IC.EQ.1) THEN
          IPTOT=1
 C..find out which one in list one differ
         DO I=1,NBASIS
           IF(LD(I).EQ.1) THEN
             DO J=1,N
-              IF(LIST1(J).EQ.I) THEN  
+              IF(LIST1(J).EQ.I) THEN
                 CALL CYCLIC_REORDER(N-J+1,LIST1(J),IP)
                 IPTOT=IPTOT*IP
               ENDIF
@@ -64,7 +66,7 @@ C       WRITE(6,*) ' TOTAL SIGN CHANGE:',IPTOT
        RETURN
       ENDIF
 C..
-      IF(IC.EQ.2) THEN 
+      IF(IC.EQ.2) THEN
          IPTOT=1
 C         WRITE(6,*) ' TWO DIFFER'
          IFLAG=2
@@ -101,7 +103,9 @@ C       WRITE(6,*) ' TOTAL SIGN CHANGE:',IPTOT
       END
 C==============================================================
       SUBROUTINE SCATTER_neci(N,NBASIS,LIST,LE)
-      DIMENSION LIST(N),LE(NBASIS)
+      integer :: n, nBasis, LIST(N),LE(NBASIS)
+
+      integer :: i
       LE(1:NBASIS)=0
       DO I=1,N
         LE(LIST(I))=1
@@ -110,7 +114,9 @@ C==============================================================
       END
 C===============================================================
       SUBROUTINE CYCLIC_REORDER(N,L,IP)
-      INTEGER L(N)
+      implicit none
+      integer :: N, L(N), iP
+      integer :: iS, I
       IS=L(1)
       DO I=2,N
          L(I-1)=L(I)
@@ -121,11 +127,12 @@ C===============================================================
       END
 C===============================================================
       SUBROUTINE ASCENDING_ORDER(N,L,IP)
-      INTEGER L(N)
+      integer :: N, l(n), iP
+      integer :: i, iT
       IP=1
  100  CONTINUE
-      DO I=1,N-1 
-         IF(L(I).GT.L(I+1)) THEN 
+      DO I=1,N-1
+         IF(L(I).GT.L(I+1)) THEN
             IT=L(I)
             L(I)=L(I+1)
             L(I+1)=IT

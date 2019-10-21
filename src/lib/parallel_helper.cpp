@@ -179,7 +179,7 @@ void mpi_comm_create_wrap (MPI_Fint comm, MPI_Fint group, MPI_Fint * ncomm, int 
 
 //
 // Wrapper for MPI_Group_incl
-void mpi_group_incl_wrap (MPI_Fint group, int n, int * ranks, 
+void mpi_group_incl_wrap (MPI_Fint group, int n, int * ranks,
 		                  MPI_Fint * ogroup, int * ierr)
 {
 	MPI_Group grp_handle = MPI_Group_f2c(group);
@@ -225,10 +225,10 @@ void mpi_allreduce_wrap (double * sbuf, double * rbuf, int count, int dtype,
 
 //
 // Wrapper for MPI_Bcast
-void mpi_bcast_wrap (void * buf, int count, int dtype, int root, 
+void mpi_bcast_wrap (void * buf, int count, int dtype, int root,
                      MPI_Fint comm, int * ierr)
 {
-    *ierr = MPI_Bcast (buf, count, dtype_map[dtype], root, 
+    *ierr = MPI_Bcast (buf, count, dtype_map[dtype], root,
 	                   MPI_Comm_f2c(comm));
 }
 
@@ -250,7 +250,7 @@ void mpi_alltoallv_wrap (void * sbuf, int * scount, int * sdispl, int stype,
                          MPI_Fint comm, int * ierr)
 {
     *ierr = MPI_Alltoallv (sbuf, scount, sdispl, dtype_map[stype], rbuf,
-                           rcount, rdispl, dtype_map[rtype], 
+                           rcount, rdispl, dtype_map[rtype],
 						   MPI_Comm_f2c(comm));
 }
 
@@ -258,7 +258,7 @@ void mpi_alltoallv_wrap (void * sbuf, int * scount, int * sdispl, int stype,
 //
 // Wrapper for MPI_Gather
 void mpi_gather_wrap (void * sbuf, int scount, int stype, void * rbuf,
-                      int rcount, int rtype, int root, MPI_Fint comm, 
+                      int rcount, int rtype, int root, MPI_Fint comm,
 					  int * ierr)
 {
     *ierr = MPI_Gather (sbuf, scount, dtype_map[stype], rbuf, rcount,

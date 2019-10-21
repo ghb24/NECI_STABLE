@@ -72,7 +72,7 @@ contains
     end function
 
     pure function arr_lt (a, b) result (bLt)
-        
+
         ! Make a comparison we can sort arrays by. Return true if the first
         ! differing items of a, b is such that a(i) < b(i).
         !

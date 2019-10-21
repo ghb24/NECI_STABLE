@@ -8,7 +8,7 @@
 !1 2 3 4 -> 1 2 5 6 , it would give 3->5 and 4->6 with a +ve parity
 !because no interchanges were required to line up the dets
 !1 2 3 4 -> 1 3 5 6 we would swap 2 and 3 around to give a negative parity and have  2->5 and 4->6
-!so I just need to work out how much the common orbitals between the determinants have moved between 
+!so I just need to work out how much the common orbitals between the determinants have moved between
 !the ordered list of orbitals. If its an even number, parity is positive (false), otherwise negative (true).
 
 !ExcitMat(1,*) are the **indices** in the determinant to vacate from nI (the i,j pair)
@@ -26,7 +26,7 @@
          INTEGER :: ExcitMat(2,2),i,j,k,EX2(2,2)!,EX(2,2)
          INTEGER :: nI(NEl),IC,iPos,TempInd!,NJ(NEL)
          LOGICAL :: TParity
-         
+
 !         WRITE(19,*) ExcitMat(:,:),nI
 !         IF((IC.gt.2).or.(IC.lt.0)) THEN
 !             CALL Stop_All("FindExcitDet","Trying to find an excitation"&
@@ -64,7 +64,7 @@
 
          do k=1,IC
 !This needs to be done twice for double excitations of nI
-             
+
 !             i=1    !Look through the determinant for the orbital to vacate
 !             do while(nI(i).ne.ExcitMat(1,k))
 !                 i=i+1
@@ -111,7 +111,7 @@
                      ENDIF
 
                  ENDIF
-             
+
 
 !             ELSEIF(ExcitMat(2,k).eq.nI(ExcitMat(1,k))) THEN
 !We are replacing an orbital with the same orbital. We want to do nothing to the determinant
@@ -197,7 +197,7 @@
 !         enddo
 
          RETURN
-     
+
       END SUBROUTINE FindExcitDet
 
 
@@ -457,7 +457,7 @@ C.. if we've excited at least one elec
 C.. we check whether we're allowed this excitation owing to sym
 C                  CALL WRITEDET(6,NEXCIT,NEL,.TRUE.)
                   IF(TSYM) THEN
-                     CALL GETSYM(NEXCIT,NEL,G1,NBASISMAX,ISYM2)   
+                     CALL GETSYM(NEXCIT,NEL,G1,NBASISMAX,ISYM2)
                      LSYM=LCHKSYM(ISYM,ISYM2)
                   ELSE
                      LSYM=.TRUE.

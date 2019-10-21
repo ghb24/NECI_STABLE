@@ -74,7 +74,7 @@ SUBROUTINE MolproPluginInit (tMolpro)
  molpro_plugin=.FALSE.
  IF (.NOT. tMolpro) RETURN
  molpro_plugin=.TRUE.
- 
+
 ! ask for an FCIDUMP
  IF (.NOT. PluginGuestSendF('GIVE OPERATOR HAMILTONIAN FCIDUMP')) STOP 'plugin request has failed'
  molpro_plugin_fcidumpname = PluginGuestReceiveF()
@@ -93,7 +93,7 @@ SUBROUTINE MolproPluginInit (tMolpro)
   END DO
 99 CLOSE(1)
  END IF
- 
+
  END SUBROUTINE MolproPluginInit
 
 SUBROUTINE MolproPluginTerm(signal)

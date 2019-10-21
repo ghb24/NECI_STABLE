@@ -27,7 +27,7 @@ proje-changeref 1.2
 tau 0.0001
 startsinglepart 20
 diagshift 1.0
-all-doubs-initiators
+superinitiators
 trial-wavefunction 10
 pops-trial 1
 endcalc

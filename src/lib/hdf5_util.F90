@@ -55,7 +55,7 @@ module hdf5_util
         module procedure read_int64_scalar_8
     end interface
 
-    integer :: tmp_lenof_sign
+    integer :: tmp_lenof_sign, tmp_inum_runs
 
 contains
 
@@ -850,6 +850,9 @@ contains
         integer(hdf_err) :: err
         integer(hsize_t) :: mem_dims(2)
         integer(int32), pointer :: ptr(:,:)
+#ifdef _WARNING_WORKAROUND_
+       val = 0_int64
+#endif
 
         ! Create a property list to do multi-process reads
         call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, err)
@@ -880,7 +883,6 @@ contains
         call h5sclose_f(memspace, err)
         call h5sclose_f(dataspace, err)
         call h5pclose_f(plist_id, err)
-
     end subroutine
 
     subroutine read_int32_attribute_main(parent, nm, val, exists, default, &
@@ -1008,7 +1010,7 @@ contains
 
         call read_int64_1d_dataset_8(parent, nm, buf, exists, default, &
                                      required)
-        val = buf
+        val = int(buf, int32)
 
     end subroutine
 

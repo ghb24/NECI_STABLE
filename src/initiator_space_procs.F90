@@ -47,7 +47,7 @@ contains
         call MPIBarrier(ierr, tTimeIn=.false.)
 
         call set_timer(InitSpace_Init_Time)
-        
+
         write(6,'(/,12("="),1x,a30,1x,12("="))') "Initiator space initialisation"; call neci_flush(6)
 
         allocate(initiator_sizes(0:nProcessors-1))
@@ -141,7 +141,7 @@ contains
 
         ! Call the requested generating routines.
         if (space_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, ndets_this_proc)
-        if (space_in%tPops) call generate_space_most_populated(space_in%npops, & 
+        if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
                                     space_in%tApproxSpace, space_in%nApproxSpace, SpawnedParts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, SpawnedParts, ndets_this_proc)
         if (space_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, ndets_this_proc, space_in%tHFConn)
@@ -232,14 +232,14 @@ contains
         use bit_rep_data, only: flag_static_init
         use bit_reps, only: set_flag, get_initiator_flag_by_run
         use FciMCData, only: CurrentDets, TotWalkers
-
-        integer :: i, j
+        integer(int64) :: i
+        integer :: j
         integer :: nI(nel)
         logical :: tInitiatorDet
 
         tInitiatorDet = .false.
 
-        do i = 1, TotWalkers
+        do i = 1_int64, TotWalkers
 
             call decode_bit_det(nI, CurrentDets(:,i))
             tInitiatorDet = is_in_initiator_space(CurrentDets(:,i), nI)
