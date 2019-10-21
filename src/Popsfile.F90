@@ -613,7 +613,7 @@ contains
         real(dp), allocatable :: fvalsRead(:,:), fvals(:,:)
         real(dp) :: fvals_tmp(2*inum_runs)
         integer(int64) :: det_attempt, nread
-
+        real(dp) :: aasFactor
         integer(n_int), allocatable :: BatchRead(:,:)
 
         ! If we are on the root processor, we need a buffer array which stores
@@ -732,7 +732,7 @@ r_loop: do while (.not. tReadAllPops)
                 ! How much data goes to each processor?
                 call MPIScatter (sendcounts, recvcount, err, roots)
                 ! allocate the buffer for the acc/tot spawns
-                if(tAutoAdaptiveShift) allocate(fvals(2*inum_runs,recvcount))
+                if(tAutoAdaptiveShift) allocate(fvals(2*inum_runs, recvcount / (NIfTot + 1)))
                 if (err /= 0) &
                     call stop_all (this_routine, "MPI scatter error")
 
@@ -747,11 +747,17 @@ r_loop: do while (.not. tReadAllPops)
                 ! in auto-adaptive shift mode, also communicate the accumulated 
                 ! acc/tot spawns so far
                 if(tAutoAdaptiveShift) then
-                   call MPIScatterV(fvalsRead(:,1:MaxSendIndex), sendcounts, disps, &
-                        fvals(:,1:(recvcount/(2*inum_runs))), &
+                   ! aas data has a different first dimension -> rescale
+                   aasFactor = 2.0_dp * real(inum_runs,dp) / real(NIfTot + 1,dp)
+                   recvcount = int(recvcount * aasFactor, MPIArg)
+                   sendcounts = int(sendcounts * aasFactor, MPIArg)
+                   call MPIScatterV(fvalsRead(1:2*inum_runs,1:MaxSendIndex), sendcounts, disps, &
+                        fvals(1:2*inum_runs,1:(recvcount/(2*inum_runs))), &
                                   recvcount, err, Roots)
                    call set_tot_acc_spawns(fvals,(recvcount/(2*inum_runs)),&
-                        CurrWalkers+1)
+                        int(CurrWalkers)+1)
+                   ! scale back the recvcount because it is still used
+                   recvcount = int(recvcount / aasFactor, MPIArg)
                    deallocate(fvals)
                 endif
 
