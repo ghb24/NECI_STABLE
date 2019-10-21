@@ -242,6 +242,7 @@
 
 
 #else
+#endif
       !In case it doesn't like empty files
       subroutine null_wrapper
           implicit none

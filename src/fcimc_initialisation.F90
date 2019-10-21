@@ -65,9 +65,10 @@ module fcimc_initialisation
                            OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl , &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl, &
+                           t_store_ci_coeff
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -173,12 +174,8 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-<<<<<<< HEAD
     use sdt_amplitudes, only: init_ciCoeff
-
-=======
     use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
->>>>>>> a2e3e607b0049db3065ec5b150ffa135ba375e52
     implicit none
 
 contains
