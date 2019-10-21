@@ -22,6 +22,7 @@ module sdt_amplitudes
   integer :: hash_table_ciCoeff_size, first_free_entry
   type(ll_node), pointer :: hash_table_ciCoeff(:)
   integer :: nCyc
+  character (len=90) :: fileCICoeffSnpsht,fileCICoeffAv,fileCIcoeffSort
 !  integer :: storSize
 !  real(dp), allocatable :: ciCoeff_storage_S(:,:)
 !  real(dp), allocatable :: ciCoeff_storage_D(:,:,:,:)
@@ -54,13 +55,13 @@ contains
     real(dp) :: sign_tmp(lenof_sign)
     logical  :: tPar
 
-    open (unit=21,file='SINGLES',status='replace')
-    open (unit=22,file='DOUBLES',status='replace')
-    open (unit=23,file='TRIPLES',status='replace')
-
     !main loop over the excitation level of the coeffs to be collected,
     !where 0 is the reference, 1 singles, 2 doubles and so on...
     do icI = 0, n_store_ci_level
+       if(icI.ne.0) then
+         write(fileCICoeffSnpsht, '( "CI_COEFF_",I1,"_snapshot" )') icI
+         open (unit=20+icI,file=fileCICoeffSnpsht,status='replace')
+       endif
       do i = 1, TotWalkers
         ic = 4
         call get_bit_excitmat(iLutRef(:,1),CurrentDets(:,i),ex,ic)
@@ -82,11 +83,9 @@ contains
           end select
         end if
       end do
+      if(icI.ne.0) close(20+icI)
     end do
 
-    close(21)
-    close(22)
-    close(23)
   end subroutine print_snapshot_ci_coeff
 
 
@@ -105,10 +104,6 @@ contains
 !    call sort(ciCoeff_storage(:,1:first_free_entry), ilut_lt, ilut_gt)
 !    call sort(ciCoeff_storage(:,1:first_free_entry), indices_lt, indices_gt)
 
-    open (unit=31,file='SINGLES-AV',status='replace')
-    open (unit=32,file='DOUBLES-AV',status='replace')
-    open (unit=33,file='TRIPLES-AV',status='replace')
-
     write(iout,*) ''
 !    write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
     write(iout,*) '-- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- -- --'
@@ -123,6 +118,10 @@ contains
     write(iout,*) 'Maximum excitation level of the CI coeffs =', n_store_ci_level
 
     do icI = 0, n_store_ci_level
+       if(icI.ne.0) then
+         write(fileCICoeffAv, '( "CI_COEFF_",I1,"_AV" )') icI
+         open (unit=30+icI,file=fileCICoeffAv,status='replace')
+       endif
        do i = 1, first_free_entry
           ic = 4
           call get_bit_excitmat(iLutRef(:,1),ciCoeff_storage(:,i),ex,ic)
@@ -150,11 +149,9 @@ contains
              end select
           end if
        end do
+       if(iCI.ne.0) close(30+icI)
     end do
 
-    close(31)
-    close(32)
-    close(33)
     call sorting(RefDet)
 
     write(iout,*) '-> CI coefficients written in ASCII files'
@@ -241,13 +238,6 @@ contains
 !    integer :: Ialpha(nel),Ibeta(nel),IalphaVir(nbasis-nel),IbetaVir(nbasis-nel)
 !    double precision :: x,S(nel,nbasis-nel),D(nel,nbasis-nel,nel,nbasis-nel)
 !    double precision :: T(nel,nbasis-nel,nel,nbasis-nel,nel,nbasis-nel)
-
-    open (unit=101,file='SINGLES-AV',status='old', action='read')
-    open (unit=102,file='DOUBLES-AV',status='old', action='read')
-    open (unit=103,file='TRIPLES-AV',status='old', action='read')
-    open (unit=31,file='SINGLES-AV-OR',status='replace')
-    open (unit=32,file='DOUBLES-AV-OR',status='replace')
-    open (unit=33,file='TRIPLES-AV-OR',status='replace')
 
     allocate(S(nel,nbasis))
     allocate(D(nel,nbasis,nel,nbasis))
@@ -358,8 +348,12 @@ contains
 
       ! LOOP TO READ ALL THE CI COEFFICIENTS FROM ASCII FILES
       do Nind=1,n_store_ci_level
+        write(fileCICoeffAv, '( "CI_COEFF_",I1,"_AV" )') Nind
+        open (unit=30+Nind,file=fileCICoeffAv,status='old', action='read')
+        write(fileCIcoeffSort, '("CI_COEFF_",I1)') Nind
+        open (unit=100+Nind,file=fileCIcoeffSort,status='replace')
         do
-          read(100+Nind,*,IOSTAT=z) x,(indCoef(1,i),indCoef(2,i),i=1,Nind)
+          read(30+Nind,*,IOSTAT=z) x,(indCoef(1,i),indCoef(2,i),i=1,Nind)
           if (z<0) then
              exit
           endif
@@ -428,7 +422,7 @@ contains
             T(indCoef(1,1),indCoef(2,1),indCoef(1,2),indCoef(2,2),indCoef(1,3),indCoef(2,3)) = signCI*x
           endif
         enddo
-        close (100+Nind)
+        close (30+Nind)
       enddo
 
 
@@ -436,8 +430,8 @@ contains
     do i = 1,nel
       do a = nel+1,nbasis
         if(.not. near_zero(S(i,a))) then
-          write(31,'(G20.12,2I5)') S(i,a),i,a
-!          write(31,'(G20.12,2I5)') S(i,a),i,a-nel
+          write(101,'(G20.12,2I5)') S(i,a),i,a
+!          write(101,'(G20.12,2I5)') S(i,a),i,a-nel
         endif
       enddo
     enddo
@@ -447,8 +441,8 @@ contains
         do a = nel+1,nbasis
           do b = a+1, nbasis
             if(.not. near_zero(D(i,a,j,b)).and. i.lt.j) then
-              write(32,'(G20.12,4I5)') D(i,a,j,b),i,a,j,b
-!              write(32,'(G20.12,4I5)') D(i,a,j,b),i,a-nel,j,b-nel
+              write(102,'(G20.12,4I5)') D(i,a,j,b),i,a,j,b
+!              write(102,'(G20.12,4I5)') D(i,a,j,b),i,a-nel,j,b-nel
             endif
           enddo
         enddo
@@ -462,8 +456,8 @@ contains
             do b = a+1, nbasis
               do c = b+1, nbasis
                 if(.not. near_zero(T(i,a,j,b,k,c)).and. i.lt.j .and. j.lt.k) then
-                  write(33,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a,j,b,k,c
-!                  write(33,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a-nel,j,b-nel,k,c-nel
+                  write(103,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a,j,b,k,c
+!                  write(103,'(G20.12,6I5)') T(i,a,j,b,k,c),i,a-nel,j,b-nel,k,c-nel
                 end if
               enddo
             enddo
@@ -471,6 +465,10 @@ contains
         enddo
       enddo
     enddo
+
+    close(101)
+    close(102)
+    close(103)
 
   end subroutine sorting
 

@@ -177,7 +177,7 @@ module FciMCParMod
            write(iout,*) ''
            t_store_ci_coeff=.false.
         endif
-                    
+
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
 !Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
 !        CALL MPI_Comm_set_errhandler(MPI_COMM_WORLD,MPI_ERRORS_RETURN,error)
@@ -697,14 +697,14 @@ module FciMCParMod
 
         ![E.V. 13.08.2019]
         if(t_store_ci_coeff) then
-           call print_snapshot_ci_coeff()
+!           call print_snapshot_ci_coeff()
            call print_averaged_ci_coeff()
         end if
 
 
-        ! [Werner Dobrautz 4.4.2017] 
-        ! for now always print out the frequency histograms for the 
-        ! tau-search.. maybe change that later to be an option 
+        ! [Werner Dobrautz 4.4.2017]
+        ! for now always print out the frequency histograms for the
+        ! tau-search.. maybe change that later to be an option
         ! to be turned off
         if (t_print_frq_histograms .and. t_hist_tau_search_option) then
             call print_frequency_histograms()
