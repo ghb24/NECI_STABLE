@@ -5,6 +5,7 @@
      &                     NBLOCKSTARTS,NBLOCKS)
          use constants, only: dp,int32!,n_int
          use SystemData, only: BasisFN
+         use util_mod
          use global_utilities
          use HElem, only: HElement_t_size
 !         use DetCalcData, only: NMRKS
@@ -127,6 +128,10 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          WRITE(6,"(A,F19.11,I4)") "GROUND E=",GSEN
          call halt_timer(proc_timer)
          RETURN
+
+#ifdef __WARNING_WORKAROUND
+        call unused(WORK)
+#endif
       END
 
 !This routine for each determinant, calculates each excitation, and then its contribution to the change in

@@ -477,7 +477,7 @@ contains
          ISPINSKIP=NBasisMax(2,3)
          IF(ISPINSKIP.le.0) call stop_all(this_routine, 'NBASISMAX(2,3) ISpinSkip unset')
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
-         CALL GetUMatSize(nBasis,nEl,UMATINT)
+         CALL GetUMatSize(nBasis,UMATINT)
          WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164e-7_dp)
          WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
@@ -521,7 +521,7 @@ contains
     !!C.. we pre-compute the 2-e integrals
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
-                  CALL GetUMatSize(nBasis,nEl,UMATINT)
+                  CALL GetUMatSize(nBasis,UMATINT)
                   call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
@@ -532,7 +532,7 @@ contains
     !!C.. we pre-compute the 2-e integrals
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
-                  CALL GetUMatSize(nBasis,nEl,UMATINT)
+                  CALL GetUMatSize(nBasis,UMATINT)
                   call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
@@ -573,7 +573,7 @@ contains
     !!C.. we pre-compute the 2-e integrals
                WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
-               CALL GetUMatSize(nBasis,nEl,UMATINT)
+               CALL GetUMatSize(nBasis,UMATINT)
                call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
                !Allocate(UMat(UMatInt), stat=ierr)
                LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
@@ -694,7 +694,7 @@ contains
          !CALL N_MEMORY(IP_TMAT2,HElement_t_size*(NBASIS)**2,'TMAT2')
          !TMAT2=(0.0_dp)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
-            CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),UMATINT)
+            CALL GetUMatSize(nBasis,UMATINT)
             call shared_allocate_mpi (umat2_win, umat2, (/UMatInt/))
             !Allocate(UMat2(UMatInt), stat=ierr)
             LogAlloc(ierr, 'UMat2', int(UMatInt),HElement_t_SizeB, tagUMat2)
@@ -1394,7 +1394,7 @@ contains
 
        FREEZETRANSFER=.false.
 !C.. Copy the new BRR and ARR over the old ones
-       CALL SWAPTMAT(NBASIS,NHG,GG)
+       CALL SWAPTMAT()
        IF(tCalcPropEst) call SwapOneEPropInts(nBasis,iNumPropToEst)
 
        deallocate(arr)
