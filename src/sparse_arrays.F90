@@ -675,6 +675,10 @@ contains
         if (allocated(sparse_tags)) deallocate(sparse_tags)
         if (allocated(sparse_matrix)) deallocate(sparse_matrix)
 
+#ifdef __WARNING_WORKAROUND
+        call unused(sparse_matrix_name)
+#endif
+
     end subroutine deallocate_sparse_ham
 
     subroutine deallocate_sparse_matrix_int(sparse_mat)

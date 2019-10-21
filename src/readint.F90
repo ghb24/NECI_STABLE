@@ -936,7 +936,7 @@ contains
              CALL MPIBCast(UMAT2D,nStates**2)
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
-             CALL GetUMATSize(nBasis,NEl,UMatSize)
+             CALL GetUMATSize(nBasis,UMatSize)
 
              ! If we are on a 64bit system, the maximum dimensions for MPI are
              ! still limited by 32bit limits.
