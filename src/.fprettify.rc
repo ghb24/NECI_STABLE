@@ -1,0 +1,13 @@
+indent=4
+whitespace=4
+whitespace-comma=true
+whitespace-assignment=true
+whitespace-relational=true
+whitespace-logical=true
+whitespace-plusminus=true
+whitespace-multdiv=true
+whitespace-print=true
+whitespace-type=false
+whitespace-intrinsics=true
+enable-replacements=true
+c-relations=true

@@ -47,7 +47,7 @@ contains
         if (i == 0 .or. i == 1) then
             logi = 1.0
         else
-            logi = log10(real(abs(i)+1.0, dp))
+            logi = log10(real(abs(i) + 1_int64, dp))
         end if
         if (i < 0) logi = logi + 1
 

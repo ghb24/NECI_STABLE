@@ -9,15 +9,15 @@ contains
 
 !   Symmetries can be unset(=0), or have bits set for the different irreps included
 !   bit 0 corresponds to totally symmetric.
-      
+
 ! JSS: if Abelian symmetry, then
 ! symmetry=0 corresponds to the symmetric representation.  It is not
 ! possible to unset symmetries for k-point jobs.
-      
-!   To multiply symmetries, for each bit set in each of the two symmetries, we look up the 
+
+!   To multiply symmetries, for each bit set in each of the two symmetries, we look up the
 !   product in the symmetry table, and OR that with the product.
 
-! JSS: In Abelian (k-point) symmetry, a representation can be described by "quantum" numbers.  
+! JSS: In Abelian (k-point) symmetry, a representation can be described by "quantum" numbers.
 ! The multiplication of two irreps is equal to the sum of such vectors
 ! describing the irreps, subject to a modulo of the periodic conditions
 ! due to the size of the symmetry cell (which corresponds to the k-point
@@ -44,7 +44,7 @@ contains
                  SymProd%s=IEOR(ISym1%s,ISym2%s)
 
              ELSE
-             
+
                  call DecomposeAbelianSym(ISym1%s,Abel1)
                  call DecomposeAbelianSym(ISym2%s,Abel2)
 !Slightly faster when calling a lot to do it in an array operation
@@ -109,7 +109,7 @@ contains
 ! K-point symmetry has k_-i=k_i.  We store k-vectors from 0
 ! to N rather than -N/2 to N.  Hence k_-i=mod(-k_i+N,N) for
 ! each component of the vector.
-! This also works for abelian groups made out of symmetry 
+! This also works for abelian groups made out of symmetry
 ! generators which are 2-cycles
                  call DecomposeAbelianSym(s2%s,AbelConj)
                  do i=1,3
@@ -141,7 +141,7 @@ contains
          use SymData, only: SymTable,nSym
          IMPLICIT NONE
          INTEGER IUNIT,I,J
-         
+
          DO I=0,NSYM-1
             DO J=0,NSYM-1
                CALL WRITESYM(IUNIT,SYMTABLE(I+1,J+1),.FALSE.)
@@ -150,7 +150,7 @@ contains
          ENDDO
          IF(NSYM.EQ.0) THEN
             WRITE(6,*) "No Symmetry table found."
-         ENDIF 
+         ENDIF
       END SUBROUTINE WRITESYMTABLE
 
       LOGICAL FUNCTION LSYMSYM(SYM)
@@ -193,7 +193,7 @@ contains
          TAbelian=.true.
          nSymGen=INT(log(NSYMMAX+0.0_dp)/log(2.0_dp)+.4_dp)
          WRITE(6,"(A,I3,A)") "  Generating abelian symmetry table with",&
-            nSymGen, " generators" 
+            nSymGen, " generators"
          WRITE(6,'(A,'//int_fmt(nSymMax)//')')                          &
                               "  Number of symmetry classes: ",nSymMax
 
@@ -220,7 +220,7 @@ contains
          call LogMemAlloc('SymConjTab',nSymlabels,4,this_routine,tagSymConjTab)
          if (TwoCycleSymGens .or. tUEG) then
              DO I=1,NBASIS,2
-!   place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is 
+!   place the sym label of each state in SymClasses(ISTATE).  For molp sym, this is
 !   the log_2 of the symmetry bit string
                 IF(G1(I)%Sym%s.EQ.0) THEN
 !   we don't have symmetry, so fake it.
@@ -289,7 +289,7 @@ contains
 !   SYMLABELS is used to classify all states which transform with the same symmetry
 !   for the excitation generation routines
 !   Each state's symmetry falls into a class SymClasses(ISTATE).
-!   The symmetry bit string, decomposing the sym label into its component irreps is in 
+!   The symmetry bit string, decomposing the sym label into its component irreps is in
 !   SymLabels(ISYMLABEL)
 !   The characters of this class are stored in SYMLABELCHARS(1:NROT, SymClasses(ISTATE))
 !   The total number of symmetry labels is NSYMLABELS
@@ -335,7 +335,7 @@ contains
 !         DO i=1,nbasis
 !             WRITE(6,*) i,Symreps(1,i),Symreps(2,i)
 !         enddo
-         
+
       END SUBROUTINE FREEZESYMLABELS
 
       SUBROUTINE GENMOLPSYMREPS()
@@ -359,7 +359,7 @@ contains
              CALL GENSYMREPS(G1,NBASIS,ARR,1.e-6_dp)
              return
          endif
-         
+
 !   now work out which reps are degenerate and label them
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
@@ -562,8 +562,8 @@ contains
 
          if(.not.tStoreStateList) then
 !.. We don't bother listing all pairs of orbs, because we can calculate the number
-!.. and they're easy to generate. 
-!.. Instead of listing all pairs of states, we can list all pairs of sym classes (labels), 
+!.. and they're easy to generate.
+!.. Instead of listing all pairs of states, we can list all pairs of sym classes (labels),
 !..  ordered according to their sym prod.
             allocate(SymPairProds(nSymLabels**2))
             call LogMemAlloc('SymPairProds',nSymLabels**2, &
@@ -635,9 +635,9 @@ contains
 !=  iPass
 !=    0   Count number of pairs of symmetries for each possible symmetry product
 !=    1   Store each pair of symmetries for each symmetry product
-!=    2   Count the number of pairs of STATES for each pair of symmetries.  
+!=    2   Count the number of pairs of STATES for each pair of symmetries.
 !=
-!=  NB This differs from GENAllSymStatePairs which goes through every possible 
+!=  NB This differs from GENAllSymStatePairs which goes through every possible
 !=     pair of states (and so is O(N^2)), and eventually stores them all.
 !=     Here we only store pairs of symmetries (but calculate the number of pairs of states)
 !=      This will only work for Abelian symmetries.
@@ -666,7 +666,7 @@ contains
                   SymPairProds(iProd)%nPairsStateSS=0
                   SymPairProds(iProd)%nPairsStateOS=0
                ENDIF
-                  
+
 !.. iOS counts the number of pairs of spin-orbitals with the opposite spin, which give rise to the
 !.. given symmetry product. iSS is for same spin orbital pairs.
                iOS=SymLabelCounts(2,I)*SymLabelCounts(2,J)
@@ -682,7 +682,7 @@ contains
 !   put the pair into the list of pairs.
                      SymStatePairs(1,SymPairProds(iProd)%nIndex+SymPairProds(iProd)%nPairs) = I
                      SymStatePairs(2,SymPairProds(iProd)%nIndex+SymPairProds(iProd)%nPairs) = J
-!                     WRITE(6,"(3I5,Z10,3I5)") 
+!                     WRITE(6,"(3I5,Z10,3I5)")
 !     &                  iProd,I,J,PROD,SymPairProds(iProd)%nIndex
 !     &                            +SymPairProds(iProd)%nPairs,
 !     &                           SymPairProds(iProd)%nIndex,
@@ -748,10 +748,10 @@ contains
          ENDDO
       END SUBROUTINE FindSymProd
 !.. SYMREPS is used to group together degenerate sets of orbitals of the same sym
-!.. (e.g. the six orbitals which might make up a T2g set), and is used for working 
+!.. (e.g. the six orbitals which might make up a T2g set), and is used for working
 !.. out the symmetry of a determinant in GETSYM
 !.. It uses that fact that even for non-abelian groups a completely filled degenerate symmetry set is totally symmetric.
-!..  Thus each member of a set of states which when completely filled gives a totally 
+!..  Thus each member of a set of states which when completely filled gives a totally
 !symmetric det should be labelled with the same symrep
 !     SYMREPS(2,*) has two sets of data:
 !   SYMREPS(1,IBASISFN) contains the numnber of the representation
@@ -803,7 +803,7 @@ contains
             NI(1:NEL)=NI2(1:NEL)
          ENDIF
          IF(tAbelian) THEN !For Abelian symmetry we don't need the symreps malarky.
-            DO I=1,NEL 
+            DO I=1,NEL
                ISYM%Sym=SYMPROD(ISYM%Sym,G1(NI(I))%Sym)
 !   add the momentum
                CALL ADDELECSYM(NI(I),G1,NBASISMAX,ISYM)
@@ -847,7 +847,7 @@ contains
          ENDIF
 !   round the momentum
          CALL ROUNDSYM(ISYM,NBASISMAX)
-         IF(ISC) CALL CSFGETSPIN(NI2,NEL,ISYM%Ms) 
+         IF(ISC) CALL CSFGETSPIN(NI2,NEL,ISYM%Ms)
          RETURN
       END SUBROUTINE GETSYM
 
@@ -914,7 +914,7 @@ contains
                   DO K=1,NROT
                      REPCHARS(K,NREPS)=CONJG(IRREPCHARS(K,I))*IRREPCHARS(K,J)
                   ENDDO
-                  
+
 !                  WRITE(6,*) NREPS,"PROD",I,J
 !                  CALL N_MEMORY_CHECK
 !                  CALL WRITECHARS(6,REPCHARS(1,NREPS),NROT,"ADDPRD")
@@ -980,7 +980,7 @@ contains
                ENDIF
                NEXTSYMLAB=NEXTSYMLAB+1
                IF(.NOT.LDO) THEN
-!   We've not manage to add any more irreps, so we have achieved self-consistency.  
+!   We've not manage to add any more irreps, so we have achieved self-consistency.
 !Do one more pass to check, saving all C.. non-reducible reps
                   LDO=.TRUE.
                   LDO2=.FALSE.
@@ -988,7 +988,7 @@ contains
                ENDIF
             END DO lp2
          ENDDO
-!   
+!
          WRITE(6,*) "IRREP TABLE"
          CALL WRITEIRREPTAB(6,IRREPCHARS,NROT,NSYM)
          IF(NREPS.GT.0) THEN
@@ -1011,7 +1011,7 @@ contains
       END SUBROUTINE GENIRREPS
 
 
-!   Display irrep table      
+!   Display irrep table
       SUBROUTINE WRITEIRREPTAB(IUNIT,CHARS,NROT,NSYM)
          IMPLICIT NONE
          INTEGER IUNIT,NROT,NSYM
@@ -1075,12 +1075,12 @@ contains
 !   write in terms of I.
                      IF(LREAL) THEN
                         WRITE(IUNIT,"(G14.9,A)",advance='no') CHARS(J)," "
-                     ELSE                        
+                     ELSE
                         IF(ABS(AIMAG(CHARS(J))+1.0_dp).LT.1.0e-2_dp) THEN
                            WRITE(IUNIT,"(A)",advance='no') " -I "
                         ELSEIF(ABS(AIMAG(CHARS(J))-1.0_dp).LT.1.0e-2_dp) THEN
                            WRITE(IUNIT,"(A)",advance='no') "  I "
-                        ELSE 
+                        ELSE
                          WRITE(IUNIT,"(I2,A)",advance='no') NINT(AIMAG(CHARS(J))), "I "
                         ENDIF
                      ENDIF
@@ -1161,8 +1161,8 @@ contains
             ENDIF
          ENDDO
       END SUBROUTINE DECOMPOSEREP
-   
- 
+
+
 !   Decompose rep CHARS into irreps in IRREPCHARS.  Bit 0 in IDECOMP corresponds to the first irrep etc.
 !   CHARS at the end contains the remainder after the decomposition.
 !   Return .FALSE. if the decomposition is complete and CHARS contains only 0.
@@ -1322,12 +1322,12 @@ contains
          ENDDO
 !         DO I=1,NBASIS
 !            WRITE(6,*) "SR1",SYMREPS(1,I),SYMREPS(2,I)
-!         ENDDO   
+!         ENDDO
       END SUBROUTINE GENSYMREPS
 
 !.  Irrep symmetries are specified in SYM(5).
 !   if SYM(5)=0, we assume it's totally symmetric
-!   Other irreps contributing to the symmetry have bits set in 
+!   Other irreps contributing to the symmetry have bits set in
 !   SYM.
 !   e.g. if irreps are a1,a2,b1,b2
       LOGICAL FUNCTION LCHKSYM(ISYM,JSYM)
@@ -1346,7 +1346,7 @@ contains
         LCHKSYM=LCHKSYM.AND.LSYMSYM(SYMPROD(SymConj(ISYM%SYM),JSYM%SYM))
       RETURN
       END FUNCTION LCHKSYM
-      
+
       LOGICAL FUNCTION LCHKSYMD(NI,NJ,NEL,G1,NBASISMAX)
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -1414,7 +1414,7 @@ contains
          ISYM%Ms=I+SSYM
          RETURN
       END SUBROUTINE ADDELECSYM
-      
+
       SUBROUTINE ROUNDSYM(ISYM,NBASISMAX)
          use SystemData, only: BasisFN
          IMPLICIT NONE
@@ -1458,7 +1458,7 @@ contains
 
                 CALL MOMPBCSYM(ISYM%k,NBASISMAX)
          ENDIF
-         RETURN 
+         RETURN
       END SUBROUTINE ROUNDSYM
 
 !   NBASISMAX descriptor (1,3)
@@ -1515,7 +1515,7 @@ contains
                KK2=MOD(KK2,LDIM)
                IF(KK2.LT.NBASISMAX(J,1)) KK2=KK2+LDIM
                IF(KK2.GT.NBASISMAX(J,2)) KK2=KK2-LDIM
-               K1(J)=KK2 
+               K1(J)=KK2
             ENDDO
          ELSEIF(NBASISMAX(1,3).EQ.1) THEN
 !   we have a tilted lattice with PBC
@@ -1573,7 +1573,7 @@ contains
             ELSE
                SYMLT=A%s.LT.B%s
             ENDIF
-         ENDIF    
+         ENDIF
          RETURN
       END FUNCTION SYMLT
       LOGICAL FUNCTION SYMNE(A,B)
@@ -1607,7 +1607,7 @@ contains
             ELSE
                SYMGT=A%s.GT.B%s
             ENDIF
-         ENDIF    
+         ENDIF
          RETURN
       END FUNCTION SYMGT
 
@@ -1721,7 +1721,7 @@ contains
             ELSE
 !   we've got a sym system with polydimensional irreps, which leads to
 !   dets with combinations of irreps, so we cannot put sym into blocks
-                
+
 !  JSS: if only 1D symmetries, then a determinant can only interact with
 !  other determinants of the same symmetry.  This applies to Abelian
 !  groups.  If there are multi-dimensional irreps, then this is no
@@ -1776,7 +1776,7 @@ contains
 !   lower ones.
                      ILEV=ILEV+1
                      ISYM%k(ILEV)=IMAX(1)%k(ILEV)-1
-                     
+
                   ELSEIF(KALLOWED(ISYM,NBASISMAX)) THEN
                      TMORE2=.FALSE.
                      ILEV=0
@@ -1895,7 +1895,7 @@ contains
 !   Set to be totally symmetric
          FrozenSym=Sym
       END SUBROUTINE SetupFreezeSym
- 
+
 !Deal with K-point symmetries, using translational symmetry operations.
       ! JSS: use Abelian symmetry formulation (allows us to go beyond 64
       ! symmetry operations, and hence deal with larger k-point meshes).
@@ -1922,7 +1922,7 @@ contains
         SymClasses(I)=KpntInd(I)
         SymLabels(KPntInd(I))%s=ComposeAbelianSym(KpntSym(:,KPntInd(I)))
       END DO
-      write (6,*) 
+      write (6,*)
       write(6,'(a11," |",a13,"|",a10)')' K-vector',' Label ','Conjugate'
       write (6,'(39("-"))')
       do i=1,nSymLabels
@@ -1936,9 +1936,9 @@ contains
 !        do j=1,nSymLabels
 !          write (6,'(z12)',advance='no') SymProd(SymLabels(I),SymLabels(J))
 !        end do
-!        write (6,*) 
+!        write (6,*)
 !      end do
-!      write (6,'(/)') 
+!      write (6,'(/)')
 
 
 
@@ -2000,7 +2000,7 @@ contains
           use SystemData, only: Symmetry, BasisFN,tUEG,tReal
           use SymData, only: tAbelian
           implicit none
-          Type(Symmetry) TotSymRep 
+          Type(Symmetry) TotSymRep
 !           if (TAbelian.or.tUEG.or.treal) then
           if (TAbelian.or.tUEG) then
               TotSymRep%s=0
@@ -2109,7 +2109,7 @@ contains
 
     END FUNCTION RandExcitSymLabelProd
 
-    ! this function checks whether a determinant nI can appear if the 
+    ! this function checks whether a determinant nI can appear if the
     ! total momentum is to be targetK and determinants with momentum
     ! cK have already been picked. rEls is the number of electrons that can
     ! still be distributed
@@ -2123,7 +2123,7 @@ contains
       integer, dimension(3) :: bufK
       logical :: momcheck
       integer :: lI, rElsUpNew, rElsDownNew
-      
+
       ! returns true if nI can not appear
       momcheck = .true.
       if(G1(brr(nI))%Ms == -1) then

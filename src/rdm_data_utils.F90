@@ -155,7 +155,7 @@ contains
 
     end subroutine init_one_rdm_t
 
-    subroutine init_rdm_definitions_t(rdm_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm)
+    subroutine init_rdm_definitions_t(rdm_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm,filename)
 
         ! Set up arrays which define which RDMs and tRDMs are being sampled by
         ! specifying which states and FCIQMC simualtions are involved in those
@@ -171,6 +171,7 @@ contains
         type(rdm_definitions_t), intent(out) :: rdm_defs
         integer, intent(in) :: nrdms_standard, nrdms_transition
         integer, intent(in) :: states_for_transition_rdm(:,:) ! (2, nrdms_transition/nreplicas)
+        character(*), intent(in), optional :: filename
 
         integer :: nrdms, irdm, counter
 
@@ -258,6 +259,12 @@ contains
                 rdm_defs%rdm_labels(counter, rdm_defs%sim_labels(1,irdm)) = irdm
             end if
         end do
+
+        if(present(filename)) then
+           rdm_defs%output_file_prefix = filename
+        else
+           rdm_defs%output_file_prefix = 'TwoRDM'
+        endif
 
     end subroutine init_rdm_definitions_t
 
@@ -398,7 +405,7 @@ contains
         ! number, ijkl. Assuming (i,j,k,l) are *spin* orbitals labels (which
         ! they usually will be but not necessarily), the largest value for ijkl
         ! is M^4, where M is the number of spin orbitals.
-        
+
         ! The compression defined in this routine will not give a fully
         ! compressed RDM index labelling, because it allows a separate ij
         ! integer if i and j are equal, even though this RDM element is never
@@ -431,8 +438,8 @@ contains
         integer(int_rdm), intent(in) :: ijkl
         integer, intent(out) :: ij, kl, i, j, k, l ! spin or spatial orbitals
 
-        kl = mod(ijkl-1, int(nbasis, int_rdm)**2) + 1
-        ij = (ijkl - kl)/(nbasis**2) + 1
+        kl = int(mod(ijkl - 1, int(nbasis, int_rdm)**2)) + 1
+        ij = (int(ijkl) - kl) / (nbasis**2) + 1
 
         j = mod(ij-1, nbasis) + 1
         i = (ij - j)/nbasis + 1
@@ -603,7 +610,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         type(rdm_list_t), intent(inout) :: rdm_recv
 
-        integer :: iproc, nelements_old, new_nelements, ierr
+        integer :: iproc, nelements_old, new_nelements, ierr, i
         integer(MPIArg) :: send_sizes(0:nProcessors-1), recv_sizes(0:nProcessors-1)
         integer(MPIArg) :: send_displs(0:nProcessors-1), recv_displs(0:nProcessors-1)
 
@@ -612,11 +619,13 @@ contains
         ! How many rows of data to send to each processor.
         do iproc = 0, nProcessors-1
             send_sizes(iproc) = int(spawn%free_slots(iproc) - spawn%init_free_slots(iproc), MPIArg)
+            ! The displacement of the beginning of each processor's section of the
+            ! free_slots array, relative to the first element of this array.
+            send_displs(iproc) = int(spawn%init_free_slots(iproc)-1,MPIArg)
         end do
 
-        ! The displacement of the beginning of each processor's section of the
-        ! free_slots array, relative to the first element of this array.
-        send_displs = int(spawn%init_free_slots(0:nProcessors-1) - 1, MPIArg)
+        ! this does not work with some compilers
+        !send_displs = int(spawn%init_free_slots(0:nProcessors-1) - 1, MPIArg)
 
         call MPIAlltoAll(send_sizes, 1, recv_sizes, 1, ierr)
 
@@ -642,12 +651,16 @@ contains
         send_displs = send_displs*size(spawn%rdm_send%elements,1)
         recv_displs = recv_displs*size(spawn%rdm_send%elements,1)
 
+        rdm_recv%elements(:,nelements_old+1:) = 0
         ! Perform the communication.
         call MPIAlltoAllv(spawn%rdm_send%elements, send_sizes, send_displs, &
-                          rdm_recv%elements(:,nelements_old+1:), recv_sizes, recv_displs, ierr)
+                          rdm_recv%elements(:,nelements_old+1:), &
+                          recv_sizes, recv_displs, ierr)
 
         ! Now we can reset the free_slots array and reset the hash table.
-        spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+        do iproc = 0, nProcessors - 1
+           spawn%free_slots(iproc) = spawn%init_free_slots(iproc)
+        end do
         call clear_hash_table(spawn%rdm_send%hash_table)
 
     end subroutine communicate_rdm_spawn_t
@@ -850,16 +863,18 @@ contains
 
     end subroutine try_rdm_spawn_realloc
 
-    subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2)
+    subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2, scale_factor)
 
         ! Take the RDM elements in the rdm_1 object, and add them to the rdm_2
         ! object. The has table for rdm_2 will also be updated. This literally
         ! performs the numerical addition of the two RDM objects.
-
+        use SystemData, only: nel, nBasis
         use hash, only: hash_table_lookup, add_hash_table_entry
+        use Parallel_neci, only: MPISumAll
 
         type(rdm_list_t), intent(in) :: rdm_1
         type(rdm_list_t), intent(inout) :: rdm_2
+        real(dp), intent(in), optional :: scale_factor
 
         integer :: ielem
         integer(int_rdm) :: ijkl
@@ -867,8 +882,20 @@ contains
         integer :: ind, hash_val
         real(dp) :: real_sign_old(rdm_2%sign_length), real_sign_new(rdm_2%sign_length)
         real(dp) :: spawn_sign(rdm_2%sign_length)
+        real(dp) :: internal_scale_factor(rdm_1%sign_length), rdm_trace(rdm_1%sign_length)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_rdm_1_to_rdm_2'
+
+        if(present(scale_factor)) then
+           ! normalize and rescale the rdm_1 if requested here
+           call calc_rdm_trace(rdm_1, rdm_trace)
+           call MPISumAll(rdm_trace, internal_scale_factor)
+           internal_scale_factor = scale_factor*(nel*(nel-1))/(2*internal_scale_factor)
+        else
+           internal_scale_factor = 1.0_dp
+        endif
+
+        if(rdm_1%sign_length .ne. rdm_2%sign_length) call stop_all(t_r,"nrdms mismatch")
 
         do ielem = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
@@ -881,6 +908,10 @@ contains
             ! Search to see if this RDM element is already in the RDM 2.
             ! If it, tSuccess will be true and ind will hold the position of the
             ! element in rdm.
+            if(any((/i,j,k,l/)<=0) .or. any((/i,j,k,l/)>nBasis)) then
+               write(iout,*) "Invalid rdm element", i,j,k,l,ijkl, ielem, rdm_1%nelements
+               call stop_all(t_r,"Erroneous indices")
+            endif
             call hash_table_lookup((/i,j,k,l/), (/ijkl/), 0, rdm_2%hash_table, rdm_2%elements, ind, hash_val, tSuccess)
 
             if (tSuccess) then
@@ -888,7 +919,7 @@ contains
                 call extract_sign_rdm(rdm_2%elements(:,ind), real_sign_old)
 
                 ! Update the total sign.
-                real_sign_new = real_sign_old + spawn_sign
+                real_sign_new = real_sign_old + spawn_sign*internal_scale_factor
                 ! Encode the new sign.
                 call encode_sign_rdm(rdm_2%elements(:,ind), real_sign_new)
             else
@@ -908,6 +939,24 @@ contains
         end do
 
     end subroutine add_rdm_1_to_rdm_2
+
+    subroutine scale_rdm(rdm, scale_factor)
+      ! rescale all entries of one rdm by a scale factor
+      ! required in the adaptive shift correction, where a weighted sum
+      ! of two rdms is taken
+      implicit none
+      type(rdm_list_t), intent(inout) :: rdm
+      real(dp) :: scale_factor(rdm%sign_length)
+
+      integer :: i, j
+      real(dp) :: tmp_sign(rdm%sign_length)
+
+      do i = 1, rdm%nelements
+         call extract_sign_rdm(rdm%elements(:,i), tmp_sign)
+         tmp_sign = tmp_sign * scale_factor
+         call encode_sign_rdm(rdm%elements(:,i), tmp_sign)
+      end do
+    end subroutine scale_rdm
 
     subroutine annihilate_rdm_list(rdm)
 
@@ -1015,5 +1064,43 @@ contains
         end if
 
     end subroutine add_to_en_pert_t
+
+    subroutine calc_rdm_trace(rdm, rdm_trace)
+
+        ! Calculate trace of the 2-RDM in the rdm object, and output it to
+        ! rdm_trace.
+
+        ! This trace is defined as
+        !
+        ! rdm_trace = \sum_{ij} \Gamma_{ij,ij},
+        !
+        ! where \Gamma_{ij,kl} is the 2-RDM stored in rdm, and i and j are
+        ! spin orbital labels.
+
+        use rdm_data, only: rdm_spawn_t
+
+        type(rdm_list_t), intent(in) :: rdm
+        real(dp), intent(out) :: rdm_trace(rdm%sign_length)
+
+        integer(int_rdm) :: ijkl
+        integer :: ielem
+        integer :: ij, kl, i, j, k, l ! spin orbitals
+        real(dp) :: rdm_sign(rdm%sign_length)
+
+        rdm_trace = 0.0_dp
+
+        ! Loop over all RDM elements.
+        do ielem = 1, rdm%nelements
+            ijkl = rdm%elements(0,ielem)
+            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+            ! If this is a diagonal element, add the element to the trace.
+            if (ij == kl) then
+                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                rdm_trace = rdm_trace + rdm_sign
+            end if
+        end do
+
+    end subroutine calc_rdm_trace
 
 end module rdm_data_utils

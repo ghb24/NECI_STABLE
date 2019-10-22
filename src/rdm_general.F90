@@ -5,6 +5,12 @@ module rdm_general
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
     use SystemData, only: nel, nbasis
+    use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
+         inits_estimates, tSetupInitsEst
+    use FciMCData, only: proje_iter, Hii
+    use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
+    use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -31,7 +37,7 @@ contains
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
         use rdm_data, only: nElRDM_Time, FinaliseRDMs_time, RDMEnergy_time, states_for_transition_rdm
         use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
-        use rdm_data, only: rdm_definitions, en_pert_main
+        use rdm_data, only: rdm_definitions, en_pert_main, inits_estimates, tOpenSpatialOrbs
         use rdm_data_utils, only: init_rdm_spawn_t, init_rdm_list_t, init_one_rdm_t
         use rdm_data_utils, only: init_rdm_definitions_t, clear_one_rdms, clear_rdm_list_t
         use rdm_data_utils, only: init_en_pert_t
@@ -70,6 +76,9 @@ contains
         else
             tOpenShell = .false.
         end if
+        ! it is possible to have open-shell systems with spatial orbitals,
+        ! these have to be indexed differently
+        tOpenSpatialOrbs = tOpenShell .and. .not.tStoreSpinOrbs
 
         if (tExplicitAllRDM) then
             write(6,'(1X,"Explicitly calculating the reduced density matrices from the FCIQMC wavefunction.")')
@@ -95,6 +104,8 @@ contains
         end if
 
         call init_rdm_definitions_t(rdm_definitions, nrdms_standard, nrdms_transition, states_for_transition_rdm)
+        if(tinitsRDM) call init_rdm_definitions_t(&
+             rdm_inits_defs, nrdms_standard, nrdms_transition, states_for_transition_rdm,'Inits_TwoRDM')
 
         ! Allocate arrays for holding averaged signs and block lengths for the
         ! HF determinant.
@@ -127,33 +138,43 @@ contains
         ! to take symmetry into account. Include a factor of 1.5 to account for
         ! factors such as imperfect load balancing (which affects the spawned
         ! array).
-        rdm_nrows = nbasis*(nbasis-1_int64)/2_int64
-        max_nelems_main = 1.5*(rdm_nrows**2)/(8_int64*nProcessors)*rdm_main_size_fac
-        nhashes_rdm_main = 0.75*max_nelems_main*rdm_main_size_fac
+        rdm_nrows = nbasis * (nbasis - 1) / 2
+        max_nelems_main = int(1.5_dp * real(rdm_nrows**2, dp) / (8._dp * nProcessors) * rdm_main_size_fac)
+        nhashes_rdm_main = int(0.75 * max_nelems_main * rdm_main_size_fac)
 
         main_mem = max_nelems_main*(nrdms+1)*size_int_rdm
+        if(tinitsRDM) main_mem = 2*main_mem
         write(6,'(/,1X,"About to allocate main RDM array, size per MPI process (MB):", f14.6)') real(main_mem,dp)/1048576.0_dp
         call init_rdm_list_t(two_rdm_main, nrdms, max_nelems_main, nhashes_rdm_main)
+        if(tinitsRDM) then
+           call init_rdm_list_t(two_rdm_inits, nrdms, max_nelems_main, nhashes_rdm_main)
+        end if
         write(6,'(1X,"Allocation of main RDM array complete.")')
 
+
         ! Factor of 10 over perfectly distributed size, for some safety.
-        standard_spawn_size = 10_int64*(rdm_nrows**2_int64)/(8_int64*nProcessors)
+        standard_spawn_size = int(10_int64 * rdm_nrows**2_int64 / (8_int64 * nProcessors))
         ! For cases where we have a small number of orbitals but large number
         ! of processors (i.e., large CASSCF calculations), we may find the
         ! above standard_spawn_size is less than nProcessors. Thus, there
         ! would not be at least one spawning slot per processor. In such cases
         ! make sure that we have at least 50 per processor, for some safety.
-        min_spawn_size = 50_int64*nProcessors
-        max_nelems_spawn = max(standard_spawn_size, min_spawn_size)*rdm_spawn_size_fac
-        nhashes_rdm_spawn = 0.75*max_nelems_spawn*rdm_spawn_size_fac
+        min_spawn_size = int(50_int64 * nProcessors)
+        max_nelems_spawn = max(standard_spawn_size, min_spawn_size) * int(rdm_spawn_size_fac)
+        nhashes_rdm_spawn = int(0.75 * max_nelems_spawn * rdm_spawn_size_fac)
 
-        spawn_mem = max_nelems_spawn*(nrdms+1_int64)*size_int_rdm
+        spawn_mem = max_nelems_spawn * (nrdms + 1) * size_int_rdm
+        if(tinitsRDM) spawn_mem = 2*spawn_mem
         write(6,'(1X,"About to allocate RDM spawning array, size per MPI process (MB):", f14.6)') real(spawn_mem,dp)/1048576.0_dp
         call init_rdm_spawn_t(two_rdm_spawn, rdm_nrows, nrdms, max_nelems_spawn, nhashes_rdm_spawn)
+        if(tinitsRDM) then
+           call init_rdm_spawn_t(two_rdm_inits_spawn, rdm_nrows, nrdms, max_nelems_spawn,&
+                nhashes_rdm_spawn)
+        endif
         write(6,'(1X,"Allocation of RDM spawning array complete.")')
 
-        max_nelems_recv = 4_int64*(rdm_nrows**2)/(8*nProcessors)*rdm_recv_size_fac
-        max_nelems_recv_2 = 2_int64*(rdm_nrows**2)/(8*nProcessors)*rdm_recv_size_fac
+        max_nelems_recv = 4 * rdm_nrows**2 / (8 * nProcessors) * int(rdm_recv_size_fac)
+        max_nelems_recv_2 = 2 * rdm_nrows**2 / (8 * nProcessors) * int(rdm_recv_size_fac)
 
         recv_mem = (max_nelems_recv + max_nelems_recv_2)*(nrdms+1)*size_int_rdm
         write(6,'(1X,"About to allocate RDM receiving arrays, size per MPI process (MB):", f14.6)') real(recv_mem,dp)/1048576.0_dp
@@ -168,6 +189,9 @@ contains
         memory_alloc = memory_alloc + main_mem + spawn_mem + recv_mem
 
         call init_rdm_estimates_t(rdm_estimates, nrdms_standard, nrdms_transition, print_2rdm_est)
+        if(tOutputInitsRDM .or. tInitsRDMRef) &
+             call init_rdm_estimates_t(inits_estimates, nrdms_standard, &
+             nrdms_transition, print_2rdm_est, 'InitsRDMEstimates')
 
         ! Initialise 1-RDM objects.
         if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3 .or. &
@@ -176,17 +200,25 @@ contains
             allocate(one_rdms(nrdms), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating one_rdms array.')
 
+            if(tinitsRDM) then
+               allocate(inits_one_rdms(nrdms), stat=ierr)
+               if (ierr /= 0) call stop_all(t_r, 'Problem allocating one_rdms array.')
+            endif
             do irdm = 1, nrdms
                 call init_one_rdm_t(one_rdms(irdm), NoOrbs)
 
                 memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
+                if(tinitsRDM) then
+                   call init_one_rdm_t(inits_one_rdms(irdm), NoOrbs)
+                   memory_alloc = memory_alloc + ( NoOrbs * NoOrbs * 8 )
+                endif
             end do
         end if
 
         if (tEN2) then
             ! Initialise Epstein-Nesbet perturbation object.
             ndets_en_pert = MaxSpawned
-            nhashes_en_pert = 0.8*MaxSpawned
+            nhashes_en_pert = int(0.8 * MaxSpawned)
             call init_en_pert_t(en_pert_main, nrdms_standard, ndets_en_pert, nhashes_en_pert)
         end if
 
@@ -273,7 +305,7 @@ contains
 
             ! Finally, we need to hold onto the parents of the spawned particles.
             ! This is not necessary if we're doing completely explicit calculations.
-            allocate(Spawned_Parents(0:(NIfDBO+2), MaxSpawned), stat=ierr)
+            allocate(Spawned_Parents(0:(NIfDBO+3), MaxSpawned), stat=ierr)
             if (ierr /= 0) call stop_all(t_r,'Problem allocating Spawned_Parents array,')
             call LogMemAlloc('Spawned_Parents', MaxSpawned*(NIfDBO+3), size_n_int,&
                                                 t_r,Spawned_ParentsTag, ierr)
@@ -282,8 +314,7 @@ contains
             call LogMemAlloc('Spawned_Parents_Index', MaxSpawned*2,4, t_r,&
                                                         Spawned_Parents_IndexTag, ierr)
 
-            memory_alloc = memory_alloc + ( (NIfTot + 2) * MaxSpawned * size_n_int )
-
+            memory_alloc = memory_alloc + ( (NIfTot + 3) * MaxSpawned * size_n_int )
             memory_alloc = memory_alloc + ( 2 * MaxSpawned * 4 )
 
         end if
@@ -562,7 +593,7 @@ contains
         NIfBCast_old = NIfBCast
         NOffParent = NIfBCast + 1
 
-        NIfBCast = NIfBCast + NIfDBO + 2
+        NIfBCast = NIfBCast + NIfDBO + 3
 
         allocate(SpawnVec(0:NIfBCast, MaxSpawned), SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
         log_alloc(SpawnVec, SpawnVecTag, ierr)
@@ -618,6 +649,11 @@ contains
         call dealloc_rdm_list_t(two_rdm_recv)
         call dealloc_rdm_list_t(two_rdm_recv_2)
         call dealloc_rdm_spawn_t(two_rdm_spawn)
+        ! deallocate the inits-only rdms
+        if(tinitsRDM) then
+           call dealloc_rdm_list_t(two_rdm_inits)
+           call dealloc_rdm_spawn_t(two_rdm_inits_spawn)
+        end if
 
         ! Deallocate the EN perturbation orbject.
         if (tEN2) then
@@ -631,8 +667,10 @@ contains
         if (allocated(one_rdms)) then
             do irdm = 1, size(one_rdms)
                 call dealloc_one_rdm_t(one_rdms(irdm))
+                if(tinitsRDM) call dealloc_one_rdm_t(inits_one_rdms(irdm))
             end do
             deallocate(one_rdms)
+            if(tinitsRDM .and. allocated(inits_one_rdms)) deallocate(inits_one_rdms)
         end if
 
         if (tExplicitAllRDM) then
@@ -729,7 +767,7 @@ contains
         integer :: iunused
 
         ! This extracts everything.
-        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, store)
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, j, store)
 
         IterRDMStartI = 0.0_dp
         AvSignI = 0.0_dp
@@ -783,7 +821,7 @@ contains
         IterRDMStartI = get_iter_occ_tot(j)
 
         ! This extracts everything.
-        call extract_bit_rep (iLutnI, nI, SignI, FlagsI)
+        call extract_bit_rep (iLutnI, nI, SignI, FlagsI, j, store)
 
         associate(ind => rdm_defs%sim_labels)
 
@@ -814,7 +852,7 @@ contains
                 av_ind_1 = irdm*2-1
                 av_ind_2 = irdm*2
 
-                if ((SignI(ind(1,irdm)) == 0) .and. (IterRDMStartI(av_ind_1) /= 0)) then
+                if (near_zero(SignI(ind(1,irdm))) .and. (.not. near_zero(IterRDMStartI(av_ind_1)))) then
                     ! The population has just gone to zero on population 1.
                     ! Therefore, we need to start a new averaging block.
                     AvSignI(av_ind_1) = 0
@@ -822,7 +860,7 @@ contains
                     AvSignI(av_ind_2) = SignI(ind(2,irdm))
                     IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles,dp)
 
-                else if ((SignI(ind(2,irdm)) == 0) .and. (IterRDMStartI(av_ind_2) /= 0)) then
+                else if (near_zero(SignI(ind(2,irdm))) .and. (.not. near_zero(IterRDMStartI(av_ind_2)))) then
                     ! The population has just gone to zero on population 2.
                     ! Therefore, we need to start a new averaging block.
                     AvSignI(av_ind_2) = 0
@@ -830,21 +868,21 @@ contains
                     AvSignI(av_ind_1) = SignI(ind(1,irdm))
                     IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles,dp)
 
-                else if ((SignI(ind(1,irdm)) /= 0) .and. (IterRDMStartI(av_ind_1) == 0)) then
+                else if (.not. near_zero(SignI(ind(1,irdm))) .and. near_zero(IterRDMStartI(av_ind_1))) then
                     ! Population 1 has just become occupied.
                     IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles,dp)
                     IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles,dp)
                     AvSignI(av_ind_1) = SignI(ind(1,irdm))
                     AvSignI(av_ind_2) = SignI(ind(2,irdm))
-                    if (SignI(ind(2,irdm)) == 0) IterRDMStartI(av_ind_2) = 0
+                    if (near_zero(SignI(ind(2,irdm)))) IterRDMStartI(av_ind_2) = 0
 
-                else if ((SignI(ind(2,irdm)) /= 0) .and. (IterRDMStartI(av_ind_2) == 0)) then
+                else if (.not. near_zero(SignI(ind(2,irdm))) .and. near_zero(IterRDMStartI(av_ind_2))) then
                     ! Population 2 has just become occupied.
                     IterRDMStartI(av_ind_1) = real(Iter + PreviousCycles,dp)
                     IterRDMStartI(av_ind_2) = real(Iter + PreviousCycles,dp)
                     AvSignI(av_ind_1) = SignI(ind(1,irdm))
                     AvSignI(av_ind_2) = SignI(ind(2,irdm))
-                    if (SignI(ind(1,irdm)) == 0) IterRDMStartI(av_ind_1) = 0
+                    if (near_zero(SignI(ind(1,irdm)))) IterRDMStartI(av_ind_1) = 0
 
                 else
                     ! Nothing unusual has happened so update both average
@@ -866,6 +904,100 @@ contains
         iunused = store%nopen
 
     end subroutine extract_bit_rep_avsign_norm
+
+  !------------------------------------------------------------------------------------------!
+
+    subroutine UpdateRDMCorrectionTerm()
+      use Parallel_neci
+      ! first, communicate the rdm correction term between the procs
+      ! take the instantaneous correction term and sum it into the accumulated one
+      implicit none
+      real(dp) :: AllInstRDMCorrectionFactor
+
+      call MPISumAll(InstRDMCorrectionFactor, AllInstRDMCorrectionFactor)
+      ! rezero the instantaneous, proc local correction
+      InstRDMCorrectionFactor = 0.0_dp
+
+      ! average the so-far accumulated RDMCorrection factor with the instantaneous one
+      RDMCorrectionFactor = (RDMCorrectionFactor * ThisRDMIter + AllInstRDMCorrectionFactor) /&
+           (ThisRDMIter+1.0_dp)
+
+      ! increase the iteration number count for averaging
+      ThisRDMIter = ThisRDMIter + 1.0_dp
+    end subroutine UpdateRDMCorrectionTerm
+
+  !------------------------------------------------------------------------------------------!
+
+    subroutine SumCorrectionContrib(DetSgn, DetPosition)
+      ! gather the sum (f_mu - 1) c_mu^2 used in the rdm filling
+      implicit none
+      real(dp), intent(in) :: DetSgn(lenof_sign)
+      integer, intent(in) :: DetPosition
+
+      InstRDMCorrectionFactor = InstRDMCorrectionFactor + getRDMCorrectionTerm(DetSgn, &
+           DetPosition)
+
+    end subroutine SumCorrectionContrib
+
+  !------------------------------------------------------------------------------------------!
+
+    function getRDMCorrectionTerm(DetSgn, DetPosition) result(rdmC)
+      ! get (fmu - 1) c_mu^2 for a single mu
+      implicit none
+      real(dp), intent(in) :: DetSgn(lenof_sign)
+      integer, intent(in) :: DetPosition
+      real(dp) :: rdmC
+
+      integer :: run
+
+      rdmC = 0.0_dp
+      do run = 1, inum_runs, 2
+         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(run+1)
+      end do
+
+    end function getRDMCorrectionTerm
+
+  !------------------------------------------------------------------------------------------!
+
+    function avFFunc(DetSgn,DetPosition) result(AvFmu)
+      ! get fmu
+      use procedure_pointers, only: shiftFactorFunction
+      implicit none
+      real(dp), intent(in) :: DetSgn(lenof_sign)
+      integer, intent(in) :: DetPosition
+      real(dp) :: AvFmu
+
+      integer :: run
+      real(dp) :: fmu
+
+      AvFmu = 1.0_dp
+      do run = 1, inum_runs
+         fmu = shiftFactorFunction(DetPosition, run, mag_of_run(DetSgn,run))
+         AvFmu = AvFmu * fmu
+      end do
+      AvFmu = dressedFactor(AvFmu ** (1.0_dp/real(inum_runs,dp)))
+    end function avFFunc
+
+  !------------------------------------------------------------------------------------------!
+
+    function dressedFactor(fmu) result(fmup)
+      implicit none
+      real(dp), intent(in) :: fmu
+      real(dp) :: fmup
+      real(dp) :: eCorr, e0Inits, enOffset
+      if(tInitsRDMRef .and. tSetupInitsEst .and. sum(abs(proje_iter)) > eps) then
+         ! initiator-only reference energy
+         e0Inits = inits_estimates%energy_num(1)/inits_estimates%norm(1)
+         ! correlation energy
+         eCorr = sum(proje_iter)/inum_runs + Hii - e0Inits
+         enOffset = (Hii - e0Inits)/eCorr
+         fmup = enOffset + fmu*(inum_runs*eCorr)/(sum(proje_iter))
+      else
+         fmup = fmu
+      endif
+    end function dressedFactor
+
+  !------------------------------------------------------------------------------------------!
 
     subroutine calc_rdmbiasfac(p_spawn_rdmfac, p_gen, SignCurr, RDMBiasFacCurr)
 
@@ -928,7 +1060,8 @@ contains
 
         use DetBitOps, only: DetBitEQ
         use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, TempSpawnedPartsInd
-        use bit_reps, only: zero_parent, encode_parent
+        use bit_reps, only: zero_parent, encode_parent, all_runs_are_initiator
+        use CalcData, only: tNonInitsForRDMs
 
         real(dp), intent(in) :: RDMBiasFacCurr
         integer, intent(in) :: WalkerNumber, procJ
@@ -941,7 +1074,7 @@ contains
             ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero
             ! so it is not worth carrying on.
             call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
-        else
+        else if(tNonInitsForRDMs .or. all_runs_are_initiator(ilutI)) then
 
             ! First we want to check if this Di.Dj pair has already been accounted for.
             ! This means searching the Dj's that have already been spawned from this Di, to make sure
@@ -991,6 +1124,9 @@ contains
                 ! double count this pair.
                 call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
             end if
+         else
+            ! This Di is a non-initiator, and we specified to take only initiators into account
+            call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
         end if
 
     end subroutine store_parent_with_spawned

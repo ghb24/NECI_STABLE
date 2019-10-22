@@ -7,7 +7,7 @@ Module MomInv
     use SystemData, only: NEl,G1,nBasis,Brr,Arr,tFixLz,LzTot,G1,tAntisym_MI
     use Parallel_neci
     use sort_mod
-    use SymExcitDataMod, only: MomInvSymOrb  
+    use SymExcitDataMod, only: MomInvSymOrb
 
     implicit none
 
@@ -19,7 +19,7 @@ Module MomInv
         character(len=*), parameter :: t_r='SetupMomInv'
         logical :: exists,tOrbTaken(nBasis)
         integer :: LzMap_unit,Orb,OrbPartner,i,j,ierr
-    
+
         if(.not.tFixLz) then
             call stop_all(t_r,"Cannot use MomInv functions without Lz symmetry")
         endif
@@ -81,7 +81,7 @@ Module MomInv
                                 exit
                             endif
                         enddo
-                        
+
                         if(j.gt.nBasis) then
                             call stop_all(t_r,"Could not find correct pair for orbital")
                         endif
@@ -130,7 +130,7 @@ Module MomInv
         do i=1,nBasis
             write(6,"(2I10)") i,MomInvSymOrb(i)
         enddo
-                
+
     end subroutine SetupMomInv
 
     !Create momentum paired nI
@@ -154,7 +154,7 @@ Module MomInv
         integer(n_int) , intent(out) :: MomSymiLut(0:NIfTot)
         integer :: i,j,nITmp(nel)
         integer, intent(in), optional :: nI(NEl)
-        
+
         MomSymiLut(:)=0
         if(present(nI)) then
             do i=1,nel
@@ -181,7 +181,7 @@ Module MomInv
         integer(n_int), intent(in) :: iLut(0:NIfTot)
         integer(n_int), intent(out) :: iLutSym(0:NIfTot)
         integer :: i
-            
+
         iLutSym(:)=0
         do i=1,nel
             nISym(i)=MomInvSymOrb(nI(i))
@@ -217,7 +217,7 @@ Module MomInv
                 set_orb(iLutSym,nISym(i))
             enddo
         endif
-            
+
         !Use ilut representation to return correct determinant
         i=DetBitLT(iLut,iLutSym,NIfD)
         if(i.eq.1) then
@@ -243,7 +243,7 @@ Module MomInv
         logical, intent(out) :: tSwapped
         integer(n_int) :: iLutTemp(0:NIfTot)
         integer :: i
-        
+
         i=DetBitLT(iLut,iLutSym,NIfD)
         if(i.eq.1) then
             !swap
@@ -286,7 +286,7 @@ Module MomInv
     end subroutine ReturnMomAllowedDet
 
     !Returns true if the function is an 'allowed' MI function
-    !(i.e. the determinant which would be stored in an FCIMC run) 
+    !(i.e. the determinant which would be stored in an FCIMC run)
     logical function IsAllowedMI(nI,iLutnI)
         implicit none
         integer, intent(in) :: nI(NEl)

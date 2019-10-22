@@ -6,11 +6,12 @@ module load_balance
                         tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas, tau, tSeniorInitiators, &
-                        t_activate_decay
+                        t_activate_decay, tAutoAdaptiveShift
     use global_det_data, only: global_determinant_data, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
-                               reset_all_shift_ints, det_diagH
+                               reset_all_shift_ints, det_diagH, store_decoding, &
+                               reset_all_tot_spawns, reset_all_acc_spawns
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial, flag_prone
     use bit_reps, only: set_flag, nullify_ilut_part, &
@@ -217,9 +218,9 @@ contains
                 ! n.b. min/maxloc treat all arrays as starting at index 1. sigh
                 avg_parts = real(sum(proc_parts), dp) / real(nProcessors, dp)
                 min_proc = minloc(proc_parts, dim=1) - 1
-                min_parts = proc_parts(min_proc)
+                min_parts = int(proc_parts(min_proc))
                 max_proc = maxloc(proc_parts, dim=1) - 1
-                max_parts = proc_parts(max_proc)
+                max_parts = int(proc_parts(max_proc))
                 ASSERT(max_proc <= ubound(proc_parts, 1))
                 ASSERT(min_proc <= ubound(proc_parts, 1))
                 ASSERT(min_proc >= 0)
@@ -289,7 +290,7 @@ contains
         if(iBlockMoves.gt.0) then
             !Only redo hash table if blocks have been moved around
             !Not only is this an optimization, but it also seems to hide the fact
-            !that for gfortran and openmpi 1.6, going through this code at 
+            !that for gfortran and openmpi 1.6, going through this code at
             !the initialization step of the calculation starting from a single
             !walker seems to cause a race condition later on in the calculation,
             !even though this code has no mpi calls, and is not doing anything with
@@ -309,16 +310,17 @@ contains
 
     end subroutine
 
-        
+
     subroutine move_block(block, tgt_proc)
       implicit none
         integer, intent(in) :: block, tgt_proc
-        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val
-        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
+
+        integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val, PartInd
+        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon, err
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
         real(dp) :: HDiag
-        
+
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag_nsend = 223456
         integer, parameter :: mpi_tag_dets = 223457
@@ -355,9 +357,7 @@ contains
 
                     ! Remove the det from the main list.
                     call nullify_ilut(CurrentDets(:,j))
-                    call remove_hash_table_entry(HashIndex, det, j)
-                    iEndFreeSlot = iEndFreeSlot + 1
-                    FreeSlot(iEndFreeSlot) = j
+                    call RemoveHashDet(HashIndex, det, j)
                 end if
             end do
 
@@ -369,14 +369,14 @@ contains
 
             ! we only communicate the trial hashtable
             if(tTrialWavefunction .and. tTrialHash) then
-               ! now get those connected determinants that need to be 
+               ! now get those connected determinants that need to be
                ! communicated (they might not be in currentdets)
-               nconsend = buffer_trial_ht_entries(block, con_ht, con_space_size)   
+               nconsend = buffer_trial_ht_entries(block, con_ht, con_space_size)
                ! And send the trial wavefunction connection information
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
                if(nelem > 0) then
-                  call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                  call MPISend(con_send_buf(0:NConEntry,1:nconsend),nelem,tgt_proc, &
                        mpi_tag_con, ierr)
                endif
                ! Do the same with the trial wavefunction itself
@@ -385,7 +385,7 @@ contains
                call MPISend(nconsend,1,tgt_proc,mpi_tag_ntrialsend, ierr)
 
                if(nelem > 0) then
-                    call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc,&
+                    call MPISend(con_send_buf(0:NConEntry,1:nconsend),nelem,tgt_proc,&
                     mpi_tag_trial, ierr)
                  endif
             end if
@@ -398,7 +398,7 @@ contains
             ! Receive walkers!
             call MPIRecv(nsend, 1, src_proc, mpi_tag_nsend, ierr)
             nelem = nsend * (1 + NIfTot)
-            call MPIRecv(SpawnedParts, nelem, src_proc, mpi_tag_dets, ierr)
+            call MPIRecv(SpawnedParts(0:NIfTot, 1:nsend), nelem, src_proc, mpi_tag_dets, ierr)
 
             do j = 1, nsend
                 call decode_bit_det(det, SpawnedParts(:,j))
@@ -407,12 +407,12 @@ contains
 
                 ! n.b. Ensure that Totwalkers passed in always has the correct
                 !      type even on 32-bit machines
-                TotWalkersTmp = TotWalkers
+                TotWalkersTmp = int(TotWalkers)
 
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
-                                   hash_val, det, HDiag)
+                                   hash_val, det, HDiag, PartInd, err)
                 TotWalkers = TotWalkersTmp
             end do
 
@@ -429,7 +429,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
                   ! get the connected states themselves
-                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
+                  call MPIRecv(con_send_buf(0:NConEntry, 1:nconsend), nelem, src_proc, mpi_tag_con, ierr)
                   ! add the recieved connected dets to the hashtable
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        con_ht, con_space_size)
@@ -439,7 +439,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
                   ! get the states
-                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_trial, ierr)
+                  call MPIRecv(con_send_buf(0:NConEntry, 1:nconsend), nelem, src_proc, mpi_tag_trial, ierr)
                   ! add them to the hashtable
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        trial_ht, trial_space_size)
@@ -457,23 +457,25 @@ contains
     end subroutine
 
 
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag)
 
+    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, DetPosition, err)
         ! Add a new determinant to the main list. This involves updating the
         ! list length, copying it across, updating its flag, adding its diagonal
         ! helement (if neccessary). We also need to update the hash table to
         ! point at it correctly.
 
-        integer, intent(inout) :: TotWalkersNew 
+        integer, intent(inout) :: TotWalkersNew
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
         real(dp), intent(in) :: HDiag
-        integer :: DetPosition
+        integer, intent(out) :: DetPosition
+        integer, intent(out) :: err
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         real(dp), dimension(lenof_sign) :: SignCurr
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
+        err = 0
         if (iStartFreeSlot <= iEndFreeSlot) then
             ! We can slot it into a free slot in the main list, rather than increase its length
             DetPosition = FreeSlot(iStartFreeSlot)
@@ -484,10 +486,12 @@ contains
             TotWalkersNew = TotWalkersNew + 1
             DetPosition = TotWalkersNew
             if (TotWalkersNew >= MaxWalkersPart) then
-                call stop_all(t_r, "Not enough memory to merge walkers into main list. Increase MemoryFacPart")
+               ! return with an error
+               err = 1
+               return
             end if
             CurrentDets(:,DetPosition) = iLutCurr(:)
-            
+
             ! if the list is almost full, activate the walker decay
             if(t_prone_walkers .and. TotWalkersNew > 0.95_dp * real(MaxWalkersPart,dp)) then
                t_activate_decay = .true.
@@ -500,11 +504,22 @@ contains
         global_determinant_data(:,DetPosition) = 0.0_dp
         call set_det_diagH(DetPosition, real(HDiag,dp) - Hii)
 
+        ! we reset the death timer, so this determinant can linger again if
+        ! it died before
+
+        ! we add the determinant to the cache
+        call store_decoding(DetPosition, nJ)
+
         if(tSeniorInitiators) then
             call extract_sign (ilutCurr, SignCurr)
             call set_all_spawn_pops(DetPosition, SignCurr)
             call reset_all_tau_ints(DetPosition)
             call reset_all_shift_ints(DetPosition)
+        end if
+
+        if(tAutoAdaptiveShift) then
+            call reset_all_tot_spawns(DetPosition)
+            call reset_all_acc_spawns(DetPosition)
         end if
 
         ! If using a trial wavefunction, search to see if this state is in
@@ -552,6 +567,17 @@ contains
 
     end subroutine AddNewHashDet
 
+    subroutine RemoveHashDet(HashIndex, nJ, partInd)
+      implicit none
+      type(ll_node), pointer, intent(inout) :: HashIndex(:)
+      integer, intent(in) :: nJ(nel), partInd
+      ! remove a determinant from the hashtable
+      call remove_hash_table_entry(HashIndex, nJ, PartInd)
+      ! Add to "freeslot" list so it can be filled in.
+      iEndFreeSlot = iEndFreeSlot + 1
+      FreeSlot(iEndFreeSlot) = PartInd
+    end subroutine RemoveHashDet
+
     function get_diagonal_matel(nI, ilut) result(diagH)
       ! Get the diagonal element for a determinant nI with ilut representation ilut
 
@@ -566,7 +592,7 @@ contains
       if(tHPHF) then
          diagH = hphf_diag_helement(nI, ilut)
       else
-         diagH = get_helement(nI,nI,0) 
+         diagH = get_helement(nI,nI,0)
       endif
 
     end function get_diagonal_matel
@@ -577,7 +603,7 @@ contains
         use hphf_integrals, only: hphf_off_diag_helement
         use FciMCData, only: ProjEDet, CurrentDets, n_prone_dets
         use LoggingData, only: FCIMCDebug
-        use bit_rep_data, only: NOffSgn 
+        use bit_rep_data, only: NOffSgn
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -608,9 +634,9 @@ contains
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                    AnnihilatedDet = AnnihilatedDet + 1 
+                    AnnihilatedDet = AnnihilatedDet + 1
                 else
-                   
+
                    ! count the number of walkers that are single-spawns at the threshold
                    if(t_prone_walkers) then
                       if(test_flag(CurrentDets(:,i), flag_prone)) n_prone_dets = n_prone_dets + 1
@@ -629,44 +655,41 @@ contains
                                 pRemove=(scaledOccupiedThresh-abs(CurrentSign(j)))/scaledOccupiedThresh
                                 r = genrand_real2_dSFMT ()
                                 if (pRemove  >  r) then
-                                    !Remove this walker
-                                    NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
-                                    iter_data%nremoved(j) = iter_data%nremoved(j) &
-                                                          + abs(CurrentSign(j))
-                                    CurrentSign(j) = 0.0_dp
-                                    call nullify_ilut_part(CurrentDets(:,i), j)
-                                    call decode_bit_det(nI, CurrentDets(:,i))
-                                    if (IsUnoccDet(CurrentSign)) then
-                                        call remove_hash_table_entry(HashIndex, nI, i)
-                                        iEndFreeSlot=iEndFreeSlot+1
-                                        FreeSlot(iEndFreeSlot)=i
-                                        
-                                        ! also update both the number of annihilated dets
-                                        AnnihilatedDet = AnnihilatedDet + 1
-                                        ! and the number of holes
-                                        HolesInList = HolesInList + 1
-                                    end if
+                                   !Remove this walker
+                                   NoRemoved(run) = NoRemoved(run) + abs(CurrentSign(j))
+                                   iter_data%nremoved(j) = iter_data%nremoved(j) &
+                                        + abs(CurrentSign(j))
+                                   CurrentSign(j) = 0.0_dp
+                                   call nullify_ilut_part(CurrentDets(:,i), j)
+                                   call decode_bit_det(nI, CurrentDets(:,i))
+                                   if (IsUnoccDet(CurrentSign)) then
+                                      call RemoveHashDet(HashIndex, nI, i)
+                                      ! also update both the number of annihilated dets
+                                      AnnihilatedDet = AnnihilatedDet + 1
+                                      ! and the number of holes
+                                      HolesInList = HolesInList + 1
+                                   end if
                                 else
-                                    NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(CurrentSign(j))
-                                    iter_data%nborn(j) = iter_data%nborn(j) &
-                                         + scaledOccupiedThresh - abs(CurrentSign(j))
-                                    CurrentSign(j) = sign(scaledOccupiedThresh, CurrentSign(j))
-                                    call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
+                                   NoBorn(run) = NoBorn(run) + scaledOccupiedThresh - abs(CurrentSign(j))
+                                   iter_data%nborn(j) = iter_data%nborn(j) &
+                                        + scaledOccupiedThresh - abs(CurrentSign(j))
+                                   CurrentSign(j) = sign(scaledOccupiedThresh, CurrentSign(j))
+                                   call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
                                 end if
-                            end if
-                        end if
-                    end do
+                             end if
+                          end if
+                       end do
 
                     TotParts = TotParts + abs(CurrentSign)
 
                     call addNormContribution(CurrentSign, tIsStateDeterm)
-                    
+
                     if (tCheckHighestPop) then
-                        ! If this option is on, then we want to compare the 
-                        ! weight on each determinant to the weight at the HF 
+                        ! If this option is on, then we want to compare the
+                        ! weight on each determinant to the weight at the HF
                         ! determinant.
                         !
-                        ! Record the highest weighted determinant on each 
+                        ! Record the highest weighted determinant on each
                         ! processor. If double run, only consider set 1 to keep things simple.
                         do run = 1, inum_runs
                             lbnd = min_part_type(run)
@@ -702,7 +725,7 @@ contains
 
             end do
         end if
-        
+
         IFDEBUGTHEN(FCIMCDebug,6)
             write(6,*) "After annihilation: "
             write(6,*) "TotWalkersNew: ", TotWalkersNew
@@ -717,7 +740,7 @@ contains
                     write(iout, "(f16.3)", advance='no') CurrentSign(part_type)
                 end do
                 call WriteBitDet(iout,CurrentDets(:,j),.true.)
-                call neci_flush(iout) 
+                call neci_flush(iout)
             enddo
         ENDIFDEBUG
 

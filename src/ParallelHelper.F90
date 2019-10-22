@@ -195,7 +195,7 @@ module ParallelHelper
    ! A communicator between the roots on each node
    integer(MPIArg)      :: CommRoot
 
-   ! Communicator/indices for MPI3 version of shared memory communication. 
+   ! Communicator/indices for MPI3 version of shared memory communication.
    ! Probably this can eventually be merged with the variables above
    integer(MPIArg):: mpi_comm_inter, mpi_comm_intra
    integer(MPIArg):: iProcIndex_inter, iProcIndex_intra
@@ -231,7 +231,7 @@ contains
          endif
          return
        endif
-            
+
        if (present(Node)) then
          if(Node%n==Roots%n) then
             Comm=CommRoot
@@ -256,7 +256,7 @@ contains
          Comm=CommGlobal
          if (present(rt)) then
             if(tMe2) then
-               rt=int(iProcIndex,MPIArg) 
+               rt=int(iProcIndex,MPIArg)
             else
                rt=Root
             endif
@@ -313,7 +313,7 @@ contains
 
     end subroutine
 
-    subroutine MPIGroupIncl (grp, n, rnks, ogrp, ierr) 
+    subroutine MPIGroupIncl (grp, n, rnks, ogrp, ierr)
 
         integer, intent(in) :: grp, n
         integer, intent(in) :: rnks(:)

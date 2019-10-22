@@ -341,7 +341,6 @@ contains
 
         use Parallel_neci, only: MPISumAll
         use rdm_data, only: rdm_definitions_t, one_rdm_t, rdm_list_t
-        use rdm_estimators, only: calc_rdm_trace
         use rdm_finalising, only: calc_1rdms_from_spinfree_2rdms, write_1rdm
 
         type(rdm_definitions_t), intent(in) :: rdm_defs

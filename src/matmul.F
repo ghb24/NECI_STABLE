@@ -18,7 +18,7 @@ C..Run over rows
       CKN=0.0_dp
       DO I=1,NDET
 C..Run over columns
-         IF(I.EQ.1) THEN 
+         IF(I.EQ.1) THEN
             IBEG=0
          ELSE
             IBEG=IBEG+NROW(I-1)
@@ -65,7 +65,7 @@ C      DO I=1,NDET
 C         DO K=1,NEVAL
 C            WRITE(6,*) CKN(I,K)
 C         ENDDO
-C      ENDDO 
+C      ENDDO
 C      DO I=1,NDET
 C        DO J=1,NDET
 C          IF(HTEMP(I,J).NE.0.0_dp) THEN

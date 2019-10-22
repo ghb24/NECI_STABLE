@@ -2,7 +2,7 @@
 
 module symrandexcit3
 
-    ! This is another version of the excitation generators. It creates 
+    ! This is another version of the excitation generators. It creates
     ! random excitations with a calculable, but non-uniform, probability.
     !
     ! Motivation:
@@ -120,10 +120,10 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! Pick and unbiased, distinct, electron pair.
         call pick_elec_pair (nI, elecs, sym_prod, spn)
 
-        ! Pick a pair of symmetries, such that 
+        ! Pick a pair of symmetries, such that
         tot_pairs = count_orb_pairs (sym_prod, spn, CCUnocc, pair_list)
 
-        ! If there are no possible excitations for the electron pair picked, 
+        ! If there are no possible excitations for the electron pair picked,
         ! then we abort the excitation
         if (tot_pairs == 0) then
             nJ(1) = 0
@@ -145,7 +145,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
         ! Generate the final determinant.
         call create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
-       
+
         ! Return the final probability
         pGen = pDoubNew / real(ElecPairs * tot_pairs, dp)
 
@@ -166,7 +166,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! We can obtain the first index, A, by considering the largest
         ! integer, i, which can give an element on that row. For an integer
         ! 1 <= i <= npair:
-        ! 
+        !
         !   --> A = ceil((1 + sqrt(1 + 8*i)) / 2)
         !   --> B = i - (A-1)(A-2)/2
 
@@ -191,7 +191,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         spn = get_spin(orbs)
 
     end subroutine
-    
+
     function count_orb_pairs (sym_prod, spn, CCUnocc, num_pairs) &
                               result(tot_pairs)
 
@@ -257,7 +257,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
         integer :: syms(2), npairs, inds(2), tmp, symA
 
-        ! Select a symA/symB pair biased by the number of possible 
+        ! Select a symA/symB pair biased by the number of possible
         ! excitations which can be made into them.
         do symA = 0, nSymLabels - 1
             if (num_pairs(symA) >= rint) then
@@ -272,7 +272,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         if (symA /= 0) rint = rint - num_pairs(symA - 1)
 
         ! Return the symmetry indices, rather than the symmetry labels
-        ! as that is what we will need for the selections.        
+        ! as that is what we will need for the selections.
         sym_inds = ClassCountInd(spn, syms, -1)
 
     end subroutine
@@ -304,7 +304,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
             orbs(1) = mod(rint - 1, CCUnocc(sym_inds(1))) + 1
             orbs(2) = floor((real(rint,dp) - 1) / CCUnocc(sym_inds(1))) + 1
         endif
-        
+
         ! Extract the orbitals from the vacant list.
         orbs(1) = virt_list (orbs(1), sym_inds(1))
         orbs(2) = virt_list (orbs(2), sym_inds(2))
@@ -334,7 +334,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         !
         ! The arrays are indexed via the indices returned by ClassCountInd
         ! n.b. this is O[nel], so we should store this if we can.
-        
+
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
         integer, intent(out) :: pair_list(ScratchSize)
@@ -355,7 +355,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         endif
         CCUnocc = OrbClassCount - CCOcc
 
-        ! Store a -1 to indicate to the singles routine that this 
+        ! Store a -1 to indicate to the singles routine that this
         ! structure hasn't been filled in yet.
         pair_list(1) = -1
 
@@ -397,7 +397,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
         ! Pick a pair
         rint = int(1.0_dp + (genrand_real2_dSFMT() * real(npairs,dp)),sizeof_int)
-        
+
         ! Select which symmetry/spin category we want.
         !ind = binary_search_first_ge (pair_list, rint)
         do ind = 1, ScratchSize
@@ -439,7 +439,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
                           tLatticeGens, tHub,tKPntSym, tFixLz
     use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize
     Use SymData , only : nSymLabels
-!    use soft_exit , only : ChangeVars 
+!    use soft_exit , only : ChangeVars
     use DetBitOps , only : EncodeBitDet, FindExcitBitDet
     use GenRandSymExcitNUMod, only: IsMomentumAllowed
     use constants, only: n_int
@@ -452,7 +452,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
     INTEGER :: iExcit
     LOGICAL :: tParity,IsMomAllowedDet,test
-    
+
     ! Accumulator arrays. These need to be allocated on the heap, or we
     ! get a segfault by overflowing the stack using ifort
     real(dp), allocatable :: DoublesHist(:,:,:,:)
@@ -576,7 +576,7 @@ lp2: do while(.true.)
     do i=1,Iterations
         iter = i
 
-    
+
         IF(mod(i,400000).eq.0) THEN
             WRITE(6,"(A,I10)") "Iteration: ",i
             CALL neci_flush(6)
@@ -659,7 +659,7 @@ lp2: do while(.true.)
 !            AllAverageContrib=0.0_dp
 !#ifdef PARALLEL
 !            CALL MPI_AllReduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-!#else            
+!#else
 !            AllAverageContrib=AverageContrib
 !#endif
 !            IF(iProcIndex.eq.0) THEN

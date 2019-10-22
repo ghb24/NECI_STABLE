@@ -31,9 +31,9 @@
 
             call gen_rand_excit (nI, iLutni, nJ, iLutnJ, exFlag, Ic, &
                                  ExcitMat, tParity, pGen, HElGen, store2)
-                                 
+
             IF(IsNullDet(nJ)) RETURN
-            
+
 !Create bit representation of excitation - iLutnJ
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
 
@@ -151,7 +151,7 @@
 
         pGen=pGen/2.D0  !Normalize pGens.
 
-!Excitation is open-shell. We need to find the correct spin-pair to send back. 
+!Excitation is open-shell. We need to find the correct spin-pair to send back.
         CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.false.,tSwapped)
 
     END SUBROUTINE GenRandHPHFExcit

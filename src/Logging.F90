@@ -16,7 +16,7 @@ MODULE Logging
     use errors, only: Errordebug
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
-    use rdm_data, only: nrdms_transition_input, states_for_transition_rdm
+    use rdm_data, only: nrdms_transition_input, states_for_transition_rdm, tApplyLC
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
 
     IMPLICIT NONE
@@ -161,11 +161,16 @@ MODULE Logging
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
       tWriteRefs = .false.
+
+      maxInitExLvlWrite = 8
 #ifdef __PROG_NUMRUNS
       tFCIMCStats2 = .true.
 #else
       tFCIMCStats2 = .false.
 #endif
+      t_hist_fvals = .true.
+      enGrid = 100
+      arGrid = 100
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -364,6 +369,10 @@ MODULE Logging
                 i = i+1
             enddo
 
+         case("ACC-RATE-POINTS")
+            ! number of grid points for 2d-histogramming the acc rate used for adaptive shift
+            if(item < nitems) call readi(arGrid)
+            if(item < nitems) call readi(enGrid)
 
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
@@ -536,7 +545,7 @@ MODULE Logging
 !If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2,
 ! only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found.
             calcrdmonfly_in_inp = .true.
-            tRDMonFly=.true.
+            tRDMonFly = .true.
             tCheckHighestPop = .true.
             call readi(RDMExcitLevel)
             call readi(IterRDMonFly)
@@ -564,15 +573,15 @@ MODULE Logging
 !> The syntax is ``RDMlinspace  start n_samples  step``.
 !> The RDMExcitLevel is set to three in this routine.
             RDMlinspace_in_inp = .true.
-            tRDMonFly=.true.
+            tRDMonFly = .true.
             tCheckHighestPop = .true.
 
-            call readi(iSampleRDMIters)
+            RDMExcitLevel = 3
+            call readi(IterRDMonFly)
             call readi(n_samples)
             call readi(RDMEnergyIter)
 
-            RDMExcitLevel = 3
-            IterRDMOnFly = iSampleRDMIters + (n_samples - 1) * RDMEnergyIter
+            iSampleRDMIters = n_samples * RDMEnergyIter
 #if defined(__PROG_NUMRUNS)
           ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
@@ -1039,6 +1048,9 @@ MODULE Logging
             tLogDets=.true.
         case("EXLEVEL")
             tLogEXLEVELStats=.true.
+         case("INITS-EXLVL-WRITE")
+            ! up to which excitation level the number of initiators is written out
+            if(item < nitems) call readi(maxInitExLvlWrite)
         case ("INSTANT-S2-FULL")
             ! Calculate an instantaneous value for S^2, and output it to the
             ! relevant column in the FCIMCStats file.
