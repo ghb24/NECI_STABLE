@@ -506,7 +506,7 @@ contains
          IF(tCalcPropEst) THEN
            call SetupPropInts(nBasis)
            do i=1,iNumPropToEst
-             call ReadPropInts(i,nBasis,iNumPropToEst,EstPropFile(i),PropCore(i),OneEPropInts(:,:,i))
+             call ReadPropInts(nBasis,EstPropFile(i),PropCore(i),OneEPropInts(:,:,i))
              call MPIBCast(PropCore(i),1)
              IntSize = nBasis*nBasis
              call MPIBCast(OneEPropInts(:,:,i),IntSize)

@@ -1,7 +1,12 @@
 MODULE SymExcitDataMod
     use constants, only: dp
+    use util_mod, only: unused
     IMPLICIT NONE
     SAVE
+
+    interface unused
+        module procedure unused_excit
+    end interface
 
     real(dp) :: pSingNew, pDoubNew, pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new
     INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)
@@ -62,5 +67,16 @@ MODULE SymExcitDataMod
         integer, pointer :: elec_map (:) => null()
         integer :: nopen
     end type
+
+contains
+
+    elemental subroutine unused_excit(x)
+        type(excit_gen_store_type), intent(in) :: x
+        integer, pointer :: tmp(:)
+
+        if (.false.) then
+            tmp = x%nI_alpha
+        end if
+    end subroutine
 
 END MODULE SymExcitDataMod

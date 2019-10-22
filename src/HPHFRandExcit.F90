@@ -177,7 +177,7 @@ MODULE HPHFRandExcitMod
                                  tSignOrig, pGen, HEl, store, part_type)
             else
                 call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                          ExcitMat, tSignOrig, pgen, Hel, store, part_type)
+                                          ExcitMat, tSignOrig, pgen, Hel, part_type)
             end if
 
         else if (tGen_4ind_weighted) then
@@ -993,7 +993,7 @@ MODULE HPHFRandExcitMod
             else if (tUEGNewGenerator .and. tLatticeGens) then
                 pgen = calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, temp_part_type)
             else if (tUEG .and. tLatticeGens) then
-                pgen = calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, temp_part_type)
+                pgen = calc_pgen_back_spawn_ueg(ilutI, ex, ic, temp_part_type)
             else
                 pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_part_type)
             end if
