@@ -92,7 +92,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
         ! Call the actual single/double excitation generators.
         if (IC == 2) then
-            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, &
+            pGen = gen_double (nI, nJ, ExcitMat, tParity, &
                                store%ClassCountUnocc, store%virt_list)
         else
             pGen = gen_single (nI, nJ, ExcitMat, tParity, &
@@ -104,14 +104,13 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     end subroutine
 
 
-    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc, &
+    function gen_double (nI, nJ, ExcitMat, tParity, CCUnocc, &
                          virt_list) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(in) :: virt_list(:,:)
-        integer(n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(out) :: ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp) :: pGen
