@@ -63,15 +63,4 @@ MODULE SymExcitDataMod
         integer :: nopen
     end type
 
-contains
-
-    elemental subroutine unused_excit(x)
-        type(excit_gen_store_type), intent(in) :: x
-        integer :: tmp
-
-        if (.false.) then
-            tmp = x%nel_alpha
-        end if
-    end subroutine
-
 END MODULE SymExcitDataMod
