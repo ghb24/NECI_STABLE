@@ -100,8 +100,8 @@ module FciMCParMod
     use back_spawn, only: init_back_spawn
 
     use sltcnd_mod, only: sltcnd_excit
-    use spawnScaling, only: resetScale, currentSpawnScale, &
-         scaleCondition
+    use spawnScaling, only: resetScale, currentSpawnScale, maxSpawnRescale, &
+         scaleCondition, rescaleIfFlagged
 
 #ifdef MOLPRO
     use outputResult
@@ -1303,8 +1303,12 @@ module FciMCParMod
                call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
                ! loop counter
                p = 0
-               ! scale factor for spawns
-               call resetScale()
+               if(tScaleBlooms) then
+                  ! scale factor for spawns
+                  call resetScale()
+                  ! if the flag was set, rescale now with a default scaling
+                  call rescaleIfFlagged(CurrentDets(:,j), WalkersToSpawn)
+               endif
                do ! this loop shall be executed WalkersToSpawn times, but additional spawns
                   ! might be requested during execution
 
@@ -1396,7 +1400,7 @@ module FciMCParMod
                          ! down and unbiad with extra spawns
                          ! this is only done for determinants with a single spawn
                          ! (more involved algorithm required else) -> no recursive rescaling
-                         if(tScaleBlooms .and. (WalkersToSpawn == 1)) then
+                         if(tScaleBlooms .and. (WalkersToSpawn <= maxSpawnRescale)) then
                             call scaleCondition(abs(child(part_type)), HDiagCurr, &
                                  scaleFactor)
                             child(part_type) = child(part_type) / real(currentSpawnScale(),dp)
@@ -1404,7 +1408,8 @@ module FciMCParMod
                             ! least this scaleLevel
                             if(scaleFactor > 1) then
                                WalkersToSpawn = WalkersToSpawn + scaleFactor - 1
-                               ! count the number of spawns at this level
+                               ! mark this determinant for further rescaling
+                               call set_flag(CurrentDets(:,j), flag_rescale)
                             endif
                          endif
 
