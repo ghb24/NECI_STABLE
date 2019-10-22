@@ -415,6 +415,7 @@ contains
         !        imag_sgn  - The new imaginary sign component
         !        run - Update given run. 1 ==> inum_runs
         ! InOut:  ilut     - The bit representation to update
+        use util_mod, only: unused
 
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: run
@@ -425,8 +426,9 @@ contains
         call encode_part_sign(ilut, real_sgn, min_part_type(run))
 #ifdef __CMPLX
         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
+#elif defined(__WARNING_WORKAROUND)
+        call unused(imag_sgn)
 #endif
-
     end subroutine encode_run_sign
 
 

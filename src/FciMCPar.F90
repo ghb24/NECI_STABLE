@@ -247,8 +247,8 @@ module FciMCParMod
 
         ! double occupancy:
         if (t_calc_double_occ) then
-            call write_double_occ_stats(iter_data_fciqmc, initial = .true.)
-            call write_double_occ_stats(iter_data_fciqmc)
+            call write_double_occ_stats(initial = .true.)
+            call write_double_occ_stats()
         end if
 
         ! Put a barrier here so all processes synchronise before we begin.
@@ -466,7 +466,7 @@ module FciMCParMod
                 ! in calculate_new_shift_wrapper output is plotted too!
                 ! so for now do it here for double occupancy
                 if (t_calc_double_occ) then
-                    call write_double_occ_stats(iter_data_fciqmc)
+                    call write_double_occ_stats()
                 end if
                 if(tRestart) cycle
 

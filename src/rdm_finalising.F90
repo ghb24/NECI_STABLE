@@ -671,7 +671,7 @@ contains
         call print_rdms_with_spin(rdm_defs, nrdms_to_print, rdm_recv_2, rdm_trace, open_shell)
         ! intermediate hack:
         if (t_calc_double_occ) then
-            call calc_double_occ_from_rdm(rdm_recv_2, rdm_trace, nrdms_to_print)
+            call calc_double_occ_from_rdm(rdm_recv_2, rdm_trace)
         end if
 
     end subroutine print_rdms_spin_sym_wrapper
