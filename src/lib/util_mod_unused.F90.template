@@ -1,12 +1,26 @@
-[comp]
-type = complex(kind=dp)
+[int32]
+type = integer(kind=int32)
 
-[real]
+[int64]
+type = integer(kind=int64)
+
+[realsp]
 type = real(kind=sp)
 
-[doub]
+[realdp]
 type = real(kind=dp)
 
+[compsp]
+type = complex(kind=sp)
+
+[compdp]
+type = complex(kind=dp)
+
+[char]
+type = character(5)
+
+[logical]
+type = logical
 
 =========================
 
