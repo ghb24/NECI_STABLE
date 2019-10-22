@@ -177,7 +177,7 @@ MODULE HPHFRandExcitMod
                                  tSignOrig, pGen, HEl, store, part_type)
             else
                 call gen_excit_back_spawn(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
-                                          ExcitMat, tSignOrig, pgen, Hel, part_type)
+                                          ExcitMat, tSignOrig, pgen, Hel, store, part_type)
             end if
 
         else if (tGen_4ind_weighted) then

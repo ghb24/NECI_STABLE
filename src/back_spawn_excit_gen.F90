@@ -7,7 +7,8 @@ module back_spawn_excit_gen
                           tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha, ElecPairs, &
                           tHPHF
     use bit_rep_data, only: niftot
-    use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel, kPointToBasisFn
+    use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel, &
+                               kPointToBasisFn, unused_excit
     use bit_reps, only: test_flag, get_initiator_flag
     use FciMCData, only: pSingles, projedet, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -30,7 +31,7 @@ module back_spawn_excit_gen
     use Determinants, only: write_det, get_helement
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, &
                               calc_pgen_ueg
-    use util_mod, only: binary_search_first_ge
+    use util_mod, only: binary_search_first_ge, unused
 
 #ifdef __DEBUG
     use SystemData, only: tNoFailAb
@@ -1003,7 +1004,7 @@ contains
 
 #ifdef __WARNING_WORKAROUND
         call unused(exFlag)
-        call unused(store)
+        call unused_excit(store)
 #endif
     end subroutine gen_excit_back_spawn
 
