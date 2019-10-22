@@ -198,11 +198,6 @@ set( SRC_FILES
     lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
-    rdms_old/rdm_data_old.F90
-    rdms_old/rdm_estimators_old.F90
-    rdms_old/rdm_filling_old.F90
-    rdms_old/rdm_general_old.F90
-    rdms_old/rdm_write_old.F90
 )
 
 set( TEMPLATED_SRC_FILES
