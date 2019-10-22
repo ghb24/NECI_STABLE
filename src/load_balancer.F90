@@ -376,7 +376,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
                if(nelem > 0) then
-                  call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                  call MPISend(con_send_buf(0:NConEntry,1:nconsend),nelem,tgt_proc, &
                        mpi_tag_con, ierr)
                endif
                ! Do the same with the trial wavefunction itself
@@ -385,7 +385,7 @@ contains
                call MPISend(nconsend,1,tgt_proc,mpi_tag_ntrialsend, ierr)
 
                if(nelem > 0) then
-                    call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc,&
+                    call MPISend(con_send_buf(0:NConEntry,1:nconsend),nelem,tgt_proc,&
                     mpi_tag_trial, ierr)
                  endif
             end if
@@ -398,7 +398,7 @@ contains
             ! Receive walkers!
             call MPIRecv(nsend, 1, src_proc, mpi_tag_nsend, ierr)
             nelem = nsend * (1 + NIfTot)
-            call MPIRecv(SpawnedParts, nelem, src_proc, mpi_tag_dets, ierr)
+            call MPIRecv(SpawnedParts(0:NIfTot, 1:nsend), nelem, src_proc, mpi_tag_dets, ierr)
 
             do j = 1, nsend
                 call decode_bit_det(det, SpawnedParts(:,j))
@@ -429,7 +429,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
                   ! get the connected states themselves
-                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
+                  call MPIRecv(con_send_buf(0:NConEntry, 1:nconsend), nelem, src_proc, mpi_tag_con, ierr)
                   ! add the recieved connected dets to the hashtable
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        con_ht, con_space_size)
@@ -439,7 +439,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
                   ! get the states
-                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_trial, ierr)
+                  call MPIRecv(con_send_buf(0:NConEntry, 1:nconsend), nelem, src_proc, mpi_tag_trial, ierr)
                   ! add them to the hashtable
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        trial_ht, trial_space_size)
