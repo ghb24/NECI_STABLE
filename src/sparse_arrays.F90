@@ -660,6 +660,9 @@ contains
         integer(TagIntType), intent(inout), allocatable :: sparse_tags(:,:)
         integer :: sparse_matrix_size, i, ierr
         character(len=*), parameter :: t_r = "deallocate_sparse_ham"
+#ifdef __WARNING_WORKAROUND
+        call unused(sparse_matrix_name)
+#endif
 
         sparse_matrix_size = size(sparse_matrix)
 
@@ -675,10 +678,6 @@ contains
 
         if (allocated(sparse_tags)) deallocate(sparse_tags)
         if (allocated(sparse_matrix)) deallocate(sparse_matrix)
-
-#ifdef __WARNING_WORKAROUND
-        call unused(sparse_matrix_name)
-#endif
 
     end subroutine deallocate_sparse_ham
 

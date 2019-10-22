@@ -39,14 +39,15 @@ contains
 
         integer :: iUnused
 
-        ! Mitigate warnings
-        HelGen = 0.0_dp; iUnused=exFlag; iUnused=store%nopen
+#ifdef __WARNING_WORKAROUND
+        call unused(HelGen); call unused(exFlag);
+        call unused(store%nopen); call unused(part_type);
+#endif
 
         ! W.D:
         ! split this functionality to allow back-spawning to reuse code
         call gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar,ex, pgen)
         ic = 2
-
     end subroutine gen_ueg_excit
 
     subroutine gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar, ex, pgen)

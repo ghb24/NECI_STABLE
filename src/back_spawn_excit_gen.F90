@@ -901,6 +901,9 @@ contains
         HElement_t(dp) :: temp_hel
         real(dp) :: pgen2
 #endif
+#ifdef __WARNING_WORKAROUND
+        call unused(exFlag); call unused(store%nel_alpha)
+#endif
 
         HElGen = 0.0_dp
         ! check the non-initiator criteria beforehand
@@ -1001,11 +1004,6 @@ contains
             end if
 #endif
        end if
-
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag)
-        call unused_excit(store)
-#endif
     end subroutine gen_excit_back_spawn
 
     subroutine gen_single_back_spawn(nI, ilutI, part_type, nJ, ilutJ, ex, tPar, pgen)

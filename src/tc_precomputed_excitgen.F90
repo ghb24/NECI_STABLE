@@ -85,8 +85,7 @@ contains
     call EncodeBitDet(nJ,ilutnJ)
 
 #ifdef __WARNING_WORKAROUND
-    call unused(exFlag)
-    call unused(part_type)
+    unused(exFlag); unused(part_type)
 #endif
 
   end subroutine gen_rand_excit_pcpp
