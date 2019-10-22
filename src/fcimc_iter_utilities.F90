@@ -1175,7 +1175,7 @@ contains
         call update_shift (iter_data)
         if (tPrintDataTables) then
             if (tFCIMCStats2) then
-                call write_fcimcstats2(iter_data_fciqmc)
+                call write_fcimcstats2(iter_data)
             else
                 call WriteFCIMCStats ()
             end if

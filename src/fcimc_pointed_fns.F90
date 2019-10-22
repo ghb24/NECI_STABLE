@@ -889,6 +889,10 @@ module fcimc_pointed_fns
       real(dp), intent(in) :: pop
       real(dp) :: f, tot, acc, tmp
 
+#ifdef __WARNING_WORKAROUND
+      call unused(pop)
+#endif
+
       tot = get_tot_spawns(pos, run)
       acc = get_acc_spawns(pos, run)
 
