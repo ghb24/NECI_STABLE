@@ -8,7 +8,7 @@ module back_spawn_excit_gen
                           tHPHF
     use bit_rep_data, only: niftot
     use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel, &
-                               kPointToBasisFn, unused_excit
+                               kPointToBasisFn
     use bit_reps, only: test_flag, get_initiator_flag
     use FciMCData, only: pSingles, projedet, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT

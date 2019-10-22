@@ -279,12 +279,11 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 
 
         ! Select a pair of symmetries to choose from
-        call select_syms(rint, sym_inds, sym_prod, virt_spn, store%ClassCountUnocc, &
-                         pair_list)
+        call select_syms(rint, sym_inds, sym_prod, virt_spn, pair_list)
 
 
         ! Select a pair of orbitals from the symmetries above.
-        call select_orb_pair (rint, sym_inds, ilutI, orbs, store%ClassCountUnocc, &
+        call select_orb_pair (rint, sym_inds, orbs, store%ClassCountUnocc, &
                               store%virt_list)
 
         ! Generate the final determinant.

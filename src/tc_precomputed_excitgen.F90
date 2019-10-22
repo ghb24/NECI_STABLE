@@ -61,6 +61,10 @@ contains
     real(dp) :: r
     integer :: elec_map(nel)
 
+#ifdef __WARNING_WORKAROUND
+    call unused(exFlag); call unused(part_type)
+#endif
+
     HElgen = 0.0
 
     ! create the map for the electrons
@@ -83,10 +87,6 @@ contains
 
     ! assign ilutnJ
     call EncodeBitDet(nJ,ilutnJ)
-
-#ifdef __WARNING_WORKAROUND
-    unused(exFlag); unused(part_type)
-#endif
 
   end subroutine gen_rand_excit_pcpp
 
