@@ -11,7 +11,7 @@ module pcpp_excitgen
   use Integrals_neci, only: get_umat_el
   use UMatCache, only: gtID
   use sltcnd_mod, only: sltcnd_excit
-  use util_mod, only: binary_search_first_ge
+  use util_mod, only: binary_search_first_ge, unused
   use get_excit, only: make_double, make_single
   implicit none
 
@@ -83,6 +83,11 @@ contains
 
     ! assign ilutnJ
     call EncodeBitDet(nJ,ilutnJ)
+
+#ifdef __WARNING_WORKAROUND
+    call unused(exFlag)
+    call unused(part_type)
+#endif
 
   end subroutine gen_rand_excit_pcpp
 

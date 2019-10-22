@@ -169,12 +169,12 @@ contains
 
     end subroutine create_ab_list_ueg
 
-     function calc_pgen_ueg(nI, ilutI, ex, ic) result(pgen)
+     function calc_pgen_ueg(ilutI, ex, ic) result(pgen)
         ! i also have to write a pgen recalculator for the pgens with this
         ! new UEG excitation generator.. i am a bit confused why this has
         ! not been done yet i have to admit..
         ! and i need this function if i want to use it with HPHF..
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: ex(2,2), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
 

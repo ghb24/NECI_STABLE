@@ -59,42 +59,6 @@ C.. If we're just counting, we don't need to keep DSTORE
      &      nIExcitor(nIExcitor(2)),nIExcitor(23),pGen)
       END
 
-!  Must be called after SYMSETUPEXCITS.  Needs integer(int64) STORE and frees memory therein
-      SUBROUTINE SYMGENEXCITS(NI,NEL,STORE,LSTE,DSTORE,ExcitTypes,
-     &   nAllowPPS,OrbPairs,SymProdInd,
-     &   ICLIST,ICOUNT)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use SymData, only: SymClassSize
-         use global_utilities
-         IMPLICIT NONE
-         INTEGER NEL,NI(NEL)
-         INTEGER STORE(6)
-         INTEGER  ORBPAIRS(2,*)
-         INTEGER SYMPRODIND(2,3,1:*)
-         INTEGER NALLOWPPS(3,*)
-
-         INTEGER EXCITTYPES(5,*)
-         INTEGER DSTORE(*)
-         type(timer), save :: proc_timer
-         INTEGER LSTE(NEL,*),ICLIST(*),ICOUNT
-         proc_timer%timer_name='SYMGNEXCIT'
-         call set_timer(proc_timer,65)
-
-         CALL SYMGENALLEXCITS(NI,NEL,EXCITTYPES,STORE(6),DSTORE(1),
-     &        SymProdInd,DSTORE(SymClassSize*NEL+1),ORBPAIRS,
-     &            LSTE,ICLIST,ICOUNT)
-
-!         CALL N_FREEM(IP_EXCITTYPES)
-!         CALL N_FREEM(IP_NALLOWPPS)
-!         CALL N_FREEM(IP_ORBPAIRS)
-!         CALL N_FREEM(IP_SYMPRODIND)
-!         CALL N_FREEM(IP_DSTORE)
-
-         call halt_timer(proc_timer)
-
-      END
-
 C.. IF(TSETUP) Generate an iterator which allows up to double excitations to be generated
 C.. one at a time (in an unordered fashion) from a given det.  THis needs to be called twice,
 C.. first with STORE(1)=0, and then again.  Finally it can be called with TSETUP=.FALSE.
