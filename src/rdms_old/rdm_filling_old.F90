@@ -522,7 +522,7 @@ contains
 
     end subroutine Fill_Spin_Coupled_RDM_old
 
-    subroutine Add_RDM_From_IJ_Pair_old(rdm, one_rdm, irdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
+    subroutine Add_RDM_From_IJ_Pair_old(rdm, one_rdm, nI, nJ, realSignI, realSignJ, tFill_CiCj_Symm)
 
         ! This routine takes a pair of different determinants Di and Dj, and
         ! figures out which type of elements need to be added in to the RDM.

@@ -1522,6 +1522,9 @@ contains
         end if
 
 #else
+#ifdef __WARNING_WORKAROUND
+        call unused(one_rdm%matrix_tag)
+#endif
         call warning_neci(t_r, 'Cannot compute dipole moments if not running within molpro. Exiting...')
 #endif
 

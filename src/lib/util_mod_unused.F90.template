@@ -37,6 +37,8 @@ module util_mod_unused
 
 contains
 
+! I would like to implement this as function, ! but function calls without
+! assignments are non-classifiable statements in Fortran. :-(
     elemental subroutine unused_%(name)s(x)
         %(type)s, intent(in) :: x
         %(type)s :: tmp
