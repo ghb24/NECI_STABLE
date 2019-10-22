@@ -100,7 +100,7 @@ module FciMCParMod
     use back_spawn, only: init_back_spawn
 
     use sltcnd_mod, only: sltcnd_excit
-    use spawnScaling, only: setLevelTimer, resetScale, updateLevelTimer, currentSpawnScale, &
+    use spawnScaling, only: resetScale, currentSpawnScale, &
          scaleCondition
 
 #ifdef MOLPRO
@@ -1394,7 +1394,9 @@ module FciMCParMod
 
                          ! option: if too much weight is spawned, scale this spawn
                          ! down and unbiad with extra spawns
-                         if(tScaleBlooms) then
+                         ! this is only done for determinants with a single spawn
+                         ! (more involved algorithm required else) -> no recursive rescaling
+                         if(tScaleBlooms .and. (WalkersToSpawn == 1)) then
                             call scaleCondition(abs(child(part_type)), HDiagCurr, &
                                  scaleFactor)
                             child(part_type) = child(part_type) / real(currentSpawnScale(),dp)
@@ -1403,7 +1405,6 @@ module FciMCParMod
                             if(scaleFactor > 1) then
                                WalkersToSpawn = WalkersToSpawn + scaleFactor - 1
                                ! count the number of spawns at this level
-                               call setLeveLTimer()
                             endif
                          endif
 
@@ -1438,8 +1439,6 @@ module FciMCParMod
                      p = p + 1
                     ! After WalkersToSpawn executions, exit
                      if(p >= WalkersToSpawn) exit
-
-                     call updateLevelTimer()
                 end do ! Cycling over mulitple particles on same determinant.
 
             end do   ! Cycling over 'type' of particle on a given determinant.

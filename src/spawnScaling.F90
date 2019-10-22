@@ -14,22 +14,14 @@ module spawnScaling
   use util_mod, only: near_zero
   implicit none
   private
-  public :: setLevelTimer, resetScale, updateLevelTimer, currentSpawnScale, &
+  public :: resetScale, currentSpawnScale, &
          scaleCondition, initSpawnScaling, finalizeSpawnScaling
   ! Fraction of an initiator that is ok to spawn in a single attempt
   real(dp) :: perSpawnInitRatio = 1.001_dp
-  ! Maximum recursion depth for rescaling
-  integer :: maxScaleLevel = 15
   ! Maximum scale factor (everything above is deemed unstable)
   integer :: maxScaleFactor = 20
-  ! Timer to count the number of spawns per level
-  integer, allocatable :: levelTimer(:)
-  ! Target number of spawns per level
-  integer, allocatable :: levelLifeTime(:)
   ! scale factor per level
-  integer, allocatable :: spawnScale(:)
-  ! The current scaleLevel
-  integer :: scaleLevel
+  integer :: spawnScale
   
 contains
 
@@ -40,48 +32,16 @@ contains
   subroutine resetScale()
     implicit none
 
-    ! start at level 1
-    scaleLevel = 1
     ! and a factor of 1
     spawnScale = 1
   end subroutine resetScale
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine setLevelTimer()
-    implicit none
-
-    ! this is the number of spawns attempted at this level
-    levelTimer(scaleLevel) = 0
-    ! and this is the total number of spawns we will attempt
-    levelLifetime(scaleLevel) = spawnScale(scaleLevel)
-  end subroutine setLevelTimer
-
-  
-  !------------------------------------------------------------------------------------------!
-
-  subroutine updateLevelTimer()
-    implicit none
-
-    ! Do the scaleLevel bookkeeping:
-    ! Only for levels larger than one, an action is required
-    if(scaleLevel > 1) then
-       ! add one spawn at the current level
-       levelTimer(scaleLevel) = levelTimer(scaleLevel) + 1
-       ! if we are at the max number of spawns at this level, decrease it
-       if(levelTimer(scaleLevel) == levelLifeTime(scaleLevel)) then
-          scaleLevel = scaleLevel - 1
-       endif
-    endif
-    
-  end subroutine updateLevelTimer
-
-  !------------------------------------------------------------------------------------------!
-
   function currentSpawnScale() result(cScale)
     integer :: cScale
 
-    cScale = spawnScale(scaleLeveL)
+    cScale = spawnScale
   end function currentSpawnScale
   
   !------------------------------------------------------------------------------------------!
@@ -109,8 +69,7 @@ contains
     endif
     ! check if we want to do a rescaling here
     ! do so if the scaled spawn would exceed the threshold and we can still scale
-    tRescale = (nSpawn > threshold * spawnScale(scaleLevel)) &
-         .and. (scaleLevel < maxScaleLevel)
+    tRescale = (nSpawn > threshold)
 
     if(tRescale .and. .not. near_zero(threshold)) then
        ! rescale this spawn down to the threshold
@@ -118,18 +77,11 @@ contains
        call decide_num_to_spawn(nSpawn / threshold, hdiag, 1.0_dp, factor)
        factor = max(factor, 1)
        ! if the factor turned out to be one, no action is required
-       if(factor > 1) then
-          spawnScale(scaleLevel+1) = spawnScale(scaleLevel) * factor
+       if(factor > 1 .and. factor < maxScaleFactor) then
+          spawnScale = factor
           ! increase the scaleLevel by 1 IF the new factor is not excessive
-          if(spawnScale(scaleLevel+1) < maxScaleFactor) then
-             scaleLevel = scaleLevel + 1
-             if(scaleLevel > 2) then
-                print *, "WARNING: Recursive rescaling required"
-             endif
-          else
-             ! this would be excessive, do not scale
-             factor = 1
-          end if
+       else
+          factor = 1
        endif
     else
        ! no scaling required
@@ -144,9 +96,6 @@ contains
   subroutine initSpawnScaling()
     implicit none
 
-    allocate(levelTimer(maxScaleLevel))
-    allocate(levelLifeTime(maxScaleLevel))
-    allocate(spawnScale(maxScaleLevel))
   end subroutine initSpawnScaling
 
   !------------------------------------------------------------------------------------------!
@@ -154,9 +103,6 @@ contains
   subroutine finalizeSpawnScaling()
     implicit none
 
-    if(allocated(levelTimer)) deallocate(levelTimer)
-    if(allocated(levelLifeTime)) deallocate(levelLifeTime)
-    if(allocated(spawnScale)) deallocate(spawnScale)
   end subroutine finalizeSpawnScaling
 
   
