@@ -6,7 +6,8 @@
 ! One can't use modules because of required compiler independence.
 
 
-Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,filename_in)
+Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
+                    int_name, filename_in, MemSize)
     != NECICore is the main outline of the NECI Program.
     != It provides a route for calling NECI when accessed as a library, rather
     != than as a standalone program.
@@ -49,6 +50,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
     integer, intent(in), optional :: iCacheFlag
     logical, intent(in), optional :: tCPMD, tVASP, tMolpro_local, call_as_lib
     character(*), intent(in), optional :: filename_in, int_name
+    integer(int64), intent(in), optional :: MemSize
     type(timer), save :: proc_timer
     integer :: ios, iunit, iunit2, i, j, isfreeunit, iCacheFlag_
     character(*), parameter :: this_routine = 'NECICore'
@@ -73,7 +75,7 @@ Subroutine NECICore(iCacheFlag,tCPMD,tVASP,tMolpro_local,call_as_lib,int_name,fi
     neci_MPINodes_called = .false.
 
     ! Do the program initialisation.
-    call NECICodeInit(tCPMD_,tVASP_)
+    call NECICodeInit(tCPMD_, tVASP_, MemSize)
 
     proc_timer%timer_name='NECICUBE  '
     call set_timer(proc_timer)
@@ -157,7 +159,7 @@ End Subroutine NECICore
 
 
 
-subroutine NECICodeInit(tCPMD,tVASP)
+subroutine NECICodeInit(tCPMD, tVASP, MemSize)
  use MolproPlugin
     != Initialise the NECI code.  This contains all the initialisation
     != procedures for the code (as opposed to the system in general): e.g. for
@@ -172,11 +174,12 @@ subroutine NECICodeInit(tCPMD,tVASP)
     use Parallel_neci, only: MPIInit
     use SystemData, only : tMolpro,called_as_lib
     use CalcData, only: s_global_start
-    use constants, only: dp
+    use constants, only: dp, int64
     use util_mod, only: neci_etime
 
     implicit none
-    logical, intent(in) :: tCPMD,tVASP
+    logical, intent(in) :: tCPMD, tVASP
+    integer(int64), intent(in), optional :: MemSize
     real(dp) :: tend(2)
 
     ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
@@ -195,8 +198,8 @@ subroutine NECICodeInit(tCPMD,tVASP)
     ! If we use MPI_WTIME for timing, we have to call MPIInit first
     call init_timing()
 
-    if (.not.TCPMD) then
-        call InitMemoryManager()
+    if (.not. TCPMD) then
+        call InitMemoryManager(MemSize)
     end if
     call environment_report(tCPMD)
 

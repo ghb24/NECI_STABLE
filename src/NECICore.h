@@ -3,7 +3,8 @@
 
       interface
       subroutine necicore(icacheflag, tcpmd, tvasp, tmolpro_local,      &
-     &      call_as_lib, int_name, filename_in)
+     &      call_as_lib, int_name, filename_in, MemSize)
+         use, intrinsic :: iso_fortran_env, only: int64
 != NECICore is the main outline of the NECI Program.
 != It provides a route for calling NECI when accessed as a library,
 != rather than as a standalone program.
@@ -24,5 +25,6 @@
         logical,intent(in), optional ::                                 &
      &      tCPMD,tVASP,tMolpro_local,call_as_lib
         character(*), intent(in), optional :: filename_in, int_name
+        integer(int64), intent(in), optional :: MemSize
       end subroutine
       end interface
