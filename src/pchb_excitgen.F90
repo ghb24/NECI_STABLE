@@ -276,11 +276,14 @@ module pchb_excitgen
         integer :: ex(2,2)
         real(dp), allocatable :: w(:)
         real(dp), allocatable :: pNoExch(:)
+        logical, allocatable :: mask(:)
         ! number of possible source orbital pairs
         ijMax = fuseIndex(nBI,nBI)
         ! allocate the bias for picking an exchange excitation
         allocate(pExch(ijMax), stat = aerr)
         pExch = 0.0_dp
+        ! the mask to filter nonzero entries of the bias
+        allocate(mask(ijMax), stat = aerr)        
         ! temporary storage for the unnormalized prob of not picking an exchange excitation
         allocatE(pNoExch(ijMax), stat = aerr)
         pNoExch = 1.0_dp
@@ -324,10 +327,13 @@ module pchb_excitgen
            end do
         end do
 
-        ! normalize the exchange bias
-        pExch = pExch / (pExch + pNoExch)
+        ! normalize the exchange bias (where normalizable)
+        mask = (pExch + pNoExch) .ne. 0
+        where(mask) pExch = pExch / (pExch + pNoExch)
 
         deallocate(w)
+        deallocate(mask)
+        deallocate(pNoExch)
       end subroutine setup_pchb_sampler
 
       function map_orb(orb, alphaSamplers) result(sorb)
