@@ -1,3 +1,4 @@
+#include "macros.h"
 module MemoryManager
 use constants , only : sizeof_int, dp, int64
 
@@ -131,7 +132,7 @@ contains
     ! Initialise memory manager.
 
     ! In:
-    !    MemSize (optional) : max amount of memory available in MB.  Default: 1GB.
+    !    MemSize (optional) : max amount of memory available in MB.  Default: MaxMemLimit
     !    print_err (optional): print all error messages from memory manager. Default: true.
 
     ! MAXMEM must be set via c pre-processing or set to be an integer.
@@ -141,34 +142,14 @@ contains
     integer(int64), intent(in), optional :: MemSize
     logical, intent(in), optional :: print_err
     integer(int64) :: MaxMemBytes
-#if !defined(_MOLCAS_)
     ! Obtained via CPP in the makefile. MAXMEM in MB.
     integer(int64), parameter :: MaxMemLimit = MAXMEM
-#endif
 
-#ifdef _MOLCAS_
-    integer(int64) :: MemSizeMolcas
-    character(len=16) MMem
-
-    !MemSizeMolcas is already in MB.
-    call GET_ENVIRONMENT_VARIABLE('MOLCAS_MEM',MMem)
-    read(MMem,*) MemSizeMolcas
-    initialised=.false.
-#endif
-
+    def_default(err_output, print_err, .true.)
     if (present(MemSize)) then
-        MaxMemBytes=MemSize*1024**2
+        MaxMemBytes = MemSize * 1024**2
     else
-#ifdef _MOLCAS_
-        MaxMemBytes = MemSizeMolcas*1024**2
-#else
-        MaxMemBytes=MaxMemLimit*1024**2
-#endif
-    end if
-    if (present(print_err)) then
-        err_output=print_err
-    else
-        err_output=.true.
+        MaxMemBytes = MaxMemLimit * 1024**2
     end if
 
     if (initialised) then
