@@ -177,7 +177,7 @@ contains
        if(ic < 4) then
           call extract_sign(CurrentDets(:,i), sign_tmp)
           call decode_bit_det(nIEx, CurrentDets(:,i))
-          call cache_sign(sign_tmp,nIEx,ex)
+          call cache_sign(sign_tmp, nIEx)
        end if
     end do
 
@@ -185,38 +185,40 @@ contains
 
 
   !it updates the CI coeffs storage list
-  subroutine cache_sign(sgn, nIEx, ex)
-    integer :: hash_value ,ind
-    integer, intent(in) :: nIEx(nel), ex(2,3)
+  subroutine cache_sign(sgn, nIEx)
+    integer, intent(in) :: nIEx(nel)
     real(dp), intent(in) :: sgn(lenof_sign)
+
+    integer :: hash_value, ind
     real(dp) :: sign_tmp(lenof_sign)
     integer(n_int) :: ilut(0:NIfTot)
     logical :: tSuccess
 
     ! encode the determinant into bit representation (ilut)
-    call EncodeBitDet(nIEx,ilut)
-    call hash_table_lookup(nIEx,ilut,NIfD,hash_table_ciCoeff,ciCoeff_storage,ind,hash_value,tSuccess)
+    call EncodeBitDet(nIEx, ilut)
+    call hash_table_lookup(nIEx, ilut, NIfD, hash_table_ciCoeff, &
+                           ciCoeff_storage, ind, hash_value, tSuccess)
     ! tSuccess is true when the coeff is found in the hash_table; so it gets updated
     if(tSuccess) then
-       call extract_sign(ciCoeff_storage(:,ind),sign_tmp)
+       call extract_sign(ciCoeff_storage(:, ind), sign_tmp)
        sign_tmp = sign_tmp + sgn
 !        if(all(nIEx.eq.projEDet(:,1))) then  !it is true only with the reference determinant
 !           write(iout,*) 'sign_tmp = sign_tmp + sgn = ', sign_tmp, sgn
 !        endif
-    call encode_sign(ciCoeff_storage(:,ind),sign_tmp)
+    call encode_sign(ciCoeff_storage(:, ind), sign_tmp)
 
     ! tSuccess is false, then add a new entry to the CI coeffs storage
     else
        first_free_entry = first_free_entry + 1
        ! encode the determinant into bit representation (ilut)
-       call EncodeBitDet(nIEx,ilut)
+       call EncodeBitDet(nIEx, ilut)
        ! store the encoded determinant in ciCoeff_storage
-       ciCoeff_storage(:,first_free_entry) = ilut
+       ciCoeff_storage(:, first_free_entry) = ilut
        ! store the sign in ciCoeff_storage
-       call encode_sign(ciCoeff_storage(:,first_free_entry),sgn)
+       call encode_sign(ciCoeff_storage(:, first_free_entry), sgn)
        ! create a new hashtable entry
-       call add_hash_table_entry(hash_table_ciCoeff,&
-                                first_free_entry, hash_value)
+       call add_hash_table_entry(hash_table_ciCoeff, &
+                                 first_free_entry, hash_value)
     end if
   end subroutine cache_sign
 
