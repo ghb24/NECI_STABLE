@@ -12,6 +12,7 @@ module pchb_excitgen
   use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
   use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex
+  use util_mod_epsilon_close, only: near_zero
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
@@ -328,7 +329,7 @@ module pchb_excitgen
         end do
 
         ! normalize the exchange bias (where normalizable)
-        mask = (pExch + pNoExch) .ne. 0
+        mask = .not. near_zero(pExch + pNoExch)
         where(mask) pExch = pExch / (pExch + pNoExch)
 
         deallocate(w)
