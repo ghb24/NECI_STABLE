@@ -45,7 +45,7 @@ contains
                  TotPartsOld(lenof_sign), AllTotPartsOld(lenof_sign), &
                  AllTotPartsLastOutput(lenof_sign), &
                  ! n.b. AllHFCyc is in inum_runs, with different type
-                 HFCyc(lenof_sign), HFOut(inum_runs), &
+                 HFCyc(lenof_sign), HFOut(lenof_sign), &
                  proje_denominator_cyc(lenof_sign), &
                  proje_denominator_sum(lenof_sign), &
                  InitialPartVec(lenof_sign), &
