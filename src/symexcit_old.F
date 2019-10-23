@@ -6,10 +6,8 @@
 C.. Setup for symmetry routine below.
       SUBROUTINE SYMSETUPEXCITS(NI,NEL,NBASIS,STORE,TCOUNT,
      &      ICOUNT,ILEVEL,iMinElec1,iMaxElec1)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,g1
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry, SymmetrySize, g1, BasisFN
          use SymData, only: SymClassSize
-         use legacy_data, only: irat
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
          integer, POINTER :: DSTORE(:)
@@ -41,8 +39,7 @@ C.. If we're just counting, we don't need to keep DSTORE
       SUBROUTINE GenExcitProb(nI,nJ,nEl,nIExcitor,G1,nBasisMax,Arr,
      &      nBasis,pGen)
          use constants, only: dp
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: Symmetry, BasisFN
          use SymData, only: SymClassSize
          IMPLICIT NONE
          INTEGER nEl,nI(nEl),nJ(nEl),nBasis,nBasisMax(*)
@@ -70,9 +67,7 @@ C.. to actually generate the excitations
 
       SUBROUTINE GENSYMEXCITIT2(NI,NEL,G1,NBASIS,
      &         TSETUP,NMEM,NJ,IC,STORE,ILEVEL)
-         use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
-         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
-         use legacy_data, only: irat
+         use SystemData, only: Symmetry, BasisFN
          IMPLICIT NONE
          INTEGER NEL,NI(NEL),NBASIS
          INTEGER G1(nBasis)
