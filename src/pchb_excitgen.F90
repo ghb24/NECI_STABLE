@@ -12,6 +12,7 @@ module pchb_excitgen
   use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
   use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex
+  use util_mod_epsilon_close, only: near_zero
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
@@ -276,11 +277,14 @@ module pchb_excitgen
         integer :: ex(2,2)
         real(dp), allocatable :: w(:)
         real(dp), allocatable :: pNoExch(:)
+        logical, allocatable :: mask(:)
         ! number of possible source orbital pairs
         ijMax = fuseIndex(nBI,nBI)
         ! allocate the bias for picking an exchange excitation
         allocate(pExch(ijMax), stat = aerr)
         pExch = 0.0_dp
+        ! the mask to filter nonzero entries of the bias
+        allocate(mask(ijMax), stat = aerr)        
         ! temporary storage for the unnormalized prob of not picking an exchange excitation
         allocatE(pNoExch(ijMax), stat = aerr)
         pNoExch = 1.0_dp
@@ -324,10 +328,13 @@ module pchb_excitgen
            end do
         end do
 
-        ! normalize the exchange bias
-        pExch = pExch / (pExch + pNoExch)
+        ! normalize the exchange bias (where normalizable)
+        mask = .not. near_zero(pExch + pNoExch)
+        where(mask) pExch = pExch / (pExch + pNoExch)
 
         deallocate(w)
+        deallocate(mask)
+        deallocate(pNoExch)
       end subroutine setup_pchb_sampler
 
       function map_orb(orb, alphaSamplers) result(sorb)
