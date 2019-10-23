@@ -6,6 +6,7 @@ module util_mod
     use util_mod_byte_size
     use util_mod_cpts
     use util_mod_epsilon_close
+    use util_mod_unused
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants
@@ -398,7 +399,7 @@ contains
 
     elemental integer(int32) function div_int32(a, b)
         integer(int32), intent(in) :: a, b
-#ifdef _WARNING_WORKAROUND_
+#ifdef __WARNING_WORKAROUND
         div_int32 = int(real(a, kind=sp) / real(b, kind=sp), kind=int32)
 #else
         div_int32 = a / b
@@ -407,7 +408,7 @@ contains
 
     elemental integer(int64) function div_int64(a, b)
         integer(int64), intent(in) :: a, b
-#ifdef _WARNING_WORKAROUND_
+#ifdef __WARNING_WORKAROUND
         div_int64 = int(real(a, kind=dp) / real(b, kind=dp), kind=int64)
 #else
         div_int64 = a / b

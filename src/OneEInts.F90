@@ -680,7 +680,7 @@ contains
 
       END SUBROUTINE DestroyPropInts
 
-      SUBROUTINE SwapTMat(NBASIS,NHG,GG)
+      SUBROUTINE SwapTMat()
         ! In:
         !    nBasis: the number of active orbitals post-freezing.
         !    NHG: the number of orbitals used initially (pre-freezing).
@@ -699,14 +699,12 @@ contains
         use sym_mod
         use global_utilities
         IMPLICIT NONE
-        integer NBASIS,NHG,GG(NHG)
         character(*),parameter :: this_routine='SwapTMat'
 
         ! Deallocate TMAT & reallocate with right size
         CALL DestroyTMAT(.false.)
         TMAT2D => TMAT2D2
         NULLIFY(TMAT2D2)
-
       END SUBROUTINE SwapTMat
 
       SUBROUTINE SwapOneEPropInts(nBasisFrz,iNum)

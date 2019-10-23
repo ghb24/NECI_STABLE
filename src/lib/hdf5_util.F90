@@ -850,7 +850,7 @@ contains
         integer(hdf_err) :: err
         integer(hsize_t) :: mem_dims(2)
         integer(int32), pointer :: ptr(:,:)
-#ifdef _WARNING_WORKAROUND_
+#ifdef __WARNING_WORKAROUND
        val = 0_int64
 #endif
 
