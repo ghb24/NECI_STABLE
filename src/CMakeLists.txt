@@ -1,7 +1,7 @@
 
 # List the files that ought to be compiled
 
-set( SRC_FILES 
+set( SRC_FILES
 
     adi_references.F90
     adi_initiators.F90
@@ -33,7 +33,6 @@ set( SRC_FILES
     Determinants.F90
     determ_proj.F90
     detham.F
-    DipMoms.F
     direct_ci.F90
     enumerate_excitations.F90
     ErrorAnalysis.F90
