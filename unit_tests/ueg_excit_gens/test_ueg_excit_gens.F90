@@ -185,25 +185,25 @@ contains
 
         call dSFMT_init(123)
 
-        call assert_equals(0.0_dp, calc_pgen_ueg(nI, ilut, ex, ic))
+        call assert_equals(0.0_dp, calc_pgen_ueg(ilut, ex, ic))
         ic = 2
         ! we still have spin-opposite excitations with cancelling matrix
         ! elements.. (i guess..)
         ! no i was just doing this wrong beforehand.. fix it now!
-        call assert_equals(1.0_dp, calc_pgen_ueg(nI, ilut, ex, ic))
+        call assert_equals(1.0_dp, calc_pgen_ueg(ilut, ex, ic))
         ! if we fake a (1,2) -> (1,2) excitation it should be fine as
         ! above
 
         ilut = 0_n_int
         ex(2,:) = [1,2]
 
-        call assert_equals(1.0_dp/3.0_dp, calc_pgen_ueg(nI, ilut, ex, ic))
+        call assert_equals(1.0_dp/3.0_dp, calc_pgen_ueg(ilut, ex, ic))
 
         ! although this test is dangerous, since actually orb_b > orb_a is
         ! enforced in the excitation generator.. but anyway..
         ! hm.. but why does the function not capture that??
         ex(2,:) = [2,1]
-        call assert_equals(1.0_dp/3.0_dp, calc_pgen_ueg(nI, ilut, ex, ic))
+        call assert_equals(1.0_dp/3.0_dp, calc_pgen_ueg(ilut, ex, ic))
 
         get_umat_el => null()
         nel = -1

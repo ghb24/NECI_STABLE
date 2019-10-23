@@ -17,6 +17,7 @@ module bit_reps
                                SymLabelCounts2
     use sym_general_mod, only: ClassCountInd
     use global_det_data, only: get_determinant
+    use util_mod, only: unused
     implicit none
 
     ! Structure of a bit representation:
@@ -307,6 +308,10 @@ contains
 #else
         sgn = extract_part_sign(ilut, min_part_type(run))
 #endif
+#ifdef __WARNING_WORKAROUND
+        ! Strange bug in compiler
+        call unused(run)
+#endif
     end function
 
 
@@ -346,6 +351,10 @@ contains
         ! as the initiator flag is stored in the "real" bit
         ! of each run
         flag = flag_initiator(min_part_type(part_type_to_run(sgn_index)))
+#ifdef __WARNING_WORKAROUND
+        ! Strange bug in compiler
+        call unused(sgn_index)
+#endif
     end function get_initiator_flag
 
     pure function get_initiator_flag_by_run(run) result (flag)
@@ -353,6 +362,10 @@ contains
         integer :: flag
         ! map 1->1, 2->3, 3->5, 4->7 for complex
         flag = flag_initiator(min_part_type(run))
+#ifdef __WARNING_WORKAROUND
+        ! Strange bug in compiler
+        call unused(run)
+#endif
     end function get_initiator_flag_by_run
 
     pure function any_run_is_initiator(ilut) result (t)
@@ -415,8 +428,6 @@ contains
         !        imag_sgn  - The new imaginary sign component
         !        run - Update given run. 1 ==> inum_runs
         ! InOut:  ilut     - The bit representation to update
-        use util_mod, only: unused
-
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: run
         real(dp), intent(in) :: real_sgn, imag_sgn
