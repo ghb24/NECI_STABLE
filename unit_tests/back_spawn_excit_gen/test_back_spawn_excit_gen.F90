@@ -113,10 +113,10 @@ contains
         ! test with initiators first..
         call set_flag(ilut, get_initiator_flag(run), .true.)
         ! first get 0 pgen:
-        call assert_equals(0.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        call assert_equals(0.0_dp, calc_pgen_back_spawn_ueg(ilut, ex, ic, run))
 
         ic = 2
-        call assert_equals(1.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        call assert_equals(1.0_dp, calc_pgen_back_spawn_ueg(ilut, ex, ic, run))
 
         ! now do a bit more advanced tests..
         ! do that later..
@@ -128,21 +128,21 @@ contains
 
         ! i am not quite sure why this can be called since nI is too short
         ! now actually..  but not used.. so maybe thats the reason
-        call assert_equals(1.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        call assert_equals(1.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(ilut, ex, ic, run))
 
         ! change to alpha excitation:
         ex(1,1) = 2
-        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(ilut, ex, ic, run))
         ! no beta:
         ex(1,:) = 1
-        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(ilut, ex, ic, run))
 
         ! and now test with back-spawn:
         call set_flag(ilut, get_initiator_flag(run), .false.)
 
         ! first check with ic = 1
         ic = 1
-        call assert_equals(0.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        call assert_equals(0.0_dp, calc_pgen_back_spawn_ueg(ilut, ex, ic, run))
 
         ! and then with
         ! electrons outside the occupied manifold
@@ -152,11 +152,11 @@ contains
         call encodebitdet(projedet(:,1), ilutref(:,1))
 
         ! so this is now same as the above beta pgen
-        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(ilut, ex, ic, run))
         ex(1,1) = 2
-        call assert_equals(1.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        call assert_equals(1.0_dp/12.0_dp, calc_pgen_back_spawn_ueg(ilut, ex, ic, run))
         ex(1,2) = 2
-        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(nI, ilut, ex, ic, run))
+        call assert_equals(1.0_dp/6.0_dp, calc_pgen_back_spawn_ueg(ilut, ex, ic, run))
 
         ! and now actually test with recalculated pgen..
         ! and now think hard.. is the formula actually
