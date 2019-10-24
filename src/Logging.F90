@@ -932,6 +932,9 @@ MODULE Logging
             ! The default value is zero which uses all excitation levels. 
             if (item < nitems) then
                 call readi(iHDF5PopsWriteEx)
+                if(iHDF5PopsWriteEx<0) then
+                    call stop_all(t_r,'Maximum excitation level should not be negative ')
+                end if
             end if
 
         case("HDF5-POPS-READ")
@@ -946,6 +949,9 @@ MODULE Logging
             ! The default value is zero which uses all excitation levels. 
             if (item < nitems) then
                 call readi(iHDF5PopsWriteEx)
+                if(iHDF5PopsWriteEx<0) then
+                    call stop_all(t_r,'Maximum excitation level should not be negative ')
+                end if
             end if
 
         case("POPS-INST-PROJE")
