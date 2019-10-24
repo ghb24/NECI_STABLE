@@ -228,6 +228,8 @@ MODULE FciMCData
 
       ! count the initiators spawned in one iteration to previously unoccupied
       integer :: initsSpawned, allInitsSpawned
+      ! do we track the maximum spawn per determinant?
+      logical :: tLogMaxSpawn
 
       ! Global, accumulated, values calculated on the root processor from
       ! the above per-node values

@@ -62,6 +62,9 @@ module global_det_data
     ! lenght of the determinant and its position
     integer :: pos_det_orbs, len_det_orbs
 
+    ! position + length of the maximum Hij/pgen ration per determinant
+    integer :: pos_max_spawn, len_max_spawn
+    
     ! Legth of arrays storing estimates to be written to the replica_est file
     integer :: replica_est_len
 
@@ -208,6 +211,12 @@ contains
            len_neg_spawns = 0
         endif
 
+        if(tLogMaxSpawn) then
+           len_max_spawn = 1
+        else
+           len_max_spawn = 0
+        endif
+
         ! Get the starting positions
         pos_spawn_pop = pos_hel+len_hel
         pos_tau_int = pos_spawn_pop+len_spawn_pop
@@ -221,9 +230,10 @@ contains
         pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
         pos_pos_spawns = pos_spawn_rate + len_spawn_rate
         pos_neg_spawns = pos_pos_spawns + len_pos_spawns
+        pos_max_spawn = pos_neg_spawns + len_neg_spawns
 
         tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_tot_spawns + len_acc_spawns + &
-             len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns
+             len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns + len_max_spawn
 
         if (tPairedReplicas) then
             replica_est_len = lenof_sign .div. 2
@@ -813,6 +823,24 @@ contains
 
       avSpawn = global_determinant_data(pos_neg_spawns:(pos_neg_spawns + lenof_sign - 1),j)
     end function get_neg_spawns
+
+  !------------------------------------------------------------------------------------------!
+
+    function get_max_spawn(j) result(maxSpawn)
+      implicit none
+      integer, intent(in) :: j
+      real(dp) :: maxSpawn
+
+      maxSpawn = global_determinant_data(pos_max_spawn,j)      
+    end function get_max_spawn
+
+    subroutine set_max_spawn(j,maxSpawn)
+      implicit none
+      integer, intent(in) :: j
+      real(dp), intent(in) :: maxSpawn
+      
+      global_determinant_data(pos_max_spawn,j) = maxSpawn
+    end subroutine set_max_spawn
 
   !------------------------------------------------------------------------------------------!
   !    Global storage for storing nI for each occupied determinant to save time for
