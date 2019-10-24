@@ -58,6 +58,14 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     character(:), allocatable :: Filename
     logical :: toverride_input, tFCIDUMP_exist, tCPMD_, tVASP_
     type(kp_fciqmc_data) :: kp
+    interface
+        subroutine NECICodeInit(tCPMD, tVASP, MemSize)
+            import :: dp, int64
+            implicit none
+            logical, intent(in) :: tCPMD, tVASP
+            integer(int64), intent(in), optional :: MemSize
+        end subroutine
+    end interface
 
     def_default(iCacheFlag_, iCacheFlag, 0)
     def_default(tCPMD_, tCPMD, .false.)
