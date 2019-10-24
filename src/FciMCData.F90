@@ -226,6 +226,9 @@ MODULE FciMCData
       real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
       integer :: bloom_count(0:2), all_bloom_count(0:2)
 
+      ! count the initiators spawned in one iteration to previously unoccupied
+      integer :: initsSpawned, allInitsSpawned
+
       ! Global, accumulated, values calculated on the root processor from
       ! the above per-node values
       real(dp), allocatable :: AllGrowRate(:)

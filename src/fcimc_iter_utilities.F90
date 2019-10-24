@@ -459,8 +459,10 @@ contains
         sizes(29) = size(initsPerExLvl)
         sizes(30) = 1
         sizes(31) = 1
+        ! number of instantly created initiators
+        sizes(32) = 1
 
-        if (sum(sizes(1:31)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:32)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -501,6 +503,7 @@ contains
         ! excitation number trackers
         low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nInvalidExcits;
         low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nValidExcits;
+        low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = initsSpawned;        
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -547,6 +550,7 @@ contains
         ! excitation number trackers
         low = upp + 1; upp = low + sizes(30) - 1; allNInvalidExcits = nint(recv_arr(low));
         low = upp + 1; upp = low + sizes(31) - 1; allNValidExcits = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(32) - 1; allInitsSpawned = nint(recv_arr(low));        
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -1157,6 +1161,8 @@ contains
         ! and the number of excits
         nInvalidExcits = 0
         nValidExcits = 0
+
+        initsSpawned = 0
 
     end subroutine rezero_iter_stats_update_cycle
 

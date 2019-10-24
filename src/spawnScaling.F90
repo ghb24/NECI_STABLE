@@ -16,7 +16,7 @@ module spawnScaling
   public :: resetScale, currentSpawnScale, rescaleIfFlagged, maxSpawnRescale, &
          scaleCondition, initSpawnScaling, finalizeSpawnScaling
   ! Fraction of an initiator that is ok to spawn in a single attempt
-  real(dp) :: perSpawnInitRatio = 1.001_dp
+  real(dp) :: perSpawnInitRatio = 2.0_dp
   ! Maximum scale factor (everything above is deemed unstable)
   integer :: maxScaleFactor = 20
   ! scale factor

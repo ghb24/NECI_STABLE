@@ -1846,7 +1846,11 @@ contains
 #endif
                 call neci_flush(iout)
             endif
-        endif
+         endif
+
+         if(allInitsSpawned > 0) then
+            write(iout, *) "Warning: Directly spawned", allInitsSpawned, "initiators"
+         endif
 
     end subroutine end_iteration_print_warn
 

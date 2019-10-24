@@ -1134,6 +1134,8 @@ module AnnihilationMod
                             ScaledOccupiedThresh, t_truncate_this_det)
                     enddo
 
+                    if(any(scFVal * InitiatorWalkNo < abs(SpawnedSign))) initsSpawned = initsSpawned + 1
+
                     if(.not. IsUnoccDet(SpawnedSign)) then
                        ! Walkers have not been aborted and so we should copy the
                        ! determinant straight over to the main list. We do not
