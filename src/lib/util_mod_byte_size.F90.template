@@ -197,10 +197,16 @@ contains
         ! How many bytes are there per element of var?
 
         %(atype)s, intent(in) :: var
+#ifdef __WARNING_WORKAROUND
+        integer :: tmp
+#endif
         integer :: byte_sz
 
         byte_sz = %(sz)s
 
+#ifdef __WARNING_WORKAROUND
+        tmp = size(var)
+#endif
     end function
 
     pure function byte_size (var) result(byte_sz)
@@ -209,10 +215,16 @@ contains
         ! we will need some funky trickery...
 
         %(atype)s, intent(in) :: var
+#ifdef __WARNING_WORKAROUND
+        integer :: tmp
+#endif
         integer :: byte_sz
 
         byte_sz = size(var) * %(sz)s
 
+#ifdef __WARNING_WORKAROUND
+        tmp = size(var)
+#endif
     end function
 
 end module

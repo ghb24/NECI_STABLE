@@ -326,9 +326,9 @@ contains
     end subroutine pick_virtual_electrons_double
 
 
-    subroutine pick_occupied_orbital_single(nI, ilut, src, cc_index, part_type,&
+    subroutine pick_occupied_orbital_single(ilut, src, cc_index, part_type,&
             pgen, orb, calc_pgen)
-        integer, intent(in) :: nI(nel), src, cc_index, part_type
+        integer, intent(in) :: src, cc_index, part_type
         integer(n_int), intent(in) :: ilut(0:niftot)
         real(dp), intent(out) :: pgen
         integer, intent(out) :: orb
@@ -397,10 +397,10 @@ contains
 
     end subroutine pick_occupied_orbital_single
 
-    subroutine pick_occupied_orbital_hubbard(nI, ilutI, part_type, pgen, orb, calc_pgen)
+    subroutine pick_occupied_orbital_hubbard(ilutI, part_type, pgen, orb, calc_pgen)
         ! routine to pick one possible orbital from the occupied manifold
         ! thats the easiest of all implementations actually..
-        integer, intent(in) :: nI(nel), part_type
+        integer, intent(in) :: part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: pgen
         integer, intent(out) :: orb
@@ -454,9 +454,9 @@ contains
 
     end subroutine pick_occupied_orbital_hubbard
 
-    subroutine pick_occupied_orbital_ueg(nI, ilutI, src, ispn, part_type, cpt, &
+    subroutine pick_occupied_orbital_ueg(ilutI, src, ispn, part_type, cpt, &
             cum_sum, orb, calc_pgen)
-        integer, intent(in) :: nI(nel), src(2), ispn, part_type
+        integer, intent(in) :: src(2), ispn, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(out) :: orb
@@ -538,9 +538,9 @@ contains
     end subroutine pick_occupied_orbital_ueg
 
 
-    subroutine pick_occupied_orbital(nI, ilutI, src, ispn, part_type, cpt, cum_sum, &
+    subroutine pick_occupied_orbital(ilutI, src, ispn, part_type, cpt, cum_sum, &
             orb, calc_pgen)
-        integer, intent(in) :: nI(nel), src(2), ispn, part_type
+        integer, intent(in) :: src(2), ispn, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(out) :: orb
@@ -625,7 +625,7 @@ contains
 
     end subroutine pick_occupied_orbital
 
-    subroutine pick_second_occupied_orbital(nI, ilutI, src, cc_b, orb_a, ispn,&
+    subroutine pick_second_occupied_orbital(ilutI, cc_b, orb_a, ispn,&
             part_type, cpt, cum_sum, orb, calc_pgen)
         ! routine which picks second orbital from the occupied manifold for
         ! a double excitation. this function gets called if we have picked
@@ -634,7 +634,7 @@ contains
         ! level the same but also increase the flexibility of the method
         ! this now has to take symmetries into account, which makes it a
         ! bit more complicated
-        integer, intent(in) :: nI(nel), src(2), cc_b, orb_a, ispn, part_type
+        integer, intent(in) :: cc_b, orb_a, ispn, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(out) :: orb

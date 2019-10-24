@@ -309,7 +309,7 @@ MODULE UMatCache
 
 
 
-      SUBROUTINE GetUMatSize(nBasis,nEl,iSize)
+      SUBROUTINE GetUMatSize(nBasis,iSize)
         use SystemData, only: tStoreSpinOrbs
       ! Get the prospective size of a UMat (not a UMatCache) for completely
       ! storing FCIDUMP 2-e integrals

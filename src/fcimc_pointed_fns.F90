@@ -177,6 +177,9 @@ module fcimc_pointed_fns
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
         integer :: ispn
 
+#ifdef __WARNING_WORKAROUND
+        call unused(AvSignCurr)
+#endif
         ! Just in case
         child = 0.0_dp
 
@@ -499,6 +502,10 @@ module fcimc_pointed_fns
         integer :: run
         integer :: i
 
+#ifdef __WARNING_WORKAROUND
+        call unused(nJ); call unused(walkExLevel)
+#endif
+
         ! Write out some debugging information if asked
         IFDEBUG(FCIMCDebug,3) then
             write(iout,"(A)",advance='no') "Creating "
@@ -689,6 +696,9 @@ module fcimc_pointed_fns
 #else
         real(dp) :: rat(1)
 #endif
+#ifdef __WARNING_WORKAROUND
+        call unused(Kii); call unused(DetPos)
+#endif
 
         do i=1, inum_runs
             fac(i)=tau
@@ -773,6 +783,10 @@ module fcimc_pointed_fns
 
       real(dp), intent(in) :: hdiag
       real(dp) :: Si
+
+#ifdef __WARNING_WORKAROUND
+      call unused(hdiag)
+#endif
 
       Si = -1
 
@@ -874,6 +888,10 @@ module fcimc_pointed_fns
       integer, intent(in) :: run
       real(dp), intent(in) :: pop
       real(dp) :: f, tot, acc, tmp
+
+#ifdef __WARNING_WORKAROUND
+      call unused(pop)
+#endif
 
       tot = get_tot_spawns(pos, run)
       acc = get_acc_spawns(pos, run)
