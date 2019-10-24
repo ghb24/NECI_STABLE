@@ -1656,20 +1656,6 @@ contains
 
 #else
 
-#if defined(_MOLCAS_MPP_)
-        write(6,"(A)") "********************************************************************"
-        write(6,"(A)") "***************************  WARNING  ******************************"
-        write(6,"(A)") "********************************************************************"
-        write(6,"(A)") "***                                                              ***"
-        write(6,"(A)") "*** FCIQMC module run in parallel, but Molcas not compiled with  ***"
-        write(6,"(A)") "*** MPI. FCIQMC module cannot support compilation with Global    ***"
-        write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***"
-        write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***"
-        write(6,"(A)") "*** recommended.                                                 ***"
-        write(6,"(A)") "***                                                              ***"
-        write(6,"(A)") "********************************************************************"
-#endif
-
        ! Dummy set up for serial work.
        iProcIndex = 0
        nProcessors = 1

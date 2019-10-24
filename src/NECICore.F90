@@ -21,8 +21,9 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     !=    tCPMD: True if doing a CPMD-based calculation.
     !=    tVASP: True if doing a VASP-based calculation.
     !=    call_as_lib: True if called as subroutine from external code.
-    !=    int_name is the name of the integral file to read in if necessary
-    !=    filename is the name of the input file to read in if necessary
+    !=    int_name: is the name of the integral file to read in if necessary
+    !=    filename: is the name of the input file to read in if necessary
+    !=    MemSize: Memory limit in MB
 
     use ReadInput_neci, only : ReadInputMain
     use SystemData, only : tMolpro,tMolproMimic,MolproID,called_as_lib

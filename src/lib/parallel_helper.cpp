@@ -1,7 +1,3 @@
-#ifdef _MOLCAS_
-#include "molcas_wrapper.h"
-#endif
-
 #ifdef CBINDMPI
 #define OMPI_SKIP_MPICXX
 #define MPICH_SKIP_MPICXX
