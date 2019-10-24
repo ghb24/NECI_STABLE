@@ -2,7 +2,8 @@
 module gasci
     use SystemData, only: tNConservingGAS, tSpinConservingGAS, nBasis, nel
     use constants
-    use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.)
+    use util_mod, only: get_free_unit, binary_search_first_ge, &
+        operator(.div.), unused
     use sort_mod, only : sort
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -184,6 +185,10 @@ contains
         integer, intent(in), optional :: part_type
 
         real(dp) :: r
+
+#ifdef __WARNING_WORKAROUND
+        call unused(exFlag); call unused(store%nI_beta); call unused(part_type)
+#endif
 
         ! exFlag and part_type are not used but part of interface for
         ! procedure pointers.
