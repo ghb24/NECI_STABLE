@@ -366,10 +366,7 @@ subroutine NECICalcEnd(iCacheFlag)
     if(tCalcPropEst) call DestroyPropInts
     call SysCleanup()
     call clean_replica_arrays()
-
-#ifndef _MOLCAS_
     call clean_parallel()
-#endif
 
     if(allocated(SpinOrbSymLabel)) deallocate(SpinOrbSymLabel)
     if(allocated(SymInvLabel)) deallocate(SymInvLabel)
