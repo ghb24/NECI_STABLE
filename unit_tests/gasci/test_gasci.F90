@@ -65,7 +65,7 @@ contains
 
     call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
 
-    call GetUMatSize(nBasis, nel, umatsize)
+    call GetUMatSize(nBasis, umatsize)
 
     allocate(TMat2d(nBasis,nBasis))
 
@@ -75,10 +75,10 @@ contains
 
     call SysInit()
     ! required: set up the spin info
-    
+
     call DetInit()
     ! call SpinOrbSymSetup()
-    
+
     call DetPreFreezeInit()
 
     call CalcInit()
@@ -109,7 +109,7 @@ contains
     type(excit_gen_store_type), target :: store
     logical :: exDone(nel,nel,0:nBasis,0:nBasis)
     integer :: ic
-    
+
     exDone = .false.
 
     ! some starting det
@@ -120,7 +120,7 @@ contains
     tCSF = .false.
     tSpinConservingGAS = .false.
     call EncodeBitDet(nI,ilut)
-    
+
     exflag = 3
     ! create a list of all singles and doubles for reference
     call CountExcitations3(nI,exflag,nSingles,nDoubles)
@@ -139,7 +139,7 @@ contains
     pParallel = 0.5_dp
     pSingles = 0.1_dp
     pDoubles = 0.9_dp
-    
+
     pNull = 0.0_dp
     do i = 1, sampleSize
        call generate_nGAS_excitation(nI,ilut,nJ,ilutJ,exFlag,ic,&
