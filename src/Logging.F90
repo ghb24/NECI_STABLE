@@ -160,6 +160,7 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
+      iHDF5PopsWriteEx = 0
       tWriteRefs = .false.
 
       maxInitExLvlWrite = 8
@@ -925,6 +926,12 @@ MODULE Logging
             ! Use the new HDF5 popsfile format
             tHDF5PopsRead = .true.
             tHDF5PopsWrite = .true.
+            ! If an integer is provided, it is used as the maximum excitation
+            ! level of determinats written to the popsfile.
+            ! The default value is zero which uses all excitation levels. 
+            if (item < nitems) then
+                call readi(iHDF5PopsWriteEx)
+            end if
 
         case("HDF5-POPS-READ")
             ! Use the new HDF5 popsfile format just for reading
@@ -933,6 +940,12 @@ MODULE Logging
         case("HDF5-POPS-WRITE")
             ! Use the new HDF5 popsfile format just for writing
             tHDF5PopsWrite = .true.
+            ! If an integer is provided, it is used as the maximum excitation
+            ! level of determinats written to the popsfile.
+            ! The default value is zero which uses all excitation levels. 
+            if (item < nitems) then
+                call readi(iHDF5PopsWriteEx)
+            end if
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.

@@ -106,6 +106,9 @@ module LoggingData
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
+    ! The maximum excitation level of dets writen to an HDF5 popsfile
+    integer :: iHDF5PopsWriteEx
+
     logical :: tOldRDMs = .false.
 
     logical :: tTransitionRDMs = .false.

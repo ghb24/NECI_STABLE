@@ -712,10 +712,12 @@ contains
     subroutine write_walkers(parent)
 
         use iso_c_hack
-        use bit_rep_data, only: NIfD, NIfTot, NOffSgn
+        use bit_rep_data, only: NIfD, NIfTot, NOffSgn, extract_sign
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
-                             TotWalkers
+                             TotWalkers, iLutHF
         use CalcData, only: tUseRealCoeffs
+        use DetBitOps, only: FindBitExcitLevel
+        use LoggingData, only: iHDF5PopsWriteEx
 
         ! Output the wavefunction information to the relevant groups in the
         ! wavefunction.
@@ -739,9 +741,48 @@ contains
         integer(hsize_t) :: dims(2), hyperdims(2)
         real(dp) :: all_parts(lenof_sign), all_norm_sqr(lenof_sign)
         integer(hsize_t) :: block_size, block_start, block_end
-        integer(hsize_t), dimension(:,:), allocatable :: temp_dets
         integer :: ierr
         integer(n_int), allocatable :: fvals(:,:)
+
+        integer :: ExcitLevel
+        integer(hsize_t) :: printed_count
+        integer(kind=n_int) , allocatable , target :: TmpVecDets(:,:)
+        integer(kind=n_int) , pointer :: PrintedDets(:,:)
+        integer :: i
+        real(dp) :: CurrentSign(lenof_sign), printed_tot_parts(lenof_sign), &
+                    printed_norm_sqr(inum_runs)
+
+
+        if(iHDF5PopsWriteEx>0)then
+            ! We want to print only dets up to a certine excitation level
+            ! Let us find out which they are and copy them
+            allocate(TmpVecDets(0:NIfTot, TotWalkers))
+            PrintedDets => TmpVecDets
+            printed_count = 0
+            do i = 1, TotWalkers
+                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
+                if(ExcitLevel<=iHDF5PopsWriteEx)then
+                    printed_count = printed_count + 1
+                    PrintedDets(:,printed_count) = CurrentDets(:,i)
+                    ! Fill in stats
+                    call extract_sign(CurrentDets(:,i),CurrentSign)
+                    printed_tot_parts = printed_tot_parts + abs(CurrentSign)
+#if defined(__CMPLX)
+                    do run = 1, inum_runs
+                       printed_norm_sqr(run) = printed_norm_sqr(run) + &
+                            sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+                    enddo
+#else
+                    printed_norm_sqr = printed_norm_sqr + CurrentSign**2
+#endif
+                end if
+            end do
+        else
+            PrintedDets => CurrentDets
+            printed_count = TotWalkers
+            printed_tot_parts = TotParts
+            printed_norm_sqr = norm_psi_squared
+        end if
 
         ! TODO: Add a (slower) fallback routine for weird cases, odd HDF libs
 
@@ -759,7 +800,7 @@ contains
         end if
 
         ! How many occuiped determinants are there on each of the processors
-        call MPIAllGather(TotWalkers, counts, ierr)
+        call MPIAllGather(printed_count, counts, ierr)
         all_count = sum(counts)
         write_offset = [0_hsize_t, sum(counts(0:iProcIndex-1))]
 
@@ -776,9 +817,8 @@ contains
 
         ! Accumulated values only valid on head node. collate_iter_data
         ! has not yet run.
-        all_parts = AllTotParts
-        call MPISumAll(norm_psi_squared, all_norm_sqr)
-        call MPIBcast(all_parts)
+        call MPISumAll(printed_norm_sqr, all_norm_sqr)
+        call MPISumAll(printed_tot_parts, all_parts)
         call write_dp_1d_attribute(wfn_grp_id, nm_norm_sqr, all_norm_sqr)
         call write_dp_1d_attribute(wfn_grp_id, nm_num_parts, all_parts)
 
@@ -787,8 +827,8 @@ contains
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
-                CurrentDets, arr_2d_dims(CurrentDets), &
-                [int(nifd+1, hsize_t), int(TotWalkers, hsize_t)], & ! dims
+                PrintedDets, arr_2d_dims(PrintedDets), &
+                [int(nifd+1, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], & ! offset
                 [int(nifd+1, hsize_t), all_count], & ! all dims
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
@@ -800,8 +840,8 @@ contains
 
         call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
-                CurrentDets, arr_2d_dims(CurrentDets), &
-                [int(lenof_sign, hsize_t), int(TotWalkers, hsize_t)], & ! dims
+                PrintedDets, arr_2d_dims(PrintedDets), &
+                [int(lenof_sign, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
                 [int(lenof_sign, hsize_t), all_count], & ! all dims
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
@@ -810,13 +850,13 @@ contains
         ! if auto-adaptive shift was used, also write the gathered information on
         ! accepted/total spawns
         if(tAutoAdaptiveShift) then
-           allocate(fvals(2*inum_runs,TotWalkers))
+           allocate(fvals(2*inum_runs,printed_count))
            ! get the statistics of THIS processor
-           call writeFFuncAsInt(TotWalkers, fvals)
+           call writeFFuncAsInt(fvals)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, &
                 fvals, arr_2d_dims(fvals), &
-                [int(2*inum_runs, hsize_t), int(TotWalkers, hsize_t)], & ! dims
+                [int(2*inum_runs, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
                 [int(2*inum_runs, hsize_t), all_count], &
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] &
@@ -826,6 +866,10 @@ contains
 
         ! And we are done
         call h5gclose_f(wfn_grp_id, err)
+
+        if(iHDF5PopsWriteEx>0)then
+            deallocate(TmpVecDets)
+        end if
 
     end subroutine write_walkers
 
