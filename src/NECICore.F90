@@ -76,7 +76,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     neci_MPINodes_called = .false.
 
     ! Do the program initialisation.
-    call NECICodeInit(tCPMD_, tVASP_, MemSize)
+    call NECICodeInit(tCPMD_, tVASP_, called_as_lib, MemSize)
 
     proc_timer%timer_name='NECICUBE  '
     call set_timer(proc_timer)
@@ -120,7 +120,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
         endif
     end if
 
-    ios=0
+    ios = 0
     if (.not. (tCPMD_ .or. tVASP_)) then
         ! CPMD and VASP calculations call the input parser *before* they call
         ! NECICore.  This is to allow the NECI input filename(s) to be specified
@@ -160,7 +160,7 @@ End Subroutine NECICore
 
 
 
-subroutine NECICodeInit(tCPMD, tVASP, MemSize)
+subroutine NECICodeInit(tCPMD, tVASP, call_as_lib, MemSize)
  use MolproPlugin
     != Initialise the NECI code.  This contains all the initialisation
     != procedures for the code (as opposed to the system in general): e.g. for
@@ -171,21 +171,23 @@ subroutine NECICodeInit(tCPMD, tVASP, MemSize)
 
     ! Utility modules
     use MemoryManager, only: InitMemoryManager
-    use timing_neci, only: init_timing
+    use timing_neci, only: time_at_all, init_timing
     use Parallel_neci, only: MPIInit
-    use SystemData, only : tMolpro,called_as_lib
+    use SystemData, only : tMolpro
     use CalcData, only: s_global_start
     use constants, only: dp, int64
     use util_mod, only: neci_etime
 
     implicit none
-    logical, intent(in) :: tCPMD, tVASP
+    logical, intent(in) :: tCPMD, tVASP, call_as_lib
     integer(int64), intent(in), optional :: MemSize
     real(dp) :: tend(2)
 
+    time_at_all = .not. call_as_lib
+
     ! MPIInit contains dummy initialisation for serial jobs, e.g. so we
     ! can refer to the processor index being 0 for the parent processor.
-    Call MPIInit(tCPMD.or.tVASP.or.tMolpro.or.called_as_lib) ! CPMD and VASP have their own MPI initialisation and termination routines.
+    Call MPIInit(tCPMD.or.tVASP.or.tMolpro.or.call_as_lib) ! CPMD and VASP have their own MPI initialisation and termination routines.
 
     ! Measure when NECICore is called. We need to do this here, as molcas
     ! and molpro can call NECI part way through a run, so it is no use to time
