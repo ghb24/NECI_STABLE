@@ -63,11 +63,6 @@ neci_add_option(
     REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
 
 neci_add_option(
-    FEATURE MOLCAS
-    DEFAULT OFF
-    DESCRIPTION "Build NECI with molcas functionality" )
-
-neci_add_option(
     FEATURE SHARED
     DEFAULT OFF
     DESCRIPTION "Build using shared libraries, rather than static linking" )
@@ -119,7 +114,6 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<BOOL:${HAVE_SHARED_MEMORY}>:__SHARED_MEM>
     $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
     $<$<BOOL:${HAVE_HDF5}>:__USE_HDF>
-    $<$<BOOL:${HAVE_MOLCAS}>:_MOLCAS_>
 
     # Identify the compiler to the code
     $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},Intel>:__IFORT>
