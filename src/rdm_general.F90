@@ -950,11 +950,16 @@ contains
       integer, intent(in) :: DetPosition
       real(dp) :: rdmC
 
-      integer :: run
+      integer :: run, pairRun
 
       rdmC = 0.0_dp
       do run = 1, inum_runs, 2
-         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(run+1)
+         if(run+1 <= inum_runs) then
+            pairRun = run + 1
+         else
+            pairRun = run
+         endif
+         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(pairRun)
       end do
 
     end function getRDMCorrectionTerm
