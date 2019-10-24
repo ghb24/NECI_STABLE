@@ -59,10 +59,10 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     logical :: toverride_input, tFCIDUMP_exist, tCPMD_, tVASP_
     type(kp_fciqmc_data) :: kp
     interface
-        subroutine NECICodeInit(tCPMD, tVASP, MemSize)
+        subroutine NECICodeInit(tCPMD, tVASP, called_as_lib, MemSize)
             import :: dp, int64
             implicit none
-            logical, intent(in) :: tCPMD, tVASP
+            logical, intent(in) :: tCPMD, tVASP, called_as_lib
             integer(int64), intent(in), optional :: MemSize
         end subroutine
     end interface
