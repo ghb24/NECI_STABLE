@@ -66,6 +66,7 @@ C!!!      ISVEC must be dimensioned 25 in the calling program        ++
 C!!! ++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++
 !      IMPLICIT real(dp)(A-H,O-Z)
       use constants, only: dp
+      use util_mod_epsilon_close, only: near_zero
       IMPLICIT NONE
       integer :: I,K,LP,JSEED,LENV,IZIP2,IZIP,ISK,INNER
       real(dp) :: RVEC(LENV)
@@ -124,7 +125,7 @@ C              Default Initialization by Multiplicative Congruential
          I24 = 24
          J24 = 10
          CARRY = 0.
-         IF (int(SEEDS(24)) == 0) CARRY = TWOM24
+         IF (near_zero(SEEDS(24))) CARRY = TWOM24
       ENDIF
 C
 C          The Generator proper: "Subtract-with-borrow",
@@ -147,7 +148,7 @@ C  small numbers (with less than 12 "significant" bits) are "padded".
       IF (UNI .LT. TWOM12)  THEN
          RVEC(IVEC) = RVEC(IVEC) + TWOM24*SEEDS(J24)
 C        and zero is forbidden in case someone takes a logarithm
-         IF (int(RVEC(IVEC)) == 0)  RVEC(IVEC) = TWOM24*TWOM24
+         IF (near_zero(RVEC(IVEC)))  RVEC(IVEC) = TWOM24*TWOM24
       ENDIF
 C        Skipping to luxury.  As proposed by Martin Luscher.
       IN24 = IN24 + 1
@@ -289,7 +290,7 @@ C                    Entry to initialize from one or three integers
       I24 = 24
       J24 = 10
       CARRY = 0.
-      IF (int(SEEDS(24)) == 0) CARRY = TWOM24
+      IF (near_zero(SEEDS(24))) CARRY = TWOM24
 C        If restarting at a break point, skip K1 + IGIGA*K2
 C        Note that this is the number of numbers delivered to
 C        the user PLUS the number skipped (if luxury .GT. 0).

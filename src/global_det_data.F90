@@ -56,8 +56,8 @@ module global_det_data
 
     ! global storage of history of determinants: number of pos/neg spawns and
     ! time since a determinant died
-    integer :: len_pos_spawns, len_neg_spawns, len_death_timer, len_occ_time
-    integer :: pos_pos_spawns, pos_neg_spawns, pos_death_timer, pos_occ_time
+    integer :: len_pos_spawns, len_neg_spawns
+    integer :: pos_pos_spawns, pos_neg_spawns
 
     ! lenght of the determinant and its position
     integer :: pos_det_orbs, len_det_orbs
@@ -207,7 +207,6 @@ contains
            len_pos_spawns = 0
            len_neg_spawns = 0
         endif
-        len_death_timer = 1
 
         ! Get the starting positions
         pos_spawn_pop = pos_hel+len_hel
@@ -222,12 +221,9 @@ contains
         pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
         pos_pos_spawns = pos_spawn_rate + len_spawn_rate
         pos_neg_spawns = pos_pos_spawns + len_pos_spawns
-        pos_death_timer = pos_neg_spawns + len_neg_spawns
-        pos_occ_time = pos_death_timer + pos_death_timer
 
         tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_tot_spawns + len_acc_spawns + &
-             len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns + &
-             len_death_timer + len_occ_time
+             len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns
 
         if (tPairedReplicas) then
             replica_est_len = lenof_sign .div. 2
@@ -452,7 +448,7 @@ contains
 
     end subroutine
 
-    function get_tot_spawns(j, run) result(t)
+    pure function get_tot_spawns(j, run) result(t)
 
         integer, intent(in) :: j, run
         real(dp) :: t
@@ -570,7 +566,7 @@ contains
 
     end subroutine
 
-    function get_acc_spawns(j, run) result(t)
+    pure function get_acc_spawns(j, run) result(t)
 
         integer, intent(in) :: j, run
         real(dp) :: t
@@ -817,67 +813,6 @@ contains
 
       avSpawn = global_determinant_data(pos_neg_spawns:(pos_neg_spawns + lenof_sign - 1),j)
     end function get_neg_spawns
-
-  !------------------------------------------------------------------------------------------!
-
-    subroutine clock_occ_time(j)
-      implicit none
-      integer, intent(in) :: j
-
-      global_determinant_data(pos_occ_time,j) = global_determinant_data(pos_occ_time,j) + 1
-      global_determinant_data(pos_pos_spawns:(pos_death_timer-1),j) = &
-           global_determinant_data(pos_pos_spawns:(pos_death_timer-1),j) * &
-           (global_determinant_data(pos_occ_time,j)-1)/global_determinant_data(pos_occ_time,j)
-
-    end subroutine clock_occ_time
-
-  !------------------------------------------------------------------------------------------!
-
-    subroutine reset_occ_time(j)
-      implicit none
-      integer, intent(in) :: j
-
-      global_determinant_data(pos_occ_time,j) = 0
-    end subroutine reset_occ_time
-
-  !------------------------------------------------------------------------------------------!
-
-    subroutine clock_death_timer(j)
-      implicit none
-      integer, intent(in) :: j
-
-      global_determinant_data(pos_death_timer,j) = global_determinant_data(pos_death_timer,j) + 1.0_dp
-    end subroutine clock_death_timer
-
-  !------------------------------------------------------------------------------------------!
-
-    function get_death_timer(j) result(niter)
-      implicit none
-      integer, intent(in) :: j
-      real(dp) :: niter
-
-      niter = global_determinant_data(pos_death_timer,j)
-
-    end function get_death_timer
-
-  !------------------------------------------------------------------------------------------!
-
-    subroutine mark_death(j)
-      implicit none
-      integer, intent(in) :: j
-
-      global_determinant_data(pos_death_timer,j) = -1.0_dp
-    end subroutine mark_death
-
-
-  !------------------------------------------------------------------------------------------!
-
-    subroutine reset_death_timer(j)
-      implicit none
-      integer, intent(in) :: j
-
-      global_determinant_data(pos_death_timer,j) = 0.0_dp
-    end subroutine reset_death_timer
 
   !------------------------------------------------------------------------------------------!
   !    Global storage for storing nI for each occupied determinant to save time for

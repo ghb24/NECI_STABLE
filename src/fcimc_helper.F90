@@ -17,11 +17,9 @@ module fcimc_helper
 
                         log_spawn, increase_spawn_counter, all_runs_are_initiator, &
                         encode_spawn_hdiag, extract_spawn_hdiag, flag_static_init
-    use bit_rep_data, only: flag_large_matel
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
-    use adi_references, only: test_ref_double
     use Determinants, only: get_helement, write_det
     use FciMCData
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
@@ -35,24 +33,24 @@ module fcimc_helper
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
                            initsPerExLvl
-    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
-                        InitiatorWalkNo, tAvReps, &
+    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
+                        InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
-                        MaxWalkerBloom, tEN2, tEN2Started, spawnMatelThresh, &
+                        MaxWalkerBloom, tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tau, DiagSft, tLargeMatelSurvive, &
+                        t_back_spawn_flex, tau, DiagSft, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
-                        initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
-                        spawnSgnThresh, minInitSpawns, tTimedDeaths, &
-                        tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse,&
-                        tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
-                        tAAS_SpinScaled, AAS_SameSpin, AAS_OppSpin, tPrecond, &
-                        tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, allowedSpawnSign
-    use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
-         tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv
+                        tLogAverageSpawns, &
+                        spawnSgnThresh, minInitSpawns, &
+                        tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2,&
+                        tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
+                        tPrecond, &
+                        tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, &
+                        allowedSpawnSign
+    use adi_data, only: tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign, &
@@ -61,7 +59,6 @@ module fcimc_helper
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel
-    use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
@@ -193,9 +190,6 @@ contains
         ! child, to allow it to survive.
         if (tTruncInitiator) then
            allowed_child = .false.
-           ! deprecated, please remove
-           if(tAccessibleDoubles .or. tAccessibleSingles) &
-                allowed_child = test_ref_double(ilutJ, part_type_to_run(run))
            ! optionally: allow all spawns with a given sign
            if(allowedSpawnSign.ne.0) then
               if(allowedSpawnSign * child(part_type) * SignCurr(part_type)> 0) &
@@ -242,62 +236,12 @@ contains
                 weight_rej = 1.0_dp
             end if
 
-            if(tAAS_SpinScaled)then
-                if(ic==2)then
-                    if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
-                        weight_acc = weight_acc * AAS_SameSpin
-                        weight_rej = weight_rej * AAS_SameSpin
-!                        write(6, *) "SameSpin", AAS_SameSpin
-                    else
-                        weight_acc = weight_acc * AAS_OppSpin
-                        weight_rej = weight_rej * AAS_OppSpin
-!                        write(6, *) "OppSpin", AAS_OppSpin
-                    end if
-                end if
-            end if
             !Enocde weight, which is real, as an integer
             SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
             SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
 
-            if(tAAS_Reverse)then
-                if(tAAS_MatEle)then
-                    weight_rev = abs(matel)
-                else if(tAAS_MatEle2) then
-                    weight_den = abs(det_diagH(ParentPos) - DiagSft(run))
-                    if(weight_den<AAS_DenCut)then
-                        weight_den = AAS_DenCut
-                    end if
-                    weight_rev = abs(matel)/weight_den
-                else if(tAAS_MatEle3) then
-                    weight_rev = 1.0_dp
-                else if(tAAS_MatEle4) then
-                    weight_den = abs(det_diagH(ParentPos))
-                    if(weight_den<AAS_DenCut)then
-                        weight_den = AAS_DenCut
-                    end if
-                    weight_rev = abs(matel)/weight_den
-                else
-                    weight_rev = 1.0_dp
-                end if
-                if(tAAS_Reverse_Weighted)then
-                    weight_rev = weight_rev/mag_of_run(SignCurr, run)
-                endif
-                if(tAAS_SpinScaled)then
-                    if(ic==2)then
-                        if (is_alpha(ex(1,1)) .eqv. is_alpha(ex(1,2))) then
-                            weight_rev = weight_rev * AAS_SameSpin
-                        else
-                            weight_rev = weight_rev * AAS_OppSpin
-                        end if
-                    end if
-                end if
-                !Enocde weight, which is real, as an integer
-                SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)) = transfer(weight_rev, SpawnInfo(SpawnWeightRev, ValidSpawnedList(proc)))
-            end if
         end if
 
-        ! set flag for large spawn matrix element
-        if(present(matel)) call setLargeMatelFlag(ValidSpawnedList(proc),matel)
         ! store global data - number of spawns
 
         ! Is using the pure initiator space option, then if this spawning
@@ -356,7 +300,7 @@ contains
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         real(dp) :: sgn_prod(lenof_sign)
-        logical :: list_full, tSuccess, allowed_child
+        logical :: list_full, tSuccess
         integer :: global_position
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
@@ -448,10 +392,7 @@ contains
             ! If the parent was an initiator then set the initiator flag for the
             ! child, to allow it to survive.
             if (tTruncInitiator) then
-               allowed_child = .false.
-               if(tAccessibleDoubles .or. tAccessibleSingles) allowed_child = &
-                    test_ref_double(ilut_child, part_type_to_run(run))
-               if (allowed_child .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+               if (test_flag(ilut_parent, get_initiator_flag(part_type))) &
                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
              end if
 
@@ -463,8 +404,6 @@ contains
             ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         end if
 
-        ! set large matel flag
-        if(present(matel)) call setLargeMatelFlag(global_position,matel)
         ! store global data
         if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,global_position))
 
@@ -475,17 +414,6 @@ contains
             acceptances(part_type_to_run(part_type)) + maxval(abs(child_sign))
 
     end subroutine create_particle_with_hash_table
-
-    subroutine setLargeMatelFlag(ind, matel)
-      implicit none
-      integer, intent(in) :: ind
-      real(dp), intent(in) :: matel
-
-      if(tLargeMatelSurvive) then
-         if(matel > spawnMatelThresh) call set_flag(SpawnedParts(:,ind), &
-              flag_large_matel)
-      endif
-    end subroutine setLargeMatelFlag
 
     ! This routine sums in the energy contribution from a given walker and
     ! updates stats such as mean excit level AJWT added optional argument
@@ -1065,7 +993,6 @@ contains
 
       function TestInitiator_explicit(ilut, nI, det_idx,is_init, sgn, exLvl, run) result(initiator)
         use adi_initiators, only: check_static_init
-        use adi_references, only: check_superinitiator
         implicit none
         ! For a given particle (with its given particle type), should it
         ! be considered as an initiator for the purposes of spawning.
@@ -1095,11 +1022,6 @@ contains
         ! initiator flag according to SI or a static initiator space
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
 
-
-        if(tSeniorityInits) then
-           staticInit = staticInit .or. (count_open_orbs(ilut) <= initMaxSenior)
-        endif
-
         if (tInitiatorSpace) then
             staticInit = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic)
             if (.not. staticInit) then
@@ -1109,21 +1031,6 @@ contains
                 end if
             end if
         end if
-
-
-        ! check if there are sign conflicts across the replicas
-        if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
-           ! one initial check: if the replicas dont agree on the sign
-           ! dont make this an initiator under any circumstances
-           if(tReplicaCoherentInits .and. .not. &
-                ! maybe except for corepsace determinants
-                test_flag(ilut, flag_deterministic)) then
-              ! log this, if we remove an initiator here
-              if(is_init) NoAddedInitiators = NoAddedInitiators - 1_int64
-              initiator = .false.
-              return
-           endif
-        endif
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -1168,7 +1075,6 @@ contains
 
            ! All of the references stay initiators
            if(DetBitEQ(ilut, ilutRef(:,run),NIfDBO)) staticInit = .true.
-           call check_superinitiator(ilut, nI, staticInit)
            ! If det. is the HF det, or it
            ! is in the deterministic space, then it must remain an initiator.
            if ( .not. (staticInit) &
@@ -2209,10 +2115,8 @@ contains
 
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
-        use LoggingData, only: tOldRDMs
-        use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
-        use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn
-        use rdm_data_old, only: rdms, one_rdms_old
+        use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions, &
+                    inits_one_rdms, two_rdm_inits_spawn
         use semi_stoch_procs, only: check_determ_flag
 
         integer, intent(in) :: DetCurr(nel)
@@ -2292,13 +2196,6 @@ contains
         else
             ! All walkers died.
             if (tFillingStochRDMonFly) then
-                if (tOldRDMs) then
-                    do irdm = 1, rdm_definitions%nrdms
-                        call det_removed_fill_diag_rdm_old(rdms(irdm), one_rdms_old(irdm), irdm, &
-                                                           CurrentDets(:,DetPosition), DetPosition)
-                    end do
-                end if
-
                 av_sign = get_av_sgn_tot(DetPosition)
                 iter_occ = get_iter_occ_tot(DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)
@@ -2322,7 +2219,7 @@ contains
             end if
 
             ! Remove the determinant from the indexing list
-            if(.not. tTimedDeaths) call RemoveHashDet(HashIndex, DetCurr, DetPosition)
+            call RemoveHashDet(HashIndex, DetCurr, DetPosition)
             ! Encode a null det to be picked up
             call encode_sign(CurrentDets(:,DetPosition), null_part)
         end if

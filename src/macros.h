@@ -207,6 +207,5 @@ endif
 #define debug_line(unit, msg) write(unit,*) __LINE__, __FILE__, char(9), msg ; flush(unit)
 #define debug_out(unit, msg) write(unit,*), char(9), msg
 
-
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif

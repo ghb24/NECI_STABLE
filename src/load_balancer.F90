@@ -6,8 +6,8 @@ module load_balance
                         tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas, tau, tSeniorInitiators, &
-                        t_activate_decay, tTimedDeaths, tAutoAdaptiveShift
-    use global_det_data, only: global_determinant_data, reset_death_timer, &
+                        t_activate_decay, tAutoAdaptiveShift
+    use global_det_data, only: global_determinant_data, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH, store_decoding, &
@@ -376,7 +376,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
                if(nelem > 0) then
-                  call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                  call MPISend(con_send_buf(0:NConEntry,1:nconsend),nelem,tgt_proc, &
                        mpi_tag_con, ierr)
                endif
                ! Do the same with the trial wavefunction itself
@@ -385,7 +385,7 @@ contains
                call MPISend(nconsend,1,tgt_proc,mpi_tag_ntrialsend, ierr)
 
                if(nelem > 0) then
-                    call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc,&
+                    call MPISend(con_send_buf(0:NConEntry,1:nconsend),nelem,tgt_proc,&
                     mpi_tag_trial, ierr)
                  endif
             end if
@@ -398,7 +398,7 @@ contains
             ! Receive walkers!
             call MPIRecv(nsend, 1, src_proc, mpi_tag_nsend, ierr)
             nelem = nsend * (1 + NIfTot)
-            call MPIRecv(SpawnedParts, nelem, src_proc, mpi_tag_dets, ierr)
+            call MPIRecv(SpawnedParts(0:NIfTot, 1:nsend), nelem, src_proc, mpi_tag_dets, ierr)
 
             do j = 1, nsend
                 call decode_bit_det(det, SpawnedParts(:,j))
@@ -429,7 +429,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
                   ! get the connected states themselves
-                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
+                  call MPIRecv(con_send_buf(0:NConEntry, 1:nconsend), nelem, src_proc, mpi_tag_con, ierr)
                   ! add the recieved connected dets to the hashtable
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        con_ht, con_space_size)
@@ -439,7 +439,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
                   ! get the states
-                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_trial, ierr)
+                  call MPIRecv(con_send_buf(0:NConEntry, 1:nconsend), nelem, src_proc, mpi_tag_trial, ierr)
                   ! add them to the hashtable
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        trial_ht, trial_space_size)
@@ -506,7 +506,6 @@ contains
 
         ! we reset the death timer, so this determinant can linger again if
         ! it died before
-        call reset_death_timer(DetPosition)
 
         ! we add the determinant to the cache
         call store_decoding(DetPosition, nJ)
@@ -634,8 +633,7 @@ contains
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
-                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm) .and. &
-                     .not. tTimedDeaths) then
+                if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet = AnnihilatedDet + 1
                 else
 
@@ -664,8 +662,7 @@ contains
                                    CurrentSign(j) = 0.0_dp
                                    call nullify_ilut_part(CurrentDets(:,i), j)
                                    call decode_bit_det(nI, CurrentDets(:,i))
-                                   if (IsUnoccDet(CurrentSign) .and. &
-                                        .not. tTimedDeaths) then
+                                   if (IsUnoccDet(CurrentSign)) then
                                       call RemoveHashDet(HashIndex, nI, i)
                                       ! also update both the number of annihilated dets
                                       AnnihilatedDet = AnnihilatedDet + 1

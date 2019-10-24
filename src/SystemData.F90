@@ -8,7 +8,8 @@ implicit none
 save
 
 integer :: symmax ! Max number of irreps to deal with. Value computed in GETFCIBASIS readint.f90
-logical :: tMolpro,tMolcas  !True if the code has been called from Molpro or Molcas
+logical :: called_as_lib  !True if the code has been called as library procedure
+logical :: tMolpro  !True if the code has been called from Molpro
 logical :: tMolproMimic !True if the code is being run from standalone neci, but designed to mimic the runtime
                         !behaviour of molpro
 character(12) :: MolproID

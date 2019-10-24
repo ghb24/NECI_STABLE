@@ -8,9 +8,8 @@ module AnnihilationMod
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
-                          tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
-                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
-                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse, tNonInitsForRDMs, &
+                          tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
+                          tNonInitsForRDMs, &
                           tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
                           tSimpleInit, tAllConnsPureInit
     use DetCalcData, only: Det, FCIDetIndex
@@ -34,7 +33,7 @@ module AnnihilationMod
                             CalcHashTableStats, get_diagonal_matel, RemoveHashDet
     use searching
     use hash
-    use global_det_data, only: det_diagH, store_spawn, get_death_timer, &
+    use global_det_data, only: det_diagH, store_spawn, &
                                update_tot_spawns, update_acc_spawns, get_tot_spawns, get_acc_spawns
     use procedure_pointers, only: scaleFunction
     use hphf_integrals, only: hphf_diag_helement
@@ -94,7 +93,6 @@ module AnnihilationMod
         end if
         Compress_time%timer_name = 'Compression interface'
         call set_timer(Compress_time, 20)
-
 
         ! Now we want to order and compress the spawned list of particles.
         ! This will also annihilate the newly spawned particles amongst themselves.
@@ -226,7 +224,6 @@ module AnnihilationMod
         integer(n_int) :: cum_det(0:nifbcast), temp_det(0:nifbcast)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
-        real(dp) :: weight_rev, weights_rev(inum_runs)
         integer :: run
 
         integer :: nI_spawn(nel)
@@ -241,11 +238,7 @@ module AnnihilationMod
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time, 20)
 
-        if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-            call sort(SpawnedParts(:,1:ValidSpawned), SpawnInfo(:,1:ValidSpawned),ilut_lt, ilut_gt)
-        else
-            call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
-        endif
+        call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
 
 
         call halt_timer(Sort_time)
@@ -303,11 +296,6 @@ module AnnihilationMod
 
                 ! Transfer all info to the other array.
                 SpawnedParts2(:, VecInd) = SpawnedParts(:, BeginningBlockDet)
-                if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                    SpawnInfo2(:, VecInd) = 0
-                    run = int(SpawnInfo(SpawnRun, BeginningBlockDet))
-                    SpawnInfo2(run, VecInd) = SpawnInfo(SpawnWeightRev, BeginningBlockDet)
-                end if
 
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! SpawnedParts contains the determinants spawned on (Dj),
@@ -395,10 +383,6 @@ module AnnihilationMod
                 Spawned_Parents_Index(2,VecInd) = 0
             end if
 
-            if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                weights_rev(:) = 0.0_dp
-            end if
-
             do i = BeginningBlockDet, EndBlockDet
                 ! if logged, accumulate the number of spawn events
                 if(tLogNumSpawns) then
@@ -417,11 +401,6 @@ module AnnihilationMod
                                                     VecInd, Parent_Array_Ind)
 
                end do
-               if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                   weight_rev = transfer(SpawnInfo(SpawnWeightRev, i), weight_rev)
-                   run = int(SpawnInfo(SpawnRun, i))
-                   weights_rev(run) = weights_rev(run) + weight_rev
-               end if
             end do ! Loop over particle type.
 
 
@@ -441,11 +420,6 @@ module AnnihilationMod
 
 
                SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
-               if(tAutoAdaptiveShift .and. tAAS_Reverse) then
-                  do run = 1, inum_runs
-                     SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
-                  end do
-               endif
                 if (tPreCond .or. tReplicaEstimates) then
                     SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
                 end if
@@ -927,10 +901,7 @@ module AnnihilationMod
         ! to zero.  These will be deleted at the end of the total annihilation
         ! step.
 
-        use LoggingData, only: tOldRDMs
-        use rdm_data_old, only: rdms, one_rdms_old
         use rdm_data, only: rdm_definitions, two_rdm_spawn, one_rdms
-        use rdm_filling_old, only: check_fillRDM_DiDj_old
         use rdm_filling, only: check_fillRDM_DiDj
 
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -940,7 +911,7 @@ module AnnihilationMod
         integer :: PartInd, i, j, PartIndex, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: ScaledOccupiedThresh, scFVal, diagH, weight_rev
+        real(dp) :: ScaledOccupiedThresh, scFVal, diagH
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
@@ -1011,8 +982,7 @@ module AnnihilationMod
                     ! decide whether to abort it or not.
                     if (is_run_unnocc(CurrentSign,run)) then
                        if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
-                            .not. tDetermState .and. ((.not. tTimedDeaths) .or. &
-                            get_death_timer(PartInd) < 0)) then
+                            .not. tDetermState) then
                           ! Walkers came from outside initiator space.
                           NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                           iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
@@ -1079,8 +1049,7 @@ module AnnihilationMod
                     ! away. Remove it from the hash index array so that
                     ! no others find it (it is impossible to have another
                     ! spawned walker yet to find this determinant).
-                    if(.not. tTimedDeaths) &
-                         call RemoveHashDet(HashIndex, nJ, PartInd)
+                    call RemoveHashDet(HashIndex, nJ, PartInd)
                  end if
               end if
 
@@ -1093,19 +1062,10 @@ module AnnihilationMod
                  ! we're effectively taking the instantaneous value from the
                  ! next iter. This is fine as it's from the other population,
                  ! and the Di and Dj signs are already strictly uncorrelated.
-                 if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
                  if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
                       inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
                  call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
                       CurrentDets(:,PartInd), TempCurrentSign)
-              end if
-
-              if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                 do run = 1, inum_runs
-                    weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                    call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                    call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                 end do
               end if
            else
 
@@ -1179,13 +1139,6 @@ module AnnihilationMod
                             diagH, PartInd, err)
                        ! abort upon error
                        if(err.ne.0) return
-                       if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                          do run = 1, inum_runs
-                             weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                             call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                             call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                          end do
-                       end if
                     end if
                  end if
                 else
@@ -1206,16 +1159,16 @@ module AnnihilationMod
                         tTruncSpawn = .not. CheckAllowedTruncSpawn(0, nJ, SpawnedParts(:,i), 0)
                     end if
 
-                    if (tTruncSpawn) then
-                        ! Needs to be truncated away, and a contribution
-                        ! added to the EN2 correction.
-                        call add_en2_pert_for_trunc_calc(i, nJ, SpawnedSign, iter_data)
-                    else
-                        do j = 1, lenof_sign
-                            ! truncate the spawn if required
-                            call stochRoundSpawn(iter_data, SpawnedSign, i, j, scFVal, &
-                                 ScaledOccupiedThresh, t_truncate_this_det)
-                        end do
+                 if (tTruncSpawn) then
+                    ! Needs to be truncated away, and a contribution
+                    ! added to the EN2 correction.
+                    call add_en2_pert_for_trunc_calc(i, nJ, SpawnedSign, iter_data)
+                 else
+                    do j = 1, lenof_sign
+                       ! truncate the spawn if required
+                       call stochRoundSpawn(iter_data, SpawnedSign, i, j, scFVal, &
+                            ScaledOccupiedThresh, t_truncate_this_det)
+                    end do
 
                     if (.not. IsUnoccDet(SpawnedSign)) then
                        ! Walkers have not been aborted and so we should copy the
@@ -1227,20 +1180,12 @@ module AnnihilationMod
                             diagH, PartInd, err)
                        ! abort annihilation upon error
                        if(err.ne.0) return
-                       if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                          do run = 1, inum_runs
-                             weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                             call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                             call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                          end do
-                       end if
                     end if
                  end if
               end if
 
               if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                  ! We must use the instantaneous value for the off-diagonal contribution.
-                 if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SpawnedSign)
                  if(tNonInitsForRDMs .or. tNonVariationalRDMs) &
                       call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
                  if(tInitsRDM .and. tNonVariationalRDMs) &
@@ -1255,7 +1200,7 @@ module AnnihilationMod
         call halt_timer(BinSearch_time)
 
         ! Update remaining number of holes in list for walkers stats.
-        if ((iStartFreeSlot > iEndFreeSlot) .or. tTimedDeaths) then
+        if ((iStartFreeSlot > iEndFreeSlot)) then
            ! All slots filled
            HolesInList = 0
         else
@@ -1371,25 +1316,7 @@ module AnnihilationMod
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
         ! same if the spawn matrix element was large enough
-        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type)) .and. &
-             .not. test_flag(ilut_spwn, flag_large_matel)
-
-        ! optionally keep spawns up to a given seniority level + excitaion level
-        if(abort .and. tSpawnSeniorityBased) then
-           ! get the seniority level
-           nopen = count_open_orbs(ilut_spwn)
-           if(nopen < numMaxExLvlsSet) then
-              maxExLvl = 0
-              ! get the corresponding max excitation level
-              do while(maxExLvl == 0)
-                 maxExLvl = maxKeepExLvl(nopen+1)
-                 nopen = nopen + 1
-                 if(nopen >= numMaxExLvlsSet) exit
-              end do
-              ! if we are below this level, keep the spawn anyway
-              if(FindBitExcitLevel(ilutHF, ilut_spwn) <= maxExLvl) abort = .false.
-           end if
-        end if
+        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
 
     end function test_abort_spawn
 
@@ -1606,22 +1533,11 @@ module AnnihilationMod
                 run = int(SpawnInfo(SpawnRun,i))
                 weight_acc = transfer(SpawnInfo(SpawnWeightAcc, i), weight_acc) !weight is a real encoded in an integer. Decoded it!
                 weight_rej = transfer(SpawnInfo(SpawnWeightRej, i), weight_rej) !weight is a real encoded in an integer. Decoded it!
-                if(tAAS_Reverse)then
-                    if(SpawnInfo(SpawnAccepted,i)==1)then
-                        !We add only half the weight for accepted spawns,
-                        !because we expect the reverse spawning to compensate for the other half (on average)
-                        call update_tot_spawns(ParentIdx, run, 0.5*weight_acc)
-                        call update_acc_spawns(ParentIdx, run, 0.5*weight_acc)
-                    else
-                        call update_tot_spawns(ParentIdx, run, weight_rej)
-                    end if
+                if(SpawnInfo(SpawnAccepted,i)==1)then
+                    call update_tot_spawns(ParentIdx, run, weight_acc)
+                    call update_acc_spawns(ParentIdx, run, weight_acc)
                 else
-                    if(SpawnInfo(SpawnAccepted,i)==1)then
-                        call update_tot_spawns(ParentIdx, run, weight_acc)
-                        call update_acc_spawns(ParentIdx, run, weight_acc)
-                    else
-                        call update_tot_spawns(ParentIdx, run, weight_rej)
-                    end if
+                    call update_tot_spawns(ParentIdx, run, weight_rej)
                 end if
             end do
         end do

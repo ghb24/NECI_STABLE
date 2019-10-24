@@ -23,7 +23,7 @@ module fcimc_initialisation
                         tTruncCAS, tTruncInitiator, DiagSft, tFCIMC, &
                         tTrialWavefunction, tSemiStochastic, OccCASOrbs, &
                         VirtCASOrbs, StepsSft, tStartSinglePart, InitWalkers, &
-                        tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, tAVReps, &
+                        tShiftOnHFPop, tReadPopsRestart, tTruncNOpen, &
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
@@ -37,13 +37,14 @@ module fcimc_initialisation
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
-                        t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
+                        t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
-                        maxKeepExLvl, tAutoAdaptiveShift, AdaptiveShiftCut, tAAS_Reverse, &
+                        tAutoAdaptiveShift, AAS_Cut, &
                         tInitializeCSF, S2Init, tWalkContGrow, tSkipRef, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
-                        tInitiatorSpace, i_space_in
+                        tInitiatorSpace, i_space_in, tLinearAdaptiveShift,&
+                        tExpAdaptiveShift
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
     use spin_project, only: tSpinProject, init_yama_store, clean_yama_store
@@ -61,7 +62,7 @@ module fcimc_initialisation
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
-                           OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
+                           OffDiagBinRange, iDiagSubspaceIter, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
                            maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
@@ -93,9 +94,9 @@ module fcimc_initialisation
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
-                                  fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
+                                  fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement, scaleFunction, &
-                                  shiftScaleFunction
+                                  shiftFactorFunction
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -113,8 +114,6 @@ module fcimc_initialisation
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
     use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
                            extract_bit_rep_avsign_no_rdm
-    use rdm_general_old, only: InitRDMs_old, DeallocateRDMs_old
-    use rdm_filling_old, only: fill_rdm_diag_currdet_norm_old
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
@@ -126,7 +125,8 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction, expShiftScaleFunction, constShiftScaleFunction
+                                 expCOScaleFunction, expShiftFactorFunction, constShiftFactorFunction, &
+                                 linearShiftFactorFunction, autoShiftFactorFunction
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -582,13 +582,13 @@ contains
         ENDIF
         HFConn=nSingles+nDoubles
 
-        if(AdaptiveShiftCut<0.0)then
+        if(tAutoAdaptiveShift .and. AAS_Cut<0.0)then
             !The user did not specify the value, use this as a default
            if(HFConn > 0) then
-              AdaptiveShiftCut = 1.0_dp/HFConn
+              AAS_Cut = 1.0_dp/HFConn
            else
               ! if the HF is disconnected (can happen in rare corner cases), set it to 0
-              AdaptiveShiftCut = 0.0_dp
+              AAS_Cut = 0.0_dp
            endif
         end if
 
@@ -1211,7 +1211,6 @@ contains
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
-
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
 !        do i=1,NEl
@@ -1411,9 +1410,6 @@ contains
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
             if(tAutoAdaptiveShift)then
-                if(tAAS_Reverse.and. SpawnInfoWidth<inum_runs)then
-                    SpawnInfoWidth = inum_runs
-                end if
                 allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), &
                          SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
                 log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
@@ -1605,7 +1601,6 @@ contains
 
         if (tRDMonFly) then
             call init_rdms(nrdms_standard, nrdms_transition)
-            if (tOldRDMs) call InitRDMs_old(nrdms_standard)
         end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
 
@@ -1865,7 +1860,6 @@ contains
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
         fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
-        fill_rdm_diag_currdet_old => fill_rdm_diag_currdet_norm_old
 
         select case(sfTag)
         case(0)
@@ -1880,10 +1874,14 @@ contains
            call stop_all(t_r,"Invalid scale function specified")
         end select
 
-        if(tAllAdaptiveShift) then
-           shiftScaleFunction => expShiftScaleFunction
+        if(tExpAdaptiveShift) then
+           shiftFactorFunction => expShiftFactorFunction
+        elseif(tLinearAdaptiveShift) then
+           shiftFactorFunction => linearShiftFactorFunction
+        elseif(tAutoAdaptiveShift) then
+           shiftFactorFunction => autoShiftFactorFunction
         else
-           shiftScaleFunction => constShiftScaleFunction
+           shiftFactorFunction => constShiftFactorFunction
         end if
 
     end subroutine init_fcimc_fn_pointers
@@ -2013,10 +2011,7 @@ contains
             ENDIF
         ENDIF
 
-        if (tRDMonFly) then
-            call dealloc_global_rdm_data()
-            if (tOldRDMs) call DeallocateRDMs_old()
-        end if
+        if (tRDMonFly) call dealloc_global_rdm_data()
 
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
@@ -2050,8 +2045,6 @@ contains
         if (tSemiStochastic) call end_semistoch()
 
         if (tTrialWavefunction) call end_trial_wf()
-
-        if(allocated(maxKeepExLvl)) deallocate(maxKeepExLvl)
 
 !There seems to be some problems freeing the derived mpi type.
 !        IF((.not.TNoAnnihil).and.(.not.TAnnihilonproc)) THEN
@@ -4145,16 +4138,13 @@ contains
 
     subroutine setup_adi()
       ! We initialize the flags for the adi feature
-      use adi_data, only: tSetDelayAllDoubsInits, tSetDelayAllSingsInits, tDelayAllDoubsInits, &
-           tDelayAllSingsInits, tAllDoubsInitiators, tAllSingsInitiators, tDelayGetRefs, &
-           NoTypeN, tReadRefs, maxNRefs, nRefsSings, nRefsDoubs, &
-           SIUpdateOffset
+      use adi_data, only: tSetDelayAllDoubsInits, tDelayAllDoubsInits, &
+           tAllDoubsInitiators, tDelayGetRefs, &
+           NoTypeN, tReadRefs, maxNRefs, SIUpdateOffset
       use CalcData, only: InitiatorWalkNo
-      use adi_references, only: enable_adi, reallocate_ilutRefAdi, setup_SIHash, &
+      use adi_references, only: enable_adi, reallocate_ilutRefAdi, &
            reset_coherence_counter
       implicit none
-      maxNRefs = max(nRefsSings,nRefsDoubs)
-
       call reallocate_ilutRefAdi(maxNRefs)
 
       ! If using adi with dynamic SIs, also use a dynamic corespace by default
@@ -4165,18 +4155,15 @@ contains
          tAllDoubsInitiators = .false.
          tDelayAllDoubsInits = .true.
       endif
-      if(tSetDelayAllSingsInits .and. tAllSingsInitiators) then
-         tAllSingsInitiators = .false.
-         tDelayAllSingsInits = .true.
-      endif
 
       ! Check if we want to get the references right away
       if(.not. (tReadRefs .or. tReadPops)) tDelayGetRefs = .true.
-      if(tDelayAllSingsInits .and. tDelayAllDoubsInits) tDelayGetRefs = .true.
+      if(tDelayAllDoubsInits) tDelayGetRefs = .true.
       ! Give a status message
-      if(tAllDoubsInitiators) call enable_adi()
-      if(tAllSingsInitiators .or. tAllDoubsInitiators) &
-           tAdiActive = .true.
+      if(tAllDoubsInitiators) then
+         call enable_adi()
+         tAdiActive = .true.
+      endif
 
       ! there is a minimum cycle lenght for updating the number of SIs, as the reference population
       ! needs some time to equilibrate
@@ -4191,14 +4178,13 @@ contains
 
     subroutine setup_dynamic_core()
       use CalcData, only: tDynamicCoreSpace, coreSpaceUpdateCycle,tIntervalSet
-      use adi_data, only: tAllDoubsInitiators, tAllSingsInitiators
+      use adi_data, only: tAllDoubsInitiators
       implicit none
 
       ! Enable dynamic corespace if both
       ! a) using adi with dynamic SIs (default)
       ! b) no other keywords regarding the dynamic corespace are given
-      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. (tAllDoubsInitiators .or. &
-           tAllSingsInitiators)) then
+      if(SIUpdateInterval > 0 .and. .not. tIntervalSet .and. tAllDoubsInitiators) then
         tDynamicCoreSpace = .true.
         coreSpaceUpdateCycle = SIUpdateInterval
       endif

@@ -11,7 +11,7 @@ module pchb_excitgen
   use sltcnd_mod, only: sltcnd_excit
   use UMatCache, only: gtID
   use aliasSampling, only: aliasSamplerArray_t
-  use util_mod, only: fuseIndex, linearIndex
+  use util_mod, only: fuseIndex, linearIndex, near_zero
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
@@ -118,7 +118,7 @@ module pchb_excitgen
            .or. any(orbs(2) == nI)) .or. (orbs(1) == orbs(2))
       ! unfortunately, there is a super-rare case when, due to floating point error,
       ! an excitation with pGen=0 is created. Those are invalid, too
-      if(pGenHoles < eps) then
+      if(near_zero(pGenHoles)) then
          invalid = .true.
          ! Yes, print. Those events are signficant enough to be always noted in the output
          print *, "WARNING: Generated excitation with probability of 0"
@@ -218,8 +218,7 @@ module pchb_excitgen
       call setup_pchb_sampler()
 
       write(iout,*) "Finished excitation generator initialization"
-      write(iout,*) "Excitation generator requires", &
-        & real(memCost, dp) / 2.0_dp**30, "GB of memory"
+      write(iout,*) "Excitation generator requires", real(memCost,dp)/2.0_dp**30, "GB of memory"
       ! this is some bias used internally by CreateSingleExcit - not used here
       pDoubNew = 0.0
     contains

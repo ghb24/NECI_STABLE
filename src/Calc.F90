@@ -29,16 +29,14 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
-                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
-                         tAllAdaptiveShift, cAllAdaptiveShift
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
-         tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
-         tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
-         tProductReferences, tAccessibleDoubles, tAccessibleSingles, &
-         tReferenceChanged, superInitiatorLevel, allDoubsInitsDelay, tStrictCoherentDoubles, &
+         tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
+         NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
+         tReferenceChanged, allDoubsInitsDelay, tStrictCoherentDoubles, &
          tWeakCoherentDoubles, tAvCoherentDoubles, coherenceThreshold, SIThreshold, &
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
-         nRefsSings, nRefsDoubs, minSIConnect, tWeightedConnections, tSignedRepAv
+         minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
     use load_balance, only: tLoadBalanceBlocks
     use ftlm_neci
@@ -141,25 +139,23 @@ contains
           tFixTrial(:) = .false.
           TrialTarget = 0.0
           tAdaptiveShift = .false.
-          AdaptiveShiftSigma = 1.0
-          AdaptiveShiftF1 = 0.0
-          AdaptiveShiftF2 = 1.0
+          tCoreAdaptiveShift = .false.
+          tLinearAdaptiveShift = .false.
+          LAS_Sigma = 1.0
+          LAS_F1 = 0.0
+          LAS_F2 = 1.0
+          tExpAdaptiveShift = .false.
+          EAS_Scale = 2.0
           tAutoAdaptiveShift = .false.
-          AdaptiveShiftThresh = 10
-          AdaptiveShiftExpo = 1
-          AdaptiveShiftCut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
+          AAS_Thresh = 10
+          AAS_Expo = 1
+          AAS_Cut = -1 !If the user does not specify a value, this will be set to 1.0/HFConn later
           tAAS_MatEle = .false.
           tAAS_MatEle2 = .false.
           tAAS_MatEle3 = .false.
           tAAS_MatEle4 = .false.
-          tAAS_SpinScaled = .false.
-          AAS_OppSpin = 1.0
-          AAS_SameSpin = 1.0
           AAS_DenCut = 0.5
           AAS_Const = 0.0
-          tAAS_Reverse = .false.
-          tAAS_Reverse_Weighted = .false.
-          tAAS_Add_Diag = .false.
           tInitsRDMRef = .false.
           tInitsRDM = .false.
           tApplyLC = .true.
@@ -280,16 +276,12 @@ contains
           tLogAverageSpawns = .false.
           spawnSgnThresh = 3.0_dp
           minInitSpawns = 20
-          lingerTime = 300
-          tTimedDeaths = .false.
-          tAVReps = .false.
           tGlobalInitFlag = .false.
           tInitCoherentRule=.true.
           InitiatorWalkNo=3.0_dp
           ErrThresh = 0.3
           tSeniorInitiators =.false.
           SeniorityAge=1.0_dp
-          tInitIncDoubs=.false.
           MaxNoatHF=0.0_dp
           HFPopThresh=0
           tSpatialOnlyHash = .false.
@@ -330,17 +322,6 @@ contains
 
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
-
-          ! initiators based on number of open orbs
-          tSeniorityInits = .false.
-          initMaxSenior = 0
-
-          ! keep spawns up to a given seniority + excitation level
-          tSpawnSeniorityBased = .false.
-          numMaxExLvlsSet = 0
-          allocate(maxKeepExLvl(0))
-          tLargeMatelSurvive = .false.
-          spawnMatelThresh = 1.0_dp
 
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
@@ -403,31 +384,21 @@ contains
           tAllDoubsInitiators = .false.
           tDelayAllDoubsInits = .false.
           allDoubsInitsDelay = 0
-          tAllSingsInitiators = .false.
-          tDelayAllSingsInits = .false.
-          tSetDelayAllSingsInits = .false.
           tSetDelayAllDoubsInits = .false.
           ! By default, we have one reference for the purpose of all-doubs-initiators
           nRefs = 1
-          nRefsSings = 1
-          nRefsDoubs = 1
-          maxNRefs = 400
+          maxNRefs = 1
           targetRefPop = 1000
           targetRefPopTol = 80
           tVariableNref = .false.
           tSingleSteps = .true.
           tReadRefs = .false.
           tDelayGetRefs = .false.
-          tProductReferences = .false.
-          tAccessibleSingles = .false.
-          tAccessibleDoubles = .false.
           tSuppressSIOutput = .true.
-          nExProd = 2
           NoTypeN = InitiatorWalkNo
           tStrictCoherentDoubles = .false.
           tWeakCoherentDoubles = .true.
           tAvCoherentDoubles = .true.
-          superInitiatorLevel = 0
           coherenceThreshold = 0.5
           SIThreshold = 0.95
           SIUpdateInterval = 100
@@ -443,11 +414,6 @@ contains
           sFAlpha = 1.0_dp
           sFBeta = 1.0_dp
           sFTag = 0
-
-          ! shift scaling with local population
-          tAllAdaptiveShift = .false.
-          ! First calculations indicate that this is a reasonable value
-          cAllAdaptiveShift = 2
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -499,7 +465,7 @@ contains
           use global_utilities
           use Parallel_neci, only : nProcessors
           use util_mod, only: addToIntArray
-          use LoggingData, only: tLogDets, tWriteUnocc
+          use LoggingData, only: tLogDets
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -1756,70 +1722,69 @@ contains
                 end if
                 tTrialShift = .true.
                 StepsSft = 1
-            case("ADAPTIVE-SHIFT")
-                if (item.lt.nitems) then
-                    call getf(AdaptiveShiftSigma)
-                end if
-                if (item.lt.nitems) then
-                    call getf(AdaptiveShiftF1)
-                    if(AdaptiveShiftF1<0.0 .or. AdaptiveShiftF1>1.0)then
-                        call stop_all(t_r, 'AdaptiveShiftF1 is a scaling parameter and should be between 0.0 and 1.0')
-                    end if
-                end if
-                if (item.lt.nitems) then
-                    call getf(AdaptiveShiftF2)
-                    if(AdaptiveShiftF2<0.0 .or. AdaptiveShiftF2>1.0)then
-                        call stop_all(t_r, 'AdaptiveShiftF2 is a scaling parameter and should be between 0.0 and 1.0')
-                    end if
-                end if
+            case("LINEAR-ADAPTIVE-SHIFT", "ADAPTIVE-SHIFT")
+                ! scale the shift down per determinant linearly depending on the local population
                 tAdaptiveShift = .true.
+                tLinearAdaptiveShift = .true.
+                if (item.lt.nitems) then
+                    call getf(LAS_Sigma)
+                end if
+                if (item.lt.nitems) then
+                    call getf(LAS_F1)
+                    if(LAS_F1<0.0 .or. LAS_F1>1.0)then
+                        call stop_all(t_r, 'F1 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
+                end if
+                if (item.lt.nitems) then
+                    call getf(LAS_F2)
+                    if(LAS_F2<0.0 .or. LAS_F2>1.0)then
+                        call stop_all(t_r, 'F2 is a scaling parameter and should be between 0.0 and 1.0')
+                    end if
+                end if
+            case("EXP-ADAPTIVE-SHIFT", "ALL-ADAPTIVE-SHIFT")
+                ! scale the shift down per determinant exponentailly depending on the local population
+                tAdaptiveShift = .true.
+                tExpAdaptiveShift = .true.
+                ! optional argument: value of the parameter of the scaling function
+                if(item < nitems) call getf(EAS_Scale)
+
+            case("CORE-ADAPTIVE-SHIFT")
+               ! Also apply the adaptive shift in the corespace
+               tCoreAdaptiveShift = .true.
+
             case("AUTO-ADAPTIVE-SHIFT")
-                tAutoAdaptiveShift = .true.
+                ! scale the shift down per determinant depending on the ratio of its rejected spawns
                 tAdaptiveShift = .true.
+                tAutoAdaptiveShift = .true.
                 if (item.lt.nitems) then
-                    call getf(AdaptiveShiftThresh)
+                    call getf(AAS_Thresh)
                 end if
 
                 if (item.lt.nitems) then
-                    call getf(AdaptiveShiftExpo)
+                    call getf(AAS_Expo)
                 end if
 
                 if (item.lt.nitems) then
-                    call getf(AdaptiveShiftCut)
+                    call getf(AAS_Cut)
                 end if
             case("AAS-MATELE")
                 tAAS_MatEle = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
-                AdaptiveShiftThresh = 0.0
+                AAS_Thresh = 0.0
             case("AAS-MATELE2")
                 tAAS_MatEle2 = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
-                AdaptiveShiftThresh = 0.0
+                AAS_Thresh = 0.0
             case("AAS-MATELE3")
                 tAAS_MatEle3 = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
-                AdaptiveShiftThresh = 0.0
+                AAS_Thresh = 0.0
             case("AAS-MATELE4")
                 tAAS_MatEle4 = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
-                AdaptiveShiftThresh = 0.0
+                AAS_Thresh = 0.0
             case("AAS-DEN-CUT")
                 call getf(AAS_DenCut)
-            case("AAS-REVERSE")
-                tAAS_Reverse = .true.
-            case("AAS-REVERSE-WEIGHTED")
-                tAAS_Reverse = .true.
-                tAAS_Reverse_Weighted = .true.
-            case("AAS-ADD-DIAG")
-                tAAS_Add_Diag = .true.
-            case("AAS-SPIN-SCALED")
-                tAAS_SpinScaled = .true.
-                if (item.lt.nitems) then
-                    call getf(AAS_OppSpin)
-                end if
-                if (item.lt.nitems) then
-                    call getf(AAS_SameSpin)
-                end if
             case("AAS-CONST")
                 !Adds a positive constant to both the numerator and denominator
                 !in auto-adaptive-shift's modification factor
@@ -2172,54 +2137,14 @@ contains
                 if(item < nitems) call getf(spawnSgnThresh)
                 if(item < nitems) call geti(minInitSpawns)
 
-             case("DELAY-DEATHS")
-                ! have determinants persits for a number of iterations after their
-                ! occupation reached 0
-                tTimedDeaths = .true.
-                tWriteUnocc = .true.
-                ! read in said number of iterations
-                if(item < nitems) call geti(lingerTime)
-
              case("REPLICA-GLOBAL-INITIATORS")
 ! with this option, all replicas will use the same initiator flag, which is then set
 ! depending on the avereage population, else, the initiator flag is set for each replica
 ! using the population of that replica
                 tGlobalInitFlag = .true.
 
-             case("AVERAGE-REPLICAS")
-                ! average the replica populations if they are not sign coherent
-                tAVReps = .true.
-
-             case("REPLICA-COHERENT-INITS")
-                ! require initiators to be coherent across replcias
-                tReplicaCoherentInits = .true.
-
             case("NO-COHERENT-INIT-RULE")
                 tInitCoherentRule=.false.
-
-             case("ALL-SENIORITY-INITS")
-                ! make all determinants with at most initMaxSenior open orbitals initiators
-                tSeniorityInits = .true.
-                ! the maximum number of open orbs, default is 0
-                if(item < nitems) call getI(initMaxSenior)
-
-             case("ALL-SENIORITY-SURVIVE")
-                ! keep all spawns, regardless of initiator criterium, onto
-                ! determinants up to a given Seniority level and excitation level
-                tSpawnSeniorityBased = .true.
-                do while(item < nitems)
-                   ! Default: Max Seniority level 0
-                   call geti(maxKeepNOpenBuf)
-                   ! Default: Max excit level 8
-                   call geti(maxKeepExLvlBuf)
-                   call addToIntArray(maxKeepExLvl,maxKeepNOpenBuf+1,maxKeepExLvlBuf)
-                   numMaxExLvlsSet = maxKeepNOpenBuf+1
-                end do
-
-             case("LARGE-MATEL-SURVIVE")
-                ! keep all spawns with a matrix element larger than a given threshold
-                tLargeMatelSurvive = .true.
-                call getf(spawnMatelThresh)
 
 ! Epstein-Nesbet second-order perturbation using the stochastic spawnings to correct initiator error.
             case("EN2-INITIATOR")
@@ -2278,7 +2203,7 @@ contains
             case("INCLDOUBSINITIATOR")
 !This keyword includes any doubly excited determinant in the 'initiator' space so that it may spawn as usual
 !without any restrictions.
-                tInitIncDoubs=.true.
+               call stop_all(t_r,"INCLDOUBSINITIATOR option not supported, please use SUPERINITIATORS option")
 
             case("UNBIASPGENINPROJE")
 !A FCIMC serial option. With this, walkers will be accepted with probability tau*hij. i.e. they will not unbias
@@ -2936,41 +2861,88 @@ contains
                     call geti(occ_virt_level)
                  end if
 
-              case("ALL-ADAPTIVE-SHIFT")
-                 ! scale the shift down per determinant depending on the local population
-                 tAllAdaptiveShift = .true.
-                 ! optional argument: value of the parameter of the scaling function
-                 if(item < nitems) call getf(cAllAdaptiveShift)
+              case("DELAY-DEATHS")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword DELAY-DEATHS has been removed")
 
-             case("ALL-DOUBS-INITIATORS")
+              case("AVERAGE-REPLICAS")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword AVERAGE-REPLICAS has been removed")
+
+              case("REPLICA-COHERENT-INITS")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword REPLICA-COHERENT-INITS has been removed")
+
+              case("ALL-SENIORITY-INITS")
+                 ! Outdated Keyword
+                 call stop_all(t_r,"Keyword ALL-SENIORITY-INITS has been removed")
+
+              case("ALL-SENIORITY-SURVIVE")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword ALL-SENIORITY-SURVIVE has been removed")
+
+              case("LARGE-MATEL-SURVIVE")
+                 ! Outdated keyword
+                 call stop_all(t_r,"Keyword LARGE-MATEL-SURVIVE has been removed")
+
+              case("ALL-DOUBS-INITIATORS")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keywords ALL-DOUBS-INITIATORS and ALL-SINGS-INITIATORS have been replaced by keyword SUPERINITIATORS")
+
+              case("ALL-SINGS-INITIATORS")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keywords ALL-SINGS-INITIATORS and ALL-DOUBS-INITIATORS have been replaced by keyword SUPERINITIATORS")
+
+              case("ALL-DOUBS-INITIATORS-DELAY")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keywords ALL-DOUBS-INITIATORS-DELAY and ALL-SINGS-INITIATORS-DELAY have been replaced by keyword SUPERINITIATORS-DELAY")
+
+              case("ALL-SINGS-INITIATORS-DELAY")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keywords ALL-SINGS-INITIATORS-DELAY and ALL-DOUBS-INITIATORS-DELAY have been replaced by keyword SUPERINITIATORS-DELAY")
+
+              case("EXCITATION-PRODUCT-REFERENCES")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keyword EXCITATION-PRODUCT-REFERENCES has been removed")
+
+              case("SECONDARY-SUPERINITIATORS")
+                 ! Outdated keyword
+                 call stop_all(t_r,&
+                      "Keyword SECONDARY-SUPERINITIATORS has been removed")
+
+             case("SUPERINITIATORS")
                 ! Set all doubles to be treated as initiators
                 ! If truncinitiator is not set, this does nothing
                 tAllDoubsInitiators = .true.
                 ! If given, take the number of references for doubles
-                if(item < nitems) call geti(nRefsDoubs)
+                if(item < nitems) call geti(maxNRefs)
 
-             case("ALL-DOUBS-INITIATORS-DELAY")
+             case("SUPERINITIATORS-DELAY")
                 ! Only start after this number of steps in variable shift mode with
                 ! the all-doubs-initiators
                 if(item < nitems) call geti(allDoubsInitsDelay)
                 tSetDelayAllDoubsInits = .true.
-                tSetDelayAllSingsInits = .true.
-
-             case("ALL-SINGS-INITIATORS")
-                ! Make the singles of given references initiators
-                tAllSingsInitiators = .true.
-                ! If given, take the number of references for singles
-                if(item < nitems) call geti(nRefsSings)
 
              case("READ-REFERENCES")
-                ! Instead of generating new references, read in existing ones
+                ! Outdated keyword
+                call stop_all(t_r,&
+                     "Keyword READ-REFERENCES has been removed, please use READ-SUPERINITIATORS")
+
+             case("READ-SUPERINITIATORS")
+                ! Instead of generating new superinitiators, read in existing ones
                 tReadRefs = .true.
 
-             case("EXCITATION-PRODUCT-REFERENCES")
-                ! Also add all excitation products of references to the reference space
-                tProductReferences = .true.
-
              case("COHERENT-REFERENCES")
+                ! Outdated keyword
+                call stop_all(t_r,&
+                     "Keyword COHERENT-REFERENCES has been removed, please use COHERENT-SUPERINITIATORS")
+
+             case("COHERENT-SUPERINITIATORS")
                 ! Only make those doubles/singles initiators that are sign coherent
                 ! with their reference(s)
                 if(item < nitems) then
@@ -3004,13 +2976,6 @@ contains
                    tWeakCoherentDoubles = .true.
                    tAvCoherentDoubles = .true.
                 endif
-
-             case("SECONDARY-SUPERINITIATORS")
-                ! Enable superinitiators by coherence criteria
-                superInitiatorLevel = 1
-                ! As the secondary SIs are now self-consistently determined, it is
-                ! highly unlikely that a level above 1 will do anything more
-                if(item < nItems) call readi(superInitiatorLevel)
 
              case("DYNAMIC-SUPERINITIATORS")
                 ! Re-evaluate the superinitiators every SIUpdateInterval steps

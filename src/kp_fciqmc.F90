@@ -261,7 +261,7 @@ contains
                                         end if
 
                                         ! If any (valid) children have been spawned.
-                                        if (.not. (any(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
+                                        if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
                                             call new_child_stats (iter_data_fciqmc, ilut_parent, &
                                                                   nI_child, ilut_child, ic, ex_level_to_ref, &
@@ -617,7 +617,7 @@ contains
                                 end if
 
                                 ! If any (valid) children have been spawned.
-                                if (.not. (any(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
+                                if (.not. (all(near_zero(child_sign) .or. ic == 0 .or. ic > 2))) then
 
                                     call new_child_stats (iter_data_fciqmc, ilut_parent, &
                                                           nI_child, ilut_child, ic, ex_level_to_ref,&

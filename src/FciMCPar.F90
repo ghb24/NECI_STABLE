@@ -11,7 +11,7 @@ module FciMCParMod
                         tOrthogonaliseReplicas, orthogonalise_iter, tNonInitsForRDMs, &
                         tDetermHFSpawning, use_spawn_hash_table, tInitsRDMRef, &
                         ss_space_in, s_global_start, tContTimeFCIMC, tInitsRDM, &
-                        trial_shift_iter, tStartTrialLater, tAVReps, &
+                        trial_shift_iter, tStartTrialLater, &
                         tTrialWavefunction, tSemiStochastic, ntrial_ex_calc, &
                         t_hist_tau_search_option, t_back_spawn, back_spawn_delay, &
                         t_back_spawn_flex, t_back_spawn_flex_option, tSimpleInit, &
@@ -20,14 +20,14 @@ module FciMCParMod
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
                         tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
                         tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
-                        tTimedDeaths, lingerTime
-    use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, tDelayAllSingsInits, &
-                        tDelayAllDoubsInits, tDelayAllSingsInits, tReferenceChanged, &
+                        tCoreAdaptiveShift
+    use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
+                        tDelayAllDoubsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
                         SIUpdateOffset
     use LoggingData, only: tJustBlocking, tCompareTrialAmps, tChangeVarsRDM, &
                            tWriteCoreEnd, tNoNewRDMContrib, tPrintPopsDefault,&
-                           compare_amps_period, PopsFileTimer, tOldRDMs, tWriteUnocc, &
+                           compare_amps_period, PopsFileTimer, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
                            t_hist_fvals, enGrid, arGrid
@@ -38,11 +38,8 @@ module FciMCParMod
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
          two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
          tApplyLC
-    use rdm_data_old, only: rdms, one_rdms_old, rdm_estimates_old
     use rdm_finalising, only: finalise_rdms
     use rdm_general, only: init_rdms, SumCorrectionContrib, UpdateRDMCorrectionTerm
-    use rdm_general_old, only: InitRDMs_old, FinaliseRDMs_old
-    use rdm_filling_old, only: fill_rdm_offdiag_deterministic_old, fill_rdm_diag_wrapper_old
     use rdm_filling, only: fill_rdm_offdiag_deterministic, fill_rdm_diag_wrapper
     use rdm_explicit, only: fill_explicitrdm_this_iter, fill_hist_explicitrdm_this_iter
     use procedure_pointers, only: attempt_die_t, generate_excitation_t, &
@@ -71,8 +68,8 @@ module FciMCParMod
     use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop, get_death_timer, &
-                               clock_death_timer, mark_death, get_tot_spawns, get_acc_spawns, &
+                               update_tau_int, set_spawn_pop, &
+                               get_tot_spawns, get_acc_spawns, &
                                replica_est_len
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
@@ -117,7 +114,6 @@ module FciMCParMod
         use rdm_data, only: rdm_estimates, two_rdm_main, two_rdm_recv, two_rdm_recv_2
         use rdm_data, only: two_rdm_spawn, one_rdms, rdm_definitions, en_pert_main
         use rdm_estimators, only: calc_2rdm_estimates_wrapper, write_rdm_estimates
-        use rdm_estimators_old, only: rdm_output_wrapper_old, write_rdm_estimates_old
         use rdm_data_utils, only: clear_rdm_list_t, add_rdm_1_to_rdm_2
         USE MolproPlugin, only : MolproPluginResult
 
@@ -328,11 +324,6 @@ module FciMCParMod
                  .and. all(.not. tSinglePartPhase))) then
                ! Start the all-doubs-initiator procedure
                if(tDelayAllDoubsInits) call enable_adi()
-               ! And/or the all-sings-initiator procedure
-               if(tDelayAllSingsInits) then
-                  tAllSingsInitiators = .true.
-                  tAdiActive = .true.
-               endif
                ! If desired, we now set up the references for the purpose of the
                ! all-doubs-initiators
                if(tDelayGetRefs) then
@@ -604,18 +595,11 @@ module FciMCParMod
                   endif
                   call calc_2rdm_estimates_wrapper(rdm_definitions, rdm_estimates, two_rdm_main, en_pert_main)
 
-                  if (tOldRDMs) then
-                     do irdm = 1, rdm_definitions%nrdms
-                        call rdm_output_wrapper_old(rdms(irdm), one_rdms_old(irdm), irdm, rdm_estimates_old(irdm), .false.)
-                     end do
-                  end if
-
                   if (iProcIndex == 0) then
                      if(.not.tInitsRDMRef .or. tSetupInitsEst) &
                           call write_rdm_estimates(rdm_definitions, rdm_estimates, .false., print_2rdm_est,.false.)
                      if(tOutputInitsRDM) call write_rdm_estimates(rdm_inits_defs, &
                           inits_estimates, .false., print_2rdm_est,.true.)
-                     if (tOldRDMs) call write_rdm_estimates_old(rdm_estimates_old, .false.)
                   end if
 
                   if (tEN2) then
@@ -631,7 +615,6 @@ module FciMCParMod
             if (tChangeVarsRDM) then
                 ! Decided during the CHANGEVARS that the RDMs should be calculated.
                 call init_rdms(rdm_definitions%nrdms_standard, rdm_definitions%nrdms_transition)
-                if (tOldRDMs) call InitRDMs_old(rdm_definitions%nrdms)
                 tRDMonFly = .true.
                 tChangeVarsRDM = .false.
             endif
@@ -753,7 +736,6 @@ module FciMCParMod
             if(tInitsRDM) call finalise_rdms(rdm_inits_defs, inits_one_rdms, two_rdm_inits, &
                  two_rdm_recv, two_rdm_recv_2, en_pert_main, two_rdm_inits_spawn, inits_estimates, &
                  .true.)
-            if (tOldRDMs) call FinaliseRDMs_old(rdms, one_rdms_old, rdm_estimates_old)
         end if
         if(tAdaptiveShift) then
            write(iout,*) "Prefactor of RDM correction due to adaptive shift", RDMCorrectionFactor
@@ -1137,12 +1119,6 @@ module FciMCParMod
                 ! add in the diagonal contribution to the RDM for this
                 ! determinant, for each rdm.
                 if (tFill_RDM .and. (.not. tNoNewRDMContrib)) then
-                    if (tOldRDMs) then
-                        do irdm = 1, rdm_definitions%nrdms
-                            call fill_rdm_diag_currdet_old(rdms(irdm), one_rdms_old(irdm), irdm, CurrentDets(:,j), &
-                                                        DetCurr, j, walkExcitLevel_toHF, tCoreDet)
-                        end do
-                    end if
 
                     av_sign = get_av_sgn_tot(j)
                     iter_occ = get_iter_occ_tot(j)
@@ -1177,34 +1153,16 @@ module FciMCParMod
             if(IsUnoccDet(SignCurr)) then
                !It has been removed from the hash table already
                !Add to the "freeslot" list
-               if(.not. tTimedDeaths) then
-                  iEndFreeSlot=iEndFreeSlot+1
-                  FreeSlot(iEndFreeSlot)=j
-               else
-                  ! clock the death timer
-                  tau_dead = get_death_timer(j)
-                  ! we need to distinguish lingering from actually dead determinants
-                  ! this is done via the death timer: if it is <0, the det is dead
-                  if(tau_dead .ge. 0) then
-                     call clock_death_timer(j)
-                     ! if the determinant exceedes its linger time, kill it
-                     if(int(tau_dead) > lingerTime) then
-                        call RemoveHashDet(HashIndex, DetCurr, j)
-                        ! mark this determinant as dead
-                        call mark_death(j)
-                     endif
-                  else
-                     ! this determinant has been removed from the hashtable
-                     iEndFreeSlot=iEndFreeSlot+1
-                     FreeSlot(iEndFreeSlot)=j
-                  endif
-               endif
+               iEndFreeSlot=iEndFreeSlot+1
+               FreeSlot(iEndFreeSlot)=j
                cycle
             endif
 
             ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
-            if(tAdaptiveShift .and. all(.not. tSinglePartPhase)) then
-               call SumCorrectionContrib(SignCurr,j)
+            if(tAdaptiveShift .and. all(.not. tSinglePartPhase) .and. tFillingStochRDMOnFly) then
+               ! Only add the contribution from the corespace if it is explicitly demanded
+               if((.not. tCoreDet) .or. tCoreAdaptiveShift) &
+                    call SumCorrectionContrib(SignCurr,j)
             endif
 
             ! The current diagonal matrix element is stored persistently.
@@ -1311,11 +1269,6 @@ module FciMCParMod
                run = part_type_to_run(part_type)
                TempSpawnedPartsInd = 0
 
-                !write (6,*), "Det Index: ", j
-                !write (6,*), "Run Index: ", run
-                !write (6,*), "Is Initiator: ", test_flag (CurrentDets(:,j), get_initiator_flag_by_run(run))
-                !write (6,*), "Total Spawns: ", get_tot_spawns(j, run)
-                !write (6,*), "Accepted Spawns: ", get_acc_spawns(j, run)
                 ! Loop over all the particles of a given type on the
                 ! determinant. CurrentSign gives number of walkers. Multiply
                 ! up by AvMCExcits if attempting multiple excitations from
@@ -1333,8 +1286,6 @@ module FciMCParMod
                     call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
                                         ilutnJ, exFlag, IC, ex, tParity, prob, &
                                         HElGen, fcimc_excit_gen_store, part_type)
-
-
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then
@@ -1487,7 +1438,6 @@ module FciMCParMod
                 ! all determinants, regardless of whether they are core or not,
                 ! so are not added in here).
                 if (tFill_RDM) then
-                    if (tOldRDMs) call fill_RDM_offdiag_deterministic_old(rdms, one_rdms_old)
                     call fill_RDM_offdiag_deterministic(rdm_definitions, two_rdm_spawn, one_rdms)
                     ! deterministic space is always only initiators, so it fully counts towards
                     ! the initiator-only RDMs
@@ -1577,7 +1527,6 @@ module FciMCParMod
         end if
 
         if (tFillingStochRDMonFly) then
-            if (tOldRDMs) call fill_rdm_diag_wrapper_old(rdms, one_rdms_old, CurrentDets, int(TotWalkers, sizeof_int))
             ! if we use the initiator-only rdms as gamma_0, get them in their own entity
             if(tInitsRDM) call fill_rdm_diag_wrapper(rdm_inits_defs, two_rdm_inits_spawn, &
                  inits_one_rdms, CurrentDets, int(TotWalkers, sizeof_int), .false.,.false.)

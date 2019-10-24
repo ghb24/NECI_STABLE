@@ -315,7 +315,6 @@ contains
                                                         Spawned_Parents_IndexTag, ierr)
 
             memory_alloc = memory_alloc + ( (NIfTot + 3) * MaxSpawned * size_n_int )
-
             memory_alloc = memory_alloc + ( 2 * MaxSpawned * 4 )
 
         end if
@@ -632,7 +631,6 @@ contains
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data_old, only: rdms
         use rdm_data_utils, only: dealloc_rdm_list_t, dealloc_rdm_spawn_t, dealloc_one_rdm_t
         use rdm_data_utils, only: dealloc_en_pert_t
         use rdm_estimators, only: dealloc_rdm_estimates_t
@@ -950,11 +948,16 @@ contains
       integer, intent(in) :: DetPosition
       real(dp) :: rdmC
 
-      integer :: run
+      integer :: run, pairRun
 
       rdmC = 0.0_dp
       do run = 1, inum_runs, 2
-         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(run+1)
+         if(run+1 <= inum_runs) then
+            pairRun = run + 1
+         else
+            pairRun = run
+         endif
+         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(pairRun)
       end do
 
     end function getRDMCorrectionTerm
@@ -963,43 +966,18 @@ contains
 
     function avFFunc(DetSgn,DetPosition) result(AvFmu)
       ! get fmu
-      use CalcData, only: AdaptiveShiftSigma, AdaptiveShiftF1, AdaptiveShiftF2, &
-           InitiatorWalkNo, tAutoAdaptiveShift, AdaptiveShiftThresh
-      use global_det_data, only: get_acc_spawns, get_tot_spawns
+      use procedure_pointers, only: shiftFactorFunction
       implicit none
       real(dp), intent(in) :: DetSgn(lenof_sign)
       integer, intent(in) :: DetPosition
       real(dp) :: AvFmu
 
       integer :: run
-      real(dp) :: population, fmu, tot
+      real(dp) :: fmu
 
       AvFmu = 1.0_dp
       do run = 1, inum_runs
-         population = mag_of_run(DetSgn,run)
-         if(population > InitiatorWalkNo) then
-            ! initiators have f=1
-            fmu = 1.0_dp
-         else
-            ! use the f-function used in the adaptive shift
-            if(tAutoAdaptiveShift) then
-               tot = get_tot_spawns(DetPosition, run)
-               if(tot > AdaptiveShiftThresh) then
-                  fmu = get_acc_spawns(DetPosition, run) / tot
-               else
-                  fmu = 0.0_dp
-               endif
-            else
-               if(population < adaptiveShiftSigma) then
-                  fmu = 0.0_dp
-               else
-                  fmu = AdaptiveShiftF1 + (population - AdaptiveShiftSigma) * &
-                       (AdaptiveShiftF2-AdaptiveShiftF1)/(InitiatorWalkNo-AdaptiveShiftSigma)
-               endif
-            endif
-
-         endif
-
+         fmu = shiftFactorFunction(DetPosition, run, mag_of_run(DetSgn,run))
          AvFmu = AvFmu * fmu
       end do
       AvFmu = dressedFactor(AvFmu ** (1.0_dp/real(inum_runs,dp)))

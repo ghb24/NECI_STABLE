@@ -89,9 +89,6 @@ module LoggingData
                tDumpHamilOverlap
     logical :: tFCIMCStats2
 
-    ! if we write out info on the unocc, but stored dets
-    logical :: tWriteUnocc
-
     !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)
     logical :: tForceCauchySchwarz
     ! If we'd like to rotate the NOs again so as to obtain broken symmetry NOs
@@ -108,8 +105,6 @@ module LoggingData
     logical :: tOutputLoadDistribution
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
-
-    logical :: tOldRDMs = .false.
 
     logical :: tTransitionRDMs = .false.
 

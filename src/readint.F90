@@ -23,11 +23,6 @@ contains
          LOGICAL exists
          logical :: uhf,trel,tDetectSym
 
-#ifdef _MOLCAS_
-         logical :: tExists     !test for existence of input file.
-         integer :: isfreeunit  !function returning integer for free unit
-#endif
-
          CHARACTER(len=3) :: fmat
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
               ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
@@ -46,20 +41,6 @@ contains
          ! FCIDUMP, we have to set some more defaults..
          MS2 = 0
          IF(iProcIndex.eq.0) THEN
-#ifdef _MOLCAS_
-           call f_Inquire('FCIDMP',tExists)
-           if(tExists) then
-             iUnit=17
-             iUnit=IsFreeUnit(iUnit)
-             Call Molcas_Open(iunit,'FCIDMP')
-             Rewind(iunit)
-             READ(iunit,FCI)
-!             write(6,*) 'FCI NAMELIST print 1'
-!             WRITE(6,FCI)
-           else
-              call Stop_All('InitFromFCID','FCIDUMP file does not exist')
-           end if
-#else
              iunit = get_free_unit()
              IF(TBIN) THEN
                 INQUIRE(FILE='FCISYM',EXIST=exists)
@@ -80,7 +61,6 @@ contains
                 OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
-#endif
              CLOSE(iunit)
          ENDIF
 
@@ -254,10 +234,6 @@ contains
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
               ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
-#ifdef _MOLCAS_
-         logical :: tExists     !test for existence of input file.
-         integer :: isfreeunit  !function returning integer for free unit
-#endif
          iunit = 0
          UHF=.FALSE.
          PROPBITLEN = 0
@@ -266,20 +242,6 @@ contains
          TREL = .false.
          SYMLZ(:) = 0
          IF(iProcIndex.eq.0) THEN
-#ifdef _MOLCAS_
-           call f_Inquire('FCIDMP',tExists)
-           if(tExists) then
-             iUnit=17
-             iUnit=IsFreeUnit(iUnit)
-             Call Molcas_Open(iunit,'FCIDMP')
-             Rewind(iunit)
-             READ(iunit,FCI)
-!            write(6,*) 'FCI NAMELIST print 2'
-!            WRITE(6,FCI)
-           else
-              call Stop_All('InitFromFCID','FCIDUMP file does not exist')
-           end if
-#else
              iunit = get_free_unit()
              IF(TBIN) THEN
                 OPEN(iunit,FILE='FCISYM',STATUS='OLD',FORM='FORMATTED')
@@ -290,7 +252,6 @@ contains
                 OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD',FORM='FORMATTED')
                 READ(iunit,FCI)
              ENDIF
-#endif
          ENDIF
 
 !Now broadcast these values to the other processors (the values are only read in on root)
@@ -680,10 +641,6 @@ contains
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
               ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
-#ifdef _MOLCAS_
-         logical :: tExists     !test for existence of input file.
-         integer :: isfreeunit  !function returning integer for free unit
-#endif
 
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -698,25 +655,9 @@ contains
          iunit = 0
 
          IF(iProcIndex.eq.0) THEN
-#ifdef _MOLCAS_
-           call f_Inquire('FCIDMP',tExists)
-           if(tExists) then
-             iUnit=17
-             iUnit=IsFreeUnit(iUnit)
-             Call Molcas_Open(iunit,'FCIDMP')
-             Rewind(iunit)
-             READ(iunit,FCI)
-!             write(6,*) 'FCI NAMELIST print 3'
-!             WRITE(6,FCI)
-             CALL neci_flush(6)
-           else
-              call Stop_All('InitFromFCID','FCIDUMP file does not exist')
-           end if
-#else
              iunit = get_free_unit()
              OPEN(iunit,FILE=FCIDUMP_name,STATUS='OLD')
              READ(iunit,FCI)
-#endif
          ENDIF
 !Now broadcast these values to the other processors (the values are only read in on root)
          CALL MPIBCast(NORB,1)

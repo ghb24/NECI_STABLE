@@ -168,8 +168,6 @@ MODULE Logging
 #else
       tFCIMCStats2 = .false.
 #endif
-      tWriteUnocc = .false.
-
       t_hist_fvals = .true.
       enGrid = 100
       arGrid = 100
@@ -602,8 +600,7 @@ MODULE Logging
             end if
 
         case("OLDRDMS")
-! Accumulate RDMs using the old RDM code.
-            tOldRDMs = .true.
+            call stop_all(t_r, "OLDRDMS not supported anymore.")
 
         case("RDM-MAIN-SIZE-FAC")
             call readf(rdm_main_size_fac)

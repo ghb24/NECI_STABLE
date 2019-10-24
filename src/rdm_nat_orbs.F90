@@ -945,7 +945,7 @@ contains
                        endif
                         if (.not. near_zero(real(UMat(UMatInd(a,b,g,d)),dp))) &
                                 write(iunit,'(F21.12,4I5)') &
-                                real(UMat(UMatInd(a,b,g,d)),dp), a, b, g, d
+                                real(UMat(UMatInd(a,b,g,d)),dp), a, g, b, d
 
                     end do
                 end do
