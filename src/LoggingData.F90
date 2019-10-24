@@ -109,6 +109,10 @@ module LoggingData
     ! The maximum excitation level of dets writen to an HDF5 popsfile
     integer :: iHDF5PopsWriteEx
 
+    ! Whether to calculate and print the instanenous project energy of
+    ! wavefunction printed to popsfile
+    logical :: tPopsInstProjE
+
     logical :: tOldRDMs = .false.
 
     logical :: tTransitionRDMs = .false.

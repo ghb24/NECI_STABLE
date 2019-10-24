@@ -160,6 +160,7 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
+      tPopsInstProjE = .false.
       iHDF5PopsWriteEx = 0
       tWriteRefs = .false.
 
@@ -946,6 +947,11 @@ MODULE Logging
             if (item < nitems) then
                 call readi(iHDF5PopsWriteEx)
             end if
+
+        case("POPS-INST-PROJE")
+            ! Whether to calculate and print the instanenous project energy of
+            ! wavefunction printed to popsfile
+            tPopsInstProjE = .true.
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
