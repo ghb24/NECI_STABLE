@@ -2282,7 +2282,7 @@ r_loop: do while(.not.tStoreDet)
                 ! up with multiple records.
                 ! TODO: For POPSFILE V5 --> stream output.
                if(tAutoAdaptiveShift) then
-                  write(iunit) det(0:NIfD), real_sgn, int(flg, n_int), fvals(1:inum_runs,j)
+                  write(iunit) det(0:NIfD), real_sgn, int(flg, n_int), fvals(1:2*inum_runs,j)
                else
                   write(iunit) det(0:NIfD), real_sgn, int(flg, n_int)
                endif
