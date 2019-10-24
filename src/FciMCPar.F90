@@ -1159,7 +1159,7 @@ module FciMCParMod
             endif
 
             ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
-            if(tAdaptiveShift .and. all(.not. tSinglePartPhase)) then
+            if(tAdaptiveShift .and. all(.not. tSinglePartPhase) .and. tFillingStochRDMOnFly) then
                ! Only add the contribution from the corespace if it is explicitly demanded
                if((.not. tCoreDet) .or. tCoreAdaptiveShift) &
                     call SumCorrectionContrib(SignCurr,j)
