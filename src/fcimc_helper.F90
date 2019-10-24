@@ -59,7 +59,6 @@ module fcimc_helper
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel
-    use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
@@ -2116,10 +2115,8 @@ contains
 
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
-        use LoggingData, only: tOldRDMs
-        use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
-        use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn
-        use rdm_data_old, only: rdms, one_rdms_old
+        use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions, &
+                    inits_one_rdms, two_rdm_inits_spawn
         use semi_stoch_procs, only: check_determ_flag
 
         integer, intent(in) :: DetCurr(nel)
@@ -2199,13 +2196,6 @@ contains
         else
             ! All walkers died.
             if (tFillingStochRDMonFly) then
-                if (tOldRDMs) then
-                    do irdm = 1, rdm_definitions%nrdms
-                        call det_removed_fill_diag_rdm_old(rdms(irdm), one_rdms_old(irdm), irdm, &
-                                                           CurrentDets(:,DetPosition), DetPosition)
-                    end do
-                end if
-
                 av_sign = get_av_sgn_tot(DetPosition)
                 iter_occ = get_iter_occ_tot(DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)

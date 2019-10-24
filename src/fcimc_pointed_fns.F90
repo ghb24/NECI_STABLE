@@ -877,7 +877,7 @@ module fcimc_pointed_fns
 
       tot = get_tot_spawns(pos, run)
       acc = get_acc_spawns(pos, run)
-    
+
       if(test_flag(CurrentDets(:, pos), get_initiator_flag_by_run(run)))then
           tmp = 1.0
       elseif(tot>AAS_Thresh)then

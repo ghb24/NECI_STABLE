@@ -62,7 +62,7 @@ module fcimc_initialisation
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
-                           OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
+                           OffDiagBinRange, iDiagSubspaceIter, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
                            maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
@@ -94,7 +94,7 @@ module fcimc_initialisation
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
-                                  fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
+                                  fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement, scaleFunction, &
                                   shiftFactorFunction
     use symrandexcit3, only: gen_rand_excit3
@@ -114,8 +114,6 @@ module fcimc_initialisation
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
     use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
                            extract_bit_rep_avsign_no_rdm
-    use rdm_general_old, only: InitRDMs_old, DeallocateRDMs_old
-    use rdm_filling_old, only: fill_rdm_diag_currdet_norm_old
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
@@ -1212,7 +1210,6 @@ contains
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
-
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
 !        do i=1,NEl
@@ -1603,7 +1600,6 @@ contains
 
         if (tRDMonFly) then
             call init_rdms(nrdms_standard, nrdms_transition)
-            if (tOldRDMs) call InitRDMs_old(nrdms_standard)
         end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
 
@@ -1861,7 +1857,6 @@ contains
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
         fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
-        fill_rdm_diag_currdet_old => fill_rdm_diag_currdet_norm_old
 
         select case(sfTag)
         case(0)
@@ -2013,10 +2008,7 @@ contains
             ENDIF
         ENDIF
 
-        if (tRDMonFly) then
-            call dealloc_global_rdm_data()
-            if (tOldRDMs) call DeallocateRDMs_old()
-        end if
+        if (tRDMonFly) call dealloc_global_rdm_data()
 
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
@@ -3986,7 +3978,6 @@ contains
                     call stop_all(t_r, "Error finding free FCIMCStats name")
                 end if
             enddo
-
 
             !We have got a unique filename
             !Do not use system call

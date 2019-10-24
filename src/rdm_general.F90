@@ -315,7 +315,6 @@ contains
                                                         Spawned_Parents_IndexTag, ierr)
 
             memory_alloc = memory_alloc + ( (NIfTot + 3) * MaxSpawned * size_n_int )
-
             memory_alloc = memory_alloc + ( 2 * MaxSpawned * 4 )
 
         end if
@@ -632,7 +631,6 @@ contains
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data_old, only: rdms
         use rdm_data_utils, only: dealloc_rdm_list_t, dealloc_rdm_spawn_t, dealloc_one_rdm_t
         use rdm_data_utils, only: dealloc_en_pert_t
         use rdm_estimators, only: dealloc_rdm_estimates_t
