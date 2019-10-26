@@ -748,7 +748,7 @@ contains
         integer(hsize_t) :: printed_count
         integer(kind=n_int) , allocatable , target :: TmpVecDets(:,:)
         integer(kind=n_int) , pointer :: PrintedDets(:,:)
-        integer :: i
+        integer :: i, run
         real(dp) :: CurrentSign(lenof_sign), printed_tot_parts(lenof_sign), &
                     printed_norm_sqr(inum_runs)
 
