@@ -2479,7 +2479,6 @@ contains
 
         proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
 
-        write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
 

@@ -1115,6 +1115,7 @@ r_loop: do while(.not.tStoreDet)
         ! then update the shift to that value.
         if (tPopsJumpShift .and. .not. tWalkContGrow) then
             call calc_inst_proje()
+            write(6,*) 'Calculated instantaneous projected energy', proje_iter
             DiagSft = real(proje_iter, dp)
         end if
 
@@ -1704,6 +1705,7 @@ r_loop: do while(.not.tStoreDet)
             
             if(tPopsInstProjE) then
                 call calc_inst_proje()
+                write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
             end if
 
             return
@@ -1994,6 +1996,7 @@ r_loop: do while(.not.tStoreDet)
 
         if(tPopsInstProjE) then
             call calc_inst_proje()
+            write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
         end if
 
     end subroutine WriteToPopsfileParOneArr
