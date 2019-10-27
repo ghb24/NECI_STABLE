@@ -30,8 +30,7 @@ MODULE PopsfileMod
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
                        binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite, &
-                       t_print_frq_histograms, tPopAutoAdaptiveShift, &
-                       tPopsInstProjE, tHDF5TruncPopsWrite
+                       t_print_frq_histograms, tPopAutoAdaptiveShift
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -44,7 +43,7 @@ MODULE PopsfileMod
     use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
     use hdf5_popsfile, only: write_popsfile_hdf5, read_popsfile_hdf5, &
-                             add_pops_norm_contrib, write_popsfile_hdf5_trunc
+                             add_pops_norm_contrib
     use util_mod
     use tau_search_hist, only: deallocate_histograms
 
@@ -1704,15 +1703,6 @@ r_loop: do while(.not.tStoreDet)
             ! And stop timing
             call halt_timer(write_timer)
             
-            if(tPopsInstProjE) then
-                call calc_inst_proje()
-                write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
-            end if
-
-            if(tHDF5TruncPopsWrite)then
-                call write_popsfile_hdf5_trunc()
-            endif
-
             return
         end if
 
@@ -1998,11 +1988,6 @@ r_loop: do while(.not.tStoreDet)
         AllSumNoatHF = 0
         AllSumENum = 0
         AllTotWalkers = 0
-
-        if(tPopsInstProjE) then
-            call calc_inst_proje()
-            write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
-        end if
 
     end subroutine WriteToPopsfileParOneArr
 
