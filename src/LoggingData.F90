@@ -106,8 +106,11 @@ module LoggingData
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
-    ! The maximum excitation level of dets writen to an HDF5 popsfile
-    integer :: iHDF5PopsWriteEx
+    ! Whether to write another HDF5 popsfile with dets restricted to a maximum
+    ! exitation level
+    logical :: tHDF5TruncPopsWrite
+    ! The maximum excitation level of dets writen to truncated HDF5 popsfile
+    integer :: iHDF5TruncPopsEx
 
     ! Whether to calculate and print the instanenous project energy of
     ! wavefunction printed to popsfile

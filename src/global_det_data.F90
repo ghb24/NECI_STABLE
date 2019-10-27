@@ -501,12 +501,33 @@ contains
     end subroutine set_tot_acc_spawn_hdf5Int
 #endif
 
-    subroutine writeFFuncAsInt(fvals)
-      use FciMCData, only: CurrentDets, TotWalkers, iLutHF
-      use DetBitOps, only: FindBitExcitLevel
-      use LoggingData, only: iHDF5PopsWriteEx
+    subroutine writeFFuncAsInt(ndets, fvals)
       implicit none
+      integer(int64), intent(in) :: ndets
       integer(n_int), intent(inout) :: fvals(:,:)
+
+      integer :: j, k
+
+      ! write the acc. and tot. spawns per determinant in a contiguous array
+      ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
+      do j = 1, int(nDets)
+         do k = 1, inum_runs
+            fvals(k,j) = transfer(get_acc_spawns(j,k), fvals(k,j))
+         end do
+         do k = 1, inum_runs
+            fvals(k+inum_runs,j) = transfer(get_tot_spawns(j,k), fvals(k,j))
+         end do
+      end do
+    end subroutine writeFFuncAsInt
+
+    subroutine writeFFuncAsInt_Trunc(ndets, fvals, MaxEx)
+      !Same as writeFFuncAsInt but truncated up to a maximum excitation level
+      use FciMCData, only: CurrentDets, iLutHF
+      use DetBitOps, only: FindBitExcitLevel
+      implicit none
+      integer(int64), intent(in) :: ndets 
+      integer(n_int), intent(inout) :: fvals(:,:)
+      integer, intent(in) :: MaxEx
 
       integer :: j, k
       integer :: ExcitLevel, counter
@@ -514,33 +535,20 @@ contains
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
 
-      if(iHDF5PopsWriteEx>0)then
-          ! We only need to get the values corresponding to dets whose
-          ! excitation level is below or equal iHDF5PopsWriteEx
-          counter = 0
-          do j = 1,TotWalkers 
-             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-             if(ExcitLevel<=iHDF5PopsWriteEx)then
-                 counter = counter + 1
-                 do k = 1, inum_runs
-                    fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
-                 end do
-                 do k = 1, inum_runs
-                    fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
-                 end do
-             end if
-          end do
-      else
-          do j = 1,TotWalkers 
+      counter = 0
+      do j = 1,ndets 
+         ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+         if(ExcitLevel<=MaxEx)then
+             counter = counter + 1
              do k = 1, inum_runs
-                fvals(k,j) = transfer(get_acc_spawns(j,k), fvals(k,j))
+                fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
              end do
              do k = 1, inum_runs
-                fvals(k+inum_runs,j) = transfer(get_tot_spawns(j,k), fvals(k,j))
+                fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
              end do
-          end do
-      end if
-    end subroutine writeFFuncAsInt
+         end if
+      end do
+    end subroutine writeFFuncAsInt_Trunc
 
     subroutine writeFFunc(ndets, fvals)
       implicit none

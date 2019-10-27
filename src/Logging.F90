@@ -161,7 +161,8 @@ MODULE Logging
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
       tPopsInstProjE = .false.
-      iHDF5PopsWriteEx = 0
+      tHDF5TruncPopsWrite = .false.
+      iHDF5TruncPopsEx = 0
       tWriteRefs = .false.
 
       maxInitExLvlWrite = 8
@@ -927,15 +928,6 @@ MODULE Logging
             ! Use the new HDF5 popsfile format
             tHDF5PopsRead = .true.
             tHDF5PopsWrite = .true.
-            ! If an integer is provided, it is used as the maximum excitation
-            ! level of determinats written to the popsfile.
-            ! The default value is zero which uses all excitation levels. 
-            if (item < nitems) then
-                call readi(iHDF5PopsWriteEx)
-                if(iHDF5PopsWriteEx<0) then
-                    call stop_all(t_r,'Maximum excitation level should not be negative ')
-                end if
-            end if
 
         case("HDF5-POPS-READ")
             ! Use the new HDF5 popsfile format just for reading
@@ -944,20 +936,22 @@ MODULE Logging
         case("HDF5-POPS-WRITE")
             ! Use the new HDF5 popsfile format just for writing
             tHDF5PopsWrite = .true.
-            ! If an integer is provided, it is used as the maximum excitation
-            ! level of determinats written to the popsfile.
-            ! The default value is zero which uses all excitation levels. 
-            if (item < nitems) then
-                call readi(iHDF5PopsWriteEx)
-                if(iHDF5PopsWriteEx<0) then
-                    call stop_all(t_r,'Maximum excitation level should not be negative ')
-                end if
-            end if
 
         case("POPS-INST-PROJE")
             ! Whether to calculate and print the instanenous project energy of
             ! wavefunction printed to popsfile
             tPopsInstProjE = .true.
+
+        case("HDF5-TRUNC-POPS-WRITE")
+            ! Whether to write another HDF5 popsfile with dets restricted to a maximum
+            ! exitation level
+            tHDF5TruncPopsWrite = .true.
+            if (item < nitems) then
+                call readi(iHDF5TruncPopsEx)
+                if(iHDF5TruncPopsEx<=0) then
+                    call stop_all(t_r,'Maximum excitation level should be positive')
+                end if
+            end if
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
