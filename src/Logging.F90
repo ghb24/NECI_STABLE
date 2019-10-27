@@ -946,11 +946,9 @@ MODULE Logging
             ! Whether to write another HDF5 popsfile with dets restricted to a maximum
             ! exitation level
             tHDF5TruncPopsWrite = .true.
-            if (item < nitems) then
-                call readi(iHDF5TruncPopsEx)
-                if(iHDF5TruncPopsEx<=0) then
-                    call stop_all(t_r,'Maximum excitation level should be positive')
-                end if
+            call readi(iHDF5TruncPopsEx)
+            if(iHDF5TruncPopsEx<=0) then
+                call stop_all(t_r,'Maximum excitation level should be positive')
             end if
 
         case("INCREMENTPOPS")
