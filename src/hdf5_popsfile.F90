@@ -954,7 +954,7 @@ contains
         allocate(TmpVecDets(0:NIfTot, TotWalkers))
         PrintedDets => TmpVecDets
         printed_count = 0
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers)
             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
             if(ExcitLevel<=iHDF5TruncPopsEx)then
                 call extract_sign(CurrentDets(:,i),CurrentSign)
