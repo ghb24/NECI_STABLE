@@ -597,7 +597,7 @@ contains
         real(dp), allocatable :: fvalsRead(:,:), fvals(:,:)
         real(dp) :: fvals_tmp(2*inum_runs)
         integer(int64) :: det_attempt, nread
-
+        real(dp) :: aasFactor
         integer(n_int), allocatable :: BatchRead(:,:)
 
         ! If we are on the root processor, we need a buffer array which stores
@@ -716,7 +716,7 @@ r_loop: do while (.not. tReadAllPops)
                 ! How much data goes to each processor?
                 call MPIScatter (sendcounts, recvcount, err, roots)
                 ! allocate the buffer for the acc/tot spawns
-                if(tAutoAdaptiveShift) allocate(fvals(2*inum_runs,recvcount))
+                if(tAutoAdaptiveShift) allocate(fvals(2*inum_runs, recvcount / (NIfTot + 1)))
                 if (err /= 0) &
                     call stop_all (this_routine, "MPI scatter error")
 
@@ -731,11 +731,17 @@ r_loop: do while (.not. tReadAllPops)
                 ! in auto-adaptive shift mode, also communicate the accumulated
                 ! acc/tot spawns so far
                 if(tAutoAdaptiveShift) then
-                   call MPIScatterV(fvalsRead(:,1:MaxSendIndex), sendcounts, disps, &
-                        fvals(:,1:(recvcount/(2*inum_runs))), &
+                   ! aas data has a different first dimension -> rescale
+                   aasFactor = 2.0_dp * real(inum_runs,dp) / real(NIfTot + 1,dp)
+                   recvcount = int(recvcount * aasFactor, MPIArg)
+                   sendcounts = int(sendcounts * aasFactor, MPIArg)
+                   call MPIScatterV(fvalsRead(1:2*inum_runs,1:MaxSendIndex), sendcounts, disps, &
+                        fvals(1:2*inum_runs,1:(recvcount/(2*inum_runs))), &
                                   recvcount, err, Roots)
                    call set_tot_acc_spawns(fvals,(recvcount/(2*inum_runs)),&
                         int(CurrWalkers)+1)
+                   ! scale back the recvcount because it is still used
+                   recvcount = int(recvcount / aasFactor, MPIArg)
                    deallocate(fvals)
                 endif
 
@@ -1009,7 +1015,7 @@ r_loop: do while(.not.tStoreDet)
         apply_pert = .false.
         if (present(perturbs)) then
             if (allocated(perturbs)) apply_pert = .true.
-            
+
          end if
 
          if(present(source_name)) then
@@ -1182,7 +1188,7 @@ r_loop: do while(.not.tStoreDet)
             !We allow these two values to be different if we're reading in a popsfile fine inum_runs=1 and we want to
             !continue the calculation with inum_runs=2
             ! also allow these values to differ for a real-time fciqmc calc.
-            ! started from a converged groundstate, which is assumed to be 
+            ! started from a converged groundstate, which is assumed to be
             ! real valued only
             if(iPopLenof_sign.ne.lenof_sign) call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
             if(PopNIfSgn.ne.NIfSgn) call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
@@ -1257,7 +1263,7 @@ r_loop: do while(.not.tStoreDet)
             write(6,*) "Therefore automatic blocking will only start from current run"
             iBlockingIter = PreviousCycles
          else
-#ifdef __REALTIME 
+#ifdef __REALTIME
 
             ! if reading from a real-time popsfile, also read in tau
             ! this works because the real-time popsfile is read last
@@ -1326,10 +1332,10 @@ r_loop: do while(.not.tStoreDet)
                     write(iout,"(A,F12.8)") " pParallel: ", pParallel
                 end if
 
-            else if (t_keep_tau_fixed) then 
+            else if (t_keep_tau_fixed) then
                write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
                write(6,*) "Timestep is tau=", tau
-               tau = read_tau 
+               tau = read_tau
 
                if (abs(read_psingles) > 1.0e-12_dp) then
                   pSingles = read_psingles
@@ -1344,7 +1350,7 @@ r_loop: do while(.not.tStoreDet)
 
                if (abs(read_pparallel) > 1.0e-12_dp) then
                   pParallel = read_pparallel
-                  write(iout,"(A)") "Using pParallel from POPSFILE: " 
+                  write(iout,"(A)") "Using pParallel from POPSFILE: "
                   write(iout,"(A,F12.8)") " pParallel: ", pParallel
                end if
             else
@@ -1467,8 +1473,8 @@ r_loop: do while(.not.tStoreDet)
         logical :: PopPreviousHistTau
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
 #ifdef __REALTIME
-        ! need dummy read-in variable, since we start from a converged real 
-        ! calculation usually! atleast thats the default for now! 
+        ! need dummy read-in variable, since we start from a converged real
+        ! calculation usually! atleast thats the default for now!
         real(dp) :: PopSumENum
 #else
         HElement_t(dp) :: PopSumENum
@@ -1681,7 +1687,7 @@ r_loop: do while(.not.tStoreDet)
                call get_unique_filename(trim(identifier),tIncrementPops,.false.,&
                     iPopsFileNoRead,popsfile)
             inquire(file=popsfile,exist=formpops)
-            
+
             if(formpops) then
                print *, "READING", popsfile
                 open(iunithead,file=popsfile,status='old')
@@ -2292,28 +2298,28 @@ r_loop: do while(.not.tStoreDet)
                   nopen = count_open_orbs(det)
                   hf_helemt = 0.0_dp
                   hf_helemt_trans = 0.0_dp
-                  if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then 
-                      if (tHPHF) then 
+                  if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then
+                      if (tHPHF) then
                           hf_helemt = hphf_off_diag_helement(ProjEDet(:,1), &
                               nI, iLutRef(:,1), det)
 
-                          if (t_non_hermitian) then 
-                              hf_helemt_trans = hphf_off_diag_helement(nI, & 
+                          if (t_non_hermitian) then
+                              hf_helemt_trans = hphf_off_diag_helement(nI, &
                                   ProjEDet(:,1), det, iLutRef(:,1))
 
                           end if
                       else
-                          if (t_lattice_model) then 
+                          if (t_lattice_model) then
                               hf_helemt = get_helement_lattice(ProjEDet(:,1), &
                                   nI, ex_level)
-                              if (t_non_hermitian) then 
+                              if (t_non_hermitian) then
                                   hf_helemt_trans = get_helement_lattice(nI, &
                                       ProjEDet(:,1), ex_level)
                               end if
                           else
                               hf_helemt = get_helement(ProjEDet(:,1), nI, &
                                   ex_level, iLutRef(:,1), det)
-                              if (t_non_hermitian) then 
+                              if (t_non_hermitian) then
                                   hf_helemt_trans = get_helement(nI, ProjEDet(:,1), &
                                       ex_level, det, iLutRef(:,1))
                               end if

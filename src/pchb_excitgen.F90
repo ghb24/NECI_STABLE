@@ -12,6 +12,7 @@ module pchb_excitgen
   use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
   use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex
+  use util_mod_epsilon_close, only: near_zero
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
@@ -136,7 +137,7 @@ module pchb_excitgen
       call pchb_samplers(samplerIndex)%aSample(ij,ab,pGenHoles)
       ! split the index ab (using a table containing mapping ab -> (a,b))
       orbs = tgtOrbs(:,ab)
-      ! convert orbs to spin-orbs with the same spin 
+      ! convert orbs to spin-orbs with the same spin
       orbs = 2*orbs - spin
 
       ! check if the picked orbs are a valid choice - if they are the same, match one
@@ -177,7 +178,7 @@ module pchb_excitgen
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: ex(2,2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-      real(dp) :: pgen      
+      real(dp) :: pgen
 
       if(ic==1) then
          ! single excitations are the job of the uniform excitgen
@@ -203,7 +204,7 @@ module pchb_excitgen
 
       ! spatial orbitals of the excitation
       nex = gtID(ex)
-      ij = fuseIndex(nex(1,1),nex(1,2))      
+      ij = fuseIndex(nex(1,1),nex(1,2))
       ! the probability of picking the two electrons: they are chosen uniformly
       ! check which sampler was used
       if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
@@ -278,11 +279,14 @@ module pchb_excitgen
         integer :: ex(2,2)
         real(dp), allocatable :: w(:)
         real(dp), allocatable :: pNoExch(:)
+        logical, allocatable :: mask(:)
         ! number of possible source orbital pairs
         ijMax = fuseIndex(nBI,nBI)
         ! allocate the bias for picking an exchange excitation
         allocate(pExch(ijMax), stat = aerr)
         pExch = 0.0_dp
+        ! the mask to filter nonzero entries of the bias
+        allocate(mask(ijMax), stat = aerr)
         ! temporary storage for the unnormalized prob of not picking an exchange excitation
         allocatE(pNoExch(ijMax), stat = aerr)
         pNoExch = 1.0_dp
@@ -297,7 +301,7 @@ module pchb_excitgen
            do i = 1, nBI
               ! map i to alpha spin (arbitrary choice)
               ex(1,1) = 2*i
-              ! as we order a,b, we can assume j <= i 
+              ! as we order a,b, we can assume j <= i
               do j = 1, i
                  w = 0.0_dp
                  ! for samplerIndex == 1, j is alpha, else, j is beta
@@ -326,10 +330,13 @@ module pchb_excitgen
            end do
         end do
 
-        ! normalize the exchange bias
-        pExch = pExch / (pExch + pNoExch)
+        ! normalize the exchange bias (where normalizable)
+        mask = .not. near_zero(pExch + pNoExch)
+        where(mask) pExch = pExch / (pExch + pNoExch)
 
         deallocate(w)
+        deallocate(mask)
+        deallocate(pNoExch)
       end subroutine setup_pchb_sampler
 
       function map_orb(orb, alphaSamplers) result(sorb)

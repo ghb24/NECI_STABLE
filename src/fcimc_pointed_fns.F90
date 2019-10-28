@@ -3,8 +3,8 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
-                          tGen_4ind_reverse,  nBasis, t_3_body_excits, & 
-                          t_k_space_hubbard, t_new_real_space_hubbard, & 
+                          tGen_4ind_reverse,  nBasis, t_3_body_excits, &
+                          t_k_space_hubbard, t_new_real_space_hubbard, &
                           t_trans_corr_2body, t_trans_corr_hop, tHPHF, nBasis, G1
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
@@ -24,7 +24,7 @@ module fcimc_pointed_fns
     use load_balance, only: scaleFunction
     use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use bit_rep_data, only: NIfTot, test_flag
-    use bit_reps, only: get_initiator_flag
+    use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run
     use tau_search, only: log_death_magnitude, log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
@@ -206,7 +206,7 @@ module fcimc_pointed_fns
 
         rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
                                  tParity, HElGen)
-        ! We actually want to calculate Hji - take the complex conjugate, 
+        ! We actually want to calculate Hji - take the complex conjugate,
         ! rather than swap around DetCurr and nJ.
 #ifdef __CMPLX
         rh_used = conjg(rh)
@@ -342,7 +342,7 @@ module fcimc_pointed_fns
 #endif
 
             ! there is a weird bug with NAN nSpawn without print statement
-            ! stupid fortran.. 
+            ! stupid fortran..
 !             if (prob < EPS) print *, matel, prob
 
             nSpawn = - tau * MatEl * walkerweight / prob
@@ -535,7 +535,7 @@ module fcimc_pointed_fns
         endif
 
         ! Count the number of children born
-        ! in the real-time fciqmc, it is probably good to keep track of the 
+        ! in the real-time fciqmc, it is probably good to keep track of the
         ! stats of the 2 distinct RK loops .. use a global variable for the step
 
         ! rmneci_setup: Added multirun support for real-time case
@@ -606,7 +606,7 @@ module fcimc_pointed_fns
 
 
         do i=1, inum_runs
-            if (t_cepa_shift) then 
+            if (t_cepa_shift) then
 
                 fac(i) = tau * (Kii -  (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
                 call log_death_magnitude(Kii - (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
@@ -911,7 +911,7 @@ module fcimc_pointed_fns
       tot = get_tot_spawns(pos, run)
       acc = get_acc_spawns(pos, run)
 
-      if(pop>InitiatorWalkNo)then
+      if(test_flag(CurrentDets(:, pos), get_initiator_flag_by_run(run)))then
           tmp = 1.0
       elseif(tot>AAS_Thresh)then
           tmp = acc/tot

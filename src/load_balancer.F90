@@ -402,7 +402,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                call MPISend(nconsend,1,tgt_proc,mpi_tag_nconsend, ierr)
                if(nelem > 0) then
-                  call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc, &
+                  call MPISend(con_send_buf(0:NConEntry,1:nconsend),nelem,tgt_proc, &
                        mpi_tag_con, ierr)
                endif
                ! Do the same with the trial wavefunction itself
@@ -411,7 +411,7 @@ contains
                call MPISend(nconsend,1,tgt_proc,mpi_tag_ntrialsend, ierr)
 
                if(nelem > 0) then
-                    call MPISend(con_send_buf(:,1:nconsend),nelem,tgt_proc,&
+                    call MPISend(con_send_buf(0:NConEntry,1:nconsend),nelem,tgt_proc,&
                     mpi_tag_trial, ierr)
                  endif
             end if
@@ -424,7 +424,7 @@ contains
             ! Receive walkers!
             call MPIRecv(nsend, 1, src_proc, mpi_tag_nsend, ierr)
             nelem = nsend * (1 + NIfTot)
-            call MPIRecv(SpawnedParts, nelem, src_proc, mpi_tag_dets, ierr)
+            call MPIRecv(SpawnedParts(0:NIfTot, 1:nsend), nelem, src_proc, mpi_tag_dets, ierr)
 
             do j = 1, nsend
                 call decode_bit_det(det, SpawnedParts(:,j))
@@ -455,7 +455,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
                   ! get the connected states themselves
-                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_con, ierr)
+                  call MPIRecv(con_send_buf(0:NConEntry, 1:nconsend), nelem, src_proc, mpi_tag_con, ierr)
                   ! add the recieved connected dets to the hashtable
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        con_ht, con_space_size)
@@ -465,7 +465,7 @@ contains
                nelem = nconsend * (1 + NConEntry)
                if(nelem > 0) then
                   ! get the states
-                  call MPIRecv(con_send_buf, nelem, src_proc, mpi_tag_trial, ierr)
+                  call MPIRecv(con_send_buf(0:NConEntry, 1:nconsend), nelem, src_proc, mpi_tag_trial, ierr)
                   ! add them to the hashtable
                   call add_trial_ht_entries(con_send_buf(:,1:nconsend), nconsend, &
                        trial_ht, trial_space_size)
@@ -789,7 +789,7 @@ contains
       integer, intent(in) :: hash_val, i
       integer :: clashes
       character(*), parameter :: this_routine = "extract_con_ht_entry"
-     
+
       ! get the stores state
       ht_entry = con_ht(hash_val)%states(:,i)
       ! then remove it from the table
@@ -805,7 +805,7 @@ contains
       integer(n_int), allocatable :: tmp(:,:)
       integer :: i, ierr
       character(*), parameter :: this_routine = "remove_con_ht_entry"
-      
+
       ! first, copy the contnet of the con_ht entry to a temporary
       ! if there is any to be left
       if(clashes-1 > 0) then
@@ -839,7 +839,7 @@ contains
     end subroutine remove_con_ht_entry
 
 !------------------------------------------------------------------------------------------!
-      
+
     subroutine add_con_ht_entries(entries, n_entries)
       implicit none
       integer, intent(in) :: n_entries
@@ -853,7 +853,7 @@ contains
          ! just add them one by one
          call add_single_con_ht_entry(entries(:,i),hash_val)
       enddo
-    end subroutine add_con_ht_entries    
+    end subroutine add_con_ht_entries
 
 !------------------------------------------------------------------------------------------!
 
@@ -861,7 +861,7 @@ contains
       implicit none
       integer(n_int), intent(in) :: ht_entry(0:NConEntry)
       integer, intent(in) :: hash_val
-      integer :: clashes, ntrial ,ncon 
+      integer :: clashes, ntrial ,ncon
       integer(n_int), allocatable :: tmp(:,:)
 
       ! add a single entry to con_ht with hash_val
@@ -869,7 +869,7 @@ contains
       ! store the current entries in a temporary
       allocate(tmp(0:NConEntry,clashes+1))
       ! if there are any, copy them now
-      if(allocated(con_ht(hash_val)%states)) then 
+      if(allocated(con_ht(hash_val)%states)) then
          tmp(:,:clashes) = con_ht(hash_val)%states(:,:)
          ! then deallocate
          deallocate(con_ht(hash_val)%states)
@@ -923,7 +923,7 @@ contains
          if(tTrial) ntrial = ntrial + 1
          if(tCon) ncon = ncon + 1
       end do
-      
+
     end subroutine count_trial_this_proc
 
 !------------------------------------------------------------------------------------------!
