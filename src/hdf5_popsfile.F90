@@ -953,10 +953,11 @@ contains
         do i = 1, int(TotWalkers)
             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
             if(ExcitLevel<=iHDF5TruncPopsEx)then
+                call extract_sign(CurrentDets(:,i),CurrentSign)
+                if(IsUnoccDet(CurrentSign)) cycle
                 printed_count = printed_count + 1
                 PrintedDets(:,printed_count) = CurrentDets(:,i)
                 ! Fill in stats
-                call extract_sign(CurrentDets(:,i),CurrentSign)
                 printed_tot_parts = printed_tot_parts + abs(CurrentSign)
 #if defined(__CMPLX)
                 do run = 1, inum_runs

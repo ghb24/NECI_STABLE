@@ -523,6 +523,7 @@ contains
     subroutine writeFFuncAsInt_Trunc(ndets, fvals, MaxEx)
       !Same as writeFFuncAsInt but truncated up to a maximum excitation level
       use FciMCData, only: CurrentDets, iLutHF
+      use bit_rep_data, only: extract_sign
       use DetBitOps, only: FindBitExcitLevel
       implicit none
       integer(int64), intent(in) :: ndets 
@@ -531,6 +532,7 @@ contains
 
       integer :: j, k
       integer :: ExcitLevel, counter
+      real(dp) :: CurrentSign(lenof_sign)
 
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
@@ -539,6 +541,8 @@ contains
       do j = 1,int(ndets)
          ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
          if(ExcitLevel<=MaxEx)then
+             call extract_sign(CurrentDets(:,j),CurrentSign)
+             if(IsUnoccDet(CurrentSign)) cycle
              counter = counter + 1
              do k = 1, inum_runs
                 fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
