@@ -13,12 +13,12 @@ module real_time_init
                               SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
                               NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
                               NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, tDynamicAlpha, &
-                              AllNoatHF_1, AllNoatHF_1, AllGrowRate_1, AllGrowRateAbort_1, &
+                              AllNoatHF_1, AllNoatHF_1,  AllGrowRateAbort_1, TotParts_1, &
                               AllNoBorn_1, AllSpawnFromSing_1, AllNoDied_1, gf_count, &
                               AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, allPopSnapshot, &
                               AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
                               AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
-                              AccRat_1, AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
+                              AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
                               TotPartsStorage,  t_rotated_time, TotPartsPeak, asymptoticShift, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, tNewOverlap, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
@@ -31,7 +31,9 @@ module real_time_init
 			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
-                              alphaLog, alphaLogSize, alphaLogPos, tStaticShift
+                              alphaLog, alphaLogSize, alphaLogPos, tStaticShift, DiagVecTag, &
+                              tOnlyPositiveShift, tHFOverlap, bloom_count_1, sumwalkerscyc_1, &
+                              nspawned_1
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
@@ -40,6 +42,7 @@ module real_time_init
     use ParallelHelper, only: iProcIndex, root, MPIbarrier, nNodes, MPI_SUM
     use util_mod, only: get_unique_filename, get_free_unit
     use Logging, only: tIncrementPops
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use kp_fciqmc_data_mod, only: tMultiplePopStart, tScalePopulation, &
                                   tOverlapPert, overlap_pert, scaling_factor
     use CalcData, only: tChangeProjEDet, tReadPops, tRestartHighPop, tFCIMC, tJumpShift, &
@@ -172,12 +175,17 @@ contains
         alphaLogSize = 50
         alphaLogPos = 1
         allocate(alphaLog(alphaLogSize), stat = ierr)
+        alphalog = 0.0_dp
         numCycShiftExcess = 0
         ! allocate spawn buffer for verlet scheme
         if(tVerletScheme) allocate(spawnBuf(0:niftot,1:maxSpawned))
 
         TotPartsPeak = 0.0_dp
         gs_energy = benchmarkEnergy
+
+        ! when projecting onto the perturbed reference, we obviously need to create 
+        ! a new state
+        if(tHFOverlap) tNewOverlap = .true.
 
         call init_overlap_buffers()
 
@@ -247,6 +255,8 @@ contains
         ! also intitialize the 2nd spawning array to deal with the 
         ! diagonal death step in the 2nd rt-fciqmc loop
         allocate(DiagVec(0:nifbcast, MaxWalkersPart), stat = ierr)
+        call LogMemAlloc('DiagVec',MaxWalkersPart*(1+nifbcast),size_n_int,&
+             this_routine,DiagVecTag,ierr)
 
         DiagVec = 0
 
@@ -266,6 +276,7 @@ contains
         ! also initialize all the relevant first RK step quantities.. 
         NoatHF_1 = 0.0_dp 
         Annihilated_1 = 0.0_dp
+        nspawned_1 = 0.0_dp
         Acceptances_1 = 0.0_dp
         NoBorn_1 = 0.0_dp
         SpawnFromSing_1 = 0 
@@ -278,11 +289,12 @@ contains
         NoInitWalk_1 = 0.0_dp
         NoNonInitWalk_1 = 0.0_dp
         InitRemoved_1 = 0
-        
+        TotParts_1 = 0.0_dp
+        bloom_count_1 = 0
+        sumwalkerscyc_1 = 0.0_dp
         ! also the global variables 
         AllNoatHF_1 = 0.0_dp
         AllNoatDoubs_1 = 0.0_dp
-        AllGrowRate_1 = 0.0_dp
         AllGrowRateAbort_1 = 0
         AllNoBorn_1 = 0.0_dp
         AllSpawnFromSing_1 = 0
@@ -296,7 +308,6 @@ contains
         AllNoInitWalk_1 = 0.0_dp
         AllNoNonInitWalk_1 = 0.0_dp
         AllInitRemoved_1 = 0
-        AccRat_1 = 0.0_dp
         AllSumWalkersCyc_1 = 0.0_dp
 
         tVerletSweep = .false.
@@ -305,7 +316,7 @@ contains
            call backup_initial_state()
            tau = tau/iterInit
         endif
-
+        
         if(tStaticShift) DiagSft = asymptoticShift
 
         if(tGenerateCoreSpace) call initialize_corespace_construction()      
@@ -339,6 +350,7 @@ contains
       ! this subroutine sets up everything required to compute green's functions
       integer :: ierr, j, i
       complex(dp), allocatable :: norm_buf(:)
+      logical :: tStartedFromCoreGround
 
       normsize = inum_runs**2      
       allocate(overlap_real(gf_count),overlap_imag(gf_count))
@@ -348,13 +360,14 @@ contains
       dyn_norm_psi = 1.0_dp
       allocate(dyn_norm_red(normsize,gf_count), stat = ierr)
       allocate(current_overlap(normsize,gf_count),stat = ierr)
-
+      dyn_norm_red = 1.0_dp
       gf_overlap = 0.0_dp
 
       ! also need to create the perturbed ground state to calculate the 
       ! overlaps to |y(t)> 
       call create_perturbed_ground()
-      if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
+
+      if(tSemiStochastic) call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
       ! If only the corespace time-evolution is to be taken, truncate the
       ! initial wavefunction to the corespace
       ! We currently do not truncate the overlap state too, but it might come
@@ -417,7 +430,7 @@ contains
         benchmarkEnergy = 0.0_dp
 
         ! for the start definetly not change tau
-        tSearchTau = .true.
+        ! tSearchTau = .true.
 
         ! also set readpops to get the <y(0)| reference from the "normal"
         ! neci init routines
@@ -496,6 +509,8 @@ contains
         ! be considered -> only one overlap is obtained
         gf_count = 1
         allGfs = 0
+        ! normally, take the multi-replica overlap
+        tHFOverlap = .false.
         
         ! if starting a new calculation, we start at time 0 (arbitrary)
         elapsedRealTime = 0.0_dp
@@ -512,6 +527,8 @@ contains
         ! be switched on manually
         tLimitShift = .false.
         shiftLimit = 0.7_dp
+        ! by default, negative shifts are not allowed as they can easily lead to instability
+        tOnlyPositiveShift = .true.
 
         ! default values for dynamic rotation angle updating (it is not enabled by default)
         tDynamicAlpha = .false.
@@ -620,6 +637,7 @@ contains
                     read_psingles, read_pparallel
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: ierr
+        logical :: tStartedFromCoreGround
 
         character(255) :: rtPOPSFILE_name
         character(*), parameter :: this_routine = "readTimeEvolvedState"
@@ -664,7 +682,7 @@ contains
         call set_initial_times(read_tau, TotImagTime,PopDiagSft(1))
 
         ! if we disabled semi-stochastic mode temporarily, reenable it now
-        if(tSemiStochastic) call init_semi_stochastic(ss_space_in)
+        if(tSemiStochastic) call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
       
     end subroutine readTimeEvolvedState
 
@@ -691,6 +709,7 @@ contains
       real(dp) :: tmp_sgn(lenof_sign)
 
       signs = 1
+      if(AllSumNoatHF(1) > 0) then
       do i = 1, lenof_sign
          if(AllSumNoatHF(i)/AllSumNoatHF(1) < 0) then
             signs(i) = -1
@@ -698,6 +717,7 @@ contains
             signs(i) = 1
          endif
       enddo
+      endif
       if(any(signs<0)) then
          do i = 1, TotWalkers
             call extract_sign(CurrentDets(:,i),tmp_sgn)
@@ -782,10 +802,12 @@ contains
       implicit none
       
       integer :: ierr
+      character(*), parameter :: this_routine = "dealloc_real_time_memory"
       
       if(numSnapshotOrbs>0) deallocate(snapShotOrbs,stat=ierr)
       if(allocated(numCycShiftExcess)) deallocate(numCycShiftExcess, stat=ierr)
       deallocate(DiagVec,stat=ierr)
+      call LogMemDealloc(this_routine, DiagVecTag)
       call clean_iter_data(second_spawn_iter_data)
       deallocate(shift_damping, stat=ierr)
       deallocate(temp_freeslot, stat=ierr)
@@ -825,27 +847,16 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine read_in_trajectory
+    subroutine read_from_contour_file(iunit)
       use CalcData, only: nmcyc
       use real_time_data, only: tauCache, alphaCache
       implicit none
-      integer :: i, iunit
-      logical :: checkTraj
-      character(*), parameter :: this_routine = "read_in_trajectory"
-      
-      call get_unique_filename('tauContour',.false.,.false.,0,trajFile)
-      iunit = get_free_unit()
-      inquire(file=trajFile,exist=checkTraj)
-      if(.not. checkTraj) call stop_all(this_routine,"No tauContour file detected.")
-      
-
-      ! We first need to read in the number of cycles
-      open(iunit,file=trajFile,status='old',position='append')
-      backspace(iunit)
-      read(iunit,*) nmcyc
-      close(iunit)
+      integer, intent(in) :: iunit
+      integer :: i
 
       ! Then, the cache for the values of alpha and tau is allocated
+      if(allocated(tauCache)) deallocate(tauCache)
+      if(allocated(alphaCache)) deallocate(alphaCache)
       allocate(tauCache(nmcyc))
       allocate(alphaCache(nmcyc))
 
@@ -856,6 +867,38 @@ contains
          read(iunit,*) tauCache(i), alphaCache(i)
       enddo
       close(iunit)
+    end subroutine read_from_contour_file
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine read_in_trajectory
+      use CalcData, only: nmcyc
+      use real_time_data, only: tauCache, alphaCache
+      implicit none
+      integer :: i, iunit, eof
+      real(dp) :: x,y
+      logical :: checkTraj
+      character(*), parameter :: this_routine = "read_in_trajectory"
+      
+      call get_unique_filename('tauContour',.false.,.false.,0,trajFile)
+      iunit = get_free_unit()
+      inquire(file=trajFile,exist=checkTraj)
+      if(.not. checkTraj) call stop_all(this_routine,"No tauContour file detected.")
+      
+
+      ! We first need to read in the number of cycles
+      open(iunit,file=trajFile,status='old')
+      nmcyc = 0
+      ! check the number of lines
+      do
+         read(iunit,*,iostat=eof) x,y
+         if(eof .ne. 0) exit
+         nmcyc = nmcyc + 1
+      end do
+      close(iunit)
+
+      call read_from_contour_file(iunit)
+      
     end subroutine read_in_trajectory
 
 !------------------------------------------------------------------------------------------!

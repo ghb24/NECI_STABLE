@@ -67,3 +67,4 @@ double_occupancy_stat*
 .nfs*
 popsfile.h5*
 RDM_POPSFILE
+replica_estimates

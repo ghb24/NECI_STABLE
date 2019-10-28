@@ -54,6 +54,8 @@ type subspace_in
     ! each iteration to find which states to keep, we keep the states
     ! with the lowest energies.
     logical :: tLowE = .false.
+    ! Actually use the space of all connections to the chosen space
+    logical :: tAllConnCore = .false.
     ! Use the entire FCI space.
     logical :: tFCI = .false.
     ! Use the entire FCI space in Heisenberg model calculations.
@@ -102,6 +104,7 @@ LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips, tFCIDavidson
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
 LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil
 LOGICAL :: tDetermProj, tFTLM, tSpecLanc, tExactSpec, tExactDiagAllSym
+LOGICAL :: tDetermProjApproxHamil
 LOGICAL :: TFullUnbias,TNoAnnihil,tStartMP1
 LOGICAL :: TRhoElems,TReturnPathMC,TSignShift
 LOGICAL :: THFRetBias,TProjEMP2,TFixParticleSign
@@ -111,8 +114,10 @@ LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
 logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
+LOGICAL :: tKeepDoubSpawns, tMultiSpawnThreshold
 logical :: tSTDInits
-logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started
+logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
+
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tInitIncDoubs,tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
@@ -125,9 +130,7 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
-
 logical :: tSpecifiedTau
-
 logical :: tInitializeCSF
 real(dp) :: S2Init
 logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
@@ -135,7 +138,6 @@ logical :: tTrialShift !Fix the overlap with trial wavefunction by using trial e
 logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
 logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically updating one det. One flag for each run.
 integer :: N0_Target !The target reference population in fixed-N0 mode
-
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
 logical :: tAdaptiveShift !Make shift depends on the population
 real(dp) :: AdaptiveShiftSigma !Population which below the shift is set to zero
@@ -156,6 +158,8 @@ logical :: tAAS_Add_Diag !Add the diagonal term (Hii-E0)*tau to the weights
 logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
 real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
 logical :: tCoreAdaptiveShift 
+logical :: tAAS_SpinScaled !Scale AAS weights of same-spin excitations different from opposit-spin
+real(dp) :: AAS_SameSpin, AAS_OppSpin
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
@@ -325,6 +329,20 @@ integer :: trialSpaceUpdateCycle
 ! wave function is turned on.
 logical :: qmc_trial_wf = .false.
 
+! Define a space in which all determinants are initiators
+logical :: tInitiatorSpace
+type(subspace_in) :: i_space_in
+
+! If true then initiators can only be those determinants in the defined fixed space.
+logical :: tPureInitiatorSpace
+
+! Run FCIQMC in the truncated space of all connections to the initiator space
+logical :: tAllConnsPureInit
+
+! If this is true, don't allow non-initiators to spawn to another non-initiator,
+! even if it is occupied.
+logical :: tSimpleInit
+
 ! True if running a kp-fciqmc calculation.
 logical :: tKP_FCIQMC
 
@@ -352,6 +370,9 @@ logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 ! Information on a trial space to create trial excited states with.
 
 type(subspace_in) :: init_trial_in
+
+! Start wave function from solutions with a trial space
+logical :: tTrialInit
 
 ! If true then a hash table is kept for the spawning array and is used when
 ! new spawnings are added to the spawned list, to prevent adding the same
@@ -392,6 +413,11 @@ real(dp) :: cont_time_max_overspawn
 ! replicas?
 logical :: tPairedReplicas = .false.
 
+! Calculate and print estimates which use the replica approach to a file
+logical :: tReplicaEstimates
+
+logical :: tSetInitFlagsBeforeDeath
+
 ! If true then swap the sign of the FCIQMC wave function if the sign of the
 ! Hartree-Fock population becomes negative.
 logical :: tPositiveHFSign = .false.
@@ -412,15 +438,6 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! alis suggestion: have an option after restarting to keep the time-step 
 ! fixed to the values obtained from the POPSFILE 
 logical :: t_keep_tau_fixed = .false.
-
-! for the transcorrelated hubbard make it possible to use input-dependent 
-! pDoubles and pParallel values 
-real(dp) :: p_doubles_input = 0.8_dp
-real(dp) :: p_parallel_input = 0.1_dp
-
-! this p_singles_input is for the hopping correlation in the real-space 
-! hubbard. so this does not sum up to 1 with the pDoubles above! 
-real(dp) :: p_singles_input = 0.9_dp 
 
 logical :: tPopsAlias = .false.
 character(255) :: aliasStem
@@ -470,9 +487,6 @@ logical :: t_test_hist_tau = .false.
 ! ! for the rest of the tau-search, reuse the quantities from the "standard" 
 ! ! tau search, like enough_sing, etc. although they are not global yet.. 
 ! ! so maybe define new ones to not get confused
-! integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_para_hist
-! 
-! logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
 
 ! and i also need to truncate the spawns maybe: 
 logical :: t_truncate_spawns = .false. 
@@ -512,11 +526,21 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
 
+
 ! make variables for automated tau determination, globally available 
 ! 4ind-weighted variables:
 real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt, &
             max_permitted_spawn
 logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
+real(dp) :: gamma_sum
+
+real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
+integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
+! guga-specific:
+integer :: cnt_four, cnt_three_same, cnt_three_mixed, cnt_two_same, cnt_two_mixed
+integer :: n_opp, n_par
+integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
+
 
 ! guga non-weighted excitation generator tau-update variables
 real(dp) :: gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
@@ -568,9 +592,6 @@ real(dp) :: frq_ratio_cutoff = 0.95_dp
 ! also use an additional flag to turn the new tau-search off but keep some 
 ! of its functionality anyway..
 
-! also keep count seperately of the old tau-search to not mix them 
-integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
-
 ! do that for the nosym guga now too deliberately! because there seems to be 
 ! some matrix element or dynamics problem.. 
 integer :: cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
@@ -601,6 +622,24 @@ logical :: t_read_probs = .true.
 ! defined in FciMCdata module! 
 ! move tSpinProject here to avoid circular dependencies 
 logical :: tSpinProject
+
+! Use a Jacobi preconditioner in evolution equation
+logical :: tPreCond
+
+! Do we perform the death step before the communication of spawnings, or after?
+! If tReplicaEstimates is is true, then it is essential that tDeathBeforeComms
+! is false. To calculate these replica-based estimates, we use the summed-together
+! spawnings (i.e. after communication), and the current walkers *before* death
+! has been performed. So if tReplicaEstimates = .true., then we *must* have
+! tDeathBeforeComms = .false.
+logical :: tDeathBeforeComms
+
+! Allow the user to input the following values for the excitation generator
+real(dp) :: pSinglesIn, pParallelIn, pDoublesIn
+
+! If true then allow set_initial_run_references to be called
+logical :: tSetInitialRunRef
+
 ! If true, then when using the pops-core option, don't allow the
 ! pops-core-approx option to take over, even in the default case
 ! where it has been decided that it is efficient and appropriate.

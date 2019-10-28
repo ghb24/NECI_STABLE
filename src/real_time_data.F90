@@ -4,7 +4,8 @@
 
 module real_time_data
     
-    use constants, only: dp, int64, n_int, lenof_sign
+    use constants
+    use MemoryManager, only: TagIntType
     use FciMCData, only: perturbation, ll_node, fcimc_iter_data
     implicit none
 
@@ -19,7 +20,7 @@ module real_time_data
     logical :: t_real_time_fciqmc, t_new_stats_file, t_rotated_time, tStaticShift, &
          tDynamicCoreSpace, tRealTimePopsfile, tStabilizerShift, tLimitShift, &
          tDynamicAlpha, tDynamicDamping, tInfInit, tStartVariation, tOverpopulate, &
-         tNewOverlap
+         tNewOverlap, tOnlyPositiveShift, tHFOverlap
 
     logical :: tLowerThreshold
     ! also use a second iter_data type to keep track of the 2 distinct 
@@ -184,11 +185,11 @@ module real_time_data
                 NoBorn_1(:), AllNoBorn_1(:), NoDied_1(:), AllNoDied_1(:), &
                 Annihilated_1(:), AllAnnihilated_1(:), Acceptances_1(:), &
                 SpawnFromSing_1(:), AllSpawnFromSing_1(:), NoatDoubs_1(:), &
-                AllNoatDoubs_1(:), AccRat_1(:), AllGrowRate_1(:), NoInitWalk_1(:), &
+                AllNoatDoubs_1(:),  NoInitWalk_1(:), &
                 NoNonInitWalk_1(:), NoatHF_1(:), AllNoInitWalk_1(:), &
                 AllNoNonInitWalk_1(:), SumWalkersCyc_1(:), AllTotParts_1(:), &
                 AllTotPartsOld_1(:), TotParts_1(:), AllNoatHF_1(:), AllSumWalkersCyc_1(:), &
-                OldAllAvWalkersCyc_1(:), TotPartsStorage(:), TotPartsLastAlpha(:)
+                TotPartsStorage(:), TotPartsLastAlpha(:)
 
     integer(int64), allocatable :: NoAddedInitiators_1(:),InitRemoved_1(:), &
                 NoInitDets_1(:), NoNonInitDets_1(:), AllNoAddedInitiators_1(:), &
@@ -197,7 +198,7 @@ module real_time_data
 
     integer(int64) :: TotWalkers_1, AllTotWalkers_1, AllTotWalkersOld_1
 
-    
+    integer(TagIntType) :: DiagVecTag = 0
     ! also keept track of blooms seperately
     integer :: bloom_count_1(0:2), all_bloom_count_1(0:2)
     real(dp) :: bloom_sizes_1(0:2), bloom_max_1(0:2)
@@ -206,11 +207,12 @@ module real_time_data
     ! to keep stats correclty
     integer :: runge_kutta_step
 
-    ! These are required in the extended semi-stochastic treatment
-    logical :: tLogTrajectory, tReadTrajectory
+    ! for saving/loading the trajectories
+    logical :: tLogTrajectory, tReadTrajectory, tLiveTrajectory
     integer :: iunitCycLog
     real(dp), allocatable :: tauCache(:), alphaCache(:)
     character(255) :: trajFile
+    ! These are required in the extended semi-stochastic treatment
     logical :: tGenerateCoreSpace, tGZero
 
     ! For corespace construction

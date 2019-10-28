@@ -148,9 +148,6 @@ contains
             call MPIBCast(NECI_E)
             write(6,*) 'NECI_E at rdm_finalising.F90 ', NECI_E
         end if
-        ! this is allocated in find_nat_orb_occ_numbers and used later in
-        ! brokensymno, ugh. Have to deallocate it somewhere though
-        if(allocated(FourIndInts)) deallocate(FourIndInts)
 
         call halt_timer(FinaliseRDMs_Time)
 

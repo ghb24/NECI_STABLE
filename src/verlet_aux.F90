@@ -10,7 +10,7 @@ module verlet_aux
 
   use hash, only: clear_hash_table, hash_table_lookup, add_hash_table_entry
 
-  use bit_rep_data, only: niftot, nifdbo, extract_sign, nOffFlag, tUseFlags
+  use bit_rep_data, only: niftot, nifdbo, extract_sign, nOffFlag
 
   use bit_reps, only: decode_bit_det, set_flag, get_initiator_flag_by_run, encode_sign, &
        add_ilut_lists, extract_bit_rep, test_flag, encode_bit_rep
@@ -104,7 +104,7 @@ module verlet_aux
       ! build delta_psi as  psi(delta_t) - psi(0), where psi(delta_t) is the current population
       ! and psi(0) the backup stored in popsfile_dets
       if(allocated(popsfile_dets)) then
-         call add_ilut_lists(TotWalkers, backup_size,.true. , CurrentDets, popsfile_dets, &
+         call add_ilut_lists(int(TotWalkers), backup_size,.true. , CurrentDets, popsfile_dets, &
               dpsi_cache, dpsi_size, -1.0_dp)
       
          ! we do not need popsfile dets anymore
@@ -208,7 +208,8 @@ module verlet_aux
          fcimc_excit_gen_store%tFilled = .false.
          unused_flags = 0
 
-         call extract_bit_rep(population(:,idet), nI, parent_sign, unused_flags)
+         call extract_bit_rep(population(:,idet), nI, parent_sign, unused_flags, idet, &
+              fcimc_excit_gen_store)
 
          tEmptyDet = IsUnoccDet(parent_sign)
          ! we collect free slots only in the first application
@@ -261,12 +262,14 @@ module verlet_aux
       integer :: part, nspawn, ispawn, nI_child(nel), ic, ex(2,2), unused_ex_level
       integer(n_int) :: ilut_child(0:niftot)!, ilut_parent_init(0:niftot)
       real(dp) :: prob, child_sign(lenof_sign), unused_rdm_real, unused_sign(nel)
+      real(dp) :: unused_precond_fac
       logical :: tParity, break
+      integer :: err
       HElement_t(dp) :: HElGen
       
       unused_ex_level = 0
       do part = 1, lenof_sign
-         call decide_num_to_spawn(parent_sign(part),hdiag, AvMCExcits,nspawn)
+         call decide_num_to_spawn(parent_sign(part),hdiag,AvMCExcits,nspawn)
          do ispawn = 1, nspawn
             ilut_child = 0_n_int
             
@@ -275,7 +278,7 @@ module verlet_aux
             
             if(.not. IsNullDet(nI_child)) then
                call encode_child(ilut_parent, ilut_child, ic, ex)
-               if(tUseFlags) ilut_child(nOffFlag) = 0_n_int
+               ilut_child(nOffFlag) = 0_n_int
 
                ! treating semi-stochastic space
                ! note that diagonal event either are not in the core space at all
@@ -288,14 +291,15 @@ module verlet_aux
 
                child_sign = attempt_create(nI,iLut_parent,parent_sign,nI_child,iLut_child, &
                     prob, HElGen, ic, ex, tParity, unused_ex_level, part, &
-                    unused_sign, unused_rdm_real)
+                    unused_sign, unused_rdm_real, unused_precond_fac)
             else
                child_sign = 0.0_dp
             endif
             
             if ((any(abs(child_sign) > EPS)) .and. (ic /= 0) .and. (ic <= 2)) then               
                call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
-                    part, ilut_parent, iter_data_fciqmc)
+                    part, ilut_parent, iter_data_fciqmc, err)
+               if(err.ne.0) return
             end if ! If a child was spawned.
 
          end do ! Over mulitple particles on same determinant.

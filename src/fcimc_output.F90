@@ -29,7 +29,7 @@ module fcimc_output
                         frequency_bins_type4, frequency_bins_type2_diff, &
                         frequency_bins_type3_diff, n_frequency_bins, &
                         tEN2, tSemiStochastic, allCorespaceWalkers, &
-                        t_truncate_spawns
+                        t_truncate_spawns, tTimedDeaths
 
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -70,7 +70,7 @@ module fcimc_output
 
     use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
                               AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  gf_count, &
-                              AllTotParts_1, AccRat_1, AllGrowRate_1, normsize, snapShotOrbs, &
+                              AllTotParts_1, normsize, snapShotOrbs, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
                               elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
                               dyn_norm_red, real_time_info, allPopSnapshot, numSnapshotOrbs
@@ -655,6 +655,32 @@ contains
            inited = .true.
         end if
 
+        ! What is the current value of S2
+        if (tCalcInstantS2) then
+            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2 = calc_s_squared (.false.)
+                else
+                    curr_S2 = calc_s_squared_star (.false.)
+                end if
+            end if
+        else
+            curr_S2 = -1
+        end if
+
+        ! What is the current value of S2 considering only initiators
+        if (tCalcInstantS2Init) then
+            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2_init = calc_s_squared (.true.)
+                else
+                    curr_S2_init = calc_s_squared_star (.true.)
+                end if
+            end if
+        else
+            curr_S2_init = -1
+        endif
+
         ! ------------------------------------------------
         ! This is where any calculation that needs multiple nodes should go
         ! ------------------------------------------------
@@ -721,10 +747,9 @@ contains
 #endif
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
-                               'Tot. Proj. E')
-                !call stats_out(state,.true., aimag(proje_iter_tot) + Hii, &
-                 !              'Im. Tot. Proj. E')
-                call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
+                               'Tot. Proj. E (real)')
+                call stats_out(state,.true., aimag(proje_iter_tot) + OutputHii, &
+                               'Tot. Proj. E (imag)')
 #else
                 call stats_out(state,.true., proje_iter_tot + OutputHii, &
                                'Tot. Proj. E')
@@ -733,6 +758,7 @@ contains
             call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.false., nspawned_tot, 'Dets spawned')
             call stats_out(state,.false., Hii, 'reference energy')
+            call stats_out(state,.false., AccRat(1), 'Acc. Rat.')
 #ifdef __REALTIME
             call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
 #else
@@ -786,7 +812,8 @@ contains
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#if defined __PROG_NUMRUNS && !defined __REALTIME
+            if(.not. t_real_time_fciqmc) then
+#if defined __PROG_NUMRUNS
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
@@ -847,53 +874,59 @@ contains
 #endif
 
 
-                call stats_out (state, .false., &
-                                AllNoBorn(p), &
-                                'Born (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                AllNoDied(p), &
-                                'Died (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                AllAnnihilated(p), &
-                                'Annihil (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., &
-                                AllNoAtDoubs(p), &
-                                'Doubs (' // trim(adjustl(tmpc)) // ')')
-            end do
+      call stats_out (state, .false., &
+           AllNoBorn(p), &
+           'Born (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., &
+           AllNoDied(p), &
+           'Died (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., &
+           AllAnnihilated(p), &
+           'Annihil (' // trim(adjustl(tmpc)) // ')')
+      call stats_out (state, .false., &
+           AllNoAtDoubs(p), &
+           'Doubs (' // trim(adjustl(tmpc)) // ')')
+   end do
 
-            call stats_out(state,.false.,all_max_cyc_spawn, &
-                 'MaxCycSpawn')
+   call stats_out(state,.false.,all_max_cyc_spawn, &
+        'MaxCycSpawn')
 
-            ! Print overlaps between replicas at the end.
-            do p = 1, inum_runs
-                write(tmpc, '(i5)') p
-                if (tPrintReplicaOverlaps) then
-                    do q = p+1, inum_runs
-                        write(tmpc2, '(i5)') q
+   ! Print overlaps between replicas at the end.
+   do p = 1, inum_runs
+      write(tmpc, '(i5)') p
+      if (tPrintReplicaOverlaps) then
+         do q = p+1, inum_runs
+            write(tmpc2, '(i5)') q
 #ifdef __CMPLX
-                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
-                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
-                                       // 'psi_' // trim(adjustl(tmpc2)) &
-                                       // '> (real)')
-                        call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
-                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
-                                       // 'psi_' // trim(adjustl(tmpc2)) &
-                                       // '> (imag)')
-            
+            call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                 '<psi_' // trim(adjustl(tmpc)) // '|' &
+                 // 'psi_' // trim(adjustl(tmpc2)) &
+                 // '> (real)')
+            call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
+                 '<psi_' // trim(adjustl(tmpc)) // '|' &
+                 // 'psi_' // trim(adjustl(tmpc2)) &
+                 // '> (imag)')
+
 #else
-                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
-                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
-                                       // 'psi_' // trim(adjustl(tmpc2)) &
-                                       // '>')
+            call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                 '<psi_' // trim(adjustl(tmpc)) // '|' &
+                 // 'psi_' // trim(adjustl(tmpc2)) &
+                 // '>')
 #endif
 
-                    end do
-                end if
-            end do
+         end do
+      end if
+   end do
 
 #endif
 
-            if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
+   if(tCalcInstantS2) &
+        call stats_out(state,.true.,sum(curr_S2)/inum_runs,'S^2')
+   if(tCalcInstantS2Init) &
+        call stats_out(state,.true.,sum(curr_S2_init)/inum_runs,'S^2 (inits)')
+
+   if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
+endif
 
             if (tTruncInitiator) then
                 call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
@@ -1504,15 +1537,10 @@ contains
 
         ! Return the most populated states in CurrentDets on *this* processor only.
         call return_most_populated_states(iHighPopWrite, LargestWalkers, CurrentDets, &
-             TotWalkers, norm)
+             int(TotWalkers), norm)
 
         call MpiSum(norm,allnorm)
         if(iProcIndex.eq.Root) norm=sqrt(allnorm)
-
-!        write(iout,*) "Highest weighted dets on this process:"
-!        do i=1,iHighPopWrite
-!            write(iout,*) LargestWalkers(:,i)
-!        enddo
 
         !Now have sorted list of the iHighPopWrite largest weighted determinants on the process
         if(iProcIndex.eq.Root) then

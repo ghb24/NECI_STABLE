@@ -36,6 +36,9 @@ logical :: tRotatedOrbsReal     !This means we are reading in a complex FCIDUMP,
                                 !but kpoint symmetry can still be used.
 logical :: tReadFreeFormat,tReltvy
 
+! impurity system
+logical :: t_impurity_system
+
 logical :: tRIIntegrals   ! Read in RI 2-e integrals from RIDUMP file
 logical :: tStoreSpinOrbs ! This is set when the orbitals are stored in 
                           ! spin-orbital notation

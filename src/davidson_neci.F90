@@ -224,6 +224,7 @@ module davidson_neci
         if (print_info) write(6,'(1x,"done.",/)'); call neci_flush(6)
 
         end associate
+
     end subroutine InitDavidsonCalc
 
     subroutine subspace_expansion(this, basis_index)
@@ -358,6 +359,7 @@ module davidson_neci
         else
             call multiply_hamil_and_vector(this%super, this%temp_in, this%temp_out)
         end if
+
     end subroutine project_hamiltonian
 
     subroutine calculate_residual(this, basis_index)
@@ -383,6 +385,7 @@ module davidson_neci
     end subroutine calculate_residual
 
     subroutine calculate_residual_norm(this)
+
         type(DavidsonCalcType), intent(inout) :: this
         ! This subroutine calculates the Euclidean norm of the reisudal vector, r:
         ! residual_norm^2 = \sum_i r_i^2

@@ -11,24 +11,7 @@ module tau_search
                           t_trans_corr, tHub, t_trans_corr_hop, umateps, tGUGA, &
                           t_mixed_hubbard, t_olle_hubbard
 
-    use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
-                        InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
-                        t_consider_par_bias, &
-                    enough_two_same, enough_two_mixed, enough_three_same, &
-                    enough_three_mixed, enough_four, enough_two, enough_three, &
-                    frequency_bins, & 
-                    max_frequency_bound, n_frequency_bins, &
-                    frq_step_size, frequency_bins_singles, &
-                    frequency_bins_para, frequency_bins_anti,  &
-                    frequency_bins_doubles, &
-                    frequency_bins_type2, frequency_bins_type3, &
-                    frequency_bins_type4, &
-                    frequency_bins_type2_diff, frequency_bins_type3_diff, & 
-                    frq_ratio_cutoff, t_hist_tau_search,  enough_sing_hist, &
-                    enough_doub_hist, enough_par_hist, enough_opp_hist, & 
-                    t_fill_frequency_hists, cnt_type3_same, &
-                    cnt_type2_same, cnt_type3_diff, &
-                    cnt_type4
+    use CalcData
 
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
@@ -75,19 +58,6 @@ module tau_search
 !     use guga_tausearch, only: find_max_tau_doubs_guga
 ! #endif
     implicit none
-
-    real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
-    real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
-    real(dp) :: gamma_sum
-    real(dp) :: max_permitted_spawn
-    integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
-    ! guga-specific:
-    integer :: cnt_four, cnt_three_same, cnt_three_mixed, cnt_two_same, cnt_two_mixed
-    integer :: n_opp, n_par
-    integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
-    logical :: enough_sing, enough_doub, enough_opp, enough_par
-    logical :: consider_par_bias
-
     ! this is to keep probabilities of generating excitations of allowed classes above zero
     real(dp) :: prob_min_thresh
 
@@ -239,7 +209,7 @@ contains
                 gamma_sing = tmp_gamma
             
             ! And keep count!
-            if (.not. enough_sing) then
+            if (.not. enough_sing .and. gamma_sing > 0) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
             endif
@@ -253,7 +223,7 @@ contains
                 gamma_sing_spindiff1 = tmp_gamma
             
             ! And keep count!
-            if (.not. enough_sing) then
+            if (.not. enough_sing .and. tmp_gamma > 0) then
                 cnt_sing = cnt_sing + 1
                 if (cnt_sing > cnt_threshold) enough_sing = .true.
             endif
@@ -297,7 +267,7 @@ contains
                 if (tmp_gamma > gamma_doub) gamma_doub = tmp_gamma
             
                 ! And keep count
-                if (.not. enough_doub) then
+                if (.not. enough_doub .and. tmp_gamma > 0) then
                     cnt_doub = cnt_doub + 1
                     if (cnt_doub > cnt_threshold) enough_doub = .true.
                 end if
@@ -312,7 +282,7 @@ contains
             if (tmp_gamma > gamma_doub_spindiff1) &
                 gamma_doub_spindiff1 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
@@ -327,7 +297,7 @@ contains
             if (tmp_gamma > gamma_doub_spindiff2) &
                 gamma_doub_spindiff2 = tmp_gamma
             ! And keep count
-            if (.not. enough_doub) then
+            if (.not. enough_doub .and. tmp_gamma > 0) then
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
@@ -350,7 +320,49 @@ contains
 
         end select
 
-     end subroutine
+        ! We need to deal with the doubles
+        if (getExcitationType(ex, ic)==2 .and. consider_par_bias) then
+            ! In this case, distinguish between parallel and oppisite spins
+            if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
+                tmp_prob = tmp_prob / pParallel
+                tmp_gamma = abs(matel) / tmp_prob
+                if (tmp_gamma > gamma_par) &
+                    gamma_par = tmp_gamma
+        
+                ! And keep count
+                if (.not. enough_par ) then
+                    cnt_par = cnt_par + 1
+                    if (cnt_par > cnt_threshold) enough_par = .true.
+                        if (enough_opp .and. enough_par) enough_doub = .true.
+                    end if
+                else
+                tmp_prob = tmp_prob / (1.0_dp - pParallel)
+                tmp_gamma = abs(matel) / tmp_prob
+                if (tmp_gamma > gamma_opp) &
+                    gamma_opp = tmp_gamma
+        
+                ! And keep count
+                if (.not. enough_opp .and. tmp_gamma > 0) then
+                    cnt_opp = cnt_opp + 1
+                    if (cnt_opp > cnt_threshold) enough_opp = .true.
+                    if (enough_opp .and. enough_par) enough_doub = .true.
+                end if
+            end if
+        else
+        ! We are not playing around with the same/opposite spin bias
+        ! then we should just treat doubles like the singles
+        tmp_gamma = abs(matel) / tmp_prob
+        if (tmp_gamma > gamma_doub) &
+            gamma_doub = tmp_gamma
+        
+            ! And keep count
+            if (.not. enough_doub .and. tmp_gamma > 0) then
+                cnt_doub = cnt_doub + 1
+                if (cnt_doub > cnt_threshold) enough_doub = .true.
+            end if
+        end if
+           
+    end subroutine
 
     subroutine log_death_magnitude (mult)
 

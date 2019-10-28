@@ -344,8 +344,9 @@ contains
         use real_time_aux, only: move_overlap_block
         implicit none
         integer, intent(in) :: block, tgt_proc
+
         integer :: src_proc, ierr, nsend, nelem, j, k, det_block, hash_val, PartInd
-        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon
+        integer :: det(nel), TotWalkersTmp, nconsend, clashes, ntrial, ncon, err
         integer(n_int) :: con_state(0:NConEntry)
         real(dp) :: sgn(lenof_sign)
         real(dp) :: HDiag
@@ -442,7 +443,7 @@ contains
                 ! Calculate the diagonal hamiltonian matrix element for the new particle to be merged.
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
-                                   hash_val, det, HDiag, PartInd)
+                                   hash_val, det, HDiag, PartInd, err)
                 TotWalkers = TotWalkersTmp
             end do
 
@@ -491,8 +492,7 @@ contains
 
     end subroutine
 
-    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, DetPosition)
-
+    subroutine AddNewHashDet(TotWalkersNew, iLutCurr, DetHash, nJ, HDiag, DetPosition, err)
         ! Add a new determinant to the main list. This involves updating the
         ! list length, copying it across, updating its flag, adding its diagonal
         ! helement (if neccessary). We also need to update the hash table to
@@ -502,11 +502,13 @@ contains
         integer, intent(in) :: DetHash, nJ(nel)
         real(dp), intent(in) :: HDiag
         integer, intent(out) :: DetPosition
+        integer, intent(out) :: err
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
         real(dp), dimension(lenof_sign) :: SignCurr
         character(len=*), parameter :: t_r = "AddNewHashDet"
 
+        err = 0
         if (iStartFreeSlot <= iEndFreeSlot) then
             ! We can slot it into a free slot in the main list, rather than increase its length
             DetPosition = FreeSlot(iStartFreeSlot)
@@ -516,8 +518,10 @@ contains
             TotWalkersNew = TotWalkersNew + 1
             DetPosition = TotWalkersNew
             if (TotWalkersNew >= MaxWalkersPart) then
-               write(6,*) "Memory available:", MaxWalkersPart, " Required:", TotWalkersNew
-                call stop_all(t_r, "Not enough memory to merge walkers into main list. Increase MemoryFacPart")
+
+               ! return with an error
+               err = 1
+               return
             end if
             
             ! if the list is almost full, activate the walker decay
@@ -672,7 +676,7 @@ contains
                     AnnihilatedDet = AnnihilatedDet + 1 
 
                 else
-                   
+                   ! count the number of walkers that are single-spawns at the threshold
                    if(t_prone_walkers) then
                       if(test_flag(CurrentDets(:,i), flag_prone)) n_prone_dets = n_prone_dets + 1
                    endif
@@ -809,202 +813,6 @@ contains
             call stop_all(t_r, "Error in determining annihilated determinants")
         end if
     end subroutine CalcHashTableStats
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine truncate_occupation(CurrentSign,i,iter_data)
-      implicit none
-      real(dp), intent(inout) :: CurrentSign(lenof_sign)
-      integer, intent(in) :: i
-      type(fcimc_iter_data), intent(inout), optional :: iter_data
-      real(dp) :: pRemove, r, ratio(lenof_sign)
-      integer :: j, run, nI(nel)
-
-      do run = 1, inum_runs
-         if( ( (.not. is_run_unnocc(CurrentSign, run)) .and. &
-              (mag_of_run(CurrentSign, run) < OccupiedThresh) ) ) then
-            !We remove this walker with probability 1-RealSignTemp
-
-            pRemove=(OccupiedThresh-mag_of_run(CurrentSign, run))&
-                 /OccupiedThresh
-            r = genrand_real2_dSFMT ()
-
-            if (pRemove  >  r) then
-               !Remove this walker
-               NoRemoved(run) = NoRemoved(run) + sum(abs(CurrentSign(&
-                    min_part_type(run):max_part_type(run))))
-               do j=min_part_type(run),max_part_type(run)
-                  if(present(iter_data))  iter_data%nremoved(j) = iter_data%nremoved(j) &
-                       + abs(CurrentSign(j))
-                  CurrentSign(j) = 0.0_dp
-                  call nullify_ilut_part(CurrentDets(:,i), j)
-               enddo
-               call decode_bit_det(nI, CurrentDets(:,i))
-               if (IsUnoccDet(CurrentSign)) then
-                  call remove_hash_table_entry(HashIndex, nI, i)
-                  iEndFreeSlot=iEndFreeSlot+1
-                  FreeSlot(iEndFreeSlot)=i
-               end if
-            else
-               do j=min_part_type(run),max_part_type(run)
-                  ! do not change the phase of the population
-                  ratio(j) = abs(CurrentSign(j))/mag_of_run(CurrentSign,run)
-                  NoBorn(run) = NoBorn(run) + OccupiedThresh*ratio(j) &
-                       - abs(CurrentSign(j))
-                  if(present(iter_data)) iter_data%nborn(j) = iter_data%nborn(j) &
-                       + OccupiedThresh*ratio(j) - abs(CurrentSign(j))
-                  CurrentSign(j) = sign(OccupiedThresh*ratio(j), CurrentSign(j))
-                  call encode_part_sign (CurrentDets(:,i), CurrentSign(j), j)
-               enddo
-
-            end if
-         end if
-      enddo
-    end subroutine truncate_occupation
-!------------------------------------------------------------------------------------------!
-
-    subroutine extract_con_ht_entry(hash_val, i, ht_entry)
-      implicit none
-      integer(n_int), intent(out) :: ht_entry(0:NConEntry)
-      integer, intent(in) :: hash_val, i
-      integer :: clashes
-      character(*), parameter :: this_routine = "extract_con_ht_entry"
-     
-      ! get the stores state
-      ht_entry = con_ht(hash_val)%states(:,i)
-      ! then remove it from the table
-      clashes = con_ht(hash_val)%nclash
-      call remove_con_ht_entry(hash_val,i,clashes)
-    end subroutine extract_con_ht_entry
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine remove_con_ht_entry(hash_val, index, clashes)
-      implicit none
-      integer, intent(in) :: hash_val, index, clashes
-      integer(n_int), allocatable :: tmp(:,:)
-      integer :: i, ierr
-      character(*), parameter :: this_routine = "remove_con_ht_entry"
-      
-      ! first, copy the contnet of the con_ht entry to a temporary
-      ! if there is any to be left
-      if(clashes-1 > 0) then
-         allocate(tmp(0:NConEntry,clashes-1), stat = ierr)
-         if(ierr .ne. 0) call stop_all(this_routine, "Failed allocation")
-         do i = 1, index - 1
-            tmp(:,i) = con_ht(hash_val)%states(:,i)
-         end do
-         ! omitting the element to remove
-         do i = index + 1, clashes
-            tmp(:,i-1) = con_ht(hash_val)%states(:,i)
-         end do
-
-         ! then, reallocate the con_ht entry (if required)
-         deallocate(con_ht(hash_val)%states, stat = ierr)
-         if(ierr .ne. 0) call stop_all(this_routine, "Failed deallocation")
-         allocate(con_ht(hash_val)%states(0:NConEntry,clashes-1), stat = ierr)
-         if(ierr .ne. 0) call stop_all(this_routine, "Failed allocation")
-         ! and copy the temporary back (if it is non-empty)
-         con_ht(hash_val)%states(0:NConEntry,:) = tmp(0:NConEntry,:)
-         deallocate(tmp,stat = ierr)
-         if(ierr .ne. 0) call stop_all(this_routine, "Failed deallocation")
-      else
-         ! just to be sure, allocate with size 0
-         deallocate(con_ht(hash_val)%states)
-         allocate(con_ht(hash_val)%states(0:NConEntry,0))
-      endif
-
-      ! finally, update the nclashes information
-      con_ht(hash_val)%nclash = clashes - 1
-    end subroutine remove_con_ht_entry
-
-!------------------------------------------------------------------------------------------!
-      
-    subroutine add_con_ht_entries(entries, n_entries)
-      implicit none
-      integer, intent(in) :: n_entries
-      integer(n_int), intent(in) :: entries(0:NConEntry,n_entries)
-      integer :: i, hash_val, nI(nel), clashes
-      ! this adds n_entries entries to the con_ht hashtable
-
-      do i = 1, n_entries
-         call decode_bit_det(nI,entries(:,i))
-         hash_val = FindWalkerHash(nI, con_space_size)
-         ! just add them one by one
-         call add_single_con_ht_entry(entries(:,i),hash_val)
-      enddo
-    end subroutine add_con_ht_entries    
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine add_single_con_ht_entry(ht_entry, hash_val)
-      implicit none
-      integer(n_int), intent(in) :: ht_entry(0:NConEntry)
-      integer, intent(in) :: hash_val
-      integer :: clashes, ntrial ,ncon 
-      integer(n_int), allocatable :: tmp(:,:)
-
-      ! add a single entry to con_ht with hash_val
-      clashes = con_ht(hash_val)%nclash
-      ! store the current entries in a temporary
-      allocate(tmp(0:NConEntry,clashes+1))
-      ! if there are any, copy them now
-      if(allocated(con_ht(hash_val)%states)) then 
-         tmp(:,:clashes) = con_ht(hash_val)%states(:,:)
-         ! then deallocate
-         deallocate(con_ht(hash_val)%states)
-      endif
-      ! add the new entry
-      tmp(:,clashes+1) = ht_entry
-
-      ! and allocoate the new entry
-      allocate(con_ht(hash_val)%states(0:NConEntry,clashes+1))
-      ! fill it
-      con_ht(hash_val)%states = tmp
-      deallocate(tmp)
-      ! and update the nclashes info
-      con_ht(hash_val)%nclash = clashes + 1
-
-    end subroutine add_single_con_ht_entry
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine count_trial()
-      use Parallel_neci, only: MPISumAll
-      implicit none
-      integer ::  ntrialtot, ncontot, ntrial, ncon
-
-      call count_trial_this_proc(ntrial, ncon)
-      call MPISumAll(ntrial,ntrialtot)
-      call MPISumAll(ncon,ncontot)
-      write(iout,*) "Trial states ", ntrialtot
-      write(iout,*) "Connected states ", ncontot
-    end subroutine count_trial
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine count_trial_this_proc(ntrial, ncon)
-      use searching, only: hash_search_trial
-      use FciMCData, only: ntrial_excits
-      implicit none
-      integer, intent(out) :: ntrial, ncon
-      integer :: i, nI(nel)
-      real(dp) :: sgn(lenof_sign)
-      logical :: tTrial, tCon
-      HElement_t(dp) :: amp(ntrial_excits)
-
-      ntrial = 0
-      ncon = 0
-      do i = 1, TotWalkers
-         call decode_bit_det(nI, CurrentDets(:,i))
-         call extract_sign(CurrentDets(:,i),sgn)
-         if(IsUnoccDet(sgn)) cycle
-         call hash_search_trial(CurrentDets(:,i),nI,amp,tTrial,tCon)
-         if(tTrial) ntrial = ntrial + 1
-         if(tCon) ncon = ncon + 1
-      end do
-      
-    end subroutine count_trial_this_proc
 
     subroutine addNormContribution(CurrentSign, tIsStateDeterm)
       implicit none

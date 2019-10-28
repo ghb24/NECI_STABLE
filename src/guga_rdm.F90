@@ -5,7 +5,7 @@ module guga_rdm
     ! RDM module specifically for the GUGA spin-adapted implementation 
     
     use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_, &
-                         Root2
+                         Root2, int64, int_rdm
     use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
     use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifdbo
     use LoggingData, only: RDMExcitLevel
@@ -418,7 +418,8 @@ contains
         character(*), parameter :: this_routine = "doubles_search_guga"
 
         integer :: i, NoDets, StartDets, nI(nel), nJ(nel), PartInd, FlagsDj
-        integer :: rdm_ind, j, ab, cd, a, b, c, d
+        integer :: j, ab, cd, a, b, c, d
+        integer(int_rdm) :: rdm_ind
         integer(n_int) :: ilutJ(0:nifguga), ilutI(0:nifguga)
         real(dp) :: mat_ele, sign_i(lenof_sign), sign_j(lenof_sign)
         logical :: tDetFound
@@ -493,7 +494,8 @@ contains
         character(*), parameter :: this_routine = "singles_search_guga"
 
         integer :: i, NoDets, StartDets, nI(nel), nJ(nel), PartInd, FlagsDj
-        integer :: rdm_ind, j
+        integer :: j
+        integer(int_rdm) :: rdm_ind
         integer(n_int) :: ilutJ(0:nifguga), ilutI(0:nifguga)
         real(dp) :: mat_ele, sign_i(lenof_sign), sign_j(lenof_sign)
         logical :: tDetFound
@@ -553,7 +555,7 @@ contains
             t_fill_symmetric)
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
-        integer, intent(in) :: rdm_ind
+        integer(int_rdm), intent(in) :: rdm_ind
         logical, intent(in) :: t_fill_symmetric
         character(*), parameter :: this_routine = "fill_sings_1rdm_guga"
 
@@ -586,7 +588,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
         real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
-        integer, intent(in) :: rdm_ind
+        integer(int_rdm), intent(in) :: rdm_ind
         type(excitationInformation), intent(in), optional :: excitInfo_opt
         character(*), parameter :: this_routine = "fill_mixed_2rdm_guga"
 
@@ -1203,7 +1205,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
         real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
-        integer, intent(in) :: rdm_ind
+        integer(int_rdm), intent(in) :: rdm_ind
         character(*), parameter :: this_routine = "fill_sings_2rdm_guga"
 
         integer :: i, a, n, st, en, step_i(nSpatOrbs), step_j(nSpatOrbs), &
@@ -1514,7 +1516,7 @@ contains
     subroutine extract_1_rdm_ind(rdm_ind, i, a)
         ! the converstion routine between the combined and explicit rdm 
         ! indices for the 1-RDM
-        integer, intent(in) :: rdm_ind
+        integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(out) :: i, a
         character(*), parameter :: this_routine = "extract_matrix_element"
 
@@ -1527,7 +1529,7 @@ contains
         ! the inverse function of the routine above, to give the combined 
         ! rdm index of two explicit ones
         integer, intent(in) :: i, a
-        integer :: rdm_ind
+        integer(int_rdm) :: rdm_ind
         character(*), parameter :: this_routine = "contract_1_rdm_ind"
 
         rdm_ind = nSpatOrbs * (i - 1) + a

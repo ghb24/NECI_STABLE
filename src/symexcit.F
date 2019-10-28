@@ -284,7 +284,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
                L=L+1
                PR=SYMPROD(G1(NI(I))%Sym,G1(NI(J))%Sym)
 C.. Find the product in the sorted symprod list
-               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),NPR,K)
+               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),int(NPR),K)
                IF(K.EQ.0) THEN
                   WRITE(6,*) "Occupied Symmetry Products"
                   DO L=0,NPR

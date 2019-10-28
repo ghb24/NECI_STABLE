@@ -293,7 +293,7 @@ contains
            ! store the determinant 
            if(tStoredDets) then
               call decode_bit_det(TempnI,Dets(:,i))
-              call store_decoding(i,TempnI)
+              call store_decoding(int(i),TempnI)
            end if
         end do
 
@@ -394,7 +394,6 @@ contains
         if (any(read_walkers_on_nodes > max_dets)) &
             call stop_all(this_routine, "Insufficient particle storage &
                          &allocated to store particles in POPSFILE")
-
         if(tAutoAdaptiveShift) then
            allocate(fvalsBuf(2*inum_runs, max_dets), stat=ierr)
         else
@@ -576,7 +575,7 @@ contains
 
         endif
 
-        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, CurrWalkers)
+        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, int(CurrWalkers))
         deallocate(fvals)
         deallocate(BatchRead)
 
@@ -1693,15 +1692,18 @@ r_loop: do while(.not.tStoreDet)
         logical, intent(out) :: formpops,binpops
         character(255) :: popsfile
         character(*), intent(in), optional :: identifier
+        character(255) :: nameStem
+
+        if(present(identifier)) then
+           nameStem = trim(identifier)
+        else
+           nameStem = 'POPSFILE'
+        endif
 
         if(iProcIndex.eq.root) then
             iunithead=get_free_unit()
-            if(.not. present(identifier)) then
-               call get_unique_filename('POPSFILE',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
-            else
-               call get_unique_filename(trim(identifier),tIncrementPops,.false.,&
+               call get_unique_filename(trim(nameStem),tIncrementPops,.false.,&
                     iPopsFileNoRead,popsfile)
-            endif
             inquire(file=popsfile,exist=formpops)
             
             if(formpops) then
@@ -1716,13 +1718,13 @@ r_loop: do while(.not.tStoreDet)
                                               .false., iPopsFileNoRead, &
                                               popsfile)
                 else
-                    call get_unique_filename (trim(identifier)//'BIN', tIncrementPops, &
+                    call get_unique_filename (trim(nameStem)//'BIN', tIncrementPops, &
                                               .false., iPopsFileNoRead, &
                                               popsfile)
                 end if
                 inquire(file=popsfile,exist=binpops)
                 if(binpops) then
-                    call get_unique_filename(trim(identifier)//'HEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
+                    call get_unique_filename(trim(nameStem)//'HEAD',tIncrementPops,.false.,iPopsFileNoRead,popsfile)
                     open(iunithead,file=popsfile,status='old')
                 else 
                     call stop_all("open_pops_head","No POPSFILEs detected...")
@@ -1939,7 +1941,7 @@ r_loop: do while(.not.tStoreDet)
         nMaxDets = int(maxval(node_write_attempts), sizeof_int)
         if(tAutoAdaptiveShift) then
            allocate(fvals(2*inum_runs,nMaxDets), stat=error)
-           call writeFFunc(ndets, fvals)
+           call writeFFunc(int(ndets), fvals)
         else
            ! when not using auto-adaptive shift, no fvals are written, but the 
            ! array is passed and later deallocated, so allocate empty
@@ -2157,7 +2159,7 @@ r_loop: do while(.not.tStoreDet)
         if (.not. tMultiReplicas) then
             write(iunit, *) 'PopSft=', DiagSft(1)
             ! if tMultiReplicas is not set, inum_runs=1, so this will write AllSumNoatHF
-            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1:lenof_sign/inum_runs)
+            write(iunit, *) 'PopSumNoatHF=', AllSumNoatHF(1:lenof_sign)
             write(iunit, *) 'PopSumENum=', AllSumENum(1)
         else
             write(iunit, *) 'PopMultiSft=', DiagSft(1:inum_runs)
@@ -2262,7 +2264,7 @@ r_loop: do while(.not.tStoreDet)
         bWritten = .false.
 
         call extract_sign(det, real_sgn)
-
+        !real_sgn = real_sgn * 1000
         ! We don't want to bother outputting empty particles, or those
         ! with a weight which is lower than specified as the cutoff
         if (sum(abs(real_sgn)) > binarypops_min_weight) then

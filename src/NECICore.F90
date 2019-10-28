@@ -280,7 +280,7 @@ subroutine NECICalcInit(iCacheFlag)
     use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP
     use IntegralsData, only : tDumpFCIDUMP
     use DetCalc, only : DetCalcInit,DoDetCalc
-    use Determinants, only : DetPreFreezeInit,DetInit
+    use Determinants, only : DetPreFreezeInit,DetInit, DetPreFreezeInit_old
     use Calc, only : CalcInit
     use HFCalc, only: HFDoCalc
     use RotateOrbsMod, only : RotateOrbs
@@ -315,7 +315,11 @@ subroutine NECICalcInit(iCacheFlag)
 !   required to read in the relevant orbitals if necessary.
 
 !   This will also call SysPostFreezeInit()
-    call DetPreFreezeInit()
+    if (tGUGA) then 
+        call DetPreFreezeInit_old()
+    else
+        call DetPreFreezeInit()
+    end if
     if (.not.tPostFreezeHF) call HFDoCalc()
     call IntFreeze()
     ! can i initialize the GUGA stuff here? after freezing? or otherwise 

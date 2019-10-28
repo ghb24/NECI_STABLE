@@ -340,9 +340,9 @@ contains
         ! A wrapper function to call the correct generation routine.
 
         integer, intent(in) :: original_space_size
-        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
-        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
         character(*), parameter :: this_routine = "generate_connected_space"
 
@@ -384,9 +384,9 @@ contains
 #endif
 
         integer, intent(in) :: original_space_size
-        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
-        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
         character(*), parameter :: this_routine = "generate_connection_normal"
 
@@ -435,7 +435,6 @@ contains
             
                 call actHamiltonian(ilutG, excitations, nexcit) 
 
-
                 ! and if store flag is present: 
                 if (tStoreConnSpace) then
                     do j = 1, nexcit
@@ -459,8 +458,8 @@ contains
 
                 do while(.true.)
 
-                    call generate_connection_normal(nI, original_space(:,i), nJ,&
-                        ilutJ, ex_flag, excit, tAllExcitFound, ncon=connected_space_size)
+                    call generate_connection_normal(nI, original_space(0:NIfTot,i), nJ, ilutJ, ex_flag, excit, &
+                                                 tAllExcitFound, ncon=connected_space_size)
                     if (tAllExcitFound) exit
 
                     if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
@@ -554,9 +553,9 @@ contains
 #endif
 
         integer, intent(in) :: original_space_size
-        integer(n_int), intent(in) :: original_space(0:NIfTot, original_space_size)
+        integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
-        integer(n_int), optional, intent(out) :: connected_space(0:NIfTot, connected_space_size)
+        integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
 
         integer(n_int) :: ilutJ(0:NIfTot)
@@ -586,20 +585,16 @@ contains
         ! Over all the states in the original list:
         do i = 1, original_space_size
 
-            call decode_bit_det(nI, original_space(:,i))
+           call decode_bit_det(nI, original_space(0:NIfTot,i))
 
             if (t_k_space_hubbard) then 
 
-                ! for every loop we have to save the excitations per 
-                ! do we have to check if the list is unique?? i guess i do
                 call gen_all_excits_k_space_hubbard(nI, n_excits, temp_dets)
-                
+
                 if (tStoreConnSpace) then 
-                    connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) & 
+                    connected_space(0:nifd,connected_space_size+1:connected_space_size + n_excits) & 
                         = temp_dets(0:nifd,:)
-
                 end if
-
                 connected_space_size = connected_space_size + n_excits
                 
 #ifndef __CMPLX
@@ -633,13 +628,12 @@ contains
 
                 if (tSinglesOnly) ex_flag = 1
 
+
                 do while(.true.)
 
                     call generate_connection_kpnt(nI, original_space(:,i), nJ, &
                         ilutJ, ex_flag, tAllExcitFound, nStore, excit_gen, &
                         ncon=connected_space_size)
-
-                    if (tAllExcitFound) exit
 
                     if (tStoreConnSpace) then
                         connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)

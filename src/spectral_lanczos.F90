@@ -338,7 +338,9 @@ contains
         real(dp), intent(out) :: spec_low, spec_high
 
         integer :: i, j, min_vec, temp_unit
-        real(dp) :: omega, spectral_weight
+        complex(dp) :: omega
+        complex(dp) :: spectral_weight
+        complex(dp), parameter :: iU = (0.0,1.0)
 
         if (iProcIndex /= root) return
 
@@ -361,16 +363,30 @@ contains
         end if
 
         omega = min_omega_spectral
+        if(tIWSpec) omega = omega*iU
         do i = 1, nomega_spectral + 1
             spectral_weight = 0.0_dp
             do j = min_vec, neigv
-                spectral_weight = spectral_weight + &
-                    (trans_amps_left(j)*trans_amps_right(j)*spectral_broadening)/&
-                    (pi*(spectral_broadening**2 + (spectral_ground_energy-eigv(j)+omega)**2))
-            end do
-            write(6,'(f18.12, 4x, f18.12)') omega, spectral_weight
-            omega = omega + delta_omega_spectral
+               if(tIWSpec) then
 
+                  spectral_weight = spectral_weight + (trans_amps_left(j) * &
+                       trans_amps_right(j) ) * (1.0 / ( (spectral_ground_energy - eigv(j)) &
+                       + omega ) + 1.0 / ( -1.0*(spectral_ground_energy - eigv(j)) &
+                       + omega ) ) 
+               else
+                  spectral_weight = spectral_weight + &
+                       (trans_amps_left(j)*trans_amps_right(j)*spectral_broadening)/&
+                       (pi*(spectral_broadening**2 + (spectral_ground_energy-eigv(j)+omega)**2))
+               endif
+            end do
+            write(6,'(f18.12, 4x, f18.12, 4x, f18.12, 4x, f18.12)') real(real(omega)), &
+                 real(aimag(omega)), real(real(spectral_weight)), real(aimag(spectral_weight))
+            if(tIWSpec) then
+               omega = omega + iU*delta_omega_spectral
+            else
+               omega = omega + delta_omega_spectral
+            endif
+       
             ! Store the values of the spectrum for the highest and lowest
             ! values of omega for the testsuite to use.
             if (i == 1) spec_low = spectral_weight

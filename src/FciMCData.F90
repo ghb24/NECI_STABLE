@@ -33,6 +33,8 @@ MODULE FciMCData
       integer :: Tot_Unique_Dets_Unit 
       integer :: EXLEVELStats_unit ! EXLEVELStats
 
+      integer :: replica_est_unit ! Variational estimates
+
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: WalkVecDets(:,:)                !Contains determinant list
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVec(:,:),SpawnVec2(:,:)
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnVecKP(:,:), SpawnVecKP2(:,:)
@@ -94,9 +96,10 @@ MODULE FciMCData
 
     real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
-    integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
-    real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
+    integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
+
+    real(dp), allocatable :: oInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
     integer, allocatable :: ConflictExLvl(:), AllConflictExLvl(:)
     integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
@@ -104,6 +107,7 @@ MODULE FciMCData
     integer :: NoConflicts, AllNoConflicts
     integer :: maxConflictExLvl
     real(dp) :: avSigns, AllAvSigns
+    real(dp), allocatable :: NoInitWalk(:)
     real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
@@ -286,9 +290,14 @@ MODULE FciMCData
                            BinSearch_time, SemiStoch_Comms_Time, &
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
+                           SemiStoch_Hamil_Time, SemiStoch_Davidson_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
-                           subspace_spin_time, sign_correction_time
+                           subspace_spin_time, sign_correction_time, &
+                           var_e_time, precond_e_time, proj_e_time, &
+                           rescale_time, death_time, hash_test_time, &
+                           hii_test_time, init_flag_time, &
+                           InitSpace_Init_Time
       
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
@@ -308,10 +317,6 @@ MODULE FciMCData
       real(dp) :: pDoubles, pSingles, pParallel
       real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
-      
-      ! Bath and impurity orbital information
-      integer :: nBath, nImp
-      real(dp) :: pBath
       
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
@@ -432,6 +437,8 @@ MODULE FciMCData
       ! Diag shift from the input file, if it needed to be reset after restart
       real(dp), allocatable :: InputDiagSft(:)
       
+      ! Projected energy used in preconditioner
+      real(dp), allocatable :: proj_e_for_precond(:)
 
       ! ********************** FCIMCPar control variables *****************
       ! Store data from one fcimc iteration
@@ -510,6 +517,10 @@ MODULE FciMCData
       ! total number of core states on all processors up to processor i.
       ! (determ_displs(1) == 0).
       integer(MPIArg), allocatable, dimension(:) :: determ_displs
+      ! determ_last(i) holds the final index belonging process i.
+      integer(MPIArg), allocatable, dimension(:) :: determ_last
+      ! The first and last indices on this process.
+      integer :: s_first_ind, s_last_ind
       ! The total size of the core space on all processors.
       integer(MPIArg) :: determ_space_size
       ! determ_space_size_int is identical to determ_space_size, but converted
@@ -522,6 +533,11 @@ MODULE FciMCData
       ! If true (as is the case by default) then semi-stochastic calculations
       ! will start from the ground state of the core space
       logical :: tStartCoreGroundState
+
+      ! If tDetermSpawnedTo(i) is true, then the i'th deterministic state on
+      ! this processor was spawned to in the current iteration. This is only
+      ! allocated and used, currently, if replica estimates are being calculated.
+      logical, allocatable :: tDetermSpawnedTo(:)
 
       ! Trial wavefunction data.
 
@@ -626,6 +642,32 @@ MODULE FciMCData
       ! counting the total walker population all determinants of each ms value
       real(dp), allocatable :: walkPopByMsReal(:), walkPopByMsImag(:)
 
+      ! --- Data for when using the determ-proj-approx-hamil option -----
+
+      ! The 'main' space in which the entire Hamiltonian is stored.
+      integer(n_int), allocatable, dimension(:,:) :: var_space
+
+      ! Temporary space for storing the variational space states when they
+      ! are first generated.
+      integer(n_int), allocatable, dimension(:,:) :: temp_var_space
+
+      integer(MPIArg) :: var_size_this_proc
+      integer(MPIArg) :: var_space_size
+      integer :: var_space_size_int
+
+      integer(MPIArg), allocatable, dimension(:) :: var_sizes
+      integer(MPIArg), allocatable, dimension(:) :: var_displs
+
+      ! -----------------------------------------------------------------
+
+      ! Data for the replica_estimates option
+      real(dp), allocatable, dimension(:) :: var_e_num,         rep_est_overlap
+      real(dp), allocatable, dimension(:) :: var_e_num_all,     rep_est_overlap_all
+      real(dp), allocatable, dimension(:) :: e_squared_num,     e_squared_num_all
+      real(dp), allocatable, dimension(:) :: en2_pert,          en2_pert_all
+      real(dp), allocatable, dimension(:) :: en2_new,           en2_new_all
+      real(dp), allocatable, dimension(:) :: precond_e_num,     precond_denom
+      real(dp), allocatable, dimension(:) :: precond_e_num_all, precond_denom_all
 
       ! for the automated tau-search with the guga non-weighted excitation 
       ! generator, i need multiple new specific excitation type probabilities

@@ -100,6 +100,7 @@ contains
                  AllGrowRate(inum_runs), &
                  SumWalkersCyc(inum_runs), AllSumWalkersCyc(Inum_runs), &
                  OldAllAvWalkersCyc(inum_runs), &
+                 proj_e_for_precond(lenof_sign), &
 
                  ! Overall wavefunction properties
                  norm_psi(inum_runs), norm_psi_squared(inum_runs), &
@@ -175,9 +176,7 @@ contains
                  Acceptances_1(inum_runs), &
                  SpawnFromSing_1(inum_runs), AllSpawnFromSing_1(inum_runs), &
                  NoatDoubs_1(inum_runs), AllNoatDoubs_1(inum_runs), &
-                 AccRat_1(inum_runs), &
-                 AllGrowRateAbort_1(inum_runs), AllGrowRate_1(inum_runs), &
-
+                 AllGrowRateAbort_1(inum_runs), &
                  ! additional, maybe unused stat. vars. 
                  NoInitDets_1(lenof_sign), NoNonInitDets_1(lenof_sign), &
                  NoInitWalk_1(lenof_sign), NoNonInitWalk_1(lenof_sign), &
@@ -186,7 +185,7 @@ contains
                  AllNoNonInitWalk_1(lenof_sign), SumWalkersCyc_1(inum_runs), &
                  TotParts_1(lenof_sign), AllTotParts_1(lenof_sign), &
                  AllTotPartsOld_1(lenof_sign), AllNoatHF_1(lenof_sign), &
-                 AllSumWalkersCyc_1(inum_runs), OldAllAvWalkersCyc_1(inum_runs), &
+                 AllSumWalkersCyc_1(inum_runs), &
                  stat = ierr)
 #endif
         ! KPFCIQMC
@@ -196,6 +195,8 @@ contains
 
         ! Hacky bugfixes, for variables that aren't clearly set elsewhere.
         VaryShiftIter = 0
+
+        proj_e_for_precond = 0.0_dp
 
     end subroutine
 
@@ -253,6 +254,7 @@ contains
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
                    OldAllAvWalkersCyc, &
+                   proj_e_for_precond, &
 
                    norm_psi, norm_psi_squared, &
                    all_norm_psi_squared, old_norm_psi, &
@@ -297,7 +299,7 @@ contains
                        InitRemoved_1, AllInitRemoved_1, NoBorn_1, AllNoBorn_1, &
                        NoDied_1, AllNoDied_1, Annihilated_1, AllAnnihilated_1, &
                        Acceptances_1, SpawnFromSing_1, AllSpawnFromSing_1, &
-                       NoatDoubs_1, AllNoatDoubs_1, AccRat_1, AllGrowRate_1, &
+                       NoatDoubs_1, AllNoatDoubs_1, &
                        AllGrowRateAbort_1)
 #endif
         if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)

@@ -1,23 +1,33 @@
 #include "macros.h"
 
 module bit_reps
-    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, tLogNumSpawns
+    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, tLogNumSpawns, blank_det
+
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level, &
                         tGUGA
 
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
-                        tStartTrialLater, tStoredDets
+                        tStartTrialLater, tPreCond, tReplicaEstimates, tStoredDets
+
     use csf_data, only: csf_yama_bit, csf_test_bit
+
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
+
     use DetBitOps, only: count_open_orbs, CountBits
+
     use DetBitOps, only: ilut_lt, ilut_gt
+
     use bit_rep_data
+
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
                                tBuildSpinSepLists, &
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
+
     use sym_general_mod, only: ClassCountInd
+
+    use real_time_data, only: tGenerateCoreSpace
 
     use util_mod, only: binary_search_custom
 
@@ -46,7 +56,6 @@ module bit_reps
 
     ! Which decoding function do we want to use?
     interface decode_bit_det
-!        module procedure decode_bit_det_bitwise
         module procedure decode_bit_det_chunks
         module procedure decode_bit_det_lists
     end interface
@@ -258,14 +267,22 @@ contains
         nIfParentCoeff = 0
 
         NIfBCast = NIfTot + nIfParentCoeff
+
         ! sometimes, we also need to store the number of spawn events
         ! in this iteration
         NSpawnOffset = NIfTot + 1
         if(tLogNumSpawns) then
-           ! then, there is an extra integer in spawnedparts just behind
-           ! the ilut noting the number of spawn events
-           nOffParentCoeff = nOffParentCoeff + 1
-           NIfBCast = NIfBCast + 1
+            ! then, there is an extra integer in spawnedparts just behind
+            ! the ilut noting the number of spawn events
+            nOffParentCoeff = nOffParentCoeff + 1
+            NIfBCast = NIfBCast + 1
+        end if
+
+        ! If we need to communicate the diagonal Hamiltonian element
+        ! for the spawning
+        if (tPreCond .or. tReplicaEstimates) then
+            NOffSpawnHDiag = NIfBCast + 1
+            NIfBCast = NIfBCast + 1
         end if
 
     end subroutine
@@ -662,6 +679,25 @@ contains
         coeff = transfer(ilut(nOffParentCoeff), coeff)
 
     end function
+
+    subroutine encode_spawn_hdiag(ilut, hel)
+
+        integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+        HElement_t(dp), intent(in) :: hel
+
+        ilut(nOffSpawnHDiag) = transfer(hel, ilut(nOffSpawnHDiag))
+
+    end subroutine encode_spawn_hdiag
+
+    function extract_spawn_hdiag(ilut) result(hel)
+
+        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+
+        HElement_t(dp) :: hel
+
+        hel = transfer(ilut(nOffSpawnHDiag), hel)
+
+    end function extract_spawn_hdiag
 
     subroutine log_spawn(ilut)
 

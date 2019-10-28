@@ -7,7 +7,7 @@ MODULE Determinants
                           tGUGA, STOT, &
                           t_lattice_model, arr, lms, tFixLz, tUEGSpecifyMomentum, &
                           tRef_Not_HF, tMolpro, tHub, tUEG, &
-                          nClosedOrbs, nOccOrbs, nIrreps, irrepOrbOffset
+                          nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
 
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
@@ -67,7 +67,7 @@ MODULE Determinants
 
 contains
 
-  Subroutine DetPreFreezeInit()
+  Subroutine DetPreFreezeInit_old()
     Use global_utilities
     use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
          tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
@@ -80,7 +80,7 @@ contains
     type(BasisFn) s
     logical :: tGenFDet
     HElement_t(dp) :: OrbE
-    character(25), parameter :: this_routine='DetPreFreezeInit'
+    character(25), parameter :: this_routine='DetPreFreezeInit_old'
     Allocate(FDet(nEl), stat=ierr)
     LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
     IF(tDefineDet) THEN           
@@ -217,7 +217,119 @@ contains
          nOccOrbs(1) = nOccOrbs(1) + 1
       end do
     end subroutine assignOccOrbs
-  End Subroutine DetPreFreezeInit
+  End Subroutine DetPreFreezeInit_old
+
+    Subroutine DetPreFreezeInit()
+        Use global_utilities
+        use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
+                                tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
+        use SystemData, only : tMolpro
+        use sym_mod
+        use util_mod, only: NECI_ICOPY
+        use sltcnd_mod, only: CalcFockOrbEnergy 
+        integer ierr, ms, iEl, flagAlpha
+        integer i,j,Lz,OrbOrder(8,2),FDetTemp(NEl),lmsMax
+        type(BasisFn) s
+        logical :: tGenFDet
+        HElement_t(dp) :: OrbE
+        character(25), parameter :: this_routine='DetPreFreezeInit'
+        Allocate(FDet(nEl), stat=ierr)
+        LogAlloc(ierr, 'FDet', nEl, 4, tagFDet)
+        IF(tDefineDet) THEN
+            WRITE(6,*) 'Defining FDet according to input'
+            do i=1,NEl
+                FDet(i)=DefDet(i)
+            enddo
+
+            ! A quick check that we have defined a reasonable det.
+            ms = sum(get_spin_pn(fdet(1:nel)))
+!             if (abs(ms) /= abs(lms) .and. .not. tCSF) then
+!                 write(6,*) 'LMS', lms
+!                 write(6,*) 'Calculated Ms', ms
+!                 call stop_all (this_routine, "Defined determinant has the &
+!                               &wrong Ms value. Change DEFINEDET or &
+!                               &SPIN-RESTRICT")
+!             end if
+            tRef_Not_HF = .true.
+        else
+           tGenFDet = .true.
+           lmsMax = sum(nOccOrbs) - sum(nClosedOrbs)
+           if((sum(nOccOrbs) + sum(nClosedOrbs)) .eq. nel &
+                .and. (.not. TSPN .or. abs(LMS).eq.lmsMax)) then
+              tGenFDet = .false.
+              if(LMS<0) then
+                 flagAlpha = 0
+              else
+                 flagAlpha = 1
+              endif
+              iEl = 1
+              do i = 1, nIrreps
+                 ! nClosedOrbs is the number of alpha/beta orbs (the ones with minority spin)
+                 do j = 1, nClosedOrbs(i)
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j - flagAlpha
+                    iEl = iEl + 1
+                 end do
+                 ! nOccOrbs is the number of majority spin orbs (per irrep)
+                 do j = 1, nOccOrbs(i)
+                    FDet(iEl) = irrepOrbOffset(i) + 2*j - (1-flagAlpha)
+                    iEl = iEl + 1
+                 end do
+              end do
+              call sort(FDet)
+           endif
+           if(tGenFDet) then
+              CALL GENFDET(FDET)
+              IF(tUEGSpecifyMomentum) THEN
+                 WRITE(6,*) 'Defining FDet according to a momentum input'
+                 CALL ModifyMomentum(FDET)
+              ENDIF
+              tRef_Not_HF = .false.
+           endif
+        ENDIF
+        !      ENDIF
+      WRITE(6,"(A)",advance='no') " Fermi det (D0):"
+      call write_det (6, FDET, .true.)
+      Call GetSym(FDet,nEl,G1,nBasisMax,s)
+      WRITE(6,"(A)",advance='no') " Symmetry: "
+      Call WriteSym(6,s%Sym,.true.)
+      IF(tFixLz) THEN
+         Call GetLz(FDet,nEl,Lz)
+         WRITE(6,"(A,I5)") "Lz of Fermi det:",Lz
+      ENDIF
+      CALL NECI_ICOPY(NEL,FDET,1,NUHFDET,1)
+      if(tMolpro) then
+          !Orbitals are ordered by occupation number from MOLPRO, and not reordered in NECI
+          !Therefore, we know HF determinant is first four occupied orbitals.
+          write(6,"(A)") "NECI called from MOLPRO, so assuming orbitals ordered by occupation number."
+          if(.not.tDefineDet) then
+              FDetTemp(:)=FDet(:)
+          else
+              !We have defined our own reference determinant, but still use the first orbitals for the calculation
+              !of 'orbital energies'
+              CALL GENFDET(FDETTEMP)
+          endif
+          write(6,"(A)") "Calculating orbital energies..."
+          do i=1,nBasis
+               OrbE=CalcFockOrbEnergy(i,FDetTemp)
+               Arr(i,1)=real(OrbE,dp)
+               Brr(i)=i
+          enddo
+          write(6,"(A)") "Reordering basis by orbital energies..."
+          OrbOrder(:,:)=0
+          call ORDERBASIS(NBASIS,Arr,Brr,OrbOrder,nBasisMax,G1)
+          !However, we reorder them here
+          call writebasis(6,G1,nBasis,Arr,Brr)
+      endif
+      E0HFDET=ECORE
+      DO I=1,NEL
+         E0HFDET=E0HFDET+ARR(NUHFDET(i),2)
+      ENDDO     
+      WRITE(6,*) "Fock operator energy:",E0HFDET
+
+      ! Store the value of Ms for use in other areas
+      calculated_ms = sum(get_spin_pn(fdet(1:nel)))
+       
+    End Subroutine DetPreFreezeInit
     
     Subroutine DetInit()
      
@@ -427,6 +539,15 @@ contains
         end if
 #endif
 
+        ! nobody actually uses Simons old CSF implementations..
+        ! there is a test in the test suite that does....
+         if (tCSF) then
+             if (iscsf(nI) .or. iscsf(nJ)) then
+                 hel = CSFGetHelement (nI, nJ)
+                 return
+             endif
+         endif
+        
         if (t_lattice_model) then 
             temp_ic = ic 
             hel = get_helement_lattice(nI, nJ, temp_ic) 
@@ -485,20 +606,6 @@ contains
                 call stop_all(this_routine, "TODO: refactor guga matrix elements!")
             end if
             return
-! 
-!             if (present(ilutI) .and. present(ilutJ)) then 
-!                 call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
-!                     .true., 2)
-! 
-!             else
-!                 call EncodeBitDet(nI, t_i)
-!                 call EncodeBitDet(nJ, t_J)
-!                 call calc_guga_matrix_element(t_i, t_j, excitInfo, hel, &
-!                     .true., 2)
-!             endif
-! 
-!             if (present(ICret)) ICret = excitInfo%excitLvl
-            
         end if
 #endif
 
@@ -593,10 +700,6 @@ contains
             if (all(nI == nJ)) then 
                 hel =  calcDiagMatEleGUGA_nI(nI)
                 return
-            else
-!                 print *, "nI: ", ni
-!                 print *, "nj: ", nJ
-!                 call stop_all(this_routine, "TODO: refactor guga matrix elements!")
             end if
 
         end if
@@ -662,10 +765,6 @@ contains
                 call stop_all(this_routine, "TODO: refactor guga matrix elements!")
             end if
             return
-
-!             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, &
-!                 .true., 2)
-
         end if
 #endif
 
@@ -1014,37 +1113,6 @@ END MODULE Determinants
          RETURN
       END
 
-! Write determinant NI(NEL) to unit NUnit.  Set LTerm if to add a newline at end.  Also prints CSFs
-      !SUBROUTINE WRITEDET(NUNIT,NI,NEL,LTERM)
-      !   use legacy_data, only: CSF_NBSTART
-      !   IMPLICIT NONE
-      !   INTEGER NUNIT,NEL,NI(NEL),I
-      !   LOGICAL LTERM
-      !   INTEGER IEL
-      !   CHARACTER*2 SUFF
-      !   WRITE(NUNIT,"(A)",advance='no') "("
-      !   DO I=1,NEL
-      !      IEL=NI(I)
-      !      IF(IEL.GE.CSF_NBSTART) THEN
-      !         WRITE(NUNIT,"(I3)",advance='no'),(IEL-CSF_NBSTART)/4+1
-      !         IEL=IAND(IEL-CSF_NBSTART,3)
-      !         IF(IEL.EQ.0) THEN
-      !            WRITE(NUNIT,"(A)",advance='no') "-B,"
-      !         ELSEIF(IEL.EQ.1) THEN
-      !            WRITE(NUNIT,"(A)",advance='no') "-A,"
-      !         ELSEIF(IEL.EQ.2) THEN
-      !            WRITE(NUNIT,"(A)",advance='no') "+B,"
-      !         ELSE
-      !            WRITE(NUNIT,"(A)",advance='no') "+A,"
-      !         ENDIF
-      !      ELSE
-      !         WRITE(NUNIT,"(I5,A)",advance='no') IEL,","
-      !      ENDIF
-      !   ENDDO
-      !   WRITE(NUNIT,"(A)",advance='no') ")"
-      !   IF(LTERM) WRITE(NUNIT,*)
-      !   RETURN
-      !END
     subroutine writedet_oldcsf (nunit, nI, nel, lTerm)
         use systemdata, only: tCSF, tCSFOLD
         

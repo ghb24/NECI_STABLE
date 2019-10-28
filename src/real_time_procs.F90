@@ -19,7 +19,8 @@ module real_time_procs
                               tDynamicAlpha, tDynamicDamping, stepsAlpha, phase_factors, &
                               elapsedImagTime, elapsedRealTime, tStaticShift, asymptoticShift, &
                               iunitCycLog, trajFile, tauCache, alphaCache, tNewOverlap, &
-                              alphaLog, alphaLogSize, alphaLogPos
+                              alphaLog, alphaLogSize, alphaLogPos, tOnlyPositiveShift, &
+                              tHFOverlap
     use real_time_aux, only: write_overlap_state, write_overlap_state_serial
 
     use kp_fciqmc_data_mod, only: perturbed_ground, overlap_pert
@@ -41,7 +42,7 @@ module real_time_procs
                          nWalkerHashes, iter, fcimc_excit_gen_store, NoDied, &
                          NoBorn, NoAborted, NoRemoved, HolesInList, TotParts, Hii, &
                          determ_sizes, determ_displs, determ_space_size, core_space, &
-                         tSinglePartPhase
+                         tSinglePartPhase, perturbation, alloc_popsfile_dets
     use sparse_arrays, only: sparse_core_ham
     use perturbations, only: apply_perturbation, init_perturbation_creation, &
          init_perturbation_annihilation, apply_perturbation_array
@@ -50,7 +51,7 @@ module real_time_procs
                         tRealSpawnCutoff, RealSpawnCutoff, tau, RealCoeffExcitThresh, &
                         DiagSft, tTruncInitiator, OccupiedThresh, tReadPops, InitiatorWalkNo, &
                         tSpinProject
-    use DetBitOps, only: FindBitExcitLevel
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
     use procedure_pointers, only: get_spawn_helement
     use util_mod, only: stochastic_round
     use tau_search, only: log_spawn_magnitude
@@ -62,14 +63,14 @@ module real_time_procs
     use hash, only: remove_hash_table_entry
     use dSFMT_interface, only: genrand_real2_dSFMT
     use load_balance_calcnodes, only: DetermineDetNode
+    use Determinants, only: tDefineDet, DefDet
     use ParallelHelper, only: nNodes, bNodeRoot, ProcNode, NodeRoots, MPIBarrier, &
          iProcIndex, MPI_SUM, root
     use Parallel_neci
     use LoggingData, only: tNoNewRDMContrib
     use AnnihilationMod, only: test_abort_spawn
-    use load_balance, only: AddNewHashDet, CalcHashTableStats, test_hash_table
-    use Determinants, only: get_helement
-    use hphf_integrals, only: hphf_diag_helement
+    use load_balance, only: AddNewHashDet, CalcHashTableStats, get_diagonal_matel
+    use semi_stoch_gen, only: generate_space_most_populated
     implicit none
 
     type(timer) :: calc_gf_time
@@ -124,9 +125,10 @@ contains
         integer :: PartInd, i, j
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: SignProd
+        real(dp) :: HDiag
         integer :: DetHash, nJ(nel)
         logical :: tSuccess, tDetermState
-        integer :: run, temp_ind
+        integer :: run, err, pos
         
         ! rewrite the original Annihilation routine to fit the new 
         ! requirements here
@@ -135,11 +137,6 @@ contains
         ! so i dont think i need to change much here
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
-!         call set_timer(AnnMain_time, 30)
-
-!         if (tHistSpawn) HistMinInd2(1:nEl) = FCIDetIndex(1:nEl)
-
-!         call set_timer(BinSearch_time,45)
 
         do i = 1, ValidSpawned
 
@@ -156,6 +153,7 @@ contains
                                    CurrentDets, PartInd, DetHash, tSuccess)
 
             tDetermState = .false.
+            CurrentSign = 0.0_dp
 
 !            WRITE(6,*) 'i,DiagParts(:,i)',i,DiagParts(:,i)
             
@@ -266,15 +264,10 @@ contains
                   do run=1, inum_runs
                      NoBorn(run) = NoBorn(run) + sum(abs(SignTemp(&
                           min_part_type(run):max_part_type(run))))
-                  enddo
-
-                  if (tHPHF) then 
-                      call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, &
-                          nJ, real(hphf_diag_helement(nJ,DiagParts(:,i)),dp), temp_ind)
-                  else
-                      call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, &
-                          nJ, real(get_helement(nJ,nJ,0),dp), temp_ind)
-                  end if
+                  enddo         
+                  HDiag = get_diagonal_matel(nJ, DiagParts(:,i))
+                  call AddNewHashDet(TotWalkersNew, DiagParts(:,i), DetHash, nJ, HDiag, pos, err)
+                  if(err.ne.0) exit
 
                end if
             end if
@@ -303,7 +296,8 @@ contains
 
             ilut_parent => CurrentDets(:,idet) 
 
-            call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags)
+            call extract_bit_rep(ilut_parent, nI_parent, parent_sign, unused_flags, idet, &
+                fcimc_excit_gen_store)
 
             if (IsUnoccDet(parent_sign)) then
                 holes = holes + 1
@@ -679,7 +673,7 @@ contains
 
     function attempt_create_realtime(DetCurr, iLutCurr, RealwSign, nJ, iLutnJ,&
             prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, AvSignCurr,&
-            RDMBiasFacCurr) result(child)
+            RDMBiasFacCurr, precond_fac) result(child)
 
         ! create a specific attempt_create function for the real-time fciqmc
         ! to avoid preprocessor flag jungle..
@@ -695,6 +689,7 @@ contains
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp), intent(in) :: precond_fac
         HElement_t(dp) , intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
 
@@ -915,7 +910,14 @@ contains
          enddo
       endif
 
-      ! cheap way of removing all initiators (save for the HF)
+      ! normally, we strictly forbid negative shifts
+      if(tOnlyPositiveShift) then
+         do run = 1, inum_runs
+            if(DiagSft(run) < 0.0_dp) DiagSft(run) = 0.0_dp
+         enddo
+      endif
+
+      ! cheap way of removing all initiators
       if(tInfInit) InitiatorWalkNo = TotWalkers + 1
 
     end subroutine update_elapsed_time
@@ -1333,13 +1335,14 @@ contains
       use semi_stoch_gen, only: init_semi_stochastic
       use semi_stoch_procs, only: end_semistoch
       implicit none
+      logical :: tStartedFromCoreGround
       ! as the important determinants might change during time evolution, this
       ! resets the semistochastic space taking the current population to get a new one
       call end_semistoch()
       ! the flag_deterministic flag has to be cleared from all determinants as it is
       ! assumed that no states have that flag when init_semi_stochastic starts
       call reset_core_space()
-      call init_semi_stochastic(ss_space_in)
+      call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
 
     end subroutine refresh_semistochastic_space
 
@@ -1364,7 +1367,7 @@ contains
       implicit none
         character(*), parameter :: this_routine = "create_perturbed_ground"
         integer :: tmp_totwalkers, totwalkers_backup, TotWalkers_orig_max
-        integer :: ierr, i, totNOccDets, iProc
+        integer :: ierr, i, totNOccDets, iProc, nPertRefs
         integer(n_int), allocatable :: perturbed_buf(:,:)
         logical :: t_use_perturbed_buf
 
@@ -1395,14 +1398,23 @@ contains
            if(t_use_perturbed_buf) then
               if(.not. t_kspace_operators) then
                  if(tReadPops) then
+                    ! if the perturbation is to be created from the read-in population
+                    ! explicitly
                     perturbed_buf = 0.0_dp
                     call apply_perturbation(overlap_pert(i),tmp_totwalkers, popsfile_dets,&
                          perturbed_buf)
+                    
+                    ! The HF-Overlap option makes us use a reference for projection
+                    ! instead of the full wavefunction
+                    if(tHFOverlap) call create_perturbed_ref(perturbed_buf,TotWalkers_orig_max)
                  else
+                    ! else, perturb the current population (this is for starting from
+                    ! a defined determinant)
                     call apply_perturbation(overlap_pert(i), tmp_totwalkers, CurrentDets, &
                          perturbed_buf)
                  endif
               else
+                 ! a less useful feature for fourier-transforming the perturbation
                  if(gf_count > 1) call stop_all("create_perturbed_ground",&
                       "Unable to use momentum operators for multiple correlation functions")
                  if(tReadPops) then
@@ -1414,11 +1426,12 @@ contains
                          perturbed_buf,phase_factors)
                  endif
               endif
-           call write_overlap_state_serial(perturbed_buf, TotWalkers_orig_max, i)
+
+              call write_overlap_state_serial(perturbed_buf, TotWalkers_orig_max, i)
            else
-              print *, "Generated overlap state"
-              call write_overlap_state_serial(CurrentDets, TotWalkers, i)
-              print *, "Written overlap state to array"
+              write(6,*) "Generated overlap state"
+              call write_overlap_state_serial(CurrentDets, int(TotWalkers), i)
+              write(6,*) "Written overlap state to array"
            endif
            call MPISumAll(overlap_states(i)%nDets,totNOccDets)
            if(totNOccDets==0) then 
@@ -1436,6 +1449,29 @@ contains
         deallocate(perturbed_buf,stat=ierr)
 
     end subroutine create_perturbed_ground
+
+!------------------------------------------------------------------------------------------!
+
+    subroutine create_perturbed_ref(perturbed_buf,tmp_totwalkers)
+      implicit none
+      integer(n_int), intent(out) :: perturbed_buf(0:,:)
+      integer, intent(out) :: tmp_totwalkers
+      
+      integer :: nPertRefs
+      integer(n_int) :: tmpRef(0:NIfTot,1)
+      character(*), parameter :: t_r = "create_perturbed_reference"
+
+      ! create a perturbed reference determinant as overlap state
+      nPertRefs = 0
+      ! i.e. take the most populated determinant (over all procs)
+      call generate_space_most_populated(1,.false.,1,tmpRef,nPertRefs,&
+           perturbed_buf, tmp_totwalkers)      
+
+      ! from now on, we treat the perturbed_buf as 1-sized
+      perturbed_buf = 0
+      perturbed_buf(:,1) = tmpRef(:,1)
+      tmp_totwalkers = nPertRefs
+    end subroutine create_perturbed_ref
 
 !------------------------------------------------------------------------------------------!
 
@@ -1718,7 +1754,6 @@ contains
       implicit none
 
       if(iProcIndex == root) then
-         write(iunitCycLog,*) iter
          close(iunitCycLog)
       endif
     end subroutine closeTauContourFile

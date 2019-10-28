@@ -4,8 +4,8 @@ MODULE System
 
     use SystemData
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs, tPairedReplicas, tInitializeCSF, &
-                        S2Init
+                        occCASorbs, virtCASorbs, tPairedReplicas, pSinglesIn, tInitializeCSF, &
+                             S2Init
 
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
@@ -64,6 +64,7 @@ MODULE System
       tISKFuncs=.false.       !This is for kpoint symmetry with inversion so that determinants can be combined.
       tKPntSym=.false.        !This is for k-point symmetry with the symrandexcit2 excitation generators.
       tMCSizeSpace=.false.
+      t_impurity_system = .false.
       CalcDetPrint=1000
       CalcDetCycles=10000
       tFixLz=.false.
@@ -300,6 +301,7 @@ MODULE System
                   else
                       lattice_type = 'read'
                   end if
+
               case ('momentum-space','k-space','momentum')
                   ! reuse most of the old initialisation for the k-space 
                   ! hubbard. one has to be really careful to initialize all 
@@ -1514,6 +1516,8 @@ system: do
             call readi(LzTot)
         case("KPOINTS")
             tKPntSym=.true.
+         case("IMPURITY-EXCITGEN")
+            t_impurity_system = .true.
         case("MOLPROMIMIC")
             !Mimic the run-time behaviour of molpros NECI implementation
             tMolpro=.true.
@@ -1582,6 +1586,9 @@ system: do
 
       if(NEL.eq.0)                                                    &
    &     call report("Number of electrons cannot be zero.",.true.)
+
+      ! use a better suited default for real-space lattice models for the excitation bias
+      if(tReal) pSinglesIn = 0.9
 
       if (.not. tUEG2) then
           if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD.or.tVASP)) then
@@ -3248,6 +3255,8 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
    real(dp) ::  dUnscaledEnergy
    integer :: kvecX, kvecY, kvecZ
    !==================================
+   ! initialize unscaled energy for the case of not using tUEGTrueEnergies
+   dunscaledEnergy = 0.0_dp
    if (tUEG2) then
       ! kvectors in cartesian coordinates                
       kvecX=k_lattice_vectors(1,1)*I+k_lattice_vectors(2,1)*J+k_lattice_vectors(3,1)*K

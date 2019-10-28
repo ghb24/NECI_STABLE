@@ -3,7 +3,7 @@
 module real_time
 
     use real_time_init, only: init_real_time_calc_single, dealloc_real_time_memory, &
-         rotate_time
+         rotate_time, read_in_trajectory
     use real_time_procs, only: save_current_dets, reset_spawned_list, merge_spawn, &
                                reload_current_dets, walker_death_realtime, &
                                walker_death_spawn, attempt_die_realtime, trunc_shift, &
@@ -27,7 +27,7 @@ module real_time
                               tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize, &
                               tLogTrajectory, tReadTrajectory, tGenerateCoreSpace, &
                               numSnapShotOrbs, core_space_buf, csbuf_size, corespace_log_interval, &
-                              real_time_info
+                              real_time_info, tLiveTrajectory
     use verlet_aux, only: init_verlet_iteration, obtain_h2_psi, update_delta_psi, &
          init_verlet_sweep, check_verlet_sweep, end_verlet_sweep
     use CalcData, only: pops_norm, tTruncInitiator, tPairedReplicas, ss_space_in, &
@@ -49,7 +49,7 @@ module real_time
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int, &
          iout
     use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts, &
-         deterministic_annihilation
+         deterministic_annihilation, communicate_and_merge_spawns
     use bit_reps, only: extract_bit_rep, decode_bit_det
     use SystemData, only: nel, tRef_Not_HF, tAllSymSectors, nOccAlpha, nOccBeta, &
                           nbasis
@@ -62,7 +62,7 @@ module real_time
                             SumEContrib, end_iter_stats, check_semistoch_flags
     use procedure_pointers, only: generate_excitation, encode_child, &
                                   attempt_create, new_child_stats
-    use bit_rep_data, only: tUseFlags, nOffFlag, niftot, extract_sign
+    use bit_rep_data, only:  nOffFlag, niftot, extract_sign
     use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, test_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
                                 population_check, update_shift, calculate_new_shift_wrapper
@@ -231,7 +231,7 @@ contains
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
-        integer :: j, i, iterRK
+        integer :: j, i, iterRK, err
         real(dp) :: s_start, s_end, tstart(2), tend(2)
         real(dp) :: totalTime
         complex(dp), allocatable :: overlap_buf(:)
@@ -357,11 +357,12 @@ contains
             if(iterRK .eq. 0) iter = iter + 1
             if(tVerletScheme .and. .not. tVerletSweep) iterRK = iterRK + 1            
             if(tVerletSweep) then
-               call perform_verlet_iteration()
+               call perform_verlet_iteration(err)
             else
-               call perform_real_time_iteration() 
+               call perform_real_time_iteration(err)
             endif
-
+            ! exit the calculation if something failed
+            if(err.ne.0) exit
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
 
@@ -515,18 +516,21 @@ contains
         ! routine to check if somthing wrong happened during the main 
         ! real-time fciqmc loop or the external CHANGEVARS utility does smth
         character(*), parameter :: this_routine = "check_real_time_iteration"
-        logical :: tSingBiasChange, tWritePopsFound
+        logical :: tSingBiasChange, tWritePopsFound, tStartedFromCoreGround
 
         if (mod(iter, StepsSft) == 0) then
             call ChangeVars(tSingBiasChange, tWritePopsFound)
             if (tWritePopsFound) call WriteToPopsfileParOneArr(CurrentDets, TotWalkers)
             if (tSingBiasChange) call CalcApproxpDoubles()
+
+        ! also re-read the trajectory if in live-trajectory mode
+            if(tLiveTrajectory) call read_in_trajectory()
         end if
 
         if(semistoch_shift_iter/=0) then
            if(Iter == semistoch_shift_iter + 1) then
               tSemiStochastic = .true.
-              call init_semi_stochastic(ss_space_in)
+              call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
            endif
         endif
 
@@ -586,12 +590,13 @@ contains
     end subroutine init_real_time_iteration
 
 
-    subroutine second_real_time_spawn()
+    subroutine second_real_time_spawn(err)
         ! routine for the second spawning step in the 2nd order RK method
         ! to create the k2 spawning list. An important change: 
         ! this "spawning" list also has to contain the diagonal death/cloning
         ! step influence to combine it with the original y(n) 
 !         integer, intent(inout) :: n_determ_states
+      integer, intent(out) :: err
         character(*), parameter :: this_routine = "second_real_time_spawn"
 
         ! mimic the most of this routine to the already written first
@@ -606,7 +611,7 @@ contains
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
         integer :: determ_index
-        real(dp) :: prefactor
+        real(dp) :: prefactor, unused_fac
 
         ! declare this is the second runge kutta step
         runge_kutta_step = 2
@@ -626,7 +631,7 @@ contains
             fcimc_excit_gen_store%tFilled = .false.
 
             call extract_bit_rep(CurrentDets(:,idet), nI_parent, parent_sign, unused_flags, &
-                                  store = fcimc_excit_gen_store)
+                                  idet, fcimc_excit_gen_store)
 
             ex_level_to_ref = FindBitExcitLevel(iLutRef, CurrentDets(:,idet), max_calc_ex_level)
             if(tRef_Not_HF) then
@@ -674,13 +679,6 @@ contains
             ! we can the rest of this loop.
             if (ss_space_in%tDoubles .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
 
-            ! i dont thin i need this below..
-!             if (tAllSymSectors) then
-!                 ms_parent = return_ms(ilut_parent)
-!                 nOccAlpha = (nel+ms_parent)/2
-!                 nOccBeta = (nel-ms_parent)/2
-!             end if
-! 
             ! If this condition is not met (if all electrons have spin up or all have spin down)
             ! then there will be no determinants to spawn to, so don't attempt spawning.
             ! thats a really specific condition.. shouldnt be checked each 
@@ -688,7 +686,7 @@ contains
             if(.not. tGZero) then ! skip this if we only want the corespace-evolution
                do ireplica = 1, lenof_sign
 
-                  call decide_num_to_spawn(parent_sign(ireplica),parent_hdiag, AvMCExcits, nspawn)
+                  call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
                   !call merge_spawn(nspawn,prefactor)
                   do ispawn = 1, nspawn
 
@@ -701,7 +699,7 @@ contains
                      if (.not. IsNullDet(nI_child)) then
 
                         call encode_child (CurrentDets(:,idet), ilut_child, ic, ex)
-                        if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                        ilut_child(nOffFlag) = 0_n_int
 
                         if (tSemiStochastic) then
                            break = check_semistoch_flags(ilut_child, nI_child, tParentIsDeterm)
@@ -711,7 +709,7 @@ contains
                         ! unbias if the number of spawns was truncated
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                              nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real, unused_fac)
                         child_sign = prefactor*child_sign
                      else
                         child_sign = 0.0_dp
@@ -727,7 +725,7 @@ contains
                              child_sign, parent_flags, ireplica)
                         call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
                              ireplica, CurrentDets(:,idet), &
-                             second_spawn_iter_data)
+                             second_spawn_iter_data, err)
                      end if ! If a child was spawned.
 
                   end do ! Over mulitple particles on same determinant.
@@ -767,11 +765,12 @@ contains
 
     end subroutine second_real_time_spawn
 
-    subroutine first_real_time_spawn()
+    subroutine first_real_time_spawn(err)
         ! routine which first loops over the CurrentDets array and creates the 
         ! first spawning list k1 and combines it to y(n) + k1/2
 !         integer, intent(inout) :: n_determ_states
       implicit none
+      integer, intent(out) :: err
         character(*), parameter :: this_routine = "first_real_time_spawn"
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
                    ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
@@ -781,7 +780,8 @@ contains
                     unused_sign(lenof_sign), prefactor, unused_rdm_real
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
-        integer :: TotWalkersNew, run, determ_index
+        integer :: TotWalkersNew, run, determ_index, MaxIndex
+        real(dp) :: unused_fac
 
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
@@ -800,7 +800,7 @@ contains
             fcimc_excit_gen_store%tFilled = .false.
 
             call extract_bit_rep(CurrentDets(:,idet), nI_parent, parent_sign, unused_flags, &
-                                  store = fcimc_excit_gen_store)
+                                  idet, fcimc_excit_gen_store)
 
             ex_level_to_ref = FindBitExcitLevel(iLutRef, CurrentDets(:,idet), max_calc_ex_level)
             if(tRef_Not_HF) then
@@ -877,7 +877,7 @@ contains
                     if (.not. IsNullDet(nI_child)) then
 
                         call encode_child (CurrentDets(:,idet), ilut_child, ic, ex)
-                        if (tUseFlags) ilut_child(nOffFlag) = 0_n_int
+                        ilut_child(nOffFlag) = 0_n_int
 
                         if (tSemiStochastic) then
                            break = check_semistoch_flags(ilut_child, nI_child, tParentIsDeterm)
@@ -886,7 +886,8 @@ contains
 
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                            ex_level_to_ref, ireplica, unused_sign, unused_rdm_real)
+                                            ex_level_to_ref, ireplica, unused_sign, & 
+                                            unused_rdm_real, unused_fac)
                         child_sign = child_sign*prefactor
                     else
                         child_sign = 0.0_dp
@@ -903,7 +904,7 @@ contains
 
                         call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
                                                                ireplica, CurrentDets(:,idet), &
-                                                               iter_data_fciqmc)
+                                                               iter_data_fciqmc, err)
 
                     end if ! If a child was spawned.
 
@@ -949,20 +950,21 @@ contains
 
         ! the number TotWalkersNew changes below in annihilation routine
         ! Annihilation is done after loop over walkers
-
-        call DirectAnnihilation (TotWalkersNew, iter_data_fciqmc, .false.)
+        call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, err)
 
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
     end subroutine first_real_time_spawn
 
-    subroutine perform_real_time_iteration()
+    subroutine perform_real_time_iteration(err)
         ! routine which performs one real-time fciqmc iteration
       implicit none
+      integer, intent(out) :: err
         character(*), parameter :: this_routine = "perform_real_time_iteration"
         
-        integer :: TotWalkersNew, run
+        integer :: TotWalkersNew, run, MaxIndex
         real(dp) :: tmp_sign(lenof_sign), tau_real_tmp, tau_imag_tmp
         logical :: both, rkone, rktwo
         rkone = .true.
@@ -990,7 +992,7 @@ if(both) then
         tau_real = tau_real/2.0
         tau_imag = tau_imag/2.0
 endif
-        call first_real_time_spawn()
+        call first_real_time_spawn(err)
 if(both) then
         tau_real = tau_real_tmp
         tau_imag = tau_imag_tmp
@@ -1033,7 +1035,7 @@ if(rktwo) then
         ! information into the spawned k2 list..
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
-         call second_real_time_spawn()
+         call second_real_time_spawn(err)
 
         ! 3) 
         ! reload stored temp_det_list y(n) into CurrentDets 
@@ -1074,11 +1076,12 @@ endif
         enddo
 
         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data)
-         TotWalkersNew = int(TotWalkersNew, sizeof_int)
+        TotWalkersNew = int(TotWalkersNew, sizeof_int)
         
         ! and then do the "normal" annihilation with the SpawnedParts array!
         ! Annihilation is done after loop over walkers
-        call DirectAnnihilation (TotWalkersNew, second_spawn_iter_data, .false.)
+        call communicate_and_merge_spawns(MaxIndex, second_spawn_iter_data, .false.) 
+        call DirectAnnihilation (TotWalkersNew, MaxIndex, second_spawn_iter_data, err)
 
 #ifdef __DEBUG
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
@@ -1102,8 +1105,9 @@ endif
 
     end subroutine perform_real_time_iteration
 
-    subroutine perform_verlet_iteration
+    subroutine perform_verlet_iteration(err)
       implicit none
+      integer, intent(out) :: err
       integer :: TotWalkersNew
 
       call init_verlet_iteration()
@@ -1125,7 +1129,7 @@ endif
       call end_iter_stats(TotWalkersNew)
       ! for semistochastic method, we add in the core -> core spawns
       ! if(tSemiStochastic) call deterministic_annihilation(iter_data_fciqmc)
-      call AnnihilateSpawnedParts(spawnBufSize,TotWalkersNew,iter_data_fciqmc)
+      call AnnihilateSpawnedParts(spawnBufSize,TotWalkersNew,iter_data_fciqmc, err)
       ! Updating the statistics is usually done in the annihilation, but since we
       ! explicitly carry out the annihilation, this has to be included explicitly
       ! (We can not use DirectAnnihilation because we need the communicated spawnedParts
