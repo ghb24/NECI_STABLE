@@ -96,8 +96,6 @@ module FciMCParMod
 
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
-    use sdt_amplitudes, only : print_snapshot_ci_coeff, print_averaged_ci_coeff, &
-                               storeCiCoeffs
 
     use sltcnd_mod, only: sltcnd_excit
 
@@ -568,22 +566,6 @@ module FciMCParMod
                 CALL WriteHistogram()
             ENDIF
 
-            ![E.V. 13.08.2019]
-            if ((t_store_ci_coeff).and.all(.not.tSinglePartPhase).and.(iter-maxval(VaryShiftIter)).eq.n_iter_after_equ) then
-                write(iout,*) ''
-                write(iout,*) '*** START CI COEFFICIENTS COLLECTION ***'
-                write(iout,*) ''
-                call storeCiCoeffs()
-            else if ((t_store_ci_coeff).and.all(.not.tSinglePartPhase).and.(iter-maxval(VaryShiftIter)).gt.n_iter_after_equ) then
-                call storeCiCoeffs()
-            else if ((t_store_ci_coeff).and.(iter.eq.NMCyc)) then
-                t_store_ci_coeff=.false.
-                write(iout,*) ''
-                write(iout,*) '***CI COEFFICIENTS COLLECTION HAS NOT OCCURRED: NMCyc too small***'
-                write(iout,*) ''
-            end if
-
-
             ! accumulate the rdm correction due to adaptive shift
             if(tAdaptiveShift .and. all(.not. tSinglePartPhase)) call UpdateRDMCorrectionTerm()
 
@@ -681,13 +663,6 @@ module FciMCParMod
         end if
         if (iProcIndex.eq.0) write(iout,*) 'Time lost due to load imbalance: ', lt_imb
         write(iout,*) '- - - - - - - - - - - - - - - - - - - - - - - -'
-
-
-        ![E.V. 13.08.2019]
-        if(t_store_ci_coeff) then
-!           call print_snapshot_ci_coeff()
-           call print_averaged_ci_coeff()
-        end if
 
 
         ! [Werner Dobrautz 4.4.2017]

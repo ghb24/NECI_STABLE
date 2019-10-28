@@ -137,7 +137,6 @@ set( SRC_FILES
     RotateOrbs.F90
     RPA.F90
     scrtransf.F
-    sdt_amplitudes.F90
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90

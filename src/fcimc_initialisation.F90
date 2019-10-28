@@ -172,7 +172,6 @@ module fcimc_initialisation
     use back_spawn, only: init_back_spawn
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use sdt_amplitudes, only: init_ciCoeff
     use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
     implicit none
 
@@ -1102,15 +1101,6 @@ contains
             Tau=TauFactor/REAL(HFConn,dp)
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
-
-!        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
-!                       ^ Removed by GLM as believed not necessary
-
-
-        ![E.V. 13.08.2019]
-        if (t_store_ci_coeff) then
-           call init_ciCoeff()
-        end if
 
         IF(abs(StepsSftImag) > 1.0e-12_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
