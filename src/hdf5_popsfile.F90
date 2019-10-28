@@ -219,6 +219,7 @@ contains
 
         use CalcData, only: iPopsFileNoWrite
         use LoggingData, only: tIncrementPops, iHDF5TruncPopsEx
+        use fcimc_helper, only: calc_inst_proje
 
         ! TODO:
         ! 1) Deal with multiple filenames
@@ -281,6 +282,9 @@ contains
         call MPIBarrier(mpi_err)
 
         write(6,*) "truncated popsfile write successful"
+
+        call calc_inst_proje()
+        write(6,*) 'Instantaneous projected energy of truncated popsfile:', proje_iter
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
 #endif
