@@ -947,8 +947,8 @@ MODULE Logging
             ! exitation level
             tHDF5TruncPopsWrite = .true.
             call readi(iHDF5TruncPopsEx)
-            if(iHDF5TruncPopsEx<=0) then
-                call stop_all(t_r,'Maximum excitation level should be positive')
+            if(iHDF5TruncPopsEx<2) then
+                call stop_all(t_r,'Maximum excitation level should greater than 1')
             end if
 
         case("INCREMENTPOPS")
