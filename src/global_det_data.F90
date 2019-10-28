@@ -536,7 +536,7 @@ contains
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
 
       counter = 0
-      do j = 1,ndets 
+      do j = 1,int(ndets)
          ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
          if(ExcitLevel<=MaxEx)then
              counter = counter + 1
