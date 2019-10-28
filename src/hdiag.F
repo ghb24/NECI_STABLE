@@ -5,6 +5,7 @@
      &                     NBLOCKSTARTS,NBLOCKS)
          use constants, only: dp,int32!,n_int
          use SystemData, only: BasisFN
+         use util_mod, only: unused
          use global_utilities
          use HElem, only: HElement_t_size
 !         use DetCalcData, only: NMRKS
@@ -26,6 +27,9 @@
          type(timer), save :: proc_timer
          real(dp) GSEN
          character(len=*), parameter :: t_r="HDIAG_neci"
+#ifdef __WARNING_WORKAROUND
+        call unused(WORK)
+#endif
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100
@@ -127,6 +131,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          WRITE(6,"(A,F19.11,I4)") "GROUND E=",GSEN
          call halt_timer(proc_timer)
          RETURN
+
       END
 
 !This routine for each determinant, calculates each excitation, and then its contribution to the change in

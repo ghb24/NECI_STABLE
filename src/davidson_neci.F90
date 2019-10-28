@@ -415,14 +415,13 @@ module davidson_neci
         safe_free(this%davidson_eigenvector)
     end subroutine DestroyDavidsonCalc
 
-    function davidson_direct_ci_init(print_info_in) result (this)
+    function davidson_direct_ci_init() result (this)
         use bit_rep_data, only: NIfD
         use direct_ci, only: create_direct_ci_arrays
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
         use ras, only: initialise_ras_space, find_ras_size
 
         type(DavidsonCalcType) :: this
-        logical, intent(in) :: print_info_in
         integer :: class_i, class_j, j, sym_i, sym_j
 
         write(6,'(/,1X,"Beginning Direct CI Davidson calculation.",/)'); call neci_flush(6)

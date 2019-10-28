@@ -243,8 +243,8 @@ module FciMCParMod
 
         ! double occupancy:
         if (t_calc_double_occ) then
-            call write_double_occ_stats(iter_data_fciqmc, initial = .true.)
-            call write_double_occ_stats(iter_data_fciqmc)
+            call write_double_occ_stats(initial = .true.)
+            call write_double_occ_stats()
         end if
 
         ! Put a barrier here so all processes synchronise before we begin.
@@ -462,7 +462,7 @@ module FciMCParMod
                 ! in calculate_new_shift_wrapper output is plotted too!
                 ! so for now do it here for double occupancy
                 if (t_calc_double_occ) then
-                    call write_double_occ_stats(iter_data_fciqmc)
+                    call write_double_occ_stats()
                 end if
                 if(tRestart) cycle
 
@@ -1273,7 +1273,7 @@ module FciMCParMod
                 ! determinant. CurrentSign gives number of walkers. Multiply
                 ! up by AvMCExcits if attempting multiple excitations from
                 ! each walker (default 1.0_dp).
-               call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
+               call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
 
                 do p = 1, WalkersToSpawn
 
@@ -1373,11 +1373,11 @@ module FciMCParMod
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
-                                                                   CurrentDets(:,j), iter_data, err, abs(HElGen))
+                                                                   CurrentDets(:,j), iter_data, err)
                         else
                             call create_particle (nJ, iLutnJ, child, part_type, hdiag_spawn, &
                             err, CurrentDets(:,j), SignCurr, p, &
-                            RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j, ic, ex)
+                            RDMBiasFacCurr, WalkersToSpawn, abs(HElGen), j)
                         end if
                         if(err.ne.0) then
                            ! exit the fcimc calculation in a soft manner
@@ -1544,7 +1544,7 @@ module FciMCParMod
         ! This explicit way of doing this is very expensive, but o.k for very small systems.
         if (tFillingExplicRDMonFly) then
             if (tHistSpawn) THEN
-                call Fill_Hist_ExplicitRDM_this_Iter(TotWalkers)
+                call Fill_Hist_ExplicitRDM_this_Iter()
             else
                 call Fill_ExplicitRDM_this_Iter(TotWalkers)
             end if

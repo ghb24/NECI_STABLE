@@ -109,7 +109,7 @@ contains
     end function TestMCExit
 
     subroutine create_particle (nJ, iLutJ, child, part_type, hdiag_spawn, err, ilutI, SignCurr, &
-                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos, ic, ex)
+                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos)
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
         ! newly-spawned particle is going to be sent to has to be determined,
@@ -129,7 +129,6 @@ contains
         integer, intent(in), optional :: WalkersToSpawn
         real(dp), intent(in), optional :: matel
         integer, intent(in), optional :: ParentPos
-        integer, intent(in), optional :: ic, ex(2,2)
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
@@ -287,14 +286,13 @@ contains
     end subroutine create_particle
 
 
-    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data, err, matel)
+    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data, err)
         use hash, only: hash_table_lookup, add_hash_table_entry
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(out) :: err
-        real(dp), intent(in), optional :: matel
 
         integer :: proc, ind, hash_val, i, run
         integer(n_int) :: int_sign(lenof_sign)
@@ -1994,11 +1992,10 @@ contains
     end subroutine DiagWalkerSubspace
 
 
-    subroutine decide_num_to_spawn(parent_pop, hdiag, av_spawns_per_walker, nspawn)
+    subroutine decide_num_to_spawn(parent_pop, av_spawns_per_walker, nspawn)
 
         real(dp), intent(in) :: parent_pop
         real(dp), intent(in) :: av_spawns_per_walker
-        real(dp), intent(in) :: hdiag
         integer, intent(out) :: nspawn
         real(dp) :: prob_extra_walker, r
 
