@@ -65,7 +65,10 @@ module fcimc_initialisation
                            OffDiagBinRange, iDiagSubspaceIter, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl , &
+                           tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl, &
+                           t_store_ci_coeff
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -1099,10 +1102,6 @@ contains
             Tau=TauFactor/REAL(HFConn,dp)
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
-
-!        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
-!                       ^ Removed by GLM as believed not necessary
-
 
         IF(abs(StepsSftImag) > 1.0e-12_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."

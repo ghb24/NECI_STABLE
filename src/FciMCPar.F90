@@ -30,6 +30,7 @@ module FciMCParMod
                            compare_amps_period, PopsFileTimer, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
+                           t_store_ci_coeff, n_iter_after_equ, n_store_ci_level,       &
                            t_hist_fvals, enGrid, arGrid
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
@@ -98,10 +99,6 @@ module FciMCParMod
 
     use sltcnd_mod, only: sltcnd_excit
 
-#ifdef MOLPRO
-    use outputResult
-#endif
-
     implicit none
 
     !array for timings of the main compute loop
@@ -119,9 +116,6 @@ module FciMCParMod
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 
-#ifdef MOLPRO
-        integer :: nv, ityp(1)
-#endif
         integer :: iroot, isymh
         real(dp) :: Weight, Energyxw, BestEnergy
         INTEGER :: error, irdm
@@ -145,11 +139,6 @@ module FciMCParMod
         real(dp):: lt_imb
         integer:: rest, err, allErr
 
-#ifdef MOLPRO
-        real(dp) :: get_scalar
-        include "common/molen"
-#endif
-
         ! Procedure pointer temporaries
         procedure(generate_excitation_t), pointer :: ge_tmp
         procedure(get_spawn_helement_t), pointer :: gs_tmp
@@ -171,6 +160,17 @@ module FciMCParMod
         shift_err = 1.0_dp
 
         TDebug = .false.  ! Set debugging flag
+
+        if ((t_store_ci_coeff) .and. (n_store_ci_level.gt.3)) then
+           write(iout,*) ''
+           write(iout,*) '*******************************************'
+           write(iout,*) '                 !WARNING!'
+           write(iout,*) ' CI COEFFICIENTS collection for excitation'
+           write(iout,*) ' levels higher than 3 is not implemented'
+           write(iout,*) '*******************************************'
+           write(iout,*) ''
+           t_store_ci_coeff=.false.
+        endif
 
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
 !Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
@@ -889,29 +889,6 @@ module FciMCParMod
             end do
         end if
 
-#ifdef MOLPRO
-        call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
-        if (iroot.eq.1) call clearvar('ENERGY')
-        ityp(1)=1
-        call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
-        do i=10,2,-1
-            gesnam(i)=gesnam(i-1)
-            energ(i)=energ(i-1)
-        enddo
-        gesnam(i) = 'FCIQMC'
-        energ(i) = get_scalar("ENERGY")
-        if(.not.(tNoShiftValue.and.tNoProjEValue)) then
-            call output_result('FCIQMC','FCIQMC_ERR',BestErr,iroot,isymh)
-            if (iroot.eq.1) call clearvar('FCIQMC_ERR')
-            call setvar('FCIQMC_ERR',BestErr,'AU',ityp,1,nv,iroot)
-!            do i=10,2,-1
-!                gesnam(i)=gesnam(i-1)
-!                energ(i)=energ(i-1)
-!            enddo
-!            gesnam(i) = 'FCIQMC_ERR'
-!            energ(i) = get_scalar("FCIQMC_ERR")
-        endif
-#endif
         CALL MolproPluginResult('ENERGY',[BestEnergy])
         CALL MolproPluginResult('FCIQMC_ERR',[min(ProjE_Err_re,shift_err)])
         write(iout,"(/)")

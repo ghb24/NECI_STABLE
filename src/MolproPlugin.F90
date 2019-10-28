@@ -5,7 +5,8 @@ MODULE MolproPlugin
  PUBLIC :: MolproPluginInit, MolproPluginterm, MolproPluginResult
  PUBLIC :: molpro_plugin, molpro_plugin_fcidumpname, molpro_plugin_datafilename
  LOGICAL :: molpro_plugin
- CHARACTER(1024) :: molpro_plugin_fcidumpname, molpro_plugin_datafilename
+ INTEGER, PARAMETER :: PATHLEN = 1024
+ CHARACTER(PATHLEN) :: molpro_plugin_fcidumpname, molpro_plugin_datafilename
 
 ! we have to drive the C implementation of PluginGuest because neci's Fortran wrappers for MPI are not compliant with Fortran MPI code
  INTERFACE
@@ -22,28 +23,31 @@ MODULE MolproPlugin
    CHARACTER(c_char), DIMENSION(*), INTENT(in) :: value
    INTEGER(c_int) :: PluginGuestSend
   END FUNCTION PluginGuestSend
-  FUNCTION PluginGuestReceive() BIND(C, name='PluginGuestReceive')
+  SUBROUTINE PluginGuestReceive(str,len) BIND(C, name='PluginGuestReceive')
    USE iso_c_binding
-   TYPE(c_ptr) :: PluginGuestReceive
-  END FUNCTION PluginGuestReceive
+   character(kind=c_char), dimension(*) :: str
+   integer(kind=c_size_t), value :: len
+  END SUBROUTINE PluginGuestReceive
   SUBROUTINE PluginGuestClose() BIND(C, name='PluginGuestClose')
   END SUBROUTINE PluginGuestClose
  END INTERFACE
 CONTAINS
  FUNCTION PluginGuestReceiveF()
   CHARACTER(:), ALLOCATABLE :: PluginGuestReceiveF
-  TYPE(c_ptr) :: p
-  CHARACTER, POINTER, DIMENSION(:) :: fp
   integer :: length
-  p = PluginGuestReceive()
-  CALL c_f_pointer(p,fp, [1])
-  DO length=1,1000000
-   IF (fp(length).EQ.c_null_char) EXIT
+  character(kind=c_char,len=1), allocatable, dimension(:) :: cstring
+  integer(kind=c_size_t) :: clen
+   
+  clen=int(PATHLEN,kind=c_size_t)
+  allocate(cstring(PATHLEN+1)) 
+  call PluginGuestReceive(cstring,clen)
+  DO length=1,PATHLEN
+   IF (cstring(length).EQ.c_null_char) EXIT
   END DO
   length = length-1
   ALLOCATE (CHARACTER(len=length) :: PluginGuestReceiveF)
   DO length=1,LEN(PluginGuestReceiveF)
-   PluginGuestReceiveF(length:length) = fp(length)
+   PluginGuestReceiveF(length:length) = cstring(length)
   END DO
  END FUNCTION PluginGuestReceiveF
  FUNCTION PluginGuestSendF(value)
@@ -80,6 +84,7 @@ SUBROUTINE MolproPluginInit (tMolpro)
  molpro_plugin_datafilename = PluginGuestReceiveF()
 
  IF (.FALSE.) THEN ! debugging
+  WRITE (6, '(''Dump file: '',A)') TRIM(molpro_plugin_fcidumpname)
   WRITE (6, '(''Input file: '',A)') TRIM(molpro_plugin_datafilename)
   OPEN(1,file=molpro_plugin_datafilename,status='OLD')
   DO WHILE (.TRUE.)

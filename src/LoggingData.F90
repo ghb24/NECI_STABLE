@@ -177,4 +177,10 @@ module LoggingData
     logical :: t_hist_fvals
     integer :: enGrid, arGrid
 
+    ![E.V. 13.08.2019]
+    logical :: t_store_ci_coeff = .false.
+    integer :: n_iter_after_equ = 100
+    integer :: sorting_way = 1
+    integer :: n_store_ci_level = 3
+
 end module LoggingData
