@@ -19,9 +19,9 @@ module semi_stoch_procs
 
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
 
-    use procedure_pointers, only: shiftFactorFunction
+    use SystemData, only: nel, tHPHF, tGUGA
 
-    use SystemData, only: nel, t_non_hermitian, tHPHF, tGUGA, g1
+    use procedure_pointers, only: shiftScaleFunction
 
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
 
@@ -125,40 +125,24 @@ contains
             ! sparse_core_ham.
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
-               ! Only scale the shift for the corespace when the option is set
-               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
-                  do part_type = 1, inum_runs
-                     ! scale the shift using the abs of this run's complex coefficient
-                     scaledDiagSft(part_type) = &
-                     shiftFactorFunction(&
-                          indices_of_determ_states(i), part_type,&
-                          sqrt(full_determ_vecs(min_part_type(part_type),&
-                          i+determ_displs(iProcIndex))**2 + &
-                          full_determ_vecs(max_part_type(part_type),&
-                          i+determ_displs(iProcIndex))**2)) *  DiagSft(part_type)
-                  end do
-               else
-                  scaledDiagSft = DiagSft
-               endif
-
                do part_type  = 1, lenof_sign
                   partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
-                       scaledDiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
+                       ! scale the shift using the abs of this run's complex coefficient
+                       shiftScaleFunction(&
+                       sqrt(full_determ_vecs(min_part_type(part_type_to_run(part_type)),&
+                       i+determ_displs(iProcIndex))**2 + &
+                       full_determ_vecs(max_part_type(part_type_to_run(part_type)),&
+                       i+determ_displs(iProcIndex))**2)) *  &
+                       DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
                enddo
             end do
 #else
             do i = 1, determ_sizes(iProcIndex)
-               ! Only scale the shift for the corespace when the option is set
-               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
-                  ! get the re-scaled shift accounting for undersampling error
-                  do  part_type = 1, inum_runs
-                     scaledDiagSft(part_type) = DiagSft(part_type) * shiftFactorFunction(&
-                          indices_of_determ_states(i), part_type,&
-                          abs(full_determ_vecs(part_type,i+determ_displs(iProcIndex))))
-                  end do
-               else
-                  scaledDiagSft = DiagSft
-               endif
+               ! get the re-scaled shift accounting for undersampling error
+               do  part_type = 1, inum_runs
+                  scaledDiagSft(part_type) = DiagSft(part_type) * shiftScaleFunction(&
+                       abs(full_determ_vecs(part_type,i+determ_displs(iProcIndex))))
+               end do
                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
                     scaledDiagSft * full_determ_vecs(:,i+determ_displs(iProcIndex))
             end do
@@ -750,7 +734,6 @@ contains
         use DetBitOps, only: FindBitExcitLevel
         use FciMCData, only: ilutHF
         use sort_mod, only: sort
-        use SystemData, only: tHPHF
 
         integer, intent(in) :: num_states
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:num_states)
@@ -861,7 +844,6 @@ contains
 
         use FciMCData, only: Hii
         use global_det_data, only: set_det_diagH
-        use SystemData, only: tHPHF
 
         integer :: i
         integer :: nI(nel)
@@ -1311,6 +1293,16 @@ contains
             dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
         end if
 
+        ! Then copy these amplitudes across to the corresponding states in CurrentDets.
+        counter = 0
+        do i = 1, int(TotWalkers, sizeof_int)
+           if (test_flag(CurrentDets(:,i), flag_deterministic)) then
+              counter = counter + 1
+              pop_sign = dc%davidson_eigenvector(counter)
+              call encode_sign(CurrentDets(:,i), pop_sign)
+           end if
+        end do
+
         call destroy_davidson_ss(dc)
 
     end subroutine start_walkers_from_core_ground
@@ -1559,7 +1551,7 @@ contains
 
         use Determinants, only: GetH0Element3, GetH0Element4
         use FciMCData, only: ilutHF, HFDet, Fii
-        use SystemData, only: tHPHF, tUEG
+        use SystemData, only: tUEG
         use CalcData, only: t_guga_mat_eles
 #ifndef __CMPLX
         use SystemData, only: tGUGA

@@ -1132,7 +1132,7 @@ contains
         use rdm_data, only: rdm_definitions_t
         use sort_mod, only: sort
         use util_mod, only: get_free_unit
-
+        implicit none
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
@@ -1154,18 +1154,17 @@ contains
                 do irdm = 1, rdm_defs%nrdms
                     if (tGUGA) then
                         rdm_filename = "2-RDM-GUGA"
-                    else 
-                        rdm_filename = "spin-free-2-RDM"
+                    else
+                        if (state_labels(1,irdm) == state_labels(2,irdm)) then
+                           write(rdm_filename, '("spinfree_TwoRDM.",'&
+                                 //int_fmt(state_labels(1,irdm),0)//')') irdm
+                        else
+                            write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//&
+                                 ',".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                 //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                 state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                         end if
                     end if
-!                     else if (state_labels(1,irdm) == state_labels(2,irdm)) then
-!                        write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//',".",'&
-!                              //int_fmt(state_labels(1,irdm),0)//')') irdm
-!                     else
-!                         write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//&
-!                              ',".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-!                              //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-!                              state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
-!                     end if
 
                     ! Open the file to be written to.
                     iunit = get_free_unit()

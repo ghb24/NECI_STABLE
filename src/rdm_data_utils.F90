@@ -264,7 +264,7 @@ contains
         if(present(filename)) then
            rdm_defs%output_file_prefix = filename
         else
-           rdm_defs%output_file_prefix = 'TwoRDM'
+           rdm_defs%output_file_prefix = "TwoRDM"
         endif
 
     end subroutine init_rdm_definitions_t

@@ -154,7 +154,8 @@ module real_time_data
 
     ! also need to store the original number of determinants(and walkers maybe)
     ! of the y(n) list to reload correctly
-    integer :: temp_totWalkers, MaxSpawnedDiag
+    integer(int64) :: temp_totWalkers
+    integer :: MaxSpawnedDiag
 
     ! also start to store the diagonal "spawns" in the second rt-fciqmc loop
     ! in a seperate Spawned Parts array, to better keep track of stats and 

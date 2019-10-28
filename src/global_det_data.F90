@@ -3,7 +3,8 @@
 module global_det_data
   use SystemData, only: nel
     use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
-                        tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, tReplicaEstimates
+                        tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, &
+                        tReplicaEstimates
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -53,8 +54,6 @@ module global_det_data
 
     integer :: pos_spawn_rate, len_spawn_rate
 
-    ! Legth of arrays storing estimates to be written to the replica_est file
-    integer :: replica_est_len
     ! global storage of history of determinants: number of pos/neg spawns and 
     ! time since a determinant died
     integer :: len_pos_spawns, len_neg_spawns, len_death_timer, len_occ_time
@@ -62,6 +61,8 @@ module global_det_data
 
     ! lenght of the determinant and its position
     integer :: pos_det_orbs, len_det_orbs
+    ! Legth of arrays storing estimates to be written to the replica_est file
+    integer :: replica_est_len
 
     ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:,:) => null()
@@ -490,7 +491,7 @@ contains
       use hdf5
       implicit none
       integer(hsize_t), intent(in) :: fvals(:)
-      integer, intent(in) :: j
+      integer(int64), intent(in) :: j
 
       integer :: run
       real(dp) :: realVal = 0.0_dp
@@ -504,7 +505,7 @@ contains
 
     subroutine writeFFuncAsInt(ndets, fvals)
       implicit none
-      integer, intent(in) :: ndets
+      integer(int64), intent(in) :: ndets
       integer(n_int), intent(inout) :: fvals(:,:)
 
       integer :: j, k
@@ -523,7 +524,7 @@ contains
 
     subroutine writeFFunc(ndets, fvals)
       implicit none
-      integer, intent(in) :: ndets
+      integer(int64), intent(in) :: ndets
       real(dp), intent(inout) :: fvals(:,:)
 
       integer :: j, k

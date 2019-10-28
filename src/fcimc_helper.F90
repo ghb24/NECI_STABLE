@@ -22,6 +22,7 @@ module fcimc_helper
                         log_spawn, increase_spawn_counter, encode_spawn_hdiag, &
                         extract_spawn_hdiag, flag_static_init, flag_determ_parent, &
                         all_runs_are_initiator
+
     use bit_rep_data, only: flag_large_matel
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
@@ -49,7 +50,7 @@ module fcimc_helper
                         MaxWalkerBloom, tEN2, tEN2Started, spawnMatelThresh, &
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tau, tLargeMatelSurvive, &
+                        t_back_spawn_flex, tLargeMatelSurvive, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, tTimedDeaths, &
@@ -58,7 +59,8 @@ module fcimc_helper
                         tAAS_Reverse_Weighted, tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
                         tAAS_SpinScaled, AAS_SameSpin, AAS_OppSpin, tSimpleInit, &
                         tPureInitiatorSpace, tPreCond, multiSpawnThreshold, tReplicaEstimates, &
-                        tInitiatorSpace
+                        tInitiatorSpace, allowedSpawnSign
+
     use adi_data, only: tAccessibleDoubles, tAccessibleSingles, &
                          tAllDoubsInitiators, tAllSingsInitiators, tSignedRepAv 
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
@@ -132,7 +134,6 @@ contains
 
     end function TestMCExit
 
-
     subroutine create_particle (nJ, iLutJ, child, part_type, hdiag_spawn, err, ilutI, SignCurr, &
                                 WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos, ic, ex)
         ! Create a child in the spawned particles arrays. We spawn particles
@@ -205,6 +206,7 @@ contains
             err = 1
             return
         end if
+
         !We initially encode no flags
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
@@ -213,24 +215,17 @@ contains
         ! child, to allow it to survive.
         if (tTruncInitiator) then
            allowed_child = .false.
+           ! deprecated, please remove
            if(tAccessibleDoubles .or. tAccessibleSingles) &
                 allowed_child = test_ref_double(ilutJ, part_type_to_run(run))
+           ! optionally: allow all spawns with a given sign
+           if(allowedSpawnSign.ne.0) then
+              if(allowedSpawnSign * child(part_type) * SignCurr(part_type)> 0) &
+                   allowed_child = .true.
+           endif
             if (allowed_child .or. test_flag(ilutI, get_initiator_flag(part_type))) then
                 call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
             endif
-        end if
-
-        ! Is using the pure initiator space option, then if this spawning
-        ! occurs to within the defined initiator space (regardless of
-        ! whether or not it is occupied already), then it should never be
-        ! rejected by the initiator criterion, so set the initiator
-        ! flag now if not done already.
-        if (tPureInitiatorSpace) then
-            if ( .not. test_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type)) ) then
-                if (is_in_initiator_space(SpawnedParts(:, ValidSpawnedList(proc)), nJ)) then
-                    call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), get_initiator_flag(part_type))
-                end if
-            end if
         end if
 
         if(tAutoAdaptiveShift)then
@@ -323,6 +318,20 @@ contains
 
         ! set flag for large spawn matrix element
         if(present(matel)) call setLargeMatelFlag(ValidSpawnedList(proc),matel)
+
+        ! Is using the pure initiator space option, then if this spawning
+        ! occurs to within the defined initiator space (regardless of
+        ! whether or not it is occupied already), then it should never be
+        ! rejected by the initiator criterion, so set the initiator
+        ! flag now if not done already.
+        if (tPureInitiatorSpace) then
+            if ( .not. test_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type)) ) then
+                if (is_in_initiator_space(SpawnedParts(:, ValidSpawnedList(proc)), nJ)) then
+                    call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), get_initiator_flag(part_type))
+                end if
+            end if
+        end if
+
         ! store global data - number of spawns
         if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc) ) )
 
@@ -479,13 +488,12 @@ contains
                 end if
             end if
 
-
-            ! log the spawn
-            global_position = ind
+           ! log the spawn
+           global_position = ind
         else
-            ! Determine which processor the particle should end up on in the
-            ! DirectAnnihilation algorithm.
-            proc = DetermineDetNode(nel, nI_child, 0)
+           ! Determine which processor the particle should end up on in the
+           ! DirectAnnihilation algorithm.
+           proc = DetermineDetNode(nel, nI_child, 0)
 
             ! Check that the position described by ValidSpawnedList is acceptable.
             ! If we have filled up the memory that would be acceptable, then
@@ -511,52 +519,51 @@ contains
 #endif
                 err = 1
                 return
-            end if
+           end if
+           call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
 
-            call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
-
-            ! If the parent was an initiator then set the initiator flag for the
-            ! child, to allow it to survive.
+           ! If the parent was an initiator then set the initiator flag for the
+           ! child, to allow it to survive.
 
 #ifdef __REALTIME
-            ! for real-time testing purpose: if the spawn is already populated, also
-            ! set the initiator flag to prevent abort due to the RK reset
-            if(tTruncInitiator .and. runge_kutta_step == 2) then
-               ! check whether the target is already in CurrentDets
-               call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
-                    CurrentDets, ind, hash_val_cd, tSuccess)
-               if(tSuccess) then
-                  call extract_sign(CurrentDets(:,ind), sgn_prod)
-                  ! check whether the target is populated in this run
-                  if(.not. is_run_unnocc(sgn_prod,part_type_to_run(part_type))) then
-                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
-                          get_initiator_flag(part_type))
-                  endif
-               endif
-            endif
-#endif
-            
-            if (tTruncInitiator) then
-               allowed_child = .false.
-               if(tAccessibleDoubles .or. tAccessibleSingles) allowed_child = &
-                    test_ref_double(ilut_child, part_type_to_run(run))
-               if (allowed_child .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+           ! for real-time testing purpose: if the spawn is already populated, also
+           ! set the initiator flag to prevent abort due to the RK reset
+           if(tTruncInitiator .and. runge_kutta_step == 2) then
+              ! check whether the target is already in CurrentDets
+              call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
+                   CurrentDets, ind, hash_val_cd, tSuccess)
+              if(tSuccess) then
+                 call extract_sign(CurrentDets(:,ind), sgn_prod)
+                 ! check whether the target is populated in this run
+                 if(.not. is_run_unnocc(sgn_prod,part_type_to_run(part_type))) then
                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
-                    get_initiator_flag(part_type))
-            end if
+                         get_initiator_flag(part_type))
+                 endif
+              endif
+           endif
+#endif
 
-             ! where to store the global data
-             global_position = ValidSpawnedList(proc)
+           if (tTruncInitiator) then
+              allowed_child = .false.
+              if(tAccessibleDoubles .or. tAccessibleSingles) allowed_child = &
+                   test_ref_double(ilut_child, part_type_to_run(run))
+              if (allowed_child .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                   call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                   get_initiator_flag(part_type))
+           end if
 
-            call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
-            ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+           ! where to store the global data
+           global_position = ValidSpawnedList(proc)
+
+           call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
+           ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         end if
 
         ! set large matel flag
         if(present(matel)) call setLargeMatelFlag(global_position,matel)
         ! store global data
         if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,global_position))
-        
+
         ! Sum the number of created children to use in acceptance ratio.
         ! in the rt-fciqmc i have to track the stats of the 2 RK steps 
         ! seperately
@@ -796,23 +803,6 @@ contains
                 ! check if my guga-matrix element calculator works all the 
                 ! time.. but i guess it does.. since the energy is the same 
                 ! for two runs with and without the key-word on..
-!                 tmp_off_diag(1:inum_runs) = calc_off_diag_guga_ref_list(ilut, &
-!                     exlevel = tmp_exlevel)
-! 
-!                 tmp_diff = abs(HOffDiag - tmp_off_diag) 
-! 
-!                 ! it would also be good to compare the stochastic matrix 
-!                 ! element with the 2 different obtained ones here.. 
-!                 ! but thats tough to do it here.. hm.. 
-!                 ! i think i have to do it at the end of the excitation 
-!                 ! generator..
-!                 if (any(tmp_diff > 1.0e-10_dp)) then
-!                     print *, "differing matrix elements for exciatation: "
-!                     call write_det_guga(6,ilutRef,.true.)
-!                     call write_det_guga(6,ilut,.true.)
-!                     print *, "mat eles and diff:", HOffDiag, tmp_off_diag, tmp_diff
-!                 end if
-
                 if (ExcitLevel_local == 2) then
                     do run = 1, inum_runs
                         NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
@@ -880,6 +870,7 @@ contains
             if (tHPHF) then
                 HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
                                                                 iLutRef(:,1), ilut)
+                                                                
             else
                 HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
                                                       ExcitLevel, ilutRef(:,1), ilut)
@@ -1157,7 +1148,6 @@ contains
                 if (tHPHF) then
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
                                                       iLutRef(:,run), ilut)
-
 #ifndef __CMPLX
                 else if (tGUGA) then 
                     hoffdiag = calc_off_diag_guga_ref(ilut, run, exlevel) 
@@ -1331,6 +1321,9 @@ contains
         ! initiator flag according to SI or a static initiator space
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
 
+        if(tSeniorityInits) then
+           staticInit = staticInit .or. (count_open_orbs(ilut) <= initMaxSenior)
+        endif
 
         if (tInitiatorSpace) then
             staticInit = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic)
@@ -1341,11 +1334,6 @@ contains
                 end if
             end if
         end if
-
-
-        if(tSeniorityInits) then
-           staticInit = staticInit .or. (count_open_orbs(ilut) <= initMaxSenior)
-        endif
 
         ! check if there are sign conflicts across the replicas
         if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
@@ -1417,7 +1405,34 @@ contains
               NoAddedInitiators = NoAddedInitiators - 1_int64
            endif
 
-        end if       
+        end if
+
+      contains
+        function spawn_criterium(idx) result(spawnInit)
+          implicit none
+          ! makes something an initiator if the sign of spawns is sufficiently unique
+          integer, intent(in) :: idx
+          logical :: spawnInit
+
+          real(dp) :: negSpawn(lenof_sign), posSpawn(lenof_sign)
+
+          if(tLogAverageSpawns) then
+             negSpawn = get_neg_spawns(idx)
+             posSpawn = get_pos_spawns(idx)
+             if(any((negSpawn + posSpawn) .ge. minInitSpawns)) then
+                if(all(min(negSpawn,posSpawn) > eps)) then
+                   spawnInit = all(max(negSpawn,posSpawn)/min(negSpawn,posSpawn) > spawnSgnThresh)
+                else
+                   spawnInit = .true.
+                endif
+             else
+                spawnInit = .false.
+             endif
+          else
+             spawnInit = .false.
+          endif
+
+        end function spawn_criterium
 
       end function TestInitiator_explicit
 
@@ -1482,48 +1497,7 @@ contains
         ! make it an initiator 
         init_flag = (tot_sgn > scaledInitiatorWalkNo)
 
-        ! option to use the average population instead of the local one
-        ! for purpose of initiator threshold
-        if(tGlobalInitFlag) then
-           ! we can use a signed or unsigned sum
-           if(tSignedRepAv) then
-              tot_sgn = real(abs(sum(sign)),dp)/inum_runs
-           else
-              tot_sgn = av_pop(sign)
-           endif
-        else
-           tot_sgn = mag_of_run(sign,run)
-        endif
-        ! make it an initiator 
-        init_flag = (tot_sgn > scaledInitiatorWalkNo)
-
-      end function initiator_criterium
-
-      function spawn_criterium(idx) result(spawnInit)
-        implicit none
-        ! makes something an initiator if the sign of spawns is sufficiently unique
-        integer, intent(in) :: idx
-        logical :: spawnInit
-
-        real(dp) :: negSpawn(lenof_sign), posSpawn(lenof_sign)
-
-        if(tLogAverageSpawns) then
-           negSpawn = get_neg_spawns(idx)
-           posSpawn = get_pos_spawns(idx)
-           if(any((negSpawn + posSpawn) .ge. minInitSpawns)) then
-              if(all(min(negSpawn,posSpawn) > eps)) then
-                 spawnInit = all(max(negSpawn,posSpawn)/min(negSpawn,posSpawn) > spawnSgnThresh)
-              else
-                 spawnInit = .true.
-              endif
-           else
-              spawnInit = .false.
-           endif
-        else
-           spawnInit = .false.
-        endif
-
-      end function spawn_criterium
+    end function initiator_criterium
 
     subroutine rezero_iter_stats_each_iter(iter_data, rdm_defs)
 

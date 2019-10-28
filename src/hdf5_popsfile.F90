@@ -206,7 +206,7 @@ contains
 
         call h5garbage_collect_f(err)
 
-        call MPIBarrier(ierr)
+        call MPIBarrier(mpi_err)
         write(6,*) "popsfile write successful"
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -913,7 +913,7 @@ contains
         ! (calcdata has to be read in after the walkers, ugh)
         call read_log_scalar(grp_id, nm_tauto, tPopAutoAdaptiveShift, &
              default = .false._int32, required=.false.)
-        
+
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
         allocate(pops_num_parts(tmp_lenof_sign), stat = ierr)

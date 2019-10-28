@@ -1247,17 +1247,6 @@ MODULE Logging
                 call geti(equi_iter_double_occ)
             end if
 
-!         case ("DOUBLE-OCC-VECTOR")
-!             ! just a quick insert of spatial resolved double occupancy 
-!             ! measurement
-!             t_spatial_double_occ = .true.
-! 
-!         case ("INSTANT-SPIN-DIFF")
-!             t_inst_spin_diff = .true.
-! 
-!         case ("INSTANT-SPATIAL-DOUB-OCC")
-!             t_inst_spat_doub_occ = .true.
-
         case ('SYMMETRY-ANALYSIS')
             ! investigate the symmetry of the important part of the 
             ! wavefuntion, by applying point-group symmetry operations on 

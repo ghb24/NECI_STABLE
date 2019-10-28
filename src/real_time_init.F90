@@ -368,6 +368,7 @@ contains
       call create_perturbed_ground()
 
       if(tSemiStochastic) call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
+
       ! If only the corespace time-evolution is to be taken, truncate the
       ! initial wavefunction to the corespace
       ! We currently do not truncate the overlap state too, but it might come
@@ -638,7 +639,6 @@ contains
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: ierr
         logical :: tStartedFromCoreGround
-
         character(255) :: rtPOPSFILE_name
         character(*), parameter :: this_routine = "readTimeEvolvedState"
 

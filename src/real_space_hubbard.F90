@@ -22,7 +22,8 @@ module real_space_hubbard
                           trans_corr_param_2body, tHPHF, t_trans_corr_new, & 
                           t_spin_dependent_transcorr, tGUGA, tgen_guga_crude, &
                           tNoBrillouin, tUseBrillouin, &
-                          t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, pholefocus
+                          t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, &
+                          pholefocus, t_twisted_bc, twisted_bc
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, & 
@@ -197,6 +198,10 @@ contains
         ! and i have to calculate the optimal time-step for the hubbard models. 
         ! where i need the connectivity of the lattice i guess? 
         if (t_trans_corr_hop .and. .not. tHPHF) then 
+            if (t_twisted_bc) then 
+                call stop_all(this_routine, & 
+                    "twisted BC + Transcorr not yet implemented!")
+            end if
             if(t_hole_focus_excits)then 
                 generate_excitation => gen_excit_rs_hubbard_transcorr_hole_focus
             else if (t_uniform_excits) then 
@@ -258,13 +263,9 @@ contains
 !             call update_run_reference(ilut_neel, 1)
 
         end if
-        ! do not set that here, due to circular dependencies
-!         max_death_cpt = 0.0_dp
 
         ! i need to setup the necessary stuff for the new hopping 
         ! transcorrelated real-space hubbard! 
-!         call init_hopping_transcorr() 
-
         call init_get_helement_hubbard()
 
     end subroutine init_real_space_hubbard
@@ -283,11 +284,6 @@ contains
 
         call init_dispersion_rel_cache() 
 
-!         print *, "e(k)"
-!         do i = 1, lat%get_nsites()
-!             print *, i, "|", lat%get_k_vec(i), "|", epsilon_kvec(i)
-!         end do
-
         ! i also need a umat array now! 
         if (t_trans_corr_hop) then
             call init_umat_rs_hub_transcorr()
@@ -296,31 +292,6 @@ contains
         end if
 
     end subroutine init_hopping_transcorr
-
-!     real(dp) function spin_trancorr_factor(J, r_vec) 
-!         ! similar to hopping transcorr factor with spin-dependent 
-!         ! hopping only 
-!         real(dp), intent(in) :: J
-!         integer, intent(in) :: r_vec(3)
-! #ifdef __DEBUG
-!         character(*), parameter :: this_routine = "spin_trancorr_factor"
-! #endif 
-!         complex(dp) :: temp 
-!         integer :: i, n_sites, k_vec(3)
-! 
-!         ASSERT(associated(lat))
-! 
-!         n_sites = lat%get_nsites()
-! 
-!         temp = 0.0_dp 
-! 
-!         do i = 1, n_sites
-!             k_vec = lat%get_k_vec(i)
-! 
-!             temp = temp + exp(
-! 
-! 
-!     end function spin_trancorr_factor
 
     real(dp) function hop_transcorr_factor(J, r_vec)
         ! compute \sum_p exp(i*p*r) exp(J,r) for the 2-body term in the 
@@ -343,33 +314,17 @@ contains
         ! vectors... 
         do i = 1, n_sites
             k_vec = lat%get_k_vec(i)
-!             temp = temp + exp(complex(0.0,1.0) * 2.0*pi/real(n_sites,dp) * &
-!                 dot_product(k_vec, r_vec)) * exp(-J * epsilon_kvec(i))
             temp = temp + exp(imag_unit * lat%dot_prod(k_vec, r_vec)) * & 
                 exp(-J * epsilon_kvec(i))
-
-!             print *, "k: ", k_vec, "|", exp(complex(0.0,1.0) * 2.0*pi/real(n_sites,dp)* &
-!                 dot_product(k_vec, r_vec))
 
         end do
 
         hop_transcorr_factor = real(temp) / real(n_sites,dp)
 
-!         print *, "hop_transcorr_factor(r): ",r_vec, temp/real(n_sites,dp)
         ! will this be ever comlex? check the size 
         ASSERT(abs(aimag(temp)) < EPS) 
 
     end function hop_transcorr_factor
-
-    ! i actually do not need this i guess.. since the factors are the same
-!     subroutine init_spin_transcorr_fac_cached(J_fac, in_lat)
-!         real(dp), intent(in) :: J_fac 
-!         class(lattice), intent(in) :: in_lat
-! #ifdef __DEBUG 
-!         character(*), parameter :: this_routine = "init_spin_transcorr_fac_cached"
-! #endif
-! 
-!     end subroutine init_spin_transcorr_fac_cached
 
     subroutine init_hop_trancorr_fac_cached(J_fac, in_lat)
         ! also store the hopping transcorrelation factor in a cache, 
@@ -761,18 +716,6 @@ contains
             root_print "Done"
         end if
 
-! #ifdef __DEBUG 
-!         ! also check if the distance is figured out correctly.. 
-!         r1 = lat%get_r_vec(1)
-!         print *, "matrix elements from r1: ", r1, "umat(1,1,1,i), umat(1,1,i,i), umat(1,i,1,i), umat(1,i,i,i)"
-!         do i = 2, lat%get_nsites()
-!             ri = lat%get_r_vec(i)
-!             print *, ri, "|", umat_rs_hub_trancorr_hop(1,1,1,i), &
-!                               umat_rs_hub_trancorr_hop(1,1,i,i), &
-!                               umat_rs_hub_trancorr_hop(1,i,1,i), &
-!                               umat_rs_hub_trancorr_hop(1,i,i,i)
-!         end do
-! #endif
     end subroutine init_umat_rs_hub_transcorr
 
     subroutine init_get_helement_hubbard
@@ -851,7 +794,10 @@ contains
         ! this also depends on the boundary conditions
         character(*), parameter :: this_routine = "init_tmat"
 
-        integer :: i, ind, iunit
+        integer :: i, ind, iunit, r_i(3), r_j(3), diff(3), j
+        HElement_t(dp) :: mat_el
+        complex(dp) :: imag 
+
         ! depending on the input i either create tmat2d here or is have to 
         ! set it up, so it can be used to create the lattice.. 
         ! but for the beginning i think i want to set it up here from the 
@@ -860,44 +806,158 @@ contains
         ! that it was build-in created and tmat has to be calculated from it 
         ! now!
         if (present(lat)) then 
-            ! what do i need to do? 
-            ! loop over the indices in the lattice and get the neighbors
-            ! and i have to store it in spin-indices remember that!
-            if (associated(tmat2d)) deallocate(tmat2d)
-            allocate(tmat2d(nbasis,nbasis))
-            tmat2d = 0.0_dp
 
-            if (t_print_tmat) then 
-                iunit = get_free_unit()
-                open(iunit, file = 'TMAT')
+            if (t_twisted_bc) then 
+                ! this is the twist implementation with complex hopping 
+                ! elements
+                if (associated(tmat2d)) deallocate(tmat2d)
+                allocate(tmat2d(nbasis,nbasis))
+                tmat2d = 0.0_dp
+
+                if (t_print_tmat) then 
+                    iunit = get_free_unit()
+                    open(iunit, file = 'TMAT')
+                end if
+
+                do i = 1, lat%get_nsites() 
+                    ind = lat%get_site_index(i)
+
+                    r_i = lat%get_r_vec(i)
+
+                    associate(next => lat%get_neighbors(i))
+
+                        do j = 1, size(next)
+
+                            r_j = lat%get_r_vec(next(j))
+
+                            diff = r_i - r_j
+
+                            ! x-hopping 
+                            if (abs(diff(1)) /= 0) then 
+                                if (abs(diff(1)) == 1) then 
+                                    ! no hop over boundary
+                                    if (diff(1) == 1) then 
+                                        ! then we hop left 
+                                        ! twisted BCs are given in units of 
+                                        ! 2pi/L so a twist of 1 corresponds to 
+                                        ! the same system!
+                                        mat_el = bhub * exp( -cmplx(0.0, & 
+                                            2 * pi / lat%get_length(1) * twisted_bc(1),dp))
+
+                                    else if (diff(1) == -1) then 
+                                        mat_el = bhub * exp( cmplx(0.0,  & 
+                                            2 * pi / lat%get_length(1) * twisted_bc(1),dp))
+
+                                    else
+                                        call stop_all(this_routine, "something wrong!")
+                                    end if
+                                else 
+                                    ! hopping over boundary 
+                                    ! directions are otherwise
+                                    if (diff(1) > 0) then 
+                                        mat_el = bhub * exp( cmplx(0.0, & 
+                                            2 * pi / lat%get_length(1) * twisted_bc(1),dp))
+                                    else 
+                                        mat_el = bhub * exp( -cmplx(0.0,  & 
+                                            2 * pi / lat%get_length(1) * twisted_bc(1),dp))
+                                    end if
+                                end if
+                            end if
+
+                            if (lat%get_ndim() > 1) then 
+                                ! y-hopping 
+                                if (abs(diff(2)) /= 0) then 
+                                    if (abs(diff(2)) == 1) then 
+                                        ! no hop over boundary
+                                        if (diff(2) == 1) then 
+                                            ! then we hop left 
+                                            mat_el = bhub * exp( -cmplx(0.0,  & 
+                                                2 * pi / lat%get_length(2) * twisted_bc(2),dp))
+
+                                        else if (diff(2) == -1) then 
+                                            mat_el = bhub * exp( cmplx(0.0, & 
+                                                2 * pi / lat%get_length(2) * twisted_bc(2),dp))
+
+                                        else
+                                            call stop_all(this_routine, "something wrong!")
+                                        end if
+                                    else 
+                                        ! hopping over boundary 
+                                        ! directions are otherwise
+                                        if (diff(2) > 0) then 
+                                            mat_el = bhub * exp( cmplx(0.0, & 
+                                                2 * pi / lat%get_length(2) * twisted_bc(2),dp))
+                                        else 
+                                            mat_el = bhub * exp( -cmplx(0.0, & 
+                                                2 * pi / lat%get_length(2) * twisted_bc(2),dp))
+                                        end if
+                                    end if
+                                end if
+                            end if
+
+                            if (lat%get_ndim() > 2) then 
+                                call stop_all(this_routine, & 
+                                    "twisted BCs only implemented up to 2D")
+                            end if
+
+                            ! beta orbitals:
+                            tmat2d(2*ind - 1, 2*next(j) - 1) = mat_el 
+                            ! alpha: 
+                            tmat2d(2*ind, 2*next(j)) = mat_el
+
+                            if (t_print_tmat) then
+                                write(iunit,*) 2*i - 1, 2*next(j) - 1, mat_el
+                                write(iunit,*) 2*i, 2*next(j), mat_el
+                            end if
+
+                        end do
+                        
+                        ASSERT(all(next > 0))
+                        ASSERT(all(next <= nbasis/2))
+                    end associate
+                    ASSERT(lat%get_nsites() == nbasis/2)
+                    ASSERT(ind > 0) 
+                    ASSERT(ind <= nbasis/2)
+                
+                end do
+
+            else 
+                ! what do i need to do? 
+                ! loop over the indices in the lattice and get the neighbors
+                ! and i have to store it in spin-indices remember that!
+                if (associated(tmat2d)) deallocate(tmat2d)
+                allocate(tmat2d(nbasis,nbasis))
+                tmat2d = 0.0_dp
+
+                if (t_print_tmat) then 
+                    iunit = get_free_unit()
+                    open(iunit, file = 'TMAT')
+                end if
+
+                do i = 1, lat%get_nsites() 
+                    ind = lat%get_site_index(i)
+                    associate(next => lat%get_neighbors(i))
+                        ! beta orbitals:
+                        tmat2d(2*ind - 1, 2*next - 1) = bhub 
+                        ! alpha: 
+                        tmat2d(2*ind, 2*next) = bhub
+                        
+                        ASSERT(all(next > 0))
+                        ASSERT(all(next <= nbasis/2))
+
+                        if (t_print_tmat) then
+                            do j = 1, size(next)
+                                write(iunit,*) 2*i - 1, 2*next(j) - 1, bhub
+                                write(iunit,*) 2*i, 2*next(j), bhub
+                            end do
+                        end if
+                    end associate
+                    ASSERT(lat%get_nsites() == nbasis/2)
+                    ASSERT(ind > 0) 
+                    ASSERT(ind <= nbasis/2)
+                
+                end do
             end if
-!             if (t_trans_corr_hop) then 
-                ! for the new transcorrelation term, we have modified 
-                ! one-body matrix elements.. but these are dependent on the 
-                ! determinant!! so we cannot setup the matrix element 
-                ! beforehand
-
-            do i = 1, lat%get_nsites() 
-                ind = lat%get_site_index(i)
-                associate(next => lat%get_neighbors(i))
-                    ! beta orbitals:
-                    tmat2d(2*ind - 1, 2*next - 1) = bhub 
-                    ! alpha: 
-                    tmat2d(2*ind, 2*next) = bhub
-                    
-                    ASSERT(all(next > 0))
-                    ASSERT(all(next <= nbasis/2))
-
-                    if (t_print_tmat) then
-                        write(iunit,*) 2*i - 1, 2*next - 1, bhub
-                        write(iunit,*) 2*i, 2*next, bhub
-                    end if
-                end associate
-                ASSERT(lat%get_nsites() == nbasis/2)
-                ASSERT(ind > 0) 
-                ASSERT(ind <= nbasis/2)
-            
-            end do
 
         else
             ! this indicates that tmat has to be created from an fcidump 
@@ -1737,6 +1797,7 @@ contains
         ASSERT(same_spin(ex(1),ex(2)))
 
         hel = GetTMatEl(ex(1),ex(2))
+
         if (t_trans_corr_hop) then 
             hel = hel + get_2_body_contrib_transcorr_hop(nI,ex)
         else if (t_spin_dependent_transcorr .and. is_alpha(ex(1))) then 
@@ -2123,8 +2184,11 @@ contains
 
             else if (ic_ret == 1) then 
                 ex(1,1) = 1
-                call GetExcitation(nI, nJ, nel, ex, tpar)
-                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+                ! exchange for fix with twisted BCs
+!                 call GetExcitation(nI, nJ, nel, ex, tpar)
+!                 hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+                call GetExcitation(nJ, nI, nel, ex, tpar)
+                hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar) 
 
             else if (ic_ret == 2 .and. t_trans_corr_hop) then 
 
@@ -2145,9 +2209,11 @@ contains
                     hel = get_diag_helemen_rs_hub(nI)
                 else if (ic_ret == 1) then 
                     ex(1,1) = 1
-                    call GetBitExcitation(ilutI, ilutJ, ex, tpar)
-
-                    hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+                    ! exchange for fix with twisted BCs
+!                     call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+!                     hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
+                    call GetBitExcitation(ilutJ, ilutI, ex, tpar)
+                    hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar)
 
                 else if (ic_ret == 2 .and. t_trans_corr_hop) then 
                     ex(1,1) = 2
@@ -2172,8 +2238,11 @@ contains
                 hel = get_diag_helemen_rs_hub(nI)
             else if (ic == 1) then 
                 ex(1,1) = 1
-                call GetBitExcitation(ilutI, ilutJ, ex, tpar)
-                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+                ! exchange for fix with twisted BCs
+!                 call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+!                 hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar) 
+                call GetBitExcitation(ilutJ, ilutI, ex, tpar)
+                hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar) 
 
             else if (ic == 2 .and. t_trans_corr_hop) then 
                 ex(1,1) = 2
@@ -2339,7 +2408,6 @@ contains
 
         ! like niklas, choose the alpha spins to be the correlated ones
         if (t_spin_dependent_transcorr .and. is_alpha(ex(1))) then 
-!             hel = hel + tmat_rs_hub_spin_transcorr(ex(1),ex(2))
             hel = hel + get_1_body_contrib_spin_transcorr(nI,ex)
         end if
 

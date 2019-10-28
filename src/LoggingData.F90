@@ -139,7 +139,7 @@ module LoggingData
     ! shift changes
     integer :: equi_iter_double_occ = 0
     logical :: t_calc_double_occ_av = .false.
-!     real(dp) :: n_double_occ_loc, n_double_occ_all
+
     ! [Werner Dobrautz 4.4.2017]
     ! changes belonging to the histogram tau-search
     ! for now always print out the histograms at the end, maybe change that

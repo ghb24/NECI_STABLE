@@ -190,7 +190,6 @@ contains
 
         if (tWriteCore) call write_core_space()
 
-
         write(6,'("Generating the Hamiltonian in the deterministic space...")'); call neci_flush(6)
         if (tAllSymSectors .or. tReltvy .or. nOccAlpha <= 1 .or. nOccBeta <= 1) then
             ! In the above cases the faster generation is not implemented, so
@@ -211,6 +210,7 @@ contains
                 call calc_determ_hamil_opt()
             end if
         end if
+
 #if !defined(__CMPLX)
         if (t_print_core_info) then 
             ! i think i also want information, like the energy and the 
@@ -305,6 +305,7 @@ contains
                     call gndts_all_sym_this_proc(SpawnedParts, .false., space_size)
                 else
                     call generate_fci_core(SpawnedParts, space_size)
+
                 end if
             !else if (core_in%tHeisenbergFCI) then
             !    call generate_heisenberg_fci(SpawnedParts, space_size)

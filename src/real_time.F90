@@ -544,7 +544,6 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
         type(fcimc_iter_data), intent(inout), optional :: iter_data2
         type(rdm_definitions_t) :: dummy
-!         integer, intent(out) :: n_determ_states
         character(*), parameter :: this_routine = "init_real_time_iteration"
 
         ! reuse parts of nicks routine and add additional real-time fciqmc
@@ -953,7 +952,6 @@ contains
         call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
         call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, err)
 
-
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
     end subroutine first_real_time_spawn
@@ -963,7 +961,6 @@ contains
       implicit none
       integer, intent(out) :: err
         character(*), parameter :: this_routine = "perform_real_time_iteration"
-        
         integer :: TotWalkersNew, run, MaxIndex
         real(dp) :: tmp_sign(lenof_sign), tau_real_tmp, tau_imag_tmp
         logical :: both, rkone, rktwo

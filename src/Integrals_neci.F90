@@ -1812,7 +1812,7 @@ contains
 
         ! In:
         !    i,j,k,l: spin-orbital indices.
-        
+
         use SystemData, only: G1
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
@@ -1996,8 +1996,8 @@ contains
       use SymData, only: SymClasses,SymLabelCounts,nSymLabels
       use util_mod, only: get_free_unit
       IMPLICIT NONE
-
       INTEGER I,nbasis,iunit
+
       iunit = get_free_unit()
       open(iunit, file="SYMCLASSES", status="unknown")
       DO I=1,nbasis/2

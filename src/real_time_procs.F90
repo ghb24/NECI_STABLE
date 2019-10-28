@@ -690,15 +690,17 @@ contains
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
-        HElement_t(dp) , intent(inout) :: HElGen
+        HElement_t(dp) , intent(in) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
 
         real(dp) :: walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac, &
-             sepSign
+             sepSign, fac_unused
         integer :: extracreate, tgt_cpt, component, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
+
+        fac_unused = precond_fac
 
         ! This is crucial
         child = 0.0_dp
@@ -877,7 +879,7 @@ contains
         end if
        
         if(tFillingStochRDMonFly) then
-            if (child(part_type).ne.0) then
+            if (child(part_type).ne.0.0_dp) then
                 !Only add in contributions for spawning events within population 1
                 !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population
                 !the event came from at present)
@@ -1087,7 +1089,7 @@ contains
         real(dp) :: real_sign_1(lenof_sign), real_sign_2(lenof_sign)
         complex(dp) :: overlap(normsize)
         logical :: tDetFound
-        real(sp) :: gf_time
+        real(dp) :: gf_time
 
         call set_timer(calc_gf_time)
 
@@ -1113,10 +1115,11 @@ contains
                  do runA = 1, inum_runs
                     do runB = 1, inum_runs
                        ! overlap is now treated as complex type
+                       ! this only works for the complex code
                        overlap(overlap_index(runA,runB)) = overlap(overlap_index(runA,runB)) &
                             +conjg(cmplx(real_sign_1(min_part_type(runA)), &
-                            real_sign_1(max_part_type(runA)))) &
-                            *cmplx(real_sign_2(min_part_type(runB)),real_sign_2(max_part_type(runB)))
+                            real_sign_1(max_part_type(runA)),dp)) &
+                            *cmplx(real_sign_2(min_part_type(runB)),real_sign_2(max_part_type(runB)),dp)
                     end do
                  end do
               end if
@@ -1184,10 +1187,11 @@ contains
               ! we calculate the overlap between any two replicas, including the norm
               ! of each individually
               do targetRun = 1,run
+! this only works for complex builds, it would not even compile else
                  cd_norm(overlap_index(run,targetRun)) = cd_norm(overlap_index(run,targetRun)) &
-                      + conjg(cmplx(tmp_sign(min_part_type(run)),tmp_sign(max_part_type(run)))) &
+                      + conjg(cmplx(tmp_sign(min_part_type(run)),tmp_sign(max_part_type(run)),dp)) &
                       * cmplx(tmp_sign(min_part_type(targetRun)),tmp_sign(&
-                      max_part_type(targetRun)))
+                      max_part_type(targetRun)),dp)
               end do
            end do
            do run = 1, inum_runs

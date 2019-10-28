@@ -98,7 +98,7 @@ program = mneci
 tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 
 [neci/parallel/HeHe_SS_Doubles/]
-program = mneci
+program = neci
 tolerance = (1e-9, None, 'final_energy_1')
 
 [hdf5/dneci/*/*/]

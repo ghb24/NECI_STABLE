@@ -33,7 +33,9 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
-                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
+                         tAllAdaptiveShift, cAllAdaptiveShift
+
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tAllSingsInitiators, tDelayAllSingsInits, tSetDelayAllDoubsInits, &
          tSetDelayAllSingsInits, nExProd, NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -485,6 +487,11 @@ contains
           sFBeta = 1.0_dp
           sFTag = 0
 
+          ! shift scaling with local population
+          tAllAdaptiveShift = .false.
+          ! First calculations indicate that this is a reasonable value
+          cAllAdaptiveShift = 2
+
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
           tEN2Init = .false.
@@ -509,6 +516,7 @@ contains
           tPureInitiatorSpace = .false.
           tSimpleInit = .false.
           tAllConnsPureInit = .false.
+          allowedSpawnSign = 0
 
           tDetermProjApproxHamil = .false.
 
@@ -1866,6 +1874,18 @@ contains
                 tSimpleInit = .true.
             CASE("INITIATOR-SPACE-CONNS")
                 tAllConnsPureInit = .true.
+            case("ALLOW-SIGNED-SPAWNS")
+                if(item < nitems) then
+                   call readu(w)
+                   select case(w)
+                   case("POS")
+                      allowedSpawnSign = 1
+                   case("NEG")
+                      allowedSpawnSign = -1
+                   end select
+                else
+                   allowedSpawnSign = 1
+                endif
             case("DOUBLES-INITIATOR")
                 i_space_in%tDoubles = .true.
             case("HF-CONN-INITIATOR")
@@ -1979,12 +1999,6 @@ contains
                     end if
                 end if
                 tAdaptiveShift = .true.
-            case("EXP-ADAPTIVE-SHIFT", "ALL-ADAPTIVE-SHIFT")
-                ! scale the shift down per determinant exponentailly depending on the local population
-!                 tAdaptiveShift = .true.
-                tExpAdaptiveShift = .true.
-                ! optional argument: value of the parameter of the scaling function
-                if(item < nitems) call getf(EAS_Scale)
 
             case("CORE-ADAPTIVE-SHIFT")
                 ! also apply the adaptive shift in the corespace
@@ -3317,6 +3331,11 @@ contains
                     cc_delay = 1000
                 end if
 
+              case("ALL-ADAPTIVE-SHIFT")
+                 ! scale the shift down per determinant depending on the local population
+                 tAllAdaptiveShift = .true.
+                 ! optional argument: value of the parameter of the scaling function
+                 if(item < nitems) call getf(cAllAdaptiveShift)
 
              case("ALL-DOUBS-INITIATORS")
                 ! Set all doubles to be treated as initiators
@@ -3493,12 +3512,14 @@ contains
 
             case("PSINGLES")
                 call getf(pSinglesIn)
+
             case("PPARALLEL")
                 call getf(pParallelIn)
+
             case("PDOUBLES")
                 call getf(pDoublesIn)
 
-            case("NO-INIT-REF-CHANGE")
+             case("NO-INIT-REF-CHANGE")
                 tSetInitialRunRef = .false.
 
             case("DEATH-BEFORE-COMMS")

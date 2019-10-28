@@ -11,7 +11,7 @@ module AnnihilationMod
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
                           tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
                           tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse, tNonInitsForRDMs, &
-                          tNonVariationalRDMs, tKeepDoubSpawns, tPreCond, tReplicaEstimates, &
+                          tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
                           tSimpleInit, tAllConnsPureInit
 
     use DetCalcData, only: Det, FCIDetIndex
@@ -405,21 +405,21 @@ module AnnihilationMod
             end if
 
             do i = BeginningBlockDet, EndBlockDet
-               ! if logged, accumulate the number of spawn events
-               if(tLogNumSpawns) then
-                  cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
-                       SpawnedParts(nSpawnOffset,i)
-               end if
-               ! Annihilate in this block seperately for walkers of different types.
-               do part_type = 1, lenof_sign
-                  if (tHistSpawn) then
-                     call extract_sign (SpawnedParts(:,i), SpawnedSign)
-                     call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
-                     call HistAnnihilEvent (SpawnedParts, SpawnedSign, temp_sign, part_type)
-                  end if
+                ! if logged, accumulate the number of spawn events
+                if(tLogNumSpawns) then
+                   cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
+                        SpawnedParts(nSpawnOffset,i)
+                end if
+                ! Annihilate in this block seperately for walkers of different types.
+                do part_type = 1, lenof_sign
+                    if (tHistSpawn) then
+                        call extract_sign (SpawnedParts(:,i), SpawnedSign)
+                        call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
+                        call HistAnnihilEvent (SpawnedParts, SpawnedSign, temp_sign, part_type)
+                    end if
 
-                  call FindResidualParticle (cum_det, SpawnedParts(:,i), part_type, iter_data, &
-                       VecInd, Parent_Array_Ind)
+                    call FindResidualParticle (cum_det, SpawnedParts(:,i), part_type, iter_data, &
+                                                    VecInd, Parent_Array_Ind)
                end do
                if(tAutoAdaptiveShift .and. tAAS_Reverse)then
                   weight_rev = transfer(SpawnInfo(SpawnWeightRev, i), weight_rev)
@@ -444,16 +444,18 @@ module AnnihilationMod
                 ! the sign here.  Also getting rid of them here would make the
                 ! biased sign of Ci slightly wrong.
 
+                SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
+                if(tAutoAdaptiveShift .and. tAAS_Reverse) then
+                   do run = 1, inum_runs
+                      SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
+                   end do
+                endif
+
                 SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
                 if (tPreCond .or. tReplicaEstimates) then
                     SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
                 end if
 
-               if(tAutoAdaptiveShift .and. tAAS_Reverse) then
-                  do run = 1, inum_runs
-                     SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
-                  end do
-               endif
                 VecInd = VecInd + 1
                 DetsMerged = DetsMerged + EndBlockDet - BeginningBlockDet
 
@@ -992,47 +994,47 @@ module AnnihilationMod
               call extract_sign(SpawnedParts(:,i),SpawnedSign)
 
               SignProd = CurrentSign*SpawnedSign
-                ! in GUGA we might also want to truncate occupied dets
-                ! with no energy scaling we already truncate at the spawning event!
-                if(tGUGA .and. tEScaleWalkers) then
-                    if (t_truncate_spawns .and. .not. t_truncate_unocc) then 
-                       ! the diagonal element of H is to be stored anyway
-                       if(tEScaleWalkers) then
-                          ! evaluate the scaling function
-                          scFVal = scaleFunction(det_diagH(PartInd))
-                       else
-                          scFVal = 1.0_dp
-                       endif
-                       do j = 1, lenof_sign
-                           call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
+              ! in GUGA we might also want to truncate occupied dets
+              ! with no energy scaling we already truncate at the spawning event!
+              if(tGUGA .and. tEScaleWalkers) then
+                  if (t_truncate_spawns .and. .not. t_truncate_unocc) then 
+                     ! the diagonal element of H is to be stored anyway
+                     if(tEScaleWalkers) then
+                        ! evaluate the scaling function
+                        scFVal = scaleFunction(det_diagH(PartInd))
+                     else
+                        scFVal = 1.0_dp
+                     endif
+                     do j = 1, lenof_sign
+                         call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
 #ifdef __DEBUG
-                           if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) then
-                                print *, " ------------"
-                                print *, " spawn unto an OCCUPIED CSF above Threshold!"
-                                print *, " Parent was initiator?: ",  & 
-                                    any_run_is_initiator(SpawnedParts(:,i))
-                                print *, " Parent was in deterministic space?: ",  & 
-                                    test_flag(SpawnedParts(:,i), flag_deterministic)
-                                print *, " Current det is initiator?: ", &
-                                    any_run_is_initiator(CurrentDets(:,PartInd))
-                                print *, " Current det is in deterministic space?: ", &
-                                    tDetermState
-                                print *, " ------------"
-                           end if
+                         if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) then
+                              print *, " ------------"
+                              print *, " spawn unto an OCCUPIED CSF above Threshold!"
+                              print *, " Parent was initiator?: ",  & 
+                                  any_run_is_initiator(SpawnedParts(:,i))
+                              print *, " Parent was in deterministic space?: ",  & 
+                                  test_flag(SpawnedParts(:,i), flag_deterministic)
+                              print *, " Current det is initiator?: ", &
+                                  any_run_is_initiator(CurrentDets(:,PartInd))
+                              print *, " Current det is in deterministic space?: ", &
+                                  tDetermState
+                              print *, " ------------"
+                         end if
 #endif
-                   end do
-                   end if
+                     end do
+                 end if
 
 
-                else
-                    ! truncate if requested
-                    if(t_truncate_this_det .and. .not. t_truncate_unocc) then
-                       scFVal = scaleFunction(det_diagH(PartInd))
-                       do j = 1, lenof_sign
-                          call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
-                       enddo
-                    endif
-                end if
+              else
+                  ! truncate if requested
+                  if(t_truncate_this_det .and. .not. t_truncate_unocc) then
+                     scFVal = scaleFunction(det_diagH(PartInd))
+                     do j = 1, lenof_sign
+                        call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
+                     enddo
+                  endif
+              end if
 
               tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
               ! Transfer new sign across.
@@ -1070,6 +1072,14 @@ module AnnihilationMod
                             SpawnedSign(j) = 0.0_dp
                         end if
                     end if
+                 end if
+
+                 !If we are fixing the population of reference det, skip spawing into it.
+                 if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,PartInd),iLutRef(:,run),nIfD)) then
+                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                    call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
+                    SpawnedSign(j) = 0.0_dp
                  end if
 
                  if (SignProd(j) < 0) then
@@ -1311,19 +1321,20 @@ module AnnihilationMod
            end if
            ! store the spawn in the global data
            if(tLogAverageSpawns) call store_spawn(PartInd, SpawnedSign)
-        end do
 
-        call halt_timer(BinSearch_time)
+      end do
 
-        ! Update remaining number of holes in list for walkers stats.
-        if ((iStartFreeSlot > iEndFreeSlot) .or. tTimedDeaths) then
-           ! All slots filled
-           HolesInList = 0
-        else
-           HolesInList = iEndFreeSlot - (iStartFreeSlot-1)
-        endif
+      call halt_timer(BinSearch_time)
 
-        call halt_timer(AnnMain_time)
+      ! Update remaining number of holes in list for walkers stats.
+      if ((iStartFreeSlot > iEndFreeSlot) .or. tTimedDeaths) then
+         ! All slots filled
+         HolesInList = 0
+      else
+         HolesInList = iEndFreeSlot - (iStartFreeSlot-1)
+      endif
+
+      call halt_timer(AnnMain_time)
 
     end subroutine AnnihilateSpawnedParts
 

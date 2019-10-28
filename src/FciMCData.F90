@@ -99,15 +99,14 @@ MODULE FciMCData
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
     integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
 
-    real(dp), allocatable :: oInitWalk(:), NoNonInitWalk(:)
+    real(dp) :: avSigns, AllAvSigns
+    real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
-    integer, allocatable :: ConflictExLvl(:), AllConflictExLvl(:)
     integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
     integer(int64), allocatable :: AllNoNonInitDets(:)
     integer :: NoConflicts, AllNoConflicts
     integer :: maxConflictExLvl
-    real(dp) :: avSigns, AllAvSigns
-    real(dp), allocatable :: NoInitWalk(:)
+    integer, allocatable :: ConflictExLvl(:), AllConflictExLvl(:)
     real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
@@ -155,6 +154,11 @@ MODULE FciMCData
       integer :: sfTag
       real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
+      ! scaling of shift
+      ! if true, the shift is always scaled with the population on each det
+      logical :: tAllAdaptiveShift = .false.
+      ! control parameter for shift scaling
+      real(dp) :: cAllAdaptiveShift
       ! flag to indicate that the number of spawns shall be tracked
       logical :: tLogNumSpawns
       ! total truncated weight

@@ -23,9 +23,9 @@ module fcimc_pointed_fns
                         tAAS_Add_Diag, EAS_Scale, tExpAdaptiveShift, &
                         tPrecond
 
-    use DetCalcData, only: FciDetIndex, det
+    use procedure_pointers, only: get_spawn_helement, shiftScaleFunction
 
-    use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
+    use DetCalcData, only: FciDetIndex, det
 
     use fcimc_helper, only: CheckAllowedTruncSpawn
 
@@ -93,7 +93,7 @@ module fcimc_pointed_fns
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
-        HElement_t(dp), intent(inout) :: HElGen
+        HElement_t(dp), intent(in) :: HElGen
 
         ! If tEN2Truncated is true, then we want to allow the otherwise
         ! truncated spawning to allow an EN2 correction to be calculated,
@@ -152,7 +152,7 @@ module fcimc_pointed_fns
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
         ! make sure that HElgen is assigned on return
-        HElement_t(dp) , intent(inout) :: HElGen
+        HElement_t(dp) , intent(in) :: HElGen
 
         call EncodeBitDet (nJ, iLutnJ)
 
@@ -198,7 +198,7 @@ module fcimc_pointed_fns
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
-        HElement_t(dp) , intent(inout) :: HElGen
+        HElement_t(dp) , intent(in) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_normal'
 
         real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
@@ -246,24 +246,6 @@ module fcimc_pointed_fns
 #else
         rh_used = rh
 #endif
-        ! assign the matrix element
-        HElGen = abs(rh)
-        ! [W.D.]
-        ! if the matrix element happens to be zero, i guess i should 
-        ! abort as early as possible? so check that here already, or even 
-        ! earlier.. 
-!         if (abs(rh_used) < EPS) then 
-!             child = 0.0_dp
-!             return
-!         end if
-! 
-!         if (t_matele_cutoff) then
-!             if (abs(rh_used) < EPS) then
-!                 child = 0.0_dp
-!             end if
-!         end if
-
-        !write(6,*) 'p,rh', prob, rh
 
         ! essentially here i have all the information for my frequency 
         ! analysis of the H_ij/pgen ratio so call the routine here
@@ -278,7 +260,6 @@ module fcimc_pointed_fns
                 call fill_frequency_histogram(abs(rh_used), prob / AvMCExcits)
 
             else
-!                 if (tGen_4ind_weighted .or. tGen_4ind_2) then
                 if (t_consider_par_bias) then
                     ! determine if excitation was parallel or anti-parallel
                     ! ex(1,1) and ex(1,2) are the electrons 
@@ -315,8 +296,7 @@ module fcimc_pointed_fns
             if (tHUB .or. tUEG .or. & 
                 (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then 
-                call fill_frequency_histogram(abs(rh_used / precond_fac), prob )
-
+                call fill_frequency_histogram(abs(rh_used / precond_fac), prob / AvMCExcits)
             else 
                 if (t_consider_par_bias) then
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
@@ -475,11 +455,7 @@ module fcimc_pointed_fns
                 ! in the back-spawning i have to adapt the probabilites 
                 ! back, to be sure the time-step covers the changed 
                 ! non-initiators spawns! 
-
-                ! now adapted for triple excitations
-!                 ASSERT(.not. t_3_body_excits)
                 call log_spawn_magnitude (ic, ex, matel/precond_fac, prob)
-
             end if
 
             ! Keep track of the biggest spawn this cycle
@@ -736,7 +712,7 @@ module fcimc_pointed_fns
         integer(kind=n_int) :: iLutnI(0:niftot)
         integer :: N_double
 
-        real(dp) :: probsign, r, Eii_curr
+        real(dp) :: probsign, r
         real(dp), dimension(inum_runs) :: fac
         integer :: i, run, iUnused
 #ifdef __CMPLX
@@ -795,15 +771,13 @@ module fcimc_pointed_fns
                     endif
                     shift = DiagSft(i)*tmp**AdaptiveShiftExpo
 
-                else if (tExpAdaptiveShift) then 
-                    shift = DiagSft(i) * shiftFactorFunction(DetPosition, i, &
-                        mag_of_run(RealwSign,i))
                 else
                     shift = DiagSft(i)
                 endif
-                fac(i)=tau*(Kii-shift)
+                ! rescale the shift depending only on the local population
+                if(tAllAdaptiveShift) shift = shift * shiftScaleFunction(mag_of_run(RealwSign,i))
 
-                ! And for tau searching purposes
+                fac(i)=tau*(Kii-shift)
 
                if(t_precond_hub.and.Kii.gt.10.0_dp)then
                 call log_death_magnitude (((Kii - shift)/(1.0_dp+Kii)))
@@ -888,7 +862,8 @@ module fcimc_pointed_fns
 
     end function attempt_die_normal
 
-    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel, detPosition) result(ndie)
+    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel, &
+         DetPos) result(ndie)
 
         ! Should we kill the particle at determinant DetCurr.
         ! The function allows multiple births (if +ve shift), or deaths from
@@ -900,14 +875,15 @@ module fcimc_pointed_fns
         !      wSign   - The sign of the determinant being considered. If
         !                |wSign| > 1, attempt to die multiple particles at
         !                once (multiply probability of death by |wSign|)
+        !      DetPos  - Position of the spawning determinant
         ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
 
         integer, intent(in) :: DetCurr(nel)
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         real(dp), intent(in) :: Kii
-        integer, optional, intent(in) :: detPosition
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
+        integer, intent(in), optional :: DetPos
         character(*), parameter :: t_r = 'attempt_die_normal'
 
         real(dp) :: probsign, r
@@ -959,12 +935,13 @@ module fcimc_pointed_fns
 
         ! Avoid compiler warnings
         iUnused = DetCurr(1)
+        iUnused = DetPos
 
     end function attempt_die_precond
 
 !------------------------------------------------------------------------------------------!
 
-    function powerScaleFunction(hdiag) result(Si)
+    pure function powerScaleFunction(hdiag) result(Si)
       implicit none
       
       real(dp), intent(in) :: hdiag
@@ -975,7 +952,7 @@ module fcimc_pointed_fns
 
 !------------------------------------------------------------------------------------------!
 
-    function expScaleFunction(hdiag) result(Si)
+    pure function expScaleFunction(hdiag) result(Si)
       implicit none
       
       real(dp), intent(in) :: hdiag
@@ -986,7 +963,7 @@ module fcimc_pointed_fns
 
 !------------------------------------------------------------------------------------------!
 
-    function expCOScaleFunction(hdiag) result(Si)
+    pure function expCOScaleFunction(hdiag) result(Si)
       implicit none
       
       real(dp), intent(in) :: hdiag
@@ -997,7 +974,7 @@ module fcimc_pointed_fns
 
 !------------------------------------------------------------------------------------------!
 
-    function negScaleFunction(hdiag) result(Si)
+    pure function negScaleFunction(hdiag) result(Si)
       implicit none
 
       real(dp), intent(in) :: hdiag
@@ -1008,30 +985,35 @@ module fcimc_pointed_fns
     end function negScaleFunction
 
 !------------------------------------------------------------------------------------------!
-
-    pure function expShiftFactorFunction(pos, run, pop) result(f)
+    pure function expShiftScaleFunction(ci) result(Si)
       implicit none
-      ! Exponential scale function for the shift
-      ! Input: pos - position of given determinant in CurrentDets
-      ! Input: run - run for which the factor is needed
-      ! Input: pop - population of given determinant
-      ! Output: f - scaling factor for the shift
-      integer, intent(in) :: pos
-      integer, intent(in) :: run
-      real(dp), intent(in) :: pop
-      real(dp) :: f
-#ifdef __DEBUG
-      ! Disable compiler warnings
-      real(dp) :: dummy
-      dummy = pos
-      dummy = run
-#endif
+      ! Scale function for the shift: S' = (1 - exp(-ci/c)) * S
+      ! Input: ci - walker number of given determinant
+      ! Output: Si - scaling factor for the shift      
+      real(dp), intent(in) :: ci
+      real(dp) :: Si
 
-      f = 1.0 - exp(-pop/EAS_Scale)
-
-    end function expShiftFactorFunction
+      Si = 1.0 - exp(-ci/cAllAdaptiveShift)
+      
+    end function expShiftScaleFunction
 
 !------------------------------------------------------------------------------------------!
 
+    pure function constShiftScaleFunction(ci) result(Si)
+      implicit none
+      ! Scale function for the shift: S' = S in absence of all-adaptive-shift
+      ! Input: ci - walker number of given determinant
+      ! Output: Si - scaling factor for the shift
+      
+      real(dp), intent(in) :: ci
+      real(dp) :: Si
+#ifdef __DEBUG
+      ! Disable compiler warnings
+      real(dp) :: dummy
+      dummy = ci
+#endif
 
+      Si = 1.0
+    end function constShiftScaleFunction
+    
 end module

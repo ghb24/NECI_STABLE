@@ -1941,7 +1941,7 @@ r_loop: do while(.not.tStoreDet)
         nMaxDets = int(maxval(node_write_attempts), sizeof_int)
         if(tAutoAdaptiveShift) then
            allocate(fvals(2*inum_runs,nMaxDets), stat=error)
-           call writeFFunc(int(ndets), fvals)
+           call writeFFunc(ndets, fvals)
         else
            ! when not using auto-adaptive shift, no fvals are written, but the 
            ! array is passed and later deallocated, so allocate empty

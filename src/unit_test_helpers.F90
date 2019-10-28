@@ -100,7 +100,7 @@ contains
 
     end function calc_eigenvalues
 
-#if !defined(__CMPLX)
+! #if !defined(__CMPLX)
     subroutine eig(matrix, e_values, e_vectors, t_left_ev) 
         ! for very restricted matrices do a diag routine here! 
         real(dp), intent(in) :: matrix(:,:) 
@@ -196,7 +196,7 @@ contains
         end if
 
     end subroutine eig
-#endif
+! #endif
 
     subroutine eig_sym(matrix, e_values, e_vectors) 
         real(dp), intent(in) :: matrix(:,:)
@@ -338,7 +338,7 @@ contains
         class(*), intent(in) :: matrix(:,:)
         integer, intent(in), optional :: iunit
         
-        integer :: i 
+        integer :: i, j, tmp_unit
 
         select type (matrix)
         type is (integer)
@@ -361,6 +361,21 @@ contains
                     print *, matrix(i,:)
                 end do
             end if
+        type is (complex(dp)) 
+            if (present(iunit)) then 
+                tmp_unit = iunit
+            else
+                tmp_unit = 6
+            end if
+            do i = lbound(matrix,1),ubound(matrix,1)
+                do j = lbound(matrix,2), ubound(matrix,2)
+                    if (j < ubound(matrix,2)) then 
+                        write(tmp_unit,fmt = '(F10.8,SP,F10.8,"i",1x)', advance = 'no') matrix(i,j)
+                    else
+                        write(tmp_unit,fmt = '(F10.8,SP,F10.8,"i")', advance = 'yes') matrix(i,j)
+                    end if
+                end do
+            end do
         end select
 
 
@@ -427,7 +442,7 @@ contains
         end do
         
     end subroutine find_degeneracies
-#if !defined(__CMPLX)
+! #if !defined(__CMPLX)
     function similarity_transform(H, t_mat_opt) result(trans_H)
         HElement_t(dp), intent(in) :: H(:,:)
         real(dp), intent(in), optional :: t_mat_opt(:,:)
@@ -442,10 +457,10 @@ contains
             t_mat = get_tranformation_matrix(H, nOccAlpha*nOccBeta) 
         end if
 
-        trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), H), matrix_exponential(t_mat))
+        trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), real(H,dp)), matrix_exponential(t_mat))
 
     end function similarity_transform
-#endif
+! #endif
 
     function create_all_spin_flips(nI_in) result(spin_flips)
         ! takes a given spin-configuration in nI representation and 
@@ -589,7 +604,7 @@ contains
 
     end function find_open_shell_indices
 
-#if !defined(__CMPLX)
+! #if !defined(__CMPLX)
     function get_tranformation_matrix(hamil, n_pairs) result(t_matrix)
         ! n_pairs is actually also a global system dependent quantitiy.. 
         ! which actually might be helpful.. but input it here! 
@@ -607,7 +622,7 @@ contains
                     t_matrix(i,i) = n_pairs 
                 else 
                     if (abs(hamil(i,j)) > EPS) then 
-                        t_matrix(i,j) = sign(1.0_dp, hamil(i,j))
+                        t_matrix(i,j) = sign(1.0_dp, real(hamil(i,j),dp))
                     end if
                 end if
             end do
@@ -616,7 +631,7 @@ contains
         t_matrix = trans_corr_param_2body/omega * t_matrix
 
     end function get_tranformation_matrix
-#endif
+! #endif
 
     real(dp) function det(matrix) 
         real(dp), intent(in) :: matrix(:,:)

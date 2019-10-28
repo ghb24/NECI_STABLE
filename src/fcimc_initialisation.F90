@@ -48,7 +48,7 @@ module fcimc_initialisation
                         t_guga_mat_eles, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
-                        t_back_spawn_option, t_back_spawn_flex_option, tRCCheck, &
+                        t_back_spawn_option, t_back_spawn_flex_option, &
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
@@ -117,7 +117,7 @@ module fcimc_initialisation
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement, scaleFunction, &
-                                  shiftFactorFunction
+                                  shiftScaleFunction
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
     use excit_gens_int_weighted, only: gen_excit_hel_weighted, &
@@ -148,7 +148,8 @@ module fcimc_initialisation
                                  new_child_stats_normal, &
                                  null_encode_child, attempt_die_normal, attempt_die_precond, &
                                  powerScaleFunction, expScaleFunction, negScaleFunction, &
-                                 expCOScaleFunction, expShiftFactorFunction
+                                 expCOScaleFunction, expShiftScaleFunction, constShiftScaleFunction
+
     use csf_data, only: csf_orbital_mask
     use initial_trial_states, only: calc_trial_states_lanczos, &
                                     set_trial_populations, set_trial_states, calc_trial_states_direct
@@ -1001,7 +1002,6 @@ contains
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
-        NoAtDoubs = 0.0_dp
         NoSIInitsConflicts = 0
         NoInitsConflicts = 0
         avSigns = 0.0_dp
@@ -1930,6 +1930,7 @@ contains
             call stop_all(this_routine, "Cannot calculate the EN2 correction to initiator &
                                         &error as the initiator method is not in use.")
         end if
+
     end subroutine InitFCIMCCalcPar
 
     subroutine init_fcimc_fn_pointers()
@@ -2097,9 +2098,12 @@ contains
            call stop_all(t_r,"Invalid scale function specified")
         end select
 
-        if(tExpAdaptiveShift) then
-           shiftFactorFunction => expShiftFactorFunction
-       end if
+        if(tAllAdaptiveShift) then
+           shiftScaleFunction => expShiftScaleFunction
+        else
+           shiftScaleFunction => constShiftScaleFunction
+        end if
+
     end subroutine init_fcimc_fn_pointers
 
     subroutine DeallocFCIMCMemPar()

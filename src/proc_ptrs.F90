@@ -53,7 +53,7 @@ module procedure_pointers
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
             real(dp), intent(in) :: precond_fac
-            HElement_t(dp), intent(inout) :: HElGen
+            HElement_t(dp), intent(in) :: HElGen
             real(dp) :: child(lenof_sign)
 
         end function
@@ -212,7 +212,7 @@ module procedure_pointers
 
         end function
 
-        function scale_function_t(hdiag) result(Si)
+        pure function scale_function_t(hdiag) result(Si)
           use constants
           implicit none
 
@@ -261,6 +261,8 @@ module procedure_pointers
 
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
-    procedure(shift_factor_function_t), pointer :: shiftFactorFunction
+
+    ! the function used to scale the shift
+    procedure(scale_function_t), pointer :: shiftScaleFunction
 
 end module
