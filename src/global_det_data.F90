@@ -502,12 +502,11 @@ contains
 #endif
 
     subroutine writeFFuncAsInt(ndets, fvals, MaxEx)
-      !Same as writeFFuncAsInt but truncated up to a maximum excitation level
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
       use DetBitOps, only: FindBitExcitLevel
       implicit none
-      integer(int64), intent(in) :: ndets 
+      integer(int64), intent(in) :: ndets
       integer(n_int), intent(inout) :: fvals(:,:)
       integer, intent(in), optional :: MaxEx
 
