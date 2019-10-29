@@ -20,7 +20,7 @@ module FciMCParMod
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
                         tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
                         tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
-                        tCoreAdaptiveShift, tScaleBlooms
+                        tCoreAdaptiveShift, tScaleBlooms, max_allowed_spawn
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
                         tDelayAllDoubsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -73,7 +73,7 @@ module FciMCParMod
                                reset_shift_int, update_shift_int, &
                                update_tau_int, set_spawn_pop, &
                                get_tot_spawns, get_acc_spawns, &
-                               replica_est_len
+                               replica_est_len, update_max_spawn, get_max_spawn
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -100,8 +100,6 @@ module FciMCParMod
     use back_spawn, only: init_back_spawn
 
     use sltcnd_mod, only: sltcnd_excit
-    use spawnScaling, only: resetScale, currentSpawnScale, maxSpawnRescale, &
-         scaleCondition, rescaleIfFlagged
 
 #ifdef MOLPRO
     use outputResult
@@ -972,6 +970,8 @@ module FciMCParMod
 
         integer :: ms, allErr
         real(dp) :: precond_fac
+        ! average number of excitations per walker for a given determinant
+        real(dp) :: AvMCExcitsLoc, scale, max_spawn
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
         logical :: signChanged, newlyOccupied
@@ -1288,8 +1288,8 @@ module FciMCParMod
             ! remove that for now
             do part_type = 1, lenof_sign
 
-               run = part_type_to_run(part_type)
-               TempSpawnedPartsInd = 0
+                run = part_type_to_run(part_type)
+                TempSpawnedPartsInd = 0
 
                 !write (6,*), "Det Index: ", j
                 !write (6,*), "Run Index: ", run
@@ -1300,17 +1300,20 @@ module FciMCParMod
                 ! determinant. CurrentSign gives number of walkers. Multiply
                 ! up by AvMCExcits if attempting multiple excitations from
                 ! each walker (default 1.0_dp).
-               call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcits, WalkersToSpawn)
-               ! loop counter
-               p = 0
-               if(tScaleBlooms) then
-                  ! scale factor for spawns
-                  call resetScale()
-                  ! if the flag was set, rescale now with a default scaling
-                  call rescaleIfFlagged(CurrentDets(:,j), WalkersToSpawn)
-               endif
-               do ! this loop shall be executed WalkersToSpawn times, but additional spawns
-                  ! might be requested during execution
+                AvMCExcitsLoc = AvMCExcits
+                ! optional: Adjust the number of spawns to the expected maximum
+                ! Hij/pgen ratio of this determinant -> prevent blooms
+                ! Only done while not updating tau (to prevent interdependencies)
+                ! Usually, this means: done in variable shift mode
+                if(tScaleBlooms .and. .not. tSearchTau) then
+                    max_spawn = get_max_spawn(j)
+                    if(max_spawn > max_allowed_spawn) then
+                        scale = max_spawn / max_allowed_spawn
+                        AvMCExcitsLoc = AvMCExcitsLoc * scale
+                    endif
+                endif
+                call decide_num_to_spawn(SignCurr(part_type), HDiagCurr, AvMCExcitsLoc, WalkersToSpawn)
+                do p = 1, WalkersToSpawn
 
                   ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
@@ -1361,7 +1364,7 @@ module FciMCParMod
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
                                             tParity, walkExcitLevel, part_type, &
-                                            AvSignCurr, RDMBiasFacCurr, precond_fac)
+                                            AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac)
                                             ! Note these last two, AvSignCurr and
                                             ! RDMBiasFacCurr are not used unless we're
                                             ! doing an RDM calculation.
@@ -1396,23 +1399,6 @@ module FciMCParMod
                             call clr_flag(iLutnJ, flag_connected)
                          end if
 
-                         ! option: if too much weight is spawned, scale this spawn
-                         ! down and unbiad with extra spawns
-                         ! this is only done for determinants with a single spawn
-                         ! (more involved algorithm required else) -> no recursive rescaling
-                         if(tScaleBlooms .and. (WalkersToSpawn <= maxSpawnRescale)) then
-                            call scaleCondition(abs(child(part_type)), HDiagCurr, &
-                                 scaleFactor)
-                            child(part_type) = child(part_type) / real(currentSpawnScale(),dp)
-                            ! unbias by attempting an extra scaleFactor - 1 spawns with at
-                            ! least this scaleLevel
-                            if(scaleFactor > 1) then
-                               WalkersToSpawn = WalkersToSpawn + scaleFactor - 1
-                               ! mark this determinant for further rescaling
-                               call set_flag(CurrentDets(:,j), flag_rescale)
-                            endif
-                         endif
-
                         ! If using a preconditioner, update the child weight for statistics
                         ! (mainly for blooms and hence updating the time step).
                         ! Note, the final preconiditoner is applied in annihilation, once
@@ -1424,6 +1410,9 @@ module FciMCParMod
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel, &
                                               child_for_stats, parent_flags, part_type)
+
+                        ! update the maximum Hij/pgen ratio that was spawned from this det
+                        if(tScaleBlooms) call update_max_spawn(j, child(part_type))
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &
@@ -1440,10 +1429,6 @@ module FciMCParMod
 
                      end if ! (child /= 0), Child created.
 
-                    ! loop counter
-                     p = p + 1
-                    ! After WalkersToSpawn executions, exit
-                     if(p >= WalkersToSpawn) exit
                 end do ! Cycling over mulitple particles on same determinant.
 
             end do   ! Cycling over 'type' of particle on a given determinant.

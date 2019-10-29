@@ -172,7 +172,6 @@ module fcimc_initialisation
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
     use pchb_excitgen, only: gen_rand_excit_pchb, init_pchb_excitgen, finalize_pchb_excitgen
-    use spawnScaling, only: initSpawnScaling, finalizeSpawnScaling
     implicit none
 
 contains
@@ -361,7 +360,6 @@ contains
         !iLutRef is the reference determinant for the projected energy.
         !Initially, it is chosen to be the same as the inputted reference determinant
         call setup_adi()
-        call initSpawnScaling()
         ALLOCATE(iLutRef(0:NIfTot, inum_runs), stat=ierr)
         ilutRef = 0
         ALLOCATE(ProjEDet(NEl, inum_runs), stat=ierr)
@@ -2043,9 +2041,6 @@ contains
 
         ! Cleanup adi caches
         call clean_adi()
-
-        ! clean spawn scaling cache
-        call finalizeSpawnScaling()
 
         ! Cleanup excitation generator
         if(t_pcpp_excitgen) call finalize_pcpp_excitgen()

@@ -143,7 +143,6 @@ set( SRC_FILES
     semi_stoch_procs.F90
     sltcnd.F90
     sparse_arrays.F90
-    spawnScaling.F90
     spectral_data.F90
     spectral_lanczos.F90
     spin_project.F90

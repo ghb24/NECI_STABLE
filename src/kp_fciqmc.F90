@@ -254,7 +254,7 @@ contains
                                             child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                                 nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                                                 ex_level_to_ref, ireplica, unused_sign, &
-                                                                unused_rdm_real, precond_fac)
+                                                                AvMCExcits, unused_rdm_real, precond_fac)
 
                                         else
                                             child_sign = 0.0_dp
@@ -611,7 +611,7 @@ contains
                                     child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                         nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                                         ex_level_to_ref, ireplica, unused_sign, &
-                                                        unused_rdm_real, precond_fac)
+                                                        AvMCExcits, unused_rdm_real, precond_fac)
                                 else
                                     child_sign = 0.0_dp
                                 end if

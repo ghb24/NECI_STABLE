@@ -3,8 +3,9 @@
 module global_det_data
 
   use SystemData, only: nel
-    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
-                        tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, tReplicaEstimates
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, tau, &
+        tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, tReplicaEstimates, &
+        tScaleBlooms
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -211,7 +212,7 @@ contains
            len_neg_spawns = 0
         endif
 
-        if(tLogMaxSpawn) then
+        if(tScaleBlooms) then
            len_max_spawn = 1
         else
            len_max_spawn = 0
@@ -827,19 +828,44 @@ contains
   !------------------------------------------------------------------------------------------!
 
     function get_max_spawn(j) result(maxSpawn)
+      ! Get the maximum ratio Hij/pgen for the determinant j so far
+      ! Input: j - index of the determinant
+      ! Output: maxSpawn - maximum tau*Hij/pgen of spawning attempts from Determinant j so far
       implicit none
       integer, intent(in) :: j
       real(dp) :: maxSpawn
 
-      maxSpawn = global_determinant_data(pos_max_spawn,j)      
+      maxSpawn = tau * global_determinant_data(pos_max_spawn,j)      
     end function get_max_spawn
 
-    subroutine set_max_spawn(j,maxSpawn)
+    !------------------------------------------------------------------------------------------!
+
+    subroutine update_max_spawn(j,spawn)
+      ! Update the maximum ratio Hij/pgen for the determinant j when spawning spawn walkers
+      ! Input: j - index of the determinant
+      !        spawn - walkers to spawn in this attempt
       implicit none
       integer, intent(in) :: j
-      real(dp), intent(in) :: maxSpawn
-      
-      global_determinant_data(pos_max_spawn,j) = maxSpawn
+      real(dp), intent(in) :: spawn
+      ! spawn/tau - renormalized spawning prob. Hij/pgen
+      real(dp) :: renomSpawn
+      renomSpawn = spawn / tau
+
+      if(abs(renomSpawn) > global_determinant_data(pos_max_spawn,j)) &
+           call set_max_spawn(j,renomSpawn)
+    end subroutine update_max_spawn
+
+    !------------------------------------------------------------------------------------------!    
+
+    subroutine set_max_spawn(j,val)
+      ! Set the maximum ratio Hij/pgen for the determinant j to val
+      ! Input: j - index of the determinant
+      !        val - new maximum Hij/pgen ratio
+      implicit none
+      integer, intent(in) :: j
+      real(dp), intent(in) :: val
+
+      global_determinant_data(pos_max_spawn,j) = val
     end subroutine set_max_spawn
 
   !------------------------------------------------------------------------------------------!
