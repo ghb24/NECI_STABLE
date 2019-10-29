@@ -17,7 +17,7 @@
 ! Is the specified orbital alpha or beta? Generate the appropriate pair.
 #define is_beta(orb) btest(orb, 0)
 #define is_alpha(orb) (.not.is_beta(orb))
-#define is_one_alpha_beta(orb1,orb2) (btest(orb1,0) .neqv. btest(orb2,0)) 
+#define is_one_alpha_beta(orb1,orb2) (btest(orb1,0) .neqv. btest(orb2,0))
 #define ab_pair(orb) (ieor(orb-1,1)+1)
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
@@ -110,7 +110,7 @@ endif
 
 ! Write out from the root node (concisely)
 #define root_write if (iProcIndex == 0) write
-#define root_print root_write (6, *) 
+#define root_print root_write (6, *)
 
 #define if_root if (iProcIndex == 0) then
 #define end_if_root end if
@@ -138,18 +138,18 @@ endif
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))
 #define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
-#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp 
+#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp
 #else
 #ifdef __DOUBLERUN
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))
 #define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
-#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp 
+#define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp
 #else
 #define min_part_type(run) 1
 #define max_part_type(run) 2
 #define mag_of_run(signs, run) (signs(1)**2 + signs(2)**2)**5e-1_dp
-#define is_run_unnocc(signs, run) (signs(1)**2 + signs(2)**2)**5e-1_dp <1.0e-12_dp 
+#define is_run_unnocc(signs, run) (signs(1)**2 + signs(2)**2)**5e-1_dp <1.0e-12_dp
 #endif
 #endif
 #else
@@ -168,8 +168,8 @@ endif
 #define max_part_type(run) 1
 #endif
 #endif
-#define mag_of_run(signs, run) abs(signs(run)) 
-#define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp 
+#define mag_of_run(signs, run) abs(signs(run))
+#define is_run_unnocc(signs, run) abs(signs(run))<1.0e-12_dp
 #endif
 #define av_pop(signs) sum(abs((signs)))/(inum_runs)
 #define sgn_av_pop(signs) sum( (signs) ) /(inum_runs)
@@ -246,3 +246,5 @@ endif
 #define debug_line(unit, msg) write(unit,*) __LINE__, __FILE__, char(9), msg ; flush(unit)
 #define debug_out(unit, msg) write(unit,*), char(9), msg
 
+! Shortcut for optional variables
+#define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif

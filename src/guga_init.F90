@@ -1,5 +1,5 @@
 #include "macros.h"
-! guga module containing all necessary functionality needed to initialize 
+! guga module containing all necessary functionality needed to initialize
 ! a guga simulation
 #ifndef __CMPLX
 module guga_init
@@ -68,7 +68,7 @@ module guga_init
 contains
 
     subroutine init_guga_orbital_pickers()
-        ! this routine, depending on the input set the orbital pickers 
+        ! this routine, depending on the input set the orbital pickers
         ! to differentiate between the different excitation generators
 
         ! now i have to differentiate between the real- and momentum space
@@ -88,7 +88,7 @@ contains
                 pickOrbitals_double => pickOrbs_real_hubbard_double
                 ! what about the contributions? do i need dummy functions?
             end if
-            
+
         else if (tGen_sym_guga_mol) then
 
             pickOrbitals_single => pickOrbs_sym_uniform_mol_single
@@ -109,7 +109,7 @@ contains
             calc_mixed_end_l2r_contr => calc_mixed_end_l2r_contr_nosym
             calc_mixed_end_r2l_contr => calc_mixed_end_r2l_contr_nosym
 
-            ! for specific probability updates: 
+            ! for specific probability updates:
             if (t_consider_diff_bias) then
                 pick_first_orbital => pick_first_orbital_nosym_guga_diff
                 orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_diff
@@ -120,7 +120,7 @@ contains
                 orb_pgen_contrib_type_3 => orb_pgen_contrib_type_3_uniform
             end if
 
-        else if (t_heisenberg_model) then 
+        else if (t_heisenberg_model) then
 !             pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
             pickOrbitals_double => pick_orbitals_guga_heisenberg
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
@@ -141,7 +141,7 @@ contains
             calc_mixed_end_l2r_contr => calc_mixed_end_l2r_contr_nosym
             calc_mixed_end_r2l_contr => calc_mixed_end_r2l_contr_nosym
 
-            ! for specific probability updates: 
+            ! for specific probability updates:
             if (t_consider_diff_bias) then
                 pick_first_orbital => pick_first_orbital_nosym_guga_diff
                 orb_pgen_contrib_type_2 => orb_pgen_contrib_type_2_diff
@@ -157,8 +157,8 @@ contains
     end subroutine init_guga_orbital_pickers
 
     ! in Fortran no executable code is allowed to be in the module header part
-    ! so a initialization subroutine is needed, which has to be called in the 
-    ! other modules using the guga_data module 
+    ! so a initialization subroutine is needed, which has to be called in the
+    ! other modules using the guga_data module
     subroutine init_guga()
         integer :: i, ierr
         ! main initialization routine
@@ -173,18 +173,18 @@ contains
         write(6,*) ' is set to STOT, to make use of reference determinant creations already implemented'
         write(6,*) ' Since NECI always seems to take the beta orbitals first for open shell or '
         write(6,*) ' spin restricted systems, associate those to positively coupled +h/2 orbitals '
-        write(6,*) ' to always ensure a S >= 0 value!' 
+        write(6,*) ' to always ensure a S >= 0 value!'
         write(6,*) ' *********************************************************'
 
-        ! init nReps variable, which in the future may take the place of nEl 
+        ! init nReps variable, which in the future may take the place of nEl
         ! in defining the length of the nI array
 !         call init_nReps()
 
-        ! initialize the procedure pointer arrays, needed in the matrix 
+        ! initialize the procedure pointer arrays, needed in the matrix
         ! element calculation
         call init_guga_data_procPtrs()
 
-        ! initialize and point the excitation generator functions to the 
+        ! initialize and point the excitation generator functions to the
         ! correct ones
         call init_guga_orbital_pickers()
 
@@ -198,15 +198,15 @@ contains
 
         tUseFlags = .true.
 
-        ! define global variable of spatial orbitals 
-        ! do that in a more general setup routine! where nBasis is defined 
+        ! define global variable of spatial orbitals
+        ! do that in a more general setup routine! where nBasis is defined
         ! eg
         ! i have to all this routine again from a point after freezing
         ! where the new number of NBasis is determined already..
         nSpatOrbs = nBasis / 2
 
         if (allocated(orbitalIndex)) deallocate(orbitalIndex)
-        ! but also have to set up the global orbitalIndex list 
+        ! but also have to set up the global orbitalIndex list
         allocate(orbitalIndex(nSpatOrbs), stat = ierr)
         orbitalIndex = [ (i, i = 1, nSpatOrbs)]
 
@@ -229,66 +229,66 @@ contains
         allocate(current_cum_list(nSpatOrbs), stat = ierr)
 
 
-        ! also allocate the temporary variables used in the matrix element 
-        ! calculation and also the similar variables for the reference 
-        ! determinant! 
-        if (allocated(temp_step_i))   deallocate(temp_step_i) 
-        if (allocated(temp_step_j))   deallocate(temp_step_j) 
-        if (allocated(temp_delta_b))  deallocate(temp_delta_b) 
+        ! also allocate the temporary variables used in the matrix element
+        ! calculation and also the similar variables for the reference
+        ! determinant!
+        if (allocated(temp_step_i))   deallocate(temp_step_i)
+        if (allocated(temp_step_j))   deallocate(temp_step_j)
+        if (allocated(temp_delta_b))  deallocate(temp_delta_b)
         if (allocated(temp_occ_i))    deallocate(temp_occ_i)
         if (allocated(temp_b_real_i)) deallocate(temp_b_real_i)
 
         allocate(temp_step_i(nSpatOrbs))
         allocate(temp_step_j(nSpatOrbs))
         allocate(temp_delta_b(nSpatOrbs))
-        allocate(temp_occ_i(nSpatOrbs)) 
-        allocate(temp_b_real_i(nSpatOrbs)) 
+        allocate(temp_occ_i(nSpatOrbs))
+        allocate(temp_b_real_i(nSpatOrbs))
 
-        if (allocated(ref_stepvector))    deallocate(ref_stepvector) 
-        if (allocated(ref_b_vector_int))  deallocate(ref_b_vector_int) 
-        if (allocated(ref_b_vector_real)) deallocate(ref_b_vector_real) 
+        if (allocated(ref_stepvector))    deallocate(ref_stepvector)
+        if (allocated(ref_b_vector_int))  deallocate(ref_b_vector_int)
+        if (allocated(ref_b_vector_real)) deallocate(ref_b_vector_real)
         if (allocated(ref_occ_vector))    deallocate(ref_occ_vector)
 
-        allocate(ref_stepvector(nSpatOrbs)) 
+        allocate(ref_stepvector(nSpatOrbs))
         allocate(ref_b_vector_int(nSpatOrbs))
         allocate(ref_b_vector_real(nSpatOrbs))
         allocate(ref_occ_vector(nSpatOrbs))
 
-        ! also initiate the pExcit values here.. or otherwise they dont 
-        ! get initialized without tau-search option on 
-        if (tGen_nosym_guga) then 
-            pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs, dp)) 
-            pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp) 
+        ! also initiate the pExcit values here.. or otherwise they dont
+        ! get initialized without tau-search option on
+        if (tGen_nosym_guga) then
+            pExcit4 = (1.0_dp - 1.0_dp / real(nSpatOrbs, dp))
+            pExcit2 = 1.0_dp / real(nSpatOrbs - 1, dp)
 
             root_print "initial pExcit4 set to: ", pExcit4
             root_print "initial pExcit2 set to: ", pExcit2
 
-            if (t_consider_diff_bias) then 
-                pExcit2_same = 0.9_dp 
-                pExcit3_same = 0.9_dp 
-            else 
-                pExcit2_same = 1.0_dp 
-                pExcit3_same = 1.0_dp 
+            if (t_consider_diff_bias) then
+                pExcit2_same = 0.9_dp
+                pExcit3_same = 0.9_dp
+            else
+                pExcit2_same = 1.0_dp
+                pExcit3_same = 1.0_dp
             end if
 
             root_print "initial pExcit2_same set to: ", pExcit2_same
             root_print "initial pExcit3_same set to: ", pExcit3_same
         end if
 
-        ! for now (time/iteration comparison) reasons, decide which 
-        ! reference energy calculation method we use 
-        if (t_guga_mat_eles) then 
-            ! use the new "direct" calculation method 
+        ! for now (time/iteration comparison) reasons, decide which
+        ! reference energy calculation method we use
+        if (t_guga_mat_eles) then
+            ! use the new "direct" calculation method
             calc_off_diag_guga_ref => calc_off_diag_guga_ref_direct
 
-        else 
-            ! use the "old" with the projected energy list 
+        else
+            ! use the "old" with the projected energy list
             calc_off_diag_guga_ref => calc_off_diag_guga_ref_list
 
         end if
 
     end subroutine init_guga
-  
+
     subroutine checkInputGUGA()
         ! routine to check if all the input parameters given are consistent
         ! and otherwise stops the excecution
@@ -320,17 +320,17 @@ contains
         end if
 
         ! with the new UEG/Hubbard implementation of the excitation generator
-        ! i need symmetry actually!! or otherwise its wrong 
-        ! have to somehow find out how to check if k-point symmetry is 
-        ! provided 
+        ! i need symmetry actually!! or otherwise its wrong
+        ! have to somehow find out how to check if k-point symmetry is
+        ! provided
         if (tGen_sym_guga_ueg .and. lNoSymmetry .and. .not. treal) then
             call stop_all(this_routine, &
                 "UEG/Hubbard implementation of GUGA excitation generator needs symmetry but NOSYMMETRY set! abort!")
         end if
 
-        ! in the real-space do not reorder the orbitals! 
+        ! in the real-space do not reorder the orbitals!
         if (treal) t_guga_noreorder = .true.
-        
+
         if (tExactSizeSpace) then
             call stop_all(this_routine, &
                 "calculation of exact Hilbert space size not yet implemented with GUGA!")
@@ -366,18 +366,18 @@ contains
                 "wrong input: tGen_4ind_reverse excitation generator chosen with GUGA! abort!")
         end if
 
-        ! probably also have to assert against all the hist and exact 
+        ! probably also have to assert against all the hist and exact
         ! calculation flags.. also rdms... and certain excitation generators
 !         if (tHistSpawn) then
 !             call stop_all(this_routine, &
 !                 "HISTSPAWN not yet compatible with GUGA!")
 !         end if
-! 
+!
 !         if (tCalcFCIMCPsi) then
 !             call stop_all(this_routine, &
 !                 "PRINTFCIMCPSI not yet compatible with GUGA!")
 !         end if
-! 
+!
 !         if (tPrintOrbOcc) then
 !             call stop_all(this_routine, &
 !                 "PRINTORBOCCS not yet implemented with GUGA!")
@@ -402,7 +402,7 @@ contains
         end if
 
         ! maybe more to come...
-        ! UHF basis is also not compatible with guga? or not... or atleast 
+        ! UHF basis is also not compatible with guga? or not... or atleast
         ! i am not yet implementing it in such a way so it can work
         if (tUHF) then
             call stop_all(this_routine, &
@@ -415,7 +415,7 @@ contains
                     "can only determine up to excit level 2 in GUGA for now!")
             end if
         end if
-        
+
         ! avoid using both the old and the new tau search functionality
         if (tSearchTau .and. t_hist_tau_search) then
             call stop_all(this_routine, &
@@ -428,9 +428,9 @@ contains
         !    call stop_all(this_routine, &
         !        "tUseFlags has to be .true. to encode deltaB values in ilut!")
         !end if
-        ! cannot do assertion here, since flag is set afterwards, but changed 
+        ! cannot do assertion here, since flag is set afterwards, but changed
         ! corresponding code, so flag is set.
-        
+
     end subroutine checkInputGUGA
 
 

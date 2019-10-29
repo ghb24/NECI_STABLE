@@ -28,10 +28,10 @@ contains
       call mpi_win_allocate_shared(wsize,int(HElement_t_sizeB,MPIArg),MPI_INFO_NULL,mpi_comm_intra,&
            cptr_shm,win_shm,ierr)
       call mpi_win_shared_query(win_shm,0_MPIArg,wsize,disp_unit,cptr_shm,ierr)
-      
+
       !map to Fortran array pointer
       call c_f_pointer(cptr_shm,p_shm,dims)
-      
+
       !start read/write epoch for this window
       call mpi_win_lock_all(MPI_MODE_NOCHECK,win_shm,ierr)
 
@@ -55,7 +55,7 @@ contains
 
       call mpi_win_sync(win_shm,ierr)
       call mpi_barrier(mpi_comm_intra,ierr)
-    end	subroutine shared_sync_mpi
+    end subroutine shared_sync_mpi
 
 #else
     subroutine shared_allocate_mpi (win_shm, p_shm, dims)
@@ -72,7 +72,7 @@ contains
       allocate(p_shm(dims(1)))
 
     end subroutine shared_allocate_mpi
-    
+
     subroutine shared_deallocate_mpi(win_shm,p_shm)
       integer(MPIArg):: win_shm
       HElement_t(dp), pointer :: p_shm(:)

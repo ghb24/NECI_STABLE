@@ -406,7 +406,7 @@ contains
         ! number, ijkl. Assuming (i,j,k,l) are *spin* orbitals labels (which
         ! they usually will be but not necessarily), the largest value for ijkl
         ! is M^4, where M is the number of spin orbitals.
-        
+
         ! The compression defined in this routine will not give a fully
         ! compressed RDM index labelling, because it allows a separate ij
         ! integer if i and j are equal, even though this RDM element is never
@@ -424,15 +424,15 @@ contains
         integer, intent(out), optional :: ij_out, kl_out
         integer :: ij, kl
 
-        ! maybe I need a change for the GUGA implementation, since 
-        ! we only need spatial orbitals here.. 
+        ! maybe I need a change for the GUGA implementation, since
+        ! we only need spatial orbitals here..
         ! todo
         ij = (i-1)*nbasis + j
         kl = (k-1)*nbasis + l
         ijkl = (ij-1)*(int(nbasis, int_rdm)**2) + kl
 
         if (present(ij_out) .and. present(kl_out)) then
-            ij_out = ij 
+            ij_out = ij
             kl_out = kl
         end if
 
@@ -448,8 +448,8 @@ contains
         integer(int_rdm), intent(in) :: ijkl
         integer, intent(out) :: ij, kl, i, j, k, l ! spin or spatial orbitals
 
-        kl = mod(ijkl-1, int(nbasis, int_rdm)**2) + 1
-        ij = (ijkl - kl)/(nbasis**2) + 1
+        kl = int(mod(ijkl - 1, int(nbasis, int_rdm)**2)) + 1
+        ij = (int(ijkl) - kl) / (nbasis**2) + 1
 
         j = mod(ij-1, nbasis) + 1
         i = (ij - j)/nbasis + 1
@@ -908,7 +908,7 @@ contains
         else
            internal_scale_factor = 1.0_dp
         endif
-        
+
         if(rdm_1%sign_length .ne. rdm_2%sign_length) call stop_all(t_r,"nrdms mismatch")
 
         do ielem = 1, rdm_1%nelements
@@ -961,10 +961,10 @@ contains
       implicit none
       type(rdm_list_t), intent(inout) :: rdm
       real(dp) :: scale_factor(rdm%sign_length)
-      
+
       integer :: i, j
       real(dp) :: tmp_sign(rdm%sign_length)
-      
+
       do i = 1, rdm%nelements
          call extract_sign_rdm(rdm%elements(:,i), tmp_sign)
          tmp_sign = tmp_sign * scale_factor

@@ -8,7 +8,7 @@
 !                                         and an S generation string (see csf.F)
 !               e.g. (    1,    2,   13,   14,  7+B,  9+B, 19-A, 23-A,)
 !                  has (1,2) and (13,14) spin-orbital pairs doubly occupied
-!                  and (7,8) and (19,20) each singly occupied.  
+!                  and (7,8) and (19,20) each singly occupied.
 !                  BBAA corresponds to an Ms=0 state (two beta, two alpha) (these labels are always B...BA...A).
 !                  ++-- corresponds to 2S=+1+1-1-1=0 and with the ++-- generation combination (see branching diagrams).
 !                 The other possible
@@ -102,12 +102,12 @@ C.. betas first then alphas
 C.. pluses first then minuses
                NCJ(J)=NCJ(J)+2
             ENDIF
-         ENDDO 
+         ENDDO
          RETURN
       END
-      
+
 C.. Get an (S, Sz) encoded LMS from a CSF
-      SUBROUTINE CSFGETSPIN(NCI,NEL,LMS) 
+      SUBROUTINE CSFGETSPIN(NCI,NEL,LMS)
          use legacy_data, only: CSF_NBSTART
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL)
@@ -115,12 +115,12 @@ C.. Get an (S, Sz) encoded LMS from a CSF
 
          INTEGER ICLOSEDI(NEL),NCLOSEDI,IOPENI(NEL),NOPENI,SZI,SI,
      &      SORDERI(NEL)
-         
+
          CALL CSFGETCSFDATA(NCI,NEL,ICLOSEDI,NCLOSEDI,IOPENI,NOPENI,SZI,
      &      SI,SORDERI)
          LMS=SI*CSF_NBSTART+SZI
          RETURN
-      END        
+      END
 C.. Return true if two csfs have the same spin sym.
       LOGICAL FUNCTION CSFCHKSPINSYM(NCI,NCJ,NEL)
          IMPLICIT NONE
@@ -130,7 +130,7 @@ C.. Return true if two csfs have the same spin sym.
      &      SORDERI(NEL)
          INTEGER ICLOSEDJ(NEL),NCLOSEDJ,IOPENJ(NEL),NOPENJ,SZJ,SJ,
      &      SORDERJ(NEL)
-         
+
 C         IEXLEVEL=1
 C         RETURN
          CALL CSFGETCSFDATA(NCI,NEL,ICLOSEDI,NCLOSEDI,IOPENI,NOPENI,SZI,
@@ -153,7 +153,7 @@ C         RETURN
      &      SORDERJ(NEL)
          INTEGER I,J,K
          INTEGER ICMPDETS
-         
+
 C         IEXLEVEL=1
 C         RETURN
          CALL CSFGETCSFDATA(NCI,NEL,ICLOSEDI,NCLOSEDI,IOPENI,NOPENI,SZI,
@@ -177,7 +177,7 @@ C.. start with the closed
             ENDDO
             DO WHILE(K.LE.NOPENJ.AND.IOPENJ(K).LT.ICLOSEDI(I))
                K=K+1
-            ENDDO   
+            ENDDO
             IF(J.LE.NCLOSEDJ.AND.ICLOSEDI(I).EQ.ICLOSEDJ(J)) THEN
 C.. closed has remained closed
             ELSEIF(K.LE.NOPENJ.AND.ICLOSEDI(I).EQ.IOPENJ(K)) THEN
@@ -199,7 +199,7 @@ C.. now do the open
             ENDDO
             DO WHILE(K.LE.NOPENJ.AND.IOPENJ(K).LT.IOPENI(I))
                K=K+1
-            ENDDO   
+            ENDDO
             IF(J.LE.NCLOSEDJ.AND.IOPENI(I).EQ.ICLOSEDJ(J)) THEN
 C.. open has gone to closed
 C               IEXLEVEL=IEXLEVEL+1
@@ -218,13 +218,14 @@ C.. it must have gone to an empty then
       END
       SUBROUTINE SYMGETSSZ(SSYM,S,SZ)
          use legacy_data, only: CSF_NBSTART
+         use util_mod, only: operator(.div.)
          IMPLICIT NONE
          INTEGER SSYM,S,SZ
-         S=(SSYM+CSF_NBSTART/3)/CSF_NBSTART
+         S=(SSYM + (CSF_NBSTART .div. 3))/CSF_NBSTART
          SZ=SSYM-S*CSF_NBSTART
          RETURN
       END
-C.. Get a "normal basis fn" corresponding to a 
+C.. Get a "normal basis fn" corresponding to a
 C.. CSF encoded electron.
 C.. This gives the spatial basis with the relevant
 C.. spin projection.  The total S contribution (*2*CSF_NBSTART)
@@ -242,7 +243,7 @@ C.. is put in SSYM
             SSYM=0
          ENDIF
          RETURN
-            
+
       END
 
 C.. test if NCI is a CSF
@@ -251,163 +252,6 @@ C.. test if NCI is a CSF
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL)
          iscsf_old=NCI(NEL).GE.CSF_NBSTART
-      END
-
-      SUBROUTINE GETNEXTSYMCSF(NEL,NBASIS,NBASISMAX,
-     &  G1,ISYM,NI)
-         use SystemData, only: BasisFN,BasisFNSize
-         use legacy_data, only: CSF_NBSTART
-         use sym_mod, only: getsym, LCHKSYM
-         use util_mod, only: NECI_ICOPY
-         IMPLICIT NONE
-         INTEGER NEL,NBASIS,NBASISMAX(*)
-         INTEGER NMRKS(NEL,1),NDET
-         type(BasisFN) G1(*)
-         LOGICAL TCOUNT,TSPN
-         INTEGER LMS,IFDET
-         TYPE(BASISFN) IPARITY
-
-         INTEGER ORBS(NBASIS/2,2)
-         INTEGER NORBS
-
-         INTEGER I,J,IELEC,IORB,IORBTYPE
-         INTEGER NI(NEL)
-         LOGICAL TBR,BR2
-         INTEGER IBACK
-         INTEGER NCLOSED
-         INTEGER NOPEN
-         TYPE(BASISFN) ISYM,KSYM
-         INTEGER SFORCE,SZFORCE
-         INTEGER IEXCITS
-         INTEGER ICL(1)
-         LMS=0
-         CALL SYMGETSSZ(LMS,SFORCE,SZFORCE)
-         ISYM = IPARITY
-C.. make sure Sz=0 as this is dealt with in the csfgen part
-         ISYM%MS=0
-         IFDET=1
-         NDET=0
-         NORBS=NBASIS/2
-         IEXCITS=0
-C.. Set all orbitals to be available
-         DO I=1,2
-            DO J=1,NORBS
-               ORBS(J,I)=1
-            ENDDO
-         ENDDO
-         TBR=.TRUE.
-C.. Start at the first orbital
-         IORB=1
-C.. and make it closed shell if we can
-         IF(NEL.GT.1) THEN
-            IORBTYPE=1
-         ELSE
-            IORBTYPE=2
-         ENDIF
-C.. and start puttincg it for the 1st electron
-         IELEC=1
-         NCLOSED=0
-         NOPEN=0
-         DO WHILE (TBR)
-            IF(IORBTYPE.EQ.1) THEN
-C.. Closed shell
-               NI(IELEC)=IORB*2-1
-               NI(IELEC+1)=IORB*2
-
-C.. mark both closed and open shell orbs unavailable
-               ORBS(IORB,1)=0
-               ORBS(IORB,2)=0
-C.. move up two electrons
-               IELEC=IELEC+2
-               NCLOSED=NCLOSED+2
-            ELSE
-C.. we have an open shell electron
-               NI(IELEC)=CSF_NBSTART+8*(IORB-1)
-               IELEC=IELEC+1
-               ORBS(IORB,1)=0
-               ORBS(IORB,2)=0
-               IORB=IORB+1
-               NOPEN=NOPEN+1
-            ENDIF
-C.. First check if we have enough electrons for a CSF
-            IF(IELEC.GT.NEL) THEN
-C.. Now check the symmetry's right
-C.. we'll deal with spin in the CSF generation
-               CALL GETSYM(NI,NEL,G1,NBASISMAX,KSYM)
-C.. remove Ms value, as this is dealt with in csfgencsfs
-               KSYM%MS=0
-               IF(LCHKSYM(ISYM,KSYM))
-C.. go and create a set of CSFs from these electrons
-!   Warning: code divergence has meant this hasn't been tested in a long
-!   time.  At the very least, the number of arguments is wrong. (JSS)
-     &           CALL CSFGENCSFS(NI,NEL,NOPEN,NCLOSED,NMRKS,NDET,TCOUNT,
-     &            TSPN,SFORCE,SZFORCE,.false.,ICL,0,ICL,0)
-            ENDIF
-C.. We've now added some electrons, so we need to now check that the new
-C.. places our orbitals are pointing at have not been used up already.
-            BR2=.TRUE.
-            IBACK=0
-            IF(IELEC.GT.NEL) IBACK=1
-            DO WHILE (BR2)
-               IF(IBACK.EQ.0) THEN
-C.. if we're on the last one of an odd number of electrons, it must be
-C.. open
-                  IF(IELEC.EQ.NEL.AND.IAND(NEL,1).EQ.1
-     &              .AND.IORBTYPE.EQ.1) THEN
-                     IORBTYPE=2
-                     IORB=1
-                  ENDIF 
-                  DO WHILE(ORBS(IORB,IORBTYPE).EQ.0.AND.IORB.LE.NORBS)
-                     IORB=IORB+1
-                  ENDDO
-C.. IORB now either points to NORB+1 or an available orbital
-C.. If there are no more orbitals available, we have to go back one or
-C.. two electrons and try there, or try the next orbtype
-                  IF(IORB.GT.NORBS) THEN
-                     IF(IORBTYPE.EQ.1) THEN
-C.. Try the next orbtype
-                        IORBTYPE=2
-                        IORB=1
-                     ELSE
-                        IBACK=IBACK+1
-                    ENDIF
-                  ELSE
-                     BR2=.FALSE.
-                  ENDIF
-               ELSE
-                  IBACK=IBACK-1
-C.. go back an electron or two
-C.. See what sort of electron the last one was
-                  IF(IELEC.EQ.1) THEN
-                     IELEC=0
-                  ELSEIF(NI(IELEC-1).GE.CSF_NBSTART) THEN
-C.. an open shell
-                     IELEC=IELEC-1
-                     NOPEN=NOPEN-1
-                     IORB=(NI(IELEC)-CSF_NBSTART)/8+1
-                     ORBS(IORB,1)=1
-                     ORBS(IORB,2)=1
-                     IORB=IORB+1
-                     IORBTYPE=2
-                  ELSE
-C.. a closed shell
-                     IELEC=IELEC-2
-                     NCLOSED=NCLOSED-2
-                     IORB=(NI(IELEC)+1)/2
-                     ORBS(IORB,1)=1
-                     ORBS(IORB,2)=1
-                     IORB=IORB+1
-                     IORBTYPE=1
-                  ENDIF
-               ENDIF
-               IF(IELEC.EQ.0) THEN
-C.. we've run out of electrons to go back entirely, so we're done
-                  BR2=.FALSE.
-                  TBR=.FALSE.
-               ENDIF
-            ENDDO
-         ENDDO
-         RETURN 
       END
 
 C.. find I in sorted LST of size N, returning index or 0 if not there
@@ -440,8 +284,8 @@ C..    Otherwise all will.
          type(BasisFN) G1(*)
          LOGICAL TCOUNT,TSPN,TPARITY
          INTEGER LMS,IFDET
-         TYPE(BASISFN) IPARITY        
- 
+         TYPE(BASISFN) IPARITY
+
          LOGICAL TCHKEX,TORDER
          INTEGER NDCH(NEL),ICLIST(*)
 
@@ -470,7 +314,7 @@ C..    Otherwise all will.
          IF(TCHKEX) CALL CSFGETCSFDATA(NDCH,NEL,ICLOSEDD,NCLOSEDD,
      &      IOPEND,NOPEND,SZD,SD,SORDERD)
 
-         
+
          DO I=1,NBASIS
             IF(TORDER) THEN
                BRR2(I)=I
@@ -542,7 +386,7 @@ C.. open->closed Not an excitation because the open will definitely
 C.. still be filled.
                      IEXCITS(IELEC)=OIEX
                      IEXCITS2(IELEC)=OIEX2+1
-                  ELSE 
+                  ELSE
                      IEXCITS(IELEC)=OIEX
                      IEXCITS2(IELEC)=OIEX2
                   ENDIF
@@ -551,7 +395,7 @@ C.. it's a closed shell in NCHD
                   IF(IORBTYPE.EQ.2) THEN
                      IEXCITS(IELEC)=OIEX+1
                      IEXCITS2(IELEC)=OIEX2
-                  ELSE 
+                  ELSE
                      IEXCITS(IELEC)=OIEX
                      IEXCITS2(IELEC)=OIEX2
                   ENDIF
@@ -560,7 +404,7 @@ C.. empty in NDCH
                   IF(IORBTYPE.EQ.1) THEN
                      IEXCITS(IELEC)=OIEX
                      IEXCITS2(IELEC)=OIEX2+2
-                  ELSE 
+                  ELSE
                      IEXCITS(IELEC)=OIEX
                      IEXCITS2(IELEC)=OIEX2+1
                   ENDIF
@@ -601,7 +445,7 @@ C.. open
      &              .AND.IORBTYPE.EQ.1) THEN
                      IORBTYPE=2
                      IORB=1
-                  ENDIF 
+                  ENDIF
                   DO WHILE(ORBS(IORB,IORBTYPE).EQ.0.AND.IORB.LE.NORBS)
                      IORB=IORB+1
                   ENDDO
@@ -658,7 +502,7 @@ C.. we've run out of electrons to go back entirely, so we're done
                ENDIF
             ENDDO
          ENDDO
-         RETURN 
+         RETURN
       END
 
 C.. From a given closed/open orbital configuration, generate all allowed
@@ -674,20 +518,20 @@ C.. maxNDET is the maximum number of CSFs that can be stored in NMRKS
          INTEGER SFORCE,SZFORCE
          LOGICAL TCHKEX
          INTEGER ICLIST(*),IC,NDCH(NEL)
-         
+
 C.. the spin order of the current det, and
 C.. the DORDER (list of betas then alphas which gives the total M
          INTEGER SORDER(NOPEN),DORDER(NOPEN)
          INTEGER SORDERC(0:NOPEN),DORDERC(0:NOPEN)
          INTEGER S,M,SC,MC
-         INTEGER I,J         
+         INTEGER I,J
          INTEGER IELEC
          LOGICAL TBR,TGEN,TADD,TBR2,TCLOSED
          INTEGER maxNDET
 
          INTEGER ICMPDETS
          INTEGER NTEMP(NEL)
-         
+
          TCLOSED=(NOPEN.EQ.0)
          IF(TCLOSED.AND.TSPN.AND.(SZFORCE.NE.0.OR.SFORCE.NE.0)) RETURN
          TBR=.TRUE.
@@ -777,7 +621,7 @@ C.. If we go back to IELEC=0 our uberloop ends
                   ELSE
                      S=SORDERC(IELEC-1)+SC
                      M=DORDERC(IELEC-1)+MC
-C                     IF(ABS(M).LE.S) 
+C                     IF(ABS(M).LE.S)
                      TBR2=.FALSE.
                   ENDIF
                ENDDO
@@ -861,7 +705,7 @@ C.. Get the Hamiltonian Element between two CSFs
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL),NCJ(NEL)
          HElement_t(dp) TOTSUM,SUM2,HEL
-         
+
          INTEGER,ALLOCATABLE :: LISTD1(:,:),LISTD2(:,:)
          INTEGER,ALLOCATABLE :: DOLISTD1(:),DOLISTD2(:)
          INTEGER NOPEN1,NOPEN2,NDETS1,NDETS2
@@ -874,7 +718,7 @@ C.. Get the Hamiltonian Element between two CSFs
          integer(TagIntType),save :: tagDOLISTD1=0
          integer(TagIntType),save :: tagDOLISTD2=0,tagCOEFFLIST2=0
          character(*), parameter :: this_routine='CSFGETHELEMENT'
-         
+
          LOGICAL CSFCHKSPINSYM
          IF(.NOT.CSFCHKSPINSYM(NCI,NCJ,NEL)) THEN
 C.. If the Ms or S values differ, we return 0.
@@ -921,7 +765,7 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
 !            CALL WRITEDET(6,LISTD1(1,I),NEL,.FALSE.)
 !            WRITE(6,*) COEFF1
 !         ENDDO
-         
+
 !         CALL WRITEDET(6,NCJ,NEL,.TRUE.)
 !         DO I=1,NDETS2
 !            CALL CSFGETDETCOEFF(SO1,DOLISTD2((I-1)*NOPEN2+1),NOPEN2,
@@ -956,7 +800,7 @@ C.. NOPEN has number of open electrons, and NDETS has #open dets
          call LogMemDealloc(this_routine,tagDOLISTD2)
          call LogMemDealloc(this_routine,tagCOEFFLIST2)
          call halt_timer(proc_timer)
-               
+
       END
 
 C.. Get the coefficient of the det specified by SORDER/DORDER.
@@ -965,6 +809,7 @@ C.. (and is independent of which spatial orbitals SORDER and DORDER
 C..  refer to as long as they are always ordered)
       SUBROUTINE CSFGETDETCOEFF(SORDER,DORDER,NOPEN,COEFF)
          use constants, only: dp
+         use util_mod, only: near_zero
          IMPLICIT NONE
          real(dp) COEFF,CG
          INTEGER NOPEN,SORDER(NOPEN),DORDER(NOPEN)
@@ -981,14 +826,14 @@ C..  refer to as long as they are always ordered)
             CALL GETCLEBSCHGORDON(S,M,SCUR,MCUR,CG)
 !            WRITE(6,"(F6.3,A)",advance='no') CG,"*"
             COEFF=COEFF*CG
-            IF(COEFF.EQ.0.0_dp) EXIT
+            IF(near_zero(COEFF)) EXIT
          ENDDO
          RETURN
       END
 
 C.. Return in COEFF, the Clebsch-Gordon coefficient coupling state
 C.. with total spin S, projected component of spin M, with state
-C.. with spin change SN_=(+/-)1/2 and 
+C.. with spin change SN_=(+/-)1/2 and
 C.. projected spin change MN_=(+/-)1/2
 C.. For SN_=+1/2 set SN=1, and for SN_=-1/2 set SN=0
 C.. For MN_=+1/2 set MN=1, and for MN_=-1/2 set MN=0
@@ -1013,7 +858,7 @@ C.. Given a CSF in NCI, generate the list of dets which make it up
 C.. if ISTART=0, return in IEND the number of dets, and ISTART as NOPEN
 C.. otherwise, place dets ISTART to IEND inclusive in LIST
 C.. (the first det is numbered 1)
-C.. DORDERLIST is a list of DORDER vectors corresponding to the 
+C.. DORDERLIST is a list of DORDER vectors corresponding to the
 C.. spin-projection composition of each determinant
 C.. if SORDER2(1) is non-zero, we store SORDER in there on return
       SUBROUTINE CSFGENOPENDETS(NCI,NEL,DETLIST,DORDERLIST,SORDER2,
@@ -1065,7 +910,7 @@ C.. we've found a beta
                   DORDERLIST((ICOUNT-1)*NOPEN+I)=0
                   J=J+1
                ELSE
-C.. an alpha      
+C.. an alpha
                   DORDERLIST((ICOUNT-1)*NOPEN+I)=1
                   DETLIST(NCLOSED+I,ICOUNT)=IOPEN(I)+1
                ENDIF
@@ -1121,12 +966,12 @@ C.. TDONE will be set to TRUE if we've reached the end
 
          LOGICAL TD2
          INTEGER R,I
-         
+
          R=1
          TD2=.TRUE.
          DO WHILE(TD2)
             IF(R.EQ.NCHOOSE.AND.INDICES(R).EQ.NITEMS) THEN
-C.. if we're required to move the last choice past the last item, we 
+C.. if we're required to move the last choice past the last item, we
 C.. go off and cry
                TDONE=.TRUE.
                TD2=.FALSE.
@@ -1147,9 +992,9 @@ C.. Failing that, we move to the next choice
          RETURN
       END
 C.. take a CSF and from it determine the closed and open orbitals
-C.. 
+C..
 C.. NCLOSED is the number of closed spinorbitals.
-C.. ICLOSED will be returned containing a list of close spinorbitals, listed in 
+C.. ICLOSED will be returned containing a list of close spinorbitals, listed in
 C..   beta/alpha/beta/alpha... order (ascending in basis set numbering).
 C.. NOPEN is the number of open orbitals
 C.. IOPEN contains the beta-versions of the open orbitals
@@ -1166,7 +1011,7 @@ C..   method of creating this CSF - 1 is a + and 0 is a -.
          IMPLICIT NONE
          INTEGER NEL,NCI(NEL),ICLOSED(NEL),NCLOSED
          INTEGER IOPEN(NEL),NOPEN,SZ,S,SORDER(NEL)
-         
+
          INTEGER I,J,K
          character(*), parameter :: this_routine = 'CSFGETCSFDATA'
          NCLOSED=0
@@ -1202,12 +1047,12 @@ C.. encode bit 0 of K as BETA/Alpha=(0/1)
       END
 
 C.. Generate an SINDEX (a unique ID corresponding to the SORDER list)
-C.. from SORDER (the list of 0/1 = -/+ which specifies a particular 
+C.. from SORDER (the list of 0/1 = -/+ which specifies a particular
 C.. CSF.
 C.. NOPEN is the number of open-shell electrons and the length of SORDER
 C.. S is 2* the total spin
 C.. we loop over increasing N in the genealogical tree, only including
-C.. paths which go below or along the one we have (as paths above us 
+C.. paths which go below or along the one we have (as paths above us
 C.. will have a higher index than us)
 
       SUBROUTINE CSFGETSINDEX(NOPEN,SINDEX,S)

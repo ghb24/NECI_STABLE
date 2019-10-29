@@ -11,19 +11,19 @@ use constants, only: dp, n_int, eps, bits_n_int, HEl_zero
 use util_mod, only: abs_l1
 use util_mod_numerical, only: binary_search_first_ge
 use get_excit, only: make_single, make_double
-! This module contains utility for treating impurity models, i.e. systems 
+! This module contains utility for treating impurity models, i.e. systems
 ! which are seperable into a (large) noninteracting bath and a (small) interacting
 ! impurity
 
 ! In isImp, isImp(I)==.true. means that the orbital I is an impurity orbital
 
-! DISCLAIMER: 
+! DISCLAIMER:
 ! 1) We assume spin conservation for now. This changes for spin-orbit coupling
 ! 2) The impurity orbitals have to be the first ones in the orbital list
 ! TODO: ADD A SUBROUTINE TO INITIALIZATION THAT ORDERS THE ORBITALS, SO
 ! THE ORDERING DOES NOT HAVE TO BE PROVIDED
 
-implicit none 
+implicit none
 integer, allocatable :: connections(:,:), ImpuritySites(:), nConnects(:)
 integer :: nImp
 
@@ -36,20 +36,20 @@ interface
      integer(n_int), intent(in) :: ilut(0:NIfTot)
    end function sumFunc
 end interface
-contains 
+contains
 
 !------------------------------------------------------------------------------------------!
 
 subroutine setupImpurityExcitgen()
   implicit none
-  
+
   ! get the number of ImpuritySites
   call constructBath()
   ! first, get the number of connections for each orbital
   allocate(nConnects(nBasis))
   ! get the number of connected orbs per orb
   call constructConnections()
-  ! and then the connections 
+  ! and then the connections
   allocate(connections(nBasis,maxval(nConnects)))
   ! get the connections
   call constructConnections()
@@ -82,7 +82,7 @@ subroutine constructConnections()
            if(i <= nImp .and. j <= nImp .and. i .ne. j) then
            ! this can only be the case for impurity orbitals
               do k = 1, nImp
-                 ! the orbitals in question cannot count here, as the 
+                 ! the orbitals in question cannot count here, as the
                  ! occupation of k cannot change
                  if(k .ne. i .and. k .ne. j) then
                     ! check the 2-electron integral
@@ -109,7 +109,7 @@ end subroutine constructConnections
 !------------------------------------------------------------------------------------------!
 
   subroutine constructBath()
-    implicit none    
+    implicit none
     ! This subroutine identifies the bath-sites for a given UMAT/TMAT
     logical :: isImp(nBasis)
     integer :: i,j,k,l
@@ -118,7 +118,7 @@ end subroutine constructConnections
     nImp = 0
     isImp = .false.
     do i=1,nBasis
-       ! for each orbital, check if it is in the bath, that is, check if there are 
+       ! for each orbital, check if it is in the bath, that is, check if there are
        ! UMAT entries for that orbital
        do j=1,nBasis
           do k=1,nBasis
@@ -140,7 +140,7 @@ end subroutine constructConnections
     do i = 1, nImp
        ImpuritySites(i) = i
     enddo
-    
+
     ! do a quick check if the orbital ordering is correct
     do i = nImp+1, nBasis
        if(isImp(i)) call stop_all(t_r, &
@@ -164,11 +164,11 @@ end subroutine constructConnections
 !------------------------------------------------------------------------------------------!
 
   ! optional, only use in the star-geometry
- 
+
   subroutine verifyBath(isBath)
     ! Here, we check if there are one-electron integrals between the bathsites. If there are,
     ! we move the corresponding bathsites to the impurity
-    implicit none    
+    implicit none
     logical, intent(inout) :: isBath(nBasis)
     integer :: i,j
     integer :: connectionCount(nBasis)
@@ -207,7 +207,7 @@ end subroutine constructConnections
   subroutine gen_excit_impurity_model(nI, ilut, nJ, ilutnJ, exFlag, IC, ExcitMat, &
                                          tParity, pGen, HElGen, store, part_type)
     use FciMCData, only: excit_gen_store_type
-    implicit none    
+    implicit none
     ! generate a random excitation for an impurity-type system, that is,
     ! there is significant part of the system which is non-interacting (called bath)
     ! for the one-electron integrals, we have the connections cached
@@ -252,13 +252,13 @@ end subroutine constructConnections
        pGen = 1.0_dp
        call generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ExcitMat,tParity,pGen)
     endif
-    
+
   end subroutine gen_excit_impurity_model
 
 !------------------------------------------------------------------------------------------!
 
   subroutine generate_imp_single_excitation(nI,ilut,nJ,ilutnJ,ex,tParity,pGen)
-    implicit none    
+    implicit none
     integer, intent(in) :: nI(nel)
     integer, intent(out) :: nJ(nel),ex(2,2)
     logical, intent(out) :: tParity
@@ -293,7 +293,7 @@ end subroutine constructConnections
 !------------------------------------------------------------------------------------------!
 
   subroutine generate_imp_double_excitation(nI,ilut,nJ,ilutnJ,ex,tParity,pGen)
-    implicit none    
+    implicit none
     integer, intent(in) :: nI(nel)
     integer, intent(out) :: nJ(nel),ex(2,2)
     logical, intent(out) :: tParity
@@ -303,11 +303,11 @@ end subroutine constructConnections
 
     integer :: i,j,k,l,nOccImp
     procedure(sumFunc), pointer :: p_getImpImpMatElDoubs
-    
+
     ! pick the first electron from the impurity at random
     i = pick_random_occ_impurity(nI,nOccImp)
     ! then pick the second electron randomly from the remaining ones
-    do 
+    do
        j = pick_random_occ_impurity(nI,nOccImp)
        if(i .ne. j .or. nOccImp .eq. 1) exit
     enddo
@@ -334,7 +334,7 @@ end subroutine constructConnections
   subroutine hamiltonian_weighted_pick_single(origin,destination,pGen,ilut)
     use util_mod_numerical, only: binary_search_first_ge
     use sltcnd_mod, only: sltcnd_excit
-    implicit none    
+    implicit none
     ! pick an orbital from the impurity, for a single-excitation from the impurity to
     ! the impurity
     integer, intent(in) :: origin
@@ -355,7 +355,7 @@ end subroutine constructConnections
 
   subroutine cumulative_sum_wrapper(ilut,origin,nTarget,targetOrbs,sfunc,&
        pGen,destination,aux_a,aux_b)
-    ! This wrapper function takes a given range of orbitals and create a cumulative 
+    ! This wrapper function takes a given range of orbitals and create a cumulative
     ! list of the matrix elements with origin, using some function sfunc
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     integer, intent(in) :: nTarget, origin
@@ -379,7 +379,7 @@ end subroutine constructConnections
     cumSum = create_cumulative_list(ilut,origin,nTarget,targetOrbs,sfunc,&
          k,l)
     ! for an empty sum, the excitation is invalid
-    if(abs(cumSum(nTarget)) .le. eps) then 
+    if(abs(cumSum(nTarget)) .le. eps) then
        destination = 0
        ! pGen does not change, no probabilistics involved
     else
@@ -392,7 +392,7 @@ end subroutine constructConnections
  function create_cumulative_list(ilut,origin,nTarget,targetOrbs, &
       sumFunc,aux_a,aux_b) result(cumSum)
    ! This creates a list of cumulatively added function values of an input function
-    implicit none    
+    implicit none
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     ! origin is the starting point and fixed argument of the input function
     ! offset is the first orbital to start with
@@ -404,7 +404,7 @@ end subroutine constructConnections
     integer, intent(in) :: aux_a, aux_b
 
     integer :: i, ms
-    
+
 ! The function of which to create a cumulative list
     interface sf
        function sumFunc(i,j,k,l,ilut)
@@ -419,7 +419,7 @@ end subroutine constructConnections
     ! Only consider orbitals with the correct spin
     ! we assume s_z conservation here, else, we have to drop this
     ms = mod(origin,2)
-    
+
     if(.not. IsOcc(ilut,targetOrbs(1))) then
        cumSum(1) = abs(sumFunc(origin,targetOrbs(1),aux_a,aux_b,ilut))
     else
@@ -437,7 +437,7 @@ end subroutine constructConnections
 !------------------------------------------------------------------------------------------!
 
   subroutine pick_from_cumulative_sum(destination,pGen,cumSum,nTargets,targetOrbs)
-    implicit none    
+    implicit none
     integer, intent(out) :: destination
     integer, intent(in) :: nTargets
     integer, intent(in) :: targetOrbs(nTargets)
@@ -487,18 +487,18 @@ end subroutine constructConnections
        end do
     end do
 
-    
+
     nIPick = pack(nI,tAvail)
     r = genrand_real2_dSFMT()
     source = nIPick(int(r*nAvail)+1)
     ! each pickable electron has the same probability to be chosen
     pGen = pGen / nAvail
-    
+
   end function pick_source_el_single_excit
 !------------------------------------------------------------------------------------------!
 
   function pick_random_occ_impurity(nI,nOccImp) result(i)
-    implicit none    
+    implicit none
     integer, intent(in) :: nI(nel)
     integer :: i
     integer, intent(out) :: nOccImp
@@ -537,7 +537,7 @@ end subroutine constructConnections
     HElement_t(dp) :: mel
     integer, intent(in) :: i,j,k,l
     integer(n_int), intent(in) :: ilut(0:NIfTot)
-    
+
     mel = getTMatEl(i,j)
   end function getBathImpMatEl
 
@@ -552,7 +552,7 @@ end subroutine constructConnections
     integer :: m
 
     mel = getTMatEl(i,j)
-    if(i <= nImp .and. j <= nImp) then       
+    if(i <= nImp .and. j <= nImp) then
        do m = 1, nImp
           if(IsOcc(ilut,ImpuritySites(m))) &
           mel = mel + getImpImpMatElDoubs(i,ImpuritySites(m),j,ImpuritySites(m),ilut)
@@ -568,7 +568,7 @@ end subroutine constructConnections
     HElement_t(dp) :: mel
     integer, intent(in) :: i,j,k,l
     integer(n_int), intent(in) :: ilut(0:NIfTot)
-    
+
     mel = get_umat_el(i,k,l,j) - get_umat_el(i,k,j,l)
 
   end function getImpImpMatElDoubs
@@ -581,7 +581,7 @@ end subroutine constructConnections
     HElement_t(dp) :: mel
     integer, intent(in) :: i,j,k,l
     integer(n_int), intent(in) :: ilut(0:NIfTot)
-    
+
     mel = get_umat_el(i,j,i,j) - get_umat_el(i,j,j,i)
 
   end function getImpImpMatEl2Ind
@@ -591,7 +591,7 @@ end subroutine constructConnections
   ! at the end of the run, clear the impurity excitation generator
   subroutine clearImpurityExcitGen()
     implicit none
-    
+
     ! deallocate the auxiliary resources used by the impurity excitation generator
     deallocate(ImpuritySites)
     deallocate(connections)

@@ -48,7 +48,7 @@ module real_time_aux
          nOccDets = nOccDets + 1
          buffer(:,nOccDets) = state(:,i)
       enddo
-     
+
       ! copy them to overlap_states
       if(allocated(overlap_states(index)%dets)) deallocate(overlap_states(index)%dets)
       allocate(overlap_states(index)%dets(0:nIfTot,nOccDets))
@@ -74,7 +74,7 @@ module real_time_aux
       integer, parameter :: mpi_tag_nsend = 223458
       integer, parameter :: mpi_tag_dets = 223459
 
-      if(allocated(overlap_states)) then 
+      if(allocated(overlap_states)) then
          call MPIBarrier(ierr)
 
          if(iProcIndex == root) print *, "Moving overlap states"
@@ -147,7 +147,7 @@ module real_time_aux
       logical :: tSuccess
       real(dp) :: new_sgn(lenof_sign), old_sgn(lenof_sign)
       character(*), parameter :: this_routine = "add_semistochastic_state"
-      
+
       call decode_bit_det(nI,ilut)
       call hash_table_lookup(nI,ilut,nifDBO,ssht,ilut_list,index,hash_val,tSuccess)
       ! If it is already in corespace, we check which population is higher

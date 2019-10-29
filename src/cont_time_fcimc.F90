@@ -44,7 +44,8 @@ contains
 
         real(dp) :: sgn(lenof_sign), rate, hdiag
         integer :: sgn_abs, iunused, flags, det(nel), j, p, TotWalkersNew
-        integer :: part_type, ic_hf, nopen, MaxIndex, err
+
+        integer :: part_type, ic_hf, nopen, err, MaxIndex
         logical :: survives
 
         if (lenof_sign /= 1) then
@@ -84,14 +85,14 @@ contains
                 end do
                 write(iout, '(a)', advance='no') '] '
                 call WriteBitDet(iout, CurrentDets(:,j), .true.)
-                call neci_flush(iout) 
+                call neci_flush(iout)
             end if
 
             ! Global stored data to make things efficient
             hdiag = det_diagH(j)
             if (tContTimeFull) then
                 rate = get_spawn_rate(j)
-                ASSERT(rate == spawn_rate_full(det, CurrentDets(:,j)))
+                ASSERT(rate .isclose. spawn_rate_full(det, CurrentDets(:,j)))
             end if
 
             ! Calculate the flags that ought to be carried through
@@ -130,7 +131,7 @@ contains
 
             ! If this particle has been completely destroyed, then remove it
             ! from the simulation
-            if (all(sgn == 0)) then
+            if (all(near_zero(sgn))) then
                 call remove_hash_table_entry(HashIndex, det, j)
 
                 ! And add to the "freeslot" list
@@ -155,6 +156,7 @@ contains
         call set_timer(annihil_time)
         call communicate_and_merge_spawns(MaxIndex, iter_data, .false.)
         call DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data, err)
+
         TotWalkers = TotWalkersNew
         call halt_timer(annihil_time)
         IFDEBUG(FCIMCDebug, 2) write(iout, '("Finished annihilation")')
@@ -288,7 +290,7 @@ contains
                 ! this far)
                 ! TODO: Ensure that the child iluts passed into this routine
                 !       don't have the initiator flag set
-                if (spwn_sgn /= 0) then
+                if (.not. near_zero(spwn_sgn)) then
                     child = 0
                     child(part_type) = spwn_sgn
 
@@ -300,7 +302,7 @@ contains
                         end do
                         write(iout, '("] ")', advance='no')
                         call write_det(6, det_spwn, .true.)
-                        call neci_flush(iout) 
+                        call neci_flush(iout)
                     end if
 
                     if (use_spawn_hash_table) then

@@ -6,6 +6,7 @@ module gen_coul_ueg_mod
     use IntegralsData, only: UMat, FCK
     use global_utilities
     use constants, only: sp, dp, pi, pi2, THIRD
+    use util_mod, only : near_zero
     use iso_c_hack
     use breathing_Hub, only: bHubIndexFunction
     implicit none
@@ -31,7 +32,7 @@ contains
 
         proc_timer%timer_name = this_routine
         call set_timer(proc_timer)
-        
+
         open (10, file='UMAT', status='unknown')
         ii = 0
         iSpinSkip = nBasisMax(2,3)
@@ -97,7 +98,7 @@ contains
     ! simpler coulomb integral
     subroutine gen_coul_ueg ()
 
-        ! This routine generates *ALL* possible combinations of Coulomb 
+        ! This routine generates *ALL* possible combinations of Coulomb
         ! integrals stored in the form (u1 u2 | U | u1 u2) = UMAT(n1 n2 n3 n4)
         !
         ! This first call calculates the inner integral
@@ -146,7 +147,7 @@ contains
                             !        (ka(ii), ii=1,2)
                             if (lChkSym(ka, kb)) then
                                 !if (ChkMomEq (ka, kb, nBasisMax, 3)) then
-                                    ! Omega for the hubbard model is the number 
+                                    ! Omega for the hubbard model is the number
                                     ! of sites in the lattice, (G1(ii,k),ii=1,2)
                                 !    write (40,'(a10)',advance='no') "Y"
                                 sum = uHub / omega
@@ -203,7 +204,7 @@ contains
                                 ! ajwt <ij|r_12^-1|kl> = v_(G_i-G_k) delta_((G_i-G_k)-(G_l-G_k))
                                 ! v_G = 4 pi / G**2. G = 2 pi / L(nx, ny, nx) etc.
                                 sum = ((a / ALAT(1))**2 + (b/ALAT(2))**2)
-                                if (ALAT(3) /= 0.0_dp) sum = sum + (c / ALAT(3))**2
+                                if (.not. near_zero(ALAT(3))) sum = sum + (c / ALAT(3))**2
                                 sum = 1 / (pi * sum * omega)
                             else
                                 sum = 0.0_dp
@@ -225,7 +226,7 @@ contains
         enddo
         close(10)
         if (tHub) then
-            ! V0 is subtracted from the diagonal elements of the hamiltonian 
+            ! V0 is subtracted from the diagonal elements of the hamiltonian
             ! for the UEG, but we don't want this for the hubbard model.
             ! FCK is equiv to FCK(-nmsh/2:nmsh/2-1, ..., ...).
             ! Set FCK(0,0,0) = 0.
@@ -233,13 +234,13 @@ contains
             FCK(ind) = (0.0_sp, 0.0_sp)
         endif
         write (6, *)' !!! FINISHED CALCULATING ALL 2E INTEGRALS !!! '
-  
+
         call halt_timer(proc_timer)
 
     end subroutine
 
     subroutine SlatCoulFouCou (G1, G2, G1P, G2P, N, CK, OUT)
-    
+
         ! Returns the coulomb integral between the Slater determinants of
         ! plane wave basis, using the Fourier method.
 
@@ -269,7 +270,7 @@ contains
             if (GD1 /= GD2) T = .false.
             if (GD1 /= 0) T2 = .false.
         enddo
-        
+
         if (T2) then
             ! GD1=0,0,0, which has to be removed as this cancels the
             ! background term.
@@ -324,7 +325,7 @@ contains
         enddo
         IF(KDIM.EQ.4.AND.K1(4).NE.K2(4)) LCMP=.FALSE.
     end function ChkMomEq
- 
+
     function get_hub_umat_el (i, j, k, l) result(hel)
         use sym_mod, only: roundsym, addelecsym, setupsym, lchksym
         use constants, only: pi
@@ -343,14 +344,14 @@ contains
         call RoundSym (kb, nBasisMax)
 
         if (lChkSym (ka, kb)) then
-            hel = UMat (1) 
+            hel = UMat (1)
             if(tmodHub) hel = hel - breathingCont(bHubIndexFunction(i,j,k,l))
         else
             hel = 0.0_dp
         endif
     end function
 
-      
+
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
@@ -358,14 +359,14 @@ contains
         HElement_t(dp) :: hel
         integer :: i, j, k, l, a, b, c, iss
         real(dp) :: G, G2
-        logical :: tCoulomb, tExchange          
+        logical :: tCoulomb, tExchange
         real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
         character(*), parameter :: this_routine = 'get_ueg_umat_el'
 
         ! Initialisation to satisfy compiler warnings
         hel = 0
 
-        !==================================================      
+        !==================================================
         if (tUEG2) then
 
             ! omit even numbers of idi if there is spin degeneracy
@@ -387,16 +388,16 @@ contains
 
                 ! no Coulomb (-> no divergency)
                 if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
-                    ! Coulomb integrals are long-ranged, so calculated with 
+                    ! Coulomb integrals are long-ranged, so calculated with
                     ! 4 pi/G**2.
                     !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
                     ! v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
                     ! For Coulomb interactions <ij|ij> we have explicitly excluded
                     ! the G=0 component as it is divergent.
-                    ! This is the equivalent of adding a positive uniform 
+                    ! This is the equivalent of adding a positive uniform
                     ! background.
                     !scaled momentum transfer
-                    G2 = (a *k_lattice_constant)**2 +(b *k_lattice_constant)**2 + (c *k_lattice_constant)**2         
+                    G2 = (a *k_lattice_constant)**2 +(b *k_lattice_constant)**2 + (c *k_lattice_constant)**2
                     ! check dimension
                     if(dimen == 3) then ! 3D
                         hel = (4.0_dp*PI) / (G2 * OMEGA)
@@ -442,25 +443,25 @@ contains
 
             if ( (a /= 0) .or. (b /= 0) .or. (c /= 0) ) then
                 ! WRITE(6,*) "(",I,J,"|",K,L,")",A,B,C
-                ! Coulomb integrals are long-ranged, so calculated with 
+                ! Coulomb integrals are long-ranged, so calculated with
                 ! 4 pi/G**2.
                 !AJWT <IJ|r_12^-1|KL> = v_(G_I-G_K) delta_((G_I-G_K)-(G_L-G_J)
                 ! v_G = 4 Pi/ G**2.  G=2 Pi/L(nx,ny,nx) etc.
                 ! For Coulomb interactions <ij|ij> we have explicitly excluded
                 ! the G=0 component as it is divergent.
-                ! This is the equivalent of adding a positive uniform 
+                ! This is the equivalent of adding a positive uniform
                 ! background.
                 ! The effects
                 G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
-                if (ALAT(3) /= 0) G2 = G2 + (c / ALAT(3))**2
+                if (.not. near_zero(ALAT(3))) G2 = G2 + (c / ALAT(3))**2
 
                 ! Sum is G^2 / 4 Pi*Pi
                 G = 2 * PI * sqrt(G2)
                 hel = (1.0_dp / PI) / (G2 * ALAT(1) * ALAT(2) * ALAT(3))
- 
+
                 ! Sum is now (4 Pi / G^2 ) / Omega
                 ! ALAT(4) is Rc, a cutoff length.
-                ! For Exchange integrals we calculate <ij|kl>cell with a 
+                ! For Exchange integrals we calculate <ij|kl>cell with a
                 ! potenial v(r)=1/r (r<Rc) and 0 (r>=Rc)
                 if (tExchange) then
                     if (iPeriodicDampingType == 2) then

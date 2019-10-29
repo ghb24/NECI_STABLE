@@ -11,8 +11,8 @@ module real_time_read_input_module
 
   contains
 
-    ! need a real-time calc read_input routine to seperate that as much 
-    ! from the rest of the code as possible! 
+    ! need a real-time calc read_input routine to seperate that as much
+    ! from the rest of the code as possible!
     subroutine real_time_read_input()
         use input_neci
         implicit none
@@ -21,7 +21,7 @@ module real_time_read_input_module
         character(*), parameter :: this_routine = "real_time_read_input"
         integer, parameter :: lesser = -1, greater = 1
         integer :: i,j
-	integer, allocatable :: buffer(:)
+        integer, allocatable :: buffer(:)
 
         ! set the flag that this is a real time calculation
         t_real_time_fciqmc = .true.
@@ -47,22 +47,22 @@ module real_time_read_input_module
                if(stepsAlpha .eq. 1) write(6,*) "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
 
             case ("DAMPING")
-                ! to reduce the explosive spread of walkers through the 
+                ! to reduce the explosive spread of walkers through the
                 ! Hilbert space a small imaginery energy can be introduced in
                 ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
                 call readf(real_time_info%damping)
 
              case("ROTATE-TIME")
-                ! If the time is to be rotated by some angle time_angle to increase 
+                ! If the time is to be rotated by some angle time_angle to increase
                 ! stability, this can be set here
                 t_rotated_time = .true.
                 call readf(real_time_info%time_angle)
 
-            ! use nicks perturbation & kp-fciqmc stuff here as much as 
+            ! use nicks perturbation & kp-fciqmc stuff here as much as
             ! possible too
             case("PROJECT-INITIAL-STATE")
                ! If we specify this, we do not create the overlap state specifically,
-               ! but copy the currentdets. 
+               ! but copy the currentdets.
                ! This can greatly help to overcome memory problems, as it basically
                ! halves the memory required for initial state preparation
                tNewOverlap = .false.
@@ -105,7 +105,7 @@ module real_time_read_input_module
                 do
                    if(item==nitems) exit
                    call readi(i)
-                   ! -1 is the terminator for creation and indicates that all following 
+                   ! -1 is the terminator for creation and indicates that all following
                    ! orbitals are to be annihilated
                    if(i==-1) exit
                    j=j+1
@@ -147,45 +147,45 @@ module real_time_read_input_module
                 call init_perturbation_annihilation(overlap_pert(1))
                 call init_perturbation_creation(overlap_pert(1))
                 deallocate(buffer)
-                
+
             ! the most important info is if it is the photoemmission(lesser GF)
-            ! or photoabsorption (greater GF) and the orbital we want the 
-            ! corresponding operator apply on 
+            ! or photoabsorption (greater GF) and the orbital we want the
+            ! corresponding operator apply on
             ! the type of GF considered also changes the sign of the FT exponent
 
-            ! decision for now: input a specific GF matrix element and the type 
+            ! decision for now: input a specific GF matrix element and the type
             ! of the greensfunction to be calculated(lesser,greater) eg:
-            ! lesser i j : <y(0)| a^+_i a_j |y(0)> 
+            ! lesser i j : <y(0)| a^+_i a_j |y(0)>
             case ("LESSER")
                alloc_popsfile_dets = .true.
                 ! lesser GF -> photo emission: apply a annihilation operator
                 tOverlapPert = .true.
                 tWritePopsNorm = .true.
-                ! i probably also can use the overlap-perturbed routines 
+                ! i probably also can use the overlap-perturbed routines
                 ! from nick
-                ! but since applying <y(0)|a^+_i for all i is way cheaper 
-                ! and should be done for all possible and allowed i. 
+                ! but since applying <y(0)|a^+_i for all i is way cheaper
+                ! and should be done for all possible and allowed i.
                 ! and creating all those vectors should be done in the init
-                ! step and stored, and then just calc. the overlap each time 
+                ! step and stored, and then just calc. the overlap each time
                 ! step
 
-                ! store the information of the type of greensfunction 
+                ! store the information of the type of greensfunction
                 gf_type = lesser
-               
+
 
                 ! probably have to loop over spin-orbitals dont i? yes!
 
-                ! if no specific orbital is specified-> loop over all j! 
+                ! if no specific orbital is specified-> loop over all j!
                 ! but only do that later: input is a SPINORBITAL!
                 if(item < nitems) then
                    allocate(pops_pert(1))
                    pops_pert%nannihilate = 1
                    allocate(pops_pert(1)%ann_orbs(1))
                    call readi(pops_pert(1)%ann_orbs(1))
-                   call init_perturbation_annihilation(pops_pert(1)) 
-                else 
-                   call stop_all(this_routine, "Invalid input for Green's function")  
-                endif 
+                   call init_perturbation_annihilation(pops_pert(1))
+                else
+                   call stop_all(this_routine, "Invalid input for Green's function")
+                endif
                 if (nitems == 3) then
                    gf_count = 1
                    !allocate the perturbation object
@@ -198,8 +198,8 @@ module real_time_read_input_module
                    ! read left hand operator first
                    call readi(overlap_pert(1)%ann_orbs(1))
                    call init_perturbation_annihilation(overlap_pert(1))
-                   
-                   ! If the created and annihilated orbital are the same, we 
+
+                   ! If the created and annihilated orbital are the same, we
                    ! do not need to explicitly construct the projection state,
                    ! this might save a lot of memory
                    if(pops_pert(1)%ann_orbs(1) .eq. overlap_pert(1)%ann_orbs(1)) &
@@ -210,37 +210,37 @@ module real_time_read_input_module
                    if(nitems == 2) then
                       allGfs = 1
                    else
-                      call stop_all(this_routine, "Invalid input for Green's function")   
+                      call stop_all(this_routine, "Invalid input for Green's function")
                    endif
                 endif
-                
+
              case ("GREATER")
                 alloc_popsfile_dets = .true.
                 ! greater GF -> photo absorption: apply a creation operator
                 tOverlapPert = .true.
                 tWritePopsNorm = .true.
 
-                ! i probably also can use the overlap-perturbed routines 
+                ! i probably also can use the overlap-perturbed routines
                 ! from nick
-                ! but since applying <y(0)|a_i for all i is way cheaper 
-                ! and should be done for all possible and allowed i. 
+                ! but since applying <y(0)|a_i for all i is way cheaper
+                ! and should be done for all possible and allowed i.
                 ! and creating all those vectors should be done in the init
-                ! step and stored, and then just calc. the overlap each time 
+                ! step and stored, and then just calc. the overlap each time
                 ! step
 
                 ! store type of greensfunction
                 gf_type = greater
 
-                ! if no specific orbital is specified-> loop over all j! 
+                ! if no specific orbital is specified-> loop over all j!
                 ! but only do that later
                 if(item < nitems) then
-                    allocate(pops_pert(1))                   
+                    allocate(pops_pert(1))
                     pops_pert%ncreate = 1
                     allocate(pops_pert(1)%crtn_orbs(1))
                     call readi(pops_pert(1)%crtn_orbs(1))
-                    call init_perturbation_creation(pops_pert(1)) 
+                    call init_perturbation_creation(pops_pert(1))
                  else
-                    call stop_all(this_routine, "Invalid input for Green's function")   
+                    call stop_all(this_routine, "Invalid input for Green's function")
                 endif
                 if (nitems == 3) then
                     ! allocate the perturbation object
@@ -250,7 +250,7 @@ module real_time_read_input_module
                     call readi(overlap_pert(1)%crtn_orbs(1))
                     call init_perturbation_creation(overlap_pert(1))
 
-                   ! If the created and annihilated orbital are the same, we 
+                   ! If the created and annihilated orbital are the same, we
                    ! do not need to explicitly construct the projection state,
                    ! this might save a lot of memory
                    if(pops_pert(1)%crtn_orbs(1) .eq. overlap_pert(1)%crtn_orbs(1)) &
@@ -260,27 +260,27 @@ module real_time_read_input_module
                    if(nitems == 2) then
                       allGfs = 2
                    else
-                      call stop_all(this_routine, "Invalid input for Green's function")   
+                      call stop_all(this_routine, "Invalid input for Green's function")
                 endif
              endif
 
             case ("SCALE-POPULATION")
                 tScalePopulation = .true.
-		
-	    case("LOWER-THRESHOLD")
+
+            case("LOWER-THRESHOLD")
                ! indicates that the given rotation-threshold is not an upper
                ! but in fact a lower threshold, so the variation is switched
                ! on as soon as the walker number drops below
                ! this is a particularly useless thing in most cases, but for
                ! proving some stuff, it saves the day
-		tLowerThreshold = .true.
+               tLowerThreshold = .true.
 
              case ("FULLY-ROTATED")
                 ! for testing purposes, it is useful to do pure imaginary
                 ! time evolution with the rotated time algorithm -> this is
-                ! enabled by this keyword 
+                ! enabled by this keyword
                 ! in addition, this disables the usage of input POPSFILEs for
-                ! more efficient ground state search (the real-time POPSFILE 
+                ! more efficient ground state search (the real-time POPSFILE
                 ! read-in settings are not useful for ground state search)
                 t_rotated_time = .true.
                 tWalkContGrow = .true.
@@ -318,11 +318,11 @@ module real_time_read_input_module
 
              case("START-HF")
                 ! do not read in an initial state from a POPSFILE and apply a perturbation
-                ! but start right away in the HF as the initial state does not matter in 
+                ! but start right away in the HF as the initial state does not matter in
                 ! principle for the spectrum
                 tReadPops = .false.
                 tStartSinglePart = .true.
-               
+
              case("STABILIZE-WALKERS")
                 ! enabling this activates the dynamic shift as soon as the walker number drops
                 ! below 80% of the peak value
@@ -351,42 +351,42 @@ module real_time_read_input_module
 
              case("DYNAMIC-CORE")
                 tDynamicCoreSpace = .true.
-                ! if dynamic core is set, the core space for semistochastic treatment is 
+                ! if dynamic core is set, the core space for semistochastic treatment is
                 ! updated every few hundred iterations according to the currently most
                 ! occupied determinants
-                
+
             case ("COMPLEX-INTEGRALS")
-                ! in the real-time implementation, since we need the complex 
-                ! functionality anyway, we have to additionally tell the 
+                ! in the real-time implementation, since we need the complex
+                ! functionality anyway, we have to additionally tell the
                 ! program, that the FCIDUMP input is complex
-                ! the default is that they are real! 
+                ! the default is that they are real!
                 t_complex_ints = .true.
-                
+
              case("NSPAWNMAX")
                 ! specify a maximum number of spawn attempts per determinant in
                 ! regulation mode (i.e. for large number of spawns)
                 call readi(nspawnMax)
-                
+
              case("COMPLEXWALKERS-COMPLEXINTS")
                 ! if we really use complex integrals, we have to tell as the
                 ! default is using real integrals with complex walkers
                 tComplexWalkers_RealInts = .false.
-                
+
              case("RT-POPS")
                 ! in addition to the 'normal' popsfile, a second one is supplied
                 ! containing a time evolved state
                 tRealTimePopsfile = .true.
 
              case("OVERPOPULATE")
-                ! enabling sets the options for time-dependent shift and rotation 
+                ! enabling sets the options for time-dependent shift and rotation
                 ! such that a positive shift will occur with a stable walker number
                 t_rotated_time = .true.
                 tDynamicAlpha = .true.
                 ! this is done by pinning the shift to some positive value and
                 ! then auto-adjusting the rotation
                 tStaticShift = .true.
-                ! here, rotation and shift variation have to start at the same point 
-                ! (in principle, it is only required that the rotation does not start 
+                ! here, rotation and shift variation have to start at the same point
+                ! (in principle, it is only required that the rotation does not start
                 ! before shift variation) to prevent the rotation from converging on
                 ! its own, circumventing the overpopulation via positive shift
                 tOverpopulate = .true.
@@ -398,9 +398,9 @@ module real_time_read_input_module
                 else
                    asymptoticShift = 2.0_dp
                 endif
-               
+
              case("DYNAMIC-ROTATION")
-                ! this automatically adjusts the temporal rotation to find a minimal 
+                ! this automatically adjusts the temporal rotation to find a minimal
                 ! alpha guaranteeing a fixed walker number
                 tDynamicAlpha = .true.
                 t_rotated_time = .true.
@@ -417,10 +417,10 @@ module real_time_read_input_module
                 call readi(stepsAlpha)
                 if(stepsAlpha .eq. 1 .and. tVerletScheme) write(6,*) &
                      "Warning: STEPSALPHA is 1. Ignoring VERLET keyword"
-                
+
 
              case("DYNAMIC-DAMPING")
-                ! allow the damping to be time-dependent 
+                ! allow the damping to be time-dependent
                 ! optional: damping parameter for the adjustment of eta
                 tDynamicDamping = .true.
                 if(item < nitems) call readf(etaDamping)
@@ -446,7 +446,7 @@ module real_time_read_input_module
                 ! This prints out the complex time trajectory in the form of alpha(iter)
                 ! and tau(iter)
                 tLogTrajectory = .true.
-                
+
              case("GENERATE-CORESPACE")
                 ! Now, we write out the most important determinants along the contour
                 ! Also, the contour is logged
@@ -454,7 +454,7 @@ module real_time_read_input_module
                 tLogTrajectory = .true.
                 ! optionally, we can supply the number of states to log
                 ss_space_in%tpops = .true.
-                if(item < nitems) then 
+                if(item < nitems) then
                    call readi(ss_space_in%npops)
                 else
                    ss_space_in%npops = 1000
@@ -465,28 +465,28 @@ module real_time_read_input_module
              case("CORESPACE-THRESHOLD")
                 ! Set the threshold from which on a determinant is in the corespace
                 CALL readf(wn_threshold)
-                
+
              case("CORESPACE-LOG-INTERVAL")
-                ! Set the number of iterations after which we get the new candidates for the 
+                ! Set the number of iterations after which we get the new candidates for the
                 ! corespace
                 call readi(corespace_log_interval)
-               
+
              case("READ-TRAJECTORY")
                 ! This reads in a trajectory and performs the time-evolution along
                 ! it
                 tReadTrajectory = .true.
-                
+
              case("LIVE-TRAJECTORY")
-                ! Now we re-read the trajectory during runtime, this can be used to 
+                ! Now we re-read the trajectory during runtime, this can be used to
                 ! use a trajectory that is currently being determined
                 tReadTrajectory = .true.
                 tLiveTrajectory = .true.
 
              case("CORESPACE-OVERLAP")
-                ! Get the Green's function for the corespace only. This performs the 
+                ! Get the Green's function for the corespace only. This performs the
                 ! time-evolution only in the semistochastic space.
                 tGZero = .true.
-                ! If the corespace-greensfunction is to be obtained, semi-stochastic 
+                ! If the corespace-greensfunction is to be obtained, semi-stochastic
                 ! has to be turned on
                 if(.not. tSemiStochastic) call stop_all(this_routine, &
                      "CORESPACE-OVERLAP ONLY AVAILABLE IN SEMI-STOCHASTIC MODE")
@@ -497,7 +497,7 @@ module real_time_read_input_module
             case default
                call report("Keyword "//trim(w)//" not recognized in REALTIME block",.true.)
 
-            end select 
+            end select
         end do real_time
 
     end subroutine real_time_read_input

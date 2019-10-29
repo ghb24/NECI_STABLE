@@ -1,10 +1,11 @@
 #include "macros.h"
- 
+
 module kp_fciqmc_procs
- 
+
     use bit_rep_data
     use bit_reps, only: decode_bit_det, encode_sign
     use constants
+    use util_mod, only: near_zero
     use Parallel_neci, only: iProcIndex, MPISum, nProcessors
     use kp_fciqmc_data_mod
     use SystemData, only: tGUGA
@@ -42,7 +43,7 @@ contains
         flag_ind = NIfDBO + lenof_all_signs + 1
 
         ! Loop over all occupied determinants for this new Krylov vector.
-        do idet = 1, TotWalkers
+        do idet = 1, int(TotWalkers)
             int_sign = CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1,idet)
             call extract_sign (CurrentDets(:,idet), real_sign)
             tCoreDet = check_determ_flag(CurrentDets(:,idet))
@@ -79,7 +80,7 @@ contains
 
             ! Update information about how much of the hash table is filled.
             do iamp = 1, lenof_sign_kp
-                if (real_sign(iamp) /= 0_n_int) then
+                if (.not. near_zero(real_sign(iamp))) then
                     nkrylov_amp_elems_used = nkrylov_amp_elems_used + 1
                 end if
             end do
@@ -256,7 +257,7 @@ contains
                 call decode_bit_det(nJ, ilut_2)
                 int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, jdet)
                 real_sign_2 = transfer(int_sign, real_sign_1)
-                
+
                 if (idet == jdet) then
                     if (present(h_diag)) then
                         h_elem = h_diag(idet) + Hii
@@ -267,7 +268,7 @@ contains
                     if (tHPHF) then
                         h_elem = hphf_off_diag_helement(nI, nJ, ilut_1, ilut_2)
                     else
-                        if (tGUGA) then 
+                        if (tGUGA) then
                             call stop_all("calc_hamil_exact", "modify for GUGA")
                         end if
                         h_elem = get_helement(nI, nJ, ic, ilut_1, ilut_2)
@@ -757,12 +758,11 @@ contains
 
     end subroutine construct_gs_transform_matrix
 
-    subroutine print_populations_kp(kp)
-    
+    subroutine print_populations_kp()
+
         ! A useful test routine which will output the total walker population on both
         ! replicas, for each Krylov vector.
 
-        type(kp_fciqmc_data), intent(in) :: kp
         integer :: ihash
         integer(n_int) :: int_sign(lenof_all_signs)
         real(dp) :: real_sign(lenof_all_signs), total_pop(lenof_all_signs)
@@ -771,7 +771,7 @@ contains
         int_sign = 0_n_int
         total_pop = 0.0_dp
         real_sign = 0.0_dp
-        
+
         do ihash = 1, nhashes_kp
             temp_node => krylov_vecs_ht(ihash)
             if (temp_node%ind /= 0) then

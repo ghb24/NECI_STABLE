@@ -65,7 +65,7 @@ contains
 
 
     HElement_t(dp) function sltcnd_excit (nI, IC, ex, tParity)
-        
+
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.
         !
@@ -80,7 +80,7 @@ contains
         logical, intent(in), optional :: tParity
         character(*), parameter :: this_routine = 'sltcnd_excit'
 
-        if (IC /= 0 .and. .not. present(tParity)) &
+        if (IC /= 0 .and. .not. (present(tParity) .and. present(ex))) &
             call stop_all (this_routine, "ex and tParity must be provided to &
                           &sltcnd_excit for all IC /= 0")
 
@@ -149,12 +149,12 @@ contains
         endselect
 
     end function
-    
+
     HElement_t(dp) function sltcnd (nI, iLutI, iLutJ, ICret)
-        
+
         ! Use the Slater-Condon Rules to evaluate the H matrix element between
         ! two determinants. Make no assumptions about ordering of orbitals.
-        ! However, this is NOT to be passed CSFS - it is to evaluate the 
+        ! However, this is NOT to be passed CSFS - it is to evaluate the
         ! component determinants.
         !
         ! In:  nI, nJ        - The determinants to evaluate
@@ -188,18 +188,18 @@ contains
 
         !GetTMATEl works with spin orbitals
         hel_sing = GetTMATEl(Orb,Orb)
-        
+
         ! Obtain the spatial rather than spin indices if required
         idOrb = gtID(Orb)
         idHF = gtID(HFDet)
-        
-        ! Sum in the two electron contributions. 
+
+        ! Sum in the two electron contributions.
         hel = (0)
         do j=1,nel
             idN = idHF(j)
             hel = hel + get_umat_el (idOrb, idN, idOrb, idN)
         enddo
-                
+
         ! Exchange contribution only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
@@ -212,14 +212,14 @@ contains
         enddo
         hel = hel + hel_sing
 
-    end function CalcFockOrbEnergy 
+    end function CalcFockOrbEnergy
 
     function SumFock (nI,HFDet) result(hel)
 
         ! This just calculates the sum of the Fock energies
         ! by considering the one-electron integrals and
         ! the double-counting contribution
-        ! to the diagonal matrix elements. This is subtracted from 
+        ! to the diagonal matrix elements. This is subtracted from
         ! the sum of the fock energies to calculate diagonal
         ! matrix elements, or added to the sum of the 1-electron
         ! integrals. The HF determinant needs to be supplied.
@@ -227,7 +227,7 @@ contains
         integer , intent(in) :: nI(nel),HFDet(nel)
         HElement_t(dp) :: hel,hel_doub,hel_tmp,hel_sing
         integer :: i,j,idN,idX,id(nel),idHF(NEl)
-        
+
         !Obtain the 1e terms
         hel_sing = sum(GetTMATEl(nI, nI))
 
@@ -246,7 +246,7 @@ contains
                 hel_doub = hel_doub + get_umat_el (idX, idN, idX, idN)
             enddo
         enddo
-                
+
         ! Exchange contribution only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
@@ -293,7 +293,7 @@ contains
                 hel_doub = hel_doub + get_umat_el (idN, idX, idN, idX)
             enddo
         enddo
-                
+
         ! Exchange contribution only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
@@ -330,7 +330,7 @@ contains
         ! Coulomb term only included if Ms values of ex(1) and ex(2) are the
         ! same.
         hel = (0)
-        if (.not. t_mixed_hubbard) then 
+        if (.not. t_mixed_hubbard) then
             if (tReltvy.or.(G1(ex(1))%Ms == G1(ex(2))%Ms)) then
                 do i=1,nel
                     if (t_olle_hubbard .and. same_spin(ex(1),nI(i))) cycle
@@ -343,7 +343,7 @@ contains
             ! Exchange contribution is only considered if tExch set.
             ! This is only separated from the above loop to keep "if (tExch)" out
             ! of the tight loop for efficiency.
-            if (tExch .and. ((G1(ex(1))%Ms == G1(ex(2))%Ms).or.tReltvy) & 
+            if (tExch .and. ((G1(ex(1))%Ms == G1(ex(2))%Ms).or.tReltvy) &
                 .and. .not. t_olle_hubbard) then
                 do i=1,nel
                     if (ex(1) /= nI(i)) then
@@ -361,7 +361,7 @@ contains
         hel = hel + GetTMATEl(ex(1), ex(2))
         if (tSign) hel = -hel
     end function sltcnd_1
-    
+
     function sltcnd_2 (ex, tSign) result (hel)
 
         ! Calculate the  by the Slater-Condon Rules when the two
@@ -375,10 +375,10 @@ contains
         ! Obtain spatial rather than spin indices if required
         id = gtID(ex)
 
-        ! for the mixed hubbard basis there are no spin-parallel 
-        ! excitations! 
-        if ((t_mixed_hubbard .or. t_olle_hubbard) & 
-            .and. (G1(ex(1,1))%ms == G1(ex(1,2))%ms)) then 
+        ! for the mixed hubbard basis there are no spin-parallel
+        ! excitations!
+        if ((t_mixed_hubbard .or. t_olle_hubbard) &
+            .and. (G1(ex(1,1))%ms == G1(ex(1,2))%ms)) then
             hel = 0.0_dp
             return
         end if

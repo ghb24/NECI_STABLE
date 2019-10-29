@@ -1,4 +1,4 @@
-\documentclass[a4paper,notitlepage]{scrreprt}
+\documentclass[a4paper,notitlepage,dvipsnames]{scrreprt}
 \usepackage{listings} % For source code presentation
 \usepackage{needspace}
 \usepackage{color}
@@ -28,6 +28,10 @@
 % Use paragraph spacing, rather than indentation. This is generally easier
 % to read on a screen (especially for technical documentation).
 \usepackage{parskip}
+% define custom colors used in the description of keywords
+\usepackage{xcolor}
+\definecolor{mred}{rgb}{0.9, 0.1, 0.1}
+\definecolor{oblue}{rgb}{0.1, 0.1, 0.9}
 
 % An itemize with a bit less space floating around
 \newenvironment{packed_enum}{
@@ -62,7 +66,7 @@
     morecomment=[s][\color{blue}]{[}{]},
     morecomment=[l]{\#},
 	morekeywords={integer,real},
-} 
+}
 
 % Headitem is a new command for the description environment, which is roughly
 % equivalent to "\item[title] \hfill \\ ...", but ensuring that space is used
@@ -85,14 +89,15 @@
 	]\begin{list}{}{\leftmargin=1cm
 			           \labelwidth=\leftmargin}\item[\Large\ding{43}]}
 	{\end{list}\end{mdframed}\par}
-	
+
 % A nice mathematics abs command
 \providecommand{\abs}[1]{\ensuremath{\left\lvert#1\right\lvert}}
-	
+
 % Modify TOC command so it can start on the same page as the title
 \makeatletter
 \newcommand*{\toccontents}{\@starttoc{toc}}
 \makeatother
+\setcounter{tocdepth}{3}
 
 \begin{document}
 
@@ -129,7 +134,7 @@
 	\end{lstlisting}%
 	This will create a private (\code{~/.ssh/id_rsa}) and a public key
 	file (\code{~/.ssh/id_rsa.pub}).
-	
+
 	The private key must be kept private. On the bitbucket homepage, go to
 	account settings (accessible from the top-right	of the main page), and
 	navigate to ``SSH keys''. Click ``Add key'' and add the contents of the
@@ -156,14 +161,14 @@
 			Math Library (ACML), the Intel Math Kernel Library (MKL), or the
 			more general Basic Linear Algebra Subprograms (BLAS)/Linear Algebra
 			Package (LAPACK) combination.
-		\headitem{HDF5}
+		\headitem{HDF5 (optional)}
 			To make use of the structured HDF5 format for reading/writing
 			POPSFILES (files storing the population of walkers, and other
 			information, to restart calculations). This library should be
 			built with MPI and fortran support
 			(\code{--enable-parallel} \code{--enable-fortran}\
 			\code{--enable-fortran2003}).
-		\headitem{FFTW}
+		\headitem{FFTW (optional)}
 			A small number of options in NECI, which are not enabled by
 			default, require Fast Fourier Transforms. If these are re-enabled
 			then the Fastest Fourier Transform in the West (FFTW3) library
@@ -172,7 +177,7 @@
 	If combinations of these choices are made other than those most commonly
 	used then either the configuration files, or the resultant Makefile, will
 	need to be modified.
-	
+
 	On the majority of machines available to the Alavi group and department,
 	the compilation environment is managed using the
 	\code[language=bash]{module} command. Documentation for that command
@@ -290,7 +295,7 @@
         \codeitem{SHARED\_MEMORY}
             Use shared memory for storing integrals (default=on).
         \codeitem{WARNINGS}
-            Compile with verbose compiler warnings (default=on).
+            Compile with verbose compiler warnings (default=off).
     \end{description}
 
 \subsection{Overriding configuration options}
@@ -441,7 +446,7 @@
 	The configuration names correspond to the configuration files contained in
 	the config directory. If the flag \code{-g} is used, then a debug
 	configuration will be created, and otherwise an optimised one.
-	
+
 	There are a number of different configurations for
 	differing systems, library and compiler setups. The following are some of
 	the more important, and most likely to be used.
@@ -501,7 +506,7 @@
 	both the normal and complex codes (\code{both}) or all of the above
 	and various extra utilities
 	(\code{all}).
-	
+
 \subsection{Git overview}
 	It is essential if you plan to do developmental work to get familiar with the source-code management software `git'. The code will get unusable exponentially quickly if all development and new ideas are hacked into the master branch of the code. The nature of research is that most things probably won't work, but you want to implement them and test relatively quickly, without requiring a standard of code that will remain usable in perpetuity. To avoid an inexorable increase in code `clutter', it is essential to work in `branches' off the main code. For a more detailed introduction to the git package, see \url{git-scm.com/book/en/v2/getting-started-git-basics}. In short, the workflow should be:
 	\begin{enumerate}
@@ -510,8 +515,8 @@
 	\item Regularly merge the new code from the master branch into your personal development branch
 	\item Once satisfied with the development, and that it is an improvement in scope or efficiency of the existing code, ensure it is tidy, commented, documented, as bug-free as possible, and tests added to the test suite for it. This may involve reimplementing it from a clean version of master if it can be done more efficiently
 	\item Merge code back into master branch
-	\end{enumerate} 
-	
+	\end{enumerate}
+
 	A few potentially useful git commands in roughly the workflow described above:
 	\begin{description}
 	\codeitem{git branch}
@@ -546,7 +551,7 @@
     and avoid large commits. It is also a good idea to make sure that code
     compiles before commiting. This helps catch errors that you may be
     introducing and also allows the use of debugging tools such as git bisect.
-	
+
 	It should be noted that the `stable' branch of the code, automatically
 	merged into from master upon successful completion of nightly tests, is
 	hosted on github on a public repository, and also pushed to the molpro
@@ -556,73 +561,852 @@
 
 \section{Calculation inputs}
 
-\begin{lstlisting}
-title
+The NECI executable takes one input argument, which is the name of an input
+file containing the instructions for carrying out the calculation. The input
+file is organized in blocks, with each block being started and terminated by a
+dedicated keyword. Each block can contain a number of keywords to specify
+options. Here, a list of the blocks and their respective keywords is given.
 
-system read
-freeformat
-electrons 10
-(nonuniformrandexcits 4ind-weighted)
-(hphf 0)
-(molpromimic)
-endsys
+The first line of the input is always \texttt{title}, the last line is always
+\texttt{end}.
 
-calc
+Some keywords are mandatory, those are marked in \textcolor{mred}{red} and are
+given at the beginning of the description of each paragraph. Then come
+recommended options, marked in \textcolor{oblue}{blue}, followed by further
+options given in black.
 
-methods
-method vertex fcimc
-endmethods
+\subsection{SYSTEM Block}
+The SYSTEM block specifies the properties of the physical system that is
+considered. The block starts with the \texttt{system} keyword and ends with
+the \texttt{endsys} keyword.
 
-time 2000.0
-memoryfacspawn 1.5
-memoryfacpart 0.3
-totalwalkers 100000
-(tau 0.001)
-(tau 0.001 search)
-(max-tau 0.01)
-startsinglepart 50
-shiftdamp 0.02
-stepsshift 10
-diagshift 0.1
-truncinitiator
-addtoinitiator 3
-allrealcoeff
-(realcoeffbyexcitlevel 4)
-realspawncutoff 0.01
-semi-stochastic 500
-(doubles-core)
-(pops-core 1000)
-trial-wavefunction 500
-(doubles-trial)
-(pops-trial 1000)
-(readpops)
-(readpops-changeref)
-jump-shift
-proje-changeref 1.5
-maxwalkerbloom 1
-(nmcyc 1000000) Necessary with molpromimic...
-(definedet 1 2 3 4 5 6 7 8 9)
-endcalc
+\begin{description}
+  \codeitem{\textcolor{mred}{system}}
+  Starts the SYSTEM block. Has one mandatory additional argument to specify
+  the type of the system. The options are
+  \begin{description}
+    \codeitem{read}
+    Read in the integrals from a FCIDUMP file, used for ab-initio calculations.
+    \codeitem{hubbard}
+    Uses the Hubbard model Hamiltonian.
+    \codeitem{ueg}
+    Uses the Hamiltonian of the uniform electron gas in a box.
+  \end{description}
+  \codeitem{\textcolor{mred}{endsys}}
+  Terminates the SYSTEM block.
+  \codeitem{\textcolor{mred}{electrons $n$, nel $n$}}
+  Sets the number of electrons to $n$
+  \codeitem{spin-restrict $m$}
+  Sets the total $S_z$ quantum number to $\frac{m}{2}$. The argument $m$ is
+  optional and defaults to 0.
+  \codeitem{hphf $s$}
+  Uses a basis of (anti-)symmetric combinations of Slater determinants with
+  respect to global spin-flip. $s=0$ indicates anti-symmetric combinations,
+  $s=1$ symmetric combinations. This is useful to exclude unwanted spin
+  configurations. For example, no triplet states can occur for \texttt{hphf 0}.
+  \codeitem{sym $k_x$ $k_y$ $k_z$ $s$}
+  Specifies the symmetry of the target state. The first three arguments set
+  the momentum $(k_x,k_y,k_z)$ and are only used for Hubbard and ueg-type
+  systems, the last argument $s$ specifies the irrep within $d_{2h}$ and is
+  only used for ab-initio systems.
+  \codeitem{lztot}
+  Set the total $L_s$ quantum number. Has one mandatory additional argument,
+  which is the value of $L_s$.
+  \codeitem{useBrillouinTheorem}
+  Assume that single excitations have zero matrix elements with the
+  reference. By default, this is determined automatically.
+  \codeitem{noBrillouinTheorem}
+  Always assume that single excitations have nozero matrix elements with the
+  reference.
+  \codeitem{umatEpsilon $\epsilon$}
+  Defines a threshold value $\epsilon$ below which matrix elements of the Hamiltonian are
+  rounded to 0. Defaults to $10^{-8}$.
+  \codeitem{diagonaltmat}
+  Assume the kinetic operator is diagonal in the given basis set.
+  \codeitem{noSingExcits}
+  Assume there is no coupling between single excitations in the Hamiltonian.
+  \codeitem{rohf}
+  Use restricted open-shell integrals.
+  \codeitem{read\_rofcidump}
+  Read the integrals from a ROFCIDUMP file.
+  \codeitem{spinorbs}
+  Uses spin orbitals instead of spatial orbtials for addressing the
+  integrals. This can be used if the integrals depend on the spin of the
+  orbitals.
+  \codeitem{molproMimic}
+  Use the same orbital ordering as molpro, mimicking the behaviour of calling
+  NECI from molpro. First nelec/2 orbitals  sorted by diagonal elements of the Fock matrix are considered to be occupied, and the rest to be virtual. Each sector is then sorted separately by symmetry labels.
+  \codeitem{complexOrbs\_realInts}
+  The orbitals are complex, but not the integrals. This reduces the symmetry
+  of the 4-index integrals. Only affects \texttt{kneci} and \texttt{kmneci} calculations.
+  \codeitem{complexWalkers-realInts}
+  The integrals and orbitals are real, but the wave function shall be
+  complex. Only affects \texttt{kneci} and \texttt{kmneci} calculations.
+  \codeitem{system-replicas $n$}
+  Specifies the number of wave functions that shall be evolved in
+  parallel. The argument $n$ is the number of
+  wave functions (replicas). Requires \texttt{mneci} or \texttt{kmneci}.
+\end{description}
+\subsubsection{Excitation generation options}
+\begin{description}
+  \codeitem{\textcolor{oblue}{nonUniformRandExcits}}
+  Use a non-uniform random excitation generator for picking the move in the
+  FCIQMC spawn step. This can significantly speed up the calculation. Requires an additional
+  argument, that can be chosen from the following
+  \begin{description}
+   \codeitem{\textcolor{oblue}{pchb}}
+    Generates excitations weighted directly with the matrix elements using pre-computed
+    alias tables. This excitation generator is extremely fast, while
+    maintaining high acceptance rates and is generally recommended when
+    memory is not an issue.
+    \codeitem{nosymgen}
+    Generate all possible excitations, regardless of symmetry. Might have a
+    low acceptance rate.
+    \codeitem{4ind-weighted}
+    Generate exictations weighted by a Cauchy-Schwarz estimate of the matrix
+    element. Has very good acceptance rates, but is comparably slow. Using the
+    \texttt{4ind-weighted-2} or \texttt{4IND-WEIGHTED-UNBOUND} instead is recommended.
+    \codeitem{4ind-weighted-2}
+    Generates excitations using the same Cauchy-Schwary estimate as
+    \texttt{4ind-weighted}, but uses an optimized algorithm to pick orbitals
+    of different spin, being faster than the former.
+    \codeitem{4ind-weighted-unbound}
+    Generates excitations using the same Cauchy-Schwary estimate as
+    \texttt{4-ind-weighted} and optimizations as \texttt{4ind-weighted-2}, but
+    uses more accurate estimates, having higher acceptance rates. This
+    excitation generator has high acceptance rates at negligible memory cost.
+    \codeitem{pcpp}
+    The pre-computed power-pitzer excitation generator \footnote{V. Neufeld,
+      A. Thom, J. Chem. Theory Comput.2019151127-140}. Has low memory cost and
+    scales only mildly with system size, and can thus be used for large systems.
+  \end{description}
+  \codeitem{lattice-excitgen}
+  Generates uniform excitations using momentum conservation. Requires the
+  \texttt{kpoints} keyword.
+\end{description}
 
-integral
-(freeze 2, 0)
-(partiallyfreeze 6 2)
-(partiallyfreezevirt 10 2)
-endint
+  \subsubsection{Hubbard model and UEG options}
+  \begin{description}
+    \codeitem{cell $x$ $y$ $z$}
+    Sets the lattice size to $x\times y \times z$ sites.
+    \codeitem{kpoints}
+    Use momentum conservation. Requires a momentum-space basis.
+    \codeitem{U $U$}
+    Sets the Hubbard interaction strengh to $U$. Defaults to 4.
+    \codeitem{B $t$}
+    Sets the Hubbard hopping strengh to $t$. Defaults to -1.
+    \codeitem{twisted-bc $t_1$ $t_2$}
+    Use twisted boundary conditions with a phase of $t_1 \, \frac{2\Pi}{x}$
+    applied along x-direction, where $x$ is the lattice size. $t_2$ is
+    optional and the additional phase along y-direction, in multiples of
+    $\frac{2\Pi}{y}$.
+    \codeitem{real}
+    Use a real-space basis for the Hubbard model. Useful for large values of
+    $U$.
+    \codeitem{open-bc $direction$}
+    Set the boundary condition in $direction$ to open, i.e. no hopping across
+    the cell boundary is possible. $direction$ is optional and can be one of
+    \texttt{X}, \texttt{Y} or $\texttt{XY}$, for open boundary conditions in
+    x-, y- or both directions. If omitted, both directions are given open
+    boundary conditions. Requires a real-space basis.
+    \codeitem{ueg-offset $k_x$ $k_y$ $k_z$}
+    Offset $(k_x, k_y, k_z)$ for the momentum grid used in for the uniform
+    electron gas.
+    \codeitem{tilt $t_x$ $t_y$}
+    Replaces each site with a tilted $t_x$ by $t_y$ lattice. Recommended to be
+    used only with \texttt{cell 1 1 1}.
+  \end{description}
 
-logging
-popsfile
-(popsfile -1)
-popsfiletimer 10.0
-incrementpops
-binarypops
-hdf5-pops
-(calcrdmonfly ...)
-(fcimcdebug 5)
-write-core
-endlog
-end
-\end{lstlisting}
+  \subsection{CALC Block}
+  The CALC block is used to set options concerning the simulation parameters
+  and modes of FCIQMC. The block starts with the \texttt{calc} keyword and
+  ends with the \texttt{endcalc} keyword.
+
+  \begin{description}
+    \codeitem{\textcolor{mred}{calc}}
+    Starts the CALC block
+    \codeitem{\textcolor{mred}{endcalc}}
+    Terminates the CALC block
+    \codeitem{\textcolor{oblue}{time $t$}}
+    Set the maximum time $t$ in minutes the calculation is allowed to
+    run. After $t$ minutes, the calculation will end.
+    \codeitem{\textcolor{oblue}{nmcyc $n$}}
+    Set the maximum number of iterations the calculation is allowed to
+    do. After $n$ iterations, the calculation will end.
+    \codeitem{seed $s$}
+    Sets the seed of the random number generator to $s$. This can be used to
+    specifically probe for stochastic effects, but is generally not required.
+    \codeitem{averageMcExcits $x$}
+    Sets the average number of spawning attempts from each walker to $x$.
+    \codeitem{rdmSamplingIters $n$}
+    Set the maximum number of iterations used for sampling the RDMs to
+    $n$. After $n$ iterations of sampling RDMs, the calculation will end.
+    \codeitem{load-balance-blocks OFF}
+    Distribute the determinants blockwise in a dynamic fashion to maintain
+    equal load for all processors. This is enabled by default and has one
+    optional argument OFF. If given, the load-balancing is disabled.
+    \codeitem{energy}
+    Additionally calculate and print the ground state energy using an exact
+    diagonalization technique.
+    \codeitem{averageMcExcits $n$}
+    The number of spawns to attempt per walker. Defaults to $1$ and should not
+    be changed without good reason.
+    \codeitem{adjust-averageMcExcits}
+    Dynamically update the number of spawns attempted per walker. Can be used
+    if the excitation generator creates a lot of invalid excitations, but
+    should be avoided else.
+  \end{description}
+
+  \subsubsection{Population control options}
+  \begin{description}
+    \codeitem{\textcolor{mred}{totalWalkers $n$}}
+    Sets the targeted number of walkers to $n$. This means, the shift will be
+    varied to keep the walker number constant once it reaches $n$.
+    \codeitem{\textcolor{oblue}{diagShift $S$}}
+    Set the initial value of the shift to $S$. A value of $S<0$ is not
+    recommended, as it will decrease the population from the beginning.
+    \codeitem{\textcolor{oblue}{shiftDamp $\zeta$}}
+    Set the damping factor used in the shift update scheme to
+    $\zeta$. Defaults to $10$.
+    \codeitem{\textcolor{oblue}{stepsSft $n$}}
+    Sets the number of steps per update cycle of the shift to $n$. Defaults to
+    $100$.
+    \codeitem{fixed-n0 $n_0$}
+    Instead of varying the shift to fix the total number of walkers, keep the
+    number of walkers at the reference fixed at $n_0$. Automatically sets
+    \texttt{stepsSft 1} and overwrites any \texttt{stepssft} options given.
+    \codeitem{targetGrowRate $grow$ $walks$}
+    When the number of walkers in the calculation exceeds $walk$, the shift is
+    iteratively adjusted to maintain a fixed grow rate $grow$ until reaching
+    the requested number of total walkers.
+    \codeitem{jump-shift OFF}
+    When entering the variable shift mode, the shift will be set to the
+    current projected energy. This is enabled by default. There is an optional
+    argument OFF that disables this behaviour.
+    \codeitem{pops-jump-shift}
+    Reset the shift when restarting a previous calculation to the current
+    projected energy instead of using the shift from the previous
+    calculation.
+    \codeitem{trunc-nopen $n$}
+    Restrict the Hilbert space of the calculation to those determinants with
+    at most $n$ unpaired electrons.
+    \codeitem{avGrowthRate OFF}
+    Average the change in walker number used to calculate the shift. This is
+    enabled by default and has one optional argument OFF, which, when given,
+    turns the option off.
+  \end{description}
+
+  \subsubsection{Real walker coefficient options}
+  \begin{description}
+    \codeitem{\textcolor{oblue}{allRealCoeff}}
+    Allow determinants to have non-integer population. There is a minimal
+    population below which the population of a determinant will be rounded
+    stochastically. This defaults to $1$.
+    \codeitem{\textcolor{oblue}{realSpawnCutoff $x$}}
+    Continuous real spawning will be performed, unless the spawn has
+    weight less than x. In this case, the weight of the spawning will
+    be stochastically rounded up to x or down to zero, such that the
+    average weight of the spawning does not change. This is a method of
+    removing very low weighted spawnings from the spawned list, which
+    require extra memory, processing and communication. A reasonable
+    value for x is 0.01.
+    \codeitem{realCoeffbyExcitLevel $n$}
+    Allow all determinants up to an excitation level of $n$ to have
+    non-integer population.
+    \codeitem{setOccupiedThresh $x$}
+    Set the value for the minimum walker weight in the main walker
+    list. If, after all annihilation has been performed, any
+    determinants have a total weight of less than x, then the weight
+    will be stochastically rounded up to x or down to zero such that
+    the average weight is unchanged. Defaults to $1$, which should only be
+    changed with good reason.
+    \codeitem{energy-scaled-walker $mode$ $\alpha$ $\beta$}
+    Scales the occupied threshold with the energy of a
+    determinant. Has three optional arguments and requires
+    \texttt{allRealCoeff}. The argument $mode$ can be one of EXPONENTIAL,
+    POWER, EXP-BOUND or NEGATIVE and defaults to POWER. Both $\alpha$ and
+    $\beta$ default to 1 and \texttt{realspawncutoff} $\beta$ is implied.
+  \end{description}
+
+  \subsubsection{Time-step options}
+  \begin{description}
+    \codeitem{\textcolor{mred}{tau $\tau$} SEARCH}
+    Sets the timestep per iteration to $\tau$. Has one optional argument
+    SEARCH. If given, the time-step will be iteratively updated to keep the
+    calculation stable.
+    \codeitem{\textcolor{oblue}{hist-tau-search $c$ $nbins$ $bound$}}
+    Update the time-step based on histogramming of the ratio
+    $\frac{H_{ij}}{p(i|j)}$. Not compatible with the tau $\tau$ SEARCH
+    option. The three arguments $c$, $nbins$ and $bound$ are
+    optional. $0<c<1$ is the fraction of the histogram used for determining
+    the new timestep, $nbins$ the number of bins in the histogram and $bound$
+    is the maximum value of $\frac{H_{ij}}{p(i|j)}$ to be stored.
+    \codeitem{\textcolor{oblue}{max-tau $\tau_\text{max}$}}
+    Sets the maximal value of the time-step to $\tau_\text{max}$. Defaults to
+    $1$.
+    \codeitem{min-tau $\tau_\text{min}$}
+    Sets the minimal value of the time-step to $\tau_\text{min}$ and enables
+    the iterative update of the time-step. Defaults to
+    $10^{-7}$. The argument $\tau_\text{min}$ is optional.
+    \codeitem{keepTauFixed}
+    Do never update $\tau$ and the related parameter $p_\text{singles}$,
+    $p_\text{doubles}$ or $p_\text{parallel}$.
+    \codeitem{truncate-spawns $n$ UNOCC}
+    Truncate spawns which are larger than a threshold value $n$. Both
+    arguments are optional, $n$ defaults to $3$. If UNOCC is given the
+    truncation is restricted to spawns onto unoccupied. Useful in combination
+    with hist-tau-search.
+    \codeitem{maxWalkerBloom $n$}
+    The time step is scaled such that at most $n$ walkers are spawned in a
+    single attempt, with the scaling being guessed from previous spawning attempts.
+  \end{description}
+
+  \subsubsection{Wave function initialization options}
+  \begin{description}
+    \codeitem{\textcolor{oblue}{walkContGrow}}
+    When reading in a wave function from a file, do not set the shift or enter
+    variable shift mode.
+    \codeitem{\textcolor{oblue}{defineDet $det$}}
+    Sets the reference determinant of the calculation to $det$. If no other
+    initialisation is specified, this will also be the initial
+    wave function. The format can either be a comma-separated list of spin
+    orbitals, a range of spin orbitals (like 12-24) or a combination of both.
+    \codeitem{readPops}
+    Read in the wave function from a file and use the read-in wave function
+    for initialisation. In addition to the wave function, also the time-step
+    and the shift are read in from the file. This starts the calculation in
+    variable shift mode, maintaining a constant walker number, unless
+    \texttt{walkContGrow} is given.
+    \codeitem{readpops-changeref}
+    Allow the reference determinant to be updated after reading in a
+    wave function.
+    \codeitem{startSinglePart $n$}
+    Initialise the wave function with $n$ walkers on the reference only unless
+    specified differently. The argument $n$ is optional and defaults to $1$.
+    \codeitem{proje-changeRef $frac$ $min$}
+    Allow the reference to change if a determinant obtains $frac$ times the
+    population of the current reference and the latter has a population of at
+    least $min$. Both arguments are optional and default to $1.2$ and $50$,
+    respectively. This is enabled by default.
+    \codeitem{no-changeref}
+    Never change the reference.
+  \end{description}
+
+  \subsubsection{Initiator options}
+  \begin{description}
+    \codeitem{\textcolor{oblue}{truncInitiator}}
+    Use the initiator method \footnote{D. Cleland, G.H. Booth, A. Alavi,
+      J. Chem. Phys. 132, 041103 (2010)}.
+    \codeitem{\textcolor{oblue}{addToInitiator $x$}}
+    Sets the initiator threshold to $x$, so any determinant with more than $x$
+    walkers will be an initiator.
+    \codeitem{senior-initiators $age$}
+    Makes any determinant that has a half-time of at least $age$ iterations an
+    initiator. $age$ is optional and defaults to $1$.
+    \codeitem{superInitiator $n$}
+    Create a list of $n$ superinitiators, from which all connected
+    determinants are set to be initiators. The superinitiators are chosen
+    according to population. $n$ is optional and defaults to $1$.
+    \codeitem{coherent-superInitiators $mode$}
+    Apply a restriction on the sign-coherence between a determinant and any
+    connected superinitiator to determine whether it becomes an initiator due
+    to connection. The optional argument $mode$ can be chosen from STRICT,
+    WEAK, XI, AV and OFF. The default is WEAK and is enabled by default if the
+    \texttt{superInitiators} keyword is given.
+    \codeitem{dynamic-superInitiators $n$}
+    Updates the list of superinitiators every $n$ steps. This is enabled by default with
+    $n=100$ if the \texttt{superInitiators} keyword is given. A value of 0
+    indicates no update. This implies the \texttt{dynamic-core $n$} option
+    (with the same $n$) unless specified otherwise.
+    \codeitem{allow-signed-spawns $mode$}
+    Never abort spawns with a given sign, regardless of initiators. $mode$ can
+    be either POS or NEG, indicating the sign to keep.
+    \codeitem{initiator-space}
+    Define all determinants within a given initiator space as initiators. The
+    space is specified through one of the following keywords
+    \begin{description}
+      \codeitem{doubles-initiator}
+    Use the reference determinant and all single and double excitations
+    from it to form the initiator space.
+    \codeitem{cas-initiator cas1 cas2}
+    Use a CAS space to form the initiator space. The parameter cas1 specifies
+    the number of electrons in the cas space and cas2 specifies the
+    number of virtual spin orbitals (the cas2 highest energy orbitals
+    will be virtuals).
+    \codeitem{ras-initiator ras1 ras2 ras3 ras4 ras5}
+    Use a RAS space to form the initiator space. Suppoose the list of spatial
+    orbitals are split into three sets, RAS1, RAS2 and RAS 3, ordered
+    by their energy. ras1, ras2 and ras3 then specify the number of
+    spatial orbitals in RAS1, RAS2 and RAS3. ras4 specifies the minimum
+    number of electrons in RAS1 orbitals. ras5 specifies the maximum
+    number of electrons in RAS3 orbitals. These together define the RAS
+    space used to form the initiator space.
+    \codeitem{optimised-initiator}
+    Use the iterative approach of Petruzielo \emph{et al.} (see PRL,
+    109, 230201). One also needs to use either optimised-initiator-cutoff-amp
+    or optimised-initiator-cutoff-num with this option.
+    \codeitem{optimised-initiator-cutoff-amp $x1$, $x2$, $x3$...}
+    Perform the optimised initiator option, and in iteration $i$, choose
+    which determinants to keep by choosing all determinants with an
+    amplitude greater than $xi$ in the ground state of the space (see
+    PRL 109, 230201). The number of iterations is determined by the
+    number of parameters provided.
+    \codeitem{optimised-initiator-cutoff-num $n1$, $n2$, $n3$...}
+    Perform the optimised initiator option, and in iteration $i$, choose
+    which determinants to keep by choosing the ni most significant
+    determinants in the ground state of the space (see PRL 109, 230201).
+    The number of iterations is determined by the number of parameters
+    provided.
+    \codeitem{fci-initiator}
+    Use all determinants to form the initiator space. A fully deterministic
+    projection is therefore performed with this option.
+    \codeitem{pops-initiator $n$}
+    When starting from a POPSFILE, this option will use the $n$ most
+    populated determinants from the popsfile to form the initiator space.
+    \codeitem{read-initiator}
+    Use the determinants in the INITIATORSPACE file to form the initiator space.
+    A INITIATORSPACE file can be created by using the write-initiator option in
+    the LOGGING block.
+    \end{description}
+  \end{description}
+
+  \subsubsection{Adaptive shift options}
+  \begin{description}
+    \codeitem{auto-adpative-shift $t$ $\alpha$ $c$}
+    Scale the shift per determinant based on the acceptance rate on a
+    determinant. Has three optional arguments. The first is the threshold value $t$ which
+    is the minimal number of spawning attempts from a determinant over the full calculation
+    required before the shift is scaled, with a default of $10$. The second is
+    the scaling exponent $\alpha$ with a default of $1$ and the last is the
+    minimal scaling factor, which uses $\frac{1}{\text{HF conn.}}$ as default.
+    \codeitem{linear-adaptive-shift $\sigma$ $f_1$ $f_2$}
+    Scale the shift per determinant linearly with the population of a determinant. All arguments are optional
+    and define the function used for scaling. $\sigma$ gives the minimal
+    walker number required to have a shift and defaults to $1$, $f_1$ the
+    shift fraction to be applied at $\sigma$ with a default of $0$ and $f_2$
+    is the shift fraction to be applied at the initiator threshold, defaults
+    to $1$. Every initiator is applied the full shift.
+    \codeitem{exp-adaptive-shift $\alpha$}
+    Scales the shift expoentially with the population of a determinant. The
+    optional argument $\alpha$ is the exponent of scaling, the default is $2$.
+    \codeitem{core-adaptive-shift}
+    By default, determinants in the corespace are always applied the full
+    shift. Using this option also scales the shift in the corespace.
+    \codeitem{aas-matele2}
+    Uses the matrix elements for determining the scaling factor in the \texttt{auto-adaptive-shift}. The recommended option to scale the shift.
+  \end{description}
+
+  \subsubsection{Multi-replica options}
+  \begin{description}
+    \codeitem{multiple-initial-refs}
+    Define a reference determinant for each replica. The following $n$ lines
+    give the reference determinants as comma-separated lists of orbitals,
+    where $n$ is the number of replicas.
+    \codeitem{orthogonalise-replicas}
+    Orthogonalise the replicas after each iteration using Gram Schmidt orthogonalisation. This will converge each
+    replica to another state in a set of orthogonal eigenstates. Can be used
+    for excited state search.
+    \codeitem{orthogonalise-replicas-symmetric}
+    Use the symmetric L{\"o}wdin orthonaliser instead of Gram Schmidt for
+    orthogonalising the replicas.
+    \codeitem{replica-single-det-start}
+    Starts each replica from a different excited determinant.
+  \end{description}
+
+  \subsubsection{Semi-stochastic options}
+  \begin{description}
+    \codeitem{\textcolor{oblue}{semi-stochastic}}
+    Turn on the semi-stochastic adaptation.
+    \codeitem{\textcolor{oblue}{pops-core $n$}}
+    When starting from a POPSFILE, this option will use the $n$ most
+    populated determinants from the popsfile to form the core space.
+    \codeitem{doubles-core}
+    Use the reference determinant and all single and double excitations
+    from it to form the core space.
+    \codeitem{cas-core cas1 cas2}
+    Use a CAS space to form the core space. The parameter cas1 specifies
+    the number of electrons in the cas space and cas2 specifies the
+    number of virtual spin orbitals (the cas2 highest energy orbitals
+    will be virtuals).
+    \codeitem{ras-core ras1 ras2 ras3 ras4 ras5}
+    Use a RAS space to form the core space. Suppoose the list of spatial
+    orbitals are split into three sets, RAS1, RAS2 and RAS 3, ordered
+    by their energy. ras1, ras2 and ras3 then specify the number of
+    spatial orbitals in RAS1, RAS2 and RAS3. ras4 specifies the minimum
+    number of electrons in RAS1 orbitals. ras5 specifies the maximum
+    number of electrons in RAS3 orbitals. These together define the RAS
+    space used to form the core space.
+    \codeitem{optimised-core}
+    Use the iterative approach of Petruzielo \emph{et al.} (see PRL,
+    109, 230201). One also needs to use either optimised-core-cutoff-amp
+    or optimised-core-cutoff-num with this option.
+    \codeitem{optimised-core-cutoff-amp $x1$, $x2$, $x3$...}
+    Perform the optimised core option, and in iteration $i$, choose
+    which determinants to keep by choosing all determinants with an
+    amplitude greater than $xi$ in the ground state of the space (see
+    PRL 109, 230201). The number of iterations is determined by the
+    number of parameters provided.
+    \codeitem{optimised-core-cutoff-num $n1$, $n2$, $n3$...}
+    Perform the optimised core option, and in iteration $i$, choose
+    which determinants to keep by choosing the ni most significant
+    determinants in the ground state of the space (see PRL 109, 230201).
+    The number of iterations is determined by the number of parameters
+    provided.
+    \codeitem{fci-core}
+    Use all determinants to form the core space. A fully deterministic
+    projection is therefore performed with this option.
+    \codeitem{read-core}
+    Use the determinants in the CORESPACE file to form the core space.
+    A CORESPACE file can be created by using the write-core option in
+    the LOGGING block.
+    \codeitem{dynamic-core $n$}
+    Update the core space every $n$ iterations, where $n$ is optional and
+    defaults to $400$. This is enabled by default if the
+    \texttt{superinitiators} option is given.
+    \end{description}
+
+  \subsubsection{Trial wave function options}
+  \begin{description}
+    \codeitem{\textcolor{oblue}{trial-wavefunction $n$}}
+    Use a trial wave function to obtain an estimate for the energy, as
+    described in \ref{sec:trial}. The argument $n$ is optional, when given,
+    the trial wave function will be initialised $n$ iterations after the
+    variable shift mode started, else, at the start of the calculation. The
+    trial wave function is defined through one of the following keywords
+    \begin{description}
+    \codeitem{\textcolor{oblue}{pops-trial $n$}}
+    When starting from a POPSFILE, this option will use the $n$ most
+    populated determinants from the popsfile to form the trial space.
+    \codeitem{doubles-trial}
+    Use the reference determinant and all single and double excitations
+    from it to form the trial space.
+    \codeitem{cas-trial cas1 cas2}
+    Use a CAS space to form the trial space. The parameter cas1 specifies
+    the number of electrons in the cas space and cas2 specifies the
+    number of virtual spin orbitals (the cas2 highest energy orbitals
+    will be virtuals).
+    \codeitem{ras-trial ras1 ras2 ras3 ras4 ras5}
+    Use a RAS space to form the trial space. Suppoose the list of spatial
+    orbitals are split into three sets, RAS1, RAS2 and RAS 3, ordered
+    by their energy. ras1, ras2 and ras3 then specify the number of
+    spatial orbitals in RAS1, RAS2 and RAS3. ras4 specifies the minimum
+    number of electrons in RAS1 orbitals. ras5 specifies the maximum
+    number of electrons in RAS3 orbitals. These together define the RAS
+    space used to form the trial space.
+    \codeitem{optimised-trial}
+    Use the iterative approach of Petruzielo \emph{et al.} (see PRL,
+    109, 230201). One also needs to use either optimised-trial-cutoff-amp
+    or optimised-trial-cutoff-num with this option.
+    \codeitem{optimised-trial-cutoff-amp $x1$, $x2$, $x3$...}
+    Perform the optimised trial option, and in iteration $i$, choose
+    which determinants to keep by choosing all determinants with an
+    amplitude greater than $xi$ in the ground state of the space (see
+    PRL 109, 230201). The number of iterations is determined by the
+    number of parameters provided.
+    \codeitem{optimised-trial-cutoff-num $n1$, $n2$, $n3$...}
+    Perform the optimised trial option, and in iteration $i$, choose
+    which determinants to keep by choosing the ni most significant
+    determinants in the ground state of the space (see PRL 109, 230201).
+    The number of iterations is determined by the number of parameters
+    provided.
+    \codeitem{fci-trial}
+    Use all determinants to form the trial space. A fully deterministic
+    projection is therefore performed with this option.
+    \end{description}
+  \end{description}
+
+    \subsubsection{Memory options}
+  \begin{description}
+    \codeitem{memoryFacPart $x$}
+    Sets the factor between the allocated space for the wave function and the
+    required memory for the specified number of walkers to $x$. Defaults to $10$.
+    \codeitem{memoryFacSpawn $x$}
+    Sets the factor between the allocated space for new spawns and the estimate of
+    required memory for the spawns of the specified number of walkers on a
+    single processor to $x$. The memory required for spawns increases, the more
+    processors are used, so when running with few walkers on relatively many
+    processors, a large factor might be needed. Defaults to $3$.
+    \codeitem{prone-walkers}
+    Instead of terminating when running out of memory, randomly delete determinants
+    with low population and few spawns.
+    \codeitem{store-dets}
+    Employ extra memory to store additional information on the determinants
+    that had to be computed on the fly else. Trades in memory for faster iterations.
+  \end{description}
+
+  \subsubsection{Reduced density matrix (RDM) options}
+  \begin{description}
+    \codeitem{rdmSamplingIters $n$}
+    Set the number of iterations for sampling the RDMs to $n$. After $n$
+    iterations of sampling, the calculation ends.
+    \codeitem{inits-rdm}
+    Only take into account initiators when calculating RDMs.
+    \codeitem{non-variational-rdms}
+    Only take into account initiators for the right vector used in RDM
+    calculation. This makes the RDMs non-variational, and the resulting energy
+    is the projected energy on the initiator space.
+    \codeitem{no-lagrangian-rdms}
+    This option disables the correction used for RDM calculation for the
+    adaptive shift. Use this only for debugging purposes, as the resulting
+    RDMs are flawed.
+  \end{description}
+
+  \subsubsection{METHODS Block}
+  The METHODS block is a subblock of CALC, i.e. it is specified inside the
+  CALC block. It sets the main algorithm to be used in the calculation. The
+  subblock is started with the \texttt{methods} keyword and terminated with
+  the \texttt{endmethods} keyword.
+  \begin{description}
+    \codeitem{\textcolor{mred}{methods}}
+    Starts the METHODS block
+    \codeitem{\textcolor{mred}{endmethods}}
+    Terminates the METHODS block.
+    \codeitem{\textcolor{mred}{method $mode$}}
+    Sets the algorithm to be executed. The relevant choice for $mode$ is
+    VERTEX FCIMC to run an FCIQMC calculation. Alternative choices are
+    DETERM-PROJ to run a deterministic calculation and SPECTRAL-LANCZOS to
+    calculate a spectrum using the lanczos algorithm.
+  \end{description}
+
+  \subsection{INTEGRAL Block}
+  The INTEGRAL block can be used to freeze orbitals and set properties of the
+  integrals. The block is started with the \texttt{integral} keyword and
+  terminated with the \texttt{endint} keyword.
+  \begin{description}
+    \codeitem{integral}
+    Starts the INTEGRAL block.
+    \codeitem{endint}
+    Terminates the INTEGRAL block.
+    \codeitem{freeze $n$ $m$}
+      Freeze $n$ core and $m$ virtual orbitals which are not to be
+      considered active in this calculation. The orbitals are selected
+      according to orbital energy, the $n$ lowest and $m$ highest orbitals in
+      energy are frozen.
+      \codeitem{freezeInner $n$ $m$}
+      Freeze $n$ core and $m$ virtual orbitals which are not to be
+      considered active in this calculation. The orbitals are selected
+      according to orbital energy, the $n$ highest and $m$ lowest orbitals in
+      energy are frozen.
+      \codeitem{partiallyFreeze $n_\text{orb}$ $n_\text{holes}$}
+        Freeze $n_\text{orb}$ core orbitals partially. This means at most
+        $n_\text{holes}$ holes are now allowed in these orbitals.
+      \codeitem{partiallyFreezeVirt $n_\text{orb}$ $n_\text{els}$}
+        Freeze $n_\text{orb}$ virtual orbitals partially. This means at most
+        $n_\text{els}$ electrons are now allowed in these orbitals.
+  \end{description}
+
+  \subsection{KP-FCIQMC Block}
+  This block enables the Krylov-projected FCIQMC (KPFCIQMC) method \footnote{N. S. Blunt, Ali
+    Alavi, George H. Booth, Phys. Rev. Lett. 115, 050603} which is fully implemented
+  in NECI. It requires \texttt{dneci} or \texttt{mneci} to be run. When
+  specifying the KP-FCIQMC block, the METHODS block should be omitted. This
+  block is started with the \texttt{kp-fciqmc} keyword and terminated with
+  the \texttt{end-kp-fciqmc} keyword.
+  \begin{description}
+    \codeitem{kp-fciqmc}
+    Starts the KP-FCIQMC block
+    \codeitem{end-kp-fciqmc}
+    Terminates the KP-FCIQMC block.
+    \codeitem{num-krylov-vecs $N$}
+    $N$ specifies the total number of Krylov vectors to sample.
+    \codeitem{num-iters-between-vecs $N$}
+    $N$ specifies the (constant) number of iterations between each Krylov
+    vector sampled. The first Krylov vector is always the starting wave
+    function.
+    \codeitem{num-iters-between-vecs-vary $i_{12}$, $i_{23}$, $i_{34}$...}
+    $i_{n,n+1}$ specifies the number of iterations between the nth and
+    (n+1)th Krylov vectors. The number of parameters input should be
+    the number of Krylov vectors asked for minus one. The first Krylov
+    vector is always the starting wave function.
+    \codeitem{num-repeats-per-init-config $N$}
+    $N$ specifies the number repeats to perform for each initial
+    configuration, i.e. the number of repeats of the whole evolution,
+    from the first sampled Krylov vector to the last. The projected
+    Hamiltonian and overlap matrix estimates will be output for each
+    repeat, and the averaged values of these matrices used to compute
+    the final results.
+    \codeitem{averagemcexcits-hamil $N$}
+    When calculating the projected Hamiltonian estimate, an FCIQMC-like
+    spawning is used, rather than calculating the elements exactly,
+    which would be too computationally expensive. Here, $N$ specifies the
+    number of spawnings to perform from each walker from each Krylov
+    vector when calculating this estimate. Thus, increasing $N$ should
+    improve the quality of the Hamiltonian estimate.
+    \codeitem{finite-temperature}
+    If this option is included then a finite-temperature calculation is
+    performed. This involves starting from several different random
+    configurations, whereby walkers are distributed on random
+    determinants. The number of initial configurations should be
+    specified with the num-init-configs option.
+    \codeitem{num-init-configs $N$}
+    $N$ specifies the number of initial configurations to perform the
+    sampling over. An entire FCIQMC calculation will be performed, and
+    an entire subspace generated, for each of these configurations.
+    This option should be used with the finite-temperature option, but
+    is not necessary for spectral calculations where one always starts
+    from the same initial vector.
+    \codeitem{memory-factor $x$}
+    This option is used to specify the size of the array allocated for
+    storing the Krylov vectors. The number of slots allocated to store
+    unique determinants in the array holding all Krylov vectors will be
+    equal to $ABx$, where here $A$ is the length of the main walker
+    list, $B$ is the number of Krylov vectors, and $x$ is the value input
+    with this option.
+    \codeitem{num-walker-per-site-init $x$}
+    For finite-temperature jobs, $x$ specifies the number of walkers to
+    place on a determinant when it is chosen to be occupied.
+    \codeitem{exact-hamil}
+    If this option is specified then the projected Hamiltonian will
+    be calculated exactly for each set of Krylov vectors sampled,
+    rather than randomly sampling the elements via an FCIQMC-like
+    spawning dynamic.
+    \codeitem{fully-stochastic-hamil}
+    If this option is specified then the projected Hamiltonian will be
+    estimated without using the semi-stochastic adaptation. This will
+    decrease the quality of the estimate, but may be useful for
+    debugging or analysis of the method.
+    \codeitem{init-correct-walker-pop}
+    For finite-temperature calculations on multiple cores, the initial
+    population may not be quite as requested. This is because the
+    quickest (and default) method involves generating determinants
+    randomly and sending them to the correct processor at the end. It
+    is possible in this process that walkers will die in annihilation.
+    However, if this option is specified then each processor will throw
+    away spawns to other processors, thus allowing the correct total
+    number of walkers to be spawned.
+    \codeitem{init-config-seeds seed1, seed2...}
+    If this option is used then, for finite-temperature calculations,
+    at the start of each calculation over an initial configuration,
+    the random number generator will be re-initialised with the
+    corresponding input seed. The number of seeds provided should be
+    equal to the number of initial configurations.
+    \codeitem{all-sym-sectors}
+    If this option is specified then the FCIQMC calculation will be
+    run in all symmetry sectors simultaneously. This is an option
+    relevant for finite-temperature calculations.
+    \codeitem{scale-population}
+    If this option is specified then the initial population will be
+    scaled to the populaton specified with the `totalwalkers' option
+    in the Calc block. This is relevant for spectral calculations when
+    starting from a perturbed \texttt{POPSFILE} wave function, where the
+    initial population is not easily controlled.
+  \end{description}
+    In spectral calculations, one also typically wants to consider a particular
+    perturbation operator acting on the ground state wave functions. Therefore,
+    you must first perform an FCIQMC calculation to evolve to the ground state
+    and output a \code{POPSFILE}. You should then start the KP-FCIQMC
+    calculation from that \code{POPSFILE}. To apply a perturbation operator to
+    the \code{POPSFILE} wave function as it is read in, use the pops-creation
+    and pops-annihilate options. These allow operators such as
+    \begin{equation}
+        \hat{V} = \hat{c}_i \hat{c}_j + \hat{c}_k \hat{c}_l \hat{c}_m
+    \end{equation}
+    to be applied to the \code{POPSFILE} wave function. The general form is
+    \code{pops-annihilate n_sum}
+    \code{orb1 orb2...}
+    \code{...}
+    where $n_{sum}$ is the number of terms in the sum for $\hat{V}$ (2 in the
+    above example), and $orbi$ specify the spin orbital labels to apply. The
+    number of lines of such orbitals provided should be equal to $n_{sum}$. The
+    first line provides the orbital labels for the first term in the sum, the
+    second line for the second term, etc...
+
+    \subsection{LOGGING Block}
+    The LOGGING block specifies the output of the calculation and which
+    status information of the calculation shall be collected. This block is
+    started with the \texttt{logging} keyword and terminated with the
+    \texttt{endlog} keyword.
+    \begin{description}
+      \codeitem{\textcolor{oblue}{logging}}
+      Starts the LOGGING block.
+      \codeitem{\textcolor{oblue}{endlog}}
+      Terminates the LOGGING block.
+      \codeitem{\textcolor{oblue}{hdf5-popsfile}}
+      Sets the format to read and write the wave function to HDF5. Requires building
+      with the \texttt{ENABLE-HDF5} cmake option.
+      \codeitem{popsfile $n$}
+      Save the current wave function on disk at the end of the
+      calculation. Can be used to initialize subsequent calculations and
+      continue the run. This is enabled by default. $n$ is optional and, when
+      given, specifies that every $n$ iteration, the wave function shall be
+      saved. Setting $n=-1$ disables this option.
+      \codeitem{popsFileTimer $n$}
+      Write out a the wave function to disk every $n$ minutes, each time
+      overwriting the last output.
+      \codeitem{hdf5-pops-write}
+      Sets the format to write the wave function to HDF5. Requires building
+      with the \texttt{ENABLE-HDF5} cmake option.
+      \codeitem{highlyPopWrite $n$}
+      Print out the $n$ most populated determinants at the end of the
+      calculation. Is enabled by default with $n=15$.
+      \codeitem{inits-exlvl-write $n$}
+      Sets the excitation level up to which the number of initiators is logged
+      to $n$. Defaults to $n=8$.
+      \codeitem{binarypops}
+      Sets the format to write the wave function to binary.
+      \codeitem{nomcoutput}
+      Suppress the printing of iteration information to stdout. This data is
+      still written to disk.
+    \end{description}
+    \subsubsection{Semi-stochastic output options}
+    \begin{description}
+      \codeitem{write-core}
+      When performing a semi-stochastic calculation, adding this option
+      to the Logging block will cause the core space determinants to be
+      written to a file called CORESPACE. These can then be further read
+      in and used in subsequent semi-stochastic options using the
+      \texttt{read-core} option in the CALC block.
+      \codeitem{write-most-pop-core-end $n$}
+      At the end of a calculation, output the $n$ most populated
+      determinants to a file called CORESPACE. This can further be read
+      in and used as the core space in subsequent calculations using the
+      \texttt{read-core} option.
+    \end{description}
+    \subsubsection{RDM output options}
+    These options control how the RDMs are printed. For a description of how
+    the RDMs are calculated and the content of the files, please see section \ref{sec:rdms}.
+    \begin{description}
+      \codeitem{calcRdmOnfly $i$ $step$ $start$}
+      Calculate RDMs stochastically over the course of the calculation. Starts
+      sampling RDMs after $start$ iterations, and outputs an average every $step$
+      iterations. $i$ indicates whether only 1-RDMs (1), only 2-RDMs (2) or
+      both are produced.
+      \codeitem{rdmLinSpace $start$ $n$ $step$}
+      A more user friendly version of \texttt{calcrdmonfly} and \texttt{rdmsamplingiters}, this samples both
+      1- and 2-RDMs starting at iteration $start$, outputting an average every
+      $step$ iterations $n$ times, then ending the calculation.
+      \codeitem{diagFlyOneRdm}
+      Diagonalise the 1-RDMs, yielding the occupation numbers of the natural
+      orbitals.
+      \codeitem{printOneRdm}
+      Always output the 1-RDMs to a file, regardless of which RDMs are
+      calculated. May compute the 1-RDMs from the 2-RDMs.
+      \codeitem{writeRdmsToRead off}
+      The presence of this keyword overrides the default.  If the OFF word is present, the unnormalised \code{TwoRDM_POPS_a***}
+    files will definitely not be printed, otherwise they definitely will be, regardless of the state of the
+    \code{popsfile/binarypops} keywords.
+
+    \codeitem{readRdms}
+    This keyword tells the calculation to read in the \code{TwoRDM_POPS_a***} files from a previous calculation.  The
+    restarted calc then continues to fill these RDMs from the very first iteration regardless of the value put with
+    the \code{calcRdmOnFly} keyword.  The calculation will crash if one of the \code{TwoRDM_POPS_a***} files are missing.  If
+    the \code{readRdms} keyword is present, but the calc is doing a \code{StartSinglePart} run, the \code{TwoRDM_POPS_a***} files
+    will be ignored.
+
+    \codeitem{noNormRdms}
+    This will prevent the final, normalised \code{TwoRDM_a***} matrices from being printed.  These files can be quite
+    large, so if the calculation is definitely not going to be converged, this keyword may be useful.
+
+    \codeitem{writeRdmsEvery $iter$}
+    This will write the normalised \code{TwoRDM_a***} matrices every $iter$ iterations while the RDMs are being
+    filled.  At the moment, this must be a multiple of the frequency with which the energy is calculated.  The
+    files will be labelled with incrementing values - \code{TwoRDM_a***.1} is
+    the first, and then next \code{TwoRDM_a***.2} etc.
+    \codeitem{write-spin-free-rdm}
+    Output the spin-free 2-RDMs to disk at the end of the calculation.
+      \codeitem{printRoDump}
+      Output the integrals of the natural orbitals to a file.
+    \end{description}
 
 \section{Useful References Containing Technical Details}
 
@@ -653,115 +1437,14 @@ Catherine Overy, George H. Booth, N. S. Blunt, James Shepherd, Deidre Cleland, A
 KP-FCIQMC:
 \begin{itemize}
 \item Krylov-projected quantum Monte Carlo
-N. S. Blunt, Ali Alavi, George H. Booth, http://arxiv.org/abs/1409.2420
+N. S. Blunt, Ali Alavi, George H. Booth, Phys. Rev. Lett. 115, 050603
 \end{itemize}
 
-\section{Real walker coefficients}
-
-    Real walker coefficients can be turned on in NECI in one of two ways. The
-    recommended method is to use the `RealCoeffByExcitLevel' option. If one adds
-    `RealCoeffByExcitLevel 4' to the Calc block then real coefficients will be
-    used for all determinants up to 4 excitations of the reference determinant.
-
-    The following options relate to real coefficients, and all should be
-    inserted in the Calc block.
-    \begin{description}
-		\codeitem{RealCoeffByExcitLevel n}
-            Use real walkers on all determinants which are up to n excitations
-            of the reference determinant.
-		\codeitem{AllRealCoeff}
-            Use real walkers for all determinants.
-		\codeitem{RealSpawnCutoff x}
-            Continuous real spawning will be performed, unless the spawn has
-            weight less than x. In this case, the weight of the spawning will
-            be stochastically rounded up to x or down to zero, such that the
-            average weight of the spawning does not change. This is a method of
-            removing very low weighted spawnings from the spawned list, which
-            require extra memory, processing and communication. A reasonable
-            value for x is 0.01.
-		\codeitem{SetOccupiedThresh x}
-            Set the value for the minimum walker weight in the main walker
-            list. If, after all annihilation has been performed, any
-            determinants have a total weight of less than x, then the weight
-            will be stochastically rounded up to x or down to zero such that
-            the average weight is unchanged.
-
-            Default: x=1.0. This value should usually be used, and should only
-            be changed if you have a good reason.
-    \end{description}
-
-\section{Semi-stochastic}
-
-    To use semi-stochastic in NECI, the \code{semi-stochastic} option should
-    be added to the Calc block, along with a further option to specify what
-    core space to use. The following options are available and should be added
-    to the Calc block.
-    \begin{description}
-		\codeitem{semi-stochastic}
-            Turn on the semi-stochastic adaptation.
-		\codeitem{doubles-core}
-            Use the reference determinant and all single and double excitations
-            from it to form the core space.
-		\codeitem{cas-core cas1 cas2}
-            Use a CAS space to form the core space. The parameter cas1 specifies
-            the number of electrons in the cas space and cas2 specifies the
-            number of virtual spin orbitals (the cas2 highest energy orbitals
-            will be virtuals).
-		\codeitem{ras-core ras1 ras2 ras3 ras4 ras5}
-            Use a RAS space to form the core space. Suppoose the list of spatial
-            orbitals are split into three sets, RAS1, RAS2 and RAS 3, ordered
-            by their energy. ras1, ras2 and ras3 then specify the number of
-            spatial orbitals in RAS1, RAS2 and RAS3. ras4 specifies the minimum
-            number of electrons in RAS1 orbitals. ras5 specifies the maximum
-            number of electrons in RAS3 orbitals. These together define the RAS
-            space used to form the core space.
-		\codeitem{optimised-core}
-            Use the iterative approach of Petruzielo \emph{et al.} (see PRL,
-            109, 230201). One also needs to use either optimised-core-cutoff-amp
-            or optimised-core-cutoff-num with this option.
-		\codeitem{optimised-core-cutoff-amp $x1$, $x2$, $x3$...}
-            Perform the optimised core option, and in iteration $i$, choose
-            which determinants to keep by choosing all determinants with an
-            amplitude greater than $xi$ in the ground state of the space (see
-            PRL 109, 230201). The number of iterations is determined by the
-            number of parameters provided. 
-		\codeitem{optimised-core-cutoff-num $n1$, $n2$, $n3$...}
-            Perform the optimised core option, and in iteration $i$, choose
-            which determinants to keep by choosing the ni most significant
-            determinants in the ground state of the space (see PRL 109, 230201).
-            The number of iterations is determined by the number of parameters
-            provided. 
-		\codeitem{fci-core}
-            Use all determinants to form the core space. A fully deterministic
-            projection is therefore performed with this option.
-		\codeitem{pops-core $n$}
-            When starting from a POPSFILE, this option will use the $n$ most
-            populated determinants from the popsfile to form the core space.
-		\codeitem{read-core}
-            Use the determinants in the CORESPACE file to form the core space.
-            A CORESPACE file can be created by using the write-core option in
-            the Logging block.
-    \end{description}
-    The following semi-stochastic related options should be added to the
-    Logging block.
-    \begin{description}
-		\codeitem{write-core}
-            When performing a semi-stochastic calculation, adding this option
-            to the Logging block will cause the core space determinants to be
-            written to a file called CORESPACE. These can then be further read
-            in and used in subsequent semi-stochastic options using the
-            read-core option in the Calc block.
-		\codeitem{write-most-pop-core-end $n$}
-            At the end of a calculation, output the $n$ most populated
-            determinants to a file called CORESPACE. This can further be read
-            in and used as the core space in subsequent calculations using the
-            read-core option.
-    \end{description}
-
-\section{Trial wave functions}
+    \section{Trial wave functions}
+    \label{sec:trial}
 
     By default, NECI uses a single reference determinant, $|D_0\rangle$, in the
-    projected energy estimator, or potentially a linear combination of two 
+    projected energy estimator, or potentially a linear combination of two
     determinants if the the HPHF code is being used.
     \begin{equation}
         E_0 = \frac{\braket{D_0 | \hat{H} | \Psi}}{\braket{D_0 | \Psi}}.
@@ -859,129 +1542,8 @@ N. S. Blunt, Ali Alavi, George H. Booth, http://arxiv.org/abs/1409.2420
 
     The method has only been implemented with RHF calculations and with $M_s=0$.
 
-\section{KP-FCIQMC}
-
-    The Krylov-projected FCIQMC (KPFCIQMC) method is available on the master
-    branch of NECI. The theory behind the method is described in the article,
-    currently available on arXiv (arXiv:1409.2420). Here we simply describe the
-    main input options available.
-
-    KP-FCIQMC is accessed via its own block in the input file. This block is
-    started with 'kp-fciqmc' and ended with 'end-kp-fciqmc'. The methods block
-    should be removed.
-
-    KP-FCIQMC is only implemented with the linear scaling algorithm. It should
-    be run in double-run mode.
-
-    The main options are:
-    \begin{description}
-        \codeitem{num-krylov-vecs $N$}
-            $N$ specifies the total number of Krylov vectors to sample.
-        \codeitem{num-iters-between-vecs $N$}
-            $N$ specifies the (constant) number of iterations between each Krylov
-            vector sampled. The first Krylov vector is always the starting wave
-            function.
-        \codeitem{num-iters-between-vecs-vary $i_{12}$, $i_{23}$, $i_{34}$...}
-            $i_{n,n+1}$ specifies the number of iterations between the nth and
-            (n+1)th Krylov vectors. The number of parameters input should be
-            the number of Krylov vectors asked for minus one. The first Krylov
-            vector is always the starting wave function.
-        \codeitem{num-repeats-per-init-config $N$}
-            $N$ specifies the number repeats to perform for each initial
-            configuration, i.e. the number of repeats of the whole evolution,
-            from the first sampled Krylov vector to the last. The projected
-            Hamiltonian and overlap matrix estimates will be output for each
-            repeat, and the averaged values of these matrices used to compute
-            the final results.
-        \codeitem{averagemcexcits-hamil $N$}
-            When calculating the projected Hamiltonian estimate, an FCIQMC-like
-            spawning is used, rather than calculating the elements exactly,
-            which would be too computationally expensive. Here, $N$ specifies the
-            number of spawnings to perform from each walker from each Krylov
-            vector when calculating this estimate. Thus, increasing $N$ should
-            improve the quality of the Hamiltonian estimate.
-        \codeitem{finite-temperature}
-            If this option is included then a finite-temperature calculation is
-            performed. This involves starting from several different random
-            configurations, whereby walkers are distributed on random
-            determinants. The number of initial configurations should be
-            specified with the num-init-configs option.
-        \codeitem{num-init-configs $N$}
-            $N$ specifies the number of initial configurations to perform the
-            sampling over. An entire FCIQMC calculation will be performed, and
-            an entire subspace generated, for each of these configurations.
-            This option should be used with the finite-temperature option, but
-            is not necessary for spectral calculations where one always starts
-            from the same initial vector.
-        \codeitem{memory-factor $x$}
-            This option is used to specify the size of the array allocated for
-            storing the Krylov vectors. The number of slots allocated to store
-            unique determinants in the array holding all Krylov vectors will be
-            equal to $ABx$, where here $A$ is the length of the main walker
-            list, $B$ is the number of Krylov vectors, and $x$ is the value input
-            with this option.
-        \codeitem{num-walker-per-site-init $x$}
-            For finite-temperature jobs, $x$ specifies the number of walkers to
-            place on a determinant when it is chosen to be occupied.
-        \codeitem{exact-hamil}
-            If this option is specified then the projected Hamiltonian will
-            be calculated exactly for each set of Krylov vectors sampled,
-            rather than randomly sampling the elements via an FCIQMC-like
-            spawning dynamic.
-        \codeitem{fully-stochastic-hamil}
-            If this option is specified then the projected Hamiltonian will be
-            estimated without using the semi-stochastic adaptation. This will
-            decrease the quality of the estimate, but may be useful for
-            debugging or analysis of the method.
-        \codeitem{init-correct-walker-pop}
-            For finite-temperature calculations on multiple cores, the initial
-            population may not be quite as requested. This is because the
-            quickest (and default) method involves generating determinants
-            randomly and sending them to the correct processor at the end. It
-            is possible in this process that walkers will die in annihilation.
-            However, if this option is specified then each processor will throw
-            away spawns to other processors, thus allowing the correct total
-            number of walkers to be spawned.
-        \codeitem{init-config-seeds seed1, seed2...}
-            If this option is used then, for finite-temperature calculations,
-            at the start of each calculation over an initial configuration,
-            the random number generator will be re-initialised with the
-            corresponding input seed. The number of seeds provided should be
-            equal to the number of initial configurations.
-        \codeitem{all-sym-sectors}
-            If this option is specified then the FCIQMC calculation will be
-            run in all symmetry sectors simultaneously. This is an option
-            relevant for finite-temperature calculations.
-        \codeitem{scale-population}
-            If this option is specified then the initial population will be
-            scaled to the populaton specified with the `totalwalkers' option
-            in the Calc block. This is relevant for spectral calculations when
-            starting from a perturbed \code{POPSFILE} wave function, where the
-            initial population is not easily controlled.
-    \end{description}
-
-    In spectral calculations, one also typically wants to consider a particular
-    perturbation operator acting on the ground state wave functions. Therefore,
-    you must first perform an FCIQMC calculation to evolve to the ground state
-    and output a \code{POPSFILE}. You should then start the KP-FCIQMC
-    calculation from that \code{POPSFILE}. To apply a perturbation operator to
-    the \code{POPSFILE} wave function as it is read in, use the pops-creation
-    and pops-annihilate options. These allow operators such as
-    \begin{equation}
-        \hat{V} = \hat{c}_i \hat{c}_j + \hat{c}_k \hat{c}_l \hat{c}_m
-    \end{equation}
-    to be applied to the \code{POPSFILE} wave function. The general form is
-    \code{pops-annihilate n_sum}
-    \code{orb1 orb2...}
-    \code{...}
-    where $n_{sum}$ is the number of terms in the sum for $\hat{V}$ (2 in the
-    above example), and $orbi$ specify the spin orbital labels to apply. The
-    number of lines of such orbitals provided should be equal to $n_{sum}$. The
-    first line provides the orbital labels for the first term in the sum, the
-    second line for the second term, etc...
-    
 \section{RDM generation}
-
+\label{sec:rdms}
 Currently the 2-RDMs can only be calculated for closed shell systems.  However, calculation and
 diagonalisation of only the 1-RDM is set up for either open shell or closed shell systems.
 
@@ -1006,10 +1568,10 @@ Subtle details in the code are:
 2. The off-diagonal contributions (both HF connections and other contributions sampled through spawning
    events) contain contributions from both cross-terms. I.e $N_i(pop1)*N_j(pop2)$ as well as
    $N_i(pop2)*N_j(pop1)$.
-   
+
 There is also the facility to do a single-run calculation of the RDM.  This method is BIASED, so should
 not be used for high accuracy calculations.  However, it is cheaper than the double run method, both in
-memory and in simulation time, so may be useful for rough-and-ready calculations.  
+memory and in simulation time, so may be useful for rough-and-ready calculations.
 %With no cutoff applied
 %this is very similar to the method described in DMC's thesis, which gives poor RDM energies. Note that the
 %main difference is that the SR method used here resets the population averages when the RDM energy is calculated
@@ -1020,25 +1582,9 @@ memory and in simulation time, so may be useful for rough-and-ready calculations
 %more memory.  As the SR method is inherently biased anyway, this is not too great a concern.
 Reducing the effect of the bias in the SR method can be done by applying a cutoff to the diagonal contributions, such that
 contributions are only added in if the average sign of the determinant at the time of adding in the contribution exceeds
-some preset parameter.  (See THRESHOCCONLYRDMDIAG)
-
-To perform a calculation, use
-    \begin{lstlisting}[gobble=4]
-		calcrdmonfly RDMLevel RDMIterStart RDMEnergyIter
-    \end{lstlisting}
-
-    It requires 3 integers.
-    The first refers to the type of RDMs to calculate.  A value of 1 will calculate only the 1-RDM.  Any other
-    value will calculate the 2-RDM (which contains the information of the 1-RDM).  The second integer
-    is the number of iterations after the shift has begun to change that we want to begin filling the RDMs.
-    Finally, if the 2-RDMs are being calculated, the RDM energy will be automatically obtained at the
-    end of the calculation.  The 3rd integer refers to how often (every RDMEnergyIter iterations) we want
-    to additionally calculate and print the energy during the calculation.  This will be ignored if only
-    calculating the 1-RDM.
-    Clearly making RDMEnergyIter very large will mean the energy is only calculated with a softexit, or this can
-    also be achieved by using \code{CalcRdmEnergy OFF}.
-
-    The RDM energy is one measure of the accuracy of the RDMs.  Also printed by default are the maximum error in the
+some preset parameter.
+When calculating RDMs, the RDM energy will be printed at the end of the
+calculation, which is one measure of the accuracy of the RDMs.  Also printed by default are the maximum error in the
     hermiticity (2-RDM(i,j;a,b) - 2-RDM(a,b;i,j)) and the sum of the absolute errors.
 
 \subsection{Reading in / Writing out the RDMs for restarting calculations}
@@ -1053,34 +1599,6 @@ To perform a calculation, use
     \code{popsfile/binarypops} keywords - i.e. if a wavefunction popsfile is being printed and the RDMs are being filled,
 	a RDM \code{POPSFILE} will be also.
 	If only the 1-RDM is being calculated, \code{OneRDM_POPS/OneRDM} files will be printed in the same way.
-    The following options can override/modify these defaults.
-
-	\begin{description}
-		\codeitem{writerdmstoread off}
-	The presence of this keyword overrides the default.  If the OFF word is present, the unnormalised \code{TwoRDM_POPS_a***}
-    files will definitely not be printed, otherwise they definitely will be, regardless of the state of the
-    \code{popsfile/binarypops} keywords.
-
-\codeitem{readrdms}
-	This keyword tells the calculation to read in the \code{TwoRDM_POPS_a***} files from a previous calculation.  The
-    restarted calc then continues to fill these RDMs from the very first iteration regardless of the value put with
-	the \code{calcrdmonfly} keyword.  The calculation will crash if one of the \code{TwoRDM_POPS_a***} files are missing.  If
-	the \code{readrdms} keyword is present, but the calc is doing a \code{StartSinglePart} run, the \code{TwoRDM_POPS_a***} files
-    will be ignored.
-
-\codeitem{nonormrdms}
-	This will prevent the final, normalised \code{TwoRDM_a***} matrices from being printed.  These files can be quite
-    large, so if the calculation is definitely not going to be converged, this keyword may be useful.
-
-\codeitem{writerdmsevery iter}
-	This will write the normalised \code{TwoRDM_a***} matrices every \code{iter} iterations while the RDMs are being
-    filled.  At the moment, this must be a multiple of the frequency with which the energy is calculated.  The
-	files will be labelled with incrementing values - \code{TwoRDM_a***.1} is the first, and then next \code{TwoRDM_a***.2} etc.
-\end{description}
-
-\section{Outputs of NECI}
-
-TODO
 
 \section{Performing error analysis}
     Data from an FCIQMC calculation is usually correlated. As a result,
@@ -1092,7 +1610,7 @@ TODO
     A blocking analysis can be performed in NECI in one of two ways. Firstly,
     a rough blocking analysis is performed automatically after a job is finished.
     The final result is output to standard output and further information about
-    the blocking analysis at various block sizes is output to separate files, 
+    the blocking analysis at various block sizes is output to separate files,
 	such as \code{Blocks_num} and \code{Blocks_denom}. This should only be
 	used as a rough
     and quick estimate as there are issues with this approach. For example, the
@@ -1156,7 +1674,33 @@ TODO
 	\item Model calculations?
 	\item Tools for processing POPSFILES?
 \end{itemize}
+\subsection{Using CTAGS with VIM}
 
+It is useful, especially for new developers, to be able to easily navigate through NECI code.
+A simple solution for Vim users is to generate a \code{tags} file containing the names of all functions and global variables and their locations.
+Vim automatically reads this file from the current directory, if it exists, and use it to facilitate code navigation. Then you can jump to the deceleration of a variable or a function
+by putting the cursor over it and pressing \code{Ctrl+]} . To go back, press \code{Ctrl+t}.
+Other tag-related commands are explained here: \url{https://vim.fandom.com/wiki/Browsing_programs_with_tags}.
+
+To generate the tags file, a program called \code{ctags} is needed. It is installed  by default in many Linux distributions, but this version is most probably the one called  \code {ctags (GNU Emacs)} and does not support the options we need. The required version is \code{Exuberant Ctags} or its derivative \code{Universal Ctags} which you can be downloaded from here: \url{https://github.com/universal-ctags/ctags}.
+
+Once you installed the correct version and made sure it is the default one,  \footnote{Executing \code{ctags --version} should print either \code{Universal Ctags} or \code{Exuberant Ctags} but not \code{ctags (GNU Emacs)}} go to the source directory of NECI and run the script \code{gen_vim_tags.sh} which is available in the tools directory
+\begin{lstlisting}[gobble=4]
+	 cd neci/src
+    ../tools/gen_vim_tags.sh
+ \end{lstlisting}
+ This script does some tricks using the preprocessor to solve issues with handling macros in NECI files.  Without these, \code{ctags} would miss many variables due to parsing issues.
+The script generates the necessary \code{tags} file in the current directory and code navigation should become available for all source files in this directory.
+
+
+\paragraph{Note} \code{tags} is simply a text file with the symbol's name,  the file where its defined, and the line number . There is no automatic magic happening behind the scenes as one would expect from a full-fledged IDE. \emph{Therefore, whenever the code changes, you need to explicitly re-generate the \code{tags} file}. Otherwise, Vim will simply jump to the old positions of the symbols.
+
+\paragraph{Tip} Another useful tool is \code{Tagbar} plugin for Vim which lists all functions/variables in the current file in a side window. Using this plugin does not require the \code{tags} file, because it generates its own tags on-the-fly. However, you will need to install an updated version of \code{ctags} executable. All necessary details are explained on the plugin's homepage: \url{https://github.com/majutsushi/tagbar}
+
+
+\paragraph{EMACS Usage}
+Like Vim, Emacs accepts  \code{TAGS} file (notice the capital letters).
+This file can similarly be generated using \code{gen_emacs_tags.sh}, then you can use \code{Meta+.} to jump to definition and \code{Meta+*} to go back. Other tag-related commands are explained here: \url{https://www.emacswiki.org/emacs/EmacsTags}.
 
 \chapter{Working in NECI}
 In many ways, NECI is a fairly hostile environment to code, especially for
@@ -1164,7 +1708,7 @@ inexperienced software developers, or those who are not familiar with the
 ideosynchrasies of different versions of FORTRAN/Fortran.
 
 In the following sections we aim to give some general guidance for working in
-the NECI codebase, and 
+the NECI codebase, and
 
 \textbf{GHB, NSB:} For many of these sections it is arguable whether they
 belong in an overall about-the code description, or a walkthrough of the code
@@ -1214,7 +1758,7 @@ and a range of other guidelines.
 
 	\headitem{Fortran standard}
 		Due to the use of procedure pointers, a reasonably up to date compiler
-		supporting (at least some of) the Fortran 2003 standard is 
+		supporting (at least some of) the Fortran 2003 standard is
 		\emph{required} to compile NECI. The C-interoperability and procedure
 		pointer features of Fortran 2003 should be used. Other features of this
 		standard should be used sparingly, as Fortran 2003 support in compilers
@@ -1228,7 +1772,7 @@ and a range of other guidelines.
 				\code{DO} statements using \code{REAL} type loop
 				variables.
 			\item Assigned \code{GOTO} statements
-			\item 
+			\item
 				Cray pointers (declared with the format
 				\code{pointer (ptr, pointee)})
 			\item
@@ -1240,7 +1784,15 @@ and a range of other guidelines.
 			\item
 				\code{COMMON} blocks for sharing data between files.
 		\end{packed_itemize}
-		All of these features do, or have appeared, in NECI at some point. It is also highly advised that \code{intent} arguments should be used for all argument declarations. This both improves performance, and the ability of others to quickly identify what the routine is attempting to do.
+		All of these features do, or have appeared, in NECI at some point.
+        It is also highly advised that \code{intent} arguments
+        should be used for all argument declarations.
+        This both improves performance, and the ability of
+        others to quickly identify what the routine is attempting to do.
+
+        Regarding code layout the PEP8 guidelines of the python language
+        lead to well readable code and are mostly applicable to Fortran
+        as well. (\url{https://www.python.org/dev/peps/pep-0008/})
 
 	\headitem{CAPITAL letters}
 		Fortran is a case insensitive programming language.
@@ -1248,7 +1800,7 @@ and a range of other guidelines.
 		For historical reasons a large proportion of FORTRAN 77 code was
 		written entirely in CAPITAL LETTERS (with the exception of displayable
 		strings). This is extremely bad practice.
-		
+
 		Humans generally read by recognising word shape. This is obliterated
 		in fully capitalised text, making code much harder to read, and typos
 		especially difficult to identify.
@@ -1335,7 +1887,53 @@ and a range of other guidelines.
 		stored in procedure pointers. These routines must exactly match the
 		definition of the relevant \code{abstract interface}, which may
 		be more general than is required for the specific case.
-		
+
+    The arguments should be sorted by non optional
+    \code{in}, \code{inout}, \code{out} and then optional arguments.
+    The declaration of dummy arguments should appear in the same
+    order as the argument list.
+    There should be an empty line between dummy argument declarations
+    and local variable declarations.
+
+    If a procedure is often, but not always, called with the same argument
+    think about making it \code{optional} using the \code{def_default}
+    macro and introduce a placeholder local variable with appended
+    underscore.
+
+    If possible add the \code{pure} attribute.
+    This shows the human that there are no side effects and makes
+    parallelization and encapsulation easier.
+
+    If a function is \code{pure} and operates on scalars, add
+    the \code{elemental} attribute to automatically map it elementwise
+    onto arrays.
+
+    The following toy function is pure, can be applied onto arrays
+    and scalars alike.
+    If the exponent is ommited, it defaults to squaring.
+
+    \begin{lstlisting}
+
+    elemental function pow(x, n) result(res)
+        integer, intent(in) :: x
+        integer, intent(in), optional :: n
+        integer :: n_
+
+        integer :: i
+
+        def_default(n_, n, 2)
+
+        res = 1
+        do i = 1, n
+            res = res * x
+        end do
+    end function
+
+    pow([1, 3, 5]) -> [1, 9, 25]
+    pow([1, 3, 5], 3) -> [1, 27, 125]
+
+    \end{lstlisting}
+
 	\headitem{Data types}
 		With the exception of small integers being directly assigned to known
 		integer variables, or used in loop counters, all constants should have
@@ -1358,8 +1956,8 @@ and a range of other guidelines.
 		on build configuration) the custom (preprocessor defined) data type
 		\code{HElement_t} should be used, which resolves to either
 		\code{real(dp)} or \code{complex(dp)}.
-		
-	
+
+
 	\headitem{Array declarations}
 		Fortran arrays can be declared in multiple ways. In particular, the
 		dimensionality of an array can be declared on the variable itself,
@@ -1380,7 +1978,7 @@ and a range of other guidelines.
 		\end{enumerate}
 		The only exception to this is in templated code, where the bounds of
 		arrays need to be varied.
-		
+
 		Where arrays are passed as arguments to a routine, they can be
 		passed in three ways
 		\begin{lstlisting}[gobble=8]
@@ -1391,12 +1989,12 @@ and a range of other guidelines.
 		The first form should be avoided wherever practical, as it prevents
 		any knowledge of the array dimensions being carried into the code.
 		This means that whole-array manipulations will no longer work.
-		
+
 		The second two types can be used in different circumstances. The first
 		essentially overrides the array dimensions passed in. This can be
 		useful for re-indexing arrays (e.g. treating a zero-based array as
 		one-based).
-		
+
 		The last approach allows a receiving routine to inspect the array
 		bounds as passed in by the calling routine. This maximises the extent
 		to which the compiler and debugging tools can assist in finding
@@ -1407,16 +2005,16 @@ and a range of other guidelines.
 		\code{use} statements. Generally, specific symbols should be
 		included rather than all symbols in a module using the notation
 		\code{use module_name, only: symbol, ...}.
-		
+
 		Modules which are templated (see section \ref{sect:templating}) should
 		be included in full (no \code{only} statements). This includes
 		\code{sort_mod}, \code{util_mod} and
 		\code{Parallel_neci}.
-		
+
 		Modules containing only data that have been separated for the purposes
 		of dependency resolution can be fully included into their related
 		modules (e.g. \code{CalcData} and \code{Calc}).
-		
+
 		The module \code{constants} should also be fully included
 		everywhere to reduce the likelihood of data types conflicting.
 
@@ -1428,7 +2026,7 @@ and a range of other guidelines.
 		resolution tree can become very large, and use a lot of time and
 		memory to resolve unambiguously.
 
-	
+
 	\headitem{{\ttfamily ASSERT} statements}
 		\code{ASSERT} is a macro, defined in \code{macros.h}. In
 		an optimised build these statements are entirely removed, and in a
@@ -1452,14 +2050,131 @@ and a range of other guidelines.
 
 		\begin{warningbox}
 			Be careful not to use tests with side effects in \code{ASSERT}
-			statements. In the optimised build the tests will not be called, 
+			statements. In the optimised build the tests will not be called,
 			and this can introduce bugs that appear in only one of the
 			optimised or debug builds.
 		\end{warningbox}
 
+	\headitem{Floating point comparison and integer division}
+
+    It is usually a bad idea to test floating point numbers
+    for (in-)equality using \code{==} or \code{/=}.
+    Equality should rather be tested with an expression like
+    $ |a - b| < \epsilon$.
+    In the \code{util_mod} module there are \code{near_zero}
+    and \code{operator(.isclose.)} which should be used for this purpose.
+
+    If one divides two integers \code{5 / 3 == 1} the result gets truncated
+    to the nearest integer.
+    Sometimes this is not wanted, and the compiler warns about it.
+    For this reason one should use \code{5 .div. 3} to make it explicit
+    that integer division is indeed wanted.
+=======
+    \headitem{Operator Layout}
+        Always surround these binary operators with a single space on either side:
+        assignment (\code{=}), comparisons (\code{==, <, >, /=, <=, >=}),
+        Booleans (\code{.and., .or., .not.}).
+
+        If operators with different priorities are used, consider adding
+        whitespace around the operators with the lowest priority(ies).
+        Use your own judgment; however, never use more than one space,
+        and always have the same amount of whitespace on both sides
+        of a binary operator.
+
+        \begin{lstlisting}
+        ! Recommended
+            i = i + 1
+            x = x*2 - 1
+            hypot2 = x*x + y*y
+            c = (a+b) * (a-b)
+
+        ! Also possible
+            x = x * 2 - 1
+            hypot2 = x * x + y * y
+            c = (a + b) * (a - b)
+
+        ! Forbidden
+            i=i+1
+        \end{lstlisting}
+
+        Line breaks should happen before binary operators.
+        \begin{lstlisting}
+        ! No: operators sit far away from their operands
+            income = gross_wages + &
+                     taxable_interest + &
+                     (dividends - qualified_dividends) - &
+                     ira_deduction - &
+                     student_loan_interest
+
+        ! Yes: easy to match operators with operands
+            income = gross_wages &
+                     + taxable_interest &
+                     + (dividends - qualified_dividends) &
+                     - ira_deduction &
+                     - student_loan_interest
+        \end{lstlisting}
+
+        Use the new C-style relational operators.
+        \begin{lstlisting}
+        ! Recommended
+              ==   /=   <    <=    >   >=
+        ! Forbidden
+              .EQ. .NE. .LT. .LE. .GT. .GE.
+        \end{lstlisting}
+
+    \headitem{Whitespace in Expressions}
+        Put whitespace after commata but
+        avoid extraneous whitespace in the following situations.
+
+        \begin{lstlisting}
+    ! No whitespace immediately inside parentheses:
+        Yes: spam(ham(1), f(eggs, 2))
+        No:  spam( ham( 1 ), f( eggs, 2 ) )
+    ! No whitespace immediately before the open parenthesis that starts
+    ! the argument list of a function call or array indexing:
+        Yes: spam(1)
+        No:  spam (1)
+    ! But there should be white space before the opening parenthesis
+    ! of the conditional in an if statement.
+        Yes: if (condition1 .and. condition2) then
+        No: if(condition1 .and. condition2) then
+
+    ! No whitespace immediately before a comma, semicolon, or colon:
+        Yes:
+            use module, only: cool_function
+            integer, allocatable :: A(:, :)
+        No:
+            use module , only : cool_function
+            integer , allocatable :: A(: , :)
+    ! No whitespace around the = sign when used to
+    ! call a function with a keyword argument.
+        Yes: pow(2, n=3)
+        No: pow(2, n = 3)
+        \end{lstlisting}
+        In a slice the colon acts like a binary operator,
+        and should have equal amounts on either side
+        (treating it as the operator with the lowest priority).
+        In an extended slice, both colons must have the same amount
+        of spacing applied.
+        Exception: when a slice parameter is omitted, the space is omitted.
+        \begin{lstlisting}
+    ! Yes
+        ham(1:9), ham(1:9:3), ham(:9:3), ham(1::3), ham(1:9:)
+        ham(lower:upper), ham(lower:upper:), ham(lower::step)
+        ham(lower+offset : upper+offset)
+        ham(: upper_fn(x) : step_fn(x)), ham(:: step_fn(x))
+        ham(lower + offset : upper + offset)
+
+    ! No
+        ham(lower + offset:upper + offset)
+        ham(1: 9), ham(1 :9), ham(1:9 :3)
+        ham(lower : : upper)
+        ham( : upper)
+        \end{lstlisting}
+
 	\headitem{Modules and interfaces}
 		\begin{itemize}
-			\item 
+			\item
 		\end{itemize}
 
 	\headitem{Example module layout}
@@ -1467,47 +2182,54 @@ and a range of other guidelines.
 		\begin{lstlisting}[gobble=12]
             #include "macros.h" ! This enables use of our precompiler macros.
             module module_name
-            	
+
             	! To the extent possible, include statements should be at the
-				! beginning of a module, and not elsewhere.
+                ! beginning of a module, and not elsewhere.
+                ! If possible they should import only actually used identifiers.
             	use SystemData, only: nel, tHPHF
             	use module_data
             	use constants
             	implicit none
-            
-            	! Add an interface to an external (non-modularised) function
+
+                ! To the extent possible, declare all identifiers of
+                !   a module as private by default
+                !   and export explicitly with the public keyword.
+                private
+                public :: sub_name, fn_name
+
+                ! Add an interface to an external (non-modularised) function
             	interface external_fn
-            		function splat_it(in_val) result(ret_val) &
+            	    function splat_it(in_val) result(ret_val) &
 											  bind(c, name='symbol_name')
-            			! n.b. interface statements shield from modular includes
-            			use constants
+            		    ! n.b. interface statements shield from modular includes
+            			import :: dp
             			implicit none
             			integer, intent(in) :: in_val
             			real(dp) :: ret_val
             		end function
             	end interface
-            
+
             contains
-            
+
             	[pure|elemental] subroutine sub_name(in_val, out_val)
-            
+
             		! This is a description of what the subroutine does
-            
+
             		integer, intent(in) :: in_val
             		real(dp), intent(out) :: out_val
-            
+
             	end subroutine [sub_name]
-            
-            
+
+
             	[pure|elemental] function fn_name(in_val) result(ret_val)
-            
-            		! This is a description of what the function does does
-            
+
+            		! This is a description of what the function does
+
             		integer, intent(in) :: in_val
             		real(dp) :: ret_val
-            
+
             	end function [fn_name]
-            
+
             end module
 		\end{lstlisting}
 
@@ -1565,7 +2287,7 @@ and a range of other guidelines.
 					integer(int64) :: S
 				end type
 				type BasisFn
-					type(symmetry) :: sym ! Spatial symmetry 
+					type(symmetry) :: sym ! Spatial symmetry
 					integer :: k(3)       ! K-vector
 					integer :: Ms         ! Spin of electron. Represented as +/- 1
 					integer :: Ml         ! Angular momentum quantum number (Lz)
@@ -1658,12 +2380,12 @@ and a range of other guidelines.
 	desired. Their \emph{purpose} is to explicitly flag up when anything
 	elsewhere changes - so the risk of them getting out of sync with the code
 	base is their purpose.
-	
+
 	\subsection{Procedure pointers (function pointers)}
 		One issue that becomes immediately obvious when repeated logic has
 		been abstracted into specific functions is that conditional logic is
 		executed \emph{every} time certain actions are taken.
-		
+
 		In many cases this is not very important, as it occurs high up the
 		call hierarchy, and the controlled code consumes the vast majority of
 		the execution time. However, the closer we get to the inner most tight
@@ -1672,43 +2394,43 @@ and a range of other guidelines.
 		control parameters, and thus always results in the same code path being
 		taken in a simulation. If the decision lies against the branch
 		prediction metrics, then this is especially bad.
-		
+
 		The canonical example of this is accessing the 4-index integrals, which
 		is performed very frequently.
-		
+
 		In these case, it is a good idea to separate the decision making logic
 		from the execution, so that the conditional logic is only executed at
 		runtime. This can be done using \emph{procedure pointers} (called
 		function pointers, or similarly functors in other programming
 		languages.
-	
+
 		These require defining the ``shape'' of a function call (i.e.\ its
 		arguments, and return values) in an \code{abstract interface}. A
 		variable can then be set to point at which of a range of functions
 		with this signature should be executed.
-		
+
 		In NECI the global controlling procedure pointers are located in
 		the module \code{procedure_pointer}, which contains both the abstract
 		interface definitions, and the actual pointer variables. These
 		variables can then be used as functions throughout the code.
-		
+
 		These procedure pointers are largely initialised in the routine
 		\code{init_fcimc_fn_pointers}, where decisions are made between types
 		of excitation generator, matrix element evaluation, etc. The procedure
 		pointers involved in integral evaluation are set in
 		\code{init_getumatel_fn_pointers}.
-		
+
 		The use of procedure pointers generates a strict Fortran 2003
 		dependency for NECI. We used to make use of a hacky abuse of the
 		linker and templating system to implement function pointers without
 		language support, but this was deprecated once compiler support
 		for procedure pointers was reasonably widespread.
-		
+
 %	\begin{description}
 %		\headitem{Compiler configurations}
 %		\#\#\# TODO: Need to discuss compiler configurations.
 %		\headitem{Dependency generation}
-%			The code must 
+%			The code must
 %
 %		\headitem{Code templating}
 %		\headitem{Code preprocessing}
@@ -1725,7 +2447,7 @@ and a range of other guidelines.
 \section{Don't optimise prematurely}
 	Obviously, good algorithm design is important. If an algorithm scales
 	badly, then no implementation will be able to salvage it.
-	
+
 	However, there are many tricks and optimisation that can be made to
 	eek out small and large performance gains in the implementation of a
 	particular algorithm. It is important not to optimise too early for a
@@ -1756,12 +2478,12 @@ and a range of other guidelines.
 	NECI contains automated tracking of memory usage. This enables output
 	statistics to indicate which memory uses are dominating during a
 	calculation.
-	
+
 	The \code{MemoryManager} module keeps track of all units of memory, and
 	assigns a tag value to each of them. It is the responsibility of the
 	developer to store this tag, and pass it when the memory is deallocated.
 	This tag is an \code{integer}.
-	
+
 	Memory should always be allocated using error checking. That is, an
 	allocate statement should always be passed an error value as follows
 	\begin{lstlisting}
@@ -1773,11 +2495,11 @@ and a range of other guidelines.
 	This value will be zero if the allocation was successful, and non-zero
 	otherwise. The memory logging routines check this value, and report an
 	error if the memory allocation failed.
-	
-	Memory is logged using the functions \code{LogMemAlloc} and 
+
+	Memory is logged using the functions \code{LogMemAlloc} and
 	\code{LogMemDealloc}.
-	
-	
+
+
 
 \section{Code templating}
 \label{sect:templating}
@@ -1922,7 +2644,7 @@ and a range of other guidelines.
 		mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*&
          (ubound(v,3)-lbound(v,3)+1))
 	\end{lstlisting}
-	
+
 	There is a special variable, which can be accessed using \code{%(name)s}.
 	This contains the name of the current configuration.
 
@@ -1931,7 +2653,7 @@ and a range of other guidelines.
 	variables. Variable manipulation is enabled by using a key in the key-value
 	pair section that begins with \code{type}. In particular, the code is able
 	to manipulate the number of dimensions that different arrays have.
-	
+
 	As an example, take a routine which is passed an array, and a value
 	that could be an element of that array (such as is necessary for a binary
 	search), such that
@@ -1940,20 +2662,20 @@ and a range of other guidelines.
 			%(type1)s :: arr(:)
 			%(type1)s :: elem()
 			...
-		end subroutine		
+		end subroutine
 	\end{lstlisting}
 	If \code{type1} is a scalar value, this does a substitution exactly as
 	would be expected:
-	
+
 	\begin{center}
 	\begin{tabular}{lcl}
 	\begin{lstlisting}[language=ini,gobble=8]
 		[int]
 		type1=integer(int32)
 	\end{lstlisting}
-	
-	& $\Longrightarrow$ &	
-	
+
+	& $\Longrightarrow$ &
+
 	\begin{lstlisting}[gobble=8]
 		subroutine example_int(arr, elem)
 			integer(int32) :: arr(:)
@@ -1963,23 +2685,23 @@ and a range of other guidelines.
 	\end{lstlisting}
 	\end{tabular}
 	\end{center}
-	
+
 	However, it may be necessary for the value which is being considered in
 	the array to itself be an array. An example of this would be the bit
 	representations used in NECI --- a list of of these is a two dimensional
 	array, and any intermediate values would be arrays themselves.
-	
+
 	In this case, an array type should be specified using the \code{dimension}
 	keyword, and the code will be automatically adjusted as follows:
-	
+
 	\begin{tabular}{lcl}
 	\begin{lstlisting}[language=ini,gobble=8]
 		[arr_int64]
 		type1=integer(int64), dimension(:)
 	\end{lstlisting}
-	
-	& $\Longrightarrow$ &	
-	
+
+	& $\Longrightarrow$ &
+
 	\begin{lstlisting}[gobble=8]
 		subroutine example_int(arr, elem)
 			integer(int64) :: arr(:,:)
@@ -1988,10 +2710,10 @@ and a range of other guidelines.
 		end subroutine
 	\end{lstlisting}
 	\end{tabular}
-	
+
 	Essentially the number of \code{:} delimiters appearing in the variable
 	definition is combined with the number of dimensions specified in the type.
-	
+
 	As a special case, temporary variables can be created of an appropriate
 	size which are either scalars, or have one dimension. For the definition
 	\begin{lstlisting}[gobble=4]
@@ -1999,7 +2721,7 @@ and a range of other guidelines.
 		%(type1)s :: tmp(size(arr(1)))
 	\end{lstlisting}
 	then adjustment occurs as follows
-			
+
 	\begin{tabular}{lcl}
 	\begin{lstlisting}[language=ini,gobble=8]
 		[int]
@@ -2010,7 +2732,7 @@ and a range of other guidelines.
 		integer(int32) :: arr(:)
 		integer(int32) :: tmp
 	\end{lstlisting} \\[1.5em]
-		
+
 	\begin{lstlisting}[language=ini,gobble=8]
 		[arr_int64]
 		type1=integer(int64), dimension(:)
@@ -2021,7 +2743,7 @@ and a range of other guidelines.
 		integer(int64) :: tmp(size(arr(1)))
 	\end{lstlisting}
 	\end{tabular}
-			
+
 	In a similar way, the references made to these variables within the
 	routines must be adjusted. This is to ensure that correct sized array
 	slices are used at all times. For the original templated code
@@ -2030,7 +2752,7 @@ and a range of other guidelines.
 	\end{lstlisting}
 	the following will result in the the templated output if the variable is
 	of an adjustable type and declared at the top of the function:
-	
+
 	\begin{tabular}{lcl}
 	\begin{lstlisting}[language=ini,gobble=8]
 		[int]
@@ -2040,7 +2762,7 @@ and a range of other guidelines.
 	\begin{lstlisting}[gobble=8]
 		arr1(j) = arr2(i)
 	\end{lstlisting} \\[1.5em]
-		
+
 	\begin{lstlisting}[language=ini,gobble=8]
 		[arr_int64]
 		type1=integer(int64), dimension(:)
@@ -2055,7 +2777,7 @@ and a range of other guidelines.
 	In many modules, there are routines that do not need to be templated for
 	different variable types. As an example, within the MPI wrapper routines,
 	the code to initialise MPI is not variable type specific.
-	
+
 	Code which is placed in the supermodule is not templated, and is included
 	directly in the final generated module.
 
@@ -2063,17 +2785,17 @@ and a range of other guidelines.
 	It is good practice to write templated routines as generally as possible.
 	This likely involves adding more functionality than is needed in all cases,
 	and switching this functionality on and off in some way.
-	
+
 	For example, the sorting routine can sort multiple arrays in parallel,
 	according to the order in the first array (such as sorting a list of
 	determinants into energy order, where the energies are stored in a separate
 	array). It also needs to have comparison functions defined for scalars as
 	well as arrays.
-	
+
 	The extent to which interesting features can be developed is limited only
 	by the developers imagination in using the template substition. But two
 	tricks are generally useful.
-	
+
 		\begin{description}
 		\headitem{Additional optional arguments}
 			Subroutines can easily be given flexible numbers of arguments. This
@@ -2084,7 +2806,7 @@ and a range of other guidelines.
 				subroutine example(arg%(extra_args)s)
 			\end{lstlisting}
 			will generate the following code
-			
+
 			\begin{minipage}{\textwidth}
 			\begin{tabular}{lcl}
 			\begin{lstlisting}[language=ini,gobble=16]
@@ -2095,7 +2817,7 @@ and a range of other guidelines.
 			\begin{lstlisting}[gobble=16]
 				subroutine example(arg)
 			\end{lstlisting} \\[1.5em]
-		
+
 			\begin{lstlisting}[language=ini,gobble=16]
 				[extended]
 				extra_args=, arg2, arg3
@@ -2107,10 +2829,10 @@ and a range of other guidelines.
 			\end{lstlisting}
 			\end{tabular}
 			\end{minipage}
-			
+
 			The next trick is useful for adding the type definitions of these
 			additional arguments, and enabling the code which uses them.
-		
+
 		\headitem{Switching off lines of code}
 			Lines of code in Fortran are trivially disabled when they are
 			commented out. Prefixing lines with a switch-value allows it to be
@@ -2120,7 +2842,7 @@ and a range of other guidelines.
 			\end{lstlisting}
 			will allow an additional type to be used in a routine depending on
 			the configuration:
-			
+
 			\begin{minipage}{\textwidth}
 			\begin{tabular}{lcl}
 			\begin{lstlisting}[language=ini,gobble=16]
@@ -2132,7 +2854,7 @@ and a range of other guidelines.
 			\begin{lstlisting}[gobble=16]
 				! :: val()
 			\end{lstlisting} \\[1.5em]
-		
+
 			\begin{lstlisting}[language=ini,gobble=16]
 				[arr_real]
 				type2=real(dp), dimension(:)
@@ -2152,7 +2874,7 @@ and a range of other guidelines.
 	The user can additionally manually create interface blocks for the
 	templated routines. This is useful where there is more than one possible
 	function to call for each of the variable types.
-	
+
 	An example of this is given in the MPI wrapper functions, where there are
 	versions of routines that require manually specifying the lengths of
 	various parameters, and automatic versions which take the lengths from the
@@ -2166,7 +2888,7 @@ and a range of other guidelines.
 	\end{lstlisting}
 	which makes use of the special \code{%(name)s} element to reference the
 	generated routines after templating.
-	
+
 	In this case, the templated routines \code{MPIReduce_len} and
 	\code{MPIReduce_auto} will be available to the user as usual, but the
 	routines can both be called by	the more generic name of \code{MPIReduce}
@@ -2315,7 +3037,7 @@ confirming the that the test was added correctly:
 
     Unit tests are found in the \code{unit_tests} directory. They are arranged in subdirectories,
     each of which corresponds to one of the \emph{files} of NECI source code. There are a number
-    of technical steps to integrating new unit tests. 
+    of technical steps to integrating new unit tests.
     \begin{enumerate}
         \item
             A passing test is an executable that returns 0, and any other return value indicates
@@ -2463,7 +3185,7 @@ of the code. This cause a large array of changes to the compiled code:
 		running, and what the stack trace (list of routines that have been
 		called to get to this point in the code) is. Adding debugging symbols
 		provides the information to convert the memory addresses into files
-		and lines of source code. This makes error messages useful.		
+		and lines of source code. This makes error messages useful.
 
 	\headitem{Enables the {\ttfamily ASSERT} macro}
 		There are many consistency checks internally in NECI that can be turned
@@ -2559,7 +3281,7 @@ of the code. This cause a large array of changes to the compiled code:
 \subsection{{\ttfamily fcimcdebug 5}}
 	For bugs that change the trajectory of simulations, turning on the maximum
 	debug output level in NECI (by adding \code{fcimcdebug 5} to the
-	logging section of the input file in a debug build) can often give a quick
+	LOGGING block of the input file in a debug build) can often give a quick
 	insight into where the problem is located.
 
 	Many problems will exhibit with obviously pathological behaviour. For
@@ -2635,7 +3357,7 @@ of the code. This cause a large array of changes to the compiled code:
 					integer(ints64) :: S
 				end type
 				type BasisFn
-					type(symmetry) :: sym ! Spatial symmetry 
+					type(symmetry) :: sym ! Spatial symmetry
 					integer :: k(3)       ! K-vector
 					integer :: Ms         ! Spin of electron. Represented as +/- 1
 					integer :: Ml         ! Magnetic quantum number (Lz)
@@ -2651,7 +3373,7 @@ of the code. This cause a large array of changes to the compiled code:
 	FCIQMC is a highly parallelisable algorithm. Implementationally this is
 	achieved through the use of independent MPI processes that communicate
 	using MPI.
-	
+
 	The raw \code{MPI_*} routines, provided by MPI should not be used directly
 	inside NECI for a couple of reasons:
 	\begin{packed_itemize}
@@ -2669,20 +3391,20 @@ of the code. This cause a large array of changes to the compiled code:
 	The relevant MPI functions are accessible through wrapper functions with the
 	underscore in the name removed. For example, the MPI routine
 	\code{MPI_AllReduce} is available as \code{MPIAllReduce}.
-	
+
 	The arguments to the wrapper routines are a subset of those specified in the
 	MPI standard, and the explanations of those values may be found there.
-	
+
 	Many of the routines have versions which require specifying the array
 	dimensions manually (\code{*_len}) or automatically (\code{*_auto}). The
 	latter obtain the dimensions of the arrays to communicate by analysis of
-	the array bounds and are preferred, as they are less prone to user error.	
-	
+	the array bounds and are preferred, as they are less prone to user error.
+
 	If communication is desired between subsets of the available processors (as
 	is used in the CCMC code), the MPI communicator may be specified through the
 	\code{Node} parameter. No further detail is provided here about how to
-	construct these objects.	
-	
+	construct these objects.
+
 	If the necessary MPI routine is not present in the \code{Parallel_neci}
 	module it will be necessary to add it. This can be awkward as discussed
 	below.
@@ -2739,17 +3461,17 @@ of the code. This cause a large array of changes to the compiled code:
 	extremely well. It may, however, be necessary to modify it, either to
 	deal with changes in the available compilers, or (more likely) to add
 	support for additional MPI functions.
-	
+
 	Fortunately, the latter is much more straightforward than the former!
 	A modified version of a currently implemented routine is likely to be
 	the best approach.
-	
+
 	Much of the complication introduces is the requirement that NECI
 	interoperate with MOLPRO, which uses C based MPI libraries. In order
 	to function correctly in this environment, it is necessary to wrap
 	the MPI routines in a C-wrapper, and interface this with our
 	templated library.
-	
+
 	As such, the MPI wrapper implementation has a number of layers and
 	non-obvious facets. This results in the behaviour being relatively
 	opaque, and the code scattered with a large number of \code{#ifdef}
@@ -2764,7 +3486,7 @@ of the code. This cause a large array of changes to the compiled code:
 			\code{ParallelHelper}, which is included in
 			\code{Parallel_neci} contains Fortran definitions of these
 			values which are the indices to the lookup tables.
-			
+
 			The C types required for MPI communicatiors and groups
 			\code{MPI_Comm} and \code{MPI_Group} are not Fortran
 			compatible. Fortunately the MPI standard provides inbuilt
@@ -2772,47 +3494,47 @@ of the code. This cause a large array of changes to the compiled code:
 			The c wrapper code mimcs the normal Fortran MPI
 			code, returing Fortran compatible values, but internally
 			converting them to the required types.
-		
-		
+
+
 		\headitem{Determination of parameter sizes}
 			The code to determine the lengths of the input (\code{v})
 			and output (\code{ret}) arrays is passed to the code a
 			template parameters \code{mpilen} and \code{mpilen2}. These
 			make use of the \code{lbound} and \code{ubound} intrinsics
 			to determine the number of elements in each array.
-			
+
 		\headitem{Conversion to pointers}
 			Fortran, by default, passes values by pointer. In the case
 			arrays, this passes a pointer to the array structure, rather
 			than the data. This structure includes a pointer to the data
 			and information about the data type and the array bounds.
-			
+
 			If the code is to be passed to the C wrapper, the actual
 			data pointer needs to be extracted.
-			
+
 			When the C wrapper layer is being used, a value of type
 			\code{c_ptr_t} is declared. If compiler support is
 			present this is equal to \code{type(c_ptr)}, but otherwise
 			is a raw 32 or 64 bit integer as appropriate.
-			
+
 			The memory address of the array (strictly of its first
 			element) is obtained using either the standardised
 			\code{c_loc}, or the non-standard \code{loc}
 			intrinsics.
-			
+
 			\begin{warningbox}
 			Due to a bug in some versions of gfortran an
 			extra level of indirection is used which hides the type
 			of the array being passed using a routine called
 			\code{g_loc}. This code circumvents normal interfacing.
 			\end{warningbox}
-			
+
 		\headitem{Calls to MPI}
 			In the normal case (when the C-wrapper is not being
 			used), the \code{MPI_*} routines are then called directly.
 			After the return values are checked for errors, the
 			routine returns the output data as normal.
-					
+
 		\headitem{C wrapper layer}
 			Interfaces to each of the C mpi wrappers are defined in
 			the \code{ParallelHelper} module. These accept the
@@ -2820,7 +3542,7 @@ of the code. This cause a large array of changes to the compiled code:
 			wrappers are named so that they coincide with the normal
 			\code{MPI_*} routines, so that no change to the calling
 			code is required.
-		
+
 	\end{description}
 
 \section{Shared memory}
@@ -2828,7 +3550,7 @@ of the code. This cause a large array of changes to the compiled code:
 	except for the explicit communication made through the MPI library. Within
 	NECI, as all of the particles are entirely independent between annihilation
 	steps this is a good thing.
-	
+
 	However, we have a large amount of read-only data. The integrals which are
 	read in from the FCIDUMP files can consume a non-trivial proportion of the
 	available system memory, and are duplicated on each of the processes. On
@@ -2837,18 +3559,18 @@ of the code. This cause a large array of changes to the compiled code:
 	regions of this memory are requested on multiple different processors the
 	computer will not know these are the same, and will not be able to make use
 	of the L1, L2 and L3 cache to speed memory access.
-	
+
 	The shared memory provisions in NECI substantially abuse the MPI
 	specification by mixing the available memory address space between the
 	different processes. This is extremely useful when done careful, but there
 	are some caveats to be aware of.
-	
+
 \subsection{How to use shared memory provisions}
 	The shared memory provisions have been designed to be as interchangeable
 	with the normal Fortran memory allocation provisions. Essentially memory
 	is allocated largely as usual, but all of the processes on the same
 	physical node will end up with pointers to the same block of memory.
-	
+
 	Memory is allocated with a call to
 	\begin{lstlisting}
 		subroutine shared_allocate(name, ptr, dims)
@@ -2860,7 +3582,7 @@ of the code. This cause a large array of changes to the compiled code:
 	The \code{ptr} parameter is a Fortran \code{pointer} with the relevant
 	data type and the correct array shape. \code{dims} is an array of integers
 	indicating the size of each dimension of the array to be allocated.
-	
+
 	As an example,
 	\begin{lstlisting}
 		real(dp), pointer :: real_arr(:,:)
@@ -2869,15 +3591,15 @@ of the code. This cause a large array of changes to the compiled code:
 	\end{lstlisting}
 	will allocate a 2-dimensional array named ``example'' with the array
 	bounds \code{(1:6, 1:13)}, equivalent to \code{allocate(real_arr(6,13))}.
-	
+
 	The read only data should now be written. In principle, the data only
 	needs to be written from one of the processors per node --- in practice it
 	is easiest to get all of the nodes to write the read only data. It is
 	important that data is only written at this stage --- any processing that
 	needs to be done on this data must not happen in the shared memory, as it
 	could be disrupted by the other processes. This scheme only works because
-	all of the processes write exactly the same data.	
-	
+	all of the processes write exactly the same data.
+
 	After data initialisation, the processes must be synchronised with a
 	call to \code{MPIBarrier}. This will ensure that the read-only data is in
 	the same state in all of the threads.
@@ -2888,7 +3610,7 @@ of the code. This cause a large array of changes to the compiled code:
 		threads). This shared memory \emph{\textbf{must not}} be used for
 		communicating between the MPI processes. That is what MPI is for.
 	\end{warningbox}
-	
+
 	\begin{warningbox}
 		There are no synchronisation primitives provided for use with these
 		shared memory blocks. No assumptions can be made about the order of
@@ -2896,11 +3618,11 @@ of the code. This cause a large array of changes to the compiled code:
 		\emph{\textbf{must}} be inherently thread-safe, or errors will
 		eventually (and unexpectedly) occur.
 	\end{warningbox}
-	
+
 	The data should be deallocated using the routine
 	\code{shared_deallocate}.
 
-	
+
 \subsection{Quirks and limitations}
 	\begin{description}
 		\headitem{Customising data types}
@@ -2910,7 +3632,7 @@ of the code. This cause a large array of changes to the compiled code:
 			configuration options will be needed in
 			\code{lib/allocate_shared.F90.template}. The information
 			required is the number of bytes per element of the array.
-	
+
 			If custom \code{types} are desired, this may be quite tricky. It
 			is difficult to guarantee the size, memory alignment and packing
 			of the data in a custom type --- the compiler is free to choose
@@ -2920,24 +3642,24 @@ of the code. This cause a large array of changes to the compiled code:
 			there are \code{pointer} or \code{allocatable} elements in the
 			custom type, it cannot be used with shared memory, as the size of
 			these elements is highly variable between compilers.
-			
+
 		\headitem{Storing bit representations}
 			There is a special allocate routine \code{shared_allocate_iluts}
 			which can be used for storing bit representations --- these differ
 			in that the lower bound of the first array index must be $0$,
 			rather than $1$.
-			
+
 		\headitem{Non-uniform memory architectures}
 			Modern chip architectures (in particular the intel i3, i5 and i7
 			series of processors) move the memory controller onto the
 			processor. This dramatically improves memory access speeds.
-			
+
 			The cost is that on multi-processor (as opposed to multi-core)
 			architectures the memory is segmented into regions that are
 			controlled by the different processors. Memory access within the
 			region controlled by the current processor is faster than that
 			between them.
-			
+
 			A performance increase could be obtained by only sharing memory
 			between processes which are hosted on the same physical processor.
 			This will require using the processor affinity options of MPI,
@@ -2947,11 +3669,11 @@ of the code. This cause a large array of changes to the compiled code:
 			processor specific information required to correctly subdivide the
 			processes is not included, and this facility is currently switched
 			off.
-			
+
 			For processor topology, see the Intel documentation at
 			\url{https://software.intel.com/en-us/articles/
 			intel-64-architecture-processor- topology-enumeration}.
-		
+
 		\headitem{Disabling shared memory}
 			Shared memory is enabled by the pre-processor define
 			\code{__SHARED_MEM}. This can be found in the config files for
@@ -2960,24 +3682,24 @@ of the code. This cause a large array of changes to the compiled code:
 			process memory sharing, and fall back on the normal Fortran
 			\code{allocate} mechanism.
 	\end{description}
-	
+
 \subsection{How it works}
 	The way that inter-process memory sharing works is system specific, and
 	depends on operating system primitives being used directly.
-	
+
 	The code templating functionality in NECI is used to make the shared
 	memory wrapper work for a wide range of data types, with differing numbers
 	of dimensions in the arguments. From this the size of memory required in
 	bytes is calculated, and this is passed to a C helper function that
 	allocates the memory. The returned raw pointer is converted to a Fortran
 	one through the Fortran 2003 intrinsic \code{c_f_pointer}.
-	
+
 	The C helper library contains a number of utility functions to help it
 	interface with Fortran. In particular wrapper so it can print to the same
 	output, and a mapping to store additional data about the allocated memory
 	to assist in deallocating without the Fortan code requiring knowledge of
 	how the operating system intrinsics work.
-	
+
 	Beyond that, there are three main code paths:
 	\begin{description}
 		\headitem{POSIX}
@@ -2987,37 +3709,37 @@ of the code. This cause a large array of changes to the compiled code:
 			memory object. As a result, one of the processes on a node will
 			create the mapping, and the others will join it --- it is unknown
 			in advance which will do the creating.
-			
+
 			The returned descriptor acts as a file, and so is set to the
 			desired length with \code{fdtruncate}, and then mapped into
 			memory as if it were a memory-mapped file using \code{mmap}. The
 			file descriptor is then closed as it is no longer needed.
-			
+
 			Once all of the processes have mapped the memory, the shared
 			memory object is unlinked, ensuring that the memory will be
 			deallocated by the operating system when all of the processes
 			stop (preventing a memory leak if the processes crash).
-			
+
 			The memory can then be manually deallocated using
 			\code{munmap}.
-			
+
 		\headitem{System V}
 			A unique file name is generated, based on the current working
 			directory, and the file is created. A System V Inter Process
 			Communication Key is created and obtained from this file using
 			the routine \code{ftok}.
-			
+
 			Using this key, a shared memory object of the correct size is
 			created using \code{shmget}, and this region is mapped into memory
 			using \code{shmat}.
-			
+
 			Once all of the processes have reached this point, the shared
 			memory control object is destroyed using \code{shmctl} to ensure
 			the operating system will deallocate the memory in case of a
 			crash.
-			
+
 			The memory can be manually deallocated using \code{shmdt}.
-			
+
 		\headitem{Windows}
 			The memory mapped file provisions in Windows are used to generate
 			a shared memory region. A unique file name is created, based on
@@ -3026,17 +3748,17 @@ of the code. This cause a large array of changes to the compiled code:
 			opened by all of the other processors on the same node using
 			\code{OpenFileMappingW}, and this "file" is mapped into memory on
 			all of the processes using \code{MapViewOfFile}.
-			
+
 			The memory can be manually deallocated using
 			\code{UnmapViewOfFile} followed by \code{CloseHandle}.
 	\end{description}
-	
+
 	The subroutine \code{iluts_pointer_jig}, which is used when allocating
 	bit representations which start from an index of $0$ rather than $1$,
 	is an interesting demonstration of how to manipulate the bounds of arrays
 	declared in Fortran in compilers that do not support the array reshaping
 	assignments described in Fortran 2003 (most compilers).
-	
+
 
 
 \section{Integral retrieval}
@@ -3065,12 +3787,12 @@ of the code. This cause a large array of changes to the compiled code:
 	\end{lstlisting}
 	This function pointer can then be called from anywhere in the code (after
 	it is initialised) and this will call the correct routine.
-	
+
 	\subsection{FCIDUMP files}
 		The most commonly usedintegrals routines store their integrals in
 		memory after reading them in from a \code{FCIDUMP} file.
-		
-		These routines support FCIDUMP files produced by various codes, including MOLPRO, PSI3 and VASP 
+
+		These routines support FCIDUMP files produced by various codes, including MOLPRO, PSI3 and VASP
 		(hacked versions of Dalton and QChem also support this - I believe MOLCAS as well now).
 		Certain (generally legacy) FCIDUMP files have a strictly fixed
 		format, which can result in adjacent columns of indices merging.
@@ -3078,7 +3800,7 @@ of the code. This cause a large array of changes to the compiled code:
 		FCIDUMP files the \code{MOLPROMIMIC} option should be supplied in
 		the \code{SYSTEM} block of the input file. Other sources of
 		FCIDUMP file should use the \code{FREEFORMAT} option. In general, this should {\em always} be used.
-		
+
 		The FCIDUMP files can be briefly summarised by
 		\begin{description}
 			\headitem{Header}
@@ -3088,15 +3810,15 @@ of the code. This cause a large array of changes to the compiled code:
 					\codeitem{NORB}
 						Specifies the number of spatial orbitals in the system
 						if RHF, or the number of spin-orbitals if UHF.
-						
+
 					\codeitem{NELEC}
 						Specifies the number of electrons the Hartree--Fock
 						determinant should have.
-						
+
 					\codeitem{MS2}
 						Specifies twice the total projected spin of the system
 						(such that it is always an integer)
-						
+
 					\codeitem{ORBSYM}
 						A list of spatial symmetries of the orbitals specified
 						in (??? Check name with Giovanni) format in orbital
@@ -3104,21 +3826,21 @@ of the code. This cause a large array of changes to the compiled code:
 						determinant will be visible here if the
 						\code{MOLPROMIMIC} option is used, and the reference
 						is to be determined by the order of the orbitals.
-						
+
 					\codeitem{ISYM}
 						The symmetry of the reference determinant specified in
 						the same format.
-						
+
 					\codeitem{UHF}
 						T if the file contains a UHF basis, otherwise F.
-						
+
 					\codeitem{SYML, SYMLZ}
 						The total and projected orbital angular momentum for
 						systems with an axis of rotation. Currently FCIDUMP
 						files which use this option can only be generated
 						using QChem, and the resultant file must be
 						pre-processed using the TransLz utility.
-					
+
 					\codeitem{PROPBITLEN, NPROP}
 						These parameters are used to describe the behaviour of
 						k-point symmetries. For more details contact
@@ -3127,54 +3849,54 @@ of the code. This cause a large array of changes to the compiled code:
 			\headitem{4-index integrals}
 				Following the header, all of the integral and energy lines may
 				follow in arbitrary order.
-				
+
 				The 4-index integrals are specified with the format
 				\code{Z i j k l}, where \code{Z} is the \code{real} or
 				\code{complex} element, and the indices are integers. All
-				indices are one-based. Indices are in {\bf chemical notation}!
-				
+				indices are one-based. Indices are in \textbf{chemical notation}!
+
 			\headitem{2-index integrals}
 				The 2-index integrals are specified in the same way with the
 				final two indices equal to zero.
-				
+
 			\headitem{Fock energies}
 				The Fock energies are specified in the same way, with the final
 				three indices equal to zero.
-				
+
 				These values are used for determining the initial
 				(Hartree--Fock) determinant, which is constructed from the
 				lowest energy spin-orbitals. They are strictly optional. If
 				the \code{MOLPROMIMIC} option is supplied then the order of
 				the orbitals determines the reference determinant.
-				
+
 			\headitem{Core energy}
 				The core energy is specified in the same way, but with all
 				four indices set to zero.
 		\end{description}
-		
+
 	\subsection{Generation on the fly}
 		A number of schemes exist for generating integrals on the fly. In
 		particular the Uniform Electron Gas and Hubbard model have integrals
 		that can be trivially calculated, and so FCIDUMP files are not used.
-		
+
 	\subsection{Nested schemes}
 		There exist two function pointers with the same abstract interface,
 		\code{get_umat_el} and \code{get_umat_el_secondary}. Once the primary
 		method of determining integrals has been selected, then this be
 		moved to the secondary pointer, and another wrapper routine used
 		instead. This allows additional filtering logic to be applied.
-		
+
 		The wrapper routine should then call \code{get_umat_el_secondary}
 		internally.
-		
+
 	\subsection{Fixed Lz and complex orbitals}
 		If either projected angular momentum (Lz) symmetry, or complex
 		orbitals are being used, the pattern of restricted zeros in the
 		integrals changes. Wrappers around the normal \code{get_umat_el}
 		routine are used to supply these zeros.
-		
+
 		These are examples of the nested schemes above.
-	
+
 	\subsection{Further schemes}
 		It is likely that further schemes will be required in the future. In
 		particular, approximate, and interpolating schemes are likely to be
@@ -3187,19 +3909,19 @@ of the code. This cause a large array of changes to the compiled code:
 	calculation. However, they are used via Hamiltonian matrix elements. There
 	are a number of considerations for the way that Hamiltonian matrix
 	elements are used in NECI.
-	
+
 \subsection{Different ways to obtain Matrix elements}
 	Certain pieces of information are required in order to calculate
 	Hamiltonian matrix elements. The Excitation level (the number of differing
 	orbitals between the determinants), the corresponding excitation matrix
 	and the parity of the excitation are necessary. Depending on the
 	excitation level, the decoded list of occupied orbitals is required.
-	
+
 	Depending on where in the execution path the Hamiltonian matrix elements
 	are required, different information is readily availabile. As some of this
 	is relatively expensive to calculate (in particular the parity) it is
 	important that as much information as is available is used.
-	
+
 	As part of the spawning and particle generation process, there is a
 	function pointer called \code{get_spawn_helement}. This is passed the
 	natural integer and bit representations of the determinant, the excitation
@@ -3208,7 +3930,7 @@ of the code. This cause a large array of changes to the compiled code:
 	selected will make use of the correct subset of these. It is important
 	that the excitation generator and the choice of Hamiltonian matrix element
 	generation here are tightly coupled.
-	
+
 	Elsewhere in the code, the routine \code{get_helement} is used to obtain
 	matrix elements.\footnote{%
 		As an exception, some old code makes use of \code{gethelement} or
@@ -3233,22 +3955,22 @@ of the code. This cause a large array of changes to the compiled code:
 		\codeitem{nI, nJ, ilutI, ilutJ, ic\_ret}
 			This version is the same as the above, but returns the excitation
 			level of the pair of determinants in addition to the matrix
-			element.			
+			element.
 		\codeitem{nI, nJ, ic, excitMat, tParity}
 			When everything about the relationship between the two
 			determinants is fully known, this form should be used. It is
 			used implicitly after excitation generation when the excitation
 			level, matrix and parity are known. The second decoded determinant
 			is not used in determinental calculations, but is provided to
-			support systems such as CSFs.		
+			support systems such as CSFs.
 	\end{description}
-		
+
 	For calculating diagonal Hamiltonian matrix elements, the routine
 	\code{get_diag_helement} should be used\footnote{%
 		This general routine is not implemented at the time of writing, but
 		will added shortly.
 	}
-	
+
 \subsubsection{The cost of the parity}
 	The overall sign of the returned Hamiltonian matrix element is modulated
 	by the parity of the excitation --- that is, the whether the number of
@@ -3262,34 +3984,34 @@ of the code. This cause a large array of changes to the compiled code:
 		required to be numerically increasing) is required but arbitrary. The
 		overall simulation will give the same results either way.
 	}
-	
+
 	The parity may be obtained by actively aligning the decoded
 	representations, or by examination of the bit representations. The latter
 	is much faster than the former, but is still the rate limiting factor
 	for calculating Hamiltonian matrix elements.
-	
+
 	Where this factor is known (i.e.\ after excitation generation) it should
 	be used. It is worth noting that the weighted excitation generation
 	scheme is only viable because only the absolute value of the matrix
 	elements is modelled, so the parity generation step can be entirely
-	ignored.	
-		
+	ignored.
+
 \subsubsection{Slater--Condon rules implementations}
 	The Slator--Condon rules are implemented in the file \code{sltcnd.F90},
 	in the routines \code{sltcnd} and then more specifically \code{sltcnd_0},
 	\code{sltcnd_1} and \code{sltcnd_2}. There is a certain amount of
 	duplication both of code paths and of conditional testing in these\
 	routines --- which is a clear violation of the DRY principle.
-	
+
 	Access to matrix elements is inside the smallest of the tight loops in
 	NECI. The provision of duplicated logical pathways, rather than
 	conditional switching, has a measurable performance benefit in this case.
-	
+
 \subsubsection{HPHF matrix elements}
 	In most cases the HPHF matrix elements are trivially obtained from the
 	normal determinental matrix elements through multiplication by a factor
 	of $\sqrt{2}$ in all cases where the determinant is not closed shell.
-	
+
 	If the excitation level is less than or equal to 2, then the elements are
 	a little more complicated. It is possible that both the target determinant
 	and its spin pair are connected to the source determinant, and so the
@@ -3301,12 +4023,12 @@ of the code. This cause a large array of changes to the compiled code:
 	determinants with a given spatial structure. The Hamiltonian matrix
 	elements may be expressed as a two index sum over all the determinants
 	with each of the involved spatial configurations.
-	
+
 	Given that the number of configurations increases permutationally with the
 	number of unpaired electrons, this scheme scales extremely badly. NECI has
 	some aggressive optimisation to slightly improve this scaling (see Simon's
 	thesis), but ultimately it is a dead end for big calculations.
-	
+
 	See the SPINS branch for Hamiltonian matrix element calculation between
 	other types of spin eigenfunctions. These can scale extremely well, but
 	introduce other problems.
@@ -3317,17 +4039,17 @@ of the code. This cause a large array of changes to the compiled code:
 	is efficient (taking account of symmetry, and in terms of implementation).
 	They must also correctly compute the generation probabilities, taking into
 	account multiple possible selection routes to the same determinant.
-	
+
 	A failure to generate all of the connected determinants, or mistakes
 	made in calculating the generation probabilites will lead to silent
 	errors that manifest themselves only through (potentially subtly)
 	incorrect energies being produced by the simulation.
-	
+
 	There are a large number of factors that must be considered when writing
 	an excitation generator. This section aims to give an overview of some
 	of them, and a brief outline of the two most commonly used excitation
 	generators.
-	
+
 	The Alavi group collectively has a large amount of experience writing
 	excitation generators, and anybody intending to write or modify them
 	would be advised to speak to Simon Smart or George booth first.
@@ -3357,23 +4079,23 @@ of the code. This cause a large array of changes to the compiled code:
 
         end subroutine
 	\end{lstlisting}
-	
+
 	\code{nI} and \code{ilutI} describe the natural integer and bit
 	representations of the source determinant for the excitation. \code{nJ}
 	and \code{ilutJ} will store the generated excitation. \code{exFlag}
 	specifies the type of excitation --- this is generally unused, but in
 	some excitiaton generators permits selecting between single and double
 	excitations for the purposes of testing.
-	
+
 	\code{store} provides a location for the excitation to store information
 	that is specific to the source determinant. This information is available
 	for further excitations from the same site.
-	
+
 	\code{ex} will contain the excitation matrix;
 	\code{ex(1,:)} contains the \emph{spin-orbitals} of the source electrons in
 	\code{nI}, and \code{ex(2,:)} contains the \emph{spin-orbitals} that have
 	replaced these values.
-	
+
 	\code{ic} is used to return the excitation level of the resultant site
 	relative to the source site, \code{pGen} returns the generation probability
 	for the generated determinant, \code{tParity} returns the parity of the
@@ -3383,14 +4105,14 @@ of the code. This cause a large array of changes to the compiled code:
 	(this is only really of interest for HPHF calculations, where it can be
 	easier to calculate this matrix element in the excitation generator for
 	technical reasons).
-	
+
 	\begin{warningbox}
 		Note that the determinant returned in \code{nJ} \emph{must} be sorted
 		in the same fashion as the source determinant \code{nI}. This normally
 		means in order of ascending spin-orbital number. This can result in
 		substantial reshuffling of the internal order of the detrminant.
 	\end{warningbox}
-	
+
 	\begin{warningbox}
 		It is possible that to implement a sensibly efficient excitation
 		generator, the simulation may make choices which leave no possible
@@ -3398,19 +4120,19 @@ of the code. This cause a large array of changes to the compiled code:
 		first element of \code{nJ} to zero, so long as the calculated generation
 		probabilites for successful excitations are correct.
 	\end{warningbox}
-	
+
 \subsection{Symmetry handling}
 	The excitation generator must always preserve the symmetry of the
 	determinant. The way in which this is done depends on the excitation
 	generator, but will involve measuring the symmetry of the source orbitals
 	and selecting the target orbitals appropriately.
-	
+
 	The symmetry of a specific orbital, \code{orb}, may be found in the
 	array \code{G1}. The spatial symmetry is found at \code{G1(Orb)%Sym%S},
 	the k-vector (if appropriate) at \code{G1(orb)%k}, and the projected
 	spin and orbital angular momentum values at \code{G1(orb)%Ms} and
 	\code{G1(orb)%Ml}.
-	
+
 	There are also a number of useful macros for measuring and manipulating
 	spin values. \code{is_beta} and \code{is_alpha} test if orbitals have
 	beta and alpha spin respectively, whilst \code{is_one_alpha_beta} test
@@ -3420,12 +4142,12 @@ of the code. This cause a large array of changes to the compiled code:
 	more standard values of $\pm 1$. The \code{is_in_pair} macro tests if two
 	orbitals belong to the same spatial orbital (including the case where they
 	are the same orbital).
-	
+
 	The macros \code{get_alpha} and \code{get_beta} obtain the alpha or beta
 	orbital corresponding to the same spatial orbital as the current spin
 	orbital (which may or may not be the same orbital). \code{ab_pair} obtains
 	the spin paired orbital to the current one.
-	
+
 	It is normally necessary to combine and manipulate symmetries, as for a
 	double excitation $\Gamma_i\otimes\Gamma_j = \Gamma_a\otimes\Gamma_b$,
 	but there is no reason for any of $Gamma_i,Gamma_j,Gamma_a,Gamma_b$ to be
@@ -3435,7 +4157,7 @@ of the code. This cause a large array of changes to the compiled code:
 	the consequences of using different types of symmetry. When combining Ml
 	values it is important to bear in mind the maximum permitted value of Ml,
 	and abort the excitation if necessary.
-	
+
 	The class count arrays, described above, are indexed by a a combined
 	symmetry index, that combines spin, k-point, momentum and spatial
 	symmetries. The index to this array is provided by the function
@@ -3445,32 +4167,32 @@ of the code. This cause a large array of changes to the compiled code:
 	orbitals are stored in the data store as decribed above. The total number
 	of orbitals corresponding with a given class count is found at the
 	corresponding location in the array \code{OrbClassCount}.
-	
+
 	The array \code{SymLabelList2} contains all orbitals sorted by symmetry
 	class, with offsets given in \code{SymLabelCounts2}, such that all of
 	the orbitals with the same symmetry as a given orbital, \code{orb}, may be
 	found as follows
 	\begin{lstlisting}[gobble=4]
 		integer :: sym, spn, ml, norb, cc_ind, offset
-		
+
 		! Obtain the symmetry labels associated with this orbital
 		sym = G1(orb)%Sym%s
 		spn = get_spin(orb)
 		Ml = G1(orb)%Ml
-		
+
 		! Obtain the combined symmetry index
 		! cc_ind = ClassCountInd(orb) ! ... alternatively
 		cc_ind = ClassCountInd(spn, sym, ml)
-		
+
 		! Get position and count of orbitals
 		norb = OrbClassCount(cc_ind)
 		offset = SymLabelCounts2(1, cc_ind)
-		
+
 		! And this slice contains the appropriate orbitals (including orb)
 		SymLabelList2(offset:offset+norb-1)
 	\end{lstlisting}
-	 
-	  
+
+
 \subsection{Manipulating determinants, and bit representations}
 	The primary output of the excitation generator is the newly generated
 	determinant. It is much more computationally efficient to copy and modify
@@ -3486,7 +4208,7 @@ of the code. This cause a large array of changes to the compiled code:
 				clr_orb(ilut, a)
 				set_orb(ilut, i)
 			\end{lstlisting}
-			
+
 		\codeitem{make\_single and make\_double}
 			Manipulating the natural integer representation of determinants is
 			substantially more complicated, as there is a \emph{requirement}
@@ -3496,19 +4218,19 @@ of the code. This cause a large array of changes to the compiled code:
 			of the excitation is going to be required. If the manipulation can
 			be carried out in such a way that the parity is naturally returned
 			this will substantially improve the efficiency.
-			
+
 			The routines \code{make_single} are passed the source determinant
 			and respectively one or two source electron positions and target
 			orbitals. They perform the substitution and measure how much the
 			newly placed orbitals must be moved by to restore sorting
 			(accounting for edge cases).
-			
+
 			These functions return the sorted determinant, the excitation
 			matrix and the parity of the excitation. They should be used by
-			all determinental excitation generators.	
+			all determinental excitation generators.
 	\end{description}
 
-	  
+
 \subsection{Data storage}
 	Each site in the main particle list may be occupied by multiple particles.
 	There is a reasonable amount of information which the excitation generator
@@ -3531,31 +4253,31 @@ of the code. This cause a large array of changes to the compiled code:
 	\end{lstlisting}
 	The arrays that are required for the current excitation generator are
 	allocated during calculation initialisation by the routine
-	\code{init_excit_gen_store}.	
-	
+	\code{init_excit_gen_store}.
+
 	When the excitation generator is being called on a new determinant, the
 	\code{tFilled} variable will be set to \code{.false.} by the main loop
 	code. Once the generator has filled in the required information this should
 	be set to \code{.true.} to indicate that the data may be reused.
-	
+
 	The arrays \code{ClassCountOcc} and \code{ClassCountUnocc} are initialised
 	by calling \code{construct_class_counts} at the start of the excitation
 	generator. They contain a count of the number of occupied, and the number
 	of unoccupied, orbitals associated with each spin-symmetry combination.
 	These are used for calculating the probabilities in essentially all
 	excitation generators.
-	
+
 	The \code{occ_list} and \code{virt_list} variables store only information
 	relevant to the excitation generator in \code{symrandexcit3.F90}.
-	
+
 	The \code{dorder_*}, \code{nopen} and \code{scratch3} variables are used
 	in the CSF excitation generation code.
-	
+
 	As there is only one instantiation of this data structure, in the main loop,
 	adding additional elements adds only negligible overhead. If future
 	excitation generators need a place to store information between calls, it
 	should be added here.
-	
+
 	The excitation generation routines should be as tightly coupled to the
 	Hamiltonian matrix element generation routines as possible. In particular,
 	information such as the excitation level and the excitation matrix are
@@ -3564,7 +4286,7 @@ of the code. This cause a large array of changes to the compiled code:
 	passing the excitation level, parity and excitation matrix to the
 	matrix element generation routines --- this is sufficient for determinental
 	systems.
-	
+
 	If NECI is to be extended to efficiently consider other basis functions,
 	then other data will be required. A structure should be created to pass
 	this information around, so that each element which is added does not
@@ -3573,19 +4295,19 @@ of the code. This cause a large array of changes to the compiled code:
 	\code{spawned_info_t}, which is unlikely to be merged
 	into master for independent reasons, but may provide a template for doing
 	this if required in the future.
-	  
+
 \subsection{Re-use and rescaling of random numbers}
 	In determinental calculations, even with large basis sets, each site is
 	connected to at most a few thousand others. A single 64-bit random number
 	contains vastly more random information than is required to make a good
 	choice between all of these options.
-	
+
 	However, most of the potential algorithms for excitation generation
 	involve a hierarchy of choices. The natural implementation of these
 	choices is to generate a new random number for each new choice that is
 	required. This is highly wasteful, especially as random number generation
 	is relatively expensive.
-	
+
 	More bang-for-your-buck can be extracted from random numbers by
 	partitioning them, and rescaling them as you move through the hierarchy
 	of choices. A simple example demonstrates this, considering the macroscopic
@@ -3600,20 +4322,20 @@ of the code. This cause a large array of changes to the compiled code:
 		else
 			! Single excitation selected. Now rescale r
 			r = (r - pDoubles) / (1.0_dp - pDoubles)
-			...		
+			...
 		end if
 	\end{lstlisting}
 
 	This is not always done in the current implementations of excitation
 	generators, but should always be considered for efficiency.
-	
+
 	\begin{warningbox}
 		This technique should not be used where selections may need to be
 		redrawn. Repeated repartitioning and scaling of the random number
 		will rapidly deplete the available randomness if it is repeated
 		a number of times due to redrawing.
 	\end{warningbox}
-	
+
 \subsection{Timestep selection and other control parameters}
 	The spawning process is normally the limiting factor for the selection
 	of the imaginary timestep. The magnitude of the spawn, $n_s$, is given by
@@ -3628,18 +4350,18 @@ of the code. This cause a large array of changes to the compiled code:
 	\end{equation*}
 	The ratio should be accumulated through a calculation, and can be used
 	to determine the optimum time step on the fly.
-	
+
 	This approach may be generalised to a larger number of parameters.
 	Additional control parameters that influence decisions in the excitation
 	generator may be introduces (such as the choice between single and double
 	excitations, or the extent to which a bias is made towards or against
 	double excitations which are spin aligned).
-	
+
 	Considering the different choices that are made in the excitation generator,
 	this splits the excitations into a number of different categories. For
 	optimal timestep values the worst case for each of these categories should
 	be optimised to give the maximum spawn size.
-	
+
 	The impact of each of the parameters to be optimised must be removed from
 	the generation probability values, so that an unaffected value can be
 	maximised. For example considering a split between single and double
@@ -3657,17 +4379,17 @@ of the code. This cause a large array of changes to the compiled code:
 	ration which can then be maximised. Closed form expressions for the
 	optimal values of $\delta\tau$ and $p_{single}$ can then be found
 	straightforwardly.
-	
+
 	This approach can be extended, although the means to isolate the impact of
 	parameters on the generation probability, and the structure of the final
 	closed form expressions will depend on the form of the excitation
-	generator.	
+	generator.
 
 \subsection{Testing excitation generators}
 	It is critical that excitation generators are \emph{correct}. That is that
 	all of the connected determinants are generated, and that the generated
 	probability is correct.
-	
+
 	There are a number of metrics that can be used to test this. A testing
 	function should be written that takes a given source determinant as a
 	parameter, and runs the excitation generator a very large number of times
@@ -3686,34 +4408,34 @@ of the code. This cause a large array of changes to the compiled code:
 			that can be generated. Each time the determinant is generated, the
 			value $p_\mathrm{gen}^{-1}$ should be added to that determinants
 			accumulator.
-			
+
 			On average this will add a value of $1.0$ to the accumulator for
 			every excitation generation attempt. Thus, when all of the
 			accumulated values are divided by the number of generation attempts
 			made by the test function, all of the values should give roughly
 			$1.0$.
-			
+
 			There may be a reasonable amount of variation, but repeated across
 			a few different runs with different random number seeds it should
 			be clear that all of these values give roughly $1.0$.
-			
+
 			Note that if
 			some connections are \emph{extremely} strongly weighted against
 			(as can happen with the weighted excitation generator) they will
 			sum in a very large term very rarely, and so their averaged value
 			can jump around quite dramatically.
-					
+
 		\headitem{Overall probability normalisation}
 			As an extension to the above, the sum of all of the accumulators
 			should stocastically tend towards the number of connections
 			multiplied by the number of spawning attempts.
-			
+
 			If this total accumulated value is divided by the number of
 			connections multiplied by the number of spawning attempts it
 			should average very strongly to $1.0$, normally to four or
 			five decimal places.
 	\end{description}
-	
+
 	For an example test function, see \code{test_excit_gen_4ind} in
 	\code{symrandexcit4.F90}. An excitation generator that passes these tests
 	is not guaranteed to be correct, but it is quite likely.
@@ -3725,11 +4447,11 @@ of the code. This cause a large array of changes to the compiled code:
 	the possibility of the excitation generator having generated the spin
 	flipped version also needs to be available, although this is not readily
 	accessible in the excitation generator.
-	
+
 	As a result, a routine must be provided to calculate the probability of
 	generating $\ket{D_j}$ from $\ket{D_i}$ without actually generating an
 	excitation.
-	
+
 	\begin{warningbox}
 		Once the excitation generator has been planned out, it makes sense to
 		write this calculation function first (it tends to be simpler than the
@@ -3745,12 +4467,12 @@ of the code. This cause a large array of changes to the compiled code:
 	of other more specialised excitation generators (such as the CSF excitation
 	generator). This excitation generator is implemented in
 	\code{symrandexcit2.F90}.
-	
+
 	Although the generation probabilities associated with this excitation
 	generator are highly non-uniform, it fundamentally makes choices at each
 	\emph{stage} of the excitation generator uniformly between the options
 	presented at this point.
-	
+
 	For single excitations, an electron is chosen uniformly at random. This
 	fully specifies a symmetry index, and from the appropriate list a vacant
 	orbital is chosen at random. This selection is generally made by picking
@@ -3758,7 +4480,7 @@ of the code. This cause a large array of changes to the compiled code:
 	is already occupied (unless there are very few available choices, in which
 	case the $n$-th available orbital is chosen from an enumeration of available
 	orbitals).
-	
+
 	For double excitations, a pair of electrons are chosen at uniform (using a
 	triangular mapping). This specifies the total symmetry of the excitation.
 	A vacant orbital, $a$, is then chosen at random from the entire array of
@@ -3767,26 +4489,26 @@ of the code. This cause a large array of changes to the compiled code:
 	produce the correct total symmetry). This in turn specifies the symmetry
 	of orbital $b$, which is chosen in the same way as the orbital for a
 	single excitation.
-	
+
 	The possibility of having picked the orbital $b$ first, and then $a$ must
 	be accounted for in calculating the generation probabilities.
-	
+
 \subsection{The weighted excitation generator}
 	This excitation generation scheme is discussed in a great deal more
 	detail in a paper which is currently pre-publication. This excitation
 	generator is implemented in \code{symrandexcit4.F90} as
 	\code{gen_excit_4ind_weighted}.
-	
+
 	Fundamentally, a weighting value is used to bias the choice of orbitals
 	towards those which are likely to correspond to large Hamiltonian matrix
 	elements. This is done using a Cauchy--Schwarz decomposition of the
 	Hamiltonian matrix elements. The specific elements used depend on the
 	spin choices made, and are discussed in the referred paper.
-	
+
 	For speed, the entire choice of orbitals of a given symmetry are considered,
 	and the weightings corresponding to orbitals which are occupied in the
 	source determinant are set to have a zero weighting.
-	
+
 	For single excitations, an electron is chosen uniformly at random. This
 	determines the target symmetry. A cumulative list of the weighted terms
 	for each of the available orbitals is generated, and a random number on
@@ -3795,14 +4517,14 @@ of the code. This cause a large array of changes to the compiled code:
 	in the cumulative list which is greater than or equal to this random
 	number, and this index specifies which of the orbitals of the given
 	symmetry are selected as the target orbital.
-	
+
 	For double excitations, a choice is made of whether the two orbitals
 	should have the same spin or different spin (the probability of either
 	is optimised on the fly at run time). If the two electrons are to have the
 	same spin, they are chosen uniformly using a triangular mapping, and
 	otherwise uniformly using a rectangular mapping. This entirely determines
 	the target combined symmetry index.
-	
+
 	A list is constructed, with a length equal to the total number of
 	available target symmetry indices. This is populated with a cumulative
 	count of the product of the number of available orbitals of a given
@@ -3812,31 +4534,31 @@ of the code. This cause a large array of changes to the compiled code:
 	first index is larger than the second index. A pair of symmetries are chosen
 	using binary searching as described before, weighted towards the symmetries
 	with the most available choices.
-	
+
 	Two orbitals, $a,b$, with the corresponding symmetries, are then picked in
 	the same way as the orbital was selected for single excitations (although
 	the weighting terms must now consider the effects of both source orbitals).
 	When choosing orbital $b$, if it comes from the same symmetry category as
 	orbital $a$ the relevant elements must be adjusted in the cumulative list.
-	
+
 	For calculating the probabilities, the only duplication of generating the
 	same determinant is for the case when both orbitals have the same spin
 	and symmetry. This must be accounted for in the generation probability.
-	
+
 %\section{Data structures}
 %The following data structures are important for understanding the overall
 %runtime data flows in NECI.
 \section{Determinant data storage}
 	There are two main locations where blocks of information concerning
 	particles associated with determinants are stored.
-		
+
 	\subsection{Transmitted data}
 			This concerns data that will be (or could be) transmitted between
 			different processors. Essentially this includes persistent
 			information that is generated by the excitation generator.
 			Combined, this information forms the \emph{bit representation}
 			of a determinant.
-			
+
 			All data access should be through the getter and setter functions
 			in the \code{bit_reps} module (\code{BitReps.F90}), with the
 			exception of the orbital representation which may be manipulated
@@ -3844,29 +4566,29 @@ of the code. This cause a large array of changes to the compiled code:
 			\code{encode_bit_rep} and \code{extract_bit_rep} routines which
 			package and extract all of the relevant information, as well
 			as specific accessors.
-			
+
 			In most of the code the encoded values for specific determinants
 			are referred to as \code{ilut}, standing for ``Integer Look-Up
 			Table'' which relates to the orbital representation.
-			
+
 			The packaging of this data varies substantially between different
 			compiler and runtime configurations. For example, integer runs
 			on 64-bit machines co-opt some of the additional bits in the
 			storage of the signed particle counts to store the flags. It is
 			essential that no attempt is made to access the data in this
 			array direcly.
-			
+
 			The representation of each determinant is of dimensions
 			\code{0:nIfTot}, that is of length \code{nIfTot+1}. Unusually
 			for an array in Fortran it is a $0$-based index. The component
 			of the overall representation required to uniquely determine
 			one site is \code{0:nIfDBO} (DBO stands for DetBitOps),
 			which includes the orbital description and any CSF descriptiors.
-			
+
 			Each of the components of the representation has a \code{nIf*}
 			(Number of Integers For) and \code{nOff*} (offset of) value.
 			These should not be used directly unless adding data to this
-			representation.		
+			representation.
 
 			\begin{description}
 				\headit{Orbital description}
@@ -3876,7 +4598,7 @@ of the code. This cause a large array of changes to the compiled code:
 					$2M$, i.e.\ the same as the number of available
 					spin-orbitals. An occupied orbital is represented with a
 					$1$, and a vacant orbital by a $0$.
-					
+
 					This representation can be accessed directly. To
 					simplify things, various macros are available. The
 					macros \code{IsOcc} and \code{IsNotOcc} test the
@@ -3884,28 +4606,28 @@ of the code. This cause a large array of changes to the compiled code:
 					\code{set_orb} and \code{clr_orb} modify it without
 					requiring the developer to worry about the data
 					representation.
-					
+
 					To decode the bit representation of the orbitals into the
 					natural orbital representation use the
 					\code{decode_bit_det} routine. Equivalently, the
 					\code{EncodeBitDet} generates the orbital bit
 					representation from the natural integer version.
-				
+
 				\headit{CSF descriptors}
 					If CSF descriptor labels are required, they are stored
 					here.
-					
+
 				\headit{Signed particle count}
 					The representation of the coefficient, or ``sign'' of
 					the determinant is the primary value which is evolved
 					during an FCIQMC simulation.
-					
+
 					These values are represented by an array of
 					\code{real(dp)} coefficients of length
 					\code{lenof_sign}. In a standard simulation this length
 					is unity, but for complex walkers two values are used
 					and the double-run code uses extras.
-					
+
 					These values can be used via the routines
 					\code{extract_sign} and \code{encode_sign}. The specific
 					elements of the sign array can be accessed by
@@ -3913,7 +4635,7 @@ of the code. This cause a large array of changes to the compiled code:
 					all particles are to be removed the routines
 					\code{nullify_ilut} and \code{nullify_ilut_part} can
 					be used.
-					
+
 				\headit{Flags}
 					Any number of flags may be associated with a particular
 					site. A current full list may be found in the file
@@ -3922,16 +4644,16 @@ of the code. This cause a large array of changes to the compiled code:
 					\code{flag_parent_initiator} flags --- be aware that
 					these are different names for the same thing (depends
 					if considering particles in the main or spawned lists).
-					
+
 					There is a pseudo-flag, \code{flag_negative_sign}, that
 					only exists to help combining the representation of the
 					coefficients and flags. It should never be used directly
 					outside of the representation manipulation routines.0
-					
+
 					These flags may be tested using the \code{test_flag}
 					and \code{set_flag} routines referencing the specific
 					flag desired from the above list.
-					
+
 					Further, then entire set of flags may be extracted or
 					stored using the \code{extract_flags} and
 					\code{encode_flags} routines. Once they have been
@@ -3940,27 +4662,27 @@ of the code. This cause a large array of changes to the compiled code:
 					way as the set and test functions above. A special
 					routine \code{clear_all_flags} exists for resetting
 					the flag status.
-					
+
 					It is extremely important that the flags element of the
 					bit representation is not accessed directly.
 			\end{description}
-		
+
 		\subsection{Locally stored data}
 			This concerns information that will \emph{never} be transmitted.
 			All of this information is either used in tracking the status of
 			an occupied determinant, or for values that could in principle
 			be regenerated when required but are stored for optimisation.
-			
+
 			All data access should be through the \code{get_*} and
 			\code{set_*} routines found in the module \code{global_det_data}.
-			
+
 			This data is stored in the global array
 			\code{global_determinant_data}, but this array should not be
 			accessed directly! The location of data within this array is
 			determined by the initialisation routine in the module
 			\code{global_det_data}, and depends on the calculation being
 			performed.
-			
+
 			The data currently stored in this array are
 			\begin{packed_itemize}
 				\item
@@ -3975,8 +4697,8 @@ of the code. This cause a large array of changes to the compiled code:
 				\item
 					The moment in imaginary time on which the (contiguous)
 					occupation of this determinant began (\code{tm_occ},
-					only with experimental initiators).						
-			\end{packed_itemize}			
+					only with experimental initiators).
+			\end{packed_itemize}
 
 %\subsection{Iteration specific data}
 %\subsection{Communication in the main loop}

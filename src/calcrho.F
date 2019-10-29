@@ -108,10 +108,10 @@ C               IC=IC+1
             IF(NI(I).EQ.NJ(J)) THEN
                I=I+1
                J=J+1
-            ENDIF            
+            ENDIF
          ENDDO
          IC=IC+(NEL+1-I)
-         IGETEXCITLEVEL_=IC 
+         IGETEXCITLEVEL_=IC
          RETURN
       END
 
@@ -126,7 +126,7 @@ C               IC=IC+1
         USE SystemData , only : Arr
         IMPLICIT NONE
         INTEGER i,NEl,nI(NEl),IC
-        
+
         IC=NEl
         do i=1,NEl
             IF(Arr(nI(i),2).lt.ChemPot) IC=IC-1
@@ -136,43 +136,7 @@ C               IC=IC+1
         RETURN
 
       END FUNCTION iGetExcitLevelwrtHF
-      
-      SUBROUTINE  CALCRHOIIMAX(BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-     &           RHOMAX,ECORE)
-         use constants, only: dp
-         INTEGER IDET(NEL),I_P,NEL
-         real(dp) :: Beta,RhoMax,ECore
-         CALL CALCRHOIIMAXR(BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-     &           RHOMAX,IDET,1,0,ECORE)
 
-         RETURN
-      END
-
-      RECURSIVE SUBROUTINE CALCRHOIIMAXR(BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-     &           RHOMAX,IDET,NTHISEL,ILASTBASIS,ECORE)
-         use constants, only : dp
-         INTEGER IDET(NEL),NTHISEL,I,ILASTBASIS
-         real(dp) RH,RHOMAX,BETA,ECORE
-         CHARACTER(*), PARAMETER :: t_r="CALCRHOIIMAXR"
-         DO I=ILASTBASIS+1,NBASIS
-            IDET(NTHISEL)=I
-            call stop_all(t_r,"Inconsistent arguments")
-            IF(NTHISEL.EQ.NEL) THEN
-!               CALL CALCRHO2(IDET,IDET,BETA,I_P,NEL,NBASISMAX,
-!     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
-!               IF(RH.GT.RHOMAX) RHOMAX=RH
-            ELSE
-!               CALL CALCRHOIIMAXR(BETA,I_P,NEL,
-!     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-!     &           RHOMAX,IDET,NTHISEL+1,I,ECORE)
-            ENDIF
-         ENDDO
-         RETURN
-      END
- 
 C.. GETHELEMENT
 C.. Get matrix element of the hamiltonian
       FUNCTION GETHELEMENT(II,IJ,HAMIL,LAB,NROW,NDET)

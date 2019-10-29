@@ -9,8 +9,8 @@ module AnnihilationMod
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
-                          tLogAverageSpawns, tTimedDeaths, tAutoAdaptiveShift, tSkipRef, &
-                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse, tNonInitsForRDMs, &
+                          tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
+                          tNonInitsForRDMs, &
                           tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
                           tSimpleInit, tAllConnsPureInit
 
@@ -28,8 +28,8 @@ module AnnihilationMod
                         flag_initiator, encode_part_sign, &
                         extract_part_sign, extract_bit_rep, &
                         nullify_ilut_part, clr_flag, get_num_spawns,&
-                        encode_flags, bit_parent_zero, get_initiator_flag, &
-                        extract_spawn_hdiag, any_run_is_initiator, get_initiator_flag_by_run
+                        bit_parent_zero, get_initiator_flag, &
+                        any_run_is_initiator, get_initiator_flag_by_run
 
     use hist_data, only: tHistSpawn, HistMinInd2
     use LoggingData, only: tNoNewRDMContrib
@@ -40,7 +40,7 @@ module AnnihilationMod
     use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
                               nspawned_1, t_real_time_fciqmc
 
-    use global_det_data, only: det_diagH, store_spawn, get_death_timer, &
+    use global_det_data, only: det_diagH, store_spawn, &
                                update_tot_spawns, update_acc_spawns, get_tot_spawns, get_acc_spawns
     use procedure_pointers, only: scaleFunction
     use hphf_integrals, only: hphf_diag_helement
@@ -84,7 +84,7 @@ module AnnihilationMod
         type(timer), save :: Compress_time
 
         ! This routine will send all the newly-spawned particles to their
-        ! correct processor. 
+        ! correct processor.
         call SendProcNewParts(MaxIndex, tSingleProc)
 
         ! CompressSpawnedList works on SpawnedParts arrays, so swap the pointers around.
@@ -98,13 +98,12 @@ module AnnihilationMod
             SpawnInfo2 => SpawnInfo
             SpawnInfo => PointTemp
         end if
+        Compress_time%timer_name = 'Compression interface'
+        call set_timer(Compress_time, 20)
 
-        Compress_time%timer_name='Compression interface'
-        call set_timer(Compress_time,20)
-
-        ! Now we want to order and compress the spawned list of particles. 
+        ! Now we want to order and compress the spawned list of particles.
         ! This will also annihilate the newly spawned particles amongst themselves.
-        ! MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list, 
+        ! MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list,
         ! and the particles will end up in the spawnedSign/SpawnedParts lists.
         if (tSimpleInit) then
             call CompressSpawnedList_simple(MaxIndex, iter_data)
@@ -113,6 +112,7 @@ module AnnihilationMod
         end if
 
         if (tAllConnsPureInit) call set_conn_init_space_flags_slow(SpawnedParts, MaxIndex)
+
         call halt_timer(Compress_time)
 
     end subroutine communicate_and_merge_spawns
@@ -120,7 +120,7 @@ module AnnihilationMod
     subroutine SendProcNewParts(MaxIndex,tSingleProc)
 
         ! This routine is used for sending the determinants to the correct
-        ! processors. 
+        ! processors.
 
         integer, intent(out) :: MaxIndex
         logical, intent(in) :: tSingleProc
@@ -136,7 +136,7 @@ module AnnihilationMod
 
             ! ValidSpawnedList(0:nNodes-1) indicates the next free index for each
             ! processor (for spawnees from this processor) i.e. the list of spawned
-            ! particles has already been arranged so that newly spawned particles are 
+            ! particles has already been arranged so that newly spawned particles are
             ! grouped according to the processor they go to.
 
             ! sendcounts(1:) indicates the number of spawnees to send to each processor.
@@ -152,7 +152,7 @@ module AnnihilationMod
               end do
               !disps(2:nNodes)=int(ValidSpawnedList(1),MPIArg)
            end if
-                                                                       
+
         else
           ! Distribute the gaps on all procs.
            do i = 0 ,nProcessors-1
@@ -173,7 +173,7 @@ module AnnihilationMod
         ! We now need to calculate the recvcounts and recvdisps - this is a
         ! job for AlltoAll
         recvcounts(1:nProcessors) = 0
-        
+
         call MPIBarrier(error)
         call set_timer(Comms_Time,30)
 
@@ -199,12 +199,12 @@ module AnnihilationMod
         end do
 
         ! Max index is the largest occupied index in the array of hashes to be
-        ! ordered in each processor 
+        ! ordered in each processor
         if (MaxIndex > (0.9_dp*MaxSpawned)) then
 #ifdef __DEBUG
             write(6,*) MaxIndex,MaxSpawned
 #else
-            write(*,*) 'On task ',iProcIndex,': ',MaxIndex,MaxSpawned
+            write(iout,*) 'On task ',iProcIndex,': ',MaxIndex,MaxSpawned
 #endif
             call Warning_neci("SendProcNewParts","Maximum index of newly-spawned array is " &
             & //"close to maximum length after annihilation send. Increase MemoryFacSpawn")
@@ -231,7 +231,6 @@ module AnnihilationMod
         integer(n_int) :: cum_det(0:nifbcast), temp_det(0:nifbcast)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
-        real(dp) :: weight_rev, weights_rev(inum_runs)
         integer :: run
 
         integer :: nI_spawn(nel)
@@ -246,11 +245,7 @@ module AnnihilationMod
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time, 20)
 
-        if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-            call sort(SpawnedParts(:,1:ValidSpawned), SpawnInfo(:,1:ValidSpawned),ilut_lt, ilut_gt)
-        else
-            call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
-        endif
+        call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
 
 
         call halt_timer(Sort_time)
@@ -280,7 +275,7 @@ module AnnihilationMod
 
             FirstInitIndex = 0
             CurrentBlockDet = BeginningBlockDet + 1
-    
+
             do while (CurrentBlockDet <= ValidSpawned)
                 if (.not. (DetBitEQ(SpawnedParts(:, BeginningBlockDet), &
                                     SpawnedParts(:, CurrentBlockDet)))) exit
@@ -290,8 +285,8 @@ module AnnihilationMod
 
             ! EndBlockDet indicates that we have reached the end of the block
             ! of similar dets.
-            EndBlockDet = CurrentBlockDet - 1 
-            
+            EndBlockDet = CurrentBlockDet - 1
+
             if (EndBlockDet == BeginningBlockDet) then
                 ! Optimisation: This block only consists of one entry. Simply
                 !               copy it across rather than explicitly searching
@@ -302,17 +297,12 @@ module AnnihilationMod
                 call extract_sign (SpawnedParts(:, BeginningBlockDet), temp_sign)
                 if ( (sum(abs(temp_sign)) < 1.e-12_dp) .and. (.not. (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib))) ) then
                     DetsMerged = DetsMerged + 1
-                    BeginningBlockDet = CurrentBlockDet 
+                    BeginningBlockDet = CurrentBlockDet
                     cycle
                 end if
 
                 ! Transfer all info to the other array.
                 SpawnedParts2(:, VecInd) = SpawnedParts(:, BeginningBlockDet)
-                if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                    SpawnInfo2(:, VecInd) = 0
-                    run = SpawnInfo(SpawnRun, BeginningBlockDet)
-                    SpawnInfo2(run, VecInd) = SpawnInfo(SpawnWeightRev, BeginningBlockDet)
-                end if
 
                 if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                     ! SpawnedParts contains the determinants spawned on (Dj),
@@ -324,12 +314,12 @@ module AnnihilationMod
                     ! therefore move all the parents (Di's) into Spawned_Parents.
                     ! If the compressed Dj is at position VecInd in SpawnedParts,
                     ! then Spawned_Parents_Index(1,VecInd) is the starting point
-                    ! of it's parents (Di) in Spawned_Parents, and there are 
+                    ! of it's parents (Di) in Spawned_Parents, and there are
                     ! Spawned_Parents_Index(2,VecInd) entries corresponding to
                     ! this Dj.
 
                     if (.not. bit_parent_zero(SpawnedParts(:, BeginningBlockDet))) then
-                    
+
                         ! If the parent determinant is null, the contribution to
                         ! the RDM is zero. No point in doing anything more with it.
 
@@ -339,7 +329,7 @@ module AnnihilationMod
                             SpawnedParts(nOffParent:nOffParent+nIfDBO+2, BeginningBlockDet)
 
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
-                        
+
                         ! Search to see which sign is non-zero, and therefore
                         ! find which simulation the spawning occured from and to.
                         ! NOTE: it is safe to compare against zero exactly here,
@@ -352,7 +342,7 @@ module AnnihilationMod
                                 exit
                             end if
                         end do
-                        
+
                         ! The first NIfDBO of the Spawned_Parents entry is the
                         ! parent determinant, the NIfDBO + 1 entry is the Ci.
                         ! Parent_Array_Ind keeps track of the position in
@@ -375,7 +365,7 @@ module AnnihilationMod
 
                 VecInd = VecInd + 1
                 ! Move onto the next block of determinants.
-                BeginningBlockDet = CurrentBlockDet 
+                BeginningBlockDet = CurrentBlockDet
                 cycle ! Skip the rest of this block.
             end if
 
@@ -392,16 +382,12 @@ module AnnihilationMod
                 ! beginning of where the parents for this Dj can be found in
                 ! Spawned_Parents.
                 Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
- 
+
                 ! In this case, multiple Dj's must be compressed, and therefore
                 ! the Di's dealt with as  described above. We first just
                 ! initialise the position in the Spawned_Parents array to enter
                 ! the Di's.
                 Spawned_Parents_Index(2,VecInd) = 0
-            end if
-
-            if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                weights_rev(:) = 0.0_dp
             end if
 
             do i = BeginningBlockDet, EndBlockDet
@@ -421,11 +407,6 @@ module AnnihilationMod
                     call FindResidualParticle (cum_det, SpawnedParts(:,i), part_type, iter_data, &
                                                     VecInd, Parent_Array_Ind)
                end do
-               if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                  weight_rev = transfer(SpawnInfo(SpawnWeightRev, i), weight_rev)
-                  run = SpawnInfo(SpawnRun, i)
-                  weights_rev(run) = weights_rev(run) + weight_rev
-               end if
 
             end do ! Loop over particle type.
 
@@ -445,13 +426,7 @@ module AnnihilationMod
                 ! biased sign of Ci slightly wrong.
 
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
-                if(tAutoAdaptiveShift .and. tAAS_Reverse) then
-                   do run = 1, inum_runs
-                      SpawnInfo2(run, VecInd)= transfer(weights_rev(run),SpawnInfo2(run, VecInd))
-                   end do
-                endif
 
-                SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
                 if (tPreCond .or. tReplicaEstimates) then
                     SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
                 end if
@@ -480,11 +455,11 @@ module AnnihilationMod
             ! Move onto the next block of determinants.
             BeginningBlockDet = CurrentBlockDet
 
-        end do   
+        end do
 
         if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) No_Spawned_Parents = Parent_Array_Ind - 1
         ! This is the new number of unique spawned determinants on the processor.
-        ValidSpawned = ValidSpawned - DetsMerged    
+        ValidSpawned = ValidSpawned - DetsMerged
         if (ValidSpawned /= (VecInd-1)) then
             call stop_all(t_r, "Error in compression of spawned list")
         end if
@@ -513,7 +488,7 @@ module AnnihilationMod
         logical :: tSuc
 
         ! We want to histogram where the particle annihilations are taking place.
-        ! No annihilation occuring - particles have the same sign. 
+        ! No annihilation occuring - particles have the same sign.
         if ((Sign1(part_type)*Sign2(part_type)) >= 0.0) return
 
         ExcitLevel = FindBitExcitLevel(iLut,iLutHF, nel)
@@ -550,7 +525,7 @@ module AnnihilationMod
 
         integer(n_int), intent(inout) :: cum_det(0:nIfTot)
         integer(n_int), intent(in) :: new_det(0:niftot+nifdbo+3)
-        integer, intent(in) :: part_type, Spawned_No 
+        integer, intent(in) :: part_type, Spawned_No
         integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
 
@@ -589,7 +564,7 @@ module AnnihilationMod
             else if (runge_kutta_step == 2) then
                 Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
             end if
-#else 
+#else
             Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
             iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
                     + 2 * min(abs(cum_sgn), abs(new_sgn))
@@ -601,7 +576,7 @@ module AnnihilationMod
         updated_sign = cum_sgn + new_sgn
         call encode_part_sign (cum_det, updated_sign, part_type)
 
-        ! Obviously only add the parent determinant into the parent array if it is 
+        ! Obviously only add the parent determinant into the parent array if it is
         ! actually being stored - and is therefore not zero.
         if (((tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) .and. &
             (.not. DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1), NIfDBO)))) then
@@ -928,7 +903,7 @@ module AnnihilationMod
         end do
 
     end subroutine deterministic_annihilation
-    
+
     subroutine AnnihilateSpawnedParts(ValidSpawned, TotWalkersNew, iter_data, err)
 
         ! In this routine we want to search through the list of spawned
@@ -940,20 +915,17 @@ module AnnihilationMod
         ! to zero.  These will be deleted at the end of the total annihilation
         ! step.
 
-        use LoggingData, only: tOldRDMs
-        use rdm_data_old, only: rdms, one_rdms_old
         use rdm_data, only: rdm_definitions, two_rdm_spawn, one_rdms
-        use rdm_filling_old, only: check_fillRDM_DiDj_old
         use rdm_filling, only: check_fillRDM_DiDj
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(inout) :: TotWalkersNew
-        integer, intent(inout) :: ValidSpawned 
+        integer, intent(inout) :: ValidSpawned
         integer, intent(out) :: err
         integer :: PartInd, i, j, PartIndex, m, run
         real(dp), dimension(lenof_sign) :: CurrentSign, SpawnedSign, SignTemp
         real(dp), dimension(lenof_sign) :: TempCurrentSign, SignProd
-        real(dp) :: ScaledOccupiedThresh, scFVal, diagH, weight_rev
+        real(dp) :: ScaledOccupiedThresh, scFVal, diagH
         integer :: ExcitLevel, DetHash, nJ(nel)
         logical :: tSuccess, tSuc, tDetermState
         logical :: abort(lenof_sign)
@@ -969,7 +941,7 @@ module AnnihilationMod
         call set_timer(BinSearch_time,45)
 
         do i = 1, ValidSpawned
-           call decode_bit_det(nJ, SpawnedParts(:,i)) 
+           call decode_bit_det(nJ, SpawnedParts(:,i))
            ! Just to be sure
            CurrentSign = 0.0_dp
            ! Search the hash table HashIndex for the determinant defined by
@@ -987,7 +959,7 @@ module AnnihilationMod
            ! for scaled walkers, truncation is done here
            t_truncate_this_det = t_truncate_spawns .and. tEScaleWalkers
 
-           if (tSuccess) then
+           if(tSuccess) then
               ! Our SpawnedParts determinant is found in CurrentDets.
 
               call extract_sign(CurrentDets(:,PartInd),CurrentSign)
@@ -997,23 +969,19 @@ module AnnihilationMod
               ! in GUGA we might also want to truncate occupied dets
               ! with no energy scaling we already truncate at the spawning event!
               if(tGUGA .and. tEScaleWalkers) then
-                  if (t_truncate_spawns .and. .not. t_truncate_unocc) then 
+                  if (t_truncate_spawns .and. .not. t_truncate_unocc) then
                      ! the diagonal element of H is to be stored anyway
-                     if(tEScaleWalkers) then
-                        ! evaluate the scaling function
-                        scFVal = scaleFunction(det_diagH(PartInd))
-                     else
-                        scFVal = 1.0_dp
-                     endif
+                     ! evaluate the scaling function
+                     scFVal = scaleFunction(det_diagH(PartInd))
                      do j = 1, lenof_sign
                          call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
 #ifdef __DEBUG
                          if(abs(SpawnedSign(j)) > n_truncate_spawns*scFVal) then
                               print *, " ------------"
                               print *, " spawn unto an OCCUPIED CSF above Threshold!"
-                              print *, " Parent was initiator?: ",  & 
+                              print *, " Parent was initiator?: ",  &
                                   any_run_is_initiator(SpawnedParts(:,i))
-                              print *, " Parent was in deterministic space?: ",  & 
+                              print *, " Parent was in deterministic space?: ",  &
                                   test_flag(SpawnedParts(:,i), flag_deterministic)
                               print *, " Current det is initiator?: ", &
                                   any_run_is_initiator(CurrentDets(:,PartInd))
@@ -1054,11 +1022,10 @@ module AnnihilationMod
                     ! decide whether to abort it or not.
                     if (tTruncInitiator) then
                        if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
-                            .not. tDetermState .and. ((.not. tTimedDeaths) .or. &
-                            get_death_timer(PartInd) < 0)) then
+                            .not. tDetermState) then
                             ! Walkers came from outside initiator space.
                             ! have to also keep track which RK step
-#ifdef __REALTIME 
+#ifdef __REALTIME
                             if (runge_kutta_step == 1) then
                                 NoAborted_1(j) = NoAborted_1(j) + abs(SpawnedSign(j))
                             else if (runge_kutta_step == 2) then
@@ -1084,13 +1051,13 @@ module AnnihilationMod
 
                  if (SignProd(j) < 0) then
                     ! in the real-time for the final combination
-                    ! y(n) + k2 i have to check if the "spawned" 
+                    ! y(n) + k2 i have to check if the "spawned"
                     ! particle is actually a diagonal death/born
                     ! walker
                     ! This indicates that the particle has found the
                     ! same particle of opposite sign to annihilate with.
                     ! In this case we just need to update some statistics:
-                    ! in the real-time fciqmc i have to keep track of 
+                    ! in the real-time fciqmc i have to keep track of
                     ! the runge-kutta-step
 
 #ifdef __REALTIME
@@ -1140,7 +1107,7 @@ module AnnihilationMod
 
               ! Transfer new sign across.
               call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
-              call encode_sign(SpawnedParts(:,i), null_part)    
+              call encode_sign(SpawnedParts(:,i), null_part)
 
               if (.not. tDetermState) then
                  call extract_sign (CurrentDets(:,PartInd), SignTemp)
@@ -1149,8 +1116,7 @@ module AnnihilationMod
                     ! away. Remove it from the hash index array so that
                     ! no others find it (it is impossible to have another
                     ! spawned walker yet to find this determinant).
-                    if(.not. tTimedDeaths) &
-                         call RemoveHashDet(HashIndex, nJ, PartInd)
+                    call RemoveHashDet(HashIndex, nJ, PartInd)
                  end if
               end if
 
@@ -1163,20 +1129,10 @@ module AnnihilationMod
                  ! we're effectively taking the instantaneous value from the
                  ! next iter. This is fine as it's from the other population,
                  ! and the Di and Dj signs are already strictly uncorrelated.
-                 if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
                  if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
                       inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
                  call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
                       CurrentDets(:,PartInd), TempCurrentSign)
-              end if
-
-
-              if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                 do run = 1, inum_runs
-                    weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                    call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                    call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                 end do
               end if
            else
               ! Determinant in newly spawned list is not found in CurrentDets.
@@ -1251,13 +1207,6 @@ module AnnihilationMod
                             diagH, PartInd, err)
                        ! abort upon error
                        if(err.ne.0) return
-                       if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                          do run = 1, inum_runs
-                             weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                             call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                             call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                          end do
-                       end if
                     end if
                  end if
               else
@@ -1298,20 +1247,12 @@ module AnnihilationMod
                             diagH, PartInd, err)
                        ! abort annihilation upon error
                        if(err.ne.0) return
-                       if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                          do run = 1, inum_runs
-                             weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                             call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                             call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                          end do
-                       end if
                     end if
                  end if
               end if
 
               if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                  ! We must use the instantaneous value for the off-diagonal contribution.
-                 if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SpawnedSign)
                  if(tNonInitsForRDMs .or. tNonVariationalRDMs) &
                       call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
                  if(tInitsRDM .and. tNonVariationalRDMs) &
@@ -1327,7 +1268,7 @@ module AnnihilationMod
       call halt_timer(BinSearch_time)
 
       ! Update remaining number of holes in list for walkers stats.
-      if ((iStartFreeSlot > iEndFreeSlot) .or. tTimedDeaths) then
+      if (iStartFreeSlot > iEndFreeSlot) then
          ! All slots filled
          HolesInList = 0
       else
@@ -1377,15 +1318,15 @@ module AnnihilationMod
          ! truncate down to a minimum number of spawns to
          ! prevent blooms if requested
          ! in guga ignore multi-spawn events and still truncate!
-	 ! we already truncate in the spawing step witout energy scaling!
+         ! we already truncate in the spawing step witout energy scaling!
          if (tGUGA .and. t_truncate_spawns .and. tEScaleWalkers) then
             if(abs(SignTemp(j)) > n_truncate_spawns*scFVal) then
 #ifdef __DEBUG
                 print *, " ------------"
                 print *, " spawn unto an UN-OCCUPIED CSF above Threshold!"
-                print *, " Parent was initiator?: ",  & 
+                print *, " Parent was initiator?: ",  &
                     any_run_is_initiator(SpawnedParts(:,i))
-                print *, " Parent was in deterministic space?: ",  & 
+                print *, " Parent was in deterministic space?: ",  &
                     test_flag(SpawnedParts(:,i), flag_deterministic)
                 print *, " ------------"
 #endif
@@ -1437,7 +1378,7 @@ module AnnihilationMod
 
       if(tEScaleWalkers) then
          ! the diagonal element of H is needed anyway ONLY for scaled walkers
-         ! if we dont scale walkers, we might not need it, if the round kills the 
+         ! if we dont scale walkers, we might not need it, if the round kills the
          ! walkers
          diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
          ! evaluate the scaling function
@@ -1465,25 +1406,7 @@ module AnnihilationMod
         ! If a particle comes from a site marked as an initiator, then it can
         ! live
         ! same if the spawn matrix element was large enough
-        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type)) .and. &
-             .not. test_flag(ilut_spwn, flag_large_matel)
-        
-        ! optionally keep spawns up to a given seniority level + excitaion level
-        if(abort .and. tSpawnSeniorityBased) then
-           ! get the seniority level
-           nopen = count_open_orbs(ilut_spwn) 
-           if(nopen < numMaxExLvlsSet) then
-              maxExLvl = 0
-              ! get the corresponding max excitation level
-              do while(maxExLvl == 0)
-                 maxExLvl = maxKeepExLvl(nopen+1)
-                 nopen = nopen + 1
-                 if(nopen >= numMaxExLvlsSet) exit
-              end do
-              ! if we are below this level, keep the spawn anyway
-              if(FindBitExcitLevel(ilutHF, ilut_spwn) <= maxExLvl) abort = .false.
-           end if
-        end if
+        abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
 
     end function test_abort_spawn
 
@@ -1603,14 +1526,14 @@ module AnnihilationMod
         logical :: tUnocc, tSuccess, tDetermState, tToEmptyDet
 
 
-        !The first part which involves calculating the displacements is basically copied 
+        !The first part which involves calculating the displacements is basically copied
         !from SendProcNewParts. Maybe we should refactor into a its own subroutine
         if (tSingleProc) then
             ! Put all particles and gap on one proc.
 
             ! ValidSpawnedList(0:nNodes-1) indicates the next free index for each
             ! processor (for spawnees from this processor) i.e. the list of spawned
-            ! particles has already been arranged so that newly spawned particles are 
+            ! particles has already been arranged so that newly spawned particles are
             ! grouped according to the processor they go to.
 
             ! sendcounts(1:) indicates the number of spawnees to send to each processor.
@@ -1626,7 +1549,7 @@ module AnnihilationMod
               end do
               !disps(2:nNodes)=int(ValidSpawnedList(1),MPIArg)
            end if
-                                                                       
+
         else
           ! Distribute the gaps on all procs.
            do i = 0 ,nProcessors-1
@@ -1646,7 +1569,7 @@ module AnnihilationMod
         ! We now need to calculate the recvcounts and recvdisps - this is a
         ! job for AlltoAll
         recvcounts(1:nProcessors) = 0
-        
+
         call MPIBarrier(error)
 
         call MPIAlltoAll(sendcounts,1,recvcounts,1,error)
@@ -1669,10 +1592,10 @@ module AnnihilationMod
 
         call MPIAlltoAllv(SpawnInfo,sendcounts,disps,SpawnInfo2,recvcounts,recvdisps,error)
 
-        do i = 1, MaxIndex                
+        do i = 1, MaxIndex
             SpawnInfo2(SpawnAccepted,i) = 1
             if(tTruncInitiator)then
-               run = SpawnInfo2(SpawnRun,i)
+                run = int(SpawnInfo2(SpawnRun,i))
                 call decode_bit_det(nI, SpawnedParts(:,i))
                 call hash_table_lookup(nI, SpawnedParts(:,i), NIfDBO, HashIndex, &
                                CurrentDets, PartInd, DetHash, tSuccess)
@@ -1684,38 +1607,27 @@ module AnnihilationMod
                 else
                     tToEmptyDet = .True.
                 end if
-                
-                if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag_by_run(run)) .and. tToEmptyDet)then 
+
+                if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag_by_run(run)) .and. tToEmptyDet)then
                     SpawnInfo2(SpawnAccepted,i) = 0
                 endif
             end if
         end do
-        !Simply replaceing: SpawnInfo <-> SpawnInfo2, sendcount <-> recvcounts, disps <-> recvdips, 
+        !Simply replaceing: SpawnInfo <-> SpawnInfo2, sendcount <-> recvcounts, disps <-> recvdips,
         !we send the info back into its original location
         call MPIAlltoAllv(SpawnInfo2,recvcounts,recvdisps,SpawnInfo,sendcounts,disps,error)
 
         do proc = 0, nProcessors-1
             do i=InitialSpawnedSlots(proc), ValidSpawnedList(proc)-1
-                ParentIdx = SpawnInfo(SpawnParentIdx,i)
-                run = SpawnInfo(SpawnRun,i)
+                ParentIdx = int(SpawnInfo(SpawnParentIdx,i))
+                run = int(SpawnInfo(SpawnRun,i))
                 weight_acc = transfer(SpawnInfo(SpawnWeightAcc, i), weight_acc) !weight is a real encoded in an integer. Decoded it!
                 weight_rej = transfer(SpawnInfo(SpawnWeightRej, i), weight_rej) !weight is a real encoded in an integer. Decoded it!
-                if(tAAS_Reverse)then
-                    if(SpawnInfo(SpawnAccepted,i)==1)then
-                        !We add only half the weight for accepted spawns, 
-                        !because we expect the reverse spawning to compensate for the other half (on average)
-                        call update_tot_spawns(ParentIdx, run, 0.5*weight_acc)
-                        call update_acc_spawns(ParentIdx, run, 0.5*weight_acc)
-                    else
-                        call update_tot_spawns(ParentIdx, run, weight_rej)
-                    end if
+                if(SpawnInfo(SpawnAccepted,i)==1)then
+                    call update_tot_spawns(ParentIdx, run, weight_acc)
+                    call update_acc_spawns(ParentIdx, run, weight_acc)
                 else
-                    if(SpawnInfo(SpawnAccepted,i)==1)then
-                        call update_tot_spawns(ParentIdx, run, weight_acc)
-                        call update_acc_spawns(ParentIdx, run, weight_acc)
-                    else
-                        call update_tot_spawns(ParentIdx, run, weight_rej)
-                    end if
+                    call update_tot_spawns(ParentIdx, run, weight_rej)
                 end if
             end do
         end do

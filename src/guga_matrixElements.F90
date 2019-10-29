@@ -1,9 +1,9 @@
 #include "macros.h"
-! GUGA module containg as much matrix element calculation functionality as 
-! possible. 
+! GUGA module containg as much matrix element calculation functionality as
+! possible.
 #ifndef __CMPLX
 module guga_matrixElements
-    ! used modules: 
+    ! used modules:
     use SystemData, only: nEl, nBasis, ECore, t_tJ_model, t_heisenberg_model
     use constants, only: dp, n_int, hel_zero
     use bit_reps, only: decode_bit_det
@@ -18,12 +18,12 @@ module guga_matrixElements
 
     ! variable declarations:
     implicit none
-   
+
 contains
 
     function calc_off_diag_guga_ref_list(ilut, run, exlevel) result(hel)
         ! calculated the off-diagonal element connected to the reference
-        ! determinant only. 
+        ! determinant only.
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in), optional :: run
         integer, intent(out), optional :: exlevel
@@ -31,9 +31,9 @@ contains
         character(*), parameter :: this_routine = "calc_off_diag_guga_ref"
 
         integer :: pos, ind, nExcit
-        ! have the list of conncected dets to ilutRef stored persistently 
-        ! so only need to search if ilut is in this list and return 
-        ! the corresponing matrix element 
+        ! have the list of conncected dets to ilutRef stored persistently
+        ! so only need to search if ilut is in this list and return
+        ! the corresponing matrix element
         ! for now change that to the first replica reference...
         ! since this is done also in the fcimc_helper in the sumEcontrib...
         ! im not quite sure why this is done in such a way in the main routine.
@@ -51,12 +51,12 @@ contains
             ilut(0:nifd))
 
         if (pos > 0) then
-            ! if found output the matrix element 
+            ! if found output the matrix element
             hel = projE_replica(ind)%projE_hel_list(pos)
             if (present(exlevel)) then
                 exlevel = projE_replica(ind)%exlevel(pos)
             end if
-        else 
+        else
             ! otherwise its zero
             hel = hel_zero
             if (present(exlevel)) then
@@ -69,12 +69,12 @@ contains
     end function calc_off_diag_guga_ref_list
 
     function calcDiagMatEleGuga_nI(nI) result(hel_ret)
-        ! calculates the diagonal Hamiltonian matrix element when a CSF in 
+        ! calculates the diagonal Hamiltonian matrix element when a CSF in
         ! nI(nEl) form is provided and returns hElement of type hElement_t
         integer, intent(in) :: nI(nEl)
         HElement_t(dp) :: hel_ret
         character(*), parameter :: this_routine = "calcDiagMatEleGUGA_nI"
-        
+
         ! have to loop over the number of spatial orbitals i , and within
         ! loop again over orbitals j > i, s indicates spatial orbitals
         integer :: iOrb, jOrb, ind, inc1, inc2, sOrb, pOrb
@@ -83,18 +83,18 @@ contains
         hel_ret = ECore
 
         iOrb = 1
-        ! loop over nI spin orbital entries: good thing is unoccupied orbitals 
+        ! loop over nI spin orbital entries: good thing is unoccupied orbitals
         ! do not  contribute to the single matrix element part.
         do while (iOrb .le. nEl)
             ! spatial orbital index needed for get_umat_el access
-            sOrb = (nI(iOrb) + 1)/2 
+            sOrb = (nI(iOrb) + 1)/2
            ! have to check if orbital is singly or doubly occupied.
            if (isDouble(nI,iOrb)) then ! double has two part. int. contribution
                nOcc1 = 2.0_dp
                hel_ret = hel_ret + nOcc1 * GetTMatEl(nI(iOrb), nI(iOrb)) + &
                    get_umat_el(sOrb, sOrb, sOrb, sOrb)
 
-               
+
                ! correctly count through spin orbitals if its a double occ.
                inc1 = 2
 
@@ -109,36 +109,36 @@ contains
            jOrb = iOrb + inc1
            do while (jOrb .le. nEl)
                pOrb = (nI(jOrb) + 1)/2
-               ! again check for double occupancies 
+               ! again check for double occupancies
                if (isDouble(nI,jOrb)) then
                    nOcc2 = 2.0_dp
                    inc2 = 2
 
-               else 
+               else
                    nOcc2 = 1.0_dp
                    inc2 = 1
 
                end if
                ! standard two particle contribution
-               if (.not. (t_tJ_model .or. t_heisenberg_model)) then 
+               if (.not. (t_tJ_model .or. t_heisenberg_model)) then
                    hel_ret = hel_ret + nOcc1 * nOcc2 *( &
                        get_umat_el(sOrb,pOrb,sOrb,pOrb) - &
                        get_umat_el(sOrb,pOrb,pOrb,sOrb)/2.0_dp)
                end if
 
-               ! calculate exchange integral part, involving Shavitt 
+               ! calculate exchange integral part, involving Shavitt
                ! rules for matrix elements, only contributes if both
                ! stepvectors are 1 or 2, still to be implemented..
                if (nOcc1 == 1.0_dp .and. nOcc2 == 1.0_dp) then
                    hel_ret = hel_ret - get_umat_el(sOrb,pOrb,pOrb,sOrb) * &
                        calcDiagExchangeGUGA_nI(iOrb, jOrb, nI)/2.0_dp
 
-                   if (t_tJ_model) then 
+                   if (t_tJ_model) then
                        hel_ret = hel_ret + get_umat_el(sOrb,pOrb,pOrb,sOrb)/2.0
                    end if
                end if
-        
-               ! increment the counters 
+
+               ! increment the counters
                jOrb = jOrb + inc2
 
            end do
@@ -148,7 +148,7 @@ contains
     end function calcDiagMatEleGUGA_nI
 
     function calcDiagMatEleGuga_ilut(ilut) result(hElement)
-        ! function to calculate the diagonal matrix element if a stepvector 
+        ! function to calculate the diagonal matrix element if a stepvector
         ! in ilut format is given
         integer(n_int), intent(in) :: ilut(0:niftot)
         HElement_t(dp) :: hElement
@@ -174,8 +174,8 @@ contains
         ! the b-vector is also needed for these calculations:
         bVector = calcB_vector_nI(nI)
         ! probably could use current b vector.. or reference b vector even...
-        ! yes definitly. no not really since this is also used for general 
-        ! diagonal matrix elements not only the current determinant in the 
+        ! yes definitly. no not really since this is also used for general
+        ! diagonal matrix elements not only the current determinant in the
         ! fciqmc loop
 
 
@@ -186,13 +186,13 @@ contains
                 if (is_beta(nI(i))) then
                     exchange = exchange * functionA(bVector(i), 2.0_dp, 0.0_dp)&
                         * functionA(bVector(i), -1.0_dp, 1.0_dp)
-                
+
                 else
-                    exchange = exchange * functionA(bVector(i), 0.0_dp, 2.0_dp) * & 
+                    exchange = exchange * functionA(bVector(i), 0.0_dp, 2.0_dp) * &
                         functionA(bVector(i), 3.0_dp, 1.0_dp)
 
                 end if
-            end if        
+            end if
         end do
 
         if (is_beta(nI(iOrb))) then
@@ -203,7 +203,7 @@ contains
 
             else
                 exchange = -exchange * functionA(bVector(jOrb), 3.0_dp, 1.0_dp)
-            
+
             end if
 
         else
@@ -234,4 +234,4 @@ contains
     end function functionA
 
 end module guga_matrixElements
-#endif 
+#endif

@@ -68,7 +68,7 @@ contains
         write(6,'(1x,a9)') "Complete."
         call neci_flush(6)
 
-        expected_ndets_tot = choose(nbasis, nel)
+        expected_ndets_tot = int(choose(nbasis, nel))
         if (ndets_ed /= expected_ndets_tot) then
             write(6,*) "ndets counted:", ndets_ed, "ndets expected:", expected_ndets_tot
             call stop_all('t_r', 'The number of determinants generated is not &
@@ -130,7 +130,7 @@ contains
         end if
 
         ! Loop over every pair of determinants and calculate all elements.
-        if (t_non_hermitian) then 
+        if (t_non_hermitian) then
             call stop_all(t_r, "check this for non-hermitian hamil!")
         end if
         do i = 1, ndets
@@ -148,7 +148,7 @@ contains
                         local_hamil(i,j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
 #ifndef __CMPLX
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:,i),ilut_list(:,j), & 
+                        call calc_guga_matrix_element(ilut_list(:,i),ilut_list(:,j), &
                             excitInfo, local_hamil(i,j), .true., 2)
 #endif
                     else

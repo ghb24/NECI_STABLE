@@ -28,7 +28,7 @@ module real_time_init
                               TotPartsLastAlpha, alphaDamping, tDynamicDamping, iterInit, &
                               etaDamping, tStartVariation, rotThresh, stabilizerThresh, &
                               tInfInit,  popSnapshot, snapshotOrbs, phase_factors, tVerletSweep, &
-			      numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
+                              numSnapshotOrbs, tLowerThreshold, t_kspace_operators, tVerletScheme, &
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
                               alphaLog, alphaLogSize, alphaLogPos, tStaticShift, DiagVecTag, &
@@ -63,7 +63,7 @@ module real_time_init
     use perturbations, only: init_perturbation_annihilation, &
                              init_perturbation_creation
     use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, &
-                                    init_fcimc_fn_pointers 
+                                    init_fcimc_fn_pointers
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
     use replica_data, only: allocate_iter_data, set_initial_global_data
@@ -79,8 +79,8 @@ contains
 
     subroutine init_real_time_calc_single()
       use real_time_procs, only: get_tot_parts
-        ! this routine takes care of the correct setup of the real-time 
-        ! calculation. like reading the popsfiles and preparing the start 
+        ! this routine takes care of the correct setup of the real-time
+        ! calculation. like reading the popsfiles and preparing the start
         ! of the calculation and setting certain global variables
         implicit none
         character(*), parameter :: this_routine = "init_real_time_calc_single"
@@ -97,46 +97,46 @@ contains
         ! for real-space hubbard, we conver to momentum operators if desired
         if(t_kspace_operators) call setup_momentum_operators()
 
-        ! have to think about the the order about the above setup routines! 
+        ! have to think about the the order about the above setup routines!
         ! within this Init a readpops is called
         ! this function already produces the correctly perturbed ground state
         call InitFCIMCCalcPar()
-        
-        ! also init pointer here, and think about what options and defaults 
+
+        ! also init pointer here, and think about what options and defaults
         ! should be set for a succsesfull init
         call init_fcimc_fn_pointers()
 
         ! setup the k-space hubbard if required (after pointers as some are
         ! overwritten
-        if (t_k_space_hubbard) then 
+        if (t_k_space_hubbard) then
             call init_k_space_hubbard()
         end if
         ! then call the setup routine, which set all remaining needed quantities
         call setup_real_time_fciqmc()
 
-        ! definetly read-in stored popsfile here. 
+        ! definetly read-in stored popsfile here.
         ! need to store both <y(0)| and also create a_j y(0)> during read-in!
 !         call read_popsfile_real_time()
         ! actually the InitFCIMCCalcPar should do that now correctly already
 
-        ! do an MPIbarrier here.. although don't quite know why        
+        ! do an MPIbarrier here.. although don't quite know why
         call MPIBarrier(ierr)
 
         if(.not. tReadPops) call set_initial_global_data(TotWalkers, CurrentDets)
-        
+
     end subroutine init_real_time_calc_single
 
     subroutine setup_real_time_fciqmc()
         ! this is the last setup routine, which depending on compilation,
-        ! number of copies etc. sets up the final needed quantities to run 
+        ! number of copies etc. sets up the final needed quantities to run
         ! a simulation
       implicit none
         character(*), parameter :: this_routine = "setup_real_time_fciqmc"
         integer :: ierr,  run
 
 
-        ! the new total momentum has to be constructed before the 
-        ! time-evolved state is read in, as the latter deletes the 
+        ! the new total momentum has to be constructed before the
+        ! time-evolved state is read in, as the latter deletes the
         ! pops_pert, because perturbation and read-in are done in one
         ! function (dependencies...)
         if(tHub) then
@@ -151,11 +151,11 @@ contains
            endif
         endif
 
-        ! allocate the according quantities! 
+        ! allocate the according quantities!
         ! n_time_steps have to be set here!
         write(iout,*) " Allocating greensfunction and wavefunction norm arrays!"
         ! allocate an additional slot for initial values
-        if(numSnapshotOrbs>0) then 
+        if(numSnapshotOrbs>0) then
            allocate(popSnapshot(numSnapshotOrbs),stat=ierr)
            allocate(allPopSnapshot(numSnapshotOrbs),stat=ierr)
            popSnapshot = 0.0_dp
@@ -183,25 +183,25 @@ contains
         TotPartsPeak = 0.0_dp
         gs_energy = benchmarkEnergy
 
-        ! when projecting onto the perturbed reference, we obviously need to create 
+        ! when projecting onto the perturbed reference, we obviously need to create
         ! a new state
         if(tHFOverlap) tNewOverlap = .true.
 
         call init_overlap_buffers()
 
         if(tRealTimePopsfile) call readTimeEvolvedState()
-        
-        ! check for set lms.. i think that does not quite work yet 
+
+        ! check for set lms.. i think that does not quite work yet
         write(iout,*) "mz spin projection: ", lms
 
         write(iout,*) "tSinglePartPhase?:",tSinglePartPhase
         write(iout,*) "tWalkContGrow?", tWalkContGrow
         write(iout,*) "diagSft:", diagSft
 
-        ! intialize the 2nd temporary determinant list needed in the 
-        ! real-time fciqmc 
+        ! intialize the 2nd temporary determinant list needed in the
+        ! real-time fciqmc
 
-        ! also maybe use the spawn_ht hash table, so allocated it here! 
+        ! also maybe use the spawn_ht hash table, so allocated it here!
         call setup_temp_det_list()
 
         write(iout,*) "allocated(temp_det_list)?", allocated(temp_det_list)
@@ -211,10 +211,10 @@ contains
         write(iout,*) "associated(spawn_ht)?", associated(spawn_ht)
 
         write(iout,*) "Allgrowrate: ", AllGrowRate
-        ! print out the first infos on the calculation.. 
+        ! print out the first infos on the calculation..
         ! although that definetly has to be changed for the real-time fciqm
 
-        ! use new output format! 
+        ! use new output format!
         tFCIMCStats2 = .true.
 
         if (tFCIMCStats2) then
@@ -225,20 +225,20 @@ contains
 
         ! set the iter variable to 0 probably
         iter = 0
-        
-        ! and also the PreviousCycles var. since its essentially regarded as 
+
+        ! and also the PreviousCycles var. since its essentially regarded as
         ! a new calulcation
         PreviousCycles = 0
 
-        ! for intermediate test_purposes turn off spawning to check if the 
-        ! diagonal step works as intented 
+        ! for intermediate test_purposes turn off spawning to check if the
+        ! diagonal step works as intented
 !         pSingles = 0.0_dp
 !         pDoubles = 0.0_dp
 
         ! also initialize the second_spawn_iter_data type
         call allocate_iter_data(second_spawn_iter_data)
 
-        ! and also initialize the values: 
+        ! and also initialize the values:
         second_spawn_iter_data%ndied = 0.0_dp
         second_spawn_iter_data%nborn = 0.0_dp
         second_spawn_iter_data%nannihil = 0.0_dp
@@ -252,7 +252,7 @@ contains
         TotPartsStorage = TotParts
         TotPartsLastAlpha = TotParts
 
-        ! also intitialize the 2nd spawning array to deal with the 
+        ! also intitialize the 2nd spawning array to deal with the
         ! diagonal death step in the 2nd rt-fciqmc loop
         allocate(DiagVec(0:nifbcast, MaxWalkersPart), stat = ierr)
         call LogMemAlloc('DiagVec',MaxWalkersPart*(1+nifbcast),size_n_int,&
@@ -264,7 +264,7 @@ contains
 
         ! and the initial_spawn_slots equivalent
         ! although i think i can reuse the initialSpawnedSlots..
-!         allocate(initial_diag_spawn_list(0:nNodes-1), stat = ierr) 
+!         allocate(initial_diag_spawn_list(0:nNodes-1), stat = ierr)
 
         valid_diag_spawns = 1
 
@@ -273,13 +273,13 @@ contains
                 sum(TotParts(min_part_type(run):max_part_type(run)))
         enddo
 
-        ! also initialize all the relevant first RK step quantities.. 
-        NoatHF_1 = 0.0_dp 
+        ! also initialize all the relevant first RK step quantities..
+        NoatHF_1 = 0.0_dp
         Annihilated_1 = 0.0_dp
         nspawned_1 = 0.0_dp
         Acceptances_1 = 0.0_dp
         NoBorn_1 = 0.0_dp
-        SpawnFromSing_1 = 0 
+        SpawnFromSing_1 = 0
         NoDied_1 = 0.0_dp
         NoAborted_1 = 0.0_dp
         NoRemoved_1 = 0.0_dp
@@ -292,7 +292,7 @@ contains
         TotParts_1 = 0.0_dp
         bloom_count_1 = 0
         sumwalkerscyc_1 = 0.0_dp
-        ! also the global variables 
+        ! also the global variables
         AllNoatHF_1 = 0.0_dp
         AllNoatDoubs_1 = 0.0_dp
         AllGrowRateAbort_1 = 0
@@ -311,22 +311,22 @@ contains
         AllSumWalkersCyc_1 = 0.0_dp
 
         tVerletSweep = .false.
-        if(tVerletScheme) then 
+        if(tVerletScheme) then
            call setup_delta_psi()
            call backup_initial_state()
            tau = tau/iterInit
         endif
-        
+
         if(tStaticShift) DiagSft = asymptoticShift
 
-        if(tGenerateCoreSpace) call initialize_corespace_construction()      
+        if(tGenerateCoreSpace) call initialize_corespace_construction()
 
         if(tReadTrajectory) call read_in_trajectory()
-        
+
         ! Set up the reference space for the adi-approach
         call setup_reference_space(tReadPops)
 
-        call rotate_time()           
+        call rotate_time()
 
     end subroutine setup_real_time_fciqmc
 
@@ -352,7 +352,7 @@ contains
       complex(dp), allocatable :: norm_buf(:)
       logical :: tStartedFromCoreGround
 
-      normsize = inum_runs**2      
+      normsize = inum_runs**2
       allocate(overlap_real(gf_count),overlap_imag(gf_count))
       allocate(gf_overlap(normsize,gf_count), stat = ierr)
       allocate(pert_norm(normsize,gf_count),stat = ierr)
@@ -363,8 +363,8 @@ contains
       dyn_norm_red = 1.0_dp
       gf_overlap = 0.0_dp
 
-      ! also need to create the perturbed ground state to calculate the 
-      ! overlaps to |y(t)> 
+      ! also need to create the perturbed ground state to calculate the
+      ! overlaps to |y(t)>
       call create_perturbed_ground()
 
       if(tSemiStochastic) call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
@@ -394,7 +394,7 @@ contains
          write(iout,*) "Number of walkers / in overlap state", TotWalkers, overlap_states(j)%nDets
          ! the norm (squared) can be obtained by reduction over all processes
          call MPIReduce(norm_buf,MPI_SUM,pert_norm(:,j))
-         ! for diagonal green's functions, this is the same as pert_norm, but 
+         ! for diagonal green's functions, this is the same as pert_norm, but
          ! in general, this general normalization is required.
          do i = 1, normsize
             dyn_norm_red(i,j) = sqrt(pert_norm(i,j)*dyn_norm_psi(i))
@@ -403,7 +403,7 @@ contains
 
       deallocate(norm_buf)
 
-      if(.not. allocated(shift_damping)) then 
+      if(.not. allocated(shift_damping)) then
          allocate(shift_damping(inum_runs), stat = ierr)
          shift_damping = 0.0_dp
       endif
@@ -445,7 +445,7 @@ contains
         ! jumpshift
         tJumpShift = .false.
 
-        ! but to ensure that the shift does not vary anymore, since there is 
+        ! but to ensure that the shift does not vary anymore, since there is
         ! no such concept as the varying shift in the real-time fciqmc
         ! exception: when using rotated times, the shift still has to be considered
         tWalkContGrow = .true.
@@ -456,16 +456,16 @@ contains
         ! and dont only restart on the highly populated dets
         tRestartHighPop = .false.
 
-        ! nick also has some scale_population routine, think about 
-        ! implementing this also for the real-time restart 
+        ! nick also has some scale_population routine, think about
+        ! implementing this also for the real-time restart
         tScalePopulation = .false.
         scaling_factor = 1.0_dp
-        
+
         ! nick also has some multiple popsfile start routines..
         ! set the multiple popsstart with the number of replicas of mneci
         ! provided
         tMultiplePopStart = .false.
-        
+
         ! by default, do not output any population of orbitals
         numSnapshotOrbs = 0
 
@@ -474,20 +474,20 @@ contains
         tIncrementPops = .true.
         iPopsFileNoRead = -1
         ! this will always result in *.0 being chosen as name, was rethought and
-        ! decided to be good - this way, no files will be overwritten and 
+        ! decided to be good - this way, no files will be overwritten and
         ! the read-in file is always the same
 
         ! have to set, that popsfile is not yet read in:
         tPopsAlreadyRead = .false.
 
-        ! overwrite tfcimc flag to not enter the regular fcimc routine 
+        ! overwrite tfcimc flag to not enter the regular fcimc routine
         tFCIMC = .false.
 
         ! usually only real-valued FCIDUMPs
         t_complex_ints = .false.
 
-        ! probably should zero the projected energy, since its a total 
-        ! different system 
+        ! probably should zero the projected energy, since its a total
+        ! different system
         tZeroProjE = .false.
 
         ! setup_rotated_time: by default, pure real time is used
@@ -502,7 +502,7 @@ contains
         ! usually, systems with real integrals will be considered, but the walkers will
         ! always be complex
         tComplexWalkers_RealInts = .true.
-        
+
         ! by default, the perturbation operators are in the same basis as the wavefunction
         t_kspace_operators = .false.
 
@@ -512,7 +512,7 @@ contains
         allGfs = 0
         ! normally, take the multi-replica overlap
         tHFOverlap = .false.
-        
+
         ! if starting a new calculation, we start at time 0 (arbitrary)
         elapsedRealTime = 0.0_dp
         elapsedImagTime = 0.0_dp
@@ -536,7 +536,7 @@ contains
         stepsAlpha = 10
         alphaDamping = 0.05
         rotThresh = 0
-	tLowerThreshold = .false.
+        tLowerThreshold = .false.
         tOverpopulate = .false.
         tStartVariation = .false.
 
@@ -559,19 +559,19 @@ contains
     end subroutine set_real_time_defaults
 
     ! need a specific popsfile read function for the real-time calculation
-    ! based upon georges previous implementation, but changed to handle 
+    ! based upon georges previous implementation, but changed to handle
     ! new code base
     ! need a routine which prepares the converged groundstates from an
-    ! imaginary-time FCIQMC calculation 
+    ! imaginary-time FCIQMC calculation
 
     ! use code provided in the NECI GreensFuncs branch by George Booth
-    ! in general reuse as much of the already provided functionality! 
+    ! in general reuse as much of the already provided functionality!
 
     ! need a setup routine in the regular imag-time neci routine, which prints
     ! out the specified amount of GS wavefunctions
     ! and which sets the necessary flags and stuff
 
-    ! i want through the CHANGEVARS facility start the print out of 
+    ! i want through the CHANGEVARS facility start the print out of
     ! the input specified print out of POPSFILES between certain intervals
 
     subroutine read_popsfile_real_time()
@@ -605,8 +605,8 @@ contains
                 read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
                 read_pparallel, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
-        else 
-            ! if popsfiles are stored in binary! there are seperate files for 
+        else
+            ! if popsfiles are stored in binary! there are seperate files for
             ! the header and the actual population stats
             if (iProcIndex == root) then
                 close(iunit)
@@ -627,7 +627,7 @@ contains
       use CalcData, only: ss_space_in
       use FciMCData, only : TotImagTime
       implicit none
-      
+
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
                    PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
                    PopBlockingIter, Popinum_runs, PopRandomHash(2056), &
@@ -650,22 +650,22 @@ contains
         endif
 
         binpops = .false.
-        
+
         rtPOPSFILE_name = 'TIME_EVOLVED_POP'
-  
+
         ! get the file containing the time evolved state
         call open_pops_head(iunit, formpops, binpops, rtPOPSFILE_name)
-       
+
         popsversion = FindPopsfileVersion(iunit)
         if(popsversion /= 4) call stop_all(this_routine, "wrong popsfile version of TIME_EVOLVED_POP")
-       
+
         call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
              iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
              PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
              read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
              read_pparallel, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
-        ! at this point, we do not want to perturb the state and have no use for the 
+        ! at this point, we do not want to perturb the state and have no use for the
         ! pops_pert variable anymore -> deallocate it
 
         ! read in the hacked shift_damping
@@ -673,7 +673,7 @@ contains
         shift_damping = PopSumNoatHF(1:inum_runs)
 
         call clear_pops_pert(pops_pert)
-        
+
         ! read in the time evolved state and use it as initial state
         call InitFCIMC_pops(iPopAllTotWalkers, PopNIfSgn, iPopNel, read_nnodes, &
              read_walkers_on_nodes, pops_pert, &
@@ -683,16 +683,16 @@ contains
 
         ! if we disabled semi-stochastic mode temporarily, reenable it now
         if(tSemiStochastic) call init_semi_stochastic(ss_space_in, tStartedFromCoreGround)
-      
+
     end subroutine readTimeEvolvedState
 
     subroutine set_initial_times(real_time, imag_time, alpha)
       implicit none
       real(dp), intent(in) :: real_time, imag_time, alpha
-      
+
       ! with the inclusion of dynamic alpha, both, the real and the imaginary part
       ! have to be stored in the time-evolved popsfile
-      ! the 
+      ! the
       elapsedImagTime = imag_time
       elapsedRealTime = real_time
       ! also, the previous value of alpha is to be loaded
@@ -704,7 +704,7 @@ contains
       use bit_rep_data, only: extract_sign
       use bit_reps, only: encode_sign
       implicit none
-      
+
       integer :: i, signs(lenof_sign), iGf
       real(dp) :: tmp_sgn(lenof_sign)
 
@@ -723,7 +723,7 @@ contains
             call extract_sign(CurrentDets(:,i),tmp_sgn)
             tmp_sgn = tmp_sgn * signs
             call encode_sign(CurrentDets(:,i),tmp_sgn)
-         end do 
+         end do
          do iGf = 1, gf_count
             do i = 1, overlap_states(iGf)%nDets
                call extract_sign(overlap_states(iGf)%dets(:,i),tmp_sgn)
@@ -732,7 +732,7 @@ contains
             end do
          end do
       endif
-         
+
     end subroutine equalize_initial_phase
 
 
@@ -740,9 +740,9 @@ contains
     subroutine setup_momentum_operators()
       use SystemData, only: G1
       implicit none
-      
+
       integer :: k(3),state, momentum_state,spin, i, j
-    
+
       if(gf_type == -1) then
          momentum_state = pops_pert(1)%ann_orbs(1)
       else if(gf_type == 1) then
@@ -773,10 +773,10 @@ contains
       implicit none
 
       integer, intent(in) :: pos, orbital, type
-      
+
       if(type == 1) then
-         allocate(pops_pert(pos)%crtn_orbs(1)) 
-         allocate(overlap_pert(pos)%crtn_orbs(1)) 
+         allocate(pops_pert(pos)%crtn_orbs(1))
+         allocate(overlap_pert(pos)%crtn_orbs(1))
          overlap_pert(pos)%ncreate = 1
          pops_pert(pos)%ncreate = 1
          pops_pert(pos)%crtn_orbs(1) = orbital
@@ -784,8 +784,8 @@ contains
          call init_perturbation_creation(overlap_pert(pos))
          call init_perturbation_creation(pops_pert(pos))
       else
-         allocate(pops_pert(pos)%ann_orbs(1)) 
-         allocate(overlap_pert(pos)%ann_orbs(1)) 
+         allocate(pops_pert(pos)%ann_orbs(1))
+         allocate(overlap_pert(pos)%ann_orbs(1))
          overlap_pert(pos)%nannihilate = 1
          pops_pert(pos)%nannihilate = 1
          pops_pert(pos)%ann_orbs(1) = orbital
@@ -800,10 +800,10 @@ contains
     subroutine dealloc_real_time_memory
       use replica_data, only: clean_iter_data
       implicit none
-      
+
       integer :: ierr
       character(*), parameter :: this_routine = "dealloc_real_time_memory"
-      
+
       if(numSnapshotOrbs>0) deallocate(snapShotOrbs,stat=ierr)
       if(allocated(numCycShiftExcess)) deallocate(numCycShiftExcess, stat=ierr)
       deallocate(DiagVec,stat=ierr)
@@ -822,7 +822,7 @@ contains
       call clean_overlap_states()
       call clear_pops_pert(pops_pert)
       call clear_pops_pert(overlap_pert)
-      
+
       if(allocated(tauCache)) deallocate(tauCache)
 
     end subroutine dealloc_real_time_memory
@@ -832,7 +832,7 @@ contains
     subroutine clear_pops_pert(perturbs)
       use FciMCData, only : perturbation
       implicit none
-      
+
       type(perturbation), intent(inout), allocatable :: perturbs(:)
       integer :: j
 
@@ -879,12 +879,12 @@ contains
       real(dp) :: x,y
       logical :: checkTraj
       character(*), parameter :: this_routine = "read_in_trajectory"
-      
+
       call get_unique_filename('tauContour',.false.,.false.,0,trajFile)
       iunit = get_free_unit()
       inquire(file=trajFile,exist=checkTraj)
       if(.not. checkTraj) call stop_all(this_routine,"No tauContour file detected.")
-      
+
 
       ! We first need to read in the number of cycles
       open(iunit,file=trajFile,status='old')
@@ -898,7 +898,7 @@ contains
       close(iunit)
 
       call read_from_contour_file(iunit)
-      
+
     end subroutine read_in_trajectory
 
 !------------------------------------------------------------------------------------------!
@@ -911,7 +911,7 @@ contains
       implicit none
       integer :: i, nI(nel), DetHash, PartInd
       logical :: tSuccess
-      
+
       do i = 1, TotWalkers
          if(.not. check_determ_flag(CurrentDets(:,i))) then
             call nullify_ilut(CurrentDets(:,i))
@@ -997,5 +997,5 @@ contains
       call init_hash_table(ssht)
 
     end subroutine initialize_corespace_construction
-    
+
 end module real_time_init

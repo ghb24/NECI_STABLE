@@ -5,6 +5,7 @@
      &                     NBLOCKSTARTS,NBLOCKS)
          use constants, only: dp,int32!,n_int
          use SystemData, only: BasisFN
+         use util_mod, only: unused
          use global_utilities
          use HElem, only: HElement_t_size
 !         use DetCalcData, only: NMRKS
@@ -26,6 +27,9 @@
          type(timer), save :: proc_timer
          real(dp) GSEN
          character(len=*), parameter :: t_r="HDIAG_neci"
+#ifdef __WARNING_WORKAROUND
+        call unused(WORK)
+#endif
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100
@@ -66,7 +70,7 @@ C.. Now we fill the RIJ array
 !         ENDDO
 !         DO I=1,NDET
 !             DO J=1,NDET
-!                 WRITE(6,"(F20.14)",advance='no') CopyCK(I,J) 
+!                 WRITE(6,"(F20.14)",advance='no') CopyCK(I,J)
 !             ENDDO
 !             WRITE(6,*) ""
 !         ENDDO
@@ -76,7 +80,7 @@ C.. Diagonalize
          DO I=1,NBLOCKS
             NBS=NBLOCKSTARTS(I)
             IF(HElement_t_size.EQ.1) THEN
-#ifndef __CMPLX 
+#ifndef __CMPLX
                CALL DSYEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK2,3*NDET,INFO)
 #else
@@ -99,7 +103,7 @@ C.. Diagonalize
 ! by their HPHF partner and number of open shells.
 !
 !            do j=1,ndet
-!                call EncodeBitDet(NMRKS(:,j),BitRep) 
+!                call EncodeBitDet(NMRKS(:,j),BitRep)
 !                if(j.eq.1) then
 !                    BitRepHF=BitRep
 !                endif
@@ -127,6 +131,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          WRITE(6,"(A,F19.11,I4)") "GROUND E=",GSEN
          call halt_timer(proc_timer)
          RETURN
+
       END
 
 !This routine for each determinant, calculates each excitation, and then its contribution to the change in
@@ -173,7 +178,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 
 !         DO I=1,NDET
 !             DO J=1,NDET
-!                 WRITE(6,"(F20.14)",advance='no') KMAT(I,J) 
+!                 WRITE(6,"(F20.14)",advance='no') KMAT(I,J)
 !             ENDDO
 !             WRITE(6,*) ""
 !         ENDDO
@@ -190,7 +195,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
 !         DO i=1,NDET
 !             WRITE(6,*) Vecs(i,1), KMAT(i,NDET)
 !         ENDDO
-         
+
 
 !Run through determinants in graph
          NBins=100
@@ -268,7 +273,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          enddo
 
          do i=1,NBins
-            WRITE(9,"(G20.12)",advance='no') 
+            WRITE(9,"(G20.12)",advance='no')
      &                     (MinS+((i-1.0_dp)*RangeBins))+(RangeBins/2.0)
             do j=1,NDET
                 WRITE(9,"(I8)",advance='no') SHist(j,i)

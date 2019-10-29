@@ -1,407 +1,3 @@
-      SUBROUTINE WIRHODIAG(NI,BETA,I_P,NEL,
-     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &      ECORE,WLRI,WLSI)
-         use constants, only: dp
-         use global_utilities
-         use legacy_data, only: irat
-         use sym_mod, only: lchksymd
-         use SystemData, only: BasisFn
-         use util_mod, only: NECI_ICOPY
-         use MemoryManager, only: TagIntType
-         IMPLICIT NONE
-         real(dp) BETA,FCK(*),ALAT(3),UMAT(*),ECORE
-         INTEGER NEL,NBASIS,nBasisMax(5,*)
-         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
-         type(BasisFn) G1(*)
-         INTEGER NI(NEL),K
-         LOGICAL LACC
-         INTEGER NLIST,NLMAX
-         real(dp) RH,RHII
-         real(dp) HDMAX,RHRATMAX
-         INTEGER ILFREE,I,J
-         real(dp), ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:),WORK(:)
-         INTEGER, ALLOCATABLE :: LSTE(:,:)
-         INTEGER err
-         INTEGER WORKL
-         INTEGER*4 INFO
-         real(dp) WLRI,WLSI,SI
-         INTEGER(TagIntType) ,SAVE :: tagRIJMAT=0,tagWLIST=0
-         INTEGER(TagIntType),SAVE :: tagLSTE=0,tagRJJLIST=0,tagWORK=0 
-         type(timer), save :: proc_timer
-         character(*),parameter :: thisroutine='WIRHODIAG'
-         proc_timer%timer_name=thisroutine
-         call set_timer(proc_timer)
-         HDMAX=5000.0_dp
-         RHRATMAX=EXP(-BETA*HDMAX/I_P)
-
-C.. Get how much mem we need
-         NLIST=0
-         CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
-C.. account for LSTE(0)
-         NLMAX=NLIST+1
-         allocate(LSTE(NEL,0:NLIST),stat=err)
-         CALL LogMemAlloc('LSTE',NLMAX*NEL,4,thisroutine,tagLSTE,err)
-         allocate(RJJLIST(0:NLIST),stat=err)
-         CALL LogMemAlloc('RJJLIST',NLMAX,8,thisroutine,tagRJJLIST,err)
-
-         CALL NECI_ICOPY(NEL,NI,1,LSTE(1,0),1)
-         CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
-         
-         IF(NLIST.GT.NLMAX) THEN
-            WRITE(6,*) "WARNING on excitations"
-         ENDIF
-
-         CALL CALCRHO2(LSTE(1,0),LSTE(1,0),BETA,I_P,NEL,
-     &         G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
-     &         RH,NTAY,0,ECORE)
-         WRITE(35,"(A)",advance='no') "("
-         DO K=1,NEL
-            WRITE(35,"(I3,A)",advance='no') NI(K),","
-         ENDDO
-         WRITE(35,"(A,G25.16,I4)",advance='no')
-     &                                   ")", -(I_P/BETA)*LOG(RH),NLIST
-         RJJLIST(0)=RH
-         WLRI=LOG(RH)
-         RHII=RH
-         ILFREE=1
-         DO I=1,NLIST
-            IF(LSTE(1,I).NE.0) THEN
-               LACC=LCHKSYMD(LSTE(1,0),LSTE(1,I),
-     &               NEL,G1,NBASISMAX)
-               IF(LACC) THEN
-                  CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
-     &              G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
-     &               RH,NTAY,0,ECORE)
-C                  WRITE(35,"(G25.16)",advance='no') -(I_P/BETA)*LOG(RH)
-                  IF(RH/RHII.GT.RHRATMAX) THEN
-                     IF(ILFREE.LT.I)
-     &                 CALL NECI_ICOPY(NEL,LSTE(1,I),1,LSTE(1,ILFREE),1)
-                     RJJLIST(ILFREE)=RH
-                     ILFREE=ILFREE+1
-C                     WRITE(35,*) 1
-                  ELSE
-C                     WRITE(35,*) 0
-                  ENDIF
-               ENDIF
-            ENDIF
-         ENDDO
-         NLIST=ILFREE
-C         WRITE(6,*) NLIST," dets in energy range."
-         allocate(RIJMAT(nLIST**2),stat=err)
-         CALL LogMemAlloc('RIJMAT',NLIST**2,8,thisroutine,tagRIJMAT,err)
-         allocate(WLIST(NLIST),stat=err)
-         CALL LogMemAlloc('WLIST',NLIST,8,thisroutine,tagWLIST,err)
-         WORKL=3*NLIST
-         allocate(WORK(WORKL),stat=err)
-         CALL LogMemAlloc('WORK',WORKL,8,thisroutine,tagWORK,err)
-
-C.. Now we fill the RIJ array
-         DO I=0,NLIST-1
-            RIJMAT(I*NLIST+I+1)=RJJLIST(I)
-            DO J=I+1,NLIST-1
-               CALL CALCRHO2(LSTE(1,I),LSTE(1,J),BETA,I_P,NEL,
-     &            G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
-     &            RH,NTAY,-1,ECORE)
-               RIJMAT(I*NLIST+J+1)=RH
-            ENDDO
-         ENDDO  
-
-C.. Diagonalize
-         CALL DSYEV('V','L',NLIST,RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
-         IF(INFO.NE.0) THEN
-            WRITE(6,*) 'DYSEV error: ',INFO
-            call stop_all(thisroutine, "DSYEV error")
-         ENDIF
-         deallocate(WORK)
-         call LogMemDealloc(thisroutine,tagWORK)
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-         SI=0.0_dp
-C.. divide through by highest eigenvalue to stop things blowing up
-         DO I=0,NLIST-1
-            SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
-     &               *((WLIST(I+1)/WLIST(NLIST))**I_P)
-C            WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
-         ENDDO
-C         DO I=0,NLIST-1
-C            DO J=0,NLIST-1
-C               WRITE(34,"(2I5)",advance='no') I,J
-C               WRITE(34,"(A)",advance='no') "  ("
-C               DO K=1,NEL
-C                  WRITE(34,"(I3,A)",advance='no') LSTE(K,J),","
-C               ENDDO
-C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
-C            ENDDO
-C         ENDDO
-         WLSI=LOG(SI)+I_P*LOG(WLIST(NLIST)/RHII)
-         WRITE(35,"(I5,3G25.16)") NLIST+1,WLRI,WLSI,EXP(I_P*WLRI+WLSI)
-         deallocate(WLIST,RIJMAT,LSTE,RJJLIST)
-         call LogMemDealloc(thisroutine,tagWLIST)
-         call LogMemDealloc(thisroutine,tagRIJMAT)
-         call LogMemDealloc(thisroutine,tagLSTE)
-         call LogMemDealloc(thisroutine,tagRJJLIST)
-         call halt_timer(proc_timer)
-         RETURN
-      END
- 
-         SUBROUTINE WIRD_SUBSET(NI,BETA,I_P,NEL,
-     &      NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,UMAT,NTAY,
-     &      ECORE)
-         use global_utilities
-         use legacy_data, only: irat
-         use util_mod, only: NECI_ICOPY
-         use MemoryManager, only: TagIntType
-         use SystemData, only: BasisFN
-         use constants, only: dp
-         IMPLICIT NONE
-         real(dp) BETA,FCK(*),ALAT(3),UMAT(*),ECORE
-         INTEGER NEL,NBASIS,nBasisMax(5,*)
-         INTEGER I_P,BRR(NBASIS),NTAY,NMSH,NMAX
-         INTEGER K,ID,IDI,IDJ
-         TYPE(BasisFN) G1(*)
-         INTEGER NI(NEL)
-         LOGICAL LACC
-         INTEGER NLIST,NLMAX
-         real(dp) RH,RHII
-         real(dp) HDMAX,RHRATMAX
-         INTEGER ILFREE,I,J
-         real(dp), ALLOCATABLE :: RIJMAT(:),WLIST(:),RJJLIST(:)
-         real(dp), ALLOCATABLE :: VARRAY(:)
-         INTEGER, ALLOCATABLE :: LSTE(:,:),LSTP(:)
-         real(dp), allocatable :: WORK(:)
-         INTEGER(TagIntType), SAVE :: tagRIJMAT,tagWLIST,tagRJJLIST
-         INTEGER(TagIntType), SAVE :: tagVARRAY
-         INTEGER(TagIntType), SAVE :: tagLSTE,tagLSTP,tagWORK
-         type(timer), save :: proc_timer
-         INTEGER err
-         INTEGER WORKL
-         INTEGER*4 INFO
-         real(dp) WLRI,WLSI,SI,SN,SNO,SNC,SNN
-         INTEGER IPLEN,NCOUNT
-         INTEGER BINOMIAL
-         LOGICAL LSUB
-         character(*),parameter :: thisroutine='WIRHODIAG'
-         proc_timer%timer_name=thisroutine
-         call set_timer(proc_timer)
-         HDMAX=5000.0_dp
-         RHRATMAX=EXP(-BETA*HDMAX/I_P)
-
-C.. Get how much mem we need
-         NLIST=0
-         CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE,NLIST,NBASISMAX)
-
-C.. account for LSTE(0)
-         NLMAX=NLIST+1
-         allocate(LSTE(NEL,0:NLIST),stat=err)
-         CALL LogMemAlloc('LSTE',NLMAX*NEL,4,thisroutine,tagLSTE,err)
-         allocate(RJJLIST(0:NLIST),stat=err)
-         CALL LogMemAlloc('RJJLIST',NLMAX,8,thisroutine,tagRJJLIST,err)
-         allocate(RIJMAT(nLMAX**2),stat=err)
-         CALL LogMemAlloc('RIJMAT',NLMAX**2,8,thisroutine,tagRIJMAT,err)
-         allocate(WLIST(NLIST),stat=err)
-         CALL LogMemAlloc('WLIST',NLIST,8,thisroutine,tagWLIST,err)
-         WORKL=3*NLMAX
-         allocate(WORK(WORKL),stat=err)
-         CALL LogMemAlloc('WORK',WORKL,4,thisroutine,tagWORK,err)
-         allocate(LSTP(0:nList),stat=err)
-         CALL LogMemAlloc('LSTP',NLMAX,4,thisroutine,tagLSTP,err)
-         allocate(VARRAY(0:nList),stat=err)
-         CALL LogMemAlloc('VARRAY',NLMAX,8,thisroutine,tagVARRAY,err)
-
-         CALL NECI_ICOPY(NEL,NI,1,LSTE(1,0),1)
-         CALL GENSYMDETS(NI,NEL,G1,BRR,NBASIS,LSTE(1,1),NLIST,NBASISMAX)
-
-         CALL CALCRHO2(LSTE(1,0),LSTE(1,0),BETA,I_P,NEL,
-     &         G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
-     &         RH,NTAY,0,ECORE)
-         LSTP(0)=0
-
-         LSUB=.FALSE.
-C         LSUB=.TRUE.
-C         OPEN(36,FILE="/dev/null",STATUS="UNKNOWN")
-         IF(LSUB) THEN
-            WRITE(36,"(A)",advance='no') "("
-            DO K=1,NEL
-               WRITE(36,"(I3,A)",advance='no') NI(K),","
-            ENDDO
-            WRITE(36,"(A,G25.16,I5)") ")", -(I_P/BETA)*LOG(RH),NLIST
-         ENDIF
-         WRITE(37,"(A)",advance='no') "("
-         DO K=1,NEL
-            WRITE(37,"(I3,A)",advance='no') NI(K),","
-         ENDDO
-         WRITE(37,"(A,I5)") ")",NLIST
-         RJJLIST(0)=RH
-         WLRI=LOG(RH)
-         RHII=RH
-C.. List all the dets
-         IF(LSUB) THEN
-            DO I=1,NLIST
-               WRITE(36,"(A)",advance='no') "("
-               DO K=1,NEL
-                  WRITE(36,"(I3,A)",advance='no') LSTE(K,I),","
-               ENDDO
-               WRITE(36,"(A)",advance='no') ") | "
-            ENDDO
-            WRITE(36,*)
-         ENDIF
-         SN=0.0_dp
-         SNC=0.0_dp
-         DO I=1,NLIST
-            CALL CALCRHO2(LSTE(1,I),LSTE(1,I),BETA,I_P,NEL,
-     &              G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
-     &               RH,NTAY,0,ECORE)
-            IF(LSUB)
-     &         WRITE(36,"(I5,G25.16,A)",advance='no')
-     &                                            I,-(I_P/BETA)*LOG(RH)
-     &                  ," | "
-         ENDDO
-         IF(LSUB) WRITE(36,*)
-C.. Recurse over all lengths of permutation         
-         DO IPLEN=0,NLIST
-C.. Initiate with the first IPLEN dets
-            NCOUNT=0
-            DO I=1,IPLEN
-               LSTP(I)=I
-            ENDDO
-            NLIST=IPLEN+1
-            LACC=.TRUE.
-            SNO=SN
-C            IF(IPLEN.EQ.0) THEN
-C               SN=1.0_dp
-C            ELSE
-               SN=0.0_dp
-C            ENDIF
-            DO WHILE(LACC)
-               NCOUNT=NCOUNT+1
-               ILFREE=1
-               DO I=1,NLIST-1
-                  ID=LSTP(I)
-                  IF(LSUB) THEN
-                      WRITE(36,"(I5,A)",advance='no') ID,","
-                      WRITE(38,"(I5,A)",advance='no') ID,","
-                  ENDIF
-                  CALL CALCRHO2(LSTE(1,ID),LSTE(1,ID),BETA,I_P,NEL,
-     &              G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
-     &               RH,NTAY,0,ECORE)
-                  RJJLIST(ILFREE)=RH
-                  ILFREE=ILFREE+1
-               ENDDO
-               IF(LSUB) WRITE(36,"(A)",advance='no') " | "
-C.. Now we fill the RIJ array
-               DO I=0,NLIST-1
-                  RIJMAT(I*NLIST+I+1)=RJJLIST(I)
-                  IDI=LSTP(I)
-                  DO J=I+1,NLIST-1
-                     IDJ=LSTP(J)
-                     CALL CALCRHO2(LSTE(1,IDI),LSTE(1,IDJ),BETA,I_P,NEL,
-     &            G1,NBASIS,NMSH,FCK,NMAX,ALAT,UMAT,
-     &            RH,NTAY,-1,ECORE)
-                     RIJMAT(I*NLIST+J+1)=RH
-                  ENDDO
-               ENDDO  
-               IF(LSUB) THEN
-                  WRITE(38,*)
-                  DO I=0,NLIST-1
-                     DO J=0,NLIST-1
-                        IF(J.LT.I) THEN
-                           RH=RIJMAT(J*NLIST+I+1)
-                        ELSE
-                           RH=RIJMAT(I*NLIST+J+1)
-                        ENDIF
-                        WRITE(38,"(G20.10)",advance='no') RH
-                     ENDDO
-                     WRITE(38,*)
-                  ENDDO
-                  WRITE(38,*)
-               ENDIF
-C.. Diagonalize
-               CALL DSYEV('V','L',NLIST,
-     &            RIJMAT,NLIST,WLIST,WORK,WORKL,INFO)
-               IF(INFO.NE.0) THEN
-                  WRITE(6,*) 'DYSEV error: ',INFO
-                  call stop_all(thisroutine, "DSYEV error")
-               ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-               SI=0.0_dp
-C.. divide through by highest eigenvalue to stop things blowing up
-               DO I=0,NLIST-1
-                  SI=SI+RIJMAT(I*NLIST+1)*RIJMAT(I*NLIST+1)
-     &                     *((WLIST(I+1)/WLIST(NLIST))**I_P)
-C            WRITE(6,"(I5,3G25.16)") I,WLIST(I+1),RIJMAT(I*NLIST+1),WI
-               ENDDO
-               IF(LSUB) THEN
-                  DO I=0,NLIST-1
-                     WRITE(38,"(G20.10)",advance='no') WLIST(I+1)
-                     DO J=0,NLIST-1
-                        WRITE(38,"(G20.10)",advance='no')
-     &                                              RIJMAT(I*NLIST+J+1)
-                     ENDDO
-                     WRITE(38,*)
-                  ENDDO
-                  WRITE(38,*)
-                  WRITE(38,*)
-               ENDIF
-C         DO I=0,NLIST-1
-C            DO J=0,NLIST-1
-C               WRITE(34,"(2I5)",advance='no') I,J
-C               WRITE(34,"(A)",advance='no') "  ("
-C               DO K=1,NEL
-C                  WRITE(34,"(I3,A)",advance='no') LSTE(K,J),","
-C               ENDDO
-C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
-C            ENDDO
-C         ENDDO
-               WLSI=LOG(SI)+I_P*LOG(WLIST(NLIST)/RHII)
-              IF(LSUB) 
-     &         WRITE(36,"(I5,4G25.16)") NLIST,WLRI,WLSI,EXP(WLSI),
-     &                  EXP(I_P*WLRI+WLSI)
-               SN=SN+EXP(WLSI)
-              CALL GETNEXTPERM(LSTP(1),NLMAX-1,IPLEN,LACC,IPLEN,NLMAX-1)
-            ENDDO
-            SNN=SN
-C            WRITE(37,*) SN
-            DO I=0,IPLEN-1
-               SN=SN-BINOMIAL(NLMAX-1-I,IPLEN-I)*VARRAY(I)
-            ENDDO
-            VARRAY(IPLEN)=SN
-            SNC=SNC+SN
-            WRITE(37,"(I4,3G25.16,I5)") IPLEN+1,SN,SNC,SNN,NCOUNT
-            IF(NLMAX.GT.10) CALL neci_flush(37)
-C            IF(IPLEN.EQ.NLMAX-1) WRITE(37,*) IPLEN+1,0.0_dp, SNN
-         ENDDO
-         deallocate(WLIST,RIJMAT,LSTE,RJJLIST,WORK)
-         call LogMemDealloc(thisroutine,tagWORK)
-         call LogMemDealloc(thisroutine,tagWLIST)
-         call LogMemDealloc(thisroutine,tagRIJMAT)
-         call LogMemDealloc(thisroutine,tagLSTE)
-         call LogMemDealloc(thisroutine,tagRJJLIST)
-         call halt_timer(proc_timer)
-C         CLOSE(36)
-         RETURN
-      END
-
-
-      RECURSIVE SUBROUTINE GETNEXTPERM(LSTP,NL,IPLEN,LACC,IPOS,IMAX)
-         IMPLICIT NONE
-         LOGICAL LACC
-         INTEGER NL,IPOS,IMAX,IPLEN,LSTP(IPLEN)
-         IF(IPOS.LT.1.OR.IPLEN.LT.1) THEN
-            LACC=.FALSE.
-            RETURN
-         ENDIF
-         IF(LSTP(IPOS).EQ.IMAX) THEN
-            IF(IPOS.GT.1) THEN
-               CALL GETNEXTPERM(LSTP,NL,IPLEN,LACC,IPOS-1,IMAX-1)
-               LSTP(IPOS)=LSTP(IPOS-1)+1
-            ELSE
-               LACC=.FALSE.
-            ENDIF
-         ELSE
-            LSTP(IPOS)=LSTP(IPOS)+1
-         ENDIF
-         RETURN
-      END 
-
       INTEGER FUNCTION BINOMIAL(N,R)
          INTEGER N,R,I
          IF(R.GT.N.OR.N.LT.0.OR.R.LT.0) THEN
@@ -423,7 +19,7 @@ C         CLOSE(36)
          type(timer), save :: proc_timer
          real(dp) RHOIJ(0:I_V,0:I_V)
          real(dp) RIJMAT(I_V,I_V),RHODIAG_CP
-         real(dp) WLIST(I_V),WORK(3*I_V)         
+         real(dp) WLIST(I_V),WORK(3*I_V)
          INTEGER*4 INFO
          INTEGER I,J
          real(dp) SI
@@ -454,7 +50,7 @@ C         WRITE(6,*) (WLIST(I),I=1,I_V)
             WRITE(6,*) 'DYSEV error: ',INFO
             call stop_all(this_routine, "DSYEV error")
          ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
          SI=0.0_dp
 C.. divide through by RHOII^P
          DO I=1,I_V
@@ -473,7 +69,7 @@ C               ENDDO
 C            WRITE(34,"(A,G25.16") ")",RIJMAT(I*NLIST+J+1)
 C            ENDDO
 C         ENDDO
-         
+
          call halt_timer(proc_timer)
          RETURN
       END
@@ -493,7 +89,7 @@ C.. See 1/7/04
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
          HElement_t(dp) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
-         real(dp) WLIST(I_V),WORK(3*I_V)         
+         real(dp) WLIST(I_V),WORK(3*I_V)
          HElement_t(dp) NWORK(4*I_V)
          INTEGER*4 INFO
          INTEGER I,J,IMISS,II,IJ
@@ -539,7 +135,7 @@ C         WRITE(6,*) "...",I_V,IMISS
          SI=0.0_dp
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
-C.. remove up to IMISS 
+C.. remove up to IMISS
          IF(TSUB) THEN
             DO I=2,IMISS-1
 CIMISS-1
@@ -556,8 +152,8 @@ CIMISS-1
                WRITE(6,*) 'DYSEV error: ',INFO
                call stop_all(this_routine, "DSYEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the
 C.. appropriate projection onto the root
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -585,8 +181,8 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                WRITE(6,*) 'ZHEEV error: ',INFO
                call stop_all(this_routine, "ZHEEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the
 C.. appropriate projection onto the root
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -619,10 +215,11 @@ C/RII
       END
 C.. See 1/7/04
       RECURSIVE FUNCTION RHODIAG_CPP(RHOIJ,
-     &    I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight) 
+     &    I_P,I_V,IMISS,TSUB,DBETA,DLWDB,HIJS,tLogWeight)
      &      RESULT (RHODIAG_CPPRES)
          use constants, only: dp
          use global_utilities
+         use util_mod, only : near_zero
          use HElem
          IMPLICIT NONE
          INTEGER I_P,I_V
@@ -630,7 +227,7 @@ C.. See 1/7/04
          HElement_t(dp) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          HElement_t(dp) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          real(dp) WORK(3*I_V),R
-         real(dp) WLIST(I_V)         
+         real(dp) WLIST(I_V)
          INTEGER*4 INFO
          INTEGER I,J,IMISS,II,IJ
          real(dp) SI,SI2,SS,SS2
@@ -657,7 +254,7 @@ C         WRITE(6,*) "...",I_V,IMISS
          proc_timer%timer_name='RHODIAG_C2'
          call set_timer(proc_timer,55)
          RIJMAT(1:I_V,1:I_V)=(0.0_dp)
-         IF(DBETA.NE.0.0_dp) DLWDB=0.0_dp
+         IF(.not. near_zero(DBETA)) DLWDB=0.0_dp
          II=0
          DO I=1,I_V+1
             IF(I.NE.IMISS) THEN
@@ -675,7 +272,7 @@ C         WRITE(6,*) "...",I_V,IMISS
          SI=0.0_dp
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
-C.. remove up to IMISS 
+C.. remove up to IMISS
          IF(TSUB) THEN
             DO I=2,IMISS-1
                DD2=0.0_dp
@@ -687,16 +284,16 @@ C.. remove up to IMISS
 !  where g is this graph missing out vertex I.
                 SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
      &            DBETA,DD2,HIJS2,tLogWeight)
-                IF(DBETA.NE.0.0_dp) DLWDB=DLWDB-DD2
+                IF(.not. near_zero(DBETA)) DLWDB=DLWDB-DD2
                ELSE
 ! we return w' E~'
 ! w'[G]E~'[G]=w[G]E~[G]-sum_{g in G} w'[g] E~'[g]
-!SI is w' and DLWDB is E~'  
+!SI is w' and DLWDB is E~'
 !  The next line subtracts out the contribution from this graph, but missing out vertex I.
 !   done recursively, this makes w'[G]E~'[G]
                 SI=SI-RHODIAG_CPP(RIJMAT,I_P,I_V-1,I,TSUB,
      &            DBETA,DD2,HIJS2,tLogWeight)
-                IF(DBETA.NE.0.0_dp) DLWDB=DLWDB-DD2
+                IF(.not. near_zero(DBETA)) DLWDB=DLWDB-DD2
                ENDIF
 C            WRITE(6,*) "SI=",SI
             ENDDO
@@ -709,7 +306,7 @@ C         WRITE(6,*) I_V
                WRITE(6,*) 'DYSEV error: ',INFO
                call stop_all(this_routine, "DSYEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
 C.. divide through by RHOII^P
             DLWT=0.0_dp
             SI2=0.0_dp
@@ -720,7 +317,7 @@ C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=R
                SS=S*RIJMAT(1,I)*RIJMAT(1,I)
                SI2=SI2+SS
-               IF(DBETA.NE.0.0_dp) THEN
+               IF(.not. near_zero(DBETA)) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S2=S*RIJMAT(J,I)*RIJMAT(1,I)
@@ -751,7 +348,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                WRITE(6,*) 'ZHEEV error: ',INFO
                call stop_all(this_routine, "ZHEEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
 C.. divide through by RHOII^P
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -760,7 +357,7 @@ C.. divide through by RHOII^P
                SS=((WLIST(I)/R)**I_P)
                SS2=abs(RIJMAT(1,I))**2
                SI2=SI2+SS*SS2
-               IF(DBETA.NE.0.0_dp) THEN
+               IF(.not. near_zero(DBETA)) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
@@ -811,13 +408,14 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          use constants, only: dp
          use global_utilities
          use HElem
+         use util_mod, only : near_zero
          IMPLICIT NONE
          INTEGER I_P,I_V
          type(timer), save :: proc_timer
          HElement_t(dp) RHOIJ(I_V+1,I_V+1),HIJS(I_V+1),HIJS2(I_V)
          HElement_t(dp) RIJMAT(I_V,I_V),NWORK(4*I_V),S,DLWT,S2
          real(dp) WORK(3*I_V),R
-         real(dp) WLIST(I_V)         
+         real(dp) WLIST(I_V)
          INTEGER*4 INFO
          INTEGER I,J
          real(dp) SI,SI2,SS,SS2
@@ -853,7 +451,7 @@ C         WRITE(6,*) "...",I_V,IMISS
                WRITE(6,*) 'DYSEV error: ',INFO
                call stop_all(this_routine, "DSYEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
 C.. divide through by RHOII^P
             DLWT=0.0_dp
             SI2=0.0_dp
@@ -864,7 +462,7 @@ C               WRITE(6,*) WLIST(I),RIJMAT(1,I)
                S=R
                SS=S*RIJMAT(1,I)*RIJMAT(1,I)
                SI2=SI2+SS
-               IF(DBETA.NE.0.0_dp) THEN
+               IF(.not. near_zero(DBETA)) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S2=S*RIJMAT(J,I)*RIJMAT(1,I)
@@ -886,7 +484,7 @@ C            WRITE(6,*) I_V,DLWDB
                WRITE(6,*) 'ZHEEV error: ',INFO
                call stop_all(this_routine, "ZHEEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
 C.. divide through by RHOII^P
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -895,7 +493,7 @@ C.. divide through by RHOII^P
                SS=((WLIST(I)/R)**I_P)
                SS2=abs(RIJMAT(1,I))**2
                SI2=SI2+SS*SS2
-               IF(DBETA.NE.0.0_dp) THEN
+               IF(.not. near_zero(DBETA)) THEN
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
@@ -927,7 +525,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
          INTEGER I_V
          type(timer), save :: proc_timer
          HElement_t(dp) HIJ(I_V+1,I_V+1),RIJMAT(I_V,I_V)
-         real(dp) WLIST(I_V),WORK(3*I_V)         
+         real(dp) WLIST(I_V),WORK(3*I_V)
          HElement_t(dp) NWORK(4*I_V)
          INTEGER*4 INFO
          INTEGER I,J,II
@@ -966,7 +564,7 @@ C         WRITE(6,*) "...",I_V,IMISS
          SI=0.0_dp
 C.. Now subtract out the smaller submatrices first
 C.. In order to count the subsets only once, we need to only
-C.. remove up to IMISS 
+C.. remove up to IMISS
          IF(HElement_t_size.EQ.1) THEN
             CALL DSYEV('V','U',I_V,RIJMAT,I_V,
      &            WLIST,WORK,3*I_V,INFO)
@@ -974,8 +572,8 @@ C.. remove up to IMISS
                WRITE(6,*) 'DYSEV error: ',INFO
                call stop_all(this_routine, "DSYEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the
 C.. appropriate projection onto the root
             SI2=0.0_dp
             DLWT=0.0_dp
@@ -1003,8 +601,8 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                WRITE(6,*) 'ZHEEV error: ',INFO
                call stop_all(this_routine, "ZHEEV error")
             ENDIF
-C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues         
-C.. now calculate exp(-beta lambda) for each eigenvalue, with the 
+C.. RIJMAT now contains the eigenvectors, and WLIST the eigenvalues
+C.. now calculate exp(-beta lambda) for each eigenvalue, with the
 C.. appropriate projection onto the root
             SI2=0.0_dp
             DLWT=0.0_dp

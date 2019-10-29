@@ -53,7 +53,7 @@ module procedure_pointers
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
             real(dp), intent(out) :: RDMBiasFacCurr
             real(dp), intent(in) :: precond_fac
-            HElement_t(dp), intent(in) :: HElGen
+            HElement_t(dp), intent(inout) :: HElGen
             real(dp) :: child(lenof_sign)
 
         end function
@@ -160,28 +160,6 @@ module procedure_pointers
 
         !
         ! Generic fill_rdm_diag_currdet routine
-        subroutine fill_rdm_diag_currdet_old_t (rdm, one_rdm, irdm, ilutI, nI, j, ExcitLevelI, tCoreSpaceDet)
-
-            ! j --> Which slot in CurrentDets are we examining.
-
-            use bit_rep_data, only: NIfTot
-            use constants
-            use rdm_data, only: one_rdm_t
-            use rdm_data_old, only: rdm_t
-            use SystemData, only: nel
-            implicit none
-
-            type(rdm_t), intent(inout) :: rdm
-            type(one_rdm_t), intent(inout) :: one_rdm
-            integer, intent(in) :: irdm
-            integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            integer, intent(in) :: nI(nel), ExcitLevelI, j
-            logical, intent(in), optional :: tCoreSpaceDet
-
-        end subroutine
-
-        !
-        ! Generic fill_rdm_diag_currdet routine
         subroutine fill_rdm_diag_currdet_t (spawn, one_rdms, ilutI, nI, ExcitLevelI, av_sign, iter_occ, tCoreSpaceDet, tLC)
 
             use bit_rep_data, only: NIfTot
@@ -230,7 +208,7 @@ module procedure_pointers
           use constants
           implicit none
 
-          integer, intent(in) :: pos 
+          integer, intent(in) :: pos
           integer, intent(in) :: run
           real(dp), intent(in) :: pop
           real(dp) :: f
@@ -249,11 +227,10 @@ module procedure_pointers
     procedure(new_child_stats_t), pointer :: new_child_stats
     procedure(attempt_die_t), pointer :: attempt_die
     procedure(extract_bit_rep_avsign_t), pointer :: extract_bit_rep_avsign
-    procedure(fill_rdm_diag_currdet_old_t), pointer :: fill_rdm_diag_currdet_old
     procedure(fill_rdm_diag_currdet_t), pointer :: fill_rdm_diag_currdet
 
 
-    ! 
+    !
     ! The two UMAT (2e integral) routines. The second is only used if a
     ! 'stacking' scheme is in use (i.e. caching, memoization etc.)
     procedure(get_umat_el_t), pointer :: get_umat_el
@@ -261,6 +238,8 @@ module procedure_pointers
 
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
+    ! the function used to scale the shift
+    procedure(shift_factor_function_t), pointer :: shiftFactorFunction
 
     ! the function used to scale the shift
     procedure(scale_function_t), pointer :: shiftScaleFunction

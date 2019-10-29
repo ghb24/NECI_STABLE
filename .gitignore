@@ -68,3 +68,8 @@ double_occupancy_stat*
 popsfile.h5*
 RDM_POPSFILE
 replica_estimates
+
+# Documentation
+neci.fdb_latexmk
+neci.fls
+neci.synctex.gz

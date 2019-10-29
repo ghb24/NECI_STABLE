@@ -21,6 +21,8 @@ module rdm_finalising
 
     implicit none
 
+    real(dp) :: RDM_energy
+
 contains
 
     subroutine finalise_rdms(rdm_defs, one_rdms, two_rdms, rdm_recv, rdm_recv_2, en_pert, spawn, rdm_estimates,tInitsRDMs)
@@ -28,8 +30,7 @@ contains
         ! Wrapper routine, called at the end of a simulation, which in turn
         ! calls all required finalisation routines.
 
-        use EN2MOLCAS, only : NECI_E
-        use SystemData, only : tMolcas
+        use SystemData, only : called_as_lib
         use LoggingData, only: tBrokenSymNOs, occ_numb_diff, RDMExcitLevel, tExplicitAllRDM
         use LoggingData, only: tPrint1RDM, tDiagRDM, tDumpForcesInfo
         use LoggingData, only: tDipoles, tWrite_normalised_RDMs
@@ -87,7 +88,7 @@ contains
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-                if (tGUGA) then 
+                if (tGUGA) then
                     call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_estimates%norm)
                 else
                     call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
@@ -102,7 +103,7 @@ contains
             ! Output banner for start of 1-RDM section in the output.
             write(6,'(1x,2("="),1x,"INFORMATION FOR FINAL 1-","'//trim(RDMName)//'",1x,57("="))')
 
-            if (RDMExcitLevel == 1) call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm, .false.)
+            if (RDMExcitLevel == 1) call finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm)
 
             if (iProcIndex == 0) then
                 call calc_rho_ii_and_sum_n(one_rdms, norm_1rdm, SumN_Rho_ii)
@@ -113,7 +114,7 @@ contains
 
                     if (RDMExcitLevel == 1 .or. tPrint1RDM) then
                         ! Write out the final, normalised, hermitian OneRDM.
-                        call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., .false.,tInitsRDMs)
+                        call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .true., tInitsRDMs)
                     end if
                 end do
             end if
@@ -142,11 +143,10 @@ contains
             call write_rdm_estimates(rdm_defs, rdm_estimates, .true., print_2rdm_est, &
                  tInitsRDMs)
         end if
-        if (print_2rdm_est .and. tMolcas) then
-            NECI_E = rdm_estimates%energy_num(1) / rdm_estimates%norm(1)
-            call MPIBarrier(ierr)
-            call MPIBCast(NECI_E)
-            write(6,*) 'NECI_E at rdm_finalising.F90 ', NECI_E
+        if (print_2rdm_est .and. called_as_lib) then
+            RDM_energy = rdm_estimates%energy_num(1) / rdm_estimates%norm(1)
+            call MPIBCast(RDM_energy)
+            write(6,*) 'RDM_energy at rdm_finalising.F90 ', RDM_energy
         end if
 
         call halt_timer(FinaliseRDMs_Time)
@@ -245,7 +245,7 @@ contains
         do ielem = 1, two_rdms%nelements
             pqrs = two_rdms%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
-            if (tGUGA) then 
+            if (tGUGA) then
                 call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
             else
                 call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
@@ -261,7 +261,7 @@ contains
                     end do
                 end if
                 if (tGUGA .and. .not. t_test_sym_fill) then
-                    if (p == r) then 
+                    if (p == r) then
                         do irdm = 1, size(one_rdms)
                             one_rdms(irdm)%matrix(ind(q),ind(s)) = &
                                 one_rdms(irdm)%matrix(ind(q),ind(s)) + rdm_sign(irdm)
@@ -279,7 +279,7 @@ contains
             call MPISumAll(one_rdms(irdm)%matrix, temp_rdm)
             ! Copy summed RDM back to the main array, and normalise.
             one_rdms(irdm)%matrix = temp_rdm / (rdm_trace(irdm)*real(nel-1,dp))
-            if (tGUGA .and. t_test_sym_fill) then 
+            if (tGUGA .and. t_test_sym_fill) then
                 ! the GUGA rdms have a different normalisation
                 one_rdms(irdm)%matrix = 2.0_dp * one_rdms(irdm)%matrix
             end if
@@ -1213,7 +1213,7 @@ contains
 
     ! ------- Routines for finalising 1-RDMs ---------------------------------
 
-    subroutine finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm, tOldRDMs)
+    subroutine finalise_1e_rdm(rdm_defs, one_rdms, norm_1rdm)
 
         ! This routine takes the 1-RDM (matrix), sums it across processors,
         ! normalises it, makes it hermitian, and prints out the 'popsfile'
@@ -1228,7 +1228,6 @@ contains
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         real(dp), intent(out) :: norm_1rdm(size(one_rdms))
-        logical, intent(in) :: tOldRDMs
 
         integer :: irdm, ierr
         real(dp) :: SumN_Rho_ii(size(one_rdms))
@@ -1249,14 +1248,14 @@ contains
         if (iProcIndex == 0) then
             do irdm = 1, size(one_rdms)
                 ! Write out the unnormalised, non-hermitian OneRDM_POPS.
-                if (twrite_RDMs_to_read) call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .false., tOldRDMs)
+                if (twrite_RDMs_to_read) call write_1rdm(rdm_defs, one_rdms(irdm)%matrix, irdm, norm_1rdm(irdm), .false.)
             end do
 
             if (RDMExcitLevel == 1) then
                 ! Only non-transition RDMs should be hermitian and obey the
                 ! Cauchy-Schwarz inequalityo.
                 do irdm = 1, rdm_defs%nrdms_standard
-                    if (t_test_sym_fill) then 
+                    if (t_test_sym_fill) then
                         call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
                     end if
                     if (tForceCauchySchwarz) call Force_Cauchy_Schwarz(one_rdms(irdm)%matrix)
@@ -1441,7 +1440,7 @@ contains
 
     end subroutine make_1e_rdm_hermitian
 
-    subroutine write_1rdm(rdm_defs, one_rdm, irdm, norm_1rdm, tNormalise, tOldRDMs, tInitsRDM)
+    subroutine write_1rdm(rdm_defs, one_rdm, irdm, norm_1rdm, tNormalise, tInitsRDM)
 
         ! This routine writes out the OneRDM. If tNormalise is true, we are
         ! printing the normalised, hermitian matrix. Otherwise, norm_1rdm is
@@ -1458,7 +1457,7 @@ contains
         real(dp), intent(in) :: one_rdm(:,:)
         integer, intent(in) :: irdm
         real(dp), intent(in) :: norm_1rdm
-        logical, intent(in) :: tNormalise, tOldRDMs
+        logical, intent(in) :: tNormalise
         logical, intent(in), optional :: tInitsRDM
 
         integer :: i, j, iSpat, jSpat, one_rdm_unit, one_rdm_unit_spinfree
@@ -1483,7 +1482,7 @@ contains
 
         is_transition_rdm = state_labels(1,irdm) /= state_labels(2,irdm)
 
-        if (tWriteSpinFreeRDM) then 
+        if (tWriteSpinFreeRDM) then
             one_rdm_unit_spinfree = get_free_unit()
             open(one_rdm_unit_spinfree, file = "spin-free-1-RDM")
         end if
@@ -1493,43 +1492,30 @@ contains
             write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
             call neci_flush(6)
             one_rdm_unit = get_free_unit()
-#ifdef _MOLCAS_
-            call molcas_open(one_rdm_unit, "ONERDM")
-#else
-            if (tOldRDMs) then
-                write(filename, '("OneRDM_old.",'//int_fmt(irdm,0)//')') irdm
-                open(one_rdm_unit, file=trim(filename), status='unknown')
+
+            if (is_transition_rdm) then
+                write(filename, '("'//trim(filename_prefix)//'",'&
+                     //int_fmt(state_labels(1,irdm),0)//',"_",'&
+                     //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                     state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
             else
-                if (is_transition_rdm) then
-                    write(filename, '("'//trim(filename_prefix)//'",'&
-                         //int_fmt(state_labels(1,irdm),0)//',"_",'&
-                         //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                         state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
-                else
-                    write(filename, '("'//trim(filename_prefix)//'",'&
-                         //int_fmt(state_labels(1,irdm),0)//')') irdm
-                end if
-                open(one_rdm_unit, file=trim(filename), status='unknown')
+                write(filename, '("'//trim(filename_prefix)//'",'&
+                     //int_fmt(state_labels(1,irdm),0)//')') irdm
             end if
-#endif
+            open(one_rdm_unit, file=trim(filename), status='unknown')
         else
             ! Only every write out 1 of these at the moment.
             write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
             call neci_flush(6)
             one_rdm_unit = get_free_unit()
-            if (tOldRDMs) then
-                write(filename, '("OneRDM_POPS_old.",'//int_fmt(irdm,0)//')') irdm
-                open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
+            if (is_transition_rdm) then
+                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                                  //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                    state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
             else
-                if (is_transition_rdm) then
-                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                      //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
-                else
-                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
-                end if
-                open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
+                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
             end if
+            open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
         end if
 
         if (tGUGA) then
@@ -1538,18 +1524,18 @@ contains
                 do j = 1, nSpatorbs
 
                     if (abs(one_rdm(ind(i),ind(j))) > EPS) then
-                        if (.not. t_test_sym_fill .and. tNormalise) then 
+                        if (.not. t_test_sym_fill .and. tNormalise) then
 
 
                             write(one_rdm_unit, "(2i6, g25.17)") i, j, &
                                 (one_rdm(ind(i),ind(j)) * norm_1rdm)
 
-                        else if (tNormalise .and. (i <= j .or. is_transition_rdm)) then 
+                        else if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
 
                             write(one_rdm_unit, "(2i6, g25.17)") i, j, &
                                 (one_rdm(ind(i),ind(j)) * norm_1rdm)
 
-                        else if (.not. tNormalise) then 
+                        else if (.not. tNormalise) then
                             write(one_rdm_unit) i, j, one_rdm(ind(i), ind(j))
                         end if
                     end if
@@ -1594,8 +1580,8 @@ contains
             if (tWriteSpinFreeRDM .and. tNormalise) then
                 do i = 1, nbasis/2
                     do j = 1, nbasis/2
-                        if (abs(one_rdm(ind(i),ind(j))) > EPS) then 
-                            if (tNormalise .and. (i <= j .or. is_transition_rdm)) then 
+                        if (abs(one_rdm(ind(i),ind(j))) > EPS) then
+                            if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
                                 write(one_rdm_unit_spinfree,"(2I6,G25.17)") i, j, &
                                     one_rdm(ind(i), ind(j)) * norm_1rdm
                             else if (.not. tNormalise) then
@@ -1608,7 +1594,7 @@ contains
         end if
 
         close(one_rdm_unit)
-        
+
         if (tWriteSpinFreeRDM) close(one_rdm_unit_spinfree)
 
         end associate

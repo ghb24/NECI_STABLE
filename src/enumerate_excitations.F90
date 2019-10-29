@@ -35,7 +35,7 @@ module enumerate_excitations
     use guga_data, only: tag_excitations
     use MemoryManager, only: LogMemDealloc
 
-    use lattice_models_utils, only: gen_all_excits_k_space_hubbard, & 
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
                                     gen_all_excits_r_space_hubbard
 
     implicit none
@@ -120,7 +120,7 @@ contains
 
         ! Consider single excitations
         if (bSingle .and. gen_store%gen_singles) then
-            ! Find the next possible single excitation. Loop over 
+            ! Find the next possible single excitation. Loop over
             ! electrons, and vacant orbitals. Interrupt loop when we
             ! find what we need.
             do i = i, nel
@@ -145,7 +145,7 @@ contains
                     ! Cannot excite to the source of the excitation
                     if (is_in_pair(orb1, orbI)) cycle
 
-                    ! Cannot excite to a doubly occupied orbital. If 
+                    ! Cannot excite to a doubly occupied orbital. If
                     ! singly occupied, can only excite to the unoccupied
                     ! bit!
                     if (IsOcc(ilutI, orbI)) then
@@ -185,7 +185,7 @@ contains
                     orb2 = nI(e2);    orb2a = ab_pair(orb2)
 
                     ! If either of these is the beta electron from a doubly
-                    ! occupied pair, and they are not from the same pair, 
+                    ! occupied pair, and they are not from the same pair,
                     ! cycle
                     if ( ((IsOcc(ilutI, orb1a) .and. is_beta(orb1)) .or.&
                           (IsOcc(ilutI, orb2a) .and. is_beta(orb2))) .and. &
@@ -224,7 +224,7 @@ contains
                         orbI = SymLabelList2(ind1 + i1)
                         orbJ = SymLabelList2(ind2 + i2)
 
-                        ! If the two symmetries are the same, only generate 
+                        ! If the two symmetries are the same, only generate
                         ! each pair one way around...
                         if (sym1 == sym2 .and. orbJ < orbI) cycle
 
@@ -347,7 +347,7 @@ contains
         logical, intent(in), optional :: tSinglesOnlyOpt
         character(*), parameter :: this_routine = "generate_connected_space"
 
-        ! this restriction does not apply anymore: 
+        ! this restriction does not apply anymore:
 !         if (tGUGA .and. tKPntSym) then
 !             call stop_all(this_routine, &
 !                 "k-point symmetry and GUGA + semi-stochastic or trial-wavefunction not yet implemented!")
@@ -397,7 +397,7 @@ contains
         integer, allocatable :: excit_gen(:)
         integer :: nStore(6)
         logical :: tAllExcitFound, tStoreConnSpace, tSinglesOnly, tTempUseBrill
-        integer :: n_excits 
+        integer :: n_excits
         integer(n_int), allocatable :: temp_dets(:,:)
 
         if (present(connected_space)) then
@@ -419,9 +419,9 @@ contains
             call decode_bit_det(nI, original_space(0:NIfTot,i))
 
 #ifndef __CMPLX
-            ! do the GUGA changes here, I want to do all the excitations from 
-            ! the currently looped over original_space(:,i) 
-            ! i think i still want to do this this way, since the dets 
+            ! do the GUGA changes here, I want to do all the excitations from
+            ! the currently looped over original_space(:,i)
+            ! i think i still want to do this this way, since the dets
             ! implementation is really akward..
             if (tGUGA) then
                 ! in GUGA don't do the tSinglesOnly option
@@ -429,14 +429,14 @@ contains
                     call stop_all(this_routine, "dont use tSinglesOnly with GUGA!")
                 end if
 
-                ! only STORE the excitations if the proper flag is set, 
+                ! only STORE the excitations if the proper flag is set,
                 ! otherwise only, increase the counter for the connected space
                 ! why is this done??
                 call convert_ilut_toGUGA(original_space(:,i), ilutG)
-            
-                call actHamiltonian(ilutG, excitations, nexcit) 
 
-                ! and if store flag is present: 
+                call actHamiltonian(ilutG, excitations, nexcit)
+
+                ! and if store flag is present:
                 if (tStoreConnSpace) then
                     do j = 1, nexcit
                         call convert_ilut_toNECI(excitations(:,j), &
@@ -471,12 +471,12 @@ contains
             end if ! tGUGA
 #endif
 
-            if (t_new_real_space_hubbard) then 
+            if (t_new_real_space_hubbard) then
 
                 call gen_all_excits_r_space_hubbard(nI, n_excits, temp_dets)
- 
-                if (tStoreConnSpace) then 
-                    connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) & 
+
+                if (tStoreConnSpace) then
+                    connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) &
                         = temp_dets(0:nifd,:)
                 end if
 
@@ -488,7 +488,7 @@ contains
 
                 call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
                 if (tSinglesOnly) ex_flag = 1
-                
+
                 do while(.true.)
 
                     call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
@@ -575,7 +575,7 @@ contains
         use guga_excitations, only: actHamiltonian
         use bit_reps, only: nifguga
         use SystemData, only: tGUGA
-        
+
         integer :: nexcit, j
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
@@ -594,7 +594,7 @@ contains
         integer, allocatable :: excit_gen(:)
         logical :: tStoreConnSpace, tSinglesOnly, tTempUseBrill, tAllExcitFound
         character(*), parameter :: this_routine = "generate_connected_space_kpnt"
-        integer :: n_excits 
+        integer :: n_excits
         integer(n_int), allocatable :: temp_dets(:,:)
 
 
@@ -616,16 +616,16 @@ contains
 
            call decode_bit_det(nI, original_space(0:NIfTot,i))
 
-            if (t_k_space_hubbard) then 
+            if (t_k_space_hubbard) then
 
                 call gen_all_excits_k_space_hubbard(nI, n_excits, temp_dets)
 
-                if (tStoreConnSpace) then 
-                    connected_space(0:nifd,connected_space_size+1:connected_space_size + n_excits) & 
+                if (tStoreConnSpace) then
+                    connected_space(0:nifd,connected_space_size+1:connected_space_size + n_excits) &
                         = temp_dets(0:nifd,:)
                 end if
                 connected_space_size = connected_space_size + n_excits
-                
+
 #ifndef __CMPLX
             ! GUGA changes:
             ! my actHamiltonian routine seems to satisfy the k-point symmetry
@@ -649,7 +649,7 @@ contains
                 deallocate(excitations)
                 call LogMemDealloc(this_routine, tag_excitations)
 
-#endif 
+#endif
 
             else
 

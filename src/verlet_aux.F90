@@ -21,7 +21,7 @@ module verlet_aux
 
   use real_time_procs, only: attempt_die_realtime, real_time_determ_projection
 
-  use SystemData, only: nel 
+  use SystemData, only: nel
 
   use FciMCData, only: CurrentDets, HashIndex, maxSpawned, iStartFreeSlot, iEndFreeSlot, &
                         inum_runs, SpawnedParts, TotWalkers, spawn_ht, iter_data_fciqmc, &
@@ -52,8 +52,8 @@ module verlet_aux
   use ParallelHelper, only: iProcIndex
 
   implicit none
-       
-  
+
+
   contains
 
     subroutine init_verlet_sweep()
@@ -106,7 +106,7 @@ module verlet_aux
       if(allocated(popsfile_dets)) then
          call add_ilut_lists(int(TotWalkers), backup_size,.true. , CurrentDets, popsfile_dets, &
               dpsi_cache, dpsi_size, -1.0_dp)
-      
+
          ! we do not need popsfile dets anymore
          deallocate(popsfile_dets)
       else
@@ -125,11 +125,11 @@ module verlet_aux
     end subroutine setup_delta_psi
 
 !-----------------------------------------------------------------------------------------------!
-    
+
     subroutine backup_initial_state()
       implicit none
       character(*), parameter :: this_routine  = "backup_initial_state"
-      
+
       ! popsfile_dets is certainly large enough to house CurrentDets, so use it if available
       if(.not. allocated(popsfile_dets)) allocate(popsfile_dets(0:niftot,TotWalkers))
       popsfile_dets(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
@@ -139,7 +139,7 @@ module verlet_aux
 
     subroutine init_verlet_iteration()
       use rdm_data, only: rdm_definitions_t
-      implicit none         
+      implicit none
       type(rdm_definitions_t) :: dummy
 
       FreeSlot(1:iEndFreeSlot) = 0
@@ -147,7 +147,7 @@ module verlet_aux
       iEndFreeSlot = 0
 
       ! verlet always uses a spawn hashtable
-      call clear_hash_table(spawn_ht)     
+      call clear_hash_table(spawn_ht)
       call rezero_iter_stats_each_iter(iter_data_fciqmc,dummy)
 
     end subroutine init_verlet_iteration
@@ -163,13 +163,13 @@ module verlet_aux
       ! apply H once, we now have the spawnedParts from a single iteration
       call apply_hamiltonian(CurrentDets,int(TotWalkers),.true.,tTruncInitiator,.true.)
 
-      ! communicate the spawns between processors and store the compressed spawns into a buffer    
+      ! communicate the spawns between processors and store the compressed spawns into a buffer
       call generate_spawn_buf()
 
       ! apply H to the buffer to get H^2 on the original population. The result is stored
       ! in spawnedParts (uncommunicated)
       call apply_hamiltonian(spawnBuf,spawnBufSize,.false.,.false.,.false.)
-      
+
       ! communicate the result and compress the population (such that each determinant
       ! only occurs once)
       call SendProcNewParts(spawnBufSize,.false.)
@@ -178,7 +178,7 @@ module verlet_aux
     end subroutine obtain_h2_psi
 
 !-----------------------------------------------------------------------------------------------!
-    
+
     subroutine apply_hamiltonian(population,popsize,tGetFreeSlots,tGetInitFlags,tSumE)
       ! this subroutine performs spawning from population to spawnVec by applying
       ! delta t H once. No annihilation is performed and no other steps performed
@@ -193,14 +193,14 @@ module verlet_aux
       integer :: idet, nI(nel), determ_index, unused_flags, ex_level
       real(dp) :: parent_sign(lenof_sign), hdiag
       logical :: tEmptyDet, tCoreDet
-      
+
       ! where to put this?
       ! attempt_create => attempt_create_normal
 
       ValidSpawnedList = InitialSpawnedSlots
       ! we do not know what is in spawn_ht, but we clearly want it to be empty now
       call clear_hash_table(spawn_ht)
-      
+
       determ_index = 1
 
       do idet = 1, popsize
@@ -228,12 +228,12 @@ module verlet_aux
          if(tGetInitFlags) call CalcParentFlag(idet, unused_flags)
          hdiag = get_helement(nI,nI,0) - Hii
          ! if desired, sum in the energy contribution
-         if(tSumE) then 
+         if(tSumE) then
             ex_level = FindBitExcitLevel(ilutRef, population(:,idet), max_calc_ex_level)
             call SumEContrib(nI, ex_level, parent_sign, population(:,idet), &
                  hdiag, 1.0_dp, tPairedReplicas, idet)
          endif
-         
+
          tCoreDet = check_determ_flag(population(:,idet))
 
          if(tCoreDet) then
@@ -244,7 +244,7 @@ module verlet_aux
          endif
 
          ! the initiator flags are set upon the first iteration
-        
+
          call perform_spawn(population(:,idet),nI,parent_sign,hdiag,tCoreDet)
       end do
 
@@ -266,16 +266,16 @@ module verlet_aux
       logical :: tParity, break
       integer :: err
       HElement_t(dp) :: HElGen
-      
+
       unused_ex_level = 0
       do part = 1, lenof_sign
-         call decide_num_to_spawn(parent_sign(part),hdiag,AvMCExcits,nspawn)
+         call decide_num_to_spawn(parent_sign(part),AvMCExcits,nspawn)
          do ispawn = 1, nspawn
             ilut_child = 0_n_int
-            
+
             call generate_excitation(nI,iLut_parent,nI_child,ilut_child,exFlag,ic,&
                  ex,tParity,prob,HElGen,fcimc_excit_gen_store)
-            
+
             if(.not. IsNullDet(nI_child)) then
                call encode_child(ilut_parent, ilut_child, ic, ex)
                ilut_child(nOffFlag) = 0_n_int
@@ -295,8 +295,8 @@ module verlet_aux
             else
                child_sign = 0.0_dp
             endif
-            
-            if ((any(abs(child_sign) > EPS)) .and. (ic /= 0) .and. (ic <= 2)) then               
+
+            if ((any(abs(child_sign) > EPS)) .and. (ic /= 0) .and. (ic <= 2)) then
                call create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
                     part, ilut_parent, iter_data_fciqmc, err)
                if(err.ne.0) return
@@ -307,7 +307,7 @@ module verlet_aux
       if(.not. tCoreDet) then
          child_sign = -attempt_die_realtime(hdiag,parent_sign,unused_ex_level)
          if(any(abs(child_sign) > EPS)) then
-            ! diagonal events are treated the same way as offdiagonal ones, 
+            ! diagonal events are treated the same way as offdiagonal ones,
             ! except for an extra flag indicating the diagonal spawn
             !ilut_parent_init = ilut_parent
             !call set_flag(ilut_parent_init,get_initiator_flag(part_type))
@@ -322,7 +322,7 @@ module verlet_aux
 !-----------------------------------------------------------------------------------------------!
 
     subroutine create_diagonal_with_hashtable(nI, iLut, sign)
-      ! this subroutine is somewhat a variant of create_particle_with_hashtable 
+      ! this subroutine is somewhat a variant of create_particle_with_hashtable
       ! that takes a global sign with many entries as it appears in diagonal spawning events
       implicit none
       integer, intent(in) :: nI(nel)
@@ -333,13 +333,13 @@ module verlet_aux
       logical :: tSuccess
       real(dp) :: old_sign(lenof_sign)
       character(*), parameter :: this_routine = "create_diagonal_with_hashtable"
-      
+
       call hash_table_lookup(nI,iLut,nifdbo,spawn_ht,SpawnedParts,ind,hash_val,tSuccess)
       if(tSuccess) then
-         ! if it already exists, add in the 
+         ! if it already exists, add in the
          call extract_sign(SpawnedParts(:,ind),old_sign)
          call encode_sign(SpawnedParts(:,ind),old_sign+sign)
-         
+
          ! check for initiator criterium
          if(tTruncInitiator) then
             do run = 1, inum_runs
@@ -357,19 +357,19 @@ module verlet_aux
          endif
       else
          proc = DetermineDetNode(nel, nI, 0)
-         
+
          call checkValidSpawnedList(proc,this_routine)
 
          call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(proc)),ilut(0:nifdbo), &
               sign, flags)
-         
+
          if(tTruncInitiator) then
             do run = 1, inum_runs
                if(test_flag(ilut, get_initiator_flag_by_run(run))) call set_flag(&
                     SpawnedParts(:,ValidSpawnedList(proc)), get_initiator_flag_by_run(run))
             end do
          endif
-         
+
          call add_hash_table_entry(spawn_ht,ValidSpawnedList(proc),hash_val)
          ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
       endif
@@ -380,7 +380,7 @@ module verlet_aux
     subroutine generate_spawn_buf()
       implicit none
       character(*), parameter :: this_routine = "generate_spawn_buf"
-      
+
       call SendProcNewParts(spawnBufSize,.false.)
       call CompressSpawnedList(spawnBufSize,iter_data_fciqmc)
 
@@ -404,19 +404,19 @@ module verlet_aux
       real(dp) :: sign(lenof_sign)
       logical :: tSuccess
       character(*), parameter :: this_routine = "add_semistoch_spawns"
-      
+
       do i = 1, determ_sizes(iProcIndex)
          ! check if the core-space determinant was already spawned upon
          call decode_bit_det(nI, sourcePopulation(:,indices_of_determ_states(i)))
          call hash_table_lookup(nI, sourcePopulation(:,indices_of_determ_states(i)), nifdbo, &
               hashTable, population, ilutindex, hashValue, tSuccess)
-       
+
          if(tSuccess) then
             ! if it is found, add the signs
             call extract_sign(population(:,ilutIndex),sign)
             call encode_sign(population(:,ilutIndex),sign+partial_determ_vecs(:,i))
          else
-            ! the spawn is new, add it to population 
+            ! the spawn is new, add it to population
             populationSize = populationSize + 1
             if(populationSize > maxSize) call stop_all(this_routine, &
                  "Out of memory for adding semistochastic spawns")
@@ -442,16 +442,16 @@ module verlet_aux
       real(dp) :: signA(lenof_sign), signB(lenof_sign)
       logical :: tSuccess
       character(*), parameter :: this_routine = "merge_ilut_lists"
-      
-      ! this merges listB into listA. In the current form, empty slots in listA are 
+
+      ! this merges listB into listA. In the current form, empty slots in listA are
       ! not exploited, because it should not make a difference currently (optimization follows)
       do i = 1, sizeB
          call decode_bit_det(nJ, listB(:,i))
-         
+
          call hash_table_lookup(nJ, listB(:,i), nifdbo, hashTable, listA, ilutIndex, &
               hashValue, tSuccess)
-         
-         if(tSuccess) then 
+
+         if(tSuccess) then
             ! the i-th determinant in listB is already present in listA
             ! -> add up the signs
             call extract_sign(listA(:,ilutIndex), signA)
@@ -459,7 +459,7 @@ module verlet_aux
 
             ! we do not fill up empty slots, so we do not care if signA == 0
             ! this differs from AnnihilateSpawnedParts
-            call encode_sign(listA(:,ilutIndex),signA+signB)      
+            call encode_sign(listA(:,ilutIndex),signA+signB)
 
             ! the initiator criterium is checked upon annihilation, no need to do so here
          else
@@ -478,7 +478,7 @@ module verlet_aux
 
     subroutine update_delta_psi()
       ! here, we add H^2 psi to delta_psi to generate the new delta_psi
-      ! this might cause trouble as stochastic error is not averaged out, 
+      ! this might cause trouble as stochastic error is not averaged out,
       ! but we just carry over the error from the last iteration
       implicit none
       character(*), parameter :: this_routine = "update_delta_psi"
@@ -495,10 +495,10 @@ module verlet_aux
       ! cache delta_psi for the next iteration
       if(spawnBufSize > max_cache_size) call stop_all(this_routine, &
            "Insufficient memory for creating delta_psi")
-          
+
       dpsi_cache(:,1:spawnBufSize) = spawnedParts(:,1:spawnBufSize)
       dpsi_size = spawnBufSize
-         
+
       ! for now, consider all entries in delta_psi as safe spawns for the next iteration
       if(tTruncInitiator) call set_initiator_flags_array(dpsi_cache,dpsi_size)
     end subroutine update_delta_psi
@@ -510,7 +510,7 @@ module verlet_aux
       integer(n_int), intent(inout) :: list(0:,1:)
       integer, intent(in) :: listSize
       integer :: i, run
-      
+
       do i = 1, listSize
          do run = 1, inum_runs
             call set_flag(list(:,i),get_initiator_flag_by_run(run))

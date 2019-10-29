@@ -9,12 +9,12 @@ module trial_wf_gen
     use semi_stoch_procs
     use sparse_arrays
     use SystemData, only: nel, tHPHF, t_non_hermitian
-    use util_mod, only: get_free_unit, binary_search_custom
-#ifndef __CMPLX 
+#ifndef __CMPLX
     use guga_data, only: excitationInformation
     use guga_excitations, only: calc_guga_matrix_element
     use guga_bitrepops, only: write_det_guga, init_csf_information
 #endif
+    use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
 
     implicit none
@@ -255,7 +255,7 @@ contains
 #ifndef __CMPLX
         if (tGUGA .and. (.not. t_guga_mat_eles)) then
             call generate_connected_space_vector_guga(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
-        else 
+        else
 #endif
             call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
 #ifndef __CMPLX
@@ -275,15 +275,15 @@ contains
 
         ! Set these to zero, to prevent junk being printed in the initial report.
         trial_numerator = 0.0_dp
-        tot_trial_numerator = 0.0_dp        
+        tot_trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
         tot_trial_denom = 1.0_dp
-        
+
         init_trial_numerator = 0.0_dp
         tot_init_trial_numerator = 0.0_dp
         init_trial_denom = 0.0_dp
         tot_init_trial_denom = 0.0_dp
-        
+
         call halt_timer(Trial_Init_Time)
 
         if (.not. qmc_trial_wf) then
@@ -355,7 +355,7 @@ contains
             enddo
 #else
                 if (replica_pairs) then
-                    do i = 1, lenof_sign/2
+                    do i = 1, lenof_sign .div. 2
                         ! When using pairs of replicas, average their amplitudes.
                         fciqmc_amps_real(i) = sum(all_fciqmc_amps(2*i-1:2*i))/2.0_dp
                     end do
@@ -385,7 +385,7 @@ contains
 #endif
 
         ! Now, find the best trial state for each FCIQMC replica:
-        if (t_choose_trial_state) then 
+        if (t_choose_trial_state) then
 
 #ifdef __CMPLX
             do ireplica = 1, inum_runs
@@ -393,7 +393,7 @@ contains
                 energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
             end do
 #else
-            if (replica_pairs) then 
+            if (replica_pairs) then
                 do ireplica = 1, lenof_sign/2
                     trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
                     energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
@@ -414,7 +414,7 @@ contains
                 end do
             end if
 #endif
-        else 
+        else
 #ifdef __CMPLX
             do ireplica = 1, inum_runs
                 best_trial = maxloc(abs(all_overlaps_real(ireplica,:)**2+all_overlaps_imag(ireplica,:)**2))
@@ -445,7 +445,7 @@ contains
             end if
 #endif
         end if
-        
+
 
     end subroutine assign_trial_states
 
@@ -521,7 +521,7 @@ contains
 #ifndef __CMPLX
     subroutine generate_connected_space_vector_guga(trial_space, trial_vecs, con_space, con_vecs)
         ! need a specific routine for the guga case, to do it more efficiently
-        ! although i realise by now, that i probably could do it way more 
+        ! although i realise by now, that i probably could do it way more
         ! efficient if i rewrite everything from scratch for the guga case..
 
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
@@ -534,44 +534,44 @@ contains
 
 
         integer(n_int), intent(in) :: trial_space(0:,:)
-        HElement_t(dp), intent(in) :: trial_vecs(:,:) 
+        HElement_t(dp), intent(in) :: trial_vecs(:,:)
         integer(n_int), intent(in) :: con_space(0:,:)
         HElement_t(dp), intent(out) :: con_vecs(:,:)
 
         integer :: i, j, nJ(nel), pos, nexcits
-        integer(n_int) :: ilutG(0:nifguga) 
-        HElement_t(dp) :: H_ij 
+        integer(n_int) :: ilutG(0:nifguga)
+        HElement_t(dp) :: H_ij
         integer(n_int), pointer :: excitations(:,:)
         character(*), parameter :: this_routine = "generate_connected_space_vector_guga"
-            
-        con_vecs = 0.0_dp 
 
-        ! in the guga case it is more efficient i guess to loop over the 
+        con_vecs = 0.0_dp
+
+        ! in the guga case it is more efficient i guess to loop over the
         ! smaller trial space, act the hamiltonian on it and get the specific
         ! matrix element for the connected space
 
-        do j = 1, size(trial_vecs,2) 
-            
-            call decode_bit_det(nJ, trial_space(0:niftot, j)) 
+        do j = 1, size(trial_vecs,2)
 
-            call convert_ilut_toGUGA(trial_space(0:niftot,j), ilutG) 
+            call decode_bit_det(nJ, trial_space(0:niftot, j))
 
-            call actHamiltonian(ilutG, excitations, nexcits) 
+            call convert_ilut_toGUGA(trial_space(0:niftot,j), ilutG)
+
+            call actHamiltonian(ilutG, excitations, nexcits)
 
             do i = 1, size(con_vecs,2)
 
-                if (all(con_space(0:NIfDBO,i) == trial_space(0:NIfDBO,j))) then 
+                if (all(con_space(0:NIfDBO,i) == trial_space(0:NIfDBO,j))) then
                     H_ij = calcDiagMatEleGuga_nI(nJ)
 
-                else 
+                else
 
                     pos = binary_search(excitations(0:nifd,1:nexcits), con_space(0:nifd,i))
 
-                    if (pos > 0) then 
-                        H_ij = extract_matrix_element(excitations(:,pos), 1) 
-                    else 
+                    if (pos > 0) then
+                        H_ij = extract_matrix_element(excitations(:,pos), 1)
+                    else
                         H_ij = HEl_zero
-                    end if 
+                    end if
                 end if
                 con_vecs(:,i) = con_vecs(:,i) + H_ij * trial_vecs(:,j)
             end do
@@ -607,13 +607,13 @@ contains
 #endif
         con_vecs = 0.0_dp
 
-        ! do i need to change this here for the non-hermitian transcorrelated 
+        ! do i need to change this here for the non-hermitian transcorrelated
         ! hamiltonians?
         do i = 1, size(con_vecs,2)
             call decode_bit_det(nI, con_space(0:NIfTot, i))
 
-            ! i am only here in the guga case if i use the new way to calc 
-            ! the off-diagonal elements.. 
+            ! i am only here in the guga case if i use the new way to calc
+            ! the off-diagonal elements..
 #ifndef __CMPLX
             if (tGUGA) call init_csf_information(con_space(0:nifd,i))
 #endif
@@ -625,7 +625,7 @@ contains
                     if ( tHPHF) then
                         H_ij = hphf_diag_helement(nI, trial_space(:,j))
 #ifndef __CMPLX
-                    else if (tGUGA) then 
+                    else if (tGUGA) then
                         H_ij = calcDiagMatEleGuga_nI(nI)
 #endif
                     else
@@ -633,12 +633,12 @@ contains
                     end if
                 else
                     ! need guga changes here!
-                    ! and need 
+                    ! and need
                     if (tHPHF) then
                         H_ij = hphf_off_diag_helement(nJ, nI, con_space(:,j), trial_space(:,i))
 #ifndef __CMPLX
                     else if (tGUGA) then
-                        if (t_non_hermitian) then 
+                        if (t_non_hermitian) then
                             call stop_all(t_r, "GUGA not adapted for non-hermiticity yet!")
                         end if
                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
@@ -1056,9 +1056,9 @@ contains
     subroutine reset_trial_space()
       use bit_reps, only: clr_flag
       implicit none
-      integer :: i
+      integer(int64) :: i
 
-      do i=1, TotWalkers
+      do i = 1_int64, TotWalkers
          ! remove the trial flag from all determinants
          call clr_flag(CurrentDets(:,i),flag_trial)
       enddo

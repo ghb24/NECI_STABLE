@@ -207,6 +207,7 @@ contains
         call h5garbage_collect_f(err)
 
         call MPIBarrier(mpi_err)
+
         write(6,*) "popsfile write successful"
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
@@ -272,6 +273,8 @@ contains
 #else
         CurrWalkers = 0
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
+        ! just takes care of compiler warnings, this code is actually unreachable
+        dets = 0
 #endif
 
     end function
@@ -382,7 +385,7 @@ contains
     end subroutine
 
     subroutine write_tau_opt(parent)
-    
+
         use tau_search, only:  cnt_sing, cnt_doub, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
         use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -420,15 +423,15 @@ contains
         call MPIAllReduce(cnt_opp, MPI_MAX, max_cnt_opp)
         call MPIAllReduce(cnt_par, MPI_MAX, max_cnt_par)
 
-        if (max_gam_sing /= 0) &
+        if (.not. near_zero(max_gam_sing)) &
             call write_dp_scalar(tau_grp, nm_gam_sing, max_gam_sing)
-        if (max_gam_doub /= 0) &
+        if (.not. near_zero(max_gam_doub)) &
             call write_dp_scalar(tau_grp, nm_gam_doub, max_gam_doub)
-        if (max_gam_opp /= 0) &
+        if (.not. near_zero(max_gam_opp)) &
             call write_dp_scalar(tau_grp, nm_gam_opp, max_gam_opp)
-        if (max_gam_par /= 0) &
+        if (.not. near_zero(max_gam_par)) &
             call write_dp_scalar(tau_grp, nm_gam_par, max_gam_par)
-        if (max_max_death_cpt /= 0) &
+        if (.not. near_zero(max_max_death_cpt)) &
             call write_dp_scalar(tau_grp, nm_max_death, max_max_death_cpt)
         if (all_en_sing) &
             call write_log_scalar(tau_grp, nm_en_sing, all_en_sing)
@@ -784,8 +787,7 @@ contains
         !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
-                CurrentDets, arr_2d_dims(CurrentDets), &
+                wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, CurrentDets, &
                 [int(nifd+1, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], & ! offset
                 [int(nifd+1, hsize_t), all_count], & ! all dims
@@ -797,8 +799,7 @@ contains
 !            call stop_all(t_r, "This could go badly...")
 
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
-                CurrentDets, arr_2d_dims(CurrentDets), &
+                wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, CurrentDets, &
                 [int(lenof_sign, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
                 [int(lenof_sign, hsize_t), all_count], & ! all dims
@@ -812,8 +813,7 @@ contains
            ! get the statistics of THIS processor
            call writeFFuncAsInt(TotWalkers, fvals)
            call write_2d_multi_arr_chunk_buff(&
-                wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, &
-                fvals, arr_2d_dims(fvals), &
+                wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, fvals, &
                 [int(2*inum_runs, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
                 [int(2*inum_runs, hsize_t), all_count], &
@@ -945,7 +945,7 @@ contains
         ! this as uniformly as possible. Also calculate the associated data
         ! offsets
         counts = all_count / nProcessors
-        rest=mod(all_count,nProcessors)
+        rest = int(mod(all_count, nProcessors))
         if(rest.gt.0) counts(0:rest-1)=counts(0:rest-1)+1
 
         if (sum(counts) /= all_count .or. any(counts < 0)) &
@@ -1040,7 +1040,7 @@ contains
             ! if we resized the sign, we need to go back to the original buffer size now
             if(tmp_lenof_sign /= lenof_sign) then
                deallocate(temp_sgns)
-               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)        
+               allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
                if(tReadFVals) then
                   deallocate(temp_fvals)
                   allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
@@ -1050,7 +1050,7 @@ contains
             call read_walker_block_buff(ds_ilut, ds_sgns, ds_fvals, block_start, &
                                    this_block_size, bit_rep_width, temp_ilut, temp_sgns, &
                                    temp_fvals)
-                                
+
             if(tmp_lenof_sign /= lenof_sign) then
                call clone_signs(temp_sgns,tmp_lenof_sign, lenof_sign, this_block_size)
                ! resize the fvals in the same manner
@@ -1164,7 +1164,7 @@ contains
       integer :: nlocal=0
       integer :: ierr
       integer(hsize_t), allocatable :: fvals_comm(:,:), fvals_loc(:,:)
-      
+
       ! allocate the buffers for the fvals
       if(tReadFVals) then
          allocate(fvals_comm(2*inum_runs,MaxSpawned), stat=ierr)
@@ -1182,7 +1182,7 @@ contains
 !#undef localfirst
 #ifdef localfirst
       nlocal=sendcount(iProcIndex)
-      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, fvals_loc)      
+      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, fvals_loc)
       sendcount(iProcIndex)=0
 #endif
       !communicate the remaining elements
@@ -1227,7 +1227,7 @@ contains
         ! Iterate through walkers in temp_ilut+temp_sgns and determine the target processor.
         onepart=0
         sendcount=0
-        do j = 1, block_size
+        do j = 1, int(block_size)
             onepart(0:sizeilut-1)=temp_ilut(:,j)
             onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
             ! Which processor does this determinant live on?
@@ -1247,7 +1247,7 @@ contains
            if (.false.) then
 #endif
               !elements that don't have to be communicated are written to SpawnedParts2
-              do j = 1, block_size
+              do j = 1, int(block_size)
                  if(targetproc(j).eq.p) then
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
@@ -1259,7 +1259,7 @@ contains
               end do
            else
               !elements that have to be sent to other procs are written to SpawnedParts
-              do j = 1, block_size
+              do j = 1, int(block_size)
                  if(targetproc(j).eq.p) then
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
@@ -1331,19 +1331,20 @@ contains
            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, SpawnedParts2, &
                 recvcountsScaled, recvdispsScaled, ierr)
         end if
-  
-        call scaleCounts(size(fvals_loc,1))        
+
+        call scaleCounts(size(fvals_loc,1))
+
         if(tReadFVals) then
            call MPIAllToAllV(fvals_comm, sendcountsScaled, dispsScaled, fvals_loc, &
                 recvcountsScaled, recvdispsScaled, ierr)
         endif
 
         contains
-          
+
           subroutine scaleCounts(argSize)
             implicit none
             integer, intent(in) :: argSize
-            
+
             recvcountsScaled = recvcounts * argSize
             recvdispsScaled = recvdisps * argSize
             sendcountsScaled = sendcounts * argSize
@@ -1386,7 +1387,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
               end if
            end do
         else
@@ -1406,7 +1407,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j),CurrWalkers)
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
               end if
            end do
 
@@ -1508,7 +1509,7 @@ contains
          allocate(tmp_sgns(lenof_sign,num_signs),stat=ierr)
 
          ! and clone the signs to match lenof_sign numbers per entry
-         do i = 1, num_signs
+         do i = 1, int(num_signs)
             ! depending on if we want to remove or add replicas,
             ! shrink or expand the signs
             if(tmp_lenof_sign > lenof_sign) then

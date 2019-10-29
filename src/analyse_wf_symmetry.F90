@@ -1,6 +1,6 @@
 #include "macros.h"
-! small utitlities to analyse the point group symmetry of the 
-! FCIQMC wavefunction 
+! small utitlities to analyse the point group symmetry of the
+! FCIQMC wavefunction
 
 module analyse_wf_symmetry
 
@@ -37,17 +37,17 @@ module analyse_wf_symmetry
     implicit none
 
     logical :: t_symmetry_analysis = .false.
-    logical :: t_symmetry_rotation = .false. 
-    real(dp) :: symmetry_rotation_angle = 0.0_dp 
+    logical :: t_symmetry_rotation = .false.
+    real(dp) :: symmetry_rotation_angle = 0.0_dp
 
-    logical :: t_symmetry_mirror = .false. 
+    logical :: t_symmetry_mirror = .false.
     character(1) :: symmertry_mirror_axis = '0'
 
     logical :: t_symmetry_inversion = .false.
 
-    logical :: t_read_symmetry_states = .false. 
+    logical :: t_read_symmetry_states = .false.
     integer :: n_symmetry_states = 0
-    logical :: t_pop_symmetry_states = .false. 
+    logical :: t_pop_symmetry_states = .false.
 
     integer, allocatable :: symmetry_states(:,:)
     real(dp), allocatable :: symmetry_weights(:)
@@ -83,7 +83,7 @@ contains
         integer, intent(in) :: states(:,:)
         character(*), parameter :: this_routine = "print_point_group_matrix_rep"
 
-        if (lat%get_ndim() == 2) then 
+        if (lat%get_ndim() == 2) then
             ! for 2D it is the 8 fold point group symmetry and S^2 EV..
             ! activate all the symmetries
             t_symmetry_mirror = .true.
@@ -104,7 +104,7 @@ contains
         integer, intent(in) :: states(:,:)
 
         integer :: i, orig_orbs(nBasis/2), trans_orbs(nBasis/2), &
-                   matrix_rep(size(states,2),size(states,2)), & 
+                   matrix_rep(size(states,2),size(states,2)), &
                    temp_states(nel,size(states,2)), phase
 
         orig_orbs = get_spatial(brr(1:nBasis:2))
@@ -150,7 +150,7 @@ contains
         print *, "Md: "
         call print_matrix(matrix_rep)
         print *, "character: ", sum([(matrix_rep(i,i), i = 1, size(matrix_rep,1))])
-        
+
         ! i
         trans_orbs = apply_inversion(orig_orbs)
         matrix_rep = construct_matrix_representation(states, orig_orbs, trans_orbs)
@@ -160,10 +160,10 @@ contains
 
     end subroutine print_d4h_pg
 
-    function construct_matrix_representation(states, orig_orbs, trans_orbs) & 
+    function construct_matrix_representation(states, orig_orbs, trans_orbs) &
             result(matrix)
-        ! construct the matrix representation of the symmetry operation 
-        ! for a given basis. the symmetry operation is encoded in 
+        ! construct the matrix representation of the symmetry operation
+        ! for a given basis. the symmetry operation is encoded in
         ! orig orbs and trans orbs
         integer, intent(in) :: states(:,:), orig_orbs(nBasis/2), trans_orbs(nBasis/2)
         integer :: matrix(size(states,2),size(states,2))
@@ -182,15 +182,15 @@ contains
                 end if
             end do
         end do
-        
+
     end function construct_matrix_representation
 
     subroutine analyze_full_wavefunction_sym(sym_labels, ilut_list_opt)
-        ! give the symmetry eigenvalues of a wavefunction in ilut_format 
+        ! give the symmetry eigenvalues of a wavefunction in ilut_format
         ! of certain symmetry operations, depending on the lattice point group
         ! e.g. for 2D: rot90, rot180, rot270, m_x, m_y, m_d, m_o and the S^2 EV
-        ! on can either provide a wavfunction in ilut_list, or otherwise 
-        ! it is obtained from the FCIQMC wavefunction depending on the 
+        ! on can either provide a wavfunction in ilut_list, or otherwise
+        ! it is obtained from the FCIQMC wavefunction depending on the
         ! input
         real(dp), intent(out), allocatable :: sym_labels(:)
         integer(n_int), intent(in), optional :: ilut_list_opt(:,:)
@@ -201,7 +201,7 @@ contains
 
         ASSERT(associated(lat))
 
-        if (lat%get_ndim() == 2) then 
+        if (lat%get_ndim() == 2) then
             ! for 2D it is the 8 fold point group symmetry and S^2 EV..
             n_syms = 10
             ! activate all the symmetries
@@ -215,7 +215,7 @@ contains
         allocate(sym_labels(n_syms))
         sym_labels = 0.0_dp
 
-        if (present(ilut_list_opt)) then 
+        if (present(ilut_list_opt)) then
             allocate(ilut_list(0:niftot, size(ilut_list_opt,2)), &
                 source = ilut_list_opt)
 
@@ -226,7 +226,7 @@ contains
 
         end if
 
-        if (lat%get_ndim() == 2) then 
+        if (lat%get_ndim() == 2) then
             trans_pg_wf = apply_2D_point_group(ilut_list)
         else
             call stop_all(this_routine, "not yet implemented!")
@@ -244,20 +244,20 @@ contains
                 ilut_list)
         end do
 
-        ! and we need the S_z^2 contribution: 
+        ! and we need the S_z^2 contribution:
         call decode_bit_det(nI, ilut_list(:,1))
         ms = sum(get_spin_pn(nI))
         sym_labels(n_syms) = sym_labels(n_syms) + real(ms * (ms + 2) / 4.0, dp)
-            
+
 !         ilut_spin = apply_s_squared(ilut_list)
-! 
+!
 !         sym_labels(n_syms) = calc_overlap(ilut_list, ilut_spin)
 
     end subroutine analyze_full_wavefunction_sym
 
     function apply_s_squared(ilut_list) result(ilut_spin)
-        ! function to apply the S^2 operator to a given wavefunction 
-        ! figure that out, what we have to do here.. 
+        ! function to apply the S^2 operator to a given wavefunction
+        ! figure that out, what we have to do here..
         integer(n_int), intent(inout) :: ilut_list(:,:)
         integer(n_int), allocatable :: ilut_spin(:,:)
 
@@ -269,18 +269,18 @@ contains
     function calc_overlap(ilutI, ilutJ) result(overlap)
         ! calculate the overlap between two wavefunction I and J
         integer(n_int), intent(in) :: ilutI(:,:), ilutJ(:,:)
-        real(dp) :: overlap 
+        real(dp) :: overlap
         real(dp) :: signI(lenof_sign), signJ(lenof_sign)
 
         integer :: i, pos
-        ! i am pretty sure the lists are ordered so I can binary search.. 
+        ! i am pretty sure the lists are ordered so I can binary search..
 
         overlap = 0.0_dp
 
         do i = 1, size(ilutI,2)
             pos = binary_search(ilutJ, ilutI(:,i), nifd+1)
 
-            if (pos > 0) then 
+            if (pos > 0) then
                 call extract_sign(ilutI(:,i), signI)
                 call extract_sign(ilutJ(:,pos), signJ)
 
@@ -309,7 +309,7 @@ contains
 
         rot_angle = 0.0_dp
 
-        do i = 1, 4 
+        do i = 1, 4
             trans_wf(:,:,i) = apply_rotation_wf(ilut_list, rot_angle)
 
             rot_angle = rot_angle + 90.0_dp
@@ -330,9 +330,9 @@ contains
 !         do i = 1, size(ilut_list,2)
 !             call extract_sign(ilut_list(:,i), signI)
 !             call extract_sign(trans_wf(:,sort_ind(i),8), signJ)
-!             
+!
 ! !             matrix(i,sort_ind(i)) = int(sign(1.0_dp, signI(1)*signJ(1)))
-! 
+!
 !         end do
 
 
@@ -343,7 +343,7 @@ contains
     end function apply_2D_point_group
 
     function apply_inversion_wf(ilut_list, sort_ind) result(inv_wf)
-        ! apply inversion symmetry to a wavefunction 
+        ! apply inversion symmetry to a wavefunction
         integer(n_int), intent(inout) :: ilut_list(:,:)
         integer, intent(out), optional :: sort_ind(size(ilut_list,2))
         integer(n_int) :: inv_wf(0:size(ilut_list,1)-1,size(ilut_list,2))
@@ -378,7 +378,7 @@ contains
     end function apply_inversion_wf
 
     function apply_mirror_wf(ilut_list, mirror_axis, sort_ind) result(mir_wf)
-        ! function to apply a mirror symmetry to the given wavefunction 
+        ! function to apply a mirror symmetry to the given wavefunction
         ! encoded in ilut_list
         integer(n_int), intent(inout) :: ilut_list(:,:)
         character(1), intent(in) :: mirror_axis
@@ -458,28 +458,28 @@ contains
 !         mat(2,2) = cos(angle)
 
     end function rot_matrix
-        
+
     subroutine analyze_wavefunction_symmetry()
-        ! driver routine to analyze the symmetry of a part of the 
-        ! wavefunction. 
+        ! driver routine to analyze the symmetry of a part of the
+        ! wavefunction.
         integer :: sym_orbs(nBasis/2), orig_orbs(nBasis/2)
         integer :: i, transformed_states(nel, n_symmetry_states)
         real(dp) :: transformed_weights(n_symmetry_states)
         integer(n_int) :: transformed_states_ilut(0:niftot,n_symmetry_states)
 
-        ! i have the original list of the orbitals and the 
-        ! corresponding k- or r-vectors. 
+        ! i have the original list of the orbitals and the
+        ! corresponding k- or r-vectors.
 
         call init_symmetry_states()
 
         if (iProcIndex == root) then
             print *, "Analyze the symmetry of the FCIQMC wavefunction: "
 
-            if (t_symmetry_rotation) then 
+            if (t_symmetry_rotation) then
                 print *, "applying rotation of ", symmetry_rotation_angle, " degrees"
             end if
 
-            if (t_symmetry_mirror) then 
+            if (t_symmetry_mirror) then
                 print *, "mirror wf. along ", symmertry_mirror_axis, "-axis"
             end if
 
@@ -494,15 +494,15 @@ contains
                 end do
             end if
 
-            if (t_pop_symmetry_states) then 
+            if (t_pop_symmetry_states) then
                 print *, "using the ", n_symmetry_states,  " highest occupied states"
                 do i = 1, n_symmetry_states
                     print *, symmetry_states(:,i)
                 end do
             end if
 
-            ! first check if everything is setup correctly.. 
-            print *, "brr:" 
+            ! first check if everything is setup correctly..
+            print *, "brr:"
             do i = 1, nBasis
                 print *, brr(i)
             end do
@@ -514,13 +514,13 @@ contains
 
             call WRITEBASIS(6,g1,nBasis,arr,brr)
 
-            ! i need to apply the chosen symmetry to the vectors and determine, 
-            ! which orbital maps into which 
+            ! i need to apply the chosen symmetry to the vectors and determine,
+            ! which orbital maps into which
             ! the flag if we actually apply is within the functions.
             ! ROTATION:
             orig_orbs = get_spatial(brr(1:nBasis:2))
             sym_orbs = apply_rotation(orig_orbs, symmetry_rotation_angle)
-            
+
             print *, "orig orbs -> sym_orbs: "
             do i = 1, nBasis/2
                 print *, orig_orbs(i), " -> ", sym_orbs(i)
@@ -533,10 +533,10 @@ contains
             ! INVERSION
             sym_orbs = apply_inversion(sym_orbs)
 
-            ! now i have the mapping between the original and the 
+            ! now i have the mapping between the original and the
             ! symmetry transformed orbitals
 
-            call transform_states(orig_orbs, sym_orbs, n_symmetry_states, & 
+            call transform_states(orig_orbs, sym_orbs, n_symmetry_states, &
                 symmetry_states, symmetry_weights, symmetry_states_ilut, transformed_states, &
                 transformed_weights, transformed_states_ilut)
 
@@ -547,49 +547,49 @@ contains
     end subroutine analyze_wavefunction_symmetry
 
     subroutine compare_states(n_states, orig_states, trans_states)
-        ! compare the original and the symmetry transformed states 
+        ! compare the original and the symmetry transformed states
         integer, intent(in) :: n_states
         integer(n_int), intent(in) :: orig_states(0:niftot, n_states), &
                                       trans_states(0:niftot, n_states)
 
         integer(n_int) :: null_int(0:niftot), ilutI(0:niftot), ilutJ(0:niftot)
         integer :: i, j, k, l
-        ! print the original and the transformed states next to each other 
-        ! and missing determinants in the repective lists are indicated 
-        i = 1 
+        ! print the original and the transformed states next to each other
+        ! and missing determinants in the repective lists are indicated
+        i = 1
         j = 1
 
         null_int = 0_n_int
 
-        ! or first create a list and an integer indicator, where the 
-        ! determinant is from.. 
+        ! or first create a list and an integer indicator, where the
+        ! determinant is from..
         do k = 1, 2*n_states
             ilutI = orig_states(:,i)
             ilutJ = trans_states(:,j)
 
-            if (DetBitEq(ilutI,ilutJ)) then 
-                ! if both are equal we can move on 
+            if (DetBitEq(ilutI,ilutJ)) then
+                ! if both are equal we can move on
                 call print_2_states(ilutI,ilutJ)
                 i = i + 1
                 j = j + 1
 
-            else if (ilut_lt(ilutI,ilutJ)) then 
+            else if (ilut_lt(ilutI,ilutJ)) then
                 ! if I is less than J, we have to increase I and only print I
                 call print_2_states(ilutI, null_int)
                 i = i + 1
 
-            else 
+            else
                 ! if J is smaller we have to print J and increase J
                 call print_2_states(null_int, ilutJ)
                 j = j + 1
 
             end if
-            
+
             ! and provide the correct exci conditions
             if (i == j .and. i > n_states) exit
 
-            if (i > n_states .and. j <= n_states) then 
-                ! if i is already above the list then the rest of the 
+            if (i > n_states .and. j <= n_states) then
+                ! if i is already above the list then the rest of the
                 ! entries are from list J
                 do l = j, n_states
                     ilutJ = trans_states(:,l)
@@ -597,13 +597,13 @@ contains
                 end do
                 exit
             end if
-            ! and if j is alreay above, then the rest is from I 
-            if (i <= n_states .and. j > n_states) then 
+            ! and if j is alreay above, then the rest is from I
+            if (i <= n_states .and. j > n_states) then
                 do l = i, n_states
                     ilutI = orig_states(:,l)
                     call print_2_states(ilutI, null_int)
                 end do
-                exit 
+                exit
             end if
         end do
 
@@ -616,16 +616,16 @@ contains
         integer :: iout
         real(dp) :: left_sign(lenof_sign), right_sign(lenof_sign)
 
-        if (present(nUnit)) then 
+        if (present(nUnit)) then
             iout = nunit
-        else 
+        else
             iout = 6
         end if
 
         call extract_sign(left, left_sign)
         call extract_sign(right, right_sign)
         ! print the left side
-        if (all(left == 0_n_int)) then 
+        if (all(left == 0_n_int)) then
             call print_null_det(iout)
         else
             call writeDetBit(iout, left,.false.)
@@ -637,8 +637,8 @@ contains
         write(iout, '(A1)', advance = 'no') "|"
 
 
-        ! then print right side 
-        if (all(right == 0_n_int)) then 
+        ! then print right side
+        if (all(right == 0_n_int)) then
             call print_null_det(iout,.true.)
         else
             call writeDetBit(iout, right,.true.)
@@ -649,14 +649,14 @@ contains
     subroutine print_null_det(nunit, t_newline)
         integer, intent(in) :: nunit
         logical, intent(in), optional :: t_newline
-        
-        integer :: i 
+
+        integer :: i
 
         do i = 1, nBasis - 1
-           write(nunit, "(A1)", advance = 'no') "-" 
+           write(nunit, "(A1)", advance = 'no') "-"
        end do
 
-       if (present(t_newline) .and. t_newline) then 
+       if (present(t_newline) .and. t_newline) then
            write(nunit, "(A1)") "-"
        else
            write(nunit, "(A1)", advance = 'no') "-"
@@ -681,10 +681,10 @@ contains
 #endif
         integer :: i, n_phase, ind(n_states)
         real(dp) :: tmp_sign(lenof_sign)
-    
+
         tmp_sign = 0.0_dp
 
-        ! do it plain ans stupid for now.. 
+        ! do it plain ans stupid for now..
         do i = 1, n_states
 
              call apply_transformation(orig_states(:,i), orig_orbs, &
@@ -699,7 +699,7 @@ contains
 
         end do
 
-        ! the original highest pop list is sorted by weight i guess.. 
+        ! the original highest pop list is sorted by weight i guess..
         ! sort them by the integers in the ilut representation
         ind = [(i, i = 1, n_states)]
 
@@ -720,14 +720,14 @@ contains
             sort_ind = ind
         end if
 
-        
+
     end subroutine transform_states
 
     subroutine apply_transformation(nI, orig_orbs, trans_orbs, nJ, n_phase)
-        ! apply the transformation encoded in the orig_orbs and trans_orbs 
+        ! apply the transformation encoded in the orig_orbs and trans_orbs
         ! to nI to obtain nJ. nJ will not be sorted except
-        ! the phase is present, where the fermionic phase from reshuffling the 
-        ! orbitals into natural order is also outputted. 
+        ! the phase is present, where the fermionic phase from reshuffling the
+        ! orbitals into natural order is also outputted.
         integer, intent(in) :: nI(nel), orig_orbs(nBasis/2), trans_orbs(nBasis/2)
         integer, intent(out) :: nJ(nel)
         integer, intent(out), optional :: n_phase
@@ -738,45 +738,45 @@ contains
 
         nJ = 0
 
-        do i = 1, nel 
+        do i = 1, nel
 
-            ! i cant use binary search, since orig orbs is not sorted! 
+            ! i cant use binary search, since orig orbs is not sorted!
 !             pos = binary_search_int(orig_orbs, get_spatial(nI(i)))
             pos = stupid_search(orig_orbs, get_spatial(nI(i)))
 
-            ! it has to be found! 
-            if (pos <= 0) then 
+            ! it has to be found!
+            if (pos <= 0) then
                 print *, "orig_orbs: ", orig_orbs
                 print *, "nI: ", nI
                 print *, "spatial: ", get_spatial(nI)
             end if
             ASSERT(pos > 0)
-            
-            if (is_beta(nI(i))) then 
+
+            if (is_beta(nI(i))) then
                 nJ(i) = 2*trans_orbs(pos) - 1
-            else 
+            else
                 nJ(i) = 2*trans_orbs(pos)
             end if
 
         end do
 
-        if (present(n_phase)) then 
+        if (present(n_phase)) then
             call sort_orbitals(nJ, n_phase)
 !             call sort(nJ, par = n_phase)
-        end if 
+        end if
 
     end subroutine apply_transformation
 
-    function stupid_search(list, val) result(pos) 
+    function stupid_search(list, val) result(pos)
         integer, intent(in) :: list(:), val
-        integer :: pos 
+        integer :: pos
 
         integer :: i
 
         pos = 0
 
         do i = lbound(list,1), ubound(list,1)
-            if (val == list(i)) then 
+            if (val == list(i)) then
                 pos = i
                 return
             end if
@@ -785,15 +785,15 @@ contains
     end function stupid_search
 
     subroutine init_symmetry_states()
-        ! routine to initialize the to be analysed states of the 
-        ! wavefunction 
+        ! routine to initialize the to be analysed states of the
+        ! wavefunction
         integer :: i, n_states
         integer(n_int) :: ilut(0:niftot)
         integer(n_int), allocatable :: largest_walkers(:,:)
         real(dp) :: temp_sign(lenof_sign)
 
-        if (t_read_symmetry_states) then 
-            ! if we read them in, we have to find it in the walker-list 
+        if (t_read_symmetry_states) then
+            ! if we read them in, we have to find it in the walker-list
             ! but only in the 1000 most populated states
             n_states = 1000
 
@@ -801,9 +801,9 @@ contains
                 call EncodeBitDet(symmetry_states(:,i), symmetry_states_ilut(:,i))
             end do
 
-        else if (t_pop_symmetry_states) then 
-            ! here we have to take the N most occupied from the 
-            ! wavefunction 
+        else if (t_pop_symmetry_states) then
+            ! here we have to take the N most occupied from the
+            ! wavefunction
             ! otherwise just find the N most populated states
             n_states = n_symmetry_states
 
@@ -814,14 +814,14 @@ contains
 
         call get_highest_pop(n_states, largest_walkers)
 
-        if (t_read_symmetry_states) then 
+        if (t_read_symmetry_states) then
             call find_states_in_list(n_symmetry_states, symmetry_states, &
                 largest_walkers, symmetry_weights)
 
         else if (t_pop_symmetry_states) then
 
             symmetry_states_ilut = largest_walkers(:,1:n_symmetry_states)
-            
+
             do i = 1, n_symmetry_states
 
                 call decode_bit_det(symmetry_states(:,i), largest_walkers(:,i))
@@ -834,27 +834,27 @@ contains
     end Subroutine init_symmetry_states
 
     subroutine find_states_in_list(n_states, nI_search, ilut_list, nI_weights)
-        ! routine to find the nI in the ilut_list and assign the 
+        ! routine to find the nI in the ilut_list and assign the
         ! corresponding weights. if not found the weights are 0
         integer, intent(in) :: n_states
         integer, intent(in) :: nI_search(nel,n_states)
         integer(n_int), intent(in) :: ilut_list(0:niftot,n_states)
         real(dp), intent(out) :: nI_weights(n_states)
-#ifdef __DEBUG 
+#ifdef __DEBUG
         character(*), PARAMETER :: this_routine = "find_states_in_list"
-#endif 
+#endif
         integer(n_int) :: ilut(0:niftot)
         integer :: i, pos
         real(dp) :: temp_sign(lenof_sign)
 
         nI_weights = 0.0_dp
 
-        do i = 1, n_states 
+        do i = 1, n_states
             call EncodeBitDet(nI_search(:,i), ilut)
 
             pos = binary_search(ilut_list, ilut, nifd+1)
 
-            if (pos > 0) then 
+            if (pos > 0) then
                 call extract_sign(ilut_list(:,pos), temp_sign)
 
                 nI_weights(i) = temp_sign(1)
@@ -883,8 +883,8 @@ contains
     end subroutine get_highest_pop
 
     subroutine find_highest_sign_per_node(n_states, largest_dets_node, largest_dets)
-        ! routine to find the largest signs on each node and store them 
-        ! sequentially into the global list 
+        ! routine to find the largest signs on each node and store them
+        ! sequentially into the global list
         integer, intent(in) :: n_states
         integer(n_int), intent(inout) :: largest_dets_node(0:niftot,n_states)
         integer(n_int), intent(out) :: largest_dets(0:niftot, n_states)
@@ -897,13 +897,13 @@ contains
 
         do i = 1, n_states
             max_sign = 0.0_dp
-            max_pos = 1 
+            max_pos = 1
 
             do j = n_states, 1, -1
                 call extract_sign(largest_dets_node(:,j), tmp_sign)
                 ! why is this call?
                 if (any(largest_dets_node(:,j) /= 0)) then
- 
+
 #ifdef __CMPLX
                     max_sign = sqrt(sum(abs(tmp_sign(1::2)))**2 + sum(abs(tmp_sign(2::2)))**2)
 #else
@@ -922,13 +922,13 @@ contains
                 max_det = largest_dets_node(:,max_pos)
                 ! and then set it to zero
                 largest_dets_node(:,max_pos) = 0
-            else 
+            else
                 max_det = 0
             end if
 
             call MPIBCast(max_det ,NIfTot+1,nint(reduce_out(2)))
 
-            if (iProcIndex == root) then 
+            if (iProcIndex == root) then
                 largest_dets(:,i) = max_det
             end if
         end do
@@ -960,9 +960,9 @@ contains
         integer, intent(in) :: in_orbs(nBasis/2)
         integer :: out_orbs(nBasis/2)
 
-        integer :: i 
+        integer :: i
 
-        if (.not. t_symmetry_inversion) then 
+        if (.not. t_symmetry_inversion) then
             out_orbs = in_orbs
             return
         end if
@@ -995,8 +995,8 @@ contains
     end function apply_mirror
 
     function apply_rotation(in_orbs, rot_angle) result(out_orbs)
-        ! function to rotate the k- or r-vectors and return the mapped 
-        ! orbitals 
+        ! function to rotate the k- or r-vectors and return the mapped
+        ! orbitals
         integer, intent(in) :: in_orbs(nBasis/2)
         real(dp), intent(in) :: rot_angle
         integer :: out_orbs(nBasis/2)
@@ -1005,8 +1005,8 @@ contains
 #endif
         integer :: i
 
-        if (.not. t_symmetry_rotation .or. (rot_angle == 0.0_dp & 
-            .or. rot_angle == 360.0_dp)) then 
+        if (.not. t_symmetry_rotation .or. (rot_angle == 0.0_dp &
+            .or. rot_angle == 360.0_dp)) then
             out_orbs = in_orbs
             return
         end if
@@ -1066,7 +1066,7 @@ contains
         case('o')
             out_vec(1:2) = nint(matmul(mirror_o, real(in_vec(1:2))))
 
-        case ('0') 
+        case ('0')
             out_vec = in_vec
 
         case Default
@@ -1077,7 +1077,7 @@ contains
 
         out_vec(3) = in_vec(3)
 
-        
+
     end function mirror_vec
 
     function inversion_orb(in_orb) result(out_orb)
@@ -1110,7 +1110,7 @@ contains
         out_vec(3) = in_vec(3)
 
     end function inversion_vec
-                
+
     function rotate_orb(in_orb, rot_angle) result(out_orb)
         ! function to actually apply the rotation to the basis vectors
         integer, intent(in) :: in_orb
@@ -1123,12 +1123,12 @@ contains
 
         ASSERT(associated(lat))
 
-        if (rot_angle == 0.0_dp .or. rot_angle == 360.0_dp) then 
+        if (rot_angle == 0.0_dp .or. rot_angle == 360.0_dp) then
             out_orb = in_orb
             return
         end if
 
-        if (lat%is_k_space()) then 
+        if (lat%is_k_space()) then
             vec = lat%get_k_vec(in_orb)
         else
             vec = lat%get_r_vec(in_orb)

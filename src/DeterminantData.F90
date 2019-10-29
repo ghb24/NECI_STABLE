@@ -108,7 +108,7 @@ contains
                 if (dorder(i) == 0) then
                     j = j + 1
                     comb(j) = i
-                    
+
                     ! Have we reached the last possibility?
                     if (j == 1 .and. i == nopen - nup + 1) then
                         dorder(1) = -1
@@ -147,9 +147,9 @@ contains
         logical :: is_alpha, is_beta
 
         nsites = nbasis/2
-        
+
         do i = 1, nsites
-            beta_ind = 2*i-1 
+            beta_ind = 2*i-1
             alpha_ind = 2*i
             pos = (alpha_ind - 1)/bits_n_int
 

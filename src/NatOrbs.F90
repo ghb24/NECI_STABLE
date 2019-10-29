@@ -9,7 +9,7 @@ module NatOrbsMod
     ! within the given excitation level. Once these eigenvectors have been
     ! obtained, the relevant routines from RotateOrbs are called to transform
     ! the integrals and produce a ROFCIDUMP file in the natural orbital basis.
-    
+
     use Global_utilities
     use Parallel_neci
     use IntegralsData, only: UMAT
@@ -37,11 +37,11 @@ module NatOrbsMod
     integer(TagIntType) :: NatOrbMatTag, EvaluesTag
 
 contains
-    
+
     subroutine FindNatOrbs()
 
         ! Fed into this routine will be the wavefunction and its amplitudes
-        ! within the given excitation level.    
+        ! within the given excitation level.
 
         ! First need to set up the orbital labels and symmetries etc. This is
         ! done slightly differently for spin and spatial and whether or not we
@@ -87,7 +87,7 @@ contains
         ! We then need to put the resulting eigenvectors back into the ordering
         ! we want, and copy these over to CoeffT1.
         call OrderCoeffT1()
-        
+
     end subroutine FindNatOrbs
 
     subroutine SetupNatOrbLabels()
@@ -178,7 +178,7 @@ contains
             end do
 
             ! Sorts LabOrbs according to the order of SymOccOrbs (i.e. in
-            ! terms of symmetry). 
+            ! terms of symmetry).
             if (tSeparateOccVirt) call sort(SymOccOrbs, LabOccOrbs)
 
             ! Same for the virtual.
@@ -213,7 +213,7 @@ contains
             end do
 
             ! Sorts LabOrbs according to the order of SymOccOrbs (i.e. in
-            ! terms of symmetry). 
+            ! terms of symmetry).
             call sort(SymVirtOrbs, LabVirtOrbs)
 
             ! SymLabelList2_rot is then filled with the symmetry ordered
@@ -243,7 +243,7 @@ contains
 
             ! Second fill SymLabelCounts2_rot.
             ! - the first 8 places of SymLabelCounts2_rot(1,:) and
-            !     SymLabelCounts2_rot(2,:) refer to the occupied orbitals 
+            !     SymLabelCounts2_rot(2,:) refer to the occupied orbitals
             ! - and the second 8 to the virtuals.
 
             if (lNoSymmetry) then
@@ -260,8 +260,8 @@ contains
                     SymLabelCounts2_rot(2,17) = NoOcc
                     SymLabelCounts2_rot(2,25) = SpatOrbs-NoOcc
                 end if
-                
-            else 
+
+            else
                 ! Otherwise we run through the occupied orbitals, counting the
                 ! number with each symmetry and noting where in
                 ! SymLabelList2_rot each symmetry block starts.
@@ -304,7 +304,7 @@ contains
                     end if
                 end do
             end if
-     
+
             ! Go through each symmetry group, making sure the orbital pairs
             ! are ordered lowest to highest.
             if (x == 1) then
@@ -352,7 +352,7 @@ contains
 
         if (.not.tSeparateOccVirt) then
             ! Basically we treat all the orbitals as virtuals and set NoOcc
-            ! to zero in each routine. 
+            ! to zero in each routine.
             tRotateVirtOnly = .true.
         end if
 
@@ -391,7 +391,7 @@ contains
         character(*), parameter :: this_routine = "FillOneRDM"
 #endif
 
-        ! Density matrix = D_pq = < Psi | a_q+ a_p | Psi > 
+        ! Density matrix = D_pq = < Psi | a_q+ a_p | Psi >
         !                = sum_ij [ c_i* c_j < D_i | a_q+ a_p | D_j > ]
         ! Where a_p is the annihilation, and a_q+ the creation operators.
         ! In other words, < D_i | a_q+ a_p | D_j > will only be non-zero if
@@ -413,7 +413,7 @@ contains
         ! Depending on the type of reduced density matrix want to:
         ! Run through the determinants with excitation level one less, the same
         ! and one more.
-        
+
         FillOneRDM_Time%timer_name = 'FillOneRDM'
         call set_timer(FillOneRDM_Time, 30)
 
@@ -427,14 +427,14 @@ contains
             MaxExcit = ICILevel
         end if
 
-        ! Run through all determinants D_i, in the final wavefunction, Psi. 
-        ! If this is done by excitation block, we then don't have to check 
+        ! Run through all determinants D_i, in the final wavefunction, Psi.
+        ! If this is done by excitation block, we then don't have to check
         ! the excitation level of the determinant each time.
-        do excit = 0, MaxExcit         
+        do excit = 0, MaxExcit
 
             ! The HF only involves 'occupied' orbitals - these are not required
             ! if only rotating virt.
-            if (tRotateVirtOnly .and. tSeparateOccVirt .and. (excit == 0)) cycle      
+            if (tRotateVirtOnly .and. tSeparateOccVirt .and. (excit == 0)) cycle
 
             ! This next bit is a bit messy because there is no row in
             ! FCIDetIndex for the HF - there is probably a tidier way to
@@ -443,7 +443,7 @@ contains
                 Starti = 1
                 Endi = 1
                 Startj = 1
-                Endj = min((FCIDetIndex(2)-1), Det) ! If i is the HF det, just run over singly excited j. 
+                Endj = min((FCIDetIndex(2)-1), Det) ! If i is the HF det, just run over singly excited j.
             else if (excit == MaxExcit) then
                 Starti = FCIDetIndex(excit)
                 Endi = Det
@@ -481,7 +481,7 @@ contains
 
                     ExcitLevel = FindBitExcitLevel(FCIDets(:,i), FCIDets(:,j),2)
 
-                    ! Need to find the excitation level between D_i and D_j. 
+                    ! Need to find the excitation level between D_i and D_j.
                     ! If this is 1 - go on to add their contributions to the
                     ! OneRDM.
                     if (ExcitLevel == 1) then
@@ -546,7 +546,7 @@ contains
                             ! are not currently restricting i<k or anything.
                         end do
                     end if
-                        
+
                 end do
 
             end do
@@ -598,7 +598,7 @@ contains
 
         write(6,*) 'Filling MP2VDM nat orb matrix'
         call neci_flush(6)
-        
+
         FillMP2VDM_Time%timer_name = 'FillMP2VDM'
         call set_timer(FillMP2VDM_Time,30)
 
@@ -629,7 +629,7 @@ contains
 
                     ! When a and b beta, run over both alpha and beta virtual
                     ! for c, then both alpha and beta virtual for both i and j
-                    ! etc. 
+                    ! etc.
 
                     do y = 1, NoSpinCyc
                         if (y == 1) then
@@ -705,7 +705,7 @@ contains
                                                     end if
                                                 end if
                                                 MP2VDMSum = MP2VDMSum + &
-                                                   (((real(UMAT(UMatInd(a, c, i, j)),dp)) & 
+                                                   (((real(UMAT(UMatInd(a, c, i, j)),dp)) &
                                                    * (2.0_dp*(real(UMAT(UMatInd(b, c, i, j)),dp))))/&
                                                    ( (ARR(i,2)+ARR(j,2)-ARR(a,2)-ARR(c,2)) &
                                                    * (ARR(i,2)+ARR(j,2)-ARR(b,2)-ARR(c,2)) ) )
@@ -765,7 +765,7 @@ contains
         integer :: SymStartInd, NoSymBlock, PrevSym, StartOccVirt, EndOccVirt, Prev, NoOcc
         integer(TagIntType) :: EvaluesSymTag, NOMSymTag, WORK2Tag
         character(len=*), parameter :: t_r = 'DiagNatOrbMat'
- 
+
         DiagNatOrbMat_Time%timer_name = 'DiagNatOrb'
         call set_timer(DiagNatOrbMat_Time, 30)
 
@@ -950,7 +950,7 @@ contains
 
                         ! CAREFUL if eigenvalues are put in ascending order,
                         ! this may not be correct, with the labelling system.
-                        ! Maybe better to just take coefficients and transform 
+                        ! Maybe better to just take coefficients and transform
                         ! TMAT2DRot in transform2elints. A check that comes out
                         ! as diagonal is a check of this routine anyway.
 
@@ -961,7 +961,7 @@ contains
                             end do
                             write(6,*) ''
                         end do
-                 
+
                         ! Directly fill the coefficient matrix with the
                         ! eigenvectors from the diagonalization.
                         do j = 1, NoSymBlock
@@ -1019,7 +1019,7 @@ contains
 
         integer :: x, i, ierr, StartSort, EndSort, NoOcc
         character(len=*), parameter :: t_r = 'OrderCoeffT1'
-        
+
         ! Here, if symmetry is kept, we are going to have to reorder the
         ! eigenvectors according to the size of the eigenvalues, while taking
         ! the orbital labels (and therefore symmetries) with them. This will be
@@ -1028,7 +1028,7 @@ contains
         ! Want to reorder the eigenvalues from largest to smallest, taking the
         ! eigenvectors with them and the symmetry as well. If using spin
         ! orbitals, do this for the alpha spin and then the beta.
- 
+
         OrderCoeff_Time%timer_name = 'OrderCoeff'
         call set_timer(OrderCoeff_Time, 30)
 
@@ -1043,7 +1043,7 @@ contains
                 do i = 1, NoOrbs
                     SymOrbs_rotTemp(i) = int(G1(SymLabelList2_rot(i))%sym%S, 4)
                 end do
-            else 
+            else
                 do i = 1, NoOrbs
                     SymOrbs_rotTemp(i) = int(G1(SymLabelList2_rot(i)*2)%sym%S, 4)
                 end do
@@ -1081,7 +1081,7 @@ contains
                            SymOrbs_rotTemp(startSort:endSort))
 
             end do
-               
+
         else
 
             ! If we are not truncating, the orbitals get put back into their
@@ -1119,8 +1119,8 @@ contains
 
                 call sort (EValues(startSort:endSort), NatOrbMat(startSort:endSort, startSort:endSort), &
                            SymLabelList3_rot(startSort:endSort))
-            end do 
-            
+            end do
+
         end if
 
         call halt_timer(OrderCoeff_Time)
@@ -1143,7 +1143,7 @@ contains
         character(len=5) :: Label
         character(len=20) :: LabelFull
         real(dp) :: OccEnergies(1:NoRotOrbs)
-  
+
         FillCoeff_Time%timer_name = 'FillCoeff'
         call set_timer(FillCoeff_Time, 30)
 
@@ -1186,12 +1186,12 @@ contains
 
             if (tStoreSpinOrbs) then
                 NoRotAlphBet = SpatOrbs - (NoFrozenVirt/2)
-            else 
+            else
                 NoRotAlphBet = NoOrbs - NoFrozenVirt
             end if
 
 
-            if (tStoreSpinOrbs) then                                            
+            if (tStoreSpinOrbs) then
                 ! As we reorder these so that they are truncated, we also need
                 ! to pair up symmetries.
 
@@ -1226,7 +1226,7 @@ contains
                     SymOrbs_rot(i) = SymOrbs_rotTemp(l)
                     OccEnergies(k) = 0.0_dp
                 end do
-                
+
                 ! Need to fill coeffT1 so that it goes alpha beta alpha beta.
                 k = (2*nOccBeta)+1
                 do i = nOccBeta+1, NoRotAlphBet
@@ -1242,7 +1242,7 @@ contains
                     EvaluesTrunc(k) = Evalues(i)
                     k = k+2
                 end do
- 
+
             else
 
                 ! Order occupied in terms of energy again - this makes sure
@@ -1251,7 +1251,7 @@ contains
 
                 ! OccEnergies has the orbital energies as they are ordered
                 ! currently - need to put NatOrbMat into CoeffT1 so that this
-                ! goes from lowest energy to highest. 
+                ! goes from lowest energy to highest.
 
                 do i = 1, NEl/2
                     k = 1
@@ -1303,7 +1303,7 @@ contains
                     write(io1,'(ES20.10,I5)') EvaluesTrunc(i), SymOrbs_rot(i)
                 end do
             end if
-            close(io1) 
+            close(io1)
         else
             io2 = get_free_unit()
             open(io2, file='EVALUES', status='unknown')
@@ -1343,7 +1343,7 @@ contains
         integer :: i, k, a, b, NoOcc, io1, io2
         real(dp) :: EvalueEnergies(1:NoOrbs), OrbEnergies(1:NoOrbs)
         real(dp) :: SumEvalues
-        
+
         io1 = get_free_unit()
         NoOcc = NEl/2 ! Is this correct in all cases?!
 
@@ -1448,7 +1448,7 @@ contains
                     k = 2
                 end if
                 do i = 1+Prev, NoOcc+Prev
-                    ! We are only interested in the diagonal elements.            
+                    ! We are only interested in the diagonal elements.
                     do a = 1, NoOrbs
                         b= SymLabelList2_rot(a)
                         OccEnergies(k) = OccEnergies(k) + (NatOrbMat(a,i)*ARR(b,2)*NatOrbMat(a,i))
@@ -1459,7 +1459,7 @@ contains
         else
             NoOcc = NEl/2
             do i = 1, NoOcc
-                ! We are only interested in the diagonal elements.            
+                ! We are only interested in the diagonal elements.
                 do a = 1, NoOrbs
                     b = SymLabelList2_rot(a)
                     OccEnergies(i) = OccEnergies(i) + (NatOrbMat(a,i)*ARR(2*b,2)*NatOrbMat(a,i))
@@ -1519,7 +1519,7 @@ contains
         call neci_flush(io2)
         close(io2)
         call neci_flush(6)
-        
+
     end subroutine PrintOccTable
 
     subroutine PrintOrbOccs(OrbOccs)

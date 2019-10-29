@@ -8,7 +8,7 @@ module excit_gens_int_weighted
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                           tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps, tGUGA, &
-                          tgen_guga_crude, tGen_guga_weighted, tgen_guga_mixed, & 
+                          tgen_guga_crude, tGen_guga_weighted, tgen_guga_mixed, &
                           t_mixed_hubbard, t_olle_hubbard
 
     use CalcData, only: matele_cutoff, t_matele_cutoff
@@ -34,7 +34,7 @@ module excit_gens_int_weighted
                                     construct_class_counts, &
                                     RandExcitSymLabelProd
     use constants
-    use get_excit, only: make_double, make_single
+    use get_excit, only: make_double, make_single, exciteIlut
     use sort_mod
     use util_mod
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
@@ -69,18 +69,23 @@ contains
 
         integer :: nsing, ndoub, nexcit
 
+#ifdef __WARNING_WORKAROUND
+        call unused(part_type); call unused(exFlag);
+        call unused(store%nel_alpha)
+#endif
+
         ! Count how many singles and doubles there are!
         call CountExcitations3 (nI, 3, nsing, ndoub)
         nexcit = nsing + ndoub
 
-        call gen_excit_hel_local (nI, ilutI, nJ, ilutJ, exFlag, ic, ExcitMat, &
-                                  tParity, pGen, HElGen, store, nexcit)
+        call gen_excit_hel_local (nI, ilutI, nJ, ilutJ, ic, ExcitMat, &
+                                  tParity, pGen, HElGen, nexcit)
 
     end subroutine
 
 
-    subroutine gen_excit_hel_local (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                    ExcitMat, tParity, pGen, HElGen, store, &
+    subroutine gen_excit_hel_local (nI, ilutI, nJ, ilutJ, ic, &
+                                    ExcitMat, tParity, pGen, HElGen, &
                                     nexcit)
 
         ! A really laborious, slow, explicit and brute force method to
@@ -88,13 +93,12 @@ contains
         ! strength. This demonstrates the maximum possible value of tau that
         ! can be used.
 
-        integer, intent(in) :: nI(nel), exFlag, nexcit
+        integer, intent(in) :: nI(nel), nexcit
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
-        type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
 
@@ -114,7 +118,7 @@ contains
         ex = 0
         call GenExcitations3(nI, ilutI, nJ, flag, ex, par, found_all, &
                              .false.)
-        if (tGUGA) then 
+        if (tGUGA) then
             call stop_all(this_routine, "modify get_helement for GUGA")
         end if
         do while (.not. found_all)
@@ -184,6 +188,10 @@ contains
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
         integer :: orb
         real(dp) :: pgen2
+
+#ifdef __WARNING_WORKAROUND
+        call unused(exFlag); call unused(part_type)
+#endif
 
         HElGen = HEl_zero
 
@@ -550,8 +558,8 @@ contains
                 if (.not. t_mixed_hubbard) then
                     do j = 1, nel
                         if (nI(j) == src) cycle
-                        if (tgen_guga_crude .or. tgen_guga_mixed) then 
-                            ! for guga we are not sure about the sign.. 
+                        if (tgen_guga_crude .or. tgen_guga_mixed) then
+                            ! for guga we are not sure about the sign..
                             hel = hel + abs(get_umat_el (id_src, n_id(j), id, n_id(j)))
                             hel = hel + abs(get_umat_el (id_src, n_id(j), n_id(j), id))
                         else
@@ -564,7 +572,7 @@ contains
                     end do
                 end if
 
-                if (tgen_guga_crude .or. tgen_guga_mixed) then 
+                if (tgen_guga_crude .or. tgen_guga_mixed) then
                     hel = hel + abs(GetTMATEl(src, orb))
                 else
                     hel = hel + GetTMATEl(src, orb)
@@ -651,7 +659,7 @@ contains
 
         ! If there are no excitation from this electron pair, then we should
         ! go no further.
-        if (cc_tot == 0) then
+        if (near_zero(cc_tot)) then
             nJ(1) = 0
             return
         end if
@@ -700,14 +708,8 @@ contains
         ! And generate the actual excitation.
         call make_double (nI, nJ, elecs(1), elecs(2), orbs(1), orbs(2), &
                           ex, par)
-        ilutJ = ilutI
-        clr_orb (ilutJ, src(1))
-        clr_orb (ilutJ, src(2))
-        set_orb (ilutJ, orbs(1))
-        set_orb (ilutJ, orbs(2))
-
+        ilutJ = exciteIlut(ilutI,src,orbs)
     end subroutine
-
 
     subroutine pick_biased_elecs (nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
 
@@ -889,13 +891,13 @@ contains
                 contrib = 1.0_dp
             end if
 
-        else if (tgen_guga_crude .or. tgen_guga_mixed) then 
+        else if (tgen_guga_crude .or. tgen_guga_mixed) then
 
             inda = gtID(orba)
             indb = gtID(orbb)
 
-            if (tGen_guga_weighted) then 
-                if (orbb < 0) then 
+            if (tGen_guga_weighted) then
+                if (orbb < 0) then
                     contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
 
                 else
@@ -922,11 +924,11 @@ contains
                 ! just to be save do it uniformly here..
                 contrib = 1.0_dp
 
-            else if (t_iiaa) then 
-                
+            else if (t_iiaa) then
+
                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda)))
 
-            else 
+            else
 
                 contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
 
@@ -977,13 +979,13 @@ contains
                 ! Select first orbital linearly.
                 contrib = 1.0_dp
             end if
-        else if (tgen_guga_crude .or. tgen_guga_mixed) then 
+        else if (tgen_guga_crude .or. tgen_guga_mixed) then
 
             inda = gtID(orba)
             indb = gtID(orbb)
 
-            if (tGen_guga_weighted) then 
-                if (orbb < 0) then 
+            if (tGen_guga_weighted) then
+                if (orbb < 0) then
                     contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
 
                 else
@@ -1211,6 +1213,11 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
+#ifdef __WARNING_WORKAROUND
+        call unused(exFlag); call unused(part_type);
+        call unused(store%nel_alpha)
+#endif
+
         HElGen = HEl_zero
         if (genrand_real2_dSFMT() < pSingles) then
 
@@ -1337,7 +1344,7 @@ contains
 
             ! And account for the case where this is not a connected excitation
             ! actually this comparison with 0 should be removed..
-            if (cum_sum == 0) then
+            if (near_zero(cum_sum)) then
 !             if (cum_sum < EPS) then
                 pgen = 0
             else
@@ -1463,7 +1470,7 @@ contains
         end do
 
         ! Select a particulor electron, or abort
-        if (cum_sum == 0) then
+        if (near_zero(cum_sum)) then
 !         if (cum_sum < EPS) then
             elec = 0
         else
@@ -1546,7 +1553,7 @@ contains
         end do
 
         ! If there are no choices, then we have to abort...
-        if (cum_val == 0) then
+        if (near_zero(cum_val)) then
             nJ(1) = 0
             return
         end if
@@ -1773,7 +1780,7 @@ contains
 !         call CountExcitations3 (src_det, 3, nsing, ndoub)
 !         nexcit = nsing + ndoub
 !         allocate(det_list(0:NIfTot, nexcit))
-! 
+!
 !         ! Loop through all of the possible excitations
 !         ndet = 0
 !         found_all = .false.
@@ -1789,13 +1796,13 @@ contains
 !         do while (.not. found_all)
 !             ndet = ndet + 1
 !             call EncodeBitDet (det, det_list(:,ndet))
-! 
+!
 !             call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
 !                                   found_all, .false.)
 !         end do
 !         if (ndet /= nexcit) &
 !             call stop_all(this_routine,"Incorrect number of excitations found")
-! 
+!
 !         ! Sort the dets, so they are easy to find by binary searching
 !         call sort(det_list, ilut_lt, ilut_gt)
 
@@ -1825,7 +1832,7 @@ contains
 
             call EncodeBitDet (det, tgt_ilut)
 
-            helgen = get_helement(src_det, det, ic, ex, par) 
+            helgen = get_helement(src_det, det, ic, ex, par)
 
             if (abs(helgen) < 1.0e-6_dp) cycle
 
@@ -2147,8 +2154,8 @@ contains
     end function
 
     subroutine calc_all_excitations(ilut, non_zero_list, n_non_zero)
-        ! routine which calculates all the excitations for a given 
-        ! determinant.. have to move that to a different file later on.. 
+        ! routine which calculates all the excitations for a given
+        ! determinant.. have to move that to a different file later on..
         ! does not fit in here!
         use bit_reps, only: decode_bit_det
         use GenRandSymExcitNUMod, only: init_excit_gen_store
@@ -2156,7 +2163,7 @@ contains
         use Determinants, only: write_det
         use DetBitOps, only: EncodeBitDet
         use sort_mod, only: sort
-        
+
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer(n_int), intent(out), pointer :: non_zero_list(:,:)
         integer, intent(out) :: n_non_zero
@@ -2196,7 +2203,7 @@ contains
         call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
                               .false.)
 
-        if (tGUGA) then 
+        if (tGUGA) then
             call stop_all(this_routine, "modify get_helement for GUGA")
         end if
 
@@ -2214,25 +2221,25 @@ contains
         if (ndet /= nexcit) &
             call stop_all(this_routine,"Incorrect number of excitations found")
 
-        ! now i should loop over the hel_list and check the actual number 
-        ! of non-zero excitations 
+        ! now i should loop over the hel_list and check the actual number
+        ! of non-zero excitations
         allocate(t_non_zero(nexcit))
         t_non_zero = .false.
 
         n_non_zero = 0
 
-        do i = 1, ndet 
+        do i = 1, ndet
             if (abs(hel_list(i)) > 1.0e-6) then
-                n_non_zero = n_non_zero + 1 
-                t_non_zero(i) = .true. 
-            end if 
+                n_non_zero = n_non_zero + 1
+                t_non_zero(i) = .true.
+            end if
         end do
 
         allocate(non_zero_list(0:niftot,n_non_zero))
 
         cnt = 0
 
-        do i = 1, ndet 
+        do i = 1, ndet
             if (t_non_zero(i)) then
                 cnt = cnt + 1
                 non_zero_list(:,cnt) = det_list(:,i)
@@ -2243,11 +2250,11 @@ contains
         deallocate(t_non_zero)
         deallocate(hel_list)
 
-        ! now i have a list of all non-zero excitations.. 
+        ! now i have a list of all non-zero excitations..
 
-        ! for now this creates all excitation, independent if the matrix 
-        ! element is actually zero.. 
-        ! so also check matrix element! 
+        ! for now this creates all excitation, independent if the matrix
+        ! element is actually zero..
+        ! so also check matrix element!
 
         ! Sort the dets, so they are easy to find by binary searching
         call sort(non_zero_list, ilut_lt, ilut_gt)

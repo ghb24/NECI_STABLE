@@ -89,9 +89,6 @@ module LoggingData
                tDumpHamilOverlap
     logical :: tFCIMCStats2
 
-    ! if we write out info on the unocc, but stored dets
-    logical :: tWriteUnocc
-    
     !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)
     logical :: tForceCauchySchwarz
     ! If we'd like to rotate the NOs again so as to obtain broken symmetry NOs
@@ -109,11 +106,8 @@ module LoggingData
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
-
     ! output umat also in the case of the momentum space hubbard
     logical :: t_umat_output = .false.
-
-    logical :: tOldRDMs = .false.
 
     logical :: tTransitionRDMs = .false.
 
@@ -130,8 +124,8 @@ module LoggingData
     ! The name of the integral file for each of the property to be estimated
     character(100), allocatable :: EstPropFile(:)
 
-    ! double occupancy measurements: 
-    ! like rdms, as it is a bit similar, access the double occupancy 
+    ! double occupancy measurements:
+    ! like rdms, as it is a bit similar, access the double occupancy
     ! measurement in the logging section!
     logical :: t_calc_double_occ = .false.
     ! also use a optional input parameter to start averaging the

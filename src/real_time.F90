@@ -35,7 +35,7 @@ module real_time
                         tChangeProjEDet, DiagSft, nmcyc, tau, InitWalkers, &
                         s_global_start, StepsSft, semistoch_shift_iter
     use FciMCData, only: pops_pert, walker_time, iter, ValidSpawnedList, spawnedParts, &
-                         spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot,  & 
+                         spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot,  &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
                          iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
@@ -83,113 +83,113 @@ module real_time
 ! main module file for the real-time implementation of the FCIQMC algorithm
 ! created on 04.02.2016 by Werner Dobrautz
 
-! first i have to do a brainstorm on how to implement Ole's idea of the 
-! real time version and also discuss with Ali, Simon and George to avoid 
+! first i have to do a brainstorm on how to implement Ole's idea of the
+! real time version and also discuss with Ali, Simon and George to avoid
 ! unnecessary effort
 
-! implementation idea: 
+! implementation idea:
 ! sample the real time Schroedinger equation by integrating:
-! i d/dt |Psi(t)> = (H - E0 - ie)|Psi(t)> 
+! i d/dt |Psi(t)> = (H - E0 - ie)|Psi(t)>
 
-! with the 2nd order runge-kutta method: 
+! with the 2nd order runge-kutta method:
 ! d/dt y(t) = f(t,y)
 
 ! -> y(n+1) = y(n) + h f(n dt, y(n))
 ! t = n dt
 ! y(n+1) = y(n) + k2
-! k1 = dt f(n dt, y(n)) 
-! k2 = dt f(n + dt/2, y(n) + k1/2) 
+! k1 = dt f(n dt, y(n))
+! k2 = dt f(n + dt/2, y(n) + k1/2)
 
-! what does that mean in the dynamics? 
+! what does that mean in the dynamics?
 
-! from brainstorming on the 2nd order runge kutta implementation of the 
-! original imaginary time FCIQMC algorithm, a few clarifications surfaced: 
+! from brainstorming on the 2nd order runge kutta implementation of the
+! original imaginary time FCIQMC algorithm, a few clarifications surfaced:
 
 ! the RK2 needs the application of the square of the Hamiltonian essentially
-! this implies huge changes to the underlying machinery in the current 
+! this implies huge changes to the underlying machinery in the current
 ! FCIQMC implementation, which often relies on the type of exciations
-! (single, doubles) 
-! since the intermediatly created list y(n) + k1 / 2 already contains 
-! single and double excitations, spawning from this list, increases the 
-! possible excitations in the final y(n) + k2 -> y(n+1) to 
+! (single, doubles)
+! since the intermediatly created list y(n) + k1 / 2 already contains
+! single and double excitations, spawning from this list, increases the
+! possible excitations in the final y(n) + k2 -> y(n+1) to
 ! singles, double, triples and quadrupels
 
-! but the essential goal in the real-time code will be to obtain the 
-! overlap: 
-! <y(0)|y(t)> 
+! but the essential goal in the real-time code will be to obtain the
+! overlap:
+! <y(0)|y(t)>
 
-! to obtain the spectral information of the system up to a certain time 
+! to obtain the spectral information of the system up to a certain time
 ! t_max
 
-! i should devise an action plan to optimally implement this method 
+! i should devise an action plan to optimally implement this method
 
-! first of all i definetly need to use kneci to be able to handle the 
+! first of all i definetly need to use kneci to be able to handle the
 ! imaginary and real parts of the equation
-! dy(t)/dt = -i(H - E0 -ie)y(t) 
+! dy(t)/dt = -i(H - E0 -ie)y(t)
 
-! then, since Ole showed already, and what i already know, back from the 
-! work in Graz, a averaging over multiple runs, starting from different 
-! stochastic representations of the converged ground state wave function is 
-! necessary! 
+! then, since Ole showed already, and what i already know, back from the
+! work in Graz, a averaging over multiple runs, starting from different
+! stochastic representations of the converged ground state wave function is
+! necessary!
 
 ! so probably a multiple kneci version, as developed by Dongxia is needed
 
 ! so whats the ideas?
 
-! we have to start from a converged imaginary-time ground state wave-function! 
+! we have to start from a converged imaginary-time ground state wave-function!
 ! a way could be to use a printed result from a previous calculationm through
-! a popsfile. 
-! but since we want average over multiple calculations, this would need 
+! a popsfile.
+! but since we want average over multiple calculations, this would need
 ! unnecessary amount of storage, I/O etc.
-! but we should definetly be able to have this option! in the case the 
-! imaginary-time calculation is very involved and already takes a lot of time 
-! so maybe be able to read in #n popsfiles, printed at different times of 
-! the imag-time calculation and start that amount of mkneci processes, which 
-! do the real-time calculation then. 
+! but we should definetly be able to have this option! in the case the
+! imaginary-time calculation is very involved and already takes a lot of time
+! so maybe be able to read in #n popsfiles, printed at different times of
+! the imag-time calculation and start that amount of mkneci processes, which
+! do the real-time calculation then.
 
-! or run a "normal" imag-time run and then after convergence, start the 
-! #n real-time calculations from diffferent starting points, as indicated by 
+! or run a "normal" imag-time run and then after convergence, start the
+! #n real-time calculations from diffferent starting points, as indicated by
 ! Ole in this unterlagen
-! or start with running multiple #n mneci runs with different seeds for the 
-! random number generator, and then at the same time in equilibration, start 
+! or start with running multiple #n mneci runs with different seeds for the
+! random number generator, and then at the same time in equilibration, start
 ! the real-time calculation
 
-! this would imply a completly seperated code-basis in which the real-time 
-! implementation is performed. which probably is a good idea anyway to keep 
-! the code clean. since we need totally different information and stats 
+! this would imply a completly seperated code-basis in which the real-time
+! implementation is performed. which probably is a good idea anyway to keep
+! the code clean. since we need totally different information and stats
 ! anyway..
 
-! at each time step, we could then average <y(0)|y(t)> from the different 
+! at each time step, we could then average <y(0)|y(t)> from the different
 ! mkneci processes and just store one quantity and additional statistical info
 
-! back in Graz i also came to the conclusion, that calculating the overlap 
+! back in Graz i also came to the conclusion, that calculating the overlap
 ! between different runs was of great help -> we could do that here too
 
-! on the implementation of the new dynamics: 
+! on the implementation of the new dynamics:
 ! the underlying differential equation changes to (for the greater GF)
-! dy(t)/dt = -i(H - E0 - ie)y(t) 
-! this means 
-! 1) we need both real and imaginary walkers 
-! 2) when using the 2nd order RK method: 
+! dy(t)/dt = -i(H - E0 - ie)y(t)
+! this means
+! 1) we need both real and imaginary walkers
+! 2) when using the 2nd order RK method:
 !       y(n+1) = y(n) + k2(n)
 !       k1(n) = -i dt (H - E0 - ie)y(n)
-!       k2(n) = -i dt (H - E0 - ie)(y(n) + k1 / 2) 
-!       
-!       we could implement that by creating an intermediate determinant 
+!       k2(n) = -i dt (H - E0 - ie)(y(n) + k1 / 2)
+!
+!       we could implement that by creating an intermediate determinant
 !       list obtained by the spawn(+annihilation) and death/cloning step
-!       from y(n) + k1 / 2 
-!       and based upon the spawns from that list we can combine that to the 
+!       from y(n) + k1 / 2
+!       and based upon the spawns from that list we can combine that to the
 !       new y(n+1) = y(n) + k2 for the list at the next time-step
-! 
+!
 !   or we can work out the final recursion formula:
 !       y(n+1) = [(1 - e dt)(1 - i dt H') - dt^2 / 2 H'^2] y(n) (see doc.)
 !
 !   and do the spawning/cloning/death etc. directly based on this equation
-!   lets see and talk to ali/ole about that 
+!   lets see and talk to ali/ole about that
 
-! so the workflow of real-time propagations will be: 
+! so the workflow of real-time propagations will be:
 
-! 1) run a normal imaginary time propagation until convergence and print out 
+! 1) run a normal imaginary time propagation until convergence and print out
 !       #n popsfiles as the groundstate information
 
 ! 2) terminate the imaginary run and start the real-time propagation with #n
@@ -197,12 +197,12 @@ module real_time
 
 ! 3) specify a set of specific orbitals j, on which either a^+_j or a_j acts
 !       with possible symmetry constraints also, or specify k-space calculation
-!       like for the Hubbard or UEG model. 
-!       for each j or k also the coresponding <0|a_i/a^+_i or multiple if 
-!       possible act, to calculate the overlaps. applying multiple <0|a_i is 
+!       like for the Hubbard or UEG model.
+!       for each j or k also the coresponding <0|a_i/a^+_i or multiple if
+!       possible act, to calculate the overlaps. applying multiple <0|a_i is
 !       cheap, so all of them should be done. (for k-space k'=k due to symmetry)
 
-! 4) do the actual real time propagation! 
+! 4) do the actual real time propagation!
 
 contains
 
@@ -211,13 +211,13 @@ contains
     type(fcimc_iter_data), intent(in) :: iter_data
     character(len=*), intent(in) :: message
     real(dp) :: growth(lenof_sign)
-    
+
     growth = iter_data%nborn &
          - iter_data%ndied - iter_data%nannihil &
          - iter_data%naborted - iter_data%nremoved
-    
+
     print *, message, "Iter data growth:", growth
-    
+
   end subroutine check_walker_number
 
 
@@ -245,24 +245,24 @@ contains
         write(iout,*) " ========================================================== "
 
         ! call the real-time setup routine and all the initialization
-       
+
         call init_real_time_calc_single()
 
-        ! counts the number of iterations in Runge-Kutta when creating 
+        ! counts the number of iterations in Runge-Kutta when creating
         ! initial states for verlet
         iterRK = 0
-        
-        write(iout,*)  " Real-time FCIQMC initialized! "
-        ! rewrite the major original neci core loop here and adapt it to 
-        ! the new necessary real-time stuff
-        ! check nicks kp code, to have a guideline in how to go into that! 
 
-        ! as a first test if everything is set up correctly calculate the 
+        write(iout,*)  " Real-time FCIQMC initialized! "
+        ! rewrite the major original neci core loop here and adapt it to
+        ! the new necessary real-time stuff
+        ! check nicks kp code, to have a guideline in how to go into that!
+
+        ! as a first test if everything is set up correctly calculate the
         ! initial overlap for the same indiced of creation and annihilation
-        ! operators <y(0)|a^+_i a_i |y(0)> = n_i 
-        ! and       <y(0)|a_i a^+_i |y(0)> = 1 - n_i 
+        ! operators <y(0)|a^+_i a_i |y(0)> = n_i
+        ! and       <y(0)|a_i a^+_i |y(0)> = 1 - n_i
         ! if normed correctly
-        ! in the quantity perturbed_ground the left hand side and in 
+        ! in the quantity perturbed_ground the left hand side and in
         ! CurrentDets the right hand side should be stored ..
         ! should write a routine which calulated the overlap of CurrentDets
         ! with the perturbed groundstate and stores it in a pre-allocated list
@@ -292,15 +292,15 @@ contains
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
 
-            ! the timing stuff has to be done a bit differently in the 
-            ! real-time fciqmc, since there are 2 spawing and annihilation 
+            ! the timing stuff has to be done a bit differently in the
+            ! real-time fciqmc, since there are 2 spawing and annihilation
             ! steps involved...
-            
+
             call set_timer(walker_time)
 
             if(iProcIndex == root) s_start = neci_etime(tstart)
 
-            ! the iter data is used in updating the shift, so it has to be reset before 
+            ! the iter data is used in updating the shift, so it has to be reset before
             ! output
             ! this is a bad implementation : iter should be local
 
@@ -309,7 +309,7 @@ contains
 
             ! update the overlap each time
             ! rmneci_setup: computation of instantaneous projected norm is shifted to here
-            if(mod(iter, StepsSft) == 0) then 
+            if(mod(iter, StepsSft) == 0) then
                ! current overlap is now the one after iteration
                ! update the normalization due to the shift
 
@@ -352,10 +352,10 @@ contains
                call expand_corespace_buf(core_space_buf, csbuf_size)
                write(6,*) "New corespace buffer size", csbuf_size
             endif
-            
-            ! perform the actual iteration(excitation generation etc.) 
+
+            ! perform the actual iteration(excitation generation etc.)
             if(iterRK .eq. 0) iter = iter + 1
-            if(tVerletScheme .and. .not. tVerletSweep) iterRK = iterRK + 1            
+            if(tVerletScheme .and. .not. tVerletSweep) iterRK = iterRK + 1
             if(tVerletSweep) then
                call perform_verlet_iteration(err)
             else
@@ -370,7 +370,7 @@ contains
             if(Iter == allDoubsInitsDelay + 1 .and. nRefs > 1 .and. tDelayGetRefs) &
                  call setup_reference_space(.true.)
 
-            if(iProcIndex.eq.root) then 
+            if(iProcIndex.eq.root) then
                s_end = neci_etime(tend)
                totalTime = real(s_end - s_global_start, dp)
             endif
@@ -405,8 +405,8 @@ contains
         end do fciqmc_loop
 
         call PrintHighPops()
-        
-        if (tPopsFile) then 
+
+        if (tPopsFile) then
            ! as both the elapsed real-time and the elapsed imaginary time are required
            ! for dynamic alpha, both are stored. That is, the total elapsed real time
            ! is now stored instead of tau. If no tau is supplied upon read-in of the
@@ -428,10 +428,10 @@ contains
         if(tLogTrajectory) call closeTauContourFile()
 
         if(tWriteCoreEnd) call write_most_pop_core_at_end(write_end_core_size)
-        
+
         ! GENERATE-CORESPACE has precendence over WRITE-CORE-END
         if(tGenerateCoreSpace) call get_corespace_from_buf(core_space_buf, csbuf_size)
-        
+
         deallocate(norm_buf, stat = i)
         deallocate(overlap_buf, stat = i)
 
@@ -441,41 +441,41 @@ contains
     end subroutine perform_real_time_fciqmc
 
     subroutine update_real_time_iteration()
-        ! routine to update certain global variables each loop iteration in 
-        ! the real-time fciqmc 
-        ! from the 2 distince spawn/death/cloning info stored in the 
-        ! two iter_data vars, i have to combine the general updated 
+        ! routine to update certain global variables each loop iteration in
+        ! the real-time fciqmc
+        ! from the 2 distince spawn/death/cloning info stored in the
+        ! two iter_data vars, i have to combine the general updated
         ! statistics for the actual time step
       implicit none
         character(*), parameter :: this_routine = "update_real_time_iteration"
         integer :: run
 
-        ! how to combine those 2? 
-        ! in iter_data_fciqmc the info on the born, died, aborted, removed and 
+        ! how to combine those 2?
+        ! in iter_data_fciqmc the info on the born, died, aborted, removed and
         ! annihilated particles of the first spawn and y(n) + k1/2 step is stored
 
-        ! in the second_spawn_iter_data, the number of born particles in the 
-        ! spawing step is stored first.. 
-        ! note: in the create_particle routine the global variable 
-        ! acceptances gets updated, and i essentially update that 
-        ! quantity twice when calling it in the first and second spawn 
-        ! loop -> i think i have to store 2 of those variables and 
-        ! update and reset both of them seperately to keep track of the 
+        ! in the second_spawn_iter_data, the number of born particles in the
+        ! spawing step is stored first..
+        ! note: in the create_particle routine the global variable
+        ! acceptances gets updated, and i essentially update that
+        ! quantity twice when calling it in the first and second spawn
+        ! loop -> i think i have to store 2 of those variables and
+        ! update and reset both of them seperately to keep track of the
         ! statistics correctly
-        ! and the NoBorn, NoDied and similar variables also get used in the 
+        ! and the NoBorn, NoDied and similar variables also get used in the
         ! statistics about the simulation.. maybe i need to adjust them too
         ! so take the 2 RK loops into account
-        ! do i want to use the new_shift_wrapper here? .. 
-        ! no i think i just want to combine the important infos from both the 
-        ! iter_datas so to get the correct and valid info for the full 
-        ! time-step ... hm.. 
+        ! do i want to use the new_shift_wrapper here? ..
+        ! no i think i just want to combine the important infos from both the
+        ! iter_datas so to get the correct and valid info for the full
+        ! time-step ... hm..
 
         ! do a correct combination of the essential parts of the new_shift_wrapper
-        ! in the end i could just use the calc_new_shift_wrapper.. 
+        ! in the end i could just use the calc_new_shift_wrapper..
 
         ! still have to do more combination of necessary data..
 
-        ! combine log_real_time into this routine too! 
+        ! combine log_real_time into this routine too!
         ! get the norm of the state
 
         if(tReadTrajectory) call get_current_alpha_from_cache
@@ -498,22 +498,22 @@ contains
            end if
            ! and do not forget to communicate the decision
            call MPIBcast(tSinglePartPhase)
-        end if     
+        end if
 
         call rotate_time()
     end subroutine update_real_time_iteration
 
     subroutine log_real_time_iteration()
-        ! routine to log all the interesting quantities in the real-time 
-        ! fciqmc 
-        ! have to figure out what i want to have an output of.. and then 
+        ! routine to log all the interesting quantities in the real-time
+        ! fciqmc
+        ! have to figure out what i want to have an output of.. and then
         ! print that to a FCIMCstats file!
         character(*), parameter :: this_routine = "log_real_time_iteration"
 
     end subroutine log_real_time_iteration
 
     subroutine check_real_time_iteration()
-        ! routine to check if somthing wrong happened during the main 
+        ! routine to check if somthing wrong happened during the main
         ! real-time fciqmc loop or the external CHANGEVARS utility does smth
         character(*), parameter :: this_routine = "check_real_time_iteration"
         logical :: tSingBiasChange, tWritePopsFound, tStartedFromCoreGround
@@ -537,7 +537,7 @@ contains
     end subroutine check_real_time_iteration
 
     subroutine init_real_time_iteration(iter_data, iter_data2)
-        ! routine to reinitialize all the necessary variables and pointers 
+        ! routine to reinitialize all the necessary variables and pointers
         ! for a sucessful real-time fciqmc iteration
       ! RT_M_Merge: Added dummy argument for rezero_iter_stats_each_iter
       use rdm_data, only: rdm_definitions_t
@@ -548,13 +548,13 @@ contains
 
         ! reuse parts of nicks routine and add additional real-time fciqmc
         ! specific quantities
-        
+
         ! Reset positions to spawn into in the spawning array.
         ValidSpawnedList = InitialSpawnedSlots
 
         ! Reset the array which holds empty slots in CurrentDets.
-        ! hm, where is the iEndFreeSlot var. set? 
-        ! well i guess it uses the value from the last iteration and then 
+        ! hm, where is the iEndFreeSlot var. set?
+        ! well i guess it uses the value from the last iteration and then
         ! gets reset..
         FreeSlot(1:iEndFreeSlot) = 0
         iStartFreeSlot = 1
@@ -563,9 +563,9 @@ contains
         temp_iendfreeslot = 0
 
         ! also reset the temporary variables
-        ! this probably has not to be done, since at the end of the first 
+        ! this probably has not to be done, since at the end of the first
         ! spawn i set it to the freeslot array anyway..
-        ! with changed temp_ var. usage i have to reset them! 
+        ! with changed temp_ var. usage i have to reset them!
 
         ! Index for counting deterministic states.
 !         n_determ_states = 1
@@ -581,29 +581,29 @@ contains
             call rezero_iter_stats_each_iter(iter_data2, dummy)
         end if
 
-        ! additionaly i have to copy the CurrentDets array and all the 
-        ! associated pointers and hashtable related stuff to the 
-        ! temporary 2nd list 
-        call save_current_dets() 
+        ! additionaly i have to copy the CurrentDets array and all the
+        ! associated pointers and hashtable related stuff to the
+        ! temporary 2nd list
+        call save_current_dets()
         call update_elapsed_time()
     end subroutine init_real_time_iteration
 
 
     subroutine second_real_time_spawn(err)
         ! routine for the second spawning step in the 2nd order RK method
-        ! to create the k2 spawning list. An important change: 
+        ! to create the k2 spawning list. An important change:
         ! this "spawning" list also has to contain the diagonal death/cloning
-        ! step influence to combine it with the original y(n) 
+        ! step influence to combine it with the original y(n)
 !         integer, intent(inout) :: n_determ_states
       integer, intent(out) :: err
         character(*), parameter :: this_routine = "second_real_time_spawn"
 
         ! mimic the most of this routine to the already written first
-        ! spawning step, but with a different death step and without the 
-        ! annihilation step at the end! 
+        ! spawning step, but with a different death step and without the
+        ! annihilation step at the end!
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
                    ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
-                   ex_level_to_hf 
+                   ex_level_to_hf
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
                     unused_sign(lenof_sign), unused_rdm_real, diag_sign(lenof_sign)
@@ -619,7 +619,7 @@ contains
         determ_index = 1
         ! prefactor for unbiasing if the number of spawns is cut off
         prefactor = 1.0_dp
-        ! use part of nicks code, and remove the parts, that dont matter 
+        ! use part of nicks code, and remove the parts, that dont matter
         do idet = 1, int(TotWalkers, sizeof_int)
 
             parent_flags = 0_n_int
@@ -641,8 +641,8 @@ contains
             endif
 
             tParentIsDeterm = check_determ_flag(CurrentDets(:,idet))
-            tParentUnoccupied = IsUnoccDet(parent_sign)            
-            
+            tParentUnoccupied = IsUnoccDet(parent_sign)
+
             if(tParentIsDeterm) then
                indices_of_determ_states(determ_index) = idet
                partial_determ_vecs(:,determ_index) = parent_sign
@@ -657,7 +657,7 @@ contains
             ! actually dont need to update this here since nothing gets merged
             ! at the end.. only k2 gets created
             if (tParentUnoccupied) then
-               ! this is unnecessary in the end, the merge is done 
+               ! this is unnecessary in the end, the merge is done
                ! with the original ensemble, with the original FreeSlots
                ! iEndFreeSlot = iEndFreeSlot + 1
                ! FreeSlot(iEndFreeSlot) = idet
@@ -667,7 +667,7 @@ contains
             parent_hdiag = det_diagH(idet)
 
 
-            ! UPDATE: call this routine anyway to update info on noathf 
+            ! UPDATE: call this routine anyway to update info on noathf
             ! and noatdoubs, for the intermediate step
             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, CurrentDets(:,idet), &
                               parent_hdiag, 1.0_dp, tPairedReplicas, idet)
@@ -680,12 +680,12 @@ contains
 
             ! If this condition is not met (if all electrons have spin up or all have spin down)
             ! then there will be no determinants to spawn to, so don't attempt spawning.
-            ! thats a really specific condition.. shouldnt be checked each 
+            ! thats a really specific condition.. shouldnt be checked each
             ! cycle.. since this is only input dependent..
             if(.not. tGZero) then ! skip this if we only want the corespace-evolution
                do ireplica = 1, lenof_sign
 
-                  call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
+                  call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
                   !call merge_spawn(nspawn,prefactor)
                   do ispawn = 1, nspawn
 
@@ -734,17 +734,17 @@ contains
             ! If this is a core-space determinant then the death step is done in
             ! determ_projection.
             if (.not. tParentIsDeterm) then
-                ! essentially have to treat the diagonal clone/death step like 
+                ! essentially have to treat the diagonal clone/death step like
                 ! a spawning step and store the result into the spawned array..
 !                 call walker_death_spawn ()!iter_data_fciqmc, nI_parent,  &
 !                     ilut_parent, parent_hdiag, parent_sign, idet, ex_level_to_ref)
 
                 ! also not quite sure how to do the child_stats here ...
                 ! or in general for now in the rt-fciqmc
-                ! have to write all new book-keeping routines i guess.. 
-                ! i also have to change the sign convention here, since in 
-                ! the annihilation(and in the spawing routine above) the 
-                ! particles get merged with a + instead of the - in the 
+                ! have to write all new book-keeping routines i guess..
+                ! i also have to change the sign convention here, since in
+                ! the annihilation(and in the spawing routine above) the
+                ! particles get merged with a + instead of the - in the
                 ! original death routine for a "normal" death
                 diag_sign = -attempt_die_realtime(parent_hdiag, &
                     parent_sign, ex_level_to_ref)
@@ -755,17 +755,17 @@ contains
 
             end if
 
-        end do ! Over all determinants. 
+        end do ! Over all determinants.
 
-        ! the deterministic time evoulution is performed here according to the 
+        ! the deterministic time evoulution is performed here according to the
         ! RK scheme (annihilation is done separately as deterministic_annihilation)
 
-        if (tSemiStochastic) call real_time_determ_projection() 
+        if (tSemiStochastic) call real_time_determ_projection()
 
     end subroutine second_real_time_spawn
 
     subroutine first_real_time_spawn(err)
-        ! routine which first loops over the CurrentDets array and creates the 
+        ! routine which first loops over the CurrentDets array and creates the
         ! first spawning list k1 and combines it to y(n) + k1/2
 !         integer, intent(inout) :: n_determ_states
       implicit none
@@ -784,7 +784,7 @@ contains
 
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
-        ! use part of nicks code, and remove the parts, that dont matter 
+        ! use part of nicks code, and remove the parts, that dont matter
         prefactor = 1.0_dp
         determ_index = 1
 
@@ -841,7 +841,7 @@ contains
             ! leave it for now.. and figure out later..
             call SumEContrib (nI_parent, ex_level_to_ref, parent_sign, CurrentDets(:,idet), &
                                parent_hdiag, 1.0_dp, tPairedReplicas, idet)
-            
+
             ! If we're on the Hartree-Fock, and all singles and
             ! doubles are in the core space, then there will be
             ! no stochastic spawning from this determinant, so
@@ -854,14 +854,14 @@ contains
 !                 nOccAlpha = (nel+ms_parent)/2
 !                 nOccBeta = (nel-ms_parent)/2
 !             end if
-! 
+!
             ! If this condition is not met (if all electrons have spin up or all have spin down)
             ! then there will be no determinants to spawn to, so don't attempt spawning.
-            ! thats a really specific condition.. shouldnt be checked each 
+            ! thats a really specific condition.. shouldnt be checked each
             ! cycle.. since this is only input dependent..
             do ireplica = 1, lenof_sign
 
-                call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
+                call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
                 !call merge_spawn(nspawn,prefactor)
                 do ispawn = 1, nspawn
 
@@ -885,7 +885,7 @@ contains
 
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                            ex_level_to_ref, ireplica, unused_sign, & 
+                                            ex_level_to_ref, ireplica, unused_sign, &
                                             unused_rdm_real, unused_fac)
                         child_sign = child_sign*prefactor
                     else
@@ -914,11 +914,11 @@ contains
             ! If this is a core-space determinant then the death step is done in
             ! determ_projection.
 
-            ! in the 2nd RK loop of the real-time fciqmc the death step 
+            ! in the 2nd RK loop of the real-time fciqmc the death step
             ! should not act on the currently looped over walker list y(n)+k1/2
-            ! but should be added to the spawned list k2, to then apply it to 
-            ! the original y(n) + k2 
-            ! the iEndFreeSlot variable also gets influenced in the 
+            ! but should be added to the spawned list k2, to then apply it to
+            ! the original y(n) + k2
+            ! the iEndFreeSlot variable also gets influenced in the
             ! death-step (duh) -> so keep count of the temp iEndFreeSlot above
             if (.not. tParentIsDeterm) then
                 call walker_death_realtime (iter_data_fciqmc, nI_parent,  &
@@ -930,10 +930,10 @@ contains
         if (tSemiStochastic) call real_time_determ_projection()
 
         ! also update the temp. variables to reuse in y(n) + k2 comb.
-        ! this should be done before the annihilaiton step, as there these 
-        ! values get changed! 
-        ! have to do that above in the loop as it gets influenced in the 
-        ! death-step too, 
+        ! this should be done before the annihilaiton step, as there these
+        ! values get changed!
+        ! have to do that above in the loop as it gets influenced in the
+        ! death-step too,
 
 
         ! this is the original number of dets.
@@ -941,7 +941,7 @@ contains
 
         ! have to call end_iter_stats to get correct acceptance rate
 !         call end_iter_stats(TotWalkersNew)
-        ! but end iter stats for me is only uses to get SumWalkersCyc .. 
+        ! but end iter stats for me is only uses to get SumWalkersCyc ..
         do run = 1, inum_runs
            SumWalkersCyc_1(run) = SumWalkersCyc_1(run) + &
                 sum(TotParts(min_part_type(run):max_part_type(run)))
@@ -971,13 +971,13 @@ contains
         ! 0)
         ! do all the necessary preperation(resetting pointers etc.)
         ! concerning the statistics: i could use the "normal" iter_data
-        ! for the first spawn, except change it for the new death-step, as 
-        ! there the particles also change from Re <-> Im 
+        ! for the first spawn, except change it for the new death-step, as
+        ! there the particles also change from Re <-> Im
 
         call init_real_time_iteration(iter_data_fciqmc, second_spawn_iter_data)
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
-        ! into CurrentDets: 
+        ! into CurrentDets:
 if(rkone) then
    if(iProcIndex == root .and. .false.) then
       print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
@@ -1005,37 +1005,37 @@ if(iProcIndex == root .and. .false.) then
         call check_update_growth(iter_data_fciqmc,"Error in first RK step")
 #endif
 
-        ! for now update the iter data here, although in the final 
+        ! for now update the iter data here, although in the final
         ! implementation i only should do that after the 2nd RK step
-        ! or keep track of two different iter_datas for first and second 
+        ! or keep track of two different iter_datas for first and second
         ! spawning..
 
         call update_iter_data(iter_data_fciqmc)
 endif
 if(rktwo) then
         ! 2)
-        ! reset the spawned list and do a second spawning step to create 
-        ! the spawend list k2 
-        ! but DO NOT yet recombine with stored walker list 
-        ! if i want to keep track of the two distinct spawns in 2 different 
-        ! iter_datas i probably have to reset some values before the 
+        ! reset the spawned list and do a second spawning step to create
+        ! the spawend list k2
+        ! but DO NOT yet recombine with stored walker list
+        ! if i want to keep track of the two distinct spawns in 2 different
+        ! iter_datas i probably have to reset some values before the
         ! second spawn.. to then keep the new values in the 2nd list
 
-        call reset_spawned_list() 
+        call reset_spawned_list()
 
         NoBorn = 0
         Annihilated = 0
         NoDied = 0
 
         ! create a second spawned list from y(n) + k1/2
-        ! have to think to exclude death_step here and store this 
+        ! have to think to exclude death_step here and store this
         ! information into the spawned k2 list..
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
          call second_real_time_spawn(err)
 
-        ! 3) 
-        ! reload stored temp_det_list y(n) into CurrentDets 
+        ! 3)
+        ! reload stored temp_det_list y(n) into CurrentDets
         ! have to figure out how to effectively save the previous hash_table
         ! or maybe just use two with different types of update functions..
 
@@ -1044,13 +1044,13 @@ if(both) then
 endif
 
         ! 4)
-        ! for the death_step for now: loop once again over the walker list 
+        ! for the death_step for now: loop once again over the walker list
         ! and do a death_step for each walker..
-        ! meh.. that seems really inefficient, better do it more cleverly 
+        ! meh.. that seems really inefficient, better do it more cleverly
         ! in the creation of the k2 spawned list + annihilation!
 
 !         do idet = 1, int(TotWalkers, sizeof_int)
-! 
+!
 !             ! do death_step only.. maybe..
 !         end do
 
@@ -1058,15 +1058,15 @@ endif
         ! this should be done with a single Annihilation step between
         ! y(n) = CurrentDets and k2 = SpawnedWalkers
 
-        ! UPDATE! have changed the 2nd diagonal event, so these particles get 
-        ! stored in a seperate DiagParts array -> so i have to do two 
-        ! annihilation events, first with the diagonal list and then with 
-        ! the actual spawned particles, to best mimick the old algorithm and 
-        ! also to correctly keep the stats of the events! 
+        ! UPDATE! have changed the 2nd diagonal event, so these particles get
+        ! stored in a seperate DiagParts array -> so i have to do two
+        ! annihilation events, first with the diagonal list and then with
+        ! the actual spawned particles, to best mimick the old algorithm and
+        ! also to correctly keep the stats of the events!
 
         TotWalkersNew = int(TotWalkers, sizeof_int)
 
-        ! also have to set the SumWalkersCyc before the "proper" annihilaiton 
+        ! also have to set the SumWalkersCyc before the "proper" annihilaiton
         do run = 1, inum_runs
            SumWalkersCyc(run) = SumWalkersCyc(run) + &
                 sum(TotParts(min_part_type(run):max_part_type(run)))
@@ -1074,10 +1074,10 @@ endif
 
         call DirectAnnihilation_diag(TotWalkersNew, second_spawn_iter_data)
         TotWalkersNew = int(TotWalkersNew, sizeof_int)
-        
+
         ! and then do the "normal" annihilation with the SpawnedParts array!
         ! Annihilation is done after loop over walkers
-        call communicate_and_merge_spawns(MaxIndex, second_spawn_iter_data, .false.) 
+        call communicate_and_merge_spawns(MaxIndex, second_spawn_iter_data, .false.)
         call DirectAnnihilation (TotWalkersNew, MaxIndex, second_spawn_iter_data, err)
 
 #ifdef __DEBUG
@@ -1092,8 +1092,8 @@ endif
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
-        ! also do the update on the second_spawn_iter_data to combine both of 
-        ! them outside this function 
+        ! also do the update on the second_spawn_iter_data to combine both of
+        ! them outside this function
 
         call update_iter_data(second_spawn_iter_data)
 else
@@ -1113,13 +1113,13 @@ endif
       ! load H^2 psi into spawnedParts
 
       call obtain_h2_psi()
-      
+
       ! merge delta_psi and spawnedParts into the new delta_psi (which is stored in
       ! spawnedParts)
 
       call update_delta_psi()
-      
-      ! merge delta_psi (now spawnedParts) into CurrentDets 
+
+      ! merge delta_psi (now spawnedParts) into CurrentDets
       ! We need to cast TotWalkers to a regular int to pass it to the annihilation
       ! as it is modified, we need to pass an lvalue and cannot just pass int(TotWalkers)
       TotWalkersNew = int(TotWalkers,sizeof_int)
@@ -1133,7 +1133,7 @@ endif
       !  in between to update delta_psi)
       call CalcHashTableStats(TotWalkersNew,iter_data_fciqmc)
       TotWalkers = TotWalkersNew
-      
+
     end subroutine perform_verlet_iteration
 
 end module real_time

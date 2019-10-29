@@ -65,8 +65,11 @@ contains
         type(excitationInformation) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
-#ifdef __DEBUG 
+#ifdef __DEBUG
         HElement_t(dp) :: temp_hel
+#endif
+#ifdef __WARNING_WORKAROUND
+        call unused(exFlag); call unused(part_type); call unused(store%nI_beta)
 #endif
 
         HElGen = HEl_zero
@@ -90,18 +93,18 @@ contains
 
         end if
 
-        if (nJ(1) == 0) then 
+        if (nJ(1) == 0) then
             pgen = 0.0_dp
             return
         end if
 
-        ! try implementing the crude guga excitation approximation via the 
+        ! try implementing the crude guga excitation approximation via the
         ! determinant excitation generator
-        if (tGen_guga_crude) then 
+        if (tGen_guga_crude) then
 
             call convert_ilut_toGUGA(ilutJ, ilutGj)
 
-            if (.not. isProperCSF_ilut(ilutGJ, .true.)) then 
+            if (.not. isProperCSF_ilut(ilutGJ, .true.)) then
                 nJ(1) = 0
                 pgen = 0.0_dp
                 return
@@ -121,9 +124,9 @@ contains
 
             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, HelGen, .true., 2)
 
-            if (abs(HelGen) < EPS) then 
+            if (abs(HelGen) < EPS) then
                 nJ(1) = 0
-                pgen = 0.0_dp 
+                pgen = 0.0_dp
             end if
 
             global_excitinfo = excitInfo
@@ -198,7 +201,7 @@ contains
             end if
 
             ! Select a pair of electrons in a weighted fashion
-            if (t_mixed_hubbard .or. t_olle_hubbard) then 
+            if (t_mixed_hubbard .or. t_olle_hubbard) then
                 pgen = pgen * (1.0_dp - pParallel) / AB_elec_pairs
             else
                 pgen = pgen * pgen_weighted_elecs(nI, src)
@@ -214,12 +217,12 @@ contains
                                    cum_sums(1), cum_arr, .true.)
             if (int_cpt(1) > EPS) then
                 ! [W.D.]
-                ! this threshold is also really arbitrary.. 
+                ! this threshold is also really arbitrary..
                 ! todo: investigate that!
-                ! it has to be atleast twice the integral cut-off to be 
-                ! anywhere consistent.. although also that is kind of 
-                ! strange.. 
-                ! now.. i would have to be 2*sqrt(umateps) .. but also that.. 
+                ! it has to be atleast twice the integral cut-off to be
+                ! anywhere consistent.. although also that is kind of
+                ! strange..
+                ! now.. i would have to be 2*sqrt(umateps) .. but also that..
                 ! just remove it i guess..
                 call pgen_select_orb(ilutI, src, tgt(1), tgt(2), int_cpt(2), &
                                      cum_sums(2))
@@ -241,7 +244,7 @@ contains
             end if
 
             ! i think i also have to deal with divisions by zero here
-            ! in a correct way, when removing the lower pgen threshold. 
+            ! in a correct way, when removing the lower pgen threshold.
             if (any(cum_sums < EPS)) then
                 cum_sums = 1.0_dp
                 int_cpt = 0.0_dp
@@ -302,10 +305,10 @@ contains
                                  pgen)
          end if
 
-        ! then first pick (a) orbital: 
-        ! for opposite spin excitations (a) is restricted to be a beta orbital! 
-        ! and the probability is split p(a|ij) = p(j)*p(a|i) 
-        ! except in the symmetric excitation generator, which isn't used 
+        ! then first pick (a) orbital:
+        ! for opposite spin excitations (a) is restricted to be a beta orbital!
+        ! and the probability is split p(a|ij) = p(j)*p(a|i)
+        ! except in the symmetric excitation generator, which isn't used
         ! ever anyway..
         orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
 
@@ -315,15 +318,15 @@ contains
             cc_a = ClassCountInd(orbs(1))
             cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
 
-            ! pick the last orbitals weighted with the exact matrix 
-            ! element 
+            ! pick the last orbitals weighted with the exact matrix
+            ! element
             orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
                               cum_sum(2))
         end if
 
-        ! what does this assert do?  do i have to pick the electrons in a 
+        ! what does this assert do?  do i have to pick the electrons in a
         ! certain order??
-        
+
         ASSERT((.not. (is_beta(orbs(2)) .and. .not. is_beta(orbs(1)))) .or. tGen_4ind_2_symmetric)
         if (any(orbs == 0)) then
             nJ(1) = 0
@@ -332,12 +335,12 @@ contains
         end if
 
         ! can i exit right away if this happens??
-        ! i am pretty sure this means 
-        if (any(cum_sum < EPS)) then 
+        ! i am pretty sure this means
+        if (any(cum_sum < EPS)) then
            cum_sum = 1.0_dp
            int_cpt = 0.0_dp
         end if
-        
+
         ! Calculate the pgens. Note that all of these excitations can be
         ! selected as both A--B or B--A. So these need to be calculated
         ! explicitly.
@@ -346,10 +349,10 @@ contains
         end if
         if ((is_beta(orbs(1)) .eqv. is_beta(orbs(2))) .or. tGen_4ind_2_symmetric) then
 
-            ! in the case of parallel spin excitations or symmetrice excitation 
-            ! generation(but does actually someone use that?) we have to 
-            ! calculate the probability of picking the holes the other 
-            ! way around 
+            ! in the case of parallel spin excitations or symmetrice excitation
+            ! generation(but does actually someone use that?) we have to
+            ! calculate the probability of picking the holes the other
+            ! way around
             call pgen_select_a_orb(ilutI, src, orbs(2), iSpn, cpt_pair(1), &
                                    sum_pair(1), cum_arr, .false.)
             call pgen_select_orb(ilutI, src, orbs(2), orbs(1), &
@@ -360,7 +363,7 @@ contains
             sum_Pair = 1.0_dp
         end if
 
-        if (any(sum_pair < EPS)) then 
+        if (any(sum_pair < EPS)) then
             cpt_pair = 0.0_dp
             sum_pair = 1.0_dp
         end if
@@ -474,8 +477,7 @@ contains
         ! there is no selection avaialable
         call gen_a_orb_cum_list(ilut, src, ispn, cum_arr)
         cum_sum = cum_arr(nbasis)
-        ! ok this equivalence is also not good.. 
-        if (cum_sum < EPS) then 
+        if (cum_sum < EPS) then
             orb = 0
             return
         end if
@@ -502,7 +504,7 @@ contains
 
     subroutine pgen_select_a_orb(ilut, src, orb, iSpn, cpt, cum_sum, &
                                  cum_arr, first)
-        
+
         ! This calculates the probability of selecting the A orbital with the
         ! parameters as specified
         !
@@ -593,7 +595,7 @@ contains
 !         call CountExcitations3 (src_det, 3, nsing, ndoub)
 !         nexcit = nsing + ndoub
 !         allocate(det_list(0:NIfTot, nexcit))
-! 
+!
 !         ! Loop through all of the possible excitations
 !         ndet = 0
 !         found_all = .false.
@@ -609,13 +611,13 @@ contains
 !         do while (.not. found_all)
 !             ndet = ndet + 1
 !             call EncodeBitDet (det, det_list(:,ndet))
-! 
+!
 !             call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
 !                                   found_all, .false.)
 !         end do
 !         if (ndet /= nexcit) &
 !             call stop_all(this_routine,"Incorrect number of excitations found")
-! 
+!
 !         ! Sort the dets, so they are easy to find by binary searching
 !         call sort(det_list, ilut_lt, ilut_gt)
 
@@ -645,7 +647,7 @@ contains
             call EncodeBitDet (det, tgt_ilut)
             helgen = get_helement(src_det, det, ic, ex, par)
 
-            if (abs(helgen) < 1.0e-6_dp) cycle 
+            if (abs(helgen) < 1.0e-6_dp) cycle
 
             pos = binary_search(det_list, tgt_ilut, NIfD+1)
             if (pos < 0) then

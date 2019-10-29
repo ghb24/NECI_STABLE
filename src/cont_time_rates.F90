@@ -217,7 +217,7 @@ contains
                 end if
                 nspawn = stochastic_round_r(cont_time_max_overspawn, r)
 
-            else if (pneeded == 0) then
+            else if (near_zero(pneeded)) then
 
                 ! We shouldn't be spawning this particle at all
                 det_spwn(1) = 0
@@ -236,7 +236,7 @@ contains
                 call encode_child(ilut, ilut_spwn, ic, ex)
 
         end if
-        
+
         ! Keep track of spawning successes
         cont_spawn_success = cont_spawn_success + nspawn
 

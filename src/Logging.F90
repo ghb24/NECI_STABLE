@@ -45,7 +45,7 @@ MODULE Logging
       use default_sets
       implicit none
 
-      ! real-time implementation changes: 
+      ! real-time implementation changes:
       n_real_time_copies = 1
       cnt_real_time_copies = 1
       t_prepare_real_time = .false.
@@ -186,8 +186,6 @@ MODULE Logging
 #else
       tFCIMCStats2 = .false.
 #endif
-      tWriteUnocc = .false.
-
       t_hist_fvals = .true.
       enGrid = 100
       arGrid = 100
@@ -228,7 +226,7 @@ MODULE Logging
         select case(w)
 
         case ("PRINT-FREQUENCY-HISTOGRAMS")
-            ! in this case print the frequency histograms to analyze the 
+            ! in this case print the frequency histograms to analyze the
             ! matrix element vs. pgen ratios
             t_print_frq_histograms = .true.
 
@@ -236,7 +234,7 @@ MODULE Logging
             t_test_sym_fill = .true.
 
         case ("MORE-SYM")
-            t_test_sym_fill = .true. 
+            t_test_sym_fill = .true.
             t_more_sym = .true.
 
         case ("DIRECT-EXCHANGE")
@@ -583,7 +581,7 @@ MODULE Logging
 !If RDMExcitLevel = 1, only the 1 electron RDM is found, if RDMExcitLevel = 2,
 ! only the 2 electron RDM is found and if RDMExcitLevel = 3, both are found.
             calcrdmonfly_in_inp = .true.
-            tRDMonFly=.true.
+            tRDMonFly = .true.
             tCheckHighestPop = .true.
             call readi(RDMExcitLevel)
             call readi(IterRDMonFly)
@@ -611,15 +609,15 @@ MODULE Logging
 !> The syntax is ``RDMlinspace  start n_samples  step``.
 !> The RDMExcitLevel is set to three in this routine.
             RDMlinspace_in_inp = .true.
-            tRDMonFly=.true.
+            tRDMonFly = .true.
             tCheckHighestPop = .true.
 
-            call readi(iSampleRDMIters)
+            RDMExcitLevel = 3
+            call readi(IterRDMonFly)
             call readi(n_samples)
             call readi(RDMEnergyIter)
 
-            RDMExcitLevel = 3
-            IterRDMOnFly = iSampleRDMIters + (n_samples - 1) * RDMEnergyIter
+            iSampleRDMIters = n_samples * RDMEnergyIter
 #if defined(__PROG_NUMRUNS)
           ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
@@ -638,8 +636,7 @@ MODULE Logging
             end if
 
         case("OLDRDMS")
-! Accumulate RDMs using the old RDM code.
-            tOldRDMs = .true.
+            call stop_all(t_r, "OLDRDMS not supported anymore.")
 
         case("RDM-MAIN-SIZE-FAC")
             call readf(rdm_main_size_fac)
@@ -1102,7 +1099,7 @@ MODULE Logging
                 call readi (instant_s2_multiplier)
 
         case ("PLOT-CC-AMPLITUDES")
-            t_plot_cc_amplitudes = .true. 
+            t_plot_cc_amplitudes = .true.
 
         case ("INSTANT-S2-INIT")
             ! Calculate an instantaneous value ofr S^2 considering only the
@@ -1192,8 +1189,8 @@ MODULE Logging
             tOutputLoadDistribution = .true.
 
         case ("PRINT-UMAT")
-            ! output umat also in the momentum space hubbard to be able to 
-            ! create a FCIDUMP file to compare GUGA matrix elements with 
+            ! output umat also in the momentum space hubbard to be able to
+            ! create a FCIDUMP file to compare GUGA matrix elements with
             ! DMRG results!
             t_umat_output = .true.
 
@@ -1211,7 +1208,7 @@ MODULE Logging
             t_calc_double_occ_av = .true.
 
             if (item < nitems) then
-                t_calc_double_occ_av = .false. 
+                t_calc_double_occ_av = .false.
                 call geti(equi_iter_double_occ)
             end if
 
@@ -1233,45 +1230,45 @@ MODULE Logging
             tWriteRefs = .true.
 
         case ("SPIN-MEASUREMENTS")
-            ! combine all the spatially resolved double occupancy and 
-            ! spin-difference measurements into one functionality to 
+            ! combine all the spatially resolved double occupancy and
+            ! spin-difference measurements into one functionality to
             ! have a better overview
             ! this also includes the "standard" double occupancy measurement
             ! although leave the option to only do the old double occ meas.
             t_calc_double_occ = .true.
-            t_calc_double_occ_av = .true. 
+            t_calc_double_occ_av = .true.
             t_spin_measurements = .true.
 
-            if (item < nitems) then 
+            if (item < nitems) then
                 t_calc_double_occ_av = .false.
                 call geti(equi_iter_double_occ)
             end if
 
         case ('SYMMETRY-ANALYSIS')
-            ! investigate the symmetry of the important part of the 
-            ! wavefuntion, by applying point-group symmetry operations on 
-            ! a certain number of determinants and check the sign change to 
-            ! the original wavefunction 
-            ! if we want multiple symmetries on has to specify this keyword 
+            ! investigate the symmetry of the important part of the
+            ! wavefuntion, by applying point-group symmetry operations on
+            ! a certain number of determinants and check the sign change to
+            ! the original wavefunction
+            ! if we want multiple symmetries on has to specify this keyword
             ! multiple times with the according keywords
             t_symmetry_analysis = .true.
 
-            if (item < nitems) then 
+            if (item < nitems) then
                 call readl(w)
 
                 select case(w)
 
                 case('rot','rotation')
-                    t_symmetry_rotation = .true. 
+                    t_symmetry_rotation = .true.
 
-                    if (item < nitems) then 
+                    if (item < nitems) then
                         call getf(symmetry_rotation_angle)
                     else
                         symmetry_rotation_angle = 90.0_dp
                     end if
 
                 case ('mirror')
-                    t_symmetry_mirror = .true. 
+                    t_symmetry_mirror = .true.
 
                     ! available mirror axes are : 'x','y','d' and 'o'
                     if (item < nitems) then
@@ -1283,11 +1280,11 @@ MODULE Logging
                 case ('inverstion')
                     t_symmetry_inversion = .true.
 
-                case default 
+                case default
                    CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
 
                end select
-           else 
+           else
                ! default is 90° rotation:
                t_symmetry_rotation = .true.
                symmetry_rotation_angle = 90.0_dp
@@ -1295,15 +1292,15 @@ MODULE Logging
            end if
 
         case ('SYMMETRY-STATES')
-            ! required input to determine which states to consider. 
-            ! Two options: 
-            if (item < nitems) then 
+            ! required input to determine which states to consider.
+            ! Two options:
+            if (item < nitems) then
                 call readl(w)
                 select case (w)
                 case('input','read')
                     t_read_symmetry_states = .true.
 
-                    if (item < nitems) then 
+                    if (item < nitems) then
                         call geti(n_symmetry_states)
                     else
                         call stop_all(t_r, &
@@ -1315,7 +1312,7 @@ MODULE Logging
 
                     do line = 1, n_symmetry_states
                         call read_line(eof)
-                        do i = 1, nel 
+                        do i = 1, nel
                             call geti(symmetry_states(i, line))
                         end do
                     end do
@@ -1324,7 +1321,7 @@ MODULE Logging
                     ! take the N most populated states
                     t_pop_symmetry_states = .true.
 
-                    if (item < nItems) then 
+                    if (item < nItems) then
                         call geti(n_symmetry_states)
                     else
                         call stop_all(t_r, &
@@ -1337,8 +1334,8 @@ MODULE Logging
                 end select
             else
                 ! default is: take the 6 most populated ones
-                t_pop_symmetry_states = .true. 
-                n_symmetry_states = 6 
+                t_pop_symmetry_states = .true.
+                n_symmetry_states = 6
                 allocate(symmetry_states(nel,n_symmetry_states))
                 symmetry_states = 0
             end if

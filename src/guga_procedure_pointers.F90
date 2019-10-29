@@ -68,10 +68,10 @@ module guga_procedure_pointers
             real(dp) :: weight
         end function general_weight_zero
 
-        subroutine pick_first_orbital_t(i, pgen, excit_lvl, excit_typ) 
-            use constants, only: dp 
+        subroutine pick_first_orbital_t(i, pgen, excit_lvl, excit_typ)
+            use constants, only: dp
             integer, intent(out) :: i, excit_lvl, excit_typ
-            real(dp), intent(out) :: pgen 
+            real(dp), intent(out) :: pgen
         end subroutine pick_first_orbital_t
 
         function orb_pgen_contrib_type_t() result(orb_pgen)
@@ -84,11 +84,11 @@ module guga_procedure_pointers
             use bit_reps, only: niftot
             implicit none
             integer(n_int), intent(in) :: ilut(0:niftot)
-            integer, intent(in), optional :: run 
-            integer, intent(out), optional :: exlevel 
+            integer, intent(in), optional :: run
+            integer, intent(out), optional :: exlevel
             HElement_t(dp) :: hel
         end function calc_off_diag_guga_t
-    end interface 
+    end interface
 
     procedure(pickOrbitals_t), pointer :: pickOrbitals_single
     procedure(pickOrbitals_t), pointer :: pickOrbitals_double

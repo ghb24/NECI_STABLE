@@ -15,6 +15,7 @@ module sparse_arrays
     use bit_reps, only: decode_bit_det, nifguga
     use CalcData, only: tReadPops, t_guga_mat_eles
     use constants
+    use util_mod, only: unused
     use DetBitOps, only: DetBitEq, CountBits, TestClosedShellDet
     use Determinants, only: get_helement
     use FciMCData, only: determ_space_size, determ_sizes, determ_displs, &
@@ -89,8 +90,8 @@ module sparse_arrays
 contains
 
     subroutine calculate_sparse_hamiltonian_non_hermitian(num_states, ilut_list)
-        ! same routine as below, but for non-hermitian Hamiltonians in the 
-        ! case of transcorrelation 
+        ! same routine as below, but for non-hermitian Hamiltonians in the
+        ! case of transcorrelation
         integer, intent(in) :: num_states
         integer(n_int), intent(in) :: ilut_list(0:NIfTot, num_states)
         integer :: i, j, counter, ierr
@@ -112,7 +113,7 @@ contains
         ! Set each element to one to count the diagonal elements straight away.
         sparse_row_sizes = 1
 
-        if (tGUGA) then 
+        if (tGUGA) then
             call stop_all(t_r, "modify get_helement for GUGA!")
         end if
         do i = 1, num_states
@@ -125,23 +126,23 @@ contains
             do j = 1, num_states
 
                 call decode_bit_det(nJ, ilut_list(:,j))
-                if (i == j) then 
-                    if (tHPHF) then 
+                if (i == j) then
+                    if (tHPHF) then
                         hamiltonian_row(i) = hphf_diag_helement(nI, ilut_list(:,i))
                     else
                         hamiltonian_row(i) = get_helement(nI, nI, 0)
                     end if
                     hamil_diag(i) = hamiltonian_row(i)
                 else
-                    if (tHPHF) then 
+                    if (tHPHF) then
                         !TODO: do i need <I|H|J> or <J|H|I>?
                         hamiltonian_row(j) = hphf_off_diag_helement(&
                             nI, nJ, ilut_list(:,i), ilut_list(:,j))
-                    else 
+                    else
                         hamiltonian_row(j) = get_helement(&
                             nI, nJ, ilut_list(:,i), ilut_list(:,j))
                     end if
-                    if (abs(hamiltonian_row(j)) > EPS) then 
+                    if (abs(hamiltonian_row(j)) > EPS) then
                         ! i think in the non-hermitian i only need to update
                         ! one of the counters..
                         sparse_row_sizes(i) = sparse_row_sizes(i) + 1
@@ -159,8 +160,8 @@ contains
             ! now fill in the elements, all of them
             counter = 1
             do j = 1, num_states
-                if (abs(hamiltonian_row(j)) > EPS) then 
-                    sparse_ham(i)%positions(counter) = j 
+                if (abs(hamiltonian_row(j)) > EPS) then
+                    sparse_ham(i)%positions(counter) = j
                     sparse_ham(i)%elements(counter) = hamiltonian_row(j)
                     counter = counter + 1
                 end if
@@ -186,7 +187,7 @@ contains
         integer(TagIntType) :: HRTag, SRTag, SDTag, ITag
         character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian"
 
-#ifndef __CMPLX 
+#ifndef __CMPLX
         integer :: pos, nexcits
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
@@ -226,32 +227,32 @@ contains
 #ifndef __CMPLX
             if (t_guga_mat_eles .and. tGUGA) call init_csf_information(ilut_list(0:nifd,i))
 
-            if (tGUGA .and. (.not. t_guga_mat_eles)) then 
+            if (tGUGA .and. (.not. t_guga_mat_eles)) then
 
                 call convert_ilut_toGUGA(ilut_list(:,i), ilutG)
 
-                call actHamiltonian(ilutG, excitations, nexcits) 
+                call actHamiltonian(ilutG, excitations, nexcits)
 
                 do j = 1, num_states
 
-                    if (i == j) then 
+                    if (i == j) then
                         ! diag case
-                        hamiltonian_row(j) = get_helement(nI, nI, 0) 
+                        hamiltonian_row(j) = get_helement(nI, nI, 0)
 
-                        hamil_diag(j) = hamiltonian_row(j) 
+                        hamil_diag(j) = hamiltonian_row(j)
 
                     else
-                        ! off-diagonal case 
+                        ! off-diagonal case
 
                         pos = binary_search(excitations(0:nifd,1:nexcits), ilut_list(0:nifd,j))
 
-                        if (pos > 0) then 
+                        if (pos > 0) then
 
                             hamiltonian_row(j) = extract_matrix_element(excitations(:,pos),1)
 
-                            sparse_row_sizes(i) = sparse_row_sizes(i) + 1 
+                            sparse_row_sizes(i) = sparse_row_sizes(i) + 1
                             sparse_row_sizes(j) = sparse_row_sizes(j) + 1
-                            
+
                         end if
                     end if
                 end do
@@ -259,7 +260,7 @@ contains
                 ! am i sure if i want to do that all the time???
                 call LogMemDealloc(t_r, tag_excitations)
 
-            else 
+            else
 #endif
             do j = i, num_states
 
@@ -270,7 +271,7 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:, i))
 #ifndef __CMPLX
-                    else if (tGUGA) then 
+                    else if (tGUGA) then
                         hamiltonian_row(j) = calcDiagMatEleGuga_nI(nI)
 #endif
                     else
@@ -282,9 +283,9 @@ contains
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
                                                                            ilut_list(:, j))
 #ifndef __CMPLX
-                    else if (tGUGA) then 
+                    else if (tGUGA) then
                         call calc_guga_matrix_element(ilut_list(:,i), ilut_list(:,j), &
-                                excitInfo, hamiltonian_row(j), .true., 1) 
+                                excitInfo, hamiltonian_row(j), .true., 1)
 #endif
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:, i), &
@@ -303,7 +304,7 @@ contains
             end if
 #endif
             ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
-            call allocate_sparse_ham_row(sparse_ham, i, sparse_row_sizes(i), "sparse_ham", SparseHamilTags(:,i)) 
+            call allocate_sparse_ham_row(sparse_ham, i, sparse_row_sizes(i), "sparse_ham", SparseHamilTags(:,i))
 
             sparse_ham(i)%elements = 0.0_dp
             sparse_ham(i)%positions = 0
@@ -364,7 +365,7 @@ contains
         character(len=*), parameter :: t_r = "calculate_sparse_ham_par"
 #ifndef __CMPLX
         integer :: pos, nexcits
-        integer(n_int) :: ilutG(0:nifguga) 
+        integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
         type(excitationInformation) :: excitInfo
 #endif
@@ -395,35 +396,35 @@ contains
             row_size = 0
             hamiltonian_row = 0.0_dp
 
-#ifndef __CMPLX 
+#ifndef __CMPLX
             if (tGUGA .and. t_guga_mat_eles) call init_csf_information(ilut_list(0:nifd,i))
 
-            if (tGUGA .and. (.not. t_guga_mat_eles)) then 
-                call convert_ilut_toGUGA(ilut_list(:,i), ilutG) 
+            if (tGUGA .and. (.not. t_guga_mat_eles)) then
+                call convert_ilut_toGUGA(ilut_list(:,i), ilutG)
 
-                call actHamiltonian(ilutG, excitations, nexcits) 
+                call actHamiltonian(ilutG, excitations, nexcits)
 
                 do j = 1, num_states_tot
 
                     if (DetBitEq(ilut_list(:,i), temp_store(:,j), nifdbo)) then
 
-                        hamiltonian_row(j) = get_helement(nI, nI, 0) 
+                        hamiltonian_row(j) = get_helement(nI, nI, 0)
 
-                        hamil_diag(i) = hamiltonian_row(j) 
+                        hamil_diag(i) = hamiltonian_row(j)
 
                         row_size = row_size + 1
 
-                    else 
+                    else
 
                         pos = binary_search(excitations(0:nifd,1:nexcits), temp_store(0:nifd,j))
 
-                        if (pos > 0) then 
+                        if (pos > 0) then
 
                             hamiltonian_row(j) = extract_matrix_element(excitations(:,pos), 1)
 
                             row_size = row_size + 1
 
-                        end if 
+                        end if
                     end if
                 end do
                 deallocate(excitations)
@@ -440,7 +441,7 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:,i))
 #ifndef __CMPLX
-                    else if (tGUGA) then 
+                    else if (tGUGA) then
                         hamiltonian_row(j) = calcDiagMatEleGuga_nI(nI)
 #endif
                     else
@@ -453,7 +454,7 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), temp_store(:,j))
 #ifndef __CMPLX
-                    else if (tGUGA) then 
+                    else if (tGUGA) then
                         call calc_guga_matrix_element(ilut_list(:,i), temp_store(:,j), &
                             excitInfo, hamiltonian_row(j), .true., 1)
 #endif
@@ -481,7 +482,7 @@ contains
             end if
 
             ! Now we know the number of non-zero elements in this row of the Hamiltonian, so allocate it.
-            call allocate_sparse_ham_row(sparse_ham, i, row_size, "sparse_ham", SparseHamilTags(:,i)) 
+            call allocate_sparse_ham_row(sparse_ham, i, row_size, "sparse_ham", SparseHamilTags(:,i))
 
             sparse_ham(i)%elements = 0.0_dp
             sparse_ham(i)%positions = 0
@@ -520,13 +521,13 @@ contains
         integer, allocatable :: temp_store_nI(:,:)
         integer(TagIntType) :: HRTag, TempStoreTag
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
-#ifndef __CMPLX 
-        integer :: pos, nExcit 
+#ifndef __CMPLX
+        integer :: pos, nExcit
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
         type(excitationInformation) :: excitInfo
 #endif
-        
+
         character(len=*), parameter :: t_r = "calc_determ_hamil_sparse"
 
         integer(n_int) :: tmp(0:NIfD)
@@ -560,41 +561,41 @@ contains
             row_size = 0
             hamiltonian_row = 0.0_dp
 
-            ! here i should do something different for the guga case.. 
-            ! and just apply the hamiltonian once, and then check if the 
-            ! other deterministic states are connected to nI 
-            ! make this optional, dependent on how i want to calculate the 
-            ! off-diagoanal elements for the guga case 
-#ifndef __CMPLX 
+            ! here i should do something different for the guga case..
+            ! and just apply the hamiltonian once, and then check if the
+            ! other deterministic states are connected to nI
+            ! make this optional, dependent on how i want to calculate the
+            ! off-diagoanal elements for the guga case
+#ifndef __CMPLX
             if (t_guga_mat_eles .and. tGUGA) call init_csf_information(SpawnedParts(0:nifd,i))
 
-            if (tGUGA .and. (.not. t_guga_mat_eles)) then 
-                call convert_ilut_toGUGA(SpawnedParts(:,i), ilutG) 
+            if (tGUGA .and. (.not. t_guga_mat_eles)) then
+                call convert_ilut_toGUGA(SpawnedParts(:,i), ilutG)
 
                 call actHamiltonian(ilutG, excitations, nExcit)
 
-                ! then loop over j 
+                ! then loop over j
                 do j = 1, determ_space_size
 
                     if (all(SpawnedParts(0:nifdbo,i) == temp_store(0:nifdbo,j))) then
 
-                        ! thats the diagonal case 
+                        ! thats the diagonal case
                         hamiltonian_row(j) = get_helement(nI, nI, 0) - Hii
 
                         core_ham_diag(i) = hamiltonian_row(j)
 
-                        if (.not. tReadPops) then 
+                        if (.not. tReadPops) then
                             call set_det_diagH(i, real(hamiltonian_row(j), dp))
                         end if
 
                         row_size = row_size + 1
 
-                    else 
-                        ! here i need the off-diagonal element 
+                    else
+                        ! here i need the off-diagonal element
 
                         pos = binary_search(excitations(0:nifd,1:nExcit), temp_store(0:nifd,j))
 
-                        if (pos > 0) then 
+                        if (pos > 0) then
                             hamiltonian_row(j) = extract_matrix_element(excitations(:,pos),1)
                             row_size = row_size + 1
                         end if
@@ -603,8 +604,8 @@ contains
 
                 deallocate(excitations)
                 call LogMemDealloc(t_r, tag_excitations)
-                            
-            else 
+
+            else
 #endif
             ! Loop over all deterministic states.
             do j = 1, determ_space_size
@@ -617,7 +618,7 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
                     else
-                        ! for guga: the diagonal is fine, since i overwrite 
+                        ! for guga: the diagonal is fine, since i overwrite
                         ! that within get_helement
                         hamiltonian_row(j) = get_helement(nI, nJ, 0) - Hii
                     end if
@@ -635,11 +636,11 @@ contains
                     else if (tGUGA) then
                         ! for the off-diagonal elements i have to call the GUGA
                         ! specific function
-                        ! but this is a waste.. i do not have to do that for 
-                        ! every nJ i could just check the list generated 
-                        ! by H|nI>.. 
+                        ! but this is a waste.. i do not have to do that for
+                        ! every nJ i could just check the list generated
+                        ! by H|nI>..
                         call calc_guga_matrix_element(SpawnedParts(:,i), temp_store(:,j), &
-                            excitInfo, hamiltonian_row(j), .true., 1) 
+                            excitInfo, hamiltonian_row(j), .true., 1)
 #endif
                     else
                         tmp = ieor(SpawnedParts(0:NIfD,i), temp_store(0:NIfD,j))
@@ -943,6 +944,9 @@ contains
         integer(TagIntType), intent(inout), allocatable :: sparse_tags(:,:)
         integer :: sparse_matrix_size, i, ierr
         character(len=*), parameter :: t_r = "deallocate_sparse_ham"
+#ifdef __WARNING_WORKAROUND
+        call unused(sparse_matrix_name)
+#endif
 
         sparse_matrix_size = size(sparse_matrix)
 

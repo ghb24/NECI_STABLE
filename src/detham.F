@@ -1,4 +1,4 @@
-      SUBROUTINE DETHAM(NDET,NEL,NMRKS, HAMIL,LAB,NROW,TCOUNT, 
+      SUBROUTINE DETHAM(NDET,NEL,NMRKS, HAMIL,LAB,NROW,TCOUNT,
      &  ICMAX,GC,TMC)
       use global_utilities
       use constants, only: dp, n_int, eps
@@ -18,6 +18,9 @@
       use guga_bitrepops, only: init_csf_information
 #endif
       use lattice_mod, only: get_helement_lattice
+
+      use util_mod, only: near_zero
+
       IMPLICIT NONE
       HElement_t(dp) HAMIL(*)
       INTEGER NDET,NEL
@@ -30,7 +33,7 @@
       integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
       HElement_t(dp) totSUM
       type(timer), save :: proc_timer
-#ifndef __CMPLX 
+#ifndef __CMPLX
       type(excitationInformation) :: excitInfo
 #endif
       integer :: ic=0
@@ -52,7 +55,7 @@ C..   Now we need to match up any two determinants
          ELSE
            IBEG=IBEG+NROW(KI-1)
          ENDIF
-         IF(TMC) THEN 
+         IF(TMC) THEN
            IBEGJ=1
            STEP=1
            IMAXJ=NDET
@@ -74,10 +77,10 @@ C..   Now we need to match up any two determinants
            ENDIF
          ENDIF
          IF(STEP.EQ.0) STEP=1
-         ! try to use the new guga matrix element calc here.. for this 
+         ! try to use the new guga matrix element calc here.. for this
          ! misuse the current_stepvector quantities to init this only
-         ! once for nI 
-#ifndef __CMPLX 
+         ! once for nI
+#ifndef __CMPLX
          if (tGUGA) call init_csf_information(ilutI)
 #endif
          DO KJ=IBEGJ,IMAXJ,STEP
@@ -86,7 +89,7 @@ C..   Now we need to match up any two determinants
               if (KI == KJ) then
                 totsum = hphf_diag_helement(NMRKS(:,KI), ilutI)
               else
-                totsum = hphf_off_diag_helement(NMRKS(:,KI), 
+                totsum = hphf_off_diag_helement(NMRKS(:,KI),
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
 
@@ -101,13 +104,13 @@ C..   Now we need to match up any two determinants
               end if
 #endif
 
-            else if (t_lattice_model) then 
+            else if (t_lattice_model) then
               if (KI == KJ) then
                 totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ),ic)
               else
                 totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ))
               end if
-            else 
+            else
               if (KI == KJ) then
                 totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ), 0)
               else
@@ -118,7 +121,7 @@ C..   Now we need to match up any two determinants
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
-            IF(abs(TOTSUM)>EPS .OR. (KI.EQ.KJ)) THEN
+            IF(.not. near_zero(TOTSUM) .OR. KI == KJ) THEN
                GC=GC+1
 C..   Stores the number of non-zero elements in each row
                NROW(KI)=NROW(KI)+1
@@ -138,16 +141,6 @@ C..No. of columns
         WRITE(6,*) ' MAXIMUM WIDTH OF HAMIL : ' , ICMAX
         WRITE(6,*) ' TOTAL NUMBER OF NON-ZERO ELEMENTS : ' , GC
       ENDIF
-C      IF(.NOT.TCOUNT) THEN
-C        WRITE(6,*)
-C        WRITE(6,*) ' SECTION OF MAP OF HAMILTONIAN : '
-C        WRITE(6,*)
-C        WRITE(6,*) NDET,ICMAX
-C        DO I=1,NDET
-C          WRITE(6,*) (LAB(J,I),J=1,ICMAX)
-C          WRITE(6,*) I,(HAMIL(J,I),J=1,ICMAX)
-C        ENDDO
-C      ENDIF
 C ==-------------------------------------------------------------------==
       call halt_timer(proc_timer)
 C ==-------------------------------------------------------------------==
@@ -178,7 +171,7 @@ C..
         IF(IFLG.EQ.1) call stop_all(t_r, ' PROBLEM IN TWO DIFFER ')
         IF(IFLG.EQ.2) call stop_all(t_r, ' PROBLEM IN ONE DIFFER ')
         IF(IFLG.EQ.3) call stop_all(t_r, ' PROBLEM IN SAME ')
-      ENDIF 
+      ENDIF
 C..
       RETURN
       END

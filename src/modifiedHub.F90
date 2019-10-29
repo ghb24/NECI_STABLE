@@ -27,12 +27,12 @@ contains
        end do
     end do
   end subroutine setupMomIndexTable
-  
+
   function bHubIndexFunction(i,j,k,l) result(bInd)
     ! this function gets the index of the matrix element of the breathing term
-    ! corresponding to the four states i,j,k,l 
+    ! corresponding to the four states i,j,k,l
 
-    ! not sure if it is too expensive to do the index generation on the fly 
+    ! not sure if it is too expensive to do the index generation on the fly
     ! maybe storing all matrix elements ignoring redundancies might be worthwile
     ! even though memory cost will grow significantly (but still no noteworthy memory usage)
     implicit none
@@ -64,7 +64,7 @@ contains
        do kz = 1,li(3)
           do ky = 1,li(2)
              do kx = 1,li(1)
-                ! momentum is the only input to the matrix elements of the breathing 
+                ! momentum is the only input to the matrix elements of the breathing
                 ! contribution
                 q = (/kx,ky,kz/)
                 call MomPbcSym(q,nBasisMax)
@@ -78,5 +78,5 @@ contains
        end do
     end do
   end subroutine setupBreathingCont
-      
+
 end module breathing_Hub

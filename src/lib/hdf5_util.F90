@@ -743,7 +743,7 @@ contains
 
 
    subroutine write_2d_multi_arr_chunk_buff( &
-                       parent, nm, itype, arr, arr_dims, mem_dims, mem_offset, &
+                       parent, nm, itype, arr, mem_dims, mem_offset, &
                        dataspace_dims, dataspace_offset)
 
         ! Write a chunk of memory from each of the MPI processes into the
@@ -761,7 +761,6 @@ contains
         integer(hid_t), intent(in) :: parent, itype
         character(*), intent(in) :: nm
         integer(hsize_t) :: arr(1:,1:)
-        integer(hsize_t), intent(in) :: arr_dims(2)
         integer(hsize_t), intent(in) :: mem_dims(2), mem_offset(2)
         integer(hsize_t), intent(in) :: dataspace_dims(2), dataspace_offset(2)
 
@@ -850,6 +849,9 @@ contains
         integer(hdf_err) :: err
         integer(hsize_t) :: mem_dims(2)
         integer(int32), pointer :: ptr(:,:)
+#ifdef __WARNING_WORKAROUND
+       val = 0_int64
+#endif
 
         ! Create a property list to do multi-process reads
         call h5pcreate_f(H5P_DATASET_XFER_F, plist_id, err)
@@ -880,7 +882,6 @@ contains
         call h5sclose_f(memspace, err)
         call h5sclose_f(dataspace, err)
         call h5pclose_f(plist_id, err)
-
     end subroutine
 
     subroutine read_int32_attribute_main(parent, nm, val, exists, default, &
@@ -1008,7 +1009,7 @@ contains
 
         call read_int64_1d_dataset_8(parent, nm, buf, exists, default, &
                                      required)
-        val = buf
+        val = int(buf, int32)
 
     end subroutine
 

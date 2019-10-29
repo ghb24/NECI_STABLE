@@ -35,6 +35,8 @@ module bit_reps
 
     use global_det_data, only: get_determinant
 
+    use util_mod, only: unused
+
     implicit none
 
     ! Structure of a bit representation:
@@ -59,7 +61,7 @@ module bit_reps
         module procedure decode_bit_det_chunks
         module procedure decode_bit_det_lists
     end interface
-        
+
     integer, parameter :: l1(1:33)=(/0,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,0,1,2,0,0,0,0,0,0,0,2,1,2,0,0,0/)
     integer, parameter :: l2(1:33)=(/0,0,0,1,3,0,0,0,0,0,0,0,2,1,3,0,0,0,0,0,0,2,2,3,0,0,0,0,0,0,3,1,2/)
     integer, parameter :: l3(1:33)=(/3,0,0,0,0,0,1,4,0,0,0,0,0,0,0,2,1,4,0,0,0,0,0,0,2,2,4,0,0,0,0,0,0/)
@@ -145,12 +147,12 @@ module bit_reps
 contains
 
     subroutine allocate_currentdets ()
-        
+
         ! Allocate memory of the correct size for the currentdets array.
 
         integer :: ierr
         character(*), parameter :: this_routine = 'allocate_currentdets'
-        
+
         allocate (WalkVecDets(0:NIfTot, MaxWalkersPart), stat=ierr)
         if (ierr /= 0) &
             call stop_all (this_routine, "Allocation failed for WalkVecDets")
@@ -215,17 +217,17 @@ contains
 ! If we are using programattic lenofsign, then we also need to use separate
 ! integers for the flags, as the number of initiator/parent flags increases
 ! dramatically!
-        
-        ! K.G. 24.08.18 
-        ! Flags are being used in basically every calculation, 
-        ! considering recent developments, the possibility not to 
+
+        ! K.G. 24.08.18
+        ! Flags are being used in basically every calculation,
+        ! considering recent developments, the possibility not to
         ! use flags is obsolete
         NIfFlag = 1
 
         NOffFlag = NOffSgn + NIfSgn
 
         ! N.B. Flags MUST be last!!!!!
-        !      If we change this bit, then we need to adjust ilut_lt and 
+        !      If we change this bit, then we need to adjust ilut_lt and
         !      ilut_gt.
 
         ! The total number of bits_n_int-bit integers used - 1
@@ -235,7 +237,7 @@ contains
         WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
 
         if (tGUGA) then
-            ! set up a nIfGUGA variable to use a similar integer list to 
+            ! set up a nIfGUGA variable to use a similar integer list to
             ! calculate excitations for a given GUGA CSF
 
             ! Structure of a bit representation:
@@ -251,7 +253,7 @@ contains
             nIfGUGA = nIfD + 3
             write(6,"(A,I6)") "For GUGA calculation set up a integer list of length: ", nIfGUGA + 1
 
-        end if 
+        end if
 
         ! By default we DO NOT initialise RDM parts of the bit rep now
         bit_rdm_init = .false.
@@ -288,7 +290,7 @@ contains
     end subroutine
 
     subroutine extract_bit_rep (ilut, nI, real_sgn, flags, j, store)
-        
+
         ! Extract useful terms out of the bit-representation of a walker
 
         integer(n_int), intent(in) :: ilut(0:nIfTot)
@@ -343,6 +345,10 @@ contains
 #else
         sgn = extract_part_sign(ilut, min_part_type(run))
 #endif
+#ifdef __WARNING_WORKAROUND
+        ! Strange bug in compiler
+        call unused(run)
+#endif
     end function
 
 
@@ -354,7 +360,7 @@ contains
         integer(n_int), intent(in) :: Det(0:NIfDBO)
         integer, intent(in) :: flag
         integer(n_int) :: sgn(lenof_sign)
-        
+
         iLut(0:NIfDBO) = Det
 
         sgn = transfer(real_sgn, sgn)
@@ -382,6 +388,10 @@ contains
         ! as the initiator flag is stored in the "real" bit
         ! of each run
         flag = flag_initiator(min_part_type(part_type_to_run(sgn_index)))
+#ifdef __WARNING_WORKAROUND
+        ! Strange bug in compiler
+        call unused(sgn_index)
+#endif
     end function get_initiator_flag
 
     pure function get_initiator_flag_by_run(run) result (flag)
@@ -389,6 +399,10 @@ contains
         integer :: flag
         ! map 1->1, 2->3, 3->5, 4->7 for complex
         flag = flag_initiator(min_part_type(run))
+#ifdef __WARNING_WORKAROUND
+        ! Strange bug in compiler
+        call unused(run)
+#endif
     end function get_initiator_flag_by_run
 
     pure function any_run_is_initiator(ilut) result (t)
@@ -416,7 +430,7 @@ contains
         endif
       end do
     end function all_runs_are_initiator
-    
+
     subroutine clear_all_flags (ilut)
 
         ! Clear all of the flags
@@ -441,17 +455,16 @@ contains
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
 
     end subroutine encode_sign
-    
+
     subroutine encode_run_sign (ilut, real_sgn, imag_sgn, run)
 
-        ! Encode only the real AND imaginary component of the sign for the 
+        ! Encode only the real AND imaginary component of the sign for the
         ! walker. Sign argument is now a scalar.
         !
         ! In:    real_sgn  - The new sign component
         !        imag_sgn  - The new imaginary sign component
         !        run - Update given run. 1 ==> inum_runs
         ! InOut:  ilut     - The bit representation to update
-
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: run
         real(dp), intent(in) :: real_sgn, imag_sgn
@@ -461,14 +474,15 @@ contains
         call encode_part_sign(ilut, real_sgn, min_part_type(run))
 #ifdef __CMPLX
         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
+#elif defined(__WARNING_WORKAROUND)
+        call unused(imag_sgn)
 #endif
-
     end subroutine encode_run_sign
 
 
     subroutine encode_part_sign (ilut, real_sgn, part_type)
 
-        ! Encode only the real OR imaginary component of the sign for the 
+        ! Encode only the real OR imaginary component of the sign for the
         ! walker. Sign argument is now a scalar.
         !
         ! In:    real_sgn  - The new sign component
@@ -486,7 +500,7 @@ contains
     end subroutine encode_part_sign
 
     subroutine nullify_ilut (ilut)
-        
+
         ! Sets the sign of a determinant to equal zero.
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
 
@@ -540,8 +554,8 @@ contains
 !        ind = NOffFlag + flg / bits_n_int
 !        off = mod(flg, bits_n_int)
 !        ilut(ind) = ibset(ilut(ind), off)
-        
-        ! This now assumes that we do not have more flags than bits in an 
+
+        ! This now assumes that we do not have more flags than bits in an
         ! integer.
         ilut(NOffFlag) = ibset(ilut(NOffFlag), flg)
 
@@ -707,7 +721,7 @@ contains
 
       ilut(NSpawnOffset) = 1
     end subroutine log_spawn
-    
+
     subroutine increase_spawn_counter(ilut)
       ! increase the spawn counter by 1
       implicit none
@@ -716,18 +730,18 @@ contains
       ilut(NSPawnOffset) = ilut(NSpawnOffset) + 1
 
     end subroutine increase_spawn_counter
-    
+
     function get_num_spawns(ilut) result(nSpawn)
       ! read the number of spawns to this det so far
       implicit none
       integer(n_int), intent(inout) :: ilut(0:NIfBCast)
       integer :: nSpawn
 
-      nSpawn = ilut(nSpawnOffset)
+      nSpawn = int(ilut(nSpawnOffset))
 
     end function get_num_spawns
 
-    
+
 
     ! function test_flag is in bit_rep_data
     ! This avoids a circular dependence with DetBitOps.
@@ -868,9 +882,9 @@ contains
                     return
                 endif
             endif
-        else if (ic == 3) then 
+        else if (ic == 3) then
             ! todo! need to consider more maybe!
-            exTypeFlag = 6 
+            exTypeFlag = 6
         endif
 
     end function
@@ -906,7 +920,7 @@ contains
                     !An electron is at this orbital
                     elec = elec + 1
                     nI(elec) = orb
-                   
+
                     ! is the orbital spin alpha or beta?
                     if (mod(ind,2)==1) then
                         ! alpha
@@ -916,7 +930,7 @@ contains
                     else
                         store%nI_beta(elec-store%nel_alpha) = orb
                         store%nI_beta_inds(elec-store%nel_alpha) = elec
-                    endif 
+                    endif
 
                     ! Update class counts
                     store%ClassCountOcc(ind) = store%ClassCountOcc(ind) + 1
@@ -928,7 +942,7 @@ contains
                 else
                     ! Update count
                     virt(ind) = virt(ind) + 1
-        !            write(*,*) "filling virt"
+        !            write(iout,*) "filling virt"
                     ! Store orbital in list of unocc. orbs.
                     store%virt_list(virt(ind), ind) = orb
                 endif
@@ -961,7 +975,6 @@ contains
         ! This is a routine to take a determinant in bit form and construct
         ! the natural ordered integer form of the det.
         ! If CSFs are enabled, transfer the Yamanouchi symbol as well.
-    
 
         integer(n_int), intent(in) :: ilut(0:NIftot)
         integer, intent(out) :: nI(:)
@@ -971,7 +984,7 @@ contains
 
         nel_loc = size(nI)
 
-        ! We need to use the CSF decoding routine if CSFs are enabled, and 
+        ! We need to use the CSF decoding routine if CSFs are enabled, and
         ! we are below a truncation limit if set.
 
         bIsCsf = .false.
@@ -1051,7 +1064,7 @@ contains
 
     pure subroutine decode_bit_det_bitwise (nI, iLut)
 
-        ! This is a routine to take a determinant in bit form and construct 
+        ! This is a routine to take a determinant in bit form and construct
         ! the natural ordered integer forim of the det.
         ! If CSFs are enabled, transfer the yamanouchi symbol as well.
 

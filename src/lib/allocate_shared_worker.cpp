@@ -62,7 +62,7 @@ void fort_printf (const char * fmt, ...)
 }
 
 // This shared memory mapping is the only bit of this file which is c++
-// rather than C, but it is definitely a better way of doing it than 
+// rather than C, but it is definitely a better way of doing it than
 // writing a map in C!
 //
 // Store a map with the required details to unlink the shared memory. This
@@ -193,7 +193,7 @@ void allocate_shared_windows (const char * name, void ** ptr,
 		stop_all_c (__FUNCTION__,
 					"Memory mapping file object failed.");
 	}
-	
+
 	// Store the handle for later cleanup.
 	g_shared_mem_map[*ptr] = map_det_t(name, hMapFile);
 	mpibarrier_c (&ierr);
@@ -220,17 +220,17 @@ void allocate_shared_posix (const char * name, void ** ptr, const size_t size)
 	int fd = shm_open (shared_name.c_str(), O_CREAT | O_RDWR, (mode_t)0600);
 	if (fd == -1)
 		stop_all_c (__FUNCTION__,
-		          (string("creating shared memory object failed: ") 
+		          (string("creating shared memory object failed: ")
 		           + strerror(errno)).c_str());
 
 	// Set the length of the named region to the required length
 	if (ftruncate(fd, size) == -1)
 		stop_all_c (__FUNCTION__,
-		          (string("Setting size of shared memory region failed: ") 
+		          (string("Setting size of shared memory region failed: ")
 		           + strerror(errno)).c_str());
 
 	// Map the region into the current address space.
-	*ptr = mmap (NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED, 
+	*ptr = mmap (NULL, size, PROT_READ | PROT_WRITE, MAP_SHARED,
 			fd, 0);
 	if (*ptr == MAP_FAILED)
 		stop_all_c (__FUNCTION__,
@@ -266,7 +266,7 @@ void allocate_shared_systemV (const char * name, void ** ptr,
 	// Get the shm key associated with the above file, and the character '~'
 	key_t shm_key = ftok (path.c_str(), '~');
 	if (shm_key == -1)
-		stop_all_c (__FUNCTION__, (string("Error getting System V IPC key: ") 
+		stop_all_c (__FUNCTION__, (string("Error getting System V IPC key: ")
 		                        + strerror(errno)).c_str());
 
 	// Get the shm object reference.
@@ -336,7 +336,7 @@ extern "C" void dealloc_shared_worker (void * ptr)
 	if (test_shared_permissions()) {
 		//
 		// Deallocate POSIX shared memory
-		
+
 		// Find the shared memory in the global list.
 		map<void*,map_det_t>::iterator det;
 		det = g_shared_mem_map.find(ptr);
@@ -381,7 +381,7 @@ extern "C" void cleanup_shared_alloc ()
 		size_t size = iter->second.size;
 		void * ptr = iter->first;
 		string name = iter->second.name;
-		fort_printf ("Non-deallocated shared memory found: %s, %d bytes\n", 
+		fort_printf ("Non-deallocated shared memory found: %s, %d bytes\n",
 		        name.c_str(), int(size));
 		UnmapViewOfFile (ptr);
 		CloseHandle (iter->second.hMap);

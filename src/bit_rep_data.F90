@@ -35,7 +35,7 @@ module bit_rep_data
     integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
     integer :: nIfGUGA ! number of integers needed for the GUGA CSFs and flags
-    
+
     integer :: nIfBCast ! Size of data to use in annihilation broadcast
 
     ! Has the RDM component of the bit representation (For bcast) been inited.

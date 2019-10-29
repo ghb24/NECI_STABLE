@@ -6,7 +6,7 @@ MODULE FciMCData
       use constants
       use SymExcitDataMod, only: excit_gen_store_type
       use MemoryManager, only: TagIntType
-      use global_utilities         
+      use global_utilities
       use Parallel_neci, only: MPIArg
       use ras_data
 
@@ -30,7 +30,7 @@ MODULE FciMCData
       integer :: initiatorstats_unit ! INITIATORStats
       integer :: ComplexStats_unit ! COMPLEXStats
       integer :: mswalkercounts_unit
-      integer :: Tot_Unique_Dets_Unit 
+      integer :: Tot_Unique_Dets_Unit
       integer :: EXLEVELStats_unit ! EXLEVELStats
 
       integer :: replica_est_unit ! Variational estimates
@@ -122,13 +122,12 @@ MODULE FciMCData
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
       !as free slots are used up for *newly spawned* walkers onto previously unoccupied determinants only
       integer :: iEndFreeSlot = 0   !Position of last free slot, so after we exceed this, just add the the end of the main list.
- 
-!      real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort     
+
+!      real(dp) :: AvDiagSftAbort,SumDiagSftAbort,DiagSftAbort
 !This is the average diagonal shift value since it started varying, and the sum of the shifts since it started varying, and
                                      !the instantaneous shift, including the number of aborted as though they had lived.
 
       real(dp), allocatable :: DiagSftRe(:), DiagSftIm(:)     !For complex walkers - this is just for info - not used for population control.
-      
       INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
 
@@ -144,9 +143,9 @@ MODULE FciMCData
       real(dp), allocatable :: norm_semistoch(:)
 
       INTEGER :: exFlag=3
-      
+
       !Hash tables to point to the correct determinants in CurrentDets
-      type(ll_node), pointer :: HashIndex(:) 
+      type(ll_node), pointer :: HashIndex(:)
       integer :: nWalkerHashes    ! The length of hash table.
       real(dp) :: HashLengthFrac
 
@@ -163,9 +162,9 @@ MODULE FciMCData
       logical :: tLogNumSpawns
       ! total truncated weight
       real(dp) :: truncatedWeight, AllTruncatedWeight
-      
 
-!The following variables are calculated as per processor, but at the end of each update cycle, 
+
+!The following variables are calculated as per processor, but at the end of each update cycle,
 !are combined to the root processor
       real(dp) :: GrowRate,DieRat
       HElement_t(dp), allocatable :: SumENum(:)
@@ -220,24 +219,24 @@ MODULE FciMCData
       real(dp), allocatable :: SpawnFromSing (:), AllSpawnFromSing(:)
       REAL(dp), allocatable :: HFCyc(:)
       !This is the number of HF*sign particles on a given processor over the course of the update cycle
-      HElement_t(dp), allocatable :: AllHFCyc(:) 
+      HElement_t(dp), allocatable :: AllHFCyc(:)
       !This is the sum of HF*sign particles over all processors over the course of the update cycle
-      HElement_t(dp), allocatable :: OldAllHFCyc(:) 
+      HElement_t(dp), allocatable :: OldAllHFCyc(:)
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t(dp), allocatable :: ENumCyc(:), InitsENumCyc(:)
       !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
       HElement_t(dp), allocatable :: AllENumCyc(:), AllInitsENumCyc(:)
       !This is the sum of double*sign*Hij over all processors over the course of the update cyc
       HElement_t(dp), allocatable :: ENumCycAbs(:)
-      !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" "" 
+      !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" ""
       HElement_t(dp), allocatable :: AllENumCycAbs(:)
       !This is the sum of abs(double*sign*Hij) over all processors over the course of the updat
 
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
-      
+
       ! [W.D.12.12.2017]
-      ! for triples allow bigger bloom counts! 
+      ! for triples allow bigger bloom counts!
       real(dp) :: bloom_sizes(0:3), bloom_max(0:3)
       integer :: bloom_count(0:3), all_bloom_count(0:3)
 
@@ -282,12 +281,12 @@ MODULE FciMCData
       integer, allocatable :: iBlockingIter(:)
 
  !This becomes true when the blocking error analysis begins, and initiates the calling of the blocking routine.
-      LOGICAL :: tErrorBlocking=.false.           
+      LOGICAL :: tErrorBlocking=.false.
       LOGICAL :: tShiftBlocking=.false.
 
       LOGICAL :: TTruncSpace=.false.      !This is a flag set as to whether the excitation space should be truncated or not.
 !This is to indicate when the sign of the particles have been flipped. This is needed for the calculation of the ACF
-      LOGICAL :: TFlippedSign=.false.             
+      LOGICAL :: TFlippedSign=.false.
 
       type(timer) :: Walker_Time, Annihil_Time,ACF_Time, Sort_Time, &
                            Comms_Time, AnnSpawned_time, AnnMain_time, &
@@ -302,14 +301,14 @@ MODULE FciMCData
                            rescale_time, death_time, hash_test_time, &
                            hii_test_time, init_flag_time, &
                            InitSpace_Init_Time
-      
+
       ! Store the current value of S^2 between update cycles
       real(dp), allocatable :: curr_S2(:), curr_S2_init(:)
 
       ! The number of holes in the main list.
       integer :: HolesInList = 0
 
-!These are variables needed for the FixCASshift option in which an active space is chosen and the 
+!These are variables needed for the FixCASshift option in which an active space is chosen and the
 !shift fixed only for determinants within this space
 !The SpinInvBRR vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
       INTEGER, ALLOCATABLE :: SpinInvBRR(:)
@@ -321,15 +320,15 @@ MODULE FciMCData
       real(dp) :: pDoubles, pSingles, pParallel
       real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
-      
+
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
-      
+
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:), iLutHF_True(:)
-    
+
       REAL(KIND=sp) :: IterTime
-    
+
       REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)
       REAL(KIND=dp) , ALLOCATABLE :: SinglesAttemptHist(:),AllSinglesAttemptHist(:),SinglesHist(:),AllSinglesHist(:)
@@ -353,16 +352,16 @@ MODULE FciMCData
       integer :: nUnoccDets, AllNUnoccDets
       integer :: maxHoleExLvlWrite
 
-!This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next 
+!This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next
 !free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
-      INTEGER , ALLOCATABLE :: ValidSpawnedList(:) 
+      INTEGER , ALLOCATABLE :: ValidSpawnedList(:)
  !This is set up as the initial ValidSpawnedList elements, so that it does not need to be reevaluated each time.
-      INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:) 
+      INTEGER , ALLOCATABLE :: InitialSpawnedSlots(:)
 
       integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.      
+      LOGICAL , PARAMETER :: tGenMatHEl=.true.
 
       ! Number of update cycles that the shift has been allowed to vary
       integer, allocatable :: VaryShiftCycles(:)
@@ -375,10 +374,10 @@ MODULE FciMCData
       real(dp), allocatable :: AvDiagSft(:), SumDiagSft(:)
 
 !These arrays are for histogramming the hamiltonian when tHistHamil is set.
-      real(dp) , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:) 
+      real(dp) , ALLOCATABLE :: HistHamil(:,:),AllHistHamil(:,:),AvHistHamil(:,:),AllAvHistHamil(:,:)
       real(dp) :: TotImagTime
-            
-      INTEGER(KIND=n_int) , ALLOCATABLE :: CASMask(:)        !These are masking arrays for the core 
+
+      INTEGER(KIND=n_int) , ALLOCATABLE :: CASMask(:)        !These are masking arrays for the core
                                                              !and external orbitals in the cas space
       INTEGER(KIND=n_int) , ALLOCATABLE :: CoreMask(:)       !These are masking arrays for the Core orbitals in the cas space
 
@@ -389,7 +388,7 @@ MODULE FciMCData
       ! A 'shift'-like value for the total energy, taken from the growth of
       ! walkers on the reference site
       real(dp), allocatable :: HFShift(:)
-      
+
       ! An instantaneous value of the shift from the particle growth
       real(dp), allocatable :: InstShift(:)
       real(dp), allocatable :: OldAllNoatHF(:)
@@ -397,23 +396,23 @@ MODULE FciMCData
       ! Where is the reference site being stored?
       integer, allocatable :: iRefProc(:)
 
-      !This data is for calculating the highest population determinant, 
-      !and potentially restarting the calculation based on this determinant, 
+      !This data is for calculating the highest population determinant,
+      !and potentially restarting the calculation based on this determinant,
       !or changing the determiant which the energy is calculated from.
       integer, allocatable:: iHighestPop(:)
       INTEGER :: QuadDetsEst !Estimate of the number of symmetry allowed determinants at excit level 4
       INTEGER :: DoubDetsEst !Estimate of the number of symmetry allowed determinants at excit level 2
       logical :: tReplicaReferencesDiffer
-      
-      ! This data is for reducing the occupied determinants drastically when hitting 
+
+      ! This data is for reducing the occupied determinants drastically when hitting
       ! the memory limit
       integer :: n_prone_dets
 
       integer, allocatable :: ProjEDet(:, :)
       integer(n_int), allocatable :: HighestPopDet(:,:), iLutRef(:, :)
-      integer(n_int), allocatable :: iLutRefFlip(:, :)     !If we are using HPHF and projecting onto 
+      integer(n_int), allocatable :: iLutRefFlip(:, :)     !If we are using HPHF and projecting onto
                                                         !an open-shell determinant, then it is useful
-                                                        !to store the spin-coupled determinant, 
+                                                        !to store the spin-coupled determinant,
                                                         !so we can calculate projection onto both.
       ! Even with multiple reference determinants, the calculation is done
       ! relative to Hii. So we need to adjust the calculated projected energy
@@ -422,7 +421,7 @@ MODULE FciMCData
 
       integer, allocatable :: RefDetFlip(:, :)
       logical, allocatable :: tSpinCoupProjE(:)
-      
+
       !Extra data recorded for using RealCoefficients
       INTEGER :: WalkersToSpawn
       LOGICAL :: blank_det
@@ -440,7 +439,7 @@ MODULE FciMCData
 
       ! Diag shift from the input file, if it needed to be reset after restart
       real(dp), allocatable :: InputDiagSft(:)
-      
+
       ! Projected energy used in preconditioner
       real(dp), allocatable :: proj_e_for_precond(:)
 
@@ -458,7 +457,7 @@ MODULE FciMCData
           real(dp), allocatable :: tot_parts_old(:)
           integer :: update_iters
       end type
-      
+
       ! These are variables used to control the behaviour of PerformFciMCycPar
       ! without passing them directly to it.
       character(150) :: bloom_warn_string
@@ -467,12 +466,15 @@ MODULE FciMCData
 
       integer :: yama_global (4)
 
-      ! Used for modifying the ReadPops procedures, so that we can call 
+      ! Used for modifying the ReadPops procedures, so that we can call
       ! InitFCIMCCalcPar again without reading the popsfile.
       logical :: tPopsAlreadyRead
 
-!      ! Excitation generation storage 
+!      ! Excitation generation storage
       type(excit_gen_store_type) :: fcimc_excit_gen_store
+
+      ! auxiliary variables used to determine AvMCExcits on the fly
+      integer :: nInvalidExcits, nValidExcits, allNInvalidExcits, allNValidExcits
 
       ! Tau searching variables
       ! tSearchTau specifies if we are searching tau
@@ -490,7 +492,7 @@ MODULE FciMCData
       !*****************  Yucky globals for AJWT iter-dependent hashes ***********
       integer :: hash_iter       ! An iteration number added to make iteration-dependent hashes
 ! -Ln_2 (Cycletime), where CycleTime is the average number of cycles until a det returns to its processor
-      integer :: hash_shift      
+      integer :: hash_shift
 
       ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently
       ! only used for the code for the Davidson method and semi-stochastic method.
@@ -502,7 +504,7 @@ MODULE FciMCData
 
       ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
       real(dp), allocatable, dimension(:) :: core_ham_diag
-            
+
       ! This stores the entire core space from all processes, on each process.
       integer(n_int), allocatable, dimension(:,:) :: core_space
 
@@ -673,14 +675,14 @@ MODULE FciMCData
       real(dp), allocatable, dimension(:) :: precond_e_num,     precond_denom
       real(dp), allocatable, dimension(:) :: precond_e_num_all, precond_denom_all
 
-      ! for the automated tau-search with the guga non-weighted excitation 
+      ! for the automated tau-search with the guga non-weighted excitation
       ! generator, i need multiple new specific excitation type probabilities
       real(dp) :: pExcit2, pExcit4, pExcit2_same, pExcit3_same
       !This arrays contain information related to the spawns. Currently only used with auto-adaptive-shift
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnInfoVec(:,:),SpawnInfoVec2(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnInfo(:,:),SpawnInfo2(:,:)
       INTEGER(TagIntType) :: SpawnInfoVecTag=0,SpawnInfoVec2Tag=0
-     
+
       !Size of SpawnInfo array elements
       integer :: SpawnInfoWidth = 6
       !Where is the spawn's parent index stored inside SpawnInfo

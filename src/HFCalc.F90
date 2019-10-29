@@ -15,7 +15,7 @@ MODULE HFCalc
       Use Determinants, only: FDet, nUHFDet, write_det
       use IntegralsData, only: UMat, tagUMat, umat_win
       Use UMatCache, only: GetUMatSize
-      Use OneEInts, only: TMat2D, SetupTMat2, DestroyTMat
+      Use OneEInts, only: TMat2D, TMat2D2, SetupTMat2, DestroyTMat
       use sort_mod
       use shared_memory_mpi
       use HElem, only: helement_t_size, helement_t_sizeb
@@ -24,13 +24,12 @@ MODULE HFCalc
       HElement_t(dp),ALLOCATABLE :: HFBASIS(:),HFE(:)
       HElement_t(dp),pointer :: UMat2(:)
       INTEGER(MPIArg):: umat2_win
-      HElement_t(dp),pointer :: TMat2D2(:,:)
       integer i
       integer nOrbUsed
       integer TMatInt
       integer(int64) :: UMatInt
       integer(TagIntType),save :: tagUMat2=0,tagHFE=0,tagHFBasis=0
-         
+
 !C.. If we are using an HF basis instead of our primitive basis, we need
 !C.. to load in the coeffs of the HF eigenfunctions in terms of the
 !C.. primitive basis.
@@ -90,7 +89,7 @@ MODULE HFCalc
                 TMAT2D => TMAT2D2
                 NULLIFY(TMAT2D2)
 !C.. Allocate the new matrix
-               CALL GetUMatSize(nBasis,nEl,UMATINT)
+               CALL GetUMatSize(nBasis,UMATINT)
                call shared_allocate_mpi (umat2_win, umat2, (/UMatInt/))
                !Allocate(UMat2(UMatInt), stat=ierr)
                LogAlloc(ierr,'UMAT2', int(UMatInt), HElement_t_SizeB, tagUMat2)

@@ -63,8 +63,8 @@ contains
         if (size(perturbs) > 1) then
             ! Just allocate these arrays to be the same size as the CurrentDets
             ! array.
-            allocate(temp_dets_1(0:NIfTot, MaxWalkersPart), stat=ierr) 
-            allocate(temp_dets_2(0:NIfTot, MaxWalkersPart), stat=ierr) 
+            allocate(temp_dets_1(0:NIfTot, MaxWalkersPart), stat=ierr)
+            allocate(temp_dets_2(0:NIfTot, MaxWalkersPart), stat=ierr)
 
             ! Apply the first perturbation.
             ndets_pert_1 = ndets_init
@@ -81,7 +81,7 @@ contains
                 if(present(phase)) then
                    call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2,phase(i))
                 else
-                   call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2)        
+                   call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2)
                 endif
                 call add_ilut_lists(ndets_pert_1, ndets_pert_2, .false., temp_dets_1, temp_dets_2, dets_out, ndets)
                 ! If we still have more perturbations to apply, copy the result
@@ -152,7 +152,7 @@ contains
             ! Copy the ilut so that we don't alter the input list.
             ilut = dets_in(:,i)
             call perturb_det(ilut, perturb)
-            
+
             if (all(ilut(0:NIfDBO) == 0_n_int)) then
                 nremoved = nremoved + 1
             else
@@ -176,7 +176,7 @@ contains
                 call checkValidSpawnedList(proc,this_routine)
             end if
         end do
-        
+
         if(allocated(perturb%ann_orbs) .and. allocated(perturb%crtn_orbs))&
              write(6,*) "Transfering from orbital ", perturb%ann_orbs(1), &
              " to ", perturb%crtn_orbs(1)
@@ -185,7 +185,7 @@ contains
         write(6,*) "Communicating perturbed dets"
         ! Send perturbed determinants to their new processors.
         call SendProcNewParts(ndets, tSingleProc=.false.)
- 
+
         ! The result of SendProcNewParts is now stored in an array pointed to
         ! by SpawnedParts2. We want it in an array pointed to by SpawnedParts,
         ! so swap the pointers around.
@@ -260,7 +260,7 @@ contains
 
             ! Now, determine whether or not the application of these operators
             ! introduces a minus sign.
-            
+
             ! This is done in two steps. First, we find the number of
             ! minus signs introduced assuming all of the operators in the
             ! perturbation operator are already ordered by their NECI orbital
@@ -304,7 +304,7 @@ contains
             do i = 1, perturb%nannihilate
                 do j = 0, NIfD
                     ! Create a mask which has 0's in all orbitals which might be
-                    ! passed in the ordering, and 1's elsewhere. 
+                    ! passed in the ordering, and 1's elsewhere.
                     if (j < a_elems(i)) then
                         new_mask(j) = 0_n_int
                     else if (j == a_elems(i)) then

@@ -31,13 +31,13 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel, tHPHF, tGUGA
         use CalcData, only: t_guga_mat_eles
-#ifndef __CMPLX 
+#ifndef __CMPLX
         use guga_excitations, only: Detham_guga
 #endif
 
         integer, intent(in) :: det_list(:,:)
         integer, intent(in) :: ndets
-        integer, intent(in) :: nexcit 
+        integer, intent(in) :: nexcit
         real(dp), intent(out) :: evals(:)
         real(dp), intent(out) :: evecs(:,:)
 
@@ -58,14 +58,14 @@ contains
         tMC = .false.
 
         ! for the guga implementation i need to that more efficiently..
-        ! as i already have a routinr which acts the hamiltonian on a state 
+        ! as i already have a routinr which acts the hamiltonian on a state
         ! and creates all the exciations from it..
-        ! this means i need a routine for the guga case which sets up the 
+        ! this means i need a routine for the guga case which sets up the
         ! hamiltonian in the same way as DetHam for determinants..
 #ifndef __CMPLX
-        ! only use the "old" version when t_guga_mat_eles is not set! 
-        if (tGUGA .and. (.not. t_guga_mat_eles)) then 
-            call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil) 
+        ! only use the "old" version when t_guga_mat_eles is not set!
+        if (tGUGA .and. (.not. t_guga_mat_eles)) then
+            call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil)
         else
 #endif
         ! just to make sure we pass valid objects

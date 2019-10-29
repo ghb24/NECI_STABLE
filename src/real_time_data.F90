@@ -3,7 +3,7 @@
 ! data module of the real-time implementation of FCIQMC
 
 module real_time_data
-    
+
     use constants
     use MemoryManager, only: TagIntType
     use FciMCData, only: perturbation, ll_node, fcimc_iter_data
@@ -13,7 +13,7 @@ module real_time_data
     integer :: n_real_time_copies, cnt_real_time_copies
     logical :: t_prepare_real_time
 
-    ! for the actual calculation: 
+    ! for the actual calculation:
     ! global flag indicating real-time calculation
     ! rotated_time_setup: flag to indicate whether pure real time is
     ! used or not
@@ -23,13 +23,13 @@ module real_time_data
          tNewOverlap, tOnlyPositiveShift, tHFOverlap
 
     logical :: tLowerThreshold
-    ! also use a second iter_data type to keep track of the 2 distinct 
+    ! also use a second iter_data type to keep track of the 2 distinct
     ! spawning events
     type(fcimc_iter_data) :: second_spawn_iter_data
 
     ! store the type of greensfunction as an integer, or maybe later on even
-    ! create a type like nick did, to store all the general information like 
-    ! timestep, which orbitals are manipulated etc. in it 
+    ! create a type like nick did, to store all the general information like
+    ! timestep, which orbitals are manipulated etc. in it
     integer :: gf_type      ! -1 indicates a the lesser, 1 the greater GF
     integer :: normsize ! number of combinations avaliable for calculating overlaps
     integer :: gf_count ! number of different Green's functions to be evaluated
@@ -39,7 +39,7 @@ module real_time_data
     ! prefactors for rescaling of the wavefunction, if enabled
     real(dp) :: alphaDamping, etaDamping ! prefactors for adjustment of rotation angle and damping
     real(dp) :: stabilizerThresh
-    
+
     ! the angle used for rotation of time into complex plane
     ! it is better readable to use new variables for real and imaginary part
     ! of the rotated time
@@ -61,7 +61,7 @@ module real_time_data
     complex(dp), allocatable :: dyn_norm_red(:,:)
     ! norms are complex because they are taken between different replicas
     ! -> not necesserily entirely real
-    ! need a global variable for the overlap <y(0)|y(t)> 
+    ! need a global variable for the overlap <y(0)|y(t)>
     ! determined by the max. cycle
 !     real(dp), allocatable :: gf_overlap(:)
     ! for tests now only make it of length 1
@@ -78,7 +78,7 @@ module real_time_data
     real(dp), allocatable :: alphaLog(:)
     integer :: alphaLogSize, alphaLogPos
 
-    ! also store the current overlap of the cycle.. 
+    ! also store the current overlap of the cycle..
 
     complex(dp), allocatable :: current_overlap(:,:)
 
@@ -96,10 +96,10 @@ module real_time_data
     integer(n_int), pointer :: dpsi_cache(:,:)
     integer :: dpsi_size, max_cache_size, backup_size
 
-    ! also store the norm of the perturbed ground state to adjust the overlap 
+    ! also store the norm of the perturbed ground state to adjust the overlap
     complex(dp), allocatable :: pert_norm(:,:)
 
-    ! need additional info of the original walker number and the number of 
+    ! need additional info of the original walker number and the number of
     ! walkers remaining in the perturbed ground state
     integer(int64) :: TotWalkers_orig
 
@@ -115,15 +115,15 @@ module real_time_data
         ! and a end time to stop the simulation afterwards
         real(dp) :: max_time = -1.0_dp
 
-        ! later also store the type of operators and spinorbitals in this 
-        ! type! 
+        ! later also store the type of operators and spinorbitals in this
+        ! type!
 
-        ! store the type of the greensfunction calculated 
-        !  1 ... greater GF: creation operator applied! 
+        ! store the type of the greensfunction calculated
+        !  1 ... greater GF: creation operator applied!
         ! -1 ... lesser GF: annihilation operator applied!
         integer :: gf_type = 0
 
-        ! to reduce the explosive spread of walkers through the 
+        ! to reduce the explosive spread of walkers through the
         ! Hilbert space a small imaginery energy can be introduced in
         ! the Schroedinger equation id/dt y(t) = (H-E0-ie)y(t)
         real(dp) :: damping = 0.0_dp
@@ -133,7 +133,7 @@ module real_time_data
 
     type(real_time_type) :: real_time_info
 
-    ! info if the FCIDUMP integrals are complex 
+    ! info if the FCIDUMP integrals are complex
     logical :: t_complex_ints
 
     ! for hubbard model: Info if the perturbation operators are in k-space
@@ -142,15 +142,15 @@ module real_time_data
     real(dp), allocatable :: phase_factors(:)
 
     ! need a 2nd list to combine y(n) + k1/2 in the 2nd order RK method
-    ! from this list the spawns k2 are created, which can be stored in a 
+    ! from this list the spawns k2 are created, which can be stored in a
     ! reinitialized spawnvec arrays
     integer(n_int), allocatable, target :: temp_det_list(:,:)
     integer(n_int), pointer :: temp_det_pointer(:,:)
 
-    ! also use hash table to access those lists 
+    ! also use hash table to access those lists
     type(ll_node), pointer :: temp_det_hash(:)
     integer :: temp_n_hashes
-    real(dp) :: temp_hash_frac 
+    real(dp) :: temp_hash_frac
 
     ! also need to store the original number of determinants(and walkers maybe)
     ! of the y(n) list to reload correctly
@@ -158,7 +158,7 @@ module real_time_data
     integer :: MaxSpawnedDiag
 
     ! also start to store the diagonal "spawns" in the second rt-fciqmc loop
-    ! in a seperate Spawned Parts array, to better keep track of stats and 
+    ! in a seperate Spawned Parts array, to better keep track of stats and
     ! do seperate different distinct processes
     integer(n_int), pointer :: DiagParts(:,:)
 
@@ -166,7 +166,7 @@ module real_time_data
     integer(n_int), allocatable, target :: DiagVec(:,:)
 
     ! i dont think i need a hash table to go with that..
-    ! but i need this valid_spawned list thingy.. 
+    ! but i need this valid_spawned list thingy..
     ! which holds the next free slot to spawn to.. for each proc
     integer, allocatable :: temp_freeslot(:)
     integer :: temp_iendfreeslot, valid_diag_spawns
@@ -175,12 +175,12 @@ module real_time_data
     ! and limit the number of spawns per determinant
     integer :: n_diag_spawned, nspawnMax
 
-    ! also need a var. to keep track of the number of spawned dets in 
+    ! also need a var. to keep track of the number of spawned dets in
     ! the first RK steo
     integer :: nspawned_1, nspawned_tot_1
 
     ! keep stats track of the two runge kutta steps seperately -> need new
-    ! global variables! 
+    ! global variables!
     real(dp), allocatable :: NoAborted_1(:), AllNoAborted_1(:), AllNoAbortedOld_1(:), &
                 NoRemoved_1(:), AllNoRemoved_1(:), AllNoRemovedOld_1(:), &
                 NoBorn_1(:), AllNoBorn_1(:), NoDied_1(:), AllNoDied_1(:), &
@@ -204,7 +204,7 @@ module real_time_data
     integer :: bloom_count_1(0:2), all_bloom_count_1(0:2)
     real(dp) :: bloom_sizes_1(0:2), bloom_max_1(0:2)
 
-    ! use a global integer to specifiy the current runge-kutta step (1 or 2) 
+    ! use a global integer to specifiy the current runge-kutta step (1 or 2)
     ! to keep stats correclty
     integer :: runge_kutta_step
 
@@ -218,7 +218,7 @@ module real_time_data
 
     ! For corespace construction
     real(dp) :: wn_threshold
-    integer(n_int), allocatable :: core_space_buf(:,:)
+    integer(n_int), pointer :: core_space_buf(:,:)
     integer :: csbuf_size, corespace_log_interval
     type(ll_node), pointer :: ssht(:)
 

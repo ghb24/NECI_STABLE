@@ -1,3 +1,4 @@
+#include "macros.h"
 module get_excit
 
     use constants
@@ -93,10 +94,10 @@ contains
         nJ = nI
 
         ! As we move these around we need to do some playing!
-        ! wtf? this comment above does not mean anything! 
-        ! ahh. this is done since, after we move the first electron over 
-        ! the second, we need an index lowered by one to indicate the 
-        ! now second orbital in the modified nJ! 
+        ! wtf? this comment above does not mean anything!
+        ! ahh. this is done since, after we move the first electron over
+        ! the second, we need an index lowered by one to indicate the
+        ! now second orbital in the modified nJ!
         if (srcs(1) < tgts(1) .and. srcs(2) < tgts(1)) then
             elecs(2) = elecs(2) - 1
         end if
@@ -150,7 +151,7 @@ contains
             end if
 
 !             print *, "k: ", k
-!             print *, "nJ: ", nJ 
+!             print *, "nJ: ", nJ
             pos_moved = pos_moved + elecs(k) - i + 1
 !             print *, "pos_moved: ", pos_moved
 !             print *, "----------------"
@@ -159,7 +160,7 @@ contains
 
         tParity = btest(pos_moved, 0)
 !        parity = 1 - 2 * modulo(pos_moved, 2)
-        
+
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
         if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then
@@ -172,6 +173,21 @@ contains
 #endif
 
     end subroutine
+
+    function exciteIlut(ilut,src,orbs) result(ilutJ)
+      implicit none
+      integer(n_int), intent(in) :: ilut(0:NIfTot)
+      integer, intent(in) :: src(2), orbs(2)
+      integer(n_int) :: ilutJ(0:NIfTot)
+
+      ilutJ = ilut
+      clr_orb (ilutJ, src(1))
+      clr_orb (ilutJ, src(2))
+      set_orb (ilutJ, orbs(1))
+      set_orb (ilutJ, orbs(2))
+
+    end function exciteIlut
+
 
 
 end module

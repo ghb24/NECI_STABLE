@@ -156,7 +156,7 @@ contains
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
 
-        ! real-time FCIQMC: keep track of first and second Runge-Kutta step 
+        ! real-time FCIQMC: keep track of first and second Runge-Kutta step
         ! seperately, think of which stats i need for it!
         ! maybe move that to real-time init module..
 #ifdef __REALTIME
@@ -165,11 +165,11 @@ contains
                  NoRemoved_1(lenof_sign), AllNoRemoved_1(lenof_sign), &
                  AllNoRemovedOld_1(lenof_sign), &
 
-                 ! initiator related: 
+                 ! initiator related:
                  NoAddedInitiators_1(lenof_sign), InitRemoved_1(lenof_sign), &
                  AllNoAddedInitiators_1(lenof_sign), AllInitRemoved_1(lenof_sign), &
 
-                 ! dynamics: 
+                 ! dynamics:
                  NoBorn_1(inum_runs), AllNoBorn_1(inum_runs), &
                  NoDied_1(inum_runs), AllNoDied_1(inum_runs), &
                  Annihilated_1(inum_runs), AllAnnihilated_1(inum_runs), &
@@ -177,7 +177,7 @@ contains
                  SpawnFromSing_1(inum_runs), AllSpawnFromSing_1(inum_runs), &
                  NoatDoubs_1(inum_runs), AllNoatDoubs_1(inum_runs), &
                  AllGrowRateAbort_1(inum_runs), &
-                 ! additional, maybe unused stat. vars. 
+                 ! additional, maybe unused stat. vars.
                  NoInitDets_1(lenof_sign), NoNonInitDets_1(lenof_sign), &
                  NoInitWalk_1(lenof_sign), NoNonInitWalk_1(lenof_sign), &
                  NoatHF_1(lenof_sign), AllNoInitDets_1(lenof_sign), &
@@ -268,6 +268,8 @@ contains
                    trial_denom, tot_trial_denom, &
                    trial_num_inst, tot_trial_num_inst, &
                    trial_denom_inst, tot_trial_denom_inst, &
+                   init_trial_denom, init_trial_numerator, &
+                   tot_init_trial_denom, tot_init_trial_numerator, &
                    sum_proje_denominator, all_sum_proje_denominator, &
                    cyc_proje_denominator, all_cyc_proje_denominator, &
 
@@ -292,7 +294,7 @@ contains
                    tSinglePartPhaseKPInit)
 
                    ! real-time fciqmc
-#ifdef __REALTIME 
+#ifdef __REALTIME
                    deallocate(NoAborted_1, AllNoAborted_1, AllNoAbortedOld_1, &
                        NoRemoved_1, AllNoRemoved_1, AllNoRemovedOld_1, &
                        NoAddedInitiators_1, AllNoAddedInitiators_1, &
@@ -354,7 +356,8 @@ contains
         integer(int64), intent(in) :: ndets
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot,ndets)
 
-        integer :: i, run
+        integer :: run
+        integer(int64) :: i
         real(dp) :: real_sign(lenof_sign)
         character(*), parameter :: t_r = 'set_initial_global_data'
 
@@ -411,7 +414,7 @@ contains
         do run = 1, inum_runs
 
             ! Calculate the projected energy for this iteration.
-            if (ARR_RE_OR_CPLX(AllSumNoAtHF,run) /= 0) &
+            if (.not. near_zero(ARR_RE_OR_CPLX(AllSumNoAtHF,run))) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
 
             ! Keep track of where the particles are

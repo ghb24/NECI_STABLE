@@ -29,6 +29,8 @@ module semi_stoch_procs
 
     use sparse_arrays, only: sparse_core_ham, approx_ham
 
+    use procedure_pointers, only: shiftFactorFunction
+
     use timing_neci
 
 #if !defined(__CMPLX)
@@ -125,24 +127,40 @@ contains
             ! sparse_core_ham.
 #ifdef __CMPLX
             do i = 1, determ_sizes(iProcIndex)
+               ! Only scale the shift for the corespace when the option is set
+               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
+                  do part_type = 1, inum_runs
+                     ! scale the shift using the abs of this run's complex coefficient
+                     scaledDiagSft(part_type) = &
+                     shiftFactorFunction(&
+                          indices_of_determ_states(i), part_type,&
+                          sqrt(full_determ_vecs(min_part_type(part_type),&
+                          i+determ_displs(iProcIndex))**2 + &
+                          full_determ_vecs(max_part_type(part_type),&
+                          i+determ_displs(iProcIndex))**2)) *  DiagSft(part_type)
+                  end do
+               else
+                  scaledDiagSft = DiagSft
+               endif
+
                do part_type  = 1, lenof_sign
                   partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
-                       ! scale the shift using the abs of this run's complex coefficient
-                       shiftScaleFunction(&
-                       sqrt(full_determ_vecs(min_part_type(part_type_to_run(part_type)),&
-                       i+determ_displs(iProcIndex))**2 + &
-                       full_determ_vecs(max_part_type(part_type_to_run(part_type)),&
-                       i+determ_displs(iProcIndex))**2)) *  &
-                       DiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
+                       scaledDiagSft(part_type_to_run(part_type)) * full_determ_vecs(part_type,i+determ_displs(iProcIndex))
                enddo
             end do
 #else
             do i = 1, determ_sizes(iProcIndex)
-               ! get the re-scaled shift accounting for undersampling error
-               do  part_type = 1, inum_runs
-                  scaledDiagSft(part_type) = DiagSft(part_type) * shiftScaleFunction(&
-                       abs(full_determ_vecs(part_type,i+determ_displs(iProcIndex))))
-               end do
+               ! Only scale the shift for the corespace when the option is set
+               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
+                  ! get the re-scaled shift accounting for undersampling error
+                  do  part_type = 1, inum_runs
+                     scaledDiagSft(part_type) = DiagSft(part_type) * shiftFactorFunction(&
+                          indices_of_determ_states(i), part_type,&
+                          abs(full_determ_vecs(part_type,i+determ_displs(iProcIndex))))
+                  end do
+               else
+                  scaledDiagSft = DiagSft
+               endif
                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) + &
                     scaledDiagSft * full_determ_vecs(:,i+determ_displs(iProcIndex))
             end do
@@ -383,7 +401,7 @@ contains
         ! If this condition is met then RDM energies were added in on the
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
-        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then 
+        if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then
             full_determ_vecs_av = 0.0_dp
             write(6,*) "Reset fdv av at iteration ", iter
         end if
@@ -453,7 +471,7 @@ contains
     end function core_space_pos
 
     function check_determ_flag(ilut) result (core_state)
-    
+
         ! The reason for using this instead of just using test_flag is that test_flag
         ! crashes if flags are not being used. Calling this function therefore makes
         ! things neater!
@@ -524,7 +542,7 @@ contains
             ! The number of non-zero elements in this array will be almost the same as in
             ! the core Hamiltonian array, except the diagonal element is not considered,
             ! so there will actually be one less.
-            allocate(core_connections(i)%elements(sparse_core_ham(i)%num_elements-1)) 
+            allocate(core_connections(i)%elements(sparse_core_ham(i)%num_elements-1))
             allocate(core_connections(i)%positions(sparse_core_ham(i)%num_elements-1))
 
             ! The total number of non-zero elements in row i.
@@ -540,7 +558,7 @@ contains
                     ! The positions of the non-zero and non-diagonal elements in this row i.
                     core_connections(i)%positions(counter) = sparse_core_ham(i)%positions(j)
 
-                    ! for the GUGA implementation this has to be changed in the 
+                    ! for the GUGA implementation this has to be changed in the
                     ! future. but since this routine is only called if we calc.
                     ! RDMs on the fly, i can postpone that until then.. todo
                     ic = FindBitExcitLevel(SpawnedParts(:,i), temp_store(:, sparse_core_ham(i)%positions(j)))
@@ -761,8 +779,8 @@ contains
             num_sing_doub = 0
             block_size = 0
             do i = 1, num_states
-                ! for GUGA this would have to be changed, but apparently this 
-                ! function is never called in the rest of the code so 
+                ! for GUGA this would have to be changed, but apparently this
+                ! function is never called in the rest of the code so
                 ! ignore it for now..
                 excit_level = FindBitExcitLevel(ilut_list(:,i), ilutHF)
                 if (excit_level <= 2) then
@@ -827,7 +845,7 @@ contains
         end do
 
         do i = 1, ilut_list_size
-            counter(proc_list(i)) = counter(proc_list(i)) + 1 
+            counter(proc_list(i)) = counter(proc_list(i)) + 1
             temp_list(0:NIfTot, counter(proc_list(i))) = ilut_list(0:NIfTot,i)
         end do
 
@@ -849,7 +867,7 @@ contains
         integer :: nI(nel)
         real(dp) :: tmpH
 
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers)
             call decode_bit_det(nI, CurrentDets(:,i))
 
             if (tHPHF) then
@@ -1001,9 +1019,9 @@ contains
                        &Semi-Stochastic initialisation'
             write(6,*) 'Please increase MEMORYFACSPAWN'
 #else
-            write(*,*) 'Spawned parts array will not be big enough for &
+            write(iout,*) 'Spawned parts array will not be big enough for &
                        &Semi-Stochastic initialisation on task ', iProcIndex
-            write(*,*) 'Please increase MEMORYFACSPAWN'
+            write(iout,*) 'Please increase MEMORYFACSPAWN'
 #endif
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
@@ -1013,7 +1031,7 @@ contains
            ! the maximally required buffer size is the current size of the
            ! determinant list plus the size of the semi-stochastic space (in case
            ! all core-dets are new)
-           allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)  
+           allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)
            if(ierr.ne.0) call stop_all(this_routine, &
                 "Failed to allocate buffer for adaptive shift data")
         endif
@@ -1069,13 +1087,13 @@ contains
                                &semi-stochastic initialisation'
                     write(6,*) 'Please increase MEMORYFACSPAWN'
 #else
-                    write(*,*) 'Spawned parts array too small for &
+                    write(iout,*) 'Spawned parts array too small for &
                                &semi-stochastic initialisation on task ', iProcIndex
-                    write(*,*) 'Please increase MEMORYFACSPAWN'
+                    write(iout,*) 'Please increase MEMORYFACSPAWN'
 #endif
                     call stop_all(this_routine, 'Insufficient memory assigned')
                 end if
-                
+
                 SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
                 if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
             end if
@@ -1135,23 +1153,38 @@ contains
     end subroutine add_core_states_currentdet_hash
 
     subroutine return_most_populated_states(n_keep,&
-         largest_walkers, source, source_size, norm)
+         largest_walkers, opt_source, opt_source_size, norm)
 
-        ! Return the most populated states in source on *this* processor only. 
+        ! Return the most populated states in CurrentDets on *this* processor only.
         ! Also return the norm of these states, if requested.
 
         use bit_reps, only: extract_sign
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
-        integer, intent(in) :: source_size
-        integer(n_int), intent(in) :: source(0:NIfTot, source_size)
+        integer, intent(in), optional :: opt_source_size
+        integer(n_int), intent(in), optional, pointer :: opt_source(:,:)
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm
         integer :: i, j, smallest_pos, part_type
         real(dp) :: smallest_sign, sign_curr_real
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
+
+        integer(n_int), pointer :: source(:,:)
+        integer(int64) :: source_size
+
+        if (present(opt_source)) then
+            ASSERT(present(opt_source_size))
+
+            source_size = int(opt_source_size, int64)
+            ! ask Kai if I have to allocate
+            source => opt_source(0:NIfTot, 1:source_size)
+
+        else
+            source_size = TotWalkers
+            source => CurrentDets
+        end if
 
         largest_walkers = 0_n_int
         smallest_sign = 0.0_dp
@@ -1345,7 +1378,7 @@ contains
             do i = 1, determ_space_size
                 eigenvec_pop = eigenvec_pop + abs(gs_vector(i))
             end do
-            if (tStartSinglePart) then 
+            if (tStartSinglePart) then
                 gs_vector = gs_vector * InitialPart / eigenvec_pop
             else
                 gs_vector = gs_vector * InitWalkers / eigenvec_pop
@@ -1355,7 +1388,7 @@ contains
         root_print "eigenvector: ", gs_vector
 
         allocate(temp_determ_vec(determ_sizes(iProcIndex)))
-        ! i hope the order of the components did not get messed up.. 
+        ! i hope the order of the components did not get messed up..
         call MPIScatterV(real(gs_vector,dp), determ_sizes, determ_displs, &
             temp_determ_vec, determ_sizes(iProcIndex), ierr)
 
@@ -1380,7 +1413,7 @@ contains
 
         call create_sparse_ham_from_core()
 
-        ! Call the Davidson routine to find the ground state of the core space. 
+        ! Call the Davidson routine to find the ground state of the core space.
         call perform_davidson(davidsonCalc, parallel_sparse_hamil_type, .true.)
 
         e_value = davidsonCalc%davidson_eigenvalue
@@ -1411,7 +1444,7 @@ contains
         allocate(sparse_ham(determ_sizes(iProcIndex)))
         allocate(SparseHamilTags(2, determ_sizes(iProcIndex)))
         do i = 1, determ_sizes(iProcIndex)
-            call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i)) 
+            call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i))
             sparse_ham(i)%elements = sparse_core_ham(i)%elements
             sparse_ham(i)%positions = sparse_core_ham(i)%positions
             sparse_ham(i)%num_elements = sparse_core_ham(i)%num_elements
@@ -1431,12 +1464,12 @@ contains
 
         real(dp), allocatable, intent(out) :: e_values(:), e_vectors(:,:)
         HElement_t(dp), allocatable :: full_H(:,:)
-        
+
         integer :: ni(nel), i, ex(2,2), nJ(nel)
         logical :: tsign
 
 
-        ! if the Hamiltonian is non-hermitian we cannot use the 
+        ! if the Hamiltonian is non-hermitian we cannot use the
         ! standard Lanzcos or Davidson routines. so:
         ! build the full Hamiltonian
         call calc_determin_hamil_full(full_H)
@@ -1463,7 +1496,7 @@ contains
 
         call eig(full_H, e_values, e_vectors)
 
-        ! maybe we also want to start from a different eigenvector in 
+        ! maybe we also want to start from a different eigenvector in
         ! this case? this would be practial for the hubbard problem case..
         root_print "Full diagonalisation for non-hermitian Hamiltonian completed!"
 
@@ -1485,7 +1518,7 @@ contains
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
 
-            if (tHPHF) then 
+            if (tHPHF) then
                 hamil(i,i) = hphf_diag_helement(nI,core_space(:,i))
             else
                 hamil(i,i) = get_helement(nI,nI,0)
@@ -1500,10 +1533,10 @@ contains
                 if (tHPHF) then
                     hamil(i,j) = hphf_off_diag_helement(nI, nJ, &
                         core_space(:,i), core_space(:,j))
-                else if (tGUGA) then 
+                else if (tGUGA) then
                     call calc_guga_matrix_element(core_space(:,i), core_space(:,j), &
                         excitInfo, hamil(i,j), .true., 2)
-                else 
+                else
                     hamil(i,j) = get_helement(nI, nJ, core_space(:,i), core_space(:,j))
                 end if
 
@@ -1587,11 +1620,11 @@ contains
 #ifndef __CMPLX
         else if (tGUGA) then
             if (t_guga_mat_eles) then
-                ! i am not sure if the ref_stepvector thingies are set up for 
-                ! the ilutHF in this case.. 
-                call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, & 
+                ! i am not sure if the ref_stepvector thingies are set up for
+                ! the ilutHF in this case..
+                call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
                     .true., 2)
-            else 
+            else
                 hel = calc_off_diag_guga_gen(ilut, ilutHF)
             end if
 #endif
@@ -1605,8 +1638,8 @@ contains
             H0tmp = getH0Element4(nI, HFDet)
 #ifndef __CMPLX
         else if (tGUGA) then
-            ! do i have a routine to calculate the diagonal and double 
-            ! contributions for GUGA csfs? yes! 
+            ! do i have a routine to calculate the diagonal and double
+            ! contributions for GUGA csfs? yes!
             H0tmp = calcDiagMatEleGUGA_nI(nI)
 #endif
         else
@@ -1614,7 +1647,7 @@ contains
         end if
 
         ! If the relevant excitation from the Hartree-Fock takes electrons from orbitals
-        ! (i,j) to (a,b), then denom will be equal to 
+        ! (i,j) to (a,b), then denom will be equal to
         ! \epsilon_a + \epsilon_b - \epsilon_i - \epsilon_j
         ! as required in the denominator of the MP1 amplitude and MP2 energy.
         denom = Fii - H0tmp
@@ -1645,7 +1678,7 @@ contains
         use searching, only: hash_search_trial, bin_search_trial
         use SystemData, only: nel
 
-        integer :: i
+        integer(int64) :: i
         integer :: nI(nel)
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
@@ -1745,5 +1778,5 @@ contains
         end if
 
     end subroutine end_semistoch
-    
+
 end module semi_stoch_procs

@@ -2,8 +2,8 @@
 #ifndef __CMPLX
 
 module guga_rdm
-    ! RDM module specifically for the GUGA spin-adapted implementation 
-    
+    ! RDM module specifically for the GUGA spin-adapted implementation
+
     use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_, &
                          Root2, int64, int_rdm
     use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
@@ -32,7 +32,7 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double
     use guga_data, only: excitationInformation, tag_tmp_excits, tag_excitations
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
-                         funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, & 
+                         funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
     use guga_types, only: weight_obj
     use guga_bitRepOps, only: update_matrix_element, setDeltaB, extract_matrix_element
@@ -58,7 +58,7 @@ module guga_rdm
 
     implicit none
 
-    ! test the symmetric filling of the GUGA-RDM, if the assumptions about 
+    ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
     logical :: t_test_sym_fill = .false.
     logical :: t_test_diagonal = .false.
@@ -66,7 +66,7 @@ module guga_rdm
     logical :: t_more_sym = .false.
     logical :: t_mimic_stochastic = .false.
 
-contains 
+contains
 
     subroutine gen_exc_djs_guga(ilutI)
         integer(n_int), intent(in) :: ilutI(0:niftot)
@@ -80,7 +80,7 @@ contains
 
         call extract_bit_rep(ilutI, nI, sign_I, flags_I)
 
-        if (RDMExcitLevel == 1) then 
+        if (RDMExcitLevel == 1) then
             call fill_diag_1rdm_guga(one_rdms, nI, sign_I)
         else
             full_sign = sign_i(1) * sign_I(lenof_sign)
@@ -89,9 +89,9 @@ contains
 
         call convert_ilut_toGUGA(ilutI, ilutG)
 
-        ! one-rdm is always calculated 
+        ! one-rdm is always calculated
         ! calculate the excitations here
-        ! but with my general two-body excitation routine i do not need 
+        ! but with my general two-body excitation routine i do not need
         ! to calculate this in case of more than singles:
         if (RDMExcitLevel == 1) then
             call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
@@ -99,23 +99,23 @@ contains
             ! and then sort them correctly in the communicated array
             call assign_excits_to_proc_guga(n_singles, excits, 1)
 
-            deallocate(excits) 
+            deallocate(excits)
             call LogMemDealloc(this_routine, tag_excitations)
         end if
 
-        ! now to double excitations if requsted: 
-        if (RDMExcitLevel /= 1) then 
+        ! now to double excitations if requsted:
+        if (RDMExcitLevel /= 1) then
 
-            if (t_mimic_stochastic) then 
-                ! if i want to mimic stochastic RDM sampling I also 
-                ! have to explicitly create single excitations, but 
+            if (t_mimic_stochastic) then
+                ! if i want to mimic stochastic RDM sampling I also
+                ! have to explicitly create single excitations, but
                 ! store them in the according 2-RDM entries
                 call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
 
                 ! and then sort them correctly in the communicated array
                 call assign_excits_to_proc_guga(n_singles, excits, 1)
 
-                deallocate(excits) 
+                deallocate(excits)
                 call LogMemDealloc(this_routine, tag_excitations)
             end if
 
@@ -123,14 +123,14 @@ contains
 
             call assign_excits_to_proc_guga(n_doubles, excits, 2)
 
-            deallocate(excits) 
+            deallocate(excits)
             call LogMemDealloc(this_routine, tag_excitations)
         end if
 
     end subroutine gen_exc_djs_guga
 
-    subroutine fill_spawn_rdm_diag_guga(spawn, nI, full_sign) 
-        ! i have to write a routine, which correctly takes into 
+    subroutine fill_spawn_rdm_diag_guga(spawn, nI, full_sign)
+        ! i have to write a routine, which correctly takes into
         ! account all the diagonal contributions from double excitations
         type(rdm_spawn_t), intent(inout) :: spawn
         integer, intent(in) :: nI(nel)
@@ -143,47 +143,47 @@ contains
         real(dp) :: occ_i, occ_j, x0, x1
 
         ! i have to figure out what exactly contributes to here..
-        ! according to the paper about the two-RDM labels the 
-        ! diagonal elements of the 2-RDM are given by 
+        ! according to the paper about the two-RDM labels the
+        ! diagonal elements of the 2-RDM are given by
         ! D_ij,kl = <psi| e_{ki,lj} | psi>
         ! which for the diagonal contribution kl = ij yields
         ! D_{ij,ij} = <psi| e_{ii,jj} |psi>
-        ! which is definetly purely diagonal! 
+        ! which is definetly purely diagonal!
 
-        ! i could try to use the add_to_rdm_spawn_t routine in 
-        ! rdm_data_utils with the according modified matrix elements. 
+        ! i could try to use the add_to_rdm_spawn_t routine in
+        ! rdm_data_utils with the according modified matrix elements.
         i = 1
         s_orbs = gtID(nI)
 
-        ! TODO: I could also try to add the diagonal exchange 
-        ! contributions directly here! so this routine would be 
-        ! applicable in the stochastic spawning already 
-        do while (i <= nel) 
+        ! TODO: I could also try to add the diagonal exchange
+        ! contributions directly here! so this routine would be
+        ! applicable in the stochastic spawning already
+        do while (i <= nel)
 
             s = s_orbs(i)
 
-            if (isDouble(nI,i)) then 
-                occ_i = 2.0_dp 
+            if (isDouble(nI,i)) then
+                occ_i = 2.0_dp
                 inc_i = 2
 
-                ! i think here i have to put the full diagonal 
+                ! i think here i have to put the full diagonal
                 ! D_{ii,ii} entry, which counts double occupancies
                 ! and i will try for now to reuse the following routine:
                 ! put with the spatial orbital s
                 call add_to_rdm_spawn_t(spawn, s, s, s, s, 2.0_dp * full_sign, .true.)
 
             else
-                occ_i = 1.0_dp 
+                occ_i = 1.0_dp
                 inc_i = 1
             end if
 
             j = i + inc_i
 
-            do while (j <= nel) 
-                
+            do while (j <= nel)
+
                 p = s_orbs(j)
 
-                if (isDouble(nI,j)) then 
+                if (isDouble(nI,j)) then
                     occ_j = 2.0_dp
                     inc_j = 2
                 else
@@ -191,29 +191,29 @@ contains
                     inc_j = 1
                 end if
 
-                call add_to_rdm_spawn_t(spawn, s, s, p, p, & 
+                call add_to_rdm_spawn_t(spawn, s, s, p, p, &
                     occ_i * occ_j * full_sign, .true.)
 
-                ! i could also just multiply by 2 here, since this will 
-                ! get strored in the same D_{ij,ij} RDM element! 
-                ! but for now I decided to fill in all disting 2-RDM 
+                ! i could also just multiply by 2 here, since this will
+                ! get strored in the same D_{ij,ij} RDM element!
+                ! but for now I decided to fill in all disting 2-RDM
                 ! elements
-                call add_to_rdm_spawn_t(spawn, p, p, s, s, & 
+                call add_to_rdm_spawn_t(spawn, p, p, s, s, &
                     occ_i * occ_j * full_sign, .true.)
 
-                ! i can also add the fully diagonal exchange contributions 
-                ! here. this is also necessary to do, if I want to use 
+                ! i can also add the fully diagonal exchange contributions
+                ! here. this is also necessary to do, if I want to use
                 ! this routine in the stochastic sampling
 
-                ! but for open-shell to open-shell exchange excitations 
+                ! but for open-shell to open-shell exchange excitations
                 ! I have to calculate the correct x1 matrix element..
-                
+
                 if (t_direct_exchange) then
                     ! x0 matrix element is easy
-                    x0 = -occ_i * occ_j / 2.0_dp 
+                    x0 = -occ_i * occ_j / 2.0_dp
 
-                    if (inc_i == 1 .and. inc_j == 1) then 
-                        ! if we have open-shell to open chell 
+                    if (inc_i == 1 .and. inc_j == 1) then
+                        ! if we have open-shell to open chell
                         x1 = calcDiagExchangeGUGA_nI(i, j, nI) / 2.0_dp
 
                         call add_to_rdm_spawn_t(spawn, s, p, p, s, &
@@ -241,9 +241,9 @@ contains
 
     subroutine fill_diag_1rdm_guga(one_rdms, nI, contrib_sign, &
                                     tCoreSpaceDetIn, RDMItersIn)
-        ! I think I have to change these routines to also take into 
-        ! account the possible coupling coefficient of doubly occupied 
-        ! orbitals 
+        ! I think I have to change these routines to also take into
+        ! account the possible coupling coefficient of doubly occupied
+        ! orbitals
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer, intent(in) :: nI(nel)
         real(dp), intent(in) :: contrib_sign(:)
@@ -275,10 +275,10 @@ contains
 
         i = 1
 
-        do while (i <= nel) 
-            
+        do while (i <= nel)
+
             s = s_orbs(i)
-            
+
             ind = SymLabelListInv_rot(s)
 
             if (size(contrib_sign) == 1) then
@@ -310,10 +310,10 @@ contains
     end subroutine fill_diag_1rdm_guga
 
     subroutine send_proc_ex_djs()
-        ! i also need a specific routint to send the excitations for 
+        ! i also need a specific routint to send the excitations for
         ! the GUGA RDMs, otherwise this clutters up the det-based routines
 
-        ! this routine is very similar to SendProcExcDjs in the rdm_explicit 
+        ! this routine is very similar to SendProcExcDjs in the rdm_explicit
         ! module. see there for comments
         character(*), parameter :: this_routine = "send_proc_ex_djs"
 
@@ -368,7 +368,7 @@ contains
                 ! want to send for each processor (but goes from 1, not 0).
                 sendcounts(i+1) = int(Doub_ExcList(i)-(nint(TwoEl_Gap*i)+1),MPIArg)
 
-                ! disps is the first slot for each processor - 1.            
+                ! disps is the first slot for each processor - 1.
                 disps(i+1) = nint(TwoEl_Gap*i,MPIArg)
             end do
 
@@ -412,8 +412,8 @@ contains
     end subroutine send_proc_ex_djs
 
     subroutine doubles_search_guga(recvcounts, recvdisps)
-        ! this is the adapted explicit doubles search for the 
-        ! GUGA-RDMs. 
+        ! this is the adapted explicit doubles search for the
+        ! GUGA-RDMs.
         integer(MPIArg), intent(in) :: recvcounts(nProcessors), recvdisps(nProcessors)
         character(*), parameter :: this_routine = "doubles_search_guga"
 
@@ -429,7 +429,7 @@ contains
             NoDets = recvcounts(i) / (nifguga + 1)
             StartDets = (recvdisps(i) / (nifguga + 1)) + 1
 
-            if (NoDets > 1) then 
+            if (NoDets > 1) then
 
                 ilutI = Doub_ExcDjs2(:,StartDets)
 
@@ -442,7 +442,7 @@ contains
                     call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers, sizeof_int), &
                         PartInd, tDetFound)
 
-                    if (tDetFound) then 
+                    if (tDetFound) then
 
                         call extract_bit_rep(CurrentDets(:,PartInd), nJ, sign_j, FlagsDj)
 
@@ -451,27 +451,27 @@ contains
 
                         call calc_separate_rdm_labels(rdm_ind, ab, cd, a, b, c, d)
 
-                        ! if we mimic stochastic, we have to deal with the 
+                        ! if we mimic stochastic, we have to deal with the
                         ! mixed full-start/stops
-                        if (t_mimic_stochastic .and. (a == d .or. b == c)) then 
-                            call fill_mixed_2rdm_guga(two_rdm_spawn, ilutI, & 
+                        if (t_mimic_stochastic .and. (a == d .or. b == c)) then
+                            call fill_mixed_2rdm_guga(two_rdm_spawn, ilutI, &
                                 ilutJ, sign_i, sign_j, mat_ele, rdm_ind)
-                        else 
-                            call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, & 
+                        else
+                            call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, &
                                 sign_i * sign_j * mat_ele, .true.)
                         end if
 
-                        if (t_test_sym_fill) then 
+                        if (t_test_sym_fill) then
                             ! i only calculate excitations with ab < cd in this case
                             ! so fill in the missing ones
-                            call add_to_rdm_spawn_t(two_rdm_spawn, b, a, d, c, & 
+                            call add_to_rdm_spawn_t(two_rdm_spawn, b, a, d, c, &
                                 sign_i * sign_j * mat_ele, .true.)
 
-                            if (t_more_sym) then 
+                            if (t_more_sym) then
                                 call  Stop_All(this_routine, &
                                     "have to correct for the additional symmetry!")
 
-                                call add_to_rdm_spawn_t(two_rdm_spawn, b, a, c, d, & 
+                                call add_to_rdm_spawn_t(two_rdm_spawn, b, a, c, d, &
                                     sign_i * sign_j * mat_ele, .true.)
 
                                 call add_to_rdm_spawn_t(two_rdm_spawn, c, d,b, a, &
@@ -487,7 +487,7 @@ contains
 
     subroutine singles_search_guga(recvcounts, recvdisps)
         ! make a tailored GUGA search for explicit single excitations
-        
+
         ! this routine is very similar to Sing_SearchOccDets in the rdm_explicit
         ! module. see there for comments
         integer(MPIArg), intent(in) :: recvcounts(nProcessors), recvdisps(nProcessors)
@@ -506,36 +506,36 @@ contains
             NoDets = recvcounts(i)/(nifguga + 1)
             StartDets = (recvdisps(i) / (nifguga + 1)) + 1
 
-            if (NoDets > 1) then 
-                
-                ! extract the determinant, the matrix element and the 
+            if (NoDets > 1) then
+
+                ! extract the determinant, the matrix element and the
                 ! RDM index from the single excitation array
 
-                ! the convention is: i encode the coupling coefficient 
-                ! in the x0 matrix element and the sign of Di in the 
-                ! x1 element. and the combined RDM index in the 
-                ! Delta B value position! 
+                ! the convention is: i encode the coupling coefficient
+                ! in the x0 matrix element and the sign of Di in the
+                ! x1 element. and the combined RDM index in the
+                ! Delta B value position!
                 ilutI = Sing_ExcDjs2(:,StartDets)
 
                 sign_i = extract_matrix_element(ilutI,2)
 
                 do j = StartDets + 1, (NoDets + StartDets - 1)
 
-                    ! apparently D_i is in the first spot and all 
-                    ! excitations come here afterwards.. 
+                    ! apparently D_i is in the first spot and all
+                    ! excitations come here afterwards..
 
                     ilutJ = Sing_ExcDjs2(:,j)
 
                     call BinSearchParts_rdm(ilutJ,1,int(TotWalkers,sizeof_int),PartInd,tDetFound)
 
-                    if (tDetFound) then 
+                    if (tDetFound) then
 
                         call extract_bit_rep(CurrentDets(:,PartInd), nJ, sign_j, FlagsDj)
 
                         mat_ele = extract_matrix_element(Sing_ExcDjs2(:,j), 1)
                         rdm_ind = getDeltaB(Sing_ExcDjs2(:,j))
 
-                        if (RDMExcitLevel == 1) then 
+                        if (RDMExcitLevel == 1) then
                             call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
                                 mat_ele, rdm_ind, t_test_sym_fill)
 
@@ -568,22 +568,22 @@ contains
 
         do irdm = 1, size(one_rdms)
 
-            one_rdms(irdm)%matrix(ind_a, ind_i) = one_rdms(irdm)%matrix(ind_a, ind_i) & 
+            one_rdms(irdm)%matrix(ind_a, ind_i) = one_rdms(irdm)%matrix(ind_a, ind_i) &
                 + sign_i(irdm) * sign_j(irdm) * mat_ele
 
-            if (t_fill_symmetric) then 
+            if (t_fill_symmetric) then
 
-                one_rdms(irdm)%matrix(ind_i, ind_a) = one_rdms(irdm)%matrix(ind_i, ind_a) & 
+                one_rdms(irdm)%matrix(ind_i, ind_a) = one_rdms(irdm)%matrix(ind_i, ind_a) &
                     + sign_i(irdm) * sign_j(irdm) * mat_ele
             end if
         end do
 
     end subroutine fill_sings_1rdm_guga
 
-    subroutine fill_mixed_2rdm_guga(spawn, ilutI, ilutJ, sign_i, sign_j, mat_ele, & 
+    subroutine fill_mixed_2rdm_guga(spawn, ilutI, ilutJ, sign_i, sign_j, mat_ele, &
             rdm_ind, excitInfo_opt)
-        ! this is the routine where I test the filling of 2-RDM based on 
-        ! single excitations to mimic the workflow in the stochastic 
+        ! this is the routine where I test the filling of 2-RDM based on
+        ! single excitations to mimic the workflow in the stochastic
         ! RDM sampling
         type(rdm_spawn_t), intent(inout) :: spawn
         integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
@@ -594,14 +594,14 @@ contains
 
         type(excitationInformation) :: excitInfo
         integer :: ij, kl, i, j, k, l
-        ! mimic the stochastic processes for the explicit excitation 
+        ! mimic the stochastic processes for the explicit excitation
         ! generation
-        
+
         if (DetBitEQ(ilutI, ilutJ, nifdbo)) return
 
-        ! for the explicit code, I first need to recalculate the type 
+        ! for the explicit code, I first need to recalculate the type
         ! of excitation.. I am not sure how the indices will be encoded..
-        if (present(excitInfo_opt)) then 
+        if (present(excitInfo_opt)) then
             excitInfo = excitInfo_opt
         else
             call calc_separate_rdm_labels(rdm_ind, ij, kl, i, j, k, l)
@@ -625,7 +625,7 @@ contains
             call fill_mixed_start(spawn, ilutI, ilutJ, sign_i, sign_j, &
                 mat_ele, excitInfo)
 
-        case (23) 
+        case (23)
             call fill_mixed_start_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
                 mat_ele, excitInfo)
 
@@ -674,15 +674,15 @@ contains
         step = step_i(en)
 
         real_b = real(b_i, dp)
-        
+
         if (en < nSpatOrbs) then
             select case (step)
             case (1)
                 if (isOne(ilutJ, en)) then
                     top_cont = -Root2*sqrt((real_b(en) + 2.0_dp)/&
                         real_b(en))
-                    
-                else 
+
+                else
                     top_cont = -Root2/sqrt(real_b(en)*(real_b(en)+2.0_dp))
 
                 end if
@@ -690,12 +690,12 @@ contains
                 if (isOne(ilutJ,en)) then
                     top_cont = -Root2/sqrt(real_b(en)*(real_b(en)+2.0_dp))
 
-                else 
+                else
                     top_cont = Root2*sqrt(real_b(en)/&
                         (real_b(en) + 2.0_dp))
                 end if
 
-            case default 
+            case default
                 call stop_all(this_routine, "wrong stepvalues!")
 
             end select
@@ -713,14 +713,14 @@ contains
                         above_flag = .true.
                     end if
 
-                    ! should be able to do that without second loop too! 
-                    ! figure out! 
+                    ! should be able to do that without second loop too!
+                    ! figure out!
                     step = step_i(i)
 
                     call getDoubleMatrixElement(step,step,0,-1,1,real_b(i),&
                         1.0_dp,x1_element = stay_mat)
 
-                    call getMixedFullStop(step,step,0,real_b(i), & 
+                    call getMixedFullStop(step,step,0,real_b(i), &
                         x1_element = end_mat)
 
                     ! this check should never be true, but just to be sure
@@ -732,7 +732,7 @@ contains
                             top_cont * end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
                         call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
                             top_cont * end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
-! 
+!
 !                         integral = integral + end_mat * mat_ele * &
 !                             (get_umat_el(i,holeInd,elecInd,i) +  &
 !                             get_umat_el(holeInd,i,i,elecInd))/2.0_dp
@@ -752,22 +752,22 @@ contains
         end if
 
         if (sw < en) then
-            
+
             step = step_i(en)
 
-            ! inverse fullstop matrix element 
+            ! inverse fullstop matrix element
             call getMixedFullStop(step,step,0,real_b(en),x1_element = tmp_mat)
 
             tmp_mat = 1.0_dp / tmp_mat
 
-            ! have to change the switches before the first cycle: 
+            ! have to change the switches before the first cycle:
             ! but for cycling backwards, thats not so easy.. need todo
-            
+
             do i = en - 1, sw + 1, -1
- 
+
                 if (int_occ(i) /= 1) cycle
 
-                step = step_i(i) 
+                step = step_i(i)
                 ! update inverse product
                 call getDoubleMatrixElement(step,step,0,-1,1,real_b(i),&
                     1.0_dp, x1_element = stay_mat)
@@ -775,7 +775,7 @@ contains
                 call getMixedFullStop(step,step,0,real_b(i), x1_element = end_mat)
 
                 ! update matrix element
-                tmp_mat = tmp_mat / stay_mat 
+                tmp_mat = tmp_mat / stay_mat
 
                 if (abs(end_mat) > EPS) then
 
@@ -787,23 +787,23 @@ contains
 !                     integral = integral + end_mat * tmp_mat * &
 !                         (get_umat_el(i, holeInd, elecInd, i) + &
 !                         get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
-   
+
                 end if
 
             end do
 
-            ! deal with switch specifically: 
+            ! deal with switch specifically:
 
-            step = step_i(sw) 
+            step = step_i(sw)
 
-            if (step == 1) then 
+            if (step == 1) then
                 ! then a -2 branch arrived!
                 call getDoubleMatrixElement(2,1,-2,-1,1,real_b(sw), &
                     1.0_dp, x1_element = stay_mat)
 
                 call getMixedFullStop(2,1,-2,real_b(sw),x1_element = end_mat)
 
-            else 
+            else
                 ! +2 branch arrived!
 
                 call getDoubleMatrixElement(1,2,2,-1,1,real_b(sw), &
@@ -844,8 +844,8 @@ contains
         st = excitInfo%fullStart
         se = excitInfo%firstEnd
         en = excitInfo%fullEnd
-        ! depending on the type of excitaiton, calculation of orbital pgens 
-        ! change 
+        ! depending on the type of excitaiton, calculation of orbital pgens
+        ! change
         if (excitInfo%typ == 20) then
             elecInd = en
             holeInd = se
@@ -868,7 +868,7 @@ contains
             if (isOne(ilutJ, st)) then
                 bot_cont = Root2 * sqrt((real_b(st) - 1.0_dp)/ &
                     (real_b(st) + 1.0_dp))
-            else 
+            else
                 bot_cont = -sqrt(2.0_dp/((real_b(st) - 1.0_dp) * &
                     (real_b(st) + 1.0_dp)))
             end if
@@ -876,7 +876,7 @@ contains
             if (isOne(ilutJ,st)) then
                 bot_cont = -sqrt(2.0_dp/((real_b(st) + 1.0_dp) * &
                     (real_b(st) + 3.0_dp)))
-            else 
+            else
                 bot_cont = -Root2 * sqrt((real_b(st) + 3.0_dp)/ &
                     (real_b(st) + 1.0_dp))
             end if
@@ -887,19 +887,19 @@ contains
             tmp_mat = 1.0_dp
             below_flag = .false.
 
-            do i = st - 1, 1, -1 
+            do i = st - 1, 1, -1
                 if (int_occ(i) /= 1) cycle
 
                 ! then check if thats the last stepvalue to consider
                 if (step_i(i) == 1 .and. b_i(i) == 1) then
                     below_flag = .true.
                 end if
- 
+
                 ! then deal with the matrix element and branching probabilities
                 step = step_i(i)
 
-                ! get both start and staying matrix elements -> and update 
-                ! matrix element contributions on the fly to avoid second loop! 
+                ! get both start and staying matrix elements -> and update
+                ! matrix element contributions on the fly to avoid second loop!
                 call getDoubleMatrixElement(step,step,-1,1,-1,real_b(i),&
                     1.0_dp, x1_element = start_mat)
 
@@ -915,7 +915,7 @@ contains
                     call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
                         bot_cont * start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
 
-!                     integral = integral + start_mat * tmp_mat *  & 
+!                     integral = integral + start_mat * tmp_mat *  &
 !                         (get_umat_el(i,holeInd,elecInd,i) &
 !                         + get_umat_el(holeInd,i,i,elecInd))/2.0_dp
 
@@ -939,15 +939,15 @@ contains
             1.0_dp, x1_element = tmp_mat)
 
         ! and calc. x1^-1
-        ! keep tempWweight as the running matrix element which gets updated 
+        ! keep tempWweight as the running matrix element which gets updated
         ! every iteration
         tmp_mat = 1.0_dp / tmp_mat
 
-        do i = st + 1, sw - 1 
-            ! the good thing here is, i do not need to loop a second time, 
+        do i = st + 1, sw - 1
+            ! the good thing here is, i do not need to loop a second time,
             ! since i can recalc. the matrix elements and pgens on-the fly
-            ! here the matrix elements should not be 0 or otherwise the 
-            ! excitation wouldnt have happended anyways 
+            ! here the matrix elements should not be 0 or otherwise the
+            ! excitation wouldnt have happended anyways
             if (int_occ(i) /= 1) cycle
 
             step = step_i(i)
@@ -958,7 +958,7 @@ contains
 
             tmp_mat = tmp_mat / stay_mat
 
-            ! and also get starting contribution 
+            ! and also get starting contribution
             call getDoubleMatrixElement(step,step,-1,-1,+1,real_b(i),&
                 1.0_dp, x1_element = start_mat)
 
@@ -971,19 +971,19 @@ contains
                 call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
                     start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
 
-!                 integral = integral + tmp_mat * start_mat * & 
+!                 integral = integral + tmp_mat * start_mat * &
 !                     (get_umat_el(holeInd,i,i,elecInd) + &
 !                     get_umat_el(i,holeInd,elecInd,i))/2.0_dp
             end if
 
         end do
 
-        ! handle switch seperately (but only if switch > start) 
+        ! handle switch seperately (but only if switch > start)
         if (sw > st) then
 
             step = step_i(sw)
 
-            ! on the switch the original probability is: 
+            ! on the switch the original probability is:
             if (step == 1) then
 
                 call getDoubleMatrixElement(2,1,0,-1,+1,real_b(sw),&
@@ -993,7 +993,7 @@ contains
                     1.0_dp, x1_element = start_mat)
 
             else
-                
+
                 call getDoubleMatrixElement(1,2,0,-1,+1,real_b(sw),&
                     1.0_dp, x1_element = stay_mat)
 
@@ -1003,7 +1003,7 @@ contains
             end if
 
             ! update inverse product
-            ! and also get starting contribution 
+            ! and also get starting contribution
             tmp_mat = tmp_mat * start_mat / stay_mat
 
             ! because the rest of the matrix element is still the same in
@@ -1052,7 +1052,7 @@ contains
 
         inter = 1.0_dp
 
-        ! calculate the always involved intermediate matrix element from 
+        ! calculate the always involved intermediate matrix element from
         ! first switch to last switch
         do i = first + 1, last - 1
             if (int_occ(i) /= 1) cycle
@@ -1065,13 +1065,13 @@ contains
             inter = inter * tempWeight
         end do
 
-        do j = last, nSpatOrbs 
+        do j = last, nSpatOrbs
             if (int_occ(j) /= 1) cycle
 
-            ! calculate the remaining switches once for each (j) but do it 
+            ! calculate the remaining switches once for each (j) but do it
             ! for the worst case until i = 1
 
-            ! check if this is the last end needed to consider 
+            ! check if this is the last end needed to consider
             if (step_i(j) == 2 .and. b_i(j) == 0) then
                 above_flag = .true.
             end if
@@ -1081,13 +1081,13 @@ contains
 
             do i = first, 1, -1
                 if (int_occ(i) /= 1) cycle
-        
+
                 if (below_flag) exit
 
-                ! if the bottom stepvector d = 1 and b = 1 there is no 
-                ! additional contribution from below, since the x1 matrix 
-                ! element is 0 
-                ! same if d = 2 and b = 0 for fullstop stepvector 
+                ! if the bottom stepvector d = 1 and b = 1 there is no
+                ! additional contribution from below, since the x1 matrix
+                ! element is 0
+                ! same if d = 2 and b = 0 for fullstop stepvector
                 if (step_i(i) == 1 .and. b_i(i) == 1) then
                     below_flag = .true.
                 end if
@@ -1099,8 +1099,8 @@ contains
                     real_b(i),1.0_dp,x1_element = tempWeight)
 
                 ! loop over excitation range
-                ! distinguish between different regimes 
-                ! if i do it until switch - 1 -> i know that dB = 0 and 
+                ! distinguish between different regimes
+                ! if i do it until switch - 1 -> i know that dB = 0 and
                 ! the 2 stepvalues are always the same..
                 do k = i + 1, first - 1
                     if (int_occ(k) /= 1) cycle
@@ -1114,13 +1114,13 @@ contains
 
                 end do
 
-                ! then do first switch site seperately, if (i) is not first 
+                ! then do first switch site seperately, if (i) is not first
                 ! and what if (i) is first??
                 if (i /= first) then
-                    step1 = step_i(first) 
+                    step1 = step_i(first)
 
                     if (step1 == 1) then
-                        ! i know that step2 = 2 
+                        ! i know that step2 = 2
                         call getDoubleMatrixElement(2,1,0,-1,+1,&
                             real_b(first),1.0_dp,x1_element = tempWeight_1)
 
@@ -1135,13 +1135,13 @@ contains
 
                 end if
 
-                ! more efficient to do "last" step seperately, since i have to 
+                ! more efficient to do "last" step seperately, since i have to
                 ! check deltaB value and also have to consider matrix element
                 ! but only of (j) is not last or otherwise already dealt with
                 if (j /= last) then
 
                     if (step_i(last) == 1) then
-                        ! then i know step2 = 2 & dB = -2! 
+                        ! then i know step2 = 2 & dB = -2!
                         call getDoubleMatrixElement(2,1, -2,-1,+1,&
                             real_b(last),1.0_dp,x1_element = tempWeight_1)
                     else
@@ -1154,7 +1154,7 @@ contains
                     tempWeight = tempWeight * tempWeight_1
                 end if
 
-                ! then do remaining top range, where i know stepvalues are 
+                ! then do remaining top range, where i know stepvalues are
                 ! the same again and dB = 0 always!
                 do k = last + 1, j - 1
                     if (int_occ(k) /= 1) cycle
@@ -1168,7 +1168,7 @@ contains
 
                 end do
 
-                ! and handle fullend 
+                ! and handle fullend
                 ! and then do the the end value at j
                 step1 = step_i(j)
                 step2 = step_j(j)
@@ -1188,7 +1188,7 @@ contains
                 ! check if i deal with that correctly...
                 if (below_flag) exit
             end do
-            ! todo: i cant use tthat like that.. or else some combinations 
+            ! todo: i cant use tthat like that.. or else some combinations
             ! of i and j get left out! i have to reinit it somehow..
             ! not yet sure how..
             if (above_flag) exit
@@ -1199,8 +1199,8 @@ contains
     end subroutine fill_mixed_start_end
 
     subroutine fill_sings_2rdm_guga(spawn, ilutI, ilutJ, sign_i, sign_j, mat_ele, rdm_ind)
-        ! this is the routine where I test the filling of 2-RDM based on 
-        ! single excitations to mimic the workflow in the stochastic 
+        ! this is the routine where I test the filling of 2-RDM based on
+        ! single excitations to mimic the workflow in the stochastic
         ! RDM sampling
         type(rdm_spawn_t), intent(inout) :: spawn
         integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
@@ -1215,23 +1215,23 @@ contains
         real(dp) :: botCont, topCont, tempWeight, prod, StartCont, EndCont
         integer :: iO, jO, step
 
-        ! here I have to fill W + R/L, single overlap RR/LL 
+        ! here I have to fill W + R/L, single overlap RR/LL
         ! and full-start/stop RL with no change in the double overlap region
         ! i also have to correct the coupling coefficient here effifiently
-        
+
         ! for this it would be best to have both CSFs I and J involved.
 
-        ! and i have to figure out all correct index combinations here 
+        ! and i have to figure out all correct index combinations here
         ! for all the entries the singles contribute to.
 
-        ! ok this is the final routine i need to consider i guess.. 
-        ! or hope.. I need the matrix elements and indices, to which a 
-        ! certain type of single excitations contributes to.. 
-        ! I need to effectively recalculate the correct matrix element 
-        ! and store it in the correct RDM place. 
+        ! ok this is the final routine i need to consider i guess..
+        ! or hope.. I need the matrix elements and indices, to which a
+        ! certain type of single excitations contributes to..
+        ! I need to effectively recalculate the correct matrix element
+        ! and store it in the correct RDM place.
 
-        ! essentially I need to loop over the contracted index and 
-        ! correctly take the coupling coefficient into account. 
+        ! essentially I need to loop over the contracted index and
+        ! correctly take the coupling coefficient into account.
         call extract_1_rdm_ind(rdm_ind, i, a)
 
         st = min(i,a)
@@ -1239,21 +1239,21 @@ contains
 
         ! do i have access to current_stepvector here? I think so..
         ! no I dont! or just to be save
-        
-        ! this is essentially a mimic of the function 
+
+        ! this is essentially a mimic of the function
         ! calc_integral_contribution_single in guga_excitations
 
-        ! but wait a minute.. 
-        ! in the stochastic excitation generation, I calculate the 
-        ! full Hamiltonian matrix element.. 
-        ! I do not have access to the coupling coefficient for 
-        ! i, a anymore.. damn.. 
-        ! and in general, I always calculate the full matrix element.. 
-        ! i have to take this into account! 
-        ! or change the stochastic excitation generation, to also yield 
+        ! but wait a minute..
+        ! in the stochastic excitation generation, I calculate the
+        ! full Hamiltonian matrix element..
+        ! I do not have access to the coupling coefficient for
+        ! i, a anymore.. damn..
+        ! and in general, I always calculate the full matrix element..
+        ! i have to take this into account!
+        ! or change the stochastic excitation generation, to also yield
         ! this information..
         ! or "just" recalculate everything..
-        ! i could use the x1 element storage for this quantity.. 
+        ! i could use the x1 element storage for this quantity..
         ! this would simplify things!
 
         ! for simplicity it is best to have these quantities:
@@ -1270,7 +1270,7 @@ contains
                 call getDoubleMatrixElement(1,0,0,-1,1, real(b_i(st),dp), &
                     1.0_dp,x1_element = botCont)
 
-            else 
+            else
                 call getDoubleMatrixElement(2,0,0,-1,1, real(b_i(st),dp), &
                     1.0_dp, x1_element = botCont)
             end if
@@ -1295,7 +1295,7 @@ contains
         case (1)
             botCont = funA_m1_1_overR2(real(b_i(st),dp))
             ! check which generator
-            if (isZero(ilutJ,st)) then 
+            if (isZero(ilutJ,st)) then
                 botCont = -botCont
 
                 StartCont = 0.0_dp
@@ -1330,12 +1330,12 @@ contains
                 topCont = minFunA_0_2_overR2(real(b_i(en),dp))
             end if
 
-            EndCont = 0.0_dp 
+            EndCont = 0.0_dp
 
         case (3)
             if (isOne(ilutJ,en)) then
                 topCont = minFunA_2_0_overR2(real(b_i(en),dp))
-            else 
+            else
                 topCont = funA_0_2overR2(real(b_i(en),dp))
             end if
 
@@ -1343,7 +1343,7 @@ contains
 
         case (1)
             topCont = funA_2_0_overR2(real(b_i(en),dp))
-            if (isThree(ilutJ,en)) then 
+            if (isThree(ilutJ,en)) then
                 topCont = -topCont
 
                 EndCont = 1.0_dp
@@ -1353,7 +1353,7 @@ contains
 
         case (2)
             topCont = funA_0_2overR2(real(b_i(en),dp))
-            if (isZero(ilutJ,en)) then 
+            if (isZero(ilutJ,en)) then
                 topCont = -topCont
 
                 EndCont = 0.0_dp
@@ -1363,29 +1363,29 @@ contains
 
         end select
 
-        ! depending on i and j calulate the corresponding single and double 
+        ! depending on i and j calulate the corresponding single and double
         ! integral weights and check if they are non-zero...
         ! gets quite involved... :( need to loop over all orbitals
-        ! have to reset prod inside the loop each time! 
+        ! have to reset prod inside the loop each time!
 
         do iO = 1, st - 1
-            ! no contribution if not occupied. 
-            if (step_i(iO) == 0) cycle 
+            ! no contribution if not occupied.
+            if (step_i(iO) == 0) cycle
             ! else it gets a contrbution weighted with orbital occupation
-            ! first easy part: 
-            
+            ! first easy part:
+
             ! W + R/L contribution
-            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, & 
+            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
                 occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
-            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, & 
+            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
                 occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
-            ! exchange contribution: 
-            if (step_i(iO) == 3 .or. b_i(iO) == 0) then 
-                ! then it is easy: 
+            ! exchange contribution:
+            if (step_i(iO) == 3 .or. b_i(iO) == 0) then
+                ! then it is easy:
                 ! just figure out correct indices
-                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                     -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
                     -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
@@ -1400,7 +1400,7 @@ contains
                 ! and then do the remaining:
                 do jO = iO + 1, st - 1
                     ! need the stepvalue entries to correctly access the mixed
-                    ! generator matrix elements 
+                    ! generator matrix elements
                     step = step_i(jO)
                     call getDoubleMatrixElement(step, step, 0, -1, +1,&
                         real(b_i(jO),dp), 1.0_dp, x1_element = tempWeight)
@@ -1409,7 +1409,7 @@ contains
                 end do
                 prod = prod * botCont
 
-                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                     (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
 
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
@@ -1420,60 +1420,60 @@ contains
 
         ! start segment: only W + R/L
         ! but this depends on the type of excitation here.. or?
-        call add_to_rdm_spawn_t(spawn, st, st, i, a, & 
+        call add_to_rdm_spawn_t(spawn, st, st, i, a, &
             StartCont * sign_i * sign_j * mat_ele, .true.)
         call add_to_rdm_spawn_t(spawn, i, a, st, st, &
             StartCont * sign_i * sign_j * mat_ele, .true.)
 
-        ! loop over excitation range: 
+        ! loop over excitation range:
 
         do iO = st + 1, en - 1
 
             ! W + R/L
-            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, & 
+            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
                 occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
             call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
                 occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
-            ! exchange type: 
-            ! oh damn I need the delta-B value here.. 
+            ! exchange type:
+            ! oh damn I need the delta-B value here..
             d_i = step_i(iO)
             d_j = step_j(iO)
             delta = delta_b(iO-1)
 
             prod = getDoubleContribution(d_j, d_i, delta, gen, real(b_i(iO),dp))
 
-            call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+            call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                 prod * sign_i * sign_j * mat_ele, .true.)
             call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
                 prod * sign_i * sign_j * mat_ele, .true.)
 
         end do
-        
+
         ! end contribution
-        call add_to_rdm_spawn_t(spawn, en, en, i, a, & 
+        call add_to_rdm_spawn_t(spawn, en, en, i, a, &
             EndCont * sign_i * sign_j * mat_ele, .true.)
         call add_to_rdm_spawn_t(spawn, i, a, en, en, &
             EndCont * sign_i * sign_j * mat_ele, .true.)
 
-        ! loop above: 
+        ! loop above:
         do iO = en + 1, nSpatOrbs
 
             if (step_i(iO) == 0) cycle
 
             ! W + R/L contribution
-            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, & 
+            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
                 occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
-            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, & 
+            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
                 occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
-            ! exchange 
-            if (step_i(iO) == 3 .or. (b_i(iO) == 1 .and. step_i(iO) == 1)) then 
+            ! exchange
+            if (step_i(iO) == 3 .or. (b_i(iO) == 1 .and. step_i(iO) == 1)) then
                 ! only x0 contribution
-                ! then it is easy: 
+                ! then it is easy:
                 ! just figure out correct indices
-                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                     -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
                     -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
@@ -1502,7 +1502,7 @@ contains
 
                 prod = prod * topCont
 
-                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, & 
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
                     (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
 
                 call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
@@ -1514,7 +1514,7 @@ contains
     end subroutine fill_sings_2rdm_guga
 
     subroutine extract_1_rdm_ind(rdm_ind, i, a)
-        ! the converstion routine between the combined and explicit rdm 
+        ! the converstion routine between the combined and explicit rdm
         ! indices for the 1-RDM
         integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(out) :: i, a
@@ -1525,8 +1525,8 @@ contains
 
     end subroutine extract_1_rdm_ind
 
-    function contract_1_rdm_ind(i,a) result(rdm_ind) 
-        ! the inverse function of the routine above, to give the combined 
+    function contract_1_rdm_ind(i,a) result(rdm_ind)
+        ! the inverse function of the routine above, to give the combined
         ! rdm index of two explicit ones
         integer, intent(in) :: i, a
         integer(int_rdm) :: rdm_ind
@@ -1537,7 +1537,7 @@ contains
     end function contract_1_rdm_ind
 
     function contract_2_rdm_ind(i,j,k,l) result(ijkl)
-        ! since I only ever have spatial orbitals in the GUGA-RDM make 
+        ! since I only ever have spatial orbitals in the GUGA-RDM make
         ! the definition of the RDM-index combination differently
         integer, intent(in) :: i,j,k,l
         integer(int_rdm) :: ijkl
@@ -1545,16 +1545,16 @@ contains
 
         integer :: ij, kl
 
-        ij = (i - 1) * nSpatOrbs + j 
-        kl = (k - 1) * nSpatOrbs + l 
+        ij = (i - 1) * nSpatOrbs + j
+        kl = (k - 1) * nSpatOrbs + l
 
         ijkl = (ij - 1) * (int(nSpatOrbs, int_rdm)**2) + kl
 
     end function contract_2_rdm_ind
 
     subroutine extract_2_rdm_ind(ijkl, i, j, k, l, ij_out, kl_out)
-        ! the inverse routine of the function above. 
-        ! it is actually practical to have ij and kl also available at 
+        ! the inverse routine of the function above.
+        ! it is actually practical to have ij and kl also available at
         ! times, since it can identify diagonal entries of the two-RDM
         integer(int_rdm), intent(in) :: ijkl
         integer, intent(out) :: i,j,k,l
@@ -1567,9 +1567,9 @@ contains
         ij = (ijkl - kl)/(nSpatOrbs ** 2) + 1
 
         j = mod(ij - 1, nSpatOrbs) + 1
-        i = (ij - j) / nSpatOrbs + 1 
+        i = (ij - j) / nSpatOrbs + 1
 
-        l = mod(kl - 1, nSpatOrbs) + 1 
+        l = mod(kl - 1, nSpatOrbs) + 1
         k = (kl - l) / nSpatOrbs + 1
 
         if (present(ij_out)) ij_out = ij
@@ -1588,7 +1588,7 @@ contains
 
         ASSERT(excit_lvl == 1 .or. excit_lvl == 2)
 
-        if (excit_lvl == 1) then 
+        if (excit_lvl == 1) then
             do i = 1, n_tot
 
                 call convert_ilut_toNECI(excits(:,i), ilut)
@@ -1610,7 +1610,7 @@ contains
 #endif
             end do
 
-        else if (excit_lvl == 2) then 
+        else if (excit_lvl == 2) then
             do i = 1, n_tot
 
                 call convert_ilut_toNECI(excits(:,i), ilut)
@@ -1652,8 +1652,8 @@ contains
 
         n_tot = 0
 
-        if (t_test_diagonal) then 
-            do i = 1, nSpatOrbs 
+        if (t_test_diagonal) then
+            do i = 1, nSpatOrbs
                 do j = 1, nSpatOrbs
 
                     if (i == j) cycle
@@ -1666,8 +1666,8 @@ contains
                         ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                     end do
 #endif
-                    if (n_excits > 1) then 
-                        call add_guga_lists_rdm(n_tot, n_excits-1, & 
+                    if (n_excits > 1) then
+                        call add_guga_lists_rdm(n_tot, n_excits-1, &
                             tmp_all_excits, temp_excits(:,2:))
                     end if
 
@@ -1689,7 +1689,7 @@ contains
 
 #ifdef __DEBUG
                             do n = 1, n_excits
-                                if (.not. isProperCSF_ilut(temp_excits(:,n),.true.)) then 
+                                if (.not. isProperCSF_ilut(temp_excits(:,n),.true.)) then
                                     print *, "===="
                                     call write_det_guga(6, ilut, .true.)
                                     call write_det_guga(6, temp_excits(:,n),.true.)
@@ -1698,9 +1698,9 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-                            if (t_direct_exchange .and. (i == l .and. j == k)) then 
-                                ! exclude the diagonal exchange here, 
-                                ! as it is already accounted for in the 
+                            if (t_direct_exchange .and. (i == l .and. j == k)) then
+                                ! exclude the diagonal exchange here,
+                                ! as it is already accounted for in the
                                 ! diagonal contribution routine
 #ifdef __DEBUG
                                 if (n_excits > 0) then
@@ -1711,7 +1711,7 @@ contains
 #endif
 
                                 if (n_excits > 1) then
-!                                     if (t_mimic_stochastic) then 
+!                                     if (t_mimic_stochastic) then
 !                                         call add_guga_lists(n_tot, n_excits - 1, &
 !                                             tmp_all_excits, temp_excits(:,2:))
 !                                     else
@@ -1720,7 +1720,7 @@ contains
 !                                     end if
                                 end if
                             else
-                                if (n_excits > 0) then 
+                                if (n_excits > 0) then
 !                                     if (t_mimic_stochastic) then
 !                                         call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
 !                                     else
@@ -1755,7 +1755,7 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-                            if (t_direct_exchange .and. (i == l .and. j == k)) then 
+                            if (t_direct_exchange .and. (i == l .and. j == k)) then
 #ifdef __DEBUG
                                 if (n_excits > 0) then
                                     if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
@@ -1768,7 +1768,7 @@ contains
                                         tmp_all_excits, temp_excits(:,2:))
                                 end if
                             else
-                                if (n_excits > 0) then 
+                                if (n_excits > 0) then
                                     call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                                 end if
                             end if
@@ -1800,7 +1800,7 @@ contains
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
-                            if (t_direct_exchange .and. (i == l .and. j == k)) then 
+                            if (t_direct_exchange .and. (i == l .and. j == k)) then
 #ifdef __DEBUG
                                 if (n_excits > 0) then
                                     if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
@@ -1814,7 +1814,7 @@ contains
                                         tmp_all_excits, temp_excits(:,2:))
                                 end if
                             else
-                                if (n_excits > 0) then 
+                                if (n_excits > 0) then
                                     call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                                 end if
                             end if
@@ -1839,23 +1839,23 @@ contains
 
         n_tot = j - 1
 
-        allocate(excitations(0:nifguga,n_tot), stat = ierr) 
-        ! hm to log that does not make so much sense.. since it gets called 
+        allocate(excitations(0:nifguga,n_tot), stat = ierr)
+        ! hm to log that does not make so much sense.. since it gets called
         ! more than once and is only a temporary array..
         call LogMemAlloc('excitations',n_tot,8,this_routine,tag_excitations)
 
         excitations = tmp_all_excits(:,1:n_tot)
 
-        deallocate(tmp_all_excits) 
+        deallocate(tmp_all_excits)
         call LogMemDealloc(this_routine, tag_tmp_excits)
 
     end subroutine calc_explicit_2_rdm_guga
 
     subroutine calc_explicit_1_rdm_guga(ilut, n_tot, excitations)
         ! routine to calculate the one-RDM explicitly in the GUGA formalism
-        ! the one RDM is given by rho_ij = <Psi|E_ij|Psi> 
-        ! so, similar to the actHamiltonian routine I need to loop over all 
-        ! the orbital indices (i,j) and calculate the action of a given E_ij 
+        ! the one RDM is given by rho_ij = <Psi|E_ij|Psi>
+        ! so, similar to the actHamiltonian routine I need to loop over all
+        ! the orbital indices (i,j) and calculate the action of a given E_ij
         ! on the sampled wavefunction |Psi> and the resulting overlap with <Psi|
         ! make this routine similar to GenExcDjs() in rdm_explicit.F90
         ! to insert it there to calculate the GUGA RDMs in this case
@@ -1875,9 +1875,9 @@ contains
 
         n_tot = 0
 
-        if (.not. t_test_sym_fill) then 
+        if (.not. t_test_sym_fill) then
             do i = 1, nSpatOrbs
-                do j = 1, nSpatOrbs 
+                do j = 1, nSpatOrbs
                     if (i == j) cycle
 
                     call calc_all_excits_guga_rdm_singles(ilut, i, j, temp_excits, &
@@ -1889,7 +1889,7 @@ contains
                     end do
 #endif
 
-                    if (n_excits > 0) then 
+                    if (n_excits > 0) then
                         call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                     end if
 
@@ -1911,7 +1911,7 @@ contains
                     end do
 #endif
 
-                    if (n_excits > 0) then 
+                    if (n_excits > 0) then
                         call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                     end if
 
@@ -1933,14 +1933,14 @@ contains
 
         n_tot = j - 1
 
-        allocate(excitations(0:nifguga,n_tot), stat = ierr) 
-        ! hm to log that does not make so much sense.. since it gets called 
+        allocate(excitations(0:nifguga,n_tot), stat = ierr)
+        ! hm to log that does not make so much sense.. since it gets called
         ! more than once and is only a temporary array..
         call LogMemAlloc('excitations',n_tot,8,this_routine,tag_excitations)
 
         excitations = tmp_all_excits(:,1:n_tot)
 
-        deallocate(tmp_all_excits) 
+        deallocate(tmp_all_excits)
         call LogMemDealloc(this_routine, tag_tmp_excits)
 
 
@@ -1979,40 +1979,40 @@ contains
 
         ! otherwise get excitation information
         excitInfo = excitationIdentifier(i, j, k, l)
-       
+
         ! screw it. for now write a function which checks if indices and ilut
         ! are compatible, and not initiate the excitation right away
-        ! but check cases again 
-        ! in checkCompatibility the number of switches is already 
-        ! calulated to check if the probabilistic weights fit... maybe but 
+        ! but check cases again
+        ! in checkCompatibility the number of switches is already
+        ! calulated to check if the probabilistic weights fit... maybe but
         ! that out and reuse.. to not waste any effort.
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
 
 
-        ! for mixed type full starts and/or full stops i have to consider 
+        ! for mixed type full starts and/or full stops i have to consider
         ! the possible diagonal/single excitations here!
-        ! although I think the full-stops are already correctly taken into 
+        ! although I think the full-stops are already correctly taken into
         ! account..
-        ! and also the the full-starts are maybe correct already.. 
+        ! and also the the full-starts are maybe correct already..
         ! so it was just the full-start into full-stop mixed!
-        if (.not. t_direct_exchange) then 
+        if (.not. t_direct_exchange) then
             if (.not.compFlag .and. .not. excitInfo%typ == 23) then
                 allocate(excits(0,0), stat = ierr)
                 return
             end if
         else
-            if (.not.compFlag) then 
+            if (.not.compFlag) then
                 allocate(excits(0,0), stat = ierr)
                 return
             end if
         end if
 
-        if (t_mimic_stochastic) then 
+        if (t_mimic_stochastic) then
             select case(excitInfo%typ)
 
             case(1,2,4,5)
                 ! in the case of mimicking stochasitic
-                ! excitation generation, we should abort here for 
+                ! excitation generation, we should abort here for
                 ! these type of excitations!
                 allocate(excits(0,0), stat = ierr)
                 n_excits = 0
@@ -2028,7 +2028,7 @@ contains
             return
 
         case(1) ! weight + lowering gen.
-            ! can be treated almost like a single excitation 
+            ! can be treated almost like a single excitation
             ! essentially the same, except if d(w) == 3 in the excitaton regime
 
             call calcDoubleExcitation_withWeight(ilut, excitInfo, excits,&
@@ -2042,7 +2042,7 @@ contains
 
             exlevel = 1
 
-        case(3) ! non overlap 
+        case(3) ! non overlap
             call calcNonOverlapDouble(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
@@ -2057,7 +2057,7 @@ contains
 
             exlevel = 1
 
-        case(5) ! single overlap raising 
+        case(5) ! single overlap raising
             call calcSingleOverlapRaising(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
@@ -2125,26 +2125,26 @@ contains
 
             exlevel = 2
 
-        case (16) ! full stop lowering into raising 
+        case (16) ! full stop lowering into raising
             call calcFullStopL2R(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches, t_mimic_stochastic)
 
-            ! in this case there is also the possibility for one single-like 
-            ! excitation if there is no change in the double overlap region! 
-            ! todo! how to fix that? is that so important? its only max. 1 
+            ! in this case there is also the possibility for one single-like
+            ! excitation if there is no change in the double overlap region!
+            ! todo! how to fix that? is that so important? its only max. 1
 
-            ! depending on the full-stop step-value: 
-            ! if it is 3, all excitations are single like, and should be 
-            ! disregarded if we mimic stochastic sampling. 
+            ! depending on the full-stop step-value:
+            ! if it is 3, all excitations are single like, and should be
+            ! disregarded if we mimic stochastic sampling.
 
-            ! if the end step value is 1 or 2, there is on Delta B = 0 
-            ! branch with ofc. multiple possible singles 
-            ! associated with it. 
-            ! i think i should use a optional flag to indicate that I want 
+            ! if the end step value is 1 or 2, there is on Delta B = 0
+            ! branch with ofc. multiple possible singles
+            ! associated with it.
+            ! i think i should use a optional flag to indicate that I want
             ! to mimick stochastic exctiations generation
             exlevel = 2
 
-        case (17) ! full stop raising into lowering 
+        case (17) ! full stop raising into lowering
             call calcFullStopR2L(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches, t_mimic_stochastic)
 
@@ -2194,7 +2194,7 @@ contains
 
 
         ! indicate the level of excitation IC for the remaining NECI code
-        if (n_excits > 0) then 
+        if (n_excits > 0) then
             call calc_combined_rdm_label(i,j,k,l, ijkl)
             excits(nifguga,:) = ijkl
         end if
@@ -2248,7 +2248,7 @@ contains
         end if
 
 
-        ! have to give probabilistic weight object as input, to deal 
+        ! have to give probabilistic weight object as input, to deal
         call createSingleStart(ilut, excitInfo, posSwitches, &
             negSwitches, weights, tempExcits, n_excits)
 
@@ -2260,14 +2260,14 @@ contains
         call singleEnd(ilut, excitInfo, tempExcits, &
             n_excits, excits)
 
-        ! encode the combined RDM-ind in the deltaB position for 
+        ! encode the combined RDM-ind in the deltaB position for
         ! communication purposes
         excits(nifguga,:) = contract_1_rdm_ind(i,j)
 
     end subroutine calc_all_excits_guga_rdm_singles
 
     subroutine add_guga_lists_rdm(n_dets_tot, n_dets, list_tot, list)
-        ! i need a new guga list addition for RDMs as I must not add 
+        ! i need a new guga list addition for RDMs as I must not add
         ! identical excitations coming from different RDM index combinations
         ! otherwise I loose the information of those excitations!
         integer, intent(inout) ::        n_dets_tot
@@ -2275,9 +2275,9 @@ contains
         integer(n_int), intent(inout) :: list_tot(0:,1:), list(0:,1:)
         character(*), parameter :: this_routine = "add_guga_lists_rdm"
 
-        ! here I essentially only need to append the list to the total 
+        ! here I essentially only need to append the list to the total
         ! list and add the number of new elements to n_dets_tot
- 
+
         list_tot(:,n_dets_tot+1:n_dets_tot+n_dets) = list
         n_dets_tot = n_dets_tot + n_dets
 
@@ -2314,11 +2314,11 @@ contains
                 if (i == k) then
                     rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*j,2*l) / real(nel-1,dp)
                 end if
-                if (j == l) then 
+                if (j == l) then
                     rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*k) / real(nel-1,dp)
                 end if
             else
-                if (j == l) then 
+                if (j == l) then
                     rdm_energy_1 = rdm_energy_1 + 2.0_dp * rdm_sign * GetTMatEl(2*i,2*k) / real(nel-1,dp)
                 end if
             end if

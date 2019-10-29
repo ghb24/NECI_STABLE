@@ -16,9 +16,9 @@ module guga_types
         logical :: initialized
         type(weight_data) :: dat
         type(weight_proc) :: proc
-        ! is it possible to put a type into the same type? 
-        ! i still only need one pointer variable, since the other one in case 
-        ! of a full double excitation will be contained in the pointer weight 
+        ! is it possible to put a type into the same type?
+        ! i still only need one pointer variable, since the other one in case
+        ! of a full double excitation will be contained in the pointer weight
         ! object as another pointer
         type(weight_obj), pointer :: ptr => null()
     end type  weight_obj

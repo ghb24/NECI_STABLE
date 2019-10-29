@@ -5,7 +5,7 @@ module MomInvRandExcit
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
     use sltcnd_mod, only: sltcnd, sltcnd_excit
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
-    use MomInv, only: IsBitMomSelfInv, InvertMomDet, ReturnMomAllowedDet, InvertMomBitDet 
+    use MomInv, only: IsBitMomSelfInv, InvertMomDet, ReturnMomAllowedDet, InvertMomBitDet
     use MomInv, only: IsMomSelfInv, CalcMomAllowedBitDet
     use SymExcitDataMod, only:  excit_gen_store_type
     use FciMCData, only: tGenMatHEl,pDoubles
@@ -14,23 +14,23 @@ module MomInvRandExcit
     implicit none
 
     contains
-    
-    
+
+
     subroutine gen_MI_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                tParity, pGen, HEl, store)
 
-        ! Generate an MI excitation using only one of the determinants in 
+        ! Generate an MI excitation using only one of the determinants in
         ! the source MI function.
         !
         ! --> Relies on both determinants in the MI function being connected
         !     to all excited MI functions.
         ! --> nI will always need to be a unique choice of determinant within
-        !     each MI function, and then we nevver need to (explicitly) 
+        !     each MI function, and then we nevver need to (explicitly)
         !     refer to its spin-coupled partner.
         ! --> If tGenMatEl is true, the Hamiltonian matrix element between the
         !     two determinants will be calculated, and returned in Hel
 
-        integer, intent(in) :: nI(nel) 
+        integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutnI(0:niftot)
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
@@ -42,7 +42,7 @@ module MomInvRandExcit
         type(excit_gen_store_type), intent(inout), target :: store
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
-        integer :: nJ2(nel), ex2(2,2), excitLevel 
+        integer :: nJ2(nel), ex2(2,2), excitLevel
         real(dp) :: pGen2
         HElement_t :: MatEl, MatEl2
         logical :: TestClosedShellDet, tSign, tSignOrig
@@ -59,9 +59,9 @@ module MomInvRandExcit
         IF(IsNullDet(nJ)) RETURN
 !Create bit representation of excitation - iLutnJ
         CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
-            
+
         IF(IsMomSelfInv(nJ,iLutnJ)) THEN
-!There is only one way which we could have generated the excitation nJ since it has no momentum-partner. 
+!There is only one way which we could have generated the excitation nJ since it has no momentum-partner.
 !Also, we will always return the 'correct' version.
             IF(tGenMatHEl) THEN
 !Generate matrix element -> MI function to closed shell det.
@@ -82,7 +82,7 @@ module MomInvRandExcit
         ELSE
 !Momentum paired excitation - could we have generated the momentum inverted determinant instead?
 
-!Find the momentum inverted version. 
+!Find the momentum inverted version.
             CALL CalcMomAllowedBitDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
 
 !Try and find if spin-coupled determinant from excitation is attached.
@@ -92,7 +92,7 @@ module MomInvRandExcit
                 ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ2, 2)
             ENDIF
 
-            IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN     
+            IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
                 !Momentum inverted determinant is connected to root det.
                 !This is the connection to the determinant we didn't generate...
 
@@ -112,7 +112,7 @@ module MomInvRandExcit
 
                 IF(tGenMatHEl) THEN
 !Generate matrix element to MI excitation
-                    IF(IsMomSelfInv(nI,iLutnI)) THEN    
+                    IF(IsMomSelfInv(nI,iLutnI)) THEN
                         !Self-inv det -> Momentum paired func : Want to sum in SQRT(2)* Hij
                         if(tAntisym_MI) then
                             !Must be zero matrix element
@@ -140,18 +140,18 @@ module MomInvRandExcit
 
                         !now nI2 -> nJ - cross term present
                         IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
-                            
+
 !                            CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
 !                            CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
 
                             IF(tSwapped) THEN
-!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa, 
+!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig  !I.e. J odd and I even or vice versa,
                                           !but since these can only be at max quads, then they can only have 1/2 open orbs
                                 MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
                                                        tSignOrig)
                             ELSE
 !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
-!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign     
+!                                IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign
                                 MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
                                                        Ex2, tSign)
                             ENDIF
@@ -164,7 +164,7 @@ module MomInvRandExcit
 
                         ENDIF
                         HEl=MatEl
-                    
+
                     ENDIF   !Endif from MomInv/not det
 
                     if (ic /= 0 .and. modk_offdiag) hel = -abs(hel)
@@ -178,9 +178,9 @@ module MomInvRandExcit
                 ENDIF
 
             ELSE    !MI func to MI func, but with no cross-connection.
-                
+
                 IF(tGenMatHEl) THEN
-!iLutnI MUST be an MI func here, since otherwise it would have been connected to iLutnJ2. 
+!iLutnI MUST be an MI func here, since otherwise it would have been connected to iLutnJ2.
 !Also, we know the cross connection (i.e. MatEl2 = 0)
                     IF(tSwapped) THEN
                         if(tAntisym_MI) tSignOrig=.not.tSignOrig
@@ -191,12 +191,12 @@ module MomInvRandExcit
 
                     HEl=MatEl
                     if (ic /= 0 .and. modk_offdiag) hel = -abs(hel)
-                        
+
                 ENDIF
 
 
             ENDIF
-            
+
         ENDIF
 
     end subroutine gen_MI_excit
@@ -222,8 +222,8 @@ module MomInvRandExcit
 !        integer(n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutnJ2(0:NIfTot)
 !        HElement_t :: Hel_ia,Hel_ib,Hel_ja,Hel_jb
 !        integer :: nI(NEl),nJ(NEl),nI2(NEl),nJ2(NEl)
-!        integer :: CC_ia(ScratchSize),CC_ib(ScratchSize),CC_ja(ScratchSize),CC_jb(ScratchSize)  
-!        integer :: CCU_ia(ScratchSize),CCU_ib(ScratchSize),CCU_ja(ScratchSize),CCU_jb(ScratchSize)  
+!        integer :: CC_ia(ScratchSize),CC_ib(ScratchSize),CC_ja(ScratchSize),CC_jb(ScratchSize)
+!        integer :: CCU_ia(ScratchSize),CCU_ib(ScratchSize),CCU_ja(ScratchSize),CCU_jb(ScratchSize)
 !
 !        write(6,*) "Checking properties of MI functions..."
 !
@@ -356,7 +356,7 @@ module MomInvRandExcit
 !                else
 !                    pGen_jb=0.0_dp
 !                endif
-!                
+!
 !                if(abs(PGen_ia-PGen_jb).gt.1.0e-7_dp_dp) then
 !                    call stop_all(t_r,"PGen ia .ne. jb")
 !                endif
@@ -371,7 +371,7 @@ module MomInvRandExcit
 !
 !        do i=1,nSelfDets
 !            do j=1,nPairedDets
-!                
+!
 !                !For this i,j pair, isolate all four hamiltonian matrix element between determinants.
 !                iLutnI(:)=SelfInvDets(:,i)
 !                iLutnJ(:)=PairedDets(:,j)
@@ -415,7 +415,7 @@ module MomInvRandExcit
 !                else
 !                    pGen_ib=0.0_dp
 !                endif
-!                
+!
 !                if(abs(PGen_ia-PGen_ib).gt.1.0e-7_dp_dp) then
 !                    call stop_all(t_r,"PGen ia .ne. ib")
 !                endif

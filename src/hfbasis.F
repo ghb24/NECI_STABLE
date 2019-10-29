@@ -120,6 +120,7 @@ C.. Generic spatial symmetry
          USE UMatCache , only : UMatInd,GTID
          use constants, only: dp
          use global_utilities
+         use util_mod, only: near_zero
          IMPLICIT NONE
          INTEGER NBASIS,ISS
          real(dp) UMAT(*)
@@ -207,7 +208,7 @@ C.. Thus the sum1 A+C must be even, as must B+D
            DO C=1,NORBUSED
             DO D=1,NORBUSED
              LSPN=(MOD(A+C,2).EQ.0).AND.(MOD(B+D,2).EQ.0)
-             IF(LSPN.AND.UMAT2(UMatInd(A,B,C,D)).EQ.0.0_dp) THEN
+             IF(LSPN.AND.near_zero(UMAT2(UMatInd(A,B,C,D)))) THEN
               SUM1=0.0_dp
               DO L=1,NHG
                ID4 = GTID(L)
@@ -800,12 +801,12 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
          call write_det (6, HFDET, .true.)
       END
 
-      
+
       SUBROUTINE GENFDET(FDET)
 
           ! Generate an initial determinant of specified spin.
           use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
-     &                          nel, tGiovannisBrokenInit, SymRestrict, 
+     &                          nel, tGiovannisBrokenInit, SymRestrict,
      &                          tSymSet, nBasisMax, tHub, tGUGA
           use SystemData, only: t_k_space_hubbard
           use util_mod, only: int_fmt
@@ -831,7 +832,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           NELS(1)=NEL-NELS(2)
 
          if (tGUGA) then
-            write(6,'(4(A,'//int_fmt(nel)//'))') "N_neg:",NELS(1), 
+            write(6,'(4(A,'//int_fmt(nel)//'))') "N_neg:",NELS(1),
      &   " ; N_pos:", NELS(2)," ; S:",LMS," ; nEl:", nEL
          else
             WRITE(6,'(4(A,'//int_fmt(nel)//'))') " N_alpha:",NELS(1),
@@ -874,19 +875,14 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                 nel = nel + 1
                 nspins(is) = nspins(is) + 1
                 fdet(nel) = brr(ireal)
-                if (t_k_space_hubbard) then 
+                if (t_k_space_hubbard) then
                     totK = lat%add_k_vec(totK, G1(brr(ireal))%k)
                 else
                     totK = totK + G1(brr(ireal))%k
                 end if
                 totSpin = totSpin + G1(brr(ireal))%Ms
-!                print *, "Contribution", brr(ireal), G1(brr(ireal))%k
-                if(tHub) then 
-                    if (t_k_space_hubbard) then 
-!                         totk = lat%map_k_vec(totK)
-                    else
-                        call MomPbcSym(totK,nBasisMax)      
-                    end if
+                if(tHub .and. .not. t_k_space_hubbard) then
+                    call MomPbcSym(totK,nBasisMax)
                 end if
              endif
           enddo
@@ -916,7 +912,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           print *, "fDet", fdet
 #endif
       END
-     
+
 C.. Generate an initial determinant of specified spin
       SUBROUTINE GLM_BROKEN_GENFDET(BRR,G1,NBASIS,LMS,NEL,FDET)
          use SystemData, only: BasisFN,tMolpro, IPARITY, nbasisMax,
@@ -931,7 +927,7 @@ C.. Generate an initial determinant of specified spin
          TYPE(BasisFN) G1(*),s
          INTEGER LMS
          INTEGER minop,maxop,nopen,n_opn(2)
-         INTEGER NORB(SYMMAX),NORB_CLS(SYMMAX) 
+         INTEGER NORB(SYMMAX),NORB_CLS(SYMMAX)
          INTEGER NORB_LFT(SYMMAX), norbOffset(SYMMAX)
          TYPE(Symmetry) Sym_a, Sym_b,ProdString,isym,jsym,lsym
          INTEGER n_left(2),ioff(2),ierr,NELString, leftOb
@@ -949,9 +945,9 @@ C.. Working space
          INTEGER, ALLOCATABLE :: String_b(:)
          INTEGER, ALLOCATABLE :: String_a(:)
          character(len=*), parameter :: t_r="GENFDET"
-!************************************************************************         
+!************************************************************************
 !****                         INITIALIZATION                        *****
-!************************************************************************         
+!************************************************************************
          Write (6,'(/,64("*"),/)')
          write(6,*) ' Entering GENFDET:'
          Write (6,'(/,64("*"),/)')
@@ -968,7 +964,7 @@ C.. Working space
          do i = 1,nBasis,2
           norb(INT(G1(i)%sym%S)+1) = norb(INT(G1(i)%sym%S)+1) +1
          enddo
-         
+
          norbOffset(1) = 1
          do i=2,SYMMAX
             norbOffset(i) = norbOffset(i-1) + norb(i-1)
@@ -1023,7 +1019,7 @@ C.. Working space
          if(minop.gt.2) then
             write(6,*) 'Only up to 2*MS=2 available, so far.'
             call stop_all(t_r,"Consider DEFINEDET keyword instead.")
-         end if 
+         end if
 !************************************************************************
 !****                  LOOP OVER NOPEN ORBITALS                     *****
 !************************************************************************
@@ -1040,7 +1036,7 @@ C.. Working space
              NELcount= 0
              ioff(1) = 0
              ioff(2) = 0
-             DO IS=1,2 
+             DO IS=1,2
 !               ^ IS = 1 for beta, IS = 2  for alpha
                IF(LMS.GE.0) THEN
                   ISPN=3-IS
@@ -1080,7 +1076,7 @@ C.. Working space
 ! routine to simplify the code flow. Notice that NEL is initialized to 1
 ! since the first open electron has been already dropped according to
 ! symmetry. Also in filling up other orbitals we need to make sure not
-! to drop a second electron in spin orbital in position (2*norbOffset(ISYM+1)) 
+! to drop a second electron in spin orbital in position (2*norbOffset(ISYM+1))
 ! as the open electron is located in there.
             NELCount=1
             ioff(1) = 0
@@ -1097,7 +1093,7 @@ C.. Working space
 ! if true   condition pick next element (it happens only for alpha)
                     IREAL=IREAL+1
                  ENDDO
-                 IF(I.LE.n_left(is) .and. 
+                 IF(I.LE.n_left(is) .and.
      &              IREAL.ne.2*norbOffset(ISYM%s+1)) THEN
                         NELCount=NELCount+1
                         FDET(NELCount)=BRR(IREAL)
@@ -1162,7 +1158,7 @@ C.. Working space
                         NELCount=NELCount+1
                         FDET_tmp(NEL+NelCount)=BRR(IREAL)
                         ioff(ISPN)= IREAL
-           end if 
+           end if
                     ENDIF
                     IREAL=IREAL+1
                   ENDDO
@@ -1184,8 +1180,8 @@ C.. Working space
                end if
 !              ^End if(SymFoundTmp) Statement
             end do
-!           ^ Loop over all symmetries. We want to have the energetically lowest 
-!             determinant possible within the space symmetry imposed and with 
+!           ^ Loop over all symmetries. We want to have the energetically lowest
+!             determinant possible within the space symmetry imposed and with
 !             two open orbitals.
           elseif(nOpen.eq.3) then
 
@@ -1266,7 +1262,7 @@ C.. Working space
 !          call fzero(NORB_cls,8)
 !          do i = 1,nel,2
 !            write(6,*) 'i, Sym :',i,INT(G1(BRR(i))%sym%S)+1
-!            norb_cls(INT(G1(BRR(i))%sym%S)+1) = 
+!            norb_cls(INT(G1(BRR(i))%sym%S)+1) =
 !     &                  norb_cls(INT(G1(BRR(i))%sym%S)+1)+1
 !          enddo
 !          do i = 1, 8
@@ -1307,7 +1303,7 @@ C.. Working space
      &        (G1(CounterOrb)%Ms.eq.G1(FDet(CounterDet))%Ms))then
                      if(CounterOrb.lt.FDet(CounterDet))
      &                     FDet(CounterDet) = CounterOrb
-                           CounterDet = CounterDet + 1 
+                           CounterDet = CounterDet + 1
                      end if
                      CounterOrb= CounterTot + 2*(counterSym+1) + 3-IS
                      counterSym = counterSym + 1
@@ -1319,14 +1315,16 @@ C.. Working space
               Call GetSym(FDet,nEl,G1,nBasisMax,s)
 !              write(6,'(A20,I3)') " Determinant Symmetry: ", s%Sym
 !              call write_det (6, fDet, .true.)
-      END          
+      END
 
       SUBROUTINE StringGenerator(IS,ioff,OpnOrb,n_opn,String,StringSym)
           use SystemData, only: G1, BRR, nBasisMax, BasisFN,
      &        symmetry
           Use Determinants, only: write_det_len
           use sym_mod, only: getsym, writesym
-          INTEGER IREAL, ioff, NELString,I,OpnOrb, n_opn,String(*)
+          implicit none
+          INTEGER Is, IREAL, ioff, NELString,I,OpnOrb, n_opn,String(*),
+     &        iSpn
           TYPE(Symmetry) StringSym
           TYPE(BasisFN) s
 
@@ -1351,7 +1349,7 @@ C.. Working space
           WRITE(6,'(A20,I3)') ' Symmetry of String: ',s%Sym
           StringSym = s%Sym
           Call WriteSym(6,s%Sym,.true.)
-      END 
+      END
 
       SUBROUTINE HFLINMIX(FMAT,OFMAT,NSPINS,N,FMIX,R1,R2,WORK)
          use constants, only: dp

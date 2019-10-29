@@ -8,6 +8,7 @@ module Parallel_Calc
 != bugs) and should not be used in production work blindly. :-)
 
 use Parallel_neci
+use util_mod, only : near_zero, operator(.isclose.)
 
 implicit none
 
@@ -20,11 +21,11 @@ subroutine ParMP2(nI)
    != compute the integrals.
    !=
    != In:
-   !=    nI(nEl) : list of occupied spin orbitals in the reference 
+   !=    nI(nEl) : list of occupied spin orbitals in the reference
    !=              determinant.
    != Prints out the <D_0|H|D_0>+MP2 energy.
 
-   != To do: 
+   != To do:
    != 1. Write a custom routine to calculate the <D_0|H|D_1> elements.
    != This would then enable the excitations ij->ab,iJ->aB,Ij-Ab and IJ->AB
    != to be handled at once, removing the need to any integrals to be stored.
@@ -32,7 +33,7 @@ subroutine ParMP2(nI)
 
    use constants, only: dp
    use System, only: AreSameSpatialOrb
-   use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry, & 
+   use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry, &
                          t_3_body_excits, tGUGA
    use CalcData, only: NWHTAY
    use Integrals_neci, only: GetUMatEl2
@@ -66,13 +67,13 @@ subroutine ParMP2(nI)
    integer(TagIntType) :: tag_Ex
    type(timer), save :: proc_timer
    character(*), parameter :: this_routine='ParMP2'
-   logical :: dbg 
+   logical :: dbg
 
    dbg=.false.
-   
+
    proc_timer%timer_name='ParMP2    '
    call set_timer(proc_timer)
-   
+
    select case(IAND(nWHTay(1,1),24))
    case(0)
        ! Generate both single and double excitations.  CPMD works in a Kohn--Sham
@@ -104,7 +105,7 @@ subroutine ParMP2(nI)
    write(6,*) "Electrons ", iMinElec, " TO ", iMaxElec
 
 !  The root's "energy"---sum over the eigenvalues of occ. spin orbitals and the
-!  core energy. Only used it the H0Element formulation is used (see below). 
+!  core energy. Only used it the H0Element formulation is used (see below).
    dE1=GetH0Element3(nI)
 
 !  Initialize: get the contribution from the reference determinant.
@@ -171,7 +172,7 @@ subroutine ParMP2(nI)
          ! If weight remains zero, we don't explicitly calculate the contribution
          ! of the current excitation.
          weight=0
-         
+
          if (Excit(1,2).eq.0) then
              ! Single excitation
              if (G1(Excit(1,1))%Ms.eq.-1) then
@@ -211,7 +212,7 @@ subroutine ParMP2(nI)
                      ! In a restricted calculation, the integrals needed for
                      ! (1a,2b) -> (3a,4b) and (1b,2a) -> (3b,4a) are also
                      ! used for (1a,2a) -> (3a,4a), so we include these
-                     ! the contributions from (1a,2b) -> (3a,4b) and 
+                     ! the contributions from (1a,2b) -> (3a,4b) and
                      ! (1b,2a) -> (3b,4a) when we evaluate the (1a,2a) -> (3a,4a)
                      ! excitation.
                      !
@@ -249,7 +250,7 @@ subroutine ParMP2(nI)
                  ! Double excitation.
                  iSym2=SymLabels(KPntInd(JA))
                  iSym2Conj=SymConj(iSym2)
-                 if (iSym1%s.eq.iSym2Conj%s.and.Arr(Excit(1,1),2).eq.Arr(Excit(1,2),2)) then
+                 if (iSym1%s.eq.iSym2Conj%s.and.(Arr(Excit(1,1),2).isclose.Arr(Excit(1,2),2))) then
                      ! Excitation from, e.g. 1,k1 1,-k1.  Unique: leave weight
                      ! unchanged.
                  else if (iSym1%s.gt.iSym1Conj%s) then
@@ -268,7 +269,7 @@ subroutine ParMP2(nI)
                  end if
              end if
          end if
-                 
+
          if (weight.ne.0) then
 
             j=j+1
@@ -281,7 +282,7 @@ subroutine ParMP2(nI)
                 AA = GTID(Excit(2,1))
                 do JJ=1,nEl,2 ! Assuming closed shell.  But we have already assumed restricted. ;-)
                     ! Spatial orbital of the j-th element of the reference determinant.
-                    JA = GTID(nI(JJ)) 
+                    JA = GTID(nI(JJ))
                     ! Try to be as efficient as possible with the integrals...
                     ! Want to ask for each integral only once (we don't *quite*
                     ! succeed), so that the sum is efficient even without a cache.
@@ -350,7 +351,7 @@ subroutine ParMP2(nI)
       ! Get next excitation.
       CALL GENSYMEXCITIT3Par(NI,.false.,EX,nJ,IC,STORE,ExLevel,iMinElec,iMaxElec)
 
-   end do 
+   end do
 
    write(6,*) 'No. of excitations=',I
    write(6,*) 'No. of spin and symmetry unique excitations=',J
@@ -438,7 +439,7 @@ Subroutine Par2vSum(nI)
       dEwTot=dEwTot+dEw
       dwTot=dwTot+dw
       CALL GENSYMEXCITIT3Par(NI, .False.,EX,nJ,IC,STORE,3,iMinElec,iMaxElec)
-   ENDDO 
+   ENDDO
    write(6,*) I
    write(6,*) dEwTot,dwTot,dEwTot/dwTot
    dTots(1)=dwTot
@@ -484,7 +485,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    != Denoting the eigenvalues as dEp and dEm, the normalised eigenvectors are:
    !=   \frac{1}{\Sqrt{ dU^2 + (dE1-dEp)^2 } ( U, dEp-dE1 )
    !=   \frac{1}{\Sqrt{ dU^2 + (dE1-dEm)^2 } ( U, dEm-dE1 )
-   
+
    != In:
    !=    dE1    <D_0|H|D_0>
    !=    dE2    <D_i|H|D_i>
@@ -499,12 +500,12 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    HElement_t(dp) dU,dEt,dw
    real(dp) dBeta
    HElement_t(dp) dEp,dEm,dD,dEx,dD2,dTmp
-   if(abs(dU).eq.0.0_dp) then
+   if(near_zero(0.0_dp)) then
       ! Determinants are not connected.
       ! => zero contribution.
       dw=0.0_dp
       dEt=0.0_dp
-      return 
+      return
    endif
 
 !  Calculate eigenvalues.
@@ -525,7 +526,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    dD=1/sqrt((dE1-dEp)**2+abs(dU)**2) ! normalisation factor
    dD2=dD*(dEp-dE1)               ! second coefficient
    dD=dD*dU                           ! first coefficient
-   
+
 !   write (6,*) dD,dD2
 
 !dD is the eigenvector component
@@ -537,7 +538,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 #else
    dEt=dEt+dU*dD*(dD2)*dEx
 #endif
-   
+
 !   write (6,*) dEx,dw,dEt
 
 !   write(6,*) dEp,dD,dD2,dw,dEx,dBeta
@@ -573,7 +574,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    dEt=dEt-(dE1)
    dw=dw-(1)
    write (6,*) 'wE,E',dEt,dw
-   
+
 end subroutine Get2vWeightEnergy
 
 end module Parallel_Calc
