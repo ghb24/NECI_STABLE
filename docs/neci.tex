@@ -1748,6 +1748,7 @@ We strongly aim to be at the top of the list.
 \end{mdframed}
 
 \section{Code conventions}
+\label{sec:code_conv}
 The code in NECI has been developed over a number of years by many different
 developers, and has very little standardisation of approach or code appearance.
 This is not an example to copy!
@@ -1856,6 +1857,8 @@ and a range of other guidelines.
 				Normally globally declared in a module for switching on (or
 				off) an overall feature, or signalling overall calculation
 				state.
+                        \item
+                                \code{TypeName_t} is a user-defined type.
 			\item
 				\code{nVariableName} is an integer containing a count of
 				a number of a given entity.
@@ -1880,7 +1883,8 @@ and a range of other guidelines.
 
 		In particular, all function arguments should be decorated with either
 		\code{intent(in)}, \code{intent(out)}, or
-		\code{intent(inout)} as appropriate. The additional decorations
+		\code{intent(inout)} as appropriate. When absolutely
+                necessary, use \code{value} to pass arguments by-value. The additional decorations
 		\code{optional} and \code{target} can be used with care.
 
 		The supplied arguments should be as restrictive as possible, to
@@ -2003,7 +2007,7 @@ and a range of other guidelines.
 		to which the compiler and debugging tools can assist in finding
 		errors in the code, and should be used wherever possible.
 
-	\headitem{Use statements}
+	\headitem{{\ttfamily use} statements}
 		Globally declared symbols can be shared between modules using
 		\code{use} statements. Generally, specific symbols should be
 		included rather than all symbols in a module using the notation
@@ -2029,6 +2033,20 @@ and a range of other guidelines.
 		resolution tree can become very large, and use a lot of time and
 		memory to resolve unambiguously.
 
+        \headitem{Nested functions and subroutines}
+                Within a function or subroutine, nested functions or
+                subroutines can be declared, following a {\ttfamily contains}
+                statement. The nested function will be within the scope of the
+                parent function and can therefore access all variables which
+                are in scope in the outer function. This can be used both to avoid code duplication and
+                to avoid passing unnecessary arguments.
+
+                Consider using nested subroutines/functions to
+                encapsulate recurrent parts of a subroutine/function without
+                exposing them to module scope.
+
+                A nested subroutine/function cannot make use of the {\ttfamily
+                contains} statement.
 
 	\headitem{{\ttfamily ASSERT} statements}
 		\code{ASSERT} is a macro, defined in \code{macros.h}. In
@@ -2072,7 +2090,7 @@ and a range of other guidelines.
     Sometimes this is not wanted, and the compiler warns about it.
     For this reason one should use \code{5 .div. 3} to make it explicit
     that integer division is indeed wanted.
-=======
+
     \headitem{Operator Layout}
         Always surround these binary operators with a single space on either side:
         assignment (\code{=}), comparisons (\code{==, <, >, /=, <=, >=}),
@@ -2237,6 +2255,46 @@ and a range of other guidelines.
 		\end{lstlisting}
 
 \end{description}
+
+\section{Review guidelines}
+Any new code which is to be added to the master branch of NECI has to undergo
+code review to check if it does not introduce new bugs into existing code and
+if the code is written in an understandable and maintanable way, and following
+the code conventions introduced in section \ref{sec:code_conv}.
+
+\begin{mdframed}[ %
+	linewidth = 2pt, %
+	linecolor = red, %
+	roundcorner = 6pt, %
+	leftmargin = 10, %
+	rightmargin = 10, %
+	backgroundcolor = gray!20
+  ]
+  The process of adding new code to the program contains these steps
+  \begin{packed_enum}
+  \item Create a new git branch and add your code there. Do not forget to add
+    tests, so the functionality can be verified.
+  \item Push the branch to the bitbucket repository
+  \item Create a pull request to master/devel (depending on where you want the
+    code merged), selecting a set of reviewers.
+  \item The pull request triggers a pipeline that tries to compile the program and run a
+    set of tests with the new code. If any of those fail, you will get a
+    notification and you can check the reason therefore.
+  \item The reviewers will now check the code and can comment on it. Make sure
+    to address these comments.
+  \item Once you got the approval of at least one reviewer, you can merge the
+    code. It is now included in the program.
+  \end{packed_enum}
+\end{mdframed}
+
+If you have been selected as a reviewer and decide to do the review, check the pull request. It
+will contain information on the ran tests and a list of all changes to the
+code. Go through the new code and check if it is written in a clean and
+well-commented way, in accordance with the code conventions. Does it have tests? You do not
+have to verify that the new code is bug-free nor do you need to debug it,
+that is not within the scope of the review. If you find something that could
+be improved, make a comment on that or create a task, this helps the author to
+increase the quality of the code.
 
 \section{Important modules and common (global) variable names}
 \label{sect:cons-types}
