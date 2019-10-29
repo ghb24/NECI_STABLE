@@ -501,26 +501,7 @@ contains
     end subroutine set_tot_acc_spawn_hdf5Int
 #endif
 
-    subroutine writeFFuncAsInt(ndets, fvals)
-      implicit none
-      integer(int64), intent(in) :: ndets
-      integer(n_int), intent(inout) :: fvals(:,:)
-
-      integer :: j, k
-
-      ! write the acc. and tot. spawns per determinant in a contiguous array
-      ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-      do j = 1, int(nDets)
-         do k = 1, inum_runs
-            fvals(k,j) = transfer(get_acc_spawns(j,k), fvals(k,j))
-         end do
-         do k = 1, inum_runs
-            fvals(k+inum_runs,j) = transfer(get_tot_spawns(j,k), fvals(k,j))
-         end do
-      end do
-    end subroutine writeFFuncAsInt
-
-    subroutine writeFFuncAsInt_Trunc(ndets, fvals, MaxEx)
+    subroutine writeFFuncAsInt(ndets, fvals, MaxEx)
       !Same as writeFFuncAsInt but truncated up to a maximum excitation level
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
@@ -528,7 +509,7 @@ contains
       implicit none
       integer(int64), intent(in) :: ndets 
       integer(n_int), intent(inout) :: fvals(:,:)
-      integer, intent(in) :: MaxEx
+      integer, intent(in), optional :: MaxEx
 
       integer :: j, k
       integer :: ExcitLevel, counter
@@ -537,22 +518,33 @@ contains
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
 
-      counter = 0
-      do j = 1,int(ndets)
-         ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-         if(ExcitLevel<=MaxEx)then
-             call extract_sign(CurrentDets(:,j),CurrentSign)
-             if(IsUnoccDet(CurrentSign)) cycle
-             counter = counter + 1
+      if(present(MaxEx))then
+          counter = 0
+          do j = 1,int(ndets)
+             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+             if(ExcitLevel<=MaxEx)then
+                 call extract_sign(CurrentDets(:,j),CurrentSign)
+                 if(IsUnoccDet(CurrentSign)) cycle
+                 counter = counter + 1
+                 do k = 1, inum_runs
+                    fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
+                 end do
+                 do k = 1, inum_runs
+                    fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
+                 end do
+             end if
+          end do
+      else
+          do j = 1, int(nDets)
              do k = 1, inum_runs
-                fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
+                fvals(k,j) = transfer(get_acc_spawns(j,k), fvals(k,j))
              end do
              do k = 1, inum_runs
-                fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
+                fvals(k+inum_runs,j) = transfer(get_tot_spawns(j,k), fvals(k,j))
              end do
-         end if
-      end do
-    end subroutine writeFFuncAsInt_Trunc
+          end do
+      endif
+    end subroutine writeFFuncAsInt
 
     subroutine writeFFunc(ndets, fvals)
       implicit none
