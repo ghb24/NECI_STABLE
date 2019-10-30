@@ -10,7 +10,7 @@ module rdm_general
     use FciMCData, only: proje_iter, Hii
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
-    use util_mod, only: near_zero
+    use util_mod, only: near_zero, unused
 
     implicit none
 
@@ -315,7 +315,6 @@ contains
                                                         Spawned_Parents_IndexTag, ierr)
 
             memory_alloc = memory_alloc + ( (NIfTot + 3) * MaxSpawned * size_n_int )
-
             memory_alloc = memory_alloc + ( 2 * MaxSpawned * 4 )
 
         end if
@@ -632,7 +631,6 @@ contains
         use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, Sing_ExcDjsTag, Doub_ExcDjsTag
         use rdm_data, only: Sing_ExcDjs2Tag, Doub_ExcDjs2Tag
         use rdm_data, only: Sing_InitExcSlots, Doub_InitExcSlots, Sing_ExcList, Doub_ExcList
-        use rdm_data_old, only: rdms
         use rdm_data_utils, only: dealloc_rdm_list_t, dealloc_rdm_spawn_t, dealloc_one_rdm_t
         use rdm_data_utils, only: dealloc_en_pert_t
         use rdm_estimators, only: dealloc_rdm_estimates_t
@@ -766,17 +764,15 @@ contains
         real(dp), intent(out) :: IterRDMStartI(len_iter_occ_tot), AvSignI(len_av_sgn_tot)
         type(excit_gen_store_type), intent(inout), optional :: store
 
-        integer :: iunused
+#ifdef __WARNING_WORKAROUND
+        call unused(j); call unused(rdm_defs%nrdms)
+#endif
 
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, j, store)
 
         IterRDMStartI = 0.0_dp
         AvSignI = 0.0_dp
-
-        ! Eliminate warnings
-        iunused = j
-
     end subroutine extract_bit_rep_avsign_no_rdm
 
     subroutine extract_bit_rep_avsign_norm(rdm_defs, iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, store)
@@ -950,11 +946,16 @@ contains
       integer, intent(in) :: DetPosition
       real(dp) :: rdmC
 
-      integer :: run
+      integer :: run, pairRun
 
       rdmC = 0.0_dp
       do run = 1, inum_runs, 2
-         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(run+1)
+         if(run+1 <= inum_runs) then
+            pairRun = run + 1
+         else
+            pairRun = run
+         endif
+         rdmC = rdmC + (avFFunc(DetSgn,DetPosition)-1) * DetSgn(run)*DetSgn(pairRun)
       end do
 
     end function getRDMCorrectionTerm

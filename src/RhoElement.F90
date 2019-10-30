@@ -6,24 +6,22 @@
 !.. NTAY is the order of the Taylor expansion for U'
 !.. IC is the number of basis fns by which NI and NJ differ (or -1 if not known)
 !..
-SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
-                     NMAX,ALAT,UMAT,RH,NTAY,IC2,ECORE)
+SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,&
+                     NMAX,RH,NTAY,IC2,ECORE)
       Use Determinants, only: get_helement, nUHFDet, &
                               E0HFDet
       use constants, only: dp
       use SystemData , only : TSTOREASEXCITATIONS,BasisFN
       use global_utilities
       IMPLICIT NONE
-      HElement_t(dp) UMat(*),RH
+      HElement_t(dp) RH
       INTEGER I_P,NTAY(2),NEL,NBASIS
       INTEGER NI(NEL),NJ(NEL),NMAX,IC,IC2
       real(dp) BETA,ECORE
       LOGICAL tSameD
-      INTEGER NMSH,IGETEXCITLEVEL
+      INTEGER IGETEXCITLEVEL
       type(timer), save :: proc_timer
       TYPE(BasisFN) G1(*)
-      complex(dp) FCK(*)
-      real(dp) ALAT(3)
       HElement_t(dp) hE,UExp,B,EDIAG
       character(*), parameter :: this_routine = 'CALCRHO2'
       IF(NTAY(1).LT.0) THEN
@@ -136,11 +134,11 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !Partition with Trotter with H(0) having just the Fock Operators.  Taylor diagonal to zeroeth order, and off-diag to 1st.
 ! Instead of
          IF(tSAMED) THEN
-            call GetH0ElementDCCorr(nUHFDet,nI,nEl,G1,nBasis,NMAX,ECore,EDiag)
+            call GetH0ElementDCCorr(nUHFDet,nI,nEl,G1,ECore,EDiag)
             RH=EXP(-B*EDiag)
          ELSE
-            call GetH0ElementDCCorr(nUHFDet,nI,nEl,G1,nBasis,NMAX,ECore,UExp)
-            call GetH0ElementDCCorr(nUHFDet,nJ,nEl,G1,nBasis,NMAX,ECore,EDiag)
+            call GetH0ElementDCCorr(nUHFDet,nI,nEl,G1,ECore,UExp)
+            call GetH0ElementDCCorr(nUHFDet,nJ,nEl,G1,ECore,EDiag)
             EDiag=(UExp+EDiag)/(2.0_dp)
             UExp=get_helement(nI, nJ, IC)
             UExp=-B*UExp
@@ -214,18 +212,18 @@ SUBROUTINE CALCRHO2(NI,NJ,BETA,I_P,NEL,G1,NBASIS,NMSH,FCK,&
 !  Get a matrix element of the double-counting corrected unperturbed Hamiltonian.
 !  This is just the sum of the Hartree-Fock eigenvalues
 !   with the double counting subtracted, Sum_i eps_i - 1/2 Sum_i,j <ij|ij>-<ij|ji>.  (i in HF det, j in excited det)
-      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,nBasis,NMAX,ECore,hEl)
+      subroutine GetH0ElementDCCorr(nHFDet,nJ,nEl,G1,ECore,hEl)
          use constants, only: dp
          use Integrals_neci, only: get_umat_el
          use UMatCache
          use SystemData, only: BasisFN,Arr
          implicit none
-         integer nEl,nBasis
+         integer nEl
          integer nHFDet(nEl),nJ(nEl)
          type(BasisFN) G1(*)
          HElement_t(dp) hEl
          real(dp) ECore
-         integer i,j,NMAX
+         integer i,j
          integer IDHF(nEl),IDJ(nEl)
          hEl=(ECore)
          do i=1,nEl

@@ -122,9 +122,8 @@ contains
 
     end subroutine rezero_double_occ_stats
 
-    subroutine write_double_occ_stats(iter_data, initial)
+    subroutine write_double_occ_stats(initial)
         ! routine to write out the double occupancy data
-        type(fcimc_iter_data), intent(in) :: iter_data
         logical, intent(in), optional :: initial
         character(*), parameter :: this_routine = "write_double_occ_stats"
 
@@ -227,12 +226,11 @@ contains
 
     end subroutine init_double_occ_output
 
-    subroutine calc_double_occ_from_rdm(rdm, rdm_trace, nrdms_to_print)
+    subroutine calc_double_occ_from_rdm(rdm, rdm_trace)
         ! also write a routine which calculates the double occupancy from the
         ! 2-rdm, if it has been calculated!
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
-        integer, intent(in) :: nrdms_to_print
         character(*), parameter :: this_routine = "calc_double_occ_from_rdm"
 
         integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr

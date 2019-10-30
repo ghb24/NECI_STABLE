@@ -51,7 +51,7 @@ contains
 
        if(tReadRefs) then
           ! Then, add the references from the file
-          call read_in_refs(ref_filename, nRead, tPopPresent)
+          call read_in_refs(ref_filename, nRead)
           ! If we added references, note this (this means that the nRefs was not
           ! specified and is taken from the file)
           if(nRead > nRefs) nRefs = nRead
@@ -125,13 +125,12 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-  subroutine read_in_refs(filename, nRead, tPopPresent)
+  subroutine read_in_refs(filename, nRead)
     use util_mod, only: get_free_unit
     use adi_data, only: tDelayGetRefs
     implicit none
     integer, intent(out) :: nRead
     character(255), intent(in) :: filename
-    logical, intent(in) :: tPopPresent
     integer :: iunit, i, stat
     integer(n_int) :: tmp(0:NIfTot)
     logical :: exists
@@ -508,25 +507,6 @@ contains
       ! Now, copy the newly constructed references back to the original array
       ilutRefAdi(:,1:cRef) = ilutRef_new(:,1:cRef)
     end subroutine spin_symmetrize_references
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine adapt_SIThreshold(nKeep)
-      ! If we have a fixed set of superinitiators, we set the SIThreshold to be at
-      ! least the minimum of xi of that set
-      implicit none
-      ! the number of SIs over which the threshold shall be fixed
-      integer, intent(in) :: nKeep
-      integer :: iRef
-      real(dp) :: xi
-
-      do iRef = 1, nRefs
-         xi = get_sign_op(ilutRefAdi(:,iRef))
-         ! here, we guarantee that no SI is below the threshold
-         if(xi < SIThreshold) SIThreshold = xi
-      enddo
-
-    end subroutine adapt_SIThreshold
 
 !------------------------------------------------------------------------------------------!
 

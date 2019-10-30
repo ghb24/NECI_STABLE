@@ -3352,7 +3352,7 @@ contains
 ! Parallal 2v sum currently for testing only.
 !          call Par2vSum(FDet)
           ELSE IF(tDavidson) then
-              davidsonCalc = davidson_direct_ci_init(.true.)
+              davidsonCalc = davidson_direct_ci_init()
               call perform_davidson(davidsonCalc, direct_ci_type, .true.)
               call davidson_direct_ci_end(davidsonCalc)
               call DestroyDavidsonCalc(davidsonCalc)

@@ -5,12 +5,12 @@ program test_pcpp_excitgen
   use unit_test_helper_excitgen
   use procedure_pointers, only: generate_excitation
   implicit none
-  
+
   call init_fruit()
   call pcpp_test_driver()
   call fruit_summary()
   call fruit_finalize()
-  
+
 contains
 
   !------------------------------------------------------------------------------------------!
@@ -27,7 +27,7 @@ contains
     call init_excitgen_test()
 
     ! prepare the pcpp excitation generator: get the precomputed weights
-    call set_ref()    
+    call set_ref()
     call init_pcpp_excitgen()
 
     ! test the mapping of electrons
@@ -35,15 +35,15 @@ contains
     ! run the excitgen test: do nSamples excitations, and compare them with all possible excits
     call test_excitation_generator(nSamples,pTot,pNull,numEx,nFound,.false.)
     ! make sure all excitations are found
-    call assert_equals(numEx,nFound)    
+    call assert_equals(numEx,nFound)
     ! make sure the probability is normalized - we don't require pNull to match exactly (that would mean generating all possible null excitations)
     ! so the threshold is rather loose
     ! for in-depth insight, study the output and consider the ratio of pGen and the number of occurences per excitation (should fluctuate around 1)
     call assert_true(abs(1.0-pTot)<0.01)
 
-    
+
     call free_ref()
-    call finalize_excitgen_test()    
+    call finalize_excitgen_test()
   end subroutine pcpp_test_driver
 
   subroutine test_elec_mapping()
@@ -69,7 +69,7 @@ contains
     call assert_equals(8,elec_map(4))
     ! the fifth
     call assert_equals(9,elec_map(5))
-    
+
   end subroutine test_elec_mapping
-  
+
 end program test_pcpp_excitgen
