@@ -1304,8 +1304,11 @@ module FciMCParMod
                 ! optional: Adjust the number of spawns to the expected maximum
                 ! Hij/pgen ratio of this determinant -> prevent blooms
                 ! Only done while not updating tau (to prevent interdependencies)
+                ! or, for hist-tau-search, in vairable shift mode
                 ! Usually, this means: done in variable shift mode
-                if(tScaleBlooms .and. .not. tSearchTau) then
+                if(tScaleBlooms .and. .not. tSearchTau &
+                    .and. .not. (t_hist_tau_search .and. tSinglePartPhase(&
+                    part_type_to_run(part_type)))) then
                     max_spawn = get_max_spawn(j)
                     if(max_spawn > max_allowed_spawn) then
                         scale = max_spawn / max_allowed_spawn
