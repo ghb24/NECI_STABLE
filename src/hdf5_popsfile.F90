@@ -781,6 +781,8 @@ contains
             allocate(TmpVecDets(0:NIfTot, TotWalkers))
             PrintedDets => TmpVecDets
             printed_count = 0
+            printed_norm_sqr = 0
+            printed_tot_parts = 0
             do i = 1, int(TotWalkers)
                 ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
                 if(ExcitLevel<=MaxEx)then
