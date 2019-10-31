@@ -517,32 +517,24 @@ contains
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
 
-      if(present(MaxEx))then
-          counter = 0
-          do j = 1,int(ndets)
+      counter = 0
+      do j = 1,int(ndets)
+        if(present(MaxEx))then
              ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-             if(ExcitLevel<=MaxEx)then
-                 call extract_sign(CurrentDets(:,j),CurrentSign)
-                 if(IsUnoccDet(CurrentSign)) cycle
-                 counter = counter + 1
-                 do k = 1, inum_runs
-                    fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
-                 end do
-                 do k = 1, inum_runs
-                    fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
-                 end do
-             end if
-          end do
-      else
-          do j = 1, int(nDets)
-             do k = 1, inum_runs
-                fvals(k,j) = transfer(get_acc_spawns(j,k), fvals(k,j))
-             end do
-             do k = 1, inum_runs
-                fvals(k+inum_runs,j) = transfer(get_tot_spawns(j,k), fvals(k,j))
-             end do
-          end do
-      endif
+             if(ExcitLevel>MaxEx) cycle
+             call extract_sign(CurrentDets(:,j),CurrentSign)
+             if(IsUnoccDet(CurrentSign)) cycle
+             counter = counter + 1
+        else
+            counter = j
+        end if
+        do k = 1, inum_runs
+           fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
+        end do
+        do k = 1, inum_runs
+           fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
+        end do
+      end do
     end subroutine writeFFuncAsInt
 
     subroutine writeFFunc(ndets, fvals)
