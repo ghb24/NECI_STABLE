@@ -282,6 +282,7 @@ MODULE FciMCData
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            SemiStoch_Hamil_Time, SemiStoch_Davidson_Time, &
+                           SemiStoch_nonhermit_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
                            subspace_spin_time, sign_correction_time, &

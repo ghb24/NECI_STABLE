@@ -7,7 +7,7 @@ module davidson_semistoch
 
     use constants
     use FciMCData, only: core_ham_diag, DavidsonTag
-    use SystemData, only: t_non_hermitian    
+    use SystemData, only: t_non_hermitian
     use MemoryManager, only: TagIntType
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather, MPISumAll

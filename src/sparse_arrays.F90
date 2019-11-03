@@ -389,6 +389,7 @@ contains
 
     subroutine calc_determ_hamil_sparse()
 
+        use SystemData, only: t_3_body_excits,t_mol_3_body,t_ueg_transcorr
         integer :: i, j, row_size, counter, ierr
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
@@ -398,7 +399,7 @@ contains
         character(len=*), parameter :: t_r = "calc_determ_hamil_sparse"
 
         integer(n_int) :: tmp(0:NIfD)
-        integer :: IC
+        integer :: IC, IC_max
 
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
         allocate(SparseCoreHamilTags(2, determ_sizes(iProcIndex)))
@@ -408,6 +409,12 @@ contains
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', determ_space_size*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
         safe_realloc_e(temp_store_nI, (nel, determ_space_size), ierr)
+
+        if(t_3_body_excits.or.t_mol_3_body.or.t_ueg_transcorr) then
+                IC_max=3
+        else
+                IC_max=2
+        endif
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
@@ -449,7 +456,7 @@ contains
                     tmp = iand(SpawnedParts(0:NIfD,i), tmp)
                     IC = CountBits(tmp, NIfD)
 
-                    if (IC <= 2) then
+                    if (IC <= IC_max) then
                         hamiltonian_row(j) = get_helement(nI, nJ, IC, SpawnedParts(:, i), temp_store(:, j))
                         if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                     end if

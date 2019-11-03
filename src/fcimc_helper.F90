@@ -412,7 +412,7 @@ contains
          write(*,*) "No memory slots available for this spawn."
          write(*,*) "Please increase MEMORYFACSPAWN"
          write(6,*) ValidSpawnedList
-         write(6,*) InitialSpawnedSlots         
+         write(6,*) InitialSpawnedSlots
 #endif
       end if
     end function checkValidSpawnedList
@@ -621,8 +621,8 @@ contains
         else if (ExcitLevel_local == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then 
             ! the new 3-body terms in the transcorrelated momentum space hubbard 
             ! hphf not yet implemented! 
-            ASSERT(.not. tHPHF) 
-            HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut) 
+            ASSERT(.not. tHPHF)
+            HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut)
 
         endif ! ExcitLevel_local == 1, 2, 3
 
@@ -889,8 +889,8 @@ contains
                                              ilutRef(:,run), ilut)
                 endif
 
-            else if (exlevel == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body) ) then 
-                ASSERT(.not. tHPHF) 
+            else if (exlevel == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body) ) then
+                ASSERT(.not. tHPHF)
                 hoffdiag = get_helement(ProjEDet(:,run), nI, exlevel, &
                     iLutRef(:,run), ilut)
 
@@ -975,7 +975,7 @@ contains
 
                 ! Update the parent flag as required.
                 call set_flag (CurrentDets(:,j), get_initiator_flag_by_run(run), parent_init)
-                
+
             enddo
 
         endif

@@ -1864,7 +1864,7 @@ contains
          ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
          ! by the number of alpha and beta electrons and the number of orbitals
          ! and can hence be precomputed
-         if(t_mol_3_body) call setup_mol_tc_excitgen(hfdet)
+         if(t_mol_3_body.or.t_ueg_3_body) call setup_mol_tc_excitgen(hfdet)
 
         if (tInitiatorSpace) call init_initiator_space(i_space_in)
 
@@ -1924,10 +1924,11 @@ contains
          generate_excitation => gen_hphf_excit
         elseif (t_ueg_3_body) then
             if(tTrcorrExgen) then
-                generate_excitation => gen_ueg_excit
+                generate_two_body_excitation => gen_ueg_excit
             elseif(TLatticeGens) then
-                generate_excitation => gen_rand_excit
+                generate_two_body_excitation => gen_rand_excit
             endif
+         generate_excitation => gen_excit_mol_tc
         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
             if (tHUB .and. tLatticeGens) then
                 ! for now the hubbard + back-spawn still uses the old

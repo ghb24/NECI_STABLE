@@ -214,9 +214,7 @@ MODULE System
       TContact=.false.
       TUnitary=.false.
       Tperiodicinmom=.false.
-      tTrcorrExgen = .true.
       t12FoldSym = .false.
-      tTrCorrRandExgen = .false.
       tSpinCorrelator = .false.
 
 #ifdef __PROG_NUMRUNS
@@ -597,6 +595,8 @@ system: do
                call readu(w)
                select case(w)
                case("3-BODY")
+                  tTrcorrExgen = .false.
+                  tTrCorrRandExgen = .true.
                   t_ueg_3_body = .true.
                   tGenMatHEl = .false.
                   max_ex_level = 3
@@ -604,10 +604,10 @@ system: do
 
                case("TRCORR-EXCITGEN")
                   tTrcorrExgen = .true.
+                  tTrCorrRandExgen = .false.
 
                case("RAND-EXCITGEN")
                   tTrCorrRandExgen = .true.
-                  tTrcorrExgen = .false.
 
 !              case default
 !                 t_ueg_3_body = .false.

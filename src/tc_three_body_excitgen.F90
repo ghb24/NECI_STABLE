@@ -15,7 +15,7 @@ module tc_three_body_excitgen
   use excit_gens_int_weighted, only: pick_biased_elecs, pick_oppspin_elecs
   use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
        createSingleExcit, createDoubExcit, construct_class_counts,      &
-       gen_rand_excit 
+       gen_rand_excit
   use procedure_pointers, only: generate_two_body_excitation
   contains
 

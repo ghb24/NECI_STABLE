@@ -40,6 +40,7 @@ contains
         use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
         use FciMCData, only: tFillingStochRdmOnFly, core_space, SemiStoch_Hamil_Time
         use FciMCData, only: SemiStoch_Davidson_Time, determ_last, s_first_ind, s_last_ind
+        use FciMCData, only: SemiStoch_nonhermit_Time
         use FciMCData, only: NoInitDets, AllNoInitDets
         use FciMCData, only: tFillingStochRdmOnFly
         use load_balance, only: adjust_load_balance
@@ -225,14 +226,6 @@ contains
                     gs_energy = e_values(1)
                 end if
             else
-                ! misuse the non-hermitian here, since otherwise it is buggy..
-!                 call diagonalize_core_non_hermitian(e_values, e_vectors)
-! 
-!                 if (t_choose_trial_state) then
-!                     gs_energy = e_values(trial_excit_choice(1))
-!                 else
-!                     gs_energy = e_values(1)
-!                 end if
 
                 call diagonalize_core(gs_energy, gs_vector)
 
@@ -262,12 +255,22 @@ contains
 
         tStartedFromCoreGround = .false.
         if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore .and. (.not. tTrialInit)) then
+!         if (.true.) then
+          if (t_non_hermitian) then
+            call set_timer(SemiStoch_nonhermit_Time)
+            call start_walkers_from_core_ground_nonhermit(tPrintInfo = .true.)
+            call halt_timer(SemiStoch_nonhermit_Time)
+            tStartedFromCoreGround = .true.
+            write(6,'("Total time (seconds) taken for non-hermitian diagonalization:", f9.3)') &
+               get_total_time(SemiStoch_nonhermit_Time)
+          else
             call set_timer(SemiStoch_Davidson_Time)
             call start_walkers_from_core_ground(tPrintInfo = .true.)
             call halt_timer(SemiStoch_Davidson_Time)
             tStartedFromCoreGround = .true.
             write(6,'("Total time (seconds) taken for Davidson calculation:", f9.3)') &
                get_total_time(SemiStoch_Davidson_Time)
+          endif
         end if
 
         ! Call MPIBarrier here so that Semistoch_Init_Time will give the

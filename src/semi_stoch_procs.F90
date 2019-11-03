@@ -51,6 +51,7 @@ contains
 
         integer :: i, j, ierr, run, part_type
         real(dp) :: scaledDiagSft(inum_runs)
+
         call MPIBarrier(ierr)
 
         call set_timer(SemiStoch_Comms_Time)
@@ -86,6 +87,7 @@ contains
                 end do
             end do
 #else
+
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
@@ -1249,8 +1251,9 @@ contains
         use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
         use Parallel_neci, only: MPISumAll
         implicit none
-      
+
         logical, intent(in) :: tPrintInfo
+        integer :: nI(nel)
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop, eigenvec_pop_tot, pop_sign(lenof_sign)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
@@ -1284,12 +1287,20 @@ contains
             dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
         end if
 
+        write(6,*)'davidson eigenvec'
+        do i = 1, determ_sizes(iProcIndex)
+            root_print  dc%davidson_eigenvector(i)
+        end do
+
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
                 pop_sign = dc%davidson_eigenvector(counter)
+            root_print  'popsign',i,counter,pop_sign
+            call decode_bit_det(nI, CurrentDets(:,i))
+            root_print  'CurrentDet', nI(:)
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
@@ -1297,6 +1308,66 @@ contains
         call destroy_davidson_ss(dc)
 
     end subroutine start_walkers_from_core_ground
+
+    subroutine start_walkers_from_core_ground_nonhermit(tPrintInfo)
+        use bit_reps, only: encode_sign
+        implicit none
+
+        logical, intent(in) :: tPrintInfo
+        integer :: i, counter, ierr
+        integer :: nI(nel)
+        real(dp), allocatable :: e_values(:)
+        HElement_t(dp), allocatable :: e_vectors(:,:)
+        real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
+        character(len=*), parameter :: t_r ="start_walkers_from_core_ground_nonhermit"
+
+        if (tPrintInfo) then
+            write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
+            write(6,'(a53)') "Performing diagonalization of non-Hermitian matrix..."
+            call neci_flush(6)
+        end if
+
+        ! Call the non-Hermitian diagonalizer to find the ground state of the core space.
+         call diagonalize_core_non_hermitian(e_values, e_vectors)
+
+        if (tPrintInfo) then
+            write(6,'("Energies of the deterministic subspace:")')
+            write(6,*) e_values(1:determ_space_size)
+            call neci_flush(6)
+        end if
+
+
+        ! We need to normalise this vector to have the correct 'number of walkers'.
+        eigenvec_pop = 0.0_dp
+        do i = 1, determ_space_size
+            eigenvec_pop = eigenvec_pop + abs(e_vectors(i,1))
+        end do
+
+        if (tStartSinglePart) then
+            e_vectors(:,1) = e_vectors(:,1)*InitialPart/eigenvec_pop
+        else
+            e_vectors(:,1) = e_vectors(:,1)*InitWalkers/eigenvec_pop
+        end if
+
+        write(6,*)'The ground state vector:'
+        write(6,*) e_vectors(:,1)
+        ! Then copy these amplitudes across to the corresponding states in CurrentDets.
+        counter = 0
+        write(6,*)'determ_space_size ',determ_space_size
+        do i = 1, determ_space_size !int(TotWalkers, sizeof_int)
+            if (test_flag(CurrentDets(:,i), flag_deterministic)) then
+                counter = counter + 1
+                pop_sign = e_vectors(counter,1)
+            write(6,*)  'popsign',i,counter,pop_sign
+            call decode_bit_det(nI, CurrentDets(:,i))
+            write(6,*)  'CurrentDet', nI(:)
+                call encode_sign(CurrentDets(:,i), pop_sign)
+            end if
+        end do
+
+        deallocate (e_values, e_vectors)
+
+    end subroutine start_walkers_from_core_ground_nonhermit
 
     subroutine diagonalize_core(e_value, e_vector)
         real(dp), intent(out)  :: e_value
@@ -1307,7 +1378,7 @@ contains
 
         call create_sparse_ham_from_core()
 
-        ! Call the Davidson routine to find the ground state of the core space. 
+        ! Call the Davidson routine to find the ground state of the core space.
         call perform_davidson(davidsonCalc, parallel_sparse_hamil_type, .true.)
 
         e_value = davidsonCalc%davidson_eigenvalue
@@ -1338,7 +1409,7 @@ contains
         allocate(sparse_ham(determ_sizes(iProcIndex)))
         allocate(SparseHamilTags(2, determ_sizes(iProcIndex)))
         do i = 1, determ_sizes(iProcIndex)
-            call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i)) 
+            call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i))
             sparse_ham(i)%elements = sparse_core_ham(i)%elements
             sparse_ham(i)%positions = sparse_core_ham(i)%positions
             sparse_ham(i)%num_elements = sparse_core_ham(i)%num_elements
@@ -1356,7 +1427,7 @@ contains
         real(dp), allocatable, intent(out) :: e_values(:)
         HElement_t(dp), allocatable :: e_vectors(:,:)
         HElement_t(dp), allocatable :: full_H(:,:)
-        integer i, nI(nel)
+        integer i, nI(nel),space_size
 
        root_print "The determinants are"
 
@@ -1365,19 +1436,20 @@ contains
        root_print i, nI(1:nel)
       enddo
 
-        ! if the Hamiltonian is non-hermitian we cannot use the 
+        ! if the Hamiltonian is non-hermitian we cannot use the
         ! standard Lanzcos or Davidson routines. so:
         ! build the full Hamiltonian
 !         if (iProcIndex == root) then
             call calc_determin_hamil_full(full_H)
-            allocate(e_values(size(full_H,1)))
-            allocate(e_vectors(size(full_H,1),size(full_H,1)))
+            space_size=size(full_H,1)
+            allocate(e_values(space_size))
+            allocate(e_vectors(space_size,space_size))
             e_values = 0.0_dp
             e_vectors = 0.0_dp
 
             call eig(full_H, e_values, e_vectors)
 
-            ! maybe we also want to start from a different eigenvector in 
+            ! maybe we also want to start from a different eigenvector in
             ! this case? this would be practial for the hubbard problem case..
             root_print "Full diagonalisation for non-hermitian Hamiltonian completed!"
 !         end if
@@ -1395,7 +1467,7 @@ contains
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
 
-            if (tHPHF) then 
+            if (tHPHF) then
                 hamil(i,i) = hphf_diag_helement(nI,core_space(:,i))
             else
                 hamil(i,i) = get_helement(nI,nI,0)

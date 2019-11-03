@@ -230,7 +230,7 @@ module FciMCParMod
         call decode_bit_det(tmp_det, ilutHF_true)
         write(iout, *) "HF_true: ", tmp_det
         call decode_bit_det(tmp_det, ilutRef(:,1))
-        write(iout, *) "Ref: ", tmp_det 
+        write(iout, *) "Ref: ", tmp_det
         write(iout, *) "ProjEDet: ", ProjEDet
 #endif
 
@@ -408,7 +408,7 @@ module FciMCParMod
                 call init_back_spawn()
             end if
 
-            if (t_cc_amplitudes .and. cc_delay /= 0 .and. all(.not. tSinglePartPhase)) then 
+            if (t_cc_amplitudes .and. cc_delay /= 0 .and. all(.not. tSinglePartPhase)) then
                 if ((iter - maxval(VaryShiftIter)) == cc_delay + 1) then
                     ! for now just test if it works
                     call init_cc_amplitudes()
@@ -1398,8 +1398,6 @@ module FciMCParMod
                     call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
                                         ilutnJ, exFlag, IC, ex, tParity, prob, &
                                         HElGen, fcimc_excit_gen_store, part_type)
-
-
 
                     ! If a valid excitation, see if we should spawn children.
                     if (.not. IsNullDet(nJ)) then

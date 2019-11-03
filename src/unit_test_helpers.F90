@@ -18,7 +18,7 @@ module unit_test_helpers
     use util_mod, only: binary_search, choose
 
     use bit_reps, only: decode_bit_det
-    
+
     use bit_rep_data, only: niftot, nifd
 
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
