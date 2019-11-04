@@ -411,6 +411,7 @@ contains
         type(SingleExc_t) :: trial_exc
         real(dp) :: previous
         integer :: i, tgt
+        character(*), parameter :: this_routine = "s_get_cumulative_list"
 
         trial_exc = exc
         ASSERT(trial_exc%tgt == UNKNOWN)
@@ -441,6 +442,7 @@ contains
         type(DoubleExc_t) :: trial_exc
         real(dp) :: previous
         integer :: i, tgt
+        character(*), parameter :: this_routine = "d_get_cumulative_list"
 
         trial_exc = exc
         ASSERT(trial_exc%tgt2 == UNKNOWN)
