@@ -75,6 +75,15 @@ endif
 #define ENDIFDEBUG endif
 #endif
 
+! define a precompiler setup for the warning workaround
+#ifdef __WARNING_WORKAROUND
+#define unused_var(x) associate(x=>x); end associate
+#define unused_var(x) associate(x=>x); end associate
+#else
+#define unused_var(x)
+#define unused_var(x)
+#endif
+
 ! Write out from the root node (concisely)
 #define root_write if (iProcIndex == 0) write
 #define root_print root_write (6, *)

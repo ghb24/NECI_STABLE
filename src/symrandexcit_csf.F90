@@ -20,7 +20,6 @@ module GenRandSymExcitCSF
     use Determinants, only: write_det
     use Parallel_neci
     use constants, only: n_int, bits_n_int
-    use util_mod, only: unused
     use bit_reps, only: NIfTot,NIfD
     use sym_general_mod, only: CCIndS
     implicit none
@@ -67,9 +66,8 @@ contains
         integer :: nopen, ncsf, exTmp
         real(dp) :: r
 
-#ifdef __WARNING_WORKAROUND
-        call unused(part_type)
-#endif
+        unused_var(part_type)
+        unused_var(part_type)
 
         ! Point to the correct bits
         CCDblS => store%ClassCountOcc

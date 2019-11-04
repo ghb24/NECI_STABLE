@@ -528,15 +528,13 @@ module hamiltonian_linalg
         use direct_ci, only: perform_multiplication, transfer_from_block_form, transfer_to_block_form
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
         use SystemData, only: ecore
-        use util_mod, only: unused
 
         complex(dp), intent(in) :: input_vector(:)
         complex(dp), intent(out) :: output_vector(:)
         character(*), parameter :: t_r = "mult_hamil_vector_direct_ci_complex"
 
-#ifdef __WARNING_WORKAROUND
-        call unused(input_vector)
-#endif
+        unused_var(input_vector)
+        unused_var(input_vector)
         output_vector = 0.0d0
         call stop_all(t_r, "not yet implemented for complex CI coefficients")
 
