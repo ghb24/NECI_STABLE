@@ -18,7 +18,7 @@ MODULE PopsfileMod
     use procedure_pointers, only: scaleFunction
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use hash, only: FindWalkerHash, clear_hash_table, &
-                    fill_in_hash_table
+                    fill_in_hash_table, add_hash_table_entry 
     use Determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
@@ -1052,7 +1052,7 @@ r_loop: do while(.not.tStoreDet)
         call fill_in_diag_helements()
 
         call clear_hash_table(HashIndex)
-        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
+        call fill_in_hash_table_pops(HashIndex, nWalkerHashes)
 
         ! If we are doing load balancing, do an initial balance now that we
         ! have read the particles in
@@ -3117,4 +3117,34 @@ r_loop: do while(.not.tStoreDet)
 
     end subroutine write_pops_norm
 
+    subroutine fill_in_hash_table_pops(hash_table, table_length)
+        ! This is very similar to fill_in_hash_table but includes the
+        ! condition tAccumEmptyDet. Adding this condition to that subroutine
+        ! was not possible becasue it would create circular dependencies.
+        ! Also that subroutine is meant to be applied to any list of dets,
+        ! while tAccumEmptyDet is tied to CurrentDets
+
+        use load_balance, only: tAccumEmptyDet
+        integer, intent(in) :: table_length
+        type(ll_node), pointer, intent(inout) :: hash_table(:)
+
+        integer :: i, hash_val, nI(nel)
+        real(dp) :: real_sign(lenof_sign)
+        logical :: tCoreDet
+
+        tCoreDet = .false.
+
+        do i = 1, TotWalkers
+            if (tSemiStochastic) tCoreDet = test_flag(CurrentDets(:,i), flag_deterministic)
+            call extract_sign(CurrentDets(:,i), real_sign)
+            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(i))) cycle
+
+            call decode_bit_det(nI, CurrentDets(:,i))
+            ! Find the hash value corresponding to this determinant.
+            hash_val = FindWalkerHash(nI, table_length)
+
+            call add_hash_table_entry(hash_table, i, hash_val)
+        end do
+
+    end subroutine fill_in_hash_table_pops
 END MODULE PopsfileMod

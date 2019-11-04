@@ -116,6 +116,20 @@ module LoggingData
     ! wavefunction printed to popsfile
     logical :: tPopsInstProjE
 
+    ! Whether to accumulate the population of determinants and write them
+    ! to the popsfile
+    logical :: tAccumPops
+    logical :: tAccumPopsActive
+
+    ! When to start accumlating the population
+    integer :: iAccumPopsIter
+
+    ! Number of iterations the empty dets are kept during accumlation
+    integer :: iAccumPopsExpire
+
+    ! Maximum excitation level of empty dets to keep during accumlation
+    integer :: iAccumPopsMaxEx
+
     logical :: tOldRDMs = .false.
 
     logical :: tTransitionRDMs = .false.

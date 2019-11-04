@@ -163,6 +163,11 @@ MODULE Logging
       tPopsInstProjE = .false.
       tHDF5TruncPopsWrite = .false.
       iHDF5TruncPopsEx = 0
+      tAccumPops = .false.
+      tAccumPopsActive = .false.
+      iAccumPopsIter = 0
+      iAccumPopsExpire = 0
+      iAccumPopsMaxEx = 0
       tWriteRefs = .false.
 
       maxInitExLvlWrite = 8
@@ -937,17 +942,41 @@ MODULE Logging
             tHDF5PopsWrite = .true.
 
         case("POPS-INST-PROJE")
-            ! Whether to calculate and print the instanenous project energy of
+            ! Calculate and print the instanenous project energy of
             ! wavefunction printed to popsfile
             tPopsInstProjE = .true.
 
         case("HDF5-TRUNC-POPS-WRITE")
-            ! Whether to write another HDF5 popsfile with dets restricted to a maximum
+            ! Write another HDF5 popsfile with dets restricted to a maximum
             ! exitation level
             tHDF5TruncPopsWrite = .true.
             call readi(iHDF5TruncPopsEx)
             if(iHDF5TruncPopsEx<2) then
-                call stop_all(t_r,'Maximum excitation level should greater than 1')
+                call stop_all(t_r,'Maximum excitation level should be greater than 1')
+            end if
+
+        case("ACCUM-POPS")
+            ! Accumulate the population of determinants and write them
+            ! to the popsfile
+            tAccumPops = .true.
+            ! When to start accumulating the populations
+            call readi(iAccumPopsIter)
+            ! Normally, empty dets are removed from CurrentDets when they become 
+            ! empty and so their accumlated pops will be lost.
+            ! This parameter represents the maximum number of iterations,
+            ! empty dets are kept before being removed. A value of zero means
+            ! keeping them indefinitely.
+            call readi(iAccumPopsExpire)
+            if(iAccumPopsExpire<0) then
+                call stop_all(t_r,'iAccumPopsExpire should be greater than or equal zero')
+            end if
+            ! In many cases, we do not need to accumlate population of all dets.
+            ! This parameter represents the maximum excitation level to consider
+            ! when keeping empty dets alive using the previous criterion. 
+            ! A value of zero means all excitation levels are considered.
+            call readi(iAccumPopsMaxEx)
+            if(iAccumPopsMaxEx<0) then
+                call stop_all(t_r,'iAccumPopsMaxEx should be greater than or equal zero')
             end if
 
         case("INCREMENTPOPS")

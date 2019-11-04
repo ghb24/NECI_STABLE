@@ -58,7 +58,7 @@ module fcimc_helper
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel
+    use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel, tAccumEmptyDet
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
@@ -2110,7 +2110,8 @@ contains
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
 
-        use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
+        use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot, &
+                                   set_iter_occ_tot, set_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions, &
                     inits_one_rdms, two_rdm_inits_spawn
@@ -2203,7 +2204,10 @@ contains
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
                 ! before then
-                global_determinant_data(:, DetPosition) = 0.0_dp
+                av_sign = 0.0_dp
+                iter_occ = 0.0_dp
+                call set_av_sgn_tot (DetPosition, av_sign)
+                call set_iter_occ_tot (DetPosition, iter_occ)
             end if
 
             if (tTruncInitiator) then
@@ -2216,7 +2220,7 @@ contains
             end if
 
             ! Remove the determinant from the indexing list
-            call RemoveHashDet(HashIndex, DetCurr, DetPosition)
+            if(.not. tAccumEmptyDet(DetPosition)) call RemoveHashDet(HashIndex, DetCurr, DetPosition)
             ! Encode a null det to be picked up
             call encode_sign(CurrentDets(:,DetPosition), null_part)
         end if

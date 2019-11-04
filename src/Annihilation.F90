@@ -40,7 +40,7 @@ module AnnihilationMod
     use rdm_data, only: rdm_estimates, en_pert_main, rdm_inits_defs, two_rdm_inits_spawn, &
          inits_one_rdms
     use rdm_data_utils, only: add_to_en_pert_t
-    use fcimc_helper, only: CheckAllowedTruncSpawn
+    use fcimc_helper, only: CheckAllowedTruncSpawn, tAccumEmptyDet
     use initiator_space_procs, only: is_in_initiator_space, set_conn_init_space_flags_slow
 
     implicit none
@@ -1049,7 +1049,7 @@ module AnnihilationMod
                     ! away. Remove it from the hash index array so that
                     ! no others find it (it is impossible to have another
                     ! spawned walker yet to find this determinant).
-                    call RemoveHashDet(HashIndex, nJ, PartInd)
+                    if(.not. tAccumEmptyDet(PartInd)) call RemoveHashDet(HashIndex, nJ, PartInd)
                  end if
               end if
 

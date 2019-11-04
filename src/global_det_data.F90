@@ -5,7 +5,7 @@ module global_det_data
   use SystemData, only: nel
     use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
                         tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, tReplicaEstimates
-    use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
+    use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs, tAccumPops
     use FciMCData, only: MaxWalkersPart
     use constants
     use util_mod
@@ -36,6 +36,10 @@ module global_det_data
     ! Total spawns and the number of successful ones according the initiator criterion
     integer :: len_tot_spawns, len_acc_spawns
     integer :: pos_tot_spawns, pos_acc_spawns
+
+    ! Accumlated sum of population and the last iteration it was increased
+    integer :: len_pops_sum, len_pops_iter
+    integer :: pos_pops_sum, pos_pops_iter
 
     ! Average sign and first occupation of iteration.
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
@@ -147,6 +151,7 @@ contains
         ! len_hel = 1
 
         len_spawn_pop = lenof_sign
+        
         if(tSeniorInitiators)then
             len_tau_int = inum_runs
             len_shift_int = inum_runs
@@ -154,6 +159,7 @@ contains
             len_tau_int = 0
             len_shift_int = 0
         end if
+
         if(tAutoAdaptiveShift)then
             len_tot_spawns = inum_runs
             len_acc_spawns = inum_runs
@@ -162,6 +168,13 @@ contains
             len_acc_spawns = 0
         end if
 
+        if(tAccumPops)then
+            len_pops_sum = lenof_sign
+            len_pops_iter = 1
+        else
+            len_tot_spawns = 0
+            len_acc_spawns = 0
+        end if
 
         ! If we are using calculating RDMs stochastically, need to include the
         ! average sign and the iteration on which it became occupied.
@@ -214,7 +227,9 @@ contains
         pos_shift_int = pos_tau_int+len_tau_int
         pos_tot_spawns = pos_shift_int+len_shift_int
         pos_acc_spawns = pos_tot_spawns+len_tot_spawns
-        pos_av_sgn = pos_acc_spawns + len_acc_spawns
+        pos_pops_sum = pos_acc_spawns+len_acc_spawns
+        pos_pops_iter = pos_pops_sum+len_pops_sum
+        pos_av_sgn = pos_pops_iter + len_pops_iter
         pos_av_sgn_transition = pos_av_sgn + len_av_sgn
         pos_iter_occ = pos_av_sgn_transition + len_av_sgn_transition
         pos_iter_occ_transition = pos_iter_occ + len_iter_occ
@@ -223,7 +238,7 @@ contains
         pos_neg_spawns = pos_pos_spawns + len_pos_spawns
 
         tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_tot_spawns + len_acc_spawns + &
-             len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns
+             len_pops_sum + len_pops_iter + len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns
 
         if (tPairedReplicas) then
             replica_est_len = lenof_sign .div. 2
@@ -592,6 +607,140 @@ contains
 
     end function
 
+  !------------------------------------------------------------------------------------------!
+
+    subroutine reset_pops_sum(j)
+
+        integer, intent(in) :: j
+
+        global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = 0.0_dp
+        global_determinant_data(pos_pops_iter, j) = 0.0_dp
+
+    end subroutine
+
+    subroutine set_pops_iter(j, iter)
+
+        integer, intent(in) :: j, iter
+
+        ! Although iteration is an integer, we store it here as double.
+        ! Double can represent integers up to 2^52 without lose in precesion, so it is fine.
+        global_determinant_data(pos_pops_iter, j) = DBLE(iter)
+
+    end subroutine
+
+
+    subroutine reset_pops_sum_all(ndets)
+
+        integer(int64), intent(in) :: ndets
+        integer :: j
+
+        do j=1,int(ndets)
+            global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = 0.0_dp
+            global_determinant_data(pos_pops_iter, j) = 0.0_dp
+        end do
+
+    end subroutine
+
+
+    subroutine update_pops_sum_all(ndets, iter)
+        use FciMCData, only: CurrentDets
+        use bit_rep_data, only: extract_sign
+        integer(int64), intent(in) :: ndets
+        integer, intent(in) :: iter
+        real(dp) :: CurrentSign(lenof_sign)
+        integer :: j
+
+        do j=1,int(ndets)
+             call extract_sign(CurrentDets(:,j),CurrentSign)
+             if(IsUnoccDet(CurrentSign)) cycle
+            
+            global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = &
+              global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) + &
+              CurrentSign(:)
+
+            global_determinant_data(pos_pops_iter, j) = DBLE(iter)
+        end do
+    end subroutine
+
+    subroutine update_pops_sum(j, CurrentSign, iter)
+
+        integer, intent(in) :: j
+        real(dp), intent(in) :: CurrentSign(lenof_sign)
+        integer, intent(in) :: iter
+
+        if(IsUnoccDet(CurrentSign)) return
+        global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = &
+          global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) + &
+          CurrentSign(:)
+        global_determinant_data(pos_pops_iter, j) = DBLE(iter)
+    end subroutine
+
+    pure function get_pops_sum(j, part) result(AccSign)
+
+        integer, intent(in) :: j, part
+        real(dp) :: AccSign
+
+        AccSign = global_determinant_data(pos_pops_sum+part-1, j)
+    end function
+
+    pure function get_pops_iter(j) result(iter)
+
+        integer, intent(in) :: j
+        real(dp) :: iter
+
+        iter = global_determinant_data(pos_pops_iter, j)
+
+    end function
+
+    subroutine writeAPValsAsInt(ndets, APVals, MaxEx)
+      use FciMCData, only: CurrentDets, iLutHF
+      use bit_rep_data, only: extract_sign
+      use DetBitOps, only: FindBitExcitLevel
+      implicit none
+      integer(int64), intent(in) :: ndets
+      integer(n_int), intent(inout) :: ApVals(:,:)
+      integer, intent(in), optional :: MaxEx
+
+      integer :: j, k
+      integer :: ExcitLevel, counter
+      real(dp) :: CurrentSign(lenof_sign)
+
+      ! write the accumlated population values (pops_sum and pop_iter)
+      ! in a contiguous array APVals(:,j) = (sum, iter) for determinant j
+      ! (lenof_sing+1 in size)
+
+      counter = 0
+      do j = 1,int(ndets)
+        if(present(MaxEx))then
+             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+             if(ExcitLevel>MaxEx) cycle
+             call extract_sign(CurrentDets(:,j),CurrentSign)
+             if(IsUnoccDet(CurrentSign)) cycle
+             counter = counter + 1
+        else
+            counter = j
+        end if
+        do k = 1, lenof_sign
+           APVals(k,counter) = transfer(get_pops_sum(j,k), APVals(k,counter))
+        end do
+        APVals(lenof_sign+1,counter) = transfer(get_pops_iter(j), APVals(k,counter))
+      end do
+    end subroutine writeAPValsAsInt
+
+    subroutine readApValsAsInt(apvals, j)
+      implicit none
+      integer(n_int), intent(in) :: apvals(:)
+      integer, intent(in) :: j
+
+      integer :: k
+      real(dp) :: realVal = 0.0_dp
+
+      do k = 1, lenof_sign
+         global_determinant_data(pos_pops_sum+k-1,j) = transfer(apvals(k),realVal)
+      end do
+      global_determinant_data(pos_pops_iter,j) = transfer(apvals(lenof_sign+1),realVal)
+    end subroutine readAPValsAsInt
+  !------------------------------------------------------------------------------------------!
     subroutine set_av_sgn_tot_sgl (j, part, av_sgn)
 
         integer, intent(in) :: j, part

@@ -31,7 +31,8 @@ module FciMCParMod
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
                            t_hist_fvals, enGrid, arGrid, &
-                           tHDF5TruncPopsWrite, iHDF5TruncPopsEx
+                           tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
+                           tAccumPopsActive, iAccumPopsIter, iAccumPopsExpire
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -71,7 +72,9 @@ module FciMCParMod
                                reset_shift_int, update_shift_int, &
                                update_tau_int, set_spawn_pop, &
                                get_tot_spawns, get_acc_spawns, &
-                               replica_est_len
+                               replica_est_len, reset_pops_sum_all, &
+                               update_pops_sum_all, reset_pops_sum, &
+                               get_pops_sum, get_pops_iter
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -147,6 +150,8 @@ module FciMCParMod
         real(dp):: lt_imb
         integer:: rest, err, allErr
 
+        real(dp) :: CurrentSign(lenof_sign), AccumSign(lenof_sign)
+        integer :: pops_iter, j, nJ(nel)
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -399,6 +404,33 @@ module FciMCParMod
                 get_spawn_helement => gs_tmp
                 attempt_die => ad_tmp
             endif
+
+            if(tAccumPops .and. iter + PreviousCycles>iAccumPopsIter) then
+                if(.not. tAccumPopsActive) then
+                    tAccumPopsActive = .true.
+                    write(6,*) "The populations are being accumlated..."
+                    !call reset_pops_sum_all(TotWalkers)
+                endif
+
+                call update_pops_sum_all(TotWalkers, iter + PreviousCycles)
+
+                ! The currentdets is almost full, we should start removing
+                ! dets which have been empty long enough
+                if(iAccumPopsExpire>0 .and. TotWalkers>0.00*MaxWalkersPart)then
+                    do j=1,TotWalkers
+                        call extract_sign(CurrentDets(:,j),CurrentSign)                        
+                        if(.not. IsUnoccDet(CurrentSign)) cycle
+                        pops_iter = INT(get_pops_iter(j))
+                        ! When pops_iter is zero, the det is already removed
+                        if(pops_iter>0 .and. iter+PreviousCycles-pops_iter>iAccumPopsExpire)then
+                            call decode_bit_det(nJ, CurrentDets(:,j))
+                            call RemoveHashDet(HashIndex, nJ, j)
+                        endif
+                    enddo
+                endif
+            endif
+
+
             ! if the iteration failed, stop the calculation now
             if(err.ne.0) exit
 
@@ -689,12 +721,15 @@ module FciMCParMod
         IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
-
             if(tHDF5TruncPopsWrite)then
                 call write_popsfile_hdf5(iHDF5TruncPopsEx)
                 call calc_inst_proje()
                 write(6,*) 'Instantaneous projected energy of truncated popsfile:', proje_iter
             endif
+            do i = 1, int(TotWalkers,sizeof_int)
+                call extract_sign(CurrentDets(:,i), CurrentSign)
+                write(6,*) i, CurrentSign, get_pops_sum(i, 1), get_pops_iter(i)
+            end do
         ENDIF
 
 
@@ -1161,11 +1196,15 @@ module FciMCParMod
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.
             if(IsUnoccDet(SignCurr)) then
+
+               if(tAccumEmptyDet(j)) cycle
+
                !It has been removed from the hash table already
-               !Add to the "freeslot" list
+               !Just add to the "freeslot" list
                iEndFreeSlot=iEndFreeSlot+1
                FreeSlot(iEndFreeSlot)=j
                cycle
+
             endif
 
             ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
@@ -1493,6 +1532,7 @@ module FciMCParMod
             call rescale_spawns(MaxIndex, proj_e_for_precond, iter_data)
             call halt_timer(rescale_time)
         end if
+
 
         ! If we haven't performed the death step yet, then do it now.
         if (.not. tDeathBeforeComms) then

@@ -25,7 +25,7 @@ module load_balance
     use searching, only: hash_search_trial, bin_search_trial
     use determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement
-    use LoggingData, only: tOutputLoadDistribution
+    use LoggingData, only: tOutputLoadDistribution, tAccumPopsActive
     use cont_time_rates, only: spawn_rate_full
     use DetBitOps, only: DetBitEq
     use sparse_arrays, only: con_ht, trial_ht, trial_hashtable
@@ -116,7 +116,7 @@ contains
         mapping_test = 0
         do j = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:,j), sgn)
-            if (IsUnoccDet(sgn)) cycle
+            if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(j)) cycle
 
             ! Use ceiling as part-integer particles involve the same
             ! computational cost...
@@ -183,11 +183,16 @@ contains
         ! Count the number of particles inside each of the blocks
         block_parts = 0
         HolesInList = 0
+        FreeSlot(1:iEndFreeSlot)=0 
+        iStartFreeSlot=1
+        iEndFreeSlot=0
         do j = 1, int(TotWalkers, sizeof_int)
 
             call extract_sign(CurrentDets(:,j), sgn)
-            if (IsUnoccDet(sgn)) then
+            if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(j)) then
                 HolesInList = HolesInList + 1
+                iEndFreeSlot = iEndFreeSlot + 1
+                FreeSlot(iEndFreeSlot) = j
                 cycle
             end if
 
@@ -347,7 +352,7 @@ contains
 
                 ! Skip unoccupied sites (non-contiguous)
                 call extract_sign(CurrentDets(:,j), sgn)
-                if (IsUnoccDet(sgn)) cycle
+                if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(j)) cycle
 
                 call decode_bit_det(det, CurrentDets(:,j))
                 det_block = get_det_block(nel, det, 0)
@@ -571,11 +576,14 @@ contains
       implicit none
       type(ll_node), pointer, intent(inout) :: HashIndex(:)
       integer, intent(in) :: nJ(nel), partInd
+
       ! remove a determinant from the hashtable
       call remove_hash_table_entry(HashIndex, nJ, PartInd)
       ! Add to "freeslot" list so it can be filled in.
       iEndFreeSlot = iEndFreeSlot + 1
       FreeSlot(iEndFreeSlot) = PartInd
+      ! Reset global data associated with a determinant
+      global_determinant_data(:, PartInd) = 0.0_dp
     end subroutine RemoveHashDet
 
     function get_diagonal_matel(nI, ilut) result(diagH)
@@ -634,7 +642,7 @@ contains
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                    AnnihilatedDet = AnnihilatedDet + 1
+                    if(.not. tAccumEmptyDet(i)) AnnihilatedDet = AnnihilatedDet + 1
                 else
 
                    ! count the number of walkers that are single-spawns at the threshold
@@ -662,7 +670,7 @@ contains
                                    CurrentSign(j) = 0.0_dp
                                    call nullify_ilut_part(CurrentDets(:,i), j)
                                    call decode_bit_det(nI, CurrentDets(:,i))
-                                   if (IsUnoccDet(CurrentSign)) then
+                                   if (IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(i)) then
                                       call RemoveHashDet(HashIndex, nI, i)
                                       ! also update both the number of annihilated dets
                                       AnnihilatedDet = AnnihilatedDet + 1
@@ -773,5 +781,37 @@ contains
       if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2
 #endif
     end subroutine addNormContribution
+
+    pure function tAccumEmptyDet(j) result(tAccum)
+      use FciMCData, only: CurrentDets, iLutHF
+      use DetBitOps, only: FindBitExcitLevel
+      use LoggingData, only: tAccumPopsActive, iAccumPopsMaxEx, iAccumPopsExpire
+      use global_det_data, only: get_pops_iter
+
+        ! Whether we should keep a determinant in CurrentDets even if it
+        ! is unoccupied
+
+        integer, intent(in) :: j
+        logical :: tAccum
+        integer :: ExcitLevel, pops_iter
+
+
+        tAccum = .false.
+
+        if(tAccumPopsActive) then
+            ! If the determinant has already been removed, skip accumlating its
+            ! population
+            if(ALL(global_determinant_data(:, j) == 0.0_dp)) return
+
+            ! If we are accumlating populations, we keep all empty dets up to
+            ! excitation level iAccumPopsMaxEx.
+            if(iAccumPopsMaxEx>0) then
+                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+                if (ExcitLevel>iAccumPopsMaxEx) return
+            endif
+
+            tAccum = .true.
+        endif
+    end function
 
 end module
