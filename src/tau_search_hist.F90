@@ -19,7 +19,7 @@ module tau_search_hist
                             MPISumAll, MPISUM, mpireduce, MPI_MIN
     use ParallelHelper, only: iprocindex, root
     use constants, only: dp, EPS, iout
-    use tau_search, only: FindMaxTauDoubs
+    use tau_search, only: FindMaxTauDoubs, max_death_cpt
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
     use procedure_pointers, only: get_umat_el
@@ -33,7 +33,7 @@ module tau_search_hist
     implicit none
     ! variables which i might have to define differently:
     logical :: consider_par_bias
-    real(dp) :: max_permitted_spawn, max_death_cpt
+    real(dp) :: max_permitted_spawn
     integer :: n_opp, n_par
     ! do i have to define this here or in the CalcData:??
     integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
