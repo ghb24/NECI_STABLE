@@ -41,7 +41,6 @@ contains
         character(*), parameter :: t_r = 'neci_sigint'
 
         unused_var(signo)
-        unused_var(signo)
 
         ! Flush existing output in the stdout buffer
         ! --> Try and avoid issues if we happen to Ctrl-C during a write.

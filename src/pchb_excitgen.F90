@@ -39,7 +39,6 @@ module pchb_excitgen
       integer, intent(in), optional :: part_type
 
       unused_var(exFlag); unused_var(part_type)
-      unused_var(exFlag); unused_var(part_type)
 
       helgen = 0.0_dp
 

@@ -28,7 +28,6 @@
          character(len=*), parameter :: t_r="HDIAG_neci"
 
          unused_var(WORK)
-         unused_var(WORK)
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100

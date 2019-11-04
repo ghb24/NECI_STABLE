@@ -52,7 +52,6 @@ contains
         character(*), parameter :: this_routine = 'gen_rand_excit3'
 
         unused_var(part_type)
-        unused_var(part_type)
 
         ! Just in case
         ilutJ(0) = -1

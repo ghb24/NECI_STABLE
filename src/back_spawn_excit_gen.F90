@@ -902,7 +902,6 @@ contains
         real(dp) :: pgen2
 #endif
         unused_var(exFlag); unused_var(store)
-        unused_var(exFlag); unused_var(store)
 
         HElGen = 0.0_dp
         ! check the non-initiator criteria beforehand

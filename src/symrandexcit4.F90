@@ -65,7 +65,6 @@ contains
         integer :: nsing, ndoub, nexcit
 
         unused_var(part_type); unused_var(exFlag); unused_var(store)
-        unused_var(part_type); unused_var(exFlag); unused_var(store)
 
         ! Count how many singles and doubles there are!
         call CountExcitations3 (nI, 3, nsing, ndoub)

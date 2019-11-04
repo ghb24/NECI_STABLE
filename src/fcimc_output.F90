@@ -594,7 +594,6 @@ contains
 
 ! Is in the interface to refactor the procedure lateron.
         unused_var(iter_data)
-        unused_var(iter_data)
 
         call getProjEOffset()
 

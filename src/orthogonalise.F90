@@ -277,7 +277,6 @@ contains
         ASSERT(inum_runs == lenof_sign)
 #ifndef __PROG_NUMRUNS
         unused_var(iter_data)
-        unused_var(iter_data)
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #else
 

@@ -433,7 +433,6 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
 
         unused_var(part_type)
-        unused_var(part_type)
 
         ! Only consider determinants with a significant (specified) weight.
         call extract_sign (iLutI, sgn_tmp)
@@ -556,7 +555,6 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         real(dp) :: elem, r, rat, rUnused
         integer :: i, iUnused
 
-        unused_var(DetPosition)
         unused_var(DetPosition)
 
         ! If we are not allowing death, or we are below the cutoff for

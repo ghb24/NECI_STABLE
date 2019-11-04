@@ -661,7 +661,6 @@ contains
         character(len=*), parameter :: t_r = "deallocate_sparse_ham"
 
         unused_var(sparse_matrix_name)
-        unused_var(sparse_matrix_name)
 
         sparse_matrix_size = size(sparse_matrix)
 

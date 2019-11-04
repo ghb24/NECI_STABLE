@@ -38,7 +38,6 @@ contains
         integer, intent(in), optional :: part_type
 
         unused_var(HelGen); unused_var(exFlag); unused_var(store); unused_var(part_type);
-        unused_var(HelGen); unused_var(exFlag); unused_var(store); unused_var(part_type);
 
         ! W.D:
         ! split this functionality to allow back-spawning to reuse code

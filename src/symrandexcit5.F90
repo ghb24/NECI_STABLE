@@ -56,7 +56,6 @@ contains
         HElement_t(dp) :: temp_hel
 #endif
         unused_var(exFlag); unused_var(part_type); unused_var(store)
-        unused_var(exFlag); unused_var(part_type); unused_var(store)
 
         HElGen = HEl_zero
 

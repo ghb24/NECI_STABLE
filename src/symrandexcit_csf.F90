@@ -67,7 +67,6 @@ contains
         real(dp) :: r
 
         unused_var(part_type)
-        unused_var(part_type)
 
         ! Point to the correct bits
         CCDblS => store%ClassCountOcc

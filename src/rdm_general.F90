@@ -765,7 +765,6 @@ contains
         type(excit_gen_store_type), intent(inout), optional :: store
 
         unused_var(j); unused_var(rdm_defs)
-        unused_var(j); unused_var(rdm_defs)
 
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, j, store)
@@ -814,7 +813,6 @@ contains
         integer :: part_ind, irdm
         integer :: av_ind_1, av_ind_2
 
-        unused_var(store)
         unused_var(store)
 
         ! This is the iteration from which this determinant has been occupied.

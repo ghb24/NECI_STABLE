@@ -28,8 +28,6 @@ module hphf_integrals
         HElement_t(dp), intent(in) :: HElGen
 
         unused_var(IC); unused_var(ex); unused_var(nI); unused_var(nJ);
-        unused_var(IC); unused_var(ex); unused_var(nI); unused_var(nJ);
-        unused_var(iLutI); unused_var(iLutJ); unused_var(tParity)
         unused_var(iLutI); unused_var(iLutJ); unused_var(tParity)
 
         hel = HElGen
@@ -45,7 +43,6 @@ module hphf_integrals
         HElement_t(dp) :: hel
         HElement_t(dp) , intent(in) :: HElGen
 
-        unused_var(IC); unused_var(ex); unused_var(tParity); unused_var(HElGen)
         unused_var(IC); unused_var(ex); unused_var(tParity); unused_var(HElGen)
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
@@ -75,7 +72,6 @@ module hphf_integrals
         HElement_t(dp) :: MatEl2
         logical :: tSign
 
-        unused_var(nJ)
         unused_var(nJ)
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then

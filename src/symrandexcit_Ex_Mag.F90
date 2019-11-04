@@ -61,7 +61,6 @@ contains
         integer doubleExcitsFound
 
         unused_var(part_type)
-        unused_var(part_type)
 
         ! Just in case
         ilutJ(0) = -1

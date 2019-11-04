@@ -178,7 +178,6 @@ module fcimc_pointed_fns
         integer :: ispn
 
         unused_var(AvSignCurr)
-        unused_var(AvSignCurr)
         ! Just in case
         child = 0.0_dp
 
@@ -501,7 +500,6 @@ module fcimc_pointed_fns
         integer :: run
         integer :: i
 
-        unused_var(nJ); unused_var(walkExLevel)
         unused_var(nJ); unused_var(walkExLevel)
 
         ! Write out some debugging information if asked

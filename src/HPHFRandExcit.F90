@@ -598,7 +598,6 @@ MODULE HPHFRandExcitMod
 !        real(dp) , ALLOCATABLE :: Weights(:)
 !        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
 !        integer :: icunused, exunused_var(2,2), scratch3(scratchsize)
-!        integer :: icunused, exunused_var(2,2), scratch3(scratchsize)
 !        logical :: tParityunused, tTmp
 !
 !        CALL EncodeBitDet(nI,iLutnI)

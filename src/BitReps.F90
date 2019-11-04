@@ -305,7 +305,6 @@ contains
 
         ! Strange bug in compiler
         unused_var(run)
-        unused_var(run)
 #ifdef __CMPLX
         sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), extract_part_sign(ilut, max_part_type(run)))
 #else
@@ -348,7 +347,6 @@ contains
         integer :: flag
         ! Strange bug in compiler
         unused_var(sgn_index)
-        unused_var(sgn_index)
         ! map 1->1, 2->1, 3->3, 4->3, 5->5, 6->5 for complex,
         ! as the initiator flag is stored in the "real" bit
         ! of each run
@@ -359,7 +357,6 @@ contains
         integer, intent(in) :: run
         integer :: flag
         ! Strange bug in compiler
-        unused_var(run)
         unused_var(run)
         ! map 1->1, 2->3, 3->5, 4->7 for complex
         flag = flag_initiator(min_part_type(run))
@@ -435,7 +432,6 @@ contains
 #ifdef __CMPLX
         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
 #else
-        unused_var(imag_sgn)
         unused_var(imag_sgn)
 #endif
     end subroutine encode_run_sign
