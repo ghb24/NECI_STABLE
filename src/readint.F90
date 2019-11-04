@@ -936,7 +936,7 @@ contains
              CALL MPIBCast(UMAT2D,nStates**2)
          ENDIF
          IF((.not.tRIIntegrals).and.(.not.tCacheFCIDUMPInts)) THEN
-             CALL GetUMATSize(nBasis,NEl,UMatSize)
+             CALL GetUMATSize(nBasis,UMatSize)
 
              ! If we are on a 64bit system, the maximum dimensions for MPI are
              ! still limited by 32bit limits.
@@ -1066,7 +1066,7 @@ contains
          RETURN
       END SUBROUTINE READFCIINTBIN
 
-      SUBROUTINE ReadPropInts(iProp,nBasis,iNumProp,PropFile,CoreVal,OneElInts)
+      SUBROUTINE ReadPropInts(nBasis,PropFile,CoreVal,OneElInts)
 
       use constants, only: dp, int64, iout
       use util_mod, only: get_free_unit
@@ -1075,11 +1075,11 @@ contains
       use Parallel_neci, only : iProcIndex,MPIBcast
 
       implicit none
-      integer, intent(in) :: iProp, nBasis
+      integer, intent(in) :: nBasis
       HElement_t(dp) :: OneElInts(nBasis,nBasis)
       HElement_t(dp) z
       real(dp) :: CoreVal
-      integer :: i,j,k,l,iunit, iNumProp
+      integer :: i,j,k,l,iunit
       integer :: NORB,NELEC,MS2,ISYM,SYML(1000),IUHF
       integer(int64) :: ORBSYM(1000)
       integer :: iSpins,ispn,SYMLZ(1000)
