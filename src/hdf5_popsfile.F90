@@ -852,7 +852,7 @@ contains
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
-                PrintedDets, arr_2d_dims(PrintedDets), &
+                PrintedDets, &
                 [int(nifd+1, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], & ! offset
                 [int(nifd+1, hsize_t), all_count], & ! all dims
@@ -865,7 +865,7 @@ contains
 
         call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
-                PrintedDets, arr_2d_dims(PrintedDets), &
+                PrintedDets, &
                 [int(lenof_sign, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
                 [int(lenof_sign, hsize_t), all_count], & ! all dims
@@ -879,8 +879,7 @@ contains
            ! get the statistics of THIS processor
            call writeFFuncAsInt(TotWalkers,fvals, MaxEx)
            call write_2d_multi_arr_chunk_buff(&
-                wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, &
-                fvals, arr_2d_dims(fvals), &
+                wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, fvals, &
                 [int(2*inum_runs, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
                 [int(2*inum_runs, hsize_t), all_count], &

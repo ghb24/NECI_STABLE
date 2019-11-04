@@ -592,6 +592,11 @@ contains
         integer :: p, q
         logical :: init
 
+! Is in the interface to refactor the procedure lateron.
+#ifdef __WARNING_WORKAROUND
+        call unused(iter_data%update_iters)
+#endif
+
         call getProjEOffset()
 
         ! Provide default 'initial' option

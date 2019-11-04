@@ -248,7 +248,7 @@ contains
 
     call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
     lms = lmsBase
-    call GetUMatSize(nBasis, nel, umatsize)
+    call GetUMatSize(nBasis, umatsize)
 
     allocate(TMat2d(nBasis,nBasis))
 

@@ -16,7 +16,7 @@ if ( HAVE_WARNINGS )
     message( STATUS "Enabling compilation warnings" )
 
     # Allow workarounds for false-positive warnings.
-    list(APPEND NECI_GLOBAL_DEFINES _WARNING_WORKAROUND_)
+    list(APPEND NECI_GLOBAL_DEFINES __WARNING_WORKAROUND)
 
     # Add compiler warnings for each language that they have been defined for.
     foreach( _lang C CXX Fortran )

@@ -11,11 +11,11 @@ program test_aliasTables
   call aliasSampling_test_driver()
   call fruit_summary()
   call fruit_finalize()
-  
+
 contains
 
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine aliasSampling_test_driver()
     call MPIInit(.false.)
     ! initialize the RNG
@@ -29,7 +29,7 @@ contains
   end subroutine aliasSampling_test_driver
 
   !------------------------------------------------------------------------------------------!
-  
+
   function genrand_aliasTable(huge_number) result(diff)
     integer, intent(in) :: huge_number
     real(dp) :: diff
@@ -38,7 +38,7 @@ contains
     real(dp) :: w(tSize)
     integer :: hist(tSize)
     integer :: i, r
-    
+
     ! use random probabilities to seed the aliasTable
     call create_rand_probs(w)
     ! init the table
@@ -52,7 +52,7 @@ contains
 
     diff = get_diff(hist,huge_number,w)
   end function genrand_aliasTable
-  
+
   !------------------------------------------------------------------------------------------!
 
   function get_diff(hist,nSamples,w) result(diff)
@@ -69,11 +69,11 @@ contains
     do i = 1, size(hist)
        diff = diff + abs(hist(i)/real(nSamples) - w(i))
     end do
-    
+
   end function get_diff
 
-  !------------------------------------------------------------------------------------------!  
-  
+  !------------------------------------------------------------------------------------------!
+
   subroutine test_aliasTable()
     integer :: nSamples
     real(dp), parameter :: diff_tol = 1e-2
@@ -98,7 +98,7 @@ contains
   end subroutine test_aliasTable
 
   !------------------------------------------------------------------------------------------!
-  
+
   subroutine test_aliasSampler()
     ! we already know that the sampling is correct, just check that the sampler has the
     ! right probabilities
@@ -142,6 +142,6 @@ contains
       end do
       ! normalize the probs
       w = w / sum(w)
-    end subroutine create_rand_probs  
-  
+    end subroutine create_rand_probs
+
 end program test_aliasTables
