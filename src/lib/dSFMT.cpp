@@ -1,8 +1,3 @@
-#ifdef _MOLCAS_
-#include "molcas_wrapper.h"
-#endif
-
-
 /**
  * @file dSFMT.h
  *
@@ -649,11 +644,7 @@ inline static void fill_array_close1_open2(double array[], int size) {
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-#ifdef _MOLCAS_PREP_
-  #include "dsfmt-params.h"
-#else
-  #include "dSFMT-params.h"
-#endif
+#include "dSFMT-params.h"
 /** dsfmt mexp for check */
 static const int dsfmt_mexp = DSFMT_MEXP;
 
