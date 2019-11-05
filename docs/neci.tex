@@ -55,7 +55,7 @@
 	language=Fortran,
 	tabsize=4,
 	basicstyle=\footnotesize\ttfamily,
-	morekeywords={HElement_t,pure,elemental,supermodule,ubound,lbound,abstract},
+	morekeywords={HElement_t,pure,elemental,supermodule,ubound,lbound,abstract,protected},
 	belowskip=-3pt,
 	lineskip=-1pt    % Bring the lines a bit closer together (eliminate spaces)
 }
@@ -1858,12 +1858,15 @@ and a range of other guidelines.
 				a number of a given entity.
 
 			\item
-				\code{Varible}, \code{AllVariable} are paired sets of
+				\code{Variable}, \code{AllVariable} are paired sets of
 				variables tracking an extensive property of a simulation. That
 				is properties which can be accumulated on an individual node,
 				but that the system-relevant property needs to be collected
 				from all nodes and amalgamated. This is done once per iteration
 				or once per update cycle as appropriate.
+            \item
+                \code{CamelCase_t} CamelCase and a trailing t
+                denote a derived type.
 		\end{packed_itemize}
 
 		Fortran 95 restricts variable names to 31 characters. Although
@@ -1924,7 +1927,7 @@ and a range of other guidelines.
         def_default(n_, n, 2)
 
         res = 1
-        do i = 1, n
+        do i = 1, n_
             res = res * x
         end do
     end function
@@ -2006,17 +2009,9 @@ and a range of other guidelines.
 		included rather than all symbols in a module using the notation
 		\code{use module_name, only: symbol, ...}.
 
-		Modules which are templated (see section \ref{sect:templating}) should
-		be included in full (no \code{only} statements). This includes
-		\code{sort_mod}, \code{util_mod} and
-		\code{Parallel_neci}.
-
 		Modules containing only data that have been separated for the purposes
 		of dependency resolution can be fully included into their related
 		modules (e.g. \code{CalcData} and \code{Calc}).
-
-		The module \code{constants} should also be fully included
-		everywhere to reduce the likelihood of data types conflicting.
 
 		Use statements should
 		(where possible) be located in the module header, and not in
@@ -2043,7 +2038,7 @@ and a range of other guidelines.
 			subroutine foo(arr)
 				integer, intent(inout) :: arr(:)
 				character(*), parameter :: this_routine = 'foo'
-				ASSERT(len(arr) == nBasis)
+				ASSERT(size(arr) == nBasis)
 				...
 			end subroutine
 		\end{lstlisting}
@@ -2069,7 +2064,7 @@ and a range of other guidelines.
     Sometimes this is not wanted, and the compiler warns about it.
     For this reason one should use \code{5 .div. 3} to make it explicit
     that integer division is indeed wanted.
-=======
+
     \headitem{Operator Layout}
         Always surround these binary operators with a single space on either side:
         assignment (\code{=}), comparisons (\code{==, <, >, /=, <=, >=}),
@@ -2093,7 +2088,7 @@ and a range of other guidelines.
             hypot2 = x * x + y * y
             c = (a + b) * (a - b)
 
-        ! Forbidden
+        ! Not recommended
             i=i+1
         \end{lstlisting}
 
@@ -2114,11 +2109,11 @@ and a range of other guidelines.
                      - student_loan_interest
         \end{lstlisting}
 
-        Use the new C-style relational operators.
+        Please use the new C-style relational operators.
         \begin{lstlisting}
         ! Recommended
               ==   /=   <    <=    >   >=
-        ! Forbidden
+        ! Not recommended
               .EQ. .NE. .LT. .LE. .GT. .GE.
         \end{lstlisting}
 
@@ -2134,10 +2129,6 @@ and a range of other guidelines.
     ! the argument list of a function call or array indexing:
         Yes: spam(1)
         No:  spam (1)
-    ! But there should be white space before the opening parenthesis
-    ! of the conditional in an if statement.
-        Yes: if (condition1 .and. condition2) then
-        No: if(condition1 .and. condition2) then
 
     ! No whitespace immediately before a comma, semicolon, or colon:
         Yes:
@@ -2172,10 +2163,123 @@ and a range of other guidelines.
         ham( : upper)
         \end{lstlisting}
 
+	\headitem{Tools for adhering to the style guide}
+		\begin{warningbox}
+            It is better to write nice code from the beginning on
+            instead of relying on automated tools.
+            This section is meant for existing code, that has no consistent
+            indentation and other flaws.
+		\end{warningbox}
+        One recommended program to prettify Fortran free-format code is
+        \code{fprettify}.
+        It can be installed with \code{pip3 install fprettify}
+        and is automatically installed on the Alavi workstations.
+        The \code{--user} option might be required for installation
+        if you do not have \code{sudo}-rights.
+
+        The NECI codebase already contains the correct configuration files,
+        so it is sufficient to just call \code{fprettify} on a file in
+        \code{src/} or \code{src/lib}.
+
+
+    \headitem{Contained procedures}
+        From Fortran2003 onwards it is possible to define procedures
+        inside procedures.
+        The inner procedure has access to the local scope of
+        the outher procedure.
+        (Similar to closures in other languages.)
+        These contained procedures allow to cleanly eliminate some reasons,
+        why one would like to use a global variable.
+        Besides it also leads to less wrapper functions that are similar,
+        but not the same.
+
+        Let's assume there is a \code{fancy_function} with ten arguments.
+        One of them is a \code{real, intent(in) :: x}.
+        If \code{fancy_function} is called several times with only
+        a varying \code{x} there are many lines of code doing more or less
+        the same.
+        In former versions of Fortran this usually lead to the introduction
+        of a wrapper function \code{my_fancy_function}
+        that depends explicitly only on \code{x} and gets the nine other
+        arguments using global variables that have to be defined before
+        calling \code{my_fancy_function}.
+
+        Another code that uses \code{fancy_function} keeps \code{x}
+        constant, but varies another argument \code{y}.
+        This leads to a second wrapper \code{my_fancy_function_2}
+        and more global variables.
+        In addition both wrapper function might be used only at one place.
+
+        If one instead defines the wrapper function as internal procedure
+        only where it is used there is no need for a wrapper function.
+        This resembles the process of \emph{currying} in functional languages.
+
+		\begin{lstlisting}[gobble=12]
+            function calculate_something(a) result(res)
+                real, intent(in) :: a
+                real :: res
+
+                ! arg2 to arg10 are visible identifiers here
+
+                res = exp(f(a)) + 3
+
+            contains
+
+                function f(x) result(res)
+                    real, intent(in) :: x
+                    real :: res
+
+                    res = fancy_function(x, arg2, arg3, ..., arg10)
+                end function
+
+            end function
+		\end{lstlisting}
+
+
+
 	\headitem{Modules and interfaces}
-		\begin{itemize}
-			\item
-		\end{itemize}
+        It is an aim to make the dependency between different code parts
+        as small, as unidirectional and as explicit as possible.
+        Module are a great tool to achieve that goal.
+
+        A good example are the different excitation generators of NECI.
+        It is possible to seamlessly exchange different excitation
+        generators because they all have the same public interface.
+        On the other hand they greatly differ in their implementation
+        details and each excitation generator uses different helper functions.
+        It is possible to use an excitation generator without knowing
+        about the implementation details and helper functions.
+        It is even advised to not rely on or assume any implementation detail
+        for a specific excitation generator.
+
+        There are some rule of thumbs to achieve similar results in the
+        architecture of other code.
+        If one is implementing a new module it is good to start
+        with the \code{private} keyword to make all identifiers private to that
+        module and explicitly thinking about which identifiers should be
+        accessable from outside and declare them \code{public}.
+        These \code{public} identifiers should only change for a good
+        reason afterwards and should be well documented.
+        Variables that should have read-only access from the outside
+        (a computed energy for example) can be declared
+        \code{public, protected}.
+
+        If other modules are imported with \code{use, only:} then it
+        is easy to see on which code a module relies.
+
+        If there are generic functions it is possible to declare only
+        the name of the generic interface as \code{public} and keep
+        the concrete implementations \code{private}.
+
+        The use of \code{private} helper functions has the same
+        benefit as contained procedures.
+        It allows to write ad-hoc wrappers that have access to the
+        module scope, but do not require \code{public} global variables.
+
+        If possible functions should be declared \code{pure}
+        or \code{elemental}.
+
+
 
 	\headitem{Example module layout}
 		A sample module layout is given below:
@@ -2195,7 +2299,12 @@ and a range of other guidelines.
                 !   a module as private by default
                 !   and export explicitly with the public keyword.
                 private
-                public :: sub_name, fn_name
+                public :: sub_name, fn_name, calculated_energy
+                ! Cannot be changed from the outside.
+                protected :: calculated_energy
+
+                real(dp) :: calculated_energy
+
 
                 ! Add an interface to an external (non-modularised) function
             	interface external_fn
@@ -2232,6 +2341,8 @@ and a range of other guidelines.
 
             end module
 		\end{lstlisting}
+
+
 
 \end{description}
 
@@ -2298,6 +2409,7 @@ and a range of other guidelines.
 			\code{sym} element points at a padded 64-bit integer. This
 			is done for memory alignment reasons that are no longer important.
 	\end{description}
+
 
 \section{Don't Repeat Yourself (DRY)}
 	When information becomes duplication in software, eventually the people
@@ -2381,6 +2493,7 @@ and a range of other guidelines.
 	elsewhere changes - so the risk of them getting out of sync with the code
 	base is their purpose.
 
+
 	\subsection{Procedure pointers (function pointers)}
 		One issue that becomes immediately obvious when repeated logic has
 		been abstracted into specific functions is that conditional logic is
@@ -2443,6 +2556,46 @@ and a range of other guidelines.
 %			but should be used for production runs as it reduces the runtime.
 %			It is not normally useful for development purposes.
 %	\end{description}
+
+\section{Let the compiler help you}
+    If real NECI is compiled in debug mode,
+    warnings will be treated as errors.
+    This means that code with real numbers may not produce any warnings
+    to be merged into main development branches.
+
+    Unfortunately the warnings for unused variables and non-matching
+    interfaces had to be deactivated,
+    because there are too many incidents.
+
+\begin{warningbox}
+    There are too many conversion warnings in the complex NECI code
+    that could not be cleaned up yet and probably lead to serious bugs.
+    It is necessary to clean them first before complex NECI can be used
+    reliably.
+\end{warningbox}
+
+    Sometimes a warning is a false-positive.
+    To work around such problems there is a \code{__WARNING_WORKAROUND}
+    compile flag that gets activated, if warnings are activated.
+
+    A common false-positive warning is an unused variable
+    that has to stay in the code, because it is e.g.
+    in the interface of a function that is the target of a function pointer.
+    For this case the \code{unused} macro exists.
+    It is not necessary to put this macro behind the \code{__WARNING_WORKAROUND}
+    compile flag.
+    It is recommended to mark unused variables directly after
+    declaration to make it explicit to the human reader.
+
+	\begin{lstlisting}
+        #include "macros.h"
+		integer, intent(in) :: arr1(:), n
+		real(dp), inten(in) :: arr2(:, :)
+		integer :: ierr
+
+        unused(arr2); unused(n)
+	\end{lstlisting}
+
 
 \section{Don't optimise prematurely}
 	Obviously, good algorithm design is important. If an algorithm scales
