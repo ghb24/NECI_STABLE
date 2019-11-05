@@ -1,3 +1,4 @@
+#include "macros.h"
 module neci_signals
 
     ! Here we manage the NECI signal handlers.
@@ -6,7 +7,6 @@ module neci_signals
     ! accessible in signal.h.
 
     use iso_c_hack
-    use util_mod, only: unused
     implicit none
     private
 
@@ -40,9 +40,7 @@ contains
         integer(c_int), intent(in), value :: signo
         character(*), parameter :: t_r = 'neci_sigint'
 
-#ifdef __WARNING_WORKAROUND
-        call unused(signo)
-#endif
+        unused_var(signo)
 
         ! Flush existing output in the stdout buffer
         ! --> Try and avoid issues if we happen to Ctrl-C during a write.

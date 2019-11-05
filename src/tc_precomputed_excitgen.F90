@@ -61,9 +61,7 @@ contains
     real(dp) :: r
     integer :: elec_map(nel)
 
-#ifdef __WARNING_WORKAROUND
-    call unused(exFlag); call unused(part_type)
-#endif
+    unused_var(exFlag); unused_var(part_type)
 
     HElgen = 0.0
 
