@@ -37,7 +37,10 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         integer, intent(in), optional :: part_type
 
-        unused_var(HelGen); unused_var(exFlag); unused_var(store); unused_var(part_type);
+        unused_var(exFlag); unused_var(store); unused_var(part_type);
+#ifdef __WARNING_WORKAROUND
+        HelGen = 0.0_dp
+#endif
 
         ! W.D:
         ! split this functionality to allow back-spawning to reuse code
