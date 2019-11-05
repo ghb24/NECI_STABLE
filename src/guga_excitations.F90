@@ -63,7 +63,8 @@ module guga_excitations
                          pExcit4, pExcit2, pExcit2_same, pExcit3_same, ilutHF
 
     use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
-                        binary_search_first_ge, abs_l1
+                        binary_search_first_ge, abs_l1, operator(.isclose.), &
+                        operator(.div.)
 
     use sort_mod, only: sort
 
@@ -149,13 +150,6 @@ module guga_excitations
         module procedure assign_excitInfo_values_single
         module procedure assign_excitInfo_values_double
     end interface assign_excitInfo_values
-
-    interface calcRemainingSwitches
-        module procedure calcRemainingSwitches_single
-        module procedure calcRemainingSwitches_double
-        module procedure calcRemainingSwitches_excitInfo_single
-        module procedure calcRemainingSwitches_excitInfo_double
-    end interface calcRemainingSwitches
 
     interface excitationIdentifier
         module procedure excitationIdentifier_single
@@ -434,21 +428,21 @@ contains
             ! but here i have to calculate all the double excitation
             ! influences which can lead to the same excitation(weights etc.)
 
-            call calc_single_excitation_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_single_excitation_ex(ilutJ, excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (6)
             ! single overlap lowering into raising
 
             ! maybe i have to check special conditions on the overlap site.
-            call calc_single_overlap_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_single_overlap_mixed_ex(excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (7)
             ! single overlap raising into lowering
 
             ! maybe i have to check special conditions on the overlap site.
-            call calc_single_overlap_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_single_overlap_mixed_ex(excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (8)
@@ -458,7 +452,7 @@ contains
             ! both CSFs.. i think so!
 
             ! deal with order parameter for switched indices
-            call calc_normal_double_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_normal_double_ex(excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (9)
@@ -466,7 +460,7 @@ contains
 
             ! here i have to deal with the order parameter for switched
             ! indices ..
-            call calc_normal_double_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_normal_double_ex(excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (10)
@@ -474,7 +468,7 @@ contains
 
             ! can i combine these 4 similar excitations in one routine?
             ! deal with non-overlap if no spin-coupling changes!
-            call calc_normal_double_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_normal_double_ex(excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (11)
@@ -482,14 +476,14 @@ contains
 
             ! here i have to consider the non-overlap contribution if no
             ! spin-coupling changes in the overlap range
-            call calc_normal_double_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_normal_double_ex(excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (12)
             ! lowering into raising double
 
             ! consider non-overlap if no spin-coupling changes!
-            call calc_normal_double_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_normal_double_ex(excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (13)
@@ -497,7 +491,7 @@ contains
 
             ! here i also have to consider the non-overlap contribution if no
             ! spin-coupling changes in the overlap range
-            call calc_normal_double_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_normal_double_ex(excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (14)
@@ -505,14 +499,14 @@ contains
 
             ! here only x0 matrix element in overlap range!
             ! also combine fullstop-alike
-            call calc_fullstop_alike_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (15)
             ! full-stop 2 raising
 
             ! here only x0 matrix elment in overlap range!
-            call calc_fullstop_alike_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (16)
@@ -537,7 +531,7 @@ contains
             ! full-start 2 lowering
 
             ! here only x0 matrix element in overlap range!
-            call calc_fullstart_alike_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (19)
@@ -545,7 +539,7 @@ contains
 
             ! here only the x0-matrix in the overlap range (this implies no
             ! spin-coupling changes, but i already dealt with that! (hopefully!))
-            call calc_fullstart_alike_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+            call calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
         case (20)
@@ -568,7 +562,7 @@ contains
             ! full-start into full-stop alike
 
             ! here no spin-coupling changes are allowed!
-            call calc_fullstart_fullstop_alike_ex(ilutI, ilutJ, excitInfo, &
+            call calc_fullstart_fullstop_alike_ex(ilutJ, excitInfo, &
                 mat_ele, t_hamil, rdm_ind, rdm_mat)
 
         case (23)
@@ -584,15 +578,15 @@ contains
 
     end subroutine calc_guga_matrix_element
 
-    subroutine calc_single_excitation_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+    subroutine calc_single_excitation_ex(ilutJ, excitInfo, mat_ele, &
             t_calc_full, rdm_ind, rdm_mat)
         ! routine to exactly calculate the matrix element between so singly
         ! connected CSFs, with the option to output also all the indices and
         ! overlap matrix elements necessary for the rdm calculation
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_calc_full
+        logical, intent(in), optional :: t_calc_full
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_single_excitation_ex"
@@ -708,7 +702,7 @@ contains
         ! i think i could also exclude the treal case here.. try!
         if (.not. (treal .or. t_new_real_space_hubbard .or. &
             t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
-            call calc_integral_contribution_single(ilutI, ilutJ, i, j, st, en, integral)
+            call calc_integral_contribution_single(ilutJ, i, j, st, en, integral)
         end if
 
         mat_ele = mat_ele * integral
@@ -721,13 +715,22 @@ contains
         currentOcc_ilut = temp_curr_occ
         currentB_int = temp_curr_b_int
 
+
+        if (t_calc_full) call stop_all(this_routine, "TODO")
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
+
+
     end subroutine calc_single_excitation_ex
 
-    subroutine calc_single_overlap_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+    subroutine calc_single_overlap_mixed_ex(excitInfo, mat_ele, &
             t_calc_full, rdm_ind, rdm_mat)
         ! routine to exactly calculate the matrix element between 2 CSFs
         ! connected by a single overlap excitation with mixed generators
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_calc_full
@@ -826,9 +829,16 @@ contains
 
         mat_ele = mat_ele * umat
 
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
+
+
     end subroutine calc_single_overlap_mixed_ex
 
-    subroutine calc_normal_alike_double_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+    subroutine calc_normal_alike_double_ex(excitInfo, mat_ele, &
             t_calc_full, rdm_ind, rdm_mat)
         ! try to combine the normal double lowering/raising into one routine
         ! since i know both of the CSFs already..
@@ -836,10 +846,9 @@ contains
         ! integrals, which i have to fix anyway still.. since there are
         ! some discrepancies in the handling of those..
         ! and also the order parameter.. how i set it up now it is always 1
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_calc_full
+        logical, intent(in), optional :: t_calc_full
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_normal_alike_double_ex"
@@ -939,15 +948,23 @@ contains
 
         end if
 
+        if (present(t_calc_full)) call stop_all(this_routine, "TODO")
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
+
+
     end subroutine calc_normal_alike_double_ex
 
-    subroutine calc_normal_double_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+    subroutine calc_normal_double_ex(excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
         ! combined routine to calculate the mixed generator excitations with
         ! 4 different spatial orbitals. here i have to consider if a
         ! spin change happened in the overlap. if no, i also have to calc. the
         ! non-overlap contribution!
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_hamil
@@ -1141,12 +1158,21 @@ contains
             ! of the routine is totally the same!
         end select
 
+        if (t_hamil) call stop_all(this_routine, "TODO")
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
+
+
 
     end subroutine calc_normal_double_ex
 
-    subroutine calc_fullstop_alike_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+    subroutine calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
             t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_hamil
@@ -1232,11 +1258,18 @@ contains
         ! is this the same for both type of gens?
         mat_ele = mat_ele * nOpen * Root2 * umat
 
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
+
+
     end subroutine calc_fullstop_alike_ex
 
-    subroutine calc_fullstart_alike_ex(ilutI, ilutJ, excitInfo, mat_ele, &
+    subroutine calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
             t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_hamil
@@ -1308,11 +1341,18 @@ contains
 
         mat_ele = mat_ele * umat
 
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
+
+
     end subroutine calc_fullstart_alike_ex
 
-    subroutine calc_fullstart_fullstop_alike_ex(ilutI, ilutJ, excitInfo, &
+    subroutine calc_fullstart_fullstop_alike_ex(ilutJ, excitInfo, &
             mat_ele, t_hamil, rdm_ind, rdm_mat)
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
+        integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_hamil
@@ -1332,6 +1372,13 @@ contains
         nOpen = real(count_open_orbs_ij(excitInfo%fullStart, excitInfo%fullEnd,ilutJ(0:nifd)),dp)
 
         mat_ele = 2.0_dp * (-1.0_dp) ** nOpen * umat
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
+
 
     end subroutine calc_fullstart_fullstop_alike_ex
 
@@ -1432,10 +1479,6 @@ contains
         temp_x1 = temp_x1 * temp_mat1
 
         ! so if x0 > 0 abort!
-!         if (abs(temp_x0) > EPS) then
-!             mat_ele = 0.0_dp
-!             return
-!         end if
 
         ! and here misuse the stochastic routine to calculate the influence
         ! of all the other singly-occupied orbitals..
@@ -1492,6 +1535,15 @@ contains
         currentB_ilut = temp_curr_b
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
+
+        if (t_hamil) call stop_all(this_routine, "TODO")
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
+
 
     end subroutine calc_fullstop_mixed_ex
 
@@ -1629,6 +1681,15 @@ contains
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
 
+        if (t_hamil) call stop_all(this_routine, "TODO")
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
+
+
     end subroutine calc_fullstart_mixed_ex
 
 
@@ -1652,6 +1713,7 @@ contains
 
         ! phew.. i think i can just use calcMixedContribution.. and thats it..
 
+
         if (any(abs(temp_delta_b) > 2)) then
             mat_ele = 0.0_dp
             return
@@ -1673,6 +1735,14 @@ contains
         current_stepvector = temp_curr_step
         currentOcc_int = temp_curr_occ_int
         currentB_ilut = temp_curr_b
+
+        if (t_hamil) call stop_all(this_routine, "TODO")
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            call stop_all(this_routine, "TODO")
+        end if
 
     end subroutine calc_fullstart_fullstop_mixed_ex
 
@@ -2045,6 +2115,11 @@ contains
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
+        unused_variable(weights)
+        unused_variable(bVal)
+        unused_variable(negSwitches)
+        unused_variable(posSwitches)
+
         prob = 1.0_dp
 
     end function probability_one
@@ -2063,6 +2138,8 @@ contains
         integer(n_int), pointer :: excitations(:,:)
         type(timer), save :: proc_timer
 
+        unused_variable(excitLvl)
+
         proc_timer%timer_name = this_routine
         call set_timer(proc_timer)
 
@@ -2076,7 +2153,6 @@ contains
         ! then binary search ilutI in the excitattions
 
         ! convert ilutI to a guga representation
-!         call convert_ilut_toGUGA(ilutI, ilutG)
 
         ! and the search in excitations
         pos = binary_search(excitations(0:nifd,1:nExcit), ilutI(0:nifd))
@@ -2461,6 +2537,11 @@ contains
         type(excitationInformation) :: excitInfo
         real(dp) :: tmp_mat, diff, tmp_mat1
         integer :: tmp_ex1, tmp_ex2
+
+        unused_variable(exFlag)
+        unused_variable(store)
+        unused_variable(part_type)
+
         ! think about default values and unneeded variables for GUGA, but
         ! which have to be processed anyway to interface to NECI
 
@@ -3095,8 +3176,7 @@ contains
 
     end subroutine pick_random_4ind
 
-    subroutine create_crude_single_overlap_l2r(ilut, exc, pgen, excitInfo)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+    subroutine create_crude_single_overlap_l2r(exc, pgen, excitInfo)
         integer(n_int), intent(out) :: exc(0:nifguga)
         real(dp), intent(out) :: pgen
         type(excitationInformation), intent(in) :: excitInfo
@@ -3181,8 +3261,7 @@ contains
 
     end subroutine create_crude_single_overlap_l2r
 
-    subroutine create_crude_single_overlap_r2l(ilut, exc, pgen, excitInfo)
-        integer(n_int), intent(in) :: ilut(0:nifguga)
+    subroutine create_crude_single_overlap_r2l(exc, pgen, excitInfo)
         integer(n_int), intent(out) :: exc(0:nifguga)
         real(dp), intent(out) :: pgen
         type(excitationInformation), intent(in) :: excitInfo
@@ -3283,6 +3362,14 @@ contains
 
         ic = get_excit_level_from_excitInfo(excitInfo)
 
+        call stop_all(this_routine, "TODO")
+        unused_variable(ilutI)
+        unused_variable(nI)
+        unused_variable(ilutJ)
+        unused_variable(nJ)
+
+        pgen = 0.0_dp
+
 
     end function calc_pgen_guga_crude_iluts
 
@@ -3299,6 +3386,13 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_guga_crude_exmat"
 
+        call stop_all(this_routine, "TODO")
+        unused_variable(nI)
+        unused_variable(ilutI)
+        unused_variable(ex)
+        unused_variable(ic)
+
+        pgen = 0.0_dp
 
     end function calc_pgen_guga_crude_exmat
 
@@ -3858,9 +3952,8 @@ contains
 
     end function test_increase_on_loc
 
-    subroutine create_crude_double(ilut, nI, exc, branch_pgen, excitInfo_in)
+    subroutine create_crude_double(ilut, exc, branch_pgen, excitInfo_in)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: ni(nel)
         integer(n_int), intent(inout) :: exc(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         type(excitationInformation), intent(in), optional :: excitInfo_in
@@ -3897,9 +3990,8 @@ contains
 
     end subroutine create_crude_double
 
-    subroutine create_crude_single(ilut, nI, exc, branch_pgen, excitInfo_in)
+    subroutine create_crude_single(ilut, exc, branch_pgen, excitInfo_in)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        integer, intent(in) :: ni(nel)
         integer(n_int), intent(inout) :: exc(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         type(excitationInformation), intent(in), optional :: excitInfo_in
@@ -3914,7 +4006,7 @@ contains
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
         ! also check if calculated b vector really fits to ilut
-        ASSERT(all(currentB_ilut == calcB_vector_ilut(ilut(0:nifd))))
+        ASSERT(all(currentB_ilut .isclose. calcB_vector_ilut(ilut(0:nifd))))
         if (excitInfo%currentGen == 1) then
             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
         else if (excitInfo%currentGen == -1) then
@@ -4033,6 +4125,8 @@ contains
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, r, elec_factor
 
+        unused_variable(ilut)
+
         ! first pick completely random from electrons only!
         elec = 1 + floor(genrand_real2_dSFMT() * nEl)
         ! have to adjust pgen if it is a doubly occupied orbital afterwards
@@ -4072,6 +4166,9 @@ contains
                 call stop_all(this_routine, "should not have picked empty orbital")
 
         end select
+
+        call stop_all(this_routine, "TODO")
+        pgen = 0.0_dp
 
     end subroutine pick_orbitals_single_crude
 
@@ -4331,6 +4428,11 @@ contains
         type(excitationInformation) :: excitInfo
         real(dp) :: tmp_mat, diff, tmp_mat1
         integer :: tmp_ex1, tmp_ex2
+
+        unused_variable(exFlag)
+        unused_variable(part_type)
+        unused_variable(store)
+
         ! think about default values and unneeded variables for GUGA, but
         ! which have to be processed anyway to interface to NECI
 
@@ -4546,7 +4648,7 @@ contains
             ! this includes the change, that I always switch at mixed
             ! start and ends too!
 
-            call create_crude_double(ilut, nI, excitation, branch_pgen, excitInfo)
+            call create_crude_double(ilut, excitation, branch_pgen, excitInfo)
 
             if (branch_pgen < EPS) then
                 excitation = 0
@@ -5082,6 +5184,9 @@ contains
 
         integer :: i, j, orb, sym_prod, sum_ml
         real(dp) :: cum_sum, cpt_ab, cpt_ba, ba_sum, ab_sum
+
+        unused_variable(ilut)
+
         ! given 2 already picked electrons, this routine creates a list of
         ! p(a)*p(b|a) probabilities to pick the already determined holes
         ! is this so easy??
@@ -5127,7 +5232,7 @@ contains
 
         ! also get p(b|a)
         ! did i get that the wrong way around??
-        call pgen_select_orb_guga_mol(ilut, occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
+        call pgen_select_orb_guga_mol(occ_orbs, i, j, cpt_ba, ba_sum, i, .true.)
 
         if (tGen_guga_weighted) then
             do orb = i + 1, j - 1
@@ -5143,7 +5248,7 @@ contains
         cum_sum = cum_sum + cpt_b
 
         ! and get p(a|b)
-        call pgen_select_orb_guga_mol(ilut, occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
+        call pgen_select_orb_guga_mol(occ_orbs, j, i, cpt_ab, ab_sum, -j, .true.)
 
         ! and deal with rest:
 
@@ -5291,7 +5396,7 @@ contains
             ! reinit remainings switches and weights
             ! i think i could also do a on-the fly switch recalculation..
             ! so only the weights have to be reinited
-            call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, &
+            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
                 negSwitches)
 
             weights = init_doubleWeight(ilut, j)
@@ -5651,7 +5756,7 @@ contains
                 excitInfo%fullEnd = j
                 excitInfo%firstEnd = j
                 ! reinit remainings switches and weights
-                call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, &
+                call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
                     negSwitches)
 
                 weights = init_doubleWeight(ilut, j)
@@ -5911,7 +6016,6 @@ contains
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
-!
 
         ! : create correct weights:
         if (present(opt_weight)) then
@@ -5958,7 +6062,6 @@ contains
 
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, ende2)
 
         call calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -5979,7 +6082,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
         ! for the additional contributing integrals:
         ! i have to consider that there might be a non-overlap excitation,
@@ -6005,7 +6108,7 @@ contains
         ! no!!! sinnce the excitations leading to such a csf wouldn be valid
         ! single excitations-.. since the deltaB values at the end would not
         ! match
-!
+
         if (switch > 0) then
             ! a switch happened and only mixed overlap contributes
             ! after determining how to deal with different x0 and x1 parts
@@ -6071,10 +6174,6 @@ contains
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
 
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
-
         ! : create correct weights:
         if (present(opt_weight)) then
             weights = opt_weight
@@ -6120,7 +6219,6 @@ contains
 
         ! then update weights and and to lowering semi-stop
         weights = weights%ptr
-!         weights = init_singleWeight(ilut, ende2)
 
         call calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -6140,7 +6238,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
         ! for the additional contributing integrals:
         ! i have to consider that there might be a non-overlap excitation,
@@ -6209,10 +6307,6 @@ contains
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
 
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
-!         end if
-
         if (present(opt_weight)) then
             weights = opt_weight
         else
@@ -6276,7 +6370,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
         ! todo: think about the additional integral contributions and the
         ! relative sign of different order influences...
@@ -6431,7 +6525,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
         ! todo: think about the additional integral contributions and the
         ! relative sign of different order influences...
@@ -6489,10 +6583,6 @@ contains
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
-
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo,1,  posSwitches, negSwitches)
-!         end if
 
         if (present(opt_weight)) then
             weights = opt_weight
@@ -6557,7 +6647,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
         ! todo: think about the additional integral contributions and the
         ! relative sign of different order influences...
@@ -6636,10 +6726,6 @@ contains
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
         ende2 = excitInfo%fullEnd
-!
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
 
         ! : create correct weights:
         if (present(opt_weight)) then
@@ -6708,7 +6794,7 @@ contains
         end do
 
         ! and finally to end step
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
         ! todo: think about the additional integral contributions and the
         ! relative sign of different order influences...
@@ -6858,7 +6944,7 @@ contains
         ! matrix element contribution
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-            call calc_mixed_end_contr_approx(ilut, t, excitInfo, integral)
+            call calc_mixed_end_contr_approx(t, excitInfo, integral)
 
         else
             call calc_mixed_end_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, &
@@ -6876,10 +6962,10 @@ contains
 
     end subroutine calcFullStopL2R_stochastic
 
-    subroutine calc_mixed_end_contr_approx(ilut, t, excitInfo, integral)
+    subroutine calc_mixed_end_contr_approx(t, excitInfo, integral)
         ! for the approx. mixed end contribution i "just" need to
         ! calculate the correct matrix element influences
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
+        integer(n_int), intent(in) :: t(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: integral
         character(*), parameter :: this_routine = "calc_mixed_end_contr_approx"
@@ -6980,13 +7066,6 @@ contains
             end if
         end if
 
-
-        ! maybe I need to include this here, if it is not taken care
-        ! outside for the orb_pgen..
-!         pgen = pgen / real(ElecPairs, dp)
-
-!         if (current_stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
-
     end subroutine calc_mixed_end_contr_approx
 
     subroutine calc_mixed_end_l2r_contr_nosym(ilut, t, excitInfo, branch_pgen, &
@@ -7003,6 +7082,8 @@ contains
                     plusWeight, probWeight, zeroWeight
         type(weight_obj) :: weights
         procedure(calc_pgen_general), pointer :: calc_pgen_yix
+
+        unused_variable(branch_pgen)
 
         st = excitInfo%fullStart
         se = excitInfo%secondStart
@@ -7094,7 +7175,7 @@ contains
             end if
         end if
 
-!         ! determine last switch
+        ! determine last switch
         sw = findLastSwitch(ilut,t,se,e)
 
         ! already set above
@@ -7114,7 +7195,7 @@ contains
             ! have to initialize probWeight all the time
             probWeight = 1.0_dp
 
-            call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
 
             weights = init_semiStartWeight(ilut, se, i, negSwitches(se), &
                 posSwitches(se), currentB_ilut(se))
@@ -7403,12 +7484,6 @@ contains
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
 
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches_excitInfo_double(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
-
-!         call write_det_guga(6,ilut)
-!         call print_excitInfo(excitInfo)
         ! init weights
         if (present(opt_weight)) then
             weights = opt_weight
@@ -7497,7 +7572,7 @@ contains
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
 
-            call calc_mixed_end_contr_approx(ilut, t, excitInfo, integral)
+            call calc_mixed_end_contr_approx(t, excitInfo, integral)
 
         else
             call calc_mixed_end_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
@@ -7508,9 +7583,9 @@ contains
 
     end subroutine calcFullStopR2L_stochastic
 
-    subroutine setup_weight_funcs(ilut, t, st, se, sw, weight_funcs)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        integer, intent(in) :: st, se, sw
+    subroutine setup_weight_funcs(t, st, se, weight_funcs)
+        integer(n_int), intent(in) :: t(0:nifguga)
+        integer, intent(in) :: st, se
         type(branch_weight_arr), intent(out) :: weight_funcs(nSpatOrbs)
         character(*), parameter :: this_routine = "setup_weight_funcs"
 
@@ -7578,14 +7653,11 @@ contains
             select case (delta_b(i-1) + step)
             case (1)
                 ! d=1 + b=0 : 1
-!             if (delta_b(i-1) == 0) then
-!                 if (step == 1) then
                     if (isOne(t,i)) then
                         weight_funcs(i)%ptr => zero_plus_staying_double
                     else
                         weight_funcs(i)%ptr => zero_plus_switching_double
                     end if
-!                 else
             case (2)
                 ! d=2 + b=0 :2
                     if (isTwo(t,i)) then
@@ -7593,9 +7665,7 @@ contains
                     else
                         weight_funcs(i)%ptr => zero_minus_switching_double
                     end if
-!                 end if
 
-!             else if (delta_b(i-1) == -2 .and. step == 1) then
             case (-1)
                 if (isOne(t,i)) then
                     weight_funcs(i)%ptr => minus_staying_double
@@ -7603,7 +7673,6 @@ contains
                     weight_funcs(i)%ptr => minus_switching_double
                 end if
 
-!             else if (delta_b(i-1) == 2 .and. step == 2) then
             case (4)
                 if (isTwo(t,i)) then
                     weight_funcs(i)%ptr => plus_staying_double
@@ -7616,7 +7685,6 @@ contains
                 weight_funcs(i)%ptr => probability_one
 
             end select
-!             end if
         end do
 
     end subroutine setup_weight_funcs
@@ -7654,7 +7722,7 @@ contains
 
         integral = 0.0_dp
         ! also here i didn't consider the actual end contribution or? ...
-        call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*en], &
+        call calc_orbital_pgen_contrib_end([2*elecInd, 2*en], &
             holeInd, orb_pgen)
 
         pgen = orb_pgen * branch_pgen
@@ -7663,14 +7731,14 @@ contains
 
         sw = findLastSwitch(ilut, t, se, en)
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
 
         ! need temporary switch arrays for more efficiently recalcing
         ! weights
         tmp_pos = posSwitches
         tmp_neg = negSwitches
         ! after last switch only dB = 0 branches! consider that
-        call setup_weight_funcs(ilut, t, st, se, sw, weight_funcs)
+        call setup_weight_funcs(t, st, se, weight_funcs)
 
         if (en < nSpatOrbs) then
             select case (step)
@@ -7719,7 +7787,7 @@ contains
                     end if
 
                     ! then calc. orbital probability
-                    call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*i], &
+                    call calc_orbital_pgen_contrib_end([2*elecInd, 2*i], &
                         holeInd, orb_pgen)
 
                     ! should be able to do that without second loop too!
@@ -7842,7 +7910,7 @@ contains
                 if (currentOcc_int(i) /= 1) cycle
 
                 ! get orbital pgen
-                call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*i], &
+                call calc_orbital_pgen_contrib_end([2*elecInd, 2*i], &
                     holeInd, orb_pgen)
 
                 if (current_stepvector(i) == 1) then
@@ -7931,7 +7999,7 @@ contains
             ! deal with switch specifically:
 
             ! figure out orbital pgen
-            call calc_orbital_pgen_contrib_end(ilut, [2*elecInd, 2*sw], holeInd, &
+            call calc_orbital_pgen_contrib_end([2*elecInd, 2*sw], holeInd, &
                 orb_pgen)
 
             if (orb_pgen > EPS) then
@@ -8034,6 +8102,8 @@ contains
         type(weight_obj) :: weights
         procedure(calc_pgen_general), pointer :: calc_pgen_yix
 
+        unused_variable(branch_pgen)
+
         st = excitInfo%fullStart
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
@@ -8068,9 +8138,7 @@ contains
 
                 end if
             else if (current_stepvector(en) == 2) then
-!             else if (isTwo(ilut,en)) then
                 if (isOne(t,en)) then
-!                     topCont = -Root2/currentB_ilut(en)
                     topCont = -Root2/sqrt(currentB_ilut(en)*(currentB_ilut(en)+2.0_dp))
 
                 else if (isTwo(t,en)) then
@@ -8084,24 +8152,16 @@ contains
             end if
 
             if (abs(topCont) > EPS) then
-!                 umat = (get_umat_el(en,se,st,en) + &
-!                     get_umat_el(st,en,en,se))/2.0_dp
-!                 call update_matrix_element(t, umat, 1)
-!                 return
-!             end if
 
             do i = en + 1, nSpatOrbs
 
                 tempWeight = 1.0_dp
-!                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
                 if (currentOcc_int(i) /= 1) then
-!                 if (notSingle(ilut,i)) then
                     cycle
                 end if
 
                 ! calc product
                 do j = en + 1, i - 1
-!                     step = getStepvalue(ilut,j)
                     step = current_stepvector(j)
                     call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(j),&
                         1.0_dp,x1_element = tempWeight_1)
@@ -8110,7 +8170,6 @@ contains
 
                 end do
 
-!                 step = getStepvalue(ilut,i)
                 step = current_stepvector(i)
 
                 ! get the end contribution
@@ -8124,13 +8183,6 @@ contains
             end do
 
             integral = integral * topCont
-!             call update_matrix_element(t, (get_umat_el(en,se,st,en) + &
-!                 get_umat_el(st,en,en,se))/2.0_dp + topCont * integral,1)
-!
-!             if (extract_matrix_element(t,1) == 0.0_dp) then
-!                 probWeight = 0.0_dp
-!                 t = 0
-!             end if
             end if
         end if
 
@@ -8139,15 +8191,12 @@ contains
         ASSERT(sw > se)
 
         ! already set above
-!         pgen = 0.0_dp
 
         deltaB = int(currentB_ilut - calcB_vector_ilut(t(0:nifd)))
 
         ! fuck that to a new loop for the pgen contributions
         do i = sw, nSpatOrbs
             ! can cycle if non-open orbitals
-!             if (isThree(ilut,i) .or. isZero(ilut,i)) cycle
-!             if (notSingle(ilut,i)) then
             if (currentOcc_int(i) /= 1) then
                 cycle
             end if
@@ -8158,7 +8207,7 @@ contains
             ! have to initialize probWeight all the time
             probWeight = 1.0_dp
 
-            call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
+            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
 
             weights = init_semiStartWeight(ilut, se, i, negSwitches(se), &
                 posSwitches(se), currentB_ilut(se))
@@ -8168,7 +8217,6 @@ contains
             ! we know its a R2L excitation so, raising start -> only a
             ! decision if its a 0 at start
             if (current_stepvector(st) == 0) then
-!             if (isZero(ilut,st)) then
                 minusWeight = weights%proc%minus(negSwitches(st), &
                     currentB_ilut(st), weights%dat)
                 plusWeight = weights%proc%plus(posSwitches(st), &
@@ -8182,15 +8230,11 @@ contains
             end if
 
             do j = st + 1, se - 1
-!                 if (isThree(ilut,j) .or. isZero(ilut,j)) cycle
-!                 if (notSingle(ilut,j)) then
                 if (currentOcc_int(j) /= 1) then
                     cycle
                 end if
 
                 ! do i need delta B value too? i think so... fuck!!
-!                 if (isOne(ilut,j)) then
-!                     if (deltaB(j-1) == -1.0_dp) then
                 if (current_stepvector(j) == 1 .and. deltaB(j-1) == -1) then
                         ! is its a 1 or 2 check stepvalues to get probability
                         minusWeight = weights%proc%minus(negSwitches(j), &
@@ -8206,10 +8250,7 @@ contains
                             probWeight = probWeight*(1.0_dp - calcStayingProb( &
                                 minusWeight, plusWeight, currentB_ilut(j)))
                         end if
-!                     end if
                 else if (current_stepvector(j) == 2 .and. deltaB(j-1) == 1) then
-!                 else if (isTwo(ilut,j)) then
-!                     if (deltaB(j-1) == +1.0_dp) then
 
                         ! is its a 1 or 2 check stepvalues to get probability
                         minusWeight = weights%proc%minus(negSwitches(j), &
@@ -8224,7 +8265,6 @@ contains
                             probWeight = probWeight * (1.0_dp - calcStayingProb( &
                                 plusWeight, minusWeight, currentB_ilut(j)))
                         end if
-!                     end if
                 end if
             end do
             ! do semi-start seperately
@@ -8233,10 +8273,8 @@ contains
 
             ! reinit double weights
             weights = weights%ptr
-!             weights = init_doubleWeight(ilut, i)
 
             if (current_stepvector(se) == 3) then
-!             if (isThree(ilut,se)) then
                 zeroWeight = weights%proc%zero(negSwitches(se), &
                     posSwitches(se), currentB_ilut(se), weights%dat)
 
@@ -8267,8 +8305,6 @@ contains
 
             ! loop over double region
             do j = se + 1, i - 1
-!                 if (isThree(ilut,j) .or. isZero(ilut, j)) cycle
-!                 if (notSingle(ilut,j)) then
                 if (currentOcc_int(j) /= 1) then
                     cycle
                 end if
@@ -8278,15 +8314,11 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(j), posSwitches(j), &
                     currentB_ilut(j), weights%dat)
 
-!                 if (deltaB(j-1) == 0.0_dp) then
                 ! also combine deltaB and the stepvalue in the select case
                 ! here
                 select case (deltaB(j-1) + current_stepvector(j))
-!                 case (0)
-!                     if (current_stepvector(j) == 1) then
                     case (1)
                         ! d=1 + b=0 : 1
-!                     if (isOne(ilut,j)) then
                         plusWeight = weights%proc%plus(posSwitches(j), &
                             currentB_ilut(j), weights%dat)
                         if (isOne(t, j)) then
@@ -8302,7 +8334,6 @@ contains
                             call getDoubleMatrixElement(2, 1, 0, -1, 1, &
                                 currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                         end if
-!                     else
                     case (2)
                         ! d=2 + b=0 : 2
                         minusWeight = weights%proc%minus(negSwitches(j), &
@@ -8320,11 +8351,6 @@ contains
                             call getDoubleMatrixElement(1, 2, 0, -1, 1, &
                                 currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
                         end if
-!                     end if
-!                 case (-2)
-!                 else if (deltaB(j-1) == -2.0_dp ) then
-!                     if (isOne(ilut, j)) then
-!                     if (current_stepvector(j) == 1) then
                     case (-1)
                         ! d=1 + b=-2 : -1
                         minusWeight = weights%proc%minus(negSwitches(j), &
@@ -8340,11 +8366,6 @@ contains
                             call getDoubleMatrixElement(2, 1, -2, -1, 1, &
                                 currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                         end if
-!                     end if
-!                 case (2)
-!                 else if (deltaB(j-1) == 2.0_dp) then
-!                     if (isTwo(ilut, j)) then
-!                     if (current_stepvector(j) == 2) then
                     case(4)
                         ! d=2 + b=2 : 4
                         plusWeight = weights%proc%plus(posSwitches(j), &
@@ -8360,11 +8381,7 @@ contains
                             call getDoubleMatrixElement(1, 2, 2, -1, 1, &
                                 currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
                         end if
-!                     end if
-!                 case default
-!                     call stop_all(this_routine, "wrong delta B value!")
                 end select
-!                 end if
 
                 if (abs(tempWeight_1) < EPS) then
                     probWeight = 0.0_dp
@@ -8373,7 +8390,6 @@ contains
             end do
             ! get orbitals prob. also
 
-!             step = getStepvalue(ilut,i)
             step = current_stepvector(i)
             step2 = getStepvalue(t,i)
 
@@ -8391,7 +8407,6 @@ contains
 
         if (sw < en) then
             ! get inverse of fullstop
-!             step = getStepvalue(ilut,en)
             step = current_stepvector(en)
 
             call getMixedFullStop(step,step,0,currentB_ilut(en),x1_element = tempWeight)
@@ -8399,16 +8414,12 @@ contains
             tempWeight = 1.0_dp/tempWeight
 
             do i = en-1, sw+1, -1
-!                 if (isZero(ilut,i) .or. isThree(ilut,i)) cycle
-!                 if (notSingle(ilut,i)) then
                 if (currentOcc_int(i) /= 1) then
                     cycle
                 end if
                 ! i cant go up until the switch in this case since at the
                 ! switch the deltaB value can be different...
-!                 step = getStepvalue(ilut,i)
                 step = current_stepvector(i)
-!                 step2 = getStepvalue(t, i)
 
                 ! update inverse product
                 call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(i),&
@@ -8427,10 +8438,8 @@ contains
 
             ! do switch specifically! determine deltaB!
             ! how?
-!             if (isOne(ilut,sw)) then
             select case (current_stepvector(sw))
             case (1)
-!             if (current_stepvector(sw) == 1) then
                 ! then a -2 branch arrived!
                 call getDoubleMatrixElement(2,1,-2,-1,1,currentB_ilut(sw), &
                     1.0_dp, x1_element = tempWeight_1)
@@ -8439,9 +8448,7 @@ contains
 
                 call getMixedFullStop(2,1,-2,currentB_ilut(sw),x1_element = tempWeight_1)
 
-!             else if (current_stepvector(sw) == 2) then
             case (2)
-!             else if (isTwo(ilut,sw)) then
                 ! +2 branch arrived!
 
                 call getDoubleMatrixElement(1,2,2,-1,1,currentB_ilut(sw), &
@@ -8456,7 +8463,6 @@ contains
                 call stop_all(this_routine, "wrong stepvalues!")
 #endif
             end select
-!             end if
 
             tempWeight_1 = tempWeight * tempWeight_1
 
@@ -8465,7 +8471,6 @@ contains
 
         end if
         ! modify the pgen with the general 2*p(iijk)*p(i)*p(x|i) factor
-!         pgen = pgen * real((nSpatOrbs - 2),dp)/real(((nSpatOrbs)*(nSpatOrbs-1))**2,dp)
 
         pgen = pgen * orb_pgen_contrib_type_3()
 
@@ -9725,7 +9730,7 @@ contains
             end if
         end do
 
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
         call encode_matrix_element(t, extract_matrix_element(t,1) + &
             extract_matrix_element(t,2), 1)
@@ -9742,7 +9747,7 @@ contains
         if (excitInfo%typ == 0) print *, extract_matrix_element(t, 2)
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-            call calc_mixed_start_contr_approx(ilut, t, excitInfo, integral)
+            call calc_mixed_start_contr_approx(t, excitInfo, integral)
 
         else
             call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&
@@ -9755,8 +9760,8 @@ contains
 
     end subroutine calcFullStartR2L_stochastic
 
-    subroutine calc_mixed_start_contr_approx(ilut, t, excitInfo, integral)
-        integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
+    subroutine calc_mixed_start_contr_approx(t, excitInfo, integral)
+        integer(n_int), intent(in) :: t(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: integral
         character(*), parameter :: this_routine = "calc_mixed_start_contr_approx"
@@ -9869,7 +9874,7 @@ contains
         excitInfo%fullstart = 1
         excitInfo%secondStart = 1
 
-        call calcRemainingSwitches(ilut, excitInfo,1, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
 
         se = excitInfo%firstEnd
         en = excitInfo%fullEnd
@@ -10381,7 +10386,7 @@ contains
             end if
         end do
 
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
         ! put everything in first entry
         call encode_matrix_element(t, extract_matrix_element(t,1) + &
@@ -10407,7 +10412,7 @@ contains
         end if
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
-            call calc_mixed_start_contr_approx(ilut, t, excitInfo, integral)
+            call calc_mixed_start_contr_approx(t, excitInfo, integral)
         else
             call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
         end if
@@ -10668,6 +10673,11 @@ contains
         call stop_all(this_routine,&
             "in Hubbard/UEG calculations with full k-point symmetry, this excitation shouldnt be reached!")
 
+        unused_variable(ilut)
+        unused_variable(t)
+        unused_variable(excitInfo)
+        unused_variable(branch_pgen)
+
     end subroutine calc_mixed_x2x_ueg
 
     subroutine calc_mixed_start_contr_sym(ilut, t, excitInfo, branch_pgen, &
@@ -10716,7 +10726,7 @@ contains
 
         ! do i actually deal with the actual start orbital influence??
         ! fuck i don't think so.. wtf..
-        call calc_orbital_pgen_contrib_start(ilut, [2*st, 2*elecInd], &
+        call calc_orbital_pgen_contrib_start([2*st, 2*elecInd], &
             holeInd, orb_pgen)
 
         pgen = orb_pgen * branch_pgen
@@ -10726,7 +10736,7 @@ contains
         ! it beforehand for all?
         excitInfo%fullStart = 1
         excitInfo%secondStart = 1
-        call calcRemainingSwitches(ilut, excitInfo,1, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
 
         weights = init_fullStartWeight(ilut, se, en, negSwitches(se), &
             posSwitches(se), currentB_ilut(se))
@@ -10813,7 +10823,7 @@ contains
                 ! and that fullend is the electron eg.
                 ! depening on the type of excitation (r2l or l2r) the electron
                 ! orbitals change here
-                call calc_orbital_pgen_contrib_start(ilut, [2*i, 2*elecInd], &
+                call calc_orbital_pgen_contrib_start([2*i, 2*elecInd], &
                     holeInd, orb_pgen)
 
                 ! then deal with the matrix element and branching probabilities
@@ -10919,7 +10929,7 @@ contains
             if (currentOcc_int(i) /= 1) cycle
 
             ! calculate orbitals pgen first and cycle if 0
-            call calc_orbital_pgen_contrib_start(ilut, [2*i, 2*elecInd], holeInd,&
+            call calc_orbital_pgen_contrib_start([2*i, 2*elecInd], holeInd,&
                 orb_pgen)
 
             step = current_stepvector(i)
@@ -10986,7 +10996,7 @@ contains
         if (sw > st) then
 
             ! check orb_pgen otherwise no influencce
-            call calc_orbital_pgen_contrib_start(ilut, [2*sw, 2*elecInd], holeInd,&
+            call calc_orbital_pgen_contrib_start([2*sw, 2*elecInd], holeInd,&
                 orb_pgen)
 
 
@@ -11058,10 +11068,9 @@ contains
 
     end subroutine calc_mixed_start_contr_sym
 
-    subroutine calc_orbital_pgen_contrib_end(ilut, occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_end(occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
         character(*), parameter :: this_routine = "calc_orbital_pgen_contrib_end"
@@ -11094,10 +11103,10 @@ contains
         ! depending if its a r2l or l2r full-stop:
         if (i < orb_a) then
             ! its a L2R -> so no restrictions
-            call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, j, cpt_ba, ba_sum)
+            call pgen_select_orb_guga_mol(occ_orbs, orb_a, j, cpt_ba, ba_sum)
         else
             ! its a R2L so orbital i is off-limits
-            call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, j, cpt_ba, ba_sum, i)
+            call pgen_select_orb_guga_mol(occ_orbs, orb_a, j, cpt_ba, ba_sum, i)
         end if
 
         ! change to the fullstart into fullstop: loop until orbital j for the
@@ -11117,7 +11126,7 @@ contains
 
         ! and get p(a|b)
         ! only orbitals below j are allowed!
-        call pgen_select_orb_guga_mol(ilut, occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
+        call pgen_select_orb_guga_mol(occ_orbs, j, orb_a, cpt_ab, ab_sum, -j, .true.)
 
         ! and deal with rest:
         if (tGen_guga_weighted) then
@@ -11145,10 +11154,9 @@ contains
 
     end subroutine calc_orbital_pgen_contrib_end
 
-    subroutine calc_orbital_pgen_contrib_start(ilut, occ_orbs, orb_a, orb_pgen)
+    subroutine calc_orbital_pgen_contrib_start(occ_orbs, orb_a, orb_pgen)
         ! write a combined function for both r2l and l2r since its only
         ! one difference -> only one if condition to adjust for both!
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2), orb_a
         real(dp), intent(out) :: orb_pgen
         character(*), parameter :: this_routine = "calc_orbital_pgen_contrib_start"
@@ -11185,7 +11193,7 @@ contains
         ! over on the outside and is assumed picked first or 2nd here??
         ! taking i and j here is wrong! i is the open orbital, but j
         ! is the already picked electron! it has to be orb_a here or?
-        call pgen_select_orb_guga_mol(ilut, occ_orbs, i, orb_a, cpt_ba, ba_sum, i, .true.)
+        call pgen_select_orb_guga_mol(occ_orbs, i, orb_a, cpt_ba, ba_sum, i, .true.)
 
         ! change to the fullstart into fullstop: loop until orbital a
         if (tGen_guga_weighted) then
@@ -11206,10 +11214,10 @@ contains
         ! play!
         if (orb_a > j) then
             ! then orb_j is off-limits
-            call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum, j)
+            call pgen_select_orb_guga_mol(occ_orbs, orb_a, i, cpt_ab, ab_sum, j)
         else
             ! in this case there is no restriction guga-wise..
-            call pgen_select_orb_guga_mol(ilut, occ_orbs, orb_a, i, cpt_ab, ab_sum)
+            call pgen_select_orb_guga_mol(occ_orbs, orb_a, i, cpt_ab, ab_sum)
         end if
 
         ! and deal with rest:
@@ -11259,7 +11267,7 @@ contains
         excitInfo%fullstart = 1
         excitInfo%secondStart = 1
 
-        call calcRemainingSwitches(ilut, excitInfo,1, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
 
         se = excitInfo%firstEnd
         en = excitInfo%fullEnd
@@ -11373,7 +11381,7 @@ contains
             ! not only until original fullstart...
             excitInfo%fullStart = 1
             excitInfo%secondStart = 1
-            call calcRemainingSwitches(ilut, excitInfo,1, posSwitches, negSwitches)
+            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
 
             ! the rest all gets modified by botCont.. so if it is zero do not
             ! continue ( do not forget to encode the umat!
@@ -11871,18 +11879,11 @@ contains
 
         ! todo : correct sum of contributing 2-body integrals and correct
         ! indexing!
-!
-!         ASSERT(umat /= 0.0_dp)
         if (abs(umat) <EPS) then
             branch_pgen = 0.0_dp
             t = 0
             return
-!             call abort_excitation()
         end if
-!
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo,1, posSwitches, negSwitches)
-!         end if
 
         ! in the mixed single overlap case its just like a regular single
         ! excitation except the special change in stepvector at the
@@ -11947,11 +11948,10 @@ contains
             if (branch_pgen <EPS) return
         end do
 
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
         ! for efficiency only encode umat here
         call update_matrix_element(t, tempWeight * umat, 1)
-!         call encode_part_sign(t, tempWeight * umat, 1)
 
 
     end subroutine calcSingleOverlapMixedStochastic
@@ -11982,17 +11982,12 @@ contains
             excitInfo%fullEnd))/2.0_dp
 
         ! todo: correct sum and indexing..
-!         ASSERT(umat /= 0.0_dp)
         if (abs(umat)<EPS) then
             branch_pgen = 0.0_dp
             t = 0
             return
         end if
 
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
-!
          ! create weight object here
         ! i think i only need single excitations weights here, since
         ! the semi stop in this case is like an end step...
@@ -12135,16 +12130,12 @@ contains
             excitInfo%secondStart, excitInfo%fullStart))/2.0_dp
 
         ! todo correct combination of sum terms and correct indexcing
-!         ASSERT(umat /= 0.0_dp)
         if (abs(umat) <EPS) then
             branch_pgen = 0.0_dp
             t = 0
             return
         end if
 
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
 
          ! create weight object here
         ! i think i only need single excitations weights here, since
@@ -12303,16 +12294,11 @@ contains
             get_umat_el(semi,ende,start,start))/2.0_dp
 
         ! todo! correct combination of umat sum terms.. and correct indexing
-!         ASSERT(umat /= 0.0_dp)
         if (abs(umat) < EPS) then
             branch_pgen = 0.0_dp
             t = 0
             return
         end if
-
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
 
         ! set t
         t = ilut
@@ -12439,7 +12425,7 @@ contains
             if (branch_pgen <EPS) return
         end do
 
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
     end subroutine calcFullStartLoweringStochastic
 
@@ -12494,10 +12480,6 @@ contains
             t = 0
             return
         end if
-
-!         if (.not. present(posSwitches)) then
-!             call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, negSwitches)
-!         end if
 
         ! set t
         t = ilut
@@ -12627,7 +12609,7 @@ contains
             if (branch_pgen <EPS) return
         end do
 
-        call singleStochasticEnd(ilut, excitInfo, t)
+        call singleStochasticEnd(excitInfo, t)
 
     end subroutine calcFullStartRaisingStochastic
 
@@ -12690,7 +12672,6 @@ contains
 
                 ! there is also this routine I already wrote:
                 ! I should combine those two as they do the same job
-!                 call create_crude_single(ilut, nI, exc, branch_pgen, excitInfo)
 
                 pgen = orb_pgen * branch_pgen
 
@@ -12701,7 +12682,7 @@ contains
         ! do the crude approximation here for now..
         if (tgen_guga_crude .and. .not. tgen_guga_mixed) then
 
-            call create_crude_single(ilut, nI, exc, branch_pgen, excitInfo)
+            call create_crude_single(ilut, exc, branch_pgen, excitInfo)
 
             if (branch_pgen < EPS) then
                 exc = 0
@@ -12742,7 +12723,7 @@ contains
         integral = getTmatEl(2*i, 2*j)
 
         ! then calculate the remaing switche given indices
-        call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
 
         ! intitialize the weights
         weights = init_singleWeight(ilut, excitInfo%fullEnd)
@@ -12804,7 +12785,7 @@ contains
         ! the end step should be easy in this case. since due to the
         ! correct use of probabilistic weights only valid excitations should
         ! come to this point
-        call singleStochasticEnd(ilut, excitInfo, exc)
+        call singleStochasticEnd(excitInfo, exc)
 
         ! maybe but a check here if the matrix element anyhow turned out zero
         if (abs(extract_matrix_element(exc,1))<EPS) then
@@ -12824,7 +12805,7 @@ contains
         ! and also for the matrix element calculation maybe..
         if (.not. (treal .or. t_new_real_space_hubbard .or. &
             t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
-            call calc_integral_contribution_single(ilut, exc, i, j,st, en, integral)
+            call calc_integral_contribution_single(exc, i, j,st, en, integral)
         end if
 
         call update_matrix_element(exc, integral, 1)
@@ -12839,9 +12820,9 @@ contains
 
     end subroutine createStochasticExcitation_single
 
-    subroutine calc_integral_contribution_single(ilut, exc, i, j, st, en, integral)
+    subroutine calc_integral_contribution_single(exc, i, j, st, en, integral)
         ! calculates the double-excitaiton contribution to a single excitation
-        integer(n_int), intent(in) :: ilut(0:nifguga), exc(0:nifguga)
+        integer(n_int), intent(in) :: exc(0:nifguga)
         integer, intent(in) :: i, j, st, en
         real(dp), intent(inout) :: integral
         character(*), parameter :: this_routine = "calc_integral_contribution_single"
@@ -13016,35 +12997,14 @@ contains
 
     end subroutine calc_integral_contribution_single
 
-    subroutine singleStochasticEnd(ilut, excitInfo, t)
+    subroutine singleStochasticEnd(excitInfo, t)
         ! routine to end a stochastic excitation for a single generator
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
         integer(n_int), intent(inout) :: t(0:nifguga)
         character(*), parameter :: this_routine = "singleStochasticEnd"
 
         integer :: ende, gen, deltaB
         real(dp) :: bVal, tempWeight
-
-! #ifdef __DEBUG
-!         call write_det_guga(6,ilut)
-!         print *, "i,j,k,l:", excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l
-!         print *, "currentGen: ", excitInfo%currentGen
-!         print *, "firstGen: ", excitInfo%firstGen
-!         print *, "lastGen: ", excitInfo%lastGen
-!         print *, "typ: ", excitInfo%typ
-!
-!         ASSERT(excitInfo%gen1 /= 0)
-!         ASSERT(isProperCSF_ilut(ilut))
-!         if (excitInfo%currentGen == 1) then
-!             ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
-! !             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
-!         else if (excitInfo%currentGen == -1) then
-!             ASSERT(.not.isThree(ilut,excitInfo%fullEnd))
-! !             ASSERT(.not.isZero(ilut,excitInfo%fullStart))
-!         end if
-!         ASSERT(all(currentB_ilut == calcB_vector_ilut(ilut)))
-! #endif
 
         ende = excitInfo%fullEnd
         deltaB = getDeltaB(t)
@@ -13055,7 +13015,6 @@ contains
         ! clean up stuff
         select case (current_stepvector(ende))
         case (0)
-!         if (isZero(ilut,ende)) then
             ! if it is zero it implies i have a lowering generator, otherwise
             ! i wouldnt even be here.
             if (deltaB == -1) then
@@ -13073,7 +13032,6 @@ contains
             end if
 
         case (3)
-!         else if (isThree(ilut,ende)) then
             ! if d = 3, it implies a raising generator or otherwise we
             ! would not be here ..
             if (deltaB == -1) then
@@ -13091,7 +13049,6 @@ contains
             end if
 
         case (1)
-!         else if (isOne(ilut,ende)) then
 
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 if (deltaB /= -1) then
@@ -13117,11 +13074,6 @@ contains
             end if
 
         case (2)
-!         else ! d = 2 at end -> needs deltab=+1 -> delete deltaB -1 branches
-!             if (deltaB == 1) then
-!                 t = 0
-!                 return
-!             end if
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 if (deltaB /= 1) then
                     t = 0
@@ -13142,7 +13094,6 @@ contains
 
                 tempWeight = getSingleMatrixElement(3, 2, deltaB, gen, bVal)
             end if
-!         end if
         end select
 
         call update_matrix_element(t, tempWeight, 1)
@@ -13378,20 +13329,17 @@ contains
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
         ! also check if calculated b vector really fits to ilut
-        ASSERT(all(currentB_ilut == calcB_vector_ilut(ilut(0:nifd))))
+        ASSERT(all(currentB_ilut .isclose. calcB_vector_ilut(ilut(0:nifd))))
         if (excitInfo%currentGen == 1) then
             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
-!             ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
         else if (excitInfo%currentGen == -1) then
             ASSERT(.not.isZero(ilut,excitInfo%fullStart))
-!             ASSERT(.not.isThree(ilut,excitInfo%fullEnd))
         end if
         ! also have checked if atleast on branch way can lead to an excitaiton
 #endif
 
         ! for more oversight
         st = excitInfo%fullStart
-!         ende = excitInfo%fullEnd
         gen = excitInfo%currentGen
         bVal = currentB_ilut(st)
 
@@ -13399,7 +13347,6 @@ contains
 
         select case (current_stepvector(st))
         case (1)
-!         if (isOne(ilut, st)) then
             ! set corresponding orbital to 0 or 3 depending on generator type
             if (gen == 1) then ! raising gen case
                 ! set the alpha orbital also to 1 to make d=1 -> d'=3
@@ -13427,7 +13374,6 @@ contains
             probWeight = 1.0_dp
 
         case (2)
-!         else if (isTwo(ilut, st)) then
             if (gen == 1) then
                 set_orb(t, 2*st - 1)
 
@@ -13445,7 +13391,6 @@ contains
             probWeight = 1.0_dp
 
         case (0,3)
-!         case default
 !         else ! 0/3 case -> have to check probWeights an bValue
             ! if the deltaB = -1 weights is > 0 this one always works
             ! write weight calculation function! is a overkill here,
@@ -13467,9 +13412,7 @@ contains
             ! do not need the previous if structs since the weights
             ! already care for the facts if some excitation is incompatible..
             ! I only have to avoid a completely improper excitation...
-!             ASSERT(plusWeight + minusWeight > 0.0_dp)
             ! if b == 0 and minusWeight == 0 -> no excitation possible todo!
-!             ASSERT(bVal > 0.0_dp .or. minusWeight > 0.0_dp)
 
             if ((plusWeight + minusWeight <EPS) .or. &
                 (bVal + minusWeight <EPS)) then
@@ -13574,8 +13517,8 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
-        singleWeight%dat%F = endFx(ilut,sOrb)
-        singleWeight%dat%G = endGx(ilut,sOrb)
+        singleWeight%dat%F = endFx(sOrb)
+        singleWeight%dat%G = endGx(sOrb)
 
         singleWeight%proc%minus => getMinus_single
         singleWeight%proc%plus => getPlus_single
@@ -13590,7 +13533,6 @@ contains
         real(dp) :: minusWeight
         character(*), parameter :: this_routine = "getMinus_single"
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
         ! change that, to make it independend if b is zero
         if (bVal < EPS) then
             ! make it only depend on f and nSwitches
@@ -13635,8 +13577,8 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
-        forced_double%dat%F = endFx(ilut,sOrb)
-        forced_double%dat%G = endGx(ilut,sOrb)
+        forced_double%dat%F = endFx(sOrb)
+        forced_double%dat%G = endGx(sOrb)
 
         forced_double%proc%minus => getMinus_double
         forced_double%proc%plus => getPlus_double
@@ -13655,8 +13597,8 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
 
-        doubleWeight%dat%F = endFx(ilut,sOrb)
-        doubleWeight%dat%G = endGx(ilut,sOrb)
+        doubleWeight%dat%F = endFx(sOrb)
+        doubleWeight%dat%G = endGx(sOrb)
 
         doubleWeight%proc%minus => getMinus_double
         doubleWeight%proc%plus => getPlus_double
@@ -13759,10 +13701,9 @@ contains
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
-        fullStart%dat%F = endFx(ilut,sOrb)
-        fullStart%dat%G = endGx(ilut,sOrb)
+        fullStart%dat%F = endFx(sOrb)
+        fullStart%dat%G = endGx(sOrb)
 
         ! have to set up a single weight obj.
         single = init_singleWeight(ilut, pOrb)
@@ -13789,7 +13730,6 @@ contains
         character(*), parameter :: this_routine = "getMinus_fullStart"
 
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
         ! here this assert is valid, since the bvalue really never should be
         ! 0.. or else the parent CSF is invalid.
         ! no of course it can still be 0 at a 0/3 start... but also
@@ -13863,8 +13803,8 @@ contains
 
         type(weight_obj), target, save :: double
 
-        forced_semistart%dat%F = endFx(ilut, sorb)
-        forced_semistart%dat%G = endGx(ilut, sorb)
+        forced_semistart%dat%F = endFx(sorb)
+        forced_semistart%dat%G = endGx(sorb)
 
         double = init_forced_end_exchange_weight(ilut, porb)
 
@@ -13897,10 +13837,9 @@ contains
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
-        semiStart%dat%F = endFx(ilut,sOrb)
-        semiStart%dat%G = endGx(ilut,sOrb)
+        semiStart%dat%F = endFx(sOrb)
+        semiStart%dat%G = endGx(sOrb)
 
         double = init_doubleWeight(ilut,pOrb)
 
@@ -13982,11 +13921,9 @@ contains
         ASSERT(negSwitches2 >= 0.0_dp)
         ASSERT(posSwitches1 >= 0.0_dp)
         ASSERT(posSwitches2 >= 0.0_dp)
-!         ASSERT(bVal1 > 0.0_dp)
-!         ASSERT(bVal2 > 0.0_dp)
 
-        fullDouble%dat%F = endFx(ilut,sOrb)
-        fullDouble%dat%G = endGx(ilut,sOrb)
+        fullDouble%dat%F = endFx(sOrb)
+        fullDouble%dat%G = endGx(sOrb)
 
         fullStart = init_fullStartWeight(ilut, pOrb, oOrb, negSwitches2, &
             posSwitches2, bVal2)
@@ -14020,12 +13957,11 @@ contains
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
         ! misuse zero data element as this L-function in this case!
-        singleRaising%dat%F = endFx(ilut,sOrb)
-        singleRaising%dat%G = endGx(ilut,sOrb)
-        singleRaising%dat%zero = endLx(ilut,sOrb)
+        singleRaising%dat%F = endFx(sOrb)
+        singleRaising%dat%G = endGx(sOrb)
+        singleRaising%dat%zero = endLx(sOrb)
 
         single = init_singleWeight(ilut, pOrb)
 
@@ -14102,12 +14038,10 @@ contains
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
         ! misuse zero data element as this L-function in this case!
-        singleLowering%dat%F = endFx(ilut,sOrb)
-        singleLowering%dat%G = endGx(ilut,sOrb)
-!         singleLowering%dat%zero = endLx(ilut,sOrb)
+        singleLowering%dat%F = endFx(sOrb)
+        singleLowering%dat%G = endGx(sOrb)
 
         single = init_singleWeight(ilut, pOrb)
 
@@ -14128,8 +14062,6 @@ contains
         character(*), parameter :: this_routine = "getMinus_overlapLowering"
 
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
-
 
         ! if at the current spot b is 0, only the -1 branch is technically
         ! possible and the +1 branch always is forbidden. so i essentially
@@ -14495,7 +14427,7 @@ contains
 
         ! also check necessary ending restrictions and probability weights
         ! to check if no excitation is possible
-        call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
 
         ! change it here to also use the functions involving
         ! the weight_obj objects.. to efficiently determine
@@ -16164,662 +16096,22 @@ contains
 
             end if
         end select
-!         end if
 
     end subroutine createSingleStart
 
-!     subroutine createSingleStart_noWeight(ilut, excitInfo, posSwitches, negSwitches, &
-!             tempExcits, nExcits)
-!         ! subroutine to create full single excitations starts for ilut
-!         ! allocates the necessary arrays and fills up first excitations,
-!         ! depending on stepvalue in ilut, the corresponding b value, and
-!         ! probabilitstic weight functions(to exclude excitations eventually
-!         ! leading to zero weight)
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         type(excitationInformation), intent(in) :: excitInfo
-!         real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
-!         integer(n_int), intent(out), pointer :: tempExcits(:,:)
-!         integer, intent(out) :: nExcits
-!         character(*), parameter :: this_routine = "createSingleStart_noWeight"
-!         integer :: ierr, nmax, ende, start, gen
-!         integer(n_int) :: t(0:niftot)
-!         real(dp) :: minusWeight, plusWeight, tempWeight, bVal
-!
-!         ! have already asserted that start and end values of stepvector and
-!         ! generator type are consistent to allow for an excitation.
-!         ! maybe still assert here in debug mode atleast
-! #ifdef __DEBUG
-!         ASSERT(allocated(currentB_ilut))
-!         ! also assert we are not calling it for a weight gen. accidently
-!         ASSERT(excitInfo%gen1 /= 0)
-!         ASSERT(isProperCSF_ilut(ilut))
-!         ! also check if calculated b vector really fits to ilut
-!         ASSERT(all(currentB_ilut == calcB_vector_ilut(ilut)))
-!         if (excitInfo%gen1 == 1) then
-!             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
-!             ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
-!         else if (excitInfo%gen1 == -1) then
-!             ASSERT(.not.isZero(ilut,excitInfo%fullStart))
-!             ASSERT(.not.isThree(ilut,excitInfo%fullEnd))
-!         end if
-!         ! also have checked if atleast on branch way can lead to an excitaiton
-! #endif
-!
-!         ! for more oversight
-!         start = excitInfo%fullStart
-!         ende = excitInfo%fullEnd
-!         gen = excitInfo%firstGen
-!         bVal = currentB_ilut(start)
-!         ! first have to allocate both arrays for the determinant and weight list
-!         ! worse then worst case for single excitations are 2^|i-j| excitations
-!         ! for a given CSF -> for now use that to allocate the arrays first
-!         ! update only need the number of open orbitals between i and j, and
-!         ! some additional room if 0/3 at start
-!         ! use already provided open orbital counting function.
-!         ! nMax = 2**(ende - start)
-!         nMax = 2 + 2**count_open_orbs_ij(ilut, start, ende)
-!         allocate(tempExcits(0:niftot, nMax), stat = ierr)
-!
-!         ! create start depending on stepvalue of ilut at start, b value,
-!         ! which is already calculated at the start of the excitation call and
-!         ! probabilistic weights
-!         ! for now just scratch it up in an inefficient way.. optimize later
-!         ! copy ilut into first row(or column?) of tempExcits
-!         call encode_det(tempExcits(0:niftot,1), ilut(0:nifdbo))
-!
-!         ! i think determinants get initiated with zero matrix element, but not
-!         ! sure ... anyway set matrix element to 1
-! !         call encode_part_sign(tempExcits(0:niftot,1), 1.0_dp, 1)
-!
-!         ! maybe need temporary ilut storage
-!         t = ilut
-!         nExcits = 0
-!         if (isOne(ilut, start)) then
-!             ! set corresponding orbital to 0 or 3 depending on generator type
-!             if (gen == 1) then ! raising gen case
-!                 ! set the alpha orbital also to 1 to make d=1 -> d'=3
-!                 set_orb(t, 2*start)
-!
-!                 !todo: matrix elements
-!                 ! does it work like that:
-!                 ! would have all necessary values and if statements to directly
-!                 ! calculated matrix element here... maybe do it here after all
-!                 ! to be more efficient...
-!                 tempWeight = getSingleMatrixElement(3, 1, +1, gen, bVal)
-!
-!             else ! lowering gen case
-!                 ! clear beta orbital to make d=1 -> d'=0
-!                 clr_orb(t, 2*start - 1)
-!
-!                 !todo: matrix elements
-!                 tempWeight = getSingleMatrixElement(0, 1, +1, gen, bVal)
-!             end if
-!             ! save number of already stored excitations
-!             nExcits = nExcits + 1
-!             ! store matrix element
-!             call encode_part_sign(t, tempWeight, 1)
-!             ! set deltaB:
-!             ! for both cases deltaB = +1, set that as signed weight
-!             ! update: use previously unused flags to encode deltaB
-!             call setDeltaB(1, t)
-!             ! and store it in list:
-!             tempExcits(:, nExcits) = t
-!
-!         else if (isTwo(ilut, start)) then
-!             if (gen == 1) then
-!                 set_orb(t, 2*start - 1)
-!
-!                 ! matrix elements
-!                 tempWeight = getSingleMatrixElement(3, 2, -1, gen, bVal)
-!             else
-!                 clr_orb(t, 2*start)
-!
-!                 ! matrix elements
-!                 tempWeight = getSingleMatrixElement(0, 2, -1, gen, bVal)
-!             end if
-!             nExcits = nExcits + 1
-!             call encode_part_sign(t, tempWeight, 1)
-!             call setDeltaB(-1, t)
-!             tempExcits(:, nExcits) = t
-!
-!         else ! 0/3 case -> have to check probWeights an bValue
-!             ! if the deltaB = -1 weights is > 0 this one always works
-!             ! write weight calculation function! is a overkill here,
-!             ! but makes it easier to use afterwards with stochastic excitaions
-!
-!             if (currentB_ilut(start) == 0.0_dp) then
-!                 ! if b == 0, only -1 start possible
-!                 if (gen == 1) then
-!                     ! set beta bit
-!                     set_orb(t, 2*start - 1)
-!
-!                     ! matrix element
-!                     tempWeight = getSingleMatrixElement(1, 0, -1, gen, bVal)
-!                 else
-!                     ! clear alpha bit
-!                     clr_orb(t, 2*start)
-!
-!                     ! matrix element
-!                     tempWeight = getSingleMatrixElement(1, 3, -1, gen, bVal)
-!                 end if
-!                 nExcits = nExcits + 1
-!                 call encode_part_sign(t, tempWeight, 1)
-!                 call setDeltaB(-1, t)
-!                 tempExcits(:, nExcits) = t
-!
-!             else
-!
-!                 call calcSingleProbWeight(ilut, start, ende, posSwitches(start), &
-!                     negSwitches(start), plusWeight, minusWeight)
-!
-!                 if (minusWeight > 0.0_dp) then
-!                     if (gen == 1) then
-!                         ! set beta bit
-!                         set_orb(t, 2*start - 1)
-!
-!                         ! matrix element
-!                         tempWeight = getSingleMatrixElement(1, 0, -1, gen, bVal)
-!                     else
-!                         ! clear alpha bit
-!                         clr_orb(t, 2*start)
-!
-!                         ! matrix element
-!                         tempWeight = getSingleMatrixElement(1, 3, -1, gen, bVal)
-!                     end if
-!                     nExcits = nExcits + 1
-!                     call encode_part_sign(t, tempWeight, 1)
-!                     call setDeltaB(-1, t)
-!                     tempExcits(:, nExcits) = t
-!
-!                 end if
-!
-!                 ! if plusWeight and the bValue allows it also a deltaB=+1 branch
-!                 if (plusWeight > 0.0_dp) then
-!
-!                     ! reset t
-!                     t = ilut
-!
-!                     if (gen == 1) then
-!                         ! set alpha bit
-!                         set_orb(t, 2*start)
-!
-!                         ! matrix element
-!                         tempWeight = getSingleMatrixElement(2, 0, +1, gen, bVal)
-!                     else
-!                         ! cleat beta bit
-!                         clr_orb(t, 2*start)
-!
-!                         ! matrix element
-!                         tempWeight = getSingleMatrixElement(2, 3, +1, gen, bVal)
-!                     end if
-!                     ! update list and number
-!                     nExcits = nExcits + 1
-!                     call encode_part_sign(t, tempWeight, 1)
-!                     call setDeltaB(+1, t)
-!                     tempExcits(:, nExcits) = t
-!
-!                 end if
-!             end if
-!         end if
-!
-!     end subroutine createSingleStart_noWeight
-
-!     subroutine singleOverlapLoweringStart(ilut, excitInfo, posSwitches, negSwitches, &
-!             tempExcits, nExcits)
-!         ! subroutine to create full single excitations starts for ilut
-!         ! allocates the necessary arrays and fills up first excitations,
-!         ! depending on stepvalue in ilut, the corresponding b value, and
-!         ! probabilitstic weight functions(to exclude excitations eventually
-!         ! leading to zero weight)
-!         ! specially for single overlap and only lowering gens start
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         type(excitationInformation), intent(in) :: excitInfo
-!         real(dp), intent(in) :: posSwitches(nBasis/2), negSwitches(nBasis/2)
-!         integer(n_int), intent(out), pointer :: tempExcits(:,:)
-!         integer, intent(out) :: nExcits
-!         character(*), parameter :: this_routine = "singleOverlapLoweringStart"
-!         integer :: ierr, nmax, ende, start, gen
-!         integer(n_int) :: t(0:niftot)
-!         real(dp) :: minusWeight, plusWeight, tempWeight, bVal
-!
-!         ! have already asserted that start and end values of stepvector and
-!         ! generator type are consistent to allow for an excitation.
-!         ! maybe still assert here in debug mode atleast
-! #ifdef __DEBUG
-!         ! also assert we are not calling it for a weight gen. accidently
-!         ASSERT(excitInfo%gen1 /= 0)
-!         ASSERT(isProperCSF_ilut(ilut))
-!         ! also check if calculated b vector really fits to ilut
-!         ASSERT(all(currentB_ilut == calcB_vector_ilut(ilut)))
-!         if (excitInfo%gen1 == 1) then
-!             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
-!             ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
-!         else if (excitInfo%gen1 == -1) then
-!             ASSERT(.not.isZero(ilut,excitInfo%fullStart))
-!             ASSERT(.not.isThree(ilut,excitInfo%fullEnd))
-!         end if
-!         ! also have checked if atleast on branch way can lead to an excitaiton
-! #endif
-!
-!         ! for more oversight
-!         start = excitInfo%fullStart
-!         ende = excitInfo%fullEnd
-!         gen = excitInfo%firstGen
-!         bVal = currentB_ilut(start)
-!         ! first have to allocate both arrays for the determinant and weight list
-!         ! worse then worst case for single excitations are 2^|i-j| excitations
-!         ! for a given CSF -> for now use that to allocate the arrays first
-!         ! update only need the number of open orbitals between i and j, and
-!         ! some additional room if 0/3 at start
-!         ! use already provided open orbital counting function.
-!         ! nMax = 2**(ende - start)
-!         nMax = 2 + 2**count_open_orbs_ij(ilut, start, ende)
-!         allocate(tempExcits(0:niftot, nMax), stat = ierr)
-!
-!         ! create start depending on stepvalue of ilut at start, b value,
-!         ! which is already calculated at the start of the excitation call and
-!         ! probabilistic weights
-!         ! for now just scratch it up in an inefficient way.. optimize later
-!         ! copy ilut into first row(or column?) of tempExcits
-!         call encode_det(tempExcits(0:niftot,1), ilut(0:nifdbo))
-!
-!         ! i think determinants get initiated with zero matrix element, but not
-!         ! sure ... anyway set matrix element to 1
-! !         call encode_part_sign(tempExcits(0:niftot,1), 1.0_dp, 1)
-!
-!         ! maybe need temporary ilut storage
-!         t = ilut
-!         nExcits = 0
-!         if (isOne(ilut, start)) then
-!             ! set corresponding orbital to 0 or 3 depending on generator type
-!             if (gen == 1) then ! raising gen case
-!                 ! set the alpha orbital also to 1 to make d=1 -> d'=3
-!                 set_orb(t, 2*start)
-!
-!                 !todo: matrix elements
-!                 ! does it work like that:
-!                 ! would have all necessary values and if statements to directly
-!                 ! calculated matrix element here... maybe do it here after all
-!                 ! to be more efficient...
-!                 tempWeight = getSingleMatrixElement(3, 1, +1, gen, bVal)
-!
-!
-!
-!             else ! lowering gen case
-!                 ! clear beta orbital to make d=1 -> d'=0
-!                 clr_orb(t, 2*start - 1)
-!
-!                 !todo: matrix elements
-!                 tempWeight = getSingleMatrixElement(0, 1, +1, gen, bVal)
-!             end if
-!             ! save number of already stored excitations
-!             nExcits = nExcits + 1
-!             ! store matrix element
-!             call encode_part_sign(t, tempWeight, 1)
-!             ! set deltaB:
-!             ! for both cases deltaB = +1, set that as signed weight
-!             ! update: use previously unused flags to encode deltaB
-!             call setDeltaB(1, t)
-!             ! and store it in list:
-!             tempExcits(:, nExcits) = t
-!
-!         else if (isTwo(ilut, start)) then
-!             if (gen == 1) then
-!                 set_orb(t, 2*start - 1)
-!
-!                 ! matrix elements
-!                 tempWeight = getSingleMatrixElement(3, 2, -1, gen, bVal)
-!             else
-!                 clr_orb(t, 2*start)
-!
-!                 ! matrix elements
-!                 tempWeight = getSingleMatrixElement(0, 2, -1, gen, bVal)
-!             end if
-!             nExcits = nExcits + 1
-!             call encode_part_sign(t, tempWeight, 1)
-!             call setDeltaB(-1, t)
-!             tempExcits(:, nExcits) = t
-!
-!         else ! 0/3 case -> have to check probWeights an bValue
-!             ! if the deltaB = -1 weights is > 0 this one always works
-!             ! write weight calculation function! is a overkill here,
-!             ! but makes it easier to use afterwards with stochastic excitaions
-!
-!             call singleOverlapLoweringWeight(ilut, start, excitInfo%secondStart, &
-!                 ende, posSwitches, negSwitches, plusWeight, minusWeight)
-!
-!             if (minusWeight > 0.0_dp) then
-!                 if (gen == 1) then
-!                     ! set beta bit
-!                     set_orb(t, 2*start - 1)
-!
-!                     ! matrix element
-!                     tempWeight = getSingleMatrixElement(1, 0, -1, gen, bVal)
-!                 else
-!                     ! clear alpha bit
-!                     clr_orb(t, 2*start)
-!
-!                     ! matrix element
-!                     tempWeight = getSingleMatrixElement(1, 3, -1, gen, bVal)
-!                 end if
-!                 nExcits = nExcits + 1
-!                 call encode_part_sign(t, tempWeight, 1)
-!                 call setDeltaB(-1, t)
-!                 tempExcits(:, nExcits) = t
-!
-!             end if
-!
-!             ! if plusWeight and the bValue allows it also a deltaB=+1 branch
-!             if (plusWeight > 0.0_dp .and. &
-!                 currentB_ilut(start) > 0.0_dp) then
-!
-!                 ! reset t
-!                 t = ilut
-!
-!                 if (gen == 1) then
-!                     ! set alpha bit
-!                     set_orb(t, 2*start)
-!
-!                     ! matrix element
-!                     tempWeight = getSingleMatrixElement(2, 0, +1, gen, bVal)
-!                 else
-!                     ! cleat beta bit
-!                     clr_orb(t, 2*start)
-!
-!                     ! matrix element
-!                     tempWeight = getSingleMatrixElement(2, 3, +1, gen, bVal)
-!                 end if
-!                 ! update list and number
-!                 nExcits = nExcits + 1
-!                 call encode_part_sign(t, tempWeight, 1)
-!                 call setDeltaB(+1, t)
-!                 tempExcits(:, nExcits) = t
-!
-!             end if
-!         end if
-!
-!     end subroutine singleOverlapLoweringStart
-
-!     subroutine calcDoubleProbWeight(ilut, start, ende, posSwitches, negSwitches, &
-!             plusWeight, minusWeight, zeroWeight)
-!         ! routine to calculate the probabilistic weights of excitation in the
-!         ! excitation tree for the overlap region of a double  excitation with
-!         ! a full stop at the end
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         integer, intent(in) :: start, ende
-!         real(dp), intent(in) :: posSwitches, negSwitches
-!         real(dp), intent(out) :: plusWeight, minusWeight, zeroWeight
-!         character(*), parameter :: this_routine = "calcDoubleProbWeight"
-!
-!         ASSERT(currentB_ilut(ende) > 0.0_dp) ! not sure about that assert...
-!         ASSERT(isProperCSF_ilut(ilut))
-!         ASSERT(ende > 0 .and. ende <= nBasis/2)
-!         ASSERT(posSwitches >= 0.0_dp)
-!         ASSERT(negSwitches >= 0.0_dp)
-!
-!         plusWeight = endGx(ilut,ende) + endFx(ilut,ende)* posSwitches/currentB_ilut(start)
-!
-!         minusWeight = endFx(ilut,ende) + endGx(ilut,ende) * negSwitches/currentB_ilut(start)
-!
-!         zeroWeight = 1.0_dp + 1.0_dp/currentB_ilut(start) * (&
-!             negSwitches * endGx(ilut,ende) + posSwitches * endFx(ilut,ende))
-!
-!     end subroutine calcDoubleProbWeight
-
-
-!     subroutine fullStartSemiStopWeight(ilut, start, mid, ende, negSwitches,&
-!                 posSwitches, minusWeight, plusWeight, zeroWeight)
-!         ! calculates the probabilistic weights of the excitation tree branches
-!         ! in the overlap region with a semi-stop at the end
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         integer, intent(in) :: start, mid, ende
-!         real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
-!         real(dp), intent(out) :: minusWeight, plusWeight, zeroWeight
-!         character(*), parameter :: this_routine = "fullStartSemiStopWeight"
-!
-!         real(dp) :: tmpMinusWeight, tmpPlusWeight
-!
-!         ! ASSERTS....
-!         call calcSingleProbWeight(ilut, mid, ende, posSwitches(mid), negSwitches(mid), &
-!             tmpPlusWeight, tmpMinusWeight)
-!
-!         minusWeight = endFx(ilut,mid) * tmpMinusWeight + negSwitches(start)/currentB_ilut(start) * &
-!             (endFx(ilut,mid) * tmpMinusWeight + endFx(ilut,mid) * tmpPlusWeight)
-!
-!         plusWeight = endGx(ilut,mid) * tmpPlusWeight + posSwitches(start)/currentB_ilut(start) * &
-!             (endGx(ilut,mid)*tmpMinusWeight + endFx(ilut,mid)*tmpPlusWeight)
-!
-!         zeroWeight = endFx(ilut,mid)*tmpPlusWeight + endGx(ilut,mid)*tmpMinusWeight + &
-!             1.0_dp/currentB_ilut(start) + (negSwitches(start)*endGx(ilut,mid)*tmpPlusWeight + &
-!             posSwitches(start)*endFx(ilut,mid)*tmpMinusWeight)
-!
-!
-!     end subroutine fullStartSemiStopWeight
-
-!     subroutine semiStartFullStopWeight(ilut, start, mid, ende, negSwitches, &
-!             posSwitches, minusWeight, plusWeight)
-!         ! calculates the probabilistic weights of excitation tree branches
-!         ! in the single region before the overlap region with a full stop
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         integer, intent(in) :: start, mid, ende
-!         real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
-!         real(dp), intent(out) :: minusWeight, plusWeight
-!         character(*), parameter :: this_routine = "semiStartFullStopWeight"
-!
-!         real(dp) :: tmpMinusWeight, tmpPlusWeight, tmpZeroWeight
-!
-!         ! ASSERTS todo
-!         call calcDoubleProbWeight(ilut, mid, ende, negSwitches(mid), &
-!             posSwitches(mid), tmpMinusWeight, tmpPlusWeight, tmpZeroWeight)
-!
-!         minusWeight = endFx(ilut,mid)*tmpZeroWeight + endGx(ilut,mid)*tmpMinusWeight + &
-!             negSwitches(start)/currentB_ilut(start)*(endFx(ilut,mid)*tmpPlusWeight + &
-!             endGx(ilut,mid)*tmpZeroWeight)
-!
-!         plusWeight = endGx(ilut,mid)*tmpZeroWeight + endFx(ilut,mid)*tmpPlusWeight + &
-!             posSwitches(start)/currentB_ilut(start) * (endFx(ilut,mid)*tmpZeroWeight + &
-!             endGx(ilut,mid)*tmpMinusWeight)
-!
-!     end subroutine semiStartFullStopWeight
-
-!     subroutine fullDoubleWeight(ilut, start, mid1, mid2, ende, negSwitches, &
-!         posSwitches, minusWeight, plusWeight)
-!         ! calculates the probabilistic weights of a double excitation in the
-!         ! single region before an overlap with a semi-stop
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         integer, intent(in) :: start, mid1, mid2, ende
-!         real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
-!         real(dp), intent(out) :: minusWeight, plusWeight
-!         character(*), parameter :: this_routine = "fullDoubleWeight"
-!
-!         real(dp) :: tmpMinusWeight, tmpPlusWeight, tmpZeroWeight
-!         ! ASSERTs...
-!
-!         call fullStartSemiStopWeight(ilut, mid1, mid2, ende, negSwitches, &
-!             posSwitches, tmpMinusWeight, tmpPlusWeight, tmpZeroWeight)
-!
-!         minusWeight = endFx(ilut,mid1)*tmpZeroWeight + endGx(ilut,mid1)*&
-!             tmpMinusWeight + negSwitches(start)/currentB_ilut(start)*(&
-!             endFx(ilut,mid1)*tmpPlusWeight + endGx(ilut,mid1)*tmpZeroWeight)
-!
-!         plusWeight = endGx(ilut,mid1)*tmpZeroWeight + endFx(ilut,mid1) *tmpPlusWeight*&
-!              posSwitches(start)/currentB_ilut(start) * (endGx(ilut,mid1) * &
-!             tmpMinusWeight + endFx(ilut,mid1)*tmpZeroWeight)
-!
-!     end subroutine fullDoubleWeight
-
-!     subroutine singleOverlapRaisingWeight(ilut,start, mid, ende, negSwitches, &
-!             posSwitches, minusWeight, plusWeight)
-!         ! special weight function for this type of excitation, for the region
-!         ! before the single overlap
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         integer, intent(in) :: start, mid, ende
-!         real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
-!         real(dp), intent(out) :: minusWeight, plusWeight
-!         character(*), parameter :: this_routine = "singleOverlapRaisingWeight"
-!
-!         real(dp) :: tmpPlusWeight, tmpMinusWeight, f, g
-!         ! ASSERTS todo
-!
-!         call calcSingleProbWeight(ilut, mid, ende, posSwitches(mid), &
-!             negSwitches(mid), tmpPlusWeight, tmpMinusWeight)
-!
-!
-!         f = endFx(ilut,mid)
-!         g = endGx(ilut,mid)
-!
-!         minusWeight = f * (tmpMinusWeight + (1.0_dp - g)*tmpPlusWeight) + &
-!             g * negSwitches(start)/currentB_ilut(start) * (endLx(ilut,mid) * &
-!             tmpPlusWeight * (1.0_dp - f)*tmpMinusWeight)
-!
-!         plusWeight = g * (endLx(ilut,mid) * tmpPlusWeight + (1.0_dp - f) * &
-!             tmpMinusWeight) + f * posSwitches(start)/currentB_ilut(start) * &
-!             (tmpMinusWeight + (1.0_dp - g) * tmpPlusWeight)
-!
-!
-!     end subroutine singleOverlapRaisingWeight
-
-!     subroutine singleOverlapLoweringWeight(ilut, start, mid, ende, negSwitches, &
-!             posSwitches, minusWeight, plusWeight)
-!         ! special weight function to calculate the probabilisitc weight in the
-!         ! region before a single overlap with 2 lowering generators
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         integer, intent(in) :: start, mid, ende
-!         real(dp), intent(in) :: negSwitches(nBasis/2), posSwitches(nBasis/2)
-!         real(dp), intent(out) :: minusWeight, plusWeight
-!         character(*), parameter :: this_routine = "singleOverlapLoweringWeight"
-!
-!         real(dp) :: tmpMinusWeight, tmpPlusWeight, f, g
-!
-!         ! ASSERTS
-!
-!         call calcSingleProbWeight(ilut, mid, ende, posSwitches(mid), &
-!             negSwitches(mid), tmpPlusWeight, tmpMinusWeight)
-!
-!         f = endFx(ilut,mid)
-!         g = endGx(ilut,mid)
-!
-!         minusWeight = g * tmpMinusWeight + f * (1.0_dp - g) * tmpPlusWeight + &
-!             negSwitches(start)/currentB_ilut(start)*(f*tmpPlusWeight + &
-!             g*(1.0_dp - f) * tmpMinusWeight)
-!
-!         plusWeight = f * tmpPlusWeight + g * (1.0_dp - f) * tmpMinusWeight + &
-!             posSwitches(start)/currentB_ilut(start)*(g*tmpMinusWeight + &
-!             f * (1.0_dp - g) * tmpPlusWeight)
-!
-!
-!     end subroutine singleOverlapLoweringWeight
-
-    function endLx(ilut, ind) result(ret)
+    function endLx(ind) result(ret)
         ! special function to determine if branching at the single overlap
         ! site of a RR excitation is possible
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: ind
         real(dp) :: ret
 
         ret = 0.0_dp
 
-!         if (isTwo(ilut, ind) ) then
         if (current_stepvector(ind) == 2) then
             if (currentB_int(ind) > 1) ret = 1.0_dp
         end if
 
     end function endLx
-
-!     function getMinusWeight(weightObj, switches, ind) result(minusWeight)
-!         ! access function to calculate the probabilistic weight of the minus
-!         ! delta B branch.
-!         type(branchWeight), intent(in) :: weightObj
-!         real(dp), intent(in) :: switches
-!         integer, intent(in) :: ind
-!         real(dp) :: minusWeight
-!         character(*), parameter :: this_routine = "getMinusWeight"
-!
-!         ! just to be sure that it got initiated properly
-!         ASSERT(weightObj%initialized)
-!         ASSERT(associated(weightObj%minus))
-!         ASSERT(ind > 0 .and. ind<= nBasis/2)
-!         ASSERT(switches >= 0.0_dp)
-!
-!         !minusWeight = weightObj%minus(switches, currentB_ilut(ind), &
-!         !    weightObj%minusWeight, weightObj%plusWeight, weightObj%zeroWeight)
-!
-!     end function getMinusWeight
-
-!     function getPlusWeight(weightObj, switches, ind) result(plusWeight)
-!         type(branchWeight), intent(in) :: weightObj
-!         real(dp), intent(in) :: switches
-!         integer, intent(in) :: ind
-!         real(dp) :: plusWeight
-!         character(*), parameter :: this_routine = "getPlusWeight"
-!
-!         ! just to be sure that it got initiated properly
-!         ASSERT(weightObj%initialized)
-!         ASSERT(associated(weightObj%plus))
-!         ASSERT(ind > 0 .and. ind <= nBasis/2)
-!         ASSERT(switches >= 0.0_dp)
-!
-!         !plusWeight = weightObj%plus(switches, currentB_ilut(ind), &
-!         !    weightObj%minusWeight, weightObj%plusWeight, weightObj%zeroWeight)
-!
-!     end function getPlusWeight
-
-!     function getZeroWeight(weightObj, switches, ind) result(zeroWeight)
-!         type(branchWeight), intent(in) :: weightObj
-!         real(dp), intent(in) :: switches
-!         integer, intent(in) :: ind
-!         real(dp) :: zeroWeight
-!         character(*), parameter :: this_routine = "getZeroWeight"
-!
-!
-!         ! just to be sure that it got initiated properly
-!         ASSERT(weightObj%initialized)
-!         ASSERT(associated(weightObj%zero))
-!         ASSERT(ind > 0 .and. ind <= nBasis/2)
-!         ASSERT(switches >= 0.0_dp)
-!
-! !         zeroWeight = weightObj%zero(switches, currentB_ilut(ind), &
-! !             weightObj%minusWeight, weightObj%plusWeight, weightObj%zeroWeight)
-!
-!     end function getZeroWeight
-
-
-!     subroutine calcSingleProbWeight(ilut, start, ende, posSwitches, negSwitches, &
-!             plusWeight, minusWeight)
-!         ! calculates the probabilistic weights of branches in single excitations
-!         ! tree excitations
-!         integer(n_int), intent(in) :: ilut(0:niftot)
-!         integer, intent(in) ::  ende, start
-!         real(dp), intent(in) :: posSwitches, negSwitches
-!         real(dp), intent(out) :: plusWeight, minusWeight
-!         character(*), parameter :: this_routine = "calcSingleProbWeight"
-!
-!         ! have to assert if the b value at the next orbital is nonzero
-!         ! since at the start if there is a 3 or 0 stepvector it doesnt matter
-!         ! and at a switch, the info of the next orbital is necessary
-!         ! and also need the next b value for the probability calculation
-!         ASSERT(currentB_ilut(start) > 0.0_dp) ! not sure about this assert
-!         ASSERT(isProperCSF_ilut(ilut))
-!         ASSERT(ende > 0 .and. ende <= nBasis/2)
-!         ASSERT(posSwitches >= 0.0_dp)
-!         ASSERT(negSwitches >= 0.0_dp)
-!
-! !         weightObj%F = endFx(ilut, ende)
-! !         weightObj%G = endGx(ilut, ende)
-! !
-! !         weightObj%minus => calcSingleWeightMinus
-! !         weightObj%plus  => calcSingleWeightPlus
-! !
-! !         weightObj%initialized = .true.
-!
-!
-!         plusWeight = endGx(ilut, ende) + endFx(ilut, ende) * &
-!             posSwitches/currentB_ilut(start)
-!
-!         minusWeight = endFx(ilut, ende) + endGx(ilut, ende) * &
-!             negSwitches/currentB_ilut(start)
-!
-!     end subroutine calcSingleProbWeight
 
     subroutine calcAllExcitations_double(ilut,i,j,k,l, excitations, nExcits)
         ! function to calculate all possible double excitation for a CSF
@@ -21942,7 +21234,7 @@ contains
         type(weight_obj) :: weights
 
         ! also include probabilistic weights
-        call calcRemainingSwitches_excitInfo_double(L, excitInfo, 1, posSwitches, &
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
             negSwitches)
 
         ! todo include probabilistic weights too.
@@ -22600,6 +21892,12 @@ contains
         type(excitationInformation), intent(in) :: excitInfo
         integer :: ic
 
+        character(*), parameter :: this_routine = "get_excit_level_from_excitInfo"
+
+        call stop_all(this_routine, "TODO")
+        unused_variable(excitInfo)
+        ic = 0
+
     end function get_excit_level_from_excitInfo
 
     function calc_pgen_mol_guga_double(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
@@ -22611,6 +21909,15 @@ contains
         real(dp) :: p_elec
 
         p_elec = 1.0_dp/real(ElecPairs, dp)
+
+        call stop_all(this_routine, "TODO")
+
+        unused_variable(ilutI)
+        unused_variable(nI)
+        unused_variable(ilutJ)
+        unused_variable(nJ)
+        unused_variable(excitInfo)
+        pgen = 0.0_dp
 
     end function calc_pgen_mol_guga_double
 
@@ -22673,8 +21980,17 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp) :: pgen
+        character(*), parameter :: this_routine ="calc_pgen_mol_guga_single_guga"
+
+        call stop_all(this_routine, "TODO")
 
         ! todo
+        unused_variable(ilutI)
+        unused_variable(nI)
+        unused_variable(ilutJ)
+        unused_variable(nJ)
+        unused_variable(excitInfo)
+
         pgen = 0.0_dp
 
     end function calc_pgen_mol_guga_single_guga
@@ -22747,6 +22063,15 @@ contains
         integer, intent(out) :: a, b
         integer, intent(out), optional :: c, d
 
+        character(*), parameter :: this_routine = "get_orbs_from_excit_info"
+
+        call stop_all(this_routine, "TODO")
+        a = 0
+        b = 0
+        c = 0
+        d = 0
+        unused_variable(excitInfo)
+
     end subroutine get_orbs_from_excit_info
 
     subroutine pickOrbs_sym_uniform_mol_single(ilut, nI, excitInfo, pgen)
@@ -22764,6 +22089,8 @@ contains
         integer :: elec, cc_i, ierr, nOrb, orb_ind, orb_i, orb_a
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, r, elec_factor
+
+        unused_variable(ilut)
 
         ! first pick completely random from electrons only!
         elec = 1 + floor(genrand_real2_dSFMT() * nEl)
@@ -22856,8 +22183,7 @@ contains
 
     end subroutine pickOrbs_sym_uniform_mol_single
 
-    subroutine gen_cum_list_real_hub_1(nI, orb_i, cum_arr)
-        integer, intent(in) :: nI(nel)
+    subroutine gen_cum_list_real_hub_1(orb_i, cum_arr)
         integer, intent(in) :: orb_i
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         character(*), parameter :: this_routine = "gen_cum_list_real_hub_1"
@@ -22914,8 +22240,7 @@ contains
 
     end subroutine gen_cum_list_real_hub_1
 
-    subroutine gen_cum_list_real_hub_2(nI, orb_i, cum_arr)
-        integer, intent(in) :: nI(nel)
+    subroutine gen_cum_list_real_hub_2(orb_i, cum_arr)
         integer, intent(in) :: orb_i
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         character(*), parameter :: this_routine = "gen_cum_list_real_hub_2"
@@ -22959,8 +22284,7 @@ contains
 
     end subroutine gen_cum_list_real_hub_2
 
-    subroutine gen_cum_list_real_hub_3(nI, orb_i, cum_arr)
-        integer, intent(in) :: nI(nel)
+    subroutine gen_cum_list_real_hub_3(orb_i, cum_arr)
         integer, intent(in) :: orb_i
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         character(*), parameter :: this_routine = "gen_cum_list_real_hub_3"
@@ -22977,14 +22301,9 @@ contains
 
             ! actually this case is also excluded already since i know it
             ! is d(i) = 3..
-!             if (i == orb_i) then
-!                 cum_arr(i) = cum_sum
-!                 cycle
-!             end if
 
             ! actually the matrix element is also always the same ...
             ! i dont actually need this weighting here..
-!             hel = 0.0_dp
 
             ! actually i only need to cycle if the stepvector is 3 otherwise
             ! just give it the same pgen increment
@@ -23014,6 +22333,10 @@ contains
         print *, "psingles, pDoubles: ", pSingles, pDoubles
         call stop_all(this_routine, &
             "should not be at double excitations in the real-space hubbard model!")
+        unused_variable(ilut)
+        unused_variable(nI)
+        unused_variable(excitInfo)
+        pgen = 0.0_dp
 
     end subroutine pickOrbs_real_hubbard_double
 
@@ -23029,6 +22352,9 @@ contains
 
         integer :: elec, orb_i, orb_a
         real(dp) :: cum_arr(nSpatOrbs), elec_factor, cum_sum, r
+
+        unused_variable(ilut)
+
         ! first pick electron randomly:
         elec = 1 + floor(genrand_real2_dSFMT() * nel)
 
@@ -23041,19 +22367,19 @@ contains
 
             case (1)
                 ! i need a switch possibility for other d = 1 values
-                call gen_cum_list_real_hub_1(nI, orb_i, cum_arr)
+                call gen_cum_list_real_hub_1(orb_i, cum_arr)
 
                 elec_factor = 1.0_dp
 
             case (2)
                 ! i need a switch possibility for other d = 2 values
-                call gen_cum_list_real_hub_2(nI, orb_i, cum_arr)
+                call gen_cum_list_real_hub_2(orb_i, cum_arr)
 
                 elec_factor = 1.0_dp
 
             case (3)
                 ! no restrictions actually
-                call gen_cum_list_real_hub_3(nI, orb_i, cum_arr)
+                call gen_cum_list_real_hub_3(orb_i, cum_arr)
 
                 ! but twice the chance to have picked this spatial orbital:
                 elec_factor = 2.0_dp
@@ -23602,11 +22928,14 @@ contains
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_ueg_single"
 
-        pgen = 0.0_dp
         ! single excitations shouldnt be called in hubbard/ueg simulations
         ! due to k-point symmetry
         call stop_all(this_routine, &
             "single excitation should not be called in Hubbard/UEG models due to k-point symmetries! abort!")
+        pgen = 0.0_dp
+        unused_variable(ilut)
+        unused_variable(nI)
+        unused_variable(excitInfo)
 
     end subroutine pickOrbs_sym_uniform_ueg_single
 
@@ -23636,7 +22965,7 @@ contains
                 call gen_ab_cum_list_1_1(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
 
             else
-                call gen_ab_cum_list_3_3(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
+                call gen_ab_cum_list_3_3(occ_orbs, cum_arr, excit_arr, orb_arr)
 
             end if
          end if
@@ -23956,11 +23285,10 @@ contains
 
     end subroutine gen_ab_cum_list_1_1
 
-    subroutine gen_ab_cum_list_3_3(ilut, occ_orbs, cum_arr, excit_arr, orb_arr)
+    subroutine gen_ab_cum_list_3_3(occ_orbs, cum_arr, excit_arr, orb_arr)
         ! specific routine when the occupaton of the already picked orbitals
         ! is 2 -> still think if i really want to outpout a cum_arr of lenght
         ! nBasis -> nSpatOrbs would be better and doable... !! todo
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_arr(nSpatOrbs)
@@ -24454,7 +23782,7 @@ contains
          ! implementation to choose!...
 
          ! then pick orbital a, weighted with FCIDUMP integrals
-         call pick_a_orb_guga_mol(ilut, occ_orbs, int_contrib(1), cum_sum(1), &
+         call pick_a_orb_guga_mol(occ_orbs, int_contrib(1), cum_sum(1), &
              cum_arr, a)
 
          ! changed that orbital a is now a spatial orbital already!!
@@ -24550,7 +23878,7 @@ contains
              ! information into the pick_b orb function. since there i
              ! already have to check the relation to the other already picked
              ! orbitals.. but not now i guess..
-             call pick_b_orb_guga_mol(ilut, occ_orbs, a, cc_b, int_contrib(2), &
+             call pick_b_orb_guga_mol(occ_orbs, a, cc_b, int_contrib(2), &
                  cum_sum(2), b)
              ! TODO: still have to decide if i output SPATIAL or SPIN orbital
              ! for picked b... so i might have to convert at some point here
@@ -24605,7 +23933,7 @@ contains
              ! no.. only first cum_arr -> have to reconstruct second one..
              ! but actually dont need an array
              ! do that below at the end since its always the same
-             call pgen_select_orb_guga_mol(ilut, occ_orbs, b, a, &
+             call pgen_select_orb_guga_mol(occ_orbs, b, a, &
                  int_switch(2), cum_switch(2))
 
              ! should not happen but assert here that the cummulative
@@ -24632,7 +23960,7 @@ contains
                      pgen = 2.0_dp * pgen
 
                      ! no additional restrictions in picking b
-                     call pick_b_orb_guga_mol(ilut, occ_orbs, a, cc_b, &
+                     call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
                          int_contrib(2), cum_sum(2), b)
 
                      if (b == 0) then
@@ -24643,7 +23971,7 @@ contains
                      ! the good thing -> independent of the ordering, the pgens
                      ! have the same restrictions independent of the order how
                      ! a and b are picked!
-                     call pgen_select_orb_guga_mol(ilut, occ_orbs, b, a, &
+                     call pgen_select_orb_guga_mol(occ_orbs, b, a, &
                          int_switch(2), cum_switch(2))
 
                      ! now determine the type of excitation:
@@ -24709,7 +24037,7 @@ contains
                      ! have to check if A == J
                      if (a == j) then
                          ! then b has to be strictly lower then j!
-                        call pick_b_orb_guga_mol(ilut, occ_orbs, a, cc_b, &
+                        call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
                             int_contrib(2), cum_sum(2), b, -j, .true.)
 
                          if (b == 0) then
@@ -24722,7 +24050,7 @@ contains
                         ! restriction on the orbitals
                         ! although for the nasty mixed full-stops i have to
                         ! recalculate the pgens anyway..
-                        call pgen_select_orb_guga_mol(ilut, occ_orbs, b, &
+                        call pgen_select_orb_guga_mol(occ_orbs, b, &
                             a, int_switch(2), cum_switch(2))
 
                         ! determine excit
@@ -24747,7 +24075,7 @@ contains
                         ! if its not j
                          if (a > j) then
                              ! b can not be J!
-                             call pick_b_orb_guga_mol(ilut, occ_orbs, a, cc_b, &
+                             call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
                                  int_contrib(2), cum_sum(2), b, j)
 
                              if (b == 0) then
@@ -24761,7 +24089,7 @@ contains
                                  ! both are on top -> same pgen
                                  ! p(b) is always determinable from cum_arr... do
                                  ! it outside!
-                                 call pgen_select_orb_guga_mol(ilut, occ_orbs, b, &
+                                 call pgen_select_orb_guga_mol(occ_orbs, b, &
                                      a, int_switch(2), cum_switch(2), j)
 
                                  if (a == b) then
@@ -24780,7 +24108,7 @@ contains
 
                              else
                                  ! pgen is not restricted
-                                 call pgen_select_orb_guga_mol(ilut, occ_orbs, b, &
+                                 call pgen_select_orb_guga_mol(occ_orbs, b, &
                                      a, int_switch(2), cum_switch(2))
                                  if (b < i) then
                                      ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
@@ -24796,7 +24124,7 @@ contains
                              end if
                          else
                              ! there is no restriction in picking b
-                             call pick_b_orb_guga_mol(ilut, occ_orbs, a, cc_b, &
+                             call pick_b_orb_guga_mol(occ_orbs, a, cc_b, &
                                  int_contrib(2), cum_sum(2), b)
 
                              if (b == 0) then
@@ -24805,7 +24133,7 @@ contains
                              end if
                              ! check where b is
                              if (b == j) then
-                                 call pgen_select_orb_guga_mol(ilut, occ_orbs, &
+                                 call pgen_select_orb_guga_mol(occ_orbs, &
                                      b, a, int_switch(2), cum_switch(2), &
                                      -j, .true.)
 
@@ -24824,7 +24152,7 @@ contains
                              else
                                  if (b > j) then
                                      ! a could not have been j
-                                     call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                     call pgen_select_orb_guga_mol(occ_orbs,&
                                          b, a, int_switch(2), cum_switch(2), j)
                                      if (a < i) then
                                          ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
@@ -24839,7 +24167,7 @@ contains
                                      end if
                                  else
                                      ! no restric, on other order
-                                     call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                     call pgen_select_orb_guga_mol(occ_orbs,&
                                          b,a,int_switch(2),cum_switch(2))
 
                                      if (a == b) then
@@ -24886,7 +24214,7 @@ contains
                      ! its a [1 3] configuration -> very similar to [3 1]
                      if (a == i) then
                          ! b has to be strictly higher then I
-                         call pick_b_orb_guga_mol(ilut,occ_orbs,a,cc_b,&
+                         call pick_b_orb_guga_mol(occ_orbs,a,cc_b,&
                              int_contrib(2),cum_sum(2),b,i,.true.)
 
                          if (b == 0) then
@@ -24894,7 +24222,7 @@ contains
                              return
                          end if
                          ! no restriction the other way around
-                         call pgen_select_orb_guga_mol(ilut,occ_orbs,b,a,&
+                         call pgen_select_orb_guga_mol(occ_orbs,b,a,&
                              int_switch(2),cum_switch(2))
 
                          ! ATTENTION: here there have to be the additional
@@ -24918,7 +24246,7 @@ contains
                          ! if its not i
                          if (a < i) then
                              ! b cannot be I
-                             call pick_b_orb_guga_mol(ilut,occ_orbs,a,cc_b,&
+                             call pick_b_orb_guga_mol(occ_orbs,a,cc_b,&
                                  int_contrib(2), cum_sum(2), b, i)
 
                              if (b == 0) then
@@ -24928,7 +24256,7 @@ contains
 
                              if (b < i) then
                                  ! same pgen restrictions
-                                 call pgen_select_orb_guga_mol(ilut,occ_orbs, &
+                                 call pgen_select_orb_guga_mol(occ_orbs, &
                                      b, a, int_switch(2), cum_switch(2), i)
 
                                  if (a == b) then
@@ -24945,7 +24273,7 @@ contains
                                  end if
                              else
                                  ! pgen is not restricted
-                                 call pgen_select_orb_guga_mol(ilut,occ_orbs, &
+                                 call pgen_select_orb_guga_mol(occ_orbs, &
                                      b,a,int_switch(2),cum_switch(2))
 
                                  if (b > j) then
@@ -24962,7 +24290,7 @@ contains
                              end if
                          else
                              ! there is no restriction on b
-                             call pick_b_orb_guga_mol(ilut,occ_orbs,a,cc_b,&
+                             call pick_b_orb_guga_mol(occ_orbs,a,cc_b,&
                                  int_contrib(2),cum_sum(2),b)
 
                              if (b == 0) then
@@ -24972,7 +24300,7 @@ contains
 
                              ! check where b is:
                              if (b == i) then
-                                 call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                 call pgen_select_orb_guga_mol(occ_orbs,&
                                      b,a,int_switch(2),cum_switch(2), i,.true.)
 
                                  if (a > j) then
@@ -24990,7 +24318,7 @@ contains
                              else
                                  if (b < i) then
                                     ! a coud not have been i
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2), i)
 
                                     if (a > j) then
@@ -25007,7 +24335,7 @@ contains
 
                                 else
                                     ! no restrictions on pgen
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2))
 
                                     if (a == b) then
@@ -25072,7 +24400,7 @@ contains
                             end if
                         end if
                         ! b has to be lower than J
-                        call pick_b_orb_guga_mol(ilut,occ_orbs,a,cc_b,&
+                        call pick_b_orb_guga_mol(occ_orbs,a,cc_b,&
                             int_contrib(2),cum_sum(2),b,-j,.true.)
 
                          if (b == 0) then
@@ -25084,7 +24412,7 @@ contains
                         ! pgen contribution!
                         if (b == i) then
                             ! a would have to have been > I
-                            call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
+                            call pgen_select_orb_guga_mol(occ_orbs,b,&
                                 a,int_switch(2),cum_switch(2), i, .true.)
 
                             ! _RL_(ib) > ^RL^(ja)
@@ -25094,7 +24422,7 @@ contains
                         else
                             if (b < i) then
                                 ! I is restricted for a
-                                call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
+                                call pgen_select_orb_guga_mol(occ_orbs,b,&
                                     a,int_switch(2),cum_switch(2), i)
 
                                 ! why am i never here??
@@ -25105,7 +24433,7 @@ contains
 
                             else
                                 ! no restrictions
-                                call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
+                                call pgen_select_orb_guga_mol(occ_orbs,b,&
                                     a,int_switch(2),cum_switch(2))
 
                                 ! _L(i) > _RL(b) > ^RL^(ja)
@@ -25132,7 +24460,7 @@ contains
                             end if
                         end if
                         ! b has to be higher than I
-                        call pick_b_orb_guga_mol(ilut,occ_orbs,a,cc_b,&
+                        call pick_b_orb_guga_mol(occ_orbs,a,cc_b,&
                             int_contrib(2),cum_sum(2),b,i,.true.)
 
                          if (b == 0) then
@@ -25144,7 +24472,7 @@ contains
 
                         if (b == j) then
                             ! a would have to have been < J
-                            call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
+                            call pgen_select_orb_guga_mol(occ_orbs,b,&
                                 a,int_switch(2),cum_switch(2), -j, .true.)
 
                             ! _RL_(ia) > ^RL^(jb)
@@ -25153,7 +24481,7 @@ contains
                         else
                             if (b  > j) then
                                 ! J would be restricted
-                                call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
+                                call pgen_select_orb_guga_mol(occ_orbs,b,&
                                     a,int_switch(2),cum_switch(2), j)
 
                                 ! _RL_(ia) > ^RL(j) > ^L(b)
@@ -25162,7 +24490,7 @@ contains
 
                             else
                                 ! no restrictions
-                                call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
+                                call pgen_select_orb_guga_mol(occ_orbs,b,&
                                     a,int_switch(2),cum_switch(2))
 
                                 ! _RL_(ia) > ^LR(b) > ^R(j)
@@ -25175,7 +24503,7 @@ contains
                         ! check were a is
                         if (a > j) then
                             ! b cant be J
-                            call pick_b_orb_guga_mol(ilut,occ_orbs,a,cc_b,&
+                            call pick_b_orb_guga_mol(occ_orbs,a,cc_b,&
                                 int_contrib(2),cum_sum(2),b,j)
 
                              if (b == 0) then
@@ -25203,7 +24531,7 @@ contains
                                 end if
 
                                 ! everything below I is restricted
-                                call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
+                                call pgen_select_orb_guga_mol(occ_orbs,b,&
                                     a,int_switch(2),cum_switch(2),i,.true.)
 
                                 ! _RL_(ib) > ^RL(j) > ^L(a)
@@ -25213,7 +24541,7 @@ contains
                             else
                                 if (b < i) then
                                     ! I would have been off limits
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2),i)
 
                                     ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
@@ -25238,7 +24566,7 @@ contains
 
                                         ! only extremes count.. and J would have
                                         ! been off-limits
-                                        call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        call pgen_select_orb_guga_mol(occ_orbs,&
                                             b,a,int_switch(2),cum_switch(2),j)
 
                                         st = min(a,b)
@@ -25251,7 +24579,7 @@ contains
 
                                 else
                                     ! no restrictions
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2))
 
                                     ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
@@ -25262,7 +24590,7 @@ contains
                             end if
                         else if (a < i) then
                             ! b cant be I
-                            call pick_b_orb_guga_mol(ilut,occ_orbs,a,cc_b,&
+                            call pick_b_orb_guga_mol(occ_orbs,a,cc_b,&
                                 int_contrib(2),cum_sum(2),b,i)
 
                              if (b == 0) then
@@ -25294,7 +24622,7 @@ contains
                                 ! had to picked something below j, but why
                                 ! is it 0? but thats atleast consistent with
                                 ! above.. is the umat read in wrong?
-                                call pgen_select_orb_guga_mol(ilut,occ_orbs,b,&
+                                call pgen_select_orb_guga_mol(occ_orbs,b,&
                                     a,int_switch(2),cum_switch(2),-j,.true.)
 
                                 ! _R(a) > _LR(i) > ^RL^(jb)
@@ -25304,7 +24632,7 @@ contains
                             else
                                 if (b > j) then
                                     ! J would have been off-limits
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2),j)
                                     ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
                                     excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
@@ -25324,7 +24652,7 @@ contains
 
                                         ! only extremes and I would have been off
                                         ! lmits
-                                        call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                        call pgen_select_orb_guga_mol(occ_orbs,&
                                             b,a,int_switch(2),cum_switch(2),i)
 
                                         st = min(a,b)
@@ -25337,7 +24665,7 @@ contains
 
                                 else
                                     ! no restrictions
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2))
 
                                     ! _R(a) > _LR(i) > ^LR(b) > ^R(j)
@@ -25348,7 +24676,7 @@ contains
                             end if
                         else
                             ! a is between i and j -> no b restrictions
-                            call pick_b_orb_guga_mol(ilut,occ_orbs,a,cc_b,&
+                            call pick_b_orb_guga_mol(occ_orbs,a,cc_b,&
                                 int_contrib(2),cum_sum(2),b)
 
                              if (b == 0) then
@@ -25357,7 +24685,7 @@ contains
                              end if
                             if (b < i) then
                                 ! I off limits
-                                call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                call pgen_select_orb_guga_mol(occ_orbs,&
                                     b,a,int_switch(2),cum_switch(2),i)
 
                                 ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
@@ -25366,7 +24694,7 @@ contains
 
                             else if (b > j) then
                                 ! J off limits
-                                call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                call pgen_select_orb_guga_mol(occ_orbs,&
                                     b,a,int_switch(2),cum_switch(2),j)
 
                                 ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
@@ -25378,7 +24706,7 @@ contains
                                 ! check where b is
                                 if (a == b) then
                                     ! no restrictions on pgen
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2))
 
                                     ! _L(i) > ^LR_(ab) > ^R(j)
@@ -25387,7 +24715,7 @@ contains
 
                                 else if (b == i) then
                                     ! a > I
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2),i,.true.)
 
                                     ! _RL_(ib) > ^LR(a) > ^R(j)
@@ -25396,7 +24724,7 @@ contains
 
                                 else if (b == j) then
                                     ! a < J
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2),-j,.true.)
 
                                     ! _L(i) > _RL(a) > ^RL^(jb)
@@ -25405,7 +24733,7 @@ contains
 
                                 else
                                     ! no restrictions
-                                    call pgen_select_orb_guga_mol(ilut,occ_orbs,&
+                                    call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2))
 
                                     ! only extremes count
@@ -25442,21 +24770,14 @@ contains
      pgen = pgen * (product(int_contrib) / product(cum_sum) + &
                     product(int_switch) / product(cum_switch))
 
-!     if (excitInfo%typ == 16 .and. i == 2 .and. (a == 3 .or. b == 3)) then
-!         print *, "========================="
-!         print *, "orig orb pgen", i, j, pgen
-!     end if
-        ! that should be all...
-
     end subroutine pickOrbs_sym_uniform_mol_double
 
-    subroutine pgen_select_orb_guga_mol(ilut, occ_orbs, orb_b, orb_a, cpt, &
+    subroutine pgen_select_orb_guga_mol(occ_orbs, orb_b, orb_a, cpt, &
             cum_sum, orb_res, range_flag)
         ! routine to recalculate the pgen contribution if orbital (a) and (b)
         ! could have been picked in the opposite order
         ! additional GUGA-restrictions on orbitals are again dealt with
         ! optional input paramters
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2), orb_b, orb_a
         real(dp), intent(out) :: cpt, cum_sum
         integer, intent(in), optional :: orb_res
@@ -25589,11 +24910,10 @@ contains
 
     end subroutine pgen_select_orb_guga_mol
 
-    subroutine pick_b_orb_guga_mol(ilut, occ_orbs, orb_a, cc_b, int_contrib, &
+    subroutine pick_b_orb_guga_mol(occ_orbs, orb_a, cc_b, int_contrib, &
             cum_sum, orb_b, orb_res, range_flag)
         ! restrict the b, if orbital (a) is singly occupied already..
         ! and switch to spatial orbital picking!
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2), orb_a, cc_b
         real(dp), intent(out) :: int_contrib, cum_sum
         integer, intent(out) :: orb_b
@@ -25744,211 +25064,15 @@ contains
 
 
     end subroutine pick_b_orb_guga_mol
-!
-!     subroutine pick_b_orb_guga_mol(ilut, occ_orbs, orb_a, cc_b, int_contrib, &
-!             cum_sum, orb_b, ind_res, range_flag)
-!         ! routine, which picks the second unoccupied orbital depending on the
-!         ! already picked orbitals, the symmetry restrictions and FCIDUMP integrals
-!         ! the additional GUGA restrictions come into play through the optional
-!         ! ind_res and range_flag input
-!         ! the inputed orb_a is again in "spin-orbital" form, so i can easily
-!         ! excluded that orbital from picking it for orbital b!
-!         integer(n_int), intent(in) :: ilut(0:nifguga)
-!         integer, intent(in) :: occ_orbs(2), orb_a, cc_b(2)
-!         real(dp), intent(out) :: int_contrib, cum_sum
-!         integer, intent(out) :: orb_b
-!         integer, intent(in), optional :: ind_res
-!         logical, intent(in), optional :: range_flag
-!         character(*), parameter :: this_routine = "pick_b_orb_guga_mol"
-!
-!         real(dp) :: cum_arr(OrbClassCount(cc_b(1)) + OrbClassCount(cc_b(2))), r
-!         integer :: orb, nOrbs1, nOrbs2, i, label_index1, label_index2, orb_res, &
-!                    orb_index, spin_a
-!
-!         ! to reuse already coded up symmetry information -> pick from
-!         ! "spin-orbitals" here again! also better to generally exclude
-!         ! already picked orbital a, generally to be picked!
-!         nOrbs1 = OrbClassCount(cc_b(1))
-!         nOrbs2 = OrbClassCount(cc_b(2))
-!
-!         ! list 1 will be alpha orbitals
-!         ! list 2 will be beta orbitals
-!         ! atleast thats my understanding right now.. -> check for that
-!         label_index1 = SymLabelCounts2(1, cc_b(1))
-!         label_index2 = SymLabelCounts2(1, cc_b(2))
-!
-!         cum_sum = 0.0_dp
-!
-!         ! determine which "spin-orbital" was picked for A
-!         ! if only one is empty -> choose this one
-!         ! if both were empty -> pick the beta orbital always!
-!         if (IsOcc(ilut,get_beta(orb_a))) then
-!             spin_a = get_alpha(orb_a)
-!         else
-!             ! by definition use beta orbital in the two other cases
-!             spin_a = get_beta(orb_a)
-!         end if
-!
-!         ! set up the additional guga-restrictions
-!         if (present(range_flag) .and. range_flag) then
-!             ! so if the range flag is included original spatial orbital A
-!             ! is off-limits anyway. so depending on the direction ...
-!             ! depends on the sign of the inputted index restriction ind_res
-!             ASSERT(present(ind_res))
-!             ASSERT(ind_res /= 0)
-!             if (ind_res < 0) then
-!                 ! only allow orbitals below ind_res
-!                 orb_res = get_beta(abs(ind_res))
-!
-!                 do i = 1, nOrbs1
-!
-!                     orb = SymLabelList2(label_index1 + i - 1)
-!                     ! specific restrictions:
-!                     if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb < orb_res) then
-!                         cum_sum = cum_sum + &
-!                             get_guga_integral_contrib(occ_orbs, spin_a, orb)
-!                     end if
-!                     cum_arr(i) = cum_sum
-!
-!                 end do
-!
-!                 do i = 1, nOrbs2
-!                     orb = SymLabelList2(label_index2 + i - 1)
-!
-!                     if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb < orb_res) then
-!                         cum_sum = cum_sum + &
-!                             get_guga_integral_contrib(occ_orbs, spin_a, orb)
-!                     end if
-!                     cum_arr(nOrbs1 + i) = cum_sum
-!
-!                 end do
-!
-!             else
-!                 ! only allow orbitals above ind_res
-!                 orb_res = get_alpha(ind_res)
-!
-!                 do i = 1, nOrbs1
-!                     orb = SymLabelList2(label_index1 + i - 1)
-!
-!                     if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb > orb_res) then
-!                         cum_sum = cum_sum + &
-!                             get_guga_integral_contrib(occ_orbs, spin_a, orb)
-!                     end if
-!
-!                     cum_arr(i) = cum_sum
-!
-!                 end do
-!
-!                 do i = 1, nOrbs2
-!                     orb = SymLabelList2(label_index2 + i - 1)
-!
-!                     if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb > orb_res) then
-!                         cum_sum = cum_sum + &
-!                             get_guga_integral_contrib(occ_orbs, spin_a, orb)
-!                     end if
-!
-!                     cum_arr(nOrbs1 + i) = cum_sum
-!
-!                 end do
-!             end if
-!         else
-!             if (present(ind_res) .and. ind_res /= 0) then
-!                 ! dont allow "spin-orbital" associated with ind_res to be
-!                 ! picked
-!                 orb_res = get_alpha(ind_res)
-!
-!                 do i = 1, nOrbs1
-!                     ! thats a loop over alpha - orbital
-!                     orb = SymLabelList2(label_index1 + i - 1)
-!
-!                     if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb /= orb_res) then
-!                         cum_sum = cum_sum + &
-!                             get_guga_integral_contrib(occ_orbs, spin_a, orb)
-!                     end if
-!                     cum_arr(i) = cum_sum
-!
-!                 end do
-!
-!                 orb_res = get_beta(ind_res)
-!                 do i = 1, nOrbs2
-!                     ! thats a loop over beta - orbitals
-!                     orb = SymLabelList2(label_index2 + i - 1)
-!
-!                     if (IsNotOcc(ilut,orb) .and. orb /= spin_a .and. orb /= orb_res) then
-!                         cum_sum = cum_sum + &
-!                             get_guga_integral_contrib(occ_orbs, spin_a, orb)
-!                     end if
-!
-!                     cum_arr(nOrbs1 + i) = cum_sum
-!
-!                 end do
-!
-!             else
-!                 ! only the already picked A orbital is off-limits
-!                 ! as in also every case above..
-!                 ! but how exactly do i implement that?
-!                 ! since i am picking, a spatial orbital for A
-!
-!
-!                 do i = 1, nOrbs1
-!                     orb = SymLabelList2(label_index1 + i - 1)
-!
-!                     if (IsNotOcc(ilut,orb) .and. orb /= spin_a) then
-!                         cum_sum = cum_sum + &
-!                             get_guga_integral_contrib(occ_orbs, spin_a, orb)
-!                     end if
-!
-!                     cum_arr(i) = cum_sum
-!                 end do
-!
-!                 do i = 1, nOrbs2
-!                     orb = SymLabelList2(label_index2 + i - 1)
-!
-!                     if (IsNotOcc(ilut,orb) .and. orb /= spin_a) then
-!                         cum_sum = cum_sum + &
-!                             get_guga_integral_contrib(occ_orbs, spin_a, orb)
-!                     end if
-!                     cum_arr(i) = cum_sum
-!                 end do
-!
-!             end if
-!         end if
-!
-!         if (cum_sum < EPS) then
-!             orb_b = 0
-!             return
-!         end if
-!
-!         r = genrand_real2_dSFMT() * cum_sum
-!         orb_index = binary_search_first_ge(cum_arr, r)
-!
-!         ! hopefully it works to pick from one of the 2 lists..
-!         if (orb_index <= nOrbs1) then
-!             orb_b = SymLabelList2(label_index1 + orb_index - 1)
-!
-!         else
-!             orb_b = SymLabelList2(label_index2 + (orb_index - nOrbs1) - 1)
-!
-!         end if
-!
-!         if (orb_index == 1) then
-!             int_contrib = cum_arr(orb_index)
-!
-!         else
-!             int_contrib = cum_arr(orb_index) - cum_arr(orb_index - 1)
-!         end if
-!
-!     end subroutine pick_b_orb_guga_mol
-!
 
-    subroutine pick_a_orb_guga_mol(ilut, occ_orbs, contrib, cum_sum, cum_arr, orb_a)
+
+    subroutine pick_a_orb_guga_mol(occ_orbs, contrib, cum_sum, cum_arr, orb_a)
         ! general routine, which picks orbital a for a  double excitation in
         ! the guga formalism, with symmetry restrictions and weighted
         ! with the FCIDUMP integrals. This is for MOLECULAR calculations,
         ! since in Hubbard and UEG type calculation with existing k-point
         ! restrictions, there is a more efficient and direct way to pick
         ! weighted with the actual matrix elemetn
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: contrib, cum_sum, cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_a
@@ -25962,7 +25086,7 @@ contains
 
         ! generate the cummulative pgen list:
         if (tGen_guga_weighted) then
-            call gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr)
+            call gen_a_orb_cum_list_guga_mol(occ_orbs, cum_arr)
         else
             cum_arr = current_cum_list
         end if
@@ -25989,11 +25113,10 @@ contains
 
     end subroutine pick_a_orb_guga_mol
 
-    subroutine gen_a_orb_cum_list_guga_mol(ilut, occ_orbs, cum_arr, tgt_orb, pgen)
+    subroutine gen_a_orb_cum_list_guga_mol(occ_orbs, cum_arr, tgt_orb, pgen)
         ! subroutine to generate the molecular cumullative probability
         ! distribution. there are no (atleast until now) addiditonal restrictions
         ! or some spin alignement restrictions to generate this list..
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         integer, intent(in), optional :: tgt_orb
@@ -26445,6 +25568,9 @@ contains
         real(dp) :: r, temp_pgen, temp_pgen2, temp_pgen3, nDouble, nSingle, &
             nEmpty, nOrbs
 
+        unused_variable(ilut)
+        unused_variable(nI)
+
         ! change to different excitation type biasing:
         call pick_first_orbital(i, pgen, excit_lvl, excit_typ)
 
@@ -26535,10 +25661,8 @@ contains
 
                 end if
 
-!             else if (isThree(ilut,i)) then
             case (2)
                 ! switch generators
-!                 if (nEmpty == 0) return
 
                 call pickRandomOrb_forced(0, temp_pgen, j)
 
@@ -26550,11 +25674,6 @@ contains
                 temp_pgen2 = 1.0_dp/real(count(currentOcc_int == 2),dp)
 
                 pgen = pgen * (temp_pgen + temp_pgen2)
-
-!                 pgen = pgen * (1.0_dp - pExcit4) * pExcit2 * pExcit2_same * &
-!                         (temp_pgen + temp_pgen2)
-
-!                 pgen = pgen**2/real(nSpatOrbs - 1,dp) * (temp_pgen + temp_pgen2)
 
                 if (i > j) then
                     ! _RR_(j) > ^RR^(i)
@@ -26568,7 +25687,6 @@ contains
 
                 end if
 
-!             else
             case (1)
                 ! d(i) = {1,2}
                 ! d(j) also has to be singly occupied, due to x1=0 if d(j) = 3
@@ -26576,7 +25694,6 @@ contains
                 ! here there is also a necessary switch condition...
                 ! todo deal with that later
                 call pickRandomOrb_forced(1, temp_pgen, j, i)
-!                 j = pickRandomOrb(!=0 & != 3)
 
                 if (j == 0) then
                     excitInfo%valid = .false.
@@ -26587,12 +25704,6 @@ contains
 
                 pgen = pgen * (temp_pgen + temp_pgen2) / 2.0_dp
 
-!                 pgen = pgen * (1.0_dp - pExcit4) * pExcit2 * (1.0_dp - pExcit2_same) * &
-!                         (temp_pgen + temp_pgen2) / 2.0_dp
-
-!                 pgen = pgen**2/real(nSpatOrbs - 1,dp) * (temp_pgen + temp_pgen2)/2.0_dp
-
-!                 print *, "here?, i,j, temp_pgen, temp_pgen2, pgen", i, j, temp_pgen, temp_pgen2, pgen
                 ! for these mixed excitations i have to adjust the pgens
                 ! similar to the matrix elements as there are a lot
                 ! of different index combinations which could lead to the
@@ -26611,7 +25722,6 @@ contains
 
                 end if
             end select
-!             end if
 
 
         case (3)
@@ -26625,15 +25735,12 @@ contains
             ! UPDATE: have to restrict this DEs to only pick generators,
             ! which lead to excitations, which cant be reproduced by single
             ! excitations. since they are already accounted for.
-!             i = pickRandomOrb()
 
             ! pgen has to be adjusted with the probability that 2 identical
             ! indices got picked
-!             pgen = pgen/real(nBasis/2, dp)
 
             select case (currentOcc_int(i))
             case (0)
-!             if (isZero(ilut,i)) then
                 ! only the generator e_(ij,ik) yields non-zero matrix element
                 ! and the only condition is that d(k) and d(j) are not empty.
                 ! the nececaryy switch condition i again ignore for now..
@@ -26641,7 +25748,6 @@ contains
                 ! non-empty orbitals
                 ! UPDATE: in the 0 case, the excitation cant be reproduced by
                 ! single excitations..
-!                 if (nSingle + nDouble < 2) return
 
                 call pickRandomOrb_scalar(0, temp_pgen, j, 0)
                 call pickRandomOrb_scalar(j, temp_pgen2, k, 0)
@@ -26653,17 +25759,9 @@ contains
 
                 pgen = pgen * temp_pgen * temp_pgen2 * 2.0_dp
 
-!                 pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * &
-!                     pExcit3_same * 2.0_dp * temp_pgen * temp_pgen2
-
-!                 pgen = 2.0_dp * pgen**2*temp_pgen*temp_pgen2*(1.0_dp-1.0_dp/&
-!                     real(nSpatOrbs - 1,dp))
-
                 ! due to the first picking of the repeated index pgens get a
                 ! bit biased i think...
 
-!                 j = pickRandomOrb(!=0)
-!                 k = pickRandomOrb(!=j,!=0)
                 ! then determine the generator/excitation tylp
                 ! we have to also consider the relative relation between the
                 ! generator for the x1_element sign... todo although they lead
@@ -26713,7 +25811,6 @@ contains
 
                 end if
 
-!             else if (isThree(ilut,i)) then
             case (2)
                 ! previously i thought i have to include here also generators
                 ! which essentially lead to single excitations, but in fact I
@@ -26736,12 +25833,6 @@ contains
                 end if
 
                 pgen = pgen * temp_pgen * temp_pgen2 * 2.0_dp
-
-!                 pgen = pgen * (1.0_dp - pExcit4) * (1.0_dp - pExcit2) * &
-!                     pExcit3_same * 2.0_dp * temp_pgen * temp_pgen2
-
-!                 pgen = 2.0_dp * pgen**2*temp_pgen*temp_pgen2*(1.0_dp-1.0_dp/&
-!                     real(nSpatOrbs - 1,dp))
 
                 if ( i < j .and. j < k ) then
                     ! _LL_(i) ^LL(j) ^L(k)
@@ -26775,11 +25866,9 @@ contains
 
                 end if
 
-!             else
             case (1)
                 ! d(i) = {1,2}
                 ! still all stepvector values are possible for this case
-!                 j = pickRandomOrb(!=i)
                 call pickRandomOrb_scalar(i, temp_pgen, j)
 
                 if (j == 0) then
@@ -26811,7 +25900,6 @@ contains
                 ! and repick otherwise...
                 select case (currentOcc_int(j))
                 case (0)
-!                 if (isZero(ilut,j)) then
                     ! have to choose between e_ii,kj and e_ji,ik and pick
                     ! new insight.. dont choose between them, always pick
                     ! mixed gen case. since it can reach same excitations
@@ -26841,10 +25929,6 @@ contains
 
                     pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3)
 
-!                     pgen = pgen**2*(1.0_dp - 1.0_dp/real(nSpatOrbs - 1,dp)) * &
-!                         temp_pgen*(temp_pgen2 + temp_pgen3)
-
-!                     k = pickRandomOrb(!=0 & != i)
                     ! e_ji,ik
                     ! the order of all 3 indices matter
 
@@ -26876,7 +25960,6 @@ contains
                         ! possibility
                         !TODO
                         ! set i to 0 to make choice invalid
-!                         print *, "shouldn be here! j < i < k for n(j) = 0"
                         i = 0
                         excitInfo%typ = 5
                         excitInfo%gen1 = 1
@@ -26890,7 +25973,6 @@ contains
                     else if ( k < i .and. i < j) then
                         ! _L(k) ^LL_(i) ^L(j)
                         ! same as above
-!                         print *, "shouldn be here! k < i < j for n(j) = 0"
                         i = 0
                         excitInfo%typ = 4
                         excitInfo%gen1 = -1
@@ -26902,14 +25984,11 @@ contains
                         excitInfo%firstEnd = i
                         excitInfo%fullEnd = j
                     end if
-!                     end if
 
-!                 else if (isThree(ilut,j)) then
                 case (2)
                     ! why did i comment that out? mistake? probably...
                     ! have o pick a orbital from the list min(i,j)-max(i,j)
                     ! with occupation restriction
-!                     call pickRandomOrb(min(i,j), max(i,j), pgen, k, 2.0_dp)
 
                     if (i < j) then
                         call pickRandomOrb_restricted(i,nSpatOrbs+1,temp_pgen2, k, 2)
@@ -26925,12 +26004,6 @@ contains
                     end if
 
                     pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3)
-
-!                     pgen = pgen**2*(1.0_dp - 1.0_dp/real(nSpatOrbs - 1,dp)) * &
-!                         temp_pgen*(temp_pgen2 + temp_pgen3)
-
-!                     ! pick d(k) != 3
-!                     k = pickRandomOrb(!=3 & != i)
 
                     ! todo think about the generator combinations here.
                     ! e_{ij,ki}
@@ -26961,7 +26034,6 @@ contains
                         ! this excitation can be mimicked by a single
                         ! excitation..
                         i = 0
-!                         print *, "shouldn be here! j < i < k for n(j) = 2"
 
                         excitInfo%typ = 4
                         excitInfo%gen1 = -1
@@ -26975,7 +26047,6 @@ contains
                     else if ( k < i .and. i < j) then
                         ! _R(k) ^RR_(i) ^R(j)
                         i = 0
-!                         print *, "shouldn be here! k < i < j for n(j) = 2"
 
                         excitInfo%typ = 5
                         excitInfo%gen1 = 1
@@ -26987,9 +26058,7 @@ contains
                         excitInfo%firstEnd = i
                         excitInfo%fullEnd = j
                     end if
-!                     end if
 
-!                 else
                 case (1)
                     ! d(j) = {1,2} what are restrictions in d(k) and which
                     ! generator combination are there?
@@ -27007,14 +26076,11 @@ contains
                         return
                     end if
 
-!                     call pickRandomOrb(min(i,j),max(i,j), pgen, k)
 
                     ! also here
-!                     k = pickRandomOrb(!=i & !=j)
                     ! depending on last occupation choose generator comb.
                     select case (currentOcc_int(k))
                     case (0)
-!                     if (isZero(ilut,k)) then
                         ! e_{ij,ki}
                         if (i < j .and. j < k) then
                             ! _RL_(i) > ^RL(j) > ^L(k)
@@ -27051,21 +26117,17 @@ contains
                             ! or restrict indices to not pick those orbitals!
                             ! todo!
                             i = 0
-!                             print *, "shouldn be here!"
-!                             call abort_excitation()
                         else if ( k < i .and. i < j) then
                             ! _R(k) > ^RR_(i) > ^R(j)
                             ! return in this case or restrict orbitals to not
                             ! pick this combination!
                             i = 0
-!                             print *, "shouldn be here!"
 
                         else
                             ! something went wrong!
                             call stop_all(this_routine, "should not be here!")
                         end if
 
-!                     else if (isThree(ilut,k)) then
                     case (2)
                         ! e_{ji,ik}
                         if (i < j .and. j < k) then
@@ -27101,30 +26163,21 @@ contains
                             ! single-like excitation!
                             ! avoid or abort!
                             i = 0
-!                             print *, "shouldn be here!"
-!                             call abort_excitation()
                         else if ( k < i .and. i < j) then
                             ! _L(k) > ^LL_(i) > ^L(j)
                             ! single like!
                             i = 0
-!                             print *, "shouldn be here!"
-!                             call abort_excitation()
                         else
                             call stop_all(this_routine, "should not be here!")
                         end if
 
                         pgen = pgen * temp_pgen * (temp_pgen2 + temp_pgen3)
 
-!                         pgen = pgen**2*(1.0_dp - 1.0_dp/real(nSpatOrbs - 1,dp)) * &
-!                             temp_pgen*(temp_pgen2 + temp_pgen3)
-
-!                     else
                     case (1)
                         ! e_{ij,ki} or e_{ji,ik}
 
                         ! those 2 can lead to different excvitations!
                         ! so choose randomly between them! and update pgen
-!                         pgen = pgen/2.0_dp
 
                         ! how the fuck did this work until now??
                         ! i have totally missed the remaining pgen
@@ -27174,14 +26227,11 @@ contains
                                 ! or restrict indices to not pick those orbitals!
                                 ! todo!
                                 i = 0
-!                                 print *, "shouldn be here!"
-    !                             call abort_excitation()
                             else if ( k < i .and. i < j) then
                                 ! _R(k) > ^RR_(i) > ^R(j)
                                 ! return in this case or restrict orbitals to not
                                 ! pick this combination!
                                 i = 0
-!                                 print *, "shouldn be here!"
 
                             else
                                 ! something went wrong!
@@ -27224,14 +26274,10 @@ contains
                                 ! single-like excitation!
                                 ! avoid or abort!
                                 i = 0
-!                                 print *, "shouldn be here!"
-    !                             call abort_excitation()
                             else if ( k < i .and. i < j) then
                                 ! _L(k) > ^LL_(i) > ^L(j)
                                 ! single like!
                                 i = 0
-!                                 print *, "shouldn be here!"
-    !                             call abort_excitation()
                             else
                                 call stop_all(this_routine, "should not be here!")
                             end if
@@ -27243,62 +26289,9 @@ contains
                     end select
                 end select
             end select
-!                     end if
-!                 end if
-!             end if
-! #ifdef __DEBUG
-!             print *, "orb j: ", j, ", d(j) = ", getStepvalue(ilut,j)
-!             print *, "orb k: ", k, ", d(k) = ", getStepvalue(ilut,k)
-! #endif
-!
-!             else
-!                 ! d(i) == 3
-!                 ! still leaves all orbitals != i possible
-! !                 j = pickRandomOrb(!=i)
-!                 if (isZero(ilut,j)) then
-!                     ! still all stepvectors possible
-! !                     k = pickRandomOrb(!= i & != j)
-!                     ! depending on stepvalue there pick generator
-!                     if (isZero(ilut,k)) then
-!                         ! e_{ji,ki}
-!
-!                     else if (isThree(ilut,k)) then
-!                         ! e_{ii,jk}
-!
-!                     else
-!                         ! e_{ii,jk} or e_{ji,ki}
-!
-!                     ! what happ
-!                     end if
-!
-!                 else if (isThree(ilut,j)) then
-!                     ! very restrictive here then-> pick non-doubly and only
-!                     ! on generator possible
-! !                     k = pickRandomOrb(!=i,!=j,!=3)
-!                     ! e_{ii,kj}
-!
-!                 else
-!                     ! still all stepvalues valid
-! !                     k = pickRandomOrb(!=i,!=j)
-!                     if (isZero(ilut,k)) then
-!                         ! e_{ii,kj} or e_{ji,ki}
-!
-!                     else if (isThree(ilut,k)) then
-!                         ! e_{ii, jk}
-!
-!                     else
-!                         ! e_{ji,ki} or e_{ii,jk} or e_{ii,kj}
-!
-!                     end if
-!                 end if
-!
-!             end if
 
         case (4)
             ! helpful quantities:
-!             nEmpty = real(count(currentOcc_ilut == 0.0_dp),dp)
-!             nSingle = real(count(currentOcc_ilut == 1.0_dp),dp)
-!             nDouble = real(count(currentOcc_ilut == 2.0_dp),dp)
             ! (ij,kl) leaves all 12 generator combination possible
             ! since it is only necessary to reach all possible excitations from a
             ! given CSF, pick generators in such a way that all these can be
@@ -27326,11 +26319,8 @@ contains
 
             select case (currentOcc_int(i))
             case (0)
-!             if (isZero(ilut,i)) then
-!                 j = pickRandomOrb(!=i)
                 select case (currentOcc_int(j))
                 case (0)
-!                 if (isZero(ilut,j)) then
                     ! then k and l have to be non-zero
                     call pickRandomOrb_scalar(0, temp_pgen2, k, 0)
                     call pickRandomOrb_scalar(k, temp_pgen3, l, 0)
@@ -27343,33 +26333,15 @@ contains
                     ! actually need all occupation number infos for the
                     ! calculation of the pgen contribution of different
                     ! index choosing
-!                     if (isThree(ilut,k)) then
                     if (current_stepvector(k) == 3) then
-!                         if (isThree(ilut,l)) then
                         if (current_stepvector(l) == 3) then
 
                         ! 0022
-!                         pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
-!                             2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
-!                             1.0_dp/(nSingle + nDouble - 1.0_dp)))
-
                         pgen = calc_pgen_0022()
 
                         else
                             ! 0021 or 0011
                             pgen = calc_pgen_00xx()
-!
-!                         pgen = 2.0_dp * pgen**2 * (&
-!                             1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs - 3.0_dp)) + &
-!                             1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                     1.0_dp/(nOrbs - 3.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nDouble-1.0_dp)))
                         end if
 
                     else
@@ -27383,9 +26355,7 @@ contains
 
                     ! since there are two valid ways too choose generators
                     ! adjust the pgen too?!
-!                     pgen = pgen/2.0_dp
 
-!                 else if (isThree(ilut,j)) then
                 case (2)
                     ! still free to pick k
                     call pickRandomOrb_vector([i,j], temp_pgen2, k)
@@ -27397,10 +26367,8 @@ contains
 
                     select case (currentOcc_int(k))
                     case (0)
-!                     if (isZero(ilut,k)) then
                         ! pick somethin != 0 for l
                         call pickRandomOrb_scalar(j, temp_pgen3, l, 0)
-!                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
 
                         if (l == 0) then
                             excitInfo%valid = .false.
@@ -27409,37 +26377,19 @@ contains
 
                         ! e_{il,kj}
 
-!                         if (isThree(ilut,l)) then
                         if (current_stepvector(l) == 3) then
                             ! 0202
 
                             pgen = calc_pgen_0022()
 
-!                             pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
-!                                 2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
-!                                 1.0_dp/(nSingle + nDouble - 1.0_dp)))
-!
                         else
                             ! 0201
                             pgen = calc_pgen_0022()
 
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-!
                         end if
 
                         excitInfo = create_excitInfo_il_kj(i,j,k,l)
 
-!                     else if (isThree(ilut,k)) then
                     case (2)
                         call pickRandomOrb_scalar(i, temp_pgen3, l, 2)
 
@@ -27448,38 +26398,20 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{ik,lj}
                         excitInfo = create_excitInfo_ik_lj(i,j,k,l)
 
-!                         if (isZero(ilut,l)) then
                         if (current_stepvector(l) == 0) then
                             ! 0220
                             pgen = calc_pgen_0022()
 
-!                             pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
-!                                 2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
-!                                 1.0_dp/(nSingle + nDouble - 1.0_dp)))
                         else
                             !0221:
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-
                         end if
 
 
-!                     else
                     case (1)
                         ! free to pick l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
@@ -27489,31 +26421,14 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj}
                             excitInfo = create_excitInfo_ik_lj(i,j,k,l)
-!                             pgen = pgen/2.0_dp
 
                             ! 0210
                             pgen = calc_pgen_00xx()
 
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-
-
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{il,kj}
                             excitInfo = create_excitInfo_il_kj(i,j,k,l)
@@ -27521,19 +26436,6 @@ contains
                             ! 0212
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-
-!                         else
                         case (1)
                             ! e_{il,kj} or e_{ik,lj}
                             ! choose randomly between the 2 possibilities
@@ -27541,9 +26443,6 @@ contains
                             ! 0211
                             pgen = calc_pgen_1102()
 
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
-!
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             else
@@ -27551,10 +26450,7 @@ contains
                             end if
 
                         end select
-!                         end if
                     end select
-!                     end if
-!                 else
                 case (1)
                     ! n(j) = 1 -> free to pick k
                     call pickRandomOrb_vector([i,j], temp_pgen2, k)
@@ -27564,10 +26460,8 @@ contains
                         return
                     end if
 
-!                     k = pickRandomOrb(!=i,!=j)
                     select case (currentOcc_int(k))
                     case (0)
-!                     if (isZero(ilut,k)) then
                         ! pick nonzero l
                         call pickRandomOrb_scalar(j, temp_pgen3, l, 0)
 
@@ -27576,46 +26470,12 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
                         ! e_{il,kj}
                         excitInfo = create_excitInfo_il_kj(i,j,k,l)
 
                         ! 0102 or 0101
                         pgen = calc_pgen_00xx()
 
-!                         if (isThree(ilut,l)) then
-!                             ! 0102
-!                             pgen = calc_pgen_00xx()
-!
-! !                             pgen = 2.0_dp * pgen**2 * (&
-! !                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-! !                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-! !                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-! !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-! !                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-! !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-! !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-! !                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-! !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-! !                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-!
-!                         else
-!                             ! 0101
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-!
-!                         end if
-
-!                     else if (isThree(ilut,k)) then
                     case (2)
                         ! free to pick l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
@@ -27625,57 +26485,26 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj}
                             excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             ! 0120
                             pgen = calc_pgen_00xx()
 
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-!
-
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{ik,jl}
                             excitInfo = create_excitInfo_ik_jl(i,j,k,l)
                             ! 0122
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
 
-
-!                         else
                         case (1)
                             ! e_{ik,jl} or e_{ik,lj}
 
                             ! 0121
                             pgen = calc_pgen_1102()
 
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 excitInfo = create_excitInfo_ik_jl(i,j,k,l)
@@ -27683,8 +26512,6 @@ contains
                                 excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             end if
                         end select
-!                         end if
-!                     else
                     case (1)
                         ! n(k) = 1
                         ! free to pick
@@ -27695,37 +26522,18 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj}
                             excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                             ! 0110
                             pgen = calc_pgen_00xx()
 
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-!
-
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{il,jk} or e_{il,kj}
                             ! 0112
                             pgen = calc_pgen_1102()
 
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
-!
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 ! e_{il,jk}
                                 excitInfo = create_excitInfo_il_jk(i,j,k,l)
@@ -27733,15 +26541,11 @@ contains
                                 ! e_{il,kj}
                                 excitInfo = create_excitInfo_il_kj(i,j,k,l)
                             end if
-!                         else
                         case (1)
                             ! choose between: 3 different possibilities:
                             ! e_{il,kj} or e_{ik,jl} or e_{ik,lj}
                             ! 0111
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
-
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))/3.0_dp
 
                             r = genrand_real2_dSFMT()
                             if (r < 0.3333333_dp) then
@@ -27756,23 +26560,15 @@ contains
                             end if
 
                         end select
-!                         end if
                     end select
-!                     end if
                 end select
-!                 end if
-!             else if (isThree(ilut,i)) then
             case (2)
                 ! j can be randomly picked
-!                 j = pickRandomOrb(!=i)
                 select case (currentOcc_int(j))
                 case (2)
-!                 if (isThree(ilut,j)) then
                     ! pick non-doubly k,l
                     call pickRandomOrb_scalar(0, temp_pgen2, k, 2)
                     call pickRandomOrb_scalar(k, temp_pgen3, l, 2)
-!                     k = pickRandomOrb(!=i,!=j,!=3)
-!                     l = pickRandomOrb(!=i,!=j,!=k,!=3)
 
                     if (k == 0 .or. l == 0) then
                         excitInfo%valid = .false.
@@ -27781,31 +26577,14 @@ contains
 
                     ! have to check k and l values
                     if (current_stepvector(k) == 0) then
-!                     if (isZero(ilut,k)) then
                         if (current_stepvector(l) == 0) then
-!                         if (isZero(ilut,l)) then
                             ! 3300
                             pgen = calc_pgen_0022()
-
-!                         pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
-!                             2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
-!                             1.0_dp/(nSingle + nDouble - 1.0_dp)))
 
                         else
                             ! 2211, 2210 and permutations -> with same pgen
                             pgen = calc_pgen_22xx()
 
-!                         pgen = 2.0_dp*pgen**2*(&
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                 1.0/(nOrbs-3.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                 1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                             1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                 1.0_dp/(nOrbs-3.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                 1.0_dp/(nOrbs-3.0_dp)))
                         end if
 
                     else
@@ -27817,7 +26596,6 @@ contains
                     ! e_{ki,lj}
                     excitInfo = create_excitInfo_ki_lj(i,j,k,l)
 
-!                 else if (isZero(ilut,j)) then
                 case (0)
                     ! free k
                     call pickRandomOrb_vector([i,j], temp_pgen2, k)
@@ -27827,14 +26605,8 @@ contains
                         return
                     end if
 
-!                     pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
-!                         2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
-!                         1.0_dp/(nSingle + nDouble - 1.0_dp)))
-
-!                     k = pickRandomOrb(!=i,!=j)
                     select case (currentOcc_int(k))
                     case (0)
-!                     if (isZero(ilut,k)) then
                         ! pick non-zero l
                         call pickRandomOrb_scalar(i, temp_pgen3, l, 0)
 
@@ -27843,38 +26615,18 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
                         ! e_{ki,jl}
                         excitInfo = create_excitInfo_ki_jl(i,j,k,l)
 
-!                         if (isThree(ilut,l)) then
                         if (current_stepvector(l) == 3) then
                             ! 2002
                             pgen = calc_pgen_0022()
 
-!                             pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
-!                                 2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
-!                                 1.0_dp/(nSingle + nDouble - 1.0_dp)))
-
                         else
                             ! 2001
                             pgen = calc_pgen_00xx()
-!
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-!
                         end if
 
-!                     else if (isThree(ilut,k)) then
                     case (2)
                         ! pick non double l
                         call pickRandomOrb_scalar(j, temp_pgen3, l, 2)
@@ -27884,38 +26636,19 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{li,jk}
                         excitInfo = create_excitInfo_li_jk(i,j,k,l)
 
-!                         if (isZero(ilut,l)) then
                         if (current_stepvector(l) == 0) then
                             ! 2020
                             pgen = calc_pgen_0022()
-
-!                             pgen = 4.0_dp*pgen**2*(1.0_dp/(nSingle + nDouble) + 1.0_dp/nEmpty + &
-!                                 2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
-!                                 1.0_dp/(nSingle + nDouble - 1.0_dp)))
 
                         else
                             ! 2021
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-
                         end if
 
-!                     else
                     case (1)
                         ! n(k) = 1, free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
@@ -27925,56 +26658,24 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{li,jk}
                             excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             ! 2010
                             pgen = calc_pgen_00xx()
-!
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-!
-!                         else if (isThree(ilut,l)) then
+
                         case (2)
                             ! e_{ki,jl}
                             excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             ! 2012
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-!
-
-!                         else
                         case (1)
                             ! choose randomly between:
                             ! e_{li,jk} or e_{ki,jl}
                             ! 2011
                             pgen = calc_pgen_1102()
-!
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 ! e_{li,jk}
@@ -27985,10 +26686,7 @@ contains
                             end if
 
                         end select
-!                         end if
                     end select
-!                     end if
-!                 else
                 case (1)
                     ! n(j) = 1, free k
                     call pickRandomOrb_vector([i,j], temp_pgen2, k)
@@ -27998,10 +26696,8 @@ contains
                         return
                     end if
 
-!                     k = pickRandomOrb(!=i,!=j)
                     select case (currentOcc_int(k))
                     case (2)
-!                     if (isThree(ilut,k)) then
                         ! pick non-doubly l
                         call pickRandomOrb_scalar(j, temp_pgen3, l, 2)
 
@@ -28010,46 +26706,12 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{li,jk}
                         excitInfo = create_excitInfo_li_jk(i,j,k,l)
 
                         ! 2120 or 2121
                         pgen = calc_pgen_22xx()
-!
-!                         if (isZero(ilut,l)) then
-!                             ! 2120
-!
-! !                             pgen = 2.0_dp*pgen**2*(&
-! !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-! !                                                     1.0/(nOrbs-3.0_dp)) + &
-! !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-! !                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-! !                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-! !                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-! !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-! !                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-! !                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-! !                                                     1.0_dp/(nOrbs-3.0_dp)))
-!
-!
-!                         else
-!                             ! 2121 is the same as above not?
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-!
-!                         end if
-!
-!                     else if (isZero(ilut,k)) then
+
                     case (0)
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
@@ -28059,57 +26721,24 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{li,kj}
                             excitInfo = create_excitInfo_li_kj(i,j,k,l)
                             ! 2100
                             pgen = calc_pgen_00xx()
 
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-
-
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{ki,jl}
                             excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             ! 2102
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-
-
-!                         else
                         case (1)
                             ! e_{ki,jl} or e_{ki,lj}
 
                             ! 2101
                             pgen = calc_pgen_1102()
-
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             if (genrand_real2_dSFMT()  < 0.5_dp) then
                                 ! e_{ki,jl}
@@ -28120,8 +26749,6 @@ contains
                             end if
 
                         end select
-!                         end if
-!                     else
                     case (1)
                         ! n(k) = 1, free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
@@ -28131,15 +26758,10 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! 2110
                             pgen = calc_pgen_1102()
-!
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             ! e_{li,jk} or e_{li,kj}
                             if (genrand_real2_dSFMT() < 0.5_dp) then
@@ -28150,34 +26772,16 @@ contains
                                 excitInfo = create_excitInfo_li_kj(i,j,k,l)
                             end if
 
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{ki,jl}
                             excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             ! 2112
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-
-
-!                         else
                         case (1)
                             ! e_{ki,jl} or e_{ki,lj} or e_{li,jk}
                             ! 2111
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
-
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))/3.0_dp
 
                             r = genrand_real2_dSFMT()
                             if (r < THIRD) then
@@ -28195,10 +26799,7 @@ contains
                         end select
                     end select
                 end select
-!                         end if
-!                     end if
-!                 end if
-!             else
+
             case (1)
                 ! n(i) = 1, free j and k
                 call pickRandomOrb_vector([i,j], temp_pgen2, k)
@@ -28208,14 +26809,10 @@ contains
                     return
                 end if
 
-!                 j = pickRandomOrb(!=i)
-!                 k = pickRandomOrb(!=i,!=j)
                 select case (currentOcc_int(j))
                 case (0)
-!                 if (isZero(ilut,j)) then
                     select case (currentOcc_int(k))
                     case (0)
-!                     if (isZero(ilut,k)) then
                         ! l restricted to non-empty
                         call pickRandomOrb_scalar(i, temp_pgen3, l, 0)
 
@@ -28224,26 +26821,11 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k,!=0)
                         ! e_{ki,jl}
                         excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                         ! 1001 or 1002 -> same pgen!
                         pgen = calc_pgen_00xx()
 
-!                         pgen = 2.0_dp * pgen**2 * (&
-!                             1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs - 3.0_dp)) + &
-!                             1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                     1.0_dp/(nOrbs - 3.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nDouble-1.0_dp)))
-
-
-!                     else if (isThree(ilut,k)) then
                     case (2)
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
@@ -28253,56 +26835,23 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{li,jk}
                             excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             ! 1020
                             pgen = calc_pgen_00xx()
 
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-!
-
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{il,jk}
                             excitInfo = create_excitInfo_il_jk(i,j,k,l)
                             ! 1022
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-
-
-!                         else
                         case (1)
                             ! e_{il,jk} or e_{li,jk}
                             ! 1021
                             pgen = calc_pgen_1102()
-
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 ! e_{il,jk}
@@ -28313,8 +26862,6 @@ contains
                             end if
 
                         end select
-!                         end if
-!                     else
                     case (1)
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
@@ -28324,35 +26871,17 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{li,jk}
                             excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             ! 1010
                             pgen = calc_pgen_00xx()
 
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{ik,jl} or e_{ki,jl}
                             ! 1012
                             pgen = calc_pgen_1102()
-
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 ! e_{ik,jl}:
@@ -28362,14 +26891,10 @@ contains
                                 excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             end if
 
-!                         else
                         case (1)
                             ! e_{li,jk} or e_{ik,jl} or e_{ki,jl}
                             ! 1011
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
-
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))/3.0_dp
 
                             r = genrand_real2_dSFMT()
                             if (r < THIRD) then
@@ -28385,13 +26910,9 @@ contains
 
                         end select
                     end select
-!                         end if
-!                     end if
-!                 else if (isThree(ilut,j)) then
                 case (2)
                     select case (currentOcc_int(k))
                     case (0)
-!                     if (isZero(ilut,k)) then
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
 
@@ -28400,55 +26921,23 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{ki,lj}
                             excitInfo = create_excitInfo_ki_lj(i,j,k,l)
                             ! 1200
                             pgen = calc_pgen_00xx()
 
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-
                         case (2)
-!                         else if (isThree(ilut,l)) then
                             ! e_{il,kj}
                             excitInfo = create_excitInfo_il_kj(i,j,k,l)
                             ! 1202
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-
-
-!                         else
                         case (1)
                             ! e_{il,kj} or e_{li,kj}
                             ! 1201
                             pgen = calc_pgen_1102()
-!
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 ! e_{il,kj}
@@ -28459,8 +26948,7 @@ contains
                             end if
 
                         end select
-!                         end if
-!                     else if (isThree(ilut,k)) then
+
                     case (2)
                         ! non-doubly l
                         call pickRandomOrb_scalar(i, temp_pgen3, l, 2)
@@ -28470,26 +26958,11 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k,!=3)
                         ! e_{ik,lj}
                         excitInfo = create_excitInfo_ik_lj(i,j,k,l)
                         ! 1220 or 1221 -> same pgen
                         pgen = calc_pgen_22xx()
 
-!                         pgen = 2.0_dp*pgen**2*(&
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                 1.0/(nOrbs-3.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                 1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                             1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                 1.0_dp/(nOrbs-3.0_dp)) + &
-!                             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                 1.0_dp/(nOrbs-3.0_dp)))
-
-
-!                     else
                     case (1)
                         ! free l
                         call pickRandomOrb_vector([i,j,k], temp_pgen3, l)
@@ -28499,16 +26972,11 @@ contains
                             return
                         end if
 
-!                         l = pickRandomOrb(!=i,!=j,!=k)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj} or e_{ki,lj}
                             ! 1210
                             pgen = calc_pgen_1102()
-
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 ! e_{ik,lj}
@@ -28518,33 +26986,16 @@ contains
                                 excitInfo = create_excitInfo_ki_lj(i,j,k,l)
                             end if
 
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{il,kj}
                             excitInfo = create_excitInfo_il_kj(i,j,k,l)
                             ! 1212
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-
-!                         else
                         case (1)
                             ! e_{il,kj} or e_{li,kj} or e_{ik,lj}
                             ! 1211
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
-
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))/3.0_dp
 
                             r = genrand_real2_dSFMT()
                             if (r < THIRD) then
@@ -28560,9 +27011,6 @@ contains
 
                         end select
                     end select
-!                         end if
-!                     end if
-!                 else
                 case (1)
                     ! n(j) = 1
                     ! free l
@@ -28573,38 +27021,19 @@ contains
                         return
                     end if
 
-!                     l = pickRandomOrb(!=i,!=j,!=k)
                     select case (currentOcc_int(k))
                     case (0)
-!                     if (isZero(ilut,k)) then
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{ki,lj}
                             excitInfo = create_excitInfo_ki_lj(i,j,k,l)
                             ! 1100
                             pgen = calc_pgen_00xx()
 
-!                             pgen = 2.0_dp * pgen**2 * (&
-!                                 1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                                         1.0_dp/(nOrbs - 3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                         1.0_dp/(nSingle+nDouble-1.0_dp)))
-
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{il,kj} or e_{ki,jl}
                             ! 1102
                             pgen = calc_pgen_1102()
-
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 ! e_{il,kj}
@@ -28614,14 +27043,10 @@ contains
                                 excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             end if
 
-!                         else
                         case (1)
                             ! e_{il,kj} or e_{li,kj} or e_{ki,jl}
                             ! 1101
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
-
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))/3.0_dp
 
                             r = genrand_real2_dSFMT()
                             if (r < THIRD) then
@@ -28635,18 +27060,12 @@ contains
                                 excitInfo = create_excitInfo_ki_jl(i,j,k,l)
                             end if
                         end select
-!                         end if
-!                     else if (isThree(ilut,k)) then
                     case (2)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{ik,lj} or e_{li,jk}
                             ! 1120
                             pgen = calc_pgen_1102()
-
-!                             pgen = 1.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))
 
                             if (genrand_real2_dSFMT() < 0.5_dp) then
                                 ! e_{ik,lj}
@@ -28656,34 +27075,16 @@ contains
                                 excitInfo = create_excitInfo_li_jk(i,j,k,l)
                             end if
 
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{ik,jl}
                             excitInfo = create_excitInfo_ik_jl(i,j,k,l)
                             ! 1122
                             pgen = calc_pgen_22xx()
 
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nEmpty-1.0_dp) + &
-!                                                     1.0/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                                     1.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nSingle+nEmpty)*(2.0_dp/(nSingle+nEmpty-1.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)) + &
-!                                 1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                                     1.0_dp/(nOrbs-3.0_dp)))
-
-
-!                         else
                         case (1)
                             ! e_{li,jk} or e_{ik,jl}  or e_{ik,lj}
                             ! 1121
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
-!
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))/3.0_dp
 
                             r = genrand_real2_dSFMT()
                             if (r < THIRD) then
@@ -28701,18 +27102,12 @@ contains
                             end if
 
                         end select
-!                         end if
-!                     else
                     case (1)
                         select case (currentOcc_int(l))
                         case (0)
-!                         if (isZero(ilut,l)) then
                             ! e_{li,jk} or e_{li,kj} or e_{ik,lj}
                             ! 1110
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
-
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))/3.0_dp
 
                             r = genrand_real2_dSFMT()
                             if (r < THIRD) then
@@ -28729,14 +27124,10 @@ contains
 
                             end if
 
-!                         else if (isThree(ilut,l)) then
                         case (2)
                             ! e_{il,kj} or e_{ik,jl} or e_{ki,jl}
                             ! 1112
                             pgen = calc_pgen_1102()*2.0_dp/3.0_dp
-
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))/3.0_dp
 
                             r = genrand_real2_dSFMT()
                             if (r < THIRD) then
@@ -28753,15 +27144,11 @@ contains
 
                             end if
 
-!                         else
                         case (1)
                             ! e_{il,jk} or e_{li,jk} or e_{il,kj} or
                             ! e_{li,kj} or e_{ki,jl} or e_{ik,lj}
                             ! 1111
                             pgen = calc_pgen_1102()/3.0_dp
-
-!                             pgen = 2.0_dp*pgen**2*(&
-!                                 6.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)))/6.0_dp
 
                             r = genrand_real2_dSFMT()
                             if (r < THIRD/2.0_dp) then
@@ -28793,16 +27180,6 @@ contains
                     end select
                 end select
             end select
-!                         end if
-!                     end if
-!                 end if
-!             end if
-
-! #ifdef __DEBUG
-!             print *, "orb j: ", j, "d(j): ", getStepvalue(ilut,j)
-!             print *, "orb k: ", k, "d(k): ", getStepvalue(ilut,k)
-!             print *, "orb l: ", l, "d(l): ", getStepvalue(ilut,l)
-! #endif
         case default
             ! should not be here!
             call stop_all(this_routine, "should not be here!")
@@ -28813,7 +27190,6 @@ contains
         ! really inefficient
         select case (excit_lvl)
         case (4)
-!         if (excit_lvl == 4) then
 
             if (any([i,j,k,l] == 0)) then
                 ! one of the indices is invalid
@@ -28830,7 +27206,6 @@ contains
 
             end if
 
-!         else if (excit_lvl == 3) then
         case (3)
 
 
@@ -29320,8 +27695,9 @@ contains
 
         integer :: i, j, nOrbs, k, ierr, r, nSwitches
         real(dp) :: factor
-!         real(dp) :: cum_sum
         ASSERT(isProperCSF_ilut(ilut))
+
+        unused_variable(nI)
 
         excitInfo%typ = 0
         excitInfo%excitLvl = 2
@@ -29335,7 +27711,6 @@ contains
         ! which makes pgen = 1/nOrbs
         pgen = 1.0_dp/real((nSpatOrbs),dp)
 
-!         print *, "orb i: ", i, "d(i): ", getStepvalue(ilut,i)
         ! have to then combine that somehow with the weighted cauchy schwartz
         ! criteria...
         ! i am ignoring symmetry for now. but could do that with the already
@@ -29348,14 +27723,12 @@ contains
         ! second picked one:
 
         ! need a vector numbering the orbitals
-!         orbs = [ (i, i = 1, nBasis/2) ]
 
         ! factor if multiple generators are possible
         factor = 1.0_dp
 
         select case (current_stepvector(i))
         case (0)
-!         if (isZero(ilut,i)) then
             ! if d(i) = 0:
             ! if the influence of forced switches are ignored(as they are to
             ! complicated to account for) all d(j) != 0 are allowed then
@@ -29371,9 +27744,6 @@ contains
             ! from these orbitals i have to calculate a cumulative
             ! probability distribution, according to the one and two-body ints
 
-!             cum_sum = 0.0_dp
-
-!             do k = 1, nOrbs
             ! have to think more about that ... especially how the
             ! two-particle integrals come into play here... for now only take
             ! one of available orbitals uniformly!
@@ -29390,7 +27760,6 @@ contains
             ! something like that ...
 
             ! additionally modify the pgens..
-!             if (isThree(ilut,j)) then
             if (current_stepvector(j) == 3) then
 
                 nOrbs = count(currentOcc_int /= 2)
@@ -29409,7 +27778,6 @@ contains
 
             end if
 
-!         else if (isThree(ilut,i)) then
         case (3)
             ! switch to E_ji: so here every non-double != i orbital is allowed
             ! excitInfo%j = pickRandomOrb(nonDoubly(1,!=i,nBasis)
@@ -29421,7 +27789,6 @@ contains
                 return
             end if
 
-!             if (isZero(ilut,j)) then
             if (current_stepvector(j) == 0) then
                 nOrbs = count(currentOcc_int /= 0)
             else
@@ -29439,7 +27806,6 @@ contains
 
             end if
 
-!         else if (isOne(ilut,i)) then
         case (1)
             ! in this case we have a forced +1 start or a -1 demanding end.
             ! so there have to be switch possibilities before a valid
@@ -29462,7 +27828,6 @@ contains
 
             select case (current_stepvector(j))
             case (0)
-!             if (isZero(ilut,j)) then
                 if (j > i) then
                     ! lowering generator
                     excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
@@ -29476,7 +27841,6 @@ contains
                 ! also modify pgens correctly
                 nOrbs = count(currentOcc_int /= 0)
 
-!             else if (isOne(ilut,j)) then
             case (1)
                 ! if its a 1 without checking beforehand i have to check if
                 ! there are possible switches between the two, or otherwise
@@ -29502,7 +27866,6 @@ contains
 
                 nOrbs = nSpatOrbs - 1
 
-!             else
             case (2,3)
                 ! if its a 2 or 3 everything is fine
                 if (j > i) then
@@ -29514,7 +27877,6 @@ contains
                     excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
 
                 end if
-!                 if (isThree(ilut,j)) then
                 if (current_stepvector(j) == 3) then
                     nOrbs = count(currentOcc_int /= 2)
                 else
@@ -29523,9 +27885,7 @@ contains
 
                 end if
             end select
-!             end if
 
-!         else if (isTwo(ilut,i)) then
         case (2)
             ! similar behavior to d(i) = 1, except switched roles beteen 1,2
             ! for now ignore the forced switch restrictions
@@ -29538,7 +27898,6 @@ contains
 
             select case (current_stepvector(j))
             case (0)
-!             if (isZero(ilut,j)) then
                 if (j > i) then
                     ! lowering generator
                     excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
@@ -29551,7 +27910,6 @@ contains
 
                 nOrbs = count(currentOcc_int /= 0)
 
-!             else if (isTwo(ilut,j)) then
             case (2)
                 ! if its a 2 without checking beforehand i have to check if
                 ! there are possible switches between the two, or otherwise
@@ -29575,7 +27933,6 @@ contains
                 nOrbs = nSpatOrbs - 1
                 factor = 2.0_dp
 
-!             else
             case (1,3)
                 ! if its a 1 or 3 everything is fine
                 if (j > i) then
@@ -29588,7 +27945,6 @@ contains
 
                 end if
 
-!                 if (isThree(ilut,j)) then
                 if (current_stepvector(j) == 3) then
                     nOrbs = count(currentOcc_int /= 2)
                 else
@@ -29597,8 +27953,6 @@ contains
                 end if
             end select
         end select
-!             end if
-!         end if
 
         pgen = (pgen + 1.0_dp/real(nSpatOrbs * nOrbs, dp))/factor
 
@@ -29986,15 +28340,6 @@ contains
         ! type of excitation, be more specific here and use the available
         ! information in the calculation of the excitations also.
 
-
-!         ! associate indices
-!         excitInfo%i = i
-!         excitInfo%j = j
-
-        ! allocate overlap and non overlap range although probably not even
-        ! needed
-!         allocate(excitInfo%overlapRange(0), stat = ierr)
-
         ! identify generator, excitation level and start and end indices and
         ! also store nonOverlapRange although maybe not even needed...
         if (i < j) then
@@ -30008,69 +28353,38 @@ contains
 
         end if
 
-        ! fill up nonOverlapRange indices
-!         excitInfo%nonOverlapRange = [(ind, ind = excitInfo%fullStart, &
-!             excitInfo%fullEnd)]
-
     end function excitationIdentifier_single
 
-!     function excitationIdentifier_ilut(ilut, jlut) result(excitInfo)
-!         ! also use same general interface to calculate the excitation
-!         ! information between two arbitrary CSFs, given in ilut format
-!         ! this gives all the neccessry information to calculate the
-!         ! Hamiltonian matrix element between the two states
-!         integer(n_int), intent(in) :: ilut(0:nifguga), jlut(0:nifguga)
-!         type(excitationInformation) :: excitInfo
-!
-!     end function excitationIdentifier_ilut
-!
-!     subroutine calcAllSinglesGUGA(ilut, iOrb, jOrb, weight, excitations)
-!         ! function which calculates all single excitations E_ij |CSF> for a
-!         ! CSF given in bit representation ilut
-!         integer(n_int), intent(in) :: ilut(0:nifguga), iOrb, jOrb
-!         real(dp), intent(out) :: weight(:)
-!         integer(n_int), intent(out) :: excitations(:,:)
-!
-!         integer :: generator
-!
-!         ! need generator type
-!
-!
-!     end subroutine calcAllSinglesGUGA
 
-    function endFx(ilut, sOrb) result(fx)
+    function endFx(sOrb) result(fx)
         ! flag function used in excitation tree generation to check if spatial
         ! orbital sOrb
         ! is 0,1 or 3. Probably possible to implement it on an efficient
         ! bit-rep level, todo
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb
         real(dp) :: fx
 
         ! always one except d=2 at end
         fx = 1.0_dp
 
-!         if (isTwo(ilut,sOrb)) fx = 0.0_dp
         if (current_stepvector(sOrb) == 2) fx = 0.0_dp
 
     end function endFx
 
-    function endGx(ilut, sOrb) result(gx)
+    function endGx(sOrb) result(gx)
         ! flag function used in excitation tree generation to check if spatial
         ! orbital sOrb is 0,2,3.
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb
         real(dp) :: gx
 
         ! always one except d=1 at end
         gx = 1.0_dp
 
-!         if (isOne(ilut, sOrb)) gx = 0.0_dp
         if (current_stepvector(sOrb) == 1) gx = 0.0_dp
 
     end function endGx
 
-    subroutine calcRemainingSwitches_excitInfo_single(ilut, excitInfo, &
+    subroutine calcRemainingSwitches_excitInfo_single(excitInfo, &
             posSwitches, negSwitches)
         ! subroutine to determine the number of remaining switches for single
         ! excitations between orbitals s, p given in type of excitationInformation.
@@ -30079,13 +28393,12 @@ contains
         ! stepValue = 1 -> positive delta B switch possibility
         ! stepValue = 2 -> negative delta B switch possibility
         ! assume exitInfo is already calculated
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
-!         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer :: iOrb
         real(dp) :: oneCount, twoCount
+
         ! ignore b > 0 forced switches for now. As they only change the bias
         ! do not make the excitations calculations wrong if ignored.
 
@@ -30100,19 +28413,15 @@ contains
 
             select case (current_stepvector(iOrb))
             case (1)
-!             if (isOne(ilut,iOrb)) then
                 oneCount = oneCount + 1.0_dp
-!             else if (isTwo(ilut,iOrb)) then
             case (2)
                 twoCount = twoCount + 1.0_dp
             end select
-!             end if
-
         end do
 
     end subroutine calcRemainingSwitches_excitInfo_single
 
-    subroutine calcRemainingSwitches_single(ilut, sOrb, pOrb, &
+    subroutine calcRemainingSwitches_single(sOrb, pOrb, &
             posSwitches, negSwitches)
         ! subroutine to determine the number of remaining switches for single
         ! excitations between orbitals s, p given in type of excitationInformation.
@@ -30121,12 +28430,12 @@ contains
         ! stepValue = 1 -> positive delta B switch possibility
         ! stepValue = 2 -> negative delta B switch possibility
         ! assume exitInfo is already calculated
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer :: iOrb
         real(dp) :: oneCount, twoCount
+
         ! ignore b > 0 forced switches for now. As they only change the bias
         ! do not make the excitations calculations wrong if ignored.
 
@@ -30141,22 +28450,18 @@ contains
 
             select case (current_stepvector(iOrb))
             case (1)
-!             if (isOne(ilut,iOrb)) then
                 oneCount = oneCount + 1.0_dp
-!             else if (isTwo(ilut,iOrb)) then
             case (2)
                 twoCount = twoCount + 1.0_dp
             end select
-!             end if
         end do
 
     end subroutine calcRemainingSwitches_single
 
-    subroutine calcRemainingSwitches_double(ilut, i, j, k, l, posSwitches, &
+    subroutine calcRemainingSwitches_double(i, j, k, l, posSwitches, &
             negSwitches)
         ! wrapper function to call the corresponding subroutine, which uses
         ! the excitationInformation
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: i, j, k, l
         real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
@@ -30165,7 +28470,7 @@ contains
 
         ! if it gets called with k = l = 0 call the single excitation case
         if (k == 0 .and. l == 0) then
-            call calcRemainingSwitches(ilut, i, j, posSwitches, negSwitches)
+            call calcRemainingSwitches_single(i, j, posSwitches, negSwitches)
 
         else
             ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -30175,22 +28480,20 @@ contains
 
             excitInfo = excitationIdentifier(i, j, k, l)
 
-            call calcRemainingSwitches(ilut, excitInfo, 1, posSwitches, &
+            call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &
                 negSwitches)
 
         end if
 
     end subroutine calcRemainingSwitches_double
 
-    subroutine calcRemainingSwitches_excitInfo_double(ilut, excitInfo, &
-            flag, posSwitches, negSwitches)
+    subroutine calcRemainingSwitches_excitInfo_double(excitInfo, &
+            posSwitches, negSwitches)
         ! subroutine to determine the number of remaining switches for double
         ! excitations between spatial orbitals (i,j,k,l). orbital indices are
         ! given in type(excitationInformation), extra flag is needed to
         ! indicate that this is a double excitaiton then
-        integer(n_int), intent(in) :: ilut(0:nifguga)
         type(excitationInformation), intent(in) :: excitInfo
-        integer, intent(in) :: flag
         real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer :: iOrb, end1, start2, end2
@@ -30210,27 +28513,22 @@ contains
         negSwitches = 0.0_dp
 
         if (excitInfo%typ == 1 .or. excitInfo%typ == 2) then
-            call calcRemainingSwitches_excitInfo_single(ilut, excitInfo, &
+            call calcRemainingSwitches_excitInfo_single(excitInfo, &
                 posSwitches, negSwitches)
         else
 
         select case (excitInfo%overlap)
         case (0)
-!         if (excitInfo%overlap == 0) then
             do iOrb = excitInfo%fullEnd - 1, excitInfo%secondStart, -1
                 posSwitches(iOrb) = twoCount
                 negSwitches(iOrb) = oneCount
 
                 select case (current_stepvector(iOrb))
                 case (1)
-!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-!                 end if
-!                 if (isTwo(ilut,iOrb)) then
                 case (2)
                     twoCount = twoCount + 1.0_dp
                 end select
-!                 end if
             end do
 
             ! reset count past second excitations:
@@ -30243,17 +28541,12 @@ contains
 
                 select case (current_stepvector(iOrb))
                 case (1)
-!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-!                 end if
-!                 if (isTwo(ilut,iOrb)) then
                 case (2)
                     twoCount = twoCount + 1.0_dp
                 end select
-!                 end if
             end do
 
-!         else if (excitInfo%overlap == 1) then
         case (1)
             ! not quite sure anymore why, but have to treat single overlap
             ! excitations with alike generators different then mixed
@@ -30271,14 +28564,10 @@ contains
 
                 select case (current_stepvector(iOrb))
                 case (1)
-!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-!                 end if
-!                 if (isTwo(ilut,iOrb)) then
                 case (2)
                     twoCount = twoCount + 1.0_dp
                 end select
-!                 end if
             end do
 
             ! reset the switch number if alike generators are present.
@@ -30296,17 +28585,12 @@ contains
 
                 select case (current_stepvector(iOrb))
                 case (1)
-!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-!                 end if
-!                 if (isTwo(ilut,iOrb)) then
                 case (2)
                     twoCount = twoCount + 1.0_dp
                 end select
-!                 end if
             end do
 
-!         else
         case default
             ! proper overlap ranges:
 
@@ -30323,14 +28607,10 @@ contains
 
                 select case (current_stepvector(iOrb))
                 case (1)
-!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-!                 end if
-!                 if (isTwo(ilut,iOrb)) then
                 case (2)
                     twoCount = twoCount + 1.0_dp
                 end select
-!                 end if
             end do
 
             oneCount = 0.0_dp
@@ -30342,14 +28622,10 @@ contains
 
                 select case (current_stepvector(iOrb))
                 case (1)
-!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-!                 end if
-!                 if (isTwo(ilut,iOrb)) then
                 case (2)
                     twoCount = twoCount + 1.0_dp
                 end select
-!                 end if
             end do
 
             oneCount = 0.0_dp
@@ -30361,95 +28637,18 @@ contains
 
                 select case (current_stepvector(iOrb))
                 case (1)
-!                 if (isOne(ilut,iOrb)) then
                     oneCount = oneCount + 1.0_dp
-!                 end if
-!                 if (isTwo(ilut,iOrb)) then
                 case (2)
                     twoCount = twoCount + 1.0_dp
                 end select
-!                 end if
             end do
 
             oneCount = 0.0_dp
             twoCount = 0.0_dp
 
         end select
-!         end if
 
         end if
-
-!             ! pseudo double excitation:
-!             ! full start with alike gens or d = 3 at start only db=0 in overlap
-!             if ((excitInfo%fullStart == excitInfo%secondStart) .and. &
-!                 (excitInfo%gen1 == excitInfo%gen2) .or. &
-!                 getStepvalue(ilut, excitInfo%fullStart) == 3) then
-!
-!                 do iOrb = excitInfo%fullEnd - 1, excitInfo%firstEnd + 1, - 1
-!                     posSwitches(iOrb) = oneCount
-!                     negSwitches(iOrb) = twoCount
-!
-!                     if (getStepvalue(ilut,iOrb)==1) oneCount=oneCount + 1.0_dp
-!                     if (getStepvalue(ilut,iOrb)==2) twoCount=twoCount + 1.0_dp
-!                 end do
-!
-!             ! full stop with alike gens or d = 3 at end only db=0 in overlap
-!             else if ((excitInfo%fullEnd == excitInfo%firstEnd) .and. &
-!                 (excitInfo%gen1 == excitInfo%gen2 .or. &
-!                 getStepvalue(ilut,excitInfo%fullEnd) == 3)) then
-!
-!                 do iOrb = excitInfo%secondStart-1, excitInfo%fullStart+1, -1
-!                     posSwitches(iOrb) = oneCount
-!                     negSwitches(iOrb) = twoCount
-!
-!                     if (getStepvalue(ilut,iOrb)==1) oneCount=oneCount + 1.0_dp
-!                     if (getStepvalue(ilut,iOrb)==2) twoCount=twoCount + 1.0_dp
-!                 end do
-!
-!             ! full-start into full-stop double excitation
-!             else if (excitInfo%fullStart == excitInfo%secondStart .and. &
-!                 excitInfo%fullEnd == excitInfo%firstEnd) then
-!
-!                 do iOrb = excitInfo%fullEnd - 1, excitInfo%fullStart + 1, -1
-!                     posSwitches(iOrb) = oneCount
-!                     negSwitches(iOrb) = twoCount
-!
-!                     if (getStepvalue(ilut,iOrb)==1) oneCount=oneCount + 1.0_dp
-!                     if (getStepvalue(ilut,iOrb)==2) twoCount=twoCount + 1.0_dp
-!                 end do
-!
-!             else
-!                 ! full proper double excitation...
-!                 do iOrb = excitInfo%fullEnd - 1, excitInfo%firstEnd + 1, -1
-!                     posSwitches(iOrb) = oneCount
-!                     negSwitches(iOrb) = twoCount
-!
-!                     if (getStepvalue(ilut,iOrb)==1) oneCount=oneCount + 1.0_dp
-!                     if (getStepvalue(ilut,iOrb)==2) twoCount=twoCount + 1.0_dp
-!                 end do
-!
-!                 oneCount = 0.0_dp
-!                 twoCount = 0.0_dp
-!
-!                 do iOrb = excitInfo%firstEnd - 1, excitInfo%secondStart +1, -1
-!                     posSwitches(iOrb) = oneCount
-!                     negSwitches(iOrb) = twoCount
-!
-!                     if (getStepvalue(ilut,iOrb)==1) oneCount=oneCount + 1.0_dp
-!                     if (getStepvalue(ilut,iOrb)==2) twoCount=twoCount + 1.0_dp
-!                 end do
-!
-!                 oneCount = 0.0_dp
-!                 twoCount = 0.0_dp
-!
-!                 do iOrb = excitInfo%secondStart-1, excitInfo%fullStart+1, -1
-!                     posSwitches(iOrb) = oneCount
-!                     negSwitches(iOrb) = twoCount
-!
-!                     if (getStepvalue(ilut,iOrb)==1) oneCount=oneCount + 1.0_dp
-!                     if (getStepvalue(ilut,iOrb)==2) twoCount=twoCount + 1.0_dp
-!                 end do
-!
 
     end subroutine calcRemainingSwitches_excitInfo_double
 
@@ -30827,7 +29026,7 @@ contains
     function create_excitInfo_il_kj(i,j,k,l) result(excitInfo)
         integer, intent(in) :: i,j,k,l
         type(excitationInformation) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo"
+        character(*), parameter :: this_routine = "create_excitInfo_il_kj"
 
 
         ! e_{il,kj}:
@@ -31988,91 +30187,6 @@ contains
         end if
 
     end function create_excitInfo_li_kj
-
-
-    function create_excitInfo(i,j,k,l) result(excitInfo)
-        integer, intent(in) :: i,j,k,l
-        type(excitationInformation) :: excitInfo
-        character(*), parameter :: this_routine = "create_excitInfo"
-
-
-        if (i < j .and. j < k .and. k < l) then
-            ! i < j < k < l
-
-        else if (i < j .and. j < l .and. l < k) then
-            ! i < j < l < k
-
-        else if (i < k .and. k < j .and. j < l) then
-            ! i < k < j < l
-
-        else if ( i < k .and. k < l .and. l < j) then
-            ! i < k < l < j
-
-        else if ( i < l .and. l < j .and. j < k) then
-            ! i < l < j < k
-
-        else if ( i < l .and. l < k .and. k < j) then
-            ! i < l < k < j
-
-        else if ( j < i .and. i < k .and. k < l) then
-            ! j < i < k < l
-
-        else if ( j < i .and. i < l .and. l < k) then
-            ! j < k < i < l
-
-        else if ( j < k .and. k < i .and. i < l) then
-            ! j < k < i < l
-
-        else if ( j < k .and. k < l .and. l < i) then
-            ! j < l < i < k
-
-        else if ( j < l .and. l < i .and. i < k) then
-            ! j < l < i < k
-
-        else if (j < l .and. l < k .and. k < i) then
-            ! j < l < k < i
-
-        else if (k < i .and. i < j .and. j < l) then
-            ! k < i < j < l
-
-        else if (k < i .and. i < l .and. l < j) then
-            ! k < i < l < j
-
-        else if (k < j .and. j < i .and. i < l) then
-            ! k < j < i < l
-
-        else if (k < j .and. j < l .and. l < i) then
-            ! k < j < l < i
-
-        else if (k < l .and. l < i .and. i < j) then
-            ! k < l < i < j
-
-        else if (k < l .and. l < j .and. j < i) then
-            ! k < l < j < i
-
-        else if (l < i .and. i < j .and. j < k) then
-            ! l < i < j < k
-
-        else if (l < i .and. i < k .and. k < j) then
-            ! l < i < k < j
-
-        else if (l < j .and. j < i .and. i < k) then
-            ! l < j < i < k
-
-        else if (l < j .and. j < k .and. k < i) then
-            ! l < j < k < i
-
-        else if (l < k .and. k < i .and. i < j) then
-            ! l < k < i < j
-
-        else if (l < k .and. k < j .and. j < i) then
-            ! l < k < j < i
-
-        else
-            call stop_all(this_routine, "should not be here!")
-        end if
-
-    end function create_excitInfo
 
 
     function calc_pgen_yix_start_02(i) result(pgen)

@@ -134,7 +134,7 @@ module verlet_aux
       if(.not. allocated(popsfile_dets)) allocate(popsfile_dets(0:niftot,TotWalkers))
       popsfile_dets(:,1:TotWalkers) = CurrentDets(:,1:TotWalkers)
       ! number of initial walkers
-      backup_size = TotWalkers
+      backup_size = int(TotWalkers)
     end subroutine backup_initial_state
 
     subroutine init_verlet_iteration()

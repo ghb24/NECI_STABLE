@@ -203,11 +203,11 @@ module fcimc_initialisation
     use HElem
 
     use constants
+
+#ifndef __CMPLX
     use guga_tausearch, only: init_tau_search_guga_nosym, log_spawn_magnitude_guga_nosym, &
                               update_tau_guga_nosym, init_hist_tau_search_guga_nosym, &
                               update_hist_tau_guga_nosym
-
-#ifndef __CMPLX
     use guga_data, only: bVectorRef_ilut, bVectorRef_nI, projE_replica
     use guga_bitRepOps, only: calcB_vector_nI, calcB_vector_ilut, convert_ilut_toNECI, &
                               convert_ilut_toGUGA, getDeltaB, write_det_guga, write_guga_list, &
@@ -1302,7 +1302,9 @@ contains
 
         if (tSearchTau) then
             if (tGen_nosym_guga) then
+#ifndef __CMPLX
                 call init_tau_search_guga_nosym()
+#endif
             else
                 call init_tau_search()
             end if
@@ -1316,7 +1318,9 @@ contains
 
         else if (t_hist_tau_search) then
             if (tGen_nosym_guga) then
+#ifndef __CMPLX
                 call init_hist_tau_search_guga_nosym()
+#endif
             else
                 call init_hist_tau_search()
             end if

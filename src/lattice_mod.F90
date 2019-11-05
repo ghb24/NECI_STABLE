@@ -13,6 +13,7 @@ module lattice_mod
     use constants, only: dp, pi, EPS
     use SystemData, only: twisted_bc, nbasis, basisfn, t_trans_corr_2body, &
                           symmetry, brr
+    use util_mod, only: unused
 
     implicit none
     private
@@ -70,7 +71,6 @@ module lattice_mod
         ! ok i realize this whole shabang is too much..
         ! so just make a list of indices of the neighbors
         integer, allocatable :: neighbors(:)
-!         class(neighbor), allocatable :: neighbors(:)
         ! or can i point to the other sites here? hm..
         ! and maybe i want to store on-site repulsion here too.. lets see
 
@@ -238,7 +238,6 @@ module lattice_mod
         procedure, public :: is_periodic_y
         procedure(is_periodic_t), public, deferred :: is_periodic
         procedure(get_length_t), public, deferred :: get_length
-!         procedure, public :: get_length => get_length_lattice
         procedure, public :: get_site_index
         ! make the get neighbors function public on the lattice level
         procedure, public :: get_neighbors => get_neighbors_lattice
@@ -270,9 +269,7 @@ module lattice_mod
         procedure :: set_nconnect_max
         procedure :: set_periodic
         procedure(set_length_t), deferred :: set_length
-!         procedure :: set_length => set_length_lattice
         procedure(calc_nsites_t), deferred :: calc_nsites
-!         procedure :: calc_nsites => calc_nsites_lattice
         procedure :: allocate_sites
         procedure(initialize_sites_t), deferred :: initialize_sites
 
@@ -303,7 +300,6 @@ module lattice_mod
         procedure :: get_lu_table_size
         procedure :: deallocate_caches
         ! actually i should make i deferred: todo
-!         procedure(init_basis_vecs_t), deferred :: init_basis_vecs
         procedure :: init_basis_vecs
         procedure, public :: init_hop_cache_bounds
 
@@ -705,11 +701,6 @@ contains
 
         end do
 
-!         print *, "i, sym(i), k(i), r(i): "
-!         do i = 1, lat%get_nsites()
-!             print *, i, "|", lat%get_sym(i), "|", lat%get_k_vec(i), "|", lat%get_r_vec(i), "|"
-!         end do
-
         kmin = 0
         kmax = 0
         do i = 1, lat%get_nsites()
@@ -767,13 +758,10 @@ contains
         ! with a given k-vector?
         ! change that to only access the cached result of the dispersion
         ! relation
-!         epsilon_kvec = h_cast(lat%dispersion_rel(k_vec))
 
         ! it is necessary to call this function only with k_vectors
         ! within the first BZ!!
         epsilon_kvec_vector = dispersion_rel_cached(lat%get_sym_from_k(k_vec))
-
-!         epsilon_kvec = h_cast(2*sum(cos(real(k_vec,dp))))
 
     end function epsilon_kvec_vector
 
@@ -878,7 +866,7 @@ contains
         integer, intent(in) :: orb
         integer :: sym
 
-        sym = lat%sites(orb)%k_sym
+        sym = this%sites(orb)%k_sym
 
     end function get_sym
 
@@ -912,7 +900,8 @@ contains
         integer, intent(in) :: k_1(3), k_2(3)
         integer :: k_out(3)
 
-        k_out = lat%add_k_vec(k_1, lat%inv_k_vec(k_2))
+
+        k_out = this%add_k_vec(k_1, this%inv_k_vec(k_2))
 
     end function subtract_k_vec
 
@@ -932,7 +921,6 @@ contains
         ! the naive way would be to loop over all sites and check if the
         ! k-vector fits..
         ! but that would be too effortive, so we use the lookup table
-!         k_vec = this%map_k_vec(k_in)
 
         i = this%lu_table(k_in(1),k_in(2),k_in(3))
 
@@ -1079,12 +1067,15 @@ contains
         class(lattice) :: this
         integer, intent(in) :: k_in(sdim)
         integer, allocatable :: k_out(:,:)
-#ifdef __DEBUG
+
         character(*), parameter :: this_routine = "apply_basis_vector_general"
-#endif
 
-        ! todo
+        unused_variable(this)
+        unused_variable(k_in)
 
+        call stop_all(this_routine, "not yet implemented!")
+
+        k_out = 0
 
     end function apply_basis_vector_general
 
@@ -1093,11 +1084,16 @@ contains
         integer, intent(in) :: k_in(3)
         integer, intent(in), optional :: ind
         integer :: k_out(3)
-#ifdef __DEBUG
-        character(*), parameter :: this_routine = "apply_basis_vector_cube"
-#endif
 
-        call stop_all("apply_basis_vector_cube", "not yet implemented!")
+        character(*), parameter :: this_routine = "apply_basis_vector_cube"
+
+        unused_variable(this)
+        unused_variable(k_in)
+        unused_variable(ind)
+
+        call stop_all(this_routine, "not yet implemented!")
+
+        k_out = 0
 
     end function apply_basis_vector_cube
 
@@ -1154,15 +1150,6 @@ contains
         end if
 #endif
 
-!         basis_vec = 0
-!         basis_vec(1,1) = this%get_length(1)
-!         basis_vec(2,1) = -this%get_length(1)
-!
-!         if (t_trans_corr_2body) then
-!             basis_vec(3,1) = 2*this%get_length(1)
-!             basis_vec(4,1) = -2*this%get_length(1)
-!         end if
-
         k_out = k_in + this%basis_vecs(ind,:)
 
     end function apply_basis_vector_chain
@@ -1171,6 +1158,7 @@ contains
         class(lattice) :: this
         character(*), parameter :: this_routine = "init_basis_vecs"
 
+        unused_variable(this)
         call stop_all(this_routine, "this routine should always be deferred!")
 
     end subroutine init_basis_vecs
@@ -1260,37 +1248,30 @@ contains
 
         ! with negative signs we have in total 8 possibilities of
         ! vectors to apply:
-!         associate(r1 => this%lat_vec(:,1), r2 => this%lat_vec(:,2))
-
-!         r1 = this%lat_vec(:,1)
-!         r2 = this%lat_vec(:,2)
 
         r1 = this%k_vec(:,1)
         r2 = this%k_vec(:,2)
 
-            basis_vec(1,:) = r1
-            basis_vec(2,:) = -r1
-            basis_vec(3,:) = r2
-            basis_vec(4,:) = -r2
-            basis_vec(5,:) = r1 + r2
-            basis_vec(6,:) = -(r1 + r2)
-            basis_vec(7,:) = r1 - r2
-            basis_vec(8,:) = -(r1 - r2)
+        basis_vec(1,:) = r1
+        basis_vec(2,:) = -r1
+        basis_vec(3,:) = r2
+        basis_vec(4,:) = -r2
+        basis_vec(5,:) = r1 + r2
+        basis_vec(6,:) = -(r1 + r2)
+        basis_vec(7,:) = r1 - r2
+        basis_vec(8,:) = -(r1 - r2)
 
-!             print *, "basis vec: ", basis_vec(ind,:)
+        k_out = k_in + basis_vec(ind,:)
 
-!             basis_vec = transpose(reshape( &
-!                 [r1,-r1,r2,-r2,r1+r2,-(r1+r2),r1-r2,-(r1-r2)], [3,8]))
-
-            k_out = k_in + basis_vec(ind,:)
-
-!         end associate
 
     end function apply_basis_vector_ole
 
     integer function get_length_aim_star(this, dimen)
         class(aim_star) :: this
         integer, intent(in), optional :: dimen
+
+        unused_variable(this)
+        unused_variable(dimen)
 
         get_length_aim_star = STAR_LENGTH
 
@@ -1362,6 +1343,9 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_aim"
+
+        unused_variable(this)
+        unused_variable(length_z)
 
         ! for AIM systems assume first length input is number of impurity
         ! sites and bath sites are number of path sites per impurity!!
@@ -1525,6 +1509,8 @@ contains
         class(aim) :: this
         integer, intent(in), optional :: dimen
 
+        unused_variable(this)
+        unused_variable(dimen)
         ! this function should never get called with dimension input or?
         is_periodic_aim = .false.
 
@@ -1566,6 +1552,8 @@ contains
         ! of the lattice sites. or atleast call the specific init-routines!
         class(lattice) :: this
 
+        unused_variable(this)
+
     end subroutine init_sites_lattice
 
     subroutine site_assign(lhs, rhs)
@@ -1594,6 +1582,9 @@ contains
         class(lattice), intent(in), pointer :: rhs
 
         character(*), parameter :: this_routine = "lattice_assign"
+
+!         unused_variable(lhs)
+        unused_variable(rhs)
 
         ! here i have to copy all the specific values!
         ! this is annoying but make the code more readable, and i do not
@@ -3035,7 +3026,6 @@ contains
         integer :: k_vec(3)
 
         k_vec = this%get_k_vec(orb)
-!         k_vec = this%sites(orb)%get_k_vec()
 
         disp = this%dispersion_rel(k_vec)
 
@@ -3126,21 +3116,15 @@ contains
         real(dp) :: disp
         character(*), parameter :: this_routine = "dispersion_rel"
 
+        unused_variable(this)
+        unused_variable(k_vec)
+
         call stop_all(this_routine, &
             "dispersion relation not yet implemented for this lattice type!")
+
+        disp = 0.0_dp
 
     end function dispersion_rel_not_implemented
-
-    function dispersion_rel_not_implemented_orb(this, orb) result(disp)
-        class(lattice) :: this
-        integer, intent(in) :: orb
-        real(dp) :: disp
-        character(*), parameter :: this_routine = "dispersion_rel"
-
-        call stop_all(this_routine, &
-            "dispersion relation not yet implemented for this lattice type!")
-
-    end function dispersion_rel_not_implemented_orb
 
     function dispersion_rel_orb(this, orb) result(disp)
         class(lattice) :: this
@@ -3173,7 +3157,13 @@ contains
         real(dp) :: dot
         character(*), parameter :: this_routine ="dot_prod_not_implemented"
 
+        unused_variable(this)
+        unused_variable(k_vec)
+        unused_variable(r_vec)
+
         call stop_all(this_routine, "not yet implemented for this lattice type!")
+
+        dot = 0.0_dp
 
     end function dot_prod_not_implemented
 
@@ -3236,6 +3226,10 @@ contains
         class(aim) :: this
         integer, intent(in) :: length_x, length_y
         character(*), parameter :: this_routine = "init_aim"
+
+        unused_variable(this)
+        unused_variable(length_x)
+        unused_variable(length_y)
 
     end subroutine init_aim
 
@@ -4149,6 +4143,9 @@ contains
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_aim_star"
 
+        unused_variable(this)
+        unused_variable(length_z)
+
         if (length_x < 1) then
             call stop_all(this_routine, "n_imps < 1!")
         end if
@@ -4170,6 +4167,9 @@ contains
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_star"
 
+        unused_variable(this)
+        unused_variable(length_z)
+
         if (max(length_x,length_y) < 1 .or. min(length_x, length_y) > 1 .or. &
             min(length_x,length_y) < 0) then
             n_sites = -1
@@ -4187,6 +4187,9 @@ contains
         class(aim_star) :: this
         integer, intent(in), optional :: dimen
 
+        unused_variable(this)
+        unused_variable(dimen)
+
         is_periodic_aim_star = .false.
 
     end function is_periodic_aim_star
@@ -4202,6 +4205,9 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_chain"
+
+        unused_variable(this)
+        unused_variable(length_z)
 
         if (max(length_x,length_y) < 1 .or. min(length_x, length_y) > 1 .or. &
             min(length_x,length_y) < 0) then
@@ -4222,6 +4228,8 @@ contains
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_cube"
 
+        unused_variable(this)
+
         if (max(length_x, length_y, length_z) < 2) then
             call stop_all(this_routine, "too small cube lengths specified! (< 2)")
         end if
@@ -4236,6 +4244,9 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_hexagonal"
+
+        unused_variable(this)
+        unused_variable(length_z)
 
         ! the length_x of the hexagonal is defined as the number of unit cells..
         ! and there are 8 sites in my hexagonal unit cell..
@@ -4253,6 +4264,9 @@ contains
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_kagome"
 
+        unused_variable(this)
+        unused_variable(length_z)
+
         ! the length_x and length_y of the kagome are defined as the number of unit cells..
         ! and there are 8 sites in my kagome unit cell..
         ASSERT(length_x > 0)
@@ -4268,6 +4282,9 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_rect"
+
+        unused_variable(this)
+        unused_variable(length_z)
 
         if (length_x < 2 .or. length_y < 2) then
             print *, "length_x: ", length_x
@@ -4288,16 +4305,11 @@ contains
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_tilted"
 
-        ! this rectriction gets lifted now: there are also rectangular
-        ! and 1xY and Yx1 with 2 * Y sites tilted lattices possible
-!         if (length_x < 2 .or. length_y < 2) then
-!             print *, "length_x: ", length_x
-!             print *, "length_y: ", length_y
-!             call stop_all(this_routine, "length input wrong for type tilted!")
-!
-!         else
-            n_sites = 2 * length_x * length_y
-!         end if
+
+        unused_variable(this)
+        unused_variable(length_z)
+
+        n_sites = 2 * length_x * length_y
 
     end function calc_nsites_tilted
 
@@ -4307,6 +4319,9 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_ole"
+
+        unused_variable(length_z)
+        unused_variable(this)
 
         ! oles cluster we want to look at are defined by the vectors
         ! (x,x), (-y,x) and i also think  y = x + 2 is a requisite but i am
@@ -4320,38 +4335,21 @@ contains
             call stop_all(this_routine, "incorrect input for Ole Clusters")
         end if
 
-!         n_sites = 2*length_x*(length_x + length_y) - length_x**2 - length_x*length_y
         ! or shorter:
         n_sites = length_x*(length_x + length_y)
 
     end function calc_nsites_ole
 
-    function calc_nsites_lattice(this, length_x, length_y) result(n_sites)
-        class(lattice) :: this
-        integer, intent(in) :: length_x, length_y
-        integer :: n_sites
-        character(*), parameter :: this_routine = "calc_nsites_lattice"
-
-        call stop_all(this_routine, &
-            'type(lattice) should never be actually instantiated!')
-
-    end function calc_nsites_lattice
-
     ! Setter and getter routines for the private data of the lattice types
-    function get_length_lattice(this) result(length)
-        class(lattice) :: this
-        integer :: length
-        character(*), parameter :: this_routine = "get_length_lattice"
-
-        call stop_all(this_routine, &
-            'type(lattice) should never be actually instantiated!')
-
-    end function get_length_lattice
 
     subroutine set_length_lattice(this, length_x, length_y)
         class(lattice) :: this
         integer, intent(in) :: length_x, length_y
         character(*), parameter :: this_routine = "set_length_lattice"
+
+        unused_variable(length_x)
+        unused_variable(length_y)
+        unused_variable(this)
 
         call stop_all(this_routine, &
             'type(lattice) should never be actually instantiated!')
@@ -4363,6 +4361,11 @@ contains
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
         character(*), parameter :: this_routine = "set_length_aim_star"
+
+        unused_variable(length_x)
+        unused_variable(length_y)
+        unused_variable(length_z)
+        unused_variable(this)
 
         ! actually the length of a start is not really defined..
         ! maybe i should rethink if i make this part of the
@@ -4376,6 +4379,11 @@ contains
         integer, intent(in), optional :: length_z
         character(*), parameter :: this_routine = "set_length_star"
 
+        unused_variable(length_x)
+        unused_variable(length_y)
+        unused_variable(length_z)
+        unused_variable(this)
+
         ! actually the length of a start is not really defined..
         ! maybe i should rethink if i make this part of the
         ! original lattice class then..
@@ -4387,6 +4395,8 @@ contains
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
         character(*), parameter :: this_routine = "set_length_chain"
+
+        unused_variable(length_z)
 
         ! the input checkin is all done in the calc_nsites routine!
         this%length = this%calc_nsites(length_x, length_y)
@@ -4416,6 +4426,8 @@ contains
         class(rectangle) :: this
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
+
+        unused_variable(length_z)
 
         this%length(1) = length_x
         this%length(2) = length_y
@@ -4485,6 +4497,9 @@ contains
         class(star) :: this
         integer, intent(in), optional:: dimen
 
+        unused_variable(dimen)
+        unused_variable(this)
+
         get_length_star = STAR_LENGTH
 
     end function get_length_star
@@ -4553,6 +4568,9 @@ contains
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
 
+        unused_variable(length_x)
+        unused_variable(length_z)
+
         ! as a definition make the length, even for multiple impurity chains
         ! as bath_sites + 1
         this%length = length_y + 1
@@ -4564,6 +4582,9 @@ contains
         class(star) :: this
         integer, intent(in), optional :: dimen
 
+        unused_variable(dimen)
+        unused_variable(this)
+
         is_periodic_star = .false.
 
     end function is_periodic_star
@@ -4572,11 +4593,10 @@ contains
         class(chain) :: this
         integer, intent(in), optional :: dimen
 
+        unused_variable(dimen)
+
         ! we do not want to deal with two dimensional flags for chains or?
         is_periodic_chain = this%t_periodic(1)
-        ! the chain is only treated as periodic if both the flags are set
-        ! to be periodic!
-!         is_periodic_chain = (this%is_periodic_x() .and. this%is_periodic_y())
 
     end function is_periodic_chain
 
@@ -4620,15 +4640,6 @@ contains
         end if
 
     end function is_periodic_rect
-
-    logical function is_periodic_lattice(this)
-        class(lattice) :: this
-        character(*), parameter :: this_routine = "is_periodic_lattice"
-        call stop_all(this_routine, &
-            "lattice should not be directly instantiated!")
-
-
-    end function is_periodic_lattice
 
     logical function is_periodic_x(this)
         class(lattice) :: this
@@ -4783,40 +4794,5 @@ contains
         end if
 
     end function determine_optimal_time_step
-
-    ! general non-type bound routines
-!     subroutine get_lattice_type(this, string)
-!         class(lattice) :: this
-!         character(*), intent(out) :: string
-!
-!         select type (this)
-!         class is (chain)
-!
-!             string = 'chain'
-!
-!         end select
-!
-!     end subroutine get_lattice_type
-!
-!     function is_valid_lattice(this) result(flag)
-!         ! maybe it would be nice to have a routine which checks the basic
-!         ! necessities to be a proper lattice
-!         class(lattice) :: this
-!         logical :: flag
-!
-!         character(*) :: string
-!
-!         call this%get_lattice_type(string)
-!
-!         select case (string)
-!         case ('chain','lattice')
-!             flag = .true.
-!
-!         case default
-!             flag = .false.
-!
-!         end select
-!
-!     end function is_valid_lattice
 
 end module lattice_mod

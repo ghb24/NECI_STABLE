@@ -2780,33 +2780,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine verify_pop(BackupDets)
-      use bit_reps, only: extract_bit_rep
-      use hash, only: hash_table_lookup
-      use FciMCData, only: HashIndex
-      implicit none
-      integer(n_int), intent(in) :: BackupDets(:,:)
-      integer :: i,j, fl, DetHash, PartInd
-      real(dp) :: sgnA(lenof_sign), sgnB(lenof_sign)
-      integer :: nA(nel), nB(nel)
-      logical :: tSuccess
-
-      do i=1, TotWalkers
-         call extract_bit_rep(BackupDets(:,i),nA,sgnA,fl)
-         call hash_table_lookup(nA,BackupDets(:,i),nIfTot,HashIndex,CurrentDets,&
-              PartInd,DetHash,tSuccess)
-         if(tSuccess) then
-            call extract_bit_rep(CurrentDets(:,PartInd),nB,sgnB,fl)
-            ! only check the ground state
-            if(.not. sgnA(1) == sgnB(1)) &
-                 call stop_all("COMPARISON","UNAUTHORIZED WRITE INTO GROUND STATE")
-         else
-            if(abs(sgnA(1)) > 1.e-12_dp) &
-                    call stop_all("COMPARISON","UNAUTHORIZED WRITE INTO GROUND STATE (NEW)")
-         endif
-      end do
-    end subroutine verify_pop
-
 
     subroutine checkValidSpawnedList(proc, source)
         character(*), intent(in) :: source

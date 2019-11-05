@@ -616,7 +616,7 @@ contains
 
     end subroutine getMixedFullStop
 
-    elemental function getDoubleContribution(step1,step2,deltaB,genFlag,bValue) &
+    function getDoubleContribution(step1,step2,deltaB,genFlag,bValue) &
             result (doubleContr)
         ! Access necessary two-particle contribution to single excitation
         ! matrix elements.
@@ -718,6 +718,8 @@ contains
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
 
+        unused_variable(b)
+
         if (present(x0)) x0 = 0.0_dp
         if (present(x1)) x1 = 0.0_dp
 
@@ -737,6 +739,8 @@ contains
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
 
+        unused_variable(b)
+
         if (present(x0)) x0 = 0.0_dp
         if (present(x1)) x1 = 1.0_dp
 
@@ -754,6 +758,8 @@ contains
     subroutine fullStop_33(b, x0, x1)
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
+
+        unused_variable(b)
 
         if (present(x0)) x0 = Root2
         if (present(x1)) x1 = 0.0_dp
@@ -790,30 +796,35 @@ contains
     function funMinusTwo(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
+        unused_variable(b)
         ret = -2.0_dp
     end function funMinusTwo
 
     function funSqrt2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
+        unused_variable(b)
         ret = Root2
     end function funSqrt2
 
     function minFunSqrt2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
+        unused_variable(b)
         ret = -Root2
     end function minFunSqrt2
 
     function funOverRoot2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
+        unused_variable(b)
         ret = OverR2
     end function funOverRoot2
 
     function minFunOverR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
+        unused_variable(b)
         ret = -OverR2
     end function minFunOverR2
 
@@ -1075,6 +1086,7 @@ contains
     function funZero(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
+        unused_variable(b)
         ret = 0.0_dp
     end function funZero
 
@@ -1082,88 +1094,81 @@ contains
         ! think of a better way to include that -> wasted time
         real(dp), intent(in) :: b
         real(dp) :: ret
+        unused_variable(b)
         ret = 1.0_dp
     end function funPlus1
 
     function funMinus1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
+        unused_variable(b)
         ret = -1.0_dp
     end function funMinus1
 
     function funTwo(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
+        unused_variable(b)
         ret = 2.0_dp
     end function funTwo
 
     function funA_0_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT(b >= 0.0_dp)
         ret = funA(b, 0.0_dp, 1.0_dp)
     end function funA_0_1
 
     function funA_2_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT(b >= 0.0_dp)
         ret = funA(b, 2.0_dp, 1.0_dp)
     end function funA_2_1
 
     function funA_1_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT(b > 0.0_dp)
         ret = funA(b, 1.0_dp, 0.0_dp)
     end function funA_1_0
 
     function funA_1_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT(b >= 0.0_dp)
         ret = funA(b, 1.0_dp, 2.0_dp)
     end function funA_1_2
 
     function funC_0(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT(b > 0.0_dp)
         ret = funC(b, 0.0_dp)
     end function funC_0
 
     function funC_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT(b >= 0.0_dp)
         ret = funC(b, 1.0_dp)
     end function funC_1
 
     function funC_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT( b >= 0.0_dp)
         ret = funC(b, 2.0_dp)
     end function funC_2
 
     function minFunOverB_2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT( b >= 0.0_dp)
         ret = -funOverB(b, 2.0_dp)
     end function minFunOverB_2
 
     function funOverB_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT( b >= 0.0_dp)
         ret = funOverB(b, 1.0_dp)
     end function funOverB_1
 
     function minFunOverB_1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        !ASSERT( b >= 0.0_dp)
         ret = -funOverB(b, 1.0_dp)
     end function minFunOverB_1
 

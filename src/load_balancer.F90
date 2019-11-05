@@ -56,7 +56,8 @@ contains
     use bit_reps, only : decode_bit_det
     character(len=*), intent(in) :: info
     integer, intent(in), optional :: except
-    integer :: i,dind,dh,nI(nel)
+    integer :: dind,dh,nI(nel)
+    integer(int64) :: i
     real(dp) :: CurrentSign(lenof_sign)
     logical :: test
     do i=1,TotWalkers

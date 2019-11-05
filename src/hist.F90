@@ -998,7 +998,7 @@ contains
             allocate(ilut_list(0:niftot,n_states), source = ilut_list_opt(0:niftot,1:n_opt))
 
         else
-            n_states = TotWalkers
+            n_states = int(TotWalkers)
             allocate(ilut_list(0:niftot,TotWalkers), source = CurrentDets(0:niftot,1:TotWalkers))
 
         end if

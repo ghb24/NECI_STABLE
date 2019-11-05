@@ -47,6 +47,7 @@ contains
     subroutine test_countbits_fn(proc, subname)
         ! This calls each of the relevant tests on the supplied function
         procedure(count_bits_t), pointer :: proc
+        character(*), intent(in) :: subname
 
         TEST1(test_zero_bits, proc)
         TEST1(test_max_bits, proc)

@@ -1308,14 +1308,14 @@ MODULE HPHFRandExcitMod
             else if (t_new_real_space_hubbard) then
                 if (t_trans_corr_hop) then
                     if (t_uniform_excits) then
-                        pgen = calc_pgen_rs_hubbard_transcorr_uniform(nI, ilutI, ex, ic)
+                        pgen = calc_pgen_rs_hubbard_transcorr_uniform(ex, ic)
                     else
                         pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
                     end if
                 else if (t_spin_dependent_transcorr) then
                     pgen = calc_pgen_rs_hubbard_spin_dependent_transcorr(nI,ilutI,ex,ic)
                 else
-                    pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
+                    pgen = calc_pgen_rs_hubbard(ilutI, ex, ic)
                 end if
 
             else if (t_tJ_model) then

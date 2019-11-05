@@ -54,7 +54,9 @@ module fcimc_iter_utils
 
     use tau_search_hist, only: update_tau_hist
 
+#ifndef __CMPLX
     use guga_tausearch, only: update_tau_guga_nosym
+#endif
 
     implicit none
 
@@ -524,7 +526,7 @@ contains
         sizes(52) = size(popSnapShot)
 #endif
 
-        send_arr = 0
+        send_arr = 0.0_dp
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
              "No space left in arrays for communication of estimates. Please increase &
              & the size of the send_arr and recv_arr arrays in the source code.")
@@ -641,14 +643,14 @@ contains
         ! truncated weight
         low = upp + 1; upp = low + sizes(28) - 1; AllTruncatedWeight = recv_arr(low);
         ! initiators per excitation level
-        low = upp + 1; upp = low + sizes(29) - 1; AllInitsPerExLvl = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(29) - 1; AllInitsPerExLvl = nint(recv_arr(low:upp));
         ! excitation number trackers
         low = upp + 1; upp = low + sizes(30) - 1; allNInvalidExcits = nint(recv_arr(low));
         low = upp + 1; upp = low + sizes(31) - 1; allNValidExcits = nint(recv_arr(low));
 
-        low = upp + 1; upp = low + sizes(32) - 1; AllCoherentDoubles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(33) - 1; AllIncoherentDets = recv_arr(low);
-        low = upp + 1; upp = low + sizes(34) - 1; AllConnection = recv_arr(low);
+        low = upp + 1; upp = low + sizes(32) - 1; AllCoherentDoubles = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(33) - 1; AllIncoherentDets = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(34) - 1; AllConnection = nint(recv_arr(low));
 
         if(tTruncInitiator) then
            low = upp + 1; upp = low + sizes(35) - 1; allDoubleSpawns = nint(recv_arr(low));
@@ -795,18 +797,24 @@ contains
         if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
             .not. tFillingStochRDMOnFly)) then
 
+#ifndef __CMPLX
             if (tGen_nosym_guga) then
                 call update_tau_guga_nosym()
             else
+#endif
                 call update_tau()
+#ifndef __CMPLX
             end if
+#endif
 
         ! [Werner Dobrautz 4.4.2017:]
         else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) .and. &
             .not. tFillingStochRDMonFly)) then
 
             if (tGen_nosym_guga) then
+#ifndef __CMPLX
                 call update_hist_tau_guga_nosym()
+#endif
             else
                 call update_tau_hist()
             end if

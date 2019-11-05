@@ -1,31 +1,31 @@
 #include "macros.h"
 
-! i guess for a new module it would be nice to have one module which tests 
-! all the functions and programs of a module .. check that out.. 
+! i guess for a new module it would be nice to have one module which tests
+! all the functions and programs of a module .. check that out..
 
 ! all the global variables in NECI make it a bit tough to do unit-tests
 
-! no.. i guess, atleast in my framework it would be better to write one 
-! unit test module which tests all the functionality of a other module 
-program test_k_space_hubbard 
-    
+! no.. i guess, atleast in my framework it would be better to write one
+! unit test module which tests all the functionality of a other module
+program test_k_space_hubbard
+
     use k_space_hubbard
 
-    use constants 
+    use constants
 
-    use fruit 
+    use fruit
 
-    use SystemData, only: t_k_space_hubbard, t_lattice_model, nel, nbasis, & 
-                          t_trans_corr, G1, nBasisMax, nOccBeta, nOccAlpha, & 
-                          bhub, uhub, omega, trans_corr_param_2body, & 
-                          t_trans_corr, t_trans_corr_2body, trans_corr_param, & 
-                          thub, tpbc, treal, ttilt, TSPINPOLAR, & 
+    use SystemData, only: t_k_space_hubbard, t_lattice_model, nel, nbasis, &
+                          t_trans_corr, G1, nBasisMax, nOccBeta, nOccAlpha, &
+                          bhub, uhub, omega, trans_corr_param_2body, &
+                          t_trans_corr, t_trans_corr_2body, trans_corr_param, &
+                          thub, tpbc, treal, ttilt, TSPINPOLAR, &
                           tCPMD, tVASP, tExch, tHphf, tNoSymGenRandExcits, tKPntSym, &
                           t_twisted_bc, twisted_bc, arr, brr
 
     use bit_rep_data, only: niftot, nifd
 
-    use lattice_mod, only: lat, lattice, get_helement_lattice_general, & 
+    use lattice_mod, only: lat, lattice, get_helement_lattice_general, &
                            get_helement_lattice_ex_mat, get_helement_lattice
 
     use dsfmt_interface, only: dsfmt_init
@@ -64,27 +64,30 @@ program test_k_space_hubbard
 
     use ras, only: sort_orbitals
 
-    implicit none 
+    implicit none
 
-    integer :: failed_count 
+    integer :: failed_count
     real(dp) :: test_prefac = 2.0_dp
 
 
     call init_fruit()
     call dsfmt_init(0)
 
-    ! misuse the unit tests for now to also do an exact study.. 
-    call exact_study() 
-    ! run the test-driver 
+    ! misuse the unit tests for now to also do an exact study..
+#ifndef __CMPLX
+    call exact_study()
+#endif
+    ! run the test-driver
     call k_space_hubbard_test_driver()
     call fruit_summary()
-    call fruit_finalize() 
+    call fruit_finalize()
 
-    call get_failed_count(failed_count) 
-    if (failed_count /= 0) stop -1 
+    call get_failed_count(failed_count)
+    if (failed_count /= 0) stop -1
 
-contains 
+contains
 
+#ifndef __CMPLX
     subroutine exact_study
 
         use DetCalcData, only: nkry, nblk, b2l, ncycle
@@ -122,12 +125,12 @@ contains
         integer, allocatable :: trunc(:), add(:,:)
         integer :: l_norm, n_excited_states
         logical :: t_exact_propagation, t_optimize_j, t_do_exact_transcorr
-        logical :: t_input_l 
+        logical :: t_input_l
         real(dp) :: timestep, j_opt, tmp_hel
         real(dp), allocatable :: sign_list(:)
 
         tmp_sign = 0.0_dp
-        ! also define the point group character to determine the 
+        ! also define the point group character to determine the
         ! irreps
         n_syms = 9
         A1g = [1,1,1,1,1,1,1,1,1]
@@ -190,18 +193,18 @@ contains
         else if (t_J_vec) then
             J_vec = linspace(-2.0,2.0,200)
 !               J_vec = [0.5]
-        else 
+        else
             J = 0.1
         end if
 
         if (t_input_l) then
             print *, "input norm"
             read(*,*), l_norm
-        else 
+        else
             l_norm = 2
         end if
 
-        if (t_input_twist) then 
+        if (t_input_twist) then
             print *, "input x-twist:"
             read(*,*), twisted_bc(1)
             print *, "input y-twist: "
@@ -217,37 +220,37 @@ contains
         end if
 
         call init_k_space_unit_tests()
-        
-        ! i have to define the lattice here.. 
+
+        ! i have to define the lattice here..
         lat => lattice('tilted', 5, 5, 1,.true.,.true.,.true.,'k-space')
 
 !         x = [(-lat%dispersion_rel_orb(i), i = 1, 24)]
 !         ind = [(i, i = 1, 24)]
-! 
-!         call sort(x,ind) 
-! 
+!
+!         call sort(x,ind)
+!
 !         k1 = [2*pi/8., 10.0*pi/(3.0*8.0)]
 !         k2 = [-2*pi/8.0,2*pi/8.0]
 !         print *, "k | ole k |  e(k): "
-!         do i = 1, 24 
+!         do i = 1, 24
 !             k_vec = lat%get_k_vec(ind(i))
 !             print *,lat%get_k_vec(ind(i)),"|", k_vec(1)*k1 + k_vec(2)*k2, "|", x(i)
 !         end do
-        
+
         nel = 18
         allocate(nI(nel))
         allocate(nJ(nel))
         nj = 0
 
         nbasis = 2*lat%get_nsites()
-        
+
         ! 10 in 21 k = 0, closed-shell:
 !         ni = [17,18,19,20,21,22,23,24,25,26]
 
         ! 10 in 21 k = 1, open-shell:
 !         ni = [17,18,19,20,21,22,23,24,25,28]
 
-        ! 80 in 100 k != 0 closed-shell: 
+        ! 80 in 100 k != 0 closed-shell:
 !         nI=[   9,   10,   27,   28,   29,   30,   31,   32,   45,   46,   47, &
 !             48,   49,   50,   51,   52,   53,   54,   63,   64,   65,  &
 !             66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,  &
@@ -267,7 +270,7 @@ contains
 !             127,  128,  129,  130,  131,  132,  133,  134,  147,  148,  149,&
 !             150,  151,  152,170]
 
-        ! 100 in 100 k = 0 closed-shell: 
+        ! 100 in 100 k = 0 closed-shell:
 !         nI=[   7,    8,    9,   10,   11,   12,   25,   26,   27,   28,   29,   30,   31,   32,   33,   34,   43,   44,   45,   46,   47,   48,   49,   50,   51,   52,   53,   54,   55,   56,   61,   62,   63,   64,   65,   66,   67,   68,   69,   70,   71,   72,   73,   74,   75,   76,   77,   78,   81,   82,   83,   84,   85,   86,   87,   88,   89,   90,   91,   92,   93,   94,   95,   96,   97,   98,   99,  100,  103,  104,  105,  106,  107,  108,  109,  110,  111,  112,  113,  114,  115,  116,  125,  126,  127,  128,  129,  130,  131,  132,  133,  134,  147,  148,  149,  150,  151,  152,  169,  170]
 
         ! 100 in 100 k != 0 closed-shell:
@@ -293,7 +296,7 @@ contains
 
         ! 100 in 100 k = 0 open-shell
 
-        ! 28 in 64 k!=0 closed shell 
+        ! 28 in 64 k!=0 closed shell
 !         ni = [21,22,23,24,37,38,39,40,41,42,51,52,53,54,55,56,57,58,59,60,69,70,71,72,73,74,87,88]
         ! 28 in 64 k = 0 open-shell
 !         ni = [21,23,24,37,38,39,40,41,42,51,52,53,54,55,56,57,58,59,60,69,70,71,72,73,74,87,88,90]
@@ -312,7 +315,7 @@ contains
 !             nI=[    5,    6,   15,   16,   17,   18,   19,   20,   25, 26,   27, &
 !                 28,   29,   30,   31,   32,   39,   40,   41,   42,   43, &
 !                 44,   53,   54]
-! 
+!
 !             ! 24 in 36 k!=0 closed-shell
 ! !             nI=[    5,    6,   15,   16,   17,   18,   19,   20,   26,   27, &
 ! !                 28,   29,   30,   31,   32,   33,   39,   40,   41,   42,   43, &
@@ -321,7 +324,7 @@ contains
 !             nI=[   13,   14,   15,   16,   17,   18,   19,   20,   25,   26,&
 !                 27,   28,   29,   30,   31,   32,   37,   38,   39,   40,   41, &
 !                 42,   43,   44]
-! 
+!
 !         end if
         ! 36 in 36 k = 0
 !         if (all(twisted_bc == 0)) then
@@ -329,7 +332,7 @@ contains
 !                 17,   18,   19,   20,   21,   22,   25,   26,   27,   28,   29,&
 !                 30,   31,   32,   33,   34,   39,   40,   41,   42,   43,   44,&
 !                 53,   54,   65,   66]
-!         else 
+!         else
 !             nI=[  3,    4,    5,    6,   13,   14,   15,   16,   17,   18,  &
 !                 19,   20,   25,   26,   27,   28,   29,   30,   31,   32,   33,&
 !                 34,   35,   36,   37,   38,   39,   40,   41,   42,   43,   44,&
@@ -359,7 +362,7 @@ contains
 !                 364,  365,  366,  367,  368,  369,  370,  371,  372,  373,  374,  395,&
 !                 396,  397,  398,  399,  400,  401,  402,  403,  404,  429,  430,  431,&
 !                 432,  433,  434,  463,  464]
-! 
+!
 !         ! 256 in 16x16, k = 0, twist = [0.5,0]
 !         else
 !             nI = [   13,   14,   15,   16,   43,   44,   45,   46,   47,   48,   &
@@ -387,22 +390,22 @@ contains
 !                 402,  403,  404,  427,  428,  429,  430,  431,  432,  433,  434, &
 !                 461,  462,  463,  464]
 !         end if
-! 
-        ! 16 in 16, k != 0 
+!
+        ! 16 in 16, k != 0
 !         nI = [1,2,3,4,5,6,9,10,11,12,13,14,17,18,19,20]
         ! 16 in 16 k = 0 closed shell
 !         nI = [1,2,3,4,5,6,9,10,11,12,13,14,15,16,19,20]
 
-        ! 16 in 16 k = 0 open shell 
+        ! 16 in 16 k = 0 open shell
 !         nI = [1,3,4,5,6,9,10,11,12,13,14,17,18,19,20,22]
 
         ! 14 in 16, k = 0, closed shell
 !         nI = [1,2,3,4,5,6,9,10,11,12,13,14,19,20]
-        ! 14 in 16, k = 0, open-shell 
+        ! 14 in 16, k = 0, open-shell
 !         nI = [1, 3,4,5,9,10,11,12,13,14,18,19,20,22]
-        ! 14 in 16, k != 0, closed 
+        ! 14 in 16, k != 0, closed
 !         nI = [1,2,3,4,5,6,9,10,11,12,13,14,19,20]
-        
+
 !         nI = [(i, i = 1,nel)]
         ! 50 in 50:
 !         nI = [ 9,10,11,12,13,14,15,16,17,18,21,22,23,24,25,26,27,28,29,30,&
@@ -457,7 +460,7 @@ contains
         ! 10 in 9, k = 1,-1:
 !         nI = [1,2,3,4,7,8,9,10,11,12]
 
-        
+
         ! chain:
         ! 6 in 6, k = 0
 !         nI = [3,4,5,6,7,8]
@@ -478,7 +481,7 @@ contains
         ! 2 in 4 k!=0
 !         nI = [1,6]
 
-        ! 6 in 8, 
+        ! 6 in 8,
 !         nI = [5,6,7,8,9,10]
 
         ! 6 in 6, k = 3
@@ -495,7 +498,7 @@ contains
 
         ! tilted 2x2:
         ! 8 in 8, k = 0
-!         ni = [1,2,3,4,5,6,7,8,11,12] 
+!         ni = [1,2,3,4,5,6,7,8,11,12]
 
 
 !         ni = [7,8,9,10,11,12,13,14,19,20,21,22,23,24,25,26,33,34,35,36,37,38,39,40]
@@ -512,7 +515,7 @@ contains
 !         nI = [1,2,3,4,5,6]
 !         nI = [5,6,7,8,9,10]
 
-        ! 18 in 50 
+        ! 18 in 50
         nI = [23,24,25,26,27,28,39,40,41,42,43,44,57,58,59,60,61,62]
 
         ! 26 in 50
@@ -521,7 +524,7 @@ contains
 
         ! setup lanczos:
         nblk = 4
-        nkry = 8 
+        nkry = 8
         ncycle = 200
         b2l = 1.0e-13_dp
 
@@ -533,10 +536,10 @@ contains
         call init_bit_rep()
         print *, "niftot: ", niftot
 
-        ! use twisted bc in this case.. 
+        ! use twisted bc in this case..
         if (t_do_twisted_bc) then
-            t_twisted_bc = .true. 
-            if (t_twisted_vec) then 
+            t_twisted_bc = .true.
+            if (t_twisted_vec) then
                 twist_x_vec = linspace(0.0,1.0,1000)
 !                 allocate(twist_x_vec(1))
 !                 twist_x_vec = 0.0
@@ -555,7 +558,7 @@ contains
                         twisted_bc(1) = twist_x_vec(i)
                         twisted_bc(2) = 0.0
 !                         twisted_bc(2) = 2*twist_y_vec(i)
-                        epsilon_kvec = [(-lat%dispersion_rel_orb(l), l = 1, nBasis/2)] 
+                        epsilon_kvec = [(-lat%dispersion_rel_orb(l), l = 1, nBasis/2)]
 
                         call sort(epsilon_kvec)
                         gap = epsilon_kvec(nel/2 + 1) - epsilon_kvec(nel/2)
@@ -585,13 +588,13 @@ contains
                         twisted_bc(1) = twist_x_vec(i)
                         twisted_bc(2) = twist_y_vec(k)
 
-                        epsilon_kvec = [(-lat%dispersion_rel_orb(l), l = 1, nBasis/2)] 
+                        epsilon_kvec = [(-lat%dispersion_rel_orb(l), l = 1, nBasis/2)]
 
                         write(iunit,*) twisted_bc(1:2), epsilon_kvec
 
                         if (t_ignore_k) then
-                            ! if we want to fill up the nel lowest 
-                            ! orbitals always.. 
+                            ! if we want to fill up the nel lowest
+                            ! orbitals always..
                             ind = [(i, i = 1, nBasis/2)]
                             call sort(epsilon_kvec, ind)
 
@@ -604,12 +607,12 @@ contains
                             if (allocated(e_vecs)) deallocate(e_vecs)
                             allocate(e_vecs(size(hilbert_space,2),n_eig))
 
-                        else 
+                        else
                             call setup_system(lat, nI, J, U)
                         end if
                         E_ref = get_helement_lattice(nI,nI)
                         ! and also calculate the GS energy
-                        ! do i need to setup the system more thoroughly for the 
+                        ! do i need to setup the system more thoroughly for the
                         ! GS energy? i think so..
 
                         print *, "k-twist: ", twisted_bc(1:2)
@@ -630,12 +633,12 @@ contains
                 twisted_bc = 0.5
             end if
         end if
-            
+
 
 !         NIfTot = 0
 !         nifd = 0
 
-        if (t_optimize_j) then 
+        if (t_optimize_j) then
 
             t_trans_corr_2body = .true.
             trans_corr_param_2body = J_vec((1))
@@ -645,8 +648,8 @@ contains
             call init_three_body_const_mat()
 
             write(U_str, *) int(U)
-            write(nel_str, *) nel 
-            write(lattice_name,*) lat%get_nsites() 
+            write(nel_str, *) nel
+            write(lattice_name,*) lat%get_nsites()
             lattice_name = trim(lattice_name) // "_"
 
             filename = 'J_optim_' // trim(adjustl(nel_str)) // 'in' // &
@@ -660,7 +663,7 @@ contains
                 three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
                 call init_two_body_trancorr_fac_matrix()
                 call init_three_body_const_mat()
-     
+
                 j_opt = get_j_opt(nI, J_vec(i))/real(omega,dp)
 
                 write(iunit,*) J_vec(i), j_opt
@@ -684,8 +687,8 @@ contains
             end if
 
             write(U_str, *) int(U)
-            write(nel_str, *) nel 
-            write(lattice_name,*) lat%get_nsites() 
+            write(nel_str, *) nel
+            write(lattice_name,*) lat%get_nsites()
             lattice_name = trim(lattice_name) // "_"
 
             filename = 'H_elements_' // trim(adjustl(nel_str)) // 'in' // &
@@ -698,7 +701,7 @@ contains
             print *, "writing to file..."
             if (t_do_doubles) then
                 write(iunit, *) "# J, H diag, <I|H|K>, <K|H|I>:"
-            else 
+            else
                 write(iunit, *) "# J, H diag"
             end if
 
@@ -707,7 +710,7 @@ contains
                 three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
                 call init_two_body_trancorr_fac_matrix()
                 call init_three_body_const_mat()
-     
+
                 if (t_do_doubles) then
                     sum_doubles = 0.0_dp
                     sum_doubles_trans = 0.0_dp
@@ -726,7 +729,7 @@ contains
                     end do
 
                     write(iunit, *)  J_vec(i), get_diag_helement_k_sp_hub(nI), sum_doubles, sum_doubles_trans
-                else 
+                else
                     write(iunit, *)  J_vec(i), get_diag_helement_k_sp_hub(nI)
                 end if
             end do
@@ -771,7 +774,7 @@ contains
                 ! 10 17 72 79
                 hilbert_space(:,7) = [ 10,11,12,13,14,15,16,17,21,22,23,24,25,26,27,28,29,30,&
                     37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,72,73,74,75,76,77,78,79]
-                
+
                 ! 10 18 71 79
                 hilbert_space(:,8) = [10 ,11,12,13,14,15,16,18,21,22,23,24,25,26,27,28,29,30,&
                     37,38,39,40,41,42,43,44,45,46,55,56,57,58,59,60,61,62,63,64,71,73,74,75,76,77,78,79]
@@ -780,13 +783,13 @@ contains
                 if (nel == 14) then
                     n_eig = 8
                     allocate(hilbert_space(nel,n_eig))
-                    ! 18-site 
+                    ! 18-site
                     ! closed shell:
                     ! 3 4 25 26
                     hilbert_space(:,1) = [ 3,4, 5, 6, 11,12,13,14,15,16, 23,24,25,26 ]
-                    ! 7 8 21 22 
+                    ! 7 8 21 22
                     hilbert_space(:,2) = [  5, 6,7,8 , 11,12,13,14,15,16,21,22 ,23,24 ]
-                    ! open shell: 
+                    ! open shell:
                     ! parallel diagonal:
                     ! 3 8 22 25
                     hilbert_space(:,3) = [ 3, 5, 6,8 , 11,12,13,14,15,16,22 ,23,24,25 ]
@@ -802,7 +805,7 @@ contains
                     hilbert_space(:,7) = [ 4 , 5,6, 7 ,11,12,13,14,15,16, 22 ,23,24, 25 ]
                     ! 4 8 21 25
                     hilbert_space(:,8) = [ 4 , 5,6, 8 ,11,12,13,14,15,16, 21 ,23,24, 25 ]
-                else if (nel == 12) then 
+                else if (nel == 12) then
                     n_eig = 4
                     allocate(hilbert_space(nel,n_eig))
                     ! do the k = 0, open-shell sector
@@ -811,12 +814,12 @@ contains
                     ! 4 25
                     hilbert_space(:,2) = [ 4 ,5,6,11,12,13,14,15,16,23,24, 25 ]
                     ! 7 22
-                    hilbert_space(:,3) = [ 5,6, 7 ,11,12,13,14,15,16, 22 ,23,24] 
+                    hilbert_space(:,3) = [ 5,6, 7 ,11,12,13,14,15,16, 22 ,23,24]
                     ! 8 21
-                    hilbert_space(:,4) = [ 5,6, 8 ,11,12,13,14,15,16, 21 ,23,24] 
+                    hilbert_space(:,4) = [ 5,6, 8 ,11,12,13,14,15,16, 21 ,23,24]
 
-                else if (nel == 18) then 
-                    n_eig = 53 
+                else if (nel == 18) then
+                    n_eig = 53
                     allocate(trunc(10))
                     trunc = [5,6,11,12,13,14,15,16,23,24]
                     allocate(add(8,53))
@@ -842,8 +845,8 @@ contains
                     add(:,48:53) = create_all_spin_flips([3,4,7,8,21,26,19,28])
 
                     allocate(hilbert_space(nel, n_eig))
-                    hilbert_space = 0 
-                    do i = 1, 53 
+                    hilbert_space = 0
+                    do i = 1, 53
                         hilbert_space(:,i) = [trunc,add(:,i)]
                         call sort_orbitals(hilbert_space(:,i))
                     end do
@@ -872,7 +875,7 @@ contains
             allocate(t_degen(n_eig))
 
             allocate(sort_ind(n_eig))
-            t_trans_corr_2body = .true. 
+            t_trans_corr_2body = .true.
 
             allocate(sym_labels_all(n_eig,n_syms+1))
             sym_labels_all = 0
@@ -890,12 +893,9 @@ contains
 
             iunit = get_free_unit()
             open(iunit, file = 'basis')
-            call print_matrix(transpose(hilbert_space), iunit)
+            call print_matrix((hilbert_space), iunit)
             close(iunit)
 
-!             t_twisted_bc = .true. 
-!             twisted_bc(1) = 0.01
-!             twisted_bc(2) = 0.02
             if (t_U_vec)then
                 do i = 1, size(U_vec)
                     U = U_vec(i)
@@ -906,7 +906,7 @@ contains
                             J = J_vec(k)
 
                             write(J_str,*) J
-                            filename = "energy_e_vectors_U_" // trim(adjustl(U_str)) & 
+                            filename = "energy_e_vectors_U_" // trim(adjustl(U_str)) &
                                 // "_J_" // trim(adjustl(J_str))
 
                             iunit = get_free_unit()
@@ -917,13 +917,13 @@ contains
 
                             t_sym = check_symmetric(hamil)
                             if (t_sym) then
-                                call eig_sym(hamil, e_values, e_vecs) 
+                                call eig_sym(hamil, e_values, e_vecs)
                             else
-                                call eig(hamil, e_values, e_vecs) 
+                                call eig(hamil, e_values, e_vecs)
                             end if
 
-                            print *, "basis:" 
-                            call print_matrix(transpose(hilbert_space))
+                            print *, "basis:"
+                            call print_matrix((hilbert_space))
                             print *, "hamil: "
                             call print_matrix(hamil)
 
@@ -935,7 +935,7 @@ contains
                             print *, "e-vecs: "
                             call print_matrix(e_vecs)
                             if (.not. t_sym) then
-                                call eig(hamil, e_values, left_ev, .true.) 
+                                call eig(hamil, e_values, left_ev, .true.)
                                 sort_ind = [(i, i = 1,n_eig)]
                                 call sort(e_values, sort_ind)
 
@@ -946,7 +946,7 @@ contains
 
                             t_degen = pairs(:,1) /= 0
 
-                            ! also do the symmetry study.. 
+                            ! also do the symmetry study..
                             open(iunit, file = filename)
 
                             if (t_sym) then
@@ -959,7 +959,7 @@ contains
 
                             if (any(t_degen)) then
                                 ! first add up the correct degenerate pairs
-                                
+
                                 do l = 1, n_eig
                                     do m = 1, size(hilbert_space,2)
                                         tmp_sign(1) = e_vecs(m,l)
@@ -985,14 +985,14 @@ contains
                                 irrep = 0
                                 do l = 1, n_eig
                                     do m = 1, 10
-                                        if (all(nint(sym_labels_all(l,1:n_syms)) & 
-                                            == irreps(m,:))) then 
+                                        if (all(nint(sym_labels_all(l,1:n_syms)) &
+                                            == irreps(m,:))) then
                                             irrep(l) = m
                                         end if
                                     end do
                                 end do
                             end if
- 
+
                             do l = 1, n_eig
                                 gs_gap_J(l,k) = e_values(l) - e_values(1)
                                 gs_gap_U(l,i) = e_values(l) - e_values(1)
@@ -1046,10 +1046,10 @@ contains
 
                 hamil = create_hamiltonian(hilbert_space)
 
-                call eig(hamil, e_values, e_vecs) 
+                call eig(hamil, e_values, e_vecs)
 
-                print *, "basis:" 
-                call print_matrix(transpose(hilbert_space))
+                print *, "basis:"
+                call print_matrix((hilbert_space))
                 print *, "hamil: "
                 call print_matrix(hamil)
 
@@ -1069,23 +1069,23 @@ contains
 !             hamil = create_hamiltonian(hilbert_space)
 !             allocate(e_values(n_eig))
 !             allocate(e_vecs(n_eig, size(hilbert_space,2)))
-!             call eig(hamil, e_values, e_vecs) 
+!             call eig(hamil, e_values, e_vecs)
 !             sort_ind = [(i, i = 1,n_eig)]
-!             ind = minloc(e_values,1) 
+!             ind = minloc(e_values,1)
 !             call sort(e_values, sort_ind)
 !             e_vecs = e_vecs(sort_ind,:)
 
         end if
 
         print *, "k-vector : ", kTotal
-! 
+!
         allocate(e_values(n_eig))
         allocate(e_vecs(size(hilbert_space,2),n_eig))
 
         print *, "size hilbert: ", size(hilbert_space, 2)
 
         if (t_do_ed) then
-            if (t_U_vec) then 
+            if (t_U_vec) then
                 U = U_vec(1)
                 ! setup hilbert once
                 iunit = get_free_unit()
@@ -1103,9 +1103,9 @@ contains
                 call stop_all("here", "now")
             end if
 
-            ! try too big systems here: 
+            ! try too big systems here:
             call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
-! ! 
+! !
             print *, "e_value lanczos:", e_values
 !             print *, "|i>, c_i:"
 !             do i = 1, size(hilbert_space,2)
@@ -1115,14 +1115,14 @@ contains
 
         if (t_do_exact_transcorr) then
             if (t_J_vec) then
-                call exact_transcorrelation(lat, nI, J_vec, U, hilbert_space) 
-            else 
-                call exact_transcorrelation(lat, nI, [J], U, hilbert_space) 
+                call exact_transcorrelation(lat, nI, J_vec, U, hilbert_space)
+            else
+                call exact_transcorrelation(lat, nI, [J], U, hilbert_space)
             end if
         end if
 
 
-        if (t_exact_propagation) then 
+        if (t_exact_propagation) then
             call setup_system(lat, nI, J, U, hilbert_space)
             call do_exact_propagation(hilbert_space, timestep, J, U, l_norm, n_excited_states)
         end if
@@ -1130,12 +1130,12 @@ contains
         call stop_all("here", "now")
 
     end subroutine exact_study
-    
-    subroutine do_exact_propagation(hilbert_space, tau, J_param, U_param, l_norm, n_states) 
-        ! do an exact imaginary time-propagation of a given hamiltonian, 
-        ! constructed from the hilbert_space, J and U. 
+
+    subroutine do_exact_propagation(hilbert_space, tau, J_param, U_param, l_norm, n_states)
+        ! do an exact imaginary time-propagation of a given hamiltonian,
+        ! constructed from the hilbert_space, J and U.
         ! tau specifies the time-step used
-        ! l_norm  = 1,2     decides which norm is used to adapt the shift.. 
+        ! l_norm  = 1,2     decides which norm is used to adapt the shift..
         ! n_states specifies how many states we want to calculate
         integer, intent(in) :: hilbert_space(:,:)
         real(dp) :: tau
@@ -1166,11 +1166,11 @@ contains
         shift_damp = 1.0_dp
         t_shoelace = .false.
         alpha = 1.0
-        ! the orthogonality of the Gram-Schmidt actually depends on the 
+        ! the orthogonality of the Gram-Schmidt actually depends on the
         ! normalization, if it is based on a non-hermitian Hamiltonian!!
         t_normalize = .false.
         tau = 0.001_dp
-        ! false is more like the neci implementation! 
+        ! false is more like the neci implementation!
 
         ! the even more neci-like
         t_neci = .false.
@@ -1201,7 +1201,7 @@ contains
         end do
 
         ! also initialize the shift_R: maybe we need a better start value than 0..
-        ! diagonal matrix elements maybe? 
+        ! diagonal matrix elements maybe?
         allocate(shift_R(n_states)); shift_R = 0.0_dp
         allocate(shift_L(n_states)); shift_L = 0.0_dp
         allocate(shift_mat_R(size_hilbert,size_hilbert)); shift_mat_R = 0.0_dp
@@ -1222,7 +1222,7 @@ contains
         allocate(lp_norm_0_L(n_states)); lp_norm_0_L = 0.0_dp
         allocate(lp_norm_1_L(n_states)); lp_norm_1_L = 0.0_dp
 
-        ! also calculate the exact values for the comparison: 
+        ! also calculate the exact values for the comparison:
         allocate(sort_ind(size_hilbert))
         sort_ind = [(i, i = 1, size_hilbert)]
 
@@ -1258,7 +1258,7 @@ contains
         end do
 
         allocate(rot_mat(n_states,n_states), source = overlap_vecs)
-        do k = 1, n_states 
+        do k = 1, n_states
             do l = 1, n_states
                 rot_mat(k,l) = rot_mat(k,l) / sqrt(overlap_values(l))
             end do
@@ -1294,7 +1294,7 @@ contains
 !                 dot_product(rotated_basis(:,k),rotated_basis(:,k))
 !             print *, energy, energy - e_values(k)
 !         end do
-! 
+!
         print *, "exact eigenvalues: ", e_values
         if (t_output) then
             iunit = get_free_unit()
@@ -1318,14 +1318,14 @@ contains
                 lp_norm_0_R(k) = norm(Psi_R(:,k),l_norm)
                 lp_norm_0_L(k) = norm(Psi_L(:,k),l_norm)
 
-                if (l_norm == 1) then 
+                if (l_norm == 1) then
                     if (abs(lp_norm_0_R(k) - l1_norm_0_R(k)) > 1.0e-4) then
                         call stop_all(this_routine, "l1-norm-0 wrong!")
-                    end if 
-                else if (l_norm == 2) then 
+                    end if
+                else if (l_norm == 2) then
                     if (abs(lp_norm_0_R(k) - l2_norm_0_R(k)) > 1.0e-4) then
                         call stop_all(this_routine, "l2-norm-0 wrong!")
-                    end if 
+                    end if
                 end if
 
                 do l = 1, size_hilbert
@@ -1344,14 +1344,14 @@ contains
                 lp_norm_1_R(k) = norm(Psi_R(:,k),l_norm)
                 lp_norm_1_L(k) = norm(Psi_L(:,k),l_norm)
 
-                if (l_norm == 1) then 
+                if (l_norm == 1) then
                     if (abs(lp_norm_1_R(k) - l1_norm_1_R(k)) > 1.0e-4) then
                         call stop_all(this_routine, "l1-norm-1 wrong!")
-                    end if 
-                else if (l_norm == 2) then 
+                    end if
+                else if (l_norm == 2) then
                     if (abs(lp_norm_1_R(k) - l2_norm_1_R(k)) > 1.0e-4) then
                         call stop_all(this_routine, "l2-norm-1 wrong!")
-                    end if 
+                    end if
                 end if
 
                 if (t_normalize) then
@@ -1362,14 +1362,14 @@ contains
             end do
 
             do k = 1, n_states
-                ! and now orthogonalise.. orthogonalise against the left 
+                ! and now orthogonalise.. orthogonalise against the left
                 ! eigenvectors..
                 do l = 1, k - 1
                     if (t_normalize) then
                         if (t_shoelace) then
                             Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_L(:,l)) * Psi_L(:,l)
                             Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_R(:,l)) * Psi_R(:,l)
-                       else 
+                       else
                             Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_R(:,l)) * Psi_R(:,l)
                             Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_L(:,l)) * Psi_L(:,l)
                        end if
@@ -1379,18 +1379,18 @@ contains
                                 (l2_norm_1_L(l) * l2_norm_1_R(k)) * Psi_L(:,l)
                             Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_R(:,l)) / &
                                 (l2_norm_1_L(k) * l2_norm_1_R(l)) * Psi_R(:,l)
-                       else 
+                       else
                            if (t_neci) then
-                               ! in neci actual the wrong norms are taken.. 
+                               ! in neci actual the wrong norms are taken..
                                ! the ones of the non-yet-orthogonalised..
-                                Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_R(:,l)) / & 
+                                Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_R(:,l)) / &
                                     (l2_norm_1_R(l)**2) * Psi_R(:,l)
-                                Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_L(:,l)) / & 
+                                Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_L(:,l)) / &
                                     (l2_norm_1_L(l)**2) * Psi_L(:,l)
-                           else 
-                                Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_R(:,l)) / & 
+                           else
+                                Psi_R(:,k) = Psi_R(:,k) - dot_product(Psi_R(:,k),Psi_R(:,l)) / &
                                     (dot_product(Psi_R(:,l),Psi_R(:,l))) * Psi_R(:,l)
-                                Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_L(:,l)) / & 
+                                Psi_L(:,k) = Psi_L(:,k) - dot_product(Psi_L(:,k),Psi_L(:,l)) / &
                                     (dot_product(Psi_L(:,l),Psi_L(:,l))) * Psi_L(:,l)
                             end if
                        end if
@@ -1406,10 +1406,10 @@ contains
                     l1_norm_1_L(k) = sum(abs(Psi_L(:,k))) * l2_norm_1_L(k)
                     l2_norm_1_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k))) * l2_norm_1_L(k)
                 else
-                    l1_norm_1_R(k) = sum(abs(Psi_R(:,k))) 
-                    l2_norm_1_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
-                    l1_norm_1_L(k) = sum(abs(Psi_L(:,k))) 
-                    l2_norm_1_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k))) 
+                    l1_norm_1_R(k) = sum(abs(Psi_R(:,k)))
+                    l2_norm_1_R(k) = sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
+                    l1_norm_1_L(k) = sum(abs(Psi_L(:,k)))
+                    l2_norm_1_L(k) = sqrt(dot_product(Psi_L(:,k),Psi_L(:,k)))
                 end if
 
                 chosen_norm_0_R = lp_norm_0_R(k)
@@ -1421,7 +1421,7 @@ contains
 !                     chosen_norm_1_R = l1_norm_1_R(k)
 !                     chosen_norm_0_L = l1_norm_0_L(k)
 !                     chosen_norm_1_L = l1_norm_1_L(k)
-!                 else if (l_norm == 2) then 
+!                 else if (l_norm == 2) then
 !                     chosen_norm_0_R = l2_norm_0_R(k)
 !                     chosen_norm_1_R = l2_norm_1_R(k)
 !                     chosen_norm_0_L = l2_norm_0_L(k)
@@ -1431,9 +1431,9 @@ contains
                 shift_R(k) = shift_R(k) - shift_damp/tau * log(chosen_norm_1_R/chosen_norm_0_R)
                 shift_L(k) = shift_L(k) - shift_damp/tau * log(chosen_norm_1_L/chosen_norm_0_L)
 
-                    
+
                 ! and adapt the shift_R to keep the chosen norm constant
-                ! and normalize for a start.. 
+                ! and normalize for a start..
 !                 Psi_R(:,k) = Psi_R(:,k) / sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
                 ! measure energy
 !                 print *, "norms: ", l1_norm_1_R(k), l2_norm_1_R(k)
@@ -1459,13 +1459,13 @@ contains
         do k = 1, n_states
             Psi_est(:,k) = Psi_R(:,k) - tau * matmul(hamil - shift_mat_R,Psi_R(:,k))
         end do
-! 
+!
 !         print *, "neci linear dependent?: ", det(Psi_R)
-! 
+!
 !         allocate(overlap_mat_neci(n_states,n_states), source = 0.0_dp)
 !         allocate(overlap_val_neci(n_states), source = 0.0_dp)
 !         allocate(overlap_vecs_neci(n_states,n_states), source = 0.0_dp)
-! 
+!
 !         do k = 1, n_states
 !             do l = 1, n_states
 !                 overlap_mat_neci(k,l) = dot_product(Psi_R(:,k), Psi_R(:,l)) / &
@@ -1473,14 +1473,14 @@ contains
 !                 print *, "i,j, neci-neci overlap: ", k,l,overlap_mat_neci(k,l)
 !             end do
 !         end do
-! 
+!
 !         do k = 1, n_states
 !             do l = 1, n_states
 !                 print *, "i,j, est-overlap: ", k,l,dot_product(Psi_est(:,k),Psi_est(:,l)) / &
 !                     sqrt(dot_product(Psi_est(:,k),Psi_est(:,k))*dot_product(Psi_est(:,l),Psi_est(:,l)))
 !             end do
 !         end do
-! 
+!
 !         call eig(overlap_mat_neci, overlap_val_neci, overlap_vecs_neci)
 !         print *, "neci overlap values : ", overlap_val_neci
 
@@ -1495,23 +1495,23 @@ contains
         do k = 1, n_states
             print *, shift_L(k), shift_L(k) - e_values(k)
         end do
-! 
+!
 !         print *, "<L|H|R> energy, error: "
 !         do k = 1, n_states
-!             energy = dot_product(Psi_L(:,k),matmul(hamil, Psi_R(:,k))) / & 
+!             energy = dot_product(Psi_L(:,k),matmul(hamil, Psi_R(:,k))) / &
 !                 dot_product(Psi_L(:,k), Psi_R(:,k))
 !             print *, energy, energy - e_values(k)
 !         end do
 
         print *, "<R|H|R> energy, error: "
         do k = 1, n_states
-            energy = dot_product(Psi_R(:,k),matmul(hamil, Psi_R(:,k))) / & 
+            energy = dot_product(Psi_R(:,k),matmul(hamil, Psi_R(:,k))) / &
                 dot_product(Psi_R(:,k), Psi_R(:,k))
             print *, energy, energy - e_values(k)
         end do
 
         print *, "<R|H|R> corrected energy, error, correction: "
-        do k = 1, n_states 
+        do k = 1, n_states
             corr = 0.0_dp
             do l = 1, k - 1
                 corr = corr + dot_product(Psi_R(:,l),Psi_R(:,k)) ** 2 / &
@@ -1525,7 +1525,7 @@ contains
 
         allocate(projector(size_hilbert))
         print *, "projected energy, error:"
-        do k = 1, n_states 
+        do k = 1, n_states
             ind = maxloc(abs(Psi_R(:,k)),1)
             projector = 0.0_dp
             projector(ind) = 1.0_dp
@@ -1554,15 +1554,15 @@ contains
                 overlap = dot_product(e_vec(:,k),Psi_R(:,l)) / &
                     sqrt(dot_product(Psi_R(:,l),Psi_R(:,l)))
 
-                fI_j = dot_product(projector, Psi_R(:,l)) / & 
+                fI_j = dot_product(projector, Psi_R(:,l)) / &
                     sqrt(dot_product(Psi_R(:,l),Psi_R(:,l)))
 
                 corr = corr + overlap * fI_j
                 corr_E = corr_E + overlap * dot_product(projector, matmul(hamil,Psi_R(:,l))) / &
                     sqrt(dot_product(Psi_R(:,l),Psi_R(:,l)))
 !                 do m = 1, l-1
-!                     corr_E = corr_E - e_values(m) * overlap * & 
-!                         (dot_product(e_vec(:,l),Psi_R(:,m)) / & 
+!                     corr_E = corr_E - e_values(m) * overlap * &
+!                         (dot_product(e_vec(:,l),Psi_R(:,m)) / &
 !                         sqrt(dot_product(Psi_R(:,m),Psi_R(:,m)))) * &
 !                         dot_product(e_vec(:,m),projector)
 !                         (dot_product(Psi_R(:,m)/l2_norm_1_R(m), projector))
@@ -1571,17 +1571,17 @@ contains
 
             energy = (projE * (fI_i - corr) + corr_E)/fI_i
             print *, energy, energy - e_values(k), corr, corr_E, fI_i
-            
+
         end do
-         
+
         print *, "second method corrected projected energy: "
         do k = 1, n_states
             ind = maxloc(abs(Psi_R(:,k)),1)
             projector = 0.0_dp
             projector(ind) = 1.0_dp
 
-            fI_i = dot_product(projector, Psi_R(:,k)) / & 
-                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+            fI_i = dot_product(projector, Psi_R(:,k)) / &
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
 
             projE = dot_product(projector, matmul(hamil, Psi_R(:,k))) / &
                 dot_product(projector,Psi_R(:,k))
@@ -1605,8 +1605,8 @@ contains
             projector = 0.0_dp
             projector(ind) = 1.0_dp
 
-            fI_i = dot_product(projector, Psi_R(:,k)) / & 
-                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+            fI_i = dot_product(projector, Psi_R(:,k)) / &
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
 
             projE = dot_product(projector, matmul(hamil, Psi_R(:,k))) / &
                 dot_product(projector,Psi_R(:,k))
@@ -1626,19 +1626,19 @@ contains
         end do
 
         print *, "projected <D|PH|R> energy error: "
-        do k = 1, n_states 
+        do k = 1, n_states
             ind = maxloc(abs(Psi_R(:,k)),1)
             projector = 0.0_dp
             projector(ind) = 1.0_dp
 
-            fI_i = dot_product(projector, Psi_R(:,k)) / & 
-                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+            fI_i = dot_product(projector, Psi_R(:,k)) / &
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
 
             Psi_est(:,k) = matmul(hamil, Psi_R(:,k)) / &
-                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
 
             do l = 1, k - 1
-                Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k), Psi_R(:,l)) / & 
+                Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k), Psi_R(:,l)) / &
                     dot_product(Psi_R(:,l),Psi_R(:,l)) * Psi_R(:,l)
             end do
 
@@ -1648,19 +1648,19 @@ contains
         end do
 
         print *, "<D|PH|R> energy error: "
-        do k = 1, n_states 
+        do k = 1, n_states
             ind = maxloc(abs(Psi_R(:,k)),1)
             projector = 0.0_dp
             projector(ind) = 1.0_dp
 
-            fI_i = dot_product(projector, Psi_R(:,k)) / & 
-                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+            fI_i = dot_product(projector, Psi_R(:,k)) / &
+                sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
 
 !             Psi_est(:,k) = matmul(hamil, Psi_R(:,k)) / &
-!                 sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))) 
+!                 sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
 
             do l = 1, k - 1
-                Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k), Psi_R(:,l)) / & 
+                Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k), Psi_R(:,l)) / &
                     dot_product(Psi_R(:,l),Psi_R(:,l)) * Psi_R(:,l)
             end do
 
@@ -1672,11 +1672,11 @@ contains
 !         print *, "i, j, neci-neci overlap: "
 !         do k = 1, n_states
 !             do l = k, n_states
-!                 print *, k, l, dot_product(Psi_R(:,k), Psi_R(:,l)) / & 
+!                 print *, k, l, dot_product(Psi_R(:,k), Psi_R(:,l)) / &
 !                     sqrt(dot_product(Psi_R(:,k),Psi_R(:,k))*dot_product(Psi_R(:,l),Psi_R(:,l)))
 !             end do
 !         end do
-! 
+!
 !         print *, "i, j: neci-exact  overlap"
 !         do k = 1, n_states
 ! !             do l = 1, n_states
@@ -1684,48 +1684,49 @@ contains
 !                     sqrt(dot_product(Psi_R(:,k),Psi_R(:,k)))
 ! !             end do
 !         end do
-! 
+!
 !         allocate(gs_vec(n_states,n_states), source = 0.0_dp)
 !         print *, "test-overlap:"
-!         do k = 1, n_states 
+!         do k = 1, n_states
 !             Psi_est(:,k) = e_vec(:,k)
 !             do l = 1, k - 1
 !                 Psi_est(:,k) = Psi_est(:,k) - dot_product(Psi_est(:,k),Psi_est(:,l)) / &
 !                         dot_product(Psi_est(:,l),Psi_est(:,l)) * Psi_est(:,l)
-! 
+!
 !             end do
-! 
+!
 !             gs_vec(:,k) = Psi_est(:,k) / sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
 !             print *, k, k, dot_product(e_vec(:,k),gs_vec(:,k))! / &
 ! !                 sqrt(dot_product(Psi_est(:,k),Psi_est(:,k)))
 !         end do
-! 
+!
 !         print *, "S_ij:"
 !         do k = 1, n_states
-!             do l = 1, k 
+!             do l = 1, k
 !                 print *, k,l,dot_product(gs_vec(:,k),gs_vec(:,l))
 !             end do
 !         end do
 
 
     end subroutine do_exact_propagation
+#endif
 
-    subroutine setup_system(in_lat, nI, J, U, hilbert_space) 
+    subroutine setup_system(in_lat, nI, J, U, hilbert_space)
         class(lattice), intent(in) :: in_lat
-        integer, intent(in) :: nI(:) 
+        integer, intent(in) :: nI(:)
         real(dp), intent(in) :: J, U
         integer, intent(out), allocatable, optional :: hilbert_space(:,:)
 
         integer :: i, n_states
-        integer(n_int), allocatable :: dummy(:,:) 
+        integer(n_int), allocatable :: dummy(:,:)
 
         bhub = -1.0_dp
         nel = size(nI)
 
-        nOccBeta = 0 
-        nOccAlpha = 0 
+        nOccBeta = 0
+        nOccAlpha = 0
 
-        do i = 1, nel 
+        do i = 1, nel
             if (is_beta(nI(i)))  nOccBeta = nOccBeta + 1
             if (is_alpha(nI(i))) nOccAlpha = nOccAlpha + 1
         end do
@@ -1733,9 +1734,9 @@ contains
         n_opp(-1) = real(nOccAlpha,dp)
         n_opp(1) = real(nOccBeta,dp)
 
-        call setup_all(in_lat, J, U) 
+        call setup_all(in_lat, J, U)
 
-        call setup_k_total(nI) 
+        call setup_k_total(nI)
 
         call init_dispersion_rel_cache()
         get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
@@ -1746,79 +1747,79 @@ contains
 
 
         if (present(hilbert_space)) then
-!             call create_hilbert_space(nI, n_states, hilbert_space, dummy, gen_all_excits_k_space_hubbard) 
-            ! change to my new hilbert space creator 
-            call create_hilbert_space_kspace(nOccAlpha, nOccBeta, in_lat%get_nsites(), & 
+!             call create_hilbert_space(nI, n_states, hilbert_space, dummy, gen_all_excits_k_space_hubbard)
+            ! change to my new hilbert space creator
+            call create_hilbert_space_kspace(nOccAlpha, nOccBeta, in_lat%get_nsites(), &
                 nI, n_states, hilbert_space, dummy)
         end if
 
     end subroutine setup_system
 
     subroutine init_k_space_unit_tests()
-        ! since there is so much annoying outside dependency, mainly due to 
-        ! momentum-conservation symmetry, lets just initialize all 
-        ! necessary stuff here in front so testing is not so annoying.. 
+        ! since there is so much annoying outside dependency, mainly due to
+        ! momentum-conservation symmetry, lets just initialize all
+        ! necessary stuff here in front so testing is not so annoying..
 
         print *, ""
         print *, "initializing k_space unit tests"
-        print *, "for simplicity do the unit tests on a 4 electron system" 
-        print *, "in 4 spatial orbitals" 
-        nel = 4 
-        nbasis = 8 
+        print *, "for simplicity do the unit tests on a 4 electron system"
+        print *, "in 4 spatial orbitals"
+        nel = 4
+        nbasis = 8
         NIfTot = 0
-        nifd = 0 
+        nifd = 0
 
-        ! set the appropriate flags: 
+        ! set the appropriate flags:
         thub = .true.
-        tpbc = .true. 
-        treal = .false. 
-        ! todo: also test for tilted lattices! since Ali likes them so much.. 
-        TSPINPOLAR = .false. 
+        tpbc = .true.
+        treal = .false.
+        ! todo: also test for tilted lattices! since Ali likes them so much..
+        TSPINPOLAR = .false.
         tOneElecDiag = .false.
 
         tKPntSym = .true.
-        ttilt =  .false. 
+        ttilt =  .false.
         tCPMDSymTMat = .false.
         tvasp = .false.
-        tCPMD = .false. 
+        tCPMD = .false.
 
-        tExch = .true. 
+        tExch = .true.
 
         thphf = .false.
 
         bhub = -1.0
 
-        tNoSymGenRandExcits = .true. 
+        tNoSymGenRandExcits = .true.
 
         lat => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
 
-        t_k_space_hubbard = .true. 
-        t_lattice_model = .true. 
+        t_k_space_hubbard = .true.
+        t_lattice_model = .true.
 
         ! setup nBasisMax and also the same for nBasisMax
         call setup_nbasismax(lat)
 
-        call setup_arr_brr(lat) 
+        call setup_arr_brr(lat)
 
         ! setup G1 properly
         ! do a function like: which depending on the lattice sets up everything
         ! necessary for this type of lattice! yes!
-        call setup_g1(lat) 
+        call setup_g1(lat)
 
-        ! also need the tmat ready.. 
+        ! also need the tmat ready..
         call init_tmat_kspace(lat)
 !         call setup_tmat_k_space(lat)
 
 !         call setup_kPointToBasisFn(lat)
 
-        call setup_k_space_hub_sym(lat) 
+        call setup_k_space_hub_sym(lat)
 
-        ! and i also have to setup the symmetry table... damn.. 
+        ! and i also have to setup the symmetry table... damn..
         ! i have to setup umat also or
         uhub = 1.0
         omega = 4.0
 
-        ! and i have to allocate umat.. 
+        ! and i have to allocate umat..
         allocate(umat(1))
         umat = h_cast(real(uhub,dp)/real(omega,dp))
 
@@ -1827,8 +1828,8 @@ contains
         trans_corr_param_2body = 0.1
         three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
-        ! also initialize the lattice get_helement pointers to use 
-        ! detham to do the Lanczos procedure for bigger systems.. 
+        ! also initialize the lattice get_helement pointers to use
+        ! detham to do the Lanczos procedure for bigger systems..
         call init_dispersion_rel_cache()
         get_helement_lattice_ex_mat => get_helement_k_space_hub_ex_mat
         get_helement_lattice_general => get_helement_k_space_hub_general
@@ -1838,11 +1839,11 @@ contains
 
     end subroutine init_k_space_unit_tests
 
-    subroutine k_space_hubbard_test_driver() 
-        ! with all the annying symmetry stuff to set up, testing the 
-        ! k-space hubbard is really annoying.. 
-        ! this is the main function which calls all the other tests 
-       
+    subroutine k_space_hubbard_test_driver()
+        ! with all the annying symmetry stuff to set up, testing the
+        ! k-space hubbard is really annoying..
+        ! this is the main function which calls all the other tests
+
         call init_k_space_unit_tests()
         call run_test_case(gen_excit_k_space_hub_transcorr_uniform_stoch_test, &
             "gen_excit_k_space_hub_transcorr_uniform_stoch_test")
@@ -1853,6 +1854,7 @@ contains
         call run_test_case(setup_tmat_k_space_test, "setup_tmat_k_space_test")
         call run_test_case(setup_kPointToBasisFn_test, "setup_kPointToBasisFn_test")
 
+#ifndef __CMPLX
         call run_test_case(test_3e_4orbs_par, "test_3e_4orbs_par")
         call run_test_case(test_3e_4orbs_trip, "test_3e_4orbs_trip")
         call run_test_case(test_4e_ms1, "test_4e_ms1")
@@ -1860,6 +1862,7 @@ contains
         call run_test_case(test_3e_ms1, "test_3e_ms1")
 !         call run_test_case(test_8e_8orbs, "test_8e_8orbs")
         call run_test_case(test_general, "test_general")
+#endif
 
         call run_test_case(get_diag_helement_k_sp_hub_test, "get_diag_helement_k_sp_hub_test")
         call run_test_case(get_offdiag_helement_k_sp_hub_test, "get_offdiag_helement_k_sp_hub_test")
@@ -1893,11 +1896,12 @@ contains
         call run_test_case(get_one_body_diag_test, "get_one_body_diag_test")
         call run_test_case(gen_parallel_double_hubbard_test, "gen_parallel_double_hubbard_test")
         call run_test_case(gen_triple_hubbard_test, "gen_triple_hubbard_test")
-        call run_test_case(gen_excit_k_space_hub_test_stochastic, "gen_excit_k_space_hub_test_stochastic") 
+        call run_test_case(gen_excit_k_space_hub_test_stochastic, "gen_excit_k_space_hub_test_stochastic")
         call run_test_case(gen_excit_k_space_hub_transcorr_test_stoch, "gen_excit_k_space_hub_transcorr_test_stoch")
 
     end subroutine k_space_hubbard_test_driver
 
+#ifndef __CMPLX
     subroutine test_3e_4orbs_par
 
         integer :: hilbert_nI(3,6), i, j, work(18), info, nI(3), n_states
@@ -1905,9 +1909,9 @@ contains
         real(dp) :: ev_real(6), ev_cmpl(6), left_ev(1,6), right_ev(1,6)
         real(dp) :: t_mat(6,6), trans_mat(6,6)
         integer, allocatable :: test_hilbert(:,:)
-        integer(n_int), allocatable :: dummy(:,:) 
+        integer(n_int), allocatable :: dummy(:,:)
 
-        nOccBeta = 2 
+        nOccBeta = 2
         nOccAlpha = 1
         nel = 3
 
@@ -1923,11 +1927,11 @@ contains
 
         call create_hilbert_space(nI, n_states, test_hilbert, dummy, gen_all_excits_k_space_hubbard)
 
-        print *, "n_states: ", n_states 
-        call print_matrix(transpose(test_hilbert))
-        ! nice.. it acutally works and gets all states.. 
+        print *, "n_states: ", n_states
+        call print_matrix((test_hilbert))
+        ! nice.. it acutally works and gets all states..
 
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
         print *, "un-transcorrelated Hamiltonian: "
 
         hamil = create_hamiltonian(hilbert_nI)
@@ -1937,24 +1941,24 @@ contains
         t_mat = get_tranformation_matrix(hamil,2)
 
         trans_mat = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
-        
-        ! use the lapack routines to solve these quickly.. 
+
+        ! use the lapack routines to solve these quickly..
         print *, "eigen-values: ", calc_eigenvalues(hamil)
 
         print *, "transcorrelated Hamiltonian: "
         t_trans_corr_2body = .true.
-        
+
         hamil_trancorr = create_hamiltonian(hilbert_nI)
 
         call print_matrix(hamil_trancorr)
 
         print *, "eigen-values: ", calc_eigenvalues(hamil_trancorr)
 
-        print *, "transformed hamiltonian" 
+        print *, "transformed hamiltonian"
         call print_matrix(trans_mat)
 
         print *, "eigen-values: ", calc_eigenvalues(trans_mat)
-        
+
     end subroutine test_3e_4orbs_par
 
     subroutine test_3e_4orbs_trip
@@ -1964,7 +1968,7 @@ contains
         real(dp) :: ev_real(6), ev_cmpl(6), left_ev(1,6), right_ev(1,6)
         real(dp) :: t_mat(6,6), trans_mat(6,6)
 
-        nOccBeta = 1 
+        nOccBeta = 1
         nOccAlpha = 2
         nel = 3
 
@@ -1976,13 +1980,13 @@ contains
         hilbert_nI(:,6) = [3,6,8]
 
         ! first create the non-transcorrelated Hamiltonian
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
         print *, "un-transcorrelated Hamiltonian: "
         hamil = create_hamiltonian(hilbert_nI)
 
         call print_matrix(hamil)
-        
-        ! use the lapack routines to solve these quickly.. 
+
+        ! use the lapack routines to solve these quickly..
         print *, "eigen-values: ", calc_eigenvalues(hamil)
 
         print *, "transcorrelated Hamiltonian: "
@@ -1993,30 +1997,30 @@ contains
 
         print *, "eigen-values: ", calc_eigenvalues(hamil_trancorr)
 
-        t_mat = get_tranformation_matrix(hamil,2) 
+        t_mat = get_tranformation_matrix(hamil,2)
         trans_mat = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
 
-        print *, "transformed hamiltonian" 
+        print *, "transformed hamiltonian"
         call print_matrix(trans_mat)
 
         print *, "eigen-values: ", calc_eigenvalues(trans_mat)
-        
+
     end subroutine test_3e_4orbs_trip
 
     subroutine test_4e_ms0_mom_1
 
         integer :: hilbert_nI(4,8)
-        HElement_t(dp) :: hamil(8,8),hamil_trancorr(8,8), tmp_hamil(8,8) 
-        real(dp) :: ev_real(8), ev_cmpl(8), left_ev(1,8), right_ev(1,8) 
+        HElement_t(dp) :: hamil(8,8),hamil_trancorr(8,8), tmp_hamil(8,8)
+        real(dp) :: ev_real(8), ev_cmpl(8), left_ev(1,8), right_ev(1,8)
         integer :: work(24), info, n
-        real(dp) :: t_mat(8,8), trans_mat(8,8) 
+        real(dp) :: t_mat(8,8), trans_mat(8,8)
 
-        nOccBeta = 2 
+        nOccBeta = 2
         nOccAlpha = 2
-        nel = 4 
+        nel = 4
 
-        hilbert_nI(:,1) = [3,4,5,8] 
-        hilbert_nI(:,2) = [1,2,4,5] 
+        hilbert_nI(:,1) = [3,4,5,8]
+        hilbert_nI(:,2) = [1,2,4,5]
         hilbert_nI(:,3) = [3,4,6,7]
         hilbert_nI(:,4) = [1,4,7,8]
         hilbert_nI(:,5) = [1,5,6,8]
@@ -2024,20 +2028,20 @@ contains
         hilbert_nI(:,7) = [1,2,3,6]
         hilbert_nI(:,8) = [2,5,6,7]
 
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
 
         hamil = create_hamiltonian(hilbert_nI)
 
-        t_mat = get_tranformation_matrix(hamil,4) 
+        t_mat = get_tranformation_matrix(hamil,4)
 
         trans_mat = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
 
-        t_trans_corr_2body = .true. 
+        t_trans_corr_2body = .true.
 
-        hamil_trancorr = create_hamiltonian(hilbert_nI) 
+        hamil_trancorr = create_hamiltonian(hilbert_nI)
 
         print *, "un-correlated hamiltonian: "
-        call print_matrix(hamil) 
+        call print_matrix(hamil)
 
         print *, "eigenvalues: ", calc_eigenvalues(hamil)
 
@@ -2045,14 +2049,15 @@ contains
         call print_matrix(hamil_trancorr)
         print *, "eigenvalues: ", calc_eigenvalues(hamil_trancorr)
 
-        print *, "transformed hamiltonian" 
+        print *, "transformed hamiltonian"
         call print_matrix(trans_mat)
         print *, "eigenvalues: ", calc_eigenvalues(trans_mat)
 
     end subroutine test_4e_ms0_mom_1
+
     subroutine test_4e_ms1
 
-        integer :: hilbert_nI(4,4), i, j, three_e(3,3) 
+        integer :: hilbert_nI(4,4), i, j, three_e(3,3)
         integer(n_int) :: hilbert_ilut(0:niftot,4)
         HElement_t(dp) :: hamil(4,4), hamil_trancorr(4,4), tmp_hamil(4,4)
         HElement_t(dp) :: tmp_3(3,3), hamil_3(3,3), hamil_3_trans(3,3)
@@ -2063,23 +2068,23 @@ contains
         integer :: work(12), info
         real(dp) :: t_mat(4,4), trans_mat(4,4)
 
-        nOccBeta = 3 
-        nOccAlpha = 1 
+        nOccBeta = 3
+        nOccAlpha = 1
         nel = 4
 
         hilbert_nI(:,1) = [1,2,3,5]
         hilbert_nI(:,2) = [3,4,5,7]
-        hilbert_nI(:,3) = [1,3,7,8] 
+        hilbert_nI(:,3) = [1,3,7,8]
         hilbert_nI(:,4) = [1,5,6,7]
 
         ! first create the non-transcorrelated Hamiltonian
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
         print *, "un-transcorrelated Hamiltonian: "
-        
+
         hamil = create_hamiltonian(hilbert_nI)
         call print_matrix(hamil)
 
-        ! use the lapack routines to solve these quickly.. 
+        ! use the lapack routines to solve these quickly..
         print *, "eigen-values: ", calc_eigenvalues(hamil)
 
         print *, "transcorrelated Hamiltonian: "
@@ -2090,7 +2095,7 @@ contains
 
         print *, "eigen-values: ", calc_eigenvalues(hamil_trancorr)
 
-        t_mat = get_tranformation_matrix(hamil,3) 
+        t_mat = get_tranformation_matrix(hamil,3)
 
         trans_mat = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
 
@@ -2099,154 +2104,155 @@ contains
 
         print *, "eigen-values: ", calc_eigenvalues(trans_mat)
 
-        ! i know now, where there is an error-- between those 2 matrix 
-        ! elements: 
+        ! i know now, where there is an error-- between those 2 matrix
+        ! elements:
 !         print *, "============== Excitation:  ======================"
 !         print *, "nI:", hilbert_nI(:,1)
 !         print *, "nJ:", hilbert_nI(:,2)
 !         print *, "H_ij: ", hamil_trancorr(1,2), hamil_trancorr(2,1)
-! 
+!
 !         ! the excitation is from (1,2) -> (4,7)
-!         print *, "excitation: (1,2) -> (4,7)" 
-!         ! ex: should be + 
-!         ! 1 2 
-!         ! 4 7 
-!         ! total 1 2 3 5 should be - 
-! 
-!         two_body_1 = two_body_transcorr_factor(G1(1)%k, G1(7)%k)! + & 
+!         print *, "excitation: (1,2) -> (4,7)"
+!         ! ex: should be +
+!         ! 1 2
+!         ! 4 7
+!         ! total 1 2 3 5 should be -
+!
+!         two_body_1 = two_body_transcorr_factor(G1(1)%k, G1(7)%k)! + &
 !         two_body_2 = two_body_transcorr_factor(G1(2)%k, G1(4)%k)
-! 
-!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,1), G1(1)%k,G1(2)%k,G1(7)%k,-1)! + & 
+!
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,1), G1(1)%k,G1(2)%k,G1(7)%k,-1)! + &
 !         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,1),G1(2)%k,G1(1)%k,G1(4)%k,1)
-! 
+!
 !         print *, "two-body: ", two_body_1, two_body_2
 !         print *, "three-body: ", three_body_1, three_body_2
-! 
-!         print *, "excitation: (2,5) -> (7,8)" 
-!         ! ex: should be + 
-!         ! 2 5 
-!         ! 7 8 
-!         ! total 1 2 3 5 should be - 
-! 
-!         two_body_1 = two_body_transcorr_factor(G1(2)%k, G1(8)%k)! + & 
+!
+!         print *, "excitation: (2,5) -> (7,8)"
+!         ! ex: should be +
+!         ! 2 5
+!         ! 7 8
+!         ! total 1 2 3 5 should be -
+!
+!         two_body_1 = two_body_transcorr_factor(G1(2)%k, G1(8)%k)! + &
 !         two_body_2 = two_body_transcorr_factor(G1(5)%k, G1(7)%k)
-! 
-!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,1), G1(2)%k,G1(5)%k,G1(8)%k,1)! + & 
+!
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,1), G1(2)%k,G1(5)%k,G1(8)%k,1)! + &
 !         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,1),G1(5)%k,G1(2)%k,G1(7)%k,-1)
-! 
+!
 !         print *, "two-body: ", two_body_1, two_body_2
 !         print *, "three-body: ", three_body_1, three_body_2
-! 
-! 
-!         print *, "excitation: (2,3) -> (6,7)" 
-!         ! ex: should be - 
-!         ! 2 3 
-!         ! 6 7 
-!         ! total 1 2 3 5 should be + 
-! 
-!         two_body_1 = two_body_transcorr_factor(G1(2)%k, G1(6)%k)! + & 
+!
+!
+!         print *, "excitation: (2,3) -> (6,7)"
+!         ! ex: should be -
+!         ! 2 3
+!         ! 6 7
+!         ! total 1 2 3 5 should be +
+!
+!         two_body_1 = two_body_transcorr_factor(G1(2)%k, G1(6)%k)! + &
 !         two_body_2 = two_body_transcorr_factor(G1(3)%k, G1(7)%k)
-! 
-!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,1), G1(2)%k,G1(3)%k,G1(6)%k,1)! + & 
+!
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,1), G1(2)%k,G1(3)%k,G1(6)%k,1)! + &
 !         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,1),G1(3)%k,G1(2)%k,G1(7)%k,-1)
-! 
+!
 !         print *, "two-body: ", two_body_1, two_body_2
 !         print *, "three-body: ", three_body_1, three_body_2
-! 
-! 
-!         print *, "excitation: (4,5) -> (1,8)" 
-!         ! ex: should be - 
-!         ! 4 5 
-!         ! 1 8 
-!         ! total 3 4 5 7 should be + 
-! 
-!         two_body_1 = two_body_transcorr_factor(G1(4)%k, G1(8)%k)! + & 
+!
+!
+!         print *, "excitation: (4,5) -> (1,8)"
+!         ! ex: should be -
+!         ! 4 5
+!         ! 1 8
+!         ! total 3 4 5 7 should be +
+!
+!         two_body_1 = two_body_transcorr_factor(G1(4)%k, G1(8)%k)! + &
 !         two_body_2 = two_body_transcorr_factor(G1(5)%k, G1(1)%k)
-! 
-!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,2), G1(4)%k,G1(5)%k,G1(8)%k,1)! + & 
+!
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,2), G1(4)%k,G1(5)%k,G1(8)%k,1)! + &
 !         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,2),G1(5)%k,G1(4)%k,G1(1)%k,-1)
-! 
+!
 !         print *, "two-body: ", two_body_1, two_body_2
 !         print *, "three-body: ", three_body_1, three_body_2
-! 
-! 
-! 
-!         print *, "excitation: (3,4) -> (1,6)" 
-!         ! ex: should be - 
-!         ! 3 4 
-!         ! 1 6 
-!         ! total 3 4 5 7 should be - 
-! 
-!         two_body_1 = two_body_transcorr_factor(G1(4)%k, G1(6)%k)! + & 
+!
+!
+!
+!         print *, "excitation: (3,4) -> (1,6)"
+!         ! ex: should be -
+!         ! 3 4
+!         ! 1 6
+!         ! total 3 4 5 7 should be -
+!
+!         two_body_1 = two_body_transcorr_factor(G1(4)%k, G1(6)%k)! + &
 !         two_body_2 = two_body_transcorr_factor(G1(3)%k, G1(1)%k)
-! 
-!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,2), G1(4)%k,G1(3)%k,G1(6)%k,1)! + & 
+!
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,2), G1(4)%k,G1(3)%k,G1(6)%k,1)! + &
 !         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,2),G1(3)%k,G1(4)%k,G1(1)%k,-1)
-! 
+!
 !         print *, "two-body: ", two_body_1, two_body_2
 !         print *, "three-body: ", three_body_1, three_body_2
-! 
-! 
+!
+!
 !         print *, "============== Excitation:  ======================"
 !         print *, "nI: ", hilbert_nI(:,3)
 !         print *, "nJ: ", hilbert_nI(:,4)
-! 
+!
 !         print *, "H_ij: ", hamil_trancorr(3,4), hamil_trancorr(4,3)
-! 
+!
 !         ! the excitation is from (3,8) -> (5,6)
 !         print *, "excitation: (3,8) -> (5,6)"
-!         ! ex: should have - sign 
-!         ! 3 8 
+!         ! ex: should have - sign
+!         ! 3 8
 !         ! 5 6
 !         ! sign in total: 1 3 7 8 should be -
-!         two_body = two_body_transcorr_factor(G1(3)%k, G1(5)%k) + & 
+!         two_body = two_body_transcorr_factor(G1(3)%k, G1(5)%k) + &
 !                 two_body_transcorr_factor(G1(8)%k, G1(6)%k)
-! 
+!
 !         print *, "two-body: ", two_body
-! 
-!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,3), G1(3)%k,G1(8)%k,G1(5)%k,-1)! + & 
+!
+!         three_body_1 = three_body_transcorr_fac(hilbert_nI(:,3), G1(3)%k,G1(8)%k,G1(5)%k,-1)! + &
 !         three_body_2 = three_body_transcorr_fac(hilbert_nI(:,3),G1(8)%k,G1(3)%k,G1(6)%k,1)
-! 
+!
 !         print *, "three-body: ", three_body_1, three_body_2
 
-! 
+!
 !         print *, "and for k=0"
 !         hilbert_nI(:,1) = [1,3,4,5]
 !         hilbert_nI(:,2) = [1,2,3,7]
 !         hilbert_nI(:,3) = [3,5,6,7]
 !         hilbert_nI(:,4) = [1,5,7,8]
-! 
+!
 !         ! first create the non-transcorrelated Hamiltonian
-!         t_trans_corr_2body = .false. 
+!         t_trans_corr_2body = .false.
 !         print *, "un-transcorrelated Hamiltonian: "
-!         do i = 1, 4 
-!             do j = 1, 4 
+!         do i = 1, 4
+!             do j = 1, 4
 !                 hamil(i,j) = get_helement_k_space_hub(hilbert_nI(:,i),hilbert_nI(:,j))
 !             end do
 !             print *, hamil(i,:)
 !         end do
-!         
-!         ! use the lapack routines to solve these quickly.. 
+!
+!         ! use the lapack routines to solve these quickly..
 !         tmp_hamil = hamil
 !         call dgeev('N','N',4,tmp_hamil,4,ev_real,ev_cmpl,left_ev,1,right_ev,1,work,12,info)
 !         print *, "eigen-values: ", ev_real
-! 
+!
 !         print *, "transcorrelated Hamiltonian: "
 !         t_trans_corr_2body = .true.
-!         do i = 1, 4 
-!             do j = 1, 4 
+!         do i = 1, 4
+!             do j = 1, 4
 !                 hamil_trancorr(i,j) = get_helement_k_space_hub(hilbert_nI(:,i),hilbert_nI(:,j))
 !             end do
 !             print *, hamil_trancorr(i,:)
 !         end do
-! 
+!
 !         tmp_hamil = hamil_trancorr
 !         call dgeev('N','N',4,tmp_hamil,4,ev_real,ev_cmpl,left_ev,1,right_ev,1,work,12,info)
 !         print *, "eigen-values: ", ev_real
-! 
+!
 ! !         call stop_all("here","for now")
 
     end subroutine test_4e_ms1
+#endif
 
     subroutine setup_all(ptr, J, U)
         class(lattice), intent(in) :: ptr
@@ -2257,14 +2263,14 @@ contains
         nullify(tmat2d)
         deallocate(kPointToBasisFn)
 
-        if (trim(ptr%get_name()) == 'tilted') then 
-            ttilt = .true. 
+        if (trim(ptr%get_name()) == 'tilted') then
+            ttilt = .true.
         end if
 
         nBasis = 2*ptr%get_nsites()
 
         call setup_nbasismax(ptr)
-        call setup_arr_brr(lat) 
+        call setup_arr_brr(lat)
         call setup_g1(ptr)
         call init_tmat_kspace(ptr)
 !         call setup_tmat_k_space(ptr)
@@ -2275,33 +2281,34 @@ contains
 
         bhub = -1.0
 
-        if (present(U)) then 
-            uhub = U 
-        else 
+        if (present(U)) then
+            uhub = U
+        else
             uhub = 1.0
         end if
 
         umat = h_cast(real(uhub,dp)/real(omega,dp))
 
-        if (present(J)) then 
-            trans_corr_param_2body = J 
-        else 
+        if (present(J)) then
+            trans_corr_param_2body = J
+        else
             trans_corr_param_2body = 0.1
         end if
 
         three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         ! after setup everything should be fine again.. or?
-        ttilt = .false. 
+        ttilt = .false.
 
     end subroutine setup_all
 
-    subroutine exact_transcorrelation(lat_ptr, nI, J, U, hilbert_space_opt) 
-        class(lattice), pointer, intent(in) :: lat_ptr 
-        integer, intent(in) :: nI(:) 
-        real(dp), intent(in) :: J(:), U 
+#ifndef __CMPLX
+    subroutine exact_transcorrelation(lat_ptr, nI, J, U, hilbert_space_opt)
+        class(lattice), pointer, intent(in) :: lat_ptr
+        integer, intent(in) :: nI(:)
+        real(dp), intent(in) :: J(:), U
         integer, intent(in), optional :: hilbert_space_opt(:,:)
-        character(*), parameter :: this_routine = "exact_transcorrelation" 
+        character(*), parameter :: this_routine = "exact_transcorrelation"
 
         integer :: i, iunit, n_states, ind, k
         HElement_t(dp), allocatable :: hamil(:,:), hamil_trans(:,:), hamil_neci(:,:), &
@@ -2323,7 +2330,7 @@ contains
         real(dp) :: e_thresh = 1.0e-5_dp
         integer, allocatable :: sort_ind(:)
         real(dp), allocatable :: hf_det(:), doubles(:), j_opt(:)
-        
+
         t_norm_inside = .true.
         t_pca = .false.
         ic_inside = 2
@@ -2332,25 +2339,25 @@ contains
 
         write(U_str,*) U
 
-        ! then create the hilbert space 
-        ! although make this an option to input it.. because i only 
-        ! need to do that once actually.. 
-        if (present(hilbert_space_opt)) then 
-            ! if hilbert space is provided everything else should also be 
-            ! setup already.. 
+        ! then create the hilbert space
+        ! although make this an option to input it.. because i only
+        ! need to do that once actually..
+        if (present(hilbert_space_opt)) then
+            ! if hilbert space is provided everything else should also be
+            ! setup already..
             allocate(hilbert_space(nel, size(hilbert_space_opt,2)), source = hilbert_space_opt)
             n_states = size(hilbert_space_opt,2)
         else
-            call setup_system(lat_ptr, nI, J(1), U, hilbert_space) 
-            n_states = size(hilbert_space,2) 
+            call setup_system(lat_ptr, nI, J(1), U, hilbert_space)
+            n_states = size(hilbert_space,2)
         end if
 
-        print *, "total number of states: ", n_states 
+        print *, "total number of states: ", n_states
         print *, "creating original hamiltonian: "
         t_trans_corr_2body = .false.
         hamil = create_hamiltonian(hilbert_space)
 
-        print *, "diagonalizing original hamiltonian: " 
+        print *, "diagonalizing original hamiltonian: "
         allocate(e_values(n_states));        e_values = 0.0_dp
         allocate(e_vec(n_states, n_states)); e_vec = 0.0_dp
         allocate(e_vec_left(n_states, n_states)); e_vec_left = 0.0_dp
@@ -2363,19 +2370,19 @@ contains
 
             ! find the hf determinant
             do i = 1, n_states
-                if (all(hilbert_space(:,i) == nI)) then 
+                if (all(hilbert_space(:,i) == nI)) then
                     hf_ind = i
                     hf_det(i) = 1.0_dp
                 end if
             end do
 
             doubles = matmul(hamil,hf_det)
-            ! and i want to remove the HF det from the doubles 
+            ! and i want to remove the HF det from the doubles
             doubles(hf_ind) = 0.0_dp
 
             print *, "doubles: "
-            do i = 1, n_states 
-                if (abs(doubles(i)) > EPS) then 
+            do i = 1, n_states
+                if (abs(doubles(i)) > EPS) then
                     print *, hilbert_space(:,i), doubles(i)
                 end if
             end do
@@ -2386,56 +2393,56 @@ contains
                 if (isnan(hamil(i,k)) .or. is_inf(hamil(i,k))) print *, i,k,hamil(i,k)
             end do
         end do
-        call eig(hamil, e_values, e_vec) 
+        call eig(hamil, e_values, e_vec)
 
         ! only print small hilbert spaces
         if (n_states <= 20) then
             print *, "k-space hamiltonian: "
             call print_matrix(hamil)
             print *, "diagonal elements: e(k) + U/V"
-            do i = 1, n_states 
+            do i = 1, n_states
                 print *, hamil(i,i), "|", &
                     sum(tmat2d(hilbert_space(:,i),hilbert_space(:,i))) + uhub/omega
             end do
-            print *, "basis: " 
+            print *, "basis: "
             print *, "i, k(1), k(2), k1 + k2, map(k1+k2)"
-            do i = 1, n_states 
+            do i = 1, n_states
                 print *,  hilbert_space(:,i), "|", &
-                    lat%get_k_vec(get_spatial(hilbert_space(1,i))), "|", & 
+                    lat%get_k_vec(get_spatial(hilbert_space(1,i))), "|", &
                     lat%get_k_vec(get_spatial(hilbert_space(2,i))), "|", &
-                    lat%get_k_vec(get_spatial(hilbert_space(1,i))) + & 
+                    lat%get_k_vec(get_spatial(hilbert_space(1,i))) + &
                     lat%get_k_vec(get_spatial(hilbert_space(2,i)))
             end do
         end if
 
         ! find the ground-state
-        ind = minloc(e_values,1) 
-        gs_energy_orig = e_values(ind) 
+        ind = minloc(e_values,1)
+        gs_energy_orig = e_values(ind)
 
-        ! how do i need to access the vectors to get the energy? 
+        ! how do i need to access the vectors to get the energy?
         ! eigenvectors are stored in the columns!!
         gs_vec = abs(e_vec(:,ind))
 
         call sort(gs_vec)
 
-        ! and flip order.. 
+        ! and flip order..
         gs_vec = gs_vec(n_states:1:-1)
 
         ! and i think i want the sorted by maximum of the GS
         print *, "original ground-state energy: ", gs_energy_orig
-        ! and write the ground-state-vector to a file 
+        ! and write the ground-state-vector to a file
         iunit = get_free_unit()
-        open(iunit, file = 'gs_vec_orig') 
+        open(iunit, file = 'gs_vec_orig')
         do i = 1, n_states
             write(iunit, *) gs_vec(i)
         end do
-        close(iunit) 
+        close(iunit)
 
         allocate(e_vec_trans(n_states, size(J)))
-        e_vec_trans = 0.0_dp 
+        e_vec_trans = 0.0_dp
 
         allocate(e_vec_trans_left(n_states, size(J)))
-        e_vec_trans_left = 0.0_dp 
+        e_vec_trans_left = 0.0_dp
 
         allocate(e_vec_next(n_states, size(J)))
         e_vec_next = 0.0_dp
@@ -2446,13 +2453,13 @@ contains
         hf_coeff_onsite = 0.0_dp
         hf_coeff_next = 0.0_dp
 
-        ! also test that for the nearest neighbor transcorrelation 
-        t_mat_next = get_tmat_next(lat_ptr, hilbert_space) 
+        ! also test that for the nearest neighbor transcorrelation
+        t_mat_next = get_tmat_next(lat_ptr, hilbert_space)
 
-        do i = 1, size(J) 
-            print *, "J = ", J(i), ", U = ", U 
+        do i = 1, size(J)
+            print *, "J = ", J(i), ", U = ", U
 
-            write(J_str, *) J(i) 
+            write(J_str, *) J(i)
             filename = 'gs_vec_trans_J_' // trim(adjustl((J_str)))
 
             trans_corr_param_2body = J(i)
@@ -2461,32 +2468,32 @@ contains
             call init_three_body_const_mat()
 
             print *, "creating transformed hamiltonian: "
-            hamil_trans = similarity_transform(hamil) 
-            
-            print *, "creating transformed hamiltonian with neighbor interaction" 
+            hamil_trans = similarity_transform(hamil)
+
+            print *, "creating transformed hamiltonian with neighbor interaction"
             hamil_next = similarity_transform(hamil, J(i) * t_mat_next)
 
             print *, "(and for testing purposes also create the neci-transcorrelated hamiltonian)"
             t_trans_corr_2body = .true.
             hamil_neci = create_hamiltonian(hilbert_space)
-            t_trans_corr_2body = .false. 
+            t_trans_corr_2body = .false.
 
-            print *, "also test the the neighbor correlated neci hamiltonian" 
-            
-            t_trans_corr = .true. 
+            print *, "also test the the neighbor correlated neci hamiltonian"
+
+            t_trans_corr = .true.
             trans_corr_param = J(i)*2.0
-            hamil_neci_next = create_hamiltonian(hilbert_space) 
-            t_trans_corr = .false. 
+            hamil_neci_next = create_hamiltonian(hilbert_space)
+            t_trans_corr = .false.
 
             neci_eval = calc_eigenvalues(hamil_neci)
 
-            if (t_calc_doubles) then 
+            if (t_calc_doubles) then
 
                 j_opt(i) = dot_product(doubles,matmul(hamil_trans, hf_det))
 
             end if
 
-            if (abs(gs_energy_orig - minval(neci_eval)) > e_thresh) then 
+            if (abs(gs_energy_orig - minval(neci_eval)) > e_thresh) then
                 print *, "original hamiltonian: "
                 call print_matrix(hamil)
                 print *, "on-site transcorr hamiltonian neci: "
@@ -2499,26 +2506,26 @@ contains
                 call stop_all("here", "on-site transcorrelated energy not correct!")
             end if
 
-            neci_eval = calc_eigenvalues(hamil_neci_next) 
+            neci_eval = calc_eigenvalues(hamil_neci_next)
 
             if (abs(gs_energy_orig - minval(neci_eval)) > e_thresh) then
-                print *, "original hamiltonian: " 
+                print *, "original hamiltonian: "
                 call print_matrix(hamil)
-                print *, "neighbor transcorr neci: " 
-                call print_matrix(hamil_neci_next) 
-                print *, "neighbor transvorr transformed: " 
-                call print_matrix(hamil_next) 
+                print *, "neighbor transcorr neci: "
+                call print_matrix(hamil_neci_next)
+                print *, "neighbor transvorr transformed: "
+                call print_matrix(hamil_next)
                 print *, "orig E0:      ", gs_energy_orig
                 print *, "next-site E0: ", minval(neci_eval)
                 call stop_all("here", "neighbor transcorrelated energy not correct!")
             end if
 
-            print *, "diagonalizing the transformed hamiltonian: " 
-            call eig(hamil_trans, e_values, e_vec) 
+            print *, "diagonalizing the transformed hamiltonian: "
+            call eig(hamil_trans, e_values, e_vec)
 
-            if (t_check_orthogonality) then 
+            if (t_check_orthogonality) then
 
-                call eig(hamil_trans, e_values, e_vec_left, .true.) 
+                call eig(hamil_trans, e_values, e_vec_left, .true.)
                 print *, "J: ", J(i)
                 allocate(sort_ind(n_states))
                 sort_ind = [(k, k = 1, n_states)]
@@ -2538,7 +2545,7 @@ contains
                 call sort(e_values, sort_ind)
                 e_vec_left = e_vec_left(:,sort_ind)
 
-                ! also output the full-ground-states vectors.. 
+                ! also output the full-ground-states vectors..
                 iunit = get_free_unit()
                 open(iunit, file = 'right_ev')
                 do k = 1, n_states
@@ -2559,14 +2566,14 @@ contains
             end if
 
             ! find the ground-state
-            ind = minloc(e_values,1) 
-            gs_energy = e_values(ind) 
-            print *, "transformed ground-state energy: ", gs_energy 
+            ind = minloc(e_values,1)
+            gs_energy = e_values(ind)
+            print *, "transformed ground-state energy: ", gs_energy
 
-            if (abs(gs_energy - gs_energy_orig) > e_thresh) then 
+            if (abs(gs_energy - gs_energy_orig) > e_thresh) then
                 call stop_all("HERE!", "energy incorrect!")
             end if
-            ! how do i need to access the vectors to get the energy? 
+            ! how do i need to access the vectors to get the energy?
             gs_vec = abs(e_vec(:,ind))
             call sort(gs_vec)
 
@@ -2576,14 +2583,14 @@ contains
 
             e_vec_trans(:,i) = gs_vec
 
-            ! also obtain the left GS eigenvector: 
+            ! also obtain the left GS eigenvector:
             call eig(hamil_trans, e_values, e_vec, .true.)
             ! find the ground-state
-            ind = minloc(e_values,1) 
-            gs_energy = e_values(ind) 
+            ind = minloc(e_values,1)
+            gs_energy = e_values(ind)
 
-            print *, "transformed ground-state energy(left): ", gs_energy 
-            ! how do i need to access the vectors to get the energy? 
+            print *, "transformed ground-state energy(left): ", gs_energy
+            ! how do i need to access the vectors to get the energy?
             gs_vec = abs(e_vec(:,ind))
             call sort(gs_vec)
 
@@ -2591,25 +2598,25 @@ contains
 
             e_vec_trans_left(:,i) = gs_vec
 
-            ! and write the ground-state-vector to a file 
+            ! and write the ground-state-vector to a file
 !             iunit = get_free_unit()
 !             open(iunit, file = filename)
 !             do k = 1, n_states
 !                 write(iunit, *) gs_vec(k)
 !             end do
-!             close(iunit) 
+!             close(iunit)
 
-            print *, "diagonalizing the neighbor transformed hamiltonian" 
-            call eig(hamil_next, e_values, e_vec) 
-            ind = minloc(e_values,1) 
-            gs_energy = e_values(ind) 
-            print *, "neighbor transformed ground-state energy: ", gs_energy 
+            print *, "diagonalizing the neighbor transformed hamiltonian"
+            call eig(hamil_next, e_values, e_vec)
+            ind = minloc(e_values,1)
+            gs_energy = e_values(ind)
+            print *, "neighbor transformed ground-state energy: ", gs_energy
 
-            if (abs(gs_energy - gs_energy_orig) > e_thresh) then 
+            if (abs(gs_energy - gs_energy_orig) > e_thresh) then
                 call stop_all("HERE!", "energy incorrect!")
             end if
 
-            ! how do i need to access the vectors to get the energy? 
+            ! how do i need to access the vectors to get the energy?
             gs_vec = abs(e_vec(:,ind))
             call sort(gs_vec)
 
@@ -2619,17 +2626,17 @@ contains
 
             e_vec_next(:,i) = gs_vec
 
-            ! also obtain the left eigenvalue 
+            ! also obtain the left eigenvalue
             call eig(hamil_next, e_values, e_vec,.true.)
-            ind = minloc(e_values,1) 
-            gs_energy = e_values(ind) 
-            print *, "neighbor transformed ground-state energy(left): ", gs_energy 
+            ind = minloc(e_values,1)
+            gs_energy = e_values(ind)
+            print *, "neighbor transformed ground-state energy(left): ", gs_energy
 
-            if (abs(gs_energy - gs_energy_orig) > e_thresh) then 
+            if (abs(gs_energy - gs_energy_orig) > e_thresh) then
                 call stop_all("HERE!", "energy incorrect!")
             end if
 
-            ! how do i need to access the vectors to get the energy? 
+            ! how do i need to access the vectors to get the energy?
             gs_vec = abs(e_vec(:,ind))
             call sort(gs_vec)
 
@@ -2639,7 +2646,7 @@ contains
 
         end do
 
-        if (t_calc_doubles) then 
+        if (t_calc_doubles) then
             iunit = get_free_unit()
             open(iunit, file = 'exact_opt_J')
             do i = 1, size(j)
@@ -2664,8 +2671,8 @@ contains
 
         end if
 
-        if (t_norm_inside) then 
-            ! do also a l2 norm inside excitation level study for the 
+        if (t_norm_inside) then
+            ! do also a l2 norm inside excitation level study for the
             ! exact gs result
 
             allocate(norm_inside_orig(size(J)))
@@ -2701,7 +2708,7 @@ contains
             end do
             close(iunit)
         end if
-        iunit = get_free_unit() 
+        iunit = get_free_unit()
         open(iunit, file = "hf_coeff_onsite")
         do i = 1, size(J)
             write(iunit, *) J(i), hf_coeff_onsite(i)
@@ -2710,24 +2717,24 @@ contains
 
         iunit = get_free_unit()
         open(iunit, file = "hf_coeff_next")
-        do i = 1, size(J) 
+        do i = 1, size(J)
             write(iunit, *) J(i), hf_coeff_next(i)
         end do
         close(iunit)
 
-        ! maybe plot all transformed into one file.. 
-        iunit = get_free_unit() 
+        ! maybe plot all transformed into one file..
+        iunit = get_free_unit()
         open(iunit, file = "gs_vec_trans")
-        ! the important quantitiy is J over U i guess or? 
-        ! i am not sure.. 
+        ! the important quantitiy is J over U i guess or?
+        ! i am not sure..
         write(iunit, *) "# J: ", J
-        do i = 1, n_states 
+        do i = 1, n_states
             write(iunit, *) e_vec_trans(i,:)
         end do
         close(iunit)
 
-        ! also print the left eigenvector: 
-        iunit = get_free_unit() 
+        ! also print the left eigenvector:
+        iunit = get_free_unit()
         open(iunit, file = "gs_vec_trans_left")
         write(iunit,*) "# J: ", J
         do i = 1, n_states
@@ -2735,36 +2742,37 @@ contains
         end do
         close(iunit)
 
-        iunit = get_free_unit() 
+        iunit = get_free_unit()
 
         open(iunit, file = "gs_vec_next")
-        write(iunit, *) "# J: ", J 
+        write(iunit, *) "# J: ", J
         do i = 1, n_states
-            write(iunit, *) e_vec_next(i,:) 
+            write(iunit, *) e_vec_next(i,:)
         end do
         close(iunit)
 
         iunit = get_free_unit()
         open(iunit, file = "gs_vec_next_left")
-        write(iunit, *) "# J: ", J 
+        write(iunit, *) "# J: ", J
         do i = 1, n_states
-            write(iunit, *) e_vec_next_left(i,:) 
+            write(iunit, *) e_vec_next_left(i,:)
         end do
         close(iunit)
 
 
     end subroutine exact_transcorrelation
+#endif
 
     function get_tmat_next(lat_ptr, hilbert_space) result(t_mat)
         ! in the k-space this essentially only is J*\sum_k \epsilon(k) n_k
         ! which is the setup tmat divided by 2
-        class(lattice), pointer, intent(in) :: lat_ptr 
-        integer, intent(in) :: hilbert_space(:,:) 
+        class(lattice), pointer, intent(in) :: lat_ptr
+        integer, intent(in) :: hilbert_space(:,:)
         real(dp) :: t_mat(size(hilbert_space,2),size(hilbert_space,2))
 
-        integer :: i 
+        integer :: i
 
-        t_mat = 0.0_dp 
+        t_mat = 0.0_dp
 
         do i = 1, size(hilbert_space,2)
             t_mat(i,i) = sum(GetTMatEl(hilbert_space(:,i),hilbert_space(:,i))) / real(bhub,dp)
@@ -2772,22 +2780,23 @@ contains
 
 
 
-    end function get_tmat_next 
+    end function get_tmat_next
 
+#ifndef __CMPLX
     subroutine test_general
 
-        ! find the smallest system, where my code fails again.. 
-        integer, allocatable :: nI(:), hilbert_nI(:,:) 
+        ! find the smallest system, where my code fails again..
+        integer, allocatable :: nI(:), hilbert_nI(:,:)
         integer(n_int), allocatable :: dummy(:,:)
         HElement_t(dp), allocatable :: hamil(:,:), hamil_trancorr(:,:), &
                                        trans_hamil(:,:), hamil_old(:,:)
         real(dp), allocatable :: eval(:), eval_neci(:), t_mat(:,:), evectors(:,:)
         integer :: n_states, iunit, n_pairs, i
 
-        ! these are the quantitites to fix: 
-        nOccAlpha = 4 
-        nOccBeta = 4 
-        nel = 8 
+        ! these are the quantitites to fix:
+        nOccAlpha = 4
+        nOccBeta = 4
+        nel = 8
         lat => lattice('tilted', 2,2,1,.true.,.true.,.true.,'k-space')
         allocate(nI(nel)); nI = [1,2,3,4,5,6,9,10]
 
@@ -2798,7 +2807,7 @@ contains
 !         do i = 1, size(nBasisMax,1)
 !             print *, nBasisMax(i,:)
 !         end do
-!         print *, "G1: ", G1 
+!         print *, "G1: ", G1
 !         print *, "tmat: ", tmat2d
 
         ! i need a starting det
@@ -2806,7 +2815,7 @@ contains
 
         print *, "n_states: ", n_states
 
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
         hamil = create_hamiltonian(hilbert_nI)
 
         hamil_old = create_hamiltonian_old(hilbert_nI)
@@ -2822,33 +2831,33 @@ contains
         print *, "eigen-value orig: ", eval(1)
 
 
-        t_trans_corr_2body = .true. 
+        t_trans_corr_2body = .true.
         hamil_trancorr = create_hamiltonian(hilbert_nI)
 
         eval_neci = calc_eigenvalues(hamil_trancorr)
         call sort(eval_neci)
         print *, "eigen-value neci: ", eval_neci(1)
 
-        print *, "diff: ", eval(1) - eval_neci(1) 
+        print *, "diff: ", eval(1) - eval_neci(1)
 
         allocate(t_mat(n_states,n_states))
 
         n_pairs = nOccAlpha * nOccBeta
-        t_mat = get_tranformation_matrix(hamil, n_pairs) 
+        t_mat = get_tranformation_matrix(hamil, n_pairs)
 
         trans_hamil = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
 
         eval = calc_eigenvalues(trans_hamil)
 
-        call sort(eval) 
+        call sort(eval)
         print *, "eigen-value tran: ", eval(1)
 
         eval = calc_eigenvalues(hamil_old)
-        call sort(eval) 
+        call sort(eval)
         print *, "eigen-value old:  ", eval(1)
 
         open(iunit,file='states')
-        call print_matrix(transpose(hilbert_nI), iunit)
+        call print_matrix((hilbert_nI), iunit)
         close(iunit)
 
         open(iunit,file='hamil_orig')
@@ -2881,21 +2890,21 @@ contains
 
         nOccAlpha = 4
         nOccBeta = 4
-        nel = 8 
+        nel = 8
 
         lat => lattice('tilted', 2, 2, 1, .true., .true., .true., 'k-space')
 
         call setup_all(lat)
         nI = [1,2,3,4,5,6,7,8]
         ! i need to set the momentum
-        call setup_k_total(nI) 
+        call setup_k_total(nI)
 
         ! i need a starting det
         call create_hilbert_space(nI, n_states, hilbert_nI, dummy, gen_all_excits_k_space_hubbard)
 
         print *, "n_states: ", n_states
 
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
         hamil = create_hamiltonian(hilbert_nI)
 
         allocate(eval(n_states))
@@ -2906,7 +2915,7 @@ contains
         print *, "eigen-value orig: ", eval(1)
 
 
-        t_trans_corr_2body = .true. 
+        t_trans_corr_2body = .true.
         hamil_trancorr = create_hamiltonian(hilbert_nI)
 
         eval = calc_eigenvalues(hamil_trancorr)
@@ -2915,17 +2924,17 @@ contains
 
         allocate(t_mat(n_states,n_states))
 
-        t_mat = get_tranformation_matrix(hamil, 16) 
+        t_mat = get_tranformation_matrix(hamil, 16)
 
         trans_hamil = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
 
         eval = calc_eigenvalues(trans_hamil)
 
-        call sort(eval) 
+        call sort(eval)
         print *, "eigen-value tran: ", eval(1)
 
-        ! todo! ok, still a small mistake in the transcorrelated hamil!! 
-        ! maybe thats why it behaves unexpected! 
+        ! todo! ok, still a small mistake in the transcorrelated hamil!!
+        ! maybe thats why it behaves unexpected!
 
 !         call stop_all("here", "now")
 
@@ -2949,24 +2958,24 @@ contains
 
         call setup_all(lat)
 
-        print *, "also test 3 electron system for consistency!" 
+        print *, "also test 3 electron system for consistency!"
 
         hilbert_nI(:,1) = [2,3,4]
-        hilbert_nI(:,2) = [4,5,6] 
+        hilbert_nI(:,2) = [4,5,6]
         hilbert_nI(:,3) = [1,2,6]
 
         ! first create the non-transcorrelated Hamiltonian
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
         print *, "un-transcorrelated Hamiltonian: "
 
         hamil = create_hamiltonian(hilbert_nI)
         call print_matrix(hamil)
 
-        ! the originial hamiltonian also gives me the transformation matrix 
-        ! do it the stupid way 
-        t_mat = get_tranformation_matrix(hamil, 2) 
-        
-        ! use the lapack routines to solve these quickly.. 
+        ! the originial hamiltonian also gives me the transformation matrix
+        ! do it the stupid way
+        t_mat = get_tranformation_matrix(hamil, 2)
+
+        ! use the lapack routines to solve these quickly..
         print *, "eigen-values: ", calc_eigenvalues(hamil)
 
         print *, "transcorrelated Hamiltonian: "
@@ -2979,53 +2988,53 @@ contains
 
         trans_hamil = matmul(matmul(matrix_exponential(-t_mat),hamil),matrix_exponential(t_mat))
 
-        print *, "transformed hamiltonian: " 
+        print *, "transformed hamiltonian: "
         call print_matrix(trans_hamil)
 
         print *, "eigen-values: ", calc_eigenvalues(trans_hamil)
 
-!         ! i know now, where there is an error-- between those 2 matrix 
-!         ! elements: 
+!         ! i know now, where there is an error-- between those 2 matrix
+!         ! elements:
 !         print *, "nI:", hilbert_nI(:,1)
 !         print *, "nJ:", hilbert_nI(:,2)
 !         print *, "H_ij: ", hamil_trancorr(1,2), hamil_trancorr(2,1)
-! 
-!         ! check the individual contribs here! 
+!
+!         ! check the individual contribs here!
 !         ! excitation: (2,3) -> (5,6)
 !         ! ex: should have a + sign
-!         ! 2 3 
-!         ! 5 6 
+!         ! 2 3
+!         ! 5 6
 !         ! 2 3 4 -> should have an overall + sign
 !         print *, "Excitation (2,3) -> (5,6)"
-!         print *, "two-body: ", two_body_transcorr_factor(G1(2)%k,G1(6)%k), & 
+!         print *, "two-body: ", two_body_transcorr_factor(G1(2)%k,G1(6)%k), &
 !                                two_body_transcorr_factor(G1(3)%k,G1(5)%k)
-! 
+!
 !         print *, "three_body: ", three_body_transcorr_fac(hilbert_nI(:,1), &
 !                                     G1(2)%k,G1(3)%k,G1(6)%k,1), &
 !                                  three_body_transcorr_fac(hilbert_nI(:,1), &
 !                                     G1(3)%k,G1(2)%k,G1(5)%k,-1)
-! 
+!
 !         print *, "excitation: (3,4) -> (1,6): "
 !         ! ex: should have a - sign!
 !         ! 3 4
 !         ! 1 6
 !         ! 2 3 4 -> should have an overal - sign
-!         print *, "two-body: ", two_body_transcorr_factor(G1(3)%k,G1(1)%k), & 
+!         print *, "two-body: ", two_body_transcorr_factor(G1(3)%k,G1(1)%k), &
 !                                two_body_transcorr_factor(G1(4)%k,G1(6)%k)
-! 
+!
 !         print *, "three_body: ", three_body_transcorr_fac(hilbert_nI(:,1), &
 !                                     G1(3)%k,G1(4)%k,G1(1)%k,-1), &
 !                                  three_body_transcorr_fac(hilbert_nI(:,1), &
 !                                     G1(4)%k,G1(3)%k,G1(6)%k,1)
-! 
+!
 !         print *, "excitation: (4,5) -> (1,2): "
 !         ! ex: should have a + sign
 !         ! 4 5
 !         ! 1 2
 !         ! 4 5 6 -> should have an overall + sign
-!         print *, "two-body: ", two_body_transcorr_factor(G1(4)%k,G1(2)%k), & 
+!         print *, "two-body: ", two_body_transcorr_factor(G1(4)%k,G1(2)%k), &
 !                                two_body_transcorr_factor(G1(5)%k,G1(1)%k)
-! 
+!
 !         print *, "three_body: ", three_body_transcorr_fac(hilbert_nI(:,2), &
 !                                     G1(4)%k,G1(5)%k,G1(2)%k,1), &
 !                                  three_body_transcorr_fac(hilbert_nI(:,2), &
@@ -3036,25 +3045,26 @@ contains
 
 
     end subroutine test_3e_ms1
+#endif
 
     subroutine setup_g1_test
 
-        class(lattice), pointer :: ptr 
-        integer :: i 
-        
-        print *, "" 
-        print *, "testing: setup_g1" 
+        class(lattice), pointer :: ptr
+        integer :: i
+
+        print *, ""
+        print *, "testing: setup_g1"
         ptr => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
         nBasis = 8
 
-        tpbc = .true. 
-        treal = .false. 
+        tpbc = .true.
+        treal = .false.
         ttilt = .false.
 
-        call setup_g1(ptr) 
+        call setup_g1(ptr)
 
-        ! check ms: 
-        do i = 1, 7, 2 
+        ! check ms:
+        do i = 1, 7, 2
             call assert_equals(-1, G1(i)%ms)
         end do
         do i = 2, 8, 2
@@ -3074,14 +3084,14 @@ contains
     subroutine setup_nbasismax_test
 
         use SystemData, only: nBasisMax
-        class(lattice), pointer :: ptr 
-        print *, "" 
+        class(lattice), pointer :: ptr
+        print *, ""
         print *, "testing: setup_nbasismax"
         ptr => lattice('chain', 4, 1, 1,.true.,.true.,.true.,'k-space')
 
         nBasis = 8
-        tpbc = .true. 
-        treal = .false. 
+        tpbc = .true.
+        treal = .false.
 
         call setup_nbasismax(ptr)
 
@@ -3099,18 +3109,18 @@ contains
 
     subroutine setup_tmat_k_space_test
 
-        class(lattice), pointer :: ptr 
-        integer :: i 
+        class(lattice), pointer :: ptr
+        integer :: i
 
         ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
-        print *, "" 
+        print *, ""
         print *, "testing: setup_tmat_k_space"
-        tpbc = .true. 
-        treal = .false. 
-        tOneElecDiag = .false. 
-        ttilt = .false. 
+        tpbc = .true.
+        treal = .false.
+        tOneElecDiag = .false.
+        ttilt = .false.
         bhub = 1.0
-        nBasis = 8 
+        nBasis = 8
 
         call setup_tmat_k_space(ptr)
 
@@ -3125,7 +3135,7 @@ contains
         call assert_equals(h_cast(-2.0_dp), GetTMatEl(7,7))
         call assert_equals(h_cast(-2.0_dp), GetTMatEl(8,8))
 
-        deallocate(G1) 
+        deallocate(G1)
         nBasisMax = 0
         deallocate(tmat2d)
         nbasis = -1
@@ -3137,9 +3147,9 @@ contains
         use SymExcitDataMod, only: kPointToBasisFn
         class(lattice), pointer :: ptr
         integer :: i
-        print *, "" 
-        print *, "testing: setup_kPointToBasisFn" 
-        
+        print *, ""
+        print *, "testing: setup_kPointToBasisFn"
+
         ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
 
         call setup_kPointToBasisFn(ptr)
@@ -3159,27 +3169,27 @@ contains
     subroutine get_diag_helement_k_sp_hub_test
 
         print *, ""
-        print *, "testing: get_diag_helement_k_sp_hub" 
+        print *, "testing: get_diag_helement_k_sp_hub"
         umat = 0.0_dp
         call assert_equals(h_cast(-4.0_dp), get_diag_helement_k_sp_hub([1,2,3,4]))
 
         umat = 2*uhub/omega
         call assert_equals(h_cast(-3.0_dp), get_diag_helement_k_sp_hub([1,2,3,4]))
 
-        print *, "" 
+        print *, ""
         print *, "and now for 2-body transcorrelation: "
         t_trans_corr_2body = .true.
         ! test it for 0 transcorrelation
         trans_corr_param_2body = 0.0_dp
         call assert_equals(h_cast(-3.0_dp), get_diag_helement_k_sp_hub([1,2,3,4]))
 
-        trans_corr_param_2body = 1.0_dp 
+        trans_corr_param_2body = 1.0_dp
 
         three_body_prefac = real(bhub,dp)*test_prefac * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
 
         umat = uhub/omega
 
-        ! todo: tests for actual transcorrelation! 
+        ! todo: tests for actual transcorrelation!
         call assert_equals(h_cast(1.0_dp), get_diag_helement_k_sp_hub([1,2,3,4]))
 
     end subroutine get_diag_helement_k_sp_hub_test
@@ -3189,12 +3199,12 @@ contains
         integer :: ex(2,2)
         integer, allocatable :: nI(:)
 
-        nel = 2 
-        allocate(nI(nel)); nI = [3,4] 
+        nel = 2
+        allocate(nI(nel)); nI = [3,4]
 
         print *, ""
-        print *, "testing: get_offdiag_helement_k_sp_hub" 
-        t_trans_corr_2body = .false. 
+        print *, "testing: get_offdiag_helement_k_sp_hub"
+        t_trans_corr_2body = .false.
 
         ! 0 due to spin-symmetry:
         ex(1,:) = [1,3]
@@ -3203,7 +3213,7 @@ contains
         ex(2,:) = [6,4]
         call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
-        ! 0 due to momentum symmetry: 
+        ! 0 due to momentum symmetry:
         ex(2,:) = [3,4]
         call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
@@ -3218,8 +3228,8 @@ contains
         ex(1,:) = [3,4]
         call assert_equals(h_cast(-uhub/real(omega,dp)), get_offdiag_helement_k_sp_hub(nI,ex,.true.))
 
-        t_trans_corr = .true. 
-        trans_corr_param = 2.0_dp 
+        t_trans_corr = .true.
+        trans_corr_param = 2.0_dp
 
         call assert_equals(h_cast(uhub/real(omega,dp)*exp(4.0_dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
@@ -3230,14 +3240,14 @@ contains
         ex(1,:) = [6,1]
         call assert_equals(h_cast(uhub/real(omega,dp)*exp(-4.0_dp)), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
-        t_trans_corr = .false. 
-        trans_corr_param = 0.0_dp 
+        t_trans_corr = .false.
+        trans_corr_param = 0.0_dp
 
-        t_trans_corr_2body = .true. 
+        t_trans_corr_2body = .true.
         trans_corr_param_2body = 1.0_dp
 
         ex(1,:) = [1,3]
-        ex(2,:) = [2,4] 
+        ex(2,:) = [2,4]
         call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
         ex(1,:) = [1,2]
@@ -3255,7 +3265,7 @@ contains
 
         ex(1,:) = [1,6]
         ex(2,:) = [3,4]
-        print *, "---------------------------------" 
+        print *, "---------------------------------"
         print *, "test order for matrix elements triples contrib to 'normal'"
         print *, "(1,6) -> (3,4): ", get_offdiag_helement_k_sp_hub(nI,ex,.false.)
         ex(1,:) = [6,1]
@@ -3264,7 +3274,7 @@ contains
         print *, "(6,1) -> (4,3): ", get_offdiag_helement_k_sp_hub(nI,ex,.false.)
         ex(1,:) = [1,6]
         print *, "(1,6) -> (4,3): ", get_offdiag_helement_k_sp_hub(nI,ex,.false.)
-        print *, "---------------------------------" 
+        print *, "---------------------------------"
 
         ! 0 due to momentum symmetry
         ex(1,:) = [1,5]
@@ -3275,19 +3285,19 @@ contains
         ex(2,:) = [4,8]
         call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
-        ! this should contribute: 
+        ! this should contribute:
         ex(1,:) = [1,3]
-        ex(2,:) = [5,7] 
+        ex(2,:) = [5,7]
         call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
-        ! the order in EX should not matter.. figure that out! 
+        ! the order in EX should not matter.. figure that out!
         ex(1,:) = [3,1]
         call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
-        print *," --------------------------" 
-        print *, "test order of matrix elements for parallel excitations: " 
+        print *," --------------------------"
+        print *, "test order of matrix elements for parallel excitations: "
         ex(1,:) = [1,3]
-        ex(2,:) = [5,7] 
+        ex(2,:) = [5,7]
         print *, "(1,3) -> (5,7): ", get_offdiag_helement_k_sp_hub(nI, ex,.false.)
         ex(1,:) = [3,1]
         print *, "(3,1) -> (5,7): ", get_offdiag_helement_k_sp_hub(nI, ex,.false.)
@@ -3295,33 +3305,33 @@ contains
         print *, "(3,1) -> (7,5): ", get_offdiag_helement_k_sp_hub(nI, ex,.false.)
         ex(1,:) = [1,3]
         print *, "(1,3) -> (7,5): ", get_offdiag_helement_k_sp_hub(nI, ex,.false.)
-        print *," --------------------------" 
+        print *," --------------------------"
 
-        
+
         ex(1,:) = [2,4]
-        ex(2,:) = [6,8] 
+        ex(2,:) = [6,8]
         call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
 
-        ! order of orbitals should also not matter! 
-        ex(2,:) = [8,6] 
+        ! order of orbitals should also not matter!
+        ex(2,:) = [8,6]
         call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.))
-        ! and this should have opposite sign.... 
-        ! why should this have the opposite sign?  the spin should not matter! 
+        ! and this should have opposite sign....
+        ! why should this have the opposite sign?  the spin should not matter!
         ex(2,:) = [1,3]
-        ex(1,:) = [5,7] 
-        call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.),1.0e-12)
+        ex(1,:) = [5,7]
+        call assert_equals(h_cast(-4.0_dp*three_body_prefac), get_offdiag_helement_k_sp_hub(nI,ex,.false.),1.0e-12_dp)
 
-        nel = 4 
+        nel = 4
         nI = [3,4,6,7]
         ex(1,:) = [4,6]
         ex(2,:) = [2,8]
         call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI, ex,.false.))
 
-        ex(1,:) = [3,7] ! k = 2 
-        ex(2,:) = [1,5] ! k = 0 
+        ex(1,:) = [3,7] ! k = 2
+        ex(2,:) = [1,5] ! k = 0
         call assert_equals(h_cast(0.0_dp), get_offdiag_helement_k_sp_hub(nI, ex,.false.))
 
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
 
     end subroutine get_offdiag_helement_k_sp_hub_test
 
@@ -3331,12 +3341,12 @@ contains
         integer :: ex(2,3), ic_ret
 
         nel = 2
-        allocate(nI(nel)); allocate(nJ(nel)); 
+        allocate(nI(nel)); allocate(nJ(nel));
 
         print *, ""
-        print *, "testing: get_helement_k_space_hub_test" 
+        print *, "testing: get_helement_k_space_hub_test"
         nI = [1,2]
-        nJ = [3,4] 
+        nJ = [3,4]
 
         ic_ret = -1
         call assert_equals(h_cast(0.0_dp), get_helement_k_space_hub(nI,nJ,ic_ret))
@@ -3345,18 +3355,18 @@ contains
         call assert_equals(h_cast(uhub/omega), get_helement_k_space_hub([1,6],[3,4]))
 
         nel = 4
-        deallocate(nI); deallocate(nJ); allocate(nJ(nel)); allocate(nI(nel)); 
+        deallocate(nI); deallocate(nJ); allocate(nJ(nel)); allocate(nI(nel));
         nI = [3,6,7,8]
         nJ = [1,2,5,8]
         ic_ret = -1
         call assert_equals(h_cast(0.0_dp), get_helement_k_space_hub(nI,nJ,ic_ret))
-        call assert_equals(3, ic_ret) 
+        call assert_equals(3, ic_ret)
 
-        t_trans_corr_2body = .true. 
+        t_trans_corr_2body = .true.
         call assert_equals(h_cast(-4.0*three_body_prefac), get_helement_k_space_hub(nI,nJ))
-        ! todo: more tests! 
+        ! todo: more tests!
 
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
 
     end subroutine get_helement_k_space_hub_test
 
@@ -3366,30 +3376,30 @@ contains
         integer :: elecs(2)
         real(dp) :: p_elec
 
-        nel = 2 
+        nel = 2
         nOccBeta = 1
         nOccAlpha = 1
         allocate(nI(nel))
 
         print *, ""
         print *, "testing: pick_spin_opp_elecs"
-        nI = [1,2] 
+        nI = [1,2]
         call pick_spin_opp_elecs(nI, elecs, p_elec)
 
-        call assert_equals(1.0_dp, p_elec) 
-        if (elecs(1) == 1) then 
-            call assert_equals(2, elecs(2)) 
+        call assert_equals(1.0_dp, p_elec)
+        if (elecs(1) == 1) then
+            call assert_equals(2, elecs(2))
         else if (elecs(1) == 2) then
             call assert_equals(1, elecs(2))
         end if
 
-        nel = 4 
+        nel = 4
         nOccBeta = 2
-        nOccAlpha = 2 
+        nOccAlpha = 2
         deallocate(nI); allocate(nI(nel)); nI = [1,2,3,4]
 
-        call pick_spin_opp_elecs(nI, elecs, p_elec) 
-        call assert_equals(0.25_dp, p_elec) 
+        call pick_spin_opp_elecs(nI, elecs, p_elec)
+        call assert_equals(0.25_dp, p_elec)
         call assert_true(.not. same_spin(nI(elecs(1)),nI(elecs(2))))
 
     end subroutine pick_spin_opp_elecs_test
@@ -3402,16 +3412,16 @@ contains
         print *, "testing: pick_from_cum_list"
         call pick_from_cum_list([0.0_dp,1.0_dp],1.0_dp, ind, pgen)
 
-        call assert_equals(2, ind) 
-        call assert_equals(1.0_dp, pgen) 
+        call assert_equals(2, ind)
+        call assert_equals(1.0_dp, pgen)
 
         call pick_from_cum_list([1.0_dp,1.0_dp],1.0_dp, ind, pgen)
 
-        call assert_equals(1, ind) 
-        call assert_equals(1.0_dp, pgen) 
+        call assert_equals(1, ind)
+        call assert_equals(1.0_dp, pgen)
 
         call pick_from_cum_list([1.0_dp,2.0_dp],2.0_dp, ind, pgen)
-        call assert_equals(0.5_dp, pgen) 
+        call assert_equals(0.5_dp, pgen)
 
 
     end subroutine pick_from_cum_list_test
@@ -3419,29 +3429,29 @@ contains
     subroutine create_ab_list_hubbard_test
 
         integer, allocatable :: nI(:), orb_list(:,:)
-        integer(n_int), allocatable :: ilutI(:) 
-        real(dp), allocatable :: cum_arr(:) 
-        real(dp) :: cum_sum, cpt 
-        integer :: tgt 
+        integer(n_int), allocatable :: ilutI(:)
+        real(dp), allocatable :: cum_arr(:)
+        real(dp) :: cum_sum, cpt
+        integer :: tgt
 
-        nel = 4 
-        allocate(nI(nel)); allocate(ilutI(0:niftot)); allocate(orb_list(8,2)); 
+        nel = 4
+        allocate(nI(nel)); allocate(ilutI(0:niftot)); allocate(orb_list(8,2));
         allocate(cum_arr(8))
 
-        print *, "" 
+        print *, ""
         print *, "testing: create_ab_list_hubbard"
         nI = [1,2,3,4]
         call EncodeBitDet(nI, ilutI)
 
         call create_ab_list_hubbard(nI, ilutI,[1,2], orb_list, cum_arr, cum_sum)
 
-        call assert_equals(0.25_dp, cum_sum) 
+        call assert_equals(0.25_dp, cum_sum)
         call create_ab_list_hubbard(nI, ilutI,[3,4], orb_list, cum_arr, cum_sum)
-        call assert_equals(0.25_dp, cum_sum) 
+        call assert_equals(0.25_dp, cum_sum)
 
         call create_ab_list_hubbard(nI, ilutI,[3,4], orb_list, cum_arr, cum_sum, 1, cpt)
-        call assert_equals(0.25_dp, cum_sum) 
-        call assert_equals(0.0_dp, cpt) 
+        call assert_equals(0.25_dp, cum_sum)
+        call assert_equals(0.0_dp, cpt)
 
         call create_ab_list_hubbard(nI, ilutI,[3,4], orb_list, cum_arr, cum_sum, 7, cpt)
         call assert_equals(0.5_dp, cpt)
@@ -3449,12 +3459,12 @@ contains
         call assert_equals(0.5_dp, cpt)
 
 
-        ! todo: i also have to do that for 2-body-transcorrelation, which 
-        ! leads to parallel double excitations in the k-space hubbard 
-        ! case -> check here if the get_orb_from_kpoints() function, works 
+        ! todo: i also have to do that for 2-body-transcorrelation, which
+        ! leads to parallel double excitations in the k-space hubbard
+        ! case -> check here if the get_orb_from_kpoints() function, works
         ! correctly for ispn /= 2 and thub!
 
-        ! todo: more tests! 
+        ! todo: more tests!
 
     end subroutine create_ab_list_hubbard_test
 
@@ -3463,11 +3473,11 @@ contains
         integer :: nI(4), ex(2,2)
         integer(n_int) :: ilutI(0:0)
 
-        print *, "" 
+        print *, ""
         print *, "testing: calc_pgen_k_space_hubbard"
 
-        ni = [1,2,3,4] 
-        call EncodeBitDet(nI, ilutI) 
+        ni = [1,2,3,4]
+        call EncodeBitDet(nI, ilutI)
 
         ex(1,:) = [1,2]
         ex(2,:) = [5,6]
@@ -3480,7 +3490,7 @@ contains
         ex(1,:) = [3,4]
         call assert_equals(0.0_dp, calc_pgen_k_space_hubbard(nI, ilutI, ex, 2))
 
-        ex(2,:) = [7,8] 
+        ex(2,:) = [7,8]
         call assert_equals(0.25_dp, calc_pgen_k_space_hubbard(nI, ilutI, ex, 2))
 
     end subroutine calc_pgen_k_space_hubbard_test
@@ -3490,7 +3500,7 @@ contains
         integer :: nI(4), ex(2,2), nJ(4)
         integer(n_int) :: ilutI(0:0), ilutJ(0:0)
         HElement_t(dp) :: hel
-        real(dp) :: pgen 
+        real(dp) :: pgen
         type(excit_gen_store_type) :: store
         logical :: tpar, t_found(6), found_all
         integer :: ic
@@ -3501,48 +3511,48 @@ contains
         call EncodeBitDet(nI, ilutI)
 
         print *, ""
-        print *, "testing: gen_excit_k_space_hub" 
+        print *, "testing: gen_excit_k_space_hub"
 
-        t_found = .false. 
-        found_all = .false. 
+        t_found = .false.
+        found_all = .false.
 
-        do while (.not. found_all) 
-            call gen_excit_k_space_hub(nI, ilutI, nJ, ilutJ, 0, ic, ex, & 
-                    tpar, pgen, hel, store) 
+        do while (.not. found_all)
+            call gen_excit_k_space_hub(nI, ilutI, nJ, ilutJ, 0, ic, ex, &
+                    tpar, pgen, hel, store)
 
-            if (all(nJ == [3,4,5,6]) .and. .not. t_found(1)) then 
+            if (all(nJ == [3,4,5,6]) .and. .not. t_found(1)) then
                 t_found(1) = .true.
-                ! do asserts: 
+                ! do asserts:
                 call assert_equals(p_elec, pgen)
                 call assert_true(.not. tpar)
             end if
 
-            if (all(nJ == [2,3,5,8]) .and. .not. t_found(2)) then 
-                t_found(2) = .true. 
+            if (all(nJ == [2,3,5,8]) .and. .not. t_found(2)) then
+                t_found(2) = .true.
                 call assert_equals(p_elec/2.0, pgen)
                 call assert_true(.not. tpar)
             end if
 
-            if (all(nJ == [2,3,6,7]) .and. .not. t_found(3)) then 
-                t_found(3) = .true. 
+            if (all(nJ == [2,3,6,7]) .and. .not. t_found(3)) then
+                t_found(3) = .true.
                 call assert_equals(p_elec/2.0, pgen)
                 call assert_true(.not. tpar)
             end if
 
-            if (all(nJ == [1,4,5,8]) .and. .not. t_found(4)) then 
-                t_found(4) = .true. 
+            if (all(nJ == [1,4,5,8]) .and. .not. t_found(4)) then
+                t_found(4) = .true.
                 call assert_equals(p_elec/2.0, pgen)
                 call assert_true(.not. tpar)
             end if
 
-            if (all(nJ == [1,4,6,7]) .and. .not. t_found(5)) then 
-                t_found(5) = .true. 
+            if (all(nJ == [1,4,6,7]) .and. .not. t_found(5)) then
+                t_found(5) = .true.
                 call assert_equals(p_elec/2.0, pgen)
                 call assert_true(.not. tpar)
             end if
-            
-            if (all(nJ == [1,2,7,8]) .and. .not. t_found(6))  then 
-                t_found(6) = .true. 
+
+            if (all(nJ == [1,2,7,8]) .and. .not. t_found(6))  then
+                t_found(6) = .true.
                 call assert_equals(p_elec, pgen)
                 call assert_true(.not. tpar)
             end if
@@ -3555,82 +3565,82 @@ contains
 
     subroutine gen_parallel_double_hubbard_test
 
-        integer :: nI(4), nJ(4), ex(2,2) 
-        integer(n_int) :: ilutI(0:0), ilutJ(0:0) 
-        real(dp) :: pgen 
+        integer :: nI(4), nJ(4), ex(2,2)
+        integer(n_int) :: ilutI(0:0), ilutJ(0:0)
+        real(dp) :: pgen
         logical :: tpar, found_all, t_found(2)
 
-        print *, "" 
+        print *, ""
         print *, "testing: gen_parallel_double_hubbard "
 
-        t_trans_corr_2body = .true. 
+        t_trans_corr_2body = .true.
         nI = [1,2,3,4]
         call EncodeBitDet(nI, ilutI)
 
-        found_all = .false. 
-        t_found = .false. 
+        found_all = .false.
+        t_found = .false.
 
         do while (.not. found_all)
-            call gen_parallel_double_hubbard(nI, ilutI, nJ, ilutJ, ex, tPar, pgen) 
+            call gen_parallel_double_hubbard(nI, ilutI, nJ, ilutJ, ex, tPar, pgen)
 
-            if (all(nJ == [2,4,5,7]) .and. .not. t_found(1)) then 
-                t_found(1) = .true. 
+            if (all(nJ == [2,4,5,7]) .and. .not. t_found(1)) then
+                t_found(1) = .true.
                 call assert_equals(0.5_dp, pgen)
                 call assert_true(tpar)
             end if
 
-            if (all(nJ == [1,3,6,8]) .and. .not. t_found(2)) then 
-                t_found(2) = .true. 
+            if (all(nJ == [1,3,6,8]) .and. .not. t_found(2)) then
+                t_found(2) = .true.
                 call assert_equals(0.5_dp, pgen)
                 call assert_true(tpar)
-            end if 
+            end if
 
             found_all = all(t_found)
         end do
 
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
 
     end subroutine gen_parallel_double_hubbard_test
 
     subroutine gen_triple_hubbard_test
 
-        integer :: nI(4), nJ(4), ex(2,3) 
-        integer(n_int) :: ilutI(0:0), ilutJ(0:0) 
-        real(dp) :: pgen 
+        integer :: nI(4), nJ(4), ex(2,3)
+        integer(n_int) :: ilutI(0:0), ilutJ(0:0)
+        real(dp) :: pgen
         logical :: tpar, found_all, t_found(2)
 
-        print *, "" 
+        print *, ""
         print *, "testing: gen_triple_hubbard "
 
-        found_all = .false. 
-        t_found = .false. 
+        found_all = .false.
+        t_found = .false.
         nI = [3,4,6,7]
-        call EncodeBitDet(nI, ilutI) 
+        call EncodeBitDet(nI, ilutI)
 
-        t_trans_corr_2body = .true. 
+        t_trans_corr_2body = .true.
 
-        do while (.not. found_all) 
-            call gen_triple_hubbard(nI, ilutI, nJ, ilutJ, ex, tpar, pgen) 
+        do while (.not. found_all)
+            call gen_triple_hubbard(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
 
-            if (all(nJ == [1,2,4,5]) .and. .not. t_found(1)) then 
-                t_found(1) = .true. 
+            if (all(nJ == [1,2,4,5]) .and. .not. t_found(1)) then
+                t_found(1) = .true.
                 call assert_equals(0.125_dp, pgen)
             end if
             found_all = t_found(1)
 
         end do
 
-        nI = [3,4,5,8] 
-        call EncodeBitDet(nI, ilutI) 
+        nI = [3,4,5,8]
+        call EncodeBitDet(nI, ilutI)
 
-        found_all = .false. 
-        t_found = .false. 
+        found_all = .false.
+        t_found = .false.
 
-        do while (.not. found_all) 
-            call gen_triple_hubbard(nI, ilutI, nJ, ilutJ, ex, tpar, pgen) 
+        do while (.not. found_all)
+            call gen_triple_hubbard(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
 
-            if (all(nJ == [1,2,3,6]) .and. .not. t_found(1)) then 
-                t_found(1) = .true. 
+            if (all(nJ == [1,2,3,6]) .and. .not. t_found(1)) then
+                t_found(1) = .true.
                 call assert_equals(0.125_dp, pgen)
             end if
             found_all = t_found(1)
@@ -3644,62 +3654,62 @@ contains
     subroutine pick_three_opp_elecs_test
 
         integer :: elecs(3), sum_ms
-        real(dp) :: p_elec 
+        real(dp) :: p_elec
 
-        nel = 3 
-        nOccBeta = 2 
-        nOccAlpha = 1 
+        nel = 3
+        nOccBeta = 2
+        nOccAlpha = 1
 
         print *, ""
         print *, "testing: pick_three_opp_elecs"
         call pick_three_opp_elecs([1,2,3], elecs, p_elec, sum_ms)
         call assert_equals(1.0_dp, p_elec)
-        call assert_equals(-1, sum_ms) 
+        call assert_equals(-1, sum_ms)
         call assert_equals(6, sum(elecs))
 
         nOccAlpha = 2
-        nOccBeta = 1 
+        nOccBeta = 1
 
         call pick_three_opp_elecs([1,2,4], elecs, p_elec, sum_ms)
         call assert_equals(1.0_dp, p_elec)
-        call assert_equals(1, sum_ms) 
+        call assert_equals(1, sum_ms)
         call assert_equals(6, sum(elecs))
 
         nel = 5
-        nOccAlpha = 4 
-        call pick_three_opp_elecs([1,2,4,6,8], elecs, p_elec, sum_ms) 
-        call assert_equals(1.0_dp/6.0_dp, p_elec) 
-        call assert_equals(1, sum_ms) 
+        nOccAlpha = 4
+        call pick_three_opp_elecs([1,2,4,6,8], elecs, p_elec, sum_ms)
+        call assert_equals(1.0_dp/6.0_dp, p_elec)
+        call assert_equals(1, sum_ms)
         call assert_true(any(elecs == 1))
 
-        nOccBeta = 4 
+        nOccBeta = 4
         nOccAlpha = 1
-        call pick_three_opp_elecs([1,3,5,7,8], elecs, p_elec, sum_ms) 
-        call assert_equals(1.0_dp/6.0_dp, p_elec) 
-        call assert_equals(-1, sum_ms) 
+        call pick_three_opp_elecs([1,3,5,7,8], elecs, p_elec, sum_ms)
+        call assert_equals(1.0_dp/6.0_dp, p_elec)
+        call assert_equals(-1, sum_ms)
         call assert_true(any(elecs == 5))
 
         nel = 5
         nOccBeta = 3
-        nOccAlpha = 2 
-        call pick_three_opp_elecs([1,2,3,4,5], elecs, p_elec, sum_ms) 
-        if (sum_ms == 1) then 
+        nOccAlpha = 2
+        call pick_three_opp_elecs([1,2,3,4,5], elecs, p_elec, sum_ms)
+        if (sum_ms == 1) then
             call assert_equals(1.0_dp/10.0_dp, p_elec)
-        else 
+        else
             call assert_equals(7.0_dp/60.0_dp, p_elec,1.0e-12)
         end if
 
-        call pick_three_opp_elecs([1,2,3,4,5], elecs, p_elec, sum_ms) 
-        if (sum_ms == 1) then 
+        call pick_three_opp_elecs([1,2,3,4,5], elecs, p_elec, sum_ms)
+        if (sum_ms == 1) then
             call assert_equals(1.0_dp/10.0_dp, p_elec)
-        else 
+        else
             call assert_equals(7.0_dp/60.0_dp, p_elec, 1.0e-12)
         end if
 
         nel = 4
         nOccBeta = 2
-        nOccAlpha = 2 
-        call pick_three_opp_elecs([1,2,3,4], elecs, p_elec) 
+        nOccAlpha = 2
+        call pick_three_opp_elecs([1,2,3,4], elecs, p_elec)
         call assert_equals(0.25_dp, p_elec)
 
     end subroutine pick_three_opp_elecs_test
@@ -3709,40 +3719,40 @@ contains
         integer :: elecs(2), ispn
         real(dp) :: p_elec
         integer :: nI(6)
-        
+
         print *, ""
         print *, "testing: pick_spin_par_elecs"
-        nel = 2 
+        nel = 2
         nOccBeta = 2
         nOccAlpha = 0
         call pick_spin_par_elecs([1,3],elecs,p_elec, ispn)
-        call assert_equals(1.0_dp, p_elec) 
-        call assert_equals(1, ispn) 
+        call assert_equals(1.0_dp, p_elec)
+        call assert_equals(1, ispn)
         call assert_equals(3, sum(elecs))
 
-        nOccAlpha = 2 
+        nOccAlpha = 2
         nOccBeta = 0
         call pick_spin_par_elecs([2,4],elecs,p_elec, ispn)
-        call assert_equals(1.0_dp, p_elec) 
-        call assert_equals(3, ispn) 
+        call assert_equals(1.0_dp, p_elec)
+        call assert_equals(3, ispn)
         call assert_equals(3, sum(elecs))
 
-        nel = 4 
+        nel = 4
         nOccBeta = 2
-        call pick_spin_par_elecs([1,2,3,4], elecs, p_elec, ispn) 
-        call assert_equals(0.5_dp, p_elec) 
-        if (ispn == 1) then 
+        call pick_spin_par_elecs([1,2,3,4], elecs, p_elec, ispn)
+        call assert_equals(0.5_dp, p_elec)
+        if (ispn == 1) then
             call assert_equals(4, sum(elecs))
-        else if (ispn == 3) then 
+        else if (ispn == 3) then
             call assert_equals(6, sum(elecs))
         end if
-        
-        nel = 6 
-        nOccBeta = 3 
+
+        nel = 6
+        nOccBeta = 3
         nOccAlpha = 3
 
-        call pick_spin_par_elecs([1,2,3,4,5,6], elecs, p_elec) 
-        call assert_equals(1.0_dp/6.0_dp, p_elec) 
+        call pick_spin_par_elecs([1,2,3,4,5,6], elecs, p_elec)
+        call assert_equals(1.0_dp/6.0_dp, p_elec)
         nI = [1,2,3,4,5,6]
         call assert_true(same_spin(nI(elecs(1)),nI(elecs(2))))
 
@@ -3761,15 +3771,15 @@ contains
         print *, "testing: pick_a_orbital_hubbard "
         call EncodeBitDet([1,2,3,4], ilutI)
 
-        call pick_a_orbital_hubbard(ilutI, orb, p_orb, -1) 
-        call assert_true(orb == 6 .or. orb == 8) 
+        call pick_a_orbital_hubbard(ilutI, orb, p_orb, -1)
+        call assert_true(orb == 6 .or. orb == 8)
         call assert_equals(0.5_dp, p_orb)
 
-        call pick_a_orbital_hubbard(ilutI, orb, p_orb, 1) 
-        call assert_true(orb == 5 .or. orb == 7) 
+        call pick_a_orbital_hubbard(ilutI, orb, p_orb, 1)
+        call assert_true(orb == 5 .or. orb == 7)
         call assert_equals(0.5_dp, p_orb)
 
-        call pick_a_orbital_hubbard(ilutI, orb, p_orb) 
+        call pick_a_orbital_hubbard(ilutI, orb, p_orb)
         call assert_equals(0.25_dp, p_orb)
 
     end subroutine pick_a_orbital_hubbard_test
@@ -3777,24 +3787,24 @@ contains
     subroutine pick_ab_orbitals_hubbard_test
 
         integer, allocatable :: nI(:)
-        integer(n_int), allocatable :: ilutI(:) 
+        integer(n_int), allocatable :: ilutI(:)
         integer :: orbs(2)
-        real(dp) :: p_orb 
+        real(dp) :: p_orb
 
         allocate(nI(nel)); allocate(ilutI(0:niftot))
 
-        print *, "" 
+        print *, ""
         print *, "testing: pick_ab_orbitals_hubbard"
         nI = [1,2,3,4]
         call EncodeBitDet(nI, ilutI)
 
         call pick_ab_orbitals_hubbard(nI, ilutI, [1,2], orbs, p_orb)
 
-        call assert_equals(1.0_dp, p_orb) 
+        call assert_equals(1.0_dp, p_orb)
         call assert_equals(11, sum(orbs))
 
         call pick_ab_orbitals_hubbard(nI, ilutI, [3,4], orbs, p_orb)
-        call assert_equals(1.0_dp, p_orb) 
+        call assert_equals(1.0_dp, p_orb)
         call assert_equals(15, sum(orbs))
 
     end subroutine pick_ab_orbitals_hubbard_test
@@ -3802,12 +3812,12 @@ contains
     subroutine pick_bc_orbitals_hubbard_test
 
         integer:: nI(4)
-        integer(n_int) :: ilutI(0:0) 
+        integer(n_int) :: ilutI(0:0)
         integer :: orbs(2)
-        real(dp) :: p_orb 
+        real(dp) :: p_orb
 
 
-        t_trans_corr_2body = .true. 
+        t_trans_corr_2body = .true.
 
         nI = [3,4,6,7]
         call EncodeBitDet(nI, ilutI)
@@ -3816,24 +3826,24 @@ contains
         print *, "testing: pick_bc_orbitals_hubbard"
         call pick_bc_orbitals_hubbard(nI, ilutI,[3,6,7],2,orbs,p_orb)
         call assert_equals(6, sum(orbs))
-        call assert_equals(1.0_dp, p_orb) 
+        call assert_equals(1.0_dp, p_orb)
 
         nI = [3,4,5,8]
         call EncodeBitDet(nI, ilutI)
         call pick_bc_orbitals_hubbard(nI, ilutI,[4,5,8],1,orbs,p_orb)
         call assert_equals(8, sum(orbs))
-        call assert_equals(1.0_dp, p_orb) 
+        call assert_equals(1.0_dp, p_orb)
 
     end subroutine pick_bc_orbitals_hubbard_test
 
     subroutine create_ab_list_par_hubbard_test
 
         integer:: nI(4), orb_list(4,2), tgt
-        integer(n_int) :: ilutI(0:0) 
+        integer(n_int) :: ilutI(0:0)
         real(dp) :: cum_sum, cpt, cum_arr(4)
 
         nI = [1,2,3,4]
-        call EncodeBitDet(nI, ilutI) 
+        call EncodeBitDet(nI, ilutI)
 
         t_trans_corr_2body = .true.
         print *, ""
@@ -3842,9 +3852,9 @@ contains
         call assert_true(cum_sum > 0.0_dp)
 
         call create_ab_list_par_hubbard(nI, ilutI, [1,3], orb_list, cum_arr, cum_sum, 5, cpt)
-        call assert_equals(0.5_dp, cpt) 
+        call assert_equals(0.5_dp, cpt)
         call create_ab_list_par_hubbard(nI, ilutI, [1,3], orb_list, cum_arr, cum_sum, 7, cpt)
-        call assert_equals(0.5_dp, cpt) 
+        call assert_equals(0.5_dp, cpt)
 
         call create_ab_list_par_hubbard(nI, ilutI, [2,4], orb_list, cum_arr, cum_sum)
         call assert_true(cum_sum > 0.0_dp)
@@ -3857,8 +3867,8 @@ contains
         call create_ab_list_par_hubbard(nI, ilutI, [2,4], orb_list, cum_arr, cum_sum, 6, cpt)
         call assert_equals(0.5_dp, cpt)
 
-        nI = [1,2,4,5] 
-        call EncodeBitDet(nI, ilutI) 
+        nI = [1,2,4,5]
+        call EncodeBitDet(nI, ilutI)
         call create_ab_list_par_hubbard(nI, ilutI, [1,5], orb_list, cum_arr, cum_sum)
         call assert_equals(0.0_dp, cum_sum)
 
@@ -3866,7 +3876,7 @@ contains
         call EncodeBitDet(nI, ilutI)
         call create_ab_list_par_hubbard(nI, ilutI, [4,6], orb_list, cum_arr, cum_sum)
 
-        print *, "" 
+        print *, ""
         print *, "cum_sum: ", cum_sum
         print *, "cum_arr: ", cum_arr
         print *, "orb_list(:,1):", orb_list(:,1)
@@ -3879,11 +3889,11 @@ contains
     subroutine pick_ab_orbitals_par_hubbard_test
 
         integer:: nI(4), orbs(2)
-        integer(n_int) :: ilutI(0:0) 
-        real(dp) :: p_orb 
+        integer(n_int) :: ilutI(0:0)
+        real(dp) :: p_orb
 
         nI = [1,2,3,4]
-        call EncodeBitDet(nI, ilutI) 
+        call EncodeBitDet(nI, ilutI)
 
         t_trans_corr_2body = .true.
 
@@ -3897,8 +3907,8 @@ contains
         call assert_equals(14, sum(orbs))
         call assert_equals(1.0_dp, p_orb)
 
-        nI = [1,2,4,5] 
-        call EncodeBitDet(nI, ilutI) 
+        nI = [1,2,4,5]
+        call EncodeBitDet(nI, ilutI)
         call pick_ab_orbitals_par_hubbard(nI, ilutI, [1,5], orbs, p_orb)
         call assert_equals(0.0_dp, p_orb)
 
@@ -3913,15 +3923,15 @@ contains
         print *, ""
         print *, "testing: get_transferred_momenta"
         ex(1,:) = [1,2]
-        ex(2,:) = [3,4] 
-        call get_transferred_momenta(ex, k_vec_a, k_vec_b) 
+        ex(2,:) = [3,4]
+        call get_transferred_momenta(ex, k_vec_a, k_vec_b)
 
-        call assert_equals(1, k_vec_a(1)) 
+        call assert_equals(1, k_vec_a(1))
         call assert_equals(-1, k_vec_b(1))
 
-        ex(1,:) = [1,3] 
+        ex(1,:) = [1,3]
         ex(2,:) = [5,7]
-        call get_transferred_momenta(ex, k_vec_a, k_vec_b) 
+        call get_transferred_momenta(ex, k_vec_a, k_vec_b)
 
         call assert_equals(2, k_vec_a(1))
         call assert_equals(-1, k_vec_b(1))
@@ -3930,98 +3940,98 @@ contains
 
     subroutine create_bc_list_hubbard_test
 
-        integer :: nI(4), orb_list(4,2), tgt 
-        integer(n_int) :: ilutI(0:0) 
-        real(dp) :: cum_arr(4), cum_sum, cpt 
+        integer :: nI(4), orb_list(4,2), tgt
+        integer(n_int) :: ilutI(0:0)
+        real(dp) :: cum_arr(4), cum_sum, cpt
 
-        t_trans_corr_2body = .true. 
+        t_trans_corr_2body = .true.
         print *, ""
         print *, "testing: create_bc_list_hubbard"
         nI = [1,2,3,4]
         call EncodeBitDet(nI, ilutI)
         call create_bc_list_hubbard(nI, ilutI, [1,2,3],6,orb_list, cum_arr, cum_sum)
-        call assert_equals(0.0_dp, cum_sum) 
+        call assert_equals(0.0_dp, cum_sum)
 
         call create_bc_list_hubbard(nI, ilutI, [1,2,4],5,orb_list, cum_arr, cum_sum)
-        call assert_equals(0.0_dp, cum_sum) 
+        call assert_equals(0.0_dp, cum_sum)
 
         nI = [3,4,6,7]
         call EncodeBitDet(nI, ilutI)
         call create_bc_list_hubbard(nI, ilutI, [3,6,7],2,orb_list, cum_arr, cum_sum)
 
-        call assert_true(cum_sum > 0.0_dp) 
+        call assert_true(cum_sum > 0.0_dp)
 
         nI = [3,4,5,8]
         call EncodeBitDet(nI, ilutI)
         call create_bc_list_hubbard(nI, ilutI, [4,5,8],1,orb_list, cum_arr, cum_sum)
-        call assert_true(cum_sum > 0.0_dp) 
+        call assert_true(cum_sum > 0.0_dp)
         call create_bc_list_hubbard(nI, ilutI, [4,5,8],1,orb_list, cum_arr, cum_sum, 4, cpt)
-        call assert_equals(0.0_dp, cpt) 
+        call assert_equals(0.0_dp, cpt)
         call create_bc_list_hubbard(nI, ilutI, [4,5,8],1,orb_list, cum_arr, cum_sum, 2, cpt)
         call assert_equals(0.5_dp, cpt)
 
-        t_trans_corr_2body = .false. 
+        t_trans_corr_2body = .false.
 
     end subroutine create_bc_list_hubbard_test
 
     subroutine get_3_body_helement_ks_hub_test
 
         integer :: nel, ex(2,3)
-        integer, allocatable :: nI(:) 
+        integer, allocatable :: nI(:)
         logical :: tpar
 
         tpar = .false.
 
-        nel = 4 
+        nel = 4
         allocate(ni(nel))
 
         ni = [1,2,3,4]
 
-        print *, "" 
-        print *, "testing: get_3_body_helement_ks_hub" 
-        ex(1,:) = [1,3,5] 
+        print *, ""
+        print *, "testing: get_3_body_helement_ks_hub"
+        ex(1,:) = [1,3,5]
         ex(2,:) = [2,4,6]
 
         ! here spin does not fit:
-        call assert_equals(h_cast(0.0_dp), get_3_body_helement_ks_hub(ni,ex,tpar))
+        call assert_equals(h_cast(0.0_dp), get_3_body_helement_ks_hub(ex,tpar))
         ex(1,:) = [1,2,3]
         ex(2,:) = [4,5,6]
-        call assert_equals(h_cast(0.0_dp), get_3_body_helement_ks_hub(ni,ex,tpar))
+        call assert_equals(h_cast(0.0_dp), get_3_body_helement_ks_hub(ex,tpar))
         ex(2,:) = [5,6,7]
 
         ! and here momentum does not fit
-        call assert_equals(h_cast(0.0_dp), get_3_body_helement_ks_hub(ni,ex,tpar))
+        call assert_equals(h_cast(0.0_dp), get_3_body_helement_ks_hub(ex,tpar))
 
         ! and here it should fit.
         ex(1,:) = [3,6,7]
         ex(2,:) = [1,2,5]
-        call assert_equals(h_cast(-4*three_body_prefac), get_3_body_helement_ks_hub(ni,ex,tpar))
+        call assert_equals(h_cast(-4*three_body_prefac), get_3_body_helement_ks_hub(ex,tpar))
 
-        ! and the order of the involved electrons should not change the 
-        ! matrix element! ... damn.. it does.. i need to have some 
-        ! convention i think.. as it is in the spin-opposite excitations 
-        ! in the "normal" method.. 
-        print *, "--------------------------" 
+        ! and the order of the involved electrons should not change the
+        ! matrix element! ... damn.. it does.. i need to have some
+        ! convention i think.. as it is in the spin-opposite excitations
+        ! in the "normal" method..
+        print *, "--------------------------"
         print *, "testing order influence on sign: "
-        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(ex, .false.)
         ex(1,:) = [3,7,6]
-        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(ex, .false.)
         ex(1,:) = [6,3,7]
-        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
-        ex(1,:) = [6,7,3] 
-        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(ex, .false.)
+        ex(1,:) = [6,7,3]
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(ex, .false.)
         ex(1,:) = [7,6,3]
-        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(ex, .false.)
         ex(2,:) = [1,5,2]
-        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(ex, .false.)
         ex(2,:) = [2,1,5]
-        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(ex, .false.)
         ex(2,:) = [5,1,2]
-        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(ex, .false.)
         ex(2,:) = [5,2,1]
-        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(nI, ex, .false.)
+        print *, "(",ex(1,:),") -> (",ex(2,:),"): ", get_3_body_helement_ks_hub(ex, .false.)
 
-        ! fix this sign incoherence above! 
+        ! fix this sign incoherence above!
         call assert_true(.false.)
 
     end subroutine get_3_body_helement_ks_hub_test
@@ -4030,11 +4040,11 @@ contains
 
         print *, ""
         print *, "testing: check_momentum_sym"
-        ! use the already setup up 4 site chain.. the input to this is 
-        ! with spin-orbitals.. or no.. it is with spatial orbs! no it is 
-        ! spin-orbital! but the spin is also checked for symmetry! 
-        ! although it is not only momentum symmetry! it is also 
-        ! spin symmetry!! 
+        ! use the already setup up 4 site chain.. the input to this is
+        ! with spin-orbitals.. or no.. it is with spatial orbs! no it is
+        ! spin-orbital! but the spin is also checked for symmetry!
+        ! although it is not only momentum symmetry! it is also
+        ! spin symmetry!!
         call assert_true(check_momentum_sym([1],[1]))
         call assert_true(.not.check_momentum_sym([1],[2]))
         call assert_true(check_momentum_sym([2],[2]))
@@ -4067,24 +4077,24 @@ contains
     subroutine calc_pgen_k_space_hubbard_transcorr_test
 
         integer :: nI(4), ex(2,3)
-        integer(n_int) :: ilutI(0:0) 
+        integer(n_int) :: ilutI(0:0)
 
         nI = [3,4,6,7]
         call EncodeBitDet(nI, ilutI)
 
-        pDoubles = 0.8 
-        pParallel = 0.2 
+        pDoubles = 0.8
+        pParallel = 0.2
 
-        t_trans_corr_2body = .true. 
-        print *, "" 
+        t_trans_corr_2body = .true.
+        print *, ""
         print *, "testing: calc_pgen_k_space_hubbard_transcorr"
         call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,0))
         call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,1))
         call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,4))
-        
+
         ex(1,:) = [3,4,0] ! k = 0
         ex(2,:) = [2,5,0] ! k = 0
-        ! this should contribute! 
+        ! this should contribute!
         call assert_equals(0.8*0.8/4.0_dp, calc_pgen_k_space_hubbard_transcorr(nI,iluti,ex,2))
 
         ex(1,:) = [3,6,0] ! k = 1
@@ -4107,9 +4117,9 @@ contains
         nI = [3,4,6,7]
         call EncodeBitDet(nI, ilutI)
 
-        ! the triple should be: 
-        ex(1,:) = [3,6,7] 
-        ex(2,:) = [1,2,5] 
+        ! the triple should be:
+        ex(1,:) = [3,6,7]
+        ex(2,:) = [1,2,5]
         call assert_equals(0.2/16.0_dp, calc_pgen_k_space_hubbard_transcorr(ni,iluti,ex,3),1.0e-12)
 
         t_trans_corr_2body = .false.
@@ -4119,16 +4129,16 @@ contains
     subroutine calc_pgen_k_space_hubbard_par_test
 
         integer :: nI(4), ex(2,2)
-        integer(n_int) :: ilutI(0:0) 
+        integer(n_int) :: ilutI(0:0)
 
-        nI = [1,2,3,4] 
+        nI = [1,2,3,4]
         call EncodeBitDet(nI, ilutI)
 
         t_trans_corr_2body = .true.
-        print *, "" 
+        print *, ""
         print *, "testing: calc_pgen_k_space_hubbard_par"
         ex(1,:) = [1,3]
-        ex(2,:) = [5,7] 
+        ex(2,:) = [5,7]
 
         call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_par(nI,ilutI,ex,0))
         call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_par(nI,ilutI,ex,1))
@@ -4149,13 +4159,13 @@ contains
     subroutine calc_pgen_k_space_hubbard_triples_test
 
         integer :: nI(4), ex(2,3)
-        integer(n_int) :: ilutI(0:0) 
+        integer(n_int) :: ilutI(0:0)
 
         nI = [3,4,6,7]
-        call EncodeBitDet(nI, ilutI) 
+        call EncodeBitDet(nI, ilutI)
 
         t_trans_corr_2body = .true.
-        print *, "" 
+        print *, ""
         print *, "testing: calc_pgen_k_space_hubbard_triples"
         ex(1,:) = [3,6,7]
         ex(2,:) = [1,2,5]
@@ -4166,10 +4176,10 @@ contains
 
         call assert_equals(1.0_dp/(2*8.0_dp), calc_pgen_k_space_hubbard_triples(nI, ilutI, ex,3))
 
-        ex(1,:) = [4,5,8] 
+        ex(1,:) = [4,5,8]
         call assert_equals(0.0_dp, calc_pgen_k_space_hubbard_triples(nI, ilutI, ex,3))
         ex(2,:) = [1,2,6]
-        nI = [3,4,5,8] 
+        nI = [3,4,5,8]
         call EncodeBitDet(nI, ilutI)
         call assert_equals(1.0_dp/(2*8.0_dp), calc_pgen_k_space_hubbard_triples(nI, ilutI, ex,3))
 
@@ -4184,30 +4194,30 @@ contains
         logical :: tpar, tpar_2, tpar_3, tpar_4
         integer(n_int) :: ilutI(0:nifd), ilutJ(0:nifd)
 
-        nel = 3 
+        nel = 3
 
         allocate(nI(nel))
         allocate(nJ(nel))
 
-        print *, "" 
-        print *, "testing: make_triple" 
+        print *, ""
+        print *, "testing: make_triple"
         print *, "testing implicitly: FindExcitDet!"
 
-        nI = [1,2,3] 
-        call make_triple(nI,nJ,[1,2,3],[4,5,7],ex,tpar) 
+        nI = [1,2,3]
+        call make_triple(nI,nJ,[1,2,3],[4,5,7],ex,tpar)
         call assert_equals([4,5,7], nJ, 3)
         call assert_equals([1,2,3], ex(1,:),3)
         call assert_equals([4,5,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2, 3)
 
@@ -4217,19 +4227,19 @@ contains
 
         ! and now more complicated stuff:
         nI = [1,2,3]
-        call make_triple(nI,nJ,[1,3,2],[7,5,4],ex,tpar) 
+        call make_triple(nI,nJ,[1,3,2],[7,5,4],ex,tpar)
         call assert_equals([4,5,7], nJ, 3)
         call assert_equals([1,2,3], ex(1,:),3)
         call assert_equals([4,5,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2, 3)
 
@@ -4238,20 +4248,20 @@ contains
         call assert_true(tpar .eqv. tpar_3)
 
         nI = [1,2,5]
-        call make_triple(nI,nJ,[3,1,2],[3,4,7],ex,tpar) 
+        call make_triple(nI,nJ,[3,1,2],[3,4,7],ex,tpar)
         call assert_equals([3,4,7], nJ, 3)
         call assert_equals([1,2,5], ex(1,:),3)
         call assert_equals([3,4,7], ex(2,:),3)
         call assert_true(.not.tpar)
 
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2, 3)
 
@@ -4261,19 +4271,19 @@ contains
         call assert_true(tpar .eqv. tpar_3)
         nI = [1,2,5]
 
-        call make_triple(nI,nJ,[3,2,1],[8,7,3],ex,tpar) 
+        call make_triple(nI,nJ,[3,2,1],[8,7,3],ex,tpar)
         call assert_equals([3,7,8], nJ, 3)
         call assert_equals([1,2,5], ex(1,:),3)
         call assert_equals([3,7,8], ex(2,:),3)
         call assert_true(.not.tpar)
 
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2, 3)
 
@@ -4283,7 +4293,7 @@ contains
         call assert_true(tpar .eqv. tpar_3)
         nI = [1,2,5]
 
-        call make_triple(nI,nJ,[3,2,1],[4,7,9],ex,tpar) 
+        call make_triple(nI,nJ,[3,2,1],[4,7,9],ex,tpar)
         call assert_equals([4,7,9], nJ, 3)
         call assert_equals([1,2,5], ex(1,:),3)
         call assert_equals([4,7,9], ex(2,:),3)
@@ -4295,20 +4305,20 @@ contains
         nI = [1,2,5]
 
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2, 3)
 
-        call make_triple(nI, nJ, [1,2,3], [3,4,7], ex, tpar) 
+        call make_triple(nI, nJ, [1,2,3], [3,4,7], ex, tpar)
         call assert_true(.not.tpar)
 
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2, 3)
 
@@ -4318,23 +4328,23 @@ contains
         call assert_true(tpar .eqv. tpar_3)
         nI = [1,2,5]
 
-        nel = 4 
+        nel = 4
 
         deallocate(nJ); allocate(NJ(nel))
         deallocate(nI); allocate(nI(nel))
-        
+
         nI = [1,2,5,7]
         call make_triple(nI,nJ,[1,2,3],[3,6,9],ex,tpar)
         call assert_true(tpar)
 
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 3 
+        ex2(1,1) = 3
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2, 3)
 
@@ -4356,31 +4366,31 @@ contains
         logical :: tpar, tpar_2, tpar_3, tpar_4
         integer(n_int) :: ilutI(0:nifd), ilutJ(0:nifd)
 
-        print *, "" 
-        print *, "testing: make_double" 
+        print *, ""
+        print *, "testing: make_double"
         print *, "to be consistent with the sign conventions! "
 
-        ! to test this really strange sign convention also call all the other 
-        ! routines here, which test sign.. 
+        ! to test this really strange sign convention also call all the other
+        ! routines here, which test sign..
 
         nel = 2
         allocate(nJ(nel))
-        allocate(ni(nel)); 
+        allocate(ni(nel));
         ni = [1,2]
 
         call make_double([1,2],nJ, 1,2, 3,4, ex, tpar)
-        call assert_equals([3,4], nJ, 2) 
+        call assert_equals([3,4], nJ, 2)
         call assert_equals([1,2],ex(1,:),2)
         call assert_equals(reshape([1,3,2,4],[2,2]),ex, 2,2)
         call assert_true(.not. tpar)
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2,2)
 
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
@@ -4397,36 +4407,36 @@ contains
         call assert_true(tpar .eqv. tpar_2)
         ni = [1,2]
 
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_3)
         call assert_equals(ex, ex2, 2,2)
 
-        call make_double([1,2],nJ, 1,2, 3,6, ex, tpar) 
+        call make_double([1,2],nJ, 1,2, 3,6, ex, tpar)
         call assert_true(.not. tpar)
         call FindExcitDet(ex, nI, 2, tpar_2)
         call assert_true(tpar .eqv. tpar_2)
         ni = [1,2]
 
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_3)
 
-        nel = 3 
+        nel = 3
         deallocate(nJ); allocate(nJ(nel))
         nI = [1,2,4]
 
@@ -4434,7 +4444,7 @@ contains
         call assert_equals([4,5,6], nJ, 3)
         call assert_true(.not. tpar)
 
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
@@ -4445,14 +4455,14 @@ contains
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2,2)
 
         call make_double([1,2,4],nj,1,2,3,6,ex,tpar)
         call assert_true(tpar)
 
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
@@ -4462,7 +4472,7 @@ contains
         nI = [1,2,4]
 
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2,2)
 
@@ -4470,7 +4480,7 @@ contains
         call assert_true(.not. tpar)
         nI = [1,2,4]
 
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
@@ -4479,7 +4489,7 @@ contains
         call assert_true(tpar .eqv. tpar_2)
 
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2,2)
 
@@ -4487,14 +4497,14 @@ contains
         call assert_true(.not. tpar)
         nI = [1,2,3]
 
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetExcitation(nI,nJ,nel,ex2,tpar_4)
         call assert_equals(ex, ex2, 2,2)
         call assert_true(tpar .eqv. tpar_4)
 
         call EncodeBitDet(nI, ilutI)
         call EncodeBitDet(nJ, ilutJ)
-        ex2(1,1) = 2 
+        ex2(1,1) = 2
         call GetBitExcitation(ilutI, ilutJ, ex2, tpar_3)
         call assert_equals(ex, ex2, 2,2)
 
@@ -4509,15 +4519,15 @@ contains
     subroutine three_body_transcorr_fac_test
 
         integer :: p(3), q(3), k(3)
-        real(dp) :: test 
+        real(dp) :: test
 
         nel = 4
         nOccBeta = 2
         nOccAlpha = 2
 
-        print *, "" 
+        print *, ""
         print *, "testing: three_body_transcorr_fac"
-        p = 0 
+        p = 0
         q = 0
         k = 0
 
@@ -4526,32 +4536,32 @@ contains
         call assert_equals(h_cast(0.0_dp), &
             three_body_transcorr_fac([1,2,3,4], p,q,k,-1))
 
-        q(1) = 1 
-        k(1) = 2 
+        q(1) = 1
+        k(1) = 2
         call assert_equals(h_cast(0.0_dp), &
-            three_body_transcorr_fac([1,2,3,4], p,q,k,1),1e-12)
+            three_body_transcorr_fac([1,2,3,4], p,q,k,1),1e-12_dp)
 
-        p(1) = 2 
-        q(1) = 0 
-        k(1) = 1 
+        p(1) = 2
+        q(1) = 0
+        k(1) = 1
         call assert_equals(h_cast(0.0_dp), &
             three_body_transcorr_fac([1,2,3,4], p,q,k,1))
 
-        ! is there a non-zero combination? 
+        ! is there a non-zero combination?
         p(1) = 0
         q(1) = 2
         k(1) = 1
-        call assert_equals(h_cast(three_body_prefac*8), & 
+        call assert_equals(h_cast(three_body_prefac*8), &
             three_body_transcorr_fac([1,2,3,4],p,q,k,1))
-        call assert_equals(h_cast(three_body_prefac*8), & 
+        call assert_equals(h_cast(three_body_prefac*8), &
             three_body_transcorr_fac([1,2,3,4],p,q,k,-1))
-        
-        nOccBeta = 4 
+
+        nOccBeta = 4
         nOccAlpha = 0
-        call assert_equals(h_cast(0.0_dp), & 
+        call assert_equals(h_cast(0.0_dp), &
             three_body_transcorr_fac([1,3,5,7],p,q,k,-1))
 
-        call assert_equals(h_cast(three_body_prefac*8), & 
+        call assert_equals(h_cast(three_body_prefac*8), &
             three_body_transcorr_fac([1,3,5,7],p,q,k,1))
 
         nOccBeta = 2
@@ -4563,27 +4573,27 @@ contains
 
         integer :: p(3), k(3)
 
-        print *, "" 
-        print *, "testing: two_body_transcorr_factor" 
+        print *, ""
+        print *, "testing: two_body_transcorr_factor"
         p = 0
         k = 0
 
-        call assert_equals(h_cast(-4.0_dp/omega * (cosh(trans_corr_param_2body) - 1)), & 
+        call assert_equals(h_cast(-4.0_dp/omega * (cosh(trans_corr_param_2body) - 1)), &
             two_body_transcorr_factor(p,k))
 
         p(1) = 1
-        call assert_equals(h_cast(0.0_dp), two_body_transcorr_factor(p,k),1.e-12)
-        call assert_equals(h_cast(-4.0_dp/omega * sinh(trans_corr_param_2body)), & 
+        call assert_equals(h_cast(0.0_dp), two_body_transcorr_factor(p,k),1.e-12_dp)
+        call assert_equals(h_cast(-4.0_dp/omega * sinh(trans_corr_param_2body)), &
             two_body_transcorr_factor([2,0,0],[2,0,0]))
 
-        call assert_equals(h_cast(4.0_dp/omega * sinh(trans_corr_param_2body)), & 
+        call assert_equals(h_cast(4.0_dp/omega * sinh(trans_corr_param_2body)), &
             two_body_transcorr_factor([0,0,0],[2,0,0]))
 
-        call assert_equals(h_cast(-2.0_dp/omega *(exp(-trans_corr_param_2body)-1)), & 
-            two_body_transcorr_factor([0,0,0],[1,0,0]),1.e-12)
+        call assert_equals(h_cast(-2.0_dp/omega *(exp(-trans_corr_param_2body)-1)), &
+            two_body_transcorr_factor([0,0,0],[1,0,0]),1.e-12_dp)
 
 
-        call assert_equals(h_cast(4.0_dp/omega * (cosh(trans_corr_param_2body) - 1)), & 
+        call assert_equals(h_cast(4.0_dp/omega * (cosh(trans_corr_param_2body) - 1)), &
             two_body_transcorr_factor([2,0,0],[0,0,0]))
 
     end subroutine two_body_transcorr_factor_test
@@ -4592,35 +4602,35 @@ contains
 
         integer :: k(3)
 
-        ! depending on the lattice dimension.. 
-        ! and also the tilted has other values or?? 
-        print *, "" 
+        ! depending on the lattice dimension..
+        ! and also the tilted has other values or??
+        print *, ""
         print *, "testing: epsilon_kvec"
-        k = 0 
+        k = 0
         call assert_equals(h_cast(2.0_dp), epsilon_kvec(k))
-        call assert_equals(h_cast(0.0_dp), epsilon_kvec([1,0,0]),1e-12)
-        call assert_equals(h_cast(0.0_dp), epsilon_kvec([-1,0,0]),1e-12)
+        call assert_equals(h_cast(0.0_dp), epsilon_kvec([1,0,0]),1e-12_dp)
+        call assert_equals(h_cast(0.0_dp), epsilon_kvec([-1,0,0]),1e-12_dp)
         call assert_equals(h_cast(-2.0_dp), epsilon_kvec([2,0,0]))
 
     end subroutine epsilon_kvec_test
 
     subroutine same_spin_transcorr_factor_test
 
-        integer :: k(3) 
-        integer, allocatable :: nI(:) 
+        integer :: k(3)
+        integer, allocatable :: nI(:)
 
         nel = 4
         allocate(nI(nel))
 
-        nI = [1,2,3,4] 
+        nI = [1,2,3,4]
 
-        print *, "" 
-        print *, "testing: same_spin_transcorr_factor" 
+        print *, ""
+        print *, "testing: same_spin_transcorr_factor"
 
-        call assert_equals(h_cast(three_body_prefac*4), same_spin_transcorr_factor([1,2,3,4],[0,0,0],1),1.e-12)
-        call assert_equals(h_cast(three_body_prefac*4), same_spin_transcorr_factor([1,2,3,4],[0,0,0],-1),1.e-12)
-        call assert_equals(h_cast(0.0_dp), same_spin_transcorr_factor([1,2,3,4],[1,0,0],-1),1.e-12)
-        call assert_equals(h_cast(-three_body_prefac*4), same_spin_transcorr_factor([1,2,3,4],[2,0,0],-1),1.e-12)
+        call assert_equals(h_cast(three_body_prefac*4), same_spin_transcorr_factor([1,2,3,4],[0,0,0],1),1.e-12_dp)
+        call assert_equals(h_cast(three_body_prefac*4), same_spin_transcorr_factor([1,2,3,4],[0,0,0],-1),1.e-12_dp)
+        call assert_equals(h_cast(0.0_dp), same_spin_transcorr_factor([1,2,3,4],[1,0,0],-1),1.e-12_dp)
+        call assert_equals(h_cast(-three_body_prefac*4), same_spin_transcorr_factor([1,2,3,4],[2,0,0],-1),1.e-12_dp)
 
         call assert_equals(h_cast(0.0_dp), same_spin_transcorr_factor([1,3,5,7],[0,0,0],1))
         call assert_equals(h_cast(0.0_dp), same_spin_transcorr_factor([1,3,5,7],[0,0,0],-1))
@@ -4631,34 +4641,34 @@ contains
 
         integer, allocatable :: nI(:)
         class(lattice), pointer :: ptr
-        integer :: i 
+        integer :: i
 
         nel = 4
 
         allocate(nI(nel))
         nI = [1,2,3,4]
-        
-        ! i think i also want to use the lattice functionality in the 
+
+        ! i think i also want to use the lattice functionality in the
         ! k-space hubbard model.. but i still have to think about how to do that!
-        ! allow an additional input flag! 
+        ! allow an additional input flag!
 
 !         ptr => lattice('chain', 4, 1, 1, .true., .true., .true.,'k-space')
 
         call stop_all("get_one_body_diag_test", "changed implementation!")
-!         call setup_tmat_k_space(ptr) 
-        print *, "" 
-        print *, "testing: get_one_body_diag" 
-        ! the spin = 1 means i want the diagonal contribution of the alpha 
-        ! electrons! 
+!         call setup_tmat_k_space(ptr)
+        print *, ""
+        print *, "testing: get_one_body_diag"
+        ! the spin = 1 means i want the diagonal contribution of the alpha
+        ! electrons!
 !         call assert_equals(h_cast(2.0_dp), get_one_body_diag(nI,1))
 !         call assert_equals(h_cast(2.0_dp), get_one_body_diag(nI,-1))
 !         call assert_equals(h_cast(4.0_dp), get_one_body_diag(nI))
-! 
+!
 !         nI = [1,2,5,6]
 !         call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI,1),1.e-8)
 !         call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI,-1),1e-8)
 !         call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI),1.e-8)
-! 
+!
 !         nI = [1,3,5,7]
 !         call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI,1))
 !         call assert_equals(h_cast(0.0_dp), get_one_body_diag(nI,-1))
@@ -4671,18 +4681,18 @@ contains
 
         integer :: nI(nel)
 
-        print *, "" 
-        print *, "try to implement a stochastic version to check the" 
-        print *, "calculated pgen and the actual one.. " 
-        ! i should write a general test-runner for this.. which takes 
-        ! an excitation generator as an input.. that would be nice! 
-        ! something like: " 
+        print *, ""
+        print *, "try to implement a stochastic version to check the"
+        print *, "calculated pgen and the actual one.. "
+        ! i should write a general test-runner for this.. which takes
+        ! an excitation generator as an input.. that would be nice!
+        ! something like: "
         ni = [1,2,3,4]
-        
-        call setup_k_total(nI) 
 
-        call run_excit_gen_tester(gen_excit_k_space_hub, "gen_excit_k_space_hub", & 
-            gen_all_excits=gen_all_excits_k_space_hubbard) 
+        call setup_k_total(nI)
+
+        call run_excit_gen_tester(gen_excit_k_space_hub, "gen_excit_k_space_hub", &
+            gen_all_excits=gen_all_excits_k_space_hubbard)
 
     end subroutine gen_excit_k_space_hub_test_stochastic
 
@@ -4691,15 +4701,15 @@ contains
         integer :: nI(nel), n_excits, i, nJ(nel), n_triples
         integer(n_int), allocatable :: det_list(:,:)
 
-        print *, "" 
-        print *, "testing: gen_excit_k_space_hub_transcorr_uniform" 
+        print *, ""
+        print *, "testing: gen_excit_k_space_hub_transcorr_uniform"
         print *, "first for a system with no possible triples, due to momentum conservation"
 
-        pDoubles = 0.8 
-        pParallel = 0.2 
-        t_trans_corr_2body = .true. 
+        pDoubles = 0.8
+        pParallel = 0.2
+        t_trans_corr_2body = .true.
 
-        nI = [1,2,3,4] 
+        nI = [1,2,3,4]
         call setup_k_total(nI)
 
         call setup_system(lat, nI, trans_corr_param_2body, real(uhub,dp))
@@ -4710,23 +4720,23 @@ contains
 
         call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
 
-        ! for this momentum sector there are no, triple excitations valid.. 
-        ! so test that for now! 
+        ! for this momentum sector there are no, triple excitations valid..
+        ! so test that for now!
         call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
-            "gen_excit_uniform_k_space_hub_test",opt_ni = nI, & 
-            gen_all_excits = gen_all_excits_k_space_hubbard) 
+            "gen_excit_uniform_k_space_hub_test",opt_ni = nI, &
+            gen_all_excits = gen_all_excits_k_space_hubbard)
 
-        do i = 1, n_excits 
+        do i = 1, n_excits
             call decode_bit_det(nJ, det_list(:,i))
             call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
-                "gen_excit_uniform_k_space_hub_test",opt_ni = nJ, & 
-                gen_all_excits = gen_all_excits_k_space_hubbard) 
+                "gen_excit_uniform_k_space_hub_test",opt_ni = nJ, &
+                gen_all_excits = gen_all_excits_k_space_hubbard)
         end do
 
-        print *, "" 
+        print *, ""
         print *, "and now for a system with triples: "
         nI = [3,4,6,7]
-        call setup_k_total(nI) 
+        call setup_k_total(nI)
 
         call setup_system(lat, nI, trans_corr_param_2body, real(uhub,dp))
         call init_two_body_trancorr_fac_matrix()
@@ -4741,17 +4751,17 @@ contains
 
         call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
 
-        ! for this momentum sector there are no, triple excitations valid.. 
-        ! so test that for now! 
+        ! for this momentum sector there are no, triple excitations valid..
+        ! so test that for now!
         call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
-            "gen_excit_uniform_k_space_hub_test",opt_ni = nI, & 
-            gen_all_excits = gen_all_excits_k_space_hubbard) 
+            "gen_excit_uniform_k_space_hub_test",opt_ni = nI, &
+            gen_all_excits = gen_all_excits_k_space_hubbard)
 
-        do i = 1, n_excits 
+        do i = 1, n_excits
             call decode_bit_det(nJ, det_list(:,i))
             call run_excit_gen_tester(gen_excit_uniform_k_space_hub_test, &
-                "gen_excit_uniform_k_space_hub_test",opt_ni = nJ, & 
-                gen_all_excits = gen_all_excits_k_space_hubbard) 
+                "gen_excit_uniform_k_space_hub_test",opt_ni = nJ, &
+                gen_all_excits = gen_all_excits_k_space_hubbard)
         end do
 
 
@@ -4762,15 +4772,15 @@ contains
         integer :: nI(nel), n_excits, i, nJ(nel), n_triples
         integer(n_int), allocatable :: det_list(:,:)
 
-        print *, "" 
-        print *, "testing: gen_excit_k_space_hub_transcorr" 
+        print *, ""
+        print *, "testing: gen_excit_k_space_hub_transcorr"
         print *, "first for a system with no possible triples, due to momentum conservation"
 
-        pDoubles = 0.8 
-        pParallel = 0.2 
-        t_trans_corr_2body = .true. 
+        pDoubles = 0.8
+        pParallel = 0.2
+        t_trans_corr_2body = .true.
 
-        nI = [1,2,3,4] 
+        nI = [1,2,3,4]
         call setup_k_total(nI)
         call gen_all_triples_k_space(nI, n_excits, det_list)
 
@@ -4781,24 +4791,24 @@ contains
 
         call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
 
-        ! for this momentum sector there are no, triple excitations valid.. 
-        ! so test that for now! 
+        ! for this momentum sector there are no, triple excitations valid..
+        ! so test that for now!
         call run_excit_gen_tester(gen_excit_k_space_hub_transcorr_test, &
-            "gen_excit_k_space_hub_transcorr",opt_ni = nI, & 
-            gen_all_excits = gen_all_excits_k_space_hubbard) 
+            "gen_excit_k_space_hub_transcorr",opt_ni = nI, &
+            gen_all_excits = gen_all_excits_k_space_hubbard)
 
-        do i = 1, n_excits 
+        do i = 1, n_excits
             call decode_bit_det(nJ, det_list(:,i))
             call run_excit_gen_tester(gen_excit_k_space_hub_transcorr_test, &
-                "gen_excit_k_space_hub_transcorr",opt_ni = nJ, & 
-                gen_all_excits = gen_all_excits_k_space_hubbard) 
+                "gen_excit_k_space_hub_transcorr",opt_ni = nJ, &
+                gen_all_excits = gen_all_excits_k_space_hubbard)
         end do
 
 
-        print *, "" 
+        print *, ""
         print *, "and now for a system with triples: "
         nI = [3,4,6,7]
-        call setup_k_total(nI) 
+        call setup_k_total(nI)
 
         call gen_all_triples_k_space(nI, n_triples, det_list)
 
@@ -4809,17 +4819,17 @@ contains
 
         call gen_all_excits_k_space_hubbard(nI, n_excits, det_list)
 
-        ! for this momentum sector there are no, triple excitations valid.. 
-        ! so test that for now! 
+        ! for this momentum sector there are no, triple excitations valid..
+        ! so test that for now!
         call run_excit_gen_tester(gen_excit_k_space_hub_transcorr_test, &
-            "gen_excit_k_space_hub_transcorr",opt_ni = nI, & 
-            gen_all_excits = gen_all_excits_k_space_hubbard) 
+            "gen_excit_k_space_hub_transcorr",opt_ni = nI, &
+            gen_all_excits = gen_all_excits_k_space_hubbard)
 
-        do i = 1, n_excits 
+        do i = 1, n_excits
             call decode_bit_det(nJ, det_list(:,i))
             call run_excit_gen_tester(gen_excit_k_space_hub_transcorr_test, &
-                "gen_excit_k_space_hub_transcorr",opt_ni = nJ, & 
-                gen_all_excits = gen_all_excits_k_space_hubbard) 
+                "gen_excit_k_space_hub_transcorr",opt_ni = nJ, &
+                gen_all_excits = gen_all_excits_k_space_hubbard)
         end do
 
     end subroutine gen_excit_k_space_hub_transcorr_test_stoch

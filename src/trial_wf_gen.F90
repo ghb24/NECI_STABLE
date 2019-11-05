@@ -394,7 +394,7 @@ contains
             end do
 #else
             if (replica_pairs) then
-                do ireplica = 1, lenof_sign/2
+                do ireplica = 1, int(lenof_sign/2.)
                     trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
                     energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
 
@@ -423,7 +423,7 @@ contains
             end do
 #else
             if (replica_pairs) then
-                do ireplica = 1, lenof_sign/2
+                do ireplica = 1, int(lenof_sign/2.)
                     best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
                     trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
                     energies_kept(ireplica) = energies(best_trial(1))

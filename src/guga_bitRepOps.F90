@@ -18,7 +18,7 @@ module guga_bitRepOps
                     CountBits, DetBitEQ
     use bit_rep_data, only: test_flag, flag_deltaB_single, &
         flag_deltaB_double, flag_deltaB_sign, niftot, nIfGUGA, nIfd, nifdbo
-    use util_mod, only: binary_search, binary_search_custom
+    use util_mod, only: binary_search, binary_search_custom, operator(.div.)
     use sort_mod, only: sort
 
     implicit none
@@ -1740,6 +1740,7 @@ contains
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
+        unused_variable(ilut)
 
         nOpen = 0
 
@@ -1766,6 +1767,7 @@ contains
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
+        unused_variable(ilut)
 
         nOpen = 0
 
@@ -1874,7 +1876,7 @@ contains
         ! check if flags are correctly set
 
         ! and this should now jsut be:
-        deltaB = ilut(nIfGUGA)
+        deltaB = int(ilut(nIfGUGA))
 
     end function getDeltaB
 
@@ -2114,7 +2116,7 @@ contains
         integer :: i
 
         do i = 1, nSpatOrbs
-            occVector(i) = getSpatialOccupation(ilut,i)
+            occVector(i) = int(getSpatialOccupation(ilut,i))
         end do
 
     end function calcOcc_vector_int
@@ -2217,8 +2219,7 @@ contains
 
         ! now pick out corresponding spin orbitals with iand() and
         ! shift back to the first postion to give integer
-        stepValue = ishft(iand(ilut(indInt),mask),-offset)
-
+        stepValue = int(ishft(iand(ilut(indInt),mask),-offset))
 
         ! already have some function in macros.h
 

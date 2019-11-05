@@ -327,7 +327,7 @@ MODULE FciMCData
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:), iLutHF_True(:)
 
-      REAL(KIND=sp) :: IterTime
+      REAL(KIND=dp) :: IterTime
 
       REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)

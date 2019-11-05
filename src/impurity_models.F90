@@ -229,6 +229,10 @@ end subroutine constructConnections
     integer :: nImpEls
     character(*), parameter :: this_routine = 'gen_rand_excit'
 
+    unused_variable(exFlag)
+    unused_variable(part_type)
+    unused_variable(store)
+
     HElGen = HEl_zero
     pSingles = 1.0_dp
 
@@ -538,6 +542,10 @@ end subroutine constructConnections
     integer, intent(in) :: i,j,k,l
     integer(n_int), intent(in) :: ilut(0:NIfTot)
 
+    unused_variable(k)
+    unused_variable(l)
+    unused_variable(ilut)
+
     mel = getTMatEl(i,j)
   end function getBathImpMatEl
 
@@ -550,6 +558,9 @@ end subroutine constructConnections
     integer, intent(in) :: i,j,k,l
     integer(n_int), intent(in) :: ilut(0:NIfTot)
     integer :: m
+
+    unused_variable(k)
+    unused_variable(l)
 
     mel = getTMatEl(i,j)
     if(i <= nImp .and. j <= nImp) then
@@ -569,6 +580,8 @@ end subroutine constructConnections
     integer, intent(in) :: i,j,k,l
     integer(n_int), intent(in) :: ilut(0:NIfTot)
 
+    unused_variable(ilut)
+
     mel = get_umat_el(i,k,l,j) - get_umat_el(i,k,j,l)
 
   end function getImpImpMatElDoubs
@@ -581,6 +594,10 @@ end subroutine constructConnections
     HElement_t(dp) :: mel
     integer, intent(in) :: i,j,k,l
     integer(n_int), intent(in) :: ilut(0:NIfTot)
+
+    unused_variable(k)
+    unused_variable(l)
+    unused_variable(ilut)
 
     mel = get_umat_el(i,j,i,j) - get_umat_el(i,j,j,i)
 

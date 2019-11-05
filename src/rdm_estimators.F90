@@ -7,8 +7,11 @@ module rdm_estimators
     use constants
     use rdm_data, only: rdm_list_t, rdm_spawn_t
     use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, calc_rdm_trace
+
     use SystemData, only: tGUGA
+#ifndef __CMPLX
     use guga_rdm, only: calc_rdm_energy_guga
+#endif
 
     implicit none
 
@@ -252,10 +255,12 @@ contains
         end do
 
         ! The 1- and 2- electron operator contributions to the RDM energy.
-        if (tGUGA) then
-            call calc_rdm_energy_guga(rdm, rdm_energy_1, rdm_energy_2)
-        else
+        if (.not. tGUGA) then
             call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
+#ifndef __CMPLX
+        else
+            call calc_rdm_energy_guga(rdm, rdm_energy_1, rdm_energy_2)
+#endif
         end if
 
         call MPISumAll(rdm_energy_1, est%energy_1_num)

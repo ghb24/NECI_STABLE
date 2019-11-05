@@ -112,6 +112,7 @@ module FciMCParMod
     use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
     use guga_excitations, only: deallocate_projE_list, generate_excitation_guga
     use guga_bitrepops, only: init_csf_information
+    use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
 #endif
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &
                               cnt_real_time_copies
@@ -134,8 +135,8 @@ module FciMCParMod
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard, gen_excit_rs_hubbard
-    use tJ_model, only: init_tJ_model, init_heisenberg_model, &
-                        init_guga_heisenberg_model, init_guga_tj_model
+    use tJ_model, only: init_tJ_model, init_heisenberg_model
+
     use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, &
                                gen_excit_uniform_k_space_hub_transcorr, &
                                gen_excit_mixed_k_space_hub_transcorr, &
@@ -244,14 +245,18 @@ module FciMCParMod
         end if
         if (t_tJ_model) then
             if (tGUGA) then
+#ifndef __CMPLX
                 call init_guga_tj_model()
+#endif
             else
                 call init_tJ_model()
             end if
         end if
         if (t_heisenberg_model) then
             if (tGUGA) then
+#ifndef __CMPLX
                 call init_guga_heisenberg_model()
+#endif
             else
                 call init_heisenberg_model()
             end if
@@ -1449,6 +1454,7 @@ module FciMCParMod
 
             ! try a mixed excitation scheme for guga, where we only do a full
             ! excitation for initiators and the crude one for non-inits
+#ifndef __CMPLX
             if (tGen_guga_mixed) then
                 if (t_guga_mixed_init) then
                     flag_mixed = any_run_is_initiator(CurrentDets(:,j))
@@ -1495,6 +1501,7 @@ module FciMCParMod
                 is_init_guga = any_run_is_initiator(CurrentDets(:,j))
 
             end if
+#endif
 
             do part_type = 1, lenof_sign
 

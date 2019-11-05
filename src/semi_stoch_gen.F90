@@ -1071,7 +1071,7 @@ contains
         integer :: j, ierr, ind, n_pops_keep, min_ind, max_ind, n_states_this_proc
         integer(int64) :: i
         integer(TagIntType) :: TagA, TagB, TagC, TagD
-        character (len=*), parameter :: t_r = "generate_space_most_populated"
+        character (len=*), parameter :: this_routine = "generate_space_most_populated"
         integer :: nzero_dets
 
         integer(int64) :: source_size
@@ -1113,7 +1113,7 @@ contains
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
         if (total_length < n_pops_keep) then
-            call warning_neci(t_r, "The number of states in the walker list is less &
+            call warning_neci(this_routine, "The number of states in the walker list is less &
                                    &than the number you requested. All states &
                                    &will be used.")
             n_pops_keep = total_length
@@ -1122,14 +1122,14 @@ contains
 
         ! Allocate necessary arrays and log the memory used.
         allocate(amps_this_proc(length_this_proc), stat = ierr)
-        call LogMemAlloc("amps_this_proc", int(length_this_proc, sizeof_int), 8, t_r, TagA, ierr)
+        call LogMemAlloc("amps_this_proc", int(length_this_proc, sizeof_int), 8, this_routine, TagA, ierr)
         allocate(amps_all_procs(total_length), stat = ierr)
-        call LogMemAlloc("amps_all_procs", int(total_length, sizeof_int), 8, t_r, TagB, ierr)
+        call LogMemAlloc("amps_all_procs", int(total_length, sizeof_int), 8, this_routine, TagB, ierr)
         allocate(indices_to_keep(n_pops_keep), stat = ierr)
-        call LogMemAlloc("indices_to_keep", n_pops_keep, sizeof_int, t_r, TagC, ierr)
+        call LogMemAlloc("indices_to_keep", n_pops_keep, sizeof_int, this_routine, TagC, ierr)
         allocate(largest_states(0:NIfTot, length_this_proc), stat = ierr)
         call LogMemAlloc("largest_states", int(length_this_proc,sizeof_int)*(NIfTot+1), &
-                         size_n_int, t_r, TagD, ierr)
+                         size_n_int, this_routine, TagD, ierr)
 
         disps(0) = 0_MPIArg
         do i = 1, nProcessors-1
@@ -1183,13 +1183,13 @@ contains
             call add_state_to_space(temp_ilut, ilut_list, space_size)
         end do
         deallocate(amps_this_proc)
-        call LogMemDealloc(t_r, TagA, ierr)
+        call LogMemDealloc(this_routine, TagA, ierr)
         deallocate(amps_all_procs)
-        call LogMemDealloc(t_r, TagB, ierr)
+        call LogMemDealloc(this_routine, TagB, ierr)
         deallocate(indices_to_keep)
-        call LogMemDealloc(t_r, TagC, ierr)
+        call LogMemDealloc(this_routine, TagC, ierr)
         deallocate(largest_states)
-        call LogMemDealloc(t_r, TagD, ierr)
+        call LogMemDealloc(this_routine, TagD, ierr)
 
     end subroutine generate_space_most_populated
 

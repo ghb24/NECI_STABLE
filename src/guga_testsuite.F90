@@ -29,6 +29,7 @@ module guga_testsuite
     use dsfmt_interface, only: dsfmt_init
     use genrandsymexcitnumod, only: testgenrandsymexcitnu
     use symrandexcit3, only: test_sym_excit3
+    use util_mod, only: operator(.isclose.), near_zero, operator(.div.)
     implicit none
 
     real(dp), parameter :: tol = 1.0e-10_dp
@@ -463,7 +464,7 @@ contains
     end subroutine test_identify_excitation
 
     subroutine test_identify_excitation_and_matrix_element(nI)
-        integer(n_int), intent(in), optional :: nI(nel)
+        integer, intent(in), optional :: nI(nel)
         character(*), parameter :: this_routine = "test_identify_excitation_and_matrix_element"
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(excitationInformation) :: excitInfo
@@ -1036,10 +1037,10 @@ contains
         call EncodeBitDet_guga([1,2,3,6], ilut)
 
         print *, "testing getSpatialOccupation(ilut, sOrb):"
-        ASSERT(getSpatialOccupation(ilut,1) == 2.0_dp)
-        ASSERT(getSpatialOccupation(ilut,2) == 1.0_dp)
-        ASSERT(getSpatialOccupation(ilut,3) == 1.0_dp)
-        ASSERT(getSpatialOccupation(ilut,4) == 0.0_dp)
+        ASSERT(getSpatialOccupation(ilut,1) .isclose. 2.0_dp)
+        ASSERT(getSpatialOccupation(ilut,2) .isclose. 1.0_dp)
+        ASSERT(getSpatialOccupation(ilut,3) .isclose. 1.0_dp)
+        ASSERT(getSpatialOccupation(ilut,4) .isclose. 0.0_dp)
         print *, "getSpatialOccupation tests passed!"
 
     end subroutine test_getSpatialOccupation
@@ -1063,7 +1064,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,1,4)
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
 
         print *, "testing calcFullStartFullStopMixed(ilut, exInfo, ex, num, posSwitch, negSwitch):"
 
@@ -1081,7 +1082,7 @@ contains
 
 
         excitInfo = excitationIdentifier(3,2,2,3)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
         ASSERT(num == 2)
@@ -1091,7 +1092,7 @@ contains
         ASSERT(abs(extract_matrix_element(ex(:,2),1) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
 
         excitInfo = excitationIdentifier(3,1,1,3)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
         ASSERT(num == 2)
@@ -1101,7 +1102,7 @@ contains
         ASSERT(abs(extract_matrix_element(ex(:,2),1) + sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
 
         excitInfo = excitationIdentifier(4,2,2,4)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
         ASSERT(num == 2)
@@ -1122,7 +1123,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,1,4)
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
 
         call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
@@ -1139,7 +1140,7 @@ contains
 
         excitInfo = excitationIdentifier(3,2,2,3)
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
 
         call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
@@ -1151,7 +1152,7 @@ contains
 
         excitInfo = excitationIdentifier(3,1,1,3)
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
 
         call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
@@ -1163,7 +1164,7 @@ contains
 
         excitInfo = excitationIdentifier(4,2,2,4)
 
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
 
         call calcFullStartFullStopMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
 
@@ -3049,7 +3050,7 @@ contains
         print *, "testing calcMixedContribution(ilut,t,start,ende):"
         ! 1212
         ! 1122
-        ASSERT(calcMixedContribution(ilut,t,1,4) == 0.0_dp)
+        ASSERT(calcMixedContribution(ilut,t,1,4) .isclose. 0.0_dp)
 
         currentB_ilut = calcB_vector_ilut(t)
         currentOcc_ilut = calcOcc_vector_ilut(t)
@@ -3057,7 +3058,7 @@ contains
         current_stepvector = calcStepVector(t)
         currentB_int = calcB_vector_int(t)
 
-        ASSERT(calcMixedContribution(t,ilut,1,4) == 0.0_dp)
+        ASSERT(calcMixedContribution(t,ilut,1,4) .isclose. 0.0_dp)
 
         print *, "calcMixedContribution tests passed!"
 
@@ -4169,7 +4170,7 @@ contains
         ! 1212
         ! 3003
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [3,0,0,3]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < EPS)
@@ -4196,7 +4197,7 @@ contains
 
         call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,0,2,3]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < 1.0e-10_dp)
@@ -4237,7 +4238,7 @@ contains
         ! 1212
         ! 0330
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [0,3,3,0]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
@@ -4264,7 +4265,7 @@ contains
 
         call calcDoubleL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,3,2,0]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < 1.0e-10_dp)
@@ -4307,7 +4308,7 @@ contains
 
         ! 1212
         ! 3030
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [3,0,3,0]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < EPS)
@@ -4332,7 +4333,7 @@ contains
 
         call calcDoubleR2L2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,0,3,2]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < EPS)
@@ -4378,7 +4379,7 @@ contains
         ! 1212
         ! 0303
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [0,3,0,3]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ! argh i have to consider the non-overlap one..
@@ -4406,7 +4407,7 @@ contains
 
         call calcDoubleL2R2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [0,1,2,3]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ! the mixed is -2
@@ -4446,7 +4447,7 @@ contains
 
         ! 1212
         ! 3300
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [3,3,0,0]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + 2.0_dp) < EPS)
@@ -4460,7 +4461,7 @@ contains
 
         ! 1212
         ! 3300
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [3,3,0,0]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + 2.0_dp) < EPS)
@@ -4486,7 +4487,7 @@ contains
 
         call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,3,2,0]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
@@ -4499,7 +4500,7 @@ contains
 
         call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,3,2,0]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
@@ -4540,7 +4541,7 @@ contains
 
         ! 1212
         ! 0033
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [0,0,3,3]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ! have to think about the other index comb too!
@@ -4554,7 +4555,7 @@ contains
         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
         ! 1212
         ! 0033
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [0,0,3,3]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ! have to think about the other index comb too!
@@ -4581,7 +4582,7 @@ contains
 
         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,0,3,2]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < EPS)
@@ -4594,7 +4595,7 @@ contains
 
         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,0,3,2]))
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + 1.0_dp) < EPS)
@@ -4923,7 +4924,7 @@ contains
         ASSERT(excitInfo%typ == 21)
 
         ! calc the possible switches
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         ! but switches are not yet set up... wtf
@@ -4933,7 +4934,7 @@ contains
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
         ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
 
@@ -4961,7 +4962,7 @@ contains
         excitInfo = excitationIdentifier(2,3,4,2)
 
         ! calc the possible switches
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         ! but switches are not yet set up... wtf
@@ -4971,7 +4972,7 @@ contains
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,2,2,2]))
         ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
@@ -4979,7 +4980,7 @@ contains
         call calcRaisingSemiStopStochastic(ilut,excitInfo,weights,negSwitch,&
             posSwitch,ex,pgen)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,2,0,2]))
         ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
@@ -5011,7 +5012,7 @@ contains
         ASSERT(excitInfo%typ == 20)
 
         ! calc the possible switches
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         weights = init_fullStartWeight(ilut,2,4,negSwitch(2),posSwitch(2),&
@@ -5046,7 +5047,7 @@ contains
         excitInfo = excitationIdentifier(2,4,3,2)
 
         ! calc the possible switches
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         ! but switches are not yet set up... wtf
@@ -5056,7 +5057,7 @@ contains
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,2,2,2]))
         ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp)/2.0_dp) < 1.0e-10_dp)
@@ -5064,7 +5065,7 @@ contains
         call calcLoweringSemiStopStochastic(ilut,excitInfo,weights,negSwitch,&
             posSwitch,ex,pgen)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,2,3,2]))
         ASSERT(abs(extract_matrix_element(ex,1)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,2) + sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
@@ -5099,7 +5100,7 @@ contains
         ASSERT(excitInfo%typ == 16)
 
         ! calc the possible switches
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         weights = init_semiStartWeight(ilut,2,4,negSwitch(2),posSwitch(2),&
@@ -5110,7 +5111,7 @@ contains
 
         ! 1032
         ! 0x
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [0,0,3,2]))
         ASSERT(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
 
@@ -5120,7 +5121,7 @@ contains
 
         ! 1032
         ! 01x
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [0,1,3,2]))
         ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
         ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
@@ -5152,7 +5153,7 @@ contains
         ASSERT(excitInfo%typ == 17)
 
         ! calc the possible switches
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         ! set up correct weights
         weights = init_semiStartWeight(ilut,2,4,negSwitch(2),posSwitch(2),currentB_ilut(2))
@@ -5161,7 +5162,7 @@ contains
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [3,3,0,2]))
         ASSERT(abs(extract_matrix_element(ex,1) - Root2) < 1.0e-10_dp)
         print *, "testing calcLoweringSemiStartStochastic(ilut,exInfo,weight,negSwitch,posSwitch,ex,pgen):"
@@ -5170,7 +5171,7 @@ contains
 
         ! 1302
         ! 31x
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [3,1,0,2]))
         ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
         ASSERT(abs(extract_matrix_element(ex,2) + sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
@@ -5207,7 +5208,7 @@ contains
         ! 0330
         ! 1302
         ASSERT(all(calcStepVector(ex) == [1,3,0,2]))
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
@@ -5231,7 +5232,7 @@ contains
         ! 3003
         ! 1032
         ASSERT(all(calcStepVector(ex) == [1,0,3,2]))
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) - Root2) < 1.0e-10_dp)
 
@@ -5266,7 +5267,7 @@ contains
         ! 3030
         ! 1023
         ASSERT(all(calcStepVector(ex) == [1,0,2,3]))
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
@@ -5301,7 +5302,7 @@ contains
         ! 0303
         ! 1320
         ASSERT(all(calcStepVector(ex) == [1,3,2,0]))
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
@@ -5346,7 +5347,7 @@ contains
         ! 3030
         ! 0132
         ASSERT(all(calcStepVector(ex) == [0,1,3,2]))
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
@@ -5383,7 +5384,7 @@ contains
         ! 0033
         ! 3012
         ASSERT(all(calcStepVector(ex) == [3,0,1,2]))
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ! umat is also stored in there.. so i hope i get it right
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
@@ -5398,7 +5399,7 @@ contains
         ! 0033
         ! 0312
         ASSERT(all(calcStepVector(ex) == [0,3,1,2]))
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ! umat is also stored in there.. so i hope i get it right
         ASSERT(abs(extract_matrix_element(ex,2)) < EPS)
         ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
@@ -5424,7 +5425,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,1,4)
         weights = init_doubleWeight(ilut, 4)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
@@ -5469,13 +5470,13 @@ contains
 
         excitInfo = excitationIdentifier(4,1,1,4)
         weights = init_doubleWeight(ilut, 4)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
         ! 1212
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,2,1,2]))
         ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
         ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
@@ -5727,7 +5728,7 @@ contains
         ! do not make it random here but choose specific excitation!
 !         excitInfo = pickOrbitals_single(ilut)
         excitInfo = excitationIdentifier(4,1)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(ilut, excitInfo%fullEnd)
 
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
@@ -5739,11 +5740,11 @@ contains
         call singleStochasticUpdate(ilut, 3, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
-        print *, "testing singleStochasticEnd(ilut, excitInfo, excitation):"
+        print *, "testing singleStochasticEnd(excitInfo, excitation):"
 
-        call singleStochasticEnd(ilut, excitInfo, ex)
+        call singleStochasticEnd(excitInfo, ex)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,3,0,2]))
         ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
@@ -5777,7 +5778,7 @@ contains
         ASSERT(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
         ASSERT(excitInfo%gen1 == -1)
 
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(ilut, excitInfo%fullEnd)
 
         ASSERT( all(posSwitch < EPS))
@@ -5786,7 +5787,7 @@ contains
         call createStochasticStart_single(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,3,0,0]))
         ASSERT(abs(extract_matrix_element(ex,1) - Root2) < 1.0e-10_dp)
 
@@ -5794,14 +5795,14 @@ contains
         call singleStochasticUpdate(ilut, 2, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,3,0,0]))
         ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
         call singleStochasticUpdate(ilut, 3, excitInfo, weights, posSwitch, &
             negSwitch, ex, pgen)
 
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,3,0,0]))
         ASSERT(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
@@ -5827,49 +5828,49 @@ contains
         pgen = 1.0_dp
 
         call pickRandomOrb_scalar(1, pgen, orb)
-        ASSERT(pgen == 1.0_dp/3.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp/3.0_dp)
         ASSERT( orb > 1 .and. orb <= 4)
         pgen = 1.0_dp
         call pickRandomOrb_forced(2, pgen, orb)
         ASSERT(orb == 1)
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         pgen = 1.0_dp
         call pickRandomOrb_vector([1,2], pgen, orb)
         ASSERT(orb == 3 .or. orb == 4)
-        ASSERT(pgen == 1.0_dp/2.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp/2.0_dp)
         pgen = 1.0_dp
         call pickRandomOrb_vector([2,3], pgen, orb, 2)
         ASSERT(orb == 4)
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
 
         pgen = 1.0_dp
         call pickRandomOrb_scalar(0, pgen, orb, 0)
-        ASSERT(pgen == 1.0_dp/3.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp/3.0_dp)
         ASSERT(orb /= 3)
 
         pgen = 1.0_dp
         call pickRandomOrb_scalar(2, pgen, orb, 2)
-        ASSERT(pgen == 1.0_dp/2.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp/2.0_dp)
         ASSERT(orb == 3 .or. orb == 4)
 
         pgen = 1.0_dp
         call pickRandomOrb_restricted(1,2,pgen,orb)
-        ASSERT(pgen == 0.0_dp)
+        ASSERT(pgen .isclose. 0.0_dp)
         ASSERT(orb == 0)
 
         pgen = 1.0_dp
         call pickRandomOrb_restricted(1,4,pgen,orb)
-        ASSERT(pgen == 1.0_dp/2.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp/2.0_dp)
         ASSERT(orb == 2 .or. orb == 3)
 
         pgen = 1.0_dp
         call pickRandomOrb_restricted(1,4,pgen,orb,0)
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(orb == 2)
 
         pgen = 1.0_dp
         call pickRandomOrb_restricted(1,4,pgen,orb,1)
-        ASSERT(pgen == 1.0_dp)
+        ASSERT(pgen .isclose. 1.0_dp)
         ASSERT(orb == 3)
         print *, "pickRandomOrb tests passed!"
 
@@ -5894,14 +5895,14 @@ contains
         excitInfo = excitationIdentifier(4,1,1,3)
 
         weights = init_doubleWeight(ilut, 4)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         print *, "testing mixedFullStartStochastic:"
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, prob)
 
-        ASSERT(prob == 1.0_dp)
+        ASSERT(prob .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,2,3,0]))
         ASSERT(abs(extract_matrix_element(ex,1) + OverR2) < 1.0e-10_dp)
         ASSERT(abs(extract_matrix_element(ex,2) - sqrt(3.0_dp/2.0_dp)) < 1.0e-10_dp)
@@ -5909,7 +5910,7 @@ contains
         excitInfo = excitationIdentifier(4,2,2,3)
 
         weights = init_doubleWeight(ilut, 4)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         call mixedFullStartStochastic(ilut, excitInfo, weights, posSwitch, &
             negSwitch, ex, prob)
@@ -5962,7 +5963,7 @@ contains
         ASSERT(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
         ASSERT(excitInfo%gen1 == -1)
 
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(ilut,4)
 
         ASSERT( all(posSwitch < EPS))
@@ -5973,7 +5974,7 @@ contains
 
         ! i should check the matrix element and the excitation to be sure
         ! about the effect!
-        ASSERT(probWeight == 1.0_dp)
+        ASSERT(probWeight .isclose. 1.0_dp)
         ASSERT(all(calcStepVector(ex) == [1,3,0,0]))
         ASSERT(abs(extract_matrix_element(ex,1) - Root2) < 1.0e-10_dp)
 
@@ -6341,7 +6342,7 @@ contains
         currentB_ilut = calcB_vector_ilut(ilut)
 
         excitInfo = excitationIdentifier(1,4,1,4)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 22)
 
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6365,7 +6366,7 @@ contains
         currentB_ilut = calcB_vector_ilut(ilut)
 
         excitInfo = excitationIdentifier(4,1,4,1)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         currentB_ilut = calcB_vector_ilut(ilut)
         ASSERT(excitInfo%typ == 22)
 
@@ -6402,7 +6403,7 @@ contains
 
 
         excitInfo = excitationIdentifier(1,4,3,1)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 20)
 
         print *, "testing: calcFullStartL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6441,7 +6442,7 @@ contains
         currentB_ilut = calcB_vector_ilut(ilut)
 
         excitInfo = excitationIdentifier(1,3,4,1)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 21)
 
         print *, "testing: calcFullStartR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6480,7 +6481,7 @@ contains
         currentB_ilut = calcB_vector_ilut(ilut)
 
         excitInfo = excitationIdentifier(1,4,1,3)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 19)
 
         print *, "testing: calcFullStartRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6514,7 +6515,7 @@ contains
         currentB_ilut = calcB_vector_ilut(ilut)
 
         excitInfo = excitationIdentifier(4,1,3,1)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 18)
 
         print *, "testing: calcFullStartLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6549,7 +6550,7 @@ contains
 
 
         excitInfo = excitationIdentifier(1,4,4,3)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 17)
 
         print *, "testing: calcFullStopR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6589,7 +6590,7 @@ contains
 
 
         excitInfo = excitationIdentifier(4,1,3,4)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 16)
 
         print *, "testing: calcFullStopL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6630,7 +6631,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(1,4,2,4)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 15)
 
         print *, "testing: calcFullStopRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6662,7 +6663,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(4,1,4,2)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 14)
 
         print *, "testing: calcFullStopLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6694,7 +6695,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(1,3,4,2)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 13)
 
         print *, "testing: calcDoubleR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6728,7 +6729,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(3,1,2,4)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 12)
 
         print *, "testing: calcDoubleL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6761,7 +6762,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(1,3,2,4)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 9)
 
         print *, "testing: calcDoubleRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6796,7 +6797,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(3,1,4,2)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
 
         ASSERT(excitInfo%typ==8)
         print *, "testing: calcDoubleLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6830,7 +6831,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(1,3,3,4)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         print *, excitInfo%typ
 
         print *, "testing: calcSingleOverlapRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6864,7 +6865,7 @@ contains
 
 
         excitInfo = excitationIdentifier(3,1,3,4)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
 
         print *, "testing: calcSingleOverlapMixed(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         call calcSingleOverlapMixed(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -6897,7 +6898,7 @@ contains
 
 
         excitInfo = excitationIdentifier(2,1,4,2)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         print *, excitInfo%typ
 
         print *, "testing: calcSingleOverlapLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -6930,7 +6931,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(1,2,3,4)
-        call calcRemainingSwitches(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 3)
 
         print *, "testing: calcNonOverlapDouble(ilut, exInfo, exs, num, posSwitch, negSwitch"
@@ -6990,7 +6991,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(2,2,1,4)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
         ASSERT(excitInfo%typ == 1)
 
         print *, "testing: calcDoubleExcitation_withWeight(ilut, exInfo, exc, num)"
@@ -7032,7 +7033,7 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier_double(1,2,3,4)
-        call calcRemainingSwitches_excitInfo_double(ilut, excitInfo, 1, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         call checkCompatibility(ilut, excitInfo, flag, posSwitch, negSwitch)
 
         ASSERT(.not.flag)
@@ -7080,15 +7081,15 @@ contains
 
         print *, "testing: calcRemainingSwitches_double"
         ! solche scheiß tests...
-        call calcRemainingSwitches_double(ilut,1,2,3,4,posSwitch,negSwitch)
-        ASSERT(all(posSwitch == 0.0_dp))
-        ASSERT(all(negSwitch == 0.0_dp))
-        call calcRemainingSwitches_double(ilut,3,2,3,1,posSwitch,negSwitch)
-        ASSERT(all(posSwitch == 0.0_dp))
-        ASSERT(all(negSwitch == 0.0_dp))
-        call calcRemainingSwitches_double(ilut,1,4,3,4,posSwitch,negSwitch)
-        ASSERT(all(posSwitch == 0.0_dp))
-        ASSERT(all(negSwitch == 0.0_dp))
+        call calcRemainingSwitches_double(1,2,3,4,posSwitch,negSwitch)
+        ASSERT(all(posSwitch .isclose. 0.0_dp))
+        ASSERT(all(negSwitch .isclose. 0.0_dp))
+        call calcRemainingSwitches_double(3,2,3,1,posSwitch,negSwitch)
+        ASSERT(all(posSwitch .isclose. 0.0_dp))
+        ASSERT(all(negSwitch .isclose. 0.0_dp))
+        call calcRemainingSwitches_double(1,4,3,4,posSwitch,negSwitch)
+        ASSERT(all(posSwitch .isclose. 0.0_dp))
+        ASSERT(all(negSwitch .isclose. 0.0_dp))
 
         call EncodeBitDet_guga([1,4,5,6], ilut)
 
@@ -7208,7 +7209,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(1, 4)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(ilut, 4)
 
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
@@ -7258,7 +7259,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(1, 4)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(ilut, 4)
 
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
@@ -7307,12 +7308,12 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         excitInfo = excitationIdentifier(1, 4)
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
         weights = init_singleWeight(ilut,4)
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights,&
             excits, num)
         ASSERT(num == 1)
-        ASSERT(extract_matrix_element(excits(:,1),1) == Root2)
+        ASSERT(extract_matrix_element(excits(:,1),1) .isclose. Root2)
         ASSERT(getDeltaB(excits(:,1)) == 1)
 
         deallocate(excits)
@@ -7321,7 +7322,7 @@ contains
 
         excitInfo = excitationIdentifier(2,4)
 
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         currentB_ilut = calcB_vector_ilut(ilut)
         currentOcc_ilut = calcOcc_vector_ilut(ilut)
@@ -7350,7 +7351,7 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
 
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         weights = init_singleWeight(ilut,4)
 
@@ -7358,7 +7359,7 @@ contains
             excits, num)
         ASSERT(num == 1)
         ASSERT(getDeltaB(excits(:,1)) == -1)
-        ASSERT(extract_matrix_element(excits(:,1),1)== Root2)
+        ASSERT(extract_matrix_element(excits(:,1),1) .isclose. Root2)
 
         ! and do one double start
         deallocate(excits)
@@ -7377,7 +7378,7 @@ contains
 
         weights = init_singleWeight(ilut,4)
 
-        call calcRemainingSwitches(ilut, excitInfo, posSwitch, negSwitch)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
 
         call createSingleStart(ilut, excitInfo, posSwitch, negSwitch, weights, &
             excits, num)
@@ -7550,13 +7551,13 @@ contains
         print *, "         update_matrix_element(ilut, ele, type):"
 
         call encode_matrix_element(ilut,1.0_dp,1)
-        ASSERT(extract_matrix_element(ilut, 1) == 1.0_dp)
+        ASSERT(extract_matrix_element(ilut, 1)  .isclose. 1.0_dp)
         call encode_matrix_element(ilut,-1.0_dp,2)
-        ASSERT(extract_matrix_element(ilut, 2) == -1.0_dp)
+        ASSERT(extract_matrix_element(ilut, 2)  .isclose. -1.0_dp)
         call update_matrix_element(ilut, 2.0_dp, 1)
-        ASSERT(extract_matrix_element(ilut, 1) == 2.0_dp)
+        ASSERT(extract_matrix_element(ilut, 1)  .isclose. 2.0_dp)
         call update_matrix_element(ilut, -2.0_dp, 2)
-        ASSERT(extract_matrix_element(ilut, 2) == 2.0_dp)
+        ASSERT(extract_matrix_element(ilut, 2)  .isclose. 2.0_dp)
 
         print *, "encode_matrix_element tests passed!"
     end subroutine test_matrix_element_ops
@@ -7568,13 +7569,13 @@ contains
         call EncodeBitDet_guga([1,2,3,4], ilut)
 
         print *, "testing: calcOcc_vector_ilut(ilut)"
-        ASSERT(all([2.0_dp, 2.0_dp, 0.0_dp, 0.0_dp] == calcOcc_vector_ilut(ilut)))
+        ASSERT(all([2.0_dp, 2.0_dp, 0.0_dp, 0.0_dp]  .isclose. calcOcc_vector_ilut(ilut)))
 
         call EncodeBitDet_guga([1,4,5,6], ilut)
-        ASSERT(all([1.0_dp, 1.0_dp, 2.0_dp, 0.0_dp] == calcOcc_vector_ilut(ilut)))
+        ASSERT(all([1.0_dp, 1.0_dp, 2.0_dp, 0.0_dp]  .isclose. calcOcc_vector_ilut(ilut)))
 
         call EncodeBitDet_guga([1,2,3,8], ilut)
-        ASSERT( all([2.0_dp, 1.0_dp, 0.0_dp, 1.0_dp] == calcOcc_vector_ilut(ilut)))
+        ASSERT( all([2.0_dp, 1.0_dp, 0.0_dp, 1.0_dp] .isclose. calcOcc_vector_ilut(ilut)))
         print *, "calcOcc_vector_ilut tests passed!"
 
     end subroutine test_calcOcc_vector_ilut
@@ -7708,83 +7709,83 @@ contains
 
         ! 3120
         det = [1,2,3,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 3300
         det = [1,2,3,4]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
 
         ! 0330
         det = [3,4,5,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
 
         ! 0303
         det = [3,4,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
 
         ! 0033
         det = [5,6,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
 
         ! 1023
         det = [1,6,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 3102
         det = [1,2,3,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 3030
         det = [1,2,5,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
 
         ! 3003
         det = [1,2,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
 
         ! 3012
         det = [1,2,5,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 0312
         det = [3,4,5,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 1230
         det = [1,4,5,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 1203
         det = [1,4,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 1320
         det = [1,3,4,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 1302
         det = [1,3,4,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 1032
         det = [1,5,6,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 0132
         det = [3,5,6,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 0123
         det = [3,6,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
 
         ! 1122
         det = [1,3,6,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 10.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 10.0_dp)
 
         ! 1212
         det = [1,4,5,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) == 10.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 10.0_dp)
 
         print *, this_routine, " tests passed!"
 
@@ -7827,32 +7828,10 @@ contains
     end subroutine check_determinants
 
 
-!     subroutine test_calcSingleProbWeight
-!         integer(n_int) :: ilut(0:nifguga)
-!         integer :: det(nEl), ind
-!         real(dp) :: posSwitch, negSwitch, posWeight, negWeight, checkPos, &
-!             checkNeg
-!         character(*), parameter :: testFun = "calcSingleProbWeight", &
-!             this_routine = "test_calcSingleProbWeight"
-!
-!         print *, " Testing ", testFun
-!         det = [1,2,3,4]
-!         ind = 3
-!         posSwitch = 0.0_dp
-!         negSwitch = 0.0_dp
-!
-!         call EncodeBitDet_guga(det, ilut)
-!
-!         call calcSingleProbWeight(ilut, ind, posSwitch, negSwitch, &
-!             posWeight, negWeight)
-!
-!         print *, testFun, " tests passed!"
-!
-!     end subroutine test_calcSingleProbWeight
-
     subroutine test_calcbvector
         integer(n_int) :: ilut(0:nifguga)
-        integer :: det(nEl), checkB_nI(nEl), checkB_ilut(nBasis/2)
+        integer :: det(nEl)
+        real(dp) :: checkB_nI(nEl), checkB_ilut(nBasis/2)
         character(*), parameter :: testFun = "calcB_vector", &
             this_routine = "test_calcbvector"
 
@@ -7862,8 +7841,8 @@ contains
         call EncodeBitDet_guga(det,ilut)
         checkB_ilut = 0.0_dp
 
-        ASSERT(all(calcB_vector_nI(det) == checkB_nI))
-        ASSERT(all(calcB_vector_ilut(ilut) == checkB_ilut))
+        ASSERT(all(calcB_vector_nI(det) .isclose. checkB_nI))
+        ASSERT(all(calcB_vector_ilut(ilut) .isclose. 0.0_dp))
 
         det = [1,2,3,6]
         call EncodeBitDet_guga(det, ilut)
@@ -7871,8 +7850,8 @@ contains
         checkB_nI(3) = 1.0_dp
         checkB_ilut(2) = 1.0_dp
 
-        ASSERT(all(calcB_vector_nI(det) == checkB_nI))
-        ASSERT(all(calcB_vector_ilut(ilut) == checkB_ilut))
+        ASSERT(all(calcB_vector_nI(det) .isclose. [0.0_dp,0.0_dp,1.0_dp,0.0_dp]))
+        ASSERT(all(calcB_vector_ilut(ilut) .isclose. [0.0_dp,1.0_dp,0.0_dp,0.0_dp]))
         print *, testFun, " tests passed!"
 
         call write_bit_rep(6,ilut,.true.)
@@ -7883,6 +7862,7 @@ contains
         ! checks the function isZero(ilut,sOrb), isOne(ilut,sOrb) etc.
         integer(n_int) :: ilut(0:nifguga)
         integer :: det(nEl)
+        integer :: i
         character(*), parameter :: testFun = "bitChecks", &
             this_routine = "test_bitChecks"
 
@@ -7891,22 +7871,23 @@ contains
         call EncodeBitDet_guga(det,ilut)
 
         print *, " Testing ",testFun
-        ASSERT(.not.isZero(ilut,1))
-        ASSERT(.not.isZero(ilut,2))
-        ASSERT(.not.isZero(ilut,3))
-        ASSERT(isZero(ilut,4))
-        ASSERT(.not. isOne(ilut,1))
-        ASSERT(isOne(ilut,2))
-        ASSERT(.not.isOne(ilut,3))
-        ASSERT(.not.isOne(ilut,4))
-        ASSERT(.not.isTwo(ilut,1))
-        ASSERT(.not.isTwo(ilut,2))
-        ASSERT(isTwo(ilut,3))
-        ASSERT(.not.isTwo(ilut,4))
-        ASSERT(isThree(ilut,1))
-        ASSERT(.not.isThree(ilut,2))
-        ASSERT(.not.isThree(ilut,3))
-        ASSERT(.not.isThree(ilut,4))
+        ! use variable i to avoid compiler warning
+        i = 1; ASSERT(.not.isZero(ilut,i))
+        i = 2; ASSERT(.not.isZero(ilut,i))
+        i = 3; ASSERT(.not.isZero(ilut,i))
+        i = 4; ASSERT(isZero(ilut,i))
+        i = 1; ASSERT(.not. isOne(ilut,i))
+        i = 2; ASSERT(isOne(ilut,i))
+        i = 3; ASSERT(.not.isOne(ilut,i))
+        i = 4; ASSERT(.not.isOne(ilut,i))
+        i = 1; ASSERT(.not.isTwo(ilut,i))
+        i = 2; ASSERT(.not.isTwo(ilut,i))
+        i = 3; ASSERT(isTwo(ilut,i))
+        i = 4; ASSERT(.not.isTwo(ilut,i))
+        i = 1; ASSERT(isThree(ilut,i))
+        i = 2; ASSERT(.not.isThree(ilut,i))
+        i = 3; ASSERT(.not.isThree(ilut,i))
+        i = 4; ASSERT(.not.isThree(ilut,i))
         print *, testFun, " tests passed!"
 
     end subroutine test_bitChecks
@@ -7927,21 +7908,21 @@ contains
 
         print *, "***"
         print *, "testing calcRemainingSwitches:"
-        call calcRemainingSwitches(ilut,1,4,pos,neg)
+        call calcRemainingSwitches_single(1,4,pos,neg)
         print *, "positive switches: ", pos
-        ASSERT(all(pos == [1.0_dp,1.0_dp,0.0_dp,0.0_dp]))
+        ASSERT(all(pos .isclose. [1.0_dp,1.0_dp,0.0_dp,0.0_dp]))
         print *, "negative switches: ", neg
-        ASSERT(all(neg == [1.0_dp,0.0_dp,0.0_dp,0.0_dp]))
+        ASSERT(all(neg .isclose. [1.0_dp,0.0_dp,0.0_dp,0.0_dp]))
 
         call EncodeBitDet_guga([1,4,5,8],ilut) ! 1 2 1 2
 
         current_stepvector = calcStepVector(ilut)
 
-        call calcRemainingSwitches(ilut, 2,4,pos,neg)
+        call calcRemainingSwitches_single(2,4,pos,neg)
         print *, "positive switches: ", pos
-        ASSERT(all(pos == [0.0_dp,0.0_dp,0.0_dp,0.0_dp]))
+        ASSERT(all(pos .isclose. [0.0_dp,0.0_dp,0.0_dp,0.0_dp]))
         print *, "negative switches: ", neg
-        ASSERT(all(neg == [0.0_dp,1.0_dp,0.0_dp,0.0_dp]))
+        ASSERT(all(neg .isclose. [0.0_dp,1.0_dp,0.0_dp,0.0_dp]))
         print *, "calcRemainingSwitches tests successfull"
 
     end subroutine test_calcRemainingSwitches

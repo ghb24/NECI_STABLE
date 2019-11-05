@@ -73,7 +73,7 @@ module real_time
     use load_balance, only: test_hash_table, tLoadBalanceBlocks, adjust_load_balance, &
          CalcHashTableStats
     use Parallel_neci
-    use util_mod, only : neci_etime
+    use util_mod, only : neci_etime, near_zero
     use ParallelHelper, only: MPI_SUM, iProcIndex, root
     use adi_references, only: setup_reference_space
     use adi_data, only: allDoubsInitsDelay, nRefs, tDelayGetRefs
@@ -893,7 +893,7 @@ contains
                     end if
 
                     ! If any (valid) children have been spawned.
-                    if ((any(child_sign /= 0)) .and. (ic /= 0) .and. (ic <= 2)) then
+                    if ((any(.not. near_zero(child_sign))) .and. (ic /= 0) .and. (ic <= 2)) then
 
                         ! not quite sure about how to collect the child
                         ! stats in the new rt-fciqmc ..

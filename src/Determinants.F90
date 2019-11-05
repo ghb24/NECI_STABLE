@@ -24,7 +24,6 @@ MODULE Determinants
 
 #ifndef __CMPLX
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-!     use guga_excitations, only: calc_guga_matrix_element
     use guga_data, only: excitationInformation
 #endif
 
@@ -500,15 +499,11 @@ contains
         character(*), parameter :: this_routine = 'get_helement_compat'
 
         integer :: temp_ic
-        type(excitationInformation) :: excitInfo
         integer(n_int) :: t_i(0:NIfTot), t_j(0:NIfTot)
-
-        if (tHPHFInts) &
-            call stop_all (this_routine, "Should not be calling HPHF &
-                          &integrals from here.")
-
-        ! GUGA implementation:
 #ifndef __CMPLX
+        ! GUGA implementation:
+        type(excitationInformation) :: excitInfo
+
         if (tGUGA) then
             if (all(nI == nJ)) then
                 hel =  calcDiagMatEleGUGA_nI(nI)
@@ -518,6 +513,10 @@ contains
             return
         end if
 #endif
+
+        if (tHPHFInts) &
+            call stop_all (this_routine, "Should not be calling HPHF &
+                          &integrals from here.")
 
         ! nobody actually uses Simons old CSF implementations..
         ! there is a test in the test suite that does....
@@ -570,14 +569,10 @@ contains
         integer :: ex(2,2), IC
         integer(kind=n_int) :: ilut(0:NIfTot,2)
         integer(n_int) :: t_i(0:niftot), t_j(0:niftot)
+#ifndef __CMPLX
+        ! GUGA implementation:
         type(excitationInformation) :: excitInfo
 
-        if (tHPHFInts) &
-            call stop_all (this_routine, "Should not be calling HPHF &
-                          &integrals from here.")
-
-        ! GUGA implementation:
-#ifndef __CMPLX
         if (tGUGA) then
 
             if (all(nI == nJ)) then
@@ -588,6 +583,10 @@ contains
             return
         end if
 #endif
+
+        if (tHPHFInts) &
+            call stop_all (this_routine, "Should not be calling HPHF &
+                          &integrals from here.")
 
         if (tCSF) then
             if (iscsf(nI) .or. iscsf(nJ)) then

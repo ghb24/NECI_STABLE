@@ -7,7 +7,8 @@ module lattice_models_utils
 
     use constants, only: dp, n_int, bits_n_int, eps, pi, lenof_sign
 
-    use util_mod, only: binary_search, binary_search_first_ge, choose, swap
+    use util_mod, only: binary_search, binary_search_first_ge, choose, swap, &
+                        operator(.isclose.)
 
     use sort_mod, only: sort
 
@@ -962,7 +963,7 @@ contains
         end do
 
         ! make sure that the sum of basis states is the whole hilber space
-        ASSERT(sum(n_double) == choose(n_orbs, n_alpha)*choose(n_orbs,n_beta))
+        ASSERT(sum(n_double) == int(choose(n_orbs, n_alpha)*choose(n_orbs,n_beta)))
 
     end function calc_n_double
 

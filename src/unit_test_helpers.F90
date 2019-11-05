@@ -44,9 +44,6 @@ module unit_test_helpers
         module procedure linspace_sp
         module procedure linspace_dp
     end interface linspace
-!     interface is_in_list
-!         module procedure is_in_list_ilut
-!     end interface is_in_list
 
 contains
 
@@ -693,7 +690,7 @@ contains
             n = 100
         end if
 
-        dist = (end_val - start_val) / real(n - 1, dp)
+        dist = (end_val - start_val) / real(n - 1, sp)
 
         allocate(vec(n))
 

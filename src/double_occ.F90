@@ -456,7 +456,8 @@ contains
             end if
 
             state%cols = 0
-            state%cols_mc = tMCOutput
+            state%cols_mc = 0
+            state%mc_out = tMCOutput
 
             call stats_out(state, .false., iter + PreviousCycles, 'Iter.')
 

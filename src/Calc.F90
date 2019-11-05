@@ -68,7 +68,7 @@ MODULE Calc
     use guga_data, only: tGUGACore
 #endif
 
-    use util_mod, only: near_zero, operator(.isclose.)
+    use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
 
     implicit none
 
@@ -513,9 +513,12 @@ contains
           use ras_data
           use global_utilities
           use Parallel_neci, only : nProcessors
-          use guga_bitRepOps, only: isProperCSF_ni
           use util_mod, only: addToIntArray
           use LoggingData, only: tLogDets
+#ifndef __CMPLX
+          use guga_bitRepOps, only: isProperCSF_ni
+#endif
+
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -990,6 +993,7 @@ contains
                         call write_det(iout, DefDet, .true.)
                     end if
                 end if
+#ifndef __CMPLX
                 if (tGUGA) then
                     if (.not. isProperCSF_ni(defdet)) then
                         write(iout,*) " automatic neel-state creation produced invalid CSF!"
@@ -998,6 +1002,7 @@ contains
                         call stop_all(t_r, " definedet is not a proper CSF or has wrong SPIN!")
                     end if
                 end if
+#endif
 
 
             case("MULTIPLE-INITIAL-REFS")
@@ -1483,6 +1488,7 @@ contains
                 ! i hope everything is setup already
                 DefDet = create_neel_state()
 
+#ifndef __CMPLX
                 if (tGUGA) then
                     if (.not. isProperCSF_ni(defdet)) then
                         write(iout,*) " automatic neel-state creation produced invalid CSF!"
@@ -1491,6 +1497,7 @@ contains
                         call stop_all(t_r, " automatic neel-state creation produced invalid CSF!")
                     end if
                 end if
+#endif
 
                 write(iout,*) "created neel-state: "
                 call write_det(iout, DefDet, .true.)
@@ -1660,14 +1667,14 @@ contains
                 ! lowest or best overlapping per replica
                 t_choose_trial_state = .true.
                 if (tPairedReplicas) then
-                    allocate(trial_excit_choice(inum_runs/2))
+                    allocate(trial_excit_choice(inum_runs .div. 2))
                 else
                     allocate(trial_excit_choice(inum_runs))
                 end if
 
                 if (item < nitems) then
                     if (tPairedReplicas) then
-                        do i = 1, inum_runs/2
+                        do i = 1, inum_runs .div. 2
                             call geti(trial_excit_choice(i))
                         end do
                     else

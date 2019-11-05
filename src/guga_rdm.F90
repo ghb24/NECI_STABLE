@@ -16,7 +16,7 @@ module guga_rdm
     use DetBitOps, only: EncodeBitDet, count_open_orbs, DetBitEq
     use load_balance_calcnodes, only: DetermineDetNode
     use guga_excitations, only: excitationIdentifier
-    use guga_excitations, only: init_singleWeight, calcRemainingSwitches
+    use guga_excitations, only: init_singleWeight, calcRemainingSwitches_excitInfo_single
     use guga_excitations, only: createSingleStart, singleUpdate, singleEnd
     use guga_excitations, only: checkCompatibility, print_excitInfo
     use guga_excitations, only: calcDoubleExcitation_withWeight, &
@@ -55,6 +55,7 @@ module guga_rdm
     use OneEInts, only: GetTMatEl
     use procedure_pointers, only: get_umat_el
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
+    use util_mod, only: operator(.div.)
 
     implicit none
 
@@ -1036,6 +1037,7 @@ contains
         real(dp) :: inter, tempWeight_1, real_b(nSpatOrbs), tempWeight
         real(dp) :: occ_i(nSpatOrbs), occ_j(nSpatOrbs)
 
+        unused_variable(mat_ele)
 
         first = findFirstSwitch(ilutI, ilutJ, excitInfo%fullStart, excitInfo%fullEnd)
         last = findLastSwitch(ilutI, ilutJ, first, excitInfo%fullEnd)
@@ -1520,8 +1522,8 @@ contains
         integer, intent(out) :: i, a
         character(*), parameter :: this_routine = "extract_matrix_element"
 
-        a = mod(rdm_ind - 1, nSpatOrbs)  + 1
-        i = (rdm_ind - 1)/nSpatOrbs + 1
+        a = int(mod(rdm_ind - 1, nSpatOrbs)  + 1)
+        i = int((rdm_ind - 1)/nSpatOrbs + 1)
 
     end subroutine extract_1_rdm_ind
 
@@ -1563,8 +1565,8 @@ contains
 
         integer :: ij, kl
 
-        kl = mod(ijkl - 1, int(nSpatOrbs, int_rdm)**2) + 1
-        ij = (ijkl - kl)/(nSpatOrbs ** 2) + 1
+        kl = int(mod(ijkl - 1, int(nSpatOrbs, int_rdm)**2) + 1)
+        ij = int((ijkl - kl)/(nSpatOrbs ** 2) + 1)
 
         j = mod(ij - 1, nSpatOrbs) + 1
         i = (ij - j) / nSpatOrbs + 1
@@ -2229,7 +2231,7 @@ contains
             end if
         end if
 
-        call calcRemainingSwitches(ilut, excitInfo, posSwitches, negSwitches)
+        call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
 
         weights = init_singleWeight(ilut, excitInfo%fullEnd)
         plusWeight = weights%proc%plus(posSwitches(excitInfo%fullStart), &

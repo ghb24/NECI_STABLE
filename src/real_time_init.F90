@@ -705,7 +705,8 @@ contains
       use bit_reps, only: encode_sign
       implicit none
 
-      integer :: i, signs(lenof_sign), iGf
+      integer :: signs(lenof_sign), iGf
+      integer(int64) :: i
       real(dp) :: tmp_sgn(lenof_sign)
 
       signs = 1
@@ -909,7 +910,8 @@ contains
       use FciMCData, only: HashIndex
       use bit_reps, only: nullify_ilut, decode_bit_det
       implicit none
-      integer :: i, nI(nel), DetHash, PartInd
+      integer :: nI(nel), DetHash, PartInd
+      integer(int64) :: i
       logical :: tSuccess
 
       do i = 1, TotWalkers

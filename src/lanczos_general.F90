@@ -352,10 +352,10 @@ module lanczos_general
 
         if (t_calc_eigenvectors) then
             ! move the eigenvectors out of the working array
+            call stop_all("diagonalise_tridiagonal_non_hermitian", &
+                    "Lanczos eigenvector not correctly setup for complex data")
 !             this%T_eigenvectors(1:N,1:this%n_states) = &
-!                 cmplx(this%super%projected_hamil_work(1:N, 1:this%n_states))
-            this%T_eigenvectors(1:N,1:this%n_states) = &
-                cmplx(e_vectors(1:N,1:this%n_states))
+!                 cmplx(e_vectors(1:N,1:this%n_states),kind=dp)
         endif
 
 

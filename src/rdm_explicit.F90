@@ -13,9 +13,12 @@ module rdm_explicit
     use constants
     use util_mod, only: near_zero
     use SystemData, only : tReltvy, t_3_body_excits, tGUGA, nel
-    use guga_bitRepOps, only: encode_matrix_element
-    use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs, t_test_diagonal
     use bit_reps, only: extract_bit_rep, decode_bit_det
+
+#ifndef __CMPLX
+    use guga_bitRepOps, only: encode_matrix_element, convert_ilut_toGUGA
+    use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs, t_test_diagonal
+#endif
 
     implicit none
 
@@ -137,7 +140,6 @@ contains
         use rdm_data, only: Sing_ExcList, Doub_ExcList, Sing_InitExcSlots, Doub_InitExcSlots
         use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs
         use bit_rep_data, only: nifguga
-        use guga_bitRepOps, only: convert_ilut_toGUGA
 
         integer(n_int), intent(in) :: iLutnI(0:NIfTot)
         logical, intent(in) :: blank_det
@@ -157,6 +159,7 @@ contains
         Sing_ExcList(:) = Sing_InitExcSlots(:)
 
         if (tGUGA) then
+#ifndef __CMPLX
             call convert_ilut_toGUGA(ilutNi, ilutG)
 
             call extract_bit_rep(iLutnI, nI, SignDi, FlagsDi)
@@ -167,6 +170,7 @@ contains
                 Sing_ExcList(i) = Sing_ExcList(i) + 1
             end do
 
+#endif
         else
 
             do i = 0, nProcessors-1
@@ -181,10 +185,12 @@ contains
             Doub_ExcList(:) = Doub_InitExcSlots(:)
 
             if (tGUGA) then
+#ifndef __CMPLX
                 do i = 0, nProcessors - 1
                     Doub_ExcDjs(:,Doub_ExcList(i)) = ilutG
                     Doub_ExcList(i) = Doub_ExcList(i) + 1
                 end do
+#endif
             else
                 do i = 0,nProcessors-1
                     Doub_ExcDjs(:,Doub_ExcList(i)) = iLutnI(:)
@@ -197,7 +203,9 @@ contains
         ! double excitations from Dj, this will be done for each proc.
         if (.not. blank_det) then
             if (tGUGA) then
+#ifndef __CMPLX
                 call gen_exc_djs_guga(ilutnI)
+#endif
             else
                 call GenExcDjs(iLutnI)
             end if
@@ -209,7 +217,9 @@ contains
         ! we re-find the orbitals and parity involved in the excitation, and
         ! add the c_i*c_j contributions to the corresponding matrix element.
         if (tGUGA) then
+#ifndef __CMPLX
             call send_proc_ex_djs()
+#endif
         else
             call SendProcExcDjs()
         end if
@@ -309,51 +319,8 @@ contains
             call fill_spawn_rdm_diag(two_rdm_spawn, nI, full_sign)
         end if
 
-        if (.not. t_test_diagonal) then
-        ! Zeros in ExcitMat3 starts off at the first single excitation.
-        ExcitMat3(:,:) = 0
-
-        ! This becomes true when all the excitations have been found.
-        tAllExcitFound = .false.
-
-        do while (.not. tAllExcitFound)
-            exflag = 1
-
-            ! Passed out of here is the singly excited determinant, nJ.
-            ! Information such as the orbitals involved in the excitation and
-            ! the parity is also found in this step, we are not currently
-            ! storing this, and it is re-calculated later on (after the
-            ! determinants are passed to the relevant processor) - but the
-            ! speed of sending this information vs recalculating it will be
-            ! tested. RDMExcitLevel is passed through, if this is 1, only
-            ! singles are generated, if it is 2 only doubles are found.
-            if (tReltvy) then
-                call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
-            else
-                call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
-            endif
-
-            if (tAllExcitFound) exit
-
-            iLutnJ(:) = 0
-            call EncodeBitDet(nJ, iLutnJ)
-
-            Proc = DetermineDetNode(nel, nJ, 0)
-            ! This will return a value between 0 -> nProcessors-1
-            Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
-            Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
-
-            ! Want a quick test to see if arrays are getting full.
-            if (Sing_ExcList(Proc) .gt. nint(OneEl_Gap*(Proc+1))) then
-                write(6,*) 'Proc', Proc
-                write(6,*) 'Sing_ExcList', Sing_ExcList
-                write(6,*) 'No. spaces for each proc', nint(OneEl_Gap)
-                call Stop_All('GenExcDjs', 'Too many excitations for space available.')
-            end if
-        end do
-
-        if (RDMExcitLevel /= 1) then
-
+        ! TODO: Be careful with my GUGA changes here..
+!         if (.not. t_test_diagonal) then
             ! Zeros in ExcitMat3 starts off at the first single excitation.
             ExcitMat3(:,:) = 0
 
@@ -361,20 +328,19 @@ contains
             tAllExcitFound = .false.
 
             do while (.not. tAllExcitFound)
-                exflag = 2
+                exflag = 1
 
-                ! Passed out of here is the doubly excited determinant, nJ.
-                ! Information such as the orbitals involved in the excitation
-                ! and the parity is  also found in this step, we are not
-                ! currently storing this, and it is re-calculated later on
-                ! (after the determinants are passed to the relevant processor)
-                ! - but the speed of sending this information vs recalculating
-                ! it will be tested. RDMExcitLevel is passed through, if this
-                ! is 1, only singles are generated, if it is 2 only doubles are
+                ! Passed out of here is the singly excited determinant, nJ.
+                ! Information such as the orbitals involved in the excitation and
+                ! the parity is also found in this step, we are not currently
+                ! storing this, and it is re-calculated later on (after the
+                ! determinants are passed to the relevant processor) - but the
+                ! speed of sending this information vs recalculating it will be
+                ! tested. RDMExcitLevel is passed through, if this is 1, only
+                ! singles are generated, if it is 2 only doubles are found.
                 if (tReltvy) then
                     call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
                 else
-                    ! found.
                     call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
                 endif
 
@@ -384,23 +350,68 @@ contains
                 call EncodeBitDet(nJ, iLutnJ)
 
                 Proc = DetermineDetNode(nel, nJ, 0)
-                !This will return a value between 0 -> nProcessors-1
-                Doub_ExcDjs(:,Doub_ExcList(Proc)) = iLutnJ(:)
-                ! All the double excitations from this particular nI are being
-                ! stored in Doub_ExcDjs.
-
-                Doub_ExcList(Proc) = Doub_ExcList(Proc)+1
+                ! This will return a value between 0 -> nProcessors-1
+                Sing_ExcDjs(:,Sing_ExcList(Proc)) = iLutnJ(:)
+                Sing_ExcList(Proc) = Sing_ExcList(Proc)+1
 
                 ! Want a quick test to see if arrays are getting full.
-                if (Doub_ExcList(Proc) .gt. nint(TwoEl_Gap*(Proc+1))) then
+                if (Sing_ExcList(Proc) .gt. nint(OneEl_Gap*(Proc+1))) then
                     write(6,*) 'Proc', Proc
-                    write(6,*) 'Doub_ExcList', Doub_ExcList
-                    write(6,*) 'No. spaces for each proc', nint(TwoEl_Gap)
-                    call Stop_All('GenExcDjs','Too many excitations for space available.')
+                    write(6,*) 'Sing_ExcList', Sing_ExcList
+                    write(6,*) 'No. spaces for each proc', nint(OneEl_Gap)
+                    call Stop_All('GenExcDjs', 'Too many excitations for space available.')
                 end if
             end do
-        end if
-        end if
+
+            if (RDMExcitLevel /= 1) then
+
+                ! Zeros in ExcitMat3 starts off at the first single excitation.
+                ExcitMat3(:,:) = 0
+
+                ! This becomes true when all the excitations have been found.
+                tAllExcitFound = .false.
+
+                do while (.not. tAllExcitFound)
+                    exflag = 2
+
+                    ! Passed out of here is the doubly excited determinant, nJ.
+                    ! Information such as the orbitals involved in the excitation
+                    ! and the parity is  also found in this step, we are not
+                    ! currently storing this, and it is re-calculated later on
+                    ! (after the determinants are passed to the relevant processor)
+                    ! - but the speed of sending this information vs recalculating
+                    ! it will be tested. RDMExcitLevel is passed through, if this
+                    ! is 1, only singles are generated, if it is 2 only doubles are
+                    if (tReltvy) then
+                        call GenExcitations4(session, nI, nJ, exFlag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                    else
+                        ! found.
+                        call GenExcitations3(nI, iLutnI, nJ, exflag, ExcitMat3(:,:), tParity, tAllExcitFound, .true.)
+                    endif
+
+                    if (tAllExcitFound) exit
+
+                    iLutnJ(:) = 0
+                    call EncodeBitDet(nJ, iLutnJ)
+
+                    Proc = DetermineDetNode(nel, nJ, 0)
+                    !This will return a value between 0 -> nProcessors-1
+                    Doub_ExcDjs(:,Doub_ExcList(Proc)) = iLutnJ(:)
+                    ! All the double excitations from this particular nI are being
+                    ! stored in Doub_ExcDjs.
+
+                    Doub_ExcList(Proc) = Doub_ExcList(Proc)+1
+
+                    ! Want a quick test to see if arrays are getting full.
+                    if (Doub_ExcList(Proc) .gt. nint(TwoEl_Gap*(Proc+1))) then
+                        write(6,*) 'Proc', Proc
+                        write(6,*) 'Doub_ExcList', Doub_ExcList
+                        write(6,*) 'No. spaces for each proc', nint(TwoEl_Gap)
+                        call Stop_All('GenExcDjs','Too many excitations for space available.')
+                    end if
+                end do
+            end if
+!         end if
 
     end subroutine GenExcDjs
 

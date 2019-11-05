@@ -23,14 +23,15 @@
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
 ! extract single step vector value of a spatial orbital from ilut 
-#define getStepvalue(ilut,sOrb) ishft(iand(ilut((sOrb-1)/bn2_),ishft(3_n_int,2*mod((sOrb-1),bn2_))),-2*mod((sOrb-1),bn2_))
+#define getStepvalue(ilut,sOrb) int(ishft(iand(ilut((sOrb-1)/bn2_),ishft(3_n_int,2*mod((sOrb-1),bn2_))),-2*mod((sOrb-1),bn2_)))
 ! also directly implement 0,1,2,3 comparisons
 ! also directly implement 0,1,2,3 comparisons
-#define isZero(ilut,sOrb) (.not.(btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)).or.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1)))
-#define isOne(ilut,sOrb) (btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)).and.(.not.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1)))
-#define isTwo(ilut,sOrb) (btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1).and.(.not.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_))))
-#define isThree(ilut,sOrb) (btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1).and.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)))
-#define isSingle(ilut,sOrb) (btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)+1).neqv.btest(ilut((sOrb-1)/bn2_),2*mod(sOrb-1,bn2_)))
+#define isZero(ilut,sOrb) \
+	(.not.(btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)).or.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1)))
+#define isOne(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)).and.(.not.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1)))
+#define isTwo(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1).and.(.not.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_))))
+#define isThree(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1).and.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)))
+#define isSingle(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1).neqv.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)))
 #define notSingle(ilut,sOrb) (.not.isSingle(ilut,sOrb))
 ! could write that with already provided isOcc functions too, but would have to translate between spin and spatial orbs..
 
@@ -224,9 +225,9 @@ endif
 
 ! Cast a real value to HElement_t
 #ifdef __CMPLX
-#define h_cast(val) cmplx(val,0.0_dp)
+#define h_cast(val) cmplx(val, 0.0, kind=dp)
 #else
-#define h_cast(val) val
+#define h_cast(val) real(val, dp)
 #endif
 
 ! these macros check allocation status before performing heap management
@@ -248,3 +249,10 @@ endif
 
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
+
+! define a precompiler setup for the warning workaround
+#ifdef __WARNING_WORKAROUND
+#define unused_variable(x) associate(x=>x); end associate
+#else
+#define unused_variable(x)
+#endif

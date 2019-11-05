@@ -36,11 +36,13 @@ module excit_gen_5
     use back_spawn, only: pick_virtual_electrons_double, pick_occupied_orbital, &
                           check_electron_location, pick_second_occupied_orbital
 
+#ifndef __CMPLX
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga, &
                               init_csf_information
     use guga_data, only: excitationInformation, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, &
                                 global_excitinfo, print_excitInfo
+#endif
 
     implicit none
 
@@ -62,15 +64,18 @@ contains
 
         real(dp) :: pgen2
         real(dp) :: cum_arr(nbasis)
+#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
+#endif
 
 #ifdef __DEBUG
         HElement_t(dp) :: temp_hel
 #endif
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag); call unused(part_type); call unused(store%nI_beta)
-#endif
+
+        unused_variable(exFlag)
+        unused_variable(part_type)
+        unused_variable(store)
 
         HElGen = HEl_zero
 
@@ -100,6 +105,7 @@ contains
 
         ! try implementing the crude guga excitation approximation via the
         ! determinant excitation generator
+#ifndef __CMPLX
         if (tGen_guga_crude) then
 
             call convert_ilut_toGUGA(ilutJ, ilutGj)
@@ -133,6 +139,7 @@ contains
 
             return
         end if
+#endif
 
         ! And a careful check!
 #ifdef __DEBUG

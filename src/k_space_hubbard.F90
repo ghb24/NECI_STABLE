@@ -423,6 +423,7 @@ contains
             generate_excitation => gen_excit_uniform_k_space_hub
         end if
 
+#ifndef __CMPLX
         if (tGUGA) then
             if (tgen_guga_crude) then
                 generate_excitation => gen_excit_k_space_hub
@@ -430,6 +431,7 @@ contains
                 generate_excitation => generate_excitation_guga
             end if
         end if
+#endif
 
         tau_opt = determine_optimal_time_step()
 
@@ -565,8 +567,18 @@ contains
         real(dp) :: p_elec, p_orb
         integer :: elecs(2), orbs(2), src(2)
         logical :: isvaliddet
+#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
+#endif
+
+        unused_variable(exFlag)
+        unused_variable(store)
+        unused_variable(run)
+
+        hel = h_cast(0.0_dp)
+        ic = 0
+        pgen = 0.0_dp
 
         ! i first have to choose an electron pair (ij) at random
         ! but with the condition that they have to have opposite spin!
@@ -594,6 +606,7 @@ contains
         ! already modified in the orbital picker..
         pgen = p_elec * p_orb
 
+#ifndef __CMPLX
         ! try implementing the crude guga excitation approximation via the
         ! determinant excitation generator
         if (tGen_guga_crude) then
@@ -629,6 +642,7 @@ contains
 
             return
         end if
+#endif
 
 #ifdef __DEBUG
         if (.not. isvaliddet(nI,nel)) then
@@ -664,7 +678,11 @@ contains
       integer :: i, a, b, ki(N_DIM), kj(N_DIM), ka(N_DIM), kb(N_DIM), elecs(2)
       integer, parameter :: maxTrials = 1000
 
-      hel = 0.0_dp
+      unused_variable(run)
+      unused_variable(store)
+      unused_variable(exFlag)
+
+      hel = h_cast(0.0_dp)
       ilutJ = 0
       ic = 0
 
@@ -717,7 +735,11 @@ contains
         character(*), parameter :: this_routine = "gen_excit_uniform_k_space_hub_transcorr"
 #endif
 
-        hel = 0.0_dp
+        unused_variable(exFlag)
+        unused_variable(run)
+        unused_variable(store)
+
+        hel = h_cast(0.0_dp)
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
@@ -757,11 +779,11 @@ contains
 
 #ifdef __DEBUG
         if (nJ(1) /= 0) then
-            if (abs(pgen - calc_pgen_k_space_hubbard_uniform_transcorr(nI, ilutI, ex, ic))>EPS) then
+            if (abs(pgen - calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic))>EPS) then
                 print *, "nI: ", nI
                 print *, "nJ: ", nJ
                 print *, "ic: ", ic
-                print *, "calc. pgen: ",calc_pgen_k_space_hubbard_uniform_transcorr(nI, ilutI, ex, ic)
+                print *, "calc. pgen: ",calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic)
                 print *, "prd. pgen: ", pgen
                 call stop_all(this_routine, "pgens wrong!")
             end if
@@ -788,7 +810,11 @@ contains
         character(*), parameter :: this_routine = "gen_excit_mixed_k_space_hub_transcorr"
 #endif
 
-        hel = 0.0_dp
+        unused_variable(exFlag)
+        unused_variable(store)
+        unused_variable(run)
+
+        hel = h_cast(0.0_dp)
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
@@ -1120,11 +1146,16 @@ contains
         real(dp) :: p_elec, p_orb, p_orb_a
         integer, parameter :: max_trials = 1000
 
-        hel = 0.0_dp
+        unused_variable(exFlag)
+        unused_variable(store)
+        unused_variable(run)
+
+        hel = h_cast(0.0_dp)
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
         elecs = 0
+        ex = 0
 
         if (genrand_real2_dsfmt() < pDoubles) then
 
@@ -1381,7 +1412,7 @@ contains
                         ! determinants in matrix element calculation
                         ! old one:
                         call swap_excitations(nI, ex, nJ, ex2)
-                        elem = abs(get_3_body_helement_ks_hub(nJ, ex2, .false.))
+                        elem = abs(get_3_body_helement_ks_hub(ex2, .false.))
 
                     end if
                 end if
@@ -1409,7 +1440,7 @@ contains
 
                         ex(2,2:3) = [orb_b, c]
                         call swap_excitations(nI, ex, nJ, ex2)
-                        elem = abs(get_3_body_helement_ks_hub(nJ, ex2, .false.))
+                        elem = abs(get_3_body_helement_ks_hub(ex2, .false.))
 
                     end if
                 end if
@@ -1853,11 +1884,10 @@ contains
 
     end subroutine create_ab_list_hubbard
 
-    function calc_pgen_k_space_hubbard_uniform_transcorr(nI, ilutI, ex, ic) result(pgen)
+    function calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic) result(pgen)
         ! need a calc pgen functionality for the uniform transcorrelated
         ! excitation generator
-        integer, intent(in) :: nI(nel), ex(:,:), ic
-        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(in) :: ex(:,:), ic
         real(dp) :: pgen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_uniform_transcorr"
@@ -2163,7 +2193,7 @@ contains
 
         else if (ic == 3 .and. t_trans_corr_2body) then
 
-            hel = get_3_body_helement_ks_hub(nI, ex, tpar)
+            hel = get_3_body_helement_ks_hub(ex, tpar)
 
         else
 
@@ -2200,7 +2230,7 @@ contains
             else if (ic_ret == 3 .and. t_trans_corr_2body) then
                 ex(1,1) = 3
                 call GetExcitation(nI, nJ, nel, ex, tpar)
-                hel = get_3_body_helement_ks_hub(nI, ex, tpar)
+                hel = get_3_body_helement_ks_hub(ex, tpar)
 
             else if (ic_ret == -1) then
                 call EncodeBitDet(nI, ilutI)
@@ -2220,7 +2250,7 @@ contains
                     ex(1,1) = 3
                     call GetBitExcitation(ilutI, ilutJ, ex, tpar)
 
-                    hel = get_3_body_helement_ks_hub(nI, ex, tpar)
+                    hel = get_3_body_helement_ks_hub(ex, tpar)
 
                 else
                     hel = h_cast(0.0_dp)
@@ -2246,7 +2276,7 @@ contains
                 ex(1,1) = 3
                 call GetBitExcitation(ilutI, ilutJ, ex, tpar)
 
-                hel = get_3_body_helement_ks_hub(nI, ex, tpar)
+                hel = get_3_body_helement_ks_hub(ex, tpar)
 
             else
                 hel = h_cast(0.0_dp)
@@ -3492,11 +3522,11 @@ contains
 
     end subroutine init_three_body_const_mat
 
-    function get_3_body_helement_ks_hub(nI, ex, tpar) result(hel)
+    function get_3_body_helement_ks_hub(ex, tpar) result(hel)
         ! the 3-body matrix element.. here i have to be careful about
         ! the sign and stuff.. and also if momentum conservation is
         ! fullfilled ..
-        integer, intent(in) :: nI(nel), ex(2,3)
+        integer, intent(in) :: ex(2,3)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 #ifdef __DEBUG

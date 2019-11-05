@@ -84,7 +84,7 @@ module real_space_hubbard
     real(dp), allocatable :: umat_rs_hub_trancorr_hop(:,:,:,:), &
                              tmat_rs_hub_spin_transcorr(:,:)
 
-    complex(dp), parameter :: imag_unit = cmplx(0.0_dp,1.0_dp)
+    complex(dp), parameter :: imag_unit = cmplx(0.0_dp,1.0_dp,dp)
 
     real(dp), allocatable :: hop_transcorr_factor_cached(:), &
                              hop_transcorr_factor_cached_m(:), &
@@ -214,11 +214,15 @@ contains
 
         else
             if (.not. tHPHF) then
+#ifndef __CMPLX
                 if (tGUGA .and. .not. tgen_guga_crude) then
                     generate_excitation => generate_excitation_guga
                 else
+#endif
                     generate_excitation => gen_excit_rs_hubbard
+#ifndef __CMPLX
                 end if
+#endif
             end if
         end if
 
@@ -642,7 +646,7 @@ contains
                 elem = nOccBeta * uhub * sum_spin_transcorr_factor(i,j)
                 if (abs(elem) > matele_cutoff) then
                     if (t_print_tmat) then
-                        write(iunit,*), 2*i, 2*j, elem
+                        write(iunit,*) 2*i, 2*j, elem
                     end if
                     tmat_rs_hub_spin_transcorr(2*i,2*j) = elem
                 end if
@@ -841,11 +845,11 @@ contains
                                         ! twisted BCs are given in units of
                                         ! 2pi/L so a twist of 1 corresponds to
                                         ! the same system!
-                                        mat_el = bhub * exp( -cmplx(0.0, &
+                                        imag =  exp( -cmplx(0.0, &
                                             2 * pi / lat%get_length(1) * twisted_bc(1),dp))
 
                                     else if (diff(1) == -1) then
-                                        mat_el = bhub * exp( cmplx(0.0,  &
+                                        imag = exp( cmplx(0.0,  &
                                             2 * pi / lat%get_length(1) * twisted_bc(1),dp))
 
                                     else
@@ -855,10 +859,10 @@ contains
                                     ! hopping over boundary
                                     ! directions are otherwise
                                     if (diff(1) > 0) then
-                                        mat_el = bhub * exp( cmplx(0.0, &
+                                        imag =  exp( cmplx(0.0, &
                                             2 * pi / lat%get_length(1) * twisted_bc(1),dp))
                                     else
-                                        mat_el = bhub * exp( -cmplx(0.0,  &
+                                        imag = exp( -cmplx(0.0,  &
                                             2 * pi / lat%get_length(1) * twisted_bc(1),dp))
                                     end if
                                 end if
@@ -871,11 +875,11 @@ contains
                                         ! no hop over boundary
                                         if (diff(2) == 1) then
                                             ! then we hop left
-                                            mat_el = bhub * exp( -cmplx(0.0,  &
+                                            imag = exp( -cmplx(0.0,  &
                                                 2 * pi / lat%get_length(2) * twisted_bc(2),dp))
 
                                         else if (diff(2) == -1) then
-                                            mat_el = bhub * exp( cmplx(0.0, &
+                                            imag = exp( cmplx(0.0, &
                                                 2 * pi / lat%get_length(2) * twisted_bc(2),dp))
 
                                         else
@@ -885,10 +889,10 @@ contains
                                         ! hopping over boundary
                                         ! directions are otherwise
                                         if (diff(2) > 0) then
-                                            mat_el = bhub * exp( cmplx(0.0, &
+                                            imag = exp( cmplx(0.0, &
                                                 2 * pi / lat%get_length(2) * twisted_bc(2),dp))
                                         else
-                                            mat_el = bhub * exp( -cmplx(0.0, &
+                                            imag = exp( -cmplx(0.0, &
                                                 2 * pi / lat%get_length(2) * twisted_bc(2),dp))
                                         end if
                                     end if
@@ -899,6 +903,12 @@ contains
                                 call stop_all(this_routine, &
                                     "twisted BCs only implemented up to 2D")
                             end if
+
+#ifdef __CMPLX
+                            mat_el = imag * bhub
+#else
+                            mat_el = h_cast(imag) * bhub
+#endif
 
                             ! beta orbitals:
                             tmat2d(2*ind - 1, 2*next(j) - 1) = mat_el
@@ -977,7 +987,7 @@ contains
 
         if (present(lat)) then
             if (associated(spin_free_tmat)) deallocate(spin_free_tmat)
-            allocate(spin_free_tmat(nBasis/2, nBasis/2), source = 0.0_dp)
+            allocate(spin_free_tmat(nBasis/2, nBasis/2), source = h_cast(0.0_dp))
 
             do i = 1, lat%get_nsites()
                 ind = lat%get_site_index(i)
@@ -1020,16 +1030,20 @@ contains
         integer, intent(in), optional :: run
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr_uniform"
 
-        integer :: iunused, elecs(2), orbs(2), src(2), spin
+        integer :: elecs(2), orbs(2), src(2), spin
         real(dp) :: p_elec, p_orb
 #ifdef __DEBUG
         real(dp) :: temp_pgen
 #endif
 
-        iunused = exflag;
+        unused_variable(exFlag)
+        unused_variable(run)
+        unused_variable(store)
+
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
+        hel = h_cast(0.0_dp)
 
         ASSERT(associated(lat))
 
@@ -1062,7 +1076,7 @@ contains
 
             ! to be compatible with my test-suite actually calculate the
             ! matrix element here..
-            if (abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.)) < EPS) then
+            if (abs(get_double_helem_rs_hub_transcorr(ex, .false.)) < EPS) then
                 nJ(1) = 0
                 pgen = 0.0_dp
                 return
@@ -1100,7 +1114,7 @@ contains
         end if
 
 #ifdef __DEBUG
-        temp_pgen = calc_pgen_rs_hubbard_transcorr_uniform(nI,ilutI,ex,ic)
+        temp_pgen = calc_pgen_rs_hubbard_transcorr_uniform(ex,ic)
         if (abs(pgen - temp_pgen) > EPS) then
             print *, "calculated pgen differ for exitation: "
             print *, "nI: ", nI
@@ -1114,9 +1128,8 @@ contains
 
     end subroutine gen_excit_rs_hubbard_transcorr_uniform
 
-    function calc_pgen_rs_hubbard_transcorr_uniform(nI, ilutI, ex, ic) result(pgen)
-        integer, intent(in) :: nI(nel), ex(2,2), ic
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+    function calc_pgen_rs_hubbard_transcorr_uniform(ex, ic) result(pgen)
+        integer, intent(in) :: ex(2,2), ic
         real(dp) :: pgen
 #ifdef __DEBUG
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard_transcorr_uniform"
@@ -1170,17 +1183,21 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr"
 
-        integer :: iunused, ind , elec, src, orb
+        integer :: ind , elec, src, orb
         real(dp) :: cum_arr(nBasis/2)
         real(dp) :: cum_sum, p_elec, p_orb
 #ifdef __DEBUG
         real(dp) :: temp_pgen
 #endif
 
-        iunused = exflag;
+        unused_variable(exFlag)
+        unused_variable(run)
+        unused_variable(store)
+
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
+        hel = h_cast(0.0_dp)
 
         ASSERT(associated(lat))
 
@@ -1272,7 +1289,7 @@ contains
 
         character(*), parameter :: this_routine = "gen_excit_rs_hubbard_transcorr_hole_focus"
 
-        integer :: iunused, ind , elec, src, orb
+        integer :: ind , elec, src, orb
         real(dp) :: cum_arr(nBasis/2)
         real(dp) :: cum_sum, p_elec, p_orb
 #ifdef __DEBUG
@@ -1282,10 +1299,14 @@ contains
         integer, allocatable :: neighbors(:)
 
 
-        iunused = exflag;
+        unused_variable(exFlag)
+        unused_variable(store)
+        unused_variable(run)
+
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
+        hel = h_cast(0.0_dp)
 
         ASSERT(associated(lat))
 
@@ -1453,10 +1474,14 @@ contains
         integer, allocatable :: neighbors(:), orbs(:)
         real(dp) :: cum_sum, p_elec, p_orb
 
-        iunused = exflag;
+        unused_variable(exFlag)
+        unused_variable(run)
+        unused_variable(store)
+
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
+        hel = h_cast(0.0_dp)
 
         ASSERT(associated(lat))
 
@@ -1525,7 +1550,7 @@ contains
         if (is_alpha(ex(1,1))) then
             pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
         else
-            pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
+            pgen = calc_pgen_rs_hubbard(ilutI, ex, ic)
         endif
 
     end function calc_pgen_rs_hubbard_spin_dependent_transcorr
@@ -1739,12 +1764,8 @@ contains
 
                     ex(2,2) = orb_b
                     call swap_excitations(nI, ex, nJ, ex2)
-                    elem = abs(get_double_helem_rs_hub_transcorr(nJ, ex2, .false.))
+                    elem = abs(get_double_helem_rs_hub_transcorr(ex2, .false.))
 
-!                     elem = abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.))
-!                     if (abs(elem - temp) > EPS) then
-!                         print *, "doubles do differ!"
-!                     end if
 
                 end if
                 cum_sum = cum_sum + elem
@@ -1768,12 +1789,8 @@ contains
 
                     ex(2,2) = orb_b
                     call swap_excitations(nI, ex, nJ, ex2)
-                    elem = abs(get_double_helem_rs_hub_transcorr(nJ, ex2, .false.))
+                    elem = abs(get_double_helem_rs_hub_transcorr(ex2, .false.))
 
-!                     elem = abs(get_double_helem_rs_hub_transcorr(nI, ex, .false.))
-!                     if (abs(elem - temp) > EPS) then
-!                         print *, "doubles do differ!"
-!                     end if
                 end if
 
                 cum_sum = cum_sum + elem
@@ -1899,10 +1916,15 @@ contains
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, elem, r, p_elec, p_orb
 
+#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
+#endif
 
-        iunused = exflag;
+        unused_variable(run)
+        unused_variable(store)
+        unused_variable(exFlag)
+        hel = h_cast(0.0_dp)
 
         ASSERT(associated(lat))
 
@@ -1937,6 +1959,7 @@ contains
 
         ilutJ = make_ilutJ(ilutI, ex, 1)
 
+#ifndef __CMPLX
         ! change for the mixed guga implementation
         if (tgen_guga_crude) then
 
@@ -1975,15 +1998,16 @@ contains
 
             return
         end if
+#endif
 
 
     end subroutine gen_excit_rs_hubbard
 
-    function calc_pgen_rs_hubbard(nI, ilutI, ex, ic) result(pgen)
+    function calc_pgen_rs_hubbard(ilutI, ex, ic) result(pgen)
         ! i also need a pgen recalculator.. specifically for the HPHF
         ! implementation and i need to take the transcorrelated keyword
         ! into account here!
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: ex(2,2), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
 #ifdef __DEBUG
@@ -2159,7 +2183,7 @@ contains
             hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
 
         else if (ic == 2 .and. t_trans_corr_hop) then
-            hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
+            hel = get_double_helem_rs_hub_transcorr(ex, tpar)
 
         else
             ! zero matrix element!
@@ -2194,7 +2218,7 @@ contains
 
                 ex(1,1) = 2
                 call GetExcitation(nI, nJ, nel, ex, tpar)
-                hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
+                hel = get_double_helem_rs_hub_transcorr(ex, tpar)
 
             else if (ic_ret == -1) then
                 ! this indicates that ic_ret wants to get returned instead of
@@ -2219,7 +2243,7 @@ contains
                     ex(1,1) = 2
                     call GetBitExcitation(ilutI, ilutJ, ex, tpar)
 
-                    hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
+                    hel = get_double_helem_rs_hub_transcorr(ex, tpar)
 
                 else
                     hel = h_cast(0.0_dp)
@@ -2247,7 +2271,7 @@ contains
             else if (ic == 2 .and. t_trans_corr_hop) then
                 ex(1,1) = 2
                 call GetBitExcitation(ilutI, ilutJ, ex, tpar)
-                hel = get_double_helem_rs_hub_transcorr(nI, ex, tpar)
+                hel = get_double_helem_rs_hub_transcorr(ex, tpar)
             else
                 hel = h_cast(0.0_dp)
             end if
@@ -2338,10 +2362,10 @@ contains
 
     end function get_diag_helemen_rs_hub_transcorr_hop
 
-    function get_double_helem_rs_hub_transcorr(nI, ex, tpar) result(hel)
+    function get_double_helem_rs_hub_transcorr(ex, tpar) result(hel)
         ! newly introduced 2-body matrix element in the hopping
         ! transcorrelated real-space hubbard model
-        integer, intent(in) :: nI(nel), ex(2,2)
+        integer, intent(in) :: ex(2,2)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 #ifdef __DEBUG
@@ -2389,6 +2413,7 @@ contains
 
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
         real(dp) :: n_i, n_j
+#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
 
         if (tGUGA) then
@@ -2401,6 +2426,7 @@ contains
             if (tpar) hel = -hel
             return
         end if
+#endif
 
         ! in case we need it, the off-diagonal, except parity is just
         ! -t if the hop is possible

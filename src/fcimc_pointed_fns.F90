@@ -47,6 +47,7 @@ module fcimc_pointed_fns
     use bit_reps, only: nifguga
 
 #ifndef __CMPLX
+    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
 #ifdef __DEBUG
     use guga_bitRepOps, only: convert_ilut_toGUGA, write_det_guga
     use guga_excitations, only: print_excitInfo, global_excitInfo
@@ -70,7 +71,6 @@ module fcimc_pointed_fns
     use Determinants, only: get_helement
     use global_det_data, only: get_tot_spawns, get_acc_spawns
 
-    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
 
     implicit none
 
@@ -216,9 +216,7 @@ module fcimc_pointed_fns
 
         integer :: temp_ex(2,ic)
 
-#ifdef __WARNING_WORKAROUND
-        call unused(AvSignCurr)
-#endif
+        unused_variable(AvSignCurr)
         ! Just in case
         child = 0.0_dp
 
@@ -228,9 +226,13 @@ module fcimc_pointed_fns
         prob = prob * AvMCExcits
         ! the simple preconditioner for hubbard
 
-        if(t_precond_hub)then
+#ifndef __CMPLX
+        ! i am not so sure about hongjuns change here...
+        ! is this for GUGA only?? Ask him
+        if(tGUGA .and. t_precond_hub)then
           Eii_curr = calcDiagMatEleGUGA_nI(nJ)
         end if
+#endif
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation,
@@ -406,9 +408,11 @@ module fcimc_pointed_fns
 #endif
 #endif
             end if
-            if(t_precond_hub.and.Eii_curr.gt.10.0_dp)then
+#ifndef __CMPLX
+            if(tGUGA .and. t_precond_hub.and.Eii_curr.gt.10.0_dp)then
              nSpawn = nSpawn / (1.0_dp+Eii_curr)
             end if
+#endif
 
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search

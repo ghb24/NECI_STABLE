@@ -1,3 +1,4 @@
+#ifndef __CMPLX
 #include "macros.h"
 
 module guga_tausearch
@@ -33,6 +34,8 @@ module guga_tausearch
     use guga_excitations, only: actHamiltonian, calc_pgen_mol_guga, calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: excitationInformation
+
+    use util_mod, only: operator(.isclose.)
 
     implicit none
     integer :: cnt_sing, cnt_four, cnt_two_same, cnt_two_mixed, cnt_three_same, &
@@ -95,7 +98,7 @@ contains
         write(6,*) " -> so use this with caution and check for erroneous values!"
 
         ! check maximum spawn size:
-        if (MaxWalkerBloom == -1) then
+        if (int(MaxWalkerBloom) == -1) then
             ! just copy that from tau_search.F90
             if (tTruncInitiator) then
                 max_permitted_spawn = InitiatorWalkNo
@@ -189,13 +192,13 @@ contains
             ! should we use the same variables in both tau-searches??
 
             ! Unless it is already specified, set an initial value for tau
-            if (.not. tRestart .and. .not. tReadPops .and. tau == 0) &
+            if (.not. tRestart .and. .not. tReadPops .and. (tau .isclose. 0.0_dp)) &
                 call FindMaxTauDoubs()
 !                 call find_max_tau_doubs_guga()
             write(6,*) 'Using initial time-step: ', tau
 
             ! Set the maximum spawn size
-            if (MaxWalkerBloom == -1) then
+            if (int(MaxWalkerBloom) == -1) then
                 ! No maximum manually specified, so we set the limit of spawn
                 ! size to either the initiator criterion, or to 5 otherwise
                 if (tTruncInitiator) then
@@ -238,7 +241,7 @@ contains
             call stop_all(this_routine, "only implemented for mol_guga_weighted for now!")
         end if
 
-        if(MaxWalkerBloom.eq.-1) then
+        if(int(MaxWalkerBloom).eq.-1) then
             !No MaxWalkerBloom specified
             !Therefore, assume that we do not want blooms larger than n_add if initiator,
             !or 5 if non-initiator calculation.
@@ -1129,3 +1132,4 @@ contains
     end subroutine update_hist_tau_guga_nosym
 
 end module
+#endif

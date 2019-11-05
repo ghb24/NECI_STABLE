@@ -357,7 +357,7 @@ contains
         nI(1) = 1
         niftot = 1
         allocate(mask_virt_ilut(0:niftot,1))
-        call EncodeBitDet(mask_virt_ni, mask_virt_ilut)
+        call EncodeBitDet(mask_virt_ni(:,1), mask_virt_ilut(:,1))
 
         ! for this code i might not need G1 and dSFMT_init..
 
@@ -717,7 +717,7 @@ contains
         niftot = 1
         allocate(mask_virt_ni(1,1)); mask_virt_ni(1,1) = 1
         allocate(mask_virt_ilut(0:niftot,1))
-        call EncodeBitDet(mask_virt_ni, mask_virt_ilut)
+        call EncodeBitDet(mask_virt_ni(:,1), mask_virt_ilut(:,1))
 
         print *, ""
         print *, "testing: pick_virtual_electrons_double_hubbard() "
@@ -743,7 +743,7 @@ contains
 
         deallocate(mask_virt_ni)
         allocate(mask_virt_ni(2,1)); mask_virt_ni(:,1) = [1,2]
-        call EncodeBitDet(mask_virt_ni, mask_virt_ilut)
+        call EncodeBitDet(mask_virt_ni(:,1), mask_virt_ilut(:,1))
 
         call pick_virtual_electrons_double_hubbard(nI, run, elecs, src, ispn, pgen)
 
@@ -776,7 +776,7 @@ contains
         niftot = 1
         allocate(mask_virt_ni(1,1)); mask_virt_ni(1,1) = 2
         allocate(mask_virt_ilut(0:niftot,1))
-        call EncodeBitDet(mask_virt_ni, mask_virt_ilut)
+        call EncodeBitDet(mask_virt_ni(:,1), mask_virt_ilut(:,1))
 
         print *, ""
         print *, "testing: pick_virtual_electron_single() "

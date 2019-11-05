@@ -1170,6 +1170,7 @@ contains
         integer :: i, j, smallest_pos, part_type
         real(dp) :: smallest_sign, sign_curr_real
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
+        character(*), parameter :: this_routine = "return_most_populated_states"
 
         integer(n_int), pointer :: source(:,:)
         integer(int64) :: source_size
@@ -1504,12 +1505,14 @@ contains
 #endif
 
     subroutine calc_determin_hamil_full(hamil)
+#ifndef __CMPLX
         use guga_data, only: excitationInformation
         use guga_excitations, only: calc_guga_matrix_element
+        type(excitationInformation) :: excitInfo
+#endif
 
         HElement_t(dp), allocatable, intent(out) :: hamil(:,:)
         integer :: i, j, nI(nel), nJ(nel)
-        type(excitationInformation) :: excitInfo
 
         allocate(hamil(determ_space_size,determ_space_size))
 
@@ -1533,9 +1536,11 @@ contains
                 if (tHPHF) then
                     hamil(i,j) = hphf_off_diag_helement(nI, nJ, &
                         core_space(:,i), core_space(:,j))
+#ifndef __CMPLX
                 else if (tGUGA) then
                     call calc_guga_matrix_element(core_space(:,i), core_space(:,j), &
                         excitInfo, hamil(i,j), .true., 2)
+#endif
                 else
                     hamil(i,j) = get_helement(nI, nJ, core_space(:,i), core_space(:,j))
                 end if

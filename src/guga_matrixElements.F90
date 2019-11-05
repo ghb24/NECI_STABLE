@@ -11,7 +11,7 @@ module guga_matrixElements
     use procedure_pointers, only: get_umat_el
     use guga_bitRepOps, only: isDouble, calcB_vector_nI, isProperCSF_nI, &
                             extract_matrix_element
-    use util_mod, only: binary_search
+    use util_mod, only: binary_search, operator(.isclose.)
     use guga_data, only: projE_replica
     use bit_rep_data, only: nifdbo, niftot, nifd
     use ParallelHelper, only: iprocindex
@@ -129,7 +129,7 @@ contains
                ! calculate exchange integral part, involving Shavitt
                ! rules for matrix elements, only contributes if both
                ! stepvectors are 1 or 2, still to be implemented..
-               if (nOcc1 == 1.0_dp .and. nOcc2 == 1.0_dp) then
+               if ((nOcc1 .isclose. 1.0_dp) .and. (nOcc2 .isclose. 1.0_dp)) then
                    hel_ret = hel_ret - get_umat_el(sOrb,pOrb,pOrb,sOrb) * &
                        calcDiagExchangeGUGA_nI(iOrb, jOrb, nI)/2.0_dp
 

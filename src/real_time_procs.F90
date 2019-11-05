@@ -31,7 +31,8 @@ module real_time_procs
                         flag_deterministic, encode_part_sign, &
                         get_initiator_flag, get_initiator_flag_by_run, &
                         clr_flag
-    use util_mod, only: get_free_unit, get_unique_filename
+    use util_mod, only: get_free_unit, get_unique_filename, near_zero, &
+                        operator(.isclose.)
     use bit_rep_data, only: extract_sign, nifdbo, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
@@ -322,6 +323,8 @@ contains
         logical :: list_full
         integer, parameter :: flags = 0
 
+        unused_variable(iter_data)
+
         ! Note that this is a diagonal event, no communication is needed
 
         ! Check that the position described by valid_diag_spawn_list is acceptable.
@@ -591,7 +594,7 @@ contains
         ! so only update the stats for the first here!
         do i = 1, lenof_sign
             ! check if the parent and ndie have the same sign
-            if (sign(1.0_dp,RealwSign(i)) == sign(1.0_dp, ndie(i))) then
+            if (sign(1.0_dp,RealwSign(i)) .isclose. sign(1.0_dp, ndie(i))) then
                 ! then the entries in ndie kill the parent, but only maximally
                 ! the already occupying walkers can get killed
                 iter_data%ndied(i) = iter_data%ndied(i) + &
@@ -624,7 +627,7 @@ contains
 
         CopySign = RealwSign - nDie
 
-        if (any(CopySign /= 0)) then
+        if (any(.not. near_zero(CopySign))) then
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
             call encode_sign (CurrentDets(:, DetPosition), CopySign)
@@ -700,7 +703,8 @@ contains
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
 
-        fac_unused = precond_fac
+        unused_variable(precond_fac)
+        unused_variable(AvSignCurr)
 
         ! This is crucial
         child = 0.0_dp
@@ -879,7 +883,7 @@ contains
         end if
 
         if(tFillingStochRDMonFly) then
-            if (child(part_type).ne.0.0_dp) then
+            if (.not. near_zero(child(part_type))) then
                 !Only add in contributions for spawning events within population 1
                 !(Otherwise it becomes tricky in annihilation as spawnedparents doesn't tell you which population
                 !the event came from at present)
@@ -1354,7 +1358,7 @@ contains
 
     subroutine reset_core_space()
       implicit none
-      integer :: i
+      integer(int64) :: i
 
       do i=1, TotWalkers
          call clr_flag(CurrentDets(:,i),flag_deterministic)
@@ -1376,9 +1380,9 @@ contains
         logical :: t_use_perturbed_buf
 
         if(tReadPops .and. .not. tNewOverlap) then
-           tmp_totwalkers = TotWalkers_orig
+           tmp_totwalkers = int(TotWalkers_orig)
         else
-           tmp_totwalkers = TotWalkers
+           tmp_totwalkers = int(TotWalkers)
         endif
 
         write(iout,*) "Creating the wavefunction to projected on!"
@@ -1664,8 +1668,8 @@ contains
       integer :: newStep, maxAlpha, minAlpha
       real(dp), parameter :: ratioThreshold = 0.01
 
-      maxAlpha = maxval(alphaLog)
-      minAlpha = minval(alphaLog)
+      maxAlpha = int(maxval(alphaLog))
+      minAlpha = int(minval(alphaLog))
     end subroutine adjust_stepsAlpha
 
 !------------------------------------------------------------------------------------------!
@@ -1685,7 +1689,7 @@ contains
       ! if the second RK step is to be compared, the reference has to be reset
       ! -> recount the TotParts from the restored data
       implicit none
-      integer :: i
+      integer(int64) :: i
       real(dp) :: CurrentSign(lenof_sign)
       real(dp) :: allWalkersSummed(lenof_sign)
       allWalkersSummed = 0.0_dp
@@ -1781,7 +1785,7 @@ contains
       implicit none
       integer(n_int), intent(inout) :: buffer(0:,1:)
       integer, intent(inout) :: buffer_size
-      integer :: i
+      integer(int64) :: i
       real(dp) :: sgn(lenof_sign)
 
       do i = 1, TotWalkers

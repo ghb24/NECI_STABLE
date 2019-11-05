@@ -200,21 +200,35 @@ contains
     real(dp) function cepa_1_single(run)
         integer, intent(in) :: run
         ! todo
+        call stop_all("cepa_1_single", "TODO")
+        unused_variable(run)
+        cepa_1_single = 0.0_dp
+
     end function cepa_1_single
 
     real(dp) function cepa_1_double(run)
         integer, intent(in) :: run
         ! tod-
+        call stop_all("cepa_1_double", "TODO")
+        unused_variable(run)
+        cepa_1_double= 0.0_dp
+
     end function cepa_1_double
 
     real(dp) function cepa_3_single(run)
         integer, intent(in) :: run
         ! todo
+        call stop_all("cepa_3_single", "TODO")
+        unused_variable(run)
+        cepa_3_single= 0.0_dp
     end function cepa_3_single
 
     real(dp) function cepa_3_double(run)
         integer, intent(in) :: run
         ! todo
+        call stop_all("cepa_3_double", "TODO")
+        unused_variable(run)
+        cepa_3_double= 0.0_dp
     end function cepa_3_double
 
     real(dp) function cepa_acpf(run)

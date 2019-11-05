@@ -568,8 +568,8 @@ module AnnihilationMod
             Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
             iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
                     + 2 * min(abs(cum_sgn), abs(new_sgn))
-            end if
 #endif
+            end if
         end if
 
         ! Update the cumulative sign count.

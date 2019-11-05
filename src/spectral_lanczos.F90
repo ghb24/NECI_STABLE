@@ -389,8 +389,8 @@ contains
 
             ! Store the values of the spectrum for the highest and lowest
             ! values of omega for the testsuite to use.
-            if (i == 1) spec_low = spectral_weight
-            if (i == nomega_spectral + 1) spec_high = spectral_weight
+            if (i == 1) spec_low = real(spectral_weight,dp)
+            if (i == nomega_spectral + 1) spec_high = real(spectral_weight,dp)
         end do
 
     end subroutine output_spectrum

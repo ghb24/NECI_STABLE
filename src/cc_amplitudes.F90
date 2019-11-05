@@ -1043,6 +1043,12 @@ contains
         integer, intent(out) :: ijab_klcd(8)
         character(*), parameter :: this_routine = "order_quad_indices_3_1"
 
+        call stop_all(this_routine, "TODO")
+        unused_variable(ijk_abc)
+        unused_variable(l_d)
+        unused_variable(phase)
+        unused_variable(ijab_klcd)
+
     end subroutine order_quad_indices_3_1
 
 

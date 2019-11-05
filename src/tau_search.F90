@@ -654,8 +654,7 @@ contains
                     if (t_uniform_excits) then
                         ! i have to setup pDoubles and the other quantities
                         ! before i call this functionality!
-                        pgen = calc_pgen_k_space_hubbard_uniform_transcorr(&
-                            ProjEDet(:,1), ilutRef(:,1), ex_3, ic)
+                        pgen = calc_pgen_k_space_hubbard_uniform_transcorr(ex_3, ic)
                     else
                         pgen = calc_pgen_k_space_hubbard_transcorr(&
                             ProjEDet(:,1), ilutRef(:,1), ex_3, ic)

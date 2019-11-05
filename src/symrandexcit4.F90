@@ -40,8 +40,6 @@ module excit_gens_int_weighted
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
                            ija_orbs_para, ija_orbs_anti, ija_bins_sing, ija_orbs_sing
 
-    use guga_excitations, only: get_guga_integral_contrib
-
     implicit none
     save
 

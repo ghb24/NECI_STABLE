@@ -268,7 +268,8 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
          INTEGER(int64) nPr
          INTEGER iMinElec1, iMaxElec1,nEl,nI(nEl)
          TYPE(Symmetry) SymProds(0:*)
-         INTEGER I,J,K,L
+         INTEGER I,J,K
+         integer(int64) l
          Type(Symmetry) Pr
          INTEGER iSpn
          INTEGER iCC
