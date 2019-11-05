@@ -11,7 +11,7 @@ module pchb_excitgen
   use sltcnd_mod, only: sltcnd_excit
   use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
-  use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex, unused
+  use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex
   use util_mod_epsilon_close, only: near_zero
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
