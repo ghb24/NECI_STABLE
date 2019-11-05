@@ -40,8 +40,9 @@ contains
         integer :: iUnused
 
 #ifdef __WARNING_WORKAROUND
-        call unused(HelGen); call unused(exFlag);
+        call unused(exFlag);
         call unused(store%nopen); call unused(part_type);
+        HelGen = 0.0_dp
 #endif
 
         ! W.D:

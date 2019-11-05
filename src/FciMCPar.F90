@@ -1530,7 +1530,6 @@ module FciMCParMod
     end subroutine PerformFCIMCycPar
 
     subroutine test_routine()
-
         integer(n_int) :: list_1(0:NIfTot, 10)
         integer(n_int) :: list_2(0:NIfTot, 12)
         integer(n_int) :: list_out(0:NIfTot, 11)
