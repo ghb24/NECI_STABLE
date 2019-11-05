@@ -247,7 +247,6 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_guga_matrix_element"
 
-        logical :: t_calc_full
         integer :: temp_b(nSpatOrbs), i
         real(dp) :: temp_occ(nSpatOrbs)
         integer(n_int) :: tmp_i(0:nifguga)
@@ -592,12 +591,16 @@ contains
         character(*), parameter :: this_routine = "calc_single_excitation_ex"
 
         integer :: st, en, i, j, iOrb, gen, db, step1, step2
-        real(dp) :: integral, bVal
+        real(dp) :: bVal
+        HElement_t(dp) :: integral
         ! have to temporarily store the current* quantities as they are used
         ! in the integral contribution routine for the single excitations..
         integer :: temp_curr_step(nSpatOrbs), temp_curr_b_int(nSpatOrbs)
         real(dp) :: temp_curr_b(nSpatOrbs), temp_curr_occ(nSpatOrbs)
+        logical :: t_calc_full_
         ! just mimick the stochastic single excitation!
+
+        def_default(t_calc_full_, t_calc_full, .true.)
 
         ! this deltaB info can slip through the excitation identifier..
         if (any(abs(temp_delta_b) > 1)) then
@@ -613,7 +616,11 @@ contains
 
         gen = excitInfo%currentGen
 
-        integral = getTmatEl(2*i, 2*j)
+        if (t_calc_full_) then
+            integral = getTmatEl(2*i, 2*j)
+        else
+            integral = h_cast(1.0_dp)
+        end if
 
         mat_ele = 1.0_dp
 
@@ -666,12 +673,14 @@ contains
 
             if (abs(mat_ele) < EPS) return
 
-            if (.not. (t_new_real_space_hubbard .or. t_heisenberg_model &
-                .or. t_tJ_model .or. t_mixed_hubbard)) then
-                integral = integral + get_umat_el(i,iOrb,j,iOrb) * temp_occ_i(iOrb)
+            if (t_calc_full_) then
+                if (.not. (t_new_real_space_hubbard .or. t_heisenberg_model &
+                    .or. t_tJ_model .or. t_mixed_hubbard)) then
+                    integral = integral + get_umat_el(i,iOrb,j,iOrb) * temp_occ_i(iOrb)
 
-                integral = integral + get_umat_el(i,iOrb,iOrb,j) * &
-                    getDoubleContribution(step2,step1,db,gen,bVal)
+                    integral = integral + get_umat_el(i,iOrb,iOrb,j) * &
+                        getDoubleContribution(step2,step1,db,gen,bVal)
+                end if
             end if
 
         end do
@@ -700,9 +709,11 @@ contains
         currentB_int = int(currentB_ilut)
 
         ! i think i could also exclude the treal case here.. try!
-        if (.not. (treal .or. t_new_real_space_hubbard .or. &
-            t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
-            call calc_integral_contribution_single(ilutJ, i, j, st, en, integral)
+        if (t_calc_full_) then
+            if (.not. (treal .or. t_new_real_space_hubbard .or. &
+                t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
+                call calc_integral_contribution_single(ilutJ, i, j, st, en, integral)
+            end if
         end if
 
         mat_ele = mat_ele * integral
@@ -714,9 +725,6 @@ contains
         currentB_ilut = temp_curr_b
         currentOcc_ilut = temp_curr_occ
         currentB_int = temp_curr_b_int
-
-
-        if (t_calc_full) call stop_all(this_routine, "TODO")
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
@@ -733,34 +741,42 @@ contains
         ! connected by a single overlap excitation with mixed generators
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_calc_full
+        logical, intent(in), optional :: t_calc_full
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_single_overlap_mixed_ex"
 
-        real(dp) :: umat, bVal, temp_mat
+        real(dp) :: bVal, temp_mat
+        HElement_t(dp) :: umat
         integer :: i, st, ss, en, gen, db, gen2, step1, step2
+        logical :: t_calc_full_
         ! in the case of rdm calculation, i know that this type of exitation
         ! only has one (or two, with switches 2-body integrals..??)
         ! rdm-contribution..
+
+        def_default(t_calc_full_, t_calc_full, .true.)
 
         if (any(abs(temp_delta_b) > 1)) then
             mat_ele = 0.0_dp
             return
         end if
 
-        if (excitInfo%typ == 6) then
-            umat = (get_umat_el(excitInfo%firstEnd, excitInfo%secondStart, &
-                excitInfo%fullStart, excitInfo%fullEnd) + &
-                get_umat_el(excitInfo%secondStart,excitInfo%firstEnd, &
-                excitInfo%fullEnd,excitInfo%fullStart))/2.0_dp
-        else if (excitInfo%typ == 7) then
-            umat = (get_umat_el(excitInfo%fullStart, excitInfo%fullEnd, &
-                excitInfo%firstEnd, excitInfo%secondStart) + &
-                get_umat_el(excitInfo%fullEnd,excitInfo%fullStart,&
-                excitInfo%secondStart,excitInfo%firstEnd))/2.0_dp
+        if (t_calc_full_) then
+            if (excitInfo%typ == 6) then
+                umat = (get_umat_el(excitInfo%firstEnd, excitInfo%secondStart, &
+                    excitInfo%fullStart, excitInfo%fullEnd) + &
+                    get_umat_el(excitInfo%secondStart,excitInfo%firstEnd, &
+                    excitInfo%fullEnd,excitInfo%fullStart))/2.0_dp
+            else if (excitInfo%typ == 7) then
+                umat = (get_umat_el(excitInfo%fullStart, excitInfo%fullEnd, &
+                    excitInfo%firstEnd, excitInfo%secondStart) + &
+                    get_umat_el(excitInfo%fullEnd,excitInfo%fullStart,&
+                    excitInfo%secondStart,excitInfo%firstEnd))/2.0_dp
+            else
+                call stop_all(this_routine, "shouldnt be here!")
+            end if
         else
-            call stop_all(this_routine, "shouldnt be here!")
+            umat = h_cast(1.0_dp)
         end if
 
         ! for the hamiltonian matrix element i can exit here if umat is 0
@@ -856,6 +872,10 @@ contains
         integer :: start1, start2, ende1, ende2, i, gen, db, step1, step2
         real(dp) :: temp_x0, temp_x1, bVal, temp_mat0, temp_mat1, &
                      order1, order2
+        logical :: t_calc_full_
+
+        def_default(t_calc_full_, t_calc_full, .true.)
+
 
         start1 = excitInfo%fullStart
         start2 = excitInfo%secondStart
@@ -926,29 +946,30 @@ contains
 
         end do
 
-        if (excitInfo%typ == 8) then
+        if (t_calc_full_) then
+            if (excitInfo%typ == 8) then
+                ! wait a minute.. i have to do that at the end apparently..
+                ! since i need to know the x0 and x1 matrix element contributions
+                mat_ele = (temp_x0 * (get_umat_el(ende1,ende2,start1,start2) + &
+                    get_umat_el(ende2,ende1,start2,start1) + get_umat_el(ende2,ende1,start1,start2) + &
+                    get_umat_el(ende1,ende2,start2,start1)) + excitInfo%order * excitInfo%order1 * &
+                    temp_x1 * ( &
+                    get_umat_el(ende1,ende2,start1,start2) + get_umat_el(ende2,ende1,start2,start1) - &
+                    get_umat_el(ende2,ende1,start1,start2) - get_umat_el(ende1,ende2,start2,start1)))/2.0_dp
 
-            ! wait a minute.. i have to do that at the end apparently..
-            ! since i need to know the x0 and x1 matrix element contributions
-            mat_ele = (temp_x0 * (get_umat_el(ende1,ende2,start1,start2) + &
-                get_umat_el(ende2,ende1,start2,start1) + get_umat_el(ende2,ende1,start1,start2) + &
-                get_umat_el(ende1,ende2,start2,start1)) + excitInfo%order * excitInfo%order1 * &
-                temp_x1 * ( &
-                get_umat_el(ende1,ende2,start1,start2) + get_umat_el(ende2,ende1,start2,start1) - &
-                get_umat_el(ende2,ende1,start1,start2) - get_umat_el(ende1,ende2,start2,start1)))/2.0_dp
+            else if (excitInfo%typ == 9) then
 
-        else if (excitInfo%typ == 9) then
+                mat_ele = (temp_x0 * (get_umat_el(start1,start2,ende1,ende2) + &
+                    get_umat_el(start2,start1,ende2,ende1) + get_umat_el(start1,start2,ende2,ende1) + &
+                    get_umat_el(start2,start1,ende1,ende2)) + excitInfo%order * excitInfo%order1 * &
+                    temp_x1 * ( &
+                    get_umat_el(start1,start2,ende1,ende2) + get_umat_el(start2,start1,ende2,ende1) - &
+                    get_umat_el(start1,start2,ende2,ende1) - get_umat_el(start2,start1,ende1,ende2)))/2.0_dp
 
-            mat_ele = (temp_x0 * (get_umat_el(start1,start2,ende1,ende2) + &
-                get_umat_el(start2,start1,ende2,ende1) + get_umat_el(start1,start2,ende2,ende1) + &
-                get_umat_el(start2,start1,ende1,ende2)) + excitInfo%order * excitInfo%order1 * &
-                temp_x1 * ( &
-                get_umat_el(start1,start2,ende1,ende2) + get_umat_el(start2,start1,ende2,ende1) - &
-                get_umat_el(start1,start2,ende2,ende1) - get_umat_el(start2,start1,ende1,ende2)))/2.0_dp
-
+            end if
+        else
+            mat_ele = temp_x0 + excitInfo%order * excitInfo%order1 * temp_x1
         end if
-
-        if (present(t_calc_full)) call stop_all(this_routine, "TODO")
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
@@ -967,14 +988,18 @@ contains
         ! non-overlap contribution!
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_hamil
+        logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_normal_double_ex"
 
         integer :: start1, start2, ende1, ende2, step1, step2, db, gen1, gen2, &
                    i, firstgen, lastgen
-        real(dp) :: integral, temp_x0, temp_x1, temp_mat0, temp_mat1, bVal
+        real(dp) :: temp_x0, temp_x1, temp_mat0, temp_mat1, bVal
+        HElement_t(dp) :: integral
+        logical :: t_hamil_
+
+        def_default(t_hamil_, t_hamil, .true.)
 
         ! the information if a switch happenend is stored in excitInfo!
 
@@ -1158,8 +1183,6 @@ contains
             ! of the routine is totally the same!
         end select
 
-        if (t_hamil) call stop_all(this_routine, "TODO")
-
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
@@ -1175,13 +1198,17 @@ contains
         integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_hamil
+        logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstop_alike_ex"
 
-        real(dp) :: umat, bVal, temp_mat, nOpen
+        real(dp) :: bVal, temp_mat, nOpen
+        HElement_t(dp) :: umat
         integer :: st, se, gen, i, step1, step2, db
+        logical :: t_hamil_
+
+        def_default(t_hamil_, t_hamil, .true.)
 
         ! can i exclude every deltaB > 1, since only db = 0 allowed in
         ! double overlap region? i think so..
@@ -1190,23 +1217,27 @@ contains
             return
         end if
 
-        if (excitInfo%typ == 14) then
-            ! LL
-            umat = (get_umat_el(excitInfo%fullEnd, excitInfo%fullEnd, &
-                excitInfo%fullStart, excitInfo%secondStart) + &
-                get_umat_el(excitInfo%fullEnd, excitInfo%fullEnd, &
-                excitInfo%secondStart, excitInfo%fullStart))/2.0_dp
+        if (t_hamil_) then
+            if (excitInfo%typ == 14) then
+                ! LL
+                umat = (get_umat_el(excitInfo%fullEnd, excitInfo%fullEnd, &
+                    excitInfo%fullStart, excitInfo%secondStart) + &
+                    get_umat_el(excitInfo%fullEnd, excitInfo%fullEnd, &
+                    excitInfo%secondStart, excitInfo%fullStart))/2.0_dp
 
-        else if (excitInfo%typ == 15) then
-            ! RR
-            umat = (get_umat_el(excitInfo%fullStart, excitInfo%secondStart, &
-                excitInfo%fullEnd, excitInfo%fullEnd) + get_umat_el( &
-                excitInfo%secondStart,excitInfo%fullStart,excitInfo%fullEnd,&
-                excitInfo%fullEnd))/2.0_dp
+            else if (excitInfo%typ == 15) then
+                ! RR
+                umat = (get_umat_el(excitInfo%fullStart, excitInfo%secondStart, &
+                    excitInfo%fullEnd, excitInfo%fullEnd) + get_umat_el( &
+                    excitInfo%secondStart,excitInfo%fullStart,excitInfo%fullEnd,&
+                    excitInfo%fullEnd))/2.0_dp
 
+            end if
+        else
+            umat = h_cast(1.0_dp)
         end if
 
-        if (t_hamil .and. abs(umat) < EPS) then
+        if (t_hamil_ .and. abs(umat) < EPS) then
             mat_ele = 0.0_dp
             return
         end if
@@ -1272,13 +1303,17 @@ contains
         integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_hamil
+        logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_alike_ex"
 
         integer :: start, ende, semi, gen, i, step1, step2, db
-        real(dp) :: umat, bVal, nOpen, temp_mat
+        real(dp) :: bVal, nOpen, temp_mat
+        HElement_t(dp) :: umat
+        logical :: t_hamil_
+
+        def_default(t_hamil_, t_hamil, .true.)
 
         start = excitInfo%fullStart
         ende = excitInfo%fullEnd
@@ -1292,18 +1327,22 @@ contains
             return
         end if
 
-        if (excitInfo%typ == 18) then
-            ! LL
-            umat = (get_umat_el(ende,semi,start,start) + &
-                get_umat_el(semi,ende,start,start))/2.0_dp
+        if (t_hamil_) then
+            if (excitInfo%typ == 18) then
+                ! LL
+                umat = (get_umat_el(ende,semi,start,start) + &
+                    get_umat_el(semi,ende,start,start))/2.0_dp
 
-        else if (excitInfo%typ == 19) then
-            ! RR
-            umat = (get_umat_el(start,start,semi,ende) + &
-                get_umat_el(start,start,ende,semi))/2.0_dp
+            else if (excitInfo%typ == 19) then
+                ! RR
+                umat = (get_umat_el(start,start,semi,ende) + &
+                    get_umat_el(start,start,ende,semi))/2.0_dp
+            end if
+        else
+            umat = h_cast(1.0_dp)
         end if
 
-        if (t_hamil .and. abs(umat) < EPS) then
+        if (t_hamil_ .and. abs(umat) < EPS) then
             mat_ele = 0.0_dp
             return
         end if
@@ -1355,16 +1394,26 @@ contains
         integer(n_int), intent(in) :: ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_hamil
+        logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_fullstop_alike_ex"
 
-        real(dp) :: umat, nOpen
+        real(dp) :: nOpen
+        HElement_t(dp) :: umat
+        logical :: t_hamil_
 
-        umat = get_umat_el(excitInfo%i,excitInfo%i,excitInfo%j,excitInfo%j)/2.0_dp
+        def_default(t_hamil_, t_hamil, .true.)
 
-        if (t_hamil .and. abs(umat) < EPS) then
+
+
+        if (t_hamil_) then
+            umat = get_umat_el(excitInfo%i,excitInfo%i,excitInfo%j,excitInfo%j)/2.0_dp
+        else
+            umat = h_cast(1.0_dp)
+        end if
+
+        if (t_hamil_ .and. abs(umat) < EPS) then
             mat_ele = 0.0_dp
             return
         end if
@@ -1389,18 +1438,22 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(excitationInformation), intent(inout) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_hamil
+        logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstop_mixed_ex"
 
         integer :: st, se, en, i, step1, step2, db, firstgen
-        real(dp)  :: bVal, temp_mat0, temp_mat1, temp_x0, temp_x1, integral
+        real(dp)  :: bVal, temp_mat0, temp_mat1, temp_x0, temp_x1
+        HElement_t(dp) :: integral
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
 
         integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
                    temp_curr_b_int(nSpatOrbs)
         real(dp) :: temp_curr_b(nSpatOrbs)
+        logical :: t_hamil_
+
+        def_default(t_hamil_, t_hamil, .true.)
 
         st = excitInfo%fullStart
         se = excitInfo%secondStart
@@ -1511,32 +1564,34 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (excitInfo%typ == 16) then
-            ! L -> R
-            ! what do i have to put in as the branch pgen?? does it have
-            ! an influence on the integral and matrix element calculation?
-            call calc_mixed_end_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                temp_mat0, integral)
+        if (t_hamil_) then
+            if (excitInfo%typ == 16) then
+                ! L -> R
+                ! what do i have to put in as the branch pgen?? does it have
+                ! an influence on the integral and matrix element calculation?
+                call calc_mixed_end_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                    temp_mat0, integral)
 
-            mat_ele = temp_x1 *((get_umat_el(en,se,st,en) + &
-                get_umat_el(se,en,en,st))/2.0_dp + integral)
+                mat_ele = temp_x1 *((get_umat_el(en,se,st,en) + &
+                    get_umat_el(se,en,en,st))/2.0_dp + integral)
 
-        else if (excitInfo%typ == 17) then
-            ! R -> L
-            call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                temp_mat0, integral)
+            else if (excitInfo%typ == 17) then
+                ! R -> L
+                call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                    temp_mat0, integral)
 
-            mat_ele = temp_x1 * ((get_umat_el(en,st,se,en) + &
-                get_umat_el(st,en,en,se))/2.0_dp + integral)
+                mat_ele = temp_x1 * ((get_umat_el(en,st,se,en) + &
+                    get_umat_el(st,en,en,se))/2.0_dp + integral)
 
+            end if
+        else
+            mat_ele = temp_x1
         end if
 
         current_stepvector = temp_curr_step
         currentB_ilut = temp_curr_b
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
-
-        if (t_hamil) call stop_all(this_routine, "TODO")
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
@@ -1552,18 +1607,22 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(excitationInformation), intent(inout) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_hamil
+        logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_mixed_ex"
 
         integer :: st, en, se, gen, step1, step2, db, i
-        real(dp) :: integral, bVal, temp_mat0, temp_mat1, temp_x0, temp_x1
+        real(dp) :: bVal, temp_mat0, temp_mat1, temp_x0, temp_x1
+        HElement_t(dp) :: integral
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
+        logical :: t_hamil_
 
         integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
                    temp_curr_b_int(nSpatOrbs)
         real(dp) :: temp_curr_b(nSpatOrbs)
+
+        def_default(t_hamil_, t_hamil, .true.)
 
         ! create the fullStart
         st = excitInfo%fullStart
@@ -1658,30 +1717,30 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (excitInfo%typ == 20) then
-            ! L -> R
-            call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                temp_mat0, integral)
+        if (t_hamil_) then
+            if (excitInfo%typ == 20) then
+                ! L -> R
+                call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                    temp_mat0, integral)
 
-            mat_ele = mat_ele * ((get_umat_el(st,se,en,st) + &
-                get_umat_el(se,st,st,en))/2.0_dp + integral)
+                mat_ele = mat_ele * ((get_umat_el(st,se,en,st) + &
+                    get_umat_el(se,st,st,en))/2.0_dp + integral)
 
-        else if (excitInfo%typ == 21) then
+            else if (excitInfo%typ == 21) then
 
-            call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                temp_mat0, integral)
+                call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                    temp_mat0, integral)
 
-            mat_ele = mat_ele * ((get_umat_el(st,en,se,st) + &
-                get_umat_el(en,st,st,se))/2.0_dp + integral)
+                mat_ele = mat_ele * ((get_umat_el(st,en,se,st) + &
+                    get_umat_el(en,st,st,se))/2.0_dp + integral)
 
+            end if
         end if
 
         current_stepvector = temp_curr_step
         currentB_ilut = temp_curr_b
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
-
-        if (t_hamil) call stop_all(this_routine, "TODO")
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
@@ -1698,7 +1757,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(excitationInformation), intent(in) :: excitInfo
         real(dp), intent(out) :: mat_ele
-        logical, intent(in) :: t_hamil
+        logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_fullstop_mixed_ex"
@@ -1707,6 +1766,9 @@ contains
         ! also need temporary storage of current* quantities
         integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs)
         real(dp) :: temp_curr_b(nSpatOrbs)
+        logical :: t_hamil_
+
+        def_default(t_hamil_, t_hamil, .true.)
 
         ! the most involved one.. but i think i can reuse a lot of the
         ! stochastic stuff here, since i already needed it there..
@@ -1730,13 +1792,15 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_ilut = temp_b_real_i
 
-        mat_ele =  calcMixedContribution(tmp_I, tmp_J, excitInfo%fullstart, excitInfo%fullEnd)
+        if (t_hamil_) then
+            mat_ele =  calcMixedContribution(tmp_I, tmp_J, excitInfo%fullstart, excitInfo%fullEnd)
+        else
+            call stop_all(this_routine, "TODO!")
+        end if
 
         current_stepvector = temp_curr_step
         currentOcc_int = temp_curr_occ_int
         currentB_ilut = temp_curr_b
-
-        if (t_hamil) call stop_all(this_routine, "TODO")
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))

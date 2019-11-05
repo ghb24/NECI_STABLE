@@ -452,53 +452,39 @@ contains
 
             else
 #endif
-                call init_generate_connected_space(nI, ex_flag, tAllExcitFound,&
-                    excit, excit_gen, nstore, tTempUseBrill)
+                if (t_new_real_space_hubbard) then
 
-                if (tSinglesOnly) ex_flag = 1
+                    call gen_all_excits_r_space_hubbard(nI, n_excits, temp_dets)
 
-                do while(.true.)
+                    if (tStoreConnSpace) then
+                        connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) &
+                            = temp_dets(0:nifd,:)
+                    end if
 
-                    call generate_connection_normal(nI, original_space(0:NIfTot,i), nJ, ilutJ, ex_flag, excit, &
-                                                 tAllExcitFound, ncon=connected_space_size)
-                    if (tAllExcitFound) exit
+                    connected_space_size = connected_space_size + n_excits
 
-                    if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                else
 
-                end do
+                    call NewParentDet(session)
+
+                    call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
+
+                    if (tSinglesOnly) ex_flag = 1
+
+                    do while(.true.)
+
+                        call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
+                                                         tAllExcitFound, ncon=connected_space_size)
+                        if (tAllExcitFound) exit
+
+                        if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+
+                    end do
+                end if
 
 #ifndef __CMPLX
             end if ! tGUGA
 #endif
-
-            if (t_new_real_space_hubbard) then
-
-                call gen_all_excits_r_space_hubbard(nI, n_excits, temp_dets)
-
-                if (tStoreConnSpace) then
-                    connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) &
-                        = temp_dets(0:nifd,:)
-                end if
-
-                connected_space_size = connected_space_size + n_excits
-
-            else
-
-                call NewParentDet(session)
-
-                call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
-                if (tSinglesOnly) ex_flag = 1
-
-                do while(.true.)
-
-                    call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
-                                                     tAllExcitFound, ncon=connected_space_size)
-                    if (tAllExcitFound) exit
-
-                    if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
-
-                end do
-            end if
         end do
 
     end subroutine generate_connected_space_normal
