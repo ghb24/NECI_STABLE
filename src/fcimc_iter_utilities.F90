@@ -685,10 +685,9 @@ contains
 
     end subroutine communicate_estimates
 
-    subroutine collate_iter_data(iter_data, replica_pairs)
+    subroutine collate_iter_data(iter_data)
 
         type(fcimc_iter_data) :: iter_data
-        logical, intent(in) :: replica_pairs
         logical :: ltmp
         character(len=*), parameter :: this_routine = 'collate_iter_data'
 
@@ -1249,7 +1248,7 @@ contains
 
         subroutine shift_update()
           ! This is what defines the update of the shift - only done then
-          call collate_iter_data (iter_data, replica_pairs)
+          call collate_iter_data (iter_data)
           call iter_diagnostics ()
           if(tRestart) return
           call population_check ()
