@@ -31,7 +31,7 @@ module back_spawn_excit_gen
     use Determinants, only: write_det, get_helement
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, &
                               calc_pgen_ueg
-    use util_mod, only: binary_search_first_ge, unused
+    use util_mod, only: binary_search_first_ge
 
 #ifdef __DEBUG
     use SystemData, only: tNoFailAb
@@ -901,9 +901,7 @@ contains
         HElement_t(dp) :: temp_hel
         real(dp) :: pgen2
 #endif
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag); call unused(store%nel_alpha)
-#endif
+        unused_var(exFlag); unused_var(store)
 
         HElGen = 0.0_dp
         ! check the non-initiator criteria beforehand

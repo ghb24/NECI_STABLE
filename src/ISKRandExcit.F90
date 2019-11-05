@@ -356,7 +356,7 @@ MODULE ISKRandExcit
         INTEGER , ALLOCATABLE :: ExcitGen(:)
         real(dp) , ALLOCATABLE :: Weights(:),AllWeights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l, iunit
-        integer :: icunused, exunused(2,2)
+        integer :: icunused, exunused_var(2,2)
         logical :: tParityunused, tTmp
         type(excit_gen_store_type) :: store
         character(*), parameter :: this_routine = 'TestGenRandISKExcit'
@@ -588,7 +588,7 @@ MODULE ISKRandExcit
 !            tTmp = tGenMatHEl
 !            tGenMatHel = .false.
             call gen_ISK_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
-                                 exunused, tparityunused, pGen, HEl, store)
+                                 exunused_var, tparityunused, pGen, HEl, store)
 !            tGenMatHel = tTmp
 !            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
 

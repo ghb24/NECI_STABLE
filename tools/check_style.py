@@ -113,7 +113,7 @@ def _NECI_template_suffix(path):
 
 
 if __name__ == '__main__':
-    STYLE_ERRORS = [TabCharacter(), TrailingSpace(), WriteStar()]
+    STYLE_ERRORS = [TabCharacter(), WriteStar()]
     src_dir = parse_args()
     files = get_files(src_dir)
     errors = run_tests(files, STYLE_ERRORS)

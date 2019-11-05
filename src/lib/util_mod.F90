@@ -6,7 +6,6 @@ module util_mod
     use util_mod_byte_size
     use util_mod_cpts
     use util_mod_epsilon_close
-    use util_mod_unused
     use fmt_utils
     use dSFMT_interface, only: genrand_real2_dSFMT
     use constants

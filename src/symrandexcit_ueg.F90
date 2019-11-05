@@ -37,11 +37,8 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         integer, intent(in), optional :: part_type
 
-        integer :: iUnused
-
+        unused_var(exFlag); unused_var(store); unused_var(part_type);
 #ifdef __WARNING_WORKAROUND
-        call unused(exFlag);
-        call unused(store%nopen); call unused(part_type);
         HelGen = 0.0_dp
 #endif
 
