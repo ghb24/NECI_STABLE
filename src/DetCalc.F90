@@ -558,8 +558,8 @@ CONTAINS
             CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
             V2=0.0_dp
 !C..Lanczos iterative diagonalising routine
-            if (t_non_hermitian) then 
-                call stop_all(this_routine, & 
+            if (t_non_hermitian) then
+                call stop_all(this_routine, &
                     "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians")
             end if
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
@@ -579,7 +579,7 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
-               if (t_non_hermitian) then 
+               if (t_non_hermitian) then
                    call stop_all(this_routine, &
                        "HDIAG_nec is not setup for non-hermitian Hamiltonians")
                end if
@@ -608,7 +608,7 @@ CONTAINS
           if(.not.TSPN .or. LMS.NE.0)then
               call stop_all("DoDetCalc","FCI-Davidson only works for closed shell systems.")
           end if
-          davidsonCalc = davidson_direct_ci_init(.true.)
+          davidsonCalc = davidson_direct_ci_init()
           davidson_size = davidsonCalc%super%space_size
           allocate(davidson_ilut(0:NIfTot,davidson_size))
           allocate(davidson_parities(davidson_size))
@@ -625,7 +625,7 @@ CONTAINS
             end if
           end do
           IF(davidsonCalc%super%hfindex.EQ.0) call stop_all("DoDetCalc","Fermi determinant is not found in RAS space!")
-          if (t_non_hermitian) then 
+          if (t_non_hermitian) then
               call stop_all(this_routine, &
                   "perform_davidson not adapted for non-hermitian Hamiltonians!")
           end if
@@ -924,7 +924,7 @@ CONTAINS
           WRITE(6,*)   '       ====================================================== '
       ELSEIF(tFCIDavidson)THEN
           OPEN(iunit,FILE='ENERGIES',STATUS='UNKNOWN')
-          WRITE(iunit,"(F19.11)") davidsonCalc%davidson_eigenvalue 
+          WRITE(iunit,"(F19.11)") davidsonCalc%davidson_eigenvalue
           CLOSE(iunit)
 !C., END energy calc
       ENDIF

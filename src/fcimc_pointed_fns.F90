@@ -184,14 +184,10 @@ module fcimc_pointed_fns
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
         integer :: ispn
 
-<<<<<<< HEAD
         integer :: temp_ex(2,ic)
-        integer :: id(2,ic)
-=======
 #ifdef __WARNING_WORKAROUND
         call unused(AvSignCurr)
 #endif
->>>>>>> devel
         ! Just in case
         child = 0.0_dp
 

@@ -73,7 +73,7 @@ module tc_three_body_excitgen
          ! else, use the local routine
          pgen = calc_pgen_triple(nI, ex)
       endif
-      
+
     end function calc_pgen_mol_tc
 
 !------------------------------------------------------------------------------------------!
@@ -86,13 +86,13 @@ module tc_three_body_excitgen
       integer :: ms, i
       character(*), parameter :: t_r = "calc_pgen_triple"
 
-      ! get the spin 
+      ! get the spin
       ms = 0
       ! sum up the spin of the single orbitals
       do i = 1, 3
          ms = ms + G1(ex(2,i))%ms
       end do
-      
+
       ! start with pTriples
       pgen = pTriples
       ! then, add the spin bias
@@ -127,7 +127,7 @@ module tc_three_body_excitgen
 
     subroutine precompute_pgen()
       implicit none
-      
+
       ! set the number of unoccupied alpha/beta
       nUnoccAlpha = nBasis/2 - nOccAlpha
       nUnoccBeta = nBasis/2 - nOccBeta
@@ -163,6 +163,8 @@ module tc_three_body_excitgen
 !------------------------------------------------------------------------------------------!
 
     subroutine init_mol_tc_biases(HF)
+      use SystemData, only: tSmallBasisForThreeBody
+      use Parallel_neci, only: iProcIndex
       implicit none
       ! reference determinant for initializing the biases
       real(dp) :: normalization
@@ -171,9 +173,25 @@ module tc_three_body_excitgen
       if(abs(pTriples) < eps) then
          pTriples = 0.1
       endif
-      ! for 2 electrons, there are obviously no 
+      ! for 2 electrons, there are obviously no
       ! triple excitations
       if(nel.eq.2) t_exclude_3_body_excits = .true.
+        ! For contact interaction we also exclude the too small basis-sets
+      if(tContact.and.((nBasis/2).lt.(noccAlpha+2).or.(nBasis/2).lt.(noccBeta+2))) then
+         if (noccAlpha.eq.1.or.noccBeta.eq.1) then
+             tSmallBasisForThreeBody= .false.
+             t_exclude_3_body_excits = .true.
+         else
+             root_print 'There is not enough unoccupied orbitals for a poper three-body ', &
+                  'excitation! Some of the three-body excitations are possible',  &
+                  'some of or not. If you really would like to calculate this system, ',  &
+                  'you have to implement the handling of cases, which are not possible.'
+             stop
+         endif
+       else
+          tSmallBasisForThreeBody= .true.
+       endif
+
       if(t_exclude_3_body_excits) then
          pTriples = 0.0_dp
          return
@@ -186,7 +204,7 @@ module tc_three_body_excitgen
 !       fermions are up or down.
         p0A = 0.0_dp
         p0B = 0.0_dp
-!       We determine the rate uniformly between all the possible exciations 
+!       We determine the rate uniformly between all the possible exciations
         p2B= choose(nOccBeta,2)*nOccAlpha
         normalization = p2B + choose(nOccAlpha,2)*nOccBeta
         p2B = p2B/normalization
@@ -225,7 +243,7 @@ module tc_three_body_excitgen
       ! if three electrons can be picked
       if(src(3) .ne. 0) then
          ! get three unoccupied orbitals with the same ms
-         
+
          if(t_ueg_3_body)then
           call pick_three_orbs_ueg(nI, src, tgt, pgen, ms)
           if(tgt(3).eq.0)then
@@ -235,14 +253,14 @@ module tc_three_body_excitgen
            ExcitMat = 0
            tParity = 0
            return
-          end if 
+          end if
          else
           call pick_three_orbs(nI, tgt, pgen, ms)
-         end if 
-         
+         end if
+
          ! and create a triple excitation
          call make_triple(nI, nJ, elecs, tgt, ExcitMat, tParity)
-      
+
          ilutJ = make_ilutJ(ilutI, ExcitMat, 3)
       else
          ! else, the excitation is invalid
@@ -251,7 +269,7 @@ module tc_three_body_excitgen
          ExcitMat = 0
          tParity = 0
       endif
-      
+
     end subroutine generate_triple_excit
 
 !------------------------------------------------------------------------------------------!
@@ -330,7 +348,7 @@ module tc_three_body_excitgen
       real(dp), intent(inout) :: pgen ! probability of generation
       real(dp) :: r
       integer :: index, i, count
-      
+
       elecs(3) = 0
       if(nOcc <= nPicked) then
          ! there are not enought elecs available - invalid excitation
@@ -350,7 +368,7 @@ module tc_three_body_excitgen
          end if
       end do
       ! the picked electrons are not counted, so skip their indices
-      
+
       ! if we need, skip the first index
       call skipElec(1)
       ! if we need, skip the second index
@@ -361,8 +379,8 @@ module tc_three_body_excitgen
       ! uniformly chosen
       pgen = pgen / (nOcc - nPicked)
 
-      contains 
-        
+      contains
+
         subroutine skipElec(ind)
           implicit none
           integer, intent(in) :: ind
@@ -410,9 +428,9 @@ module tc_three_body_excitgen
 
       ! adjust the probability by taking permutations into account
       pgen = pgen * 4 * abs(ms)
-      
+
     end subroutine pick_three_orbs
-    
+
     subroutine pick_three_orbs_ueg(nI, src,  tgt, pgen, ms)
       use SymExcitDataMod, only: kPointToBasisFn
       use SystemData , only: nBasisMax,tOrbECutoff,OrbECutoff,nmaxx,nmaxy,nmaxz
@@ -443,49 +461,49 @@ module tc_three_body_excitgen
          ! the remaining ms
          msCur = msCur - msOrb
       end do
-      
+
          if(msCur > 0) then
             msOrb = 1
          else
          ! then we start taking ms = -1
             msOrb = -1
          endif
-       
+
         do i=1,3
          k1(i)=G1(src(1))%k(i)
          k2(i)=G1(src(2))%k(i)
          k3(i)=G1(src(3))%k(i)
-        end do 
-       
+        end do
+
         do i=1,3
          p1(i)=G1(tgt(1))%k(i)
          p2(i)=G1(tgt(2))%k(i)
-        end do 
-       
-        p3=k1+k2+k3-p1-p2 
-        
-        
+        end do
+
+        p3=k1+k2+k3-p1-p2
+
+
         ! Is p3 allowed by the size of the space?
         testE = sum(p3**2)
         if (abs(p3(1)) <= nmaxx .and. abs(p3(2)) <= nmaxy .and. &
             abs(p3(3)) <= nmaxz .and. &
             (.not. (tOrbECutoff .and. (testE > (OrbECutoff+1.d-12))))) then
-            is_allowed = .true. 
-        else 
+            is_allowed = .true.
+        else
             is_allowed = .false.
         end if
-        
+
         if(.not.is_allowed)then
          tgt(3)=0
          pgen=0.0_dp
          return
-        end if 
-         
-         
-         
-        
+        end if
+
+
+
+
         i=kPointToBasisFn(p3(1),p3(2),p3(3),(msOrb+1)/2+1)
-        
+
         if(i.gt.nBasis.or.i.lt.1)then
          print *, 'bug kPointToBasisFn',p3,msOrb,i
          do i=-1,1
@@ -498,8 +516,8 @@ module tc_three_body_excitgen
          end do
          end do
          call stop_all('pick_three_orbs_ueg',"kPointToBasisFn")
-        end if 
-        
+        end if
+
       ! i occupied? check:
         i_occup = .false.
         if(i.eq.tgt(1).or.i.eq.tgt(2))then
@@ -509,20 +527,20 @@ module tc_three_body_excitgen
           if(i.eq.nI(j))i_occup = .true.
          end do
         end if
-        
+
        if(i_occup)then
         tgt(3)=0
         pgen=0.0_dp
        else
         tgt(3)=i
         tgt = sort_unique(tgt)
-       end if 
-        
+       end if
+
       ! adjust the probability by taking permutations into account
       pgen = pgen * 4 * abs(ms)
-      
-      
-      
+
+
+
     end subroutine pick_three_orbs_ueg
 
 !------------------------------------------------------------------------------------------!
@@ -547,7 +565,7 @@ module tc_three_body_excitgen
       do i = 1, nPicked
          if((ms > 0) .neqv. is_beta(tgt(i))) pool = pool - 1
       end do
-      
+
       ! pick a random index
       r = genrand_real2_dSFMT()
       iOrb = spinOrb(int(r*pool) + 1)
@@ -559,7 +577,7 @@ module tc_three_body_excitgen
 
       ! adjust the probability
       pgen = pgen / pool
-      
+
       ! we need to sort tgt (see above)
       tgt(1:(nPicked+1) ) = sort_unique(tgt(1:(nPicked+1) ))
 
@@ -579,13 +597,16 @@ module tc_three_body_excitgen
 
           invalidOrbs(1:nel) = nI
           invalidOrbs((nel+1):(nel+nPicked)) = tgt(1:nPicked)
-          
+
           invalidOrbs = sort_unique(invalidOrbs)
+
 
           do i = 1, (nPicked+nel)
              ! check if the orb is already targeted
              ! assumes tgt is sorted
-             if(invalidOrbs(i) <= iOrb .and. G1(invalidOrbs(i))%ms == ms) iOrb = iOrb + 2
+             if(invalidOrbs(i) <= iOrb .and. G1(invalidOrbs(i))%ms == ms) then
+                iOrb = iOrb + 2
+             endif
           end do
         end subroutine skipPicked
     end subroutine get_rand_orb

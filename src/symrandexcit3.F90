@@ -364,7 +364,6 @@ ASSERT(exFlag<=3.and.exFlag>=1)
                          pair_list, occ_list, virt_list) result(pGen)
 
         integer, intent(in) :: nI(nel)
-        integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         integer, intent(in) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)

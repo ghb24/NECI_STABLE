@@ -1070,10 +1070,10 @@ contains
                       pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
 
                       if(a.eq.0.and.t_trcorr_gausscutoff) then
-                        u_tc = -PotentialStrength/G2
-                        hel=hel+pq_tc(1)*k_tc(1)*u_tc*Gaussfact
-                      else
                         hel=hel+2.d0*pq_tc(1)*k_tc(1)*u_tc*Gaussfact
+                      else
+                        u_tc = -PotentialStrength/G2
+                        hel=hel-(PotentialStrength+pq_tc(1)*k_tc(1)*u_tc)*Gaussfact
                       endif
 
                   end if

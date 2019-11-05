@@ -1447,6 +1447,10 @@ contains
             e_values = 0.0_dp
             e_vectors = 0.0_dp
 
+                write(6,*)'full_H'
+                write(6,*)full_H(1,1:2)
+                write(6,*)full_H(2,1:2)
+
             call eig(full_H, e_values, e_vectors)
 
             ! maybe we also want to start from a different eigenvector in

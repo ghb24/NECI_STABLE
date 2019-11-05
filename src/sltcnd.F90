@@ -29,10 +29,13 @@ module sltcnd_mod
 contains
 
   subroutine initSltCndPtr()
+    use SystemData, only:  tSmallBasisForThreeBody
     implicit none
+
    if(TContact) then
 
-    if(t_mol_3_body.or.t_ueg_3_body) then
+    if(t_mol_3_body.or.t_ueg_3_body .and. nel > 2 .and. tSmallBasisForThreeBody) then
+
        sltcnd_0 => sltcnd_0_tc_ua
        sltcnd_1 => sltcnd_1_tc_ua
        sltcnd_2 => sltcnd_2_tc_ua
@@ -48,7 +51,7 @@ contains
 
     ! six-index integrals are only used for three and more
     ! electrons
-    if(t_mol_3_body.or.t_ueg_3_body .and. nel > 2) then
+    if(t_mol_3_body.or.t_ueg_3_body .and. nel > 2 ) then
        sltcnd_0 => sltcnd_0_tc
        sltcnd_1 => sltcnd_1_tc
        sltcnd_2 => sltcnd_2_tc
@@ -192,7 +195,7 @@ contains
             ex(1,1) = IC
             call GetBitExcitation (iLutI, iLutJ, ex, tSign)
             hel = sltcnd_2 (nI, ex, tSign)
-        case(3) 
+        case(3)
            ex(1,1) = IC
            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
            hel = sltcnd_3 (ex, tSign)
@@ -397,7 +400,7 @@ contains
         ! Sum in the diagonal terms (same in both dets)
         ! Coulomb term only included if Ms values of ex(1) and ex(2) are the
         ! same.
-        
+
         hel = sltcnd_1_kernel(nI,ex)
         if (tSign) hel = -hel
       end function sltcnd_1_base
@@ -456,7 +459,7 @@ contains
       ! nI, nJ
       hel = hel + GetTMATEl(ex(1), ex(2))
     end function sltcnd_1_kernel
-    
+
     function sltcnd_2_base (nI,ex, tSign) result (hel)
       use constants, only: dp
       use SystemData, only: nel
@@ -579,7 +582,7 @@ contains
       ! get the matrix element up to 2-body terms
       hel = sltcnd_2_kernel(ex)
       ! and the 3-body term
-      do i = 1, nel     
+      do i = 1, nel
          if(ex(1,1).ne.nI(i) .and. ex(1,2).ne.nI(i)) &
          hel = hel + get_lmat_el(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
       end do
@@ -598,7 +601,7 @@ contains
       HElement_t(dp) :: hel
 
       ! this is directly the fully symmetrized entry of the L-matrix
-      hel = get_lmat_el(ex(1,1),ex(1,2),ex(1,3),ex(2,1),ex(2,2),ex(2,3)) 
+      hel = get_lmat_el(ex(1,1),ex(1,2),ex(1,3),ex(2,1),ex(2,2),ex(2,3))
       ! take fermi sign into account
       if(tSign) hel = - hel
     end function sltcnd_3_tc
@@ -784,7 +787,7 @@ contains
          hel = hel - get_umat_el (id(1,1), id(1,2), id(2,2), id(2,1))
       endif
     end function sltcnd_2_kernel_ua
-    
+
     function sltcnd_2_kernel_ua_3b(nI,ex) result(hel)
       implicit none
       integer, intent(in) :: nI(nel), ex(2,2)
@@ -889,7 +892,7 @@ contains
 !         heltc=0.d0
           heltc = sltcnd_2_kernel_ua_3b(nI,ex)
 !       if(dabs(hel-heltc).gt.0.000000001) then
-!       write(6,*) 'nI', nI(1:nel) 
+!       write(6,*) 'nI', nI(1:nel)
 !       write(6,*) 'ex', ex(1,1:2), '->', ex(2,1:2)
 !       write(6,*) 'heltc', heltc
 !       write(6,*) 'hel', hel

@@ -1071,7 +1071,6 @@ module AnnihilationMod
                     ! we're effectively taking the instantaneous value from the
                     ! next iter. This is fine as it's from the other population,
                     ! and the Di and Dj signs are already strictly uncorrelated.
-                    if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, CurrentDets(:,PartInd), TempCurrentSign)
                     if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
                          inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
                     call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &

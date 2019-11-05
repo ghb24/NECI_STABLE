@@ -17,7 +17,7 @@ character(12) :: MolproID
 logical :: tNoSingExcits    !True if there are no single excitations in the system
 logical :: t_mol_3_body     ! using molecular 3-body transcorr. matels
 logical :: t_exclude_3_body_excits
-logical :: t_ueg_transcorr, t_ueg_dump, t_ueg_3_body     ! using  3-body transcorr. matels for ueg and ultracold atoms
+logical :: t_ueg_transcorr, t_ueg_dump, t_ueg_3_body, tSmallBasisForThreeBody     ! using  3-body transcorr. matels for ueg and ultracold atoms
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
@@ -91,7 +91,7 @@ integer(int64) :: CalcDetPrint, CalcDetCycles   ! parameters
 ! Inputs for the UEG
 logical :: tUEGTrueEnergies ! This is the logical for use of unscaled energies in the UEG calculation; will normally break spawning
 logical :: tLatticeGens   ! Use new UEG excitation generators
-logical :: t_uniform_excits = .false. 
+logical :: t_uniform_excits = .false.
 logical :: tNoFailAb
 logical :: tUEGOffset     ! Use twisted boundary conditions
 real(dp) :: k_offset(3)      ! UEG parameter for twist-averaging
@@ -247,16 +247,16 @@ logical :: tSymSet = .false.
 
 logical :: tGiovannisBrokenInit
 
-! twisted boundary implementation for the hubbard model: 
-! use keyword twisted-bc [real, real] in System Block of input 
-! twist value is in values of periodicity (2*pi/L) for cubic and (pi/L) for 
+! twisted boundary implementation for the hubbard model:
+! use keyword twisted-bc [real, real] in System Block of input
+! twist value is in values of periodicity (2*pi/L) for cubic and (pi/L) for
 ! tilted lattice
 logical :: t_twisted_bc = .false.
 real(dp) :: twisted_bc(3) = 0.0_dp
 
-! flags for the use of open boundary conditions in the real-space 
-! hubbard model. 
-! for the cubic lattice the can be set separately, for the tilted only 
+! flags for the use of open boundary conditions in the real-space
+! hubbard model.
+! for the cubic lattice the can be set separately, for the tilted only
 ! full open BC are implemented
 logical :: t_open_bc_x = .false.
 logical :: t_open_bc_y = .false.
@@ -266,36 +266,36 @@ logical :: t_open_bc_z = .false.
 ! generator
 logical :: tGen_4ind_unbound = .false.
 
-! implement a more efficient real-space hubbard implementation 
+! implement a more efficient real-space hubbard implementation
 logical :: t_new_real_space_hubbard = .false.
 ! make a new flag to indicate the new hubbard implementation
 logical :: t_new_hubbard = .false.
 
- 
-! honjuns idea with the transcorrelated Hamiltonian we have a modified 
-! hopping term: 
-! t_ij^s = t exp[K(n_j^s' - n_i^s')] 
-! so we need this K as an input parameter 
-real(dp) :: trans_corr_param = 0.0_dp 
-! and a flag to start it 
-logical :: t_trans_corr = .false. 
-! for testing purposes: 
+
+! honjuns idea with the transcorrelated Hamiltonian we have a modified
+! hopping term:
+! t_ij^s = t exp[K(n_j^s' - n_i^s')]
+! so we need this K as an input parameter
+real(dp) :: trans_corr_param = 0.0_dp
+! and a flag to start it
+logical :: t_trans_corr = .false.
+! for testing purposes:
 logical :: t_trans_corr_new = .false.
-! as one can see this modification is dependent on the current 
-! occupation of the involved hopping orbitals! so it is not just a 
-! change in the Hamiltonian 
+! as one can see this modification is dependent on the current
+! occupation of the involved hopping orbitals! so it is not just a
+! change in the Hamiltonian
 logical :: t_trans_corr_2body
 real(dp) :: trans_corr_param_2body = 0.0_dp
 
-! new transcorrelation implementation with double excitations for the 
+! new transcorrelation implementation with double excitations for the
 ! real-space hubbard. it comes from a hopping correlation form in real-space
 ! reuse the trans_corr_param variable though!
-logical :: t_trans_corr_hop = .false. 
+logical :: t_trans_corr_hop = .false.
 logical :: t12FoldSym = .false.
- 
-! and the other lattice models: 
-logical :: t_tJ_model = .false. 
-logical :: t_heisenberg_model = .false. 
+
+! and the other lattice models:
+logical :: t_tJ_model = .false.
+logical :: t_heisenberg_model = .false.
 
 ! if the hamiltonian supports singles
 logical :: tNoSinglesPossible = .false.
@@ -303,11 +303,11 @@ logical :: tNoSinglesPossible = .false.
 ! and also the exchange strength
 real(dp) :: exchange_j = 0.0_dp
 
-! use a general flag for lattice models in the future: 
-logical :: t_lattice_model = .false. 
+! use a general flag for lattice models in the future:
+logical :: t_lattice_model = .false.
 
 ! use a new flag for the "new" k-space hubbard implementation
-logical :: t_k_space_hubbard = .false. 
+logical :: t_k_space_hubbard = .false.
 
 ! Lookup table for excitation matrix elements
 ! I had to externalize this from the lattice class to prevent circular dependency
@@ -315,17 +315,17 @@ real(dp), allocatable :: excit_cache(:,:,:)
 
 
 ! also use an additional flag to indicate that 3-body excitations are possible
-logical :: t_3_body_excits = .false. 
+logical :: t_3_body_excits = .false.
 
 ! make a general Flag to indicat a non-hermitian Hamiltonian
 logical :: t_non_hermitian = .false.
 
-! and indicate the maximum excitation level: 
+! and indicate the maximum excitation level:
 integer :: max_ex_level = 2
 
 character(20) :: lattice_type
 
-! i need 
+! i need
 integer :: length_x = 1, length_y = 1, length_z = 1
 ! flag for the pre-computed power-pitzer excitaion generator
 logical :: t_pcpp_excitgen = .false.
@@ -339,7 +339,7 @@ real(dp) :: nn_bhub = 0.0_dp
 ! do a quick test with different weightings of picking orbitals (a)
 logical :: t_iiaa = .false., t_ratio = .false.
 
-! spin-dependent transcorrelation 
+! spin-dependent transcorrelation
 logical :: t_spin_dependent_transcorr = .false.
 
 ! Operators for type(symmetry)

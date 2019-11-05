@@ -221,7 +221,6 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
-        integer(n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(out) :: ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         integer, intent(in) :: excitType
@@ -367,8 +366,7 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
     function gen_single (nI, nJ, ExcitMat,  tParity, &
                          store, excitType) result(pGen)
 
-        integer, intent(in) :: nI(nel), IC
-        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         ! pair_list is in store%scratch3
