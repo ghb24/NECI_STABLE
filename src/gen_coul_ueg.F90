@@ -1,4 +1,4 @@
-#include "macros.h" 
+#include "macros.h"
 
 module gen_coul_ueg_mod
     use UMatCache, only: UMatInd, GTID
@@ -374,7 +374,7 @@ contains
     end function
 
 
-!  the following fun is modified for transcorrelated Hamiltonian under RPA approx     
+!  the following fun is modified for transcorrelated Hamiltonian under RPA approx
     function get_ueg_umat_el (idi, idj, idk, idl) result(hel)
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta
@@ -455,7 +455,7 @@ contains
         if ( (i == k) .and. (j == l) ) tCoulomb = .true.
         if ( (i == l) .and. (j == k) ) tExchange = .true.
 
-        
+
      if(dimen==3)then
         ! The Uniform Electron Gas
         a = G1(i)%k(1) - G1(k)%k(1)
@@ -500,7 +500,7 @@ contains
                          - UMAT_TC2(-a,-b,-c)
                  end if
                else
-! =============== The original coulomb potential  ===================================              
+! =============== The original coulomb potential  ===================================
                 G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
                 if (.not. near_zero(ALAT(3))) G2 = G2 + (c / ALAT(3))**2
 
@@ -534,12 +534,12 @@ contains
 !                  if(i==j)then
 !                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2) * ALAT(3))/4
 !                    hel=0.0
-!                  else 
+!                  else
 !                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2) * ALAT(3))
-!                  end if 
+!                  end if
                   hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2) * ALAT(3))
-                 end if 
-                
+                 end if
+
                 if (.not. tCoulomb .and. iPeriodicDampingType /= 0) then
                     ! The G=0 component is explicitly calculated for
                     ! non-Coulomb interactions as 2 PI Rc**2.
@@ -566,35 +566,35 @@ contains
 
             if ( (a /= 0) .or. (b /= 0) ) then
 
-              if(t_ueg_transcorr)then  
+              if(t_ueg_transcorr)then
 ! ============== the transcorrelated H under RPA =============================
                 k_tc(1) = -2 * PI * a / ALAT(1)
-                k_tc(2) = -2 * PI * b / ALAT(2)                
+                k_tc(2) = -2 * PI * b / ALAT(2)
                 G2 = k_tc (1) * k_tc (1) + k_tc (2) * k_tc (2)
                 G = sqrt(G2)
                 pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
                 pq_tc(2) = (G1(k)%k(2) - G1(l)%k(2))*2*PI/ ALAT(2)
-                
+
                 if(G2<=ktc_cutoff2*(1.0+1.d-10))then
                  u_tc = 0.0
-                else 
+                else
                  u_tc = - 2 * PI / G2/G
                 end if
-                
-                
+
+
                  hel = 2 * PI / G + G2 * u_tc - (pq_tc(1) * k_tc(1) +pq_tc(2) * k_tc(2)) *u_tc  &
                         - (nel-2) * G2 / (ALAT(1) * ALAT(2)) * u_tc**2&
                         - UMAT_TC2(-a,-b,0)
                else
-! =============== The original coulomb potential  ===================================              
+! =============== The original coulomb potential  ===================================
                  G2 = ((a / ALAT(1))**2 +(b / ALAT(2))**2)
- 
+
                  G = 2 * PI * sqrt(G2)
-                 
-                 hel = (2 * PI) / G 
-               end if 
-                        
-                 hel=hel / (ALAT(1) * ALAT(2) ) 
+
+                 hel = (2 * PI) / G
+               end if
+
+                 hel=hel / (ALAT(1) * ALAT(2) )
 
                  if (tExchange) then
                     if (iPeriodicDampingType == 2) then
@@ -616,11 +616,11 @@ contains
                  if(t_ueg_transcorr)then
 !                  if(i==j)then
 !                    hel=0.
-!                  else 
+!                  else
                    hel = -UMAT_TC2(0,0,0) / (ALAT(1) * ALAT(2))
-!                  end if 
-                 end if 
-                
+!                  end if
+                 end if
+
                 if (.not. tCoulomb .and. iPeriodicDampingType /= 0) then
                     ! The G=0 component is explicitly calculated for
                     ! non-Coulomb interactions as 2 PI Rc**2.
@@ -635,12 +635,12 @@ contains
         else
             hel = 0
         endif
-      
+
       else
         write(6,*)'dimension error in get_ueg_umat_el',dimen
         stop
-      end if  
-      
+      end if
+
 
     end function
 
@@ -662,7 +662,7 @@ contains
         ! Initialisation to satisfy compiler warnings
         hel = 0
 
-        !==================================================      
+        !==================================================
         i = idi
         j = idj
         k = idk
@@ -749,9 +749,9 @@ contains
         ! Initialisation to satisfy compiler warnings
         hel = 0
 
-        !==================================================      
+        !==================================================
 
-        if(is_beta(idi)) then 
+        if(is_beta(idi)) then
                 i = idj
                 j = idi
                 k = idl
@@ -771,7 +771,7 @@ contains
           bekvec(1:3)=G1(j)%k(1:3)
           alexkvec(1:3)=G1(k)%k(1:3)
           beexkvec(1:3)=G1(l)%k(1:3)
-                
+
           kkvec(1:3) = beexkvec(1:3) - bekvec(1:3)
 
           if ( ((alkvec(1) - alexkvec(1)) == kkvec(1)) .and. &
@@ -820,12 +820,12 @@ contains
                             enddo
                             diff2length=dsqrt(dfloat(sumval))
                             if(diff2length.lt.TranscorrCutoff) cycle
-                                
+
                           endif
 
                           sprod=0.d0
                           do sumind2=1,3
-                             sprod=sprod+diffvec(sumind2)*diff2vec(sumind2)   
+                             sprod=sprod+diffvec(sumind2)*diff2vec(sumind2)
                           enddo
                           hel=hel-prefac*sprod/(difflength*diff2length)**3
                         enddo !sumind
@@ -859,7 +859,7 @@ contains
                             diffvec(1)=qocckvec(1)-bekvec(1)
                             difflength=dabs(dfloat(diffvec(1)))
                             if(.not.t_trcorr_gausscutoff.and.difflength.lt.TranscorrCutoff) cycle
-                            
+
 
 
                             diff2vec(1)=qocckvec(1)-beexkvec(1)
@@ -879,7 +879,7 @@ contains
 
                           endif
 
-                
+
                         if(diffvec(1).ne.0.and.diff2vec(1).ne.0) then
                           Gaussfact=1.d0
                           if(t_trcorr_gausscutoff) then
@@ -898,9 +898,9 @@ contains
 
    end function
 
-    
-    
-!  the following fun is modified for transcorrelated Hamiltonian under RPA approx     
+
+
+!  the following fun is modified for transcorrelated Hamiltonian under RPA approx
     function get_contact_umat_el (idi, idj, idk, idl) result(hel)
 
         use SystemData, only: kvec, dimen,PotentialStrength,TranscorrCutoff,nOccAlpha,nOccBeta,TranscorrGaussCutoff,t_trcorr_gausscutoff,Tperiodicinmom
@@ -917,9 +917,9 @@ contains
         ! Initialisation to satisfy compiler warnings
         hel = 0
 
-        !==================================================      
+        !==================================================
         i = idi
-        j = idj 
+        j = idj
         k = idk
         l = idl
 
@@ -931,7 +931,7 @@ contains
                 endif
         else
                 tparallel=.false.
-        endif 
+        endif
 
      if(dimen==3)then
         ! The Uniform Electron Gas
@@ -997,7 +997,7 @@ contains
                      hel=-4.d0*PI/(2.442749d0*dfloat(2*abs(NBASISMAX(1,2))+1))
 
                 endif !transcorr or renormalization
-          
+
         else
             hel = 0
         endif
@@ -1026,7 +1026,7 @@ contains
         endif
 
         if ( tmomconserv) then
-         
+
           Gaussfact=1.d0
           if(t_trcorr_gausscutoff.and.a.ne.0) then
             GaussCutoff=TranscorrGaussCutoff*2.d0*PI/ALAT(1)
@@ -1039,7 +1039,7 @@ contains
            hel=0
 
            if(t_ueg_transcorr) then
-              if(abs(a).ge.kmax.or.(t_trcorr_gausscutoff.and.a.ne.0)) then
+              if(abs(a).ge.kmax.or.t_trcorr_gausscutoff) then
                 k_tc(1) = 2 * PI * a / ALAT(1)
                 G2 = k_tc (1) * k_tc (1)
                 if(G1(i)%Ms.eq.-1) then
@@ -1047,7 +1047,11 @@ contains
                 else
                         nsigma=nOccBeta
                 endif
-                hel=hel-nsigma*PotentialStrength**2/G2/ALAT(1)*Gaussfact**2
+                if(a.eq.0.and.t_trcorr_gausscutoff) then
+                   hel=hel+nsigma*PotentialStrength/ALAT(1)*8.d0*TranscorrGaussCutoff**2
+                else
+                   hel=hel-nsigma*PotentialStrength**2/G2/ALAT(1)*Gaussfact**2
+                endif
               endif
            endif
 
@@ -1062,11 +1066,15 @@ contains
 
                   k_tc(1) = 2 * PI * a / ALAT(1)
                   G2 = k_tc (1) * k_tc (1)
-                  if( abs(a).ge.kmax.or.(t_trcorr_gausscutoff.and.a.ne.0) ) then
+                  if( abs(a).ge.kmax.or.t_trcorr_gausscutoff ) then
                       pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
-                      u_tc = -PotentialStrength/G2 !/PI
 
-                      hel=hel-(PotentialStrength+pq_tc(1)*k_tc(1)*u_tc)*Gaussfact
+                      if(a.eq.0.and.t_trcorr_gausscutoff) then
+                        u_tc = -PotentialStrength/G2
+                        hel=hel+pq_tc(1)*k_tc(1)*u_tc*Gaussfact
+                      else
+                        hel=hel+2.d0*pq_tc(1)*k_tc(1)*u_tc*Gaussfact
+                      endif
 
                   end if
            end if
@@ -1078,16 +1086,16 @@ contains
         else
             hel = 0
         endif ! ((G1(k)%k(1) - G1(i)%k(1)) == a)
- 
+
       else
         write(6,*)'dimension error in get_contact_umat_el',dimen
         stop
-      end if  
-    
-   end function 
- 
-    
-    
+      end if
+
+   end function
+
+
+
       subroutine GEN_Umat_TC_Contact
         use SystemData, only: dimen,PotentialStrength,TranscorrCutoff,TranscorrIntCutoff
         use SystemData, only: tUnitary,t_trcorr_gausscutoff,TranscorrGaussCutoff
@@ -1117,7 +1125,7 @@ contains
       if(t_trcorr_gausscutoff) then
         GaussCutoff=TranscorrGaussCutoff*2.d0*PI/ALAT(1)
         GaussCutoff2=GaussCutoff**2
-        !It only calcualtes the value of the Gauss function 
+        !It only calcualtes the value of the Gauss function
         !if it is smaller then 1.e-12.
         TranscorrCutoff=ceiling(5.25652176976/GaussCutoff)+1
       endif
@@ -1175,8 +1183,8 @@ contains
                     endif
                  enddo !j
                  UMAT_TC2_Contact(i)=UMAT_TC2_Contact(i)-summasumma/2.d0
-            enddo  
-         endif 
+            enddo
+         endif
 
          UMAT_TC2_Contact(0:2*kmax)=prefactk*UMAT_TC2_Contact(0:2*kmax)
 
@@ -1226,7 +1234,7 @@ contains
 !                       write(6,*)'summasumma',i,j,k,summasumma,sprod/(length**3*difflength**3)
                 enddo !k
                 enddo !j
-                enddo !i 
+                enddo !i
 !                       write(6,*)'summasumma',shifti,shiftj,shiftk,summasumma
 !                      if(shiftk.eq.1) stop
           summasumma=prefactk*summasumma
@@ -1314,8 +1322,8 @@ contains
 
       call halt_timer(proc_timer)
     end subroutine
-    
-    
+
+
      subroutine GEN_Umat_TC
         use SystemData, only: dimen
 !        use Determinants, only: FDet
@@ -1328,56 +1336,56 @@ contains
         type(timer), save :: proc_timer
 
         real(dp) :: k_tc(3), pq_tc(3), gamma_RPA, gamma_kmax, G2, G,k1_tc(3),k2_tc(3)
-        logical :: tCoulomb, tExchange          
+        logical :: tCoulomb, tExchange
         character(*), parameter :: this_routine = 'GEN_Umat_TC'
-        
+
 
 ! ============== parameter for the correlation factor for TC method =============================
 !        gamma_RPA=(4 * PI * nel/ (ALAT(1) * ALAT(2) * ALAT(3)))**0.25
 !        gamma_kmax=sqrt(((NBASISMAX(1,2))*2*PI/ALAT(1))**2+ &
-!                   ((NBASISMAX(2,2))*2*PI/ALAT(2))**2+((NBASISMAX(3,2))*2*PI/ALAT(3))**2)  
+!                   ((NBASISMAX(2,2))*2*PI/ALAT(2))**2+((NBASISMAX(3,2))*2*PI/ALAT(3))**2)
          ktc_cutoff2=OrbECutoff*(2*PI/ALAT(1))**2
          omega_p=dsqrt(4*pi*nel/ (ALAT(1) * ALAT(2) * ALAT(3)))
-         
-         
-         
+
+
+
          if(t_ueg_3_body)then
           uu_tc => uu_tc_interpl
          else
           uu_tc => uu_tc_trunc
-         end if 
-        
-        
-        i=1       
+         end if
+
+
+        i=1
         if(i==0)then
-        
+
          call Madelungterm
          stop
-        end if 
-        
-        
-        
+        end if
+
+
+
         open(10,file='3Bstatus',status='unknown')
         write(10,*)' With 3B RPA term -_-'
         close(10)
 
         proc_timer%timer_name = this_routine
         call set_timer (proc_timer)
-      
+
 
 !!!!!!!! generate UMAT_TC2, the Fourier transformation of (D u)^2
         kmax2=2*abs(NBASISMAX(1,2))
-        
-        
-        
+
+
+
      if(dimen==3) then
-     
+
         ALLOCATE ( UMAT_TC2(-kmax2:kmax2,-kmax2:kmax2,-kmax2:kmax2), STAT = AllocateStatus)
         IF (AllocateStatus /= 0) STOP "*** Not enough memory for UMAT_TC2 ***"
-        
-        
+
+
         kmax2_cut=100
-        
+
         do i = -kmax2, kmax2
            do j = -kmax2, kmax2
                do k = -kmax2, kmax2
@@ -1395,20 +1403,20 @@ contains
                  end do
                  end do
                  end do
-                 UMAT_TC2(i,j,k) = UMAT_TC2(i,j,k) / (ALAT(1) * ALAT(2) * ALAT(3)) 
+                 UMAT_TC2(i,j,k) = UMAT_TC2(i,j,k) / (ALAT(1) * ALAT(2) * ALAT(3))
               end do
            end do
-        end do  
-        
+        end do
+
       else if(dimen==2)then
-      
+
         ALLOCATE ( UMAT_TC2(-kmax2:kmax2,-kmax2:kmax2,0:0), STAT = AllocateStatus)
         IF (AllocateStatus /= 0) STOP "*** Not enough memory for UMAT_TC2 ***"
-        
 
-      
+
+
         kmax2_cut=1000
-      
+
          do i = -kmax2, kmax2
            do j = -kmax2, kmax2
                  UMAT_TC2(i,j,0) = 0.0
@@ -1420,20 +1428,20 @@ contains
                   k2_tc(2)= 2 * PI * (j-id2) / ALAT(2)
                   k1_tc(3)= 0.0_dp
                   k2_tc(3)= 0.0_dp
-                  
+
                    UMAT_TC2(i,j,0) = UMAT_TC2(i,j,0) - uu_tc_prod (k1_tc,k2_tc)
                  end do
                  end do
-                 UMAT_TC2(i,j,0) = UMAT_TC2(i,j,0) / (ALAT(1) * ALAT(2) ) 
+                 UMAT_TC2(i,j,0) = UMAT_TC2(i,j,0) / (ALAT(1) * ALAT(2) )
            end do
-        end do  
-     
-      
-      else 
+        end do
+
+
+      else
         write(6,*) 'dimension error in GEN_Umat_TC', dimen
         stop
-      end if  
-         
+      end if
+
 !       open(10,file='UMAT_TC2',status='unknown')
 !        do i=0,2
 !        do j=0,2
@@ -1443,85 +1451,85 @@ contains
 !        end do
 !        end do
 !       close(10)
-         
-      
-      
-        call halt_timer(proc_timer)
-        
-    end subroutine
-    
 
-    
+
+
+        call halt_timer(proc_timer)
+
+    end subroutine
+
+
+
     function uu_tc_interpl0 (k2) result(u_tc)
 
      !   use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         real(dp), intent(in) :: k2
         real(dp) :: u_tc
-        
+
         if( k2<1.d-12 )then
          u_tc=0.0
-        else 
+        else
          u_tc=-4*PI/k2/(k2+omega_p)
         end if
-        
+
     end function
-    
+
     function uu_tc_interpl (k2) result(u_tc)
 
      !   use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         real(dp), intent(in) :: k2
         real(dp) :: u_tc
-        
+
         if( k2<1.d-12 )then
          u_tc=0.0
-        else 
+        else
          u_tc=-4*PI/k2/(k2+omega_p*2)
         end if
-        
-    end function
-    
 
-    
+    end function
+
+
+
     function uu_tc_trunc (k2) result(u_tc)
 
         use SystemData, only: dimen
         real(dp), intent(in) :: k2
         real(dp) :: u_tc
-      if(dimen==3)then  
+      if(dimen==3)then
         if(k2<=ktc_cutoff2*(1.0+1.d-10))then
          u_tc = 0.0
-        else 
+        else
          u_tc = - 12.566370614359173 /k2/k2
-        end if 
+        end if
       else if (dimen==2)then
         if(k2<=ktc_cutoff2*(1.0+1.d-10))then
          u_tc = 0.0
-        else 
+        else
          u_tc = - 6.283185307179586 / k2/dsqrt(k2)
-        end if 
+        end if
       else
         write(6,*) 'dimension error in uu_tc_prod', dimen
         stop
       end if
 
-        
+
     end function
-    
+
 ! Here we calculate the product k1*k2*u(k1)*u(k2) for the transcorrelated method
     function uu_tc_prod (k1_tc,k2_tc) result(uu_prod)
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
         real(dp), intent(in) :: k1_tc(3), k2_tc(3)
         real(dp) :: uu_prod, k1,k2,u1,u2,k12
-        
-        
-      if(dimen==3)then  
+
+
+      if(dimen==3)then
         k12=k1_tc(1)*k2_tc(1)+k1_tc(2)*k2_tc(2)+k1_tc(3)*k2_tc(3)
         k1=k1_tc(1)*k1_tc(1)+k1_tc(2)*k1_tc(2)+k1_tc(3)*k1_tc(3)
         k2=k2_tc(1)*k2_tc(1)+k2_tc(2)*k2_tc(2)+k2_tc(3)*k2_tc(3)
         u1=uu_tc(k1)
         u2=uu_tc(k2)
-        
+
         uu_prod=k12*u1*u2
       else if (dimen==2)then
         k12=k1_tc(1)*k2_tc(1)+k1_tc(2)*k2_tc(2)
@@ -1530,32 +1538,32 @@ contains
         u1=uu_tc(k1)
         u2=uu_tc(k2)
         uu_prod=k12*u1*u2
-      
+
       else
         write(6,*) 'dimension error in uu_tc_prod', dimen
         stop
       end if
-      
-    end function    
+
+    end function
 
     subroutine Madelungterm
     use SystemData, only: dimen
-    
+
     real(dp) :: kapa, sum, a,r
     integer  :: i,j,k,ii,m_cut
-    
-    
+
+
     if(dimen==3)then  !======================
-    
+
     kapa=sqrt(pi)/ALAT(1)
     m_cut=20
-    
+
     sum=0.0
-    
+
     do i=-m_cut,m_cut
     do j=-m_cut,m_cut
     do k=-m_cut,m_cut
-     
+
         ii=i*i+j*j+k*k
 a=dsqrt(ii*ALAT(1)*ALAT(1))
         if(ii>0)then
@@ -1574,7 +1582,7 @@ a=dsqrt(ii*ALAT(1)*ALAT(1))
 
         ii=i*i+j*j+k*k
         if(ii>0)then
-r=sqrt(1.0*ii)*ALAT(1) 
+r=sqrt(1.0*ii)*ALAT(1)
         sum=sum+erfc(kapa*r)/r
         end if
         end do
@@ -1609,7 +1617,7 @@ a=sqrt(1.0*ii)*2*pi/ALAT(1)
 
         ii=i*i+j*j
         if(ii>0)then
-r=sqrt(1.0*ii)*ALAT(1) 
+r=sqrt(1.0*ii)*ALAT(1)
         sum=sum+erfc(kapa*r)/r
         end if
         end do
@@ -1627,7 +1635,7 @@ close(10)
 
         end subroutine
 
-        !   prepare FCIDUMP for UEG, Debug    
+        !   prepare FCIDUMP for UEG, Debug
         subroutine prep_ueg_dump
 
         use SystemData, only: tUEG2, kvec, k_lattice_constant, dimen
@@ -1639,16 +1647,16 @@ close(10)
         integer  :: k1(3),k2(3),k3(3)
         real(dp) :: G, G2,energy,ak(3),bk(3),ck(3),a2,b2,c2
         real(dp) :: k_tc(3), pq_tc(3), u_tc, gamma_RPA, gamma_kmax
-        logical :: tCoulomb, tExchange  
+        logical :: tCoulomb, tExchange
         character(*), parameter :: this_routine = 'prep_ueg_dump'
         namelist /FCI/ NORB,nelec,MS2
 
         if(iProcIndex == root) then
 
         ms2=0
-        nelec=nel 
+        nelec=nel
         norb=nBasis/2
-i_unit=get_free_unit() 
+i_unit=get_free_unit()
         open(i_unit,file='FCIDUMP',status='unknown')
 write(i_unit,FCI)
         do id1=1,norb
@@ -1669,8 +1677,8 @@ hel=get_ueg_umat_el (id1, id2, id3, id4)
 
         id1=(i-1)*2+1
 
-        a = G1(id1)%k(1) 
-        b = G1(id1)%k(2) 
+        a = G1(id1)%k(1)
+        b = G1(id1)%k(2)
 c = G1(id1)%k(3)
 
         hel=a*a/2.0+b*b/2.0+c*c/2.0
@@ -1687,7 +1695,7 @@ close(i_unit)
 
         !========= L mat ========================
         if(.not.t_ueg_3_body)stop
-        i_unit=get_free_unit() 
+        i_unit=get_free_unit()
         open(i_unit,file='TCDUMP',status='unknown',access='append')
         do l1=1,norb
         do l2=l1,norb
@@ -1711,7 +1719,7 @@ close(i_unit)
         close(i_unit)
         end if
         stop
-        end subroutine 
+        end subroutine
 
         function get_lmat_ueg (l1,l2,l3,r1,r2,r3) result(hel)
 
@@ -1746,13 +1754,13 @@ close(i_unit)
 
         if(all((k1+k2+k3)==0)) then
         ak(1) = -2 * PI * k1(1) / ALAT(1)
-        ak(2) = -2 * PI * k1(2) / ALAT(2)                
+        ak(2) = -2 * PI * k1(2) / ALAT(2)
         ak(3) = -2 * PI * k1(3) / ALAT(3)
         bk(1) = -2 * PI * k2(1) / ALAT(1)
-        bk(2) = -2 * PI * k2(2) / ALAT(2)                
+        bk(2) = -2 * PI * k2(2) / ALAT(2)
         bk(3) = -2 * PI * k2(3) / ALAT(3)
         ck(1) = -2 * PI * k3(1) / ALAT(1)
-        ck(2) = -2 * PI * k3(2) / ALAT(2)                
+        ck(2) = -2 * PI * k3(2) / ALAT(2)
         ck(3) = -2 * PI * k3(3) / ALAT(3)
 
 
@@ -1872,7 +1880,7 @@ close(i_unit)
 
                hel=0.d0
          end if
-                
+
         hel=hel/ALAT(1)
       else
        print *, 'at moment Lmat is only available for 1D and 3D contact interactions'

@@ -288,63 +288,63 @@ MODULE System
           THUB = .true.
           TPBC=.true.
 
-          if (item < nitems) then 
+          if (item < nitems) then
               ! this indicates the new hubbard implementation
-              ! for consistency turn off the old hubbard indication 
-              ! and for now this is only done for the real-space hubbard 
+              ! for consistency turn off the old hubbard indication
+              ! and for now this is only done for the real-space hubbard
               ! not for the k-space implementation todo
               ! and do i need to turn of tpbc also? try
-              ! use the already provided setup routine and just modify the 
+              ! use the already provided setup routine and just modify the
               ! necessary stuff, like excitation generators!
               t_new_hubbard = .true.
               call readl(w)
               select case (w)
-              case ('real-space','real') 
+              case ('real-space','real')
                   treal = .true.
-                  t_new_real_space_hubbard = .true. 
-                  t_lattice_model = .true. 
+                  t_new_real_space_hubbard = .true.
+                  t_lattice_model = .true.
 
-                  ! if no further input is given a provided fcidump is 
+                  ! if no further input is given a provided fcidump is
                   ! assumed! but this still needs to be implemented
-                  ! this fcidump gives the lattice structure! 
-                  if (item < nitems) then 
+                  ! this fcidump gives the lattice structure!
+                  if (item < nitems) then
                       call readl(lattice_type)
                   else
                       lattice_type = 'read'
                   end if
               case ('momentum-space','k-space','momentum')
-                  ! reuse most of the old initialisation for the k-space 
-                  ! hubbard. one has to be really careful to initialize all 
-                  ! the correct stuff especially for the matrix element 
-                  ! calculation with the HPHF option turned on! 
-                  t_k_space_hubbard = .true. 
-                  t_lattice_model = .true. 
+                  ! reuse most of the old initialisation for the k-space
+                  ! hubbard. one has to be really careful to initialize all
+                  ! the correct stuff especially for the matrix element
+                  ! calculation with the HPHF option turned on!
+                  t_k_space_hubbard = .true.
+                  t_lattice_model = .true.
                   tKPntSym = .true.
 
-              case default 
+              case default
                   print *, w
                   call Stop_All(t_r, "not recognised keyword!")
               end select
           end if
-                  
+
       case ('TJ','TJ-MODEL')
-          t_tJ_model = .true. 
+          t_tJ_model = .true.
           t_lattice_model = .true.
-          ! misuse the hubbard initialisation 
-          tHub = .true. 
-          tpbc = .true. 
+          ! misuse the hubbard initialisation
+          tHub = .true.
+          tpbc = .true.
           treal = .true.
 
       case ('HEISENBERG')
-          ! should i misuse the already provided setup for the hubbard 
-          ! model again? .. maybe.. 
-          ! maybe i should use a general flag like t_lattice_model 
+          ! should i misuse the already provided setup for the hubbard
+          ! model again? .. maybe..
+          ! maybe i should use a general flag like t_lattice_model
           ! especially for the matrix element evaluation and stuff
-          t_heisenberg_model = .true. 
-          t_lattice_model = .true. 
-          thub = .true. 
-          tpbc = .true. 
-          treal = .true. 
+          t_heisenberg_model = .true.
+          t_lattice_model = .true.
+          thub = .true.
+          tpbc = .true.
+          treal = .true.
 
       case("RIINTEGRALS")
           tRIIntegrals = .true.
@@ -387,7 +387,7 @@ system: do
            tRIIntegrals = .true.
         case("READCACHEINTS")
            tCacheFCIDUMPInts=.true.
-        case("SPIN-CORRELATOR")           
+        case("SPIN-CORRELATOR")
            tSpinCorrelator = .true.
         case("ELECTRONS","NEL")
             call geti(NEL)
@@ -543,22 +543,22 @@ system: do
             call geti(NMAXY)
             call geti(NMAXZ)
 
-            ! misuse the cell keyword to set this up to also have the 
+            ! misuse the cell keyword to set this up to also have the
             ! hubbard setup already provided..
-!             if (t_new_real_space_hubbard) then 
-!                length_x = NMAXX 
+!             if (t_new_real_space_hubbard) then
+!                length_x = NMAXX
 !                length_y = NMAXY
 !            end if
 
        case('SPIN-TRANSCORR')
            ! make a spin-dependent transcorrelation factor
-           t_spin_dependent_transcorr = .true. 
-           if (item < nitems) then 
+           t_spin_dependent_transcorr = .true.
+           if (item < nitems) then
                call getf(trans_corr_param)
            else
                trans_corr_param = 0.1_dp
            end if
-           t_non_hermitian = .true. 
+           t_non_hermitian = .true.
 
         case("NONHERMITIAN")
            ! just use a non-hermitian Hamiltonian, no additional tweaks
@@ -611,8 +611,8 @@ system: do
 
 !              case default
 !                 t_ueg_3_body = .false.
-!                 tTrcorrExgen = .true.                
-!                 tTrCorrRandExgen = .false.                
+!                 tTrcorrExgen = .true.
+!                 tTrCorrRandExgen = .false.
 
 
                end select
@@ -628,76 +628,76 @@ system: do
           t_exclude_3_body_excits = .true.
 
        case ('TRANSCORRELATED', 'TRANSCORR', 'TRANS-CORR')
-           ! activate the transcorrelated Hamiltonian idea from hongjun for 
-           ! the real-space hubbard model 
-           t_trans_corr = .true. 
-           t_non_hermitian = .true. 
+           ! activate the transcorrelated Hamiltonian idea from hongjun for
+           ! the real-space hubbard model
+           t_trans_corr = .true.
+           t_non_hermitian = .true.
 
-           if (item < nitems) then 
+           if (item < nitems) then
                call getf(trans_corr_param)
-           else 
+           else
                ! defaul value 1 for now, since i have no clue how this behaves
                trans_corr_param = 1.0_dp
            end if
 
         case ("TRANSCORR-NEW")
-            t_trans_corr = .true. 
-            t_trans_corr_new = .true. 
-           t_non_hermitian = .true. 
+            t_trans_corr = .true.
+            t_trans_corr_new = .true.
+           t_non_hermitian = .true.
 
-           if (item < nitems) then 
+           if (item < nitems) then
                call getf(trans_corr_param)
-           else 
+           else
                ! defaul value 1 for now, since i have no clue how this behaves
                trans_corr_param = 1.0_dp
            end if
 
         case ('2-BODY-TRANSCORR', '2-BODY-TRANS-CORR', '2-BODY-TRANSCORRELATED','TRANSCORR-2BODY')
-           ! for the tJ model there are 2 choices of the transcorrelation 
-           ! indicate that here! 
+           ! for the tJ model there are 2 choices of the transcorrelation
+           ! indicate that here!
            t_trans_corr_2body = .true.
-           t_non_hermitian = .true. 
+           t_non_hermitian = .true.
 
-           if (item < nitems) then 
+           if (item < nitems) then
                call getf(trans_corr_param_2body)
 
-           else 
+           else
                trans_corr_param_2body = 0.25_dp
            end if
 
            ! if it is the k-space hubbard also activate 3-body excitations here
-           if (t_k_space_hubbard) then 
-               t_3_body_excits = .true. 
+           if (t_k_space_hubbard) then
+               t_3_body_excits = .true.
                max_ex_level = 3
            end if
 
         case ('NEIGHBOR-TRANSCORR','TRANSCORR-NEIGHBOR','N-TRANSCORR')
-            t_trans_corr_2body = .true. 
-            t_non_hermitian = .true. 
+            t_trans_corr_2body = .true.
+            t_non_hermitian = .true.
 
-            if (item < nitems) then 
-                call getf(trans_corr_param_2body) 
-            else 
+            if (item < nitems) then
+                call getf(trans_corr_param_2body)
+            else
                 trans_corr_param_2body = 0.25_dp
             end if
 
            ! if it is the k-space hubbard also activate 3-body excitations here
-           if (t_k_space_hubbard) then 
-               t_3_body_excits = .true. 
+           if (t_k_space_hubbard) then
+               t_3_body_excits = .true.
                max_ex_level = 3
            end if
 
         case ("TRANSCORR-HOP","HOP-TRANSCORR")
-            t_trans_corr_hop = .true. 
-            t_non_hermitian = .true. 
+            t_trans_corr_hop = .true.
+            t_non_hermitian = .true.
 
-            if (item < nitems) then 
+            if (item < nitems) then
                 call getf(trans_corr_param)
             else
                 trans_corr_param = 0.5_dp
             end if
 
-                
+
        ! Options for the type of the reciprocal lattice (eg sc, fcc, bcc)
         case("REAL_LATTICE_TYPE")
             call readl(real_lattice_type)
@@ -752,7 +752,7 @@ system: do
            if(dimen.ne.3) stop 'Unitary regime only for 3D!'
 
        ! Option for infinite summation at transcorrelated method for homogeneous
-       ! 3D gas with contact interaction 
+       ! 3D gas with contact interaction
          case("TRANSCORRINFSUM")
            if(item < nitems) then
                 call readu(w)
@@ -780,7 +780,7 @@ system: do
         ! during excitation generation for efficiency
         case("LATTICE-EXCITGEN")
             tLatticeGens =.true.
-        ! use the simplified random excitation generator for k-space hubbard that 
+        ! use the simplified random excitation generator for k-space hubbard that
         ! does not use a cumulative list (it is much more efficient)
         case("UNIFORM-EXCITGEN")
             t_uniform_excits = .true.
@@ -801,8 +801,8 @@ system: do
             call getf(BHUB)
 
         case ("J")
-            ! specify the tJ exchange here, the default is 1.0 
-            ! this could also be used for the heisenberg model.. 
+            ! specify the tJ exchange here, the default is 1.0
+            ! this could also be used for the heisenberg model..
             call getf(exchange_j)
          case("C")
             call getf(btHub)
@@ -820,14 +820,14 @@ system: do
 
 
         case("TWISTED-BC")
-            ! use of twisted boundary conditions for the cubic and tilted 
-            ! hubbard lattice model 
+            ! use of twisted boundary conditions for the cubic and tilted
+            ! hubbard lattice model
             t_twisted_bc = .true.
             call getf(twisted_bc(1))
             if (item < nitems) then
                 call getf(twisted_bc(2))
             else
-                ! if only one input apply same twist in x and y direction 
+                ! if only one input apply same twist in x and y direction
                 twisted_bc(2) = twisted_bc(1)
             endif
 
@@ -862,21 +862,21 @@ system: do
                 t_open_bc_y = .true.
             end if
 
-        case("LATTICE") 
+        case("LATTICE")
             ! new hubbard implementation
             ! but maybe think of a better way to init that..
-            ! the input has to be like: 
+            ! the input has to be like:
             ! lattice [type] [len_1] [*len_2]
             ! where length to is optional if it is necessary to input it.
 !             tHub = .false.
 !             treal = .false.
 !             lNoSymmetry = .true.
-            ! this treal is not true.. now we also have k-space hubbard lattice 
+            ! this treal is not true.. now we also have k-space hubbard lattice
             ! support
 !             treal = .true.
 !             t_new_real_space_hubbard = .true.
 
-            ! set some defaults: 
+            ! set some defaults:
             lattice_type = "read"
 
             length_x = -1
@@ -884,38 +884,38 @@ system: do
 
 !             tPBC = .false.
 
-            if (item < nitems) then 
-               ! use only new hubbard flags in this case 
+            if (item < nitems) then
+               ! use only new hubbard flags in this case
                call readl(lattice_type)
             end if
 
-            if (item < nitems) then 
-                call geti(length_x) 
+            if (item < nitems) then
+                call geti(length_x)
             end if
 
-            if (item < nitems) then 
+            if (item < nitems) then
                 call geti(length_y)
             end if
 
-            if (item < nitems) then 
+            if (item < nitems) then
                 call geti(length_z)
             end if
 
-            if (t_k_space_hubbard) then 
-                lat => lattice(lattice_type, length_x, length_y, length_z, & 
+            if (t_k_space_hubbard) then
+                lat => lattice(lattice_type, length_x, length_y, length_z, &
                     .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z,'k-space')
-            else if (t_new_real_space_hubbard) then 
-                lat => lattice(lattice_type, length_x, length_y, length_z, & 
+            else if (t_new_real_space_hubbard) then
+                lat => lattice(lattice_type, length_x, length_y, length_z, &
                     .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z,'real-space')
-            else 
-                lat => lattice(lattice_type, length_x, length_y, length_z, & 
+            else
+                lat => lattice(lattice_type, length_x, length_y, length_z, &
                     .not. t_open_bc_x, .not. t_open_bc_y, .not. t_open_bc_z)
 
             end if
 
-            ! maybe i have to reuse the cell input functionality or set it 
-            ! here also, so that the setup is not messed up 
-            ! i should set those quantities here again.. 
+            ! maybe i have to reuse the cell input functionality or set it
+            ! here also, so that the setup is not messed up
+            ! i should set those quantities here again..
             nmaxx = length_x
             nmaxy = length_y
             nmaxz = 1
@@ -1453,7 +1453,7 @@ system: do
          case("COMPLEXWALKERS-REALINTS")
             ! In case complex walkers shall be used but not complex basis functions,
             ! such that the integrals are real and have full symmetry
-            tComplexWalkers_RealInts = .true. 
+            tComplexWalkers_RealInts = .true.
 
         case("SYSTEM-REPLICAS")
             ! How many copies of the simulation do we want to run in parallel?
@@ -1846,7 +1846,7 @@ system: do
           Allocate(G1(Len),STAT=ierr)
           LogAlloc(ierr,'G1',LEN,BasisFNSizeB,tagG1)
           G1(1:LEN)=NullBasisFn
-          
+
 
           IF(TCPMD) THEN
               WRITE(6,'(A)') '*** INITIALIZING BASIS FNs FROM CPMD ***'
@@ -2082,10 +2082,10 @@ system: do
                  BOX=BOX*FUEGRS
                  WRITE(6,'(A, F20.16)') "  Resetting box size to ", BOX
                 else
-                 WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
+                 WRITE(6,'(A, I4)') " Dimension problem  ", dimen
                 stop
-                end if 
-                
+                end if
+
              ENDIF
           ENDIF
           IF(THUB) WRITE(6,'(A)') '  *** HUBBARD MODEL ***  '
@@ -2123,7 +2123,7 @@ system: do
           ENDIF
 !C..
 
-         ! W.D: are those variable ever used actually? 
+         ! W.D: are those variable ever used actually?
           NMAX=MAX(NMAXX,NMAXY,NMAXZ)
           NNR=NMSH*NMSH*NMSH
           WRITE(6,'(A,I5)') '  NMAXX : ' , NMAXX
@@ -2148,8 +2148,8 @@ system: do
              IF(TTILT.AND.ITILTX.GT.ITILTY) call stop_all(this_routine, 'ERROR: ITILTX>ITILTY')
              if (t_new_hubbard) then
                  if (iprocindex == root) then
-                     print *, "New Hubbard Implementation! " 
-                     print *, "lattice used: " 
+                     print *, "New Hubbard Implementation! "
+                     print *, "lattice used: "
                      call lat%print_lat()
                  end if
              end if
@@ -2170,13 +2170,13 @@ system: do
 !      ALAT(4)=2*BOX*(BOA*COA)**(1/3.0_dp)
 
           IF(THUB) THEN
-              if (t_new_hubbard) then 
-                 omega = real(lat%get_nsites(), dp) 
-                 if (iprocindex == root) then 
+              if (t_new_hubbard) then
+                 omega = real(lat%get_nsites(), dp)
+                 if (iprocindex == root) then
                      print *, " periodic boundary conditions: ", lat%is_periodic()
                      print *, "Real space basis: ", t_new_real_space_hubbard
                  end if
-             else 
+             else
                  WRITE(6,*) ' X-LENGTH OF HUBBARD CHAIN:', NMAXX
                  WRITE(6,*) ' Y-LENGTH OF HUBBARD CHAIN:', NMAXY
                  WRITE(6,*) ' Z-LENGTH OF HUBBARD CHAIN:', NMAXZ
@@ -2192,8 +2192,8 @@ system: do
              RS=1.0_dp
           ELSE
             if(dimen==3)then
-            
-            
+
+
              OMEGA=ALAT(1)*ALAT(2)*ALAT(3)
              RS=(3.0_dp*OMEGA/(4.0_dp*PI*NEL))**THIRD
              ALAT(5)=RS
@@ -2221,7 +2221,7 @@ system: do
                 ELSEIF(iPeriodicDampingType.EQ.2) THEN
                    WRITE(6,*) " Using cut-off Coulomb potential for exchange interactions."
                 ENDIF
-          
+
                 WRITE(6,*) " Rc cutoff: ",ALAT(4)
              ENDIF
              WRITE(6,*) " Wigner-Seitz radius Rs=",RS
@@ -2229,7 +2229,7 @@ system: do
              WRITE(6,*) " Fermi vector kF=",FKF
              WRITE(6,*) " Fermi Energy EF=",FKF*FKF/2
              WRITE(6,*) " Unscaled Fermi Energy nmax**2=",(FKF*FKF/2)/(0.5*(2*PI/ALAT(5))**2) !??????????
-            
+
             else if (dimen==1) then
                 OMEGA=ALAT(1)
                 RS=OMEGA/(2*NEL)
@@ -2254,7 +2254,7 @@ system: do
                 write(6,*)'Dimension problem'
                 stop
             end if
-            
+
 
           ENDIF
           IF(.not. (OrbECutoff .isclose. 1e-20_dp)) WRITE(6,*) " Orbital Energy Cutoff:",OrbECutoff
@@ -2280,16 +2280,16 @@ system: do
           NBASISMAX(4,2)=1
           IF(THUB) THEN
               if (t_new_hubbard) then
-                ! i need a new setup routine for this for the new generic 
-                ! hubbard setup! essentialy this just sets up NBASISMAX .. 
-                ! what do i need from this legacy variable?? 
+                ! i need a new setup routine for this for the new generic
+                ! hubbard setup! essentialy this just sets up NBASISMAX ..
+                ! what do i need from this legacy variable??
                 len = 2*lat%get_nsites()
-                if (t_k_space_hubbard) then 
-                    ! this indicates pbc and k-space. 
-                    ! especially for the addelecsym function! 
+                if (t_k_space_hubbard) then
+                    ! this indicates pbc and k-space.
+                    ! especially for the addelecsym function!
                     NBASISMAX(1,3) = 0
-                  
-                else if (t_new_real_space_hubbard) then 
+
+                else if (t_new_real_space_hubbard) then
                     NBASISMAX(1,3) = 4
                     NBASISMAX(3,3) = 0
                 end if
@@ -2318,12 +2318,12 @@ system: do
              else if (dimen ==1) then
                 LEN=(2*NMAXX+1)*((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
              else
-              WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
+              WRITE(6,'(A, I4)') " Dimension problem  ", dimen
               stop
              end if
 !C.. UEG
              NBASISMAX(3,3)=-1
-             
+
           ELSE
              NBASISMAX(1,1)=1
              NBASISMAX(1,2)=NMAXX
@@ -2343,10 +2343,10 @@ system: do
 
      if (t_new_hubbard) then
          ! [W.D. 25.1.2018]
-         ! ignore the old thub keyword and try to set everything up 
-         ! in a standalone fashion for the new hubbard implementation, 
-         ! since otherwise this causes a lot of conflict with other 
-         ! assumptions in the old implementation! 
+         ! ignore the old thub keyword and try to set everything up
+         ! in a standalone fashion for the new hubbard implementation,
+         ! since otherwise this causes a lot of conflict with other
+         ! assumptions in the old implementation!
          ! todo!
 
      end if
@@ -2410,16 +2410,16 @@ system: do
         else
          WRITE(6,*) "Creating plane wave basis."
         end if
-        if (t_new_hubbard) then 
+        if (t_new_hubbard) then
             BRR = [(i, i = 1, 2*lat%get_nsites())]
             IG = 2*lat%get_nsites()
 
             if (t_new_real_space_hubbard) then
-                ! i have to do everything what is done below with my new 
-                ! lattice class: 
+                ! i have to do everything what is done below with my new
+                ! lattice class:
                 ! something like: (loop over spin-orbital!)
-                ARR = 0.0_dp 
-            else 
+                ARR = 0.0_dp
+            else
                 ARR(:,1) = [(bhub*lat%dispersion_rel_spin_orb(i), i = 1, IG)]
 
 
@@ -2427,22 +2427,22 @@ system: do
             end if
 
             do i = 1, lat%get_nsites()
-                ! todo: not sure if i really should set up the k-vectors 
-                ! for the real-space! maybe the convention actually is to 
+                ! todo: not sure if i really should set up the k-vectors
+                ! for the real-space! maybe the convention actually is to
                 ! set them all to 0! check that!
-                ! do i still want to save the "real-space positions" in the 
-                ! k-vectors? i could.. but do i need it? 
+                ! do i still want to save the "real-space positions" in the
+                ! k-vectors? i could.. but do i need it?
                 G1(2*i-1)%k = lat%get_k_vec(i)
-                G1(2*i-1)%ms = -1 
+                G1(2*i-1)%ms = -1
                 G1(2*i-1)%Sym = TotSymRep()
 
                 G1(2*i)%k = lat%get_k_vec(i)
-                G1(2*i)%ms = 1 
+                G1(2*i)%ms = 1
                 G1(2*i)%Sym = TotSymRep()
-                ! and in the k-space i still need to 
+                ! and in the k-space i still need to
             end do
         else if(dimen==3) then
-         
+
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
            DO J=NBASISMAX(2,1),NBASISMAX(2,2)
@@ -2466,14 +2466,14 @@ system: do
                        ENDIF
                     ELSEIF(TUEG) THEN
                        CALL GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
-!                      Bug for  non-trueEnergy                      
+!                      Bug for  non-trueEnergy
 !                      IF(dUnscaledE.gt.OrbECutoff) CYCLE
                        IF(tUEGTrueEnergies)then
                         IF(dUnscaledE.gt.OrbECutoff) CYCLE
-                       ELSE 
+                       ELSE
                         IF(SUM.gt.OrbECutoff) CYCLE
-                       END IF 
-                       
+                       END IF
+
                     ELSE
                        SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2)+(K*K/ALAT(3)**2))
                     ENDIF
@@ -2488,7 +2488,7 @@ system: do
                     G1(IG)%K(3)=K
                     G1(IG)%MS=L
                     G1(IG)%Sym=TotSymRep()
-                    
+
                   ENDIF
                ENDDO
              ENDDO
@@ -2517,15 +2517,15 @@ system: do
                        ENDIF
                     ELSEIF(TUEG) THEN
                        CALL GetUEGKE(I,J,0,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
-!                      Bug for  non-trueEnergy                      
+!                      Bug for  non-trueEnergy
 !                      IF(dUnscaledE.gt.OrbECutoff) CYCLE
                        IF(tUEGTrueEnergies)then
                         IF(dUnscaledE.gt.OrbECutoff) CYCLE
-                       ELSE 
+                       ELSE
                         if((sum.gt.(k*1.d0+1.d-20)).or.(sum.lt.(k*1.d0-1.d-20)))CYCLE
                         IF(SUM.gt.OrbECutoff) CYCLE
-                       END IF 
-                       
+                       END IF
+
                     ELSE
                        SUM=(BOX**2)*((I*I/ALAT(1)**2)+(J*J/ALAT(2)**2))
                     ENDIF
@@ -2545,7 +2545,7 @@ system: do
            ENDDO
          ENDDO
          end do
-!C..Check to see if all's well       
+!C..Check to see if all's well
         else if (dimen==1) then
          IG=0
          DO I=NBASISMAX(1,1),NBASISMAX(1,2)
@@ -2571,7 +2571,7 @@ system: do
                        ENDIF
                     ELSEIF(TUEG) THEN
                        CALL GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,SUM,dUnscaledE)
-!                      Bug for  non-trueEnergy                      
+!                      Bug for  non-trueEnergy
 !                      IF(dUnscaledE.gt.OrbECutoff) CYCLE
                        IF(tUEGTrueEnergies)then
                         IF(dUnscaledE.gt.OrbECutoff) CYCLE
@@ -2598,9 +2598,9 @@ system: do
                ENDDO
              ENDDO
            ENDDO
-         ENDDO 
+         ENDDO
         else
-              WRITE(6,'(A, I4)') " Dimension problem  ", dimen 
+              WRITE(6,'(A, I4)') " Dimension problem  ", dimen
               stop
         end if
 !C..Check to see if all's well
@@ -2699,8 +2699,8 @@ system: do
       ELSEIF(THUB.AND..NOT.TREAL) THEN
           ! [W.D. 25.1.2018:]
           ! this also has to be changed for the new hubbard implementation
-          if (t_k_space_hubbard) then 
-              ! or i change the function below to account for the new 
+          if (t_k_space_hubbard) then
+              ! or i change the function below to account for the new
               ! implementation
               call setup_symmetry_table()
 !               call gen_symreps()

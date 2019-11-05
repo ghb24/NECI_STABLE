@@ -667,7 +667,7 @@ contains
         integer :: Ex(2,maxExcit), Ex_symm(2,maxExcit)
         logical :: tParity
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
-#ifdef __DEBUG 
+#ifdef __DEBUG
         character(*), parameter :: this_routine = "Add_RDM_From_IJ_Pair"
 #endif
         Ex(:,:) = 0
@@ -828,8 +828,11 @@ contains
             else
                 ind = SymLabelListInv_rot(gtID(nI(i)))
             end if
-
-            final_contrib = contrib_sign(1::2) * contrib_sign(2::2) * RDMIters * ScaleContribFac
+            if (inum_runs==1) then !to amke it usable for explicit rdm calculations
+                final_contrib = contrib_sign(1)**2 * ScaleContribFac
+            else
+                final_contrib = contrib_sign(1::2) * contrib_sign(2::2) * RDMIters * ScaleContribFac
+            endif
             ! in adaptive shift mode, the reference contribution is rescaled
             ! we assume that projEDet is the same on all runs, else there is no point
             if(tAdaptiveShift .and. all(nI == projEDet(:,1)) &
