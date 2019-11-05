@@ -693,7 +693,6 @@ module fcimc_pointed_fns
         real(dp) :: rat(1)
 #endif
         unused_var(Kii); unused_var(DetPos)
-        unused_var(Kii); unused_var(DetPos)
 
         do i=1, inum_runs
             fac(i)=tau
@@ -779,7 +778,6 @@ module fcimc_pointed_fns
       real(dp), intent(in) :: hdiag
       real(dp) :: Si
 
-      unused_var(hdiag)
       unused_var(hdiag)
 
       Si = -1
@@ -883,7 +881,6 @@ module fcimc_pointed_fns
       real(dp), intent(in) :: pop
       real(dp) :: f, tot, acc, tmp
 
-      unused_var(pop)
       unused_var(pop)
 
       tot = get_tot_spawns(pos, run)

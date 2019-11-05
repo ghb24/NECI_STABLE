@@ -179,7 +179,6 @@ contains
         real(dp) :: pgen2
 
         unused_var(exFlag); unused_var(part_type)
-        unused_var(exFlag); unused_var(part_type)
 
         HElGen = HEl_zero
         ! We now use the class counts to do the construction. This is an
@@ -1240,7 +1239,6 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
-        unused_var(exFlag); unused_var(part_type); unused_var(store)
         unused_var(exFlag); unused_var(part_type); unused_var(store)
 
         HElGen = HEl_zero
