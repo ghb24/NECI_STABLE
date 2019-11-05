@@ -1,5 +1,6 @@
+#include "macros.h"
 module MemoryManager
-use constants , only : sizeof_int,dp
+use constants , only : sizeof_int, dp, int64
 
 ! JSS.  Memory book-keeping routines.  Contains a few elements of the initialisation,
 ! output and structure of the memory_manager module from CamCASP (formerly SITUS),
@@ -67,7 +68,7 @@ implicit none
 
 !private
 private
-public :: MemoryLeft, MemoryUsed,MaxMemory,li,LookupPointer,PrintMemory
+public :: MemoryLeft, MemoryUsed, MaxMemory, LookupPointer, PrintMemory
 ! Allow users to do the potentially dangerous thing of changing how the log is run.
 ! We'll hope they'll only use this for good...
 public :: CachingMemLog
@@ -91,21 +92,18 @@ logical, save :: MemUnitsBytes = .true. ! If true, then output object size in by
 
 logical, save :: err_output = .true. ! Print error messages.
 
-integer, parameter :: li = selected_int_kind(15) !ints between +-10^18
-integer, parameter :: lr = selected_real_kind(1,18) !reals between +-10^18
-
-type MemLogEl
+type :: MemLogEl
     character(len=25) :: ObjectName=''
     character(len=25) :: AllocRoutine=''
     character(len=25) :: DeallocRoutine='not deallocated'
-    integer(li) :: ObjectSize=0
+    integer(int64) :: ObjectSize=0
 end type MemLogEl
 
 ! All memory variables stored in bytes.
-integer(li), save :: MaxMemory
-integer(li), save :: MemoryUsed
-integer(li), save :: MemoryLeft
-integer(li), save :: MaxMemoryUsed
+integer(int64), save :: MaxMemory
+integer(int64), save :: MemoryUsed
+integer(int64), save :: MemoryLeft
+integer(int64), save :: MaxMemoryUsed
 
 ! Warnings, debug flags, output parameters.
 logical, save :: initialised = .false.
@@ -125,54 +123,33 @@ type(MemLogEl), save :: LargeObjLog(nLargeObjects) ! Store the largest allocatio
 integer, save :: ismall=1 ! The smallest large object (remember to avoid repeating minloc again and again...)
 
 ! For backwards compatibility with the existing CPMD scheme, where the IP address is
-! stored as the tag. Use long integer (li) so can handle POINTER8.
-integer(li), allocatable, save :: LookupPointer(:)
+! stored as the tag. Use long integer (int64) so can handle POINTER8.
+integer(int64), allocatable, save :: LookupPointer(:)
 
 contains
 
-    subroutine InitMemoryManager(MemSize,print_err)
+    subroutine InitMemoryManager(MemSize, print_err)
     ! Initialise memory manager.
 
     ! In:
-    !    MemSize (optional) : max amount of memory available in MB.  Default: 1GB.
+    !    MemSize (optional) : max amount of memory available in MB.  Default: MaxMemLimit
     !    print_err (optional): print all error messages from memory manager. Default: true.
 
     ! MAXMEM must be set via c pre-processing or set to be an integer.
 
     implicit none
 
-    integer(li), intent(in), optional :: MemSize
+    integer(int64), intent(in), optional :: MemSize
     logical, intent(in), optional :: print_err
-    integer(li) :: MaxMemBytes
-#if defined(MOLPRO)
-    integer(li), parameter :: MaxMemLimit=8192   !It would be nice to get this straight from molpro.
-#elif !defined(_MOLCAS_)
-    integer(li), parameter :: MaxMemLimit=MAXMEM ! Obtained via CPP in the makefile. MAXMEM in MB.
-#endif
+    integer(int64) :: MaxMemBytes
+    ! Obtained via CPP in the makefile. MAXMEM in MB.
+    integer(int64), parameter :: MaxMemLimit = MAXMEM
 
-#ifdef _MOLCAS_
-    integer(li) :: MemSizeMolcas
-    character(len=16) MMem
-
-    !MemSizeMolcas is already in MB.
-    call GET_ENVIRONMENT_VARIABLE('MOLCAS_MEM',MMem)
-    read(MMem,*) MemSizeMolcas
-    initialised=.false.
-#endif
-
+    def_default(err_output, print_err, .true.)
     if (present(MemSize)) then
-        MaxMemBytes=MemSize*1024**2
+        MaxMemBytes = MemSize * 1024**2
     else
-#ifdef _MOLCAS_
-        MaxMemBytes = MemSizeMolcas*1024**2
-#else
-        MaxMemBytes=MaxMemLimit*1024**2
-#endif
-    end if
-    if (present(print_err)) then
-        err_output=print_err
-    else
-        err_output=.true.
+        MaxMemBytes = MaxMemLimit * 1024**2
     end if
 
     if (initialised) then
@@ -201,9 +178,7 @@ contains
 !       Deal with debug options at a later date.
 !       debug = gmemdebug
 
-#ifndef MOLPRO
         write (6,'(a33,f8.1,a3)') ' Memory Manager initialised with ',real(MaxMemBytes,dp)/(1024**2),' MB'
-#endif
     end if
 
     return
@@ -240,7 +215,7 @@ contains
 
     if (present(nCalls)) nCalls=nCalls+1
 
-    if (.not.initialised) then
+    if (.not. initialised) then
         write (6,*) 'Memory manager not initialised. Doing so now with 1GB limit.'
         call InitMemoryManager()
     end if
@@ -405,7 +380,7 @@ contains
     implicit none
 
     integer :: iunit,iobjloc(1),iobj,i
-    integer(li), allocatable :: ObjectSizes(:)
+    integer(int64), allocatable :: ObjectSizes(:)
     type(MemLogEl), allocatable :: AllMemEl(:)
     character(len=*), parameter :: memoryfile = 'TMPMemoryusage.dat'
     character(len=*), parameter :: fmt1='(3a19)'
@@ -539,8 +514,8 @@ contains
     write (iunit,*)
     write (iunit,*) '================================================================'
     write (iunit,*) 'Memory usage'
-    write (iunit,'(a34,f9.1)') ' Maximum memory defined is (MB) : ',real(MaxMemory,lr)/1024.0_dp**2.0_dp
-    write (iunit,'(a34,f9.1)') ' Maximum memory used is    (MB) : ',real(MaxMemoryUsed,lr)/1024.0_dp**2.0_dp
+    write (iunit,'(a34,f9.1)') ' Maximum memory defined is (MB) : ',real(MaxMemory,dp)/1024.0_dp**2.0_dp
+    write (iunit,'(a34,f9.1)') ' Maximum memory used is    (MB) : ',real(MaxMemoryUsed,dp)/1024.0_dp**2.0_dp
     if (nWarn.gt.0) then
         write (iunit,*)'Maximum memory exceeded ',nWarn,' times.'
     endif
@@ -560,7 +535,7 @@ contains
     ! Write out a human-readable amount of memory.  MemSize is in bytes.
     implicit none
     integer, intent(in) :: iunit
-    integer(li), intent(in) :: MemSize
+    integer(int64), intent(in) :: MemSize
     character(len=*), parameter :: fmt1='(f6.1,a2)'
     character(len=*), parameter :: fmt2='(i7,a1)'
     if (MemUnitsBytes) then
