@@ -1,11 +1,10 @@
-
+#include "macros.h"
 
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
        SUBROUTINE HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
      &                     NBLOCKSTARTS,NBLOCKS)
          use constants, only: dp,int32!,n_int
          use SystemData, only: BasisFN
-         use util_mod, only: unused
          use global_utilities
          use HElem, only: HElement_t_size
 !         use DetCalcData, only: NMRKS
@@ -27,9 +26,8 @@
          type(timer), save :: proc_timer
          real(dp) GSEN
          character(len=*), parameter :: t_r="HDIAG_neci"
-#ifdef __WARNING_WORKAROUND
-        call unused(WORK)
-#endif
+
+         unused_var(WORK)
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100
