@@ -76,7 +76,7 @@ module fcimc_initialisation
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
                            tHistInitPops, OrbOccsTag, tHistEnergies, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
-                           OffDiagBinRange, iDiagSubspaceIter, tOldRDMs, &
+                           OffDiagBinRange, iDiagSubspaceIter, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
                            t_spin_measurements, &
@@ -109,7 +109,7 @@ module fcimc_initialisation
     use procedure_pointers, only: generate_excitation, attempt_create, &
                                   get_spawn_helement, encode_child, &
                                   attempt_die, extract_bit_rep_avsign, &
-                                  fill_rdm_diag_currdet_old, fill_rdm_diag_currdet, &
+                                  fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement, scaleFunction, &
                                   generate_two_body_excitation, shiftFactorFunction
     use symrandexcit3, only: gen_rand_excit3
@@ -129,8 +129,6 @@ module fcimc_initialisation
     use SymExcitDataMod, only: SymLabelList2, OrbClassCount, SymLabelCounts2
     use rdm_general, only: init_rdms, dealloc_global_rdm_data, &
                            extract_bit_rep_avsign_no_rdm
-    use rdm_general_old, only: InitRDMs_old, DeallocateRDMs_old
-    use rdm_filling_old, only: fill_rdm_diag_currdet_norm_old
     use rdm_filling, only: fill_rdm_diag_currdet_norm
     use DetBitOps, only: FindBitExcitLevel, CountBits, TestClosedShellDet, &
                          FindExcitBitDet, IsAllowedHPHF, DetBitEq, &
@@ -627,12 +625,12 @@ contains
 !TODO: Get CountExcitations3 working with tKPntSym
             CALL CountExcitations3(iand(HFDet, csf_orbital_mask),exflag,nSingles,nDoubles)
         ELSE
-            if (t_k_space_hubbard) then 
-                ! use my gen_all_excits_k_space_hubbard routine from the 
-                ! unit tests.. but i might have to set up some other stuff 
-                ! for this to work and also make sure this works with my 
+            if (t_k_space_hubbard) then
+                ! use my gen_all_excits_k_space_hubbard routine from the
+                ! unit tests.. but i might have to set up some other stuff
+                ! for this to work and also make sure this works with my
                 ! new symmetry implementation
-                if (.not. t_trans_corr_2body) then 
+                if (.not. t_trans_corr_2body) then
                     call gen_all_excits_k_space_hubbard(HFDet, nDoubles, dummy_list)
                 end if
                 nSingles = 0
@@ -799,14 +797,14 @@ contains
             tHPHFInts=.true.
         ENDIF
 
-        if (t_lattice_model) then 
-            if (t_tJ_model) then 
+        if (t_lattice_model) then
+            if (t_tJ_model) then
                 call init_get_helement_tj()
-            else if (t_heisenberg_model) then 
-                call init_get_helement_heisenberg() 
+            else if (t_heisenberg_model) then
+                call init_get_helement_heisenberg()
             else if (t_new_real_space_hubbard) then
                 call init_get_helement_hubbard()
-            else if (t_k_space_hubbard) then 
+            else if (t_k_space_hubbard) then
                 call init_get_helement_k_space_hub()
             end if
         end if
@@ -1167,13 +1165,13 @@ contains
             WRITE(iout,"(A)") "Brillouin theorem in use for calculation of projected energy."
         ENDIF
 !        WRITE(iout,*) "Non-uniform excitation generators in use."
-        if (.not. (t_k_space_hubbard .and. t_trans_corr_2body)) then 
-            ! for too big lattices my implementation breaks, due to 
+        if (.not. (t_k_space_hubbard .and. t_trans_corr_2body)) then
+            ! for too big lattices my implementation breaks, due to
             ! memory limitations.. but i think we do not actually need it.
             CALL CalcApproxpDoubles()
         end if
         IF(abs(TauFactor) > 1.0e-12_dp) THEN
-            if (t_trans_corr_2body .and. t_k_space_hubbard) then 
+            if (t_trans_corr_2body .and. t_k_space_hubbard) then
                 call Stop_All(this_routine, &
                     "finding the number of excits from HF breaks for too large lattice")
             end if
@@ -1186,37 +1184,37 @@ contains
 !                       ^ Removed by GLM as believed not necessary
 
         ! [Werner Dobrautz 5.5.2017:]
-        ! if this is a continued run from a histogramming tau-search 
-        ! and a restart of the tau-search is not forced by input, turn 
-        ! both the new and the old tau-search off! 
+        ! if this is a continued run from a histogramming tau-search
+        ! and a restart of the tau-search is not forced by input, turn
+        ! both the new and the old tau-search off!
         ! i cannot do it here, since this is called before the popsfile read-in
         if (t_previous_hist_tau) then
-            ! i have to check for tau-search option and stuff also, so that 
-            ! the death tau adaption is still used atleast! todo! 
+            ! i have to check for tau-search option and stuff also, so that
+            ! the death tau adaption is still used atleast! todo!
             tSearchTau = .false.
             t_hist_tau_search = .false.
             t_fill_frequency_hists = .false.
             Write(iout,*) "Turning OFF the tau-search, since continued run!"
         end if
 
-        ! [W.D.] I guess I want to initialize that before the tau-search, 
+        ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then
             call init_back_spawn()
         end if
 
-        ! also i should warn the user if this is a restarted run with a 
-        ! set delay in the back-spawning method: 
-        ! is there actually a use-case where someone really wants to delay 
-        ! a back-spawn in a restarted run? 
+        ! also i should warn the user if this is a restarted run with a
+        ! set delay in the back-spawning method:
+        ! is there actually a use-case where someone really wants to delay
+        ! a back-spawn in a restarted run?
         if (tReadPops .and. back_spawn_delay /= 0) then
             call Warning_neci(t_r, &
                 "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
 
-        ! can i initialize the k-space hubbard here already? 
-        ! because we need information for the tau-search already.. 
+        ! can i initialize the k-space hubbard here already?
+        ! because we need information for the tau-search already..
         if (t_k_space_hubbard) then
             call init_k_space_hubbard()
         end if
@@ -1224,13 +1222,13 @@ contains
         if (t_new_real_space_hubbard) then
             call init_real_space_hubbard
         end if
-! 
+!
         if (tSearchTau) then
             call init_tau_search()
 
             ! [Werner Dobrautz 4.4.2017:]
             if (t_hist_tau_search) then
-                ! some setup went wrong! 
+                ! some setup went wrong!
                 call Stop_All(t_r, &
                     "Input error! both standard AND Histogram tau-search chosen!")
             end if
@@ -1359,7 +1357,6 @@ contains
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
-
 !        SymFactor=(Choose(NEl,2)*Choose(nBasis-NEl,2))/(HFConn+0.0_dp)
 !        TotDets=1.0_dp
 !        do i=1,NEl
@@ -1404,7 +1401,7 @@ contains
         real(dp) :: dummy(lenof_sign)
         !default
         Popinum_runs=1
-        ! set default pops version, this should not have any functional impact, 
+        ! set default pops version, this should not have any functional impact,
         ! but prevents using it uninitialized
         PopsVersion=4
 
@@ -1769,7 +1766,6 @@ contains
 
         if (tRDMonFly) then
             call init_rdms(nrdms_standard, nrdms_transition)
-            if (tOldRDMs) call InitRDMs_old(nrdms_standard)
         end if
         ! This keyword (tRDMonFly) is on from the beginning if we eventually plan to calculate the RDM's.
 
@@ -1954,7 +1950,7 @@ contains
             endif
       elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
          if (tHUB .and. tLatticeGens) then
-            ! for now the hubbard + back-spawn still uses the old 
+            ! for now the hubbard + back-spawn still uses the old
             ! genrand excit gen
             generate_excitation => gen_excit_back_spawn_hubbard
          else if (tUEGNewGenerator .and. tLatticeGens) then
@@ -2005,9 +2001,9 @@ contains
       if (tTruncSpace .or. tHistSpawn .or. tCalcFCIMCPsi) then
          max_calc_ex_level = nel
       else
-         if (t_3_body_excits) then 
+         if (t_3_body_excits) then
             max_calc_ex_level = 3
-         else 
+         else
             max_calc_ex_level = 2
          end if
       endif
@@ -2083,7 +2079,6 @@ contains
         extract_bit_rep_avsign => extract_bit_rep_avsign_no_rdm
 
         fill_rdm_diag_currdet => fill_rdm_diag_currdet_norm
-        fill_rdm_diag_currdet_old => fill_rdm_diag_currdet_norm_old
 
         select case(sfTag)
         case(0)
@@ -2240,10 +2235,7 @@ contains
            deallocate(breathingCont)
         endif
 
-        if (tRDMonFly) then
-            call dealloc_global_rdm_data()
-            if (tOldRDMs) call DeallocateRDMs_old()
-        end if
+        if (tRDMonFly) call dealloc_global_rdm_data()
 
         if (allocated(refdetflip)) deallocate(refdetflip)
         if (allocated(ilutrefflip)) deallocate(ilutrefflip)
@@ -3131,7 +3123,7 @@ contains
             Allocate(CkN(nCASDet,nEval), stat=ierr)
             CkN=0.0_dp
     !C..Lanczos iterative diagonalising routine
-            if (t_non_hermitian) then 
+            if (t_non_hermitian) then
                 call stop_all(this_routine, &
                     "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
             end if
@@ -3166,8 +3158,8 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = nCASDet+1
             nBlocks = 1
-            if (t_non_hermitian) then 
-                call stop_all(this_routine, & 
+            if (t_non_hermitian) then
+                call stop_all(this_routine, &
                     "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
             end if
             call HDIAG_neci(nCASDet,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
@@ -4225,7 +4217,6 @@ contains
                 end if
             enddo
 
-
             !We have got a unique filename
             !Do not use system call
 !            command = 'mv' // ' FCIMCStats ' // abstr
@@ -4347,7 +4338,7 @@ contains
         end do
 
     end subroutine assign_reference_dets
-    
+
     subroutine init_cont_time()
 
         integer :: ierr

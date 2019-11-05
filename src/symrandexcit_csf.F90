@@ -20,6 +20,7 @@ module GenRandSymExcitCSF
     use Determinants, only: write_det
     use Parallel_neci
     use constants, only: n_int, bits_n_int
+    use util_mod, only: unused
     use bit_reps, only: NIfTot,NIfD
     use sym_general_mod, only: CCIndS
     implicit none
@@ -50,11 +51,11 @@ contains
         logical, intent(out)   :: tParity
         real(dp),  intent(out)   :: pGen
         type(excit_gen_store_type), intent(inout), target :: store
-        integer, intent(in), optional :: part_type
 
         ! Unused:
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
         HElement_t(dp), intent(out) :: HElGen
+        integer, intent(in), optional :: part_type
 
         ! We only need the spatial terms for the CSF stuff. However, keep the
         ! full 1-ScratchSize array, so we can pass it through to the normal
@@ -65,6 +66,10 @@ contains
         character(*), parameter   :: this_routine = 'GenRandSymExcitCSF'
         integer :: nopen, ncsf, exTmp
         real(dp) :: r
+
+#ifdef __WARNING_WORKAROUND
+        call unused(part_type)
+#endif
 
         ! Point to the correct bits
         CCDblS => store%ClassCountOcc

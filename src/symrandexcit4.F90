@@ -66,18 +66,23 @@ contains
 
         integer :: nsing, ndoub, nexcit
 
+#ifdef __WARNING_WORKAROUND
+        call unused(part_type); call unused(exFlag);
+        call unused(store%nel_alpha)
+#endif
+
         ! Count how many singles and doubles there are!
         call CountExcitations3 (nI, 3, nsing, ndoub)
         nexcit = nsing + ndoub
 
-        call gen_excit_hel_local (nI, ilutI, nJ, ilutJ, exFlag, ic, ExcitMat, &
-                                  tParity, pGen, HElGen, store, nexcit)
+        call gen_excit_hel_local (nI, ilutI, nJ, ilutJ, ic, ExcitMat, &
+                                  tParity, pGen, HElGen, nexcit)
 
     end subroutine
 
 
-    subroutine gen_excit_hel_local (nI, ilutI, nJ, ilutJ, exFlag, ic, &
-                                    ExcitMat, tParity, pGen, HElGen, store, &
+    subroutine gen_excit_hel_local (nI, ilutI, nJ, ilutJ, ic, &
+                                    ExcitMat, tParity, pGen, HElGen, &
                                     nexcit)
 
         ! A really laborious, slow, explicit and brute force method to
@@ -85,13 +90,12 @@ contains
         ! strength. This demonstrates the maximum possible value of tau that
         ! can be used.
 
-        integer, intent(in) :: nI(nel), exFlag, nexcit
+        integer, intent(in) :: nI(nel), nexcit
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
-        type(excit_gen_store_type), intent(inout), target :: store
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         character(*), parameter :: this_routine = 'gen_excit_hel_weighted'
 
@@ -178,6 +182,10 @@ contains
         character(*), parameter :: this_routine = 'gen_excit_4ind_weighted'
         integer :: orb
         real(dp) :: pgen2
+
+#ifdef __WARNING_WORKAROUND
+        call unused(exFlag); call unused(part_type)
+#endif
 
         HElGen = HEl_zero
         ! We now use the class counts to do the construction. This is an
@@ -1316,6 +1324,11 @@ contains
 
         integer :: orb
         real(dp) :: pgen2
+
+#ifdef __WARNING_WORKAROUND
+        call unused(exFlag); call unused(part_type);
+        call unused(store%nel_alpha)
+#endif
 
         HElGen = HEl_zero
         if (genrand_real2_dSFMT() < pSingles) then

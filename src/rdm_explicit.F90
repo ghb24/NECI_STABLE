@@ -69,7 +69,7 @@ contains
 
     end subroutine Fill_ExplicitRDM_this_Iter
 
-    subroutine Fill_Hist_ExplicitRDM_this_Iter(TotWalkers)
+    subroutine Fill_Hist_ExplicitRDM_this_Iter()
 
         use bit_reps, only: encode_sign
         use DetCalcData, only: Det, FCIDets
@@ -78,7 +78,6 @@ contains
         use Parallel_neci, only: iProcIndex, MPISumAll
         use rdm_data, only: nElRDM_Time, ExcNorm
 
-        integer(int64), intent(in) :: TotWalkers
         integer(n_int) :: iLutnI(0:NIfTot)
         integer :: i, error
         real(dp) :: TempTotParts, NormalisationTemp, Sum_Coeffs, AllNode_norm

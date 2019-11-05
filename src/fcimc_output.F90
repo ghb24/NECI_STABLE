@@ -585,6 +585,11 @@ contains
         logical :: init
         real(dp) :: l1_norm
 
+! Is in the interface to refactor the procedure lateron.
+#ifdef __WARNING_WORKAROUND
+        call unused(iter_data%update_iters)
+#endif
+
         call getProjEOffset()
         ! Provide default 'initial' option
         if (present(initial)) then

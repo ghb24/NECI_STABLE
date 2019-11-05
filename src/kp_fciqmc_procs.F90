@@ -754,12 +754,11 @@ contains
 
     end subroutine construct_gs_transform_matrix
 
-    subroutine print_populations_kp(kp)
+    subroutine print_populations_kp()
 
         ! A useful test routine which will output the total walker population on both
         ! replicas, for each Krylov vector.
 
-        type(kp_fciqmc_data), intent(in) :: kp
         integer :: ihash
         integer(n_int) :: int_sign(lenof_all_signs)
         real(dp) :: real_sign(lenof_all_signs), total_pop(lenof_all_signs)

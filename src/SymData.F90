@@ -54,6 +54,7 @@ module SymData
     !Used for  SymSetupExcits* to hold internal data.  Each symclass corresponds to a single
     !symmetry of an orbital which is present in the determinant being excited from
     TYPE SymClass
+        sequence
         TYPE(Symmetry) SymRem    ! The symmetry remaining from the determinant we excite from when one orbital
                                  !from this symmetry is removed
         INTEGER        SymLab    ! The symmetry label (i.e. from SymClasses) corresponding to the symmetry of

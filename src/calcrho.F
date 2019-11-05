@@ -137,44 +137,6 @@ C               IC=IC+1
 
       END FUNCTION iGetExcitLevelwrtHF
 
-      SUBROUTINE  CALCRHOIIMAX(BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-     &           RHOMAX,ECORE)
-         use constants, only: dp
-         INTEGER :: NEL,IDET(NEL),I_P
-         integer :: nBasisMax, nBasis, nMSH, nMax, nTay
-         real(dp) :: Beta,RhoMax,ECore, G1, BRR, FCK, ALAT
-         CALL CALCRHOIIMAXR(BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-     &           RHOMAX,IDET,1,0,ECORE)
-
-         RETURN
-      END
-
-      RECURSIVE SUBROUTINE CALCRHOIIMAXR(BETA,I_P,NEL,
-     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-     &           RHOMAX,IDET,NTHISEL,ILASTBASIS,ECORE)
-         use constants, only : dp
-         INTEGER :: nEl, IDET(NEL),NTHISEL,I,ILASTBASIS, nBasis,
-     &      I_P, nBasisMax, nMsh, nMax, nTay
-         real(dp) :: RH,RHOMAX,BETA,ECORE, G1, BRR, FCK, Alat
-         CHARACTER(*), PARAMETER :: t_r="CALCRHOIIMAXR"
-         DO I=ILASTBASIS+1,NBASIS
-            IDET(NTHISEL)=I
-            call stop_all(t_r,"Inconsistent arguments")
-            IF(NTHISEL.EQ.NEL) THEN
-!               CALL CALCRHO2(IDET,IDET,BETA,I_P,NEL,NBASISMAX,
-!     &            G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,RH,NTAY,0,ECORE)
-!               IF(RH.GT.RHOMAX) RHOMAX=RH
-            ELSE
-!               CALL CALCRHOIIMAXR(BETA,I_P,NEL,
-!     &           NBASISMAX,G1,NBASIS,BRR,NMSH,FCK,NMAX,ALAT,NTAY,
-!     &           RHOMAX,IDET,NTHISEL+1,I,ECORE)
-            ENDIF
-         ENDDO
-         RETURN
-      END
-
 C.. GETHELEMENT
 C.. Get matrix element of the hamiltonian
       FUNCTION GETHELEMENT(II,IJ,HAMIL,LAB,NROW,NDET)

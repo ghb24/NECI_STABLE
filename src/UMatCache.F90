@@ -226,7 +226,7 @@ MODULE UMatCache
          INTEGER, intent(in) :: I,J,K,L
          INTEGER A,B, nbi, iss
 
-         if (t_non_hermitian) then 
+         if (t_non_hermitian) then
              IF(tStoreSpinOrbs) THEN
                  iSS=1
              ELSE
@@ -344,12 +344,13 @@ MODULE UMatCache
       end function UMatConj
 
 
-      SUBROUTINE GetUMatSize(nBasis,nEl,iSize)
+
+      SUBROUTINE GetUMatSize(nBasis,iSize)
+        use SystemData, only: tStoreSpinOrbs
       ! Get the prospective size of a UMat (not a UMatCache) for completely
       ! storing FCIDUMP 2-e integrals
       ! In:
       !    nBasis: as above.
-      !    nEl: # electrons.
       !    iSS: ratio of spatial orbitals to spin orbitals.
       !         iSS=0 integrals not stored in UMAT.
       !         iSS=1 unrestricted calculation
@@ -359,7 +360,7 @@ MODULE UMatCache
       !    iSize: size of UMAT.
          IMPLICIT NONE
          INTEGER nBasis,iSS
-         INTEGER iPairs,nBi,nEl,noccup
+         INTEGER iPairs,nBi,noccup
          INTEGER(int64), intent(out) :: iSize
          IF(tStoreSpinOrbs) THEN
              iSS=1
@@ -1457,7 +1458,7 @@ MODULE UMatCache
       ! gets the matrix element <ij|ij> (dense version, no symmetries
       ! of umat are counted for faster access)
       implicit none
-      
+
       integer, intent(in) :: idi, idj
       HElement_t(dp) :: hel
 
@@ -1481,11 +1482,11 @@ MODULE UMatCache
       implicit none
       integer, intent(in) :: idi, idj, ida
       HElement_t(dp) :: hel
-      
+
       ! this is stored in UMat3d
 
     end function get_3d_umat_el
-      
+
 
 END MODULE UMatCache
 ! Still useful to keep CacheUMatEl and GetCachedUMatEl outside of the module for

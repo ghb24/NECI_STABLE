@@ -9,6 +9,7 @@ module hphf_integrals
                          TestClosedShellDet, CalcOpenOrbs
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
+    use util_mod, only: unused
     use lattice_mod, only: get_helement_lattice
     implicit none
 
@@ -24,17 +25,15 @@ module hphf_integrals
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,ic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
-        integer :: iUnused
-        logical :: lUnused
         HElement_t(dp) :: hel
         HElement_t(dp), intent(in) :: HElGen
 
-        hel=HElGen
+#ifdef __WARNING_WORKAROUND
+        call unused(IC); call unused(ex); call unused(nI); call unused(nJ);
+        call unused(iLutI); call unused(iLutJ); call unused(tParity)
+#endif
 
-        ! Avoid warnings
-        iUnused = IC; iUnused = ex(1,1); iUnused = nI(1); iUnused = nJ(1)
-        iUnused = int(iLutI(0),sizeof_int); iUnused = int(iLutJ(0),sizeof_int)
-        lUnused = tParity
+        hel = HElGen
 
     end function
 
@@ -44,18 +43,18 @@ module hphf_integrals
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,ic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
-        integer :: iUnused
-        logical :: lUnused
         HElement_t(dp) :: hel
         HElement_t(dp) , intent(in) :: HElGen
+
+#ifdef __WARNING_WORKAROUND
+        call unused(IC); call unused(ex); call unused(tParity);
+        call unused(HElGen)
+#endif
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
 
         if (IC /= 0 .and. modk_offdiag) &
             hel = -abs(hel)
-
-        ! Avoid warnings
-        iUnused = IC; iUnused = ex(1,1); lUnused = tParity
 
     end function
 
@@ -73,14 +72,15 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot), iLutnJ(0:NIfTot)
         HElement_t(dp) :: hel
 
-        integer :: nI2(nel), iUnused
+        integer :: nI2(nel)
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbsI, OpenOrbsJ, Ex(2,maxExcit)
         HElement_t(dp) :: MatEl2
         logical :: tSign
 
-        ! Avoid warnings
-        iUnused = nJ(1)
+#ifdef __WARNING_WORKAROUND
+        call unused(nJ)
+#endif
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
             ! Do not allow a 'diagonal' matrix element. The problem is
@@ -90,9 +90,9 @@ module hphf_integrals
             return
         endif
 
-        ! i need to catch if it is a lattice model here.. 
-        if (t_lattice_model) then 
-            ! here we do not deal with hermiticity but in the call to this 
+        ! i need to catch if it is a lattice model here..
+        if (t_lattice_model) then
+            ! here we do not deal with hermiticity but in the call to this
             ! function!
             hel = get_helement_lattice(nI,nJ)
         else
@@ -128,8 +128,8 @@ module hphf_integrals
                 ExcitLevel = FindBitExcitLevel(iLutnI2, ilutnJ, 2)
 
                 if (ExcitLevel.le.3) then
-                    ! We need to find out whether the nJ HPHF wavefunction is 
-                    ! symmetric or antisymmetric. This is dependant on the 
+                    ! We need to find out whether the nJ HPHF wavefunction is
+                    ! symmetric or antisymmetric. This is dependant on the
                     ! number of open shell orbitals and total spin of the wavefunction.
                     call FindDetSpinSym(nI, nI2, nel)
                     call CalcOpenOrbs(iLutnJ, OpenOrbsJ)
@@ -144,11 +144,11 @@ module hphf_integrals
 
                     if (t_lattice_model) then
                         if (t_3_body_excits) call stop_all("hphf_off_diag", "todo 3 body")
-                        ! is this the correct call here? compare to the 
+                        ! is this the correct call here? compare to the
                         ! orginal call below!
 !                         temp_ex(1,:) = Ex(2,:)
-!                         temp_ex(2,:) = Ex(1,:) 
-!                         MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign) 
+!                         temp_ex(2,:) = Ex(1,:)
+!                         MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign)
                         MatEl2 = get_helement_lattice(nI2, ExcitLevel, Ex, tSign)
                     else
                         MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
@@ -350,7 +350,7 @@ module hphf_integrals
         HElement_t(dp) :: MatEl2
         integer :: nJ(nel)
 
-        if (t_lattice_model) then 
+        if (t_lattice_model) then
             hel = get_helement_lattice(nI,nI)
         else
             hel = sltcnd_excit (nI, 0)
@@ -368,9 +368,9 @@ module hphf_integrals
             if (ExcitLevel.le.2) then
                 call CalcOpenOrbs (iLutnI, OpenOrbs)
 !                call FindDetSpinSym (nI, nI2, nel)
-                if (t_lattice_model) then 
+                if (t_lattice_model) then
                     call decode_bit_det(nJ, iLutnI2)
-                    ! here i am really not sure about hermiticity.. 
+                    ! here i am really not sure about hermiticity..
                     MatEl2 = get_helement_lattice(nI,nJ)
                     ! do i need a hermitian version of that here?
 !                     MatEl2 = get_helement_lattice(nJ, nI)

@@ -15,6 +15,7 @@ module sparse_arrays
     use bit_reps, only: decode_bit_det
     use CalcData, only: tReadPops
     use constants
+    use util_mod, only: unused
     use DetBitOps, only: DetBitEq, CountBits, TestClosedShellDet
     use Determinants, only: get_helement
     use FciMCData, only: determ_space_size, determ_sizes, determ_displs, &
@@ -749,6 +750,9 @@ contains
         integer(TagIntType), intent(inout), allocatable :: sparse_tags(:,:)
         integer :: sparse_matrix_size, i, ierr
         character(len=*), parameter :: t_r = "deallocate_sparse_ham"
+#ifdef __WARNING_WORKAROUND
+        call unused(sparse_matrix_name)
+#endif
 
         sparse_matrix_size = size(sparse_matrix)
 

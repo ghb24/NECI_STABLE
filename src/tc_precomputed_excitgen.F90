@@ -11,7 +11,6 @@ module pcpp_excitgen
   use Integrals_neci, only: get_umat_el
   use UMatCache, only: gtID
   use sltcnd_mod, only: sltcnd_excit
-  use util_mod, only: binary_search_first_ge, intSwap, getSpinIndex
   use get_excit, only: make_double, make_single
   implicit none
 
@@ -60,6 +59,10 @@ contains
 
     real(dp) :: r
     integer :: elec_map(nel)
+
+#ifdef __WARNING_WORKAROUND
+    call unused(exFlag); call unused(part_type)
+#endif
 
     HElgen = 0.0
 

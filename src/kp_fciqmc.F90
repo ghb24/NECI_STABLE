@@ -221,7 +221,7 @@ contains
 
                                 do ireplica = 1, lenof_sign
 
-                                    call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
+                                    call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
 
                                     do ispawn = 1, nspawn
 
@@ -578,7 +578,7 @@ contains
 
                         do ireplica = 1, lenof_sign
 
-                            call decide_num_to_spawn(parent_sign(ireplica), parent_hdiag, AvMCExcits, nspawn)
+                            call decide_num_to_spawn(parent_sign(ireplica), AvMCExcits, nspawn)
 
                             do ispawn = 1, nspawn
 

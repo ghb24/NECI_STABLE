@@ -47,7 +47,7 @@ module Integrals_neci
 
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 
-    use real_space_hubbard, only: init_umat_rs_hub_transcorr, & 
+    use real_space_hubbard, only: init_umat_rs_hub_transcorr, &
                                   init_hopping_transcorr
 
     use LoggingData, only: tLogKMatProjE
@@ -115,7 +115,7 @@ contains
       tPostFreezeHF=.false.
       tSparseLMat = .false.
       tSymBrokenLMat = .false.
-      tHDF5LMat = .false.      
+      tHDF5LMat = .false.
 !Feb 08 defaults
       IF(Feb08) THEN
          NTAY(2)=3
@@ -382,12 +382,12 @@ contains
            ! the 6-index integrals are not symmetrized yet (has to be done
            ! on the fly then)
            tSymBrokenLMat = .true.
-           
+
         case("DMATEPSILON")
           call readf(DMatEpsilon)
 
         case("LMATCALC")
-          
+
             if(tSymBrokenLMat .or. t12FoldSym)then
                call report("LMATCALC assumes 48-fold symmetry",.true.)
           end if
@@ -552,7 +552,7 @@ contains
          ISPINSKIP=NBasisMax(2,3)
          IF(ISPINSKIP.le.0) call stop_all(this_routine, 'NBASISMAX(2,3) ISpinSkip unset')
 !nBasisMax(2,3) is iSpinSkip = 1 if UHF and 2 if RHF/ROHF
-         CALL GetUMatSize(nBasis,nEl,UMATINT)
+         CALL GetUMatSize(nBasis,UMATINT)
          WRITE(6,*) "UMatSize: ",UMATINT
          UMatMem=REAL(UMatInt,dp)*REAL(HElement_t_sizeB,dp)*(9.536743164e-7_dp)
          WRITE(6,"(A,G20.10,A)") "Memory required for integral storage: ",UMatMem, " Mb/Shared Memory"
@@ -581,7 +581,7 @@ contains
          IF(tCalcPropEst) THEN
            call SetupPropInts(nBasis)
            do i=1,iNumPropToEst
-             call ReadPropInts(i,nBasis,iNumPropToEst,EstPropFile(i),PropCore(i),OneEPropInts(:,:,i))
+             call ReadPropInts(nBasis,EstPropFile(i),PropCore(i),OneEPropInts(:,:,i))
              call MPIBCast(PropCore(i),1)
              IntSize = nBasis*nBasis
              call MPIBCast(OneEPropInts(:,:,i),IntSize)
@@ -594,8 +594,8 @@ contains
                IF(THUB.AND.TREAL) THEN
     !!C.. Real space hubbard
     !!C.. we pre-compute the 2-e integrals
-                  if ((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) & 
-                      .or. t_tJ_model .or. t_heisenberg_model) then 
+                  if ((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) &
+                      .or. t_tJ_model .or. t_heisenberg_model) then
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
                      UMatInt = 1_int64
                      call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
@@ -603,27 +603,26 @@ contains
                      !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
                      UMAT(1)=UHUB
-                 else if (t_new_real_space_hubbard .and. t_trans_corr_hop) then 
+                 else if (t_new_real_space_hubbard .and. t_trans_corr_hop) then
 
                      call init_hopping_transcorr()
                      call init_umat_rs_hub_transcorr()
                  else
-                      WRITE(6,*) "Generating 2e integrals"
-        !!C.. Generate the 2e integrals (UMAT)
-                      CALL GetUMatSize(nBasis,nEl,UMATINT)
-                      call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
-!                       call shared_allocate ("umat", umat, (/UMatInt/))
-                      !Allocate(UMat(UMatInt), stat=ierr)
-                      LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-                      UMat = 0.0_dp
-                      WRITE(6,*) "Size of UMat is: ",UMATINT
-                      CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
-                  end if
+                  WRITE(6,*) "Generating 2e integrals"
+    !!C.. Generate the 2e integrals (UMAT)
+                  CALL GetUMatSize(nBasis,UMATINT)
+                  call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
+                  !Allocate(UMat(UMatInt), stat=ierr)
+                  LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
+                  UMat = 0.0_dp
+                  WRITE(6,*) "Size of UMat is: ",UMATINT
+                  CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
+                 end if
                ELSEIF(THUB.AND..NOT.TPBC) THEN
     !!C.. we pre-compute the 2-e integrals
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
-                  CALL GetUMatSize(nBasis,nEl,UMATINT)
+                  CALL GetUMatSize(nBasis,UMATINT)
                   call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
                   !Allocate(UMat(UMatInt), stat=ierr)
                   LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
@@ -664,7 +663,7 @@ contains
     !!C.. we pre-compute the 2-e integrals
                WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
-               CALL GetUMatSize(nBasis,nEl,UMATINT)
+               CALL GetUMatSize(nBasis,UMATINT)
                call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
                !Allocate(UMat(UMatInt), stat=ierr)
                LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
@@ -686,15 +685,15 @@ contains
          !CALL N_MEMORY(IP_TMAT,HElement_t_size*nBasis*nBasis,'TMAT')
          !TMAT=(0.0_dp)
          IF(THUB) THEN
-             if (t_new_hubbard) then 
-                 if (t_k_space_hubbard) then 
+             if (t_new_hubbard) then
+                 if (t_k_space_hubbard) then
                      ! also change here to the new k-space implementation
                      call init_tmat_kspace(lat)
 
-                 else if (t_new_real_space_hubbard) then 
-                     call init_tmat(lat) 
+                 else if (t_new_real_space_hubbard) then
+                     call init_tmat(lat)
                  end if
-             else 
+             else
                  CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
              end if
          ELSE
@@ -744,13 +743,13 @@ contains
          nBI = nBasis
       else
          nBI = nBasis / 2
-      endif      
+      endif
 
       if(t_mol_3_body) call readLMat()
 
       tUseKMat = tDampKMat .or. tLogKMatProjE
       if(tUseKMat) then
-         ! the k-Matrix can be read in separated into different contributions, 
+         ! the k-Matrix can be read in separated into different contributions,
          ! or all at one, we leave this to the kMat module
          call readKMat()
       endif
@@ -765,16 +764,16 @@ contains
       implicit none
 
       ! setup the cache for the 2-index integrals
-      ! (has to happen after pointer init, as it uses a fn pointer) 
-      
+      ! (has to happen after pointer init, as it uses a fn pointer)
+
       call SetupUMat2d_dense(nBasis)
     end subroutine InitIntBuffers
 
     ! clear auxiliary buffers
     subroutine freeIntBuffers()
       implicit none
-      
-      call freeUMat2d_dense()      
+
+      call freeUMat2d_dense()
     end subroutine freeIntBuffers
 
 
@@ -829,7 +828,7 @@ contains
          !CALL N_MEMORY(IP_TMAT2,HElement_t_size*(NBASIS)**2,'TMAT2')
          !TMAT2=(0.0_dp)
          IF(NBASISMAX(1,3).GE.0.AND.ISPINSKIP.NE.0) THEN
-            CALL GetUMatSize(nBasis,(nEl-NFROZEN-NFROZENIN),UMATINT)
+            CALL GetUMatSize(nBasis,UMATINT)
             call shared_allocate_mpi (umat2_win, umat2, (/UMatInt/))
             !Allocate(UMat2(UMatInt), stat=ierr)
             LogAlloc(ierr, 'UMat2', int(UMatInt),HElement_t_SizeB, tagUMat2)
@@ -941,7 +940,7 @@ contains
        use SystemData, only: Symmetry, BasisFN, arr, tagarr
        use OneEInts, only: GetPropIntEl, GetTMATEl, TMATSYM2, TMAT2D2, PropCore, &
                            OneEPropInts2, OneEPropInts, tOneElecDiag, NewTMatInd, &
-                           GetNEWTMATEl, tCPMDSymTMat, SetupTMAT2, SWAPTMAT, & 
+                           GetNEWTMATEl, tCPMDSymTMat, SetupTMAT2, SWAPTMAT, &
                            SwapOneEPropInts, SetupPropInts2
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
@@ -1539,7 +1538,7 @@ contains
 
        FREEZETRANSFER=.false.
 !C.. Copy the new BRR and ARR over the old ones
-       CALL SWAPTMAT(NBASIS,NHG,GG)
+       CALL SWAPTMAT()
        IF(tCalcPropEst) call SwapOneEPropInts(nBasis,iNumPropToEst)
 
        deallocate(arr)
@@ -1605,7 +1604,7 @@ contains
                 endif
             else if (iss == -1) then
                 ! Non-stored hubbard integral
-                if (t_k_space_hubbard) then 
+                if (t_k_space_hubbard) then
                     get_umat_el => get_umat_kspace
                 else
                     get_umat_el => get_hub_umat_el

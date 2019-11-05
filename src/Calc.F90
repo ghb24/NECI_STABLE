@@ -566,7 +566,7 @@ contains
                 call geti(ras_size_1)  ! Number of spatial orbitals in RAS1.
                 call geti(ras_size_2)  ! Number of spatial orbitals in RAS2.
                 call geti(ras_size_3)  ! Number of spatial orbitals in RAS3.
-                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs. 
+                call geti(ras_min_1)  ! Min number of electrons (alpha and beta) in RAS1 orbs.
                 call geti(ras_max_3)  ! Max number of electrons (alpha and beta) in RAS3 orbs.
                 davidson_ras%size_1 = int(ras_size_1,sp)
                 davidson_ras%size_2 = int(ras_size_2,sp)
@@ -970,13 +970,13 @@ contains
                    endif
                 end do
                 if(i-1.ne.nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
-                ! there is something going wrong later in the init, so 
-                ! do it actually here 
-                if (tHPHF) then 
+                ! there is something going wrong later in the init, so
+                ! do it actually here
+                if (tHPHF) then
                     call EncodeBitDet(DefDet, def_ilut)
 
                     def_ilut_sym = return_hphf_sym_det(def_ilut)
-                    if (.not. DetBitEq(def_ilut, def_ilut_sym)) then 
+                    if (.not. DetBitEq(def_ilut, def_ilut_sym)) then
                         call decode_bit_det(DefDet, def_ilut_sym)
                         write(iout, *) "definedet changed to HPHF symmetric:"
                         call write_det(iout, DefDet, .true.)
@@ -1193,9 +1193,9 @@ contains
                     end do
                 end if
 
-            case("PDOUBLES") 
-                ! for a transcorrelation with triple excitations 
-                call getf(p_doubles_input) 
+            case("PDOUBLES")
+                ! for a transcorrelation with triple excitations
+                call getf(p_doubles_input)
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
                 tSearchTau=.false.  !Tau is set, so don't search for it.
@@ -1256,9 +1256,9 @@ contains
                 tSearchTau = .false.
                 tSearchTauOption = .false.
 
-            case ("TEST-ORDER") 
-                ! test order of transcorrelated matrix elements 
-                t_test_order = .true. 
+            case ("TEST-ORDER")
+                ! test order of transcorrelated matrix elements
+                t_test_order = .true.
             case("HIST-TAU-SEARCH","NEW-TAU-SEARCH")
                 ! [Werner Dobrautz, 4.4.2017:]
                 ! the new tau search method using histograms of the
@@ -1379,10 +1379,10 @@ contains
             case("START-NEEL-STATE")
                 ! in the new real-space hubbard implementation this keyword
                 ! causes the starting state to be the neel-state if possible,
-                ! for the lattice, or otherwise still a state close to it.. 
+                ! for the lattice, or otherwise still a state close to it..
                 t_start_neel_state = .true.
                 ! also reuse the define det functionality
-                tDefineDet = .true. 
+                tDefineDet = .true.
                 if(.not.allocated(DefDet)) then
                   ALLOCATE(DefDet(NEl),stat=ierr)
                   CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
@@ -1548,21 +1548,21 @@ contains
                 end if
 
             case ("TRIAL-EXCITS")
-                ! choose an excited states as the trial-wf and not only the 
-                ! lowest or best overlapping per replica 
+                ! choose an excited states as the trial-wf and not only the
+                ! lowest or best overlapping per replica
                 t_choose_trial_state = .true.
-                if (tPairedReplicas) then 
+                if (tPairedReplicas) then
                     allocate(trial_excit_choice(inum_runs/2))
-                else 
+                else
                     allocate(trial_excit_choice(inum_runs))
                 end if
 
-                if (item < nitems) then 
-                    if (tPairedReplicas) then 
+                if (item < nitems) then
+                    if (tPairedReplicas) then
                         do i = 1, inum_runs/2
                             call geti(trial_excit_choice(i))
                         end do
-                    else 
+                    else
                         do i = 1, inum_runs
                             call geti(trial_excit_choice(i))
                         end do
@@ -1572,9 +1572,9 @@ contains
                         "provide choice for excited states in TRIAL-EXCITS")
                 end if
 
-                if (maxval(trial_excit_choice) > ntrial_ex_calc) then 
+                if (maxval(trial_excit_choice) > ntrial_ex_calc) then
                     ! or should i just set ntrial_ex_calc to the maxval?
-                    ! yes: 
+                    ! yes:
                     print *, "setting ntrial_ex_calc to max(trial_excit_choice)!"
                     ntrial_ex_calc = maxval(trial_excit_choice)
 !                     call stop_all(this_routine, &
@@ -2301,8 +2301,8 @@ contains
 ! for testing purposes, it can now be turned off, using the following keyword
 !             case("DISCARDDOUBSPAWNS")
 !                tKeepDoubSpawns = .false.
-               
-! manually set the number of simultaneous spawns required for keeping a spawn from a 
+
+! manually set the number of simultaneous spawns required for keeping a spawn from a
 ! non-inititator to an unoccupied determinant
 !             case("MULTISPAWN-THRESHOLD")
 !                tMultiSpawnThreshold = .true.
@@ -2872,13 +2872,13 @@ contains
                 tStartCoreGroundState = .false.
 
             case("TEST-NON-ORTHOGONALITY")
-                ! for the non-hermitian eigenstates the shift gives a 
-                ! correct energy although the eigenvectors should not be 
-                ! orthogonal. 
-                ! so test if artificially introducing a small overlap 
-                ! also gives the correct shift if the vectors should be 
+                ! for the non-hermitian eigenstates the shift gives a
+                ! correct energy although the eigenvectors should not be
+                ! orthogonal.
+                ! so test if artificially introducing a small overlap
+                ! also gives the correct shift if the vectors should be
                 ! orthogonal
-                t_test_overlap = .true. 
+                t_test_overlap = .true.
                 if (item < nitems) then
                     call getf(overlap_eps)
                 end if
@@ -3019,26 +3019,26 @@ contains
 
             case ("CEPA-SHIFTS", "CEPA", "CEPA-SHIFT")
                 t_cepa_shift = .true.
-                if (item < nitems) then 
+                if (item < nitems) then
                     call readl(cepa_method)
                 else
                     cepa_method = '0'
                 end if
 
             case ("CC-AMPLITUDES")
-                t_cc_amplitudes = .true. 
-                if (item < nitems) then 
+                t_cc_amplitudes = .true.
+                if (item < nitems) then
                     call geti(cc_order)
                     if (item < nitems) then
                         call geti(cc_delay)
-                    else 
+                    else
                         cc_delay = 1000
                     end if
-                else 
+                else
                     ! 2 is the default cc_order
                     cc_order = 2
-                    ! and also have an default delay of iterations after 
-                    ! the variable shift mode is turned on, when we want 
+                    ! and also have an default delay of iterations after
+                    ! the variable shift mode is turned on, when we want
                     ! to do the amplitude sampling
                     cc_delay = 1000
                 end if
@@ -3392,16 +3392,16 @@ contains
 !C         DBETA=DBRAT*BETA
           IF(.not.tFCIMC) WRITE(6,*) "DBETA=",DBETA
 
-          ! actually i have to initialize the matrix elements here 
+          ! actually i have to initialize the matrix elements here
 
-            if (t_lattice_model) then 
-                if (t_tJ_model) then 
+            if (t_lattice_model) then
+                if (t_tJ_model) then
                     call init_get_helement_tj()
-                else if (t_heisenberg_model) then 
-                    call init_get_helement_heisenberg() 
+                else if (t_heisenberg_model) then
+                    call init_get_helement_heisenberg()
                 else if (t_new_real_space_hubbard) then
                     call init_get_helement_hubbard()
-                else if (t_k_space_hubbard) then 
+                else if (t_k_space_hubbard) then
                     call init_get_helement_k_space_hub
                 end if
             end if
@@ -3562,7 +3562,7 @@ contains
              ! Parallal 2v sum currently for testing only.
              !          call Par2vSum(FDet)
           ELSE IF(tDavidson) then
-             davidsonCalc = davidson_direct_ci_init(.true.)
+              davidsonCalc = davidson_direct_ci_init()
              if (t_non_hermitian) then
                 call stop_all(this_routine, &
                      "perform_davidson not adapted for non-hermitian Hamiltonians!")

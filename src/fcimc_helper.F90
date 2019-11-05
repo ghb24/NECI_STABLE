@@ -63,7 +63,6 @@ module fcimc_helper
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
     use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel
-    use rdm_filling_old, only: det_removed_fill_diag_rdm_old
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
@@ -114,7 +113,7 @@ contains
     end function TestMCExit
 
     subroutine create_particle (nJ, iLutJ, child, part_type, hdiag_spawn, err, ilutI, SignCurr, &
-                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos, ic, ex)
+                                WalkerNo, RDMBiasFacCurr, WalkersToSpawn, matel, ParentPos)
         ! Create a child in the spawned particles arrays. We spawn particles
         ! into a separate array, but non-contiguously. The processor that the
         ! newly-spawned particle is going to be sent to has to be determined,
@@ -134,7 +133,6 @@ contains
         integer, intent(in), optional :: WalkersToSpawn
         real(dp), intent(in), optional :: matel
         integer, intent(in), optional :: ParentPos
-        integer, intent(in), optional :: ic, ex(2,2)
         integer :: proc, j, run
         real(dp) :: r
         integer, parameter :: flags = 0
@@ -264,14 +262,13 @@ contains
     end subroutine create_particle
 
 
-    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data, err, matel)
+    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data, err)
         use hash, only: hash_table_lookup, add_hash_table_entry
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
         real(dp), intent(in) :: child_sign(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(out) :: err
-        real(dp), intent(in), optional :: matel
 
         integer :: proc, ind, hash_val_cd, hash_val, i, run
         integer(n_int) :: int_sign(lenof_sign)
@@ -2058,11 +2055,10 @@ contains
     end subroutine DiagWalkerSubspace
 
 
-    subroutine decide_num_to_spawn(parent_pop, hdiag, av_spawns_per_walker, nspawn)
+    subroutine decide_num_to_spawn(parent_pop, av_spawns_per_walker, nspawn)
 
         real(dp), intent(in) :: parent_pop
         real(dp), intent(in) :: av_spawns_per_walker
-        real(dp), intent(in) :: hdiag
         integer, intent(out) :: nspawn
         real(dp) :: prob_extra_walker, r
 
@@ -2179,10 +2175,8 @@ contains
 
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
-        use LoggingData, only: tOldRDMs
-        use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions
-        use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn
-        use rdm_data_old, only: rdms, one_rdms_old
+        use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions, &
+                    inits_one_rdms, two_rdm_inits_spawn
         use semi_stoch_procs, only: check_determ_flag
 
         integer, intent(in) :: DetCurr(nel)
@@ -2263,13 +2257,6 @@ contains
         else
             ! All walkers died.
             if (tFillingStochRDMonFly) then
-                if (tOldRDMs) then
-                    do irdm = 1, rdm_definitions%nrdms
-                        call det_removed_fill_diag_rdm_old(rdms(irdm), one_rdms_old(irdm), irdm, &
-                                                           CurrentDets(:,DetPosition), DetPosition)
-                    end do
-                end if
-
                 av_sign = get_av_sgn_tot(DetPosition)
                 iter_occ = get_iter_occ_tot(DetPosition)
                 call det_removed_fill_diag_rdm(two_rdm_spawn, one_rdms, CurrentDets(:,DetPosition), av_sign, iter_occ)

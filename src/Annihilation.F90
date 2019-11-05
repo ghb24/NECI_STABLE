@@ -96,7 +96,6 @@ module AnnihilationMod
         Compress_time%timer_name = 'Compression interface'
         call set_timer(Compress_time, 20)
 
-
         ! Now we want to order and compress the spawned list of particles.
         ! This will also annihilate the newly spawned particles amongst themselves.
         ! MaxIndex will change to reflect the final number of unique determinants in the newly-spawned list,
@@ -907,10 +906,7 @@ module AnnihilationMod
         ! to zero.  These will be deleted at the end of the total annihilation
         ! step.
 
-        use LoggingData, only: tOldRDMs
-        use rdm_data_old, only: rdms, one_rdms_old
         use rdm_data, only: rdm_definitions, two_rdm_spawn, one_rdms
-        use rdm_filling_old, only: check_fillRDM_DiDj_old
         use rdm_filling, only: check_fillRDM_DiDj
 
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -1052,7 +1048,7 @@ module AnnihilationMod
 
                  ! Transfer new sign across.
                  call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
-                 call encode_sign(SpawnedParts(:,i), null_part)    
+                 call encode_sign(SpawnedParts(:,i), null_part)
 
                  if (.not. tDetermState) then
                     call extract_sign (CurrentDets(:,PartInd), SignTemp)
@@ -1090,6 +1086,21 @@ module AnnihilationMod
                     end do
                  end if
               endif
+
+              if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
+                 call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)
+                 ! We must use the instantaneous value for the off-diagonal
+                 ! contribution. However, we can't just use CurrentSign from
+                 ! the previous iteration, as this has been subject to death
+                 ! but not the new walkers. We must add on SpawnedSign, so
+                 ! we're effectively taking the instantaneous value from the
+                 ! next iter. This is fine as it's from the other population,
+                 ! and the Di and Dj signs are already strictly uncorrelated.
+                 if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
+                      inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
+                 call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
+                      CurrentDets(:,PartInd), TempCurrentSign)
+              end if
            else
 
 
@@ -1211,7 +1222,6 @@ module AnnihilationMod
 
               if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
                  ! We must use the instantaneous value for the off-diagonal contribution.
-                 if (tOldRDMs) call check_fillRDM_DiDj_old(rdms, one_rdms_old, i, SpawnedParts(0:NifTot,i), SpawnedSign)
                  if(tNonInitsForRDMs .or. tNonVariationalRDMs) &
                       call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
                  if(tInitsRDM .and. tNonVariationalRDMs) &
@@ -1346,7 +1356,7 @@ module AnnihilationMod
         ! optionally keep spawns up to a given seniority level + excitaion level
         if(abort .and. tSpawnSeniorityBased) then
            ! get the seniority level
-           nopen = count_open_orbs(ilut_spwn) 
+           nopen = count_open_orbs(ilut_spwn)
            if(nopen < numMaxExLvlsSet) then
               maxExLvl = 0
               ! get the corresponding max excitation level

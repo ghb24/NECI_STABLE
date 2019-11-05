@@ -55,6 +55,9 @@ contains
 #ifdef __DEBUG
         HElement_t(dp) :: temp_hel
 #endif
+#ifdef __WARNING_WORKAROUND
+        call unused(exFlag); call unused(part_type); call unused(store%nI_beta)
+#endif
 
         HElGen = HEl_zero
 

@@ -7,7 +7,8 @@ module back_spawn_excit_gen
                           tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha, ElecPairs, &
                           tHPHF
     use bit_rep_data, only: niftot
-    use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel, kPointToBasisFn
+    use SymExcitDataMod, only: excit_gen_store_type, SpinOrbSymLabel, &
+                               kPointToBasisFn
     use bit_reps, only: test_flag, get_initiator_flag
     use FciMCData, only: pSingles, projedet, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -30,7 +31,7 @@ module back_spawn_excit_gen
     use Determinants, only: write_det, get_helement
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, &
                               calc_pgen_ueg
-    use util_mod, only: binary_search_first_ge
+    use util_mod, only: binary_search_first_ge, unused
 
     use lattice_models_utils, only: make_ilutJ, get_orb_from_kpoints, get_ispn
 
@@ -110,7 +111,7 @@ contains
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
-                pgen2 = calc_pgen_ueg(nI, ilutI, ExcitMat, ic)
+                pgen2 = calc_pgen_ueg(ilutI, ExcitMat, ic)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
                     if (tHPHF) then
                         print *, "due to circular dependence, no matrix element calc possible!"
@@ -177,7 +178,7 @@ contains
             (loc == 0 .and. occ_virt_level >= 1)) then
 
             t_temp_back_spawn = .true.
-            call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, part_type, p_orb, &
+            call pick_occupied_orbital_ueg(ilutI, src, iSpn, part_type, p_orb, &
                 dummy, orb_a)
             ! it can happen that there are no valid orbitals
             if (orb_a == 0)then
@@ -249,8 +250,7 @@ contains
         ! and maybe i should also enable that i call this outside of
         ! knowledge of the initator status..
         if (test_flag(ilutI, get_initiator_flag(part_type))) then
-            pgen = calc_pgen_ueg(nI, ilutI, ex, ic)
-
+            pgen = calc_pgen_ueg(ilutI, ex, ic)
         else
 
             src = get_src(ex)
@@ -271,7 +271,7 @@ contains
                 ! argh.. wait a minute.. i have to ensure that i only do that
                 ! for back-spawn flex!
 
-                call pick_occupied_orbital_ueg(nI, ilutI, src, iSpn, part_type, p_orb, &
+                call pick_occupied_orbital_ueg(ilutI, src, iSpn, part_type, p_orb, &
                     dummy, orb_a, .true.)
 
                 ! do i need to multiply if both are in the reference?
@@ -493,7 +493,7 @@ contains
             ! i think just using the "normal" occupied picker should be fine
             ! how does this compile even??
             ! no.. write a new one without the spin-restriction
-            call pick_occupied_orbital_hubbard(nI, ilutI, temp_part_type, pAIJ, orb_a)
+            call pick_occupied_orbital_hubbard(ilutI, temp_part_type, pAIJ, orb_a)
             ! i should take k-space symmetry into accound in picking
             ! orb a
 
@@ -612,7 +612,7 @@ contains
                 (loc == 0 .and. occ_virt_level >= 1)) then
                 ! i only do that in the back-spawn flex case..
 
-                call pick_occupied_orbital_hubbard(nI, ilutI, part_type, paij, &
+                call pick_occupied_orbital_hubbard(ilutI, part_type, paij, &
                     d_orb, .true.)
 
                 tgt = get_tgt(ex)
@@ -689,7 +689,7 @@ contains
 
 #ifdef __DEBUG
             if (.not. IsNullDet(nJ)) then
-                pgen2 = calc_pgen_back_spawn_ueg(nI, ilutI, ExcitMat, ic, part_type)
+                pgen2 = calc_pgen_back_spawn_ueg(ilutI, ExcitMat, ic, part_type)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
                     if (tHPHF) then
                         print *, "due to circular dependence, no matrix element calc possible!"
@@ -806,7 +806,7 @@ contains
             ! i think just using the "normal" occupied picker should be fine
             ! how does this compile even??
             ! no.. write a new one without the spin-restriction
-            call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, temp_part_type, pAIJ, &
+            call pick_occupied_orbital_ueg(ilutI, src, ispn, temp_part_type, pAIJ, &
                      dummy, orb_a)
 
             if (orb_a == 0) then
@@ -902,6 +902,9 @@ contains
 #ifdef __DEBUG
         HElement_t(dp) :: temp_hel
         real(dp) :: pgen2
+#endif
+#ifdef __WARNING_WORKAROUND
+        call unused(exFlag); call unused(store%nel_alpha)
 #endif
 
         HElGen = 0.0_dp
@@ -1003,7 +1006,6 @@ contains
             end if
 #endif
        end if
-
     end subroutine gen_excit_back_spawn
 
     subroutine gen_single_back_spawn(nI, ilutI, part_type, nJ, ilutJ, ex, tPar, pgen)
@@ -1047,7 +1049,7 @@ contains
         if ((t_back_spawn_occ_virt) .or. (t_back_spawn_flex .and. (&
             (loc == 2 .and. occ_virt_level /= -1) .or. occ_virt_level == 2))) then
 
-            call pick_occupied_orbital_single(nI, ilutI, src, cc_index, part_type, pgen, tgt)
+            call pick_occupied_orbital_single(ilutI, src, cc_index, part_type, pgen, tgt)
 
         else
 
@@ -1140,7 +1142,7 @@ contains
             (loc == 1 .and. occ_virt_level /= -1) .or. (loc == 2) .or. &
             (loc == 0 .and. occ_virt_level >= 1)))) then
 
-            call pick_occupied_orbital(nI, ilutI, src, ispn, part_type, int_cpt(1), cum_sum(1), &
+            call pick_occupied_orbital(ilutI, src, ispn, part_type, int_cpt(1), cum_sum(1), &
                                         orbs(1))
 
         else
@@ -1199,7 +1201,7 @@ contains
             if (t_back_spawn_flex .and.((loc == 2 .and. occ_virt_level /= -1) .or. &
                 (occ_virt_level == 2))) then
 
-                call pick_second_occupied_orbital(nI, ilutI, src, cc_b, orbs(1), ispn,&
+                call pick_second_occupied_orbital(ilutI, cc_b, orbs(1), ispn,&
                     part_type, int_cpt(2), cum_sum(2), orbs(2))
 
             else
@@ -1339,8 +1341,8 @@ contains
 
     end subroutine gen_double_back_spawn
 
-    function calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, part_type) result(pgen)
-        integer, intent(in) :: nI(nel), ex(2,2), ic, part_type
+    function calc_pgen_back_spawn_ueg(ilutI, ex, ic, part_type) result(pgen)
+        integer, intent(in) :: ex(2,2), ic, part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_back_spawn_ueg"
@@ -1387,7 +1389,7 @@ contains
                 ! other way around too..
                 ! i need ispn here..
                 ispn = get_ispn(src)
-                call pick_occupied_orbital_ueg(nI, ilutI, src, ispn, part_type, pAIJ, cum_sum, &
+                call pick_occupied_orbital_ueg(ilutI, src, ispn, part_type, pAIJ, cum_sum, &
                     dummy_orb, .true.)
 
                 ! i think i can't just use 2*p(a|ij) since this assumption
@@ -1489,7 +1491,7 @@ contains
                         G1(stgt)%Ml)
 
                     ! reuse the routine..
-                    call pick_occupied_orbital_single(nI, ilutI, ssrc, cc_index, &
+                    call pick_occupied_orbital_single(ilutI, ssrc, cc_index, &
                         part_type, orb_pgen, dummy, .true.)
 
                 else
@@ -1576,7 +1578,7 @@ contains
                         end if
                     end if
 
-                    call pick_occupied_orbital(nI, ilutI, src, ispn,&
+                    call pick_occupied_orbital(ilutI, src, ispn,&
                         part_type, int_cpt(1), cum_sum(1), dummy_orbs(1), .true.)
 
                     ! i can atleast do some stuff for picking it the other
@@ -1604,7 +1606,7 @@ contains
 
                         cc_a = ClassCountInd(tgt(1))
                         cc_b = get_paired_cc_ind(cc_a, sym_prod, sum_ml, ispn)
-                        call pick_second_occupied_orbital(nI, ilutI, src, cc_b, tgt(1), &
+                        call pick_second_occupied_orbital(ilutI, cc_b, tgt(1), &
                             ispn, part_type, int_cpt(2), cum_sum(2), dummy_orbs(2), .true.)
 
                         ! and ofc both probs are the same if the spin-fits

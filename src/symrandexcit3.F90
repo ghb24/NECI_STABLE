@@ -27,7 +27,7 @@ module symrandexcit3
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
     use Parallel_neci
-    use util_mod, only: binary_search_first_ge
+    use util_mod, only: binary_search_first_ge, unused
     implicit none
 
 contains
@@ -50,6 +50,10 @@ contains
 
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit3'
+
+#ifdef __WARNING_WORKAROUND
+        call unused(part_type)
+#endif
 
         ! Just in case
         ilutJ(0) = -1
@@ -88,10 +92,10 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
         ! Call the actual single/double excitation generators.
         if (IC == 2) then
-            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, &
+            pGen = gen_double (nI, nJ, ExcitMat, tParity, &
                                store%ClassCountUnocc, store%virt_list)
         else
-            pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, &
+            pGen = gen_single (nI, nJ, ExcitMat, tParity, &
                                store%ClassCountOcc, store%ClassCountUnocc, &
                                store%scratch3, store%occ_list, &
                                store%virt_list)
@@ -100,14 +104,13 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     end subroutine
 
 
-    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, CCUnocc, &
+    function gen_double (nI, nJ, ExcitMat, tParity, CCUnocc, &
                          virt_list) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(in) :: virt_list(:,:)
-        integer(n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(out) :: ExcitMat(2,2)
         logical, intent(out) :: tParity
         real(dp) :: pGen
@@ -136,12 +139,10 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         rint = 1 + int(genrand_real2_dSFMT() * tot_pairs)
 
         ! Select a pair of symmetries to choose from
-        call select_syms(rint, sym_inds, sym_prod, spn, CCUnocc, &
-                         pair_list)
+        call select_syms(rint, sym_inds, sym_prod, spn, pair_list)
 
         ! Select a pair of orbitals from the symmetries above.
-        call select_orb_pair (rint, sym_inds, ilutI, orbs, CCUnocc, &
-                              virt_list)
+        call select_orb_pair (rint, sym_inds, orbs, CCUnocc, virt_list)
 
         ! Generate the final determinant.
         call create_excit_det2 (nI, nJ, tParity, ExcitMat, elecs, orbs)
@@ -247,13 +248,12 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
     end function
 
-    subroutine select_syms (rint, sym_inds, sym_prod, spn, CCUnocc, &
-                            num_pairs)
+    subroutine select_syms (rint, sym_inds, sym_prod, spn, num_pairs)
 
         integer, intent(inout) :: rint, spn(2)
         integer, intent(out) :: sym_inds(2)
         integer, intent(in) :: sym_prod
-        integer, intent(in) :: CCUnocc(ScratchSize), num_pairs(0:nSymLabels-1)
+        integer, intent(in) :: num_pairs(0:nSymLabels-1)
 
         integer :: syms(2), npairs, inds(2), tmp, symA
 
@@ -278,11 +278,10 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     end subroutine
 
 
-    subroutine select_orb_pair (rint, sym_inds, ilutI, orbs, CCUnocc, &
+    subroutine select_orb_pair (rint, sym_inds, orbs, CCUnocc, &
                                 virt_list)
 
         integer, intent(in) :: rint, sym_inds(2)
-        integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: CCUnocc(ScratchSize)
         integer, intent(in) :: virt_list(:,:)
         integer, intent(out) :: orbs(2)
@@ -361,7 +360,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
     end subroutine
 
-    function gen_single (nI, nJ, iLutI, ExcitMat,  tParity, CCOcc, CCUnocc, &
+    function gen_single (nI, nJ, ExcitMat,  tParity, CCOcc, CCUnocc, &
                          pair_list, occ_list, virt_list) result(pGen)
 
         integer, intent(in) :: nI(nel)
