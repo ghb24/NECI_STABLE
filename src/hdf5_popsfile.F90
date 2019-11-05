@@ -786,8 +786,7 @@ contains
         !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
-                CurrentDets, arr_2d_dims(CurrentDets), &
+                wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, CurrentDets, &
                 [int(nifd+1, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], & ! offset
                 [int(nifd+1, hsize_t), all_count], & ! all dims
@@ -799,8 +798,7 @@ contains
 !            call stop_all(t_r, "This could go badly...")
 
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
-                CurrentDets, arr_2d_dims(CurrentDets), &
+                wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, CurrentDets, &
                 [int(lenof_sign, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
                 [int(lenof_sign, hsize_t), all_count], & ! all dims
@@ -814,8 +812,7 @@ contains
            ! get the statistics of THIS processor
            call writeFFuncAsInt(TotWalkers, fvals)
            call write_2d_multi_arr_chunk_buff(&
-                wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, &
-                fvals, arr_2d_dims(fvals), &
+                wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, fvals, &
                 [int(2*inum_runs, hsize_t), int(TotWalkers, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
                 [int(2*inum_runs, hsize_t), all_count], &

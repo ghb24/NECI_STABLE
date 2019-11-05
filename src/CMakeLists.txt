@@ -33,7 +33,6 @@ set( SRC_FILES
     Determinants.F90
     determ_proj.F90
     detham.F
-    DipMoms.F
     direct_ci.F90
     enumerate_excitations.F90
     ErrorAnalysis.F90
@@ -198,11 +197,6 @@ set( SRC_FILES
     lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
-    rdms_old/rdm_data_old.F90
-    rdms_old/rdm_estimators_old.F90
-    rdms_old/rdm_filling_old.F90
-    rdms_old/rdm_general_old.F90
-    rdms_old/rdm_write_old.F90
 )
 
 set( TEMPLATED_SRC_FILES
@@ -217,6 +211,7 @@ set( TEMPLATED_SRC_FILES
     lib/util_mod_cpts.F90.template
     lib/util_mod_numerical.F90.template
     lib/util_mod_epsilon_close.F90.template
+    lib/util_mod_unused.F90.template
 )
 
 

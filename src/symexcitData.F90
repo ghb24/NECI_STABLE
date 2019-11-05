@@ -1,7 +1,7 @@
 MODULE SymExcitDataMod
     use constants, only: dp
-    IMPLICIT NONE
-    SAVE
+    implicit none
+    save
 
     real(dp) :: pSingNew, pDoubNew, pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new
     INTEGER , ALLOCATABLE :: SymLabelList2(:),SymLabelCounts2(:,:)

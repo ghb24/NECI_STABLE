@@ -157,11 +157,7 @@ integer, parameter :: size_int_rdm = bits_int_rdm/8
 ! Index of last bit in an int_rdm integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_int_rdm = bits_int_rdm - 1
 
-#ifdef MOLPRO
-    include "common/tapes"
-#else
-    integer, parameter :: iout = 6
-#endif
+    integer, parameter :: iout = 6 
 
     ! Internal state storage for the stats_out integration
     ! n.b. This shouldn't be here, but there is nowhere els eto put it

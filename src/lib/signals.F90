@@ -6,6 +6,7 @@ module neci_signals
     ! accessible in signal.h.
 
     use iso_c_hack
+    use util_mod, only: unused
     implicit none
     private
 
@@ -38,6 +39,10 @@ contains
         ! Parameter unused. Required by POSIX
         integer(c_int), intent(in), value :: signo
         character(*), parameter :: t_r = 'neci_sigint'
+
+#ifdef __WARNING_WORKAROUND
+        call unused(signo)
+#endif
 
         ! Flush existing output in the stdout buffer
         ! --> Try and avoid issues if we happen to Ctrl-C during a write.
