@@ -599,7 +599,7 @@ contains
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt, update_tau
         use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
-                             tSearchTauOption 
+                             tSearchTauOption
         use tc_three_body_data, only: pTriples, tReadPTriples
         use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
                             t_hist_tau_search, t_hist_tau_search_option, &
