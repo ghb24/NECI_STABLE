@@ -847,9 +847,9 @@ contains
                     return
                 endif
             endif
-        else if (ic == 3) then 
+        else if (ic == 3) then
             ! todo! need to consider more maybe!
-            exTypeFlag = 6 
+            exTypeFlag = 6
         endif
 
     end function
