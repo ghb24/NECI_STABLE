@@ -1393,7 +1393,7 @@ contains
         call LogMemDealloc(t_r, DavidsonTag, ierr)
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
-        call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
+        call deallocate_sparse_ham(sparse_ham, SparseHamilTags)
 
     end subroutine diagonalize_core
 

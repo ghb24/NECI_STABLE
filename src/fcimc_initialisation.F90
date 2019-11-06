@@ -79,7 +79,8 @@ module fcimc_initialisation
                            OffDiagBinRange, iDiagSubspaceIter, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl, &
+                           t_spin_measurements
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
@@ -196,6 +197,7 @@ module fcimc_initialisation
     use adi_references, only: setup_reference_space, clean_adi
 
     use tau_search_hist, only: init_hist_tau_search
+
     use double_occ_mod, only: init_spin_measurements
 
     use back_spawn, only: init_back_spawn
@@ -1179,7 +1181,6 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-<<<<<<< HEAD
 !        if (tSearchTau .and. (.not. tFillingStochRDMonFly)) then
 !                       ^ Removed by GLM as believed not necessary
 
@@ -1250,8 +1251,6 @@ contains
             call init_spin_measurements()
         end if
 
-=======
->>>>>>> devel
         IF(abs(StepsSftImag) > 1.0e-12_dp) THEN
             WRITE(iout,*) "StepsShiftImag detected. Resetting StepsShift."
             StepsSft=NINT(StepsSftImag/Tau)
@@ -1842,7 +1841,7 @@ contains
 
         if (t_cepa_shift) call init_cepa_shifts()
         ! Set up the reference space for the adi-approach
-	! in real-time, we do this in the real-time init
+        ! in real-time, we do this in the real-time init
         call setup_reference_space(tReadPops)
 
         ! in fixed-n0, the variable shift mode and everything connected is

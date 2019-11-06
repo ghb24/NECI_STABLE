@@ -356,7 +356,7 @@ MODULE ISKRandExcit
         INTEGER , ALLOCATABLE :: ExcitGen(:)
         real(dp) , ALLOCATABLE :: Weights(:),AllWeights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l, iunit
-        integer :: icunused, exunused(2,maxExcit)
+        integer :: icunused, exunused_var(2,maxExcit)
         logical :: tParityunused, tTmp
         type(excit_gen_store_type) :: store
         character(*), parameter :: this_routine = 'TestGenRandISKExcit'
