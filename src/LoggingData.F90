@@ -106,6 +106,18 @@ module LoggingData
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
+    ! Whether to write another HDF5 popsfile with dets restricted to a maximum
+    ! exitation level
+    logical :: tHDF5TruncPopsWrite
+    ! The maximum excitation level of dets writen to truncated HDF5 popsfile
+    integer :: iHDF5TruncPopsEx
+
+    ! Whether to calculate and print the instanenous project energy of
+    ! wavefunction printed to popsfile
+    logical :: tPopsInstProjE
+
+    logical :: tOldRDMs = .false.
+
     logical :: tTransitionRDMs = .false.
 
     ! If true, then read in 2-RDM popsfiles and then output 1-RDMs calculated

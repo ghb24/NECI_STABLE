@@ -11,7 +11,7 @@ module pchb_excitgen
   use sltcnd_mod, only: sltcnd_excit
   use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
-  use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex, unused
+  use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex
   use util_mod_epsilon_close, only: near_zero
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
@@ -46,9 +46,7 @@ module pchb_excitgen
       type(excit_gen_store_type), intent(inout), target :: store
       integer, intent(in), optional :: part_type
 
-#ifdef __WARNING_WORKAROUND
-      call unused(exFlag); call unused(part_type)
-#endif
+      unused_var(exFlag); unused_var(part_type)
 
       helgen = 0.0_dp
 

@@ -588,7 +588,7 @@ MODULE ISKRandExcit
 !            tTmp = tGenMatHEl
 !            tGenMatHel = .false.
             call gen_ISK_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
-                                 exunused, tparityunused, pGen, HEl, store)
+                                 exunused_var, tparityunused, pGen, HEl, store)
 !            tGenMatHel = tTmp
 !            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
 

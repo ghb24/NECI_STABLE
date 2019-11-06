@@ -27,7 +27,7 @@ module tau_search_hist
 
     use constants, only: dp, EPS, iout, maxExcit, int64
 
-    use tau_search, only: FindMaxTauDoubs
+    use tau_search, only: FindMaxTauDoubs, max_death_cpt
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -43,7 +43,7 @@ module tau_search_hist
     implicit none
     ! variables which i might have to define differently:
     logical :: consider_par_bias
-    real(dp) :: max_permitted_spawn, max_death_cpt
+    real(dp) :: max_permitted_spawn
     integer :: n_opp, n_par
     ! do i have to define this here or in the CalcData:??
     integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist, cnt_trip_hist
@@ -53,7 +53,7 @@ module tau_search_hist
                below_thresh_doubles, below_thresh_triples
     logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
     logical :: enough_trip_hist
-    ! store the necessary quantities here and not in CalcData! 
+    ! store the necessary quantities here and not in CalcData!
     real(dp) :: frq_step_size = 0.1_dp
 
     ! i need bin arrays for all types of possible spawns:
@@ -72,8 +72,8 @@ module tau_search_hist
     ! this can easily exceed 2**31 -> needs 8-byte integer
     integer(int64) :: zero_singles, zero_para, zero_anti, zero_doubles, zero_triples
 
-    ! also do keep track of the maximum H_ij/pgen ratios here too, just to 
-    ! be able to efficiently compare it with the old implementation! 
+    ! also do keep track of the maximum H_ij/pgen ratios here too, just to
+    ! be able to efficiently compare it with the old implementation!
     real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, gamma_trip
     real(dp) :: min_sing, min_doub, min_opp, min_par, min_trip
 
@@ -121,23 +121,23 @@ contains
             death_prob = Uhub * nel / 2.0_dp
 
             print *, "optimized time-step for real-space hubbard: ", time_step
-            if (t_trans_corr_2body .or. t_trans_corr) then 
+            if (t_trans_corr_2body .or. t_trans_corr) then
                 print *, "BUT: transcorrelated Hamiltonian used! "
                 print *, " so matrix elements are not uniform anymore!"
             end if
 
         else
-            ! in the momentum space hubbard the electrons fix the the holes 
-            ! to be picked! atleast if one is picked the 2nd hole is also 
-            ! chosen! 
+            ! in the momentum space hubbard the electrons fix the the holes
+            ! to be picked! atleast if one is picked the 2nd hole is also
+            ! chosen!
 
-            ! for the 2-body transcorrelation we have to consider the 
-            ! different types of excitations and find the minimum tau 
-            ! for it.. 
-            ! but also the matrix elements are not uniform.. so one 
-            ! would need to find the worst H_ij/pgen ratio, which is 
-            ! no feasible here.. thats actually what the tau-search is 
-            ! doing.. 
+            ! for the 2-body transcorrelation we have to consider the
+            ! different types of excitations and find the minimum tau
+            ! for it..
+            ! but also the matrix elements are not uniform.. so one
+            ! would need to find the worst H_ij/pgen ratio, which is
+            ! no feasible here.. thats actually what the tau-search is
+            ! doing..
 
             p_elec = 2.0_dp / real(nOccAlpha * nOccBeta, dp)
 
@@ -153,7 +153,7 @@ contains
             death_prob = 2.0_dp * abs(bhub)
 
             print *, "optimized time-step for the momentum space hubbard: ", time_step
-            if (t_trans_corr_2body .or. t_trans_corr) then 
+            if (t_trans_corr_2body .or. t_trans_corr) then
                 print *, "BUT: transcorrelated Hamiltonian used! "
                 print *, " so matrix elements and pgens are not uniform anymore!"
                 print *, " thus TAU is just a rough estimate! "
@@ -217,10 +217,10 @@ contains
             ! and also output the read-in or calculated quantities here!
         end if
 
-        if (tHub) then 
-            ! for the transcorrelated hamiltonian we need to re-enable the 
+        if (tHub) then
+            ! for the transcorrelated hamiltonian we need to re-enable the
             ! Histogramming tau-search!
-            if (.not. (t_trans_corr .or. t_trans_corr_2body)) then 
+            if (.not. (t_trans_corr .or. t_trans_corr_2body)) then
                 call optimize_hubbard_time_step()
                 return
             end if
@@ -257,8 +257,8 @@ contains
             n_opp = AB_hole_pairs
             n_par = par_hole_pairs
         else if (t_k_space_hubbard .and. t_trans_corr_2body) then
-            ! for the 2-body transcorrelated k-space hubbard we also have 
-            ! possible parallel excitations now. and to make the tau-search 
+            ! for the 2-body transcorrelated k-space hubbard we also have
+            ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
         else
@@ -345,11 +345,11 @@ contains
                 this_routine, mem_tag_histograms, ierr)
 
         else
-            ! just to be save also use my new flags.. 
+            ! just to be save also use my new flags..
             if (tHub .or. tUEG .or. &
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body) .or. &
                 (t_new_real_space_hubbard .and. .not. t_trans_corr_hop)) then
-                ! only one histogram is used! 
+                ! only one histogram is used!
                 allocate(frequency_bins(n_frequency_bins), stat = ierr)
                 frequency_bins = 0
 
@@ -494,18 +494,18 @@ contains
            enough_trip_hist = mpi_ltmp
         endif
 
-        ! singles is always used.. 
-        ! thats not quite right.. for the hubbard/UEG case it is not.. 
+        ! singles is always used..
+        ! thats not quite right.. for the hubbard/UEG case it is not..
         if (tUEG .or. tHub .or. &
             (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
             (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then
-            ! also use my new flags and exclude the 2-body transcorrelation 
-            ! in the k-space hubbard due to triple excitations and 
-            ! parallel doubles 
+            ! also use my new flags and exclude the 2-body transcorrelation
+            ! in the k-space hubbard due to triple excitations and
+            ! parallel doubles
 
-            ! here i could implement the summing in the case of Hubbard 
-            ! and UEG models.. although I could "just" implement the 
-            ! optimal time-step in the case of Hubbard models! 
+            ! here i could implement the summing in the case of Hubbard
+            ! and UEG models.. although I could "just" implement the
+            ! optimal time-step in the case of Hubbard models!
 
 !             if (tHub) then
 !                 call stop_all(this_routine, &
@@ -526,9 +526,9 @@ contains
             end if
 
             if (enough_doub_hist) then
-                ! in this case the enough_doub_hist flag is (mis)used to 
-                ! indicate enough spawning events! 
-                ! the doubles flag is also used for single excitations in the 
+                ! in this case the enough_doub_hist flag is (mis)used to
+                ! indicate enough spawning events!
+                ! the doubles flag is also used for single excitations in the
                 ! real-space hubbard! be careful
                 tau_new = max_permitted_spawn / ratio
 
@@ -545,8 +545,8 @@ contains
 
         else
 
-            ! NOTE: in the case of the 2-body transcorrelated k-space hubbard 
-            ! the singles histogram is used to store the triples! 
+            ! NOTE: in the case of the 2-body transcorrelated k-space hubbard
+            ! the singles histogram is used to store the triples!
             call integrate_frequency_histogram_spec(frequency_bins_singles, &
                 ratio_singles)
 
@@ -658,8 +658,8 @@ contains
                     ! although checking for enough doubles is probably more efficient
                     ! than always checking the reals below..
                     if (pParallel_new  > 1e-4_dp .and. pParallel_new < (1.0_dp - 1e-4_dp)) then
-                        ! enough_doub implies that both enough_opp and enough_par are 
-                        ! true.. so this if statement makes no sense 
+                        ! enough_doub implies that both enough_opp and enough_par are
+                        ! true.. so this if statement makes no sense
                         ! and otherwise pParallel_new is the same as before
                         if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
                           if (iProcIndex == root) then
@@ -747,7 +747,7 @@ contains
                        pTriples_new = ratio_triples / (ratio_doubles + ratio_singles + &
                             ratio_triples)
 
-                       ! update pTriples if it has a reasonable value 
+                       ! update pTriples if it has a reasonable value
                        if(.not.t_exclude_3_body_excits .and. pTriples_new > 1e-5_dp &
                             .and. pTriples_new < (1.0_dp - 1e-5_dp)) then
 
@@ -794,17 +794,17 @@ contains
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
 
-        ! make the right if-statements here.. and remember enough_doub_hist is 
+        ! make the right if-statements here.. and remember enough_doub_hist is
         ! used for singles in the case of the real-space transcorrelated hubbard!
-        if (tau_new < tau .or. & 
-            (tUEG .or. tHub .or. enough_sing_hist .or. & 
+        if (tau_new < tau .or. &
+            (tUEG .or. tHub .or. enough_sing_hist .or. &
             (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub_hist) .or. &
-            (t_new_real_space_hubbard .and. (enough_doub_hist .and. & 
-            (.not. t_trans_corr_hop .or. enough_sing_hist)))) then 
-            ! remove this constriction to just work in the transcorrelated 
-            ! case and let the user decide! 
-!             (t_new_real_space_hubbard .and. enough_doub_hist .and. & 
-!             (t_trans_corr_2body .or. t_trans_corr))) then 
+            (t_new_real_space_hubbard .and. (enough_doub_hist .and. &
+            (.not. t_trans_corr_hop .or. enough_sing_hist)))) then
+            ! remove this constriction to just work in the transcorrelated
+            ! case and let the user decide!
+!             (t_new_real_space_hubbard .and. enough_doub_hist .and. &
+!             (t_trans_corr_2body .or. t_trans_corr))) then
 
 !         if (tau_new < tau .or. ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing_hist) .and.  &
 !             enough_doub_hist)) then
@@ -981,8 +981,8 @@ contains
             ! histograms! i have to unbias it against the psingles, etc.
             ! quantities, so the histograms do not have feedback!
 
-            ! i have to ensure pSingles is also set to 1.0_dp - pDoubles 
-            ! in the transcorr hubbard case.. 
+            ! i have to ensure pSingles is also set to 1.0_dp - pDoubles
+            ! in the transcorr hubbard case..
             ratio = ratio * pSingles
 
             if (ratio < max_frequency_bound) then
@@ -1310,13 +1310,13 @@ contains
                ! check if enough triple spawns have been logged
                if(.not. enough_trip_hist) then
                   cnt_trip_hist = cnt_trip_hist + 1
-                  if(cnt_trip_hist > cnt_threshold) enough_trip_hist = .true.                 
+                  if(cnt_trip_hist > cnt_threshold) enough_trip_hist = .true.
                end if
 
                ! get the corresponding bin in the histogram
                ind = int(ratio / frq_step_size) + 1
                frequency_bins_triples(ind) = frequency_bins_triples(ind) + 1
-               
+
             else
                ! the ratio is not within range, log this event
                above_max_triples = above_max_triples + 1
@@ -1537,8 +1537,8 @@ contains
         ! number of ratios above the threshold and about the number of
         ! zero excitations and stuff
 
-        ! maybe first check if we have only singles or only doubles like in 
-        ! the real-space or momentum space hubbard: 
+        ! maybe first check if we have only singles or only doubles like in
+        ! the real-space or momentum space hubbard:
         if (tHub .or. tUEG .or. &
             (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
             (t_k_space_hubbard .and. .not. t_3_body_excits)) then
@@ -1597,10 +1597,10 @@ contains
                 write(iout,*) "Number of valid excitations: ", sum_all
                 write(iout,*), "ratio of zero-valued excitations: ", &
                     real(tmp_int_64, dp) / sum_all
-                ! i guess i should also output the number of excitations 
-                ! above the threshold! 
-                ! this is not really working.. 
-                ! because sasha had these cases 
+                ! i guess i should also output the number of excitations
+                ! above the threshold!
+                ! this is not really working..
+                ! because sasha had these cases
             end if
 
             tmp_int = 0

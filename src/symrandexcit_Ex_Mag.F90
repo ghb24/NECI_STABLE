@@ -29,7 +29,7 @@ module symrandexcit_Ex_mag
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
     use Parallel_neci
-    use util_mod, only: binary_search_first_ge, unused
+    use util_mod, only: binary_search_first_ge
     use symrandexcit3, only: pick_elec_pair, count_orb_pairs, select_syms, select_orb_pair, &
                              create_excit_det2, construct_class_counts
     use symexcit3, only: GenSingleExcit
@@ -60,9 +60,7 @@ contains
         logical tAllExcitFound, tij_lt_ab_only, tSpinRestrict
         integer doubleExcitsFound
 
-#ifdef __WARNING_WORKAROUND
-        call unused(part_type)
-#endif
+        unused_var(part_type)
 
         ! Just in case
         ilutJ(0) = -1

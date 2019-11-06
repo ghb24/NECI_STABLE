@@ -1,7 +1,7 @@
+#include "macros.h"
 program test_back_spawn_excit_gen
 
     use back_spawn_excit_gen
-    use util_mod, only: unused
     use fruit
 
     implicit none
@@ -517,12 +517,7 @@ contains
 
         hel = 1.0_dp
 
-#ifdef __WARNING_WORKAROUND
-        call unused(i)
-        call unused(j)
-        call unused(k)
-        call unused(l)
-#endif
+        unused_var(i); unused_var(j); unused_var(k); unused_var(l)
     end function get_umat_test
 end program test_back_spawn_excit_gen
 

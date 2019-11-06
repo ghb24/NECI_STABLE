@@ -376,12 +376,10 @@ MODULE ReadInput_neci
         endif
 
         !.. We still need a specdet space even if we don't have a specdet.
-#ifndef _MOLCAS_
         if (.not. associated(SPECDET)) then
             allocate(SPECDET(nel - nFrozen), stat=ierr)
             call LogMemAlloc('SPECDET', nel-nFrozen, 4, t_r, tagSPECDET, ierr)
         endif
-#endif
 
         !..   Testing ILOGGING
         !     ILOGGING = 0771
