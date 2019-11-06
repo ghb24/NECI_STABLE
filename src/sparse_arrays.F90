@@ -80,8 +80,8 @@ module sparse_arrays
 contains
 
     subroutine calculate_sparse_hamiltonian_non_hermitian(num_states, ilut_list)
-        ! same routine as below, but for non-hermitian Hamiltonians in the 
-        ! case of transcorrelation 
+        ! same routine as below, but for non-hermitian Hamiltonians in the
+        ! case of transcorrelation
         integer, intent(in) :: num_states
         integer(n_int), intent(in) :: ilut_list(0:NIfTot, num_states)
         integer :: i, j, counter, ierr
@@ -113,23 +113,23 @@ contains
             do j = 1, num_states
 
                 call decode_bit_det(nJ, ilut_list(:,j))
-                if (i == j) then 
-                    if (tHPHF) then 
+                if (i == j) then
+                    if (tHPHF) then
                         hamiltonian_row(i) = hphf_diag_helement(nI, ilut_list(:,i))
                     else
                         hamiltonian_row(i) = get_helement(nI, nI, 0)
                     end if
                     hamil_diag(i) = hamiltonian_row(i)
                 else
-                    if (tHPHF) then 
+                    if (tHPHF) then
                         !TODO: do i need <I|H|J> or <J|H|I>?
                         hamiltonian_row(j) = hphf_off_diag_helement(&
                             nI, nJ, ilut_list(:,i), ilut_list(:,j))
-                    else 
+                    else
                         hamiltonian_row(j) = get_helement(&
                             nI, nJ, ilut_list(:,i), ilut_list(:,j))
                     end if
-                    if (abs(hamiltonian_row(j)) > EPS) then 
+                    if (abs(hamiltonian_row(j)) > EPS) then
                         ! i think in the non-hermitian i only need to update
                         ! one of the counters..
                         sparse_row_sizes(i) = sparse_row_sizes(i) + 1
@@ -147,8 +147,8 @@ contains
             ! now fill in the elements, all of them
             counter = 1
             do j = 1, num_states
-                if (abs(hamiltonian_row(j)) > EPS) then 
-                    sparse_ham(i)%positions(counter) = j 
+                if (abs(hamiltonian_row(j)) > EPS) then
+                    sparse_ham(i)%positions(counter) = j
                     sparse_ham(i)%elements(counter) = hamiltonian_row(j)
                     counter = counter + 1
                 end if
@@ -400,7 +400,7 @@ contains
         character(len=*), parameter :: t_r = "calc_determ_hamil_sparse"
 
         integer(n_int) :: tmp(0:NIfD)
-        integer :: IC, IC_max
+        integer :: IC
 
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
         allocate(SparseCoreHamilTags(2, determ_sizes(iProcIndex)))
@@ -410,12 +410,6 @@ contains
         allocate(temp_store(0:NIfTot, determ_space_size), stat=ierr)
         call LogMemAlloc('temp_store', determ_space_size*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
         safe_realloc_e(temp_store_nI, (nel, determ_space_size), ierr)
-
-        if(t_3_body_excits.or.t_mol_3_body.or.t_ueg_transcorr) then
-                IC_max=3
-        else
-                IC_max=2
-        endif
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
@@ -457,7 +451,7 @@ contains
                     tmp = iand(SpawnedParts(0:NIfD,i), tmp)
                     IC = CountBits(tmp, NIfD)
 
-                    if (IC <= IC_max) then
+                    if (IC <= maxExcit) then
                         hamiltonian_row(j) = get_helement(nI, nJ, IC, SpawnedParts(:, i), temp_store(:, j))
                         if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                     end if
@@ -566,7 +560,7 @@ contains
                     tmp = iand(SpawnedParts(0:NIfD,i), tmp)
                     IC = CountBits(tmp, NIfD)
 
-                    if ( IC <= 2 .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
+                    if ( IC <= maxExcit .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
                         hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, SpawnedParts(:,i), temp_store(:,j), IC, CS_I, cs(j))
                         if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                     end if
@@ -673,7 +667,7 @@ contains
                         tmp = iand(core_space(0:NIfD,i+determ_displs(iProcIndex)), tmp)
                         IC = CountBits(tmp, NIfD)
 
-                        if ( IC <= 2 .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
+                        if ( IC <= maxExcit .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
                             hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, core_space(:,i+determ_displs(iProcIndex)), &
                                                                              core_space(:,j), IC, CS_I, cs(j))
 

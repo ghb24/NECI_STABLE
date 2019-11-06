@@ -1295,15 +1295,10 @@ contains
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
-            print*,i, test_flag(CurrentDets(:,i), flag_deterministic)
-            call decode_bit_det(nI, CurrentDets(:,i))
-            print*,  'CurrentDets', nI(:)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
                 pop_sign = dc%davidson_eigenvector(counter)
-            print*,  'popsign',i,counter,pop_sign
-            call decode_bit_det(nI, CurrentDets(:,i))
-            print*,  'CurrentDet', nI(:)
+                call decode_bit_det(nI, CurrentDets(:,i))
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
@@ -1359,15 +1354,11 @@ contains
         do i=1,iProcIndex
                 counter=counter+determ_sizes(i-1)
         enddo
-        write(6,*)'counter ',counter, iProcIndex
-        write(6,*)'determ_space_size ',determ_space_size
         do i = 1, determ_space_size !int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
                 pop_sign = e_vectors(counter,1)
-            print*,  'popsign',i,counter,pop_sign
             call decode_bit_det(nI, CurrentDets(:,i))
-            print*,  'CurrentDet', nI(:)
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
