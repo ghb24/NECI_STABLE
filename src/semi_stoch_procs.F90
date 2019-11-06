@@ -1449,7 +1449,7 @@ contains
         character(len=*), parameter :: t_r = "end_semistoch"
         integer :: ierr
 
-        call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
+        call deallocate_sparse_ham(sparse_core_ham, SparseCoreHamilTags)
 
         call deallocate_core_hashtable(core_ht)
 
