@@ -4,7 +4,8 @@ module global_det_data
 
   use SystemData, only: nel
     use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
-                        tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, tReplicaEstimates
+                        tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, &
+                        tReplicaEstimates, tMoveGlobalDetData
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs, tAccumPops
     use FciMCData, only: MaxWalkersPart
     use constants
@@ -12,11 +13,12 @@ module global_det_data
     implicit none
 
     ! This is the tag for allocation/deallocation.
-    private :: glob_tag, glob_det_tag
+    private :: glob_tag, glob_det_tag, glob_tmp_tag
     ! This is the data used to find the elements inside the storage array.
     private :: pos_hel, len_hel
     integer :: glob_tag = 0
     integer :: glob_det_tag = 0
+    integer :: glob_tmp_tag = 0
 
     ! The diagonal matrix element is always stored. As it is a real value it
     ! always has a length of 1 (never cplx). Therefore, encode these values
@@ -73,6 +75,7 @@ module global_det_data
     ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:,:) => null()
     integer, pointer :: global_determinants(:,:) => null()
+    real(dp), pointer :: global_determinant_data_tmp(:,:) => null()
 
     ! Routines for setting the properties of both standard and transition
     ! RDMs in a combined manner.
@@ -267,6 +270,11 @@ contains
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
         log_alloc(global_determinant_data, glob_tag, ierr)
 
+        if(tMoveGlobalDetData)then
+            allocate(global_determinant_data_tmp(tot_len, MaxWalkersPart), stat=ierr)
+            log_alloc(global_determinant_data_tmp, glob_tmp_tag, ierr)
+        endif
+
         if(tStoredDets) then
            allocate(global_determinants(len_det_orbs, MaxWalkersPart), stat=ierr)
            log_alloc(global_determinants, glob_det_tag, ierr)
@@ -281,6 +289,7 @@ contains
         ! As an added safety feature
         global_determinant_data = 0.0_dp
         if(tStoredDets) global_determinants = 0
+        if(tMoveGlobalDetData) global_determinant_data_tmp = 0.0_dp
 
     end subroutine
 
@@ -303,6 +312,13 @@ contains
             log_dealloc(glob_tag)
             glob_tag = 0
             nullify(global_determinant_data)
+        end if
+        
+        if (associated(global_determinant_data_tmp)) then
+            deallocate(global_determinant_data_tmp)
+            log_dealloc(glob_tmp_tag)
+            glob_tmp_tag = 0
+            nullify(global_determinant_data_tmp)
         end if
 
     end subroutine

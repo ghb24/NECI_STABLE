@@ -74,7 +74,7 @@ module FciMCParMod
                                get_tot_spawns, get_acc_spawns, &
                                replica_est_len, reset_pops_sum_all, &
                                update_pops_sum_all, reset_pops_sum, &
-                               get_pops_sum, get_pops_iter
+                               get_pops_iter
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -150,7 +150,7 @@ module FciMCParMod
         real(dp):: lt_imb
         integer:: rest, err, allErr
 
-        real(dp) :: CurrentSign(lenof_sign), AccumSign(lenof_sign)
+        real(dp) :: CurrentSign(lenof_sign)
         integer :: pops_iter, j, nJ(nel)
 #ifdef MOLPRO
         real(dp) :: get_scalar
@@ -408,8 +408,7 @@ module FciMCParMod
             if(tAccumPops .and. iter + PreviousCycles>iAccumPopsIter) then
                 if(.not. tAccumPopsActive) then
                     tAccumPopsActive = .true.
-                    write(6,*) "The populations are being accumlated..."
-                    !call reset_pops_sum_all(TotWalkers)
+                    write(6,*) "Starting to accumlate populations ..."
                 endif
 
                 call update_pops_sum_all(TotWalkers, iter + PreviousCycles)
@@ -726,10 +725,6 @@ module FciMCParMod
                 call calc_inst_proje()
                 write(6,*) 'Instantaneous projected energy of truncated popsfile:', proje_iter
             endif
-            do i = 1, int(TotWalkers,sizeof_int)
-                call extract_sign(CurrentDets(:,i), CurrentSign)
-                write(6,*) i, CurrentSign, get_pops_sum(i, 1), get_pops_iter(i)
-            end do
         ENDIF
 
 

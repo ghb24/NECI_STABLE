@@ -8,7 +8,7 @@ MODULE Logging
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
-                        tPairedReplicas, tReplicaEstimates, iSampleRDMIters
+                        tPairedReplicas, tReplicaEstimates, iSampleRDMIters, tMoveGlobalDetData
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -978,6 +978,10 @@ MODULE Logging
             if(iAccumPopsMaxEx<0) then
                 call stop_all(t_r,'iAccumPopsMaxEx should be greater than or equal zero')
             end if
+
+            ! Accumlated populations are sotred in global det data, so we need
+            ! to preserve them when the dets change processors during load balancing
+            tMoveGlobalDetData = .true.
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.

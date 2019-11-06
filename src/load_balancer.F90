@@ -6,8 +6,9 @@ module load_balance
                         tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas, tau, tSeniorInitiators, &
-                        t_activate_decay, tAutoAdaptiveShift
+                        t_activate_decay, tAutoAdaptiveShift, tMoveGlobalDetData
     use global_det_data, only: global_determinant_data, &
+                               global_determinant_data_tmp, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH, store_decoding, &
@@ -333,6 +334,7 @@ contains
         integer, parameter :: mpi_tag_con = 223459
         integer, parameter :: mpi_tag_ntrialsend = 223460
         integer, parameter :: mpi_tag_trial = 223461
+        integer, parameter :: mpi_tag_glob = 223462
 
         src_proc = LoadBalanceMapping(block)
 
@@ -359,6 +361,9 @@ contains
                 if (det_block == block) then
                     nsend = nsend + 1
                     SpawnedParts(0:NIfTot,nsend) = CurrentDets(:,j)
+                    if(tMoveGlobalDetData) then
+                        global_determinant_data_tmp(:,nsend) = global_determinant_data(:,j)
+                    endif
 
                     ! Remove the det from the main list.
                     call nullify_ilut(CurrentDets(:,j))
@@ -371,6 +376,11 @@ contains
             call MPISend(nsend, 1, tgt_proc, mpi_tag_nsend, ierr)
             call MPISend(SpawnedParts(0:NIfTot, 1:nsend), nelem, tgt_proc, &
                          mpi_tag_dets, ierr)
+            if(tMoveGlobalDetData) then
+                nelem = nsend * SIZE(global_determinant_data_tmp, 1)
+                call MPISend(global_determinant_data_tmp(:, 1:nsend), nelem, &
+                             tgt_proc, mpi_tag_glob, ierr)
+            endif
 
             ! we only communicate the trial hashtable
             if(tTrialWavefunction .and. tTrialHash) then
@@ -404,6 +414,11 @@ contains
             call MPIRecv(nsend, 1, src_proc, mpi_tag_nsend, ierr)
             nelem = nsend * (1 + NIfTot)
             call MPIRecv(SpawnedParts(0:NIfTot, 1:nsend), nelem, src_proc, mpi_tag_dets, ierr)
+            if(tMoveGlobalDetData) then
+                nelem = nsend * SIZE(global_determinant_data_tmp, 1)
+                call MPIRecv(global_determinant_data_tmp(:, 1:nsend), nelem, &
+                             src_proc, mpi_tag_glob, ierr)
+            endif
 
             do j = 1, nsend
                 call decode_bit_det(det, SpawnedParts(:,j))
@@ -418,6 +433,10 @@ contains
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
                                    hash_val, det, HDiag, PartInd, err)
+                
+                if(tMoveGlobalDetData) then
+                    global_determinant_data(:,PartInd) = global_determinant_data_tmp(:,j)
+                endif
                 TotWalkers = TotWalkersTmp
             end do
 

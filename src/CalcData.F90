@@ -519,4 +519,7 @@ logical :: tSetInitialRunRef
 ! where it has been decided that it is efficient and appropriate.
 logical :: tForceFullPops
 
+! Whether global_determinant_data should be moved alongside determinants
+! during load balancing
+logical :: tMoveGlobalDetData = .false.
 end module CalcData
