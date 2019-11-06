@@ -1289,18 +1289,21 @@ contains
 
         write(6,*)'davidson eigenvec'
         do i = 1, determ_sizes(iProcIndex)
-            root_print  dc%davidson_eigenvector(i)
+            print*,  dc%davidson_eigenvector(i)
         end do
 
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
+            print*,i, test_flag(CurrentDets(:,i), flag_deterministic)
+            call decode_bit_det(nI, CurrentDets(:,i))
+            print*,  'CurrentDets', nI(:)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
                 pop_sign = dc%davidson_eigenvector(counter)
-            root_print  'popsign',i,counter,pop_sign
+            print*,  'popsign',i,counter,pop_sign
             call decode_bit_det(nI, CurrentDets(:,i))
-            root_print  'CurrentDet', nI(:)
+            print*,  'CurrentDet', nI(:)
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
@@ -1353,14 +1356,18 @@ contains
         write(6,*) e_vectors(:,1)
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
+        do i=1,iProcIndex
+                counter=counter+determ_sizes(i-1)
+        enddo
+        write(6,*)'counter ',counter, iProcIndex
         write(6,*)'determ_space_size ',determ_space_size
         do i = 1, determ_space_size !int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
                 pop_sign = e_vectors(counter,1)
-            write(6,*)  'popsign',i,counter,pop_sign
+            print*,  'popsign',i,counter,pop_sign
             call decode_bit_det(nI, CurrentDets(:,i))
-            write(6,*)  'CurrentDet', nI(:)
+            print*,  'CurrentDet', nI(:)
                 call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
@@ -1446,10 +1453,6 @@ contains
             allocate(e_vectors(space_size,space_size))
             e_values = 0.0_dp
             e_vectors = 0.0_dp
-
-                write(6,*)'full_H'
-                write(6,*)full_H(1,1:2)
-                write(6,*)full_H(2,1:2)
 
             call eig(full_H, e_values, e_vectors)
 
