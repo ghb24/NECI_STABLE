@@ -314,7 +314,7 @@ contains
             call encode_sign(SpawnedParts(:,ind), real_sign_new)
 
 
-            ! this is not correctly considered for the real-time or complex 
+            ! this is not correctly considered for the real-time or complex
             ! code .. probably nobody thought about using this in the __cmplx
             ! implementation..
 
@@ -372,7 +372,7 @@ contains
         if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,global_position))
 
         ! Sum the number of created children to use in acceptance ratio.
-        ! in the rt-fciqmc i have to track the stats of the 2 RK steps 
+        ! in the rt-fciqmc i have to track the stats of the 2 RK steps
         ! seperately
         ! RT_M_Merge: Merge
         ! rmneci_setup: introduced multirun support, fixed issue in non
@@ -414,9 +414,9 @@ contains
       end if
     end function checkValidSpawnedList
 
-    ! This routine sums in the energy contribution from a given walker and 
-    ! updates stats such as mean excit level AJWT added optional argument 
-    ! dProbFin which is a probability that whatever gave this contribution 
+    ! This routine sums in the energy contribution from a given walker and
+    ! updates stats such as mean excit level AJWT added optional argument
+    ! dProbFin which is a probability that whatever gave this contribution
     ! was generated. It defaults to 1, and weights the contribution of this
     ! det (only in the projected energy) by dividing its contribution by
     ! this number
@@ -566,15 +566,15 @@ contains
         endif
 
         ! this is the first important change to make the triples run!!
-        ! consider the matrix elements of triples! 
+        ! consider the matrix elements of triples!
 
         ! Perform normal projection onto reference determinant
         if (ExcitLevel_local == 0) then
 
 
-            ! for the real-time i have to distinguish between the first and 
-            ! second RK step, if i want to keep track of the statistics 
-            ! seperately: in the first loop i analyze the the wavefunction 
+            ! for the real-time i have to distinguish between the first and
+            ! second RK step, if i want to keep track of the statistics
+            ! seperately: in the first loop i analyze the the wavefunction
             ! from on step behind.. so store it in the "normal" noathf var
             HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
             NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
@@ -615,9 +615,9 @@ contains
                                                       ExcitLevel, ilutRef(:,1), ilut)
             endif
 
-        else if (ExcitLevel_local == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then 
-            ! the new 3-body terms in the transcorrelated momentum space hubbard 
-            ! hphf not yet implemented! 
+        else if (ExcitLevel_local == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
+            ! the new 3-body terms in the transcorrelated momentum space hubbard
+            ! hphf not yet implemented!
             ASSERT(.not. tHPHF)
             HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut)
 
@@ -642,9 +642,9 @@ contains
             enddo ! run
         endif ! tLogEXLEVELStats
 
-        ! if in the real-time fciqmc: when we are in the 2nd loop 
-        ! return here since, the energy got already calculated in the 
-        ! first RK step, and doing it on the intermediate step would 
+        ! if in the real-time fciqmc: when we are in the 2nd loop
+        ! return here since, the energy got already calculated in the
+        ! first RK step, and doing it on the intermediate step would
         ! be meaningless
 
         ! Sum in energy contribution
@@ -860,7 +860,7 @@ contains
                     HFCyc(max_part_type(run)) = HFCyc(max_part_type(run)) + aimag(sgn_run)
 #else
                     ! do we also need here: todo
-                    if (iter > nEquilSteps) then 
+                    if (iter > nEquilSteps) then
                         SumNoatHF(run) = SumNoatHF(run) + sgn_run
                     end if
                     NoatHF(run) = NoatHF(run) + sgn_run
@@ -1066,7 +1066,7 @@ contains
         ! check if there are sign conflicts across the replicas
         if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
            ! one initial check: if the replicas dont agree on the sign
-           ! dont make this an initiator under any circumstances 
+           ! dont make this an initiator under any circumstances
            if(tReplicaCoherentInits .and. .not. &
                 ! maybe except for corepsace determinants
                 test_flag(ilut, flag_deterministic)) then
@@ -1395,7 +1395,7 @@ contains
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
-        ! in the real-time, for now, also keep track of the intermediate 
+        ! in the real-time, for now, also keep track of the intermediate
         ! walker number per cycle..
 #ifdef __CMPLX
         do run = 1, inum_runs
@@ -1848,7 +1848,7 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = DetLen+1
             nBlocks = 1
-            if (t_non_hermitian) then 
+            if (t_non_hermitian) then
                 call stop_all(t_r, &
                     "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
             end if

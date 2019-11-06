@@ -10,7 +10,7 @@ module sltcnd_mod
     !       --> Talk to George/Alex to see what impact that might have?
     ! TODO: It would be nice to reduce the number of variants of sltcnd_...
     !       which are floating around.
-    use constants, only: dp,n_int
+    use constants, only: dp, n_int, maxExcit
     use UMatCache, only: GTID, get_2d_umat_el_exch, get_2d_umat_el, UMatInd
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
