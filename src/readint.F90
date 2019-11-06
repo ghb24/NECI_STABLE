@@ -140,8 +140,10 @@ contains
          endif
          if(.not.tDetectSym) then
              write(6,*) "Only one irrep found. Turning off symmetry for rest of calculation."
-             tNoSymGenRandExcits = .true.
-             lNoSymmetry = .true.
+             if(.not.tFixLz.or.tKPntSym) then
+                 tNoSymGenRandExcits = .true.
+                 lNoSymmetry = .true.
+             endif
          endif
 
          IF(NELEC.NE.NEL) THEN
