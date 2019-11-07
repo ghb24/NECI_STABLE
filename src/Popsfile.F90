@@ -30,8 +30,7 @@ MODULE PopsfileMod
                        tPrintPopsDefault, tIncrementPops, tPrintInitiators, &
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
                        binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite, &
-                       t_print_frq_histograms, tPopAutoAdaptiveShift, &
-                       tPopsInstProjE 
+                       t_print_frq_histograms, tPopAutoAdaptiveShift
     use sort_mod
     use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
@@ -1704,11 +1703,6 @@ r_loop: do while(.not.tStoreDet)
             ! And stop timing
             call halt_timer(write_timer)
             
-            if(tPopsInstProjE) then
-                call calc_inst_proje()
-                write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
-            end if
-
             return
         end if
 
@@ -1994,11 +1988,6 @@ r_loop: do while(.not.tStoreDet)
         AllSumNoatHF = 0
         AllSumENum = 0
         AllTotWalkers = 0
-
-        if(tPopsInstProjE) then
-            call calc_inst_proje()
-            write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
-        end if
 
     end subroutine WriteToPopsfileParOneArr
 
