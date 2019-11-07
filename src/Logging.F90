@@ -163,6 +163,7 @@ MODULE Logging
       tPopsInstProjE = .false.
       tHDF5TruncPopsWrite = .false.
       iHDF5TruncPopsEx = 0
+      iHDF5TruncPopsIter = 0
       tAccumPops = .false.
       tAccumPopsActive = .false.
       iAccumPopsIter = 0
@@ -953,6 +954,17 @@ MODULE Logging
             call readi(iHDF5TruncPopsEx)
             if(iHDF5TruncPopsEx<2) then
                 call stop_all(t_r,'Maximum excitation level should be greater than 1')
+            end if
+            ! Number of iterations for the periodic writing of truncated popsfiles.
+            ! The default value of zero indicates no periodic writing but
+            ! only once at the end.
+
+            if (item < nitems) then
+                call readi(iHDF5TruncPopsIter)
+            end if
+
+            if(iHDF5TruncPopsEx<0) then
+                call stop_all(t_r,'Number of iterations should be greater than or equal zero')
             end if
 
         case("ACCUM-POPS")

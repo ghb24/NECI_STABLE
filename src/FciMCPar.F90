@@ -33,7 +33,7 @@ module FciMCParMod
                            t_hist_fvals, enGrid, arGrid, &
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpire, &
-                           tPopsInstProjE
+                           tPopsInstProjE, iHDF5TruncPopsIter
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -596,6 +596,9 @@ module FciMCParMod
             ENDIF
 !            IF(TAutoCorr) CALL WriteHistogrammedDets()
 
+            if(TPopsFile .and. tHDF5TruncPopsWrite .and. iHDF5TruncPopsIter>0 .and. (mod(Iter, iHDF5TruncPopsIter) .eq. 0))then
+                call write_popsfile_hdf5(iHDF5TruncPopsEx, .true.)
+            endif
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
             ENDIF
@@ -723,11 +726,21 @@ module FciMCParMod
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
             if(tHDF5TruncPopsWrite)then
-                call write_popsfile_hdf5(iHDF5TruncPopsEx)
+                ! If we have already written a file in the last iteration,
+                ! we should not write it again
+                if(iHDF5TruncPopsIter==0 .or. (mod(Iter, iHDF5TruncPopsIter) /= 0)) then
+                    call write_popsfile_hdf5(iHDF5TruncPopsEx)
+                else
+                    write(6,*)
+                    write(6,*) "============== Writing Truncated HDF5 popsfile =============="
+                    write(6,*) "Unnecessary duplication of truncated popsfile is avoided."
+                    write(6,*) "It has already been written in the last iteration."
+                endif
             endif
 
             if(tPopsInstProjE) then
                 call calc_inst_proje()
+                write(6,*)
                 write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
             end if
         ENDIF
