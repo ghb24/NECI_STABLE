@@ -1423,10 +1423,10 @@ MODULE UMatCache
               ! here, we introduce a cheap redundancy in memory to allow
               ! for faster access (no need to get max/min of indices
               ! and have contiguous access)
-              ! store the integrals <ij|ij> in UMat2D
-              UMat2D(j,i) = get_umat_el(idN,idX,idN,idX)
-              ! same for the integrals <ij|ji> in UMat2DExch
+              ! store the integrals <ij|ji> in UMat2DExch
               UMat2DExch(j,i) = get_umat_el(idN,idX,idX,idN)
+              ! similarly the integrals <ij|ij> in UMat2D
+              UMat2D(j,i) = get_umat_el(idN,idX,idN,idX)
            end do
         end do
       end subroutine SetupUMat2d_dense

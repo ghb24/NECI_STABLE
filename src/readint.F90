@@ -643,7 +643,6 @@ contains
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
               ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
-
          LWRITE=.FALSE.
          UHF=.FALSE.
          TREL=.false.

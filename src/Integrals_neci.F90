@@ -1599,7 +1599,7 @@ contains
                     get_umat_el => get_umat_el_tumat2d
                 else
                     ! see if in the cache. This is the fallback if ids are
-                    ! such that umat2d canot be used anyway.
+                    ! such that umat2d cannot be used anyway.
                     get_umat_el => get_umat_el_cache
                 endif
             else if (iss == -1) then
@@ -1618,7 +1618,6 @@ contains
             ! UEG integral
             if (tContact) then
                    get_umat_el => get_contact_umat_el
-                    write(6,*) 'get_contact_umat_el is setted'
             else
                    get_umat_el => get_ueg_umat_el
             endif
@@ -1677,7 +1676,6 @@ contains
         integer :: i, j
         HElement_t(dp) :: hel
 
-
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
             ! <ii|ii>
             hel = umat2d (idi, idi)
@@ -1733,7 +1731,6 @@ contains
         HElement_t(dp) :: hel, UElems(0:nTypes-1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
-
 
         i = idi
         j = idj

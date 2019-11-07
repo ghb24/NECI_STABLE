@@ -330,6 +330,7 @@ contains
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
 
+
         integer, intent(in) :: nI(nel)
         HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
         integer :: id(nel), i, j, idN, idX
@@ -378,7 +379,7 @@ contains
                              hel_tmp = hel_tmp + kMatAA%exchElement(id(i),id(j),id(i),id(j))
                         if(tDampKMat) &
                              hel_tmp = hel_tmp - kMatParSpinCorrection(id(i),id(j),id(j),id(i))
-!                         write(6,*) i,j,get_umat_el (id(j),id(i),id(i),id(j))
+                          !write(6,*) id(j),id(i), get_umat_el(id(i),id(j),id(j),id(i))
                     endif
                 enddo
             enddo

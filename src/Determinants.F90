@@ -386,10 +386,10 @@ contains
 !             endif
 !         endif
 
-        if (t_lattice_model) then 
-            temp_ic = ic 
-            hel = get_helement_lattice(nI, nJ, temp_ic) 
-            return 
+        if (t_lattice_model) then
+            temp_ic = ic
+            hel = get_helement_lattice(nI, nJ, temp_ic)
+            return
         end if
 
         if (tStoreAsExcitations) &
@@ -503,15 +503,15 @@ contains
 
         character(*), parameter :: this_routine = 'get_helement_excit'
 
-        ! intermediately put the special call to the hubbard matrix elements 
-        ! here. Although I want to change that in the whole code to have 
-        ! procedure pointers similar to the excitation generator, which gets 
-        ! intialized to the correct function at the beginning of the 
+        ! intermediately put the special call to the hubbard matrix elements
+        ! here. Although I want to change that in the whole code to have
+        ! procedure pointers similar to the excitation generator, which gets
+        ! intialized to the correct function at the beginning of the
         ! excitations
         ! store all the lattice model matrix elements in one call.
-        if (t_lattice_model) then 
-            hel = get_helement_lattice(nI, ic, ExcitMat, tParity) 
-            return 
+        if (t_lattice_model) then
+            hel = get_helement_lattice(nI, ic, ExcitMat, tParity)
+            return
         end if
 
         ! If we are using CSFs, then call the csf routine.
@@ -564,9 +564,9 @@ contains
         iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
 
         ! switch to lattice matrix element:
-        if (t_lattice_model) then 
-            hel = get_helement_lattice(nI,ic, ex, tParity) 
-            return 
+        if (t_lattice_model) then
+            hel = get_helement_lattice(nI,ic, ex, tParity)
+            return
         end if
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
