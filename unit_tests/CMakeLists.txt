@@ -50,3 +50,6 @@ add_subdirectory( cepa_shifts )
 #add_subdirectory( analyse_wf_symmetry )
 
 add_subdirectory( pcpp_excitgen)
+
+
+add_subdirectory( guga )

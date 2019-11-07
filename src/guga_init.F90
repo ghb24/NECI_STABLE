@@ -176,10 +176,6 @@ contains
         write(6,*) ' to always ensure a S >= 0 value!'
         write(6,*) ' *********************************************************'
 
-        ! init nReps variable, which in the future may take the place of nEl
-        ! in defining the length of the nI array
-!         call init_nReps()
-
         ! initialize the procedure pointer arrays, needed in the matrix
         ! element calculation
         call init_guga_data_procPtrs()

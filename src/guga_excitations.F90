@@ -64,7 +64,7 @@ module guga_excitations
 
     use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
                         binary_search_first_ge, abs_l1, operator(.isclose.), &
-                        operator(.div.)
+                        operator(.div.), near_zero
 
     use sort_mod, only: sort
 
@@ -10983,143 +10983,147 @@ contains
         ! and calc. x1^-1
         ! keep tempWweight as the running matrix element which gets updated
         ! every iteration
-        mat_ele = 1.0_dp / mat_ele
 
-        do i = st + 1, sw - 1
-            ! the good thing here is, i do not need to loop a second time,
-            ! since i can recalc. the matrix elements and pgens on-the fly
-            ! here the matrix elements should not be 0 or otherwise the
-            ! excitation wouldnt have happended anyways
-            if (currentOcc_int(i) /= 1) cycle
+        if (.not. near_zero(abs(mat_ele))) then
 
-            ! calculate orbitals pgen first and cycle if 0
-            call calc_orbital_pgen_contrib_start([2*i, 2*elecInd], holeInd,&
-                orb_pgen)
+            mat_ele = 1.0_dp / mat_ele
 
-            step = current_stepvector(i)
+            do i = st + 1, sw - 1
+                ! the good thing here is, i do not need to loop a second time,
+                ! since i can recalc. the matrix elements and pgens on-the fly
+                ! here the matrix elements should not be 0 or otherwise the
+                ! excitation wouldnt have happended anyways
+                if (currentOcc_int(i) /= 1) cycle
 
-            ! update inverse product
-            call getDoubleMatrixElement(step,step,0,-1,+1,currentB_ilut(i),&
-                1.0_dp, x1_element = stay_mat)
+                ! calculate orbitals pgen first and cycle if 0
+                call calc_orbital_pgen_contrib_start([2*i, 2*elecInd], holeInd,&
+                    orb_pgen)
 
-            mat_ele = mat_ele / stay_mat
-
-            ! check if orb_pgen is non-zero
-            ! still have to update matrix element in this case..
-            ! so do the cycle only afterwards..
-
-            if (orb_pgen < EPS) cycle
-
-            ! and also get starting contribution
-            call getDoubleMatrixElement(step,step,-1,-1,+1,currentB_ilut(i),&
-                1.0_dp, x1_element = start_mat)
-
-            ! because the rest of the matrix element is still the same in
-            ! both cases...
-            if (abs(start_mat) > EPS) then
-                integral = integral + mat_ele * start_mat *(get_umat_el(holeInd,i,i,elecInd) + &
-                    get_umat_el(i,holeInd,elecInd,i))/2.0_dp
-            end if
-
-            ! and update pgens also
-            zero_weight = weights%proc%zero(negSwitches(i), &
-                posSwitches(i), currentB_ilut(i), weights%dat)
-
-            if (step == 1) then
-                switch_weight = weights%proc%plus(posSwitches(i), &
-                    currentB_ilut(i), weights%dat)
-            else
-                switch_weight = weights%proc%minus(negSwitches(i), &
-                    currentB_ilut(i), weights%dat)
-            end if
-
-            stay_weight = calcStayingProb(zero_weight, switch_weight, &
-                currentB_ilut(i))
-
-            start_weight = zero_weight/(zero_weight + switch_weight)
-
-            ! and update probWeight
-            ! i think i should not put in the intermediate start_weight
-            ! permanently..
-            branch_pgen = branch_pgen / stay_weight
-
-            if (t_trunc_guga_pgen .or. &
-                (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-
-                if (branch_pgen * start_weight > trunc_guga_pgen) then
-                    pgen = pgen + orb_pgen * branch_pgen * start_weight
-                end if
-            else
-                ! and add up correctly
-                pgen = pgen + orb_pgen * branch_pgen * start_weight
-            end if
-
-        end do
-
-        ! handle switch seperately (but only if switch > start)
-        if (sw > st) then
-
-            ! check orb_pgen otherwise no influencce
-            call calc_orbital_pgen_contrib_start([2*sw, 2*elecInd], holeInd,&
-                orb_pgen)
-
-
-            if (orb_pgen > EPS) then
-
-                step = current_stepvector(sw)
-
-                zero_weight = weights%proc%zero(negSwitches(sw), posSwitches(sw), &
-                    currentB_ilut(sw), weights%dat)
-
-                ! on the switch the original probability is:
-                if (step == 1) then
-                    switch_weight = weights%proc%plus(posSwitches(sw), &
-                        currentB_ilut(sw), weights%dat)
-
-                    call getDoubleMatrixElement(2,1,0,-1,+1,currentB_ilut(sw),&
-                        1.0_dp, x1_element = stay_mat)
-
-                    call getDoubleMatrixElement(2,1,-1,-1,+1,currentB_ilut(sw),&
-                        1.0_dp, x1_element = start_mat)
-
-                else
-                    switch_weight = weights%proc%minus(negSwitches(sw), &
-                        currentB_ilut(sw), weights%dat)
-
-                    call getDoubleMatrixElement(1,2,0,-1,+1,currentB_ilut(sw),&
-                        1.0_dp, x1_element = stay_mat)
-
-                    call getDoubleMatrixElement(1,2,-1,-1,+1,currentB_ilut(sw),&
-                        1.0_dp, x1_element = start_mat)
-
-                end if
+                step = current_stepvector(i)
 
                 ! update inverse product
+                call getDoubleMatrixElement(step,step,0,-1,+1,currentB_ilut(i),&
+                    1.0_dp, x1_element = stay_mat)
+
+                mat_ele = mat_ele / stay_mat
+
+                ! check if orb_pgen is non-zero
+                ! still have to update matrix element in this case..
+                ! so do the cycle only afterwards..
+
+                if (orb_pgen < EPS) cycle
+
                 ! and also get starting contribution
-                mat_ele = mat_ele * start_mat / stay_mat
+                call getDoubleMatrixElement(step,step,-1,-1,+1,currentB_ilut(i),&
+                    1.0_dp, x1_element = start_mat)
 
                 ! because the rest of the matrix element is still the same in
                 ! both cases...
-                integral = integral + mat_ele *(get_umat_el(holeInd,sw,sw,elecInd) + &
-                    get_umat_el(sw,holeInd,elecInd,sw))/2.0_dp
+                if (abs(start_mat) > EPS) then
+                    integral = integral + mat_ele * start_mat *(get_umat_el(holeInd,i,i,elecInd) + &
+                        get_umat_el(i,holeInd,elecInd,i))/2.0_dp
+                end if
 
-                stay_weight = 1.0_dp - calcStayingProb(zero_weight, switch_weight, &
-                    currentB_ilut(sw))
+                ! and update pgens also
+                zero_weight = weights%proc%zero(negSwitches(i), &
+                    posSwitches(i), currentB_ilut(i), weights%dat)
 
-                ! and the new startProb is also the non-b=0 branch
-                start_weight = switch_weight/(zero_weight + switch_weight)
+                if (step == 1) then
+                    switch_weight = weights%proc%plus(posSwitches(i), &
+                        currentB_ilut(i), weights%dat)
+                else
+                    switch_weight = weights%proc%minus(negSwitches(i), &
+                        currentB_ilut(i), weights%dat)
+                end if
+
+                stay_weight = calcStayingProb(zero_weight, switch_weight, &
+                    currentB_ilut(i))
+
+                start_weight = zero_weight/(zero_weight + switch_weight)
+
+                ! and update probWeight
+                ! i think i should not put in the intermediate start_weight
+                ! permanently..
+                branch_pgen = branch_pgen / stay_weight
 
                 if (t_trunc_guga_pgen .or. &
                     (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
-                    if (branch_pgen * start_weight / start_weight > trunc_guga_pgen) then
+
+                    if (branch_pgen * start_weight > trunc_guga_pgen) then
+                        pgen = pgen + orb_pgen * branch_pgen * start_weight
+                    end if
+                else
+                    ! and add up correctly
+                    pgen = pgen + orb_pgen * branch_pgen * start_weight
+                end if
+
+            end do
+
+            ! handle switch seperately (but only if switch > start)
+            if (sw > st) then
+
+                ! check orb_pgen otherwise no influencce
+                call calc_orbital_pgen_contrib_start([2*sw, 2*elecInd], holeInd,&
+                    orb_pgen)
+
+
+                if (orb_pgen > EPS) then
+
+                    step = current_stepvector(sw)
+
+                    zero_weight = weights%proc%zero(negSwitches(sw), posSwitches(sw), &
+                        currentB_ilut(sw), weights%dat)
+
+                    ! on the switch the original probability is:
+                    if (step == 1) then
+                        switch_weight = weights%proc%plus(posSwitches(sw), &
+                            currentB_ilut(sw), weights%dat)
+
+                        call getDoubleMatrixElement(2,1,0,-1,+1,currentB_ilut(sw),&
+                            1.0_dp, x1_element = stay_mat)
+
+                        call getDoubleMatrixElement(2,1,-1,-1,+1,currentB_ilut(sw),&
+                            1.0_dp, x1_element = start_mat)
+
+                    else
+                        switch_weight = weights%proc%minus(negSwitches(sw), &
+                            currentB_ilut(sw), weights%dat)
+
+                        call getDoubleMatrixElement(1,2,0,-1,+1,currentB_ilut(sw),&
+                            1.0_dp, x1_element = stay_mat)
+
+                        call getDoubleMatrixElement(1,2,-1,-1,+1,currentB_ilut(sw),&
+                            1.0_dp, x1_element = start_mat)
+
+                    end if
+
+                    ! update inverse product
+                    ! and also get starting contribution
+                    mat_ele = mat_ele * start_mat / stay_mat
+
+                    ! because the rest of the matrix element is still the same in
+                    ! both cases...
+                    integral = integral + mat_ele *(get_umat_el(holeInd,sw,sw,elecInd) + &
+                        get_umat_el(sw,holeInd,elecInd,sw))/2.0_dp
+
+                    stay_weight = 1.0_dp - calcStayingProb(zero_weight, switch_weight, &
+                        currentB_ilut(sw))
+
+                    ! and the new startProb is also the non-b=0 branch
+                    start_weight = switch_weight/(zero_weight + switch_weight)
+
+                    if (t_trunc_guga_pgen .or. &
+                        (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
+                        if (branch_pgen * start_weight / start_weight > trunc_guga_pgen) then
+                            pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
+                        end if
+
+                    else
                         pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
                     end if
 
-                else
-                    pgen = pgen + orb_pgen * branch_pgen * start_weight / stay_weight
+
                 end if
-
-
             end if
         end if
 
@@ -12307,16 +12311,9 @@ contains
         ! update all matrix element contributions at once
         call update_matrix_element(t, umat * tempWeight * nOpen * Root2, 1)
 
-!         ! also include the sign of the open orbitals here
-!         tempWeight = extract_part_sign(t, 1) * nOpen * Root2
-!
-!         call encode_part_sign(t, tempWeight, 1)
-
         ! do an excitaiton abortion
         ! although matrix element should not have turned zero here, with all
         ! the checks already in place
-
-!         ASSERT(tempWeight /= 0.0_dp)
 
     end subroutine calcFullstopLoweringStochastic
 
@@ -12384,9 +12381,10 @@ contains
         end if
         ! could encode matrix element here, but do it later for more efficiency
 
+        tempWeight = 0.0_dp
+
         select case (current_stepvector(semi))
         case (0)
-!         if (isZero(ilut,semi)) then
             if (currentB_int(semi) > 0) then
 
                 minusWeight = weights%proc%minus(negSwitches(semi), bVal,weights%dat)
@@ -12397,8 +12395,6 @@ contains
                     t = 0
                     return
                 end if
-
-!                 ASSERT(minusWeight + plusWeight > 0.0_dp)
 
                 branch_pgen = calcStartProb(minusWeight,plusWeight)
 
@@ -12437,9 +12433,7 @@ contains
 
                 branch_pgen = 1.0_dp
             end if
-!         else
         case (1)
-!            if (isOne(ilut,semi)) then
                 ! only one excitation possible, which also has to have
                 ! non-zero weight or otherwise i wouldnt even be here
                 ! and reuse already provided t
@@ -12455,7 +12449,6 @@ contains
                 branch_pgen = 1.0_dp
 
         case (2)
-!             else if isTwo(ilut,semi) then
                 ! here we have
                 ! 2 -> 3
                 set_orb(t, 2*semi-1)
@@ -12465,16 +12458,11 @@ contains
                 call getDoubleMatrixElement(3, 2, 0, -1, -1, bVal, &
                     1.0_dp, tempWeight)
 
-!             end if
 
             branch_pgen = 1.0_dp
 
             ! encode fullstart contribution and pseudo overlap region here
 
-!         case default
-            ! not sure here.. if i should consider a 3.. not possible or?
-!             branch_pgen = 1.0_dp
-!         end if
         end select
 
         call encode_matrix_element(t, Root2 * tempWeight * umat * (-1.0_dp)**nOpen, 1)

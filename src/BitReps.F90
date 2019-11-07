@@ -1167,6 +1167,9 @@ contains
 
         integer :: i, pos, min_ind
         real(dp) :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)
+        real(dp) :: prefactor_
+
+        def_default(prefactor_, prefactor, 1.0_dp)
 
         if (.not. sorted_lists) then
             write(6,*) lbound(list_1, 1), ubound(list_1, 1), lbound(list_2, 1), ubound(list_2, 1)
@@ -1194,7 +1197,7 @@ contains
                 ndets_out = ndets_out + 1
                 call extract_sign(list_1(:, min_ind+pos-1), sign_1)
                 call extract_sign(list_2(:,i), sign_2)
-                sign_out = sign_1 + prefactor*sign_2
+                sign_out = sign_1 + prefactor_*sign_2
                 list_out(:,ndets_out) = list_2(:,i)
                 call encode_sign(list_out(:,ndets_out), sign_out)
 
@@ -1210,7 +1213,7 @@ contains
 
                 list_out(:,ndets_out) = list_2(:,i)
                 call extract_sign(list_out(:,ndets_out),sign_2)
-                call encode_sign(list_out(:,ndets_out),sign_2*prefactor)
+                call encode_sign(list_out(:,ndets_out),sign_2*prefactor_)
 
                 ! Search a smaller section of list_1 next time.
                 min_ind = min_ind - pos - 1
