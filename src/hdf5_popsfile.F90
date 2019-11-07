@@ -169,21 +169,21 @@ contains
         integer(hdf_err) :: err
         integer :: mpi_err
         character(255) :: filename
-        character(64) :: stem 
+        character(64) :: stem
         character(4) :: MaxExStr
         character(32) :: IterStr
 
         ! Get a unique filename for this popsfile. This needs to be done on
         ! the head node to avoid collisions.
         if (iProcIndex == 0) then
-            if(present(MaxEx))then                                              
-                write (MaxExStr,'(I0)') MaxEx                                   
-                stem = 'popsfile_trunc'//MaxExStr                               
-            else                                                                
-                stem = 'popsfile'                                               
-            end if            
+            if(present(MaxEx))then
+                write (MaxExStr,'(I0)') MaxEx
+                stem = 'popsfile_trunc'//MaxExStr
+            else
+                stem = 'popsfile'
+            end if
             if(present(IterSuffix) .and. IterSuffix)then
-                write (IterStr,'(I0)') (Iter+PreviousCycles) 
+                write (IterStr,'(I0)') (Iter+PreviousCycles)
                 stem = trim(stem)//'_'//IterStr
             endif
             call get_unique_filename(trim(stem), &
@@ -195,9 +195,9 @@ contains
 
         write(6,*)
         if(present(MaxEx))then 
-            write(6,*) "============== Writing Truncated HDF5 popsfile =============="
+            write(6,*) "========= Writing Truncated HDF5 popsfile ========="
         else
-            write(6,*) "=================== Writing HDF5 popsfile ==================="
+            write(6,*) "============== Writing HDF5 popsfile =============="
         end if
         write(6,*) "File name: ", trim(filename)
 
@@ -238,7 +238,6 @@ contains
         call MPIBarrier(mpi_err)
 
         write(6,*) "popsfile write successful"
-        write(6,*)
 
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
