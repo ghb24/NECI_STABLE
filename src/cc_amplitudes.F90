@@ -58,11 +58,6 @@ module cc_amplitudes
 
     integer :: n_clashes = 0
 
-!     interface get_amp
-!         module procedure get_amp_ind
-!         module procedure get_amp_ex
-!     end interface
-
     ! maybe it would be nice to have a type which encodes this information
     ! and which gives an easy and nice way to de/encode the indices
     ! involved..
@@ -553,6 +548,8 @@ contains
         ASSERT(allocated(projedet))
         ASSERT(allocated(iLutRef))
 
+        if (allocated(ind_matrix_singles)) deallocate(ind_matrix_singles)
+
         allocate(ind_matrix_singles(nbasis, nbasis))
         ind_matrix_singles = 0
 
@@ -824,17 +821,6 @@ contains
                                 temp_int = apply_excit_ops(ilutRef(:,1), &
                                     [ij_ab(1,:),kl_cd(1,:)],[ij_ab(2,:),kl_cd(2,:)])
 
-!                                 temp_int = ilutref(0:nifdbo,1)
-!                                 clr_orb(temp_int, ij_ab(1,1))
-!                                 clr_orb(temp_int, ij_ab(1,2))
-!                                 clr_orb(temp_int, kl_cd(1,1))
-!                                 clr_orb(temp_int, kl_cd(1,2))
-!
-!                                 set_orb(temp_int, ij_ab(2,1))
-!                                 set_orb(temp_int, ij_ab(2,2))
-!                                 set_orb(temp_int, kl_cd(2,1))
-!                                 set_orb(temp_int, kl_cd(2,2))
-
                                 call cc_hash_look_up(ijab_klcd, temp_int, quad_hash, &
                                     hash_ind, t_found)
 
@@ -1046,8 +1032,8 @@ contains
         call stop_all(this_routine, "TODO")
         unused_variable(ijk_abc)
         unused_variable(l_d)
-        unused_variable(phase)
-        unused_variable(ijab_klcd)
+        phase = 0.0_dp
+        ijab_klcd = 0
 
     end subroutine order_quad_indices_3_1
 
@@ -1463,29 +1449,6 @@ contains
         ! excitations, since t_ij^ab = c_ij^ab - t_i^a... could be
         ! non-zero, just from the single contribution..
         if (t_store_full_doubles) then
-!             if (t_store_disc_ops) then
-!                 do i = 1, disc_cc_ops(1)%n_ops
-!                     if (disc_cc_ops(1)%set_flag(i)) then
-!                         if (.not. cc_ops(2)%set_flag(i)) then
-!                             print *, "here?", cc_ops(2)%get_ex(i), disc_cc_ops(1)%get_ex(i)
-!
-!                             ASSERT(abs(disc_cc_ops(1)%amplitudes(i)) > EPS)
-!
-!                             amp = disc_cc_ops(1)%amplitudes(i)
-!
-!                             cc_ops(2)%amplitudes(i) = amp
-!
-!                             cc_ops(2)%operators(i,:,:) = disc_cc_ops(1)%operators(i,:,:)
-!                             cc_ops(2)%set_flag = .true.
-!                             n_doubles = n_doubles + 1
-!                             cc_amp_norm(0,2) = cc_amp_norm(0,2) + 1
-!                             cc_amp_norm(1,2) = cc_amp_norm(1,2) + abs(amp)
-!                             cc_amp_norm(2,2) = cc_amp_norm(2,2) + amp**2
-!
-!                         endif
-!                     end if
-!                 end do
-!             else
             do i = 1, nel
                 elec_i = projedet(i,1)
                 do j = i + 1, nel
@@ -1701,18 +1664,6 @@ contains
             end do
             print *, "direct sampled triples: ", n - 1, "on Proc: ", iProcIndex
 
-!             if (t_store_disc_ops) then
-!
-!                 ! maybe try the new feature with the stored T1^2
-!                 do i = 1, cc_ops(1)%n_ops
-!                     if (cc_ops(1)%set_flag(i)) then
-!                         do j = 1, disc_cc_ops(1)%n_ops
-!                             if (disc_cc_ops(1)%set_flag(j)) then
-!
-!
-!
-!
-!             else
             do i = 1, nel
                 elec_i = projedet(i,1)
                 do j = i + 1, nel
@@ -1765,15 +1716,6 @@ contains
                                     ! todo
                                     temp_ilut = apply_excit_ops(iLutRef, &
                                         [elec_i,elec_j,elec_k],[orb_a,orb_b,orb_c])
-
-!                                     temp_ilut = iLutRef(:,1)
-!                                     ! make the excitation and search!
-!                                     clr_orb(temp_ilut, elec_i)
-!                                     clr_orb(temp_ilut, elec_j)
-!                                     clr_orb(temp_ilut, elec_k)
-!                                     set_orb(temp_ilut, orb_a)
-!                                     set_orb(temp_ilut, orb_b)
-!                                     set_orb(temp_ilut, orb_c)
 
                                     call decode_bit_det(temp_nI, temp_ilut)
 
@@ -1911,8 +1853,10 @@ contains
         select case (this%order)
         case (1)
 
-            ex = this%operators(ind,:,:)
-            return
+            if (allocated(this%operators)) then
+                ex = this%operators(ind,:,:)
+                return
+            end if
 
             ! fix this below if i want to actually encode that directly and
             ! not store the operators..
@@ -1929,8 +1873,10 @@ contains
 
         case (2)
 
-            ex = this%operators(ind,:,:)
-            return
+            if (allocated(this%operators)) then
+                ex = this%operators(ind,:,:)
+                return
+            end if
 
             ! fix this below if i want to actually encode that directly and
             ! not store the operators..
@@ -1950,12 +1896,6 @@ contains
             ! maybe i have to store the indices in the end..
             i = 1
             cum = (nel - i)
-
-            print *, ""
-            print *, "nij: ", nij
-            print *, "ab: ", ab
-            print *, "ij: ", ij
-            print *, "cum: ", cum
 
             ! do a stupid sum..
             do while(cum < ij .and. i <= nel)
@@ -1978,8 +1918,6 @@ contains
             ex(1,:) = [i,j]
             ex(2,:) = [a,b] + nel
 
-            print *, "(i,j): ", i,j
-            print *, "(a,b): ", a, b
 
         case (3)
             ex = this%operators(ind,:,:)
@@ -2008,8 +1946,6 @@ contains
 
         ! to i want to access this with invalid excitations?
         ASSERT(all(elec_ind > 0))
-!         ASSERT(all(elec_ind <= nel))
-!         ASSERT(all(orb_ind > nel))
         ASSERT(all(orb_ind <= nbasis))
 
         ! and assert ordered inputs..
@@ -2070,28 +2006,6 @@ contains
         end select
 
     end function get_ind
-
-!     subroutine calc_cc_amplitudes
-!         character(*), parameter :: this_routine = "calc_cc_amplitudes"
-!
-!         integer :: idet, i
-!         integer, allocatable :: n_excits(:)
-!         type(cc_amplitude), allocatable :: cc_amp(:)
-!
-!         ! i want to calculate the amplitudes up to a certain order given
-!         ! in the input
-!
-!         ! for this it is helpful to have an upper limit of the number of
-!         ! possible amplitudes
-!         allocate(n_excits(cc_order))
-!
-!         n_excits = calc_number_of_excitations(nOccAlpha, nOccBeta, cc_order, &
-!             nbasis/2)
-!
-!         allocate(cc_amp(cc_order))
-!
-!     end subroutine calc_cc_amplitudes
-
 
     subroutine dongxia_amplitudes
 

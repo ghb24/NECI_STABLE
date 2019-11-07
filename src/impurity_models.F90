@@ -379,15 +379,18 @@ end subroutine constructConnections
        l = 0
     endif
 
+
     ! first, generate the cumulative sum
     cumSum = create_cumulative_list(ilut,origin,nTarget,targetOrbs,sfunc,&
          k,l)
     ! for an empty sum, the excitation is invalid
     if(abs(cumSum(nTarget)) .le. eps) then
        destination = 0
+       pgen = 0.0_dp
        ! pGen does not change, no probabilistics involved
     else
-       call pick_from_cumulative_sum(destination,pGen,cumSum,nTarget,targetOrbs)
+        pgen = 1.0_dp
+        call pick_from_cumulative_sum(destination,pGen,cumSum,nTarget,targetOrbs)
     endif
   end subroutine cumulative_sum_wrapper
 

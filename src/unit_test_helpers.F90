@@ -66,15 +66,6 @@ contains
 
         call sort(arr(1:nBasis,1), brr(1:nBasis), nskip = 2)
         call sort(arr(2:nBasis,1), brr(2:nBasis), nskip = 2)
-!
-!         print *, "arr: "
-!         do i = 1, nBasis
-!             print *, arr(i,:)
-!         end do
-!         print *, "brr: "
-!         do i = 1, nBasis
-!             print *, brr(i)
-!         end do
 
     end subroutine setup_arr_brr
 

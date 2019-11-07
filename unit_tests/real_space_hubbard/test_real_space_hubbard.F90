@@ -50,6 +50,7 @@ program test_real_space_hubbard
     implicit none
 
     integer :: failed_count
+    logical :: t_exact_study, t_excit_gen
 
     t_new_real_space_hubbard = .true.
     t_lattice_model = .true.
@@ -57,11 +58,17 @@ program test_real_space_hubbard
     call dsfmt_init(1)
     call init_fruit()
     ! run the test-driver
-    call exact_test()
-    call stop_all("here", "for now")
     call real_space_hubbard_test_driver()
     call fruit_summary()
     call fruit_finalize()
+
+    ! change flag for the exact study:
+    t_exact_study = .false.
+    if (t_exact_study) call exact_test()
+
+    ! change flag to run excit-gen testers:
+    t_excit_gen = .false.
+    if (t_excit_gen) call test_excit_gen_realspace()
 
     call get_failed_count(failed_count)
     if (failed_count /= 0) stop -1
@@ -72,13 +79,6 @@ contains
         ! this is the main function which calls all the other tests
 
         ! or try running it with the provided runner of fruit:
-!         call run_test_case(gen_excit_rs_hubbard_hphf_test_stoch, "gen_excit_rs_hubbard_hphf_test_stoch")
-!         call run_test_case(gen_excit_rs_hubbard_transcorr_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_hphf_test_stoch")
-!         call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch")
-!         call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
-        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
-        call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_test_stoch")
-        call stop_all("here", "for now")
         call run_test_case(get_umat_el_hub_test, "get_umat_el_hub_test")
         call run_test_case(init_tmat_test, "init_tmat_test")
         call run_test_case(get_helement_test, "get_helement_test")
@@ -93,6 +93,18 @@ contains
         call run_test_case(get_offdiag_helement_rs_hub_test, "get_offdiag_helement_rs_hub_test")
 
     end subroutine real_space_hubbard_test_driver
+
+
+    subroutine test_excit_gen_realspace()
+
+        call run_test_case(gen_excit_rs_hubbard_hphf_test_stoch, "gen_excit_rs_hubbard_hphf_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_hphf_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_hphf_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_test_stoch, "gen_excit_rs_hubbard_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_test_stoch, "gen_excit_rs_hubbard_transcorr_test_stoch")
+        call run_test_case(gen_excit_rs_hubbard_transcorr_uniform_test_stoch, "gen_excit_rs_hubbard_transcorr_uniform_test_stoch")
+
+    end subroutine test_excit_gen_realspace
 
     subroutine exact_test
 
@@ -173,11 +185,6 @@ contains
 
         call init_realspace_tests
 
-!         nel = 3
-!         allocate(nI(nel))
-!         nI = [(i, i = 1, nel)]
-!         nI = [1,3,6,7,9,12,13,16,17,20,21,24,25,28,30,31,34,36]
-
         if (t_start_neel) then
             nI = create_neel_state()
             print *, "neel-state: ", nI
@@ -202,12 +209,6 @@ contains
         end do
 
         call setup_arr_brr(lat)
-
-!         call init_hopping_transcorr()
-!         call setup_symmetry_table()
-!         call setup_k_space_hub_sym(lat)
-!         call init_dispersion_rel_cache()
-!         call init_umat_rs_hub_transcorr()
 
         if (t_j_vec) then
             j_vec = linspace(-0.5,0.5,100)
@@ -271,7 +272,6 @@ contains
                 end if
             end do
             close(iunit)
-!             call stop_all("here","now")
         end if
 
         t_trans_corr_hop = .false.
@@ -292,10 +292,6 @@ contains
 
         print *, "hamil:"
         call print_matrix(hamil)
-!         print *, "orig: e-values:"
-!         do i = 1, size(hilbert_space,2)
-!             print *, e_orig(i)
-!         end do
 
 #ifndef __CMPLX
         call eig(hamil, e_orig, e_vecs)
@@ -346,10 +342,6 @@ contains
 
         print *, "test right e_vec: ", dot_product(test_evec(:,1), e_vecs_right(:,1))
 
-        ! try too big systems here:
-!         call frsblk_wrapper(hilbert_space, size(hilbert_space, 2), n_eig, e_values, e_vecs)
-!         print *, "e_value lanczos:", e_values(1)
-
         if (t_do_exact_double_occ) then
             exact_double_occ = calc_exact_double_occ(n_states, dummy, e_vecs(:,1))
             print *, "--- orig ---"
@@ -380,7 +372,6 @@ contains
         end if
 
         print *, "overlap: ", dot_product(e_vecs_left(:,1),e_vecs_right(:,1))
-!         call stop_all("here","now")
 
         call eig(hamil_hop, e_values, e_vecs_right)
 
@@ -454,11 +445,24 @@ contains
         integer(n_int), intent(in) :: phi_L_states(:,:), phi_R_states(:,:)
         real(dp), intent(in) :: phi_L_coeff(:), phi_R_coeff(:)
 
+        unused_variable(phi_L_states)
+        unused_variable(phi_L_coeff)
+        unused_variable(phi_R_coeff)
+        unused_variable(phi_R_states)
+        get_corr_overlap = 0.0_dp
+        call stop_all("get_corr_overlap", "TODO")
+
     end function get_corr_overlap
 
     real(dp) function get_overlap(phi_L_states, phi_L_coeff, phi_R_states, phi_R_coeff)
         integer(n_int), intent(in) :: phi_L_states(:,:), phi_R_states(:,:)
         real(dp), intent(in) :: phi_L_coeff(:), phi_R_coeff(:)
+
+        unused_variable(phi_L_states)
+        unused_variable(phi_L_coeff)
+        unused_variable(phi_R_coeff)
+        get_overlap = 0.0_dp
+        call stop_all("get_overlap", "TODO")
 
     end function get_overlap
 
@@ -469,10 +473,20 @@ contains
         integer(n_int), intent(out), allocatable :: phi_states(:,:)
         real(dp), intent(out) :: phi_coeff(:)
 
+        unused_variable(hf_states)
+        unused_variable(hf_coeff)
+        allocate(phi_states(0,0), source = 0_n_int)
+        phi_coeff = 0.0_dp
+        call stop_all("apply_H", "TODO")
+
     end subroutine apply_H
+
 
     subroutine set_H_transcorr(j)
         real(dp), intent(in) :: j
+
+        unused_variable(j)
+        call stop_all("set_H_transcorr", "TODO")
 
     end subroutine set_H_transcorr
 
@@ -483,6 +497,11 @@ contains
         ! HF solution. essentially i only need to do a fourier transformation
         ! of the k-space HF solution, or if i have the eigenvectors of the
         ! t_ij matrix, it is just a unitary transformation of HF
+
+        unused_variable(hf_states)
+        unused_variable(hf_coeff)
+
+        call stop_all("get_real_space_hf", "TODO")
 
     end subroutine get_real_space_hf
 
@@ -539,6 +558,8 @@ contains
         real(dp) :: phase
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
 
+        unused_variable(U)
+
         t_calc_singles = .true.
         ! also consider the spin-flipped of the neel state
         t_flip = .false.
@@ -573,9 +594,6 @@ contains
             end do
         end do
         call eig(hamil, e_values, e_vec)
-
-!         print *, "real-space hamiltonian: "
-!         call print_matrix(hamil)
 
         ! find the ground-state
         ind = minloc(e_values,1)
@@ -775,14 +793,6 @@ contains
                 end if
                 print *, "orig E0:    ", gs_energy_orig
                 print *, "hopping E0: ", minval(neci_eval)
-!                 print *, "diagonal similarity transformed: "
-!                 do l = 1, size(hamil_hop,1)
-!                     print *, hamil_hop(l,l)
-!                 end do
-!                 print *, "diagonal neci hamil: "
-!                 do l = 1, size(hamil_hop_neci,1)
-!                     print *, hamil_hop_neci(l,l)
-!                 end do
 
                 call stop_all("here", "hopping transcorrelated energy not correct!")
             end if
@@ -814,29 +824,11 @@ contains
                 end if
                 print *, "orig E0:    ", gs_energy_orig
                 print *, "spin E0: ", minval(neci_spin_eval)
-!                 print *, "diagonal similarity transformed: "
-!                 do l = 1, size(hamil_hop,1)
-!                     print *, hamil_hop(l,l)
-!                 end do
-!                 print *, "diagonal neci hamil: "
-!                 do l = 1, size(hamil_hop_neci,1)
-!                     print *, hamil_hop_neci(l,l)
-!                 end do
 
                 call stop_all("here", "spin transcorrelated energy not correct!")
             end if
 
         end do
-
-!         print *, "hamil-spin-exact:"
-!         call print_matrix(hamil_spin)
-!         print *, "hamil-spin-neci:"
-!         call print_matrix(hamil_spin_neci)
-!         print *, "hamil-hop-exact:"
-!         call print_matrix(hamil_hop)
-!         print *, "hamil-hop-neci:"
-!         call print_matrix(hamil_hop_neci)
-!
 
         if (t_norm_inside) then
             allocate(norm_inside(size(j)), source = 0.0_dp)
@@ -1078,7 +1070,6 @@ contains
 
         nel = 2
         allocate(nI(nel))
-!         nI = [(i, i = 1, nel)]
         nI = [1,4]
 
         nOccAlpha = 0
@@ -1173,7 +1164,6 @@ contains
 
         nel = 6
         allocate(nI(nel))
-!         nI = [(i, i = 1, nel)]
         nI = [1,4,5,8,9,12]
 
         nOccAlpha = 0
@@ -1398,12 +1388,12 @@ contains
         call encodebitdet([1,2], ilut)
 
         call create_cum_list_rs_hubbard(ilut, 1, [3,5,7,9], cum_arr, cum_sum)
-        call assert_equals([exp(1.0),2*exp(1.0),3*exp(1.0),4*exp(1.0)], real(cum_arr), 4)
-        call assert_equals(4*exp(1.0_dp), cum_sum)
+        call assert_equals([exp(-1.0_dp),2*exp(-1.0_dp),3*exp(-1.0_dp),4*exp(-1.0_dp)], (cum_arr), 4)
+        call assert_equals(4*exp(-1.0_dp), cum_sum)
 
         call create_cum_list_rs_hubbard(ilut, 2, [4,6,8,10], cum_arr, cum_sum)
-        call assert_equals([exp(1.0),2*exp(1.0),3*exp(1.0),4*exp(1.0)], real(cum_arr), 4)
-        call assert_equals(4*exp(1.0_dp), cum_sum)
+        call assert_equals([exp(-1.0_dp),2*exp(-1.0_dp),3*exp(-1.0_dp),4*exp(-1.0_dp)], (cum_arr), 4)
+        call assert_equals(4*exp(-1.0_dp), cum_sum)
 
         call encodebitdet([1,3], ilut)
         call create_cum_list_rs_hubbard(ilut, 1, [9,3,5,1], cum_arr, cum_sum)
@@ -1413,19 +1403,19 @@ contains
         nel = 4
         call encodebitdet([1,2,3,6],ilut)
         call create_cum_list_rs_hubbard(ilut, 1, [3,5,7,9], cum_arr, cum_sum)
-        call assert_equals([0.0,1.0,1.0+exp(1.0),1.0+2*exp(1.0)], real(cum_arr), 4)
-        call assert_equals(1.0+2*exp(1.0_dp), cum_sum)
-
+        call assert_equals([0.0_dp,1.0_dp,1.0+exp(-1.0_dp),1.0+2*exp(-1.0_dp)], (cum_arr), 4)
+        call assert_equals(1.0+2*exp(-1.0_dp), cum_sum)
+!
         call create_cum_list_rs_hubbard(ilut, 3, [1,5,7,9], cum_arr, cum_sum)
-        call assert_equals([0.0,exp(-1.0),exp(-1.0)+1.0,exp(-1.0)+2.0],&
-            real(cum_arr), 4)
-        call assert_equals(exp(-1.0_dp)+2.0_dp, cum_sum)
-
+        call assert_equals([0.0_dp,exp(1.0_dp),exp(1.0_dp)+1.0,exp(1.0_dp)+2.0],&
+            (cum_arr), 4)
+        call assert_equals(exp(1.0_dp)+2.0_dp, cum_sum)
+!
         nel = 3
         call encodebitdet([1,2,3], ilut)
         call create_cum_list_rs_hubbard(ilut, 2, [4,8], cum_arr, cum_sum)
-        call assert_equals([1.0, 1.0+exp(1.0)], real(cum_arr), 2)
-        call assert_equals(1.0+exp(1.0_dp), cum_sum)
+        call assert_equals([1.0_dp, 1.0+exp(-1.0_dp)], (cum_arr), 2)
+        call assert_equals(1.0+exp(-1.0_dp), cum_sum)
 
         t_trans_corr = .false.
         deallocate(tmat2d)
@@ -1541,16 +1531,16 @@ contains
         call assert_equals(1.0/(4.0_dp), calc_pgen_rs_hubbard(ilut,ex,1))
 
         nel = 3
+
         nI = [1,2,3]
         call encodebitdet(nI, ilut)
         ex(1,1) = 2
-        ex(2,1) = 4
-        ! think about the
-!         call assert_equals(1.0
-        ! some rounding errors below, otherwise correct
-        call assert_equals(real(1.0/3.0_dp*1.0/(1.0+exp(1.0_dp))), real(calc_pgen_rs_hubbard(ilut, ex,1)),1e-12)
-
         ex(2,1) = 8
+        ! think about the
+        ! some rounding errors below, otherwise correct
+        call assert_equals((1.0/3.0_dp*1.0/(1.0+exp(1.0_dp))), (calc_pgen_rs_hubbard(ilut, ex,1)),1e-12_dp)
+
+        ex(2,1) = 4
         call assert_equals(exp(1.0_dp)/(3.0*(1.0+exp(1.0_dp))), calc_pgen_rs_hubbard(ilut, ex,1))
 
         ex(1,1) = 1
@@ -1616,7 +1606,6 @@ contains
         use OneEInts, only: tmat2d
         use fcimcdata, only: pSingles, pDoubles, tsearchtau, tsearchtauoption
         use CalcData, only: tau
-        use tau_search, only: max_death_cpt
         use procedure_pointers, only: get_umat_el, generate_excitation
         use lattice_mod, only: lattice_deconstructor
 
@@ -1629,6 +1618,7 @@ contains
         length_y = 1
         nel = 2
         bhub = 1
+        tau = 0.0_dp
 
         call init_real_space_hubbard()
 
@@ -1661,7 +1651,6 @@ contains
         call assert_equals(0.0_dp, pDoubles)
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
-        call assert_equals(0.0_dp, max_death_cpt)
         call assert_true(associated(get_umat_el))
         call assert_true(associated(generate_excitation))
         call assert_equals(0.25 * lat_tau_factor, tau)
@@ -1701,7 +1690,6 @@ contains
         call assert_equals(0.0_dp, pDoubles)
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
-        call assert_equals(0.0_dp, max_death_cpt)
         call assert_true(associated(get_umat_el))
         call assert_true(associated(generate_excitation))
         call assert_equals(1.0/8.0_dp * lat_tau_factor, tau)
@@ -1742,7 +1730,6 @@ contains
         call assert_equals(0.0_dp, pDoubles)
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
-        call assert_equals(0.0_dp, max_death_cpt)
         call assert_true(associated(get_umat_el))
         call assert_true(associated(generate_excitation))
         call assert_equals(1.0/12.0_dp * lat_tau_factor, tau)
@@ -2264,10 +2251,10 @@ contains
         print *, "and now for transcorrelated hamiltonian with K = 1"
         t_trans_corr = .true.
         trans_corr_param = 1.0
-        call assert_equals(h_cast(1.0 * exp(1.0_dp)), get_helement([1,2],[1,4]))
-        call assert_equals(h_cast(1.0 * exp(-1.0_dp)), get_helement([1,4],[1,2]))
-        call assert_equals(h_cast(-1.0 * exp(1.0_dp)), get_helement([1,2],[2,3]))
-        call assert_equals(h_cast(-1.0 * exp(-1.0_dp)), get_helement([2,3],[1,2]))
+        call assert_equals(h_cast(1.0 * exp(-1.0_dp)), get_helement([1,2],[1,4]))
+        call assert_equals(h_cast(1.0 * exp(1.0_dp)), get_helement([1,4],[1,2]))
+        call assert_equals(h_cast(-1.0 * exp(-1.0_dp)), get_helement([1,2],[2,3]))
+        call assert_equals(h_cast(-1.0 * exp(1.0_dp)), get_helement([2,3],[1,2]))
         call assert_equals(h_cast(0.0_dp), get_helement([2,3],[2,5]))
         call assert_equals(h_cast(1.0_dp), get_helement([2,3],[2,7]))
         call assert_equals(h_cast(0.0_dp), get_helement([2,3],[3,8]))

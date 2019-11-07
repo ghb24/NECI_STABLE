@@ -51,10 +51,10 @@ contains
         use OneEInts, only: tmat2d
         use FciMCData, only: tsearchtau, tsearchtauoption, ilutref
         use CalcData, only: tau
-        use tau_search, only: max_death_cpt
         use procedure_pointers, only: get_umat_el, generate_excitation
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
+        use bit_reps, only: init_bit_rep
 
         print *, ""
         print *, "testing: init_tJ_model: "
@@ -63,8 +63,10 @@ contains
         length_y = 1
         nel = 2
         exchange_j = 1
-        nifd = 0
-        NIfTot = 0
+        nbasis = 200
+        bhub = -1.0
+        tau = 0.0_dp
+        call init_bit_rep()
         allocate(ilutref(0:NIfTot,1))
         ilutref = 9
 
@@ -95,7 +97,6 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
-        call assert_equals(0.0_dp, max_death_cpt)
         call assert_true(associated(get_umat_el))
         call assert_true(associated(generate_excitation))
         call assert_equals(0.25 * lat_tau_factor, tau)
@@ -116,7 +117,6 @@ contains
         use OneEInts, only: tmat2d
         use FciMCData, only: tsearchtau, tsearchtauoption
         use CalcData, only: tau
-        use tau_search, only: max_death_cpt
         use procedure_pointers, only: get_umat_el, generate_excitation
         use real_space_hubbard, only: lat_tau_factor
         use bit_rep_data, only: nifd, NIfTot
@@ -158,7 +158,6 @@ contains
         call assert_equals(0.0_dp, ecore)
         call assert_true(.not. tsearchtau)
         call assert_true(tsearchtauoption)
-        call assert_equals(0.0_dp, max_death_cpt)
         call assert_true(associated(get_umat_el))
         call assert_true(associated(generate_excitation))
         call assert_equals(0.25 * lat_tau_factor, tau)
@@ -1389,7 +1388,7 @@ contains
         call assert_equals(h_cast(exp(1.0_dp)), get_offdiag_helement_tJ([1,2,3,6],[7,5],.true.))
         call assert_equals(h_cast(exp(1.0_dp)), get_offdiag_helement_tJ([1,2,3,6],[8,4],.true.))
 
-        call assert_equals(1.0_dp*exp(-3.0), real(get_offdiag_helement_tJ([1,2,7,8],[1,3],.true.),dp),1e-12_dp)
+        call assert_equals(h_cast(1.0_dp*exp(-3.0_dp)), (get_offdiag_helement_tJ([1,2,7,8],[1,3],.true.)),1e-12_dp)
         call assert_equals(h_cast(1.0*exp(5.0_dp)), get_offdiag_helement_tJ([1,2,7,8],[3,7],.true.))
 
         t_trans_corr = .false.

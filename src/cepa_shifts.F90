@@ -66,8 +66,6 @@ contains
 
         integer :: i
         ! i have to allocate it for each replica
-!         allocate(cepa_shift_single(inum_runs))
-!         allocate(cepa_shift_double(inum_runs))
 
         print *, "init cepa shifts "
 
@@ -183,7 +181,6 @@ contains
             else
                 ! with the change in the death-step to - (S - D) i then have to
                 ! set this to 0 here, if i want to apply the full shift
-!                 cepa_shift = diagsft(run)
                 cepa_shift_cisd = 0.0_dp
             end if
         end if
@@ -234,7 +231,6 @@ contains
     real(dp) function cepa_acpf(run)
         integer, intent(in) :: run
         ! do i use the shift or the projected energy here?? tbd
-!         cepa_acpf = 2.0_dp * diagsft(run) / real(nel, dp)
         ! change the implementation, so that it actually gives
         ! S - D = 2S/N -> D = S(1 - 2/N)
         cepa_acpf = diagsft(run)*(1.0_dp - 2.0_dp/real(nel,dp))
@@ -243,8 +239,9 @@ contains
 
     real(dp) function cepa_aqcc(run)
         integer, intent(in) :: run
-!         cepa_aqcc = aqcc_factor * diagsft(run)
+
         cepa_aqcc = diagsft(run)*(1.0_dp - aqcc_factor)
+
     end function cepa_aqcc
 
 end module cepa_shifts

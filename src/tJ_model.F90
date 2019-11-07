@@ -187,8 +187,6 @@ contains
         if (trim(adjustl(lattice_type)) == 'read') then
             ! then i have to construct tmat first
             call stop_all(this_routine, "starting from fcidump not yet implemented!")
-!             call init_tmat()
-!             call setup_exchange_matrix()
             ! and then construct the lattice
             lat => lattice(lattice_type, length_x, length_y, length_z, .not. t_open_bc_x, &
                 .not. t_open_bc_y, .not. t_open_bc_z)

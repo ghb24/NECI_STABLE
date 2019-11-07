@@ -19,6 +19,7 @@ contains
         logical, intent(out) :: tParity
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'make_single'
+        character(50) :: err_msg
 #endif
         integer :: i, src
 
@@ -63,8 +64,8 @@ contains
 
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        if (.not. SymAllowedExcit(nI, nJ, 1, ex)) &
-            call stop_all(this_routine, 'Generating invalid excitation')
+        if (.not. SymAllowedExcit(nI, nJ, 1, ex, err_msg)) &
+            call stop_all(this_routine, 'Generating invalid excitation. '//trim(err_msg))
 #endif
 
     end subroutine
@@ -77,6 +78,7 @@ contains
         logical, intent(out) :: tParity
 #ifdef __DEBUG
         character(*), parameter :: this_routine = 'make_double'
+        character(50) :: err_msg
 #endif
 
         integer :: i, k, elecs(2), srcs(2), tgts(2), pos_moved
@@ -104,9 +106,6 @@ contains
 
         ! Count how far we have moved normal orbitals
         pos_moved = 0
-!         print *, ""
-!         print *, "----------------"
-!         print *, "nI: ", nI
         do k = 1, 2
 
             ! If we need to search up or down depends on the relative sizes
@@ -150,11 +149,7 @@ contains
 
             end if
 
-!             print *, "k: ", k
-!             print *, "nJ: ", nJ
             pos_moved = pos_moved + elecs(k) - i + 1
-!             print *, "pos_moved: ", pos_moved
-!             print *, "----------------"
 
         end do
 
@@ -163,12 +158,12 @@ contains
 
 #ifdef __DEBUG
         ! This is a useful (but O[N]) check to test the generated determinant.
-        if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then
+        if (.not. SymAllowedExcit(nI, nJ, 2, ex, err_msg)) then
             print *, "nI: ", nI
             print *, "nJ: ", nJ
             print *, "elecs: ", ex(1,:)
             print *, "orbs: ", ex(2,:)
-            call stop_all(this_routine, 'Generated invalid excitation')
+            call stop_all(this_routine, 'Generated invalid excitation. ' // trim(err_msg))
         end if
 #endif
 

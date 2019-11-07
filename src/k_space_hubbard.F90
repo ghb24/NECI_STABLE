@@ -101,7 +101,6 @@ module k_space_hubbard
     integer, parameter :: N_DIM = 3
 
     real(dp) :: three_body_prefac = 0.0_dp
-    real(dp) :: prefac_test = 2.0_dp
     real(dp), allocatable :: umat_cache_kspace(:,:)
     real(dp) :: n_opp(-1:1) = 0.0_dp
 
@@ -483,7 +482,7 @@ contains
                 call Stop_All(this_routine, "not yet implemented with HPHF")
             end if
 
-            three_body_prefac = real(bhub,dp) * prefac_test * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub,dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             ! i also have to set some generation probability parameters..
 
             pDoubles = pDoublesIn
@@ -1432,6 +1431,7 @@ contains
                 orb_b = 2 * b - spin
 
                 elem = 0.0_dp
+                c = 0
 
                 if (IsNotOcc(ilutI, orb_b)) then
                     c = get_orb_from_kpoints_three(src, orb_a, orb_b)
@@ -1757,6 +1757,7 @@ contains
                 orb_a = 2 * a - spin
 
                 elem = 0.0_dp
+                b = 0
 
                 if (IsNotOcc(ilutI,orb_a)) then
                     b = get_orb_from_kpoints(src(1),src(2), orb_a)
@@ -2152,7 +2153,7 @@ contains
         end if
 
         if (t_trans_corr_2body) then
-            three_body_prefac = real(bhub,dp) * prefac_test * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
+            three_body_prefac = real(bhub,dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
         end if
 
         call init_dispersion_rel_cache()

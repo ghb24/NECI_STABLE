@@ -40,13 +40,13 @@ contains
         cepa_shift_single => cepa_0
         cepa_shift_double => cepa_0
 
-        call assert_equals(0.0_dp, cepa_shift(1,1))
-        call assert_equals(0.0_dp, cepa_shift(2,2))
+        call assert_equals(1.0_dp, cepa_shift(1,1))
+        call assert_equals(2.0_dp, cepa_shift(2,2))
 
-        call assert_equals(1.0_dp, cepa_shift(1,0))
-        call assert_equals(1.0_dp, cepa_shift(1,3))
-        call assert_equals(2.0_dp, cepa_shift(2,-1))
-        call assert_equals(2.0_dp, cepa_shift(2,100))
+        call assert_equals(0.0_dp, cepa_shift(1,0))
+        call assert_equals(0.0_dp, cepa_shift(1,3))
+        call assert_equals(0.0_dp, cepa_shift(2,-1))
+        call assert_equals(0.0_dp, cepa_shift(2,100))
 
         ! the rest is tested in init_cepa_shifts_test..
 
@@ -67,8 +67,8 @@ contains
         print *, ""
         print *, "testing: cepa_aqcc_test: "
 
-        call assert_equals(10.0/12.0_dp, cepa_aqcc(1))
-        call assert_equals(20.0/12.0_dp, cepa_aqcc(2))
+        call assert_equals(1.0_dp * (1.0_dp - aqcc_factor), cepa_aqcc(1))
+        call assert_equals(2.0_dp * (1.0_dp - aqcc_factor), cepa_aqcc(2))
 
         nel = -1
         deallocate(diagsft)
@@ -87,8 +87,8 @@ contains
         print *, ""
         print *, "testing: cepa_acpf"
 
-        call assert_equals(2.0/real(nel,dp), cepa_acpf(1))
-        call assert_equals(4.0/real(nel,dp), cepa_acpf(2))
+        call assert_equals(1.0_dp * (1.0_dp - 2.0_dp / 10.0_dp), cepa_acpf(1))
+        call assert_equals(2.0_dp * (1.0_dp - 2.0_dp / 10.0_dp), cepa_acpf(2))
 
         nel = -1
         deallocate(diagsft)
@@ -99,10 +99,13 @@ contains
         print *, ""
         print *, "testing: cepa_0"
 
+        allocate(diagsft(2))
+        diagsft = 0.0_dp
+
         call assert_equals(0.0_dp, cepa_0(1))
-        call assert_equals(0.0_dp, cepa_0(-1))
-        call assert_equals(0.0_dp, cepa_0(0))
-        call assert_equals(0.0_dp, cepa_0(100))
+        call assert_equals(0.0_dp, cepa_0(2))
+
+        deallocate(diagsft)
 
     end subroutine cepa_0_test
 
@@ -132,66 +135,62 @@ contains
 
         call init_cepa_shifts()
 
-        call assert_equals(0.0_dp, cepa_shift_single(0))
-        call assert_equals(0.0_dp, cepa_shift_single(-1))
-        call assert_equals(0.0_dp, cepa_shift_single(1))
-        call assert_equals(0.0_dp, cepa_shift_single(1000))
+        call assert_equals(cepa_0(1), cepa_shift_single(1))
+        call assert_equals(cepa_0(2), cepa_shift_single(2))
 
-        call assert_equals(0.0_dp, cepa_shift_double(0))
-        call assert_equals(0.0_dp, cepa_shift_double(-1))
-        call assert_equals(0.0_dp, cepa_shift_double(1))
-        call assert_equals(0.0_dp, cepa_shift_double(1000))
+        call assert_equals(cepa_0(1), cepa_shift_double(1))
+        call assert_equals(cepa_0(2), cepa_shift_double(2))
 
-        call assert_equals(0.0_dp, cepa_shift(1,1))
-        call assert_equals(0.0_dp, cepa_shift(1,2))
-        call assert_equals(1.0_dp, cepa_shift(1,0))
-        call assert_equals(2.0_dp, cepa_shift(2,0))
+        call assert_equals(cepa_0(1), cepa_shift(1,1))
+        call assert_equals(cepa_0(1), cepa_shift(1,2))
+        call assert_equals(0.0_dp, cepa_shift(1,0))
+        call assert_equals(0.0_dp, cepa_shift(2,0))
 
-        call assert_equals(1.0_dp, cepa_shift(1,3))
-        call assert_equals(2.0_dp, cepa_shift(2,100))
+        call assert_equals(0.0_dp, cepa_shift(1,3))
+        call assert_equals(0.0_dp, cepa_shift(2,100))
 
         cepa_method = 'acpf'
         call init_cepa_shifts()
 
-        call assert_equals(2.0/real(nel,dp), cepa_shift_single(1))
-        call assert_equals(4.0/real(nel,dp), cepa_shift_single(2))
+        call assert_equals(cepa_acpf(1), cepa_shift_single(1))
+        call assert_equals(cepa_acpf(2), cepa_shift_single(2))
 
-        call assert_equals(2.0/real(nel,dp), cepa_shift(1,1))
-        call assert_equals(4.0/real(nel,dp), cepa_shift(2,1))
+        call assert_equals(cepa_acpf(1), cepa_shift(1,1))
+        call assert_equals(cepa_acpf(2), cepa_shift(2,1))
 
-        call assert_equals(2.0/real(nel,dp), cepa_shift_double(1))
-        call assert_equals(4.0/real(nel,dp), cepa_shift_double(2))
+        call assert_equals(cepa_acpf(1), cepa_shift_double(1))
+        call assert_equals(cepa_acpf(2), cepa_shift_double(2))
 
-        call assert_equals(2.0/real(nel,dp), cepa_shift(1,2))
-        call assert_equals(4.0/real(nel,dp), cepa_shift(2,2))
+        call assert_equals(cepa_acpf(1), cepa_shift(1,2))
+        call assert_equals(cepa_acpf(2), cepa_shift(2,2))
 
-        call assert_equals(1.0_dp, cepa_shift(1,0))
-        call assert_equals(1.0_dp, cepa_shift(1,3))
-        call assert_equals(2.0_dp, cepa_shift(2,0))
-        call assert_equals(2.0_dp, cepa_shift(2,100))
+        call assert_equals(0.0_dp, cepa_shift(1,0))
+        call assert_equals(0.0_dp, cepa_shift(1,3))
+        call assert_equals(0.0_dp, cepa_shift(2,0))
+        call assert_equals(0.0_dp, cepa_shift(2,100))
 
         nel = 4
         cepa_method = 'aqcc'
 
         call init_cepa_shifts()
 
-        call assert_equals(10.0/12.0_dp, cepa_shift_single(1))
-        call assert_equals(20.0/12.0_dp, cepa_shift_single(2))
+        call assert_equals(cepa_aqcc(1), cepa_shift_single(1))
+        call assert_equals(cepa_aqcc(2), cepa_shift_single(2))
 
-        call assert_equals(10.0/12.0_dp, cepa_shift(1,1))
-        call assert_equals(20.0/12.0_dp, cepa_shift(2,1))
+        call assert_equals(cepa_aqcc(1), cepa_shift(1,1))
+        call assert_equals(cepa_aqcc(2), cepa_shift(2,1))
 
-        call assert_equals(1.0_dp, cepa_shift(1,0))
-        call assert_equals(1.0_dp, cepa_shift(1,3))
+        call assert_equals(0.0_dp, cepa_shift(1,0))
+        call assert_equals(0.0_dp, cepa_shift(1,3))
 
-        call assert_equals(10.0/12.0_dp, cepa_shift_double(1))
-        call assert_equals(20.0/12.0_dp, cepa_shift_double(2))
+        call assert_equals(cepa_aqcc(1), cepa_shift_double(1))
+        call assert_equals(cepa_aqcc(2), cepa_shift_double(2))
 
-        call assert_equals(10.0/12.0_dp, cepa_shift(1,2))
-        call assert_equals(20.0/12.0_dp, cepa_shift(2,2))
+        call assert_equals(cepa_aqcc(1), cepa_shift(1,2))
+        call assert_equals(cepa_aqcc(2), cepa_shift(2,2))
 
-        call assert_equals(2.0_dp, cepa_shift(2,0))
-        call assert_equals(2.0_dp, cepa_shift(2,100))
+        call assert_equals(0.0_dp, cepa_shift(2,0))
+        call assert_equals(0.0_dp, cepa_shift(2,100))
 
         nel = -1
         deallocate(diagsft)
