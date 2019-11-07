@@ -12,7 +12,8 @@ module load_balance
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH, store_decoding, &
-                               reset_all_tot_spawns, reset_all_acc_spawns
+                               reset_all_tot_spawns, reset_all_acc_spawns, &
+                               tAccumEmptyDet
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial, flag_prone
     use bit_reps, only: set_flag, nullify_ilut_part, &
@@ -800,37 +801,5 @@ contains
       if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2
 #endif
     end subroutine addNormContribution
-
-    pure function tAccumEmptyDet(j) result(tAccum)
-      use FciMCData, only: CurrentDets, iLutHF
-      use DetBitOps, only: FindBitExcitLevel
-      use LoggingData, only: tAccumPopsActive, iAccumPopsMaxEx, iAccumPopsExpire
-      use global_det_data, only: get_pops_iter
-
-        ! Whether we should keep a determinant in CurrentDets even if it
-        ! is unoccupied
-
-        integer, intent(in) :: j
-        logical :: tAccum
-        integer :: ExcitLevel, pops_iter
-
-
-        tAccum = .false.
-
-        if(tAccumPopsActive) then
-            ! If the determinant has already been removed, skip accumlating its
-            ! population
-            if(ALL(global_determinant_data(:, j) == 0.0_dp)) return
-
-            ! If we are accumlating populations, we keep all empty dets up to
-            ! excitation level iAccumPopsMaxEx.
-            if(iAccumPopsMaxEx>0) then
-                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-                if (ExcitLevel>iAccumPopsMaxEx) return
-            endif
-
-            tAccum = .true.
-        endif
-    end function
 
 end module

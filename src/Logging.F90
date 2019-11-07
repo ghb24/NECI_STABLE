@@ -973,24 +973,27 @@ MODULE Logging
             tAccumPops = .true.
             ! When to start accumulating the populations
             call readi(iAccumPopsIter)
-            ! Normally, empty dets are removed from CurrentDets when they become 
-            ! empty and so their accumlated pops will be lost.
-            ! This parameter represents the maximum number of iterations,
-            ! empty dets are kept before being removed. A value of zero means
-            ! keeping them indefinitely.
-            call readi(iAccumPopsExpire)
-            if(iAccumPopsExpire<0) then
-                call stop_all(t_r,'iAccumPopsExpire should be greater than or equal zero')
-            end if
-            ! In many cases, we do not need to accumlate population of all dets.
+
+            ! Normally, when dets become empty, they are removed from CurrentDets
+            ! and any associated info (global_det_data) is lost. Therefore,
+            ! when accumlating populations is active, (some) empty dets are kept alive.
+
             ! This parameter represents the maximum excitation level to consider
-            ! when keeping empty dets alive using the previous criterion. 
+            ! when keeping empty dets alive. 
             ! A value of zero means all excitation levels are considered.
             call readi(iAccumPopsMaxEx)
             if(iAccumPopsMaxEx<0) then
                 call stop_all(t_r,'iAccumPopsMaxEx should be greater than or equal zero')
             end if
 
+            ! This parameter represents the maximum number of iterations,
+            ! empty dets are kept before being removed. The removal happens
+            ! when CurrentDets is almost full (95%).
+            ! A value of zero means keeping accumlated empty dets indefinitely.
+            call readi(iAccumPopsExpire)
+            if(iAccumPopsExpire<0) then
+                call stop_all(t_r,'iAccumPopsExpire should be greater than or equal zero')
+            end if
             ! Accumlated populations are sotred in global det data, so we need
             ! to preserve them when the dets change processors during load balancing
             tMoveGlobalDetData = .true.

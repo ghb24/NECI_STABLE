@@ -3109,11 +3109,10 @@ r_loop: do while(.not.tStoreDet)
     subroutine fill_in_hash_table_pops(hash_table, table_length)
         ! This is very similar to fill_in_hash_table but includes the
         ! condition tAccumEmptyDet. Adding this condition to that subroutine
-        ! was not possible becasue it would create circular dependencies.
-        ! Also that subroutine is meant to be applied to any list of dets,
-        ! while tAccumEmptyDet is tied to CurrentDets
+        ! was not possible becasue that subroutine is meant to be applied 
+        ! to any list of dets, while tAccumEmptyDet is tied to CurrentDets
 
-        use load_balance, only: tAccumEmptyDet
+        use global_det_data, only: tAccumEmptyDet
         integer, intent(in) :: table_length
         type(ll_node), pointer, intent(inout) :: hash_table(:)
 

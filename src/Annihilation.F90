@@ -34,13 +34,14 @@ module AnnihilationMod
     use searching
     use hash
     use global_det_data, only: det_diagH, store_spawn, &
-                               update_tot_spawns, update_acc_spawns, get_tot_spawns, get_acc_spawns
+                               update_tot_spawns, update_acc_spawns, &
+                               get_tot_spawns, get_acc_spawns, tAccumEmptyDet
     use procedure_pointers, only: scaleFunction
     use hphf_integrals, only: hphf_diag_helement
     use rdm_data, only: rdm_estimates, en_pert_main, rdm_inits_defs, two_rdm_inits_spawn, &
          inits_one_rdms
     use rdm_data_utils, only: add_to_en_pert_t
-    use fcimc_helper, only: CheckAllowedTruncSpawn, tAccumEmptyDet
+    use fcimc_helper, only: CheckAllowedTruncSpawn
     use initiator_space_procs, only: is_in_initiator_space, set_conn_init_space_flags_slow
 
     implicit none

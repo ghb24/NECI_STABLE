@@ -748,7 +748,8 @@ contains
                              TotWalkers, iLutHF,Iter, PreviousCycles
         use CalcData, only: tUseRealCoeffs
         use DetBitOps, only: FindBitExcitLevel
-        use global_det_data, only: writeFFuncAsInt, writeAPValsAsInt
+        use global_det_data, only: writeFFuncAsInt, writeAPValsAsInt,&
+                                   tAccumEmptyDet
 
         ! Output the wavefunction information to the relevant groups in the
         ! wavefunction.
@@ -797,7 +798,7 @@ contains
                 ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
                 if(ExcitLevel<=MaxEx)then
                     call extract_sign(CurrentDets(:,i),CurrentSign)
-                    if(IsUnoccDet(CurrentSign)) cycle
+                    if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(i)) cycle
                     printed_count = printed_count + 1
                     PrintedDets(:,printed_count) = CurrentDets(:,i)
                     ! Fill in stats

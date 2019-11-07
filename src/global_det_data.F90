@@ -554,7 +554,7 @@ contains
              ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
              if(ExcitLevel>MaxEx) cycle
              call extract_sign(CurrentDets(:,j),CurrentSign)
-             if(IsUnoccDet(CurrentSign)) cycle
+             if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(j)) cycle
              counter = counter + 1
         else
             counter = j
@@ -708,6 +708,37 @@ contains
 
     end function
 
+    pure function tAccumEmptyDet(j) result(tAccum)
+      use FciMCData, only: CurrentDets, iLutHF
+      use DetBitOps, only: FindBitExcitLevel
+      use LoggingData, only: tAccumPopsActive, iAccumPopsMaxEx, iAccumPopsExpire
+
+        ! Whether we should keep a determinant in CurrentDets even if it
+        ! is unoccupied
+
+        integer, intent(in) :: j
+        logical :: tAccum
+        integer :: ExcitLevel, pops_iter
+
+
+        tAccum = .false.
+
+        if(tAccumPopsActive) then
+            ! If the determinant has already been removed, skip accumlating its
+            ! population
+            if(ALL(global_determinant_data(:, j) == 0.0_dp)) return
+
+            ! If we are accumlating populations, we keep all empty dets up to
+            ! excitation level iAccumPopsMaxEx.
+            if(iAccumPopsMaxEx>0) then
+                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+                if (ExcitLevel>iAccumPopsMaxEx) return
+            endif
+
+            tAccum = .true.
+        endif
+    end function
+
     subroutine writeAPValsAsInt(ndets, APVals, MaxEx)
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
@@ -731,7 +762,7 @@ contains
              ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
              if(ExcitLevel>MaxEx) cycle
              call extract_sign(CurrentDets(:,j),CurrentSign)
-             if(IsUnoccDet(CurrentSign)) cycle
+             if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(j)) cycle
              counter = counter + 1
         else
             counter = j

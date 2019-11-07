@@ -73,9 +73,8 @@ module FciMCParMod
                                reset_shift_int, update_shift_int, &
                                update_tau_int, set_spawn_pop, &
                                get_tot_spawns, get_acc_spawns, &
-                               replica_est_len, reset_pops_sum_all, &
-                               update_pops_sum_all, reset_pops_sum, &
-                               get_pops_iter
+                               replica_est_len, update_pops_sum_all, &
+                               get_pops_iter, tAccumEmptyDet
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -416,7 +415,7 @@ module FciMCParMod
 
                 ! The currentdets is almost full, we should start removing
                 ! dets which have been empty long enough
-                if(iAccumPopsExpire>0 .and. TotWalkers>0.00*MaxWalkersPart)then
+                if(iAccumPopsExpire>0 .and. TotWalkers>0.95_dp * real(MaxWalkersPart,dp))then
                     do j=1,TotWalkers
                         call extract_sign(CurrentDets(:,j),CurrentSign)                        
                         if(.not. IsUnoccDet(CurrentSign)) cycle
@@ -1149,8 +1148,8 @@ module FciMCParMod
                         ! kill all walkers on the determinant
                         call nullify_ilut(CurrentDets(:,j))
                         ! and remove it from the hashtable
-                        call RemoveHashDet(HashIndex, DetCurr, j)
-                        cycle
+                        if(.not. tAccumEmptyDet(j)) &
+                            call RemoveHashDet(HashIndex, DetCurr, j)
                      endif
                   endif
                end if

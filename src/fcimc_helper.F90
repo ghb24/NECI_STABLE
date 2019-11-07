@@ -58,7 +58,7 @@ module fcimc_helper
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
-    use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel, tAccumEmptyDet
+    use load_balance, only: adjust_load_balance, RemoveHashDet, get_diagonal_matel
     use rdm_filling, only: det_removed_fill_diag_rdm
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
@@ -69,7 +69,7 @@ module fcimc_helper
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
                                global_determinant_data, det_diagH, &
                                get_spawn_pop, get_tau_int, get_shift_int, &
-                               get_neg_spawns, get_pos_spawns
+                               get_neg_spawns, get_pos_spawns, tAccumEmptyDet
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
     use initiator_space_procs, only: is_in_initiator_space
