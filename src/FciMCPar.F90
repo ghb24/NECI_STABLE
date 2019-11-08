@@ -1340,6 +1340,7 @@ module FciMCParMod
 
                 do p = 1, WalkersToSpawn
 
+
                     ! Zero the bit representation, to ensure no extraneous
                     ! data gets through.
                     ilutnJ = 0_n_int
@@ -1391,6 +1392,8 @@ module FciMCParMod
                                             ! Note these last two, AvSignCurr and
                                             ! RDMBiasFacCurr are not used unless we're
                                             ! doing an RDM calculation.
+
+                        write(6,*)'child',child
                     else
 
                         ! and rescale in the back-spawning algorithm.

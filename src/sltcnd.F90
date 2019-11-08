@@ -329,8 +329,6 @@ contains
       implicit none
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
-
-
         integer, intent(in) :: nI(nel)
         HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
         integer :: id(nel), i, j, idN, idX
@@ -379,7 +377,8 @@ contains
                              hel_tmp = hel_tmp + kMatAA%exchElement(id(i),id(j),id(i),id(j))
                         if(tDampKMat) &
                              hel_tmp = hel_tmp - kMatParSpinCorrection(id(i),id(j),id(j),id(i))
-                          !write(6,*) id(j),id(i), get_umat_el(id(i),id(j),id(j),id(i))
+!                          write(6,*) id(j),id(i), get_2d_umat_el_exch (id(j),id(i))
+!                          write(6,*) id(j),id(i), hel_tmp
                     endif
                 enddo
             enddo
@@ -486,6 +485,10 @@ contains
       integer :: id(2,2)
       ! Obtain spatial rather than spin indices if required
       id = gtID(ex)
+
+        write(6,*)'id'
+        write(6,*)id(1,:)
+        write(6,*)id(2,:)
 
       if ( tReltvy.or.((G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
            (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms)) ) then

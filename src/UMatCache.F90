@@ -1416,17 +1416,23 @@ MODULE UMatCache
         if(.not.associated(UMat2D)) allocate(UMat2D(nBI,nBI))
         if(.not.associated(UMat2DExch)) allocate(UMat2DExch(nBI,nBI))
 
+        !First the UMat2DExch array is filled as using get_umat_el_tumat2d, the
+        !UMat2D(j,i) would have been overwritten in the leap leading to false
+        !elements for UMat2DExch.
         do i = 1, nBI
            do j = 1, nBI
-              idX = max(i,j)
-              idN = min(i,j)
               ! here, we introduce a cheap redundancy in memory to allow
               ! for faster access (no need to get max/min of indices
               ! and have contiguous access)
               ! store the integrals <ij|ji> in UMat2DExch
-              UMat2DExch(j,i) = get_umat_el(idN,idX,idX,idN)
+              UMat2DExch(j,i) = get_umat_el(i,j,j,i)
+           end do
+        end do
+
+        do i = 1, nBI
+           do j = 1, nBI
               ! similarly the integrals <ij|ij> in UMat2D
-              UMat2D(j,i) = get_umat_el(idN,idX,idN,idX)
+              UMat2D(j,i) = get_umat_el(i,j,i,j)
            end do
         end do
       end subroutine SetupUMat2d_dense

@@ -571,6 +571,8 @@ contains
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
 
+        write(6,*)'hel',hel
+
         if (IC == 0) then
             hel = hel + ECore
         else if (modk_offdiag) then

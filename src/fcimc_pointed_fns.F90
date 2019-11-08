@@ -206,10 +206,15 @@ module fcimc_pointed_fns
         temp_ex(1,:) = ex(2,:)
         temp_ex(2,:) = ex(1,:)
 
+        write(6,*)'temp_ex'
+        write(6,*)temp_ex(1,:)
+        write(6,*)temp_ex(2,:)
+
         rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
                                  tParity, HElGen)
         ! We actually want to calculate Hji - take the complex conjugate,
         ! rather than swap around DetCurr and nJ.
+        write(6,*)'rh',rh
 #ifdef __CMPLX
         rh_used = conjg(rh)
 #else
