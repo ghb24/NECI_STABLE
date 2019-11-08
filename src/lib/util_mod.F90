@@ -413,19 +413,7 @@ contains
     integer :: ms
 
     ms = mod(orb,2)
-  end function getSpinIndex
-
-  pure subroutine intswap(a,b)
-    ! Swap two integers a and b
-    ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
-    integer, intent(inout) :: a,b
-    integer :: tmp
-
-    tmp = a
-    a = b
-    b = tmp
-  end subroutine intswap
-    
+  end function getSpinIndex    
 
 !--- Numerical utilities ---
 

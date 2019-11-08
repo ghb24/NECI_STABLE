@@ -13,7 +13,7 @@ MODULE DetCalc
 
         use gndts_mod, only: gndts
 
-        use UMatCache, only: UMat2D, tUMat2D, tDeferred_UMat2D, tagUMat2D, SetupUMat2d_dense
+        use UMatCache, only: UMat2D, tUMat2D, tDeferred_UMat2D, SetupUMat2d_dense
 
         use procedure_pointers, only: get_umat_el
 

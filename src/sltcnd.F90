@@ -11,7 +11,7 @@ module sltcnd_mod
     ! TODO: It would be nice to reduce the number of variants of sltcnd_...
     !       which are floating around.
     use constants, only: dp, n_int, maxExcit
-    use UMatCache, only: GTID, get_2d_umat_el_exch, get_2d_umat_el, UMatInd
+    use UMatCache, only: GTID, UMatInd
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el, sltcnd_0, sltcnd_1, sltcnd_2, sltcnd_3
@@ -346,7 +346,7 @@ contains
         hel_tmp = (0)
         do i=1,nel-1
             do j=i+1,nel
-               hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
+               hel_doub = hel_doub + get_umat_el(id(i),id(j),id(i),id(j))
                if(tSpinCorrelator) then
                   hel_doub = hel_doub &
                        + spinKMatContrib(id(i),id(j),id(i),id(j),G1(nI(i))%MS,G1(nI(j))%MS)
@@ -371,14 +371,12 @@ contains
                 do j=i+1,nel
                     ! Exchange contribution is zero if I,J are alpha/beta
                     if ((G1(nI(i))%Ms == G1(nI(j))%Ms).or.tReltvy) then
-                        hel_tmp = hel_tmp - get_2d_umat_el_exch (id(j),id(i))
+                        hel_tmp = hel_tmp - get_umat_el(id(i),id(j),id(j),id(i))
                         if(tSpinCorrelator) &
                              ! here, i and j always have the same spin
                              hel_tmp = hel_tmp + kMatAA%exchElement(id(i),id(j),id(i),id(j))
                         if(tDampKMat) &
                              hel_tmp = hel_tmp - kMatParSpinCorrection(id(i),id(j),id(j),id(i))
-!                          write(6,*) id(j),id(i), get_2d_umat_el_exch (id(j),id(i))
-!                          write(6,*) id(j),id(i), hel_tmp
                     endif
                 enddo
             enddo
@@ -485,10 +483,6 @@ contains
       integer :: id(2,2)
       ! Obtain spatial rather than spin indices if required
       id = gtID(ex)
-
-        write(6,*)'id'
-        write(6,*)id(1,:)
-        write(6,*)id(2,:)
 
       if ( tReltvy.or.((G1(ex(1,1))%Ms == G1(ex(2,1))%Ms) .and. &
            (G1(ex(1,2))%Ms == G1(ex(2,2))%Ms)) ) then
@@ -673,8 +667,6 @@ contains
                 idX = max(id(i), id(j))
                 idN = min(id(i), id(j))
                 hel_doub = hel_doub + get_umat_el (idN, idX, idN, idX)
-!               hel_doub = hel_doub + get_2d_umat_el(id(j),id(i))
-                !write(6,*) idN,idX,idN,idX,get_umat_el (idN,idX,idN,idX)
             enddo
         enddo
 
@@ -689,8 +681,6 @@ contains
                         idX = max(id(i), id(j))
                         idN = min(id(i), id(j))
                         hel_tmp = hel_tmp - get_umat_el (idN, idX, idX, idN)
-!                        hel_tmp = hel_tmp - get_2d_umat_el_exch (id(j),id(i))
-!                         write(6,*) idN,idX,idX,idN,get_umat_el(idN,idX,idX,idN)
                     endif
                 enddo
             enddo

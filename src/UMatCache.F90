@@ -1413,86 +1413,22 @@ MODULE UMatCache
         integer :: nBI, i, j, idX, idN
 
         nBI = numBasisIndices(nBasis)
+        ! allocate the storage
         if(.not.associated(UMat2D)) allocate(UMat2D(nBI,nBI))
-        if(.not.associated(UMat2DExch)) allocate(UMat2DExch(nBI,nBI))
 
-        !First the UMat2DExch array is filled as using get_umat_el_tumat2d, the
-        !UMat2D(j,i) would have been overwritten in the leap leading to false
-        !elements for UMat2DExch.
+        ! and fill in the array
         do i = 1, nBI
            do j = 1, nBI
-              ! here, we introduce a cheap redundancy in memory to allow
-              ! for faster access (no need to get max/min of indices
-              ! and have contiguous access)
-              ! store the integrals <ij|ji> in UMat2DExch
-              UMat2DExch(j,i) = get_umat_el(i,j,j,i)
-           end do
-        end do
-
-        do i = 1, nBI
-           do j = 1, nBI
-              ! similarly the integrals <ij|ij> in UMat2D
-              UMat2D(j,i) = get_umat_el(i,j,i,j)
+              if(i == j) then
+                 UMat2d(i,i) = get_umat_el(i,i,i,i)
+              else
+                 ! similarly the integrals <ij|ij> in UMat2D
+                 UMat2D(j,i) = get_umat_el(i,j,i,j)
+                 UMat2D(i,j) = get_umat_el(i,j,j,i)
+              endif
            end do
         end do
       end subroutine SetupUMat2d_dense
-
-      !------------------------------------------------------------------------------------------!
-
-      subroutine freeUmat2d_dense()
-        implicit none
-
-        ! deallocate auxiliary arrays storing the integrals <ij|ij> and <ij|ji>
-        if(associated(UMat2dExch)) deallocate(UMat2dExch)
-        if(associated(UMat2d)) deallocate(UMat2d)
-      end subroutine freeUmat2d_dense
-
-      !------------------------------------------------------------------------------------------!
-
-      subroutine SetupUMat3d_dense(nBasis)
-        implicit none
-        integer, intent(in) :: nBasis
-        integer :: nBI, i, j, a
-
-        nBI = numBasisIndices(nBasis)
-        allocate(UMat3d(nBI,nBI,nBI))
-        allocate(UMat3dExch(nBI,nBI,nBI))
-
-      end subroutine SetupUMat3d_dense
-
-    function get_2d_umat_el(idj,idi) result(hel)
-      ! gets the matrix element <ij|ij> (dense version, no symmetries
-      ! of umat are counted for faster access)
-      implicit none
-
-      integer, intent(in) :: idi, idj
-      HElement_t(dp) :: hel
-
-      ! which is stored in UMat2D (dense)
-      hel = UMat2D(idj,idi)
-    end function get_2d_umat_el
-
-    function get_2d_umat_el_exch(idj,idi) result(hel)
-      ! gets the matrix element <ij|ji> (dense version, no symmetries
-      ! of umat are counted for faster access)
-      implicit none
-
-      integer, intent(in) :: idi, idj
-      HElement_t(dp) :: hel
-
-      ! this is stored in UMat2dExch
-      hel = UMat2DExch(idj,idi)
-    end function get_2d_umat_el_exch
-
-    function get_3d_umat_el(idi,idj,ida) result(hel)
-      implicit none
-      integer, intent(in) :: idi, idj, ida
-      HElement_t(dp) :: hel
-
-      ! this is stored in UMat3d
-
-    end function get_3d_umat_el
-
 
 END MODULE UMatCache
 ! Still useful to keep CacheUMatEl and GetCachedUMatEl outside of the module for

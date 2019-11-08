@@ -9,8 +9,7 @@ module Integrals_neci
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
-                         nTypes, gen2CPMDInts, tDFInts, SetupUMat2d_dense, &
-                         freeUMat2d_dense
+                         nTypes, gen2CPMDInts, tDFInts
 
     use util_mod, only: get_nan
 
@@ -758,24 +757,6 @@ contains
 
     End Subroutine IntInit
 
-    ! initialize auxiliary buffers for certain integrals appearing often
-    subroutine InitIntBuffers()
-      use SystemData, only: nBasis
-      implicit none
-
-      ! setup the cache for the 2-index integrals
-      ! (has to happen after pointer init, as it uses a fn pointer)
-
-      call SetupUMat2d_dense(nBasis)
-    end subroutine InitIntBuffers
-
-    ! clear auxiliary buffers
-    subroutine freeIntBuffers()
-      implicit none
-
-      call freeUMat2d_dense()
-    end subroutine freeIntBuffers
-
 
     Subroutine IntFreeze
       use SystemData, only: Brr,CoulDampOrb,ECore,fCoulDampMu
@@ -899,8 +880,6 @@ contains
         use LMat_mod, only: freeLMat
         integer :: iCacheFlag
         character(*), parameter :: this_routine = 'IntCleanup'
-
-        call freeIntBuffers()
 
         if(tUseKMat) call freeKMat()
 

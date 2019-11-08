@@ -10,7 +10,7 @@ module unit_test_helper_excitgen
   use sort_mod
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit, MPIEnd
-  use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
+  use UMatCache, only: GetUMatSize, tTransGTID
   use OneEInts, only: Tmat2D
   use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
   use bit_reps, only: encode_sign, decode_bit_det
