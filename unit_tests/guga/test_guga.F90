@@ -28,6 +28,16 @@ program test_guga
     use genrandsymexcitnumod, only: testgenrandsymexcitnu
     use symrandexcit3, only: test_sym_excit3
     use util_mod, only: operator(.isclose.), near_zero, operator(.div.)
+    use Integrals_neci, only: get_umat_el_normal
+    use procedure_pointers, only: get_umat_el
+    use read_fci, only: initfromfcid, fcidump_name, readfciint
+    use UMatCache, only: tTransGTID, GetUMatSize
+    use Parallel_neci, only: MPIInit
+    use Calc, only: SetCalcDefaults, CalcInit
+    use System, only: SetSysDefaults, SysInit
+    use OneEInts, only: TMat2d
+    use shared_memory_mpi, only: shared_allocate_mpi
+    use IntegralsData, only: umat_win, umat
 
     implicit none
 
@@ -78,10 +88,16 @@ contains
 
     subroutine init_guga_testsuite
 
+        integer(int64) :: umatsize
+        integer :: nBasisMax(5,3), lms, stot
+        real(dp) :: ecore
+
+        umatsize = 0
         nel = 4
         nbasis = 8
         nSpatOrbs = 4
         stot = 0
+        lms = 0
         tGUGA = .true.
 
         call init_bit_rep()
@@ -92,7 +108,82 @@ contains
 
         call init_guga()
 
+        fcidump_name = "FCIDUMP"
+        UMatEps = 1.0e-8
+        tStoreSpinOrbs = .false.
+        tTransGTID = .false.
+        tReadFreeFormat = .true.
+
+        call MPIInit(.false.)
+
+        call dSFMT_init(8)
+
+        call SetCalcDefaults()
+        call SetSysDefaults()
+        tReadInt = .true.
+
+        call generate_uniform_integrals()
+
+        get_umat_el => get_umat_el_normal
+
+        call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
+
+        call GetUMatSize(nBasis, umatsize)
+
+        allocate(TMat2d(nBasis,nBasis))
+
+        call shared_allocate_mpi(umat_win, umat, (/umatsize/))
+
+        call readfciint(UMat,umat_win,nBasis,ecore,.false.)
+        call SysInit()
+        ! required: set up the spin info
+
+        call DetInit()
+        ! call SpinOrbSymSetup()
+
+        call DetPreFreezeInit()
+
+        call CalcInit()
+
     end subroutine init_guga_testsuite
+
+    subroutine generate_uniform_integrals
+
+        integer :: i, j, k, l,iunit
+
+        iunit = get_free_unit()
+
+        open(iunit,file="FCIDUMP")
+        write(iunit,*) "&FCI NORB=",nSpatOrbs,",NELEC=",nel,"MS2=",lms,","
+        write(iunit,"(A)",advance="no") "ORBSYM="
+        do i = 1, nSpatOrbs
+           write(iunit,"(A)",advance="no") "1,"
+        end do
+        write(iunit,*)
+        write(iunit,*) "ISYM=1,"
+        write(iunit,*) "&END"
+
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
+                do l = 1, nSpatOrbs
+                    do k = 1, nSpatOrbs
+                        write(iunit, *) 1.0, i, j, k, l
+                    end do
+                end do
+            end do
+        end do
+        do i = 1, nSpatOrbs
+            do j = i, nSpatOrbs
+                write(iunit,*) 1.0, i, j, 0, 0
+            end do
+        end do
+
+        write(iunit,*) 0.0, 0, 0, 0, 0
+
+        close(iunit)
+
+    end subroutine generate_uniform_integrals
+
 
     subroutine test_guga_bitRepOps
         character(*), parameter :: this_routine = "test_guga_bitRepOps"
@@ -290,7 +381,7 @@ contains
 
     subroutine test_identify_excitation
         character(*), parameter :: this_routine = "test_identify_excitation"
-        integer :: nI(nel), nJ(nel)
+        integer, allocatable :: nI(:), nJ(:)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         type(excitationInformation) :: excitInfo
 
@@ -302,8 +393,10 @@ contains
         print *, ""
         print *, "testing: identify_excitation"
         nel = 14
+        allocate(nI(nel))
         nI = [1,2,3,4,5,6,7,8,9,10,11,12,13,14]
         ! nJ: 311333322
+        allocate(nJ(nel))
         nJ = [1,2,3,5,7,8,9,10,11,12,13,14,16,18]
 
         print *, convert_guga_to_ni([3,3,3,3,3,3,3],7)
@@ -329,6 +422,8 @@ contains
         call print_excitInfo(excitInfo)
 
         print *, "identify_excitation tests passed!"
+        deallocate(nI)
+        deallocate(nJ)
         nel = 4
 
     end subroutine test_identify_excitation
