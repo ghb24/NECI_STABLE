@@ -2,9 +2,10 @@ module LMat_mod
   use constants
   use FciMCData, only: ll_node
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: nBasis, t12FoldSym, G1, t_mol_3_body, nel, nBI
+  use SystemData, only: nBasis, t12FoldSym, G1, t_mol_3_body, nel, nBI, tStoreSpinOrbs, tContact
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
   use util_mod, only: get_free_unit, fuseIndex
+  use gen_coul_ueg_mod, only: get_lmat_ueg, get_lmat_ua
   use shared_memory_mpi
   use sort_mod
   use hash, only: add_hash_table_entry, clear_hash_table
@@ -107,10 +108,13 @@ module LMat_mod
           integer :: spinPos
           type(lMat_t), pointer :: lMatPtr
           real(dp) :: lMatVal
+     !     integer(int64) :: ai,bj,ck
           
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
 
-             if(tLMatCalc)then
+             if(tContact) then
+                    lMatVal = get_lmat_ueg(ida,idb,idc,idp,idq,idr)
+             else if(tLMatCalc)then
                 if(tSameSpin) then
                     lMatVal = lMatCalc(ida,idb,idc,idp,idq,idr)
                 else
@@ -242,7 +246,7 @@ module LMat_mod
       implicit none
 
       ! some typical array dimensions useful in the indexing functions
-      strideInner = fuseIndex(nBI,nBI)
+      strideInner = fuseIndex(int(nBI),int(nBI))
       strideOuter = strideInner**2
       ! set the LMatInd function pointer
       if(t12FoldSym) then
@@ -510,6 +514,7 @@ module LMat_mod
           call deallocLMatArray(LMatAB)
           call deallocLMatArray(LMat)
       end if
+
       contains 
 
         subroutine deallocLMatArray(LMatLoc)
@@ -539,7 +544,6 @@ module LMat_mod
 !------------------------------------------------------------------------------------------!
 ! HDF5 Functionality
 !------------------------------------------------------------------------------------------!
-
 
 #ifdef __USE_HDF
     subroutine readHDF5LMat(LMatLoc, filename)
@@ -731,6 +735,62 @@ module LMat_mod
 
     end subroutine readHDF5LMat
 #endif
+!------------------------------------------------------------------------------------------------
+!functions for contact interaction
+
+    function get_lmat_el_ua(a,b,c,i,j,k) result(matel)
+      use SystemData, only: G1
+      use UMatCache, only: gtID
+      ! Gets an entry of the 3-body tensor L:
+      ! L_{abc}^{ijk} - triple excitation from abc to ijk
+      implicit none
+      integer, value :: a,b,c
+      integer :: a2,b2,c2
+      integer, intent(in) :: i,j,k
+      HElement_t(dp) :: matel
+
+      ! convert to spatial orbs if required
+
+      matel = 0
+      
+      if(G1(a)%ms == G1(b)%ms .and. G1(a)%ms.ne.G1(c)%ms ) then
+         a2=a
+         b2=b
+         c2=c
+      elseif(G1(a)%ms == G1(c)%ms .and. G1(a)%ms.ne.G1(b)%ms ) then
+         a2=c
+         b2=a
+         c2=b
+      elseif(G1(b)%ms == G1(c)%ms .and. G1(a)%ms.ne.G1(b)%ms ) then
+         a2=b
+         b2=c
+         c2=a
+      else
+        return
+      endif
+
+      ! only add the contribution if the spins match
+         call addMatelContribution_ua(i,j,k,1)
+         call addMatelContribution_ua(j,k,i,1)
+         call addMatelContribution_ua(k,i,j,1)
+         call addMatelContribution_ua(j,i,k,-1)
+         call addMatelContribution_ua(i,k,j,-1)
+         call addMatelContribution_ua(k,j,i,-1)
+      contains
+
+        subroutine addMatelContribution_ua(p,q,r,sgn)
+          implicit none
+          integer, value :: p,q,r
+          integer, intent(in) :: sgn
+     !     integer(int64) :: ai,bj,ck
+
+          if(G1(p)%ms == G1(a2)%ms .and. G1(q)%ms == G1(b2)%ms .and. G1(r)%ms ==G1(c2)%ms) then
+             matel = matel + 2.d0 * sgn * get_lmat_ua(a2,b2,c2,p,q,r)
+          endif
+
+        end subroutine addMatelContribution_ua
+
+    end function get_lmat_el_ua
 
 !------------------------------------------------------------------------------------------!
 
@@ -813,3 +873,4 @@ module LMat_mod
     end subroutine write_lmat_debug
 
 end module LMat_mod
+

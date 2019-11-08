@@ -150,7 +150,7 @@ contains
                     real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
-            con_space = 0_n_int
+            con_space = 0_n_int 
 
             write(6,'("States found on this processor, including repeats:",1X,i8)') con_space_size
 
@@ -247,7 +247,9 @@ contains
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
+        write(6,*)"before generate_connected_space_vector"
         call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
+        write(6,*)"after generate_connected_space_vector"
 
         call MPIBarrier(ierr)
 
@@ -543,9 +545,9 @@ contains
                     end if
                 else
                     if (.not. tHPHF) then
-                        H_ij = get_helement(nJ, nI, con_space(:,j), trial_space(:,i))
+                        H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else
-                        H_ij = hphf_off_diag_helement(nJ, nI, con_space(:,j), trial_space(:,i))
+                        H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     end if
                 end if
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)

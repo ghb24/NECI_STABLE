@@ -5,9 +5,9 @@ use SymExcitDataMod, only: SymTableLabels, SymLabelList2, SymLabelCounts2, &
                            OrbClassCount
 use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub, t_new_hubbard, &
                       t_k_space_hubbard, Symmetry, BasisFN, SymmetrySize, & 
-                      tUEG, tHUB, treal , arr, brr, tSymIgnoreEnergies, & 
+                      tUEG, treal , arr, brr, tSymIgnoreEnergies, & 
                       nBasis, G1, tKPntSym, tFixLz, lNoSymmetry, nBasisMax, nel, &
-                      NullBasisFn
+                      NullBasisFn, Tperiodicinmom
 use lattice_mod, only: lat
 ! use SymData, only: SymTable,nProp,tAbelian,TwoCycleSymGens, SymConjTab, nSym, &
 !                    SymClasses, nSymLabels, SymLabels, tagSymLabels, tagSymClasses, &
@@ -1389,6 +1389,7 @@ contains
          ELSEIF(NBASISMAX(3,3).EQ.-1) THEN
 !   UEG (can't remember the symmetries of that
 !   probably momentum  conservation)
+                if(tperiodicinmom) CALL MOMPBCSYM(ISYM%k,NBASISMAX)
          ELSEIF(NBASISMAX(3,3).EQ.0) THEN
 !   Hubbard model
             IF(NBASISMAX(1,3).LT.2) THEN
@@ -1520,6 +1521,14 @@ contains
 !   Now K1 is defined as the re-scaled (R1,R2) vector
             K1(1)=NINT(R1*AX-R2*AY)
             K1(2)=NINT(R1*AY+R2*AX)
+         ELSEIF(NBASISMAX(1,3).EQ.-1) THEN
+                if((abs(k1(1)).gt.NBASISMAX(1,2)).and.tperiodicinmom) then
+                  if(k1(1).gt.0) then
+                      k1(1)=k1(1)-(2*NBASISMAX(1,2)+1)
+                  else
+                      k1(1)=k1(1)+(2*NBASISMAX(1,2)+1)
+                  endif
+                endif
          ENDIF
          RETURN
       END SUBROUTINE MOMPBCSYM
@@ -2066,7 +2075,7 @@ contains
       if(rElsUpNew < 0 .or. rElsDownNew < 0) return
       ! this is the momentum from which we want to reach targetK
       bufK = cK + G1(brr(nI))%k
-      if(tHub) then
+      if(tHub.or.Tperiodicinmom) then
           if (t_k_space_hubbard) then 
               ! add in a way to never leave the first BZ instead of mapping!
               bufK = lat%add_k_vec(cK, G1(brr(nI))%k)

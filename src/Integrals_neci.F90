@@ -5,7 +5,7 @@ module Integrals_neci
                           tFixLz, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, LMS, ECore, &
                           t_new_real_space_hubbard, t_trans_corr_hop, t_mol_3_body, &
-                          tStoreSpinOrbs, nBI, t12FoldSym
+                          tContact, tStoreSpinOrbs, nBI, t12FoldSym
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
@@ -23,7 +23,7 @@ module Integrals_neci
     use global_utilities
 
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
-                                get_hub_umat_el
+                                get_hub_umat_el, get_contact_umat_el
 
     use HElem, only: HElement_t_size, HElement_t_sizeB
 
@@ -1617,7 +1617,12 @@ contains
             endif
         else if (nBasisMax(1,3) == -1) then
             ! UEG integral
-            get_umat_el => get_ueg_umat_el
+            if (tContact) then
+                   get_umat_el => get_contact_umat_el
+                    write(6,*) 'get_contact_umat_el is setted'
+            else
+                   get_umat_el => get_ueg_umat_el
+            endif
         endif
 
         ! Note that this comes AFTER the above tests

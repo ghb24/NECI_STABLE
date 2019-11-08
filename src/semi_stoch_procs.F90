@@ -1328,13 +1328,20 @@ contains
         real(dp), allocatable, intent(out) :: e_values(:)
         HElement_t(dp), allocatable :: e_vectors(:,:)
         HElement_t(dp), allocatable :: full_H(:,:)
+        integer i, nI(nel)
+
+       root_print "The determinants are"
+
+      do i=1, determ_space_size
+       call decode_bit_det(nI, core_space(:,i))
+       root_print i, nI(1:nel)
+      enddo
 
         ! if the Hamiltonian is non-hermitian we cannot use the 
         ! standard Lanzcos or Davidson routines. so:
         ! build the full Hamiltonian
 !         if (iProcIndex == root) then
             call calc_determin_hamil_full(full_H)
-
             allocate(e_values(size(full_H,1)))
             allocate(e_vectors(size(full_H,1),size(full_H,1)))
             e_values = 0.0_dp

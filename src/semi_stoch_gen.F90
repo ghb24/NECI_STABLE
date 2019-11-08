@@ -216,6 +216,7 @@ contains
         if (t_print_core_info) then 
             ! i think i also want information, like the energy and the 
             ! eigenvectors of the core-space
+               root_print "I am before the diagonalization step with", t_non_hermitian
             if (t_non_hermitian) then 
                 call diagonalize_core_non_hermitian(e_values, e_vectors)
                 if (t_choose_trial_state) then

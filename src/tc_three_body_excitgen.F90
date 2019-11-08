@@ -1,24 +1,27 @@
 #include "macros.h"
 module tc_three_body_excitgen
   use constants
-  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_exclude_3_body_excits
+  use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_ueg_3_body,&
+                        tContact, t_exclude_3_body_excits
   use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
   use tc_three_body_data
   use FciMCData, only: excit_gen_store_type, pDoubles, pSingles
+  use CalcData, only: p_doubles_input
   use dSFMT_interface, only: genrand_real2_dSFMT
   use lattice_models_utils, only: make_ilutJ
   use util_mod, only: choose
-  use excit_gens_int_weighted, only: pick_biased_elecs
+  use excit_gens_int_weighted, only: pick_biased_elecs, pick_oppspin_elecs
   use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
-       createSingleExcit, createDoubExcit, construct_class_counts
-  use SymExcitDataMod, only: pDoubNew
+       createSingleExcit, createDoubExcit, construct_class_counts,      &
+       gen_rand_excit 
   use procedure_pointers, only: generate_two_body_excitation
   contains
 
     subroutine gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
          tParity, pGen, HelGen, store, part_type)
+      use ueg_excit_gens, only: gen_ueg_excit
       implicit none
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -162,9 +165,8 @@ module tc_three_body_excitgen
     subroutine init_mol_tc_biases(HF)
       implicit none
       ! reference determinant for initializing the biases
-      integer, intent(in) :: HF(nel)
       real(dp) :: normalization
-
+      integer, intent(in) :: HF(nel)
       ! if we read in a value, use that one
       if(abs(pTriples) < eps) then
          pTriples = 0.1
@@ -179,12 +181,22 @@ module tc_three_body_excitgen
       write(iout,*) "pTriples set to ", pTriples
       ! pSingles and pDoubles add to 1, and pTriples is an additional bias not to do
       ! a two-body excitation
-      
+      if (tContact) then
+!       We do not have those kind of excitations for triples, where all the
+!       fermions are up or down.
+        p0A = 0.0_dp
+        p0B = 0.0_dp
+!       We determine the rate uniformly between all the possible exciations 
+        p2B= choose(nOccBeta,2)*nOccAlpha
+        normalization = p2B + choose(nOccAlpha,2)*nOccBeta
+        p2B = p2B/normalization
+      else
       ! scale the probabilities with the number of possible picks
-      normalization = choose(nel,3)
-      p0A = choose(nOccBeta,3)/normalization
-      p0B = choose(noccAlpha,3)/normalization
-      p2B = choose(nOccBeta,2)*nOccAlpha/normalization
+        normalization = choose(nel,3)
+        p0A = choose(nOccBeta,3)/normalization
+        p0B = choose(noccAlpha,3)/normalization
+        p2B = choose(nOccBeta,2)*nOccAlpha/normalization
+      endif
       p1B = 1.0_dp - p0A - p0B - p2B
     end subroutine init_mol_tc_biases
 
@@ -213,7 +225,20 @@ module tc_three_body_excitgen
       ! if three electrons can be picked
       if(src(3) .ne. 0) then
          ! get three unoccupied orbitals with the same ms
-         call pick_three_orbs(nI, tgt, pgen, ms)
+         
+         if(t_ueg_3_body)then
+          call pick_three_orbs_ueg(nI, src, tgt, pgen, ms)
+          if(tgt(3).eq.0)then
+           ! the excitation is invalid
+           nJ = 0
+           ilutJ = 0_n_int
+           ExcitMat = 0
+           tParity = 0
+           return
+          end if 
+         else
+          call pick_three_orbs(nI, tgt, pgen, ms)
+         end if 
          
          ! and create a triple excitation
          call make_triple(nI, nJ, elecs, tgt, ExcitMat, tParity)
@@ -242,8 +267,13 @@ module tc_three_body_excitgen
       real(dp) :: r
       logical :: pickAlpha
 
-      call pick_biased_elecs(nI, elecs(1:2), src(1:2), sym_prod, ispn, sum_ml, &
+      if (tContact) then
+        call pick_oppspin_elecs(nI, elecs(1:2), src(1:2), sym_prod, ispn, sum_ml, pgen)
+      else
+        call pick_biased_elecs(nI, elecs(1:2), src(1:2), sym_prod, ispn, sum_ml, &
            pgen,p0B+p0A,p0B)
+      endif
+
       if(ispn .eq. 3 .or. ispn .eq. 1) then
          ! all elecs have the same spin
          pickAlpha = ispn .eq. 3
@@ -382,6 +412,118 @@ module tc_three_body_excitgen
       pgen = pgen * 4 * abs(ms)
       
     end subroutine pick_three_orbs
+    
+    subroutine pick_three_orbs_ueg(nI, src,  tgt, pgen, ms)
+      use SymExcitDataMod, only: kPointToBasisFn
+      use SystemData , only: nBasisMax,tOrbECutoff,OrbECutoff,nmaxx,nmaxy,nmaxz
+      use sym_mod, only: mompbcsym
+
+      implicit none
+      ! picks three random unoccupied orbitals, given the occupied orbitals
+      integer, intent(in) :: nI(nel), ms, src(3)
+      integer, intent(out) :: tgt(3)
+      real(dp), intent(inout) :: pgen
+
+      integer :: i, msCur, msOrb, k1(3),k2(3),k3(3), p1(3),p2(3),p3(3),j
+      integer :: k,l
+      real(dp) :: testE
+      logical :: i_occup,is_allowed
+
+      msCur = ms
+      do i = 0, 1
+         ! get the ms of this orb
+         ! we take ms = 1 until the total leftover ms is negative
+         if(msCur > 0) then
+            msOrb = 1
+         else
+         ! then we start taking ms = -1
+            msOrb = -1
+         endif
+         call get_rand_orb(nI,tgt,msOrb,i, pgen)
+         ! the remaining ms
+         msCur = msCur - msOrb
+      end do
+      
+         if(msCur > 0) then
+            msOrb = 1
+         else
+         ! then we start taking ms = -1
+            msOrb = -1
+         endif
+       
+        do i=1,3
+         k1(i)=G1(src(1))%k(i)
+         k2(i)=G1(src(2))%k(i)
+         k3(i)=G1(src(3))%k(i)
+        end do 
+       
+        do i=1,3
+         p1(i)=G1(tgt(1))%k(i)
+         p2(i)=G1(tgt(2))%k(i)
+        end do 
+       
+        p3=k1+k2+k3-p1-p2 
+        
+        
+        ! Is p3 allowed by the size of the space?
+        testE = sum(p3**2)
+        if (abs(p3(1)) <= nmaxx .and. abs(p3(2)) <= nmaxy .and. &
+            abs(p3(3)) <= nmaxz .and. &
+            (.not. (tOrbECutoff .and. (testE > (OrbECutoff+1.d-12))))) then
+            is_allowed = .true. 
+        else 
+            is_allowed = .false.
+        end if
+        
+        if(.not.is_allowed)then
+         tgt(3)=0
+         pgen=0.0_dp
+         return
+        end if 
+         
+         
+         
+        
+        i=kPointToBasisFn(p3(1),p3(2),p3(3),(msOrb+1)/2+1)
+        
+        if(i.gt.nBasis.or.i.lt.1)then
+         print *, 'bug kPointToBasisFn',p3,msOrb,i
+         do i=-1,1
+         do j=-1,1
+         do k=-1,1
+         do l=-1,1
+          print *,i,j,k,l,kPointToBasisFn(i,j,k,(l+1)/2+1)
+         end do
+         end do
+         end do
+         end do
+         call stop_all('pick_three_orbs_ueg',"kPointToBasisFn")
+        end if 
+        
+      ! i occupied? check:
+        i_occup = .false.
+        if(i.eq.tgt(1).or.i.eq.tgt(2))then
+         i_occup = .true.
+        else
+         do j=1,nel
+          if(i.eq.nI(j))i_occup = .true.
+         end do
+        end if
+        
+       if(i_occup)then
+        tgt(3)=0
+        pgen=0.0_dp
+       else
+        tgt(3)=i
+        tgt = sort_unique(tgt)
+       end if 
+        
+      ! adjust the probability by taking permutations into account
+      pgen = pgen * 4 * abs(ms)
+      
+      
+      
+    end subroutine pick_three_orbs_ueg
 
 !------------------------------------------------------------------------------------------!
 

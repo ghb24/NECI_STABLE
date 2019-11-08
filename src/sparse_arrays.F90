@@ -449,7 +449,7 @@ contains
                     tmp = iand(SpawnedParts(0:NIfD,i), tmp)
                     IC = CountBits(tmp, NIfD)
 
-                    if (IC <= 2) then
+                    if (IC <= maxExcit) then
                         hamiltonian_row(j) = get_helement(nI, nJ, IC, SpawnedParts(:, i), temp_store(:, j))
                         if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                     end if
@@ -558,7 +558,7 @@ contains
                     tmp = iand(SpawnedParts(0:NIfD,i), tmp)
                     IC = CountBits(tmp, NIfD)
 
-                    if ( IC <= 2 .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
+                    if ( IC <= maxExcit .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
                         hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, SpawnedParts(:,i), temp_store(:,j), IC, CS_I, cs(j))
                         if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
                     end if
@@ -665,7 +665,7 @@ contains
                         tmp = iand(core_space(0:NIfD,i+determ_displs(iProcIndex)), tmp)
                         IC = CountBits(tmp, NIfD)
 
-                        if ( IC <= 2 .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
+                        if ( IC <= maxExcit .or. ((.not. CS_I) .and. (.not. cs(j))) ) then
                             hamiltonian_row(j) = hphf_off_diag_helement_opt(nI, core_space(:,i+determ_displs(iProcIndex)), &
                                                                              core_space(:,j), IC, CS_I, cs(j))
 
