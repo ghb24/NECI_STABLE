@@ -154,7 +154,7 @@ contains
         ! len_hel = 1
 
         len_spawn_pop = lenof_sign
-        
+
         if(tSeniorInitiators)then
             len_tau_int = inum_runs
             len_shift_int = inum_runs
@@ -175,8 +175,8 @@ contains
             len_pops_sum = lenof_sign
             len_pops_iter = 1
         else
-            len_tot_spawns = 0
-            len_acc_spawns = 0
+            len_pops_sum = 0
+            len_pops_iter = 0
         end if
 
         ! If we are using calculating RDMs stochastically, need to include the
@@ -313,7 +313,7 @@ contains
             glob_tag = 0
             nullify(global_determinant_data)
         end if
-        
+
         if (associated(global_determinant_data_tmp)) then
             deallocate(global_determinant_data_tmp)
             log_dealloc(glob_tmp_tag)
@@ -669,7 +669,7 @@ contains
         do j=1,int(ndets)
              call extract_sign(CurrentDets(:,j),CurrentSign)
              if(IsUnoccDet(CurrentSign)) cycle
-            
+
             global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = &
               global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) + &
               CurrentSign(:)
