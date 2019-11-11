@@ -285,5 +285,3 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     )
 
 endforeach()
-
-add_subdirectory( test_loop )
