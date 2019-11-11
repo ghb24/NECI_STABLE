@@ -54,9 +54,7 @@ module fcimc_iter_utils
 
     use tau_search_hist, only: update_tau_hist
 
-#ifndef __CMPLX
     use guga_tausearch, only: update_tau_guga_nosym
-#endif
 
     implicit none
 
@@ -797,24 +795,18 @@ contains
         if (((tSearchTau .or. (tSearchTauOption .and. tSearchTauDeath)) .and. &
             .not. tFillingStochRDMOnFly)) then
 
-#ifndef __CMPLX
             if (tGen_nosym_guga) then
                 call update_tau_guga_nosym()
             else
-#endif
                 call update_tau()
-#ifndef __CMPLX
             end if
-#endif
 
         ! [Werner Dobrautz 4.4.2017:]
         else if (((t_hist_tau_search .or. (t_hist_tau_search_option .and. tSearchTauDeath)) .and. &
             .not. tFillingStochRDMonFly)) then
 
             if (tGen_nosym_guga) then
-#ifndef __CMPLX
                 call update_hist_tau_guga_nosym()
-#endif
             else
                 call update_tau_hist()
             end if

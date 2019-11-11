@@ -516,10 +516,8 @@ contains
       use Determinants, only: get_helement
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_off_diag_helement
-#ifndef __CMPLX
     use guga_excitations, only: calc_guga_matrix_element
     use guga_data, only: excitationInformation
-#endif
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer, intent(in) :: iRef, run, nI(nel)
@@ -529,9 +527,8 @@ contains
       real(dp) :: signRef(lenof_sign)
 #ifdef __CMPLX
       complex(dp) :: tmp
-#else
-      type(excitationInformation) :: excitInfo
 #endif
+      type(excitationInformation) :: excitInfo
       HElement_t(dp) :: h_el
 
       is_coherent = .true.
@@ -544,10 +541,8 @@ contains
       ! Then, get the matrix element
       if(tHPHF) then
          h_el = hphf_off_diag_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
-#ifndef __CMPLX
       else if (tGUGA) then
           call calc_guga_matrix_element(ilut,ilutRefAdi(:,iref), excitInfo, h_el, .true., 2)
-#endif
       else
          h_el = get_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
       endif
@@ -596,10 +591,8 @@ contains
     use SystemData, only: tHPHF
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_off_diag_helement
-#ifndef __CMPLX
     use guga_excitations, only: calc_guga_matrix_element
     use guga_data, only: excitationInformation
-#endif
     implicit none
     integer, intent(in) :: nI(nel), i
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -610,9 +603,7 @@ contains
     integer :: run
     HElement_t(dp) :: h_el, tmp
     character(*), parameter :: this_routine = "upadte_coherence_check"
-#ifndef __CMPLX
-      type(excitationInformation) :: excitInfo
-#endif
+    type(excitationInformation) :: excitInfo
 
     ! TODO: Only if ilutRefAdi(:,i) is a SI on this run
 
@@ -621,10 +612,8 @@ contains
     ! First, get the matrix element
     if(tHPHF) then
        h_el = hphf_off_diag_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
-#ifndef __CMPLX
     else if (tGUGA) then
           call calc_guga_matrix_element(ilut,ilutRefAdi(:,i), excitInfo, h_el, .true., 2)
-#endif
     else
        h_el = get_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
     endif
@@ -633,7 +622,7 @@ contains
 
     ! Add tmp = Hij cj to the caches
 
-    tmp  = 0.0_dp
+    tmp  = h_cast(0.0_dp)
     do run = 1, inum_runs
 #ifdef __CMPLX
        tmp = tmp + h_el * cmplx(signsRef(min_part_type(run),i),&

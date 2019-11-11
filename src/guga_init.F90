@@ -1,7 +1,6 @@
 #include "macros.h"
 ! guga module containing all necessary functionality needed to initialize
 ! a guga simulation
-#ifndef __CMPLX
 module guga_init
     ! module use statements
     use SystemData, only: tCSF, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
@@ -292,9 +291,6 @@ contains
         character(*), parameter :: this_routine = 'checkInputGUGA'
 
         ! check in certain system options have conflicts:
-#ifdef __CMPLX
-        call stop_all(this_routine, "GUGA not yet imlemented with complex NECI!")
-#endif
         if (tCSF) then
             call stop_all(this_routine, &
                 "Cannot use two CSF implementations tGUGA and tCSF at the same time!")
@@ -431,4 +427,3 @@ contains
 
 
 end module guga_init
-#endif

@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module unit_test_helper_excitgen
   use constants
   use read_fci, only: readfciint, initfromfcid, fcidump_name
@@ -332,6 +334,59 @@ contains
     close(iunit)
 
   end subroutine generate_random_integrals
+
+  !------------------------------------------------------------------------------------------!
+    subroutine generate_uniform_integrals
+
+        use SystemData, only: nSpatOrbs, nel, lms
+
+        integer :: i, j, k, l,iunit
+
+        iunit = get_free_unit()
+
+        open(iunit,file="FCIDUMP")
+        write(iunit,*) "&FCI NORB=",nSpatOrbs,",NELEC=",nel,"MS2=",lms,","
+        write(iunit,"(A)",advance="no") "ORBSYM="
+        do i = 1, nSpatOrbs
+           write(iunit,"(A)",advance="no") "1,"
+        end do
+        write(iunit,*)
+        write(iunit,*) "ISYM=1,"
+        write(iunit,*) "&END"
+
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
+                do l = 1, nSpatOrbs
+                    do k = 1, nSpatOrbs
+#ifdef __REALTIME
+                        write(iunit, *) (1.0_dp), i, j, k, l
+#else
+                        write(iunit, *) h_cast(1.0_dp), i, j, k, l
+#endif
+                    end do
+                end do
+            end do
+        end do
+        do i = 1, nSpatOrbs
+            do j = i, nSpatOrbs
+#ifdef __REALTIME
+                write(iunit,*) (1.0_dp), i, j, 0, 0
+#else
+                write(iunit,*) h_cast(1.0_dp), i, j, 0, 0
+#endif
+            end do
+        end do
+
+#ifdef __REALTIME
+        write(iunit,*) (0.0_dp), 0, 0, 0, 0
+#else
+        write(iunit,*) h_cast(0.0_dp), 0, 0, 0, 0
+#endif
+
+        close(iunit)
+
+    end subroutine generate_uniform_integrals
+
 
   !------------------------------------------------------------------------------------------!
 

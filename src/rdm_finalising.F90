@@ -18,9 +18,7 @@ module rdm_finalising
     use LoggingData, only: tWriteSpinFreeRDM
     use unit_test_helpers, only: print_matrix
 
-#ifndef __CMPLX
     use guga_rdm, only: t_test_sym_fill
-#endif
 
     implicit none
 
@@ -93,10 +91,8 @@ contains
             if (RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
                 if (.not. tGUGA) then
                     call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
-#ifndef __CMPLX
                 else
                     call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_estimates%norm)
-#endif
                 end if
                 ! The 1-RDM will have been constructed to be normalised already.
                 norm_1rdm = 1.0_dp
@@ -185,11 +181,9 @@ contains
 
         call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
 
-#ifndef __CMPLX
         if (tGUGA) then
             call print_spinfree_2rdm(rdm_defs, rdm_recv, est%norm)
         end if
-#endif
 
         if (tWriteSpinFreeRDM .and. .not. tGUGA) then
             call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
@@ -254,10 +248,8 @@ contains
             ! Obtain spin orbital labels and the RDM element.
             if (.not. tGUGA) then
                 call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
-#ifndef __CMPLX
             else
                 call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
-#endif
             end if
 
             call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
@@ -270,7 +262,6 @@ contains
                     end do
                 end if
 
-#ifndef __CMPLX
                 if (tGUGA .and. .not. t_test_sym_fill) then
                     if (p == r) then
                         do irdm = 1, size(one_rdms)
@@ -279,7 +270,6 @@ contains
                         end do
                     end if
                 end if
-#endif
             end associate
         end do
 
@@ -291,12 +281,10 @@ contains
             call MPISumAll(one_rdms(irdm)%matrix, temp_rdm)
             ! Copy summed RDM back to the main array, and normalise.
             one_rdms(irdm)%matrix = temp_rdm / (rdm_trace(irdm)*real(nel-1,dp))
-#ifndef __CMPLX
             if (tGUGA .and. t_test_sym_fill) then
                 ! the GUGA rdms have a different normalisation
                 one_rdms(irdm)%matrix = 2.0_dp * one_rdms(irdm)%matrix
             end if
-#endif
         end do
 
         deallocate(temp_rdm, stat=ierr)
@@ -1194,10 +1182,8 @@ contains
                         ! Obtain spin orbital labels.
                         if (.not. tGUGA) then
                             call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
-#ifndef __CMPLX
                         else
                             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
-#endif
                         end if
                         call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                         ! Normalise.
@@ -1534,7 +1520,6 @@ contains
             open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
         end if
 
-#ifndef __CMPLX
         if (tGUGA) then
 
             do i = 1, nSpatorbs
@@ -1559,7 +1544,6 @@ contains
                 end do
             end do
         else
-#endif
             ! Currently always printing 1-RDM in spin orbitals.
             do i = 1, nbasis
                 do j = 1, nbasis
@@ -1609,9 +1593,7 @@ contains
                     end do
                 end do
             end if
-#ifndef __CMPLX
         end if ! tGUGA
-#endif
 
         close(one_rdm_unit)
 

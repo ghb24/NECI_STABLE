@@ -36,13 +36,11 @@ module excit_gen_5
     use back_spawn, only: pick_virtual_electrons_double, pick_occupied_orbital, &
                           check_electron_location, pick_second_occupied_orbital
 
-#ifndef __CMPLX
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga, &
                               init_csf_information
     use guga_data, only: excitationInformation, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, &
                                 global_excitinfo, print_excitInfo
-#endif
 
     implicit none
 
@@ -64,10 +62,8 @@ contains
 
         real(dp) :: pgen2
         real(dp) :: cum_arr(nbasis)
-#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
-#endif
 
 #ifdef __DEBUG
         HElement_t(dp) :: temp_hel
@@ -105,7 +101,6 @@ contains
 
         ! try implementing the crude guga excitation approximation via the
         ! determinant excitation generator
-#ifndef __CMPLX
         if (tGen_guga_crude) then
 
             call convert_ilut_toGUGA(ilutJ, ilutGj)
@@ -139,7 +134,6 @@ contains
 
             return
         end if
-#endif
 
         ! And a careful check!
 #ifdef __DEBUG
@@ -583,7 +577,8 @@ contains
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
         integer(n_int), pointer :: det_list(:,:)
-        real(dp), allocatable :: contrib_list(:), pgen_list(:), matEle_list(:)
+        real(dp), allocatable :: contrib_list(:), pgen_list(:)
+        HElement_t(dp), allocatable ::  matEle_list(:)
         logical, allocatable :: generated_list(:)
         logical :: found_all, par
         real(dp) :: contrib, pgen, sum_pgens, sum_helement
@@ -599,34 +594,11 @@ contains
         call calc_all_excitations(ilut, det_list, nexcit)
 
 !         ! How many connected determinants are we expecting?
-!         call CountExcitations3 (src_det, 3, nsing, ndoub)
-!         nexcit = nsing + ndoub
-!         allocate(det_list(0:NIfTot, nexcit))
-!
-!         ! Loop through all of the possible excitations
-!         ndet = 0
-!         found_all = .false.
-!         ex = 0
-!         flag = 3
         write(6,'("*****************************************")')
         write(6,'("Enumerating excitations")')
         write(6,'("Starting from: ")', advance='no')
         call write_det (6, src_det, .true.)
         write(6,*) 'Expecting ', nexcit, "excitations"
-!         call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
-!                               .false.)
-!         do while (.not. found_all)
-!             ndet = ndet + 1
-!             call EncodeBitDet (det, det_list(:,ndet))
-!
-!             call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
-!                                   found_all, .false.)
-!         end do
-!         if (ndet /= nexcit) &
-!             call stop_all(this_routine,"Incorrect number of excitations found")
-!
-!         ! Sort the dets, so they are easy to find by binary searching
-!         call sort(det_list, ilut_lt, ilut_gt)
 
         ! Lists to keep track of things
         allocate(generated_list(nexcit))

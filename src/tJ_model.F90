@@ -52,7 +52,6 @@ module tJ_model
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-#ifndef __CMPLX
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
                                 assign_excitInfo_values_double, assign_excitInfo_values_single
 
@@ -60,7 +59,6 @@ module tJ_model
 
     use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij
 
-#endif
 
     implicit none
 
@@ -79,7 +77,6 @@ module tJ_model
 
 contains
 
-#ifndef __CMPLX
     subroutine init_guga_tJ_model
         ! write a specific subroutine to init the spin-free tJ model
         character(*), parameter :: this_routine = "init_guga_tJ_model"
@@ -162,7 +159,6 @@ contains
         generate_excitation => generate_excitation_guga
 
     end subroutine init_guga_tJ_model
-#endif
 
     subroutine init_tJ_model
         character(*), parameter :: this_routine = "init_tJ_model"
@@ -262,7 +258,6 @@ contains
     end subroutine init_tJ_model
 
 
-#ifndef __CMPLX
     subroutine init_guga_heisenberg_model()
         character(*), parameter :: this_routine = "init_guga_heisenberg_model"
         real(dp) :: tau_opt
@@ -350,7 +345,6 @@ contains
         generate_excitation => generate_excitation_guga
 
     end subroutine init_guga_heisenberg_model
-#endif
 
     subroutine init_heisenberg_model
         character(*), parameter :: this_routine = "init_heisenberg_model"
@@ -929,7 +923,6 @@ contains
 
     end function calc_pgen_tJ_model
 
-#ifndef __CMPLX
     subroutine pick_orbitals_guga_tJ(ilut, nI, excitInfo, orb_pgen)
         ! orbital picking routine for the GUGA t-J model.
         ! the most effective way would be to pick a hole first, instead
@@ -1254,7 +1247,6 @@ contains
         below_cpt = below_cpt * p_elec
 
     end subroutine calc_orbital_pgen_contr_heisenberg
-#endif
 
     subroutine create_cum_list_heisenberg(ilutI, src, neighbors, cum_arr, cum_sum, &
             tgt, cpt)

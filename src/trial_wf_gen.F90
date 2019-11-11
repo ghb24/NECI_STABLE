@@ -9,11 +9,11 @@ module trial_wf_gen
     use semi_stoch_procs
     use sparse_arrays
     use SystemData, only: nel, tHPHF, t_non_hermitian
-#ifndef __CMPLX
+
     use guga_data, only: excitationInformation
     use guga_excitations, only: calc_guga_matrix_element
     use guga_bitrepops, only: write_det_guga, init_csf_information
-#endif
+
     use util_mod, only: get_free_unit, binary_search_custom, operator(.div.)
     use FciMCData, only: con_send_buf, NConEntry
 
@@ -252,15 +252,11 @@ contains
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
-#ifndef __CMPLX
         if (tGUGA .and. (.not. t_guga_mat_eles)) then
             call generate_connected_space_vector_guga(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
         else
-#endif
             call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
-#ifndef __CMPLX
         end if
-#endif
 
         call MPIBarrier(ierr)
 
@@ -518,7 +514,6 @@ contains
 
     end subroutine remove_list1_states_from_list2
 
-#ifndef __CMPLX
     subroutine generate_connected_space_vector_guga(trial_space, trial_vecs, con_space, con_vecs)
         ! need a specific routine for the guga case, to do it more efficiently
         ! although i realise by now, that i probably could do it way more
@@ -580,7 +575,6 @@ contains
         end do
 
     end subroutine generate_connected_space_vector_guga
-#endif
 
     subroutine generate_connected_space_vector(trial_space, trial_vecs, con_space, con_vecs)
 
@@ -602,9 +596,7 @@ contains
         integer :: nI(nel), nJ(nel)
         HElement_t(dp) :: H_ij
         character (len=*), parameter :: t_r = "generate_connected_space_vector"
-#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
-#endif
         con_vecs = 0.0_dp
 
         ! do i need to change this here for the non-hermitian transcorrelated
@@ -614,9 +606,8 @@ contains
 
             ! i am only here in the guga case if i use the new way to calc
             ! the off-diagonal elements..
-#ifndef __CMPLX
             if (tGUGA) call init_csf_information(con_space(0:nifd,i))
-#endif
+
             do j = 1, size(trial_vecs,2)
 
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
@@ -624,10 +615,8 @@ contains
                 if (all(con_space(0:NIfDBO, i) == trial_space(0:NIfDBO, j))) then
                     if ( tHPHF) then
                         H_ij = hphf_diag_helement(nI, trial_space(:,j))
-#ifndef __CMPLX
                     else if (tGUGA) then
                         H_ij = calcDiagMatEleGuga_nI(nI)
-#endif
                     else
                         H_ij = get_helement(nI, nJ, 0)
                     end if
@@ -636,14 +625,12 @@ contains
                     ! and need
                     if (tHPHF) then
                         H_ij = hphf_off_diag_helement(nJ, nI, con_space(:,j), trial_space(:,i))
-#ifndef __CMPLX
                     else if (tGUGA) then
                         if (t_non_hermitian) then
                             call stop_all(t_r, "GUGA not adapted for non-hermiticity yet!")
                         end if
                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
                             excitInfo, H_ij, .true., 1)
-#endif
                     else
                         H_ij = get_helement(nJ, nI, con_space(:,j), trial_space(:,i))
                     end if

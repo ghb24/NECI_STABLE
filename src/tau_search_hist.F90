@@ -41,9 +41,7 @@ module tau_search_hist
                             ija_orbs_sing, all_ija_orbs_sing, &
                             ija_orbs_para, all_ija_orbs, ija_orbs_anti
 
-#ifndef __CMPLX
     use guga_tausearch, only: find_max_tau_doubs_guga
-#endif
 
     implicit none
     ! variables which i might have to define differently:
@@ -394,18 +392,11 @@ contains
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau < EPS) then
-#ifndef __CMPLX
             if (tGUGA) then
                 print *, "Warning: FindMaxTauDoubs misused for GUGA!"
                 print *, "still need a specific implementation for that!"
-                call FindMaxTauDoubs()
-!                 call find_max_tau_doubs_guga()
-            else
-#endif
-                call FindMaxTauDoubs()
-#ifndef __CMPLX
             end if
-#endif
+            call FindMaxTauDoubs()
         end if
 
         if (tReadPops) then

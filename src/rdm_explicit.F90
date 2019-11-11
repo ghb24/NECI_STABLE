@@ -15,10 +15,8 @@ module rdm_explicit
     use SystemData, only : tReltvy, t_3_body_excits, tGUGA, nel
     use bit_reps, only: extract_bit_rep, decode_bit_det
 
-#ifndef __CMPLX
     use guga_bitRepOps, only: encode_matrix_element, convert_ilut_toGUGA
     use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs, t_test_diagonal
-#endif
 
     implicit none
 
@@ -159,7 +157,6 @@ contains
         Sing_ExcList(:) = Sing_InitExcSlots(:)
 
         if (tGUGA) then
-#ifndef __CMPLX
             call convert_ilut_toGUGA(ilutNi, ilutG)
 
             call extract_bit_rep(iLutnI, nI, SignDi, FlagsDi)
@@ -170,7 +167,6 @@ contains
                 Sing_ExcList(i) = Sing_ExcList(i) + 1
             end do
 
-#endif
         else
 
             do i = 0, nProcessors-1
@@ -185,12 +181,10 @@ contains
             Doub_ExcList(:) = Doub_InitExcSlots(:)
 
             if (tGUGA) then
-#ifndef __CMPLX
                 do i = 0, nProcessors - 1
                     Doub_ExcDjs(:,Doub_ExcList(i)) = ilutG
                     Doub_ExcList(i) = Doub_ExcList(i) + 1
                 end do
-#endif
             else
                 do i = 0,nProcessors-1
                     Doub_ExcDjs(:,Doub_ExcList(i)) = iLutnI(:)
@@ -203,9 +197,7 @@ contains
         ! double excitations from Dj, this will be done for each proc.
         if (.not. blank_det) then
             if (tGUGA) then
-#ifndef __CMPLX
                 call gen_exc_djs_guga(ilutnI)
-#endif
             else
                 call GenExcDjs(iLutnI)
             end if
@@ -217,9 +209,7 @@ contains
         ! we re-find the orbitals and parity involved in the excitation, and
         ! add the c_i*c_j contributions to the corresponding matrix element.
         if (tGUGA) then
-#ifndef __CMPLX
             call send_proc_ex_djs()
-#endif
         else
             call SendProcExcDjs()
         end if

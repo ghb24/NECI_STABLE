@@ -5,7 +5,6 @@
 ! some of these functions should be replaced by bit-ops defined in the
 ! macros.h header file, but for clarity and test purposes write them down
 ! explicetly too
-#ifndef __CMPLX
 module guga_bitRepOps
 
     use SystemData, only: nEl, Stot, nSpatOrbs, &
@@ -18,7 +17,8 @@ module guga_bitRepOps
                     CountBits, DetBitEQ
     use bit_rep_data, only: test_flag, flag_deltaB_single, &
         flag_deltaB_double, flag_deltaB_sign, niftot, nIfGUGA, nIfd, nifdbo
-    use util_mod, only: binary_search, binary_search_custom, operator(.div.)
+    use util_mod, only: binary_search, binary_search_custom, operator(.div.), &
+                        near_zero
     use sort_mod, only: sort
 
     implicit none
@@ -33,6 +33,20 @@ module guga_bitRepOps
         module procedure find_switches_ilut
         module procedure find_switches_stepvector
     end interface find_switches
+
+    interface encode_matrix_element
+        module procedure encode_matrix_element_real
+#ifdef __CMPLX
+        module procedure encode_matrix_element_cmplx
+#endif
+    end interface encode_matrix_element
+
+    interface update_matrix_element
+        module procedure update_matrix_element_real
+#ifdef __CMPLX
+        module procedure update_matrix_element_cmplx
+#endif
+    end interface update_matrix_element
 
 contains
 
@@ -1674,7 +1688,7 @@ contains
 
     end subroutine write_det_guga
 
-    subroutine encode_matrix_element(ilut, mat_ele, mat_type)
+    subroutine encode_matrix_element_real(ilut, mat_ele, mat_type)
         ! encodes the x0 or x1 matrix element needed during the excitation
         ! creation.
         ! mat_ele   ... x0 or x1 matrix element
@@ -1682,7 +1696,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:nIfGUGA)
         real(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
-        character(*), parameter :: this_routine = "encode_matrix_element"
+        character(*), parameter :: this_routine = "encode_matrix_element_real"
 
         integer(n_int) :: mat_int ! integer version of real
 
@@ -1692,7 +1706,33 @@ contains
 
         ilut(nIfD + mat_type) = mat_int
 
-    end subroutine encode_matrix_element
+    end subroutine encode_matrix_element_real
+
+#ifdef __CMPLX
+    subroutine encode_matrix_element_cmplx(ilut, mat_ele, mat_type)
+        ! this is specific for complex matrix elements.. here
+        ! i can use the two storage slots for x0 and x1 to encode
+        ! both the real and imaginary parts of the Hamiltonian matrix elements
+        integer(n_int), intent(inout) :: ilut(0:nifguga)
+        complex(dp), intent(in) :: mat_ele
+        integer, intent(in) :: mat_type
+        character(*), parameter :: this_routine = "encode_matrix_element_cmplx"
+
+        integer(n_int) :: mat_int
+
+        ! here I have to assert that mat_ind is 1! otherwise smth went wrong
+        ASSERT(mat_type == 1)
+        ! also make sure the x1 mat ele was nullified.
+        ASSERT(near_zero(extract_matrix_element(ilut, 2)))
+
+        mat_int = transfer(RealPart(mat_ele), mat_int)
+        ilut(nifd + 1) = mat_int
+
+        mat_int = transfer(ImagPart(mat_ele), mat_int)
+        ilut(nifd + 2) = mat_int
+
+    end subroutine encode_matrix_element_cmplx
+#endif
 
     function extract_matrix_element(ilut, mat_type) result(mat_ele)
         ! function to extract matrix element of a GUGA ilut
@@ -1707,12 +1747,12 @@ contains
 
     end function extract_matrix_element
 
-    subroutine update_matrix_element(ilut, mat_ele, mat_type)
+    subroutine update_matrix_element_real(ilut, mat_ele, mat_type)
         ! function to update already encoded matrix element multiplicative
         integer(n_int), intent(inout) :: ilut(0:nIfGUGA)
         real(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
-        character(*), parameter :: this_routine = "update_matrix_element"
+        character(*), parameter :: this_routine = "update_matrix_element_real"
 
         integer(n_int) :: mat_int
         real(dp) :: temp_ele
@@ -1725,7 +1765,37 @@ contains
 
         ilut(nIfD + mat_type) = mat_int
 
-    end subroutine update_matrix_element
+    end subroutine update_matrix_element_real
+
+#ifdef __CMPLX
+    subroutine update_matrix_element_cmplx(ilut, mat_ele, mat_type)
+        ! specific function if we need to update with a complex integral
+        integer(n_int), intent(inout) :: ilut(0:nifguga)
+        complex(dp), intent(in) :: mat_ele
+        integer, intent(in) :: mat_type
+        character(*), parameter :: this_routine = "update_matrix_element_cmplx"
+
+        integer(n_int) :: mat_int
+        real(dp) :: temp_ele
+
+        ! here i have to again assert that mat_type == 1, otherwise
+        ! smth went wrong..
+        ASSERT(mat_type == 1)
+
+        ! just for checking see if the x2 is nullified always..
+        ASSERT(near_zero(extract_matrix_element(ilut,2)))
+
+        ! and now we want to store the real and imag part in x0 and x1..
+        temp_ele = transfer(ilut(nifd + 1), temp_ele)
+        mat_int = transfer(temp_ele * RealPart(mat_ele), mat_int)
+
+        ilut(nifd + 1) = mat_int
+
+        mat_int = transfer(temp_ele * ImagPart(mat_ele), mat_int)
+        ilut(nifd + 2) = mat_int
+
+    end subroutine update_matrix_element_cmplx
+#endif
 
     function count_beta_orbs_ij(ilut, i, j) result(nOpen)
         ! function to count the number of 1s in a CSF det between spatial
@@ -1883,7 +1953,7 @@ contains
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
         integer(n_int), intent(in) :: ilutG(0:nifguga)
         integer(n_int), intent(inout) :: ilutN(0:niftot)
-        real(dp), intent(out), optional :: HElement
+        HElement_t(dp), intent(out), optional :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
 
         real(dp) :: tmp_matele
@@ -1913,7 +1983,7 @@ contains
 
         ! and set matrix elements to 1 and delta b to 0
         call encode_matrix_element(ilutG,1.0_dp,1)
-        call encode_matrix_element(ilutG,1.0_dp,2)
+        call encode_matrix_element(ilutG,0.0_dp,2)
 
         call setDeltaB(0,ilutG)
 
@@ -2232,6 +2302,7 @@ contains
         integer(n_int), intent(out) :: ilut(0:nifguga)
 
         integer :: i, pos
+        integer(n_int) :: zero_int
 
         ilut = 0_n_int
 
@@ -2239,6 +2310,12 @@ contains
             pos = (nI(i) - 1) / bits_n_int
             ilut(pos) = ibset(ilut(pos), mod(nI(i)-1, bits_n_int))
         end do
+
+        zero_int = transfer(0.0_dp, zero_int)
+
+        ilut(nifd + 1) = zero_int
+        ilut(nifd + 2) = zero_int
+        ilut(nifguga) = 0_n_int
 
     end subroutine EncodeBitDet_guga
 
@@ -2459,4 +2536,3 @@ contains
 
 
 end module guga_bitRepOps
-#endif

@@ -64,9 +64,7 @@ MODULE Calc
     use cepa_shifts, only: t_cepa_shift, cepa_method
     use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
 
-#ifndef __CMPLX
     use guga_data, only: tGUGACore
-#endif
 
     use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
 
@@ -366,9 +364,7 @@ contains
           tSemiStochastic = .false.
           tCSFCore = .false.
 
-#ifndef __CMPLX
           tGUGACore = .false.
-#endif
 
           tDynamicCoreSpace = .false.
           tIntervalSet = .false.
@@ -515,9 +511,7 @@ contains
           use Parallel_neci, only : nProcessors
           use util_mod, only: addToIntArray
           use LoggingData, only: tLogDets
-#ifndef __CMPLX
           use guga_bitRepOps, only: isProperCSF_ni
-#endif
 
           IMPLICIT NONE
           LOGICAL eof
@@ -993,7 +987,7 @@ contains
                         call write_det(iout, DefDet, .true.)
                     end if
                 end if
-#ifndef __CMPLX
+
                 if (tGUGA) then
                     if (.not. isProperCSF_ni(defdet)) then
                         write(iout,*) " automatic neel-state creation produced invalid CSF!"
@@ -1002,8 +996,6 @@ contains
                         call stop_all(t_r, " definedet is not a proper CSF or has wrong SPIN!")
                     end if
                 end if
-#endif
-
 
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.
@@ -1488,7 +1480,6 @@ contains
                 ! i hope everything is setup already
                 DefDet = create_neel_state()
 
-#ifndef __CMPLX
                 if (tGUGA) then
                     if (.not. isProperCSF_ni(defdet)) then
                         write(iout,*) " automatic neel-state creation produced invalid CSF!"
@@ -1497,7 +1488,6 @@ contains
                         call stop_all(t_r, " automatic neel-state creation produced invalid CSF!")
                     end if
                 end if
-#endif
 
                 write(iout,*) "created neel-state: "
                 call write_det(iout, DefDet, .true.)
@@ -1543,13 +1533,11 @@ contains
                 tCSF = .true.
                 LMS = STOT
 
-#ifndef __CMPLX
             case ("GUGA-CORE DOUBLES")
                 tGUGACore = .true.
                 ! convention! if we input GUGA core, we specifiy tDoubles
                 ! implicitly! Since we only ever will implement this (for now)
                 ss_space_in%tDoubles = .true.
-#endif
 
             case("ALL-CONN-CORE")
                 ss_space_in%tAllConnCore = .true.
@@ -3638,12 +3626,12 @@ contains
           ! but for now, leave it in to not break the remaining code, which
           ! esp. in the excitation generator depends on those values!
           ! But change this in future and include a corresponding CalcInitGUGA()
-#ifndef __CMPLX
+
           if (tGUGA) then
               write(6,*) " !! NOTE: running a GUGA simulation, so following info makes no sense!"
               write(6,*) " but is kept for now to not break remaining code!"
           end if
-#endif
+
           if (tCSF) then
               nOccAlpha = (nel / 2) + LMS
               nOccBeta =  (nel / 2) - LMS

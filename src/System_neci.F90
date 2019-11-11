@@ -51,14 +51,6 @@ MODULE System
 !     specifying a new set of DEFAULTS.
       ! implementation of spin adapted GUGA approach
       t_twisted_bc = .false.
-      tGUGA = .false.
-      t_guga_unit_tests = .false.
-      t_full_guga_tests = .false.
-      n_guga_excit_gen = 0
-      tGen_nosym_guga = .false.
-      tGen_sym_guga_ueg = .false.
-      tGen_sym_guga_mol = .false.
-      tgen_guga_weighted = .false.
       t_consider_diff_bias = .false.
       tReltvy = .false.
       tComplexOrbs_RealInts = .false.
@@ -1630,9 +1622,6 @@ system: do
       use legacy_data, only: CSF_NBSTART
       use read_fci
       use sym_mod
-! #ifndef __CMPLX
-!       use guga_init, only: init_guga
-! #endif
       implicit none
       character(*), parameter :: this_routine='SysInit'
       integer ierr
@@ -1659,15 +1648,7 @@ system: do
 !     UEG2
       integer :: AllocateStatus
       real(dp), parameter :: EulersConst = 0.5772156649015328606065120900824024_dp
-#ifndef __CMPLX
       integer, allocatable :: temp_sym_vecs(:,:)
-#endif
-
-
-!      write (6,*)
-!      call TimeTag()
-!      if (.not.TCPMD) call Envir()
-!      write (6,*)
 
       ECORE=0.0_dp
 
@@ -2588,7 +2569,6 @@ system: do
 
           ! for now implement it only for the GUGA case to not mess to
           ! much with the rest of the code..
-#ifndef __CMPLX
           if (tGUGA .and. (.not. t_guga_noreorder)) then
               ! i have to sort the alpha and betas seperately, due the
               ! possible degeneracies
@@ -2622,7 +2602,6 @@ system: do
               ! change in the association with the k-vectors, although
               ! the brr and arr arrays are sorted again..
           end if
-#endif
 
          IF(LEN.NE.IG) THEN
             IF(OrbECutoff.gt.-1e20_dp) then
@@ -2755,16 +2734,6 @@ system: do
       ! input files..: lets hope FDET or something similar is not getting
       ! allocated before this point...
       ! CHANGE: switched init functions to guga_data
-
-      ! init guga needs nSpatOrbs quantity! so init it here from the
-      ! already determined spinorbitals
-      ! nah make it in init_guga.. i think that should work..
-!       nSpatOrbs = nBasis / 2
-
-! #ifndef __CMPLX
-!       if (tGUGA) call init_guga()
-! #endif
-
 
 
       call halt_timer(proc_timer)

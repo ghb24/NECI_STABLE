@@ -234,9 +234,7 @@ MODULE ReadInput_neci
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
 
-#ifndef __CMPLX
         use guga_init, only: checkInputGUGA
-#endif
         implicit none
 
         integer :: vv, kk, cc, ierr
@@ -261,9 +259,8 @@ MODULE ReadInput_neci
         ! design convention to store as many guga related functionality in
         ! guga_*.F90 files and just call the routines in the main level modules
         ! checkInputGUGA() is found in guga_init.F90
-#ifndef __CMPLX
         if (tGUGA) call checkInputGUGA()
-#endif
+
         ! Turn on histogramming of fcimc wavefunction in order to find density
         ! matrix, or the orbital occupations
         if (tFindCINatOrbs) tCalcFCIMCPsi = .true.

@@ -9,9 +9,7 @@ module rdm_filling
     use bit_reps, only: get_initiator_flag_by_run
     use constants
     use SystemData, only: tGUGA
-#ifndef __CMPLX
     use guga_bitRepOps, only: getExcitation_guga
-#endif
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
          tNonVariationalRDMs
@@ -683,16 +681,12 @@ contains
 
         ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.
         ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.
-#ifndef __CMPLX
         if (tGUGA) then
             call getExcitation_guga(nI, nJ, Ex)
 
         else
             call GetExcitation(nI, nJ, nel, Ex, tParity)
         end if
-#else
-        call GetExcitation(nI, nJ, nel, Ex, tParity)
-#endif
 
         full_sign = 0.0_dp
         if (tParity) then

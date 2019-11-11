@@ -1505,11 +1505,9 @@ contains
 #endif
 
     subroutine calc_determin_hamil_full(hamil)
-#ifndef __CMPLX
         use guga_data, only: excitationInformation
         use guga_excitations, only: calc_guga_matrix_element
         type(excitationInformation) :: excitInfo
-#endif
 
         HElement_t(dp), allocatable, intent(out) :: hamil(:,:)
         integer :: i, j, nI(nel), nJ(nel)
@@ -1536,11 +1534,9 @@ contains
                 if (tHPHF) then
                     hamil(i,j) = hphf_off_diag_helement(nI, nJ, &
                         core_space(:,i), core_space(:,j))
-#ifndef __CMPLX
                 else if (tGUGA) then
                     call calc_guga_matrix_element(core_space(:,i), core_space(:,j), &
                         excitInfo, hamil(i,j), .true., 2)
-#endif
                 else
                     hamil(i,j) = get_helement(nI, nJ, core_space(:,i), core_space(:,j))
                 end if
@@ -1591,22 +1587,18 @@ contains
         use FciMCData, only: ilutHF, HFDet, Fii
         use SystemData, only: tUEG
         use CalcData, only: t_guga_mat_eles
-#ifndef __CMPLX
         use SystemData, only: tGUGA
         use guga_matrixElements, only: calcDiagMatEleGUGA_nI
         use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
         use guga_data, only: excitationInformation
-#endif
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: ex(2,2)
         logical, intent(in) :: tParity
         real(dp), intent(out) :: amp, energy_contrib
         integer :: ic
-        real(dp) :: hel, H0tmp, denom
-#ifndef __CMPLX
+        HElement_t(dp) :: hel, H0tmp, denom
         type(excitationInformation) :: excitInfo
-#endif
 
         amp = 0.0_dp
         energy_contrib = 0.0_dp
@@ -1622,7 +1614,6 @@ contains
             ! beta orbitals of the same spatial orbital have the same
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
-#ifndef __CMPLX
         else if (tGUGA) then
             if (t_guga_mat_eles) then
                 ! i am not sure if the ref_stepvector thingies are set up for
@@ -1632,7 +1623,6 @@ contains
             else
                 hel = calc_off_diag_guga_gen(ilut, ilutHF)
             end if
-#endif
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if
@@ -1641,12 +1631,10 @@ contains
             ! This will calculate the MP2 energies without having to use the fock eigenvalues.
             ! This is done via the diagonal determinant hamiltonian energies.
             H0tmp = getH0Element4(nI, HFDet)
-#ifndef __CMPLX
         else if (tGUGA) then
             ! do i have a routine to calculate the diagonal and double
             ! contributions for GUGA csfs? yes!
             H0tmp = calcDiagMatEleGUGA_nI(nI)
-#endif
         else
             H0tmp = getH0Element3(nI)
         end if

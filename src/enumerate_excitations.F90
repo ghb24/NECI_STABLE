@@ -374,7 +374,6 @@ contains
         ! (regardless of the system being studied), otherwise it will generate all connected
         ! determinants.
 
-#ifndef __CMPLX
         use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
         use guga_excitations, only: actHamiltonian
         use bit_reps, only: nifguga
@@ -382,7 +381,6 @@ contains
         integer :: nexcit, j
         integer(n_int), pointer :: excitations(:,:)
         integer(n_int) :: ilutG(0:nifguga)
-#endif
 
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:,:)
@@ -418,7 +416,6 @@ contains
 
             call decode_bit_det(nI, original_space(0:NIfTot,i))
 
-#ifndef __CMPLX
             ! do the GUGA changes here, I want to do all the excitations from
             ! the currently looped over original_space(:,i)
             ! i think i still want to do this this way, since the dets
@@ -451,7 +448,6 @@ contains
                 call LogMemDealloc(this_routine, tag_excitations)
 
             else
-#endif
                 if (t_new_real_space_hubbard) then
 
                     call gen_all_excits_r_space_hubbard(nI, n_excits, temp_dets)
@@ -482,9 +478,7 @@ contains
                     end do
                 end if
 
-#ifndef __CMPLX
             end if ! tGUGA
-#endif
         end do
 
     end subroutine generate_connected_space_normal
@@ -556,7 +550,6 @@ contains
         ! (regardless of the system being studied), otherwise it will generate all connected
         ! determinants.
 
-#ifndef __CMPLX
         use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
         use guga_excitations, only: actHamiltonian
         use bit_reps, only: nifguga
@@ -565,7 +558,6 @@ contains
         integer :: nexcit, j
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
-#endif
 
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:,:)
@@ -612,7 +604,6 @@ contains
                 end if
                 connected_space_size = connected_space_size + n_excits
 
-#ifndef __CMPLX
             ! GUGA changes:
             ! my actHamiltonian routine seems to satisfy the k-point symmetry
             ! so it should be straight forward to implemt it here too
@@ -634,8 +625,6 @@ contains
 
                 deallocate(excitations)
                 call LogMemDealloc(this_routine, tag_excitations)
-
-#endif
 
             else
 

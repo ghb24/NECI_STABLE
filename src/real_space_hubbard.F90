@@ -67,12 +67,10 @@ module real_space_hubbard
 
     use ParallelHelper, only: iProcIndex
 
-#ifndef __CMPLX
     use guga_data, only: excitationInformation, excitationInformation, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
                                global_excitinfo
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, init_csf_information
-#endif
 
     implicit none
 
@@ -214,15 +212,11 @@ contains
 
         else
             if (.not. tHPHF) then
-#ifndef __CMPLX
                 if (tGUGA .and. .not. tgen_guga_crude) then
                     generate_excitation => generate_excitation_guga
                 else
-#endif
                     generate_excitation => gen_excit_rs_hubbard
-#ifndef __CMPLX
                 end if
-#endif
             end if
         end if
 
@@ -1916,10 +1910,8 @@ contains
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, elem, r, p_elec, p_orb
 
-#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
-#endif
 
         unused_variable(run)
         unused_variable(store)
@@ -1959,7 +1951,6 @@ contains
 
         ilutJ = make_ilutJ(ilutI, ex, 1)
 
-#ifndef __CMPLX
         ! change for the mixed guga implementation
         if (tgen_guga_crude) then
 
@@ -1998,8 +1989,6 @@ contains
 
             return
         end if
-#endif
-
 
     end subroutine gen_excit_rs_hubbard
 
@@ -2413,7 +2402,6 @@ contains
 
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
         real(dp) :: n_i, n_j
-#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
 
         if (tGUGA) then
@@ -2426,7 +2414,6 @@ contains
             if (tpar) hel = -hel
             return
         end if
-#endif
 
         ! in case we need it, the off-diagonal, except parity is just
         ! -t if the hop is possible

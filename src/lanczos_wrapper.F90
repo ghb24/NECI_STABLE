@@ -31,9 +31,7 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel, tHPHF, tGUGA
         use CalcData, only: t_guga_mat_eles
-#ifndef __CMPLX
         use guga_excitations, only: Detham_guga
-#endif
 
         integer, intent(in) :: det_list(:,:)
         integer, intent(in) :: ndets
@@ -62,33 +60,31 @@ contains
         ! and creates all the exciations from it..
         ! this means i need a routine for the guga case which sets up the
         ! hamiltonian in the same way as DetHam for determinants..
-#ifndef __CMPLX
         ! only use the "old" version when t_guga_mat_eles is not set!
         if (tGUGA .and. (.not. t_guga_mat_eles)) then
-            call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil)
-        else
-#endif
-        ! just to make sure we pass valid objects
-        allocate(Lab(1),stat=ierr)
-        allocate(Hamil(1),stat=ierr)
-        call Detham(ndets, nel, det_list, Hamil, Lab, nRow, .true., ICMax, LenHamil, tMC)
-
-        deallocate(Hamil, stat=ierr)
-        deallocate(Lab, stat=ierr)
-
-        allocate(Hamil(LenHamil), stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error allocating Hamil.")
-        allocate(Lab(LenHamil), stat=ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error allocating Lab.")
-
-        Hamil = 0.0_dp
-        Lab = 0
-
-        call Detham(ndets, NEl, det_list, Hamil, Lab, nRow, .false., ICMax, LenHamil, tMC)
-
 #ifndef __CMPLX
-        end if
+            call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil)
 #endif
+        else
+            ! just to make sure we pass valid objects
+            allocate(Lab(1),stat=ierr)
+            allocate(Hamil(1),stat=ierr)
+            call Detham(ndets, nel, det_list, Hamil, Lab, nRow, .true., ICMax, LenHamil, tMC)
+
+            deallocate(Hamil, stat=ierr)
+            deallocate(Lab, stat=ierr)
+
+            allocate(Hamil(LenHamil), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating Hamil.")
+            allocate(Lab(LenHamil), stat=ierr)
+            if (ierr /= 0) call stop_all(t_r, "Error allocating Lab.")
+
+            Hamil = 0.0_dp
+            Lab = 0
+
+            call Detham(ndets, NEl, det_list, Hamil, Lab, nRow, .false., ICMax, LenHamil, tMC)
+
+        end if
 
         nkry1 = nkry+1
         nblock = min(nexcit, nblk)

@@ -11,12 +11,11 @@
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
 
-#ifndef __CMPLX
       use guga_matrixElements, only: calcDiagMatEleGuga_nI
       use guga_excitations, only: calc_guga_matrix_element
       use guga_data, only: excitationInformation
       use guga_bitrepops, only: init_csf_information
-#endif
+
       use lattice_mod, only: get_helement_lattice
 
       use util_mod, only: near_zero
@@ -33,9 +32,7 @@
       integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
       HElement_t(dp) totSUM
       type(timer), save :: proc_timer
-#ifndef __CMPLX
       type(excitationInformation) :: excitInfo
-#endif
       integer :: ic=0
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==
@@ -80,9 +77,8 @@ C..   Now we need to match up any two determinants
          ! try to use the new guga matrix element calc here.. for this
          ! misuse the current_stepvector quantities to init this only
          ! once for nI
-#ifndef __CMPLX
          if (tGUGA) call init_csf_information(ilutI)
-#endif
+
          DO KJ=IBEGJ,IMAXJ,STEP
             call EncodeBitDet(NMRKS(:,KJ), ilutJ)
             if (tHPHF) then
@@ -93,7 +89,6 @@ C..   Now we need to match up any two determinants
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
 
-#ifndef __CMPLX
             else if (tGUGA) then
               if (KI == KJ) then
                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
@@ -102,7 +97,6 @@ C..   Now we need to match up any two determinants
                   call calc_guga_matrix_element(ilutI,ilutJ,excitInfo,
      &              totsum, .true., 1)
               end if
-#endif
 
             else if (t_lattice_model) then
               if (KI == KJ) then

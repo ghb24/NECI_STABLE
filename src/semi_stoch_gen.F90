@@ -19,11 +19,11 @@ module semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
     use timing_neci
-#ifndef __CMPLX
+
     use guga_excitations, only: actHamiltonian
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: tGUGACore
-#endif
+
     use SystemData, only: t_non_hermitian
     implicit none
 
@@ -71,11 +71,6 @@ contains
         if (tLoadBalanceBlocks .and. .not. tFillingStochRDMOnFly) then
             call adjust_load_balance(iter_data_fciqmc)
         end if
-
-
-!#ifdef __CMPLX
-!        call stop_all(t_r, "Semi-stochastic has not been implemented with complex coefficients.")
-!#endif
 
         call MPIBarrier(ierr, tTimeIn=.false.)
 
@@ -311,7 +306,7 @@ contains
             !else if (core_in%tHeisenbergFCI) then
             !    call generate_heisenberg_fci(SpawnedParts, space_size)
             end if
-#ifndef __CMPLX
+
         else if (tGUGACore) then
             if (core_in%tDoubles) then
                 call generate_sing_doub_guga(SpawnedParts, space_size, core_in%tHFConn)
@@ -331,10 +326,7 @@ contains
                               &currently implemented.")
             else if (core_in%tMP1) then
                 call generate_using_mp1_criterion(core_in%mp1_ndets, SpawnedParts, space_size)
-!                 call stop_all("init_semi_stochastic", "The use of the MP1 wave function criterion &
-!                               &with CSFs is not implemented.")
             end if
-#endif
         else if (tCSFCore) then
             if (core_in%tDoubles) then
                 call generate_sing_doub_csfs(SpawnedParts, space_size)
@@ -398,7 +390,6 @@ contains
 
     end subroutine generate_space
 
-#ifndef __CMPLX
     subroutine generate_sing_doub_guga(ilut_list, space_size, only_keep_conn)
 
         ! routine to generate the singles and doubles core space from the
@@ -442,7 +433,6 @@ contains
 
 
     end subroutine generate_sing_doub_guga
-#endif
 
     subroutine add_state_to_space(ilut, ilut_list, space_size, nI_in)
 
@@ -1345,10 +1335,8 @@ contains
         integer :: pos, i
         real(dp) :: amp, energy_contrib
         logical :: tAllExcitFound, tParity
-#ifndef __CMPLX
         integer(n_int), pointer :: excitations(:,:)
         integer(n_int) :: ilutG(0:nifguga)
-#endif
 
         allocate(amp_list(target_ndets))
         allocate(temp_list(0:NIfD, target_ndets))
@@ -1386,7 +1374,6 @@ contains
         ! Loop through all connections to the HF determinant and keep the required number which
         ! have the largest MP1 weights.
 
-#ifndef __CMPLX
         if (tGUGA) then
             ! in guga, create all excitations at once and then check for the
             ! MP1 amplitude in an additional loop
@@ -1418,47 +1405,44 @@ contains
             end do
 
         else
-#endif
-        do while (.true.)
-            call GenExcitations3(HFDet, ilutHF, nI, ex_flag, ex, tParity, tAllExcitFound, .false.)
-            ! When no more basis functions are found, this value is returned and the loop is exited.
-            if (tAllExcitFound) exit
+            do while (.true.)
+                call GenExcitations3(HFDet, ilutHF, nI, ex_flag, ex, tParity, tAllExcitFound, .false.)
+                ! When no more basis functions are found, this value is returned and the loop is exited.
+                if (tAllExcitFound) exit
 
-            call EncodeBitDet(nI, ilut)
-            if (tHPHF) then
-                if (.not. IsAllowedHPHF(ilut(0:NIfD))) cycle
-            end if
-            ndets = ndets + 1
-
-            ! If a determinant is returned (if we did not find the final one last time.)
-            if (.not. tAllExcitFound) then
-                call return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
-
-                pos = binary_search_real(amp_list, -abs(amp), 1.0e-8_dp)
-
-                ! If pos is less then there isn't another determinant with the same amplitude
-                ! (which will be common), but -pos specifies where in the list it should be
-                ! inserted to keep amp_list in order.
-                if (pos < 0) pos = -pos
-
-                if (pos > 0 .and. pos <= target_ndets) then
-                    ! Shuffle all less significant determinants down one slot, and throw away the
-                    ! previous least significant determinant.
-                    temp_list(0:NIfD, pos+1:target_ndets) = temp_list(0:NIfD, pos:target_ndets-1)
-                    amp_list(pos+1:target_ndets) = amp_list(pos:target_ndets-1)
-
-                    ! Add in the new ilut and amplitude in the correct position.
-                    temp_list(0:NIfD, pos) = ilut(0:NIfD)
-                    ! Store the negative absolute value, because the binary search sorts from
-                    ! lowest (most negative) to highest.
-                    amp_list(pos) = -abs(amp)
+                call EncodeBitDet(nI, ilut)
+                if (tHPHF) then
+                    if (.not. IsAllowedHPHF(ilut(0:NIfD))) cycle
                 end if
+                ndets = ndets + 1
 
-            end if
-        end do
-#ifndef __CMPLX
+                ! If a determinant is returned (if we did not find the final one last time.)
+                if (.not. tAllExcitFound) then
+                    call return_mp1_amp_and_mp2_energy(nI, ilut, ex, tParity, amp, energy_contrib)
+
+                    pos = binary_search_real(amp_list, -abs(amp), 1.0e-8_dp)
+
+                    ! If pos is less then there isn't another determinant with the same amplitude
+                    ! (which will be common), but -pos specifies where in the list it should be
+                    ! inserted to keep amp_list in order.
+                    if (pos < 0) pos = -pos
+
+                    if (pos > 0 .and. pos <= target_ndets) then
+                        ! Shuffle all less significant determinants down one slot, and throw away the
+                        ! previous least significant determinant.
+                        temp_list(0:NIfD, pos+1:target_ndets) = temp_list(0:NIfD, pos:target_ndets-1)
+                        amp_list(pos+1:target_ndets) = amp_list(pos:target_ndets-1)
+
+                        ! Add in the new ilut and amplitude in the correct position.
+                        temp_list(0:NIfD, pos) = ilut(0:NIfD)
+                        ! Store the negative absolute value, because the binary search sorts from
+                        ! lowest (most negative) to highest.
+                        amp_list(pos) = -abs(amp)
+                    end if
+
+                end if
+            end do
         endif
-#endif
 
         call warning_neci("generate_using_mp1_criterion", &
             "Note that there are less connections to the Hartree-Fock than the requested &

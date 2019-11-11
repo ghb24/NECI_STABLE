@@ -69,11 +69,11 @@ module FciMCParMod
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
 
-    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, any_run_is_initiator
 
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet
-    use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag, &
-         all_runs_are_initiator
+
+    use bit_reps, only: set_flag, clr_flag, any_run_is_initiator, &
+                        all_runs_are_initiator
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
@@ -108,12 +108,11 @@ module FciMCParMod
 
     use excit_gen_5, only: gen_excit_4ind_weighted2
 
-#ifndef __CMPLX
     use guga_testsuite, only: run_test_excit_gen_det, runTestsGUGA
     use guga_excitations, only: deallocate_projE_list, generate_excitation_guga
     use guga_bitrepops, only: init_csf_information
     use tJ_model, only: init_guga_heisenberg_model, init_guga_tj_model
-#endif
+
     use real_time_data, only: t_prepare_real_time, n_real_time_copies, &
                               cnt_real_time_copies
 
@@ -245,18 +244,14 @@ module FciMCParMod
         end if
         if (t_tJ_model) then
             if (tGUGA) then
-#ifndef __CMPLX
                 call init_guga_tj_model()
-#endif
             else
                 call init_tJ_model()
             end if
         end if
         if (t_heisenberg_model) then
             if (tGUGA) then
-#ifndef __CMPLX
                 call init_guga_heisenberg_model()
-#endif
             else
                 call init_heisenberg_model()
             end if
@@ -285,7 +280,6 @@ module FciMCParMod
         ! helpful to do it here.
         call population_check()
 
-#ifndef __CMPLX
           ! call guga test routine here, so everything is correctly set up,
           ! or atleast should be. only temporarily here.
           if (tGUGA) then
@@ -293,7 +287,6 @@ module FciMCParMod
               if (t_guga_unit_tests) call runTestsGUGA()
 
           end if
-#endif
 
 #ifndef __CMPLX
          if ((tGen_4ind_2 .or. tGen_4ind_weighted .or. tLatticeGens) .and. t_test_excit_gen) then
@@ -834,11 +827,10 @@ module FciMCParMod
             call deallocate_histograms()
         end if
 
-#ifndef __CMPLX
         if (tGUGA) then
             if (.not. t_guga_mat_eles) call deallocate_projE_list()
         end if
-#endif
+
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
             call print_cc_amplitudes()
         end if
@@ -1405,9 +1397,7 @@ module FciMCParMod
             ! the csf_information out here, so it can be used in the
             ! new way to calculate the reference energy and then the flag
             ! does not have to be checked each time we loop over the walkers..
-#ifndef __CMPLX
             if (tGUGA) call init_csf_information(CurrentDets(0:nifd,j))
-#endif
 
             ! Sum in any energy contribution from the determinant, including
             ! other parameters, such as excitlevel info.
@@ -1454,7 +1444,6 @@ module FciMCParMod
 
             ! try a mixed excitation scheme for guga, where we only do a full
             ! excitation for initiators and the crude one for non-inits
-#ifndef __CMPLX
             if (tGen_guga_mixed) then
                 if (t_guga_mixed_init) then
                     flag_mixed = any_run_is_initiator(CurrentDets(:,j))
@@ -1480,28 +1469,20 @@ module FciMCParMod
                             generate_excitation => gen_excit_k_space_hub
                         end if
                     end if
-
                 end if
             end if
 
             if (t_crude_exchange_noninits .or. t_approx_exchange_noninits) then
-
                 is_init_guga = any_run_is_initiator(CurrentDets(:,j))
-
             end if
 
             if (t_trunc_guga_pgen_noninits) then
-
                 is_init_guga = any_run_is_initiator(CurrentDets(:,j))
-
             end if
 
             if (t_guga_back_spawn) then
-
                 is_init_guga = any_run_is_initiator(CurrentDets(:,j))
-
             end if
-#endif
 
             do part_type = 1, lenof_sign
 
@@ -1829,61 +1810,7 @@ module FciMCParMod
 
     end subroutine PerformFCIMCycPar
 
-    subroutine test_routine()
 
-        integer(n_int) :: list_1(0:NIfTot, 10)
-        integer(n_int) :: list_2(0:NIfTot, 12)
-        integer(n_int) :: list_out(0:NIfTot, 11)
-
-        integer :: i
-        integer :: ndets_out
-        integer(n_int) :: dets_1(6), dets_2(6)
-        real(dp) :: signs_1(6), signs_2(6)
-        real(dp) :: real_sign(lenof_sign)
-
-        dets_1 =  (/28,   47,  1,   23,   32,  57/)
-        signs_1 = (/-1.0_dp, 2.0_dp, 1.3_dp, 4.0_dp, 1.0_dp, 7.0_dp/)
-
-        dets_2 =  (/47,  23,  32,  38,  57,  63/)
-        signs_2 = (/7.0_dp, 4.0_dp, 1.0_dp, 2.0_dp, 1.2_dp, 2.4_dp/)
-
-        do i = 1, 6
-            list_1(0,i) = dets_1(i)
-            real_sign = signs_1(i)
-            call encode_sign(list_1(:,i), real_sign)
-            list_1(3,i) = 0
-            if (i == 1 .or. i == 2) call set_flag(list_1(:,i), flag_deterministic)
-        end do
-
-        do i = 1, 6
-            list_2(0,i) = dets_2(i)
-            real_sign = signs_2(i)
-            call encode_sign(list_2(:,i), real_sign)
-            list_2(3,i) = 0
-            if (i == 1) call set_flag(list_2(:,i), flag_deterministic)
-        end do
-
-        write(6,*) "List 1:"
-        do i = 1, 6
-            call extract_sign(list_1(:,i), real_sign)
-            write(6,*) i, list_1(0,i), real_sign, list_1(3,i)
-        end do
-
-        write(6,*) "List 2:"
-        do i = 1, 6
-            call extract_sign(list_2(:,i), real_sign)
-            write(6,*) i, list_2(0,i), real_sign, list_2(3,i)
-        end do
-
-        call add_ilut_lists(6, 6, .false., list_1, list_2, list_out, ndets_out)
-
-        write(6,*) "Summed list:"
-        do i = 1, ndets_out
-            call extract_sign(list_out(:,i), real_sign)
-            write(6,*) i, list_out(0,i), real_sign, list_out(3,i)
-        end do
-
-    end subroutine test_routine
 
 END MODULE FciMCParMod
 

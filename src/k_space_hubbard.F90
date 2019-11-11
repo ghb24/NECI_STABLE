@@ -87,13 +87,11 @@ module k_space_hubbard
 
     use unit_test_helpers, only: print_matrix
 
-#ifndef __CMPLX
     use guga_excitations, only: generate_excitation_guga, generate_excitation_guga_crude, &
                                 calc_guga_matrix_element, global_excitinfo, print_excitInfo
     use guga_bitRepOps, only: convert_ilut_toGUGA, init_csf_information, &
                               isProperCSF_ilut
     use guga_data, only: excitationInformation, tNewDet
-#endif
 
     implicit none
 
@@ -422,7 +420,6 @@ contains
             generate_excitation => gen_excit_uniform_k_space_hub
         end if
 
-#ifndef __CMPLX
         if (tGUGA) then
             if (tgen_guga_crude) then
                 generate_excitation => gen_excit_k_space_hub
@@ -430,7 +427,6 @@ contains
                 generate_excitation => generate_excitation_guga
             end if
         end if
-#endif
 
         tau_opt = determine_optimal_time_step()
 
@@ -566,10 +562,8 @@ contains
         real(dp) :: p_elec, p_orb
         integer :: elecs(2), orbs(2), src(2)
         logical :: isvaliddet
-#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
-#endif
 
         unused_variable(exFlag)
         unused_variable(store)
@@ -605,7 +599,6 @@ contains
         ! already modified in the orbital picker..
         pgen = p_elec * p_orb
 
-#ifndef __CMPLX
         ! try implementing the crude guga excitation approximation via the
         ! determinant excitation generator
         if (tGen_guga_crude) then
@@ -641,7 +634,6 @@ contains
 
             return
         end if
-#endif
 
 #ifdef __DEBUG
         if (.not. isvaliddet(nI,nel)) then
@@ -654,7 +646,6 @@ contains
         end if
 #endif
 
-!         if (abs(pgen -0.5) > 1e-3) print *, "pgen: ", pgen
 
     end subroutine gen_excit_k_space_hub
 
@@ -2863,11 +2854,11 @@ contains
                 if (same_spin(ex(1,1),ex(2,1))) then
 
                     k_vec_a = lat%subtract_k_vec(G1(ex(1,1))%k, G1(ex(2,1))%k)
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1,2))%k, G1(ex(2,2))%k)
+                    k_vec_b = lat%subtract_k_vec(G1(ex(1,2))%k, G1(ex(2,2))%k)
 
                 else
                     k_vec_a = lat%subtract_k_vec(G1(ex(1,1))%k, G1(ex(2,2))%k)
-                    k_vec_a = lat%subtract_k_vec(G1(ex(1,2))%k, G1(ex(2,1))%k)
+                    k_vec_b = lat%subtract_k_vec(G1(ex(1,2))%k, G1(ex(2,1))%k)
 
                 end if
 

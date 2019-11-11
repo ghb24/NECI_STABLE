@@ -42,6 +42,7 @@ contains
         else
             num_csf_dets = ncsf
         endif
+
     end function
 
     function CSFGetHelement (nI, nJ) result(hel_ret)
@@ -1700,7 +1701,7 @@ contains
                 else
                     call extract_sign (iluts(:,i), sgn)
 #ifdef __CMPLX
-                    c = abs(cmplx(sgn(1), sgn(2)))
+                    c = abs(cmplx(sgn(1), sgn(2), kind = dp))
 #else
                     c = abs(sgn(1))
 #endif

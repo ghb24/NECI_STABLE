@@ -98,17 +98,11 @@ contains
         enough_doub = .false.
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
-#ifndef __CMPLX
             if (tGUGA) then
                 print *, "Warning: FindMaxTauDoubs misused for GUGA!"
                 print *, "still need a specific implementation for that!"
-                call FindMaxTauDoubs()
-            else
-#endif
-                call FindMaxTauDoubs()
-#ifndef __CMPLX
             end if
-#endif
+            call FindMaxTauDoubs()
         end if
 
         write(6,*) 'Using initial time-step: ', tau

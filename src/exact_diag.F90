@@ -103,19 +103,15 @@ contains
         use Determinants, only: get_helement
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         use SystemData, only: tHPHF, nel
-#ifndef __CMPLX
         use guga_excitations, only: calc_guga_matrix_element
         use guga_data, only: excitationInformation
-#endif
         integer(n_int), intent(in) :: ilut_list(0:,:)
-        real(dp), intent(inout), allocatable :: local_hamil(:,:)
+        HElement_t(dp), intent(inout), allocatable :: local_hamil(:,:)
 
         integer :: ndets, i, j, ierr
         integer :: nI(nel), nJ(nel)
         character(*), parameter :: t_r = "calculate_full_hamiltonian"
-#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
-#endif
 
         ! Initial checks that arrays passed in are consistent.
         ndets = size(ilut_list, 2)
@@ -146,11 +142,9 @@ contains
                 else
                     if (tHPHF) then
                         local_hamil(i,j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
-#ifndef __CMPLX
                     else if (tGUGA) then
                         call calc_guga_matrix_element(ilut_list(:,i),ilut_list(:,j), &
                             excitInfo, local_hamil(i,j), .true., 2)
-#endif
                     else
                         local_hamil(i,j) = get_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
                     end if

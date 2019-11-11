@@ -68,6 +68,7 @@ contains
         if (tGUGA .and. (space_in%tCAS .or. space_in%tRAS .or. space_in%tFCI)) then
             call stop_all(t_r, "non-supported trial space for GUGA!")
         end if
+
         write(6,*) " Initialising wavefunctions by the Lanczos algorithm"
 
         ! Choose the correct generating routine.
@@ -76,15 +77,11 @@ contains
                                     space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) then
-#ifndef __CMPLX
-        if (tGUGA) then
-            call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
-        else
-            call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
-        end if
-#else
-            call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
-#endif
+            if (tGUGA) then
+                call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
+            else
+                call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+            end if
         end if
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
         if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
@@ -250,10 +247,8 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
         use lanczos_wrapper, only: frsblk_wrapper
-#ifndef __CMPLX
         use guga_excitations, only: calc_guga_matrix_element
         use guga_data, only: excitationInformation
-#endif
 
         type(subspace_in) :: space_in
         integer, intent(in) :: nexcit
@@ -277,9 +272,7 @@ contains
         HElement_t(dp), allocatable :: work(:)
         real(dp), allocatable :: evals_all(:), rwork(:)
         character(len=*), parameter :: t_r = "calc_trial_states_direct"
-#ifndef __CMPLX
         type(excitationInformation) :: excitInfo
-#endif
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int
@@ -389,6 +382,9 @@ contains
                 if (tHPHF) then
                    H_tmp(i,j) = hphf_off_diag_helement(det_list(:,i),det_list(:,j),ilut_list(:,i), &
                                 ilut_list(:,j))
+                else if (tGUGA) then
+                    call calc_guga_matrix_element(ilut_list(:,i), &
+                            ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 2)
                 else
                    H_tmp(i,j) = get_helement(det_list(:,i),det_list(:,j),ilut_list(:,i),ilut_list(:,j))
                 end if
@@ -543,8 +539,6 @@ contains
         deallocate(evecs_transpose)
 
     end subroutine calc_trial_states_direct
-
-
 
 
     subroutine calc_trial_states_qmc(space_in, nexcit, qmc_iluts, qmc_ht, paired_replicas, ndets_this_proc, &

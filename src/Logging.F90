@@ -30,10 +30,8 @@ MODULE Logging
                            t_pop_symmetry_states, symmetry_states, &
                            symmetry_weights, symmetry_states_ilut
 
-#ifndef __CMPLX
     use guga_rdm, only: t_test_sym_fill, t_direct_exchange, t_more_sym, &
                         t_mimic_stochastic
-#endif
 
     IMPLICIT NONE
 
@@ -232,7 +230,6 @@ MODULE Logging
             ! matrix element vs. pgen ratios
             t_print_frq_histograms = .true.
 
-#ifndef __CMPLX
         case ("TEST-SYM-FILL")
             t_test_sym_fill = .true.
 
@@ -245,7 +242,6 @@ MODULE Logging
 
         case ("MIMIC-STOCHASTIC")
             t_mimic_stochastic = .true.
-#endif
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)

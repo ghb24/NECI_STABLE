@@ -22,10 +22,8 @@ MODULE Determinants
     use bit_reps
     use MemoryManager, only: TagIntType
 
-#ifndef __CMPLX
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
     use guga_data, only: excitationInformation
-#endif
 
     use lattice_mod, only: get_helement_lattice
     use util_mod, only: NECI_ICOPY
@@ -99,7 +97,7 @@ contains
                &wrong Ms value. Change DEFINEDET or &
                &SPIN-RESTRICT")
        end if
-#ifndef __CMPLX
+
         if (tGUGA) then
             ms = abs(ms)
             if (ms < 0 .or. ms /= STOT) then
@@ -110,7 +108,7 @@ contains
                     &S quantum numnber!")
             end if
         end if
-#endif
+
        tRef_Not_HF = .true.
     else
        if((sum(nOccOrbs) + sum(nClosedOrbs)) .eq. nel) then
@@ -500,7 +498,6 @@ contains
 
         integer :: temp_ic
         integer(n_int) :: t_i(0:NIfTot), t_j(0:NIfTot)
-#ifndef __CMPLX
         ! GUGA implementation:
         type(excitationInformation) :: excitInfo
 
@@ -512,7 +509,6 @@ contains
             end if
             return
         end if
-#endif
 
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
@@ -569,7 +565,6 @@ contains
         integer :: ex(2,2), IC
         integer(kind=n_int) :: ilut(0:NIfTot,2)
         integer(n_int) :: t_i(0:niftot), t_j(0:niftot)
-#ifndef __CMPLX
         ! GUGA implementation:
         type(excitationInformation) :: excitInfo
 
@@ -582,7 +577,6 @@ contains
             end if
             return
         end if
-#endif
 
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
@@ -671,7 +665,6 @@ contains
             return
         end if
 
-#ifndef __CMPLX
         ! GUGA implementation:
         if (tGUGA) then
             if (all(nI == nJ)) then
@@ -680,8 +673,6 @@ contains
             end if
 
         end if
-#endif
-
 
         ! If we are using CSFs, then call the csf routine.
         ! TODO: Passing through of ExcitMat to CSFGetHelement
@@ -731,10 +722,13 @@ contains
         ! Eliminate compiler warnings
         integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
         character(*), parameter :: this_routine = "get_helement_det_only"
-        iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
+
+        unused_variable(ilutJ)
+        unused_variable(ilutI)
+        unused_variable(nJ)
+        unused_variable(helgen)
 
         ! GUGA implementation:
-#ifndef __CMPLX
         if (tGUGA) then
             if (all(nI == nJ)) then
                 hel =  calcDiagMatEleGUGA_nI(nI)
@@ -743,7 +737,6 @@ contains
             end if
             return
         end if
-#endif
 
 
         ! switch to lattice matrix element:

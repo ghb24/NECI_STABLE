@@ -1,4 +1,3 @@
-#ifndef __CMPLX
 #include "macros.h"
 
 module guga_tausearch
@@ -275,7 +274,7 @@ contains
             ! and get the pgen
             pgen = calc_pgen_mol_guga(nHF, ilutHF, nJ, ilutJ, excitInfo)
 
-            if (hel > EPS) then
+            if (abs(hel) > EPS) then
                 pGenFac = pgen * nAddFac / hel
 
                 if (tau > pGenFac .and. pGenFac > EPS) then
@@ -1132,4 +1131,3 @@ contains
     end subroutine update_hist_tau_guga_nosym
 
 end module
-#endif

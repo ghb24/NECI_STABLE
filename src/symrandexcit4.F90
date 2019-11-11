@@ -668,7 +668,6 @@ contains
         cc_j = get_paired_cc_ind (cc_i, sym_product, sum_ml, iSpn)
         pgen = pgen * store%ClassCountUnocc(cc_i) &
                     * store%ClassCountUnocc(cc_j) / cc_tot
-!        pgen = pgen * OrbClassCount(cc_i) * OrbClassCount(cc_j) / cc_tot
 
         ! Select the two orbitals
         orbs(1) = select_orb (ilutI, src, cc_i, -1, int_cpt(1), cum_sum(1))
@@ -1757,7 +1756,8 @@ contains
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
         integer(n_int), pointer :: det_list(:,:)
-        real(dp), allocatable :: contrib_list(:), pgen_list(:), matEle_list(:)
+        real(dp), allocatable :: contrib_list(:), pgen_list(:)
+        HElement_t(dp), allocatable ::  matEle_list(:)
         logical, allocatable :: generated_list(:)
         logical :: found_all, par
         real(dp) :: contrib, pgen, sum_pgens, sum_helement
@@ -1774,35 +1774,11 @@ contains
         call init_excit_gen_store (store)
         store%tFilled = .false.
 
-!         ! How many connected determinants are we expecting?
-!         call CountExcitations3 (src_det, 3, nsing, ndoub)
-!         nexcit = nsing + ndoub
-!         allocate(det_list(0:NIfTot, nexcit))
-!
-!         ! Loop through all of the possible excitations
-!         ndet = 0
-!         found_all = .false.
-!         ex = 0
-!         flag = 3
         write(6,'("*****************************************")')
         write(6,'("Enumerating excitations")')
         write(6,'("Starting from: ")', advance='no')
         call write_det (6, src_det, .true.)
         write(6,*) 'Expecting ', nexcit, "excitations"
-!         call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
-!                               .false.)
-!         do while (.not. found_all)
-!             ndet = ndet + 1
-!             call EncodeBitDet (det, det_list(:,ndet))
-!
-!             call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
-!                                   found_all, .false.)
-!         end do
-!         if (ndet /= nexcit) &
-!             call stop_all(this_routine,"Incorrect number of excitations found")
-!
-!         ! Sort the dets, so they are easy to find by binary searching
-!         call sort(det_list, ilut_lt, ilut_gt)
 
         ! Lists to keep track of things
         allocate(generated_list(nexcit))
@@ -1820,9 +1796,6 @@ contains
         do i = 1, iterations
             if (mod(i, 10000) == 0) &
                 write(6,*) i, '/', iterations, ' - ', contrib / (real(nexcit,dp)*i)
-
-            !pSingles = 0.0
-            !pDoubles = 1.0
 
             call gen_excit_4ind_weighted (src_det, ilut, det, tgt_ilut, 3, &
                                           ic, ex, par, pgen, helgen, store)
@@ -1894,7 +1867,6 @@ contains
                 call writebitdet(6, det_list(:,i), .false.)
                 write(6,*) contrib_list(i) / (iterations - 1.0_dp)
             end do
-!             call stop_all(this_routine, "Insufficiently uniform generation")
         end if
 
         sum_pgens = sum(pgen_list)
@@ -2171,7 +2143,7 @@ contains
                    nexcit, i, cnt
         type(excit_gen_store_type) :: store
         logical :: found_all, par
-        real(dp), allocatable :: hel_list(:)
+        HElement_t(dp), allocatable :: hel_list(:)
         integer(n_int), pointer :: det_list(:,:)
         logical, allocatable :: t_non_zero(:)
 
@@ -2193,11 +2165,6 @@ contains
         found_all = .false.
         ex = 0
         flag = 3
-!         write(6,'("*****************************************")')
-!         write(6,'("Enumerating excitations")')
-!         write(6,'("Starting from: ")', advance='no')
-!         call write_det (6, src_det, .true.)
-!         write(6,*) 'Expecting ', nexcit, "excitations"
         call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
                               .false.)
 

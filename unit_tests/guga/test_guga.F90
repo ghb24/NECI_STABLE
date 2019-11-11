@@ -31,13 +31,15 @@ program test_guga
     use Integrals_neci, only: get_umat_el_normal
     use procedure_pointers, only: get_umat_el
     use read_fci, only: initfromfcid, fcidump_name, readfciint
-    use UMatCache, only: tTransGTID, GetUMatSize
+    use UMatCache, only: tTransGTID, GetUMatSize, tumat2d, umat2d, tdeferred_umat2d
     use Parallel_neci, only: MPIInit
     use Calc, only: SetCalcDefaults, CalcInit
     use System, only: SetSysDefaults, SysInit
     use OneEInts, only: TMat2d
     use shared_memory_mpi, only: shared_allocate_mpi
     use IntegralsData, only: umat_win, umat
+    use DetCalc, only: DetCalcInit
+    use unit_test_helper_excitgen, only: generate_uniform_integrals
 
     implicit none
 
@@ -79,7 +81,6 @@ contains
         call run_test_case(test_bitChecks, "test_bitChecks")
         call run_test_case(test_identify_excitation, "test_identify_excitation")
         call run_test_case(test_identify_excitation_and_matrix_element, "test_identify_excitation_and_matrix_element")
-        call run_test_case(check_determinants, "check_determinants")
 
         !TODO maybe run the excit-gen test also!
         !call run_test_excit_gen_guga_S0
@@ -104,6 +105,10 @@ contains
         t_full_guga_tests = .true.
 
         tGen_sym_guga_mol = .true.
+        tgen_guga_weighted = .true.
+        tdeferred_umat2d = .true.
+        tumat2d = .false.
+
         t_guga_mat_eles = .true.
 
         call init_guga()
@@ -139,6 +144,7 @@ contains
         ! required: set up the spin info
 
         call DetInit()
+        call DetCalcInit()
         ! call SpinOrbSymSetup()
 
         call DetPreFreezeInit()
@@ -146,43 +152,6 @@ contains
         call CalcInit()
 
     end subroutine init_guga_testsuite
-
-    subroutine generate_uniform_integrals
-
-        integer :: i, j, k, l,iunit
-
-        iunit = get_free_unit()
-
-        open(iunit,file="FCIDUMP")
-        write(iunit,*) "&FCI NORB=",nSpatOrbs,",NELEC=",nel,"MS2=",lms,","
-        write(iunit,"(A)",advance="no") "ORBSYM="
-        do i = 1, nSpatOrbs
-           write(iunit,"(A)",advance="no") "1,"
-        end do
-        write(iunit,*)
-        write(iunit,*) "ISYM=1,"
-        write(iunit,*) "&END"
-
-        do i = 1, nSpatOrbs
-            do j = 1, nSpatOrbs
-                do l = 1, nSpatOrbs
-                    do k = 1, nSpatOrbs
-                        write(iunit, *) 1.0, i, j, k, l
-                    end do
-                end do
-            end do
-        end do
-        do i = 1, nSpatOrbs
-            do j = i, nSpatOrbs
-                write(iunit,*) 1.0, i, j, 0, 0
-            end do
-        end do
-
-        write(iunit,*) 0.0, 0, 0, 0, 0
-
-        close(iunit)
-
-    end subroutine generate_uniform_integrals
 
 
     subroutine test_guga_bitRepOps
@@ -202,7 +171,6 @@ contains
         call run_test_case(test_calcStepVector, "test_calcStepVector")
         call run_test_case(test_getSpatialOccupation, "test_getSpatialOccupation")
         call run_test_case(test_calcOcc_vector_ilut, "test_calcOcc_vector_ilut")
-        call run_test_case(test_add_guga_lists, "test_add_ilut_lists")
 
         print *, "guga_bitRepOps tests passed!"
 
@@ -267,7 +235,6 @@ contains
         character(*), parameter :: this_routine = "test_guga_excitations_exact"
 
         print *, "testing module: guga_excitations:"
-        call  run_test_case(test_add_ilut_lists, "test_add_ilut_lists")
         call  run_test_case(test_calcRemainingSwitches, "test_calcRemainingSwitches")
         call  run_test_case(test_actHamiltonian, "test_actHamiltonian")
         call  run_test_case(test_calcOverlapRange, "test_calcOverlapRange")
@@ -435,7 +402,8 @@ contains
         integer(n_int), pointer :: ex(:,:), two_ex(:,:)
         integer :: nEx, i, nex_2, test_det(nel), j, ind
         logical :: valid
-        real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs), mat_ele, diff
+        real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs), diff
+        HElement_t(dp) :: mat_ele
 
          test_det = fdet
 
@@ -555,21 +523,6 @@ contains
 
     end subroutine test_identify_excitation_and_matrix_element
 
-    subroutine check_determinants
-        integer(n_int) :: ilut(0:nifguga)
-        integer :: det(nEl)
-
-        det = [1,2,3,4]
-        call EncodeBitDet_guga(det,ilut)
-
-        ! check which matrix elements get initialized
-        call write_bit_rep(6, ilut, .true.)
-
-        ! also do it directly with extract function
-        print *, extract_part_sign(ilut,1)
-
-
-    end subroutine check_determinants
 
     subroutine run_test_excit_gen_guga(nel_in, nbasis_in, stot_in)
         integer, intent(in) :: nel_in, nbasis_in, stot_in
@@ -1308,7 +1261,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut, n_guga_excit_gen)
 
-!         call stop_all(this_routine, "here")
 
 
     end subroutine run_test_excit_gen_guga_nEl_3_S_1
@@ -1396,7 +1348,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine,"for now")
 
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_6_S_2
 
@@ -1468,7 +1419,6 @@ contains
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
 
-!         call stop_all(this_routine,"for now")
 
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_6_S_4
 
@@ -1530,7 +1480,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine, "here")
 
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_4_S_2
 
@@ -1582,7 +1531,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine,"here")
 
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_5_S_1
 
@@ -1773,7 +1721,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-        call stop_all(this_routine,"here")
 
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_10_S_4
 
@@ -1850,7 +1797,6 @@ contains
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
 
-!         call stop_all(this_routine,"here")
 
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_10_S_0
 
@@ -1915,7 +1861,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine, "here")
 
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_5_S_3
 
@@ -1961,7 +1906,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine, "here")
 
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_7_S_3
 
@@ -2001,7 +1945,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine, "here")
 
     end subroutine run_test_excit_gen_guga_nOrb_9_nEl_7_S_1
 
@@ -2067,7 +2010,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine,"here")
 
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_7_S_3
 
@@ -2148,7 +2090,6 @@ contains
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
 
-!         call stop_all(this_routine, "here")
 
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_7_S_1
 
@@ -2225,7 +2166,6 @@ contains
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
 
-!         call stop_all(this_routine,"here")
 
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_3
 
@@ -2301,7 +2241,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine,"heer")
 
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_5_S_1
 
@@ -2366,7 +2305,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine, "now")
 
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_4_S_0
 
@@ -2508,7 +2446,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut,n_guga_excit_gen)
 
-!         call stop_all(this_routine, "here")
 
     end subroutine run_test_excit_gen_guga_nOrb_6_nEl_6_S_0
 
@@ -2569,7 +2506,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut, n_guga_excit_gen)
 
-!         call stop_all(this_routine, "here")
     end subroutine run_test_excit_gen_guga_nEl_6_S_0
 
 
@@ -2680,7 +2616,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut, n_guga_excit_gen)
 
-!         call stop_all(this_routine, "here")
 
 
     end subroutine run_test_excit_gen_guga_nEl_5_S_1
@@ -2744,7 +2679,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut, n_guga_excit_gen)
 
-!         call stop_all(this_routine, "here")
 
     end subroutine run_test_excit_gen_guga_nEl_2_S_0
 !
@@ -2834,7 +2768,6 @@ contains
         call EncodeBitDet(nI, ilut)
         call test_excit_gen_guga(ilut, n_guga_excit_gen)
 
-!         call stop_all (this_routine,"")
 
     end subroutine run_test_excit_gen_guga_S2
 
@@ -2991,7 +2924,7 @@ contains
         print *, "testing calcMixedContribution(ilut,t,start,ende):"
         ! 1212
         ! 1122
-        call assert_true(calcMixedContribution(ilut,t,1,4) .isclose. 0.0_dp)
+        call assert_true(calcMixedContribution(ilut,t,1,4) .isclose. h_cast(0.0_dp))
 
         currentB_ilut = calcB_vector_ilut(t)
         currentOcc_ilut = calcOcc_vector_ilut(t)
@@ -2999,7 +2932,7 @@ contains
         current_stepvector = calcStepVector(t)
         currentB_int = calcB_vector_int(t)
 
-        call assert_true(calcMixedContribution(t,ilut,1,4) .isclose. 0.0_dp)
+        call assert_true(calcMixedContribution(t,ilut,1,4) .isclose. h_cast(0.0_dp))
 
         print *, "calcMixedContribution tests passed!"
 
@@ -3597,7 +3530,6 @@ contains
         end if
         print *, "generate_excitation_guga tests passed!"
 
-!         call stop_all(this_routine,"for now")
 
     end subroutine test_generate_excitation_guga_double
 
@@ -4194,6 +4126,7 @@ contains
         ! 1212
         ! 3003
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [3,0,0,3]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4221,6 +4154,7 @@ contains
 
         call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [1,0,2,3]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4262,6 +4196,7 @@ contains
         ! 1212
         ! 0330
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [0,3,3,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4289,6 +4224,7 @@ contains
 
         call calcDoubleL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [1,3,2,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4332,6 +4268,7 @@ contains
 
         ! 1212
         ! 3030
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [3,0,3,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4357,6 +4294,7 @@ contains
 
         call calcDoubleR2L2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [1,0,3,2]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4403,6 +4341,7 @@ contains
         ! 1212
         ! 0303
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [0,3,0,3]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4431,6 +4370,7 @@ contains
 
         call calcDoubleL2R2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [0,1,2,3]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4471,6 +4411,7 @@ contains
 
         ! 1212
         ! 3300
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [3,3,0,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4485,6 +4426,7 @@ contains
 
         ! 1212
         ! 3300
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [3,3,0,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4511,6 +4453,7 @@ contains
 
         call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [1,3,2,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4524,6 +4467,7 @@ contains
 
         call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [1,3,2,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4565,6 +4509,7 @@ contains
 
         ! 1212
         ! 0033
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [0,0,3,3]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4579,6 +4524,7 @@ contains
         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
         ! 1212
         ! 0033
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [0,0,3,3]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4606,6 +4552,7 @@ contains
 
         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [1,0,3,2]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4619,6 +4566,7 @@ contains
 
         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(all(calcStepVector(ex) == [1,0,3,2]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -4650,7 +4598,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,4,2  )
 
-        call assert_true(excitInfo%typ == 17)
+        call assert_equals(17, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4661,8 +4609,9 @@ contains
         ! 3012
 
         ! since no switch in the overlap region happended this should be 0
+
         call assert_true(all(ex == 0_n_int))
-        call assert_true(pgen < EPS)
+        call assert_equals(0.0_dp, pgen)
 
         ! is there a valid possible?
         ! 1122
@@ -4679,28 +4628,31 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,4,2)
 
-        call assert_true(excitInfo%typ == 17)
+        call assert_equals(17, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         call calcFullStopR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen > EPS)
-        call assert_true(all(calcStepVector(ex) == [3,0,1,2]))
+        call assert_equals(calcStepVector(ex), [3,0,1,2], 4)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,3,2)
 
-        call assert_true(excitInfo%typ == 17)
+        call assert_equals(17, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         call calcFullStopR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
         call assert_true(pgen > EPS)
-        call assert_true(all(calcStepVector(ex) == [3,0,1,2]))
+        call assert_equals(calcStepVector(ex), [3,0,1,2], 4)
 
         print *, "calcFullStopR2L_stochastic tests passed!"
+
 
     end subroutine test_calcFullStopR2L_stochastic
 
@@ -4725,7 +4677,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
 
-        call assert_true(excitInfo%typ == 16 )
+        call assert_equals(16, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4736,7 +4688,7 @@ contains
         ! 0312
         ! no possible excitation
         call assert_true(all(ex == 0_n_int))
-        call assert_true(pgen < EPS)
+        call assert_equals(0.0_dp, pgen)
 
         ! also do a possible one..
 
@@ -4753,7 +4705,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
 
-        call assert_true(excitInfo%typ == 16 )
+        call assert_equals(16, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4762,19 +4714,23 @@ contains
         ! 1122
         ! 0312
 
+        call assert_true(compFlag)
+        call assert_true(excitInfo%valid)
         call assert_true(pgen > EPS)
-        call assert_true(all(calcStepVector(ex) == [0,3,1,2]))
+        call assert_equals(calcStepVector(ex), [0,3,1,2], 4)
 
-        excitInfo = excitationIdentifier(4,1,2,4 )
+        excitInfo = excitationIdentifier(4,1,2,4)
 
-        call assert_true(excitInfo%typ == 16 )
+        call assert_equals(16, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         call calcFullStopL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
+        call assert_true(excitInfo%valid)
         call assert_true(pgen > EPS)
-        call assert_true(all(calcStepVector(ex) == [0,3,1,2]))
+        call assert_equals(calcStepVector(ex), [0,3,1,2], 4)
 
         print *, "calcFullStopL2R_stochastic tests passed!"
 
@@ -4801,7 +4757,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,2,4,1)
 
-        call assert_true(excitInfo%typ == 21 )
+        call assert_equals(21, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4811,7 +4767,7 @@ contains
         ! also should not yield a valid excitation
         ! 1212
         ! 1023
-        call assert_true(pgen < EPS)
+        call assert_equals(0.0_dp, pgen)
         call assert_true(all(ex == 0_n_int))
 
         ! 1122
@@ -4828,26 +4784,30 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,4,1)
 
-        call assert_true(excitInfo%typ == 21 )
+        call assert_equals(21, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         call calcFullStartR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
+        call assert_true(excitInfo%valid)
         call assert_true(pgen > EPS)
-        call assert_true(all(calcStepVector(ex) == [1,2,0,3]))
+        call assert_equals(calcStepVector(ex), [1,2,0,3], 4)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2,3,4,2)
 
-        call assert_true(excitInfo%typ == 21 )
+        call assert_equals(21, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         call calcFullStartR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
+        call assert_true(compFlag)
+        call assert_true(excitInfo%valid)
         call assert_true(pgen > EPS)
-        call assert_true(all(calcStepVector(ex) == [1,2,0,3]))
+        call assert_equals(calcStepVector(ex), [1,2,0,3], 4)
 
         print *, "calcFullStartR2L_stochastic tests passed!"
 
@@ -4874,7 +4834,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,2,1 )
 
-        call assert_true(excitInfo%typ == 20)
+        call assert_equals(20, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -4883,7 +4843,7 @@ contains
 
         ! 1212
         ! 1320 -> normal single!
-        call assert_true(pgen < EPS)
+        call assert_equals(0.0_dp, pgen)
         call assert_true(all(ex == 0_n_int))
 
         ! 1122
@@ -4900,25 +4860,29 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,3,1 )
 
-        call assert_true(excitInfo%typ == 20)
+        call assert_equals(20, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         call calcFullStartL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        call assert_true(all(calcStepVector(ex) == [1,2,3,0]))
+        call assert_true(compFlag)
+        call assert_true(excitInfo%valid)
+        call assert_equals(calcStepVector(ex), [1,2,3,0],4)
         call assert_true(pgen > EPS)
 
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 2,4,3,2 )
 
-        call assert_true(excitInfo%typ == 20)
+        call assert_equals(20, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
         call calcFullStartL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
-        call assert_true(all(calcStepVector(ex) == [1,2,3,0]))
+        call assert_true(compFlag)
+        call assert_true(excitInfo%valid)
+        call assert_equals(calcStepVector(ex), [1,2,3,0],4)
         call assert_true(pgen > EPS)
 
         print *, "calcFullStartL2R_stochastic tests passed!"
@@ -5222,7 +5186,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,3)
 
-        call assert_true(excitInfo%typ == 7)
+        call assert_equals(7, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -5231,10 +5195,12 @@ contains
 
         ! 0330
         ! 1302
+        call assert_true(compFlag)
+        call assert_true(excitInfo%valid)
         call assert_true(all(calcStepVector(ex) == [1,3,0,2]))
-        call assert_true(pgen .isclose. 1.0_dp)
-        call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
-        call assert_true(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
+        call assert_equals(1.0_dp, pgen)
+        call assert_equals(0.0_dp, abs(extract_matrix_element(ex,2)))
+        call assert_equals(-Root2, extract_matrix_element(ex,1))
 
         ! 3003
         call EncodeBitDet_guga([1,2,7,8],ilut)
@@ -5247,7 +5213,7 @@ contains
 
         excitInfo = excitationIdentifier(3,1,3,4)
 
-        call assert_true(excitInfo%typ == 6)
+        call assert_equals(6, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -5255,10 +5221,12 @@ contains
 
         ! 3003
         ! 1032
+        call assert_true(compFlag)
+        call assert_true(excitInfo%valid)
         call assert_true(all(calcStepVector(ex) == [1,0,3,2]))
-        call assert_true(pgen .isclose. 1.0_dp)
-        call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
-        call assert_true(abs(extract_matrix_element(ex,1) - Root2) < 1.0e-10_dp)
+        call assert_equals(1.0_dp, pgen)
+        call assert_equals(0.0_dp, abs(extract_matrix_element(ex,2)))
+        call assert_equals(Root2, extract_matrix_element(ex,1),1e-10_dp)
 
         print *, "calcSingleOverlapMixedStochastic tests passed!"
 
@@ -5281,19 +5249,23 @@ contains
         currentOcc_int = calcOcc_vector_int(ilut)
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
+
         excitInfo = excitationIdentifier(4,1,4,3)
 
-        call assert_true(excitInfo%typ == 14)
+        call assert_equals(14, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStopLoweringStochastic(ilut, exInfo, ex, pgen):"
         call calcFullStopLoweringStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
         ! 3030
         ! 1023
-        call assert_true(all(calcStepVector(ex) == [1,0,2,3]))
-        call assert_true(pgen .isclose. 1.0_dp)
-        call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
-        call assert_true(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
+        call print_excitInfo(excitInfo)
+        call assert_true(compFlag)
+        call assert_true(excitInfo%valid)
+        call assert_equals(calcStepVector(ex), [1,0,2,3],4)
+        call assert_equals(1.0_dp, pgen)
+        call assert_equals(0.0_dp, abs(extract_matrix_element(ex,2)))
+        call assert_equals(-Root2, extract_matrix_element(ex,1))
 
         print *, "calcFullStopLoweringStochastic tests passed!"
 
@@ -5317,7 +5289,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,3,4)
 
-        call assert_true(excitInfo%typ == 15)
+        call assert_equals(15, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, "testing calcFullStopRaisingStochastic(ilut, exInfo, ex, pgen):"
@@ -5325,10 +5297,11 @@ contains
 
         ! 0303
         ! 1320
+        call assert_true(compFlag)
         call assert_true(all(calcStepVector(ex) == [1,3,2,0]))
-        call assert_true(pgen .isclose. 1.0_dp)
-        call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
-        call assert_true(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
+        call assert_equals(1.0_dp, pgen)
+        call assert_equals(0.0_dp, (extract_matrix_element(ex,2)))
+        call assert_equals(-Root2, extract_matrix_element(ex,1))
 
         print *, "calcFullStopRaisingStochastic tests passed!"
 
@@ -5370,6 +5343,7 @@ contains
         call calcFullStartLoweringStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
         ! 3030
         ! 0132
+        call assert_true(compFlag)
         call assert_true(all(calcStepVector(ex) == [0,1,3,2]))
         call assert_true(pgen .isclose. 1.0_dp)
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
@@ -5407,6 +5381,7 @@ contains
         ! only result is: pgen should be 1..
         ! 0033
         ! 3012
+        call assert_true(compFlag)
         call assert_true(all(calcStepVector(ex) == [3,0,1,2]))
         call assert_true(pgen .isclose. 1.0_dp)
         ! umat is also stored in there.. so i hope i get it right
@@ -5422,6 +5397,7 @@ contains
         call calcFullStartRaisingStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
         ! 0033
         ! 0312
+        call assert_true(compFlag)
         call assert_true(all(calcStepVector(ex) == [0,3,1,2]))
         call assert_true(pgen .isclose. 1.0_dp)
         ! umat is also stored in there.. so i hope i get it right
@@ -5632,10 +5608,12 @@ contains
         if (excitInfo%valid) then
             ! what can i test here?
             ! only lowerings possible..
+            call print_excitInfo(excitInfo)
             call assert_true(pgen > EPS)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
-            call assert_true(excitInfo%gen1 == -1 .and. excitInfo%gen2 == -1)
+            call assert_equals(-1, excitInfo%gen1)
+            call assert_equals(-1, excitInfo%gen2)
         end if
 
         call pickOrbitals_double(ilut, nI, excitInfo, pgen)
@@ -5643,10 +5621,12 @@ contains
         if (excitInfo%valid) then
             ! what can i test here?
             ! only lowerings possible..
+            call print_excitInfo(excitInfo)
             call assert_true(pgen > EPS)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
-            call assert_true(excitInfo%gen1 == -1 .and. excitInfo%gen2 == -1)
+            call assert_equals(-1, excitInfo%gen1)
+            call assert_equals(-1, excitInfo%gen2)
         end if
 
         nI = [5,6,7,8]
@@ -5668,7 +5648,8 @@ contains
             call assert_true(pgen > EPS)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
-            call assert_true(excitInfo%gen1 == 1 .and. excitInfo%gen2 == 1)
+            call assert_equals(1, excitInfo%gen1)
+            call assert_equals(1, excitInfo%gen2)
         end if
 
         call pickOrbitals_double(ilut, nI, excitInfo, pgen)
@@ -5680,7 +5661,8 @@ contains
             call assert_true(pgen > EPS)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
-            call assert_true(excitInfo%gen1 == 1 .and. excitInfo%gen2 == 1)
+            call assert_equals(1, excitInfo%gen1)
+            call assert_equals(1, excitInfo%gen2)
         end if
 
         nI = [1,4,5,8]
@@ -6172,6 +6154,8 @@ contains
         integer :: nEx
 
 
+        nel = 4
+
         print *, "testing actHamiltonian(ilut):"
         ! 3300:
         call EncodeBitDet_guga([1,2,3,4], ilut)
@@ -6179,49 +6163,49 @@ contains
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 13)
+        call assert_equals(13, nEx)
         ! 0330
         call EncodeBitDet_guga([3,4,5,6],ilut)
         call actHamiltonian(ilut,ex,nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 14)
+        call assert_equals(14, nEx)
          ! 0303
         call EncodeBitDet_guga([3,4,7,8],ilut)
         call actHamiltonian(ilut,ex,nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 14)
+        call assert_equals(14, nEx)
         ! 0033
         call EncodeBitDet_guga([5,6,7,8],ilut)
         call actHamiltonian(ilut,ex,nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 13)
+        call assert_equals(13, nEx)
        ! 1023
         call EncodeBitDet_guga([1,6,7,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 17)
+        call assert_equals(17, nEx)
        ! 3102
         call EncodeBitDet_guga([1,2,3,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 17)
+        call assert_equals(17, nEx)
        ! 3120
         call EncodeBitDet_guga([1,2,3,6], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 17)
+        call assert_equals(17, nEx)
 
         ! 3030
         call EncodeBitDet_guga([1,2,5,6], ilut)
@@ -6229,91 +6213,91 @@ contains
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 14)
+        call assert_equals(14, nEx)
         ! 3003:
         call EncodeBitDet_guga([1,2,7,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 14)
+        call assert_equals(14, nEx)
         ! 3012
         call EncodeBitDet_guga([1,2,5,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 16)
+        call assert_equals(16, nEx)
         ! 0312
         call EncodeBitDet_guga([3,4,5,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 16)
+        call assert_equals(16, nEx)
         ! 1230
         call EncodeBitDet_guga([1,4,5,6], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 16)
+        call assert_equals(16, nEx)
         ! 1203
         call EncodeBitDet_guga([1,4,7,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 16)
+        call assert_equals(16, nEx)
         ! 1320
         call EncodeBitDet_guga([1,3,4,6], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 17)
+        call assert_equals(17, nEx)
         ! 1302
         call EncodeBitDet_guga([1,3,4,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 17)
+        call assert_equals(17, nEx)
         ! 1032
         call EncodeBitDet_guga([1,5,6,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 17)
+        call assert_equals(17, nEx)
         ! 0132
         call EncodeBitDet_guga([3,5,6,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 17)
+        call assert_equals(17, nEx)
         ! 0123
         call EncodeBitDet_guga([3,6,7,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 17)
+        call assert_equals(17, nEx)
               ! 1122
         call EncodeBitDet_guga([1,3,6,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 12)
+        call assert_equals(12,nEx)
         ! 1212
         call EncodeBitDet_guga([1,4,5,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
         call write_det_guga(6,ilut)
         call write_guga_list(6,ex(:,1:nEx))
-        call assert_true(nEx == 18)
+        call assert_equals(18, nEx)
 
         print *, "actHamiltonian tests passed!"
 
@@ -6973,27 +6957,6 @@ contains
 
     end subroutine test_calcNonOverlapDouble
 
-    subroutine test_add_ilut_lists
-        character(*), parameter :: this_routine = "test_add_ilut_lists"
-        integer(n_int) :: ilutI(0:niftot,1), ilutJ(0:niftot,1), ilutOut(0:niftot,2)
-        integer :: nOut
-
-        call EncodeBitDet_guga([1,2,3,4],ilutI)
-        call EncodeBitDet_guga([3,4,7,8],ilutJ)
-
-        print *, "testing add_ilut_lists(n1, n2, sortFlag, ilut1, ilut2, ilutOut, nOut):"
-
-        call add_ilut_lists(1,1,.false.,ilutI, ilutJ, ilutOut, nOut)
-
-        call assert_true(nOut == 2)
-
-        call add_ilut_lists(1,1,.false.,ilutI, ilutI, ilutOut, nOut)
-
-        call assert_true(nOut == 1)
-
-        print *, "add_ilut_lists tests passed!"
-
-    end subroutine test_add_ilut_lists
 
     subroutine test_calcDoubleExcitation_withWeight
         character(*), parameter :: this_routine = "test_calcDoubleExcitation_withWeight"
@@ -7185,8 +7148,8 @@ contains
 
         print *, "testing: calcAllExcitations_single"
         call calcAllExcitations_single(ilut, 4, 1, ex, nEx)
-        call assert_true(abs(extract_matrix_element(ex(:,1),1) + Root2) < 1.0e-10_dp)
-        call assert_true(nEx == 1)
+        call assert_equals(-Root2, extract_matrix_element(ex(:,1),1))
+        call assert_equals(1, nEx)
 
         deallocate(ex)
 
@@ -7201,13 +7164,14 @@ contains
 
         call calcAllExcitations_single(ilut, 2, 4, ex, nEx)
 
-        call assert_true(nex == 1)
-        call assert_true(abs(extract_matrix_element(ex(:,1),1) + 1.0_dp) < 1.0e-10_dp)
+        call assert_equals(1, nex)
+        call assert_equals(-1.0_dp, extract_matrix_element(ex(:,1),1),1e-10_dp)
 
         ! 0123
         ! 0312
 
         print *, "calcAllExcitations_single tests passed!"
+
 
     end subroutine test_calcAllExcitations_single
 
@@ -7734,83 +7698,83 @@ contains
 
         ! 3120
         det = [1,2,3,6]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 3300
         det = [1,2,3,4]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        call assert_equals(h_cast(8.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 0330
         det = [3,4,5,6]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        call assert_equals(h_cast(8.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 0303
         det = [3,4,7,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        call assert_equals(h_cast(8.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 0033
         det = [5,6,7,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        call assert_equals(h_cast(8.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 1023
         det = [1,6,7,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 3102
         det = [1,2,3,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 3030
         det = [1,2,5,6]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        call assert_equals(h_cast(8.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 3003
         det = [1,2,7,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        call assert_equals(h_cast(8.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 3012
         det = [1,2,5,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 0312
         det = [3,4,5,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 1230
         det = [1,4,5,6]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 1203
         det = [1,4,7,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 1320
         det = [1,3,4,6]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 1302
         det = [1,3,4,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 1032
         det = [1,5,6,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 0132
         det = [3,5,6,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 0123
         det = [3,6,7,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        call assert_equals(h_cast(9.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 1122
         det = [1,3,6,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 10.0_dp)
+        call assert_equals(h_cast(10.0_dp), calcDiagMatEleGUGA_nI(det))
 
         ! 1212
         det = [1,4,5,8]
-        call assert_true(calcDiagMatEleGUGA_nI(det) .isclose. 10.0_dp)
+        call assert_equals(h_cast(10.0_dp), calcDiagMatEleGUGA_nI(det))
 
         print *, this_routine, " tests passed!"
 
@@ -7864,7 +7828,6 @@ contains
         call assert_true(all(calcB_vector_ilut(ilut) .isclose. [0.0_dp,1.0_dp,0.0_dp,0.0_dp]))
         print *, testFun, " tests passed!"
 
-        call write_bit_rep(6,ilut,.true.)
 
     end subroutine test_calcbvector
 

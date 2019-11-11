@@ -204,7 +204,6 @@ module fcimc_initialisation
 
     use constants
 
-#ifndef __CMPLX
     use guga_tausearch, only: init_tau_search_guga_nosym, log_spawn_magnitude_guga_nosym, &
                               update_tau_guga_nosym, init_hist_tau_search_guga_nosym, &
                               update_hist_tau_guga_nosym
@@ -216,7 +215,6 @@ module fcimc_initialisation
     use guga_excitations, only: generate_excitation_guga, create_projE_list, &
                                 actHamiltonian
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGUGA_nI
-#endif
 
     use real_time_data, only: t_real_time_fciqmc
 
@@ -469,7 +467,6 @@ contains
             HFDet_True = HFDet
         endif
 
-#ifndef __CMPLX
         ! for GUGA calculations also save the b vector of the reference det
         ! also initialize the persistently stored list of H|ref> to
         ! calculate the projected energy
@@ -501,7 +498,6 @@ contains
                 end do
             end if
         end if
-#endif
 
         if(tHPHF) then
             allocate(RefDetFlip(NEl, inum_runs), &
@@ -1302,9 +1298,7 @@ contains
 
         if (tSearchTau) then
             if (tGen_nosym_guga) then
-#ifndef __CMPLX
                 call init_tau_search_guga_nosym()
-#endif
             else
                 call init_tau_search()
             end if
@@ -1318,9 +1312,7 @@ contains
 
         else if (t_hist_tau_search) then
             if (tGen_nosym_guga) then
-#ifndef __CMPLX
                 call init_hist_tau_search_guga_nosym()
-#endif
             else
                 call init_hist_tau_search()
             end if
@@ -1997,14 +1989,14 @@ contains
             generate_excitation => gen_excit_4ind_weighted
         elseif (tGen_4ind_reverse) then
             generate_excitation => gen_excit_4ind_reverse
-#ifndef __CMPLX
+
         elseif (tGUGA) then
             if (tgen_guga_crude) then
                 generate_excitation => gen_excit_4ind_weighted2
             else
                 generate_excitation => generate_excitation_guga
             end if
-#endif
+
         elseif (t_pcpp_excitgen) then
            generate_excitation => gen_rand_excit_pcpp
         elseif(t_pchb_excitgen) then
@@ -2051,12 +2043,11 @@ contains
             else
                 get_spawn_helement => hphf_off_diag_helement_spawn
             endif
-#ifndef __CMPLX
+
         ! new guga addition: do not need to recalculate Helement
         elseif (tGUGA) then
             ! use hphf_routine also, since it does exactly what needed
             get_spawn_helement => hphf_spawn_sign
-#endif
         else
             get_spawn_helement => get_helement_det_only
         endif
@@ -3376,11 +3367,9 @@ contains
         logical :: tAllExcitsFound, tParity
         type(ll_node), pointer :: TempNode
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
-#ifndef __CMPLX
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
         integer :: i
-#endif
 
 #ifdef __CMPLX
         call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
@@ -3414,7 +3403,6 @@ contains
         endif
         Ex(:,:)=0
         ! for GUGA, this whole excitation generation is different!
-#ifndef __CMPLX
         if (tGUGA) then
             ! should finally do some general routine, which does all this
             ! below...
@@ -3429,7 +3417,6 @@ contains
             end do
 
         else
-#endif
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
@@ -3445,9 +3432,7 @@ contains
             TotMP1Weight=TotMP1Weight+abs(amp)
             MP2Energy=MP2Energy+energy_contrib
         enddo
-#ifndef __CMPLX
         endif
-#endif
 
         if((.not.tHPHF .and. .not. tGUGA).and.(iExcits.ne.(nDoubles+nSingles))) then
             write(iout,*) nDoubles,nSingles,iExcits
@@ -3489,15 +3474,11 @@ contains
             exflag=3
         endif
         Ex(:,:)=0
-#ifndef __CMPLX
-        if (tGUGA) then
             ! figure out if the HF det gets store in the excitation list too?
             ! if yes I have to modify that all a bit, and maybe also in
             ! other parts of the NECI code ... todo
-            call stop_all(this_routine, "deprecated option with GUGA!")
-!             call generate_required_mp1_walkers(PartFac, DetIndex)
-        else
-#endif
+        if (tGUGA) call stop_all(this_routine, "deprecated option with GUGA!")
+
         do while(.true.)
             call GenExcitations3(HFDet,iLutHF,nJ,exflag,Ex,tParity,tAllExcitsFound,.false.)
             if(tAllExcitsFound) exit !All excits found
@@ -3576,9 +3557,7 @@ contains
 
 
         enddo
-#ifndef __CMPLX
-        endif ! tGUGA
-#endif
+
         !Now for the walkers on the HF det
         if(iRefProc(1) .eq. iProcIndex) then
             ! dont have to change this below, should also work for the GUGAc
@@ -3658,119 +3637,6 @@ contains
         AllNoAbortedOld=0.0_dp
 
     end subroutine InitFCIMC_MP1
-
-    ! this option is removed for now since the function
-    ! set_part_init_time
-    ! is not existent in master anymore
-! #ifndef __CMPLX
-!     subroutine generate_required_mp1_walkers(part_fac, nexcit)
-!         ! routine to fill up the required number of walkers when starting
-!         ! from an MP1 wavefunction, to not make the code above too quirky
-!         real(dp), intent(in) :: part_fac
-!         integer, intent(out) :: nexcit
-!         character(*), parameter :: this_routine = "generate_required_mp1_walkers"
-!         integer(n_int) :: ilutG(0:nifguga), ilut(0:niftot)
-!         integer(n_int), pointer :: excitations(:,:)
-!         integer :: i, nI(nel), iNode, ex(2,2) = 0, excit_level, run, &
-!                    iInit, DetHash
-!         real(dp) :: amp, energy_contrib, NoWalkers, rat, r, temp_sign(lenof_sign)
-!         HElement_t(dp) :: HDiagTemp
-!         type(ll_node), pointer :: TempNode
-!
-!         ! first create all the single and double excitations from the HF det
-!         call convert_ilut_toGUGA(ilutHF, ilutG)
-!
-!         call actHamiltonian(ilutG, excitations, nexcit)
-!
-!         do i = 1, nexcit
-!             call convert_ilut_toNECI(excitations(:,i), ilut)
-!
-!             call decode_bit_det(nI, ilut)
-!
-!             iNode = DetermineDetNode(nel, nI, 0)
-!
-!             if (iProcIndex == iNode) then
-!
-!                 call return_mp1_amp_and_mp2_energy(nI, ilut, ex, .false., &
-!                     amp, energy_contrib)
-!
-!                 amp = amp * part_fac
-!
-!                 if (tRealCoeffByExcitLevel) then
-!                     ! can only deal with 2 as threshold!
-!                     ASSERT(RealCoeffExcitThresh <= 2)
-!
-!                     excit_level = getDeltaB(excitations(:,i))
-!                 end if
-!
-!
-!                 if (tAllRealCoeff .or. (tRealCoeffByExcitLevel .and. &
-!                     excit_level <= RealCoeffExcitThresh)) then
-!
-!                     NoWalkers = amp
-!                 else
-!                     NoWalkers = int(amp)
-!                     rat = amp - real(NoWalkers, dp)
-!
-!                     r = genrand_real2_dSFMT()
-!
-!                     if (abs(rat) > r) then
-!                         if (amp < 0.0_dp) then
-!                             NoWalkers = NoWalkers - 1
-!                         else
-!                             NoWalkers = NoWalkers + 1
-!                         end if
-!                     end if
-!                 end if
-!
-!                 if (NoWalkers /= 0.0_dp) then ! hm.. this is not quite right..
-!
-!                     call encode_det(CurrentDets(:,i), ilut)
-!                     call clear_all_flags(CurrentDets(:,i))
-!
-!                     do run = 1, inum_runs
-!                         temp_sign(run) = NoWalkers
-!                     end do
-!
-!                     call encode_sign(CurrentDets(:,i), temp_sign)
-!
-!                     ! this is GUGA only, so directly use:
-!                     HDiagTemp = calcDiagMatEleGUGA_nI(nI)
-!
-!                     call set_det_diagH(i, real(HDiagTemp, dp) - Hii)
-!
-!                     call set_part_init_time(i, TotImagTime)
-!
-!                     if (tTruncInitiator) then
-!                         call CalcParentFlag(i, iInit)
-!                     end if
-!
-!                     DetHash = FindWalkerHash(nI, nWalkerHashes)
-!
-!                     TempNode => HashIndex(DetHash)
-!
-!                     if (TempNode%Ind == 0) then
-!                         TempNode%Ind = i
-!                     else
-!                         do while (associated(TempNode%Next))
-!                             TempNode => TempNode%Next
-!                         end do
-!                         allocate(TempNode%Next)
-!                         nullify(TempNode%Next%Next)
-!                         TempNode%Next%Ind = i
-!                     end if
-!
-!                     nullify(TempNode)
-!
-!                     do run = 1, inum_runs
-!                         TotParts(run) = TotParts(run) + abs(NoWalkers)
-!                     end do
-!                 end if
-!             end if ! desired node
-!         end do ! end over loop of excitations
-!
-!     end subroutine generate_required_mp1_walkers
-! #endif
 
     SUBROUTINE CheckforBrillouins()
         INTEGER :: i,j
@@ -4414,14 +4280,12 @@ contains
         integer :: run, cc_idx, label_idx, i, j, found_orbs(inum_runs)
         real(dp) :: energies(nel), hdiag
 
-#ifndef __CMPLX
         ! for now guga only works with non-complex code
         integer(n_int), pointer :: excitations(:,:)
         integer :: n_excits, ierr
         real(dp), allocatable :: diag_energies(:)
         logical, allocatable :: found_mask(:)
         character(*), parameter :: this_routine = "assign_reference_dets"
-#endif
 
 
         ! If the user has specified all of the (multiple) reference states,
@@ -4448,7 +4312,6 @@ contains
             ! in the GUGA approach we have to change that simple
             ! single excitation of course or otherwise we get non-
             ! allowed CSF or the wrong STOT symmetry sector.
-#ifndef __CMPLX
             if (tGUGA) then
                 ! run the exact single excitations on the HF det
                 ! and find inum_runs lowest energetically ones..
@@ -4504,8 +4367,6 @@ contains
                 end do
 
             else
-#endif
-
                 do run = 2, inum_runs
 
                     ! Now we want to find the lowest energy single excitation with
@@ -4548,9 +4409,7 @@ contains
 
 
                 end do
-#ifndef __CMPLX
             end if
-#endif
 
         else if (tPreCond) then
 

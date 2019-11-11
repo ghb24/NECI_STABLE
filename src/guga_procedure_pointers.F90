@@ -31,7 +31,8 @@ module guga_procedure_pointers
             implicit none
             integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
             type(excitationInformation), intent(inout) :: excitInfo
-            real(dp), intent(out) :: pgen, integral
+            real(dp), intent(out) :: pgen
+            HElement_t(dp), intent(out) :: integral
         end subroutine calc_mixed_contr_t
 
         subroutine calc_mixed_start_contr_t(ilut, t, excitInfo, branch_pgen, pgen, &
@@ -43,7 +44,8 @@ module guga_procedure_pointers
             integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
             real(dp), intent(inout) :: branch_pgen
             type(excitationInformation), intent(inout) :: excitInfo
-            real(dp), intent(out) :: pgen, integral
+            real(dp), intent(out) :: pgen
+            HElement_t(dp), intent(out) :: integral
         end subroutine calc_mixed_start_contr_t
 
         ! maybe scrap all the below and only to one general one.

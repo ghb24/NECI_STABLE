@@ -3072,7 +3072,7 @@ contains
         call get_transferred_momenta(ex, k_vec_a, k_vec_b)
 
         call assert_equals(-1, k_vec_a(1))
-        call assert_equals(0, k_vec_b(1))
+        call assert_equals(-1, k_vec_b(1))
 
         ex(1,:) = [1,3]
         ex(2,:) = [5,7]

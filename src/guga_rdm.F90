@@ -1,5 +1,4 @@
 #include "macros.h"
-#ifndef __CMPLX
 
 module guga_rdm
     ! RDM module specifically for the GUGA spin-adapted implementation
@@ -2329,5 +2328,3 @@ contains
     end subroutine calc_rdm_energy_guga
 
 end module guga_rdm
-
-#endif

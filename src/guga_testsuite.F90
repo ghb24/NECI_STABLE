@@ -7,7 +7,6 @@
 ! like electrons, orbitals etc...
 ! since otherwise all test cases are quite input dependent...
 ! discuss with simon how to implement that optimally
-#ifndef __CMPLX
 module guga_testsuite
 
     ! check if i can use some sort of unit test framework, like fruit,
@@ -466,7 +465,8 @@ contains
         integer(n_int), pointer :: ex(:,:), two_ex(:,:)
         integer :: nEx, i, nex_2, test_det(nel), j, ind
         logical :: valid
-        real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs), mat_ele, diff
+        real(dp) :: pos(nSpatOrbs), neg(nSpatOrbs), diff
+        HElement_t(dp) :: mat_ele
 
         if (present(nI)) then
             test_det = nI
@@ -2985,7 +2985,7 @@ contains
         print *, "testing calcMixedContribution(ilut,t,start,ende):"
         ! 1212
         ! 1122
-        ASSERT(calcMixedContribution(ilut,t,1,4) .isclose. 0.0_dp)
+        ASSERT(calcMixedContribution(ilut,t,1,4) .isclose. h_cast(0.0_dp))
 
         currentB_ilut = calcB_vector_ilut(t)
         currentOcc_ilut = calcOcc_vector_ilut(t)
@@ -2993,7 +2993,7 @@ contains
         current_stepvector = calcStepVector(t)
         currentB_int = calcB_vector_int(t)
 
-        ASSERT(calcMixedContribution(t,ilut,1,4) .isclose. 0.0_dp)
+        ASSERT(calcMixedContribution(t,ilut,1,4) .isclose. h_cast(0.0_dp))
 
         print *, "calcMixedContribution tests passed!"
 
@@ -7725,83 +7725,83 @@ contains
 
         ! 3120
         det = [1,2,3,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 3300
         det = [1,2,3,4]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(8.0_dp))
 
         ! 0330
         det = [3,4,5,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(8.0_dp))
 
         ! 0303
         det = [3,4,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(8.0_dp))
 
         ! 0033
         det = [5,6,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(8.0_dp))
 
         ! 1023
         det = [1,6,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 3102
         det = [1,2,3,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 3030
         det = [1,2,5,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(8.0_dp))
 
         ! 3003
         det = [1,2,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 8.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(8.0_dp))
 
         ! 3012
         det = [1,2,5,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 0312
         det = [3,4,5,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 1230
         det = [1,4,5,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 1203
         det = [1,4,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 1320
         det = [1,3,4,6]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 1302
         det = [1,3,4,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 1032
         det = [1,5,6,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 0132
         det = [3,5,6,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 0123
         det = [3,6,7,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 9.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(9.0_dp))
 
         ! 1122
         det = [1,3,6,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 10.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(10.0_dp))
 
         ! 1212
         det = [1,4,5,8]
-        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. 10.0_dp)
+        ASSERT(calcDiagMatEleGUGA_nI(det) .isclose. h_cast(10.0_dp))
 
         print *, this_routine, " tests passed!"
 
@@ -7991,4 +7991,3 @@ contains
 
 
 end module guga_testsuite
-#endif

@@ -85,12 +85,11 @@ module fcimc_helper
                                get_neg_spawns, get_pos_spawns
     use searching, only: BinSearchParts2
 
-#ifndef __CMPLX
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_excitations, only: create_projE_list
     use guga_matrixElements, only: calc_off_diag_guga_ref_list
     use guga_bitrepops, only: write_det_guga, calc_csf_info
-#endif
+
     use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, tVerletSweep,&
                         NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
                         InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1, &
@@ -678,7 +677,6 @@ contains
         ! consider the matrix elements of triples!
 
         ! Perform normal projection onto reference determinant
-#ifndef __CMPLX
         if (tGUGA) then
             ! for guga csfs its quite hard to determine the excitation to a
             ! reference determinant, due to the many possibilities
@@ -711,7 +709,7 @@ contains
 
             end if
         else
-#endif
+
         if (ExcitLevel_local == 0) then
 
 
@@ -785,9 +783,7 @@ contains
 
 
         endif ! ExcitLevel_local == 1, 2, 3
-#ifndef __CMPLX
         endif ! GUGA
-#endif
 
         ! L_{0,1,2} norms of walker weights by excitation level.
         if (tLogEXLEVELStats) then
@@ -1049,10 +1045,8 @@ contains
                 if (tHPHF) then
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
                                                       iLutRef(:,run), ilut)
-#ifndef __CMPLX
                 else if (tGUGA) then
                     hoffdiag = calc_off_diag_guga_ref(ilut, run, exlevel)
-#endif
 
                 else
                     hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
@@ -2586,7 +2580,6 @@ contains
 
         ! if in guga run, i also need to recreate the list of connected
         ! determinnant to the new reference det
-#ifndef __CMPLX
         if (tGUGA) then
 
             ! also recreate the stepvector, etc. info stuff for the new
@@ -2600,7 +2593,6 @@ contains
             if (.not. t_guga_mat_eles)  call create_projE_list(run)
 
         end if
-#endif
 
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then

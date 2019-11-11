@@ -252,9 +252,7 @@ contains
     END SUBROUTINE WriteFciMCStatsHeader
 
     subroutine WriteFCIMCStats()
-#ifndef __CMPLX
         use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-#endif
 
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
@@ -300,10 +298,8 @@ contains
             if(t_no_ref_shift)then
                 if(.not. tguga)then
                     E_ref_tmp(run) = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
-#ifndef __CMPLX
                 else
                     E_ref_tmp(run) = calcDiagMatEleGUGA_nI(ProjEDet(:,run))
-#endif
                 end if
             else
                 E_ref_tmp(run) = 0.0_dp

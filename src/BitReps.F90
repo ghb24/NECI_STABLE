@@ -341,7 +341,8 @@ contains
         integer, intent(in) :: run
         HElement_t(dp) :: sgn
 #ifdef __CMPLX
-        sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), extract_part_sign(ilut, max_part_type(run)))
+        sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), &
+            extract_part_sign(ilut, max_part_type(run)),kind=dp)
 #else
         sgn = extract_part_sign(ilut, min_part_type(run))
 #endif
@@ -452,6 +453,9 @@ contains
         integer(n_int) :: sgn(lenof_sign)
 
         sgn = transfer(real_sgn, sgn)
+        print *, "nOffSgn", nOffSgn
+        print *, "NIfSgn: ", NIfSgn
+        print *, "ilut: ", ilut
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
 
     end subroutine encode_sign
@@ -1186,7 +1190,7 @@ contains
             ! occupies in list 1.
             ! If list_2(:,i) is not in list 1 then -pos will equal the position
             ! that it should go in, to mantain the sorted ordering.
-            pos = binary_search_custom(list_1(:,min_ind:ndets_1), list_2(:,i), nifguga, ilut_gt)
+            pos = binary_search_custom(list_1(:,min_ind:ndets_1), list_2(:,i), niftot, ilut_gt)
 
             if (pos > 0) then
                 ! Move all the states from list 1 before min_ind+pos-1 across
@@ -1221,106 +1225,6 @@ contains
         end do
 
     end subroutine add_ilut_lists
-
-!    subroutine init_excitations()
-!        ! Allocate and initialise data in excit_mask.
-!        use basis, only: bit_lookup, nbasis, basis_length
-!        integer :: ibasis, jbasis, pos, el, ierr
-!
-!        allocate(excit_mask(basis_length, nbasis), stat=ierr)
-!        excit_mask = 0
-!
-!        do ibasis = 1, nbasis
-!            ! Set bits corresponding to all orbitals above ibasis.
-!            ! Sure, there are quicker ways of doing this, but it's a one-off
-!            do jbasis = ibasis+1, nbasis
-!                pos = bit_lookup(1, jbasis)
-!                el = bit_lookup(2, jbasis)
-!                excit_mask(el, ibasis) = ibset(excit_mask(el, ibasis), pos)
-!            end do
-!        end do
-!
-!    end subroutine init_excitations
-!
-!    !This is a JSS routine for calculation a permutation from a double excitation
-!    pure subroutine find_excitation_permutation2(f, excitation)
-!        ! Find the parity of the permutation required to maximally line up
-!        ! a determinant with an excitation of it, as needed for use with the
-!        ! Slater--Condon rules.
-!        !
-!        ! This version is for double excitations of a determinant.
-!        !
-!        ! In:
-!        !    f: bit string representation of the determinant.
-!        !    excitation: excit type specifying how the excited determinant is
-!        !        connected to the determinant described by f.
-!        !        Note that we require the lists of orbitals excited from/into
-!        !        to be ordered.
-!        ! Out:
-!        !    excitation: excit type with the parity of the permutation also
-!        !        specified.
-!
-!        use basis, only: basis_length
-!        use bit_utils, only: count_set_bits
-!
-!        integer(i0), intent(in) :: f(basis_length)
-!        type(excit), intent(inout) :: excitation
-!
-!        integer :: perm
-!        integer(i0) :: ia(basis_length), jb(basis_length)
-!
-!        ! Fast way of getting the parity of the permutation required to align
-!        ! two determinants given one determinant and the connecting excitation.
-!        ! This is hard to generalise to all cases, but we actually only care
-!        ! about single and double excitations.  The idea is quite different from
-!        ! that used in get_excitation (where we also need to find the orbitals
-!        ! involved in the excitation).
-!
-!        ! In the following & represents the bitwise and operation; ^ the
-!        ! bitwise exclusive or
-!        ! operation; xmask is a mask with all bits representing orbitals above
-!        ! x set; f is the string representing the determinant from which we
-!        ! excite and the excitation is defined by (i,j)->(a,b), where i<j and
-!        ! a<b.
-!
-!        ! imask ^ amask returns a bit string with bits corresponding to all
-!        ! orbitals between i and a set, with max(i,a) set and min(i,a) cleared.
-!        ! Thus f & (imask ^ amask) returns a bit string with only bits set for
-!        ! the occupied orbitals which are between i and a (possibly including i)
-!        ! and so the popcount of this gives the number of orbitals between i and
-!        ! a (possibly one larger than the actual answer) number of permutations
-!        ! needed to
-!        ! align i and a in the same 'slot' in the determinant string.  We need
-!        ! to subtract one if i>a to correct for the overcounting.
-!
-!        ! An analagous approach counts the number of permutations required so
-!        ! j and b are coincident.
-!
-!        ! Finally, we need to account for some more overcounting/undercounting.
-!        ! If j is between i and a, then it is counted yet j can either be moved
-!        ! before i (resulting in the actual number of permutations being one
-!        ! less than that counted) or after i (resulting in moving j taking one
-!        ! more permutation than counted).  It doesn't matter which we do, as we
-!        ! are only interested in whether the number of permutations is odd or
-!        ! even.  We similarly need to take into account the case where i is
-!        ! between j and b.
-!
-!        ia =
-!ieor(excit_mask(:,excitation%from_orb(1)),excit_mask(:,excitation%to_orb(1)))
-!        jb =
-!ieor(excit_mask(:,excitation%from_orb(2)),excit_mask(:,excitation%to_orb(2)))
-!
-!        perm = sum(count_set_bits(iand(f,ia))) +
-!sum(count_set_bits(iand(f,jb)))
-!
-!        if (excitation%from_orb(1) > excitation%to_orb(1)) perm = perm - 1
-!        if (excitation%from_orb(1) > excitation%to_orb(2)) perm = perm - 1
-!        if (excitation%from_orb(2) > excitation%to_orb(2) .or. &
-!            excitation%from_orb(2) < excitation%to_orb(1)) perm = perm - 1
-!
-!        excitation%perm = mod(perm,2) == 1
-!
-!    end subroutine find_excitation_permutation2
 
 
 end module bit_reps
