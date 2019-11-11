@@ -11,8 +11,7 @@ module pchb_excitgen
   use sltcnd_mod, only: sltcnd_excit
   use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
-  use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex, unused
-  use util_mod_epsilon_close, only: near_zero
+  use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex, near_zero
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
@@ -44,9 +43,7 @@ module pchb_excitgen
       type(excit_gen_store_type), intent(inout), target :: store
       integer, intent(in), optional :: part_type
 
-#ifdef __WARNING_WORKAROUND
-      call unused(exFlag); call unused(part_type)
-#endif
+      unused_var(exFlag); unused_var(part_type)
 
       helgen = 0.0_dp
 
@@ -111,7 +108,7 @@ module pchb_excitgen
       ! first, pick two random elecs
       call pick_biased_elecs(nI,elecs,src,sym_prod,ispn,sum_ml,pGen)
       if(src(1) > src(2)) call intswap(src(1),src(2))
-      
+
       invalid = .false.
       ! use the sampler for this electron pair -> order of src electrons does not matter
       ij = fuseIndex(gtID(src(1)),gtID(src(2)))
@@ -139,7 +136,7 @@ module pchb_excitgen
       call pchb_samplers(samplerIndex)%aSample(ij,ab,pGenHoles)
       ! split the index ab (using a table containing mapping ab -> (a,b))
       orbs = tgtOrbs(:,ab)
-      ! convert orbs to spin-orbs with the same spin 
+      ! convert orbs to spin-orbs with the same spin
       orbs = 2*orbs - spin
 
       ! check if the picked orbs are a valid choice - if they are the same, match one
@@ -187,7 +184,7 @@ module pchb_excitgen
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: ex(2,2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-      real(dp) :: pgen      
+      real(dp) :: pgen
 
       if(ic==1) then
          ! single excitations are the job of the uniform excitgen
@@ -213,7 +210,7 @@ module pchb_excitgen
 
       ! spatial orbitals of the excitation
       nex = gtID(ex)
-      ij = fuseIndex(nex(1,1),nex(1,2))      
+      ij = fuseIndex(nex(1,1),nex(1,2))
       ! the probability of picking the two electrons: they are chosen uniformly
       ! check which sampler was used
       if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
@@ -268,7 +265,7 @@ module pchb_excitgen
             tgtOrbs(2,ab) = a
          end do
       end do
-      
+
       ! enable catching exceptions
       tgtOrbs(:,0) = 0
 
@@ -295,7 +292,7 @@ module pchb_excitgen
         allocate(pExch(ijMax), stat = aerr)
         pExch = 0.0_dp
         ! the mask to filter nonzero entries of the bias
-        allocate(mask(ijMax), stat = aerr)        
+        allocate(mask(ijMax), stat = aerr)
         ! temporary storage for the unnormalized prob of not picking an exchange excitation
         allocatE(pNoExch(ijMax), stat = aerr)
         pNoExch = 1.0_dp
@@ -310,7 +307,7 @@ module pchb_excitgen
            do i = 1, nBI
               ! map i to alpha spin (arbitrary choice)
               ex(1,1) = 2*i
-              ! as we order a,b, we can assume j <= i 
+              ! as we order a,b, we can assume j <= i
               do j = 1, i
                  w = 0.0_dp
                  ! for samplerIndex == 1, j is alpha, else, j is beta
@@ -363,7 +360,7 @@ module pchb_excitgen
            sorb = 2*orb - 1
         endif
       end function map_orb
-      
+
     end subroutine init_pchb_excitgen
 
   !------------------------------------------------------------------------------------------!

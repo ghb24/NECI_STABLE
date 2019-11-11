@@ -67,8 +67,7 @@ module fcimc_initialisation
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
                            maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl , &
                            tTransitionRDMs, tLogEXLEVELStats, t_no_append_stats, &
-                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl, &
-                           t_store_ci_coeff
+                           maxInitExLvlWrite, initsPerExLvl, AllInitsPerExLvl
     use DetCalcData, only: NMRKS, tagNMRKS, FCIDets, NKRY, NBLK, B2L, nCycle, &
                            ICILevel, det
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &

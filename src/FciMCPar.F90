@@ -30,7 +30,6 @@ module FciMCParMod
                            compare_amps_period, PopsFileTimer, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
-                           t_store_ci_coeff, n_iter_after_equ, n_store_ci_level,       &
                            t_hist_fvals, enGrid, arGrid
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
@@ -160,17 +159,6 @@ module FciMCParMod
         shift_err = 1.0_dp
 
         TDebug = .false.  ! Set debugging flag
-
-        if ((t_store_ci_coeff) .and. (n_store_ci_level.gt.3)) then
-           write(iout,*) ''
-           write(iout,*) '*******************************************'
-           write(iout,*) '                 !WARNING!'
-           write(iout,*) ' CI COEFFICIENTS collection for excitation'
-           write(iout,*) ' levels higher than 3 is not implemented'
-           write(iout,*) '*******************************************'
-           write(iout,*) ''
-           t_store_ci_coeff=.false.
-        endif
 
 !OpenMPI does not currently support MPI_Comm_set_errhandler - a bug in its F90 interface code.
 !Ask Nick McLaren if we need to change the err handler - he has a fix/bypass.
@@ -1542,7 +1530,6 @@ module FciMCParMod
     end subroutine PerformFCIMCycPar
 
     subroutine test_routine()
-
         integer(n_int) :: list_1(0:NIfTot, 10)
         integer(n_int) :: list_2(0:NIfTot, 12)
         integer(n_int) :: list_out(0:NIfTot, 11)
