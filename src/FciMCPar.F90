@@ -1392,7 +1392,6 @@ module FciMCParMod
                                             ! Note these last two, AvSignCurr and
                                             ! RDMBiasFacCurr are not used unless we're
                                             ! doing an RDM calculation.
-
                     else
 
                         ! and rescale in the back-spawning algorithm.

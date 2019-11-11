@@ -1132,6 +1132,7 @@ module AnnihilationMod
                        ! If this option is on, include the walker to be
                        ! cancelled in the trial energy estimate.
                        if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SpawnedSign(j), j)
+
                        ! Walkers came from outside initiator space.
                        NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                        iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
@@ -1166,7 +1167,9 @@ module AnnihilationMod
                        ! determinant straight over to the main list. We do not
                        ! need to recompute the hash, since this should be the
                        ! same one as was generated at the beginning of the loop.
-                       if(.not. tEScaleWalkers) diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
+                       if(.not. tEScaleWalkers) then
+                                diagH = get_diagonal_matel(nJ, SpawnedParts(:,i))
+                       endif
                        call AddNewHashDet(TotWalkersNew, SpawnedParts(0:NIfTot,i), DetHash, nJ, &
                             diagH, PartInd, err)
                        ! abort upon error

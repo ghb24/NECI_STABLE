@@ -84,7 +84,8 @@ contains
         HElement_t(dp) :: hUnused
 
         ! Avoid compiler warnings
-        iUnused=notic; iUnused=notex(1,1); tUnused=nottParity; hUnused=notHelgen
+        iUnused=notic; tUnused=nottParity; hUnused=notHelgen
+        if(notic.gt.0) iUnused=notex(1,1)
 
         ! Are these both CSFs?
         bCSF(1) = iscsf(nI)

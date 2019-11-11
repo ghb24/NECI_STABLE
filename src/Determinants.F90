@@ -392,6 +392,13 @@ contains
             return
         end if
 
+        if (tCSF) then
+            if (iscsf(nI) .or. iscsf(nJ)) then
+                hel = CSFGetHelement (nI, nJ)
+                return
+            endif
+        endif
+
         if (tStoreAsExcitations) &
             call stop_all(this_routine, "tStoreExcitations not supported")
 

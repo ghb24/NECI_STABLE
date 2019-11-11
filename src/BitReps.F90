@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module bit_reps
-    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, blank_det, tLogNumSpawns
+    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, tLogNumSpawns
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
@@ -934,6 +934,8 @@ contains
         ! This is a routine to take a determinant in bit form and construct
         ! the natural ordered integer form of the det.
         ! If CSFs are enabled, transfer the Yamanouchi symbol as well.
+
+        use FciMCData, only: blank_det
 
         integer(n_int), intent(in) :: ilut(0:NIftot)
         integer, intent(out) :: nI(:)
