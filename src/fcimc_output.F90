@@ -433,6 +433,9 @@ contains
                 PartsDiffProc, &                           ! 31.
                 norm_semistoch(1)/norm_psi(1), &           ! 32.
                 all_max_cyc_spawn                          ! 33
+                if(Iter.eq.16288.or.Iter.eq.16289) then
+                        write(6,*)"too many walkers will be born now"
+                endif
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &              ! 34.
@@ -1529,9 +1532,9 @@ contains
                     write(iout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc"
                 endif
-#else 
-                ! output the weight of every replica, and do not only assume 
-                ! it is a complex run 
+#else
+                ! output the weight of every replica, and do not only assume
+                ! it is a complex run
                 write(format_string, '(a,i0,a,a,i0,a)') &
                     '(3a11,', lenof_sign, 'a11,', 'a13,', lenof_sign,'a9,a)'
                 ! Walkers(replica) Amplitude(replica) Init?(replica)
