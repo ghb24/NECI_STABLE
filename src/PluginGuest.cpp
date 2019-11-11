@@ -101,5 +101,8 @@ static std::shared_ptr<PluginGuest> guest{};
 void PluginGuestOpen(const char* host) { guest = std::make_shared<PluginGuest>(std::string(host)); }
 int PluginGuestActive() { return guest!=nullptr && guest->active() ? 1 : 0;}
 int PluginGuestSend(const char* value) { return guest->send(std::string(value)) ? 1 : 0 ; }
-const char* PluginGuestReceive() { return guest->receive().c_str(); }
+void PluginGuestReceive(char * string, size_t length) { 
+  std::string recstring = guest->receive();
+  if ( length <= recstring.size() ) throw std::length_error(recstring+" path is too long");
+  strcpy(string,recstring.c_str());}
 void PluginGuestClose() { guest->close(); }

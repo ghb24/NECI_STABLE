@@ -2,21 +2,21 @@
 # Add an option to switch on warnings. This should be enabled by default.
 # =======================================================================
 
+if( CMAKE_BUILD_TYPE STREQUAL "DEBUG" )
+    set( ENABLE_WARNINGS ON)
+endif()
+
 neci_add_option(
     FEATURE WARNINGS
     DEFAULT OFF
     DESCRIPTION "Enable compilation warnings (to the maximal degree)" )
-
-if( CMAKE_BUILD_TYPE STREQUAL "DEBUG" )
-    set( HAVE_WARNINGS ON)
-endif()
 
 if ( HAVE_WARNINGS )
 
     message( STATUS "Enabling compilation warnings" )
 
     # Allow workarounds for false-positive warnings.
-    list(APPEND NECI_GLOBAL_DEFINES _WARNING_WORKAROUND_)
+    list(APPEND NECI_GLOBAL_DEFINES __WARNING_WORKAROUND)
 
     # Add compiler warnings for each language that they have been defined for.
     foreach( _lang C CXX Fortran )

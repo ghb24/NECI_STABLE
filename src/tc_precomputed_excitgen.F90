@@ -61,6 +61,8 @@ contains
     real(dp) :: r
     integer :: elec_map(nel)
 
+    unused_var(exFlag); unused_var(part_type)
+
     HElgen = 0.0
 
     ! create the map for the electrons

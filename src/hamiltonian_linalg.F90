@@ -533,6 +533,7 @@ module hamiltonian_linalg
         complex(dp), intent(out) :: output_vector(:)
         character(*), parameter :: t_r = "mult_hamil_vector_direct_ci_complex"
 
+        unused_var(input_vector)
         output_vector = 0.0d0
         call stop_all(t_r, "not yet implemented for complex CI coefficients")
 

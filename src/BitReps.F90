@@ -302,6 +302,9 @@ contains
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: run
         HElement_t(dp) :: sgn
+
+        ! Strange bug in compiler
+        unused_var(run)
 #ifdef __CMPLX
         sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), extract_part_sign(ilut, max_part_type(run)))
 #else
@@ -342,6 +345,8 @@ contains
     pure function get_initiator_flag(sgn_index) result (flag)
         integer, intent(in) :: sgn_index
         integer :: flag
+        ! Strange bug in compiler
+        unused_var(sgn_index)
         ! map 1->1, 2->1, 3->3, 4->3, 5->5, 6->5 for complex,
         ! as the initiator flag is stored in the "real" bit
         ! of each run
@@ -351,6 +356,8 @@ contains
     pure function get_initiator_flag_by_run(run) result (flag)
         integer, intent(in) :: run
         integer :: flag
+        ! Strange bug in compiler
+        unused_var(run)
         ! map 1->1, 2->3, 3->5, 4->7 for complex
         flag = flag_initiator(min_part_type(run))
     end function get_initiator_flag_by_run
@@ -415,7 +422,6 @@ contains
         !        imag_sgn  - The new imaginary sign component
         !        run - Update given run. 1 ==> inum_runs
         ! InOut:  ilut     - The bit representation to update
-
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: run
         real(dp), intent(in) :: real_sgn, imag_sgn
@@ -425,8 +431,9 @@ contains
         call encode_part_sign(ilut, real_sgn, min_part_type(run))
 #ifdef __CMPLX
         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
+#else
+        unused_var(imag_sgn)
 #endif
-
     end subroutine encode_run_sign
 
 

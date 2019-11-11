@@ -1,4 +1,4 @@
-
+#include "macros.h"
 
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
        SUBROUTINE HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
@@ -26,6 +26,8 @@
          type(timer), save :: proc_timer
          real(dp) GSEN
          character(len=*), parameter :: t_r="HDIAG_neci"
+
+         unused_var(WORK)
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100
@@ -127,6 +129,7 @@ C.. CK now contains the eigenvectors, and W the eigenvalues
          WRITE(6,"(A,F19.11,I4)") "GROUND E=",GSEN
          call halt_timer(proc_timer)
          RETURN
+
       END
 
 !This routine for each determinant, calculates each excitation, and then its contribution to the change in

@@ -1,7 +1,3 @@
-#ifdef _MOLCAS_
-#include "molcas_wrapper.h"
-#endif
-
 #ifdef CBINDMPI
 #define OMPI_SKIP_MPICXX
 #define MPICH_SKIP_MPICXX
@@ -21,7 +17,6 @@
 
 int g_argc;
 char** g_argv;
-#ifndef MOLPRO
 //
 // We need an entry point which can be found by a c++ based linker
 extern "C" void neci_main_c ();
@@ -32,7 +27,6 @@ int main (int argc, char ** argv)
 	g_argv = argv;
 	neci_main_c ();
 }
-#endif
 
 // We need C-linkage
 extern "C" {

@@ -38,6 +38,8 @@ module pchb_excitgen
       type(excit_gen_store_type), intent(inout), target :: store
       integer, intent(in), optional :: part_type
 
+      unused_var(exFlag); unused_var(part_type)
+
       helgen = 0.0_dp
 
       if(genrand_real2_dSFMT() < pSingles) then

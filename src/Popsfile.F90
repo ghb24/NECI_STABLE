@@ -586,7 +586,7 @@ contains
         real(dp), allocatable :: fvalsRead(:,:), fvals(:,:)
         real(dp) :: fvals_tmp(2*inum_runs)
         integer(int64) :: det_attempt, nread
-
+        real(dp) :: aasFactor
         integer(n_int), allocatable :: BatchRead(:,:)
 
         ! If we are on the root processor, we need a buffer array which stores
@@ -706,7 +706,7 @@ r_loop: do while (.not. tReadAllPops)
                 ! How much data goes to each processor?
                 call MPIScatter (sendcounts, recvcount, err, roots)
                 ! allocate the buffer for the acc/tot spawns
-                if(tAutoAdaptiveShift) allocate(fvals(2*inum_runs,recvcount))
+                if(tAutoAdaptiveShift) allocate(fvals(2*inum_runs, recvcount / (NIfTot + 1)))
                 if (err /= 0) &
                     call stop_all (this_routine, "MPI scatter error")
 
@@ -721,11 +721,17 @@ r_loop: do while (.not. tReadAllPops)
                 ! in auto-adaptive shift mode, also communicate the accumulated
                 ! acc/tot spawns so far
                 if(tAutoAdaptiveShift) then
-                   call MPIScatterV(fvalsRead(:,1:MaxSendIndex), sendcounts, disps, &
-                        fvals(:,1:(recvcount/(2*inum_runs))), &
+                   ! aas data has a different first dimension -> rescale
+                   aasFactor = 2.0_dp * real(inum_runs,dp) / real(NIfTot + 1,dp)
+                   recvcount = int(recvcount * aasFactor, MPIArg)
+                   sendcounts = int(sendcounts * aasFactor, MPIArg)
+                   call MPIScatterV(fvalsRead(1:2*inum_runs,1:MaxSendIndex), sendcounts, disps, &
+                        fvals(1:2*inum_runs,1:(recvcount/(2*inum_runs))), &
                                   recvcount, err, Roots)
                    call set_tot_acc_spawns(fvals,(recvcount/(2*inum_runs)),&
                         int(CurrWalkers)+1)
+                   ! scale back the recvcount because it is still used
+                   recvcount = int(recvcount / aasFactor, MPIArg)
                    deallocate(fvals)
                 endif
 
@@ -1969,12 +1975,12 @@ r_loop: do while(.not.tStoreDet)
 
         ! And stop timing
         call halt_timer(write_timer)
-#ifdef _MOLCAS_
+
         if(allocated(Parts)) then
           deallocate(Parts)
           call LogMemDealloc('Popsfile',PartsTag)
         end if
-#endif
+
         if(allocated(fvals)) deallocate(fvals)
         ! Reset some globals
         AllSumNoatHF = 0
@@ -2132,7 +2138,7 @@ r_loop: do while(.not.tStoreDet)
                 ! up with multiple records.
                 ! TODO: For POPSFILE V5 --> stream output.
                if(tAutoAdaptiveShift) then
-                  write(iunit) det(0:NIfD), real_sgn, int(flg, n_int), fvals(1:inum_runs,j)
+                  write(iunit) det(0:NIfD), real_sgn, int(flg, n_int), fvals(1:2*inum_runs,j)
                else
                   write(iunit) det(0:NIfD), real_sgn, int(flg, n_int)
                endif

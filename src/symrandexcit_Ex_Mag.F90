@@ -60,30 +60,11 @@ contains
         logical tAllExcitFound, tij_lt_ab_only, tSpinRestrict
         integer doubleExcitsFound
 
+        unused_var(part_type)
 
         ! Just in case
         ilutJ(0) = -1
         HElGen = 0.0_dp
-
-
-!        tAllExcitFound = .false.
-!        tij_lt_ab_only = .true.
-!        tSpinRestrict = .true.
-
-!        doubleExcitsFound = -1
-
- !       ExcitMat(1,1)=0
- !       do while(.not. tAllExcitFound)
- !           call GenSingleExcit(nI,iLutI,nJ,1,ExcitMat,tParity,tAllExcitFound,tij_lt_ab_only)
- !           doubleExcitsFound = doubleExcitsFound + 1
- !       enddo
-
-!        write(*,*) "single excits found", doubleExcitsFound
-!        call stop_all(this_routine, "found excits")
-
-
-
-
 
         ! UEG and Hubbard interjection for now
         ! TODO: This should be made into its own fn-pointered case.
@@ -92,9 +73,6 @@ contains
             IC = 2
             return
         endif
-
-        !if (.not. store%tFilled)    ** n.b. not needed anymore **
-        !    call construct_class_counts (~)
 
         ! If exFlag is 3, select singles or doubles randomly, according
         ! to the value in pDoubles. Otherwise exFlag = 1 gives a single,
@@ -131,11 +109,10 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         ! Call the actual single/double excitation generators.
 
         if (excitType==1 .or. excitType==3) then
-            pGen = gen_single (nI, nJ, ilutI, ExcitMat, tParity, &
-                               store, IC, excitType)
+            pGen = gen_single (nI, nJ, ExcitMat, tParity, store, excitType)
 
         else
-            pGen = gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, excitType)
+            pGen = gen_double (nI, nJ, ExcitMat, tParity, store, excitType)
         endif
 
 
@@ -219,11 +196,10 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
     end subroutine
 
 
-    function gen_double (nI, nJ, iLutI, ExcitMat, tParity, store, excitType) result(pGen)
+    function gen_double (nI, nJ, ExcitMat, tParity, store, excitType) result(pGen)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
-        integer(n_int), intent(in) :: iLutI(0:niftot)
         integer, intent(out) :: ExcitMat(2,2)
         logical, intent(out) :: tParity
         integer, intent(in) :: excitType
@@ -238,7 +214,7 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 
         if (excitType == 5) then
             ! Pick a pair of electrons with the constraint that they have a commom spin
-            call pick_likespin_elec_pair(nI, elecs, sym_prod, elec_spn, realised_elecpairs, store)
+            call pick_likespin_elec_pair(elecs, sym_prod, elec_spn, realised_elecpairs, store)
         else
             ! Pick an unbiased, distinct, electron pair.
             call pick_elec_pair (nI, elecs, sym_prod, elec_spn)
@@ -279,12 +255,11 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 
 
         ! Select a pair of symmetries to choose from
-        call select_syms(rint, sym_inds, sym_prod, virt_spn, store%ClassCountUnocc, &
-                         pair_list)
+        call select_syms(rint, sym_inds, sym_prod, virt_spn, pair_list)
 
 
         ! Select a pair of orbitals from the symmetries above.
-        call select_orb_pair (rint, sym_inds, ilutI, orbs, store%ClassCountUnocc, &
+        call select_orb_pair (rint, sym_inds, orbs, store%ClassCountUnocc, &
                               store%virt_list)
 
         ! Generate the final determinant.
@@ -309,9 +284,8 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 
     end function
 
-    subroutine pick_likespin_elec_pair (nI, elecs, sym_prod, spn, nPairs, store)
+    subroutine pick_likespin_elec_pair (elecs, sym_prod, spn, nPairs, store)
         integer :: nPairs_alpha, nPairs_beta, nel_beta
-        integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2), sym_prod, spn(2), nPairs
         integer :: ind, orbs(2)
         type(excit_gen_store_type), intent(inout), target :: store
@@ -368,11 +342,10 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 
     ! note: should tidy this up so that ccocc, ccunocc, pair_list, occ_list and virt_list are
     ! referenced directly from the store variable
-    function gen_single (nI, nJ, iLutI, ExcitMat,  tParity, &
-                         store, IC, excitType) result(pGen)
+    function gen_single (nI, nJ, ExcitMat,  tParity, &
+                         store, excitType) result(pGen)
 
-        integer, intent(in) :: nI(nel), IC
-        integer(n_int), intent(in) :: ilutI(0:niftot)
+        integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel), ExcitMat(2,2)
         logical, intent(out) :: tParity
         ! pair_list is in store%scratch3

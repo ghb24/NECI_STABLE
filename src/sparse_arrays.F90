@@ -650,12 +650,11 @@ contains
 
     end subroutine allocate_sparse_ham_row
 
-    subroutine deallocate_sparse_ham(sparse_matrix, sparse_matrix_name, sparse_tags)
+    subroutine deallocate_sparse_ham(sparse_matrix, sparse_tags)
 
         ! Deallocate the whole array, and remove all rows from the memory manager.
 
         type(sparse_matrix_real), intent(inout), allocatable :: sparse_matrix(:)
-        character(len=*), intent(in) :: sparse_matrix_name
         integer(TagIntType), intent(inout), allocatable :: sparse_tags(:,:)
         integer :: sparse_matrix_size, i, ierr
         character(len=*), parameter :: t_r = "deallocate_sparse_ham"

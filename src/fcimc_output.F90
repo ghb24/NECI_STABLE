@@ -592,6 +592,9 @@ contains
         integer :: p, q
         logical :: init
 
+! Is in the interface to refactor the procedure lateron.
+        unused_var(iter_data)
+
         call getProjEOffset()
 
         ! Provide default 'initial' option

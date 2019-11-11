@@ -1,3 +1,4 @@
+#include "macros.h"
 module neci_signals
 
     ! Here we manage the NECI signal handlers.
@@ -38,6 +39,8 @@ contains
         ! Parameter unused. Required by POSIX
         integer(c_int), intent(in), value :: signo
         character(*), parameter :: t_r = 'neci_sigint'
+
+        unused_var(signo)
 
         ! Flush existing output in the stdout buffer
         ! --> Try and avoid issues if we happen to Ctrl-C during a write.

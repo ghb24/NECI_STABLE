@@ -597,7 +597,7 @@ MODULE HPHFRandExcitMod
 !        INTEGER , ALLOCATABLE :: ExcitGen(:)
 !        real(dp) , ALLOCATABLE :: Weights(:)
 !        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
-!        integer :: icunused, exunused(2,2), scratch3(scratchsize)
+!        integer :: icunused, exunused_var(2,2), scratch3(scratchsize)
 !        logical :: tParityunused, tTmp
 !
 !        CALL EncodeBitDet(nI,iLutnI)
@@ -993,7 +993,7 @@ MODULE HPHFRandExcitMod
             else if (tUEGNewGenerator .and. tLatticeGens) then
                 pgen = calc_pgen_back_spawn_ueg_new(nI, ilutI, ex, ic, temp_part_type)
             else if (tUEG .and. tLatticeGens) then
-                pgen = calc_pgen_back_spawn_ueg(nI, ilutI, ex, ic, temp_part_type)
+                pgen = calc_pgen_back_spawn_ueg(ilutI, ex, ic, temp_part_type)
             else
                 pgen = calc_pgen_back_spawn(nI, ilutI, ex, ic, temp_part_type)
             end if

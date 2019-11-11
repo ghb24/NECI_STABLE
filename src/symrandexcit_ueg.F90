@@ -37,16 +37,15 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         integer, intent(in), optional :: part_type
 
-        integer :: iUnused
-
-        ! Mitigate warnings
-        HelGen = 0.0_dp; iUnused=exFlag; iUnused=store%nopen
+        unused_var(exFlag); unused_var(store); unused_var(part_type);
+#ifdef __WARNING_WORKAROUND
+        HelGen = 0.0_dp
+#endif
 
         ! W.D:
         ! split this functionality to allow back-spawning to reuse code
         call gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar,ex, pgen)
         ic = 2
-
     end subroutine gen_ueg_excit
 
     subroutine gen_double_ueg(nI, ilutI, nJ, ilutJ, tPar, ex, pgen)
@@ -169,12 +168,12 @@ contains
 
     end subroutine create_ab_list_ueg
 
-     function calc_pgen_ueg(nI, ilutI, ex, ic) result(pgen)
+     function calc_pgen_ueg(ilutI, ex, ic) result(pgen)
         ! i also have to write a pgen recalculator for the pgens with this
         ! new UEG excitation generator.. i am a bit confused why this has
         ! not been done yet i have to admit..
         ! and i need this function if i want to use it with HPHF..
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: ex(2,2), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
 
