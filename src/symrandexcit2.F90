@@ -2907,8 +2907,8 @@ MODULE GenRandSymExcitNUMod
                 IF (IsMomentumAllowed(nJ)) THEN
                     ex(1,1) = 2
                     call GetExcitation(nI,nJ,nel,ex,tpar)
-                    ! also test for the spin in the hubbard model! 
-                    if (.not. same_spin(ex(1,1),ex(1,2))) then 
+                    ! also test for the spin in the hubbard model!
+                    if (.not. same_spin(ex(1,1),ex(1,2))) then
                         excitcount=excitcount+1
                         CALL EncodeBitDet(nJ,iLutnJ)
                         print *, "nJ: ", nJ
@@ -2992,7 +2992,7 @@ MODULE GenRandSymExcitNUMod
     !            ForbiddenIter=ForbiddenIter+1
                 CYCLE
             ENDIF
-            if (tHub) then 
+            if (tHub) then
                 test = IsMomentumAllowed(nJ)
             else IF(tKPntSym) THEN
                 test=IsMomAllowedDet(nJ)
@@ -3666,14 +3666,14 @@ SUBROUTINE SpinOrbSymSetup()
     IF(tUEG.or.tHUB)THEN
         kTotal =0
         do j=1,NEl
-            if (t_k_space_hubbard) then 
+            if (t_k_space_hubbard) then
                 kTotal = lat%add_k_vec(kTotal, G1(FDet(j))%k)
             else
-                kTotal = kTotal + G1(FDet(j))%k 
+                kTotal = kTotal + G1(FDet(j))%k
             end if
-            ! just to be sure.. 
+            ! just to be sure..
             ! not necessary anymore with new add_k_vec
-!             if (t_k_space_hubbard) then 
+!             if (t_k_space_hubbard) then
 !                 ktotal = lat%map_k_vec(ktotal)
 !             end if
         enddo

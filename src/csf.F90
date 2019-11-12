@@ -84,8 +84,10 @@ contains
         HElement_t(dp) :: hUnused
 
         ! Avoid compiler warnings
+#ifdef __WARNING_WORKAROUND
         iUnused=notic; tUnused=nottParity; hUnused=notHelgen
         if(notic.gt.0) iUnused=notex(1,1)
+#endif
 
         ! Are these both CSFs?
         bCSF(1) = iscsf(nI)

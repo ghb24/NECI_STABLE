@@ -1391,12 +1391,6 @@ module FciMCParMod
                                             AvSignCurr, RDMBiasFacCurr, precond_fac)
                                             ! Note these last two, AvSignCurr and
                                             ! RDMBiasFacCurr are not used unless we're
-                                            ! doing an RDM calculation.
-                        if(child(1).ne.0.0_dp) then
-                                write(6,*)child,HElGen
-                                write(6,*)'ex'
-                                write(6,*)ex(1,1:2),ex(2,1:2)
-                        endif
                     else
 
                         ! and rescale in the back-spawning algorithm.

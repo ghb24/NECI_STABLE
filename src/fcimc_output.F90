@@ -433,9 +433,6 @@ contains
                 PartsDiffProc, &                           ! 31.
                 norm_semistoch(1)/norm_psi(1), &           ! 32.
                 all_max_cyc_spawn                          ! 33
-                if(Iter.eq.16288.or.Iter.eq.16289) then
-                        write(6,*)"too many walkers will be born now"
-                endif
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
                     (tot_trial_numerator(1) / StepsSft), &              ! 34.
