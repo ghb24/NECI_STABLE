@@ -1,14 +1,4 @@
 #include "macros.h"
-#:include "sorting.fpp"
-
-#:set kinds = ['sp', 'dp']
-#:set fields = ['real', 'complex']
-
-#:def println(*args)
-    #:for arg in args
-        print *, ${arg}$
-    #:endfor
-#:enddef println
 
 ! This module contains a type and routines for defining and creating a sparse Hamiltonian.
 ! The type created to store this information is sparse_matrix_real. For an N-by-N matrix,
@@ -86,17 +76,7 @@ module sparse_arrays
     type(core_hashtable), allocatable, dimension(:) :: var_ht
     type(sparse_matrix_real), allocatable, dimension(:) :: approx_ham
 
-interface sort
-#:for type, kind in zip(fields, kinds)
-    module procedure ${get_sort_name(type, kind)}$
-#:endfor
-end interface
-
 contains
-
-#:for type, kind in zip(fields, kinds)
-    @:create_sort(${type}$, ${kind}$)
-#:endfor
 
     subroutine calculate_sparse_hamiltonian(num_states, ilut_list)
 
@@ -108,10 +88,6 @@ contains
         integer, allocatable, dimension(:) :: sparse_diag_positions, sparse_row_sizes, indices
         integer(TagIntType) :: HRTag, SRTag, SDTag, ITag
         character(len=*), parameter :: t_r = "calculate_sparse_hamiltonian"
-
-        @:println(4)
-        @:println(3, 5)
-
 
         allocate(sparse_ham(num_states))
         allocate(SparseHamilTags(2, num_states))
