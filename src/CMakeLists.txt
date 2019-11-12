@@ -70,7 +70,7 @@ set( SRC_FILES
     hilbert_space_size.F90
     hist_data.F90
     hist.F90
-    HPHFIntegrals.F90
+#     HPHFIntegrals.F90
     HPHFRandExcit.F90
     hubbard.F
     init_coul2D.F
@@ -141,7 +141,7 @@ set( SRC_FILES
     semi_stoch_gen.F90
     semi_stoch_procs.F90
     sltcnd.F90
-#     sparse_arrays.F90
+    sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
     spin_project.F90
@@ -200,7 +200,7 @@ set( SRC_FILES
 )
 
 set( FYPP_SRC_FILES
-    sparse_arrays.fpp
+    HPHFIntegrals.fpp
 )
 
 set( TEMPLATED_SRC_FILES

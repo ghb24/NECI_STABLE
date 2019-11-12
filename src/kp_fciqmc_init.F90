@@ -375,7 +375,7 @@ contains
         ! the old KP-FCIQMC algorithm), this is the number of repeats for the
         ! KP-FCIQMC wave function.
 
-#ifndef __CMPLX
+#ifndef CMPLX_
         if (tPairedReplicas) then
             lenof_sign_kp = 2
         else

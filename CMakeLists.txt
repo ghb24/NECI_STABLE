@@ -82,18 +82,18 @@ find_package( LAPACK_NECI REQUIRED )
 
 set(${PROJECT_NAME}_CONFIGURATIONS neci kneci dneci mneci kdneci kmneci)
 set(${PROJECT_NAME}_neci_DEFINITIONS HElement_t=real)
-set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex __CMPLX)
+set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex CMPLX_)
 set(${PROJECT_NAME}_dneci_DEFINITIONS HElement_t=real __DOUBLERUN)
 set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real __PROG_NUMRUNS)
-set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex __CMPLX __DOUBLERUN)
-set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex __CMPLX __PROG_NUMRUNS)
+set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex CMPLX_ __DOUBLERUN)
+set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex CMPLX_ __PROG_NUMRUNS)
 set(${PROJECT_NAME}_neci_WARNERR TRUE)
 set(${PROJECT_NAME}_dneci_WARNERR TRUE)
 
 # Global (always on) defines
 
 list(APPEND NECI_GLOBAL_DEFINES
-    __Linux
+    Linux_
     MAXMEM=99999
     DSFMT_MEXP=19937
     _CONFIG="cmake-${CMAKE_Fortran_COMPILER_ID}-$<$<BOOL:${HAVE_MPI}>:par>-${CMAKE_BUILD_TYPE}"

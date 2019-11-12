@@ -124,12 +124,13 @@ macro( neci_add_library )
         file( MAKE_DIRECTORY ${_fypp_dir} )
 
         set(_fypp_options)
-        if (DEFINED _p_DEFINITIONS )
-            foreach(definition ${_p_DEFINITIONS})
-                list( APPEND _fypp_options -D ${definition})
-            endforeach()
-#             message(FATAL_ERROR ${_fypp_options})
-        endif()
+        list( APPEND _fypp_options -D WARNING_WORKAROUND_)
+# TODO: We need a way to string escape the options
+#         if (DEFINED _p_DEFINITIONS )
+#             foreach(definition ${_p_DEFINITIONS})
+#                 list( APPEND _fypp_options -D "${definition} ")
+#             endforeach()
+#         endif()
 
 
         foreach(_fypp_file ${_p_FYPP_SOURCES})

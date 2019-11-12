@@ -759,7 +759,7 @@ contains
       logical, intent(in) :: tIsStateDeterm
       integer :: run
 
-#if defined(__CMPLX)
+#if defined(CMPLX_)
       do run = 1, inum_runs
          norm_psi_squared(run) = norm_psi_squared(run) + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
          if (tIsStateDeterm) then

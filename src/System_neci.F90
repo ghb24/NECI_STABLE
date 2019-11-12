@@ -188,7 +188,7 @@ MODULE System
 
 #ifdef __PROG_NUMRUNS
       inum_runs = 1
-#ifdef __CMPLX
+#ifdef CMPLX_
       lenof_sign = 2
 #else
       lenof_sign = 1
@@ -1066,7 +1066,7 @@ system: do
 #ifdef __PROG_NUMRUNS
             call readi(inum_runs)
             tMultiReplicas = .true.
-#ifdef __CMPLX
+#ifdef CMPLX_
             lenof_sign = 2*inum_runs
 #else
             lenof_sign = inum_runs
