@@ -18,7 +18,8 @@ module semi_stoch_procs
     use SystemData, only: nel
     use timing_neci
     use adi_data, only: tSignedRepAv
-    use global_det_data, only: set_tot_acc_spawns
+    use global_det_data, only: set_tot_acc_spawns, set_apvals, tAccumEmptyDet
+    use LoggingData, only: tAccumPops
 
     implicit none
 
@@ -973,6 +974,7 @@ contains
         integer :: ierr
         character(*), parameter :: this_routine = 'add_core_states_currentdet'
         real(dp), allocatable :: fvals(:,:)
+        real(dp), allocatable :: apvals(:,:)
 
         nwalkers = int(TotWalkers,sizeof_int)
 
@@ -998,6 +1000,9 @@ contains
            allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)
            if(ierr.ne.0) call stop_all(this_routine, &
                 "Failed to allocate buffer for adaptive shift data")
+           allocate(apvals(lenof_sign+1,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)
+           if(ierr.ne.0) call stop_all(this_routine, &
+                "Failed to allocate buffer for accumulated population data")
         endif
 
         ! First find which CurrentDet states are in the core space.
@@ -1028,11 +1033,13 @@ contains
                 call extract_sign(CurrentDets(:,PartInd), walker_sign)
                 call encode_sign(SpawnedParts(:,i), walker_sign)
                 if(tAutoAdaptiveShift) call cache_fvals(i,PartInd)
+                if(tAccumPops) call cache_apvals(i,PartInd)
             else
                 ! This will be a new state added to CurrentDets.
                 nwalkers = nwalkers + 1
                 ! no auto-adaptive shift data available
                 if(tAutoAdaptiveShift) fvals(:,i) = 0.0_dp
+                if(tAccumPops) apvals(:,i) = 0.0_dp
             end if
 
         end do
@@ -1060,6 +1067,7 @@ contains
 
                 SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
                 if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
+                if(tAccumPops) call cache_apvals(i_non_core,i)
             end if
         end do
         ! Now copy all the core states in SpawnedParts into CurrentDets.
@@ -1069,6 +1077,7 @@ contains
             ! also re-order the adaptive shift data if auto-adapive shift is used
         end do
         if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, nwalkers)
+        if(tAccumPops) call set_apvals(apvals, nwalkers)
 
         call clear_hash_table(HashIndex)
 
@@ -1076,8 +1085,8 @@ contains
         do i = 1, nwalkers
             call extract_sign(CurrentDets(:,i), walker_sign)
             ! Don't add the determinant to the hash table if its unoccupied and not
-            ! in the core space.
-            if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic))) cycle
+            ! in the core space and not accumulated.
+            if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic)) .and. .not. tAccumEmptyDet(i)) cycle
             call decode_bit_det(nI, CurrentDets(:,i))
             hash_val = FindWalkerHash(nI,nWalkerHashes)
             temp_node => HashIndex(hash_val)
@@ -1114,6 +1123,18 @@ contains
             end do
           end subroutine cache_fvals
 
+          subroutine cache_apvals(i,j)
+            use global_det_data, only: get_pops_sum, get_pops_iter
+            implicit none
+            integer, intent(in) :: i,j
+            integer :: k
+
+            do k = 1, lenof_sign
+               apvals(k,i) = get_pops_sum(j,k)
+            end do
+            apvals(lenof_sign+1,i) = get_pops_iter(j)
+
+          end subroutine cache_apvals
     end subroutine add_core_states_currentdet_hash
 
     subroutine return_most_populated_states(n_keep, largest_walkers, norm)

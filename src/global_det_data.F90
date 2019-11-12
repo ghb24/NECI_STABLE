@@ -795,6 +795,28 @@ contains
       end do
       global_determinant_data(pos_pops_iter,j) = transfer(apvals(lenof_sign+1),realVal)
     end subroutine readAPValsAsInt
+
+    subroutine set_apvals(apvals, ndets, initial)
+      implicit none
+      integer, intent(in) :: ndets
+      real(dp), intent(in) :: apvals(lenof_sign+1, ndets)
+      integer, intent(in), optional :: initial
+
+      integer :: j, k, start
+
+      if(present(initial)) then
+         start = initial
+      else
+         start = 1
+      endif
+
+      do j = 1, ndets
+          do k = 1, lenof_sign
+             global_determinant_data(pos_pops_sum+k-1,j) = apvals(k,j)
+          end do
+          global_determinant_data(pos_pops_iter,j) = apvals(lenof_sign+1,j)
+      end do
+    end subroutine set_apvals
   !------------------------------------------------------------------------------------------!
     subroutine set_av_sgn_tot_sgl (j, part, av_sgn)
 
