@@ -1052,7 +1052,7 @@ r_loop: do while(.not.tStoreDet)
         call fill_in_diag_helements()
 
         call clear_hash_table(HashIndex)
-        call fill_in_hash_table_pops(HashIndex, nWalkerHashes)
+        call fill_in_hash_table(HashIndex, nWalkerHashes, CurrentDets, int(TotWalkers, sizeof_int), .true.)
 
         ! If we are doing load balancing, do an initial balance now that we
         ! have read the particles in
@@ -3110,33 +3110,4 @@ r_loop: do while(.not.tStoreDet)
 
     end subroutine write_pops_norm
 
-    subroutine fill_in_hash_table_pops(hash_table, table_length)
-        ! This is very similar to fill_in_hash_table but includes the
-        ! condition tAccumEmptyDet. Adding this condition to that subroutine
-        ! was not possible becasue that subroutine is meant to be applied
-        ! to any list of dets, while tAccumEmptyDet is tied to CurrentDets
-
-        use global_det_data, only: tAccumEmptyDet
-        integer, intent(in) :: table_length
-        type(ll_node), pointer, intent(inout) :: hash_table(:)
-
-        integer :: i, hash_val, nI(nel)
-        real(dp) :: real_sign(lenof_sign)
-        logical :: tCoreDet
-
-        tCoreDet = .false.
-
-        do i = 1, TotWalkers
-            if (tSemiStochastic) tCoreDet = test_flag(CurrentDets(:,i), flag_deterministic)
-            call extract_sign(CurrentDets(:,i), real_sign)
-            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(i))) cycle
-
-            call decode_bit_det(nI, CurrentDets(:,i))
-            ! Find the hash value corresponding to this determinant.
-            hash_val = FindWalkerHash(nI, table_length)
-
-            call add_hash_table_entry(hash_table, i, hash_val)
-        end do
-
-    end subroutine fill_in_hash_table_pops
 END MODULE PopsfileMod

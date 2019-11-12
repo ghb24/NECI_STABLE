@@ -350,6 +350,7 @@ module hash
         ! will not be included in the hash table, unless they are core
         ! determinants.
 
+        use global_det_data, only: tAccumEmptyDet
         integer, intent(in) :: table_length, list_length
         type(ll_node), pointer, intent(inout) :: hash_table(:)
         integer(n_int), intent(in) :: walker_list(0:,:)
@@ -369,7 +370,7 @@ module hash
             if (ignore_unocc) then
                 if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
                 call extract_sign(walker_list(:,i), real_sign)
-                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) cycle
+                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(i))) cycle
             end if
 
             call decode_bit_det(nI, walker_list(:,i))
@@ -383,6 +384,7 @@ module hash
 
     subroutine rm_unocc_dets_from_hash_table(hash_table, walker_list, list_length)
 
+        use global_det_data, only: tAccumEmptyDet
         ! This routine loops through all determinants in walker_list removes
         ! all entries from hash_table for determinants which are both
         ! unoccupied and not core determinants.
@@ -403,7 +405,7 @@ module hash
             call extract_sign(walker_list(:,i), real_sign)
             tCoreDet = .false.
             if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
-            if ((.not. IsUnoccDet(real_sign)) .or. tCoreDet) cycle
+            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(i))) cycle
             found = .false.
             call decode_bit_det(nI, walker_list(:, i))
             hash_val = FindWalkerHash(nI, size(hash_table))
