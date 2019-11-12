@@ -160,7 +160,7 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
-      tPopsInstProjE = .false.
+      tPopsProjE = .false.
       tHDF5TruncPopsWrite = .false.
       iHDF5TruncPopsEx = 0
       iHDF5TruncPopsIter = 0
@@ -942,10 +942,10 @@ MODULE Logging
             ! Use the new HDF5 popsfile format just for writing
             tHDF5PopsWrite = .true.
 
-        case("POPS-INST-PROJE")
+        case("POPS-PROJE")
             ! Calculate and print the instanenous project energy of
             ! wavefunction printed to popsfile
-            tPopsInstProjE = .true.
+            tPopsProjE = .true.
 
         case("HDF5-TRUNC-POPS-WRITE")
             ! Write another HDF5 popsfile with dets restricted to a maximum
@@ -979,7 +979,7 @@ MODULE Logging
             ! when accumlating populations is active, (some) empty dets are kept alive.
 
             ! This parameter represents the maximum excitation level to consider
-            ! when keeping empty dets alive. 
+            ! when keeping empty dets alive.
             ! A value of zero means all excitation levels are considered.
             call readi(iAccumPopsMaxEx)
             if(iAccumPopsMaxEx<0) then

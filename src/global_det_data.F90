@@ -699,6 +699,14 @@ contains
         AccSign = global_determinant_data(pos_pops_sum+part-1, j)
     end function
 
+    pure function get_pops_sum_full(j) result(AccSign)
+
+        integer, intent(in) :: j
+        real(dp) :: AccSign(lenof_sign)
+
+        AccSign(:) = global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j)
+    end function
+
     pure function get_pops_iter(j) result(iter)
 
         integer, intent(in) :: j

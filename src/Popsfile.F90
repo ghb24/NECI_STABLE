@@ -18,7 +18,7 @@ MODULE PopsfileMod
     use procedure_pointers, only: scaleFunction
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use hash, only: FindWalkerHash, clear_hash_table, &
-                    fill_in_hash_table, add_hash_table_entry 
+                    fill_in_hash_table, add_hash_table_entry
     use Determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
@@ -38,7 +38,7 @@ MODULE PopsfileMod
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
          store_decoding, set_tot_acc_spawns, writeFFunc
-    use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
+    use fcimc_helper, only: update_run_reference, calc_proje, TestInitiator
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
@@ -985,6 +985,7 @@ r_loop: do while(.not.tStoreDet)
         integer :: TotWalkersIn
         integer(int64) :: l
         real(dp) :: TempSign(lenof_sign)
+        character(len=*), parameter :: this_routine = "InitFCIMC_pops"
 
         if (iReadWalkersRoot == 0) then
             ! ReadBatch is the number of walkers to read in from the
@@ -1114,9 +1115,12 @@ r_loop: do while(.not.tStoreDet)
         ! If necessary, recalculate the instantaneous projected energy, and
         ! then update the shift to that value.
         if (tPopsJumpShift .and. .not. tWalkContGrow) then
-            call calc_inst_proje()
-            write(6,*) 'Calculated instantaneous projected energy', proje_iter
-            DiagSft = real(proje_iter, dp)
+#ifdef __CMPLX
+        call stop_all(this_routine,"Cannot set shift equal to a complex projected energy")
+#else
+        call calc_proje(DiagSft)
+        write(6,*) 'Calculated instantaneous projected energy', DiagSft
+#endif
         end if
 
     end subroutine InitFCIMC_pops
@@ -1702,7 +1706,7 @@ r_loop: do while(.not.tStoreDet)
 
             ! And stop timing
             call halt_timer(write_timer)
-            
+
             return
         end if
 
@@ -3109,7 +3113,7 @@ r_loop: do while(.not.tStoreDet)
     subroutine fill_in_hash_table_pops(hash_table, table_length)
         ! This is very similar to fill_in_hash_table but includes the
         ! condition tAccumEmptyDet. Adding this condition to that subroutine
-        ! was not possible becasue that subroutine is meant to be applied 
+        ! was not possible becasue that subroutine is meant to be applied
         ! to any list of dets, while tAccumEmptyDet is tied to CurrentDets
 
         use global_det_data, only: tAccumEmptyDet

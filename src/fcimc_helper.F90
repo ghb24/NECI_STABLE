@@ -32,7 +32,7 @@ module fcimc_helper
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
-                           initsPerExLvl
+                           initsPerExLvl, tAccumPopsActive
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
@@ -2433,43 +2433,125 @@ contains
 
       end subroutine update_run_reference
 
-    subroutine calc_inst_proje()
+    subroutine calc_proje(InstE, AccumE)
 
-        ! Calculate an instantaneous value of the projected energy for the
-        ! given walkers distributions
+        use global_det_data, only: get_pops_sum_full
+        ! Calculate the projected energy for the instantaneous and accumlated
+        ! walkers distributions
 
-        integer :: ex_level, det(nel), j, run
-        real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
-        real(dp) :: sgn(lenof_sign)
+        HElement_t(dp), intent(out):: InstE(inum_runs)
+        HElement_t(dp), intent(out), optional :: AccumE(inum_runs)
 
-        ! Reset the accumulators
-        HFCyc = 0.0_dp
-        ENumCyc = 0.0_dp
-        NoatDoubs = 0.0_dp
+        integer :: exLevel, det(nel), j, run
+        real(dp) :: sgn(lenof_sign), accum_sgn(lenof_sign)
+        HElement_t(dp) :: HOffDiag
+        HElement_t(dp) :: sgn_run, accum_sgn_run
+        HElement_t(dp):: ENumInst(inum_runs), HFInst(inum_runs)
+        HElement_t(dp):: AllENumInst(inum_runs), AllHFInst(inum_runs)
+        HElement_t(dp):: ENumAccum(inum_runs), HFAccum(inum_runs)
+        HElement_t(dp):: AllENumAccum(inum_runs), AllHFAccum(inum_runs)
+        logical :: tCalcAccumE
 
-        ! Main loop
+        tCalcAccumE = tAccumPopsActive .and. present(AccumE)
+        HFInst = 0.0_dp
+        ENumInst = 0.0_dp
+        HFAccum = 0.0_dp
+        ENumAccum = 0.0_dp
+
         do j = 1, int(TotWalkers, sizeof_int)
 
-            ! n.b. non-contiguous list
             call extract_sign(CurrentDets(:,j), sgn)
-            if (IsUnoccDet(sgn)) cycle
-
-            ex_level = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j))
+            if (IsUnoccDet(sgn) .and. .not. (tCalcAccumE .and. tAccumEmptyDet(j))) cycle
 
             call decode_bit_det(det, CurrentDets(:,j))
-            call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &
-                             1.0_dp, tPairedReplicas, j)
+            if(tCalcAccumE) accum_sgn = get_pops_sum_full(j)
+
+            ! This is the normal projected energy calculation, but split over
+            ! multiple runs, rather than done in one go.
+            do run = 1, inum_runs
+
+                ! We need to use the excitation level relevant for this run
+                exlevel = FindBitExcitLevel(CurrentDets(:,j), ilutRef(:, run))
+                if (tSpinCoupProjE(run) .and. exlevel /= 0) then
+                    if (exlevel <= 2) then
+                        exlevel = 2
+                    else if (FindBitExcitLevel(CurrentDets(:,j), ilutRefFlip(:,run)) <= 2) then
+                        exlevel = 2
+                    end if
+                end if
+#ifdef __CMPLX
+                sgn_run = cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
+#else
+                sgn_run = sgn(run)
+#endif
+
+                if(tCalcAccumE) then
+#ifdef __CMPLX
+                    accum_sgn_run = cmplx(accum_sgn(min_part_type(run)),accum_sgn(max_part_type(run)),dp)
+#else
+                    accum_sgn_run = accum_sgn(run)
+#endif
+                endif
+
+                hoffdiag = 0.0_dp
+                if (exlevel == 0) then
+
+#ifdef __CMPLX
+                    HFInst(min_part_type(run)) = HFInst(min_part_type(run)) + real(sgn_run)
+                    HFInst(max_part_type(run)) = HFInst(max_part_type(run)) + aimag(sgn_run)
+#else
+                    HFInst(run) = HFInst(run) + sgn_run
+#endif
+                    if(tCalcAccumE) then
+#ifdef __CMPLX
+                    HFAccum(min_part_type(run)) = HFAccum(min_part_type(run)) + real(accum_sgn_run)
+                    HFAccum(max_part_type(run)) = HFAccum(max_part_type(run)) + aimag(accum_sgn_run)
+#else
+                    HFAccum(run) = HFAccum(run) + accum_sgn_run
+#endif
+
+                    endif
+
+                else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
+
+                    ! n.b. Brillouins theorem cannot hold for real-space Hubbard
+                    ! model or for rotated orbitals.
+
+                    ! Obtain the off-diagonal elements
+                    if (tHPHF) then
+                        hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), det, &
+                                                          iLutRef(:,run), CurrentDets(:,j))
+                    else
+                        hoffdiag = get_helement (ProjEDet(:,run), det, exlevel, &
+                                                 ilutRef(:,run), CurrentDets(:,j))
+                    endif
+
+                end if
+
+                ENumInst(run) = ENumInst(run) + (hoffdiag * sgn_run)
+                if(tCalcAccumE) &
+                    ENumAccum(run) = ENumAccum(run) + (hoffdiag * accum_sgn_run)
+
+            end do
+
         end do
 
         ! Accumulate values over all processors
-        call MPISumAll(HFCyc, RealAllHFCyc)
-        call MPISumAll(ENumCyc, AllENumCyc)
+        call MPISumAll(HFInst, AllHFInst)
+        call MPISumAll(ENumInst, AllENumInst)
 
-        do run = 1, inum_runs
-            AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
-        end do
+        InstE = AllENumInst / AllHFInst + proje_ref_energy_offsets
 
-        proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
+        if(present(AccumE))then
+            if(tAccumPopsActive)then
+                call MPISumAll(HFAccum, AllHFAccum)
+                call MPISumAll(ENumAccum, AllENumAccum)
+
+                AccumE = AllENumAccum / AllHFAccum + proje_ref_energy_offsets
+            else
+                AccumE = 0.0_dp
+            endif
+        endif
 
 
     end subroutine

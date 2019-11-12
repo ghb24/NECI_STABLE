@@ -33,7 +33,7 @@ module FciMCParMod
                            t_hist_fvals, enGrid, arGrid, &
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpire, &
-                           tPopsInstProjE, iHDF5TruncPopsIter
+                           tPopsProjE, iHDF5TruncPopsIter
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -152,6 +152,9 @@ module FciMCParMod
 
         real(dp) :: CurrentSign(lenof_sign)
         integer :: pops_iter, j, nJ(nel)
+
+        HElement_t(dp):: InstE(inum_runs)
+        HElement_t(dp):: AccumE(inum_runs)
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -417,7 +420,7 @@ module FciMCParMod
                 ! dets which have been empty long enough
                 if(iAccumPopsExpire>0 .and. TotWalkers>0.95_dp * real(MaxWalkersPart,dp))then
                     do j=1,TotWalkers
-                        call extract_sign(CurrentDets(:,j),CurrentSign)                        
+                        call extract_sign(CurrentDets(:,j),CurrentSign)
                         if(.not. IsUnoccDet(CurrentSign)) cycle
                         pops_iter = INT(get_pops_iter(j))
                         ! When pops_iter is zero, the det is already removed
@@ -737,10 +740,12 @@ module FciMCParMod
                 endif
             endif
 
-            if(tPopsInstProjE) then
-                call calc_inst_proje()
+            if(tPopsProjE) then
+                call calc_proje(InstE, AccumE)
                 write(6,*)
-                write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
+                write(6,*) 'Instantaneous projected energy of popsfile:', InstE
+                if(tAccumPopsActive) &
+                    write(6,*) 'Accumulated projected energy of popsfile:', AccumE
             end if
         ENDIF
 
