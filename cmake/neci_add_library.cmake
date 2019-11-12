@@ -123,13 +123,22 @@ macro( neci_add_library )
         set( _fypp_dir ${CMAKE_BINARY_DIR}/fypp/${_p_TARGET} )
         file( MAKE_DIRECTORY ${_fypp_dir} )
 
+        set(_fypp_options)
+        if (DEFINED _p_DEFINITIONS )
+            foreach(definition ${_p_DEFINITIONS})
+                list( APPEND _fypp_options " -D ${definition}")
+            endforeach()
+#             message(FATAL_ERROR ${_fypp_options})
+        endif()
+
+
         foreach(_fypp_file ${_p_FYPP_SOURCES})
             get_filename_component( _fypp_file_base ${_fypp_file} NAME_WE )
             get_filename_component( _fypp_file_absolute ${_fypp_file} ABSOLUTE)
             set( _fypp_target_file ${_fypp_dir}/${_fypp_file_base}.F90 )
             list( APPEND ${_p_TARGET}_FYPP_SOURCES ${_fypp_target_file} )
             add_custom_command(
-                COMMAND ${_fypp} ${_fypp_file_absolute} ${_fypp_target_file}
+                COMMAND ${_fypp} ${_fypp_options} ${_fypp_file_absolute} ${_fypp_target_file}
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
                 OUTPUT ${_fypp_target_file}
                 DEPENDS ${_fypp_file_absolute} )
