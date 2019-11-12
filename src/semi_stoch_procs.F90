@@ -822,15 +822,19 @@ contains
 
         use Determinants, only: get_helement
         use FciMCData, only: Hii
-        use global_det_data, only: set_det_diagH
+        use global_det_data, only: set_det_diagH, tAccumEmptyDet
         use hphf_integrals, only: hphf_diag_helement
         use SystemData, only: tHPHF
+        use bit_reps, only: extract_sign
 
         integer :: i
         integer :: nI(nel)
         real(dp) :: tmpH
+        real(dp) :: sgn(lenof_sign)
 
         do i = 1, int(TotWalkers)
+            call extract_sign(CurrentDets(:,i), sgn)
+            if (IsUnoccDet(sgn) .and. (.not. tAccumEmptyDet(i))) cycle
             call decode_bit_det(nI, CurrentDets(:,i))
 
             if (tHPHF) then
