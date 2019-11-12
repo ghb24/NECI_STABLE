@@ -141,7 +141,7 @@ set( SRC_FILES
     semi_stoch_gen.F90
     semi_stoch_procs.F90
     sltcnd.F90
-    sparse_arrays.F90
+#     sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
     spin_project.F90
@@ -197,6 +197,10 @@ set( SRC_FILES
     lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
+)
+
+set( FYPP_SRC_FILES
+    sparse_arrays.fpp
 )
 
 set( TEMPLATED_SRC_FILES
@@ -258,6 +262,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         OUTPUT_NAME ${_config}
         SOURCES ${SRC_FILES}
         TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
+        FYPP_SOURCES ${FYPP_SRC_FILES}
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
