@@ -520,7 +520,7 @@ contains
         ! efficient if i rewrite everything from scratch for the guga case..
 
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        use guga_bitrepops, only: convert_ilut_toGUGA, extract_matrix_element
+        use guga_bitrepops, only: convert_ilut_toGUGA, extract_h_element
         use guga_excitations, only: actHamiltonian
         use guga_matrixelements, only: calcDiagMatEleGuga_nI
         use guga_data, only: tag_excitations
@@ -563,7 +563,7 @@ contains
                     pos = binary_search(excitations(0:nifd,1:nexcits), con_space(0:nifd,i))
 
                     if (pos > 0) then
-                        H_ij = extract_matrix_element(excitations(:,pos), 1)
+                        H_ij = extract_h_element(excitations(:,pos))
                     else
                         H_ij = HEl_zero
                     end if

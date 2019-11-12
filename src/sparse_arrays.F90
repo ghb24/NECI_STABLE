@@ -30,7 +30,7 @@ module sparse_arrays
     use SystemData, only: tGUGA
     use guga_excitations, only: calc_off_diag_guga_gen, actHamiltonian, &
                                 calc_guga_matrix_element
-    use guga_bitRepOps, only: convert_ilut_toGUGA, extract_matrix_element, &
+    use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
                               init_csf_information
     use util_mod, only: binary_search
     use guga_data, only: tag_excitations, excitationInformation
@@ -245,7 +245,7 @@ contains
 
                         if (pos > 0) then
 
-                            hamiltonian_row(j) = extract_matrix_element(excitations(:,pos),1)
+                            hamiltonian_row(j) = extract_h_element(excitations(:,pos))
 
                             sparse_row_sizes(i) = sparse_row_sizes(i) + 1
                             sparse_row_sizes(j) = sparse_row_sizes(j) + 1
@@ -406,7 +406,7 @@ contains
 
                         if (pos > 0) then
 
-                            hamiltonian_row(j) = extract_matrix_element(excitations(:,pos), 1)
+                            hamiltonian_row(j) = extract_h_element(excitations(:,pos))
 
                             row_size = row_size + 1
 
@@ -572,7 +572,7 @@ contains
                         pos = binary_search(excitations(0:nifd,1:nExcit), temp_store(0:nifd,j))
 
                         if (pos > 0) then
-                            hamiltonian_row(j) = extract_matrix_element(excitations(:,pos),1)
+                            hamiltonian_row(j) = extract_h_element(excitations(:,pos))
                             row_size = row_size + 1
                         end if
                     end if

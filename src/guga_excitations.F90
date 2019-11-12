@@ -45,7 +45,8 @@ module guga_excitations
                         count_beta_orbs_ij, findFirstSwitch, findLastSwitch, &
                         calcStepvector, find_switches, convert_ilut_toNECI, &
                         calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
-                        identify_excitation, init_csf_information, calc_csf_info
+                        identify_excitation, init_csf_information, calc_csf_info, &
+                        extract_h_element
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI, &
                                    calc_off_diag_guga_ref_list
@@ -1936,7 +1937,7 @@ contains
                     pos = binary_search(excitations(0:nifd,1:nExcits),ilutJ)
 
                     if (pos > 0) then
-                        hel = extract_matrix_element(excitations(:,pos),1)
+                        hel = extract_h_element(excitations(:,pos))
 
                         n_elements = n_elements + 1
 
@@ -2271,7 +2272,7 @@ contains
         pos = binary_search(excitations(0:nifd,1:nExcit), ilutI(0:nifd))
 
         if ( pos > 0 ) then
-            hel = extract_matrix_element(excitations(:,pos),1)
+            hel = extract_h_element(excitations(:,pos))
         else
             hel = HEl_zero
         end if
@@ -2606,7 +2607,7 @@ contains
 
         ! also check matrix elements if psingles and pdouble are > 0
         do i = 1, nExcit
-            if (abs(extract_matrix_element(excitations(:,i), 1) - matEle_list(i)) > EPS) then
+            if (abs(extract_h_element(excitations(:,i)) - matEle_list(i)) > EPS) then
                 print *, "incorrect matrix element! for excitation: "
                 call write_det_guga(6, excitations(:,i),.false.)
                 print *, "stoch. <H>: ", matEle_list(i)
@@ -5127,7 +5128,7 @@ contains
         end if
 
         ! check if for some reason the matrix element of the excitation is 0
-        if (abs(extract_matrix_element(excitation, 1)) < EPS) then
+        if (abs(extract_h_element(excitation)) < EPS) then
             pgen = 0.0_dp
             excitation = 0
 
@@ -19204,10 +19205,8 @@ contains
         ! exitations to pseudo doubles -> make distinction
         ! the second if is to only apply this to fullstop cases but also be
         ! able to use it fore general double excitations
-!         if (isThree(ilut,en).and.fe==en) then
         if (current_stepvector(en) == 3 .and.fe==en) then
             ! here only swiches to 0 branch are possible
-!             if (isOne(ilut,s)) then
             select case (current_stepvector(s))
             case (1)
                 ! only -1 branches can lead to 0 branch
@@ -19237,7 +19236,6 @@ contains
                 nExcits = cnt
 
             case (2)
-!             else if (isTwo(ilut,s)) then
                 ! only +1 can lead to 0 branch
                 ! not yet correctly accounted in weights, so an arriving +1
                 ! branch is ensured... todo
@@ -19267,7 +19265,6 @@ contains
                 end do
                 nExcits = cnt
 
-!             else
             case (3)
                 ! has to be 3 in this generator combination.
                 ASSERT(isThree(ilut,s))
@@ -19305,20 +19302,17 @@ contains
                     tempExcits(:,iEx) = t
 
                 end do
-!             end if
             end select
 
         else
 
             select case (current_stepvector(s))
             case (1)
-!             if (isOne(ilut,s)) then
                 ! always works if weights are fitting, check possibs.
 
                 ! think i can do it generally for both... since its the same
                 ! operations only... only need to check if atleast on of the
                 ! relevant weights is nonzero
-!                 ASSERT(plusWeight > 0.0_dp)
 
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -19343,11 +19337,9 @@ contains
                     tempExcits(:,iEx) = t
                 end do
 
-!             else if (isTwo(ilut,s)) then
             case (2)
                 ! should also work generally, since if a weight is zero the
                 ! non compatible branch shouldnt even arrive here
-!                 ASSERT(minusWeight > 0.0_dp)
 
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -19371,7 +19363,6 @@ contains
                     tempExcits(:,iEx) = t
                 end do
 
-!             else
             case (3)
                 ! has to be 3 in lowering case
                 ASSERT(isThree(ilut,s))
@@ -19657,198 +19648,6 @@ contains
                     call stop_all(this_routine, " no branches possible in raising semistart!")
                 end if
 
-!
-!                 ! zero weight is always > 0! have to think about other weights...
-!                 ! there are 4 different possibilities, hopefully i get all of those
-!                 ! with following if-statements
-!                 if (plusWeight > 0.0_dp .and. minusWeight > 0.0_dp .and. &
-!                     bVal > 1.0_dp) then
-!                     ! all excitations possible
-!                     ! how to most efficiently do all that...
-!                     do iEx = 1, nExcits
-!                         t = tempExcits(:,iEx)
-!                         tempWeight = extract_matrix_element(t,1)
-!
-!                         deltaB = getDeltaB(t)
-!
-!                         ! first do 3 -> 1
-!                         clr_orb(t, 2*sOrb)
-!                         call getDoubleMatrixElement(1,3,deltaB,excitInfo%gen1,&
-!                             excitInfo%gen2, bVal, excitInfo%order,&
-!                             tempWeight_0, tempWeight_1)
-!
-!                         call update_matrix_element(t, tempWeight_0, 1)
-!                         call encode_matrix_element(t, tempWeight*tempWeight_1,2)
-!
-!                         call setDeltaB(deltaB - 1, t)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                         ! then do 3->2
-!                         nExcits = nExcits + 1
-!                         clr_orb(t, 2*sOrb - 1)
-!                         set_orb(t, 2*sOrb)
-!
-!                         call getDoubleMatrixElement(2,3,deltaB,excitInfo%gen1,&
-!                             excitInfo%gen2, bVal,excitInfo%order,&
-!                             tempWeight_0, tempWeight_1)
-!
-!                         call encode_matrix_element(t, tempWeight_0*tempWeight,1)
-!                         call encode_matrix_element(t, tempWeight_1*tempWeight,2)
-!
-!                         call setDeltaB(deltaB + 1, t)
-!
-!                         tempExcits(:,nExcits) = t
-!                     end do
-!
-!                 else if ((plusWeight <EPS .and. minusWeight > 0.0_dp &
-!                     .and. currentB_ilut(sOrb) > 1.0_dp) .or.&
-!                     (currentB_ilut(sOrb) <= 1.0_dp .and. minusWeight > 0.0_dp)) then
-!                     ! +2 excitations not possible
-!                     ! only branching for -1 branch
-!                     ! but excitation 3->1 everytime possible for both
-!                     do iEx = 1, nExcits
-!                         t = tempExcits(:,iEx)
-!
-!                         ! make all possible 3->1 excitation first
-!                         deltaB = getDeltaB(t)
-!
-!                         clr_orb(t, 2*sOrb)
-!
-!                         ! todo: see how deltaB access correctly works...
-!                         ! have to use new deltaB here i Think!!!
-!                         call getDoubleMatrixElement(1,3,deltaB ,excitInfo%gen1,&
-!                             excitInfo%gen2,bVal, &
-!                             excitInfo%order,tempWeight_0,tempWeight_1)
-!
-!                         ! need unchanged matrix element for branching
-!                         tempWeight = extract_matrix_element(t,1)
-!
-!                         call encode_matrix_element(t, tempWeight * &
-!                             tempWeight_1,2)
-!                         call update_matrix_element(t, tempWeight_0, 1)
-!
-!                         call setDeltaB(deltaB - 1, t)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                         ! and for +1 branch there is also a switch
-!
-!                         if (deltaB == -1) then
-!                             ! have to switch from previuosly switched 1 -> 2
-!                             set_orb(t, 2*sOrb)
-!                             clr_orb(t, 2*sOrb - 1)
-!
-!                             call getDoubleMatrixElement(2,3,deltaB,excitInfo%gen1,&
-!                                 excitInfo%gen2, bVal, &
-!                                 excitInfo%order, tempWeight_0, tempWeight_1)
-!
-!                             call encode_matrix_element(t, tempWeight_0 * &
-!                                 tempWeight, 1)
-!                             call encode_matrix_element(t, tempWeight_1 * &
-!                                 tempWeight, 2)
-!
-!                             call setDeltaB(0, t)
-!
-!                             nExcits = nExcits + 1
-!                             tempExcits(:, nExcits) = t
-!                         end if
-!                     end do
-!
-!                 else if (minusWeight <EPS .and. plusWeight > 0.0_dp .and. &
-!                     currentB_ilut(sOrb) > 1.0_dp) then
-!                     ! -2 excitations not possible
-!                     ! only branching for +1 branch
-!                     ! 3->2 excitation works for both
-!                     do iEx = 1, nExcits
-!                         t = tempExcits(:,iEx)
-!
-!                         ! make all possible 3->2 excitation first
-!                         deltaB = getDeltaB(t)
-!
-!                         clr_orb(t, 2*sOrb - 1)
-!
-!                         ! todo: see how deltaB access correctly works...
-!                         ! have to use new deltaB here i Think!!!
-!                         call getDoubleMatrixElement(2,3,deltaB,excitInfo%gen1,&
-!                             excitInfo%gen2,bVal, &
-!                             excitInfo%order,tempWeight_0,tempWeight_1)
-!
-!                         ! need unchanged matrix element for branching
-!                         tempWeight = extract_matrix_element(t,1)
-!
-!                         call encode_matrix_element(t, tempWeight_0 * &
-!                             tempWeight, 1)
-!                         call encode_matrix_element(t, tempWeight_1 * &
-!                             tempWeight, 2)
-!
-!                         call setDeltaB(deltaB + 1, t)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                         ! and for +1 branch there is also a switch
-!
-!                         if (deltaB == +1) then
-!                             ! have to switch from previuosly switched 2 -> 1
-!                             clr_orb(t, 2*sOrb)
-!                             set_orb(t, 2*sOrb - 1)
-!
-!                             call getDoubleMatrixElement(1,3,deltaB,excitInfo%gen1,&
-!                                 excitInfo%gen2, bVal, &
-!                                 excitInfo%order, tempWeight_0, tempWeight_1)
-!
-!                             call encode_matrix_element(t, tempWeight_0 * &
-!                                 tempWeight, 1)
-!                             call encode_matrix_element(t, tempWeight_1 * &
-!                                 tempWeight, 2)
-!
-!                             call setDeltaB(0, t)
-!
-!                             nExcits = nExcits + 1
-!                             tempExcits(:, nExcits) = t
-!                         end if
-!                     end do
-!
-!                 else if ((minusWeight + plusWeight <EPS) .or. &
-!                     (minusWeight <EPS .and. currentB_ilut(sOrb) <= 1.0_dp)) then
-!                     ! only 0 excitation possible
-!                     do iEx = 1, nExcits
-!                         t = tempExcits(:,iEx)
-!
-!                         deltaB = getDeltaB(t)
-!
-!                         if (deltaB == -1) then
-!                             ! -1 branch 3->2
-!                             clr_orb(t, 2*sOrb - 1)
-!
-!                             call getDoubleMatrixElement(2,3,deltaB,excitInfo%gen1,&
-!                                 excitInfo%gen2, bVal, excitInfo%order, tempWeight_0, &
-!                                 tempWeight_1)
-!
-!                         else
-!                             ! +1 branch: 3->1
-!                             clr_orb(t, 2*sOrb)
-!
-!                             call getDoubleMatrixElement(1,3,deltaB,excitInfo%gen1,&
-!                                 excitInfo%gen2,bVal, excitInfo%order, tempWeight_0,&
-!                                 tempWeight_1)
-!
-!                         end if
-!
-!                         call setDeltaB(0,t)
-!
-!                         call encode_matrix_element(t, tempWeight_1 * &
-!                             extract_matrix_element(t,1), 2)
-!                         call update_matrix_element(t, tempWeight_0, 1)
-!
-!                         tempExcits(:,iEx) = t
-!                     end do
-!
-!                 else
-!                     ! something went wrong then
-!                     call stop_all(this_routine,"something went wrong. shouldnt be here!")
-!                 end if
-!             end if
             end select
         end if
 
@@ -19885,12 +19684,10 @@ contains
         ! i am dealing with a full stop. otherwise stepvalue doesnt matter
         ! at end
         ! could avoid that is Three(end) now since included in weights...
-!         if (isThree(ilut,en).and.en==fe) then
         if (current_stepvector(en) == 3 .and. en == fe) then
             ! here only swiches to 0 branch are possible
             select case (current_stepvector(s))
             case (1)
-!             if (isOne(ilut,s)) then
                 ! only -1 branches can lead to 0 branch
                 ! not yet assured correctly by weights that only -1 branches
                 ! arrive...
@@ -19918,7 +19715,6 @@ contains
                 nExcits = cnt
 
             case (2)
-!             else if (isTwo(ilut,s)) then
                 ! only +1 can lead to 0 branch
                 cnt = 0
                 do iEx = 1, nExcits
@@ -19944,7 +19740,6 @@ contains
                 end do
                 nExcits = cnt
 
-!             else
             case (0)
                 ! has to be 0 in this generator combination.
                 ASSERT(isZero(ilut,s))
@@ -19982,7 +19777,6 @@ contains
                     tempExcits(:,iEx) = t
 
                 end do
-!             end if
             end select
 
 
@@ -19990,13 +19784,11 @@ contains
 
             select case (current_stepvector(s))
             case (1)
-!             if (isOne(ilut,s)) then
                 ! always works if weights are fitting, check possibs.
 
                 ! think i can do it generally for both... since its the same
                 ! operations only... only need to check if atleast on of the
                 ! relevant weights is nonzero
-!                 ASSERT(plusWeight > 0.0_dp)
                 ! since no choice here do not have to check...
                 ! hope this implementation is correct ...
 
@@ -20023,10 +19815,8 @@ contains
                 end do
 
             case (2)
-!             else if (isTwo(ilut,s)) then
                 ! should also work generally, since if a weight is zero the
                 ! non compatible branch shouldnt even arrive here
-!                 ASSERT(minusWeight > 0.0_dp)
 
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -20050,7 +19840,6 @@ contains
                     tempExcits(:,iEx) = t
                 end do
 
-!             else
             case (0)
                 ! has to be 0 in raising case
                 ASSERT(isZero(ilut,s))
@@ -20335,204 +20124,6 @@ contains
                     call stop_all(this_routine, " no branches possible in lowering semistart!")
                 end if
 
-!                 ! zero weight is always > 0! have to think about other weights...
-!                 ! there are 4 different possibilities, hopefully i get all of those
-!                 ! with following if-statements
-!                 if (plusWeight > 0.0_dp .and. minusWeight > 0.0_dp .and. &
-!                     currentB_ilut(sOrb) > 1.0_dp) then
-!                     ! all excitations possible
-!                     ! how to most efficiently do all that...
-!                     do iEx = 1, nExcits
-!                         t = tempExcits(:,iEx)
-!                         tempWeight = extract_matrix_element(t,1)
-!
-!                         deltaB = getDeltaB(t)
-!
-!                         ! first do 0 -> 1
-!                         set_orb(t, 2*sOrb - 1)
-!                         call getDoubleMatrixElement(1,0,deltaB,excitInfo%gen1,&
-!                             excitInfo%gen2, bVal, excitInfo%order,&
-!                             tempWeight_0, tempWeight_1)
-!
-!                         call encode_matrix_element(t, tempWeight_0 * &
-!                             tempWeight, 1)
-!                         call encode_matrix_element(t, tempWeight_1 * &
-!                             tempWeight, 2)
-!
-!                         call setDeltaB(deltaB - 1, t)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                         ! then do 0->2
-!                         nExcits = nExcits + 1
-!                         clr_orb(t, 2*sOrb - 1)
-!                         set_orb(t, 2*sOrb)
-!
-!                         call getDoubleMatrixElement(2,0,deltaB,excitInfo%gen1,&
-!                             excitInfo%gen2, bVal ,excitInfo%order,&
-!                             tempWeight_0, tempWeight_1)
-!
-!                         call encode_matrix_element(t, tempWeight_0 * &
-!                             tempWeight, 1)
-!                         call encode_matrix_element(t, tempWeight_1 * &
-!                             tempWeight, 2)
-!
-!                         call setDeltaB(deltaB + 1, t)
-!
-!                         tempExcits(:,nExcits) = t
-!                     end do
-!
-!                 else if ((plusWeight <EPS .and. minusWeight > 0.0_dp &
-!                     .and. currentB_ilut(sOrb) > 1.0_dp) .or.&
-!                     (currentB_ilut(sOrb) <= 1.0_dp .and. minusWeight > 0.0_dp)) then
-!                     ! +2 excitations not possible
-!                     ! only branching for -1 branch
-!                     ! but excitation 0->1 everytime possible for both
-!                     do iEx = 1, nExcits
-!                         t = tempExcits(:,iEx)
-!
-!                         ! make all possible 0->1 excitation first
-!                         deltaB = getDeltaB(t)
-!
-!                         set_orb(t, 2*sOrb - 1)
-!
-!                         ! todo: see how deltaB access correctly works...
-!                         ! have to use new deltaB here i Think!!!
-!                         call getDoubleMatrixElement(1,0,deltaB ,excitInfo%gen1,&
-!                             excitInfo%gen2,bVal, &
-!                             excitInfo%order,tempWeight_0,tempWeight_1)
-!
-!                         ! need unchanged matrix element for branching
-!                         tempWeight = extract_matrix_element(t,1)
-!
-!                         call encode_matrix_element(t, tempWeight_0 * &
-!                             tempWeight, 1)
-!                         call encode_matrix_element(t, tempWeight_1 * &
-!                             tempWeight, 2)
-!
-!                         call setDeltaB(deltaB - 1, t)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                         ! and for -1 branch there is also a switch
-!
-!                         if (deltaB == -1) then
-!                             ! have to switch from previuosly switched 1 -> 2
-!                             set_orb(t, 2*sOrb)
-!                             clr_orb(t, 2*sOrb - 1)
-!
-!                             call getDoubleMatrixElement(2,0,deltaB,excitInfo%gen1,&
-!                                 excitInfo%gen2, bVal, &
-!                                 excitInfo%order, tempWeight_0, tempWeight_1)
-!
-!                             call encode_matrix_element(t, tempWeight_0 * &
-!                                 tempWeight, 1)
-!                             call encode_matrix_element(t, tempWeight_1 * &
-!                                 tempWeight, 2)
-!
-!                             call setDeltaB(0, t)
-!
-!                             nExcits = nExcits + 1
-!                             tempExcits(:, nExcits) = t
-!                         end if
-!                     end do
-!
-!                 else if (minusWeight <EPS .and. plusWeight > 0.0_dp .and. &
-!                     currentB_ilut(sOrb) > 1.0_dp) then
-!                     ! -2 excitations not possible
-!                     ! only branching for +1 branch
-!                     ! 0->2 excitation works for both
-!                     do iEx = 1, nExcits
-!                         t = tempExcits(:,iEx)
-!
-!                         ! make all possible 0->2 excitation first
-!                         deltaB = getDeltaB(t)
-!
-!                         set_orb(t, 2*sOrb)
-!
-!                         ! todo: see how deltaB access correctly works...
-!                         ! have to use new deltaB here i Think!!!
-!                         call getDoubleMatrixElement(2,0,deltaB,excitInfo%gen1,&
-!                             excitInfo%gen2,bVal, &
-!                             excitInfo%order,tempWeight_0,tempWeight_1)
-!
-!                         ! need unchanged matrix element for branching
-!                         tempWeight = extract_matrix_element(t,1)
-!
-!                         call encode_matrix_element(t, tempWeight_0 * &
-!                             tempWeight, 1)
-!                         call encode_matrix_element(t, tempWeight_1 * &
-!                             tempWeight, 2)
-!
-!                         call setDeltaB(deltaB + 1, t)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                         ! and for +1 branch there is also a switch
-!
-!                         if (deltaB == +1) then
-!                             ! have to switch from previuosly switched 2 -> 1
-!                             clr_orb(t, 2*sOrb)
-!                             set_orb(t, 2*sOrb - 1)
-!
-!                             call getDoubleMatrixElement(1,0,deltaB,excitInfo%gen1,&
-!                                 excitInfo%gen2, bVal, &
-!                                 excitInfo%order, tempWeight_0, tempWeight_1)
-!
-!                             call encode_matrix_element(t, tempWeight_0 * &
-!                                 tempWeight, 1)
-!                             call encode_matrix_element(t, tempWeight_1 * &
-!                                 tempWeight, 2)
-!
-!                             call setDeltaB(0, t)
-!
-!                             nExcits = nExcits + 1
-!                             tempExcits(:, nExcits) = t
-!                         end if
-!                     end do
-!
-!                 else if ((minusWeight + plusWeight <EPS) .or. &
-!                     (minusWeight <EPS .and. currentB_ilut(sOrb) <= 1.0_dp)) then
-!                     ! only 0 excitation possible
-!                     do iEx = 1, nExcits
-!                         t = tempExcits(:,iEx)
-!
-!                         deltaB = getDeltaB(t)
-!
-!                         if (deltaB == -1) then
-!                             ! -1 branch 0->2
-!                             set_orb(t, 2*sOrb)
-!
-!                             call getDoubleMatrixElement(2,0,deltaB,excitInfo%gen1,&
-!                                 excitInfo%gen2, bVal, excitInfo%order, tempWeight_0, &
-!                                 tempWeight_1)
-!
-!                         else
-!                             ! +1 branch: 0->1
-!                             set_orb(t, 2*sOrb - 1)
-!
-!                             call getDoubleMatrixElement(1,0,deltaB,excitInfo%gen1,&
-!                                 excitInfo%gen2, bVal, excitInfo%order, tempWeight_0,&
-!                                 tempWeight_1)
-!
-!                         end if
-!
-!                         call setDeltaB(0,t)
-!
-!                         call encode_matrix_element(t, tempWeight_1 * &
-!                             extract_matrix_element(t,1), 2)
-!                         call update_matrix_element(t, tempWeight_0, 1)
-!
-!                         tempExcits(:,iEx) = t
-!                     end do
-!
-!
-!
-!                 else
-!                     ! something went wrong then
-!                     call stop_all(this_routine,"something went wrong. shouldnt be here!")
-!                 end if
-!             end if
             end select
         end if
 

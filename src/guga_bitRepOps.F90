@@ -1576,6 +1576,7 @@ contains
 
         integer :: i, min_ind, pos, abs_pos, j
         integer :: tmp_deb
+        HElement_t(dp) :: tmp_mat
 
         ! first sort lists to use binary search
         call sort(list1(:,1:nDets1), ilut_lt, ilut_gt)
@@ -1597,9 +1598,10 @@ contains
 
                 ! when element found just update the matrix element and update
                 ! the indices
-                call encode_matrix_element(list1(:,abs_pos), &
-                    extract_matrix_element(list1(:,abs_pos),1) + &
-                    extract_matrix_element(list2(:,i),1), 1)
+                tmp_mat = extract_h_element(list1(:,abs_pos)) + &
+                          extract_h_element(list2(:,i))
+
+                call encode_matrix_element(list1(:,abs_pos), tmp_mat, 1)
 
                 ! min_ind to search next element is then
                 min_ind = min_ind + pos
@@ -1950,6 +1952,19 @@ contains
 
     end function getDeltaB
 
+    function extract_h_element(ilutG) result(HElement)
+        integer(n_int), intent(in) :: ilutG(0:nifguga)
+        HElement_t(dp) :: HElement
+
+#ifdef __CMPLX
+        HElement = complex(extract_matrix_element(ilutG,1), &
+                           extract_matrix_element(ilutG,2))
+#else
+        HElement = extract_matrix_element(ilutG,1)
+#endif
+
+    end function extract_h_element
+
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
         integer(n_int), intent(in) :: ilutG(0:nifguga)
         integer(n_int), intent(inout) :: ilutN(0:niftot)
@@ -1968,7 +1983,7 @@ contains
         ! dependent on which type of compilation,
         ! extract_matrix_element always gives a real(dp)!
         if (present(HElement)) then
-            HElement = extract_matrix_element(ilutG, 1)
+            HElement = extract_h_element(ilutG)
         end if
 
     end subroutine convert_ilut_toNECI
