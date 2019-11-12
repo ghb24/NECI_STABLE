@@ -1727,10 +1727,10 @@ contains
         ! also make sure the x1 mat ele was nullified.
         ASSERT(near_zero(extract_matrix_element(ilut, 2)))
 
-        mat_int = transfer(RealPart(mat_ele), mat_int)
+        mat_int = transfer(real(real(mat_ele),dp), mat_int)
         ilut(nifd + 1) = mat_int
 
-        mat_int = transfer(ImagPart(mat_ele), mat_int)
+        mat_int = transfer(real(aimag(mat_ele),dp), mat_int)
         ilut(nifd + 2) = mat_int
 
     end subroutine encode_matrix_element_cmplx
@@ -1789,11 +1789,11 @@ contains
 
         ! and now we want to store the real and imag part in x0 and x1..
         temp_ele = transfer(ilut(nifd + 1), temp_ele)
-        mat_int = transfer(temp_ele * RealPart(mat_ele), mat_int)
+        mat_int = transfer(temp_ele * real(real(mat_ele),dp), mat_int)
 
         ilut(nifd + 1) = mat_int
 
-        mat_int = transfer(temp_ele * ImagPart(mat_ele), mat_int)
+        mat_int = transfer(temp_ele * real(aimag(mat_ele),dp), mat_int)
         ilut(nifd + 2) = mat_int
 
     end subroutine update_matrix_element_cmplx
@@ -1957,8 +1957,8 @@ contains
         HElement_t(dp) :: HElement
 
 #ifdef __CMPLX
-        HElement = complex(extract_matrix_element(ilutG,1), &
-                           extract_matrix_element(ilutG,2))
+        HElement = cmplx(extract_matrix_element(ilutG,1), &
+                           extract_matrix_element(ilutG,2),kind=dp)
 #else
         HElement = extract_matrix_element(ilutG,1)
 #endif
