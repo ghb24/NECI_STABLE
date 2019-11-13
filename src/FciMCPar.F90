@@ -746,9 +746,9 @@ module FciMCParMod
             if(tPopsProjE) then
                 call calc_proje(InstE, AccumE)
                 write(6,*)
-                write(6,*) 'Instantaneous projected energy of popsfile:', InstE
+                write(6,*) 'Instantaneous projected energy of popsfile:', InstE+Hii
                 if(tAccumPopsActive) &
-                    write(6,*) 'Accumulated projected energy of popsfile:', AccumE
+                    write(6,*) 'Accumulated projected energy of popsfile:', AccumE+Hii
             end if
         ENDIF
 
