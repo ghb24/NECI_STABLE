@@ -33,7 +33,7 @@ module FciMCParMod
                            t_hist_fvals, enGrid, arGrid, &
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpire, &
-                           tPopsProjE, iHDF5TruncPopsIter
+                           tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -416,6 +416,7 @@ module FciMCParMod
                 endif
 
                 call update_pops_sum_all(TotWalkers, iter + PreviousCycles)
+                iAccumPopsCounter = iAccumPopsCounter+1
 
                 ! The currentdets is almost full, we should start removing
                 ! dets which have been empty long enough

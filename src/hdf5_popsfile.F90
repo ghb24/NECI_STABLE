@@ -74,7 +74,8 @@ module hdf5_popsfile
     use hdf5_util
     use util_mod
     use CalcData, only: tAutoAdaptiveShift
-    use LoggingData, only: tPopAutoAdaptiveShift, tAccumPops, tAccumPopsActive, iAccumPopsIter
+    use LoggingData, only: tPopAutoAdaptiveShift, tAccumPops, tAccumPopsActive,&
+                            iAccumPopsIter, iAccumPopsCounter
 #ifdef __USE_HDF
     use hdf5
 #endif
@@ -99,6 +100,7 @@ module hdf5_popsfile
             nm_shift = 'shift', &
             nm_tAuto = 'tAutoAdaptiveShift', &
             nm_tAP = 'tAccumPops', &
+            nm_accum_counter = 'iAccumPopsCounter', &
 
             nm_tau_grp = 'tau_search', &
             nm_gam_sing = 'gamma_sing', &
@@ -915,6 +917,10 @@ contains
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] &
                 )
            deallocate(APVals)
+
+           !Write the number of iterations, during which the populations have
+           !been accumulated
+            call write_int64_scalar(wfn_grp_id, nm_accum_counter, iAccumPopsCounter)
         endif
         ! And we are done
         call h5gclose_f(wfn_grp_id, err)
@@ -1085,17 +1091,18 @@ contains
 
             if(iAccumPopsIter<=PreviousCycles)then
                 write(6,*) "Accumulated populations are found. Accumulation will continue."
-                tAccumPopsActive = .true.
                 tReadAPVals = .true.
             else
                 write(6,*) "Accumulated populations are found, but will be discarded."
                 write(6,*) "Accumulation will restart at iteration: ", iAccumPopsIter
-                tReadAPVals = .false.
-                tAccumPopsActive = .false.
             endif
         endif
 
         if(tReadAPVals)then
+            tAccumPopsActive = .true.
+            call read_int64_scalar(grp_id, nm_accum_counter, iAccumPopsCounter, &
+                                       default=0_int64, required=.false.)
+
             call h5dopen_f(grp_id, nm_apvals, ds_apvals, err)
         endif
         ! Check that these datasets look like we expect them to.

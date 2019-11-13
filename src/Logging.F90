@@ -169,6 +169,7 @@ MODULE Logging
       iAccumPopsIter = 0
       iAccumPopsExpire = 0
       iAccumPopsMaxEx = 0
+      iAccumPopsCounter = 0
       tWriteRefs = .false.
 
       maxInitExLvlWrite = 8

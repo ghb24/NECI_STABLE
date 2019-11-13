@@ -114,6 +114,7 @@ module LoggingData
     ! Number of iterations for the periodic writing of truncated popsfiles
     integer :: iHDF5TruncPopsIter
 
+
     ! Whether to calculate and print the project energy of
     ! wavefunction printed to popsfile
     logical :: tPopsProjE
@@ -131,6 +132,9 @@ module LoggingData
 
     ! Maximum excitation level of empty dets to keep during accumlation
     integer :: iAccumPopsMaxEx
+
+    ! How many iterations have been accumulated sofar
+    integer :: iAccumPopsCounter
 
     logical :: tOldRDMs = .false.
 
