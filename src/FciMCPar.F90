@@ -419,8 +419,9 @@ module FciMCParMod
 
                 ! The currentdets is almost full, we should start removing
                 ! dets which have been empty long enough
-                if(iAccumPopsExpire>0 .and. TotWalkers>0.95_dp * real(MaxWalkersPart,dp))then
+                if(iAccumPopsExpire>0 .and. TotWalkers>0.0_dp * real(MaxWalkersPart,dp))then
                     do j=1,TotWalkers
+                        if(check_determ_flag(CurrentDets(:,j))) cycle
                         call extract_sign(CurrentDets(:,j),CurrentSign)
                         if(.not. IsUnoccDet(CurrentSign)) cycle
                         pops_iter = INT(get_pops_iter(j))
