@@ -17,7 +17,7 @@ module AnnihilationMod
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
-                         ilut_gt, DetBitZero, count_open_orbs
+                         ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
     use sort_mod
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
@@ -35,7 +35,7 @@ module AnnihilationMod
     use hash
     use global_det_data, only: det_diagH, store_spawn, &
                                update_tot_spawns, update_acc_spawns, &
-                               get_tot_spawns, get_acc_spawns, tAccumEmptyDet
+                               get_tot_spawns, get_acc_spawns
     use procedure_pointers, only: scaleFunction
     use hphf_integrals, only: hphf_diag_helement
     use rdm_data, only: rdm_estimates, en_pert_main, rdm_inits_defs, two_rdm_inits_spawn, &
@@ -1050,7 +1050,7 @@ module AnnihilationMod
                     ! away. Remove it from the hash index array so that
                     ! no others find it (it is impossible to have another
                     ! spawned walker yet to find this determinant).
-                    if(.not. tAccumEmptyDet(PartInd)) call RemoveHashDet(HashIndex, nJ, PartInd)
+                    if(.not. tAccumEmptyDet(CurrentDets(:,PartInd))) call RemoveHashDet(HashIndex, nJ, PartInd)
                  end if
               end if
 

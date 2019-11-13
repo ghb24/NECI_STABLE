@@ -19,7 +19,7 @@ module fcimc_helper
                         encode_spawn_hdiag, extract_spawn_hdiag, flag_static_init
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
-                         TestClosedShellDet
+                         TestClosedShellDet, tAccumEmptyDet
     use Determinants, only: get_helement, write_det
     use FciMCData
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
@@ -69,7 +69,7 @@ module fcimc_helper
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
                                global_determinant_data, det_diagH, &
                                get_spawn_pop, get_tau_int, get_shift_int, &
-                               get_neg_spawns, get_pos_spawns, tAccumEmptyDet
+                               get_neg_spawns, get_pos_spawns
     use searching, only: BinSearchParts2
     use back_spawn, only: setup_virtual_mask
     use initiator_space_procs, only: is_in_initiator_space
@@ -2220,7 +2220,7 @@ contains
             end if
 
             ! Remove the determinant from the indexing list
-            if(.not. tAccumEmptyDet(DetPosition)) call RemoveHashDet(HashIndex, DetCurr, DetPosition)
+            if(.not. tAccumEmptyDet(CurrentDets(:,DetPosition))) call RemoveHashDet(HashIndex, DetCurr, DetPosition)
             ! Encode a null det to be picked up
             call encode_sign(CurrentDets(:,DetPosition), null_part)
         end if
@@ -2461,7 +2461,7 @@ contains
         do j = 1, int(TotWalkers, sizeof_int)
 
             call extract_sign(CurrentDets(:,j), sgn)
-            if (IsUnoccDet(sgn) .and. .not. (tCalcAccumE .and. tAccumEmptyDet(j))) cycle
+            if (IsUnoccDet(sgn) .and. .not. (tCalcAccumE .and. tAccumEmptyDet(CurrentDets(:,j)))) cycle
 
             call decode_bit_det(det, CurrentDets(:,j))
             if(tCalcAccumE) accum_sgn = get_pops_sum_full(j)

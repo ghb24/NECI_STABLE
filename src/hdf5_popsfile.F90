@@ -747,9 +747,8 @@ contains
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
                              TotWalkers, iLutHF,Iter, PreviousCycles
         use CalcData, only: tUseRealCoeffs
-        use DetBitOps, only: FindBitExcitLevel
-        use global_det_data, only: writeFFuncAsInt, writeAPValsAsInt,&
-                                   tAccumEmptyDet
+        use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
+        use global_det_data, only: writeFFuncAsInt, writeAPValsAsInt
 
         ! Output the wavefunction information to the relevant groups in the
         ! wavefunction.
@@ -798,7 +797,7 @@ contains
                 ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
                 if(ExcitLevel<=MaxEx)then
                     call extract_sign(CurrentDets(:,i),CurrentSign)
-                    if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(i)) cycle
+                    if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
                     printed_count = printed_count + 1
                     PrintedDets(:,printed_count) = CurrentDets(:,i)
                     ! Fill in stats
@@ -1568,9 +1567,10 @@ contains
               ! Check that the site is occupied, and passes the relevant
               ! thresholds before adding it to the system.
               ! However, when reading accumlated populations (APVals), we want
-              ! to add even unoccupied sites
+              ! to add even unoccupied sites who has accumlated values
               call extract_sign(receivebuff(: ,j), sgn)
-              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. tReadAPVals) then
+              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
+                  (tReadAPVals .and. any(apvals_write(:,j)>0))) then
 
                  ! Add this site to the main list
                  CurrWalkers = CurrWalkers + 1
@@ -1593,9 +1593,10 @@ contains
               ! Check that the site is occupied, and passes the relevant
               ! thresholds before adding it to the system.
               ! However, when reading accumlated populations (APVals), we want
-              ! to add even unoccupied sites
+              ! to add even unoccupied sites who has accumlated values
               call extract_sign(SpawnedParts2(: ,j), sgn)
-              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. tReadAPVals) then
+              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
+                  (tReadAPVals .and. any(apvals_write(:,j)>0))) then
 
                  ! Add this site to the main list
                  CurrWalkers = CurrWalkers + 1

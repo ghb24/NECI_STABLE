@@ -18,7 +18,7 @@ module semi_stoch_procs
     use SystemData, only: nel
     use timing_neci
     use adi_data, only: tSignedRepAv
-    use global_det_data, only: set_tot_acc_spawns, set_apvals, tAccumEmptyDet
+    use global_det_data, only: set_tot_acc_spawns, set_apvals
     use LoggingData, only: tAccumPopsActive
 
     implicit none
@@ -822,10 +822,9 @@ contains
 
         use Determinants, only: get_helement
         use FciMCData, only: Hii
-        use global_det_data, only: set_det_diagH, tAccumEmptyDet
+        use global_det_data, only: set_det_diagH
         use hphf_integrals, only: hphf_diag_helement
         use SystemData, only: tHPHF
-        use bit_reps, only: extract_sign
 
         integer :: i
         integer :: nI(nel)
@@ -833,8 +832,6 @@ contains
         real(dp) :: sgn(lenof_sign)
 
         do i = 1, int(TotWalkers)
-            call extract_sign(CurrentDets(:,i), sgn)
-            if (IsUnoccDet(sgn) .and. (.not. tAccumEmptyDet(i))) cycle
             call decode_bit_det(nI, CurrentDets(:,i))
 
             if (tHPHF) then
@@ -969,6 +966,7 @@ contains
         use bit_reps, only: set_flag, extract_sign, encode_sign
         use FciMCData, only: ll_node, indices_of_determ_states, HashIndex, nWalkerHashes
         use hash, only: clear_hash_table, FindWalkerHash
+        use DetBitOps, only: tAccumEmptyDet
 
         integer :: i, hash_val, PartInd, nwalkers, i_non_core
         integer :: nI(nel)
@@ -1090,7 +1088,7 @@ contains
             call extract_sign(CurrentDets(:,i), walker_sign)
             ! Don't add the determinant to the hash table if its unoccupied and not
             ! in the core space and not accumulated.
-            if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic)) .and. .not. tAccumEmptyDet(i)) cycle
+            if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic)) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
             call decode_bit_det(nI, CurrentDets(:,i))
             hash_val = FindWalkerHash(nI,nWalkerHashes)
             temp_node => HashIndex(hash_val)

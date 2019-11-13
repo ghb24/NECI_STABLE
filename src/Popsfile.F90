@@ -262,6 +262,7 @@ contains
            call clr_flag(Dets(:,i), flag_determ_parent)
            call clr_flag(Dets(:,i), flag_trial)
            call clr_flag(Dets(:,i), flag_connected)
+           call clr_flag(Dets(:,i), flag_removed)
 
            ! store the determinant
            if(tStoredDets) then
@@ -269,7 +270,6 @@ contains
               call store_decoding(int(i),TempnI)
            end if
         end do
-
 
         call halt_timer(read_timer)
         call set_timer(process_timer)

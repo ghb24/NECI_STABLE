@@ -74,7 +74,8 @@ module FciMCParMod
                                update_tau_int, set_spawn_pop, &
                                get_tot_spawns, get_acc_spawns, &
                                replica_est_len, update_pops_sum_all, &
-                               get_pops_iter, tAccumEmptyDet
+                               get_pops_iter
+    use DetBitOps, only: tAccumEmptyDet
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -1153,7 +1154,7 @@ module FciMCParMod
                         ! kill all walkers on the determinant
                         call nullify_ilut(CurrentDets(:,j))
                         ! and remove it from the hashtable
-                        if(.not. tAccumEmptyDet(j)) &
+                        if(.not. tAccumEmptyDet(CurrentDets(:,j))) &
                             call RemoveHashDet(HashIndex, DetCurr, j)
                      endif
                   endif
@@ -1214,7 +1215,7 @@ module FciMCParMod
             ! to be contiguous, we need to skip sites that are empty.
             if(IsUnoccDet(SignCurr)) then
 
-               if(tAccumEmptyDet(j)) cycle
+               if(tAccumEmptyDet(CurrentDets(:,j))) cycle
 
                !It has been removed from the hash table already
                !Just add to the "freeslot" list
