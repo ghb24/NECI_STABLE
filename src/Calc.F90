@@ -3585,12 +3585,13 @@ contains
 
              if(tFCIMC) then
                 call FciMCPar(final_energy)
-                if (allocated(final_energy)) then
+                if ((.not.tMolpro) .and. (.not.tMolproMimic)) then
+                  if (allocated(final_energy)) then
                    do i = 1, size(final_energy)
                       write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
                            i, final_energy(i)
                    end do
-
+                  endif
                 end if
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)

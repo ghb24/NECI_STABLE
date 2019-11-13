@@ -781,7 +781,7 @@ contains
         ! 1-RDM, obtained by tracing over the spin component.
 
         use rdm_data, only: one_rdm_t, tOpenShell
-        use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag
+        use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag, tExplicitAllRDM
         use RotateOrbsData, only: SymLabelListInv_rot
         use UMatCache, only: gtID
 
@@ -828,7 +828,7 @@ contains
             else
                 ind = SymLabelListInv_rot(gtID(nI(i)))
             end if
-            if (inum_runs==1) then !to amke it usable for explicit rdm calculations
+            if (inum_runs==1.and.tExplicitAllRDM) then !for explicit rdm calculations
                 final_contrib = contrib_sign(1)**2 * ScaleContribFac
             else
                 final_contrib = contrib_sign(1::2) * contrib_sign(2::2) * RDMIters * ScaleContribFac

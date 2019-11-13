@@ -2470,6 +2470,7 @@ contains
 
             ! All of the shift energies are relative to Hii, so they need to
             ! be offset
+            DiagSft = DiagSft + old_hii - hii
 
         end if ! run == 1
 
