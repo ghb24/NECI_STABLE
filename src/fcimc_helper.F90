@@ -2540,13 +2540,15 @@ contains
         call MPISumAll(HFInst, AllHFInst)
         call MPISumAll(ENumInst, AllENumInst)
 
+        !One could check whether AllHFInt is zero and then set InstE to zero.
+        !But letting the division by zero happen and having NaN is probably
+        !more informative.
         InstE = AllENumInst / AllHFInst + proje_ref_energy_offsets
 
         if(present(AccumE))then
             if(tAccumPopsActive)then
                 call MPISumAll(HFAccum, AllHFAccum)
                 call MPISumAll(ENumAccum, AllENumAccum)
-
                 AccumE = AllENumAccum / AllHFAccum + proje_ref_energy_offsets
             else
                 AccumE = 0.0_dp

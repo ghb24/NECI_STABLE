@@ -19,7 +19,7 @@ module semi_stoch_procs
     use timing_neci
     use adi_data, only: tSignedRepAv
     use global_det_data, only: set_tot_acc_spawns, set_apvals, tAccumEmptyDet
-    use LoggingData, only: tAccumPops
+    use LoggingData, only: tAccumPopsActive
 
     implicit none
 
@@ -1037,13 +1037,13 @@ contains
                 call extract_sign(CurrentDets(:,PartInd), walker_sign)
                 call encode_sign(SpawnedParts(:,i), walker_sign)
                 if(tAutoAdaptiveShift) call cache_fvals(i,PartInd)
-                if(tAccumPops) call cache_apvals(i,PartInd)
+                if(tAccumPopsActive) call cache_apvals(i,PartInd)
             else
                 ! This will be a new state added to CurrentDets.
                 nwalkers = nwalkers + 1
                 ! no auto-adaptive shift data available
                 if(tAutoAdaptiveShift) fvals(:,i) = 0.0_dp
-                if(tAccumPops) apvals(:,i) = 0.0_dp
+                if(tAccumPopsActive) apvals(:,i) = 0.0_dp
             end if
 
         end do
@@ -1071,7 +1071,7 @@ contains
 
                 SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
                 if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
-                if(tAccumPops) call cache_apvals(i_non_core,i)
+                if(tAccumPopsActive) call cache_apvals(i_non_core,i)
             end if
         end do
         ! Now copy all the core states in SpawnedParts into CurrentDets.
@@ -1081,7 +1081,7 @@ contains
             ! also re-order the adaptive shift data if auto-adapive shift is used
         end do
         if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, nwalkers)
-        if(tAccumPops) call set_apvals(apvals, nwalkers)
+        if(tAccumPopsActive) call set_apvals(apvals, nwalkers)
 
         call clear_hash_table(HashIndex)
 

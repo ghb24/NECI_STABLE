@@ -408,10 +408,10 @@ module FciMCParMod
                 attempt_die => ad_tmp
             endif
 
-            if(tAccumPops .and. iter + PreviousCycles>iAccumPopsIter) then
+            if(tAccumPops .and. iter+PreviousCycles>=iAccumPopsIter) then
                 if(.not. tAccumPopsActive) then
                     tAccumPopsActive = .true.
-                    write(6,*) "Starting to accumlate populations ..."
+                    write(6,*) "Starting to accumulate populations ..."
                 endif
 
                 call update_pops_sum_all(TotWalkers, iter + PreviousCycles)

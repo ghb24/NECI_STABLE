@@ -141,8 +141,9 @@ module hdf5_popsfile
     integer:: receivebuff_tag
 
     ! if fvals (acc/tot spawns) for auto-adaptive shift are read in
-    logical :: tReadFVals
-    
+    ! if apvals (pops_sum, pops_iter) for accum-pops are read in
+    logical :: tReadFVals, tReadAPVals
+
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
 
@@ -194,7 +195,7 @@ contains
         call MPIBCast(filename)
 
         write(6,*)
-        if(present(MaxEx))then 
+        if(present(MaxEx))then
             write(6,*) "========= Writing Truncated HDF5 popsfile ========="
         else
             write(6,*) "============== Writing HDF5 popsfile =============="
@@ -946,7 +947,7 @@ contains
         character(*), parameter :: t_r = 'read_walkers'
 
         integer :: proc, nreceived
-        integer(hid_t) :: grp_id
+        integer(hid_t) :: grp_id, calc_grp_id
         integer(hdf_err) :: err
         integer(hid_t) :: ds_sgns, ds_ilut, ds_fvals, ds_apvals
 
@@ -1073,13 +1074,31 @@ contains
         endif
 
         ! only read in pops_sum/pops_iter for accum-pops
-        ! if accum-pops is active and the popsfile has them
-        tAccumPopsActive = tAccumPops .and. tAPValsExist
-        if(tAccumPopsActive) then
-           write(6,*) "Accumulated populations are found. Accumulation will be resumed."
-           call h5dopen_f(grp_id, nm_apvals, ds_apvals, err)
+        ! if the popsfile has them and accum-pops is specified with a proper iteration
+        tReadAPVals = .false.
+        if(tAccumPops .and. tAPValsExist)then
+            ! Read previous iteration data.
+            ! It is read again in read_calc_data, but we need it now
+            call h5gopen_f(parent, nm_calc_grp, calc_grp_id, err)
+            call read_int64_scalar(calc_grp_id, nm_iters, PreviousCycles, &
+                                   default=0_int64, required=.false.)
+            call h5gclose_f(calc_grp_id, err)
+
+            if(iAccumPopsIter<=PreviousCycles)then
+                write(6,*) "Accumulated populations are found. Accumulation will continue."
+                tAccumPopsActive = .true.
+                tReadAPVals = .true.
+            else
+                write(6,*) "Accumulated populations are found, but will be discarded."
+                write(6,*) "Accumulation will restart at iteration: ", iAccumPopsIter
+                tReadAPVals = .false.
+                tAccumPopsActive = .false.
+            endif
         endif
 
+        if(tReadAPVals)then
+            call h5dopen_f(grp_id, nm_apvals, ds_apvals, err)
+        endif
         ! Check that these datasets look like we expect them to.
         call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
                                   [int(bit_rep_width,hsize_t), all_count])
@@ -1091,10 +1110,10 @@ contains
                 [int(2*tmp_inum_runs, hsize_t), all_count])
         endif
 
-        if(tAccumPopsActive) then
+        if(tReadAPVals) then
            call check_dataset_params(ds_apvals, nm_apvals, 8_hsize_t, H5T_FLOAT_F, &
                 [int(tmp_lenof_sign+1, hsize_t), all_count])
-        end if 
+        end if
 
         !limit the buffer size per MPI task to 50MB or MaxSpawned entries
         block_size=50000000/(bit_rep_width*lenof_sign)/sizeof(SpawnedParts(1,1))
@@ -1142,7 +1161,7 @@ contains
            allocate(temp_fvals(0,0))
         endif
 
-        if(tAccumPopsActive) then
+        if(tReadAPVals) then
            allocate(temp_apvals(int(tmp_lenof_sign+1), int(this_block_size)), stat=ierr)
         else
            allocate(temp_apvals(0,0))
@@ -1168,7 +1187,7 @@ contains
                   allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
                end if
 
-               if(tAccumPopsActive) then
+               if(tReadAPVals) then
                   deallocate(temp_apvals)
                   allocate(temp_apvals(int(tmp_lenof_sign+1), int(this_block_size)), stat=ierr)
                end if
@@ -1183,7 +1202,7 @@ contains
                ! resize the fvals in the same manner
                if(tReadFVals) &
                     call clone_signs(temp_fvals,2*tmp_inum_runs,2*inum_runs, this_block_size)
-               if(tAccumPopsActive) &
+               if(tReadAPVals) &
                     call clone_signs(temp_apvals,tmp_lenof_sign+1,tmp_lenof_sign+1, this_block_size)
             endif
 
@@ -1212,7 +1231,7 @@ contains
         call LogMemDeAlloc('read_walkers',temp_ilut_tag)
         call LogMemDeAlloc('read_walkers',temp_sgns_tag)
 
-        if(tAccumPopsActive) call h5dclose_f(ds_apvals, err)
+        if(tReadAPVals) call h5dclose_f(ds_apvals, err)
         if(tReadFVals) call h5dclose_f(ds_fvals, err)
         call h5dclose_f(ds_sgns, err)
         call h5dclose_f(ds_ilut, err)
@@ -1273,7 +1292,7 @@ contains
                 [0_hsize_t, 0_hsize_t])
         endif
 
-        if(tAccumPopsActive) then
+        if(tReadAPVals) then
            call read_2d_multi_chunk( &
                 ds_apvals, temp_apvals, H5T_NATIVE_REAL_8, &
                 [int(tmp_lenof_sign+1, hsize_t), block_size], &
@@ -1315,7 +1334,7 @@ contains
       endif
 
       ! allocate the buffers for the apvals
-      if(tAccumPopsActive) then
+      if(tReadAPVals) then
          allocate(apvals_comm(lenof_sign+1,MaxSpawned), stat=ierr)
          allocate(apvals_loc(lenof_sign+1,MaxSpawned), stat=ierr)
       else
@@ -1410,7 +1429,7 @@ contains
                     SpawnedParts2(:,index2)=onepart
                     if(tReadFVals)&
                          fvals_loc(:,index2)=temp_fvals(:,j)
-                    if(tAccumPopsActive)&
+                    if(tReadAPVals)&
                          apvals_loc(:,index2)=temp_apvals(:,j)
                     index2=index2+1
                  end if
@@ -1424,7 +1443,7 @@ contains
                     SpawnedParts(:,index)=onepart
                     if(tReadFVals) &
                          fvals_comm(:,index)=temp_fvals(:,j)
-                    if(tAccumPopsActive) &
+                    if(tReadAPVals) &
                          apvals_comm(:,index)=temp_apvals(:,j)
                     index=index+1
                  end if
@@ -1488,7 +1507,7 @@ contains
               allocate(fvals_loc(2*inum_runs,num_received))
            endif
            ! apvals communication for accum-pops
-           if(tAccumPopsActive) then
+           if(tReadAPVals) then
               if(allocated(apvals_loc)) deallocate(apvals_loc)
               allocate(apvals_loc(lenof_sign+1,num_received))
            endif
@@ -1505,7 +1524,7 @@ contains
         endif
 
         call scaleCounts(size(apvals_loc,1))
-        if(tAccumPopsActive) then
+        if(tReadAPVals) then
            call MPIAllToAllV(apvals_comm, sendcountsScaled, dispsScaled, apvals_loc, &
                 recvcountsScaled, recvdispsScaled, ierr)
         endif
@@ -1551,7 +1570,7 @@ contains
               ! However, when reading accumlated populations (APVals), we want
               ! to add even unoccupied sites
               call extract_sign(receivebuff(: ,j), sgn)
-              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. tAccumPopsActive) then
+              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. tReadAPVals) then
 
                  ! Add this site to the main list
                  CurrWalkers = CurrWalkers + 1
@@ -1564,7 +1583,7 @@ contains
                  if(tReadFVals) &
                       call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
 
-                 if(tAccumPopsActive) &
+                 if(tReadAPVals) &
                       call readAPValsAsInt(apvals_write(:,j), CurrWalkers)
               end if
            end do
@@ -1576,7 +1595,7 @@ contains
               ! However, when reading accumlated populations (APVals), we want
               ! to add even unoccupied sites
               call extract_sign(SpawnedParts2(: ,j), sgn)
-              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. tAccumPopsActive) then
+              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. tReadAPVals) then
 
                  ! Add this site to the main list
                  CurrWalkers = CurrWalkers + 1
@@ -1589,7 +1608,7 @@ contains
                  if(tReadFVals) &
                       call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
 
-                 if(tAccumPopsActive) &
+                 if(tReadAPVals) &
                       call readAPValsAsInt(apvals_write(:,j), CurrWalkers)
               end if
            end do
