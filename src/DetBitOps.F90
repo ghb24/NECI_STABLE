@@ -1081,7 +1081,7 @@ module DetBitOps
     pure function tAccumEmptyDet(ilut) result(tAccum)
       use FciMCData, only: iLutHF
       use bit_rep_data, only: test_flag, NIfD, flag_removed
-      use LoggingData, only: tAccumPopsActive, iAccumPopsMaxEx, iAccumPopsExpire
+      use LoggingData, only: tAccumPopsActive, iAccumPopsMaxEx
 
         ! Whether we should keep a determinant in CurrentDets even if it
         ! is unoccupied

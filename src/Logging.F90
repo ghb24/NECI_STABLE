@@ -167,8 +167,9 @@ MODULE Logging
       tAccumPops = .false.
       tAccumPopsActive = .false.
       iAccumPopsIter = 0
-      iAccumPopsExpire = 0
-      iAccumPopsMaxEx = 0
+      iAccumPopsMaxEx = 2
+      iAccumPopsExpireIters = 0
+      AccumPopsExpirePercent = 0.9_dp
       iAccumPopsCounter = 0
       tWriteRefs = .false.
 
@@ -979,23 +980,41 @@ MODULE Logging
             ! and any associated info (global_det_data) is lost. Therefore,
             ! when accumlating populations is active, (some) empty dets are kept alive.
 
-            ! This parameter represents the maximum excitation level to consider
-            ! when keeping empty dets alive.
-            ! A value of zero means all excitation levels are considered.
-            call readi(iAccumPopsMaxEx)
-            if(iAccumPopsMaxEx<0) then
-                call stop_all(t_r,'iAccumPopsMaxEx should be greater than or equal zero')
+            if (item < nitems) then
+                ! This parameter represents the maximum excitation level to consider
+                ! when keeping empty dets alive.
+                ! We keep up to double excitations indefinitely anyway.
+                ! Therefore, this should be greater than or equal two.
+                ! Default value: 2
+                call readi(iAccumPopsMaxEx)
+                if(iAccumPopsMaxEx<2) then
+                    call stop_all(t_r,'iAccumPopsMaxEx should be greater than or equal two')
+                end if
+            endif
+
+            if (item < nitems) then
+                ! This parameter represents the maximum number of iterations,
+                ! empty dets are kept before being removed. The removal happens
+                ! when CurrentDets is almost full (see iAccumPopsExpirePercent).
+                ! A value of zero means keeping accumulated empty dets indefinitely.
+                ! Default value: 0
+                call readi(iAccumPopsExpireIters)
+                if(iAccumPopsExpireIters<0) then
+                    call stop_all(t_r,'iAccumPopsExpireIters should be greater than or equal zero')
+                end if
             end if
 
-            ! This parameter represents the maximum number of iterations,
-            ! empty dets are kept before being removed. The removal happens
-            ! when CurrentDets is almost full (95%).
-            ! A value of zero means keeping accumlated empty dets indefinitely.
-            call readi(iAccumPopsExpire)
-            if(iAccumPopsExpire<0) then
-                call stop_all(t_r,'iAccumPopsExpire should be greater than or equal zero')
+            if (item < nitems) then
+                ! This parameter represents how full CurrentDets should be before
+                ! removing accumulated empty dets according to the above criteria.
+                ! Default value: 0.9
+                call readf(AccumPopsExpirePercent)
+                if(AccumPopsExpirePercent<0.0_dp .or. AccumPopsExpirePercent>1.0) then
+                    call stop_all(t_r,'iAccumPopsExpirePercent should be between zero and one.')
+                end if
             end if
-            ! Accumlated populations are sotred in global det data, so we need
+
+            ! Accumlated populations are stored in global det data, so we need
             ! to preserve them when the dets change processors during load balancing
             tMoveGlobalDetData = .true.
 

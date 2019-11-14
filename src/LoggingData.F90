@@ -128,7 +128,11 @@ module LoggingData
     integer :: iAccumPopsIter
 
     ! Number of iterations the empty dets are kept during accumlation
-    integer :: iAccumPopsExpire
+    integer :: iAccumPopsExpireIters
+
+    ! How full should be the CurrentDets before starting to remove accumulated
+    ! empty dets
+    real(dp) :: AccumPopsExpirePercent
 
     ! Maximum excitation level of empty dets to keep during accumlation
     integer :: iAccumPopsMaxEx

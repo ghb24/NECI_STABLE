@@ -32,8 +32,9 @@ module FciMCParMod
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
                            t_hist_fvals, enGrid, arGrid, &
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
-                           tAccumPopsActive, iAccumPopsIter, iAccumPopsExpire, &
-                           tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter
+                           tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
+                           tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
+                           AccumPopsExpirePercent
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -156,6 +157,7 @@ module FciMCParMod
 
         HElement_t(dp):: InstE(inum_runs)
         HElement_t(dp):: AccumE(inum_runs)
+        integer :: ExcitLevel
 #ifdef MOLPRO
         real(dp) :: get_scalar
         include "common/molen"
@@ -420,14 +422,25 @@ module FciMCParMod
 
                 ! The currentdets is almost full, we should start removing
                 ! dets which have been empty long enough
-                if(iAccumPopsExpire>0 .and. TotWalkers>0.0_dp * real(MaxWalkersPart,dp))then
+                if(iAccumPopsExpireIters>0 .and. TotWalkers>AccumPopsExpirePercent * real(MaxWalkersPart,dp))then
                     do j=1,TotWalkers
-                        if(check_determ_flag(CurrentDets(:,j))) cycle
+                        ! The loop is over empty dets only
                         call extract_sign(CurrentDets(:,j),CurrentSign)
                         if(.not. IsUnoccDet(CurrentSign)) cycle
+
+                        ! Keep semi-stochastic dets
+                        if(check_determ_flag(CurrentDets(:,j))) cycle
+
+                        ! Keep up to double excitations
+                        ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+                        if(ExcitLevel<=2) cycle
+
+                        ! Check if the det has already been removed
+                        if(test_flag(CurrentDets(:,j), flag_removed)) cycle
+
+                        ! Now if it has been empty for a long time, remove it
                         pops_iter = INT(get_pops_iter(j))
-                        ! When pops_iter is zero, the det is already removed
-                        if(pops_iter>0 .and. iter+PreviousCycles-pops_iter>iAccumPopsExpire)then
+                        if(iter+PreviousCycles-pops_iter>iAccumPopsExpireIters)then
                             call decode_bit_det(nJ, CurrentDets(:,j))
                             call RemoveHashDet(HashIndex, nJ, j)
                         endif
