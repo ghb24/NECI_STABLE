@@ -115,8 +115,8 @@ module LoggingData
     integer :: iHDF5TruncPopsIter
 
 
-    ! Whether to calculate and print the project energy of
-    ! wavefunction printed to popsfile
+    ! Whether to calculate and print the projected energy of
+    ! popsfile wavefunction - instantaneous and accumulated (if available)
     logical :: tPopsProjE
 
     ! Whether to accumulate the population of determinants and write them

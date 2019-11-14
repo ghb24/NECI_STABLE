@@ -945,8 +945,8 @@ MODULE Logging
             tHDF5PopsWrite = .true.
 
         case("POPS-PROJE")
-            ! Calculate and print the instanenous project energy of
-            ! wavefunction printed to popsfile
+            ! Calculate and print the projected energy of
+            ! popsfile wavefunction - instantaneous and accumulated (if available)
             tPopsProjE = .true.
 
         case("HDF5-TRUNC-POPS-WRITE")
@@ -1017,6 +1017,9 @@ MODULE Logging
             ! Accumlated populations are stored in global det data, so we need
             ! to preserve them when the dets change processors during load balancing
             tMoveGlobalDetData = .true.
+
+            ! Print popsfile projected energy at the end
+            tPopsProjE = .true.
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
