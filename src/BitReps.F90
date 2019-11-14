@@ -453,9 +453,6 @@ contains
         integer(n_int) :: sgn(lenof_sign)
 
         sgn = transfer(real_sgn, sgn)
-        print *, "nOffSgn", nOffSgn
-        print *, "NIfSgn: ", NIfSgn
-        print *, "ilut: ", ilut
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
 
     end subroutine encode_sign
