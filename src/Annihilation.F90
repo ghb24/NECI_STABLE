@@ -954,7 +954,7 @@ module AnnihilationMod
 
            ! WRITE(6,*) 'i,SpawnedParts(:,i)',i,SpawnedParts(:,i)
 
-           if (tSuccess) then
+           if(tSuccess) then
               ! Our SpawnedParts determinant is found in CurrentDets.
 
               call extract_sign(CurrentDets(:,PartInd),CurrentSign)
@@ -1000,13 +1000,13 @@ module AnnihilationMod
                        end if
                     end if
 
-                    !If we are fixing the population of reference det, skip spawing into it.
-                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,PartInd),iLutRef(:,run),nIfD)) then
-                       NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
-                       iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                       call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
-                       SpawnedSign(j) = 0.0_dp
-                    end if
+                 !If we are fixing the population of reference det, skip spawing into it.
+                 if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,PartInd),iLutRef(:,run),nIfD)) then
+                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                    call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
+                    SpawnedSign(j) = 0.0_dp
+                 end if
 
 
                     if (SignProd(j) < 0) then
@@ -1062,20 +1062,20 @@ module AnnihilationMod
                     end if
                  end if
 
-                 if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
-                    call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)
-                    ! We must use the instantaneous value for the off-diagonal
-                    ! contribution. However, we can't just use CurrentSign from
-                    ! the previous iteration, as this has been subject to death
-                    ! but not the new walkers. We must add on SpawnedSign, so
-                    ! we're effectively taking the instantaneous value from the
-                    ! next iter. This is fine as it's from the other population,
-                    ! and the Di and Dj signs are already strictly uncorrelated.
-                    if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
-                         inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
-                    call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
-                         CurrentDets(:,PartInd), TempCurrentSign)
-                 end if
+!                if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
+!                   call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)
+!                   ! We must use the instantaneous value for the off-diagonal
+!                   ! contribution. However, we can't just use CurrentSign from
+!                   ! the previous iteration, as this has been subject to death
+!                   ! but not the new walkers. We must add on SpawnedSign, so
+!                   ! we're effectively taking the instantaneous value from the
+!                   ! next iter. This is fine as it's from the other population,
+!                   ! and the Di and Dj signs are already strictly uncorrelated.
+!                   if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
+!                        inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
+!                    call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
+!                         CurrentDets(:,PartInd), TempCurrentSign)
+!                end if
 
                  if(tAutoAdaptiveShift .and. tAAS_Reverse)then
                     do run = 1, inum_runs
@@ -1097,10 +1097,10 @@ module AnnihilationMod
                  ! and the Di and Dj signs are already strictly uncorrelated.
                  if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
                       inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
-                 call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
+                   call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
                       CurrentDets(:,PartInd), TempCurrentSign)
-              end if
-           else
+                 end if
+              else
 
 
               ! Determinant in newly spawned list is not found in CurrentDets.

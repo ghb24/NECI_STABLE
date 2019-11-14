@@ -1039,7 +1039,7 @@ contains
            hel=0
 
            if(t_ueg_transcorr) then
-              if(abs(a).ge.kmax.or.t_trcorr_gausscutoff) then
+              if(abs(a).ge.kmax.or.(t_trcorr_gausscutoff.and.a.ne.0)) then
                 k_tc(1) = 2 * PI * a / ALAT(1)
                 G2 = k_tc (1) * k_tc (1)
                 if(G1(i)%Ms.eq.-1) then
@@ -1047,11 +1047,7 @@ contains
                 else
                         nsigma=nOccBeta
                 endif
-                if(a.eq.0.and.t_trcorr_gausscutoff) then
-                   hel=hel+nsigma*PotentialStrength/ALAT(1)*8.d0*TranscorrGaussCutoff**2
-                else
-                   hel=hel-nsigma*PotentialStrength**2/G2/ALAT(1)*Gaussfact**2
-                endif
+                hel=hel-nsigma*PotentialStrength**2/G2/ALAT(1)*Gaussfact**2
               endif
            endif
 
@@ -1066,15 +1062,11 @@ contains
 
                   k_tc(1) = 2 * PI * a / ALAT(1)
                   G2 = k_tc (1) * k_tc (1)
-                  if( abs(a).ge.kmax.or.t_trcorr_gausscutoff ) then
+                  if( abs(a).ge.kmax.or.(t_trcorr_gausscutoff.and.a.ne.0) ) then
                       pq_tc(1) = (G1(k)%k(1) - G1(l)%k(1))*2*PI/ ALAT(1)
+                      u_tc = -PotentialStrength/G2
 
-                      if(a.eq.0.and.t_trcorr_gausscutoff) then
-                        hel=hel+2.d0*pq_tc(1)*k_tc(1)*u_tc*Gaussfact
-                      else
-                        u_tc = -PotentialStrength/G2
-                        hel=hel-(PotentialStrength+pq_tc(1)*k_tc(1)*u_tc)*Gaussfact
-                      endif
+                      hel=hel-(PotentialStrength+pq_tc(1)*k_tc(1)*u_tc)*Gaussfact
 
                   end if
            end if
@@ -1412,7 +1404,6 @@ contains
 
         ALLOCATE ( UMAT_TC2(-kmax2:kmax2,-kmax2:kmax2,0:0), STAT = AllocateStatus)
         IF (AllocateStatus /= 0) STOP "*** Not enough memory for UMAT_TC2 ***"
-
 
 
         kmax2_cut=1000

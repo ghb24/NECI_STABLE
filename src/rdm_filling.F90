@@ -887,6 +887,8 @@ contains
                 one_rdms(irdm)%matrix( ind_i, ind_a ) = one_rdms(irdm)%matrix( ind_i, ind_a ) + &
                                                         (ParityFactor * contrib_sign_i(irdm) * contrib_sign_j(irdm))
             end if
+                write(6,*)irdm,ind_i, ind_a, one_rdms(irdm)%matrix( ind_a,ind_i )
+                write(6,*)fill_symmetric, ParityFactor, contrib_sign_i(irdm), contrib_sign_j(irdm)
         end do
 
     end subroutine fill_sings_1rdm

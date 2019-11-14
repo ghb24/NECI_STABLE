@@ -3324,8 +3324,9 @@ contains
 
         Subroutine CalcInit()
           use constants, only: dp
-          use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
+          use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl,tSmallBasisForThreeBody
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs,tMCSizeTruncSpace
+          use SystemData, only: tContact
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
@@ -3343,6 +3344,22 @@ contains
           HElement_t(dp) HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
 
+
+          !Checking whether we have large enoguh basis for ultracold atoms and
+          !three-body excitations
+          if(tContact.and.((nBasis/2).lt.(noccAlpha+2).or.(nBasis/2).lt.(noccBeta+2))) then
+            if (noccAlpha.eq.1.or.noccBeta.eq.1) then
+             tSmallBasisForThreeBody= .false.
+            else
+             write(6,*) 'There is not enough unoccupied orbitals for a poper three-body ', &
+                  'excitation! Some of the three-body excitations are possible', &
+                  'some of or not. If you really would like to calculate this system, ',  &
+                  'you have to implement the handling of cases, which are not possible.'
+             stop
+            endif
+          else
+            tSmallBasisForThreeBody= .true.
+          endif
 
           ! initialize the slater condon rules
           call initSltCndPtr()

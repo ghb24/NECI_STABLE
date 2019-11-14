@@ -1391,6 +1391,9 @@ module FciMCParMod
                                             AvSignCurr, RDMBiasFacCurr, precond_fac)
                                             ! Note these last two, AvSignCurr and
                                             ! RDMBiasFacCurr are not used unless we're
+!                       write(6,*)'child',child,Prob,HElGen
+!                       write(6,*)DetCurr
+!                       write(6,*)nJ
                     else
 
                         ! and rescale in the back-spawning algorithm.

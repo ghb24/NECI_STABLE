@@ -164,7 +164,6 @@ module tc_three_body_excitgen
 
     subroutine init_mol_tc_biases(HF)
       use SystemData, only: tSmallBasisForThreeBody
-      use Parallel_neci, only: iProcIndex
       implicit none
       ! reference determinant for initializing the biases
       real(dp) :: normalization
@@ -175,22 +174,8 @@ module tc_three_body_excitgen
       endif
       ! for 2 electrons, there are obviously no
       ! triple excitations
-      if(nel.eq.2) t_exclude_3_body_excits = .true.
+      if(nel.eq.2.or..not.tSmallBasisForThreeBody) t_exclude_3_body_excits = .true.
         ! For contact interaction we also exclude the too small basis-sets
-      if(tContact.and.((nBasis/2).lt.(noccAlpha+2).or.(nBasis/2).lt.(noccBeta+2))) then
-         if (noccAlpha.eq.1.or.noccBeta.eq.1) then
-             tSmallBasisForThreeBody= .false.
-             t_exclude_3_body_excits = .true.
-         else
-             root_print 'There is not enough unoccupied orbitals for a poper three-body ', &
-                  'excitation! Some of the three-body excitations are possible',  &
-                  'some of or not. If you really would like to calculate this system, ',  &
-                  'you have to implement the handling of cases, which are not possible.'
-             stop
-         endif
-       else
-          tSmallBasisForThreeBody= .true.
-       endif
 
       if(t_exclude_3_body_excits) then
          pTriples = 0.0_dp
