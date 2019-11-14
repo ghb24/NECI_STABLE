@@ -11,7 +11,7 @@ module AnnihilationMod
                           tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
                           tNonInitsForRDMs, &
                           tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
-                          tSimpleInit, tAllConnsPureInit
+                          tSimpleInit, tAllConnsPureInit, tAllowSpawnEmpty
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -977,7 +977,7 @@ module AnnihilationMod
               do j = 1, lenof_sign
                  run = part_type_to_run(j)
 
-                 if (tTruncInitiator) then
+                 if (tTruncInitiator .and. .not. tAllowSpawnEmpty) then
                     ! This determinant is actually *unoccupied* for the
                     ! run we're considering. We need to
                     ! decide whether to abort it or not.

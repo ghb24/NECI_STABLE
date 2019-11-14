@@ -448,6 +448,8 @@ contains
           tOutputInitsRDM = .false.
           tNonVariationalRDMs = .false.
 
+          tMoveGlobalDetData = .false.
+          tAllowSpawnEmpty = .false.
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -3095,6 +3097,9 @@ contains
 
             case("DEATH-BEFORE-COMMS")
                 tDeathBeforeComms = .true.
+
+            case("ALLOW-SPAWN-EMPTY")
+                tAllowSpawnEmpty = .true.
 
             case default
                 call report("Keyword "                                &

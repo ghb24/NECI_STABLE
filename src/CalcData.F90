@@ -521,5 +521,10 @@ logical :: tForceFullPops
 
 ! Whether global_determinant_data should be moved alongside determinants
 ! during load balancing
-logical :: tMoveGlobalDetData = .false.
+logical :: tMoveGlobalDetData
+
+! Whether we should allow non-initiators to spawn to empty dets if these
+! already exist in CurrentDets.
+logical :: tAllowSpawnEmpty
+
 end module CalcData
