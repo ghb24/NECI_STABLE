@@ -1767,6 +1767,11 @@ contains
                 if (item.lt.nitems) then
                     call getf(AAS_Cut)
                 end if
+
+                ! Ratios of rejected spawns are stored in global det data, so we need
+                ! to preserve them when the dets change processors during load balancing
+                tMoveGlobalDetData = .true.
+
             case("AAS-MATELE")
                 tAAS_MatEle = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
