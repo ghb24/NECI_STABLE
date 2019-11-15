@@ -53,13 +53,13 @@ contains
 
     ! Calculate the acceptance ratio
     if (tContTimeFCIMC .and. .not. tContTimeFull) then
-       if(abs(real(cont_spawn_attempts)) > eps) then 
+       if(.not. near_zero(real(cont_spawn_attempts))) then 
           AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
        else
           AccRat = 0.0_dp
        endif
     else
-       if(all(abs(SumWalkersCyc) > eps)) then
+       if(.not. any(near_zero(AllSumWalkersOut))) then
           AccRat = real(AllAcceptances, dp) / AllSumWalkersOut
        else
           AccRat = 0.0_dp
