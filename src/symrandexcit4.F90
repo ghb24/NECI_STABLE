@@ -514,7 +514,7 @@ contains
         ! Some ids for utility
         id_src = gtID(src)
         ex(1) = src
-        
+
         ! Generate the cumulative sum, as used in the excitation generator,
         ! and store the relevant term for generating the excitation.
         cum_sum = 0
@@ -758,7 +758,7 @@ contains
         else
            pBiasIntern = pParallel
         endif
-                
+
         r = genrand_real2_dSFMT()
         if (r < pBiasIntern) then
             ! Same spin case

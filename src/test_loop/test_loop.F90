@@ -13,5 +13,5 @@ program neci_loop_test
   ! we run in external mode to mimick the behaviour of embedded neci
   ! this requires manual finalization of MPI
   call MPI_Finalize(err)
-  
+
 end program neci_loop_test

@@ -516,6 +516,7 @@ module tc_three_body_excitgen
        if(i_occup)then
         tgt(3)=0
         pgen=0.0_dp
+        return
        else
         tgt(3)=i
         tgt = sort_unique(tgt)

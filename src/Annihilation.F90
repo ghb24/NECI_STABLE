@@ -1062,21 +1062,6 @@ module AnnihilationMod
                     end if
                  end if
 
-!                if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
-!                   call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)
-!                   ! We must use the instantaneous value for the off-diagonal
-!                   ! contribution. However, we can't just use CurrentSign from
-!                   ! the previous iteration, as this has been subject to death
-!                   ! but not the new walkers. We must add on SpawnedSign, so
-!                   ! we're effectively taking the instantaneous value from the
-!                   ! next iter. This is fine as it's from the other population,
-!                   ! and the Di and Dj signs are already strictly uncorrelated.
-!                   if(tInitsRDM) call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
-!                        inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
-!                    call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
-!                         CurrentDets(:,PartInd), TempCurrentSign)
-!                end if
-
                  if(tAutoAdaptiveShift .and. tAAS_Reverse)then
                     do run = 1, inum_runs
                        weight_rev = transfer(SpawnInfo(run, i), weight_rev)

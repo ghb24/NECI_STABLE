@@ -150,9 +150,9 @@ contains
             consider_par_bias = .true.
             n_opp = AB_hole_pairs
             n_par = par_hole_pairs
-        else if (t_k_space_hubbard .and. t_trans_corr_2body) then 
-            ! for the 2-body transcorrelated k-space hubbard we also have 
-            ! possible parallel excitations now. and to make the tau-search 
+        else if (t_k_space_hubbard .and. t_trans_corr_2body) then
+            ! for the 2-body transcorrelated k-space hubbard we also have
+            ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
         else
@@ -266,11 +266,11 @@ contains
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
 
-        case(6) 
-            ! also treat triple excitations now. 
-            ! NOTE: but for now this is only done in the transcorrelated 
-            ! k-space hubbard model, where there are still no single 
-            ! excitations -> so reuse the quantities for the the singles 
+        case(6)
+            ! also treat triple excitations now.
+            ! NOTE: but for now this is only done in the transcorrelated
+            ! k-space hubbard model, where there are still no single
+            ! excitations -> so reuse the quantities for the the singles
             ! instead of introducing yet more variables
            if(.not. t_exclude_3_body_excits) then
               tmp_prob = prob / pTriples
@@ -422,7 +422,6 @@ contains
 
         if((tUEG.and..not.t_ueg_3_body).or. tHub .or. t_k_space_hubbard .or. enough_sing) then
            checkS = 1
-        else
            checkS = 0
         endif
         if(enough_doub) then
@@ -499,8 +498,8 @@ contains
                 tau_new = max_permitted_spawn / gamma_sum
             else if (t_new_real_space_hubbard .and. enough_sing .and. &
                 (t_trans_corr_2body .or. t_trans_corr)) then
-                ! for the transcorrelated real-space hubbard we could 
-                ! actually also adapt the time-step!! 
+                ! for the transcorrelated real-space hubbard we could
+                ! actually also adapt the time-step!!
                 ! but psingles stays 1
                 psingles_new = pSingles
                 pTriples_new = pTriples
@@ -558,18 +557,18 @@ contains
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
 
-        ! make the right if-statements here! 
-        ! remember enough_sing is (mis)used for triples in the 
-        ! 2-body transcorrelated k-space hubbard 
-        if (tau_new < tau .or. & 
-            ((tUEG.and..not.t_ueg_3_body) .or. tHub .or. enough_sing .or. & 
-            (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub) .or. & 
-            (t_new_real_space_hubbard .and. enough_sing .and. & 
-            (t_trans_corr_2body .or. t_trans_corr)) .or. & 
-            (t_new_real_space_hubbard .and. t_trans_corr_hop .and. enough_doub)) then 
+        ! make the right if-statements here!
+        ! remember enough_sing is (mis)used for triples in the
+        ! 2-body transcorrelated k-space hubbard
+        if (tau_new < tau .or. &
+            ((tUEG.and..not.t_ueg_3_body) .or. tHub .or. enough_sing .or. &
+            (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub) .or. &
+            (t_new_real_space_hubbard .and. enough_sing .and. &
+            (t_trans_corr_2body .or. t_trans_corr)) .or. &
+            (t_new_real_space_hubbard .and. t_trans_corr_hop .and. enough_doub)) then
 
 !         if (tau_new < tau .or. ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) &
-!             .and. enough_doub) .or. (t_new_real_space_hubbard .and. enough_sing & 
+!             .and. enough_doub) .or. (t_new_real_space_hubbard .and. enough_sing &
 !             .and. (t_trans_corr_2body .or. t_trans_corr))) then
 
             ! Make the final tau smaller than tau_new by a small amount
@@ -597,11 +596,8 @@ contains
 
         ! Make sure that we have at least some of both singles and doubles
         ! before we allow ourselves to change the probabilities too much...
-        if ((checkS + checkD + checkT > 1)) then
-           if((enough_sing .and. enough_doub .and. psingles_new > 1e-5_dp .or. tNoSinglesPossible) &
-                .and. psingles_new < (1.0_dp - 1e-5_dp) .and. &
-                (.not.t_mol_3_body .or. min(pTriples_new,(1.0_dp-pTriples_new))>1e-5_dp .or. &
-                t_exclude_3_body_excits)) then
+          if (enough_sing .and. enough_doub .and. psingles_new > 1e-5_dp &
+            .and. psingles_new < (1.0_dp - 1e-5_dp)) then
 
               if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
                  if (tReltvy) then
@@ -618,7 +614,7 @@ contains
 
               if(t_exclude_3_body_excits.or..not.t_mol_3_body) then
                  pTriples_new = 0.0_dp
-              else if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
+              else if(enough_trip .and. abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
                  root_print "Updating triple-excitation bias. pTriples =", pTriples_new
               endif
 
@@ -633,8 +629,7 @@ contains
               else
                  pDoubles = 1.0_dp - pSingles
               endif
-           end if
-        endif
+          end if
 
 
 !        write(*,*) "pSingles", pSingles
@@ -671,7 +666,7 @@ contains
 
         type(ExcitGenSessionType) :: session
 
-        integer(n_int), allocatable :: det_list(:,:) 
+        integer(n_int), allocatable :: det_list(:,:)
         integer :: n_excits, i, ex_3(2,3)
 
         if(tCSF) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
@@ -691,17 +686,17 @@ contains
 
         Tau = 1000.0_dp
 
-        ! NOTE: test if the new real-space implementation works with this 
-        ! function! maybe i also have to use a specific routine for this ! 
-        ! since it might be necessary in the transcorrelated approach to 
+        ! NOTE: test if the new real-space implementation works with this
+        ! function! maybe i also have to use a specific routine for this !
+        ! since it might be necessary in the transcorrelated approach to
         ! the real-space hubbard
-!         if (t_new_real_space_hubbard) then 
+!         if (t_new_real_space_hubbard) then
 !             call Stop_All(this_routine, "does this routine work correctly? test it!")
 !         end if
 
         ! bypass everything below for the new k-space hubbard implementation
-        if (t_k_space_hubbard) then 
-            if (tHPHF) then 
+        if (t_k_space_hubbard) then
+            if (tHPHF) then
                 call Stop_All(this_routine, &
                     "not yet implemented with HPHF, since gen_all_excits not atapted to it!")
             end if
@@ -709,27 +704,27 @@ contains
             call gen_all_excits_k_space_hubbard(ProjEDet(:,1), n_excits, det_list)
 
             ! now loop over all of them and determine the worst case H_ij/pgen ratio
-            do i = 1, n_excits 
+            do i = 1, n_excits
                 call decode_bit_det(nJ, det_list(:,i))
-                ! i have to take the right direction in the case of the 
+                ! i have to take the right direction in the case of the
                 ! transcorrelated, due to non-hermiticity..
                 ic = FindBitExcitlevel(det_list(:,i), ilutRef(:,1))
                 ASSERT(ic == 2 .or. ic == 3)
-                if (ic == 2) then 
+                if (ic == 2) then
                     call GetBitExcitation(ilutRef(:,1), det_list(:,i), ex, tParity)
-                else if (ic == 3) then 
+                else if (ic == 3) then
                     call GetBitExcitation(ilutRef(:,1), det_list(:,i), ex_3, tParity)
                 end if
 
                 MagHel = abs(get_helement_lattice(nJ, ProjEDet(:,1)))
-                ! and also get the generation probability 
-                if (t_trans_corr_2body) then 
-                    if (t_uniform_excits) then 
-                        ! i have to setup pDoubles and the other quantities 
-                        ! before i call this functionality! 
-                        pgen = calc_pgen_k_space_hubbard_uniform_transcorr(& 
+                ! and also get the generation probability
+                if (t_trans_corr_2body) then
+                    if (t_uniform_excits) then
+                        ! i have to setup pDoubles and the other quantities
+                        ! before i call this functionality!
+                        pgen = calc_pgen_k_space_hubbard_uniform_transcorr(&
                             ProjEDet(:,1), ilutRef(:,1), ex_3, ic)
-                    else 
+                    else
                         pgen = calc_pgen_k_space_hubbard_transcorr(&
                             ProjEDet(:,1), ilutRef(:,1), ex_3, ic)
                     end if
@@ -738,10 +733,10 @@ contains
                             ProjEDet(:,1), ilutRef(:,1), ex, ic)
                 end if
 
-                if (MagHel > EPS) then 
+                if (MagHel > EPS) then
                     pGenFac = pgen * nAddFac / MagHel
 
-                    if (tau > pGenFac .and. pGenFac > EPS) then 
+                    if (tau > pGenFac .and. pGenFac > EPS) then
                         tau = pGenFac
                     end if
                 end if
