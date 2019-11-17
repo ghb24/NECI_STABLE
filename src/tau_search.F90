@@ -199,9 +199,7 @@ contains
             ! Log the details if necessary!
             tmp_prob = prob / pSingles
             tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_sing) then
-               gamma_sing = tmp_gamma
-            endif
+            if (tmp_gamma > gamma_sing)  gamma_sing = tmp_gamma
             ! And keep count!
             if (.not. enough_sing .and. gamma_sing > 0) then
                 cnt_sing = cnt_sing + 1
@@ -355,7 +353,6 @@ contains
         character(*), parameter :: this_routine = "update_tau"
 
         integer :: itmp, itmp2
-        integer :: checkS, checkD, checkT
 
         ! This is an override. In case we need to adjust tau due to particle
         ! death rates, when it otherwise wouldn't be adjusted
@@ -417,22 +414,7 @@ contains
             gamma_doub_spindiff2 = mpi_tmp
             gamma_sum = gamma_sing + gamma_sing_spindiff1 + gamma_doub + gamma_doub_spindiff1 + gamma_doub_spindiff2
         else
-            gamma_sum = gamma_sing + gamma_doub + gamma_trip
-        endif
-
-        if((tUEG.and..not.t_ueg_3_body).or. tHub .or. t_k_space_hubbard .or. enough_sing) then
-           checkS = 1
-           checkS = 0
-        endif
-        if(enough_doub) then
-           checkD = 1
-        else
-           checkD = 0
-        endif
-        if(enough_trip) then
-           checkT = 1
-        else
-           checkT = 0
+            gamma_sum = gamma_sing + gamma_doub
         endif
 
         if (consider_par_bias) then
@@ -448,17 +430,15 @@ contains
                 call MPIAllLORLogical(enough_par, mpi_ltmp)
                 enough_par = mpi_ltmp
 
-                if (checkS + checkD + checkT > 1) then
+                if (enough_sing .and. enough_doub) then
                     pparallel_new = gamma_par / (gamma_opp + gamma_par)
                     psingles_new = gamma_sing * pparallel_new &
                                  / (gamma_par + gamma_sing * pparallel_new)
-                    pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
                     tau_new = psingles_new * max_permitted_spawn &
                                   / gamma_sing
                 else
                     pparallel_new = pParallel
                     psingles_new = pSingles
-                    pTriples_new = pTriples
                     if(gamma_sing > EPS .and. gamma_par > EPS .and. gamma_opp > EPS) then
                        tau_new = max_permitted_spawn * &
                             min(pSingles / gamma_sing, &
@@ -470,6 +450,12 @@ contains
                     endif
                 end if
 
+!               checking for triples
+                if (enough_trip) then
+                        pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
+                else
+                        pTriples_new = pTriples
+                endif
                 ! We only want to update the opposite spins bias here, as we only
                 ! consider it here!
                 if (enough_opp .and. enough_par) then
@@ -487,9 +473,9 @@ contains
 
             ! Get the probabilities and tau that correspond to the stored
             ! values
-            if (checkS + checkD + checkT > 1) then
-                psingles_new = max(gamma_sing / (gamma_sing + gamma_doub), prob_min_thresh)
-                pTriples_new = max(gamma_trip / gamma_sum, prob_min_thresh)
+            if ((tUEG .or. enough_sing) .and. enough_doub) then
+                psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
+                if(enough_trip) pTriples_new = max(gamma_trip, prob_min_thresh)
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1/gamma_sum
                     pDoub_spindiff1_new = gamma_doub_spindiff1/gamma_sum
@@ -567,7 +553,8 @@ contains
             (t_trans_corr_2body .or. t_trans_corr)) .or. &
             (t_new_real_space_hubbard .and. t_trans_corr_hop .and. enough_doub)) then
 
-!         if (tau_new < tau .or. ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) &
+!        ?checkS
+! if (tau_new < tau .or. ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) &
 !             .and. enough_doub) .or. (t_new_real_space_hubbard .and. enough_sing &
 !             .and. (t_trans_corr_2body .or. t_trans_corr))) then
 
@@ -596,30 +583,23 @@ contains
 
         ! Make sure that we have at least some of both singles and doubles
         ! before we allow ourselves to change the probabilities too much...
-          if (enough_sing .and. enough_doub .and. psingles_new > 1e-5_dp &
+        if (enough_sing .and. enough_doub .and. psingles_new > 1e-5_dp &
             .and. psingles_new < (1.0_dp - 1e-5_dp)) then
 
-              if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                 if (tReltvy) then
+            if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
+                if (tReltvy) then
                     root_print "Updating spin-excitation class biases. pSingles(s->s) = ", &
-                         psingles_new, ", pSingles(s->s') = ", psing_spindiff1_new, &
-                         ", pDoubles(st->st) = ", 1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2, &
-                         ", pDoubles(st->s't) = ", pDoub_spindiff1_new, &
-                         ", pDoubles(st->s't') = ", pDoub_spindiff2_new
-                 else
+                        psingles_new, ", pSingles(s->s') = ", psing_spindiff1_new, &
+                        ", pDoubles(st->st) = ", 1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2, &
+                        ", pDoubles(st->s't) = ", pDoub_spindiff1_new, &
+                        ", pDoubles(st->s't') = ", pDoub_spindiff2_new
+                else
                     root_print "Updating singles/doubles bias. pSingles = ", psingles_new
                     root_print " pDoubles = ", (1.0_dp - pSingles_new)*(1.0 - pTriples_new)
-                 endif
-              end if
-
-              if(t_exclude_3_body_excits.or..not.t_mol_3_body) then
-                 pTriples_new = 0.0_dp
-              else if(enough_trip .and. abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
-                 root_print "Updating triple-excitation bias. pTriples =", pTriples_new
-              endif
+                endif
+            end if
 
               pSingles = pSingles_new
-              pTriples = pTriples_new
               if (tReltvy) then
                  pSing_spindiff1 = max(pSing_spindiff1_new, prob_min_thresh)
                  pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
@@ -628,8 +608,16 @@ contains
                  ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
               else
                  pDoubles = 1.0_dp - pSingles
-              endif
-          end if
+             endif
+         end  if
+
+       !checking whether we have enouigh triples
+        if(enough_trip) then
+           if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
+                 root_print "Updating triple-excitation bias. pTriples =", pTriples_new
+                 pTriples = pTriples_new
+           endif
+        endif
 
 
 !        write(*,*) "pSingles", pSingles
