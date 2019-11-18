@@ -2,7 +2,6 @@
 
 module new_sltcnd_mod
     use constants, only: dp
-    use util_mod, only: unused
     use SystemData, only: nEl
     use sltcnd_mod, only: sltcnd_1, sltcnd_2
     implicit none
@@ -76,9 +75,7 @@ contains
         type(DoubleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
 
-#ifdef __WARNING_WORKAROUND
-        call unused(ref)
-#endif
+        unused_var(ref)
 
         d_sltcnd_excit = sltcnd_2(matrix(exc), tParity)
     end function

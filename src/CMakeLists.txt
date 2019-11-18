@@ -52,7 +52,6 @@ set( SRC_FILES
     fcoul.F
     frsblk.F
     ftlm_neci.F90
-    gasci.F90
     gen_coul.F
     gen_coul_ueg.F90
     global_det_data.F90
@@ -71,7 +70,6 @@ set( SRC_FILES
     hilbert_space_size.F90
     hist_data.F90
     hist.F90
-#     HPHFIntegrals.F90
     HPHFRandExcit.F90
     hubbard.F
     init_coul2D.F
@@ -203,6 +201,7 @@ set( SRC_FILES
 
 set( FYPP_SRC_FILES
     HPHFIntegrals.fpp
+    gasci.fpp
 )
 
 set( TEMPLATED_SRC_FILES

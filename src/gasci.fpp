@@ -1,9 +1,11 @@
 #include "macros.h"
+
+#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 module gasci
     use SystemData, only: tNConservingGAS, tSpinConservingGAS, nBasis, nel
     use constants
     use util_mod, only: get_free_unit, binary_search_first_ge, &
-        operator(.div.), unused
+        operator(.div.)
     use sort_mod, only : sort
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -21,6 +23,12 @@ module gasci
 
     interface get_cumulative_list
         module procedure s_get_cumulative_list, d_get_cumulative_list
+    end interface
+
+    interface pick_weighted_hole
+    #:for excitation_t in ExcitationTypes
+        module procedure pick_weighted_hole_${excitation_t}$
+    #:endfor
     end interface
 
     integer :: nGAS
@@ -191,8 +199,8 @@ contains
 
         real(dp) :: r
 
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag); call unused(store%nI_beta); call unused(part_type)
+#ifdef WARNING_WORKAROUND_
+        unused_var(exFlag); unused_var(store); unused_var(part_type)
 #endif
 
         ! exFlag and part_type are not used but part of interface for
@@ -237,7 +245,7 @@ contains
         ! from the same active space, get a hole
         spin_idx = get_spin(src)
         tgt = pick_weighted_hole( &
-            nI, src, 0, 0, 1, spin_idx, GAS_table(src), pgen)
+            nI, SingleExc_t(src), spin_idx, GAS_table(src), pgen)
 
         if (tgt == 0) then
             nJ(1) = 0
@@ -312,7 +320,7 @@ contains
         end if
         ! the second hole is chosen in a weighted fashion
         tgt(2) = pick_weighted_hole(&
-            nI, src(1), src(2), tgt(1), 2, spin_idx, srcGAS(2), pgen_pick1)
+            nI, DoubleExc_t(src(1), src(2), tgt(1)), spin_idx, srcGAS(2), pgen_pick1)
         if (any(tgt == 0) .or. tgt(1) == tgt(2)) then
             call zeroResult()
             return
@@ -466,13 +474,15 @@ contains
 
 !----------------------------------------------------------------------------!
 
-    function pick_weighted_hole(&
-            & nI, src1, src2, tgt1, ic, spin_idx, iGAS, pgen) result(tgt)
+#:for excitation_t in ExcitationTypes
+    function pick_weighted_hole_${excitation_t}$(&
+            & nI, exc, spin_idx, iGAS, pgen) result(tgt)
         ! pick a hole of nI with spin ms from the active space with index
         ! srcGASInd the random number is to be supplied as r
         ! nI is the source determinant, nJBase the one from which we obtain
         ! the ket of the matrix element by single excitation
-        integer, intent(in) :: nI(nel), src1, src2, tgt1, ic, spin_idx, iGAS
+        integer, intent(in) :: nI(nel), spin_idx, iGAS
+        type(${excitation_t}$), intent(in) :: exc
         real(dp), intent(inout) :: pgen
 
         integer :: tgt
@@ -484,15 +494,8 @@ contains
         nOrbs = GAS_size(iGAS)
         GAS_list = GAS_spin_orb_list(1:nOrbs, iGAS, spin_idx)
         ! build the cumulative list of matrix elements <src|H|tgt>
-        if (ic == 1) then
-            cSum = get_cumulative_list(GAS_list, nI, SingleExc_t(src1))
-        else
-            cSum = get_cumulative_list(&
-                GAS_list, nI, DoubleExc_t(src1=src1, tgt1=tgt1, src2=src2))
-        end if
+        cSum = get_cumulative_list(GAS_list, nI, exc)
 
-        ! TODO: With template functions this could be rewritten in
-        !   a generic and typesafe manner.
         ! now, pick with the weight from the cumulative list
         r = genrand_real2_dSFMT()
 
@@ -514,7 +517,8 @@ contains
             tgt = 0
         end if
 
-    end function pick_weighted_hole
+    end function pick_weighted_hole_${excitation_t}$
+#:endfor
 
 !----------------------------------------------------------------------------!
 
