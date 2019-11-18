@@ -1,6 +1,7 @@
 #include "macros.h"
-
+#:include "macros.fpp"
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
+
 module gasci
     use SystemData, only: tNConservingGAS, tSpinConservingGAS, nBasis, nel
     use constants
@@ -199,9 +200,7 @@ contains
 
         real(dp) :: r
 
-#ifdef WARNING_WORKAROUND_
-        unused_var(exFlag); unused_var(store); unused_var(part_type)
-#endif
+        @:unused_var(exFlag, store, part_type)
 
         ! exFlag and part_type are not used but part of interface for
         ! procedure pointers.
