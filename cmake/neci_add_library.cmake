@@ -124,13 +124,7 @@ macro( neci_add_library )
         file( MAKE_DIRECTORY ${_fypp_dir} )
 
         set(_fypp_options)
-        list( APPEND _fypp_options -D WARNING_WORKAROUND_)
-# TODO: We need a way to string escape the options
-#         if (DEFINED _p_DEFINITIONS )
-#             foreach(definition ${_p_DEFINITIONS})
-#                 list( APPEND _fypp_options -D "${definition} ")
-#             endforeach()
-#         endif()
+        list( APPEND _fypp_options -m itertools)
 
 
         foreach(_fypp_file ${_p_FYPP_SOURCES})
@@ -142,7 +136,7 @@ macro( neci_add_library )
                 COMMAND ${_fypp} ${_fypp_options} ${_fypp_file_absolute} ${_fypp_target_file}
                 WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
                 OUTPUT ${_fypp_target_file}
-                DEPENDS ${_fypp_file_absolute} )
+                DEPENDS ${_fypp_file_absolute})
         endforeach()
     endif()
 
