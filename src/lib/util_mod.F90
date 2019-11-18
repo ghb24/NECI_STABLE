@@ -723,13 +723,6 @@ contains
             val_hi = ubound(val, 1)
         endif
 
-        print *, "data_lo: ", data_lo
-        print *, "val_lo: ", val_lo
-        print *, "data_hi: ", data_hi
-        print *, "val_hi: ", val_hi
-        print *, "lo: ", lo
-        print *, "hi: ", hi
-
         ! Narrow the search range down in steps.
         do while (hi /= lo)
             pos = int(real(hi + lo,sp) / 2_sp)

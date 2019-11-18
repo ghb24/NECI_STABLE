@@ -974,7 +974,7 @@ module FciMCParMod
         else
             write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
             write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
-            if(lenof_sign.eq.2) then
+            if(lenof_sign > inum_runs) then
                 write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
                 write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
             endif

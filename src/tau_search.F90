@@ -700,7 +700,6 @@ contains
             IF(ierr.ne.0) CALL Stop_All(t_r,"Problem allocating excitation generator")
             EXCITGEN(:)=0
             CALL GenSymExcitIt2(ProjEDet(:,1),NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
-        !    CALL GetSymExcitCount(EXCITGEN,DetConn)
         endif
 
         do while (.not.tAllExcitFound)
@@ -736,10 +735,6 @@ contains
             if (.not. SymAllowedExcit(ProjEDet(:,1), nJ, ic, ex)) &
                 cycle
 
-            !Find Hij
-!             if (tGUGA) then
-!                 call stop_all(t_r, "modify get_helement for GUGA")
-!             end if
             if(tHPHF) then
                 if(.not.TestClosedShellDet(iLutnJ)) then
                     CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)

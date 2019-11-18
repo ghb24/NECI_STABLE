@@ -17,7 +17,6 @@ endmethods
 memoryfacspawn 4.0
 memoryfacpart 2.0
 truncinitiator
-keepdoubspawns
 addtoinitiator 3
 walkcontgrow
 diagshift 0.0
@@ -41,6 +40,6 @@ logging
 popsfile -1
 printonerdm
 calcrdmonfly 1 1000 2000
-diagflyonerdm 
+diagflyonerdm
 endlog
 end

@@ -1562,12 +1562,12 @@ contains
 
             MaxWalkersPart=NINT(MemoryFacPart*MaxWalkersUncorrected)
             ! this hardly makes sense at all - it can even REDUCE the allocated memory
-            !ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
-            !if(ExpectedMemWalk.lt.20.0) then
-            !    !Increase memory allowance for small runs to a min of 20mb
-            !    MaxWalkersPart=int(20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp),sizeof_int)
-            !    write(iout,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
-            !endif
+            ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
+            if(ExpectedMemWalk.lt.20.0) then
+                !Increase memory allowance for small runs to a min of 20mb
+                MaxWalkersPart=int(20.0*1048576.0/real((NIfTot+1)*size_n_int+8,dp),sizeof_int)
+                write(iout,"(A)") "Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors"
+            endif
             WRITE(iout,"(A,I14)") "Memory allocated for a maximum particle number per node of: ",MaxWalkersPart
             !Here is where MaxSpawned is set up - do we want to set up a minimum allocation here too?
             Call SetupValidSpawned(int(InitWalkers, int64))

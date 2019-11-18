@@ -414,7 +414,7 @@ contains
 #else
 
             ! should we switch here, if it is not hermitian?
-            if (t_non_hermitian .or. nexcit > 1 ) then
+            if (t_non_hermitian) then
                 ndets_int=int(ndets_all_procs,sizeof_int)
                 allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
                 if (ierr /= 0) call stop_all(t_r, "Error allocating H_tmp array")
@@ -453,18 +453,9 @@ contains
                 ! if it is non-hermitian..
 !                 call eig(H_tmp, evals_all, evecs_all,.true.)
                 call eig(H_tmp, evals_all, evecs_all)
-                ! is it sorted by energy?
-                root_print "eigenvalues: ", evals_all
-                root_print "eigenvectors: "
-
-                if_root
-                    call print_matrix(evecs_all)
-                end_if_root
 
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:,1:nexcit)
-!                 print *, "eigenvector: "
-!                 print *, evecs(:,1)
 
                 deallocate(H_tmp)
                 deallocate(evecs_all)
@@ -475,8 +466,6 @@ contains
                     nexcit, evals, evecs)
             end if
 
-
-!             call dsyev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,info)
 #endif
             ! For consistency between compilers, enforce a rule for the sign of
             ! the eigenvector. To do this, make sure that the largest component
@@ -507,7 +496,6 @@ contains
                 call sort(temp_reorder, evecs)
             end if
 
-!             print *, "eigen-values: ", evals
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
             allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)
