@@ -76,7 +76,7 @@ endif
 #endif
 
 ! define a precompiler setup for the warning workaround
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
 #define unused_var(x) associate(x=>x); end associate
 #else
 #define unused_var(x)
@@ -87,7 +87,7 @@ endif
 #define root_print root_write (6, *)
 
 ! Make Re / Cplx builds easier
-#ifdef __CMPLX
+#ifdef CMPLX_
 #ifdef __PROG_NUMRUNS
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*index-1), arr(2*index), dp)
 #else
@@ -101,7 +101,7 @@ endif
 #define ARR_RE_OR_CPLX(arr,index) real(arr(1), dp)
 #endif
 
-#ifdef __CMPLX
+#ifdef CMPLX_
 ! 1->1 ,2->1, 3->2 ...
 #define part_type_to_run(pt) (1+((pt)-1)/2)
 #ifdef __PROG_NUMRUNS
@@ -177,21 +177,21 @@ endif
 #endif
 
 ! To make sure conjugations of both real and complex realisations of HElement_t behave on all compilers:
-#ifdef __CMPLX
+#ifdef CMPLX_
 #define h_conjg(z) conjg(z)
 #else
 #define h_conjg(z) z
 #endif
 
 ! The following is useful for converting from HElement_t to an array of the appropriate length
-#ifdef __CMPLX
+#ifdef CMPLX_
 #define h_to_array(z) (/dble(z), dimag(z)/)
 #else
 #define h_to_array(z) (/ z /)
 #endif
 
 ! Cast a real value to HElement_t
-#ifdef __CMPLX
+#ifdef CMPLX_
 #define h_cast(val) cmplx(val,0.0_dp)
 #else
 #define h_cast(val) val

@@ -521,7 +521,7 @@ contains
       logical :: is_coherent
       integer :: nJRef(nel)
       real(dp) :: signRef(lenof_sign)
-#ifdef __CMPLX
+#ifdef CMPLX_
       complex(dp) :: tmp
 #endif
       HElement_t(dp) :: h_el
@@ -544,7 +544,7 @@ contains
 
       ! If the new ilut has sign 0, there is no need to do any check on this run
       if(mag_of_run(ilut_sign,run) > eps) then
-#ifdef __CMPLX
+#ifdef CMPLX_
          ! The complex coherence check is more effortive, so only do it in complex builds
          ! Get the relative phase of the signs
          tmp = cmplx(signRef(min_part_type(run)),signRef(max_part_type(run)),dp) / &
@@ -612,7 +612,7 @@ contains
 
     tmp  = 0.0_dp
     do run = 1, inum_runs
-#ifdef __CMPLX
+#ifdef CMPLX_
        tmp = tmp + h_el * cmplx(signsRef(min_part_type(run),i),&
             signsRef(max_part_type(run),i),dp)
 #else

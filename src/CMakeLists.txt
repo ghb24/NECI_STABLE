@@ -71,7 +71,7 @@ set( SRC_FILES
     hilbert_space_size.F90
     hist_data.F90
     hist.F90
-    HPHFIntegrals.F90
+#     HPHFIntegrals.F90
     HPHFRandExcit.F90
     hubbard.F
     init_coul2D.F
@@ -201,6 +201,10 @@ set( SRC_FILES
     lib/fortran_strings.f90
 )
 
+set( FYPP_SRC_FILES
+    HPHFIntegrals.fpp
+)
+
 set( TEMPLATED_SRC_FILES
 
     BinSearch.F90.template
@@ -260,6 +264,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         OUTPUT_NAME ${_config}
         SOURCES ${SRC_FILES}
         TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
+        FYPP_SOURCES ${FYPP_SRC_FILES}
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES

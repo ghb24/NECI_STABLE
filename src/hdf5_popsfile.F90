@@ -489,7 +489,7 @@ contains
         ! (n.b. ensure values on all procs)
         call MPIBcast(AllSumENum)
         call MPIBcast(AllSumNoatHF)
-#ifdef __CMPLX
+#ifdef CMPLX_
         call write_cplx_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
 #else
         call write_dp_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
@@ -696,7 +696,7 @@ contains
         call h5gopen_f(parent, nm_acc_grp, grp_id, err)
         call read_dp_1d_dataset(grp_id, nm_sum_no_ref, AllSumNoatHF, &
                                 required=.true.)
-#ifdef __CMPLX
+#ifdef CMPLX_
         call read_cplx_1d_dataset(grp_id, nm_sum_enum, AllSumENum, &
                                   required=.true.)
 #else
@@ -899,7 +899,7 @@ contains
         ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
         tmp_lenof_sign = int(read_lenof_sign)
         ! assign the tmp_inum_runs accordingly
-#ifdef __CMPLX
+#ifdef CMPLX_
         tmp_inum_runs = tmp_lenof_sign/2
 #else
         tmp_inum_runs = tmp_lenof_sign
@@ -1601,7 +1601,7 @@ contains
 
 #ifdef __DOUBLERUN
         pops_norm = pops_norm + real_sign(1)*real_sign(2)
-#elif __CMPLX
+#elif CMPLX_
         pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
 #else
         pops_norm = pops_norm + real_sign(1)*real_sign(1)

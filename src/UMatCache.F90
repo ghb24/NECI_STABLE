@@ -224,7 +224,7 @@ MODULE UMatCache
          ELSE
              UMatInd=(int(B,int64)*int(B-1,int64))/2+int(A,int64)
          ENDIF
-#ifdef __CMPLX
+#ifdef CMPLX_
          if(.not. tComplexWalkers_RealInts) then
          UMatInd = (UmatInd-1)*2 + 1
          !We need to test whether we have swapped i and k or j and l independantly of each other
@@ -239,7 +239,7 @@ MODULE UMatCache
       HElement_t(dp) function UMatConj(I,J,K,L,val)
          integer, intent(in) :: I,J,K,L
          HElement_t(dp), intent(in) :: val
-#ifdef __CMPLX
+#ifdef CMPLX_
          INTEGER :: IDI,IDJ,IDK,IDL,NewA,A
 
          !Changing index ordering for the real ordering.
@@ -338,7 +338,7 @@ MODULE UMatCache
 !         CALL neci_flush(6)
          iPairs=(nBi*(nBi+1))/2
          iSize=(int(iPairs,int64)*int(iPairs+1,int64))/2
-#ifdef __CMPLX
+#ifdef CMPLX_
          !Since we now only have 4-fold symmetry, rather than 8-fold.
          iSize = iSize * 2
 #endif
@@ -1365,7 +1365,7 @@ MODULE UMatCache
          IF(UMATLABELS(ICACHEI,ICACHE).EQ.B) THEN
             !WRITE(6,*) "C",IDI,IDJ,IDK,IDL,ITYPE,UMatCacheData(0:nTypes-1,ICACHEI,ICACHE)
             UMATEL=UMatCacheData(IAND(ITYPE,1),ICACHEI,ICACHE)
-#ifdef __CMPLX
+#ifdef CMPLX_
             IF(BTEST(ITYPE,1)) UMATEL=CONJG(UMATEL)  ! Bit 1 tells us whether we need to complex conjg the integral
 #endif
 !   signal success
@@ -1472,7 +1472,7 @@ END MODULE UMatCache
 !  First get which pos in the slot will be the new first pos
             iIntPos=iand(iType,1)
 !  If bit 1 is set we must conjg the (to-be-)first integral
-#ifdef __CMPLX
+#ifdef CMPLX_
             if(btest(iType,1)) then
                Tmp(0)=conjg(UMatEl(iIntPos))
             else
@@ -1482,7 +1482,7 @@ END MODULE UMatCache
             Tmp(0)=UMatEl(iIntPos)
 #endif
 !  If bit 2 is set we must conjg the (to-be-)second integral
-#ifdef __CMPLX
+#ifdef CMPLX_
             if(btest(iType,2)) then
                Tmp(1)=conjg(UMatEl(1-iIntPos))
             else

@@ -178,7 +178,7 @@ contains
 #elif defined(__DOUBLERUN)
         WRITE(6,*) "Double run in use."
 #endif
-#if defined(__CMPLX)
+#if defined(CMPLX_)
         WRITE(6,*) "Complex walkers in use."
 #endif
         write(6,*) 'Number of simultaneous walker distributions: ',inum_runs
@@ -305,7 +305,7 @@ contains
 
         ! Strange bug in compiler
         unused_var(run)
-#ifdef __CMPLX
+#ifdef CMPLX_
         sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), extract_part_sign(ilut, max_part_type(run)))
 #else
         sgn = extract_part_sign(ilut, min_part_type(run))
@@ -429,7 +429,7 @@ contains
 
         ASSERT(run<=inum_runs)
         call encode_part_sign(ilut, real_sgn, min_part_type(run))
-#ifdef __CMPLX
+#ifdef CMPLX_
         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
 #else
         unused_var(imag_sgn)

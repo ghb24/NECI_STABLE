@@ -37,7 +37,7 @@ public:
 };
 
 // A type(helement) equivalent
-#ifdef __CMPLX
+#ifdef CMPLX_
 typedef complex_dp_t helement_t;
 #else
 typedef real_t helement_t;

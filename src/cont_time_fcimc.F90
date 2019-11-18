@@ -259,7 +259,7 @@ contains
                 ! This is the spawning coefficient. n.b. it is possible to
                 ! spawn more than one particle whilst adjusting the overspawn
                 ! factors
-#ifndef __CMPLX
+#ifndef CMPLX_
                 spwn_sgn = - sign(1.0_dp, sgn) * sign(real(nspawn,dp),hoffdiag)
 #else
                 call stop_all(this_routine, "Not implemented")

@@ -1079,7 +1079,7 @@ r_loop: do while(.not.tStoreDet)
             tot_walkers = int(0.95 * InitWalkers * nNodes, int64)
             do run = 1, inum_runs
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                 if ((tLetInitialPopDie .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) < tot_walkers) .or. &
                     ((.not. tLetInitialPopDie) .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) > tot_walkers)) then
                     write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')

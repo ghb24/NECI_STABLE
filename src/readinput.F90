@@ -471,7 +471,7 @@ MODULE ReadInput_neci
                        &number of replica simulations'
             write(6,*) 'Defaulting to using 2 replicas'
             tMultiReplicas = .true.
-#ifdef __CMPLX
+#ifdef CMPLX_
             lenof_sign = 4
 #else
             lenof_sign = 2

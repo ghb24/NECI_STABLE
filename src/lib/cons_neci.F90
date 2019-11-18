@@ -43,7 +43,7 @@ integer, parameter :: sizeof_sp = 4
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant
 #if defined(__PROG_NUMRUNS)
-#if defined(__CMPLX)
+#if defined(CMPLX_)
 !Complex integrals, (arbitrary, run-time) multiple replicas
     integer :: nreplicas = 1    !1 or 2   (for replica sampling, not multiple states)
     integer :: lenof_sign       !2 x inum_runs (2 for complex x number of seperate wavefuncs sampled)
@@ -68,7 +68,7 @@ integer, parameter :: sizeof_sp = 4
 #endif
 
 #elif defined(__DOUBLERUN)
-#if defined(__CMPLX)
+#if defined(CMPLX_)
 !Complex integrals, double replica
     integer, parameter :: nreplicas = 2
     integer, parameter :: lenof_sign = 4
@@ -92,7 +92,7 @@ integer, parameter :: sizeof_sp = 4
 #endif
 
 #else
-#if defined(__CMPLX)
+#if defined(CMPLX_)
 !Complex integrals, single replica
     integer, parameter :: nreplicas = 1
     integer, parameter :: lenof_sign = 2
