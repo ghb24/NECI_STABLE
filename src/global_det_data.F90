@@ -532,7 +532,7 @@ contains
     end subroutine set_tot_acc_spawn_hdf5Int
 #endif
 
-    subroutine writeFFuncAsInt(ndets, fvals, MaxEx)
+    subroutine writeFFuncAsInt(ndets, fvals, MaxEx, MinPop)
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
       use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
@@ -540,6 +540,8 @@ contains
       integer(int64), intent(in) :: ndets
       integer(n_int), intent(inout) :: fvals(:,:)
       integer, intent(in), optional :: MaxEx
+      real(dp), intent(in), optional :: MinPop
+      real(dp) :: MinPopLocal
 
       integer :: j, k
       integer :: ExcitLevel, counter
@@ -548,13 +550,19 @@ contains
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
 
+      if(present(MinPop))then
+          MinPopLocal = MinPop
+      else
+          MinPopLocal = 1e-12_dp
+      endif
+
       counter = 0
       do j = 1,int(ndets)
         if(present(MaxEx))then
              ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
              if(ExcitLevel>MaxEx) cycle
              call extract_sign(CurrentDets(:,j),CurrentSign)
-             if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) cycle
+             if(all(abs(CurrentSign) <= MinPopLocal) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) cycle
              counter = counter + 1
         else
             counter = j
@@ -716,7 +724,7 @@ contains
 
     end function
 
-    subroutine writeAPValsAsInt(ndets, APVals, MaxEx)
+    subroutine writeAPValsAsInt(ndets, APVals, MaxEx, MinPop)
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
       use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
@@ -724,11 +732,18 @@ contains
       integer(int64), intent(in) :: ndets
       integer(n_int), intent(inout) :: ApVals(:,:)
       integer, intent(in), optional :: MaxEx
+      real(dp), intent(in), optional :: MinPop
+      real(dp) :: MinPopLocal
 
       integer :: j, k
       integer :: ExcitLevel, counter
       real(dp) :: CurrentSign(lenof_sign)
 
+      if(present(MinPop))then
+          MinPopLocal = MinPop
+      else
+          MinPopLocal = 1e-12_dp
+      endif
       ! write the accumlated population values (pops_sum and pop_iter)
       ! in a contiguous array APVals(:,j) = (sum, iter) for determinant j
       ! (lenof_sing+1 in size)
@@ -739,7 +754,7 @@ contains
              ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
              if(ExcitLevel>MaxEx) cycle
              call extract_sign(CurrentDets(:,j),CurrentSign)
-             if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) cycle
+             if(all(abs(CurrentSign) <= MinPopLocal) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) cycle
              counter = counter + 1
         else
             counter = j

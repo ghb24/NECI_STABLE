@@ -152,7 +152,7 @@ module hdf5_popsfile
 contains
 
 
-    subroutine write_popsfile_hdf5(MaxEx, IterSuffix)
+    subroutine write_popsfile_hdf5(MaxEx, MinPop, IterSuffix)
 
         use CalcData, only: iPopsFileNoWrite
         use LoggingData, only: tIncrementPops
@@ -165,6 +165,7 @@ contains
         ! 4) Should we in some way make incrementpops default?
 
         integer, intent(in), optional :: MaxEx
+        real(dp), intent(in), optional :: MinPop
         logical, intent(in), optional :: IterSuffix
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef __USE_HDF
@@ -228,7 +229,7 @@ contains
         else
             write(6,*) "writing walkers"
         end if
-        call write_walkers(file_id, MaxEx)
+        call write_walkers(file_id, MaxEx, MinPop)
 
         call MPIBarrier(mpi_err)
         write(6,*) "closing popsfile"
@@ -742,7 +743,7 @@ contains
 
     end subroutine
 
-    subroutine write_walkers(parent, MaxEx)
+    subroutine write_walkers(parent, MaxEx, MinPop)
 
         use iso_c_hack
         use bit_rep_data, only: NIfD, NIfTot, NOffSgn, extract_sign
@@ -757,6 +758,8 @@ contains
 
         integer(hid_t), intent(in) :: parent
         integer, intent(in), optional :: MaxEx
+        real(dp), intent(in), optional :: MinPop
+        real(dp) :: MinPopLocal
         type(c_ptr) :: cptr
         integer(int32), pointer :: ptr(:)
         integer(int32) :: boop
@@ -788,6 +791,11 @@ contains
 
 
         if(present(MaxEx))then
+            if(present(MinPop))then
+                MinPopLocal = MinPop
+            else
+                MinPopLocal = 1e-12_dp
+            endif
             ! We want to print only dets up to a certine excitation level
             ! Let us find out which ones they are and copy them
             allocate(TmpVecDets(0:NIfTot, TotWalkers))
@@ -799,7 +807,7 @@ contains
                 ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
                 if(ExcitLevel<=MaxEx)then
                     call extract_sign(CurrentDets(:,i),CurrentSign)
-                    if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
+                    if(all(abs(CurrentSign) <= MinPopLocal) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
                     printed_count = printed_count + 1
                     PrintedDets(:,printed_count) = CurrentDets(:,i)
                     ! Fill in stats
@@ -895,7 +903,7 @@ contains
         if(tAutoAdaptiveShift) then
            allocate(fvals(2*inum_runs,printed_count))
            ! get the statistics of THIS processor
-           call writeFFuncAsInt(TotWalkers,fvals, MaxEx)
+           call writeFFuncAsInt(TotWalkers,fvals, MaxEx, MinPop)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, fvals, &
                 [int(2*inum_runs, hsize_t), int(printed_count, hsize_t)], & ! dims
@@ -908,7 +916,7 @@ contains
 
         if(tAccumPopsActive) then
            allocate(APVals(lenof_sign+1,printed_count))
-           call writeAPValsAsInt(TotWalkers, APVals, MaxEx)
+           call writeAPValsAsInt(TotWalkers, APVals, MaxEx, MinPop)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_apvals, H5T_NATIVE_REAL_8, ApVals, &
                 [int(lenof_sign+1, hsize_t), int(printed_count, hsize_t)], & ! dims

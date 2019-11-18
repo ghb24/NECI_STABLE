@@ -163,6 +163,7 @@ MODULE Logging
       tPopsProjE = .false.
       tHDF5TruncPopsWrite = .false.
       iHDF5TruncPopsEx = 0
+      HDF5TruncPopsMin = 0.0_dp
       iHDF5TruncPopsIter = 0
       tAccumPops = .false.
       tAccumPopsActive = .false.
@@ -951,23 +952,31 @@ MODULE Logging
 
         case("HDF5-TRUNC-POPS-WRITE")
             ! Write another HDF5 popsfile with dets restricted to a maximum
-            ! exitation level
+            ! exitation level and/or minimum population
             tHDF5TruncPopsWrite = .true.
             call readi(iHDF5TruncPopsEx)
             if(iHDF5TruncPopsEx<2) then
                 call stop_all(t_r,'Maximum excitation level should be greater than 1')
             end if
+
+            if (item < nitems) then
+                call readf(HDF5TruncPopsMin)
+                if(HDF5TruncPopsMin<0.0_dp) then
+                    call stop_all(t_r,'Minimum population should be greater than or equal zero')
+                end if
+            end if
+
             ! Number of iterations for the periodic writing of truncated popsfiles.
             ! The default value of zero indicates no periodic writing but
             ! only once at the end.
-
             if (item < nitems) then
                 call readi(iHDF5TruncPopsIter)
+
+                if(iHDF5TruncPopsEx<0) then
+                    call stop_all(t_r,'Number of iterations should be greater than or equal zero')
+                end if
             end if
 
-            if(iHDF5TruncPopsEx<0) then
-                call stop_all(t_r,'Number of iterations should be greater than or equal zero')
-            end if
 
         case("ACCUM-POPS")
             ! Accumulate the population of determinants and write them

@@ -34,7 +34,7 @@ module FciMCParMod
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
-                           AccumPopsExpirePercent
+                           AccumPopsExpirePercent,HDF5TruncPopsMin
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -615,7 +615,7 @@ module FciMCParMod
 !            IF(TAutoCorr) CALL WriteHistogrammedDets()
 
             if(TPopsFile .and. tHDF5TruncPopsWrite .and. iHDF5TruncPopsIter>0 .and. (mod(Iter, iHDF5TruncPopsIter) .eq. 0))then
-                call write_popsfile_hdf5(iHDF5TruncPopsEx, .true.)
+                call write_popsfile_hdf5(iHDF5TruncPopsEx, HDF5TruncPopsMin, .true.)
             endif
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
@@ -747,7 +747,7 @@ module FciMCParMod
                 ! If we have already written a file in the last iteration,
                 ! we should not write it again
                 if(iHDF5TruncPopsIter==0 .or. (mod(Iter, iHDF5TruncPopsIter) /= 0)) then
-                    call write_popsfile_hdf5(iHDF5TruncPopsEx)
+                    call write_popsfile_hdf5(iHDF5TruncPopsEx, HDF5TruncPopsMin)
                 else
                     write(6,*)
                     write(6,*) "============== Writing Truncated HDF5 popsfile =============="

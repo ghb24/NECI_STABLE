@@ -111,6 +111,8 @@ module LoggingData
     logical :: tHDF5TruncPopsWrite
     ! The maximum excitation level of dets writen to truncated HDF5 popsfile
     integer :: iHDF5TruncPopsEx
+    ! The minimum population of dets writen to truncated HDF5 popsfile
+    real(dp) :: HDF5TruncPopsMin
     ! Number of iterations for the periodic writing of truncated popsfiles
     integer :: iHDF5TruncPopsIter
 
