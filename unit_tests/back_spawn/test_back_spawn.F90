@@ -65,7 +65,7 @@ contains
         print *, "EncodeBitDet() "
 
         ! also do some tests with multiple replicas:
-#ifdef __CMPLX
+#ifdef CMPLX_
         run = 3
 #else
         run = 2
@@ -110,7 +110,7 @@ contains
         allocate(mask_virt_ilut(0:niftot,2)); mask_virt_ilut = 0_n_int
 
         ! also do some tests with multiple replicas:
-#ifdef __CMPLX
+#ifdef CMPLX_
         run = 3
 #else
         run = 2
@@ -320,7 +320,7 @@ contains
         call assert_equals(check_electron_location([1,2],2,1), 2)
         call assert_equals(check_electron_location([1,5],2,1), 1)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         run2 = 3
 #else
         run2 = 2
