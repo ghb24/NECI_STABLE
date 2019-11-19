@@ -106,13 +106,17 @@ module LoggingData
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
+    ! Avoid writing a determinant to HDF5-popsfiles when its population
+    ! is below or equal iHDF5PopsMin and its excitation is above iHDF5PopsMinEx
+    logical :: tReduceHDF5Pops
+    real(dp) :: HDF5PopsMin
+    integer :: iHDF5PopsMinEx
+
     ! Whether to write another HDF5 popsfile with dets restricted to a maximum
     ! exitation level
     logical :: tHDF5TruncPopsWrite
     ! The maximum excitation level of dets writen to truncated HDF5 popsfile
     integer :: iHDF5TruncPopsEx
-    ! The minimum population of dets writen to truncated HDF5 popsfile
-    real(dp) :: HDF5TruncPopsMin
     ! Number of iterations for the periodic writing of truncated popsfiles
     integer :: iHDF5TruncPopsIter
 

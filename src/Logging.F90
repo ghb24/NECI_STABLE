@@ -160,10 +160,12 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
+      tReduceHDF5Pops = .false.
+      HDF5PopsMin = 1.0_dp
+      iHDF5PopsMinEx = 4
       tPopsProjE = .false.
       tHDF5TruncPopsWrite = .false.
       iHDF5TruncPopsEx = 0
-      HDF5TruncPopsMin = 0.0_dp
       iHDF5TruncPopsIter = 0
       tAccumPops = .false.
       tAccumPopsActive = .false.
@@ -937,6 +939,28 @@ MODULE Logging
             tHDF5PopsRead = .true.
             tHDF5PopsWrite = .true.
 
+        case("REDUCE-HDF5-POPS")
+
+            ! Avoid writing a determinant to HDF5-popsfiles when its population
+            ! is below or equal iHDF5PopsMin and its excitation is above iHDF5PopsMinEx
+            ! Default values are 1.0 and 4, respectively.
+
+            tReduceHDF5Pops = .true.
+
+            if (item < nitems) then
+                call readf(HDF5PopsMin)
+                if(HDF5PopsMin<0.0_dp) then
+                    call stop_all(t_r,'Minimum population should be greater than or equal zero')
+                end if
+            end if
+
+            if (item < nitems) then
+                call readi(iHDF5PopsMinEx)
+                if(iHDF5PopsMinEx<2) then
+                    call stop_all(t_r,'Excitation of minimum population should be greater than one')
+                end if
+            end if
+
         case("HDF5-POPS-READ")
             ! Use the new HDF5 popsfile format just for reading
             tHDF5PopsRead = .true.
@@ -957,13 +981,6 @@ MODULE Logging
             call readi(iHDF5TruncPopsEx)
             if(iHDF5TruncPopsEx<2) then
                 call stop_all(t_r,'Maximum excitation level should be greater than 1')
-            end if
-
-            if (item < nitems) then
-                call readf(HDF5TruncPopsMin)
-                if(HDF5TruncPopsMin<0.0_dp) then
-                    call stop_all(t_r,'Minimum population should be greater than or equal zero')
-                end if
             end if
 
             ! Number of iterations for the periodic writing of truncated popsfiles.

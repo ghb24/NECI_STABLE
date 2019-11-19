@@ -75,7 +75,8 @@ module hdf5_popsfile
     use util_mod
     use CalcData, only: tAutoAdaptiveShift
     use LoggingData, only: tPopAutoAdaptiveShift, tAccumPops, tAccumPopsActive,&
-                            iAccumPopsIter, iAccumPopsCounter
+                            iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops,&
+                            HDF5PopsMin, iHDF5PopsMinEx
 #ifdef __USE_HDF
     use hdf5
 #endif
@@ -152,7 +153,7 @@ module hdf5_popsfile
 contains
 
 
-    subroutine write_popsfile_hdf5(MaxEx, MinPop, IterSuffix)
+    subroutine write_popsfile_hdf5(MaxEx, IterSuffix)
 
         use CalcData, only: iPopsFileNoWrite
         use LoggingData, only: tIncrementPops
@@ -165,7 +166,6 @@ contains
         ! 4) Should we in some way make incrementpops default?
 
         integer, intent(in), optional :: MaxEx
-        real(dp), intent(in), optional :: MinPop
         logical, intent(in), optional :: IterSuffix
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef __USE_HDF
@@ -229,7 +229,7 @@ contains
         else
             write(6,*) "writing walkers"
         end if
-        call write_walkers(file_id, MaxEx, MinPop)
+        call write_walkers(file_id, MaxEx)
 
         call MPIBarrier(mpi_err)
         write(6,*) "closing popsfile"
@@ -743,7 +743,7 @@ contains
 
     end subroutine
 
-    subroutine write_walkers(parent, MaxEx, MinPop)
+    subroutine write_walkers(parent, MaxEx)
 
         use iso_c_hack
         use bit_rep_data, only: NIfD, NIfTot, NOffSgn, extract_sign
@@ -751,15 +751,13 @@ contains
                              TotWalkers, iLutHF,Iter, PreviousCycles
         use CalcData, only: tUseRealCoeffs
         use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
-        use global_det_data, only: writeFFuncAsInt, writeAPValsAsInt
+        use global_det_data, only: writeFValsAsInt, writeAPValsAsInt
 
         ! Output the wavefunction information to the relevant groups in the
         ! wavefunction.
 
         integer(hid_t), intent(in) :: parent
         integer, intent(in), optional :: MaxEx
-        real(dp), intent(in), optional :: MinPop
-        real(dp) :: MinPopLocal
         type(c_ptr) :: cptr
         integer(int32), pointer :: ptr(:)
         integer(int32) :: boop
@@ -785,49 +783,69 @@ contains
         integer(hsize_t) :: printed_count
         integer(kind=n_int) , allocatable , target :: TmpVecDets(:,:)
         integer(kind=n_int) , pointer :: PrintedDets(:,:)
-        integer :: i, run
+        integer(int64) :: i
+        integer :: run
         real(dp) :: CurrentSign(lenof_sign), printed_tot_parts(lenof_sign), &
                     printed_norm_sqr(inum_runs)
 
 
-        if(present(MaxEx))then
-            if(present(MinPop))then
-                MinPopLocal = MinPop
-            else
-                MinPopLocal = 1e-12_dp
-            endif
-            ! We want to print only dets up to a certine excitation level
-            ! Let us find out which ones they are and copy them
-            allocate(TmpVecDets(0:NIfTot, TotWalkers))
-            PrintedDets => TmpVecDets
-            printed_count = 0
-            printed_norm_sqr = 0
-            printed_tot_parts = 0
-            do i = 1, int(TotWalkers)
-                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
-                if(ExcitLevel<=MaxEx)then
-                    call extract_sign(CurrentDets(:,i),CurrentSign)
-                    if(all(abs(CurrentSign) <= MinPopLocal) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
-                    printed_count = printed_count + 1
-                    PrintedDets(:,printed_count) = CurrentDets(:,i)
-                    ! Fill in stats
-                    printed_tot_parts = printed_tot_parts + abs(CurrentSign)
-#if defined(__CMPLX)
-                    do run = 1, inum_runs
-                       printed_norm_sqr(run) = printed_norm_sqr(run) + &
-                            sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
-                    enddo
-#else
-                    printed_norm_sqr = printed_norm_sqr + CurrentSign**2
-#endif
-                end if
-            end do
-        else
-            PrintedDets => CurrentDets
-            printed_count = TotWalkers
-            printed_norm_sqr = norm_psi_squared
-            printed_tot_parts = TotParts
+        ! We do not want to print all dets. At least empty dets should be skipped
+        ! Let us find out which ones to be printed and copy them
+        allocate(TmpVecDets(0:NIfTot, TotWalkers))
+        PrintedDets => TmpVecDets
+        printed_count = 0
+        printed_norm_sqr = 0
+        printed_tot_parts = 0
+
+        if(tAutoAdaptiveShift) then
+           allocate(fvals(2*inum_runs, TotWalkers))
         endif
+
+        if(tAccumPopsActive) then
+           allocate(APVals(lenof_sign+1, TotWalkers))
+        endif
+
+        do i = 1, TotWalkers
+            call extract_sign(CurrentDets(:,i),CurrentSign)
+            ! Skip empty determinants (unless we are accumulating its population)
+            if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
+
+            ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
+
+            ! If we are printing truncated popsfiles, skip over large excitations
+            if(present(MaxEx) .and. ExcitLevel>MaxEx) cycle
+
+            ! If we are reducing the size of popsfiles, skip dets with low population and high excitations
+            if(tReduceHDF5Pops)then
+                if(all(abs(CurrentSign) <= HDF5PopsMin) .and. ExcitLevel>iHDF5PopsMinEx) cycle
+            endif
+
+            printed_count = printed_count + 1
+
+            !Fill in det
+            PrintedDets(:,printed_count) = CurrentDets(:,i)
+
+            ! Fill in FVals
+            if(tAutoAdaptiveShift)then
+                call WriteFValsAsInt(fvals(:, printed_count), i)
+            endif
+
+            ! Fill in APVals
+            if(tAccumPopsActive)then
+                call WriteAPValsAsInt(apvals(:, printed_count), i)
+            endif
+
+            ! Fill in stats
+            printed_tot_parts = printed_tot_parts + abs(CurrentSign)
+#if defined(__CMPLX)
+            do run = 1, inum_runs
+               printed_norm_sqr(run) = printed_norm_sqr(run) + &
+                    sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+            enddo
+#else
+            printed_norm_sqr = printed_norm_sqr + CurrentSign**2
+#endif
+        end do
 
         ! TODO: Add a (slower) fallback routine for weird cases, odd HDF libs
 
@@ -894,16 +912,12 @@ contains
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
         )
 
-        if(present(MaxEx))then
-            deallocate(TmpVecDets)
-        endif
+        deallocate(TmpVecDets)
 
         ! if auto-adaptive shift was used, also write the gathered information on
         ! accepted/total spawns
         if(tAutoAdaptiveShift) then
-           allocate(fvals(2*inum_runs,printed_count))
            ! get the statistics of THIS processor
-           call writeFFuncAsInt(TotWalkers,fvals, MaxEx, MinPop)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, fvals, &
                 [int(2*inum_runs, hsize_t), int(printed_count, hsize_t)], & ! dims
@@ -915,8 +929,6 @@ contains
         endif
 
         if(tAccumPopsActive) then
-           allocate(APVals(lenof_sign+1,printed_count))
-           call writeAPValsAsInt(TotWalkers, APVals, MaxEx, MinPop)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_apvals, H5T_NATIVE_REAL_8, ApVals, &
                 [int(lenof_sign+1, hsize_t), int(printed_count, hsize_t)], & ! dims
@@ -1558,7 +1570,7 @@ contains
 
     subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, &
                              fvals_write, apvals_write)
-      use global_det_data, only: set_tot_acc_spawn_hdf5Int, readAPValsAsInt
+      use global_det_data, only: readFValsAsInt, readAPValsAsInt
         use CalcData, only: iWeightPopRead
         use bit_reps, only: extract_sign
 
@@ -1596,7 +1608,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
+                      call readFValsAsInt(fvals_write(:,j), CurrWalkers)
 
                  if(tReadAPVals) &
                       call readAPValsAsInt(apvals_write(:,j), CurrWalkers)
@@ -1622,7 +1634,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
+                      call readFValsAsInt(fvals_write(:,j), CurrWalkers)
 
                  if(tReadAPVals) &
                       call readAPValsAsInt(apvals_write(:,j), CurrWalkers)

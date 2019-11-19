@@ -514,67 +514,41 @@ contains
       end do
     end subroutine set_tot_acc_spawns
 
-#ifdef __USE_HDF
-    ! nasty bit of code to cope with hdf5 I/O which is using integer(hsize_t)
-    subroutine set_tot_acc_spawn_hdf5Int(fvals, j)
-      use hdf5
+    subroutine readFValsAsInt(fvals, j)
       implicit none
-      integer(hsize_t), intent(in) :: fvals(:)
+      integer(n_int), intent(in) :: fvals(:)
       integer(int64), intent(in) :: j
 
       integer :: run
       real(dp) :: realVal = 0.0_dp
 
+      ! Read the acc. and tot. spawns from a contiguous integer array of size (2*inum_runs)
+      ! This is useful for HDF5 subroutines which currently only accept integer arrays
+
       do run = 1, inum_runs
          global_determinant_data(pos_acc_spawns+run-1,j) = transfer(fvals(run),realVal)
          global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+inum_runs),realVal)
       end do
-    end subroutine set_tot_acc_spawn_hdf5Int
-#endif
+    end subroutine readFValsAsInt
 
-    subroutine writeFFuncAsInt(ndets, fvals, MaxEx, MinPop)
-      use FciMCData, only: CurrentDets, iLutHF
-      use bit_rep_data, only: extract_sign
-      use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
+
+    subroutine writeFValsAsInt(fvals, j)
       implicit none
-      integer(int64), intent(in) :: ndets
-      integer(n_int), intent(inout) :: fvals(:,:)
-      integer, intent(in), optional :: MaxEx
-      real(dp), intent(in), optional :: MinPop
-      real(dp) :: MinPopLocal
+      integer(n_int), intent(inout) :: fvals(:)
+      integer(int64), intent(in) :: j
+      integer :: k
 
-      integer :: j, k
-      integer :: ExcitLevel, counter
-      real(dp) :: CurrentSign(lenof_sign)
+      ! Write the acc. and tot. spawns in a contiguous integer array of size (2*inum_runs)
+      ! This is useful for HDF5 subroutines which currently only accept integer arrays
 
-      ! write the acc. and tot. spawns per determinant in a contiguous array
-      ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-
-      if(present(MinPop))then
-          MinPopLocal = MinPop
-      else
-          MinPopLocal = 1e-12_dp
-      endif
-
-      counter = 0
-      do j = 1,int(ndets)
-        if(present(MaxEx))then
-             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-             if(ExcitLevel>MaxEx) cycle
-             call extract_sign(CurrentDets(:,j),CurrentSign)
-             if(all(abs(CurrentSign) <= MinPopLocal) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) cycle
-             counter = counter + 1
-        else
-            counter = j
-        end if
         do k = 1, inum_runs
-           fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
+           fvals(k) = transfer(get_acc_spawns(j,k), fvals(k))
         end do
         do k = 1, inum_runs
-           fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
+           fvals(k+inum_runs) = transfer(get_tot_spawns(j,k), fvals(k))
         end do
-      end do
-    end subroutine writeFFuncAsInt
+
+    end subroutine writeFValsAsInt
 
     subroutine writeFFunc(ndets, fvals)
       implicit none
@@ -724,49 +698,24 @@ contains
 
     end function
 
-    subroutine writeAPValsAsInt(ndets, APVals, MaxEx, MinPop)
-      use FciMCData, only: CurrentDets, iLutHF
-      use bit_rep_data, only: extract_sign
-      use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
+    subroutine writeAPValsAsInt(apvals, j)
       implicit none
-      integer(int64), intent(in) :: ndets
-      integer(n_int), intent(inout) :: ApVals(:,:)
-      integer, intent(in), optional :: MaxEx
-      real(dp), intent(in), optional :: MinPop
-      real(dp) :: MinPopLocal
+      integer(n_int), intent(inout) :: apvals(:)
+      integer(int64), intent(in) ::j
+      integer :: k
 
-      integer :: j, k
-      integer :: ExcitLevel, counter
-      real(dp) :: CurrentSign(lenof_sign)
+      ! Write the accumlated population values (pops_sum and pop_iter)
+      ! in a contiguous integer array of size (lenof_sing+1).
+      ! This is useful for HDF5 subroutines which currently only accept integer arrays
 
-      if(present(MinPop))then
-          MinPopLocal = MinPop
-      else
-          MinPopLocal = 1e-12_dp
-      endif
-      ! write the accumlated population values (pops_sum and pop_iter)
-      ! in a contiguous array APVals(:,j) = (sum, iter) for determinant j
-      ! (lenof_sing+1 in size)
+       do k = 1, lenof_sign
+           apvals(k) = transfer(get_pops_sum(j,k), apvals(k))
+       end do
+       apvals(lenof_sign+1) = transfer(get_pops_iter(j), apvals(k))
 
-      counter = 0
-      do j = 1,int(ndets)
-        if(present(MaxEx))then
-             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-             if(ExcitLevel>MaxEx) cycle
-             call extract_sign(CurrentDets(:,j),CurrentSign)
-             if(all(abs(CurrentSign) <= MinPopLocal) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) cycle
-             counter = counter + 1
-        else
-            counter = j
-        end if
-        do k = 1, lenof_sign
-           APVals(k,counter) = transfer(get_pops_sum(j,k), APVals(k,counter))
-        end do
-        APVals(lenof_sign+1,counter) = transfer(get_pops_iter(j), APVals(k,counter))
-      end do
     end subroutine writeAPValsAsInt
 
-    subroutine readApValsAsInt(apvals, j)
+    subroutine readAPValsAsInt(apvals, j)
       implicit none
       integer(n_int), intent(in) :: apvals(:)
       integer, intent(in) :: j
@@ -774,10 +723,15 @@ contains
       integer :: k
       real(dp) :: realVal = 0.0_dp
 
+      ! Read the accumlated population values (pops_sum and pop_iter)
+      ! in a contiguous integer array of size (lenof_sing+1).
+      ! This is useful for HDF5 subroutines which currently only accept integer arrays
+
       do k = 1, lenof_sign
          global_determinant_data(pos_pops_sum+k-1,j) = transfer(apvals(k),realVal)
       end do
       global_determinant_data(pos_pops_iter,j) = transfer(apvals(lenof_sign+1),realVal)
+
     end subroutine readAPValsAsInt
 
     subroutine set_apvals(apvals, ndets, initial)
