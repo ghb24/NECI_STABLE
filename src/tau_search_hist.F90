@@ -758,6 +758,8 @@ contains
                        endif
                     endif
 
+
+                else
                     psingles_new = pSingles
                     if(abs(ratio_singles) > EPS .or. abs(ratio_doubles) > EPS) then
                        tau_new = max_permitted_spawn * &

@@ -995,7 +995,8 @@ module AnnihilationMod
                              NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
                              iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
                              !call encode_part_sign (CurrentDets(:,PartInd), CurrentSign(run), j)
-                             call encode_part_sign (CurrentDets(:,PartInd), 0.0_dp, j)
+                             call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
+                             SpawnedSign(j) = 0.0_dp
                           end if
                        end if
                     end if
