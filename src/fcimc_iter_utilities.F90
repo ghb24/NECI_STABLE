@@ -537,7 +537,7 @@ contains
         low = upp + 1; upp = low + sizes(23) - 1; all_bloom_count = nint(recv_arr(low:upp));
         low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low), int64);
         ! double occ:
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
         ! truncated weight
@@ -545,8 +545,8 @@ contains
         ! initiators per excitation level
         low = upp + 1; upp = low + sizes(29) - 1; AllInitsPerExLvl = nint(recv_arr(low:upp));
         ! excitation number trackers
-        low = upp + 1; upp = low + sizes(30) - 1; allNInvalidExcits = nint(recv_arr(low));
-        low = upp + 1; upp = low + sizes(31) - 1; allNValidExcits = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(30) - 1; allNInvalidExcits = nint(recv_arr(low), int64);
+        low = upp + 1; upp = low + sizes(31) - 1; allNValidExcits = nint(recv_arr(low), int64);
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;

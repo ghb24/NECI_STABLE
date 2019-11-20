@@ -54,9 +54,9 @@ MODULE FciMCData
 
 
       ! The number of walkers spawned onto this process.
-      integer :: nspawned
+      integer(int64) :: nspawned
       ! The number of walkers spawned in total, on all processes.
-      integer :: nspawned_tot
+      integer(int64) :: nspawned_tot
 
       ! In some instances (such as when applying a perturbation operator) it is
       ! useful to store the vector read in from the popsfile in a separate
@@ -451,7 +451,7 @@ MODULE FciMCData
       type(excit_gen_store_type) :: fcimc_excit_gen_store
 
       ! auxiliary variables used to determine AvMCExcits on the fly
-      integer :: nInvalidExcits, nValidExcits, allNInvalidExcits, allNValidExcits
+      integer(int64) :: nInvalidExcits, nValidExcits, allNInvalidExcits, allNValidExcits
 
       ! Tau searching variables
       ! tSearchTau specifies if we are searching tau
