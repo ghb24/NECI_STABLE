@@ -501,22 +501,39 @@ contains
     end subroutine set_tot_acc_spawn_hdf5Int
 #endif
 
-    subroutine writeFFuncAsInt(ndets, fvals)
+    subroutine writeFFuncAsInt(ndets, fvals, MaxEx)
+      use FciMCData, only: CurrentDets, iLutHF
+      use bit_rep_data, only: extract_sign
+      use DetBitOps, only: FindBitExcitLevel
       implicit none
       integer(int64), intent(in) :: ndets
       integer(n_int), intent(inout) :: fvals(:,:)
+      integer, intent(in), optional :: MaxEx
 
       integer :: j, k
+      integer :: ExcitLevel, counter
+      real(dp) :: CurrentSign(lenof_sign)
 
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-      do j = 1, int(nDets)
-         do k = 1, inum_runs
-            fvals(k,j) = transfer(get_acc_spawns(j,k), fvals(k,j))
-         end do
-         do k = 1, inum_runs
-            fvals(k+inum_runs,j) = transfer(get_tot_spawns(j,k), fvals(k,j))
-         end do
+
+      counter = 0
+      do j = 1,int(ndets)
+        if(present(MaxEx))then
+             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+             if(ExcitLevel>MaxEx) cycle
+             call extract_sign(CurrentDets(:,j),CurrentSign)
+             if(IsUnoccDet(CurrentSign)) cycle
+             counter = counter + 1
+        else
+            counter = j
+        end if
+        do k = 1, inum_runs
+           fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
+        end do
+        do k = 1, inum_runs
+           fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
+        end do
       end do
     end subroutine writeFFuncAsInt
 
