@@ -13,7 +13,7 @@ module util_mod
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
-#ifdef __IFORT
+#ifdef IFORT_
     use ifport, only: etime
 #endif
     implicit none
@@ -369,7 +369,7 @@ contains
     elemental logical function isnan_neci (r)
         real(dp), intent(in) :: r
 
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         isnan_neci = isnan(r)
 #else
         if ( (r == 0) .and. (r * 1 == 1) ) then
@@ -955,7 +955,7 @@ contains
     end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
-#ifndef __IFORT
+#ifndef IFORT_
       use mpi
 #endif
         ! Return elapsed time for timing and calculation ending purposes.
@@ -963,7 +963,7 @@ contains
         real(dp), intent(out) :: time(2)
         real(dp) :: ret
 
-#ifdef __IFORT
+#ifdef IFORT_
         ! intels etime takes a real(4)
         real(4) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules.
@@ -1130,7 +1130,7 @@ end module
 
 #endif
 
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
     function g_loc (var) result(addr)
 
         use iso_c_binding

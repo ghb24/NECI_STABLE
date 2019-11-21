@@ -42,7 +42,7 @@ integer, parameter :: sizeof_sp = 4
 
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
 #if defined(CMPLX_)
 !Complex integrals, (arbitrary, run-time) multiple replicas
     integer :: nreplicas = 1    !1 or 2   (for replica sampling, not multiple states)
@@ -67,7 +67,7 @@ integer, parameter :: sizeof_sp = 4
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
 
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
 #if defined(CMPLX_)
 !Complex integrals, double replica
     integer, parameter :: nreplicas = 2
@@ -121,7 +121,7 @@ real(dp), dimension(lenof_sign_max), parameter :: null_part = 0.0_dp
 !This should normally be integer(4)'s.
 integer, parameter :: MPIArg=int32
 
-#ifdef __INT64
+#ifdef INT64_
 
 ! Kind parameter for 64-bit integers.
 integer, parameter :: n_int=int64

@@ -143,7 +143,7 @@ contains
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
         run = part_type_to_run(part_type)
-#ifdef __DEBUG
+#ifdef DEBUG_
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
 #endif
 
@@ -164,7 +164,7 @@ contains
         end if
 
         if (list_full) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             write(6,*) "Attempting to spawn particle onto processor: ", proc
             write(6,*) "No memory slots available for this spawn."
             write(6,*) "Please increase MEMORYFACSPAWN"
@@ -373,7 +373,7 @@ contains
             end if
 
             if (list_full) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                 write(6,*) "Attempting to spawn particle onto processor: ", proc
                 write(6,*) "No memory slots available for this spawn."
                 write(6,*) "Please increase MEMORYFACSPAWN"
@@ -726,7 +726,7 @@ contains
                     trial_denom = trial_denom + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
 #ifdef CMPLX_
                             trial_denom(run-1) = trial_denom(run-1) + current_trial_amps(run/2,ind)* &
@@ -759,7 +759,7 @@ contains
                         trial_numerator = trial_numerator + amps(1)*sgn
                     else
                         if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                             do run = 2, inum_runs, 2
                                 trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
                             end do
@@ -779,7 +779,7 @@ contains
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
 #ifdef CMPLX_
                             trial_numerator(run-1) = trial_numerator(run-1) + current_trial_amps(run/2,ind)* &

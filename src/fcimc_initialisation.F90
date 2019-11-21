@@ -266,7 +266,7 @@ contains
                     endif
                 end if
             end if
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
                 if (tReadPops .and. .not. t_no_append_stats) then
@@ -2627,7 +2627,7 @@ contains
         integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'set_initial_run_references'
 #endif
 

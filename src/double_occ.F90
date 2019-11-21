@@ -19,7 +19,7 @@ module double_occ_mod
     use sort_mod, only: sort
     use FciMCData, only: fcimc_iter_data
 
-#ifdef __DEBUG
+#ifdef DEBUG_
 !     use Determinants, only: writedetbit
 #endif
 
@@ -98,7 +98,7 @@ contains
         ! do i want to do that for complex walkers also?? i guess so..
         ! to get it running do it only for  single run for now!
         ! do not do the division here, but only in the output!
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
         call stop_all(this_routine, &
             "complex double occupancy measurement not yet implemented!")

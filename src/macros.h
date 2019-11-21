@@ -50,7 +50,7 @@
 #define clr_orb(ilut, orb) ilut(ilut_int(orb))=ibclr(ilut(ilut_int(orb)),ilut_off(orb))
 
 ! Useful for fixing things. Requires this_routine to be defined
-#ifdef __DEBUG
+#ifdef DEBUG_
 #define ASSERT(x) \
 if (.not. (x)) then; \
  call stop_all (this_routine, "Assert fail: "//"x"); \
@@ -88,14 +88,14 @@ endif
 
 ! Make Re / Cplx builds easier
 #ifdef CMPLX_
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*index-1), arr(2*index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(1), arr(2), dp)
 #endif
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
-#elif defined(__PROG_NUMRUNS)
+#elif defined(PROG_NUMRUNS_)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) real(arr(1), dp)
@@ -104,13 +104,13 @@ endif
 #ifdef CMPLX_
 ! 1->1 ,2->1, 3->2 ...
 #define part_type_to_run(pt) (1+((pt)-1)/2)
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))
 #define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
 #define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp
 #else
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))
 #define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
@@ -125,11 +125,11 @@ endif
 #else
 ! 1->1 ,2->2, 3->3 ...
 #define part_type_to_run(pt) pt
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
 #define min_part_type(run) run
 #define max_part_type(run) run
 #else
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
 #define min_part_type(run) run
 #define max_part_type(run) run
 #else
@@ -153,7 +153,7 @@ endif
 #else
 #define c_ptr_t integer(int32)
 #endif
-#elif defined(__GFORTRAN__)
+#elif defined(GFORTRAN_)
 #define c_ptr_t type(c_ptr)
 #define loc_neci g_loc
 #else

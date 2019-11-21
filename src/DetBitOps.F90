@@ -14,7 +14,7 @@ module DetBitOps
 
     implicit none
 
-#ifdef __INT64
+#ifdef INT64_
     ! 10101010 and 01010101 in binary respectively.
 !    integer(n_int), parameter :: MaskBeta=Z'5555555555555555'
     integer(n_int), parameter :: MaskBeta=6148914691236517205_n_int
@@ -142,7 +142,7 @@ module DetBitOps
         integer :: nbits
         integer(n_int) :: tmp
 
-#ifdef __INT64
+#ifdef INT64_
         integer(n_int), parameter :: m1 = 6148914691236517205_n_int  !Z'5555555555555555'
         integer(n_int), parameter :: m2 = 3689348814741910323_n_int  !Z'3333333333333333'
         integer(n_int), parameter :: m3 = 1085102592571150095_n_int  !Z'0f0f0f0f0f0f0f0f'
@@ -1213,7 +1213,7 @@ end module
         INTEGER :: LargestOrb, NIfD,i,j
         INTEGER(KIND=n_int) :: iLut(0:NIfD)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'LargestBitSet'
 #endif
 

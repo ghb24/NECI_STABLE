@@ -415,7 +415,7 @@ MODULE FciMCLoggingMod
             CALL LogMemAlloc('AllHistInitPops', 50000, 4, this_routine, &
                              AllHistInitPopsTag, ierr)
             AllHistInitPops = 0
-#ifdef __DEBUG
+#ifdef DEBUG_
          else
             ! in debug mode, we have to allocate this on all procs
             if (allocated(AllHistInitPops)) then

@@ -12,7 +12,7 @@ module hdf5_util
     ! guarantee compatibility across programming languages, compilers and
     ! build configurations, then it helps to be explicit.
 
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     use iso_c_hack
     use constants
     use util_mod

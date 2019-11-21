@@ -483,7 +483,7 @@ contains
       end do
     end subroutine set_tot_acc_spawns
 
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     ! nasty bit of code to cope with hdf5 I/O which is using integer(hsize_t)
     subroutine set_tot_acc_spawn_hdf5Int(fvals, j)
       use hdf5
@@ -767,7 +767,7 @@ contains
 
         integer, intent(in) :: j
         real(dp) :: rate
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'get_spawn_rate'
 #endif
 
@@ -780,7 +780,7 @@ contains
 
         integer, intent(in) :: j
         real(dp), intent(in) :: rate
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'set_spawn_rate'
 #endif
 

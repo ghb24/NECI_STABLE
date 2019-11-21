@@ -43,7 +43,7 @@ contains
         logical :: tCoreDet
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
         call stop_all(this_routine, "orthogonalise replicas requires mneci or kmneci")
 #endif
 
@@ -275,7 +275,7 @@ contains
         character(len=*), parameter :: this_routine = "orthogonalise_replica_pairs"
 
         ASSERT(inum_runs == lenof_sign)
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
         unused_var(iter_data)
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #else
@@ -433,7 +433,7 @@ contains
         ASSERT(inum_runs == 2)
         ASSERT(lenof_sign == 2)
 
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #else
 
@@ -555,7 +555,7 @@ contains
 
         ! Not implemented for complex (yet)
         ASSERT(inum_runs == lenof_sign)
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #else
 

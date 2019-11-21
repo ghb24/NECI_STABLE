@@ -432,7 +432,7 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
         ! Generate the new determinant
         nJ = nI
         call FindExcitDet (ExcitMat, nJ, 1, tParity)
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! For debugging purposes only (O[N] operation).
         if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat) .or. ExcitMat(1,1)*ExcitMat(2,1)==0) then
             write(iout,*) "ccocc(1)", store%ClassCountOcc(1)

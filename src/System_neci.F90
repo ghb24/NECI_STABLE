@@ -186,7 +186,7 @@ MODULE System
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
       inum_runs = 1
 #ifdef CMPLX_
       lenof_sign = 2
@@ -1063,7 +1063,7 @@ system: do
             ! How many copies of the simulation do we want to run in parallel?
             ! This can only be done using mneci.x, where the size of the
             ! representation (i.e. lenof_sign) is permitted to vary at runtime
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
             call readi(inum_runs)
             tMultiReplicas = .true.
 #ifdef CMPLX_
@@ -1078,7 +1078,7 @@ system: do
             end if
 #else
             call readi(itmp)
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
             if (itmp /= 2) then
 #else
             if (itmp /= 1) then

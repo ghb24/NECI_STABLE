@@ -76,7 +76,7 @@ module hdf5_popsfile
     use CalcData, only: tAutoAdaptiveShift
     use LoggingData, only: tPopAutoAdaptiveShift
     use global_det_data, only: writeFFuncAsInt
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     use hdf5
 #endif
     implicit none
@@ -161,7 +161,7 @@ contains
 
         integer, intent(in), optional :: MaxEx
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
-#ifdef __USE_HDF
+#ifdef USE_HDF_
         integer(hid_t) :: plist_id, file_id
         integer(hdf_err) :: err
         integer :: mpi_err
@@ -251,7 +251,7 @@ contains
         integer(n_int), intent(out) :: dets(:, :)
         integer(int64) :: CurrWalkers
         character(*), parameter :: t_r = 'read_popsfile_hdf5'
-#ifdef __USE_HDF
+#ifdef USE_HDF_
         integer(hid_t) :: file_id, plist_id
         integer(hdf_err) :: err
         integer :: mpi_err
@@ -301,7 +301,7 @@ contains
     end function
 
 
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     subroutine write_metadata(parent)
 
         use CalcData, only: calc_seq_no
@@ -1194,7 +1194,7 @@ contains
         integer(hid_t) :: plist_id
         integer :: tmp_lenof_fvals
 
-#ifdef __INT64
+#ifdef INT64_
 
         call read_2d_multi_chunk( &
                 ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
@@ -1561,7 +1561,7 @@ contains
     end subroutine
 
 !------------------------------------------------------------------------------------------!
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     subroutine clone_signs(tmp_sgns, tmp_lenof_sign, lenof_sign, num_signs)
       implicit none
       ! expand/shrink the sign to the target lenof_sign
@@ -1674,7 +1674,7 @@ contains
 
         call extract_sign(ilut, real_sign)
 
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
         pops_norm = pops_norm + real_sign(1)*real_sign(2)
 #elif CMPLX_
         pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2

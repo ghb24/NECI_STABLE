@@ -716,7 +716,7 @@ contains
 !             end if
         end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. .not. tTrialShift .and. &
          all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then

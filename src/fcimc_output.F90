@@ -140,7 +140,7 @@ contains
 
             write(fcimcstats_unit, "()", advance = 'yes')
 
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -344,7 +344,7 @@ contains
                     Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &
@@ -676,7 +676,7 @@ contains
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
@@ -1769,7 +1769,7 @@ contains
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             if(tMolpro) then
                 write (iout, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
@@ -1799,7 +1799,7 @@ contains
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                     if(tMolpro) then
                         write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
@@ -1826,7 +1826,7 @@ contains
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
             if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                 if(tMolpro) then
                     write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&

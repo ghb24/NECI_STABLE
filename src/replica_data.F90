@@ -345,7 +345,7 @@ contains
         call MPISumAll(NoatHF, AllNoatHF)
         OldAllNoatHF = AllNoatHF
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         do run = 1, inum_runs
             OldAllAvWalkersCyc(run) = sum(AllTotParts(min_part_type(run):max_part_type(run)))
         enddo

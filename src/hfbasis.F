@@ -892,7 +892,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           ENDDO
           endif
           call sort (fDet(1:nel))
-#ifdef __DEBUG
+#ifdef DEBUG_
           print *, "Total momentum", totK
           print *, "Requested momentum",  SymRestrict%k
           print *, "Total spin", totSpin, "Requested spin", lms

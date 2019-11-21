@@ -271,7 +271,7 @@ module fcimc_pointed_fns
 
 
 
-#if !defined(CMPLX_) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
+#if !defined(CMPLX_) && (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
@@ -292,7 +292,7 @@ module fcimc_pointed_fns
             ! real/imaginary matrix-elements/target-particles.
 
 
-#if defined(CMPLX_) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
+#if defined(CMPLX_) && (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
             component = part_type+tgt_cpt-1
             if (.not. btest(part_type,0)) then
                 ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
@@ -392,7 +392,7 @@ module fcimc_pointed_fns
             child(tgt_cpt) = nSpawn
 #endif
 
-#if defined(CMPLX_) || !defined(__PROG_NUMRUNS) && !defined(__DOUBLERUN)
+#if defined(CMPLX_) || !defined(PROG_NUMRUNS_) && !defined(DOUBLERUN_)
         enddo
 #endif
 
@@ -797,7 +797,7 @@ module fcimc_pointed_fns
       integer, intent(in) :: run
       real(dp), intent(in) :: pop
       real(dp) :: f
-#ifdef __DEBUG
+#ifdef DEBUG_
       ! Disable compiler warnings
       real(dp) :: dummy
       dummy = pos
