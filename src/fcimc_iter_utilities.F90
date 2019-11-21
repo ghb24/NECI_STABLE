@@ -1211,8 +1211,53 @@ contains
 
     end subroutine rezero_iter_stats_update_cycle
 
-    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs, &
-         t_do_update_arg)
+    subroutine iteration_output_wrapper(iter_data, tot_parts_new, &
+        replica_pairs, t_comm_req)
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
+        real(dp), dimension(lenof_sign) :: tot_parts_new_all
+        logical, intent(in) :: replica_pairs
+        logical, intent(in), optional :: t_comm_req
+        logical :: t_do_comm
+
+        ! The comm can be switched off 
+        if(present(t_comm_req)) then
+            t_do_comm = t_comm_req
+        else
+            t_do_comm = .true.
+        endif
+
+        if(t_do_comm) &
+            call communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all, .true.)
+        if(tPrintDataTables) &
+            call write_to_stats()
+
+        contains
+            subroutine write_to_stats()
+                ! Write the current output cycle's stats to the FCIMCStats/fciqmc_stats output file
+                ! + stdout
+
+                ! adjust the trial numerator for output (add in the offset)
+                if(tTrialWavefunction) then
+                    tot_trial_numerator = relative_trial_numerator(&
+                        tot_trial_numerator, tot_trial_denom, replica_pairs)
+                    if(tTruncInitiator) &
+                        tot_init_trial_numerator = relative_trial_numerator(&
+                        tot_init_trial_numerator, tot_init_trial_denom, replica_pairs)
+                endif
+                call output_diagnostics()
+
+                if (tFCIMCStats2) then
+                    call write_fcimcstats2(iter_data_fciqmc)
+                else
+                    call WriteFCIMCStats ()
+                end if
+                ! reset accumulated output variables
+                call rezero_output_stats()          
+            end subroutine write_to_stats
+        end subroutine iteration_output_wrapper
+
+    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs, t_comm_req)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
@@ -1220,63 +1265,34 @@ contains
         logical, intent(in) :: replica_pairs
         ! optional argument: if false is passed, do not do the shift update and diagnostics,
         !                    only produce output
-        logical, intent(in), optional :: t_do_update_arg
-        logical :: t_do_update, t_do_output
+        logical, intent(in), optional :: t_comm_req
+        logical :: t_do_comm
 
-        ! TODO: Use the def_default macro once available
-        if(present(t_do_update_arg)) then
-           t_do_update = t_do_update_arg
+        ! TODO: use def_default once available
+        if(present(t_comm_req)) then
+            t_do_comm = t_comm_req
         else
-           t_do_update = .true.
-        endif        
-        
-        ! only output if either:
-        ! a) update cycle and output are coupled or
-        ! b) this is not an update call        
-        t_do_output = tPrintDataTables .and. (tCoupleCycleOutput .or. .not. t_do_update)
-        ! communication of trial wf properties is only done for output steps
-        call communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all, t_do_output)
-        
-        if(t_do_update) call shift_update()
-        if (t_do_output) &
-             call write_to_stats()
+            t_do_comm = .true.
+        endif
 
-        ! Simple output does not require a reset of internal accumulated variables
-        if(t_do_update) call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
+        ! communication of trial wf properties is only done for output steps
+        if(t_do_comm) &
+            call communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all, tCoupleCycleOutput)
+
+        ! update the shift and rezero the cycle data
+        call shift_update()
+        call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
       contains
 
         subroutine shift_update()
-          ! This is what defines the update of the shift - only done then
+          ! This is what defines the update of the shift
           call collate_iter_data (iter_data)
           call iter_diagnostics ()
           if(tRestart) return
           call population_check ()
           call update_shift (iter_data, replica_pairs)
         end subroutine shift_update
-
-        subroutine write_to_stats()
-          ! Write the current output cycle's stats to the FCIMCStats/fciqmc_stats output file
-          ! + stdout
-          
-          ! adjust the trial numerator for output (add in the offset)
-          if(tTrialWavefunction) then
-             tot_trial_numerator = relative_trial_numerator(&
-                  tot_trial_numerator, tot_trial_denom, replica_pairs)
-             if(tTruncInitiator) &
-                  tot_init_trial_numerator = relative_trial_numerator(&
-                  tot_init_trial_numerator, tot_init_trial_denom, replica_pairs)
-             endif
-          call output_diagnostics()
-          
-          if (tFCIMCStats2) then
-             call write_fcimcstats2(iter_data_fciqmc)
-          else
-             call WriteFCIMCStats ()
-          end if
-          ! reset accumulated output variables
-          call rezero_output_stats()          
-        end subroutine write_to_stats
 
       end subroutine calculate_new_shift_wrapper
 
