@@ -404,7 +404,7 @@ contains
         ! RT_M_Merge: Added real-time statistics for the newer communication scheme
         integer, parameter :: real_arr_size = 1000
         integer, parameter :: hel_arr_size = 100
-        integer, parameter :: NoArrs = 35
+        integer, parameter :: NoArrs = 37
         integer, parameter :: size_arr_size = 100
         ! RT_M_Merge: Doubled all array sizes since there are now two
         ! copies of most of the variables (necessary?)
@@ -1103,25 +1103,6 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
-
-!<<<<<<< HEAD
-                ! did khaldoon move this part?
-!                  if(tFixedN0)then
-!                      !When reaching target N0, set flag to keep the population of reference det fixed.
-!                      if(.not. tSkipRef(run) .and. AllHFCyc(run)>=N0_Target) tSkipRef(run) = .True.
-!  
-!                      if(tSkipRef(run))then
-!                          !Use the projected energy as the shift to fix the
-!                          !population of the reference det and thus reduce the
-!                          !fluctuations of the projected energy.
-!                          DiagSft(run) = (AllENumCyc(run)) / (AllHFCyc(run))+proje_ref_energy_offsets(run)
-!                      else
-!                          !Keep shift equal to input till target reference population is reached.
-!                          DiagSft(run) = InputDiagSft(run)
-!                      end if
-!  
-!                  end if
-!>>>>>>>>>>>>> check that!
 
                  if (.not. near_zero(AllSumNoatHF(run))) then
                     ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &

@@ -1198,22 +1198,6 @@ contains
             Write(iout,*) "Turning OFF the tau-search, since continued run!"
         end if
 
-        ! [W.D.] I guess I want to initialize that before the tau-search,
-        ! or otherwise some pgens get calculated incorrectly
-        if (t_back_spawn .or. t_back_spawn_flex) then
-            call init_back_spawn()
-        end if
-
-        ! also i should warn the user if this is a restarted run with a
-        ! set delay in the back-spawning method:
-        ! is there actually a use-case where someone really wants to delay
-        ! a back-spawn in a restarted run?
-        if (tReadPops .and. back_spawn_delay /= 0) then
-            call Warning_neci(t_r, &
-                "Do you really want a delayed back-spawn in a restarted run?")
-        end if
-
-
         ! can i initialize the k-space hubbard here already?
         ! because we need information for the tau-search already..
         if (t_k_space_hubbard) then
@@ -1222,29 +1206,6 @@ contains
 
         if (t_new_real_space_hubbard) then
             call init_real_space_hubbard
-        end if
-!
-        if (tSearchTau) then
-            call init_tau_search()
-
-            ! [Werner Dobrautz 4.4.2017:]
-            if (t_hist_tau_search) then
-                ! some setup went wrong!
-                call Stop_All(t_r, &
-                    "Input error! both standard AND Histogram tau-search chosen!")
-            end if
-
-        else if (t_hist_tau_search) then
-            call init_hist_tau_search()
-
-        else
-            ! Add a couple of checks for sanity
-            if (nOccAlpha == 0 .or. nOccBeta == 0) then
-                pParallel = 1.0_dp
-            end if
-            if (nOccAlpha == 1 .and. nOccBeta == 1) then
-                pParallel = 0.0_dp
-            end if
         end if
 
         if (t_spin_measurements) then

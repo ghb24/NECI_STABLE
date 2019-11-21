@@ -275,7 +275,6 @@ contains
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         real(dp) :: sgn_prod(lenof_sign)
         logical :: list_full, tSuccess, allowed_child
-        logical :: tAccessibleDoubles, tAccessibleSingles
         integer :: global_position
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
@@ -353,10 +352,7 @@ contains
             ! child, to allow it to survive.
 
             if (tTruncInitiator) then
-               allowed_child = .false.
-               if(tAccessibleDoubles .or. tAccessibleSingles) allowed_child = &
-                    test_ref_double(ilut_child, part_type_to_run(run))
-               if (allowed_child .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+               if (test_flag(ilut_parent, get_initiator_flag(part_type))) &
                     call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
                     get_initiator_flag(part_type))
             end if
@@ -405,9 +401,9 @@ contains
          write(6,*) ValidSpawnedList
          write(6,*) InitialSpawnedSlots
 #else
-         write(*,*) "Attempting to spawn particle onto processor: ", proc
-         write(*,*) "No memory slots available for this spawn."
-         write(*,*) "Please increase MEMORYFACSPAWN"
+         write(6,*) "Attempting to spawn particle onto processor: ", proc
+         write(6,*) "No memory slots available for this spawn."
+         write(6,*) "Please increase MEMORYFACSPAWN"
          write(6,*) ValidSpawnedList
          write(6,*) InitialSpawnedSlots
 #endif
