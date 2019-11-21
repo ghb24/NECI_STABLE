@@ -517,7 +517,7 @@ contains
     subroutine readFValsAsInt(fvals, j)
       implicit none
       integer(n_int), intent(in) :: fvals(:)
-      integer(int64), intent(in) :: j
+      integer, intent(in) :: j
 
       integer :: run
       real(dp) :: realVal = 0.0_dp
@@ -535,7 +535,7 @@ contains
     subroutine writeFValsAsInt(fvals, j)
       implicit none
       integer(n_int), intent(inout) :: fvals(:)
-      integer(int64), intent(in) :: j
+      integer, intent(in) :: j
       integer :: k
 
       ! Write the acc. and tot. spawns in a contiguous integer array of size (2*inum_runs)
@@ -701,7 +701,7 @@ contains
     subroutine writeAPValsAsInt(apvals, j)
       implicit none
       integer(n_int), intent(inout) :: apvals(:)
-      integer(int64), intent(in) ::j
+      integer, intent(in) ::j
       integer :: k
 
       ! Write the accumlated population values (pops_sum and pop_iter)

@@ -783,8 +783,7 @@ contains
         integer(hsize_t) :: printed_count
         integer(kind=n_int) , allocatable , target :: TmpVecDets(:,:)
         integer(kind=n_int) , pointer :: PrintedDets(:,:)
-        integer(int64) :: i
-        integer :: run
+        integer :: i, run
         real(dp) :: CurrentSign(lenof_sign), printed_tot_parts(lenof_sign), &
                     printed_norm_sqr(inum_runs)
 
@@ -805,7 +804,7 @@ contains
            allocate(APVals(lenof_sign+1, TotWalkers))
         endif
 
-        do i = 1, TotWalkers
+        do i = 1, int(TotWalkers,sizeof_int)
             call extract_sign(CurrentDets(:,i),CurrentSign)
             ! Skip empty determinants (unless we are accumulating its population)
             if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle

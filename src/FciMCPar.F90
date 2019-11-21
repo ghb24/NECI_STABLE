@@ -153,7 +153,7 @@ module FciMCParMod
         integer:: rest, err, allErr
 
         real(dp) :: CurrentSign(lenof_sign)
-        integer(int64) :: j
+        integer :: j
         integer :: pops_iter, nJ(nel)
 
         HElement_t(dp):: InstE(inum_runs)
@@ -424,7 +424,7 @@ module FciMCParMod
                 ! The currentdets is almost full, we should start removing
                 ! dets which have been empty long enough
                 if(iAccumPopsExpireIters>0 .and. TotWalkers>AccumPopsExpirePercent * real(MaxWalkersPart,dp))then
-                    do j=1,TotWalkers
+                    do j=1, int(TotWalkers,sizeof_int)
                         ! The loop is over empty dets only
                         call extract_sign(CurrentDets(:,j),CurrentSign)
                         if(.not. IsUnoccDet(CurrentSign)) cycle
