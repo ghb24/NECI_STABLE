@@ -207,27 +207,21 @@ module fcimc_pointed_fns
         temp_ex(2,:) = ex(1,:)
 
         rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
-                                 tParity, HElGen)
-        ! We actually want to calculate Hji - take the complex conjugate,
-        ! rather than swap around DetCurr and nJ.
-#ifdef __CMPLX
-        rh_used = conjg(rh)
-#else
-        rh_used = rh
-#endif
+            tParity, HElGen)
+        
         ! assign the matrix element
         HElGen = abs(rh)
         ! [W.D.]
         ! if the matrix element happens to be zero, i guess i should
         ! abort as early as possible? so check that here already, or even
         ! earlier..
-!         if (abs(rh_used) < EPS) then
+!         if (abs(rh) < EPS) then
 !             child = 0.0_dp
 !             return
 !         end if
 !
 !         if (t_matele_cutoff) then
-!             if (abs(rh_used) < EPS) then
+!             if (abs(rh) < EPS) then
 !                 child = 0.0_dp
 !             end if
 !         end if
@@ -254,18 +248,18 @@ module fcimc_pointed_fns
             if (tHUB .or. tUEG .or. &
                 (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then
-                call fill_frequency_histogram(abs(rh_used / precond_fac), prob)
+                call fill_frequency_histogram(abs(rh / precond_fac), prob)
             else
                 if (t_consider_par_bias .and. ic > 1) then
                     t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
 
                     ! not sure about the AvMCExcits!! TODO
-                    call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob, &
+                    call fill_frequency_histogram_4ind(abs(rh / precond_fac), prob, &
                         ic, t_par, ex)
 
                 else
 
-                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob, ic)
+                    call fill_frequency_histogram_sd(abs(rh / precond_fac), prob, ic)
 
                 end if
             end if
@@ -292,7 +286,7 @@ module fcimc_pointed_fns
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
-        matEl = real(rh_used, dp)
+        matEl = real(rh, dp)
         if (t_matele_cutoff) then
             if (abs(matEl) < matele_cutoff) matel = 0.0_dp
         end if
@@ -310,11 +304,10 @@ module fcimc_pointed_fns
 
 
 #if defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
-            if (mod(part_type,2) == tgt_cpt) then
-                ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
-                component = 1
-             else
-                component = 2
+            if(btest(part_type,0)) then
+                component = part_type + tgt_cpt - 1
+            else
+                component = part_type - tgt_cpt + 1
             endif
 #else
             component = tgt_cpt
@@ -325,13 +318,13 @@ module fcimc_pointed_fns
             walkerweight = sign(1.0_dp, RealwSign(part_type))
             if (mod(component,2) == 1) then
                 ! real component
-                MatEl = real(rh_used, dp)
+                MatEl = real(rh, dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
             else
 #ifdef __CMPLX
-                MatEl = real(aimag(rh_used), dp)
+                MatEl = real(aimag(rh), dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if

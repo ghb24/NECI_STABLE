@@ -352,9 +352,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER, INTENT(IN) :: ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay
         real(dp) , INTENT(OUT) :: pGen!,PabGivenij
 
-!        PabGivenij=(1.0_dp/real((NExcitA-ForbiddenOrbs),dp))*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))
-!        pGen=pDoubNew*(1.0_dp/real(ElecPairs,dp))*PabGivenij
-        pGen=pDoubNew*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
+        pGen=pDoubles*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
 
     END SUBROUTINE FindDoubleProb
 
@@ -1549,7 +1547,7 @@ MODULE GenRandSymExcitNUMod
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !Prob of generating a single is 1-pDoub
 !            pGen=(1.0_dp-pDoub)*(1.0_dp/real(NEl,dp))*(1.0_dp/real(NExcitA,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
-            pGen=(1-pDoubNew)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
+            pGen=(1-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
 
         ELSE
 !Prob of generating a double excitation.

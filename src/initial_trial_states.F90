@@ -395,7 +395,7 @@ contains
 #else
 
             ! should we switch here, if it is not hermitian? 
-            if (t_non_hermitian .or. nexcit > 1 ) then 
+            if (t_non_hermitian) then 
                 ndets_int=int(ndets_all_procs,sizeof_int)
                 allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
                 if (ierr /= 0) call stop_all(t_r, "Error allocating H_tmp array")

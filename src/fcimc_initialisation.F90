@@ -1622,9 +1622,7 @@ contains
 
                 endif   !tStartmp1
             endif
-            print *, "tLatticeGens=",tLatticeGens
             if(t_ueg_3_body.and.tTrcorrExgen)tLatticeGens = .false.
-            print *,"ptriples,pdoubles=",ptriples,pdoubles,psingles
             WRITE(iout,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ", &
                 & REAL(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor"
             WRITE(iout,*) "Only one array of memory to store main particle list allocated..."

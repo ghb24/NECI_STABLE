@@ -208,14 +208,17 @@ module DetBitOps
         ! Unused
         if (present(maxExLevel)) unused = maxExLevel
 
-        if (present(t_hphf_ic) .and. t_hphf_ic .and. tHPHF .and. .not.  & 
-            (TestClosedShellDet(ilutnI) .and. TestClosedShellDet(iLutnJ)))  then 
-            ! make sure that we are calculating the correct excitation 
-            ! level, which should be the minimum of the possible ones in 
-            ! HPHF mode 
-            ! if both are closed shell it is fine
-            ic = FindBitExcitLevel_hphf(ilutnI, ilutnJ)
-            return
+        if (present(t_hphf_ic)) then
+           if(t_hphf_ic .and. tHPHF) then
+              if(.not.(TestClosedShellDet(ilutnI) .and. TestClosedShellDet(iLutnJ)))  then 
+                 ! make sure that we are calculating the correct excitation 
+                 ! level, which should be the minimum of the possible ones in 
+                 ! HPHF mode 
+                 ! if both are closed shell it is fine
+                 ic = FindBitExcitLevel_hphf(ilutnI, ilutnJ)
+                 return
+              endif
+           endif
         end if
 
         ! Obtain a bit string with only the excited orbitals one one det.

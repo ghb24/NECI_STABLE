@@ -632,10 +632,10 @@ contains
                      'Tot. parts real')
                 call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
 #ifdef __CMPLX
-                call stats_out(state,.false., real(proje_iter_tot), 'Re Proj. E')
-                call stats_out(state,.false., aimag(proje_iter_tot), 'Im Proj. E')
+                call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
+                call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
 #ifndef __CMPLX
-                call stats_out(state,.false., proje_iter_tot, 'Proj. E (cyc)')
+                call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
 #endif
                 call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
@@ -653,10 +653,10 @@ contains
                                'Tot. Proj. E')
 #endif
             end if
-            call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
-            call stats_out(state,.false., nspawned_tot, 'Dets spawned')
+            call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
+            call stats_out(state,.true., nspawned_tot, 'Dets spawned')
             call stats_out(state,.false., Hii, 'reference energy')
-            call stats_out(state,.false., IterTime, 'Iter. time')
+            call stats_out(state,.true., IterTime, 'Iter. time')
             call stats_out(state,.true., TotImagTime, 'Im. time')
 
             ! Put the conditional columns at the end, so that the column
