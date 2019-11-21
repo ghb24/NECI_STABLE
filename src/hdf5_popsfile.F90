@@ -166,13 +166,13 @@ contains
         integer(hdf_err) :: err
         integer :: mpi_err
         character(255) :: filename
-        character(30) :: stem 
+        character(30) :: stem
         character(4) :: MaxExStr
 
         ! Get a unique filename for this popsfile. This needs to be done on
         ! the head node to avoid collisions.
         if (iProcIndex == 0) then
-            if(present(MaxEx))then 
+            if(present(MaxEx))then
                 write (MaxExStr,'(I0)') MaxEx
                 stem = 'popsfile_trunc'//MaxExStr
             else
@@ -186,7 +186,7 @@ contains
         call MPIBCast(filename)
 
         write(6,*)
-        if(present(MaxEx))then 
+        if(present(MaxEx))then
             write(6,*) "============== Writing Truncated HDF5 popsfile =============="
         else
             write(6,*) "============== Writing HDF5 popsfile =============="
@@ -793,7 +793,7 @@ contains
                     PrintedDets(:,printed_count) = CurrentDets(:,i)
                     ! Fill in stats
                     printed_tot_parts = printed_tot_parts + abs(CurrentSign)
-#if defined(__CMPLX)
+#if defined(CMPLX_)
                     do run = 1, inum_runs
                        printed_norm_sqr(run) = printed_norm_sqr(run) + &
                             sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
