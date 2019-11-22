@@ -256,7 +256,7 @@ contains
 
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
-        real(dp) :: projE(inum_runs),E_ref_tmp(inum_runs)
+        real(dp) :: E_ref_tmp(inum_runs)
 
         ! get the offset for the projected energy (i.e. reference energy)
         call getProjEOffset()
@@ -721,42 +721,40 @@ contains
             if (.not. tOrthogonaliseReplicas) then
                ! note that due to the averaging, the printed value is not necessarily
                ! an integer
-                call stats_out(state,.true., sum(abs(AllTotParts))/inum_runs, &
-                     'Tot. parts real')
+                call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
 #ifdef __REALTIME
                 call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
                 call stats_out(state,.false., l1_norm/inum_runs ,'L1 Norm')
 #else
-                call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
+                call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
 #endif
-#ifndef __REALTIME
+            if(.not. t_real_time_fciqmc) then
 #ifdef __CMPLX
-                call stats_out(state,.false., real(proje_iter_tot), 'Re Proj. E')
-                call stats_out(state,.false., aimag(proje_iter_tot), 'Im Proj. E')
-#ifndef __CMPLX
-                call stats_out(state,.false., proje_iter_tot, 'Proj. E (cyc)')
+                call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
+                call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
+#else
+                call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
-#endif
-#endif
-                call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
+            end if
+                call stats_out(state,.true., sum(DiagSft/inum_runs), 'Shift. (cyc)')
 #ifdef __REALTIME
                 call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
 #endif
-                if(.not. tSemiStochastic) then
+!                 if(.not. tSemiStochastic) then
                    call stats_out(state,.false., sum(AllNoBorn), 'No. born')
-                else
-                   call stats_out(state,.false., allCorespaceWalkers/inum_runs, &
-                        'Walkers in corespace')
-                endif
-                call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
+!                 else
+!                    call stats_out(state,.false., allCorespaceWalkers/inum_runs, &
+!                         'Walkers in corespace')
+!                 endif
+                call stats_out(state,.false., sum(AllNoDied), 'No. died')
 #ifdef __REALTIME
                 call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
                 call stats_out(state,.false., real_time_info%damping, 'eta')
                 call stats_out(state,.false., IterTime, 'Iter. time')
 #else
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
-                call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
-                call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
+!                 call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
+!                 call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
 #endif
 #ifdef __CMPLX
                 call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
@@ -768,20 +766,20 @@ contains
                                'Tot. Proj. E')
 #endif
             end if
-            call stats_out(state,.false., AllTotWalkers, 'Dets occ.')
-            call stats_out(state,.false., nspawned_tot, 'Dets spawned')
-            call stats_out(state,.false., Hii, 'reference energy')
-            call stats_out(state,.false., AccRat(1), 'Acc. Rat.')
+            call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
+            call stats_out(state,.true., nspawned_tot, 'Dets spawned')
+!             call stats_out(state,.true., Hii, 'reference energy')
+!             call stats_out(state,.false., AccRat(1), 'Acc. Rat.')
 #ifdef __REALTIME
             call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
 #else
-            call stats_out(state,.false., IterTime, 'Iter. time')
+            call stats_out(state,.true., IterTime, 'Iter. time')
 #endif
 #ifdef __REALTIME
             call stats_out(state, .true., elapsedRealTime, 'Re. time')
             call stats_out(state, .true., elapsedImagTime, 'Im. time')
 #else
-            call stats_out(state,.true., TotImagTime, 'Im. time')
+            call stats_out(state,.false., TotImagTime, 'Im. time')
 #endif
 
             ! Put the conditional columns at the end, so that the column
@@ -872,7 +870,7 @@ contains
 #else
                 call stats_out (state, .false., proje_iter(p) + OutputHii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ')')
-                call stats_out (state, .false., all_cyc_proje_denominator(p) / StepsSft, &
+                call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
                                 'ProjE Denom (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., AllENumCyc(p) / StepsSft,  &
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ')')
@@ -900,9 +898,6 @@ contains
                    AllNoAtDoubs(p), &
                    'Doubs (' // trim(adjustl(tmpc)) // ')')
            end do
-
-       call stats_out(state,.false.,all_max_cyc_spawn, &
-            'MaxCycSpawn')
 
        ! Print overlaps between replicas at the end.
        do p = 1, inum_runs
@@ -1171,10 +1166,10 @@ endif
 #ifdef __CMPLX
                     AllHistogram(j,i)=AllHistogram(j,i)/norm_c
                     AllInstHist(j,i)=AllInstHist(j,i)/norm1_c
-                    IF(norm2_c.ne.0.0_dp) THEN
+                    IF(.not. near_zero(norm2_c)) THEN
                         AllInstAnnihil(j,i)=AllInstAnnihil(j,i)/norm2_c
                     ENDIF
-                    IF(norm3_c.ne.0.0_dp) THEN
+                    IF(.not. near_zero(norm3_c)) THEN
                         AllAvAnnihil(j,i)=AllAvAnnihil(j,i)/norm3_c
                     ENDIF
 #else
@@ -1209,7 +1204,7 @@ endif
                 enddo
 99              CONTINUE
 #ifdef __CMPLX
-                IF(AllHFCyc(1).eq.0.0_dp) THEN
+                IF(near_zero(AllHFCyc(1))) THEN
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsOld)
                 ELSE
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)

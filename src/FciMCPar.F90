@@ -262,16 +262,6 @@ module FciMCParMod
             call init_k_space_hubbard()
         end if
 
-#ifdef __DEBUG
-        call decode_bit_det(tmp_det, ilutHF)
-        write(iout, *) "HF: ", tmp_det
-        call decode_bit_det(tmp_det, ilutHF_true)
-        write(iout, *) "HF_true: ", tmp_det
-        call decode_bit_det(tmp_det, ilutRef(:,1))
-        write(iout, *) "Ref: ", tmp_det
-        write(iout, *) "ProjEDet: ", ProjEDet
-#endif
-
         ! Attach signal handlers to give a more graceful death-mannerism
         call init_signals()
 
@@ -1414,7 +1404,6 @@ module FciMCParMod
                     DetCurr, SignCurr)
             end if
 
-
             ! If we're on the Hartree-Fock, and all singles and doubles are in
             ! the core space, then there will be no stochastic spawning from
             ! this determinant, so we can the rest of this loop.
@@ -1572,7 +1561,6 @@ module FciMCParMod
                                                proje_ref_energy_offsets(part_type) - Hii
                             end if
                         end if
-
                         child = attempt_create (DetCurr, &
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &

@@ -280,10 +280,6 @@ MODULE HPHFRandExcitMod
                                  tSignOrig, pGen, HEl, store)
         end if
 
-!        Count=Count+1
-!        WRITE(6,*) "COUNT: ",Count
-!        CALL neci_flush(6)
-
         ! Create excitation of uniquely chosen determinant in this HPHF
         ! function.
         IF(IsNullDet(nJ)) RETURN
@@ -292,13 +288,6 @@ MODULE HPHFRandExcitMod
         ! n.b. 4ind_weighted does this already.
         if (.not. (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2)) &
             CALL FindExcitBitDet(iLutnI,iLutnJ,IC,ExcitMat)
-
-!Test!
-!        CALL CalcNonUniPGen(ExcitMat,IC,ClassCount2,ClassCountUnocc2,pDoub,pGen2)
-!        IF(abs(pGen-pGen2).gt.1.0e-7_dp_dp) THEN
-!            WRITE(6,*) "*******, PGens Incorrect"
-!            CALL Stop_All("ouvbou","OUBOU")
-!        ENDIF
 
         IF(TestClosedShellDet(iLutnJ)) THEN
 !There is only one way which we could have generated the excitation nJ since it has
@@ -317,20 +306,18 @@ MODULE HPHFRandExcitMod
                         ! [W.D. 13.11.2017]
                         ! somehow i reintroduced a bug in the HPHF + hubbard
                         ! implementation with "fixes" in here -> check that!
+                        temp_ex(1,:) = ExcitMat(2,:)
+                        temp_ex(2,:) = ExcitMat(1,:)
                         if (t_lattice_model) then
                             if (t_k_space_hubbard .or. &
                                 (t_new_real_space_hubbard .and. t_trans_corr_hop)) then
-                                temp_ex(1,:) = ExcitMat(2,:)
-                                temp_ex(2,:) = ExcitMat(1,:)
                                 hel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                             else
-
                                 call Stop_All(this_routine, &
                                     "no closed shell to closed shell possible in real-space lattice models!")
-                                ! except for hopping transcorrelatd real-space hubbard!
                             end if
                         else
-                            HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                            HEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
                         end if
                     endif
                 ELSE
@@ -339,13 +326,12 @@ MODULE HPHFRandExcitMod
                         !Odd S States cannot have CS components
                         HEl=0.0_dp
                     else
+                        temp_ex(1,:) = ExcitMat(2,:)
+                        temp_ex(2,:) = ExcitMat(1,:)
                         if (t_lattice_model) then
-!                             print *, "toto2"
-                            temp_ex(1,:) = ExcitMat(2,:)
-                            temp_ex(2,:) = ExcitMat(1,:)
                             Matel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                            MatEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
                         end if
                         HEl=MatEl*SQRT(2.0_dp)
                     endif
@@ -358,7 +344,6 @@ MODULE HPHFRandExcitMod
 !Find the open shell version.
             CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
 
-!            CALL FindExcitBitDetSym(iLutnJ,iLutnJ2)
 !Try and find if spin-coupled determinant from excitation is attached.
             IF(tSwapped) THEN
                 ExcitLevel = FindBitExcitLevel(iLutnI, iLutnJ, 2)
@@ -371,13 +356,10 @@ MODULE HPHFRandExcitMod
                 ASSERT(.not. t_3_body_excits)
 
                 Ex2(1,1)=ExcitLevel
-!                CALL DecodeBitDet(nJ2,iLutnJ2)     !This could be done better !***!
 
                 IF(tSwapped) THEN
-!                    CALL GetExcitation(nI,nJ,NEl,Ex2,tSign) !This could be done more efficiently... !***!
                     CALL GetBitExcitation(iLutnI,iLutnJ,Ex2,tSign)
                 ELSE
-!                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
                     CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
 
@@ -395,130 +377,50 @@ MODULE HPHFRandExcitMod
                             !Cannot have CS components
                             HEl=0.0_dp
                         else
-                            if (t_lattice_model) then
-                                ! do i take the correct nJs here..
-                                ! not possible in the heisenberg model
-                                ASSERT(.not. t_heisenberg_model)
-                                ! only hopping can lead to that!
-                                !todo: fix here for k-space hubbard!
-!                                 ASSERT(ic == 1)
-!                                 ASSERT(ExcitLevel == 1)
-                                ! here we want by definition the matrix
-                                ! element and the sign between nI and the
-                                ! to-be stored nJ
-                                if (tSwapped) then
-                                    ! if nJ and nJ2 were swapped
-                                    ! ex2 and tSign is associated with the
-                                    ! excitation nI -> nJ
-                                    temp_ex(1,:) = ex2(2,:)
-                                    temp_ex(2,:) = ex2(1,:)
+                            if (tSwapped) then
+                                temp_ex(1,:) = ex2(2,:)
+                                temp_ex(2,:) = ex2(1,:)
+                                if (t_lattice_model) then
+                                    ASSERT(.not. t_heisenberg_model)
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
-! #ifdef __DEBUG
-!                                     temp_ex(1,:) = ExcitMat(2,:)
-!                                     temp_ex(2,:) = ExcitMat(1,:)
-!                                     ASSERT(ic == ExcitLevel)
-!                                     if (abs(abs(Matel)-abs(get_helement_lattice(nj2, ic, temp_ex, tSignOrig)))>1.0e-8) then
-!                                         print *, "nI: ", nI
-!                                         print *, "nJ: ", nJ
-!                                         print *, "nJ2: ", nJ2
-!                                         print *, "ic:", ic
-!                                         print *, "ExcitLevel: ", ExcitLevel
-!                                         print *, "ExcitMat(1,:): ", ExcitMat(1,:)
-!                                         print *, "ExcitMat(2,:): ", ExcitMat(2,:)
-!                                         print *, "Ex2(1,:): ", Ex2(1,:)
-!                                         print *, "Ex2(2,:): ", Ex2(2,:)
-!                                         print *, "Matel: ", matel, get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
-!                                     end if
-! !                                     ASSERT(Matel == get_helement_lattice(nJ, ic, temp_ex, tSignOrig))
-! #endif
                                 else
-                                    ! if they are not swapped the original
-                                    ! ExcitMat and tSignOrig are associated
-                                    ! with nI -> nJ
-                                    temp_ex(1,:) = ExcitMat(2,:)
-                                    temp_ex(2,:) = ExcitMat(1,:)
-                                    MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
-! #ifdef __DEBUG
-!                                     temp_ex(1,:) = ex2(2,:)
-!                                     temp_ex(2,:) = ex2(1,:)
-!                                     ASSERT(ic == ExcitLevel)
-!                                     ASSERT(ic == ExcitLevel)
-!                                     if (abs(abs(Matel)-abs(get_helement_lattice(nj2, ic, temp_ex, tSign)))>1.0e-8) then
-!                                         print *, "nI: ", nI
-!                                         print *, "nJ: ", nJ
-!                                         print *, "nJ2: ", nJ2
-!                                         print *, "ic:", ic
-!                                         print *, "ExcitLevel: ", ExcitLevel
-!                                         print *, "ExcitMat(1,:): ", ExcitMat(1,:)
-!                                         print *, "ExcitMat(2,:): ", ExcitMat(2,:)
-!                                         print *, "Ex2(1,:): ", Ex2(1,:)
-!                                         print *, "Ex2(2,:): ", Ex2(2,:)
-!                                         print *, "Matel: ", matel, get_helement_lattice(nj2, ic, temp_ex, tSign)
-!                                     end if
-!
-! !                                     ASSERT(Matel == get_helement_lattice(nJ2, ic, temp_ex, tSign))
-! #endif
+                                    MatEl = sltcnd_excit (nJ, IC, temp_ex, tSign)
                                 end if
                             else
-                                IF(tSwapped) THEN
-                                    MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
-                                ELSE
-                                    MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                          tSignOrig)
-                                ENDIF
-                            endif
+                                temp_ex(1,:) = ExcitMat(2,:)
+                                temp_ex(2,:) = ExcitMat(1,:)
+                                if (t_lattice_model) then
+                                    ASSERT(.not. t_heisenberg_model)
+                                    MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
+                                else
+                                    MatEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
+                                end if
+                            end if
                             HEl=MatEl*SQRT(2.0_dp)
                         endif
                     ELSE     !Open shell -> Open shell
 
 !First find nI -> nJ. If nJ has swapped, then this will be different.
-                        if (t_lattice_model) then
-                            if (tSwapped) then
-                                temp_ex(1,:) = ex2(2,:)
-                                temp_ex(2,:) = ex2(1,:)
-!                                 print *, "toto5"
-!                                 print *, "nI: ", nI
-!                                 print *, "nJ: ", nJ
-!                                 print *, "nJ2: ", nJ2
-!                                 print *, "ExcitMat(1,:): ", ExcitMat(1,:)
-!                                 print *, "ExcitMat(2,:): ", ExcitMat(2,:)
-!                                 print *, "ic: ", ic
-!                                 print *, "ex2(1,:): ", ex2(1,:)
-!                                 print *, "ex2(2,:): ", ex2(2,:)
-!                                 print *, "ExcitLevel: ", ExcitLevel
+                        if (tSwapped) then
+                            temp_ex(1,:) = ex2(2,:)
+                            temp_ex(2,:) = ex2(1,:)
+                            if (t_lattice_model) then
                                 MatEl = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign)
-!                                 print *, "matel: ", MatEl
                             else
-                                temp_ex(1,:) = ExcitMat(2,:)
-                                temp_ex(2,:) = ExcitMat(1,:)
-!                                 print *, "toto6"
-!                                 print *, "nI: ", nI
-!                                 print *, "nJ: ", nJ
-!                                 print *, "nJ2: ", nJ2
-!                                 print *, "ExcitMat(1,:): ", ExcitMat(1,:)
-!                                 print *, "ExcitMat(2,:): ", ExcitMat(2,:)
-!                                 print *, "ic: ", ic
-!                                 print *, "ex2(1,:): ", ex2(1,:)
-!                                 print *, "ex2(2,:): ", ex2(2,:)
-!                                 print *, "ExcitLevel: ", ExcitLevel
-                                MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
-!                                 print *, "matel: ", MatEl
+                                MatEl = sltcnd_excit (nJ, ExcitLevel, temp_ex, tSign)
                             end if
                         else
-                            IF(tSwapped) THEN
-                                MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
-                                                      tSign)
-                            ELSE
-                                MatEl = sltcnd_excit (nI, IC, ExcitMat, &
-                                                      tSignOrig)
-                            ENDIF
+                            temp_ex(1,:) = ExcitMat(2,:)
+                            temp_ex(2,:) = ExcitMat(1,:)
+                            if (t_lattice_model) then
+                                MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
+                            else
+                                MatEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
+                            end if
+
                         end if
 
                         !now nI2 -> nJ (modelled as nI -> nJ2 with appropriate sign modifications)
-
-!                        CALL FindDetSpinSym(nI,nI2,NEl)
-!                        CALL FindExcitBitDetSym(iLutnI,iLutnI2)
-!                        ExcitLevel2 = FindBitExcitLevel(iLutnI2, iLutnJ, 2)
 
                         IF((ExcitLevel.eq.2).or.(ExcitLevel.eq.1)) THEN
 
@@ -528,43 +430,30 @@ MODULE HPHFRandExcitMod
                             IF(tSwapped) THEN
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig
  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
+                                temp_ex(1,:) = ExcitMat(2,:)
+                                temp_ex(2,:) = ExcitMat(1,:)
+
                                 if (t_lattice_model) then
                                     ! here i want to get nI -> nJ2
                                     ! when it was swapped the original
                                     ! ExcitMat and tSignOrig are associated
                                     ! with the excitation
-                                    temp_ex(1,:) = ExcitMat(2,:)
-                                    temp_ex(2,:) = ExcitMat(1,:)
-!                                     print *, "toto7"
-!                                     print *, "nI: ", nI
-!                                     print *, "nJ: ", nJ
-!                                     print *, "nJ2: ", nJ2
-!                                     print *, "ExcitMat(1,:): ", ExcitMat(1,:)
-!                                     print *, "ExcitMat(2,:): ", ExcitMat(2,:)
-!                                     print *, "ic: ", ic
-!                                     print *, "ex2(1,:): ", ex2(1,:)
-!                                     print *, "ex2(2,:): ", ex2(2,:)
-!                                     print *, "ExcitLevel: ", ExcitLevel
-
                                     MatEl2 = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
-!                                     print *, "matel2: ", MatEl2
                                 else
-                                    MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
-                                                       tSignOrig)
+                                    MatEl2 = sltcnd_excit (nJ2, IC, temp_ex, tSignOrig)
                                end if
                             ELSE
 !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign
+                                temp_ex(1,:) = ex2(2,:)
+                                temp_ex(2,:) = ex2(1,:)
+
                                 if (t_lattice_model) then
                                     ! if they were not swapped Ex2 and tSign
                                     ! are associated with nI -> nJ2
-                                    temp_ex(1,:) = ex2(2,:)
-                                    temp_ex(2,:) = ex2(1,:)
-
                                     MatEl2 = get_helement_lattice(nJ2, ExcitLevel, temp_ex, tSign)
                                 else
-                                    MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
-                                                       Ex2, tSign)
+                                    MatEl2 = sltcnd_excit (nJ2,  ExcitLevel, temp_ex, tSign)
                                 end if
                             ENDIF
 
@@ -583,7 +472,6 @@ MODULE HPHFRandExcitMod
                                     MatEl=MatEl-MatEl2
                                 ENDIF
                             ENDIF
-!                            WRITE(6,*) "MatEl2 NEW: ",MatEl2
                         ENDIF
                         HEl=MatEl
 
@@ -592,7 +480,6 @@ MODULE HPHFRandExcitMod
 
                 ENDIF   !Endif want to generate matrix element
 
-!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.false.,tSwapped)
 !Here, we actually know nJ, so don't need to regenerate it...
 
             ELSEIF(ExcitLevel.eq.0) THEN
@@ -604,66 +491,35 @@ MODULE HPHFRandExcitMod
 
             ELSE    !Open-shell to Open-shell, but with no cross-connection.
 
-!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.false.,.true.,tSwapped)
 
                 IF(tGenMatHEl) THEN
 !iLutnI MUST be open-shell here, since otherwise it would have been connected to
 !iLutnJ2. Also, we know the cross connection (i.e. MatEl2 = 0)
+                    ! WD: Here I am not 100% sure if I always take ExcitMat..
+                    temp_ex(1,:) = ExcitMat(2,:)
+                    temp_ex(2,:) = ExcitMat(1,:)
                     IF(tSwapped) THEN
                         CALL CalcOpenOrbs(iLutnJ,OpenOrbsJ)
-!                        CALL CalcOpenOrbs(iLutnI,OpenOrbsI)
-!     IF(((mod(OpenOrbsI,2).eq.1).and.(mod(OpenOrbsJ,2).eq.1)).or.((mod(OpenOrbsI,2).eq.0).and.(mod(OpenOrbsJ,2).eq.1))) THEN
                         IF(tOddS_HPHF) then
                             IF(mod(OpenOrbsJ,2).eq.0) THEN
-    !                            WRITE(6,*) "Swapped parity"
                                 tSignOrig=.not.tSignOrig
                             ENDIF
                         ELSE
                             IF(mod(OpenOrbsJ,2).eq.1) THEN
-    !                            WRITE(6,*) "Swapped parity"
                                 tSignOrig=.not.tSignOrig
                             ENDIF
                         ENDIF
-                        if (t_lattice_model) then
-                            temp_ex(1,:) = ExcitMat(2,:)
-                            temp_ex(2,:) = ExcitMat(1,:)
-!                             print *, "toto9"
-!                             print *, "nI: ", nI
-!                             print *, "nJ: ", nJ
-!                             print *, "nJ2: ", nJ2
-!                             print *, "ExcitMat(1,:): ", ExcitMat(1,:)
-!                             print *, "ExcitMat(2,:): ", ExcitMat(2,:)
-!                             print *, "ic: ", ic
-!                             print *, "ex2(1,:): ", ex2(1,:)
-!                             print *, "ex2(2,:): ", ex2(2,:)
-!                             print *, "ExcitLevel: ", ExcitLevel
 
-!                             MatEl = get_helement_lattice(nI, ic, ExcitMat, tSignOrig)
+                        if (t_lattice_model) then
                             MatEl = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
-!                             print *, "matel: ", matel
                         else
-                            MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
+                            MatEl = sltcnd_excit(nJ2,  IC, temp_ex, tSignOrig)
                         endif
                     ELSE
                         if (t_lattice_model) then
-                            temp_ex(1,:) = ExcitMat(2,:)
-                            temp_ex(2,:) = ExcitMat(1,:)
-!                             print *, "toto10"
-!                             print *, "nI: ", nI
-!                             print *, "nJ: ", nJ
-!                             print *, "nJ2: ", nJ2
-!                             print *, "ExcitMat(1,:): ", ExcitMat(1,:)
-!                             print *, "ExcitMat(2,:): ", ExcitMat(2,:)
-!                             print *, "ic: ", ic
-!                             print *, "ex2(1,:): ", ex2(1,:)
-!                             print *, "ex2(2,:): ", ex2(2,:)
-!                             print *, "ExcitLevel: ", ExcitLevel
-
                             MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
-!                             MatEl = get_helement_lattice(nI, ic, ExcitMat, tSignOrig)
-!                             print *, "matel: ", matel
                         else
-                            MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                            MatEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
                         end if
                     ENDIF
 
@@ -676,40 +532,6 @@ MODULE HPHFRandExcitMod
             ENDIF
 
         ENDIF
-
-        ! [W.D.]
-        ! i should also abort here already if the matrix element
-        ! if below a threshold to optimize the calculation
-!         if (abs(Hel) < EPS) then
-!             nJ(1) = 0
-!             pgen = 0.0_dp
-!             Hel = 0.0_dp
-!             return
-!         end if
-!
-!         if (t_matele_cutoff) then
-!             if (abs(Hel) < matele_cutoff) then
-!                 Hel = 0.0_dp
-!                 nJ(1) = 0
-!                 pgen = 0.0_dp
-!                 return
-!             end if
-!         end if
-
-!        CALL HPHFGetOffDiagHElement(nI,nJ,iLutnI,iLutnJ,MatEl2)
-!        IF((MatEl2-MatEl).gt.1.0e-7_dp_dp) THEN
-!            WRITE(6,*) MatEl2,MatEl
-!            CALL Stop_All("ikb","Error in getting correct HEl - 2")
-!        ENDIF
-!        if(TestClosedShellDet(iLutnJ)) then
-!            write(6,*) "Trying to excite TO closed shell det - why!?"
-!            write(6,*) nI
-!            write(6,*) "***"
-!            write(6,*) iLutnI
-!            write(6,*) "HEl: ",HEl
-!            if(HEl.ne.0.0_dp) call stop_all("gen_hphf_excit","WHY?!")
-!            call neci_flush(6)
-!        endif
 
     end subroutine
 
@@ -791,14 +613,6 @@ MODULE HPHFRandExcitMod
             endif
         enddo
 
-!        nTemp(:)=nJ(:)
-!        CALL NECI_SORTI(NEl,nTemp)
-!        do i=1,NEl
-!            IF(nTemp(i).ne.nJ(i)) THEN
-!                STOP 'Massive Error'
-!            ENDIF
-!        enddo
-
     END SUBROUTINE FindDetSpinSym
 
 !In closed-shell systems with equal number of alpha and beta strings, the amplitude of a
@@ -829,301 +643,10 @@ MODULE HPHFRandExcitMod
 
             iLutSym(i)=IOR(iLutAlpha(i),iLutBeta(i))    !Combine the bit strings to give the final bit representation.
 
-!            WRITE(6,*) "ILut: "
-!            do j=0,31
-!                IF(BTEST(iLut(i),j)) THEN
-!                    WRITE(6,"(I3)",advance='no') 1
-!                ELSE
-!                    WRITE(6,"(I3)",advance='no') 0
-!                ENDIF
-!            enddo
-!            WRITE(6,*) ""
-!            WRITE(6,*) "iLutSym: "
-!            do j=0,31
-!                IF(BTEST(iLutSym(i),j)) THEN
-!                    WRITE(6,"(I3)",advance='no') 1
-!                ELSE
-!                    WRITE(6,"(I3)",advance='no') 0
-!                ENDIF
-!            enddo
-!            WRITE(6,*) ""
-
         enddo
 
     END SUBROUTINE FindExcitBitDetSym
 
-
-!!This routine will take a HPHF nI, and find Iterations number of excitations of it.
-!It will then histogram these, summing in 1/pGen for every occurance of
-!!the excitation. This means that all excitations should be 0 or 1 after enough iterations.
-!It will then count the excitations and compare the number to the
-!!number of excitations generated using the full enumeration excitation generation.
-!    SUBROUTINE TestGenRandHPHFExcit(nI,Iterations,pDoub)
-!        Use SystemData , only : NEl,nBasis,G1,nBasisMax
-!        use DetBitOps, only: EncodeBitDet
-!        use bit_reps, only: decode_bit_det
-!        use GenRandSymExcitNuMod, only: scratchsize
-!        use FciMCData, only: tGenMatHEl
-!        use util_mod, only: get_free_unit
-!        IMPLICIT NONE
-!        INTEGER :: ClassCount2(ScratchSize),nIX(NEl)
-!        INTEGER :: ClassCountUnocc2(ScratchSize)
-!        INTEGER :: i,Iterations,nI(NEl),nJ(NEl),DetConn,nI2(NEl),nJ2(NEl),DetConn2,iUniqueHPHF,iUniqueBeta,PartInd,ierr,iExcit
-!        real(dp) :: pDoub,pGen
-!        LOGICAL :: Unique,TestClosedShellDet,Die,tGenClassCountnI,tSwapped
-!        INTEGER(KIND=n_int) :: iLutnI(0:NIfTot),iLutnJ(0:NIfTot),iLutnI2(0:NIfTot),iLutSym(0:NIfTot)
-!        INTEGER(KIND=n_int), ALLOCATABLE :: ConnsAlpha(:,:),ConnsBeta(:,:),UniqueHPHFList(:,:)
-!        INTEGER , ALLOCATABLE :: ExcitGen(:)
-!        real(dp) , ALLOCATABLE :: Weights(:)
-!        INTEGER :: iMaxExcit,nStore(6),nExcitMemLen,j,k,l, iunit
-!        integer :: icunused, exunused(2,2), scratch3(scratchsize)
-!        logical :: tParityunused, tTmp
-!
-!        CALL EncodeBitDet(nI,iLutnI)
-!        CALL FindDetSpinSym(nI,nI2,NEl)
-!        CALL EncodeBitDet(nI2,iLutnI2)
-!        IF(TestClosedShellDet(iLutnI)) THEN
-!            IF(.not.DetBitEQ(iLutnI,iLutnI2,NIfDBO)) THEN
-!                CALL Stop_All("TestGenRandHPHFExcit","Closed shell determinant entered, but alpha and betas different...")
-!            ENDIF
-!        ENDIF
-!        WRITE(6,*) "nI: ",nI(:)
-!        WRITE(6,*) ""
-!        WRITE(6,*) "nISym: ",nI2(:)
-!        WRITE(6,*) ""
-!        WRITE(6,*) "iLutnI: ",iLutnI(:)
-!        WRITE(6,*) "iLutnISymL ",iLutnI2(:)
-!        WRITE(6,*) "***"
-!        WRITE(6,*) Iterations,pDoub
-!!        WRITE(6,*) "nSymLabels: ",nSymLabels
-!        CALL neci_flush(6)
-!
-!!First, we need to enumerate all possible HPHF wavefunctions from each spin-pair of determinants.
-!!These need to be stored in an array
-!!Find the number of symmetry allowed excitations there should be by looking at the full excitation generator.
-!!Setup excit generators for this determinant
-!        iMaxExcit=0
-!        nStore(1:6)=0
-!        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-!        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
-!        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-!        EXCITGEN(:)=0
-!        CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
-!        CALL GetSymExcitCount(EXCITGEN,DetConn)
-!        WRITE(6,*) "Alpha determinant has ",DetConn," total excitations:"
-!        ALLOCATE(ConnsAlpha(0:NIfTot,DetConn))
-!        i=1
-!        lp2: do while(.true.)
-!            CALL GenSymExcitIt2(nI,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
-!            IF(IsNullDet(nJ)) exit lp2
-!            CALL EncodeBitDet(nJ,iLutnJ)
-!            IF(.not.TestClosedShellDet(iLutnJ)) THEN
-!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
-!            ENDIF
-!!            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ", iExcit, " *** ", iLutnJ(:)
-!            ConnsAlpha(0:NIfD,i)=iLutnJ(:)
-!            i=i+1
-!        enddo lp2
-!
-!!Now we also need to store the excitations from the other spin-coupled determinant.
-!        iMaxExcit=0
-!        nStore(1:6)=0
-!        DEALLOCATE(EXCITGEN)
-!
-!        CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,nExcitMemLen,nJ,iMaxExcit,0,nStore,3)
-!        ALLOCATE(EXCITGEN(nExcitMemLen),stat=ierr)
-!        IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
-!        EXCITGEN(:)=0
-!        CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.TRUE.,EXCITGEN,nJ,iMaxExcit,0,nStore,3)
-!        CALL GetSymExcitCount(EXCITGEN,DetConn2)
-!        WRITE(6,*) "Beta determinant has ",DetConn2," total excitations"
-!        ALLOCATE(ConnsBeta(0:NIfTot,DetConn2))
-!        i=1
-!        lp: do while(.true.)
-!            CALL GenSymExcitIt2(nI2,NEl,G1,nBasis,nBasisMax,.false.,EXCITGEN,nJ,iExcit,0,nStore,3)
-!            IF(IsNullDet(nJ)) exit lp
-!            CALL EncodeBitDet(nJ,iLutnJ)
-!            IF(.not.TestClosedShellDet(iLutnJ)) THEN
-!                CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutSym,.true.,.true.,tSwapped)
-!            ENDIF
-!!            WRITE(6,"(4I4,A,I4,A,I13)") nJ(:), " *** ",iExcit," *** ",iLutnJ(:)
-!            ConnsBeta(:,i)=iLutnJ(:)
-!            i=i+1
-!        enddo lp
-!        DEALLOCATE(EXCITGEN)
-!
-!!Now we need to find how many HPHF functions there are.
-!        iUniqueHPHF=0
-!        do j=1,DetConn
-!!Run though all HPHF in the first array
-!            Unique=.true.
-!            do k=j-1,1,-1
-!!Run backwards through the array to see if this HPHF has come before
-!                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
-!!This HPHF has already been counted before...
-!                    Unique=.false.
-!                    EXIT
-!                ENDIF
-!            enddo
-!            IF(Unique) THEN
-!!Unique HPHF found, count it
-!                iUniqueHPHF=iUniqueHPHF+1
-!            ENDIF
-!        enddo
-!
-!        iUniqueBeta=0
-!
-!!Now look through all the excitations for the spin-coupled determinant from the original HPHF...
-!        do j=1,DetConn2
-!!Run though all excitations in the first array, *and* up to where we are in the second array
-!            Unique=.true.
-!            do k=1,DetConn
-!                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
-!                    Unique=.false.
-!                    EXIT
-!                ENDIF
-!            enddo
-!            IF(Unique) THEN
-!!Need to search backwards through the entries we've already looked at in this array...
-!                do k=j-1,1,-1
-!                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j),NIfDBO)) THEN
-!                        Unique=.false.
-!                        EXIT
-!                    ENDIF
-!                enddo
-!            ENDIF
-!            IF(Unique) THEN
-!                iUniqueHPHF=iUniqueHPHF+1
-!                iUniqueBeta=iUniqueBeta+1
-!            ENDIF
-!        enddo
-!
-!        WRITE(6,*) "There are ",iUniqueHPHF," unique HPHF wavefunctions from the HPHF given."
-!
-!        WRITE(6,*) "There are ",iUniqueBeta," unique HPHF wavefunctions from the spin-coupled
-!determinant, which are not in a alpha version."
-!        IF(iUniqueBeta.ne.0) THEN
-!            WRITE(6,*) "HPHF from beta, but not from alpha!"
-!            CALL neci_flush(6)
-!            STOP
-!        ENDIF
-!
-!        ALLOCATE(UniqueHPHFList(0:NIfTot,iUniqueHPHF))
-!        UniqueHPHFList(:,:)=0
-!!Now fill the list of HPHF Excitations.
-!        iUniqueHPHF=0
-!        do j=1,DetConn
-!!Run though all HPHF in the first array
-!            Unique=.true.
-!            do k=j-1,1,-1
-!!Run backwards through the array to see if this HPHF has come before
-!                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
-!!This HPHF has already been counted before...
-!                    Unique=.false.
-!                    EXIT
-!                ENDIF
-!            enddo
-!            IF(Unique) THEN
-!!Unique HPHF found, count it
-!                iUniqueHPHF=iUniqueHPHF+1
-!                UniqueHPHFList(:,iUniqueHPHF)=ConnsAlpha(:,j)
-!            ENDIF
-!        enddo
-!
-!!Now look through all the excitations for the spin-coupled determinant from the original HPHF...
-!        do j=1,DetConn2
-!!Run though all excitations in the first array, *and* up to where we are in the second array
-!            Unique=.true.
-!            do k=1,DetConn
-!                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
-!                    Unique=.false.
-!                    EXIT
-!                ENDIF
-!            enddo
-!            IF(Unique) THEN
-!!Need to search backwards through the entries we've already looked at in this array...
-!                do k=j-1,1,-1
-!                    IF(DetBitEQ(ConnsBeta(:,k),ConnsBeta(:,j),NIfDBO)) THEN
-!                        Unique=.false.
-!                        EXIT
-!                    ENDIF
-!                enddo
-!            ENDIF
-!            IF(Unique) THEN
-!                iUniqueHPHF=iUniqueHPHF+1
-!                UniqueHPHFList(:,iUniqueHPHF)=ConnsBeta(0:NIfD,j)
-!            ENDIF
-!        enddo
-!
-!!Now sort the list, so that it can be easily binary searched.
-!        ALLOCATE(ExcitGen(iUniqueHPHF))
-!        call sort (UniqueHPHFList(:,1:iUniqueHPHF), ExcitGen)
-!        DEALLOCATE(ExcitGen)
-!
-!        WRITE(6,*) "Unique HPHF wavefunctions are: "
-!        do i=1,iUniqueHPHF
-!            WRITE(6,*) UniqueHPHFList(0:NIfTot,i)
-!        enddo
-!
-!        ALLOCATE(Weights(iUniqueHPHF))
-!        Weights(:)=0.0_dp
-!        tGenClassCountnI=.false.
-!
-!        do i=1,Iterations
-!
-!            IF(mod(i,10000).eq.0) WRITE(6,"(A,I10)") "Iteration: ",i
-!
-!            CALL GenRandHPHFExcit(nI,iLutnI,nJ,iLutnJ,pDoub,3,pGen)
-!            tTmp = tGenMatHEl
-!            tGenMatHel = .false.
-!            call gen_hphf_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
-!                                 exunused, tparityunused, pGen, &
-!                                 tGenClassCountnI, ClassCount2, &
-!                                 ClassCountUnocc2, scratch3)
-!            tGenMatHel = tTmp
-!!            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
-!
-!!Search through the list of HPHF wavefunctions to find slot.
-!            CALL BinSearchListHPHF(iLutnJ,UniqueHPHFList(:,1:iUniqueHPHF),iUniqueHPHF,1,iUniqueHPHF,PartInd,Unique)
-!
-!            IF(.not.Unique) THEN
-!                CALL Stop_All("TestGenRandHPHFExcit","Cannot find excitation in list of allowed excitations")
-!            ENDIF
-!
-!            Weights(PartInd)=Weights(PartInd)+(1.0_dp/pGen)
-!
-!!Check excitation
-!!            CALL IsSymAllowedExcit(nI,nJ,IC,ExcitMat)
-!
-!        enddo
-!
-!        iunit = get_free_unit()
-!        OPEN(iunit,FILE="PGenHist",STATUS="UNKNOWN")
-!
-!!normalise excitation probabilities
-!        Die=.false.
-!        do i=1,iUniqueHPHF
-!            Weights(i)=Weights(i)/real(Iterations,8)
-!            IF(abs(Weights(i)-1.0_dp).gt.0.1) THEN
-!                WRITE(6,*) "Error here!"
-!                Die=.true.
-!            ENDIF
-!            WRITE(6,*) i,UniqueHPHFList(0:NIfTot,i),Weights(i)
-!            call decode_bit_det (nIX, UniqueHPHFList(0:NIfTot,i))
-!            WRITE(6,*) nIX(:)
-!            WRITE(iunit,"(I8,G25.10)",advance='no') i,Weights(i)
-!            do j=0,NIfTot-1
-!                WRITE(iunit,"(I16)",advance='no') UniqueHPHFList(j,i)
-!            enddo
-!            WRITE(iunit,"(I16)") UniqueHPHFList(NIfTot,i)
-!        enddo
-!
-!        CLOSE(iunit)
-!        IF(Die) THEN
-!            CALL Stop_All("IUB","TestFail")
-!        ENDIF
-!
-!    END SUBROUTINE TestGenRandHPHFExcit
 
     SUBROUTINE BinSearchListHPHF(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
         INTEGER :: Length,MinInd,MaxInd,PartInd
@@ -1148,7 +671,6 @@ MODULE HPHFRandExcitMod
         ENDIF
         do while(j-i.gt.0)  !End when the upper and lower bound are the same.
             N=(i+j)/2       !Find the midpoint of the two indices
-!            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
             Comp=DetBitLT(List(:,N),iLut(:),NIfDBO)
@@ -1283,9 +805,6 @@ MODULE HPHFRandExcitMod
                                             ClassCountUnocc2)
         else if (tGen_4ind_reverse) then
             pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
-
-!         else if (t_int_driven) then
-!             pgen = calc_pgen_int_driven(nI, ilutI, ex, ic)
 
 
         ! this if construct is not well setup.. this can fail..

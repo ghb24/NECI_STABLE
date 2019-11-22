@@ -1162,24 +1162,19 @@ contains
                  all_cyc_proje_denominator(run) = AllHFCyc(run)
 
                  ! Calculate the projected energy.
+
                  if (.not. near_zero(AllSumNoatHF(run))) then
                     ProjectionE(run) = (AllSumENum(run)) / (all_sum_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
-                endif
-
-                ! and this is a new statement..
-#ifdef __CMPLX
-                if (any(abs(AllHFCyc(lb:ub)) > EPS)) then
-#else
-                if (abs(AllHFCyc(run)) > EPS) then
-#endif
+                 endif
+                 if (abs(AllHFCyc(run)) > EPS) then
                     proje_iter(run) = (AllENumCyc(run)) / (all_cyc_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
                     AbsProjE(run) = (AllENumCycAbs(run)) / (all_cyc_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
                     inits_proje_iter(run) = (AllInitsENumCyc(run)) / (all_cyc_proje_denominator(run)) &
                          + proje_ref_energy_offsets(run)
-                endif
+                 endif
 
                 ! If we are re-zeroing the shift
                 if (tReZeroShift(run)) then

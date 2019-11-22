@@ -71,7 +71,6 @@ contains
         ! We want to start off with zero-values
         gamma_sing = 0
         gamma_doub = 0
-
         gamma_opp = 0
         gamma_par = 0
         if (tReltvy) then
@@ -79,12 +78,6 @@ contains
             gamma_doub_spindiff1 = 0
             gamma_doub_spindiff2 = 0
         endif
-
-        cnt_opp = 0
-        cnt_par = 0
-
-        enough_opp = .false.
-        enough_par = .false.
 
         ! And what is the maximum death-component found
         max_death_cpt = 0
@@ -94,8 +87,13 @@ contains
         cnt_sing = 0
         cnt_doub = 0
 
+        cnt_opp = 0
+        cnt_par = 0
         enough_sing = .false.
         enough_doub = .false.
+        enough_opp = .false.
+        enough_par = .false.
+
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
             if (tGUGA) then
@@ -130,8 +128,7 @@ contains
         ! Do this logic here, so that if we add opposite spin bias to more
         ! excitation generators, then there is only one place that this logic
         ! needs to be updated!
-        if (tGen_4ind_weighted .or. tGen_4ind_2 ) then
-            !consider_par_bias = .false.
+        if (tGen_4ind_weighted .or. tGen_4ind_2) then
             consider_par_bias = .true.
             !n_opp = AB_elec_pairs
             !n_par = par_elec_pairs
@@ -148,22 +145,17 @@ contains
             consider_par_bias = .false.
         end if
 
-        t_consider_par_bias = consider_par_bias
-
         ! If there are only a few electrons in the system, then this has
         ! impacts for the choices that can be made.
         if (nOccAlpha == 0 .or. nOccBeta == 0) then
             consider_par_bias = .false.
             pParallel = 1.0_dp
             enough_opp = .true.
-            call stop_all(this_routine, "no electrons in the system?")
         end if
         if (nOccAlpha == 1 .and. nOccBeta == 1) then
             consider_par_bias = .false.
             pParallel = 0.0_dp
             enough_par = .true.
-            call stop_all(this_routine, &
-                "do we really need a tau-search for 2 electrons?")
         end if
 
         if (t_mixed_hubbard .or. t_olle_hubbard) then
@@ -172,14 +164,11 @@ contains
 
         prob_min_thresh = 1e-8_dp
 
-        ! since only this routine is called if both tau-search options
-        ! are turned on call it from here too
-!         if (t_hist_tau_search) call init_hist_tau_search()
+        t_consider_par_bias = consider_par_bias
 
     end subroutine init_tau_search
 
-
-    subroutine log_spawn_magnitude(ic, ex, matel, prob)
+    subroutine log_spawn_magnitude (ic, ex, matel, prob)
 
         integer, intent(in) :: ic, ex(2,2)
         real(dp), intent(in) :: prob, matel
@@ -222,6 +211,9 @@ contains
             ! We need to unbias the probability for pDoubles
             tmp_prob = prob / pDoubles
 
+            ! We are not playing around with the same/opposite spin bias
+            ! then we should just treat doubles like the singles
+
             if (consider_par_bias) then
                 if (same_spin(ex(1,1),ex(1,2))) then
                     tmp_prob = tmp_prob / pParallel
@@ -229,7 +221,7 @@ contains
                     if (tmp_gamma > gamma_par) then
                         gamma_par = tmp_gamma
                     end if
-
+!
                     ! And keep count
                     if (.not. enough_par) then
                         cnt_par = cnt_par + 1
@@ -242,7 +234,7 @@ contains
                     if (tmp_gamma > gamma_opp) then
                         gamma_opp = tmp_gamma
                     end if
-
+!
                     ! And keep count
                     if (.not. enough_opp) then
                         cnt_opp = cnt_opp + 1
@@ -255,7 +247,7 @@ contains
                 ! then we should just treat doubles like the singles
                 tmp_gamma = abs(matel) / tmp_prob
                 if (tmp_gamma > gamma_doub) gamma_doub = tmp_gamma
-
+!
                 ! And keep count
                 if (.not. enough_doub .and. tmp_gamma > 0) then
                     cnt_doub = cnt_doub + 1
@@ -317,7 +309,7 @@ contains
 
     end subroutine
 
-    subroutine update_tau()
+    subroutine update_tau ()
 
         use FcimCData, only: iter
 
@@ -504,7 +496,7 @@ contains
         ! make the right if-statements here!
         ! remember enough_sing is (mis)used for triples in the
         ! 2-body transcorrelated k-space hubbard
-        if (tau_new < tau .or. &
+        if (tau_new < tau .or. (enough_sing .and. enough_doub) .or. &
             (tUEG .or. tHub .or. enough_sing .or. &
             (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub) .or. &
             (t_new_real_space_hubbard .and. enough_sing .and. &
@@ -816,179 +808,6 @@ contains
 
     end subroutine FindMaxTauDoubs
 
-    subroutine fill_frequency_histogram_4ind(mat_ele, pgen, ic, t_parallel)
-        ! this is the specific routine to fill up the frequency histograms
-        ! for the 4ind-weighted excitation generators, which use pParallel too
-        ! (do they always by default?? check that! todo!
-        ! i just realised, due to the linear and ordered bins, i actually dont
-        ! need to binary search in them but can determine the index just
-        ! through the ratio and frequency step size
-        ! i want to stop filling the histograms after a certain number of
-        ! excitations is stored. 1.: since i dont want integer overflows and
-        ! i think it is unnecessary to store it as an 64bit integer array
-        ! and 2.: the distribution shouldn't change too much after a
-        ! certain point..
-        ! but this would also mean, that the tau-update would not give
-        ! any new values after i dont change the histograms anymore
-        ! so i could stop the tau-adaptation after that point too..
-        ! so maybe first experiment a bit with 64bit array to see if
-        ! the time does change more after the 32 bit limit is reached
-        ! and then change it back to 32 bits..
-        real(dp), intent(in) :: mat_ele, pgen
-        integer, intent(in) :: ic
-        logical, intent(in) :: t_parallel
-        character(*), parameter :: this_routine = "fill_frequency_histogram_4ind"
-        integer, parameter :: cnt_threshold = 50
-
-        real(dp) :: ratio
-        integer :: new_n_bins, old_n_bins, i, ind
-        integer, allocatable :: save_bins(:)
-
-
-        ASSERT(pgen > EPS)
-        ASSERT(ic == 1 .or. ic == 2)
-
-        if (mat_ele < EPS) return
-
-        ratio = mat_ele / pgen
-
-        ! then i have to decide which histogram to fill
-
-        if (ic == 1) then
-
-            ! IMPORTANT change: unbias the stored ratios!!
-            ratio = ratio * pSingles
-
-            ! if i ignore the ratios above the upper limit i also can
-            ! only count these excitations if they do not get ignored..
-
-            if (ratio < max_frequency_bound) then
-
-                ! also keep track of the number of done excitations
-                if (.not. enough_sing_hist) then
-                    cnt_sing_hist = cnt_sing_hist + 1
-                    if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
-                end if
-
-                ! find where to put the ratio
-                ! since ordered and linear bin bounds i can just divide..
-                ! i just hope there are no numerical errors creeping in ..
-                ! if the ratio happens to be exactly the upper bound, it
-                ! still has to be put in the last bin or? yes i guess..
-                ! so take the minimum of the ind and the max bin index
-                ind = int(ratio / frq_step_size) + 1
-                frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
-
-            end if
-
-        else
-            ! check if parallel or anti-parallel
-            if (t_parallel) then
-
-                ! unbias:
-                ratio = ratio * pDoubles * pParallel
-
-                if (ratio < max_frequency_bound) then
-
-                    if (.not. enough_par_hist) then
-                        cnt_par_hist = cnt_par_hist + 1
-                        if (cnt_par_hist > 2*cnt_threshold) enough_par_hist = .true.
-                    end if
-
-                    ind = int(ratio / frq_step_size) + 1
-
-                    frequency_bins_para(ind) = frequency_bins_para(ind) + 1
-
-                end if
-            else
-
-                ! unbias:
-                ratio = ratio * pDoubles * (1.0_dp - pParallel)
-
-                if (ratio < max_frequency_bound) then
-
-                    if (.not. enough_opp_hist) then
-                        cnt_opp_hist = cnt_opp_hist + 1
-                        if (cnt_opp_hist > cnt_threshold) enough_opp_hist = .true.
-                    end if
-
-                    ind = int(ratio / frq_step_size) + 1
-
-                    frequency_bins_anti(ind) = frequency_bins_anti(ind) + 1
-
-                end if
-            end if
-
-            ! combine par and opp into enough_doub
-            if (enough_par_hist .and. enough_opp_hist) enough_doub_hist = .true.
-
-        end if
-
-    end subroutine fill_frequency_histogram_4ind
-
-    subroutine fill_frequency_histogram_sd(mat_ele, pgen, ic)
-        ! this is the routine, which for now i can use in the symmetry
-        ! adapted GUGA code, where i only distinguish between single and
-        ! double excitation for now..
-        ! if i adapt that to the already used method in nosym_guga to
-        ! distinguish between more excitaiton i have to write an additional
-        ! subroutine which deals with that
-        ! and this can also be used in the case where we dont differentiate
-        ! between parallel or antiparallel double excitations in the old
-        ! excitation generators
-        real(dp), intent(in) :: mat_ele, pgen
-        integer, intent(in) :: ic
-        character(*), parameter :: this_routine = "fill_frequency_histogram_sd"
-        integer, parameter :: cnt_threshold = 50
-
-        real(dp) :: ratio
-        integer :: ind, new_n_bins, i, old_n_bins
-        integer, allocatable :: save_bins(:)
-
-        ASSERT(pgen > EPS)
-        ASSERT( ic == 1 .or. ic == 2)
-
-        if (mat_ele < umateps) return
-
-        ratio = mat_ele / pgen
-
-        if (ic == 1) then
-
-            ! unbias:
-            ratio = ratio * pSingles
-
-            if (ratio < max_frequency_bound) then
-
-                if (.not. enough_sing_hist) then
-                    cnt_sing_hist = cnt_sing_hist + 1
-                    if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
-                end if
-
-                ind = int(ratio / frq_step_size) + 1
-
-                frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
-
-            end if
-        else
-
-            ! unbias:
-            ratio = ratio * pDoubles
-
-            if (ratio < max_frequency_bound) then
-
-                if (.not. enough_doub_hist) then
-                    cnt_doub_hist = cnt_doub_hist + 1
-                    if (cnt_doub_hist > cnt_threshold) enough_doub_hist = .true.
-                end if
-
-                ind = int(ratio / frq_step_size) + 1
-
-                frequency_bins_doubles(ind) = frequency_bins_doubles(ind) + 1
-
-            end if
-        end if
-
-    end subroutine fill_frequency_histogram_sd
 
     subroutine fill_frequency_histogram_nosym_diff(mat_ele, pgen, ic, typ, diff)
         ! specific frequency fill routine for the nosym guga implementation
@@ -1216,58 +1035,6 @@ contains
 
     end subroutine fill_frequency_histogram_nosym_nodiff
 
-    subroutine fill_frequency_histogram(mat_ele, pgen)
-        ! routine to accumulate the H_ij/pgen ration into the frequency bins
-        ! keep parallelism in mind, especially if we have to adjust the
-        ! bin list and boundary list on the fly.. this has to happen on
-        ! all the processors then or? or can i just do it in the end of a loop
-        ! adapt this function now, to discriminate between single and double
-        ! excitations, and it pParallel is used, which can be determined
-        ! through the excitation matrix and the 2 involved determinants
-        ! (or even the starting determinant) and fill up to 3 frequency
-        ! histograms .. this also means that we have to reset them maybe
-        ! after pSingles or pParallel have been changed since the pgens
-        ! and so the H_ij/pgen ratios change (or? can i modify that somehow
-        ! on the fly?) think about that later and with ali..
-        ! and for the guga stuff, if i finally implement similar pgens like
-        ! pParallel, as it is already done in the nosym_guga case, i have
-        ! to use even more histograms, but that should be fine.
-        real(dp), intent(in) :: mat_ele, pgen
-        character(*), parameter :: this_routine = "fill_frequency_histogram"
-        integer, parameter :: cnt_threshold = 50
-
-        real(dp) :: ratio
-        integer :: ind, new_n_bins, i, old_n_bins
-        integer, allocatable :: save_bins(:)
-        ! first have to take correct matrix element, dependent if we use
-        ! complex code or not, or no: for now just input the absolute value
-        ! of H_ij, so its always a real then..
-        ! nah.. it puts in 0 mat_eles too.. so just return if 0 mat_ele
-        ASSERT(pgen > EPS)
-
-        ! if the matrix element is 0, no excitation will or would be done
-        ! and if the pgen is 0 i also shouldnt be here i guess.. so assert that
-        if (mat_ele < EPS) return
-
-        ! then i have to first check if i have to make the histogram bigger...
-        ratio = mat_ele / pgen
-
-        if (ratio < max_frequency_bound) then
-            ! the ratio fits in to the bins now i just have to find the
-            ! correct one
-            if (.not. enough_doub_hist) then
-                cnt_doub_hist = cnt_doub_hist + 1
-                if (cnt_doub_hist > cnt_threshold) enough_doub_hist = .true.
-            end if
-
-            ind = int(ratio / frq_step_size) + 1
-
-            ! increase counter
-            frequency_bins(ind) = frequency_bins(ind) + 1
-
-        end if
-
-    end subroutine fill_frequency_histogram
 
     ! write a general histogram communication routine, which takes
     ! specific histogram as input
@@ -1303,24 +1070,75 @@ contains
 
     end subroutine comm_frequency_histogram
 
-    subroutine integrate_frequency_histogram_spec(spec_size, spec_frequency_bins, &
-            ratio)
+
+    subroutine integrate_frequency_histogram_spec(spec_frequency_bins, ratio)
         ! specific histogram integration routine which sums up the inputted
         ! frequency_bins
-        integer, intent(in) :: spec_size
-        integer, intent(in) :: spec_frequency_bins(spec_size)
+        integer, intent(in) :: spec_frequency_bins(n_frequency_bins)
         real(dp), intent(out) :: ratio
         character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
 
-!         integer, allocatable :: all_frequency_bins(:)
         integer :: all_frequency_bins(n_frequency_bins)
-        integer :: i, threshold, n_bins
+        integer :: i, threshold
         integer :: n_elements, cnt
+        real(dp) :: test_ratio, all_test_ratio
+        logical :: mpi_ltmp
 
-        call comm_frequency_histogram_spec(spec_size, spec_frequency_bins, &
-            all_frequency_bins)
+        ! test a change to the tau-search by now integrating on each
+        ! processor seperately and communicate the maximas
+        if (t_test_hist_tau) then
+            test_ratio = 0.0_dp
+            n_elements = sum(spec_frequency_bins)
+            if (n_elements == 0) then
+                test_ratio = 0.0_dp
 
-        n_bins = size(all_frequency_bins)
+            else if (n_elements < 0) then
+                test_ratio = -1.0_dp
+                ! if any of the frequency_ratios is full i guess i should
+                ! also end the histogramming tau-search or?
+                ! yes i have to communicate that.. or else it gets
+                ! fucked up..
+
+                t_fill_frequency_hists = .false.
+
+            else
+
+                threshold = int(frq_ratio_cutoff * real(n_elements,dp))
+                cnt = 0
+                i = 0
+                do while(cnt < threshold)
+                    i = i + 1
+                    cnt = cnt + spec_frequency_bins(i)
+                end do
+
+                test_ratio = i * frq_step_size
+
+            end if
+
+            ! how do i best deal with the mpi communication.
+            ! i could use a mpialllor on (.not. t_fill_frequency_hists) to
+            ! check if one of them is false on any processor..
+            call MPIAllLORLogical(.not.t_fill_frequency_hists,mpi_ltmp)
+            if (mpi_ltmp) then
+                ! then i know one of the frequency histograms is full.. so
+                ! stop on all nodes!
+                t_fill_frequency_hists = .false.
+                ratio = -1.0_dp
+                return
+            else
+                all_test_ratio = 0.0_dp
+                call MPIAllReduce(test_ratio, MPI_MAX, all_test_ratio)
+
+                ratio = all_test_ratio
+            end if
+
+            return
+        end if
+
+        ! MPI communicate
+        all_frequency_bins = 0
+        call MPIAllReduce(spec_frequency_bins, MPI_SUM, all_frequency_bins)
+
         n_elements = sum(all_frequency_bins)
 
         ! have to check if no elements are yet stored into the histogram!
@@ -1334,6 +1152,10 @@ contains
             ! the histogramming option without the tau-search to it
             ! so i can also stop just the histogramming after an int
             ! overflow in the histograms
+            ! TODO: in this case i also have to decide if i want to print
+            ! it at this moment.. or maybe still at the end of the
+            ! calculation.. but yes, maybe i want to, by default, always
+            ! print them to be able to continue from a certain setting
             ratio = -1.0_dp
             t_fill_frequency_hists = .false.
             return
@@ -1352,51 +1174,5 @@ contains
 
     end subroutine integrate_frequency_histogram_spec
 
-    subroutine integrate_frequency_histogram(ratio)
-        ! routine to integrate the entries of the frequency histogram to
-        ! determine the time-step through this.
-        ! use a predefined or inputted threshold, which determines how much
-        ! of the histogram has to be covered to determine the new time-step
-        real(dp), intent(out) :: ratio
-        character(*), parameter :: this_routine = "integrate_frequency_histogram"
-
-        integer :: all_frequency_bins(n_frequency_bins)
-        integer :: i, threshold, n_bins, n_elements, cnt
-
-        ! have to communicate all the histograms across all cores
-
-        call comm_frequency_histogram(all_frequency_bins)
-
-        ! then loop over the histogram and check when the threshold is reached
-        n_bins = size(all_frequency_bins)
-        n_elements = sum(all_frequency_bins)
-
-        if (n_elements == 0) then
-            ratio = 0.0_dp
-            return
-
-        else if (n_elements < 0) then
-            ! integer overflow -> stop the hist search!
-            ratio = -1.0_dp
-            t_fill_frequency_hists = .false.
-            return
-        end if
-
-        threshold = int(frq_ratio_cutoff * real(n_elements, dp))
-
-        cnt = 0
-        i = 0
-        do while (cnt < threshold)
-            i = i + 1
-            cnt = cnt + all_frequency_bins(i)
-
-        end do
-
-        ! (i) determines the boundary which is the ratio then
-        ! use a fixed step-size from the start, so no numericall error
-        ! creeps in..
-        ratio = i * frq_step_size
-
-    end subroutine integrate_frequency_histogram
 
 end module

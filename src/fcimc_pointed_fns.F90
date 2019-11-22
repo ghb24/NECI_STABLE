@@ -240,16 +240,13 @@ module fcimc_pointed_fns
         temp_ex(1,:) = ex(2,:)
         temp_ex(2,:) = ex(1,:)
 
-        rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
-                                 tParity, HElGen)
-
         ! We actually want to calculate Hji - take the complex conjugate,
         ! rather than swap around DetCurr and nJ.
-#ifdef __CMPLX
-        rh_used = conjg(rh)
-#else
-        rh_used = rh
-#endif
+        rh_used = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
+                                 tParity, HElGen)
+
+        ! assign the matrix element
+        HElGen = abs(rh_used)
 
         ! essentially here i have all the information for my frequency
         ! analysis of the H_ij/pgen ratio so call the routine here
@@ -267,10 +264,14 @@ module fcimc_pointed_fns
                 if (t_consider_par_bias) then
                     ! determine if excitation was parallel or anti-parallel
                     ! ex(1,1) and ex(1,2) are the electrons
-                    t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+                    if (ic == 2) then
+                        t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+                    else
+                        t_par = .false.
+                    end if
 
                     call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob / AvMCExcits, &
-                        ic, t_par)
+                        ic, t_par, ex)
 
                 else if (tGen_nosym_guga) then
                     ! have to also check if diff bias is considered
@@ -319,7 +320,9 @@ module fcimc_pointed_fns
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
         matEl = real(rh_used, dp)
-        if (t_matele_cutoff .and. abs(matEl) < matele_cutoff) matel = 0.0_dp
+        if (t_matele_cutoff) then
+            if (abs(matEl) < matele_cutoff) matel = 0.0_dp
+        end if
 #else
         do tgt_cpt = 1, (lenof_sign/inum_runs)
 
@@ -334,11 +337,10 @@ module fcimc_pointed_fns
 
 
 #if defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
-            if (mod(part_type,2) == tgt_cpt) then
+            component = part_type+tgt_cpt-1
+            if (.not. btest(part_type,0)) then
                 ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
-                component = 1
-             else
-                component = 2
+                component = part_type - tgt_cpt + 1
             endif
 #else
             component = tgt_cpt
@@ -347,7 +349,7 @@ module fcimc_pointed_fns
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
-            if (mod(component,2) == 1) then
+            if (btest(component,0)) then
                 ! real component
                 MatEl = real(rh_used, dp)
                 if (t_matele_cutoff) then
@@ -360,8 +362,9 @@ module fcimc_pointed_fns
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
                 ! n.b. In this case, spawning is of opposite sign.
-                if(mod(part_type,2) == 0) then
-                   walkerweight = - walkerweight
+                if (.not. btest(part_type,0)) then
+                    ! imaginary parent -> imaginary child
+                    walkerweight = -walkerweight
                 endif
 #endif
             end if
@@ -369,16 +372,14 @@ module fcimc_pointed_fns
 
             nSpawn = - tau * MatEl * walkerweight / prob
 
+#ifdef __DEBUG
             ! so.. does a |nSpawn| > 1 in my new tau-search implitly mean
             ! that the tau is to small for this kind of exciation?
             ! i guess so yeah.. so do it really brute force to start with
             if (t_truncate_spawns .and. abs(nSpawn) > n_truncate_spawns) then
-
-
                 ! in debug mode i should output some additional information
                 ! to analyze the type of excitations and how many open-orbitals
                 ! etc. are used
-#ifdef __DEBUG
                 if (abs(nSpawn) > 10.0_dp) then
                     if (tGUGA) then
                         write(iout,*) "=================================================="
@@ -402,11 +403,11 @@ module fcimc_pointed_fns
                         call neci_flush(iout)
                     end if
                 end if
-#endif
             end if
+#endif
 
             if(tGUGA .and. t_precond_hub.and. abs(Eii_curr).gt.10.0_dp)then
-             nSpawn = nSpawn / (1.0_dp+Eii_curr)
+             nSpawn = nSpawn / (1.0_dp + dble(Eii_curr))
             end if
 
             ! [Werner Dobrautz 4.4.2017:]
@@ -430,6 +431,7 @@ module fcimc_pointed_fns
                 ! in the back-spawning i have to adapt the probabilites
                 ! back, to be sure the time-step covers the changed
                 ! non-initiators spawns!
+
                 call log_spawn_magnitude (ic, ex, matel/precond_fac, prob)
             end if
 

@@ -330,6 +330,7 @@ contains
 #ifdef __CMPLX
         overlaps_imag = 0.0_dp
         all_overlaps_imag = 0.0_dp
+        unused_variable(replica_pairs)
 #endif
 
         ! Loop over all basis states (determinants) in the trial space.

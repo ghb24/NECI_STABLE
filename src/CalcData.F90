@@ -178,9 +178,6 @@ integer :: trunc_nopen_max
 logical :: t_trunc_nopen_diff = .false.
 integer :: trunc_nopen_diff = 0
 integer :: reference_seniority = 0
-! are determinants with low number of open orbs always inits?
-logical :: tSeniorityInits
-integer :: initMaxSenior
 ! do we keep certain spawns up to a given excitation + seniority level
 logical :: tSpawnSeniorityBased
 integer, allocatable :: maxKeepExLvl(:)
@@ -367,8 +364,6 @@ integer :: orthogonalise_iter
 logical :: t_test_overlap = .false.
 real(dp) :: overlap_eps = 1.0e-5_dp
 integer :: n_stop_ortho = -1
-
-logical :: tAVReps, tReplicaCoherentInits, tRCCheck
 
 ! Information on a trial space to create trial excited states with.
 
@@ -618,7 +613,7 @@ logical :: t_guga_mat_eles = .true.
 ! i always use that, since we are always using tau-search, and even if
 ! we dont use it, the pSingles etc. are stored anyway, and if the are not
 ! stored they are 0, and in this case they are not read in anyway!
-logical :: t_read_probs = .true.
+logical :: t_read_probs = .false.
 ! also need multiple new specific excitation type probabilites, but they are
 ! defined in FciMCdata module!
 ! move tSpinProject here to avoid circular dependencies

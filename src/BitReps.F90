@@ -341,8 +341,7 @@ contains
         integer, intent(in) :: run
         HElement_t(dp) :: sgn
 #ifdef __CMPLX
-        sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), &
-            extract_part_sign(ilut, max_part_type(run)),kind=dp)
+        sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), extract_part_sign(ilut, max_part_type(run)))
 #else
         sgn = extract_part_sign(ilut, min_part_type(run))
 #endif
