@@ -481,7 +481,9 @@ contains
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: Comm, ierr
         character(*), parameter :: t_r = 'MPIAllReduce'
-
+        ! Error handling vars
+        character(255) :: string
+        integer(MPIArg) :: length, jerr, errorclass
 #ifdef PARALLEL
 #ifdef CBINDMPI
 #ifdef __GFORTRAN__
@@ -504,7 +506,9 @@ contains
             write(6,*) 'F type2 %(type1)s'
             write(6,*) 'Opp', itype
             write(6,*) 'ierr', ierr
-            call stop_all (t_r, 'MPI Error. Terminating')
+            call mpi_error_class(ierr, errorclass, jerr)
+            call mpi_error_string(errorclass,string, length, jerr)            
+            call stop_all (t_r, string)
         end if
 #else
         ret = v

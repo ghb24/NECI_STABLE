@@ -665,18 +665,27 @@ contains
      &                 //"method",.true.)
                 end if
 
-             case("INITS-RDM")
-                ! only take into account initiators when calculating RDMs
+            case("INITS-RDM")
+                ! also calculate the RDMs only taking into account initiators (to an extra file)
+                ! by default uses the non-variational inits-rdms (only require initiator in the ket)
                 tOutputInitsRDM = .true.
                 tInitsRDM = .true.
-             case("NO-LAGRANGIAN-RDMS")
+                ! Imply non-variational-rdms (for the init-rdms)
+                tNonVariationalRDMs = .true.
+            case("NO-LAGRANGIAN-RDMS")
                 ! use the default rdms even for adaptive-shift
                 ! this is mainly for debugging/testing purposes, it should not be used in
                 ! production (as the resulting RDMs are flawed)
                 tApplyLC = .false.
-             case("STRICT-INITS-RDM")
+            case("STRICT-INITS-RDM")
+                ! Fill the inits-rdms with the rdm of the initiator-only wave function
+                tNonVariationalRDMs = .false.
+            case("INITS-ONLY-RDM")
+                ! Fill the rdms with the rdm of the initiator-only wave function
                 tNonInitsForRDMs = .false.
-             case("NON-VARIATIONAL-RDMS")
+            case("NON-VARIATIONAL-RDMS")
+                ! This is only here for backwards-compatibility, tNonVariationalRDMs is
+                ! turned on by default when meaningful (only affects inits-only rdms)
                 tNonVariationalRDMs = .true.
             case("VVDISALLOW")
                 TVVDISALLOW=.TRUE.
