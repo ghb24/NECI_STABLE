@@ -175,7 +175,6 @@ contains
           nFound = nFound + 1
           write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
                abs(matel)/(pgenArr(1)*matelN)
-
           ! compare the stored pgen to the directly computed one
           if(t_calc_pgen) then
              if(i > nSingles) then
@@ -237,7 +236,7 @@ contains
 
     call MPIInit(.false.)
 
-    call dSFMT_init(8)
+    call dSFMT_init(25)
 
     call SetCalcDefaults()
     call SetSysDefaults()

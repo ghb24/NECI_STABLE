@@ -2473,6 +2473,7 @@ contains
         ! Reset the accumulators
         HFCyc = 0.0_dp
         ENumCyc = 0.0_dp
+        NoatDoubs = 0.0_dp
 
         ! Main loop
         do j = 1, int(TotWalkers, sizeof_int)
@@ -2489,8 +2490,8 @@ contains
         end do
 
         ! Accumulate values over all processors
-        call MPISum(HFCyc, RealAllHFCyc)
-        call MPISum(ENumCyc, AllENumCyc)
+        call MPISumAll(HFCyc, RealAllHFCyc)
+        call MPISumAll(ENumCyc, AllENumCyc)
 
         do run = 1, inum_runs
             AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
@@ -2498,7 +2499,6 @@ contains
 
         proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
 
-        write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
 

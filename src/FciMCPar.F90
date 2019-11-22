@@ -31,7 +31,8 @@ module FciMCParMod
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
                            tCoupleCycleOutput, StepsPrint, &
-                           t_hist_fvals, enGrid, arGrid
+                           t_hist_fvals, enGrid, arGrid, &
+                           tHDF5TruncPopsWrite, iHDF5TruncPopsEx                               
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -98,6 +99,7 @@ module FciMCParMod
     use back_spawn, only: init_back_spawn
 
     use sltcnd_mod, only: sltcnd_excit
+    use hdf5_popsfile, only: write_popsfile_hdf5
 
     implicit none
 
@@ -695,7 +697,15 @@ module FciMCParMod
         IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+
+            if(tHDF5TruncPopsWrite)then
+                call write_popsfile_hdf5(iHDF5TruncPopsEx)
+                call calc_inst_proje()
+                write(6,*) 'Instantaneous projected energy of truncated popsfile:', proje_iter
+            endif
         ENDIF
+
+
         IF(tCalcFCIMCPsi) THEN
 !This routine will actually only print the matrix if tPrintFCIMCPsi is on
             CALL PrintFCIMCPsi()
