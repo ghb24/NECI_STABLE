@@ -30,6 +30,7 @@ module FciMCParMod
                            compare_amps_period, PopsFileTimer, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
+                           tCoupleCycleOutput, StepsPrint, &
                            t_hist_fvals, enGrid, arGrid
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
@@ -137,6 +138,7 @@ module FciMCParMod
 
         real(dp):: lt_imb
         integer:: rest, err, allErr
+        logical :: t_comm_done
 
         ! Procedure pointer temporaries
         procedure(generate_excitation_t), pointer :: ge_tmp
@@ -407,7 +409,21 @@ module FciMCParMod
                   ! hence, nRefs cannot be updated that often
                   if(mod(iter,nRefUpdateInterval) == 0) call adjust_nRefs()
                   call update_reference_space(tReadPops .or. all(.not. tSinglePartPhase))
-                  endif
+               endif
+            endif
+
+            ! as alternative to the update cycle bound output, a specified output interval
+            ! may be given that is not correlated with the update cycle
+            ! -> do the output independently, only requires communication + write
+            ! An output frequency below 1 means no output
+            t_comm_done = .false.
+            if( StepsPrint > 0 .and. .not. tCoupleCycleOutput) then
+               if( mod(Iter, StepsPrint) == 0) then
+                  ! just perform a communication + output, without update
+                   call iteration_output_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
+                  ! mark that the communication has been done
+                   t_comm_done = .true.
+               endif
             endif
 
             if (mod(Iter, StepsSft) == 0) then
@@ -444,7 +460,11 @@ module FciMCParMod
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
                 call set_timer(Stats_Comms_Time)
-                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, tPairedReplicas)
+                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, &
+                    tPairedReplicas, t_comm_req = .not. t_comm_done)
+                ! If the output is in sync, do a non-communicated output
+                if(tCoupleCycleOutput) call iteration_output_wrapper(iter_data_fciqmc, TotParts, &
+                    tPairedReplicas, t_comm_req = .false.)
                 call halt_timer(Stats_Comms_Time)
 
                 ! in calculate_new_shift_wrapper output is plotted too!
