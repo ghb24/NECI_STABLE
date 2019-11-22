@@ -9,6 +9,7 @@
 #                       SOURCES <source1> [<source2> ...]
 #                       LINKER_LANGUAGE <(C|CXX|Fortran)>
 #                     [ TEMPLATED_SOURCES <source1> [<source2> ...] ]
+#                     [ FYPP_SOURCES <source1> [<source2> ...] ]
 #                     [ TYPE SHARED|STATIC|MODULE ]
 #                     [ PRIVATE_INCLUDEs <dir1> [<dir2> ...] ]
 #                     [ LIBS <lib1> [<lib2> ...] ]
@@ -32,6 +33,10 @@
 #
 # TEMPLATED_SOURCES : optional
 #   list of source files to be passed through f90_template.py (note that this ensures that they are
+#   not redefined multiple times).
+#
+# FYPP_SOURCES : optional
+#   list of source files to be passed through fypp (note that this ensures that they are
 #   not redefined multiple times).
 #
 # TYPE : optional
@@ -60,7 +65,7 @@ macro( neci_add_library )
 
     set( options )
     set( single_value_args TARGET TYPE OUTPUT_NAME LINKER_LANGUAGE WARNERR)
-    set( multi_value_args SOURCES DEFINITIONS TEMPLATED_SOURCES PRIVATE_INCLUDES LIBS )
+    set( multi_value_args SOURCES DEFINITIONS TEMPLATED_SOURCES FYPP_SOURCES PRIVATE_INCLUDES LIBS )
 
     cmake_parse_arguments( _p "${options}" "${single_value_args}" "${multi_value_args}" ${_FIRST_ARG} ${ARGN} )
 
@@ -109,9 +114,34 @@ macro( neci_add_library )
       endforeach()
     endif()
 
-    # Actually add the library to the cmake build
+    set( ${_p_TARGET}_FYPP_SOURCES )
+    if (_p_FYPP_SOURCES )
+        get_filename_component( _fypp ${PROJECT_SOURCE_DIR}/External/fypp/bin/fypp ABSOLUTE )
+        if (NOT EXISTS ${_fypp})
+            message( FATAL_ERROR "fypp preprocessor missing. Please do `git submodule update --init` in the git repository.")
+        endif()
+        set( _fypp_dir ${CMAKE_BINARY_DIR}/fypp/${_p_TARGET} )
+        file( MAKE_DIRECTORY ${_fypp_dir} )
 
-    add_library( ${_p_TARGET} ${_p_TYPE} ${_p_SOURCES} ${${_p_TARGET}_TEMPLATED_SOURCES} )
+        set(_fypp_options)
+        list( APPEND _fypp_options -m itertools)
+
+
+        foreach(_fypp_file ${_p_FYPP_SOURCES})
+            get_filename_component( _fypp_file_base ${_fypp_file} NAME_WE )
+            get_filename_component( _fypp_file_absolute ${_fypp_file} ABSOLUTE)
+            set( _fypp_target_file ${_fypp_dir}/${_fypp_file_base}.F90 )
+            list( APPEND ${_p_TARGET}_FYPP_SOURCES ${_fypp_target_file} )
+            add_custom_command(
+                COMMAND ${_fypp} ${_fypp_options} ${_fypp_file_absolute} ${_fypp_target_file}
+                WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
+                OUTPUT ${_fypp_target_file}
+                DEPENDS ${_fypp_file_absolute})
+        endforeach()
+    endif()
+
+    # Actually add the library to the cmake build
+    add_library( ${_p_TARGET} ${_p_TYPE} ${_p_SOURCES} ${${_p_TARGET}_FYPP_SOURCES} ${${_p_TARGET}_TEMPLATED_SOURCES})
 
     # Add definitions to the compliation
     if (DEFINED _p_DEFINITIONS )

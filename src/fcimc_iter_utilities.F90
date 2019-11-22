@@ -71,7 +71,7 @@ contains
         end if
 
 
-#ifndef __CMPLX
+#ifndef CMPLX_
         if (tPositiveHFSign) then
             do part_type = 1, lenof_sign
                 if ((.not.tFillingStochRDMonFly).or.(inum_runs.eq.1)) then
@@ -97,7 +97,7 @@ contains
 #endif
         if (iProcIndex == Root) then
             ! Have all of the particles died?
-#ifdef __CMPLX
+#ifdef CMPLX_
             tRestart = .false.
             do run = 1, inum_runs
                 if (sum(AllTotParts(min_part_type(run):max_part_type(run))) ==0 )  then
@@ -259,7 +259,7 @@ contains
                 exit
 
             ! What are the change conditions?
-#ifdef __CMPLX
+#ifdef CMPLX_
             if (tReplicaReferencesDiffer) then
                 pop_change = FracLargerDet * abs_sign(AllNoAtHF(min_part_type(run):max_part_type(run)))
             else
@@ -325,7 +325,7 @@ contains
 
                 ! Or are we restarting the calculation with the reference
                 ! det switched?
-#ifdef __CMPLX
+#ifdef CMPLX_
                 elseif (tRestartHighPop .and. &
                         iRestartWalkNum < sum(AllTotParts(1:2))) then
 #else
@@ -629,7 +629,7 @@ contains
             AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
         end do
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         norm_psi = sqrt(sum(all_norm_psi_squared))
         norm_semistoch = sqrt(sum(all_norm_semistoch_squared))
 #else
@@ -716,7 +716,7 @@ contains
 !             end if
         end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! Write this 'ASSERTROOT' out explicitly to avoid line lengths problems
         if ((iProcIndex == root) .and. .not. tSpinProject .and. .not. tTrialShift .and. &
          all(abs(iter_data%update_growth_tot-(AllTotParts-AllTotPartsOld)) > 1.0e-5)) then
@@ -781,7 +781,7 @@ contains
            end if
 
             ! For complex case, obtain both Re and Im parts
-#ifdef __CMPLX
+#ifdef CMPLX_
             do run = 1, inum_runs
                 lb = min_part_type(run)
                 ub = max_part_type(run)
@@ -871,7 +871,7 @@ contains
                     if (TSinglePartPhase(run)) then
                         tot_walkers = int(InitWalkers, int64) * int(nNodes, int64)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                         if ((sum(AllTotParts(lb:ub)) > tot_walkers) .or. &
                              (abs_sign(AllNoatHF(lb:ub)) > MaxNoatHF)) then
         !                     WRITE(iout,*) "AllTotParts: ",AllTotParts(1),AllTotParts(2),tot_walkers
@@ -929,7 +929,7 @@ contains
 #endif
                     else ! .not.tSinglePartPhase(run)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                         if (abs_sign(AllNoatHF(lb:ub)) < MaxNoatHF-HFPopThresh) then
 #else
                         if (abs(AllNoatHF(run)) < MaxNoatHF-HFPopThresh) then
@@ -954,7 +954,7 @@ contains
     !                     if(TargetGrowRate(run).ne.0.0_dp) then
                         ! [W.D. 15.5.2017]
                         if(abs(TargetGrowRate(run)) > EPS) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                             if(sum(AllTotParts(lb:ub)).gt.TargetGrowRateWalk(run)) then
 #else
                             if(AllTotParts(run).gt.TargetGrowRateWalk(run)) then
@@ -963,7 +963,7 @@ contains
                                 DiagSft(run) = DiagSft(run) - (log(AllGrowRate(run)-TargetGrowRate(run)) * SftDamp) / &
                                                     (Tau * StepsSft)
                                 ! Same for the info shifts for complex walkers
-#ifdef __CMPLX
+#ifdef CMPLX_
                         DiagSftRe(run) = DiagSftRe(run) - (log(AllGrowRateRe(run)-TargetGrowRate(run)) * SftDamp) / &
                                                     (Tau * StepsSft)
                         DiagSftIm(run) = DiagSftIm(run) - (log(AllGrowRateIm(run)-TargetGrowRate(run)) * SftDamp) / &
@@ -1010,7 +1010,7 @@ contains
             end if !tFixedN0 or not
                 ! only update the shift this way if possible
                 if(abs_sign(AllNoatHF(lb:ub)) > EPS) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                 ! Calculate the instantaneous 'shift' from the HF population
                 HFShift(run) = -1.0_dp / abs_sign(AllNoatHF(lb:ub)) * &
                                     (abs_sign(AllNoatHF(lb:ub)) - abs_sign(OldAllNoatHF(lb:ub)) / &
@@ -1211,7 +1211,7 @@ contains
         real(dp) :: amps(tot_trial_space_size), total_amp, total_amps(nProcessors)
         logical :: tIsStateDeterm
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all("fix_trial_overlap", "Complex wavefunction is not supported yet!")
 #else
 

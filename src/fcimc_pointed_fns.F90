@@ -195,7 +195,7 @@ module fcimc_pointed_fns
 
         ! We actually want to calculate Hji - take the complex conjugate,
         ! rather than swap around DetCurr and nJ.
-#ifdef __CMPLX
+#ifdef CMPLX_
         rh_used = conjg(rh)
 #else
         rh_used = rh
@@ -271,7 +271,7 @@ module fcimc_pointed_fns
 
 
 
-#if !defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
+#if !defined(CMPLX_) && (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
@@ -292,7 +292,7 @@ module fcimc_pointed_fns
             ! real/imaginary matrix-elements/target-particles.
 
 
-#if defined(__CMPLX) && (defined(__PROG_NUMRUNS) || defined(__DOUBLERUN))
+#if defined(CMPLX_) && (defined(PROG_NUMRUNS_) || defined(DOUBLERUN_))
             component = part_type+tgt_cpt-1
             if (.not. btest(part_type,0)) then
                 ! even part_type => imag replica =>  map 4->3,4 ; 6->5,6 etc.
@@ -312,7 +312,7 @@ module fcimc_pointed_fns
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
             else
-#ifdef __CMPLX
+#ifdef CMPLX_
                 MatEl = real(aimag(rh_used), dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
@@ -386,13 +386,13 @@ module fcimc_pointed_fns
 
             endif
             ! And create the parcticles
-#ifdef __CMPLX
+#ifdef CMPLX_
             child((part_type_to_run(part_type)-1)*2+tgt_cpt) = nSpawn
 #else
             child(tgt_cpt) = nSpawn
 #endif
 
-#if defined(__CMPLX) || !defined(__PROG_NUMRUNS) && !defined(__DOUBLERUN)
+#if defined(CMPLX_) || !defined(PROG_NUMRUNS_) && !defined(DOUBLERUN_)
         enddo
 #endif
 
@@ -516,7 +516,7 @@ module fcimc_pointed_fns
         endif
 
         ! Count the number of children born
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
             if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
@@ -574,7 +574,7 @@ module fcimc_pointed_fns
         real(dp) :: probsign, r
         real(dp), dimension(inum_runs) :: fac
         integer :: i, run, iUnused
-#ifdef __CMPLX
+#ifdef CMPLX_
         real(dp) :: rat(2)
 #else
         real(dp) :: rat(1)
@@ -630,7 +630,7 @@ module fcimc_pointed_fns
             .or. tAllRealCoeff ) then
             do run=1, inum_runs
                 ndie(min_part_type(run))=fac(run)*abs(realwSign(min_part_type(run)))
-#ifdef __CMPLX
+#ifdef CMPLX_
                 ndie(max_part_type(run))=fac(run)*abs(realwSign(max_part_type(run)))
 #endif
             enddo
@@ -649,7 +649,7 @@ module fcimc_pointed_fns
                 r = genrand_real2_dSFMT()
                 if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
                     ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
-#ifdef __CMPLX
+#ifdef CMPLX_
                 r = genrand_real2_dSFMT()
                 if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
                     ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
@@ -687,7 +687,7 @@ module fcimc_pointed_fns
         real(dp) :: probsign, r
         real(dp), dimension(inum_runs) :: fac
         integer :: i, run, iUnused
-#ifdef __CMPLX
+#ifdef CMPLX_
         real(dp) :: rat(2)
 #else
         real(dp) :: rat(1)
@@ -705,7 +705,7 @@ module fcimc_pointed_fns
             .or. tAllRealCoeff ) then
             do run=1, inum_runs
                 ndie(min_part_type(run))=fac(run)*abs(realwSign(min_part_type(run)))
-#ifdef __CMPLX
+#ifdef CMPLX_
                 ndie(max_part_type(run))=fac(run)*abs(realwSign(max_part_type(run)))
 #endif
             enddo
@@ -724,7 +724,7 @@ module fcimc_pointed_fns
                 r = genrand_real2_dSFMT()
                 if (abs(rat(1)) > r) ndie(min_part_type(run)) = &
                     ndie(min_part_type(run)) + real(nint(sign(1.0_dp, rat(1))), dp)
-#ifdef __CMPLX
+#ifdef CMPLX_
                 r = genrand_real2_dSFMT()
                 if (abs(rat(2)) > r) ndie(max_part_type(run)) = &
                     ndie(max_part_type(run)) + real(nint(sign(1.0_dp, rat(2))), dp)
@@ -797,7 +797,7 @@ module fcimc_pointed_fns
       integer, intent(in) :: run
       real(dp), intent(in) :: pop
       real(dp) :: f
-#ifdef __DEBUG
+#ifdef DEBUG_
       ! Disable compiler warnings
       real(dp) :: dummy
       dummy = pos
@@ -821,7 +821,7 @@ module fcimc_pointed_fns
       integer, intent(in) :: run
       real(dp), intent(in) :: pop
       real(dp) :: f
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
       ! Disable compiler warnings
       real(dp) :: dummy
       dummy = pos
@@ -844,7 +844,7 @@ module fcimc_pointed_fns
       integer, intent(in) :: run
       real(dp), intent(in) :: pop
       real(dp) :: f, slope
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
       ! Disable compiler warnings
       real(dp) :: dummy
       dummy = pos

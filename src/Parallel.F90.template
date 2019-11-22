@@ -360,7 +360,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -397,7 +397,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -433,7 +433,7 @@ contains
 !        character(*), parameter :: t_r = 'MPIReduce'
 !
 !#ifdef CBINDMPI
-!#ifdef __GFORTRAN__
+!#ifdef GFORTRAN_
 !        type(c_ptr) :: g_loc
 !#endif
 !        ! Spaces prevent template adjustment
@@ -486,7 +486,7 @@ contains
         integer(MPIArg) :: length, jerr, errorclass
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -532,7 +532,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -576,7 +576,7 @@ contains
 !
 !#ifdef PARALLEL
 !#ifdef CBINDMPI
-!#ifdef __GFORTRAN__
+!#ifdef GFORTRAN_
 !        type(c_ptr) :: g_loc
 !#endif
 !        ! Spaces prevent template adjustment
@@ -620,7 +620,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -764,7 +764,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -799,7 +799,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -834,7 +834,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -871,7 +871,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -908,7 +908,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -946,7 +946,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -990,7 +990,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1026,7 +1026,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1063,7 +1063,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1105,7 +1105,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1152,7 +1152,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1187,7 +1187,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1233,7 +1233,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1281,7 +1281,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1319,7 +1319,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1355,7 +1355,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr
@@ -1390,7 +1390,7 @@ contains
 #ifdef PARALLEL
         integer(MPIArg) :: stat(MPI_STATUS_SIZE), err
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: rptr
@@ -1419,7 +1419,7 @@ contains
 #ifdef PARALLEL
         integer(MPIArg) :: err
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -1578,7 +1578,7 @@ contains
         call MPI_Comm_size (CommGlobal, nProcess, ierr)
 
         !initialize intra node and inter node communicators
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
         !the 'intra' range is the full node for now.
         call MPI_Comm_split_type(CommGlobal,MPI_COMM_TYPE_SHARED,0_MPIArg,MPI_INFO_NULL,mpi_comm_intra,ierr)
         call MPI_Comm_rank(mpi_comm_intra,iProcIndex_intra,ierr)
@@ -1622,7 +1622,7 @@ contains
                 write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' as head node.'
             else
-#ifdef __DEBUG
+#ifdef DEBUG_
                 write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' moving to local output.'
 #endif
@@ -1631,11 +1631,11 @@ contains
                     '("NodeFile",' // int_fmt(iProcIndex+1) // ')') &
                     iProcIndex + 1
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                 write(6,*) "outfile=", NodeFile
 #endif
                 close(6, status="keep")
-#ifdef __DEBUG
+#ifdef DEBUG_
                 open(6, file=NodeFile, recl=8192)
                 write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' on local output.'
@@ -1775,7 +1775,7 @@ contains
             write(6,*) "Allocating each processor as a separate node."
             if(iProcIndex==root) then
                 nNodes=0
-#ifdef __DEBUG
+#ifdef DEBUG_
                 write(6,*) "Processor      Node"
 #endif
                 do i=0,nProcessors-1
@@ -1783,7 +1783,7 @@ contains
                     ProcNode(i) = nNodes
                     Nodes(i)%n = nNodes
                     nNodes = nNodes+1
-#ifdef __DEBUG
+#ifdef DEBUG_
                     write(6,"(2I10)") i, Nodes(i)%n
 #endif
                 enddo
@@ -1929,7 +1929,7 @@ contains
        integer(MPIArg) :: ierr
 
 #ifdef PARALLEL
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
         call mpi_comm_free(mpi_comm_intra,ierr)
         call mpi_comm_free(mpi_comm_inter,ierr)
 #endif

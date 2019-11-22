@@ -76,7 +76,7 @@ module hdf5_popsfile
     use CalcData, only: tAutoAdaptiveShift
     use LoggingData, only: tPopAutoAdaptiveShift
     use global_det_data, only: writeFFuncAsInt
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     use hdf5
 #endif
     implicit none
@@ -161,18 +161,18 @@ contains
 
         integer, intent(in), optional :: MaxEx
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
-#ifdef __USE_HDF
+#ifdef USE_HDF_
         integer(hid_t) :: plist_id, file_id
         integer(hdf_err) :: err
         integer :: mpi_err
         character(255) :: filename
-        character(30) :: stem 
+        character(30) :: stem
         character(4) :: MaxExStr
 
         ! Get a unique filename for this popsfile. This needs to be done on
         ! the head node to avoid collisions.
         if (iProcIndex == 0) then
-            if(present(MaxEx))then 
+            if(present(MaxEx))then
                 write (MaxExStr,'(I0)') MaxEx
                 stem = 'popsfile_trunc'//MaxExStr
             else
@@ -186,7 +186,7 @@ contains
         call MPIBCast(filename)
 
         write(6,*)
-        if(present(MaxEx))then 
+        if(present(MaxEx))then
             write(6,*) "============== Writing Truncated HDF5 popsfile =============="
         else
             write(6,*) "============== Writing HDF5 popsfile =============="
@@ -251,7 +251,7 @@ contains
         integer(n_int), intent(out) :: dets(:, :)
         integer(int64) :: CurrWalkers
         character(*), parameter :: t_r = 'read_popsfile_hdf5'
-#ifdef __USE_HDF
+#ifdef USE_HDF_
         integer(hid_t) :: file_id, plist_id
         integer(hdf_err) :: err
         integer :: mpi_err
@@ -301,7 +301,7 @@ contains
     end function
 
 
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     subroutine write_metadata(parent)
 
         use CalcData, only: calc_seq_no
@@ -513,7 +513,7 @@ contains
         ! (n.b. ensure values on all procs)
         call MPIBcast(AllSumENum)
         call MPIBcast(AllSumNoatHF)
-#ifdef __CMPLX
+#ifdef CMPLX_
         call write_cplx_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
 #else
         call write_dp_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
@@ -720,7 +720,7 @@ contains
         call h5gopen_f(parent, nm_acc_grp, grp_id, err)
         call read_dp_1d_dataset(grp_id, nm_sum_no_ref, AllSumNoatHF, &
                                 required=.true.)
-#ifdef __CMPLX
+#ifdef CMPLX_
         call read_cplx_1d_dataset(grp_id, nm_sum_enum, AllSumENum, &
                                   required=.true.)
 #else
@@ -793,7 +793,7 @@ contains
                     PrintedDets(:,printed_count) = CurrentDets(:,i)
                     ! Fill in stats
                     printed_tot_parts = printed_tot_parts + abs(CurrentSign)
-#if defined(__CMPLX)
+#if defined(CMPLX_)
                     do run = 1, inum_runs
                        printed_norm_sqr(run) = printed_norm_sqr(run) + &
                             sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
@@ -973,7 +973,7 @@ contains
         ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
         tmp_lenof_sign = int(read_lenof_sign)
         ! assign the tmp_inum_runs accordingly
-#ifdef __CMPLX
+#ifdef CMPLX_
         tmp_inum_runs = tmp_lenof_sign/2
 #else
         tmp_inum_runs = tmp_lenof_sign
@@ -1194,7 +1194,7 @@ contains
         integer(hid_t) :: plist_id
         integer :: tmp_lenof_fvals
 
-#ifdef __INT64
+#ifdef INT64_
 
         call read_2d_multi_chunk( &
                 ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
@@ -1561,7 +1561,7 @@ contains
     end subroutine
 
 !------------------------------------------------------------------------------------------!
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     subroutine clone_signs(tmp_sgns, tmp_lenof_sign, lenof_sign, num_signs)
       implicit none
       ! expand/shrink the sign to the target lenof_sign
@@ -1674,9 +1674,9 @@ contains
 
         call extract_sign(ilut, real_sign)
 
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
         pops_norm = pops_norm + real_sign(1)*real_sign(2)
-#elif __CMPLX
+#elif CMPLX_
         pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
 #else
         pops_norm = pops_norm + real_sign(1)*real_sign(1)

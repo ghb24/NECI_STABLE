@@ -464,14 +464,14 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'HPHF functions cannot work with UHF')
         end if
 
-#if __PROG_NUMRUNS
+#if PROG_NUMRUNS_
         if (tKP_FCIQMC .and. .not. tMultiReplicas) then
 
             write(6,*) 'Using KPFCIQMC without explicitly specifying the &
                        &number of replica simulations'
             write(6,*) 'Defaulting to using 2 replicas'
             tMultiReplicas = .true.
-#ifdef __CMPLX
+#ifdef CMPLX_
             lenof_sign = 4
 #else
             lenof_sign = 2
@@ -486,7 +486,7 @@ MODULE ReadInput_neci
         end if
 #endif
 
-#if __PROG_NUMRUNS
+#if PROG_NUMRUNS_
         if (tRDMonFly) then
             write(6,*) 'RDM on fly'
 
@@ -565,7 +565,7 @@ MODULE ReadInput_neci
             end if
         end if
 
-#ifndef __USE_HDF
+#ifndef USE_HDF_
         if (tHDF5PopsRead .or. tHDF5PopsWrite) then
             call stop_all(t_r, 'Support for HDF5 files disabled at compile time')
         end if

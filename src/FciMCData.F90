@@ -616,7 +616,7 @@ MODULE FciMCData
       type(perturbation), allocatable :: pops_pert(:)
 
       real(dp), allocatable :: replica_overlaps_real(:,:)
-#ifdef __CMPLX
+#ifdef CMPLX_
       real(dp), allocatable :: replica_overlaps_imag(:,:)
 #endif
       real(dp), allocatable :: all_norms(:), all_overlaps(:,:)
