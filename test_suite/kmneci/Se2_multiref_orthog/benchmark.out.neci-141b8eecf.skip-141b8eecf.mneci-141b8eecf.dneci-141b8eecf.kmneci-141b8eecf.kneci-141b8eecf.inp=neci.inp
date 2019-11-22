@@ -4,15 +4,15 @@
  Memory Manager initialised with  99999.0 MB
 
  ================================================================
- Compiled on Oct 10 2019 at 15:41:17
+ Compiled on Nov 22 2019 at 11:24:02
  Compiled using configuration:
      cmake-Intel-par-RELEASE
  VCS BASE repository version:
-     fea97c5420d8e63404d0079b5e2c78c03ba065ff
+     141b8eecfd8acdeefaaaed22efdf37760247d95c
  Working directory: 
-     /pool/guther/numerics/adi_devel/neci/test_suite/kmneci/Se2_multiref_orthog
+     /pool/guther/numerics/transcorr_devel/neci/test_suite/kmneci/Se2_multiref_orthog
  Running on: pcal014
- Started running on 10/10/2019 at 16:38:45
+ Started running on 22/11/2019 at 13:33:43
  ================================================================
 
  Processing arguments
@@ -395,8 +395,9 @@ Corresponding to a correlation energy of:      6.30228293718392
 Initial Diagonal Shift:         0.0000000000
  Connectivity of HF determinant is:         3192
 Memory allocated for a maximum particle number per node of:        2000000
- Determinant related persistent storage requires:     152.587891 Mb / processor
+ Determinant related persistent storage requires:     137.329102 Mb / processor
 Spawning vectors allowing for a total of      8000000 particles to be spawned in any one iteration per core.
+ Memory requirement    549.316406250000      MB
 Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
 Length of hash-table:           70000
 Length of hash-table as a fraction of targetwalkers:              0.70000
@@ -410,168 +411,163 @@ Initial number of particles set to        500 and shift will be held at     0.00
 From analysis of reference determinant and connections, an upper bound for the timestep is:       0.0033734697
  Using initial time-step:   3.373469669137906E-003
 Will dynamically update timestep to limit spawning probability to   3.00000
-## 1. Iter.             2. Dets occ.         3. Dets spawned      4. Iter. time       
-##               0                4               0   0.00000000000     
- Updating time-step. New time-step =   8.133150405031594E-003
+## 1. Iter.             2. Dets occ.         3. Dets spawned      5. Iter. time        6. Im. time                             
+##               0                4               0   0.00000000000        0.00000000000     
+ Updating time-step. New time-step =   8.066161160366162E-003
  Updating spin-excitation class biases. pSingles(s->s) = 
-  1.244079688241913E-002 , pSingles(s->s') =   2.146594290778617E-006 
- , pDoubles(st->st) =   0.887751275175973      , pDoubles(st->s't) = 
-  1.253661085246278E-004 , pDoubles(st->s't') =   4.497346893250798E-002
-                10              419             112  0.772690749727E-003
-Bloom of more than n_add on double excit: A max of       3.39 particles created.        2 blooms occurred.
- Updating time-step. New time-step =   7.330671823108595E-003
+  2.060905276753069E-002 , pSingles(s->s') =   2.128913721382848E-006 
+ , pDoubles(st->st) =   0.887786483004003      , pDoubles(st->s't) = 
+  9.017596106398558E-005 , pDoubles(st->s't') =   4.460304190684900E-002
+                10              411             106  0.876790261827E-003  0.806616116037E-001
+                20             1032             355  0.157239439432E-002  0.161323223207     
+Bloom of more than n_add on double excit: A max of       5.52 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   7.074812542574692E-003
  Updating spin-excitation class biases. pSingles(s->s) = 
-  1.121329308093779E-002 , pSingles(s->s') =   1.934794944074990E-006 
- , pDoubles(st->st) =   0.942470802856981      , pDoubles(st->s't) = 
-  1.129965331473165E-004 , pDoubles(st->s't') =   4.584081002549548E-002
-                20             1031             334  0.178343057632E-002
-Bloom of more than n_add on single excit: A max of       4.02 particles created.        3 blooms occurred.
-Bloom of more than n_add on double excit: A max of       3.31 particles created.        1 blooms occurred.
- Updating time-step. New time-step =   7.241499521623774E-003
+  1.807615569680622E-002 , pSingles(s->s') =   1.867265629666023E-006 
+ , pDoubles(st->st) =   0.934706944919190      , pDoubles(st->s't) = 
+  7.909314080023308E-005 , pDoubles(st->s't') =   7.191984023975055E-002
+                30             1567             462  0.251560797915E-002  0.232071348633     
+                40             2099             526  0.325809721835E-002  0.302819424613     
+Bloom of more than n_add on single excit: A max of       3.10 particles created.        1 blooms occurred.
  Updating spin-excitation class biases. pSingles(s->s) = 
-  1.486003670122665E-002 , pSingles(s->s') =   1.911259568023850E-006 
- , pDoubles(st->st) =   0.942832363621654      , pDoubles(st->s't) = 
-  1.116220123443543E-004 , pDoubles(st->s't') =   5.366431876824475E-002
-                30             1512             431  0.211539259180E-002
-                40             2033             529  0.267870421521E-002
-Bloom of more than n_add on single excit: A max of       3.20 particles created.        1 blooms occurred.
+  1.868171606513249E-002 , pSingles(s->s') =   1.866112743637594E-006 
+ , pDoubles(st->st) =   0.909923156541331      , pDoubles(st->s't) = 
+  7.904430716053852E-005 , pDoubles(st->s't') =   7.187543553499835E-002
+                50             2745             625  0.413100142032E-002  0.373523868774     
+Bloom of more than n_add on single excit: A max of       3.22 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   7.060886278562561E-003
  Updating spin-excitation class biases. pSingles(s->s) = 
-  1.584245749589577E-002 , pSingles(s->s') =   1.909353583885972E-006 
- , pDoubles(st->st) =   0.931362224478515      , pDoubles(st->s't) = 
-  1.115106984294231E-004 , pDoubles(st->s't') =   5.361080257292856E-002
-                50             2649             656  0.331338634714E-002
+  2.000830524685858E-002 , pSingles(s->s') =   1.863590050421623E-006 
+ , pDoubles(st->st) =   0.909362047358226      , pDoubles(st->s't) = 
+  7.893745159239834E-005 , pDoubles(st->s't') =   7.177827116256838E-002
+                60             3398             751  0.512331724167E-002  0.444132731559     
+                70             4088             839  0.605539092794E-002  0.514741594345     
+                80             4873             969  0.710748415440E-002  0.585350457131     
+                90             5655            1114  0.809940136969E-002  0.655959319916     
+               100             6401            1165  0.881420355290E-002  0.726568182702     
+               110             7229            1371  0.104210851714E-001  0.797177045487     
+ Updating time-step. New time-step =   6.775018175130640E-003
  Updating spin-excitation class biases. pSingles(s->s) = 
-  1.610288760007464E-002 , pSingles(s->s') =   1.908848326209949E-006 
- , pDoubles(st->st) =   0.930433349892646      , pDoubles(st->s't) = 
-  1.114811902038039E-004 , pDoubles(st->s't') =   5.359661595514005E-002
-                60             3351             769  0.414798269048E-002
- Updating time-step. New time-step =   7.225008626383025E-003
+  2.027742529544800E-002 , pSingles(s->s') =   1.788140463461687E-006 
+ , pDoubles(st->st) =   0.908135893872050      , pDoubles(st->s't) = 
+  7.574157805949932E-005 , pDoubles(st->s't') =   0.108279216325411     
+               120             8114            1424  0.118239875883E-001  0.864927227239     
+               130             8878            1521  0.123842116445E-001  0.932677408990     
+Bloom of more than n_add on single excit: A max of       3.11 particles created.        1 blooms occurred.
  Updating spin-excitation class biases. pSingles(s->s) = 
-  1.710347259233233E-002 , pSingles(s->s') =   1.906907101905466E-006 
- , pDoubles(st->st) =   0.930187221719502      , pDoubles(st->s't) = 
-  1.113678181810272E-004 , pDoubles(st->s't') =   5.354211028693082E-002
-                70             4154             905  0.501129636541E-002
- Updating time-step. New time-step =   7.194250156062836E-003
+  2.100024176197721E-002 , pSingles(s->s') =   1.786821215130752E-006 
+ , pDoubles(st->st) =   0.871365885860237      , pDoubles(st->s't) = 
+  7.568569768965195E-005 , pDoubles(st->s't') =   0.108199330444893     
+               140             9624            1480  0.134729146957E-001   1.00037760624     
+               150            10381            1666  0.143436789513E-001   1.06807780348     
+Bloom of more than n_add on single excit: A max of       3.38 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   6.752235497743661E-003
  Updating spin-excitation class biases. pSingles(s->s) = 
-  2.128788194454922E-002 , pSingles(s->s') =   1.898788973813115E-006 
- , pDoubles(st->st) =   0.929241624631179      , pDoubles(st->s't) = 
-  1.108937005837642E-004 , pDoubles(st->s't') =   5.331416960266269E-002
-                80             4947             997  0.650217523798E-002
-                90             5716            1105  0.672458391637E-002
- Updating time-step. New time-step =   7.054432518561663E-003
+  2.357198521709775E-002 , pSingles(s->s') =   1.782127398072255E-006 
+ , pDoubles(st->st) =   0.870723158787496      , pDoubles(st->s't) = 
+  7.548687823536535E-005 , pDoubles(st->s't') =   0.107915100630148     
+               160            11094            1763  0.159343127161E-001   1.13560015846     
+               170            11789            1935  0.172653198242E-001   1.20312251344     
+               180            12429            2031  0.175808910280E-001   1.27064486842     
+               190            12940            2032  0.190276857466E-001   1.33816722339     
+               200            13669            2289  0.201007612050E-001   1.40568957837     
+               210            14239            2206  0.200051311404E-001   1.47321193335     
+               220            14907            2416  0.209279302508E-001   1.54073428833     
+Bloom of more than n_add on single excit: A max of       3.12 particles created.        1 blooms occurred.
  Updating spin-excitation class biases. pSingles(s->s) = 
-  2.087415969465186E-002 , pSingles(s->s') =   1.861886700098308E-006 
- , pDoubles(st->st) =   0.925287348044278      , pDoubles(st->s't) = 
-  1.087385218100156E-004 , pDoubles(st->s't') =   7.171266470509449E-002
-               100             6558            1216  0.793061219156E-002
+  2.449014022859981E-002 , pSingles(s->s') =   1.780451627634596E-006 
+ , pDoubles(st->st) =   0.868435717804730      , pDoubles(st->s't) = 
+  7.541589639696545E-005 , pDoubles(st->s't') =   0.107813625878338     
+               230            15452            2492  0.218047611415E-001   1.60819315067     
+               240            15952            2445  0.225569494069E-001   1.67565201301     
+               250            16503            2619  0.231583118439E-001   1.74311087535     
+               260            16941            2786  0.238062385470E-001   1.81056973769     
+Bloom of more than n_add on single excit: A max of       5.13 particles created.        1 blooms occurred.
+               270            17491            2713  0.245265476406E-001   1.87802853079     
+               280            17922            2839  0.251479633152E-001   1.94548732389     
+Bloom of more than n_add on single excit: A max of       3.14 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   6.738246589685764E-003
  Updating spin-excitation class biases. pSingles(s->s) = 
-  2.143809806253108E-002 , pSingles(s->s') =   1.860814325839957E-006 
- , pDoubles(st->st) =   0.907302638893273      , pDoubles(st->s't) = 
-  1.086758926545068E-004 , pDoubles(st->s't') =   7.167136100190814E-002
-               110             7435            1373  0.923731364310E-002
- Updating time-step. New time-step =   6.959583204255240E-003
+  2.559386950469588E-002 , pSingles(s->s') =   2.803705346448177E-006 
+ , pDoubles(st->st) =   0.867618235499764      , pDoubles(st->s't) = 
+  7.533048869599501E-005 , pDoubles(st->s't') =   0.107691528093130     
+               290            18392            2860  0.258120056242E-001   2.01286978979     
+Bloom of more than n_add on single excit: A max of       3.03 particles created.        1 blooms occurred.
  Updating spin-excitation class biases. pSingles(s->s) = 
-  2.234503648540953E-002 , pSingles(s->s') =   1.836852981743797E-006 
- , pDoubles(st->st) =   0.906781427588254      , pDoubles(st->s't) = 
-  1.072764943251348E-004 , pDoubles(st->s't') =   8.244227566042225E-002
-               120             8287            1495  0.102207902819E-001
-               130             9172            1480  0.112825874239E-001
-               140             9931            1669  0.120591046289E-001
-Bloom of more than n_add on double excit: A max of       4.05 particles created.        1 blooms occurred.
- Updating time-step. New time-step =   6.751179009458873E-003
+  2.581132282983627E-002 , pSingles(s->s') =   2.803079657599125E-006 
+ , pDoubles(st->st) =   0.866636485644948      , pDoubles(st->s't) = 
+  7.531367756895183E-005 , pDoubles(st->s't') =   0.107667495115360     
+               300            18780            2974  0.261800289154E-001   2.08023721828     
+               310            19365            3044  0.271971225739E-001   2.14760464677     
+               320            19835            3115  0.279441829771E-001   2.21497207526     
+               330            20129            3089  0.282799247652E-001   2.28233950375     
+               340            20456            3172  0.288128852844E-001   2.34970693224     
+               350            20717            3188  0.291613098234E-001   2.41707436073     
+               360            21185            3252  0.298153869808E-001   2.48444178922     
+               370            21504            3272  0.299688819796E-001   2.55180921771     
+               380            21963            3489  0.309470184147E-001   2.61917664620     
+               390            22278            3395  0.317052379251E-001   2.68654407469     
+               400            22691            3554  0.320046916604E-001   2.75391150318     
+               410            22993            3531  0.320873260498E-001   2.82127893167     
+               420            23315            3696  0.325716957450E-001   2.88864636016     
+Bloom of more than n_add on single excit: A max of       3.02 particles created.        1 blooms occurred.
  Updating spin-excitation class biases. pSingles(s->s) = 
-  2.369617295078266E-002 , pSingles(s->s') =   1.781848557572884E-006 
- , pDoubles(st->st) =   0.895106841897827      , pDoubles(st->s't) = 
-  1.040641077835475E-004 , pDoubles(st->s't') =   0.107898215697801     
-               150            10658            1777  0.129903908819E-001
-               160            11378            1830  0.143261197954E-001
-               170            11913            1872  0.148069858551E-001
-               180            12600            2052  0.154770612717E-001
-               190            13260            2065  0.164875034243E-001
-Bloom of more than n_add on single excit: A max of       3.07 particles created.        1 blooms occurred.
+  2.601428914902898E-002 , pSingles(s->s') =   2.802495652904922E-006 
+ , pDoubles(st->st) =   0.866443081572732      , pDoubles(st->s't) = 
+  7.529798641971221E-005 , pDoubles(st->s't') =   0.107645063243903     
+               430            23493            3669  0.332314483821E-001   2.95599975305     
+               440            23961            3677  0.337899215519E-001   3.02335314595     
+               450            24224            3643  0.341341979802E-001   3.09070653884     
+               460            24544            3878  0.376869216561E-001   3.15805993174     
+               470            24832            3906  0.346853248775E-001   3.22541332463     
+               480            25165            3954  0.354784019291E-001   3.29276671752     
+               490            25434            3986  0.354748740792E-001   3.36012011042     
+Bloom of more than n_add on double excit: A max of       3.40 particles created.        1 blooms occurred.
+               500            25860            4093  0.363699905574E-001   3.42747350331     
+               510            26241            4106  0.371242538095E-001   3.49482689620     
+               520            26540            4137  0.372200012207E-001   3.56218028910     
+               530            26829            4234  0.383321754634E-001   3.62953368199     
+               540            27200            4230  0.389983169734E-001   3.69688707489     
+               550            27547            4310  0.393360145390E-001   3.76424046778     
+               560            27903            4255  0.395605079830E-001   3.83159386067     
+               570            28150            4277  0.405783653259E-001   3.89894725357     
+               580            28344            4422  0.402693748474E-001   3.96630064646     
+               590            28623            4673  0.401464477181E-001   4.03365403936     
+               600            28882            4463  0.410286895931E-001   4.10100743225     
+               610            29149            4559  0.415307991207E-001   4.16836082514     
+               620            29563            4630  0.417998321354E-001   4.23571421804     
+ Updating time-step. New time-step =   6.728539304278309E-003
  Updating spin-excitation class biases. pSingles(s->s) = 
-  2.421364804304467E-002 , pSingles(s->s') =   1.780904115667423E-006 
- , pDoubles(st->st) =   0.868299821497125      , pDoubles(st->s't) = 
-  1.040089501755524E-004 , pDoubles(st->s't') =   0.107841025878837     
-               200            13904            2236  0.176704414189E-001
- Updating time-step. New time-step =   6.728505666868161E-003
+  2.699762317942336E-002 , pSingles(s->s') =   2.799666258885244E-006 
+ , pDoubles(st->st) =   0.866262625975086      , pDoubles(st->s't) = 
+  7.522196572285621E-005 , pDoubles(st->s't') =   0.107536385002824     
+               630            29709            4823  0.423719398677E-001   4.30299961108     
+               640            30032            4696  0.427244193852E-001   4.37028500412     
+               650            30324            4770  0.430738441646E-001   4.43757039717     
+               660            30564            4778  0.438985824585E-001   4.50485579021     
+ Updating time-step. New time-step =   6.618394493369965E-003
  Updating spin-excitation class biases. pSingles(s->s) = 
-  2.697501818837703E-002 , pSingles(s->s') =   1.775864349076262E-006 
- , pDoubles(st->st) =   0.867839835597706      , pDoubles(st->s't) = 
-  1.037146160630839E-004 , pDoubles(st->s't') =   0.107535847405387     
-               210            14440            2214  0.175691135228E-001
-               220            14848            2328  0.187854282558E-001
-               230            15463            2368  0.188250783831E-001
-               240            15811            2466  0.189517978579E-001
-               250            16384            2428  0.193554162979E-001
-               260            16941            2606  0.201712362468E-001
-               270            17353            2623  0.219323392957E-001
-               280            17747            2659  0.230475906283E-001
-               290            18215            2744  0.224753376096E-001
-               300            18523            2843  0.226462371647E-001
-               310            18987            2942  0.224983692169E-001
-               320            19479            2956  0.258710384369E-001
-               330            20028            2940  0.247675422579E-001
-               340            20285            3057  0.250256061554E-001
-               350            20617            3095  0.262359138578E-001
-               360            20903            3231  0.263015739620E-001
-               370            21433            3355  0.278792381287E-001
-               380            21677            3324  0.269809719175E-001
-               390            22047            3323  0.284280292690E-001
-               400            22332            3412  0.272433273494E-001
-               410            22600            3449  0.287262443453E-001
-               420            22807            3439  0.282970909029E-001
-               430            23128            3590  0.288850776851E-001
-               440            23517            3587  0.294439308345E-001
-               450            23868            3682  0.290894508362E-001
-               460            24138            3751  0.301106460392E-001
-               470            24541            3693  0.304136276245E-001
-               480            24821            3810  0.301324836910E-001
-               490            25140            3902  0.316328033805E-001
-               500            25444            3858  0.315645225346E-001
-               510            25757            3986  0.305311195552E-001
-               520            26077            4044  0.316023826599E-001
-               530            26379            4040  0.320880897343E-001
-               540            26726            4260  0.320792198181E-001
-               550            26991            4171  0.319774635136E-001
-               560            27374            4266  0.325509086251E-001
-               570            27840            4367  0.331618301570E-001
-               580            28109            4385  0.335504524410E-001
-               590            28336            4516  0.338562019169E-001
- Updating spin-excitation class biases. pSingles(s->s) = 
-  2.772824567703184E-002 , pSingles(s->s') =   1.774489636331111E-006 
- , pDoubles(st->st) =   0.865383725586965      , pDoubles(st->s't) = 
-  1.036343296354441E-004 , pDoubles(st->s't') =   0.107452602927808     
-               600            28690            4476  0.347543731332E-001
-               610            29191            4478  0.348921790719E-001
-               620            29444            4576  0.349513068795E-001
-               630            29657            4787  0.353087410331E-001
-               640            29845            4665  0.356062874198E-001
-               650            30214            4889  0.360590927303E-001
-               660            30436            4781  0.361682884395E-001
-               670            30741            4980  0.366847030818E-001
- Updating time-step. New time-step =   6.401493868880011E-003
- Updating spin-excitation class biases. pSingles(s->s) = 
-  2.640106377321226E-002 , pSingles(s->s') =   1.689555646590649E-006 
- , pDoubles(st->st) =   0.864718787852790      , pDoubles(st->s't) = 
-  9.867398672343052E-005 , pDoubles(st->s't') =   0.150173399890333     
-               680            31020            4815  0.377304069698E-001
-               690            31420            4873  0.377550125122E-001
-               700            31677            4769  0.380275733769E-001
-               710            31943            4785  0.378824248910E-001
-               720            32321            4952  0.387060157955E-001
-               730            32543            4894  0.389896407723E-001
-               740            32848            4894  0.391372665763E-001
-               750            32984            5089  0.396959297359E-001
-               760            33341            5107  0.399629585445E-001
-               770            33692            5158  0.411014556885E-001
-               780            33989            5061  0.416032783687E-001
-               790            34265            5203  0.411911010742E-001
-               800            34462            5345  0.424213409424E-001
+  2.655567761507456E-002 , pSingles(s->s') =   2.753836295390000E-006 
+ , pDoubles(st->st) =   0.865389247383913      , pDoubles(st->s't) = 
+  7.399059754381775E-005 , pDoubles(st->s't') =   0.122145831670385     
+               670            30917            4881  0.461694709957E-001   4.57103973514     
+               680            31312            4983  0.463651642203E-001   4.63722368008     
+               690            31707            4930  0.453981384635E-001   4.70340762501     
+               700            32058            5030  0.454549789429E-001   4.76959156994     
+               710            32249            4952  0.459247604012E-001   4.83577551488     
+               720            32380            5068  0.458122268319E-001   4.90195945981     
+               730            32700            5016  0.470603927970E-001   4.96814340474     
+               740            32989            5062  0.469999313354E-001   5.03432734968     
+               750            33246            5287  0.487516410649E-001   5.10051129461     
+               760            33450            5172  0.483348853886E-001   5.16669523955     
+               770            33615            5185  0.482542030513E-001   5.23287918448     
+               780            33993            5421  0.489740371704E-001   5.29906312941     
+               790            34377            5412  0.496778488159E-001   5.36524707435     
+               800            34760            5472  0.502563491464E-001   5.43143101928     
 Total iteration number limit reached. Finishing FCIQMC loop...
  - - - - - - - - - - - - - - - - - - - - - - - -
- Total loop-time:    20.3087838888168     
- Time lost due to load imbalance:   0.306886315345764     
+ Total loop-time:    23.8836276531219     
+ Time lost due to load imbalance:   0.412338137626648     
  - - - - - - - - - - - - - - - - - - - - - - - -
  
 Current references: 
@@ -593,27 +589,27 @@ definedet     1-6  8  11
 Most occupied         15 determinants as excitations from reference: 
  
  Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc
-11111111000000000000000000000000    0    0    771.3893        0.000000       -7.694167        0.000000       -4.410489        0.000000        0.000000        0.000000      0.43153  Y  Y  Y  Y  Y  Y  N  N      0
-11110011110000000000000000000000    2    0   -119.2717        0.000000        0.000000       -1.000000        1.243792        1.168275        0.000000        0.000000      0.06639  Y  Y  N  N  N  N  N  N      1
-11111100110000000000000000000000    2    0   -85.21171        0.000000       -1.542351       -1.000000        1.997501       -1.434322        0.000000        0.000000      0.04890  Y  Y  N  N  N  N  N  N      0
-10111011010100000000000000000000    2    4    65.52382        0.000000       -1.389939        0.000000       -2.517575       -1.000000        0.000000        0.000000      0.03825  Y  Y  N  N  N  N  N  N      0
-01111011011000000000000000000000    2    4   -55.56055        0.000000        2.699139        1.066601       -1.043328        1.000000        0.000000        0.000000      0.03268  Y  Y  N  N  N  N  N  N      0
-11111110010000000000000000000000    1    2    6.373659        0.000000        64.42298        0.000000        834.4483        1.324148        0.000000        0.000000      0.49859  Y  Y  Y  Y  Y  Y  N  N      0
-10101111010100000000000000000000    2    4   -3.616565        0.000000        2.982124        0.000000        59.78199        0.000000        0.000000        0.000000      0.03656  Y  Y  N  N  Y  Y  N  N      0
-01011111101000000000000000000000    2    4   -1.000000        0.000000       -54.68746        0.000000       -11.92405        1.294998        0.000000        0.000000      0.03725  N  N  Y  Y  Y  Y  N  N      0
-00111110011100000000000000000000    3    2   -1.000000        0.000000       -3.883496        0.000000       -57.00962        0.000000        0.000000        0.000000      0.03409  N  N  Y  Y  Y  Y  N  N      0
-11010111101000000000000000000000    2    4    0.000000        0.000000        0.000000        0.000000        0.000000        0.000000        122.9758        1.000000      0.06773  N  N  N  N  N  N  Y  Y      0
-11110001111000000000000000000000    3    2    0.000000        0.000000        0.000000        0.000000        0.000000        0.000000       -121.7088        0.000000      0.06703  N  N  N  N  N  N  Y  Y      0
-10111001011100000000000000000000    3    4    0.000000        0.000000        0.000000        0.000000        0.000000        0.000000       -64.60911        0.000000      0.03559  N  N  N  N  N  N  Y  Y      0
-11011011110000000000000000000000    2    2    0.000000        0.000000        111.9631        0.000000       -21.83381        0.000000        0.000000        0.000000      0.07369  N  N  Y  Y  Y  Y  N  N      0
-11011011011000000000000000000000    2    4    0.000000        0.000000        0.000000        0.000000        0.000000        0.000000       -101.8054        0.000000      0.05607  N  N  N  N  N  N  Y  Y      0
-10011111100100000000000000000000    2    4    0.000000        0.000000        65.82787        0.000000        10.51269       -1.595273        0.000000        0.000000      0.04206  N  N  Y  Y  Y  Y  N  N      0
+11111111000000000000000000000000    0    0    796.0520        0.000000        0.000000        0.000000       -1.000000        0.000000        0.000000        0.000000      0.43828  Y  Y  N  N  N  N  N  N      0
+11111100110000000000000000000000    2    0   -105.0914        0.000000       -1.870725        0.000000       -1.930559        0.000000        1.000000        0.000000      0.06043  Y  Y  N  N  N  N  N  N      0
+11110011110000000000000000000000    2    0   -98.99181        0.000000       -1.580071        0.000000        1.673393        0.000000       -1.276377        0.000000      0.05692  Y  Y  N  N  N  N  N  N      1
+10110111100100000000000000000000    2    4   -62.49627        0.000000        0.000000        0.000000       -3.254494        0.000000       -1.178076        0.000000      0.03680  Y  Y  N  N  Y  Y  N  N      0
+01111011011000000000000000000000    2    4   -58.36609        0.000000        1.016173        0.000000       -3.602294        0.000000        0.000000        0.000000      0.03463  Y  Y  N  N  Y  Y  N  N      0
+01110111101000000000000000000000    2    4    54.34232        0.000000        4.098436        0.000000       -1.096392        0.000000        1.293398        0.000000      0.03345  Y  Y  Y  Y  N  N  N  N      0
+10101111010100000000000000000000    2    4   -3.736373        0.000000       -1.000000        0.000000        57.01175        0.000000        1.216390        0.000000      0.03462  Y  Y  N  N  Y  Y  N  N      0
+11111010010000000000000001000000    2    4    1.980582        0.000000        4.992574        0.000000        41.84371        0.000000        1.141901        0.000000      0.02747  N  N  Y  Y  Y  Y  N  N      0
+10011111100100000000000000000000    2    4   -1.297015        0.000000        54.52999        0.000000       -4.797605       -1.000000       -1.053306        0.000000      0.03392  N  N  Y  Y  Y  Y  N  N      0
+11111110010000000000000000000000    1    2    1.004086        0.000000        60.60493        0.000000        766.4105        1.203925       -1.000000        0.000000      0.45585  N  N  Y  Y  Y  Y  N  N      0
+11011011110000000000000000000000    2    2    1.000000        0.000000        161.0155        0.000000       -43.09860        0.000000       -1.305149        0.000000      0.11350  N  N  Y  Y  Y  Y  N  N      0
+11011011011000000000000000000000    2    4    0.000000        0.000000        0.000000        0.000000        0.000000        0.000000       -129.5463        0.000000      0.07123  N  N  N  N  N  N  Y  Y      0
+11111110000000000000000000000100    1    2    0.000000        0.000000       -6.465799        0.000000       -53.02807        0.000000        1.033990        0.000000      0.03328  N  N  Y  Y  Y  Y  N  N      0
+11110001111000000000000000000000    3    2    0.000000        0.000000        0.000000        0.000000        0.000000        0.000000       -183.4662        0.000000      0.10088  N  N  N  N  N  N  Y  Y      0
+11010111101000000000000000000000    2    4    0.000000        0.000000        0.000000        0.000000        0.000000        0.000000        126.0551        0.000000      0.06931  N  N  N  N  N  N  Y  Y      0
  
 
  Load balancing information based on the last iteration:
- Mean number of determinants/process   17430.0000000000
- Min number of determinants/process              17233
- Max number of determinants/process              17627
+ Mean number of determinants/process   17591.0000000000
+ Min number of determinants/process              17530
+ Max number of determinants/process              17652
 
 
 Calculating approximate errorbar for energy estimates...
@@ -621,22 +617,22 @@ Calculating approximate errorbar for energy estimates...
 Calculation has not entered variable shift phase. Error analysis therefore not performed.
 Direct reblocking of instantaneous energy possible, but this would contain finite sampling bias.
  Current reference energy                           -4850.284337126192
- Projected correlation energy                          -0.090298751489
+ Projected correlation energy                          -0.087938735415
  No automatic errorbar obtained for projected energy
  No reliable averaged shift correlation energy could be obtained automatically
 
- Total projected energy       -4850.37463588
+ Total projected energy       -4850.37227586
 
 
- Final energy estimate for state 1:     -4850.3746358777    
+ Final energy estimate for state 1:     -4850.3722758616    
  Final energy estimate for state 2:     -4850.2843371262    
- Final energy estimate for state 3:     -4850.3905371961    
+ Final energy estimate for state 3:     -4850.3883733978    
  Final energy estimate for state 4:     -4850.2843371262    
  
  ================================================================
  Memory usage
  Maximum memory defined is (MB) :   99999.0
- Maximum memory used is    (MB) :    1530.2
+ Maximum memory used is    (MB) :    1514.9
  
  Large memory allocations:
  
@@ -645,7 +641,7 @@ Direct reblocking of instantaneous energy possible, but this would contain finit
  arr               InitFCIMCPar       DeallocFciMCMemPar  610.4MB
  arr               InitFCIMCPar       DeallocFciMCMemPar  610.4MB
  WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar  152.6MB
- arr               init_global_det_datclean_global_det_da 152.6MB
+ arr               init_global_det_datclean_global_det_da 137.3MB
  UMat              IntInit            IntCleanup            4.3MB
  TMAT2D            SetupTMAT          DestroyTMat          16.0KB
  G1                SysInit            NECICore              1.8KB
@@ -660,20 +656,20 @@ Direct reblocking of instantaneous energy possible, but this would contain finit
  Timing of most expensive procedures.
  Procedure                                 Calls       total time
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- WalkerTime                                 800     13.51
- NECICUBE                                     1      4.35
+ WalkerTime                                 800     16.60
+ NECICUBE                                     1      4.59
  DeathTime                                  800      1.62
- SortTime                                   800      0.87
- AnnMainTime                                800      0.61
- SysInit                                      1      0.61
+ SortTime                                   800      0.85
+ AnnMainTime                                800      0.60
+ SysInit                                      1      0.40
  Compress Sort interface                    800      0.23
- AnnihilTime                                800      0.07
  Compression interface                      800      0.06
+ AnnihilTime                                800      0.04
  CommsTime                                  800      0.03
  - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
- Total                                  21.96
+ Total                                  25.01
 
- Global wall clock time         22.04
+ Global wall clock time         25.07
  ================================================================
- Calculation ended 10/10/2019 at 16:39:07
+ Calculation ended 22/11/2019 at 13:34:08
  ================================================================

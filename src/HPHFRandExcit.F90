@@ -342,7 +342,6 @@ MODULE HPHFRandExcitMod
                         HEl=0.0_dp
                     else
                         if (t_lattice_model) then 
-!                             print *, "toto2"
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:) 
                             Matel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
@@ -689,6 +688,12 @@ MODULE HPHFRandExcitMod
             ENDIF
 
         ENDIF
+
+#ifdef __CMPLX
+        ! We return Hij, but the requested matrix element is Hji = Hij* -> conjugate
+        ! (only required with complex matrix elements)
+        HEl = conjg(HEl)
+#endif        
 
         ! [W.D.]
         ! i should also abort here already if the matrix element

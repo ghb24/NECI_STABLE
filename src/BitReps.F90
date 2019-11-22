@@ -1168,8 +1168,6 @@ contains
                 ndets_out = ndets_out - pos
 
                 list_out(:,ndets_out) = list_2(:,i)
-                call extract_sign(list_out(:,ndets_out),sign_2)
-                call encode_sign(list_out(:,ndets_out),sign_2)
 
                 ! Search a smaller section of list_1 next time.
                 min_ind = min_ind - pos - 1

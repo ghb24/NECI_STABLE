@@ -250,13 +250,17 @@ module fcimc_pointed_fns
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then
                 call fill_frequency_histogram(abs(rh / precond_fac), prob)
             else
-                if (t_consider_par_bias .and. ic > 1) then
-                    t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+                if (t_consider_par_bias) then
+                    ! t_par only has meaning for double excitations
+                    if(ic == 2) then
+                        t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+                    else
+                        t_par = .false.
+                    endif
 
                     ! not sure about the AvMCExcits!! TODO
                     call fill_frequency_histogram_4ind(abs(rh / precond_fac), prob, &
                         ic, t_par, ex)
-
                 else
 
                     call fill_frequency_histogram_sd(abs(rh / precond_fac), prob, ic)

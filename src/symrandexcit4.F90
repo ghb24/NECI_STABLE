@@ -622,7 +622,7 @@ contains
         ! cutoff.. because i think by ignoring some, we allow other excitations
         ! which should have 0 matrix element to slip through and cause major
         ! headache..
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum,1e-12_dp)) then
             orb = 0
             pgen = 0.0_dp
             return
