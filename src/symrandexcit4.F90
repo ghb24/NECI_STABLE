@@ -314,7 +314,7 @@ contains
             end do
 
             ! Andjust the probability for this symmetry stuff
-            if (cum_sum < EPS) then
+            if (near_zero(cum_sum)) then
                 pgen = 0
                 return
             else
@@ -335,7 +335,7 @@ contains
 
             ! Deal with cases when there are no available excitations
             ! with the given pathway.
-            if (any(cum_sums < EPS)) then
+            if (any(near_zero(cum_sums))) then
                 cum_sums = 1.0
                 int_cpt = 0.0
             end if
@@ -355,7 +355,7 @@ contains
 
                 ! Deal with cases when there are no available excitations
                 ! with the given pathway.
-                If (any(sum_pair < EPS)) then
+                If (any(near_zero(sum_pair))) then
                     sum_pair = 1.0
                     cpt_pair = 0.0
                 end if
@@ -536,7 +536,7 @@ contains
         end do
 
         ! Adjust the generation probability for the relevant values.
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum)) then
             pgen = 0.0_dp
         else
             pgen = pgen * cpt_tgt / cum_sum
@@ -622,7 +622,7 @@ contains
         ! cutoff.. because i think by ignoring some, we allow other excitations
         ! which should have 0 matrix element to slip through and cause major
         ! headache..
-        if (near_zero(cum_sum,1e-12_dp)) then
+        if (near_zero(cum_sum)) then
             orb = 0
             pgen = 0.0_dp
             return
@@ -1227,7 +1227,7 @@ contains
 
 
         ! If there are no available orbitals to pair with, we need to abort
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum)) then
             orb = 0
             return
         end if
@@ -1449,7 +1449,6 @@ contains
             ! And account for the case where this is not a connected excitation
             ! actually this comparison with 0 should be removed..
             if (near_zero(cum_sum)) then
-!             if (cum_sum < EPS) then
                 pgen = 0
             else
                 pgen = pgen * cpt_tgt / cum_sum
@@ -1575,7 +1574,6 @@ contains
 
         ! Select a particulor electron, or abort
         if (near_zero(cum_sum)) then
-!         if (cum_sum < EPS) then
             elec = 0
         else
             r = genrand_real2_dSFMT() * cum_sum
