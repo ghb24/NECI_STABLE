@@ -143,7 +143,7 @@ contains
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
         run = part_type_to_run(part_type)
-#ifdef __DEBUG
+#ifdef DEBUG_
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
 #endif
 
@@ -164,7 +164,7 @@ contains
         end if
 
         if (list_full) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             write(6,*) "Attempting to spawn particle onto processor: ", proc
             write(6,*) "No memory slots available for this spawn."
             write(6,*) "Please increase MEMORYFACSPAWN"
@@ -373,7 +373,7 @@ contains
             end if
 
             if (list_full) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                 write(6,*) "Attempting to spawn particle onto processor: ", proc
                 write(6,*) "No memory slots available for this spawn."
                 write(6,*) "Please increase MEMORYFACSPAWN"
@@ -437,7 +437,7 @@ contains
         HElement_t(dp) :: HOffDiag(inum_runs)
         character(*), parameter :: this_routine = 'SumEContrib'
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         complex(dp) :: CmplxwSign
 #endif
 
@@ -453,7 +453,7 @@ contains
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
-#ifdef __CMPLX
+#ifdef CMPLX_
         CmplxwSign = ARR_RE_OR_CPLX(realwsign, 1)
 
         if (tTrialWavefunction .and. present(ind)) then
@@ -587,7 +587,7 @@ contains
             ! along with the doubles
 
             if (ExcitLevel_local == 2) then
-#ifdef __CMPLX
+#ifdef CMPLX_
             do run = 1, inum_runs
                 NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign(min_part_type(run):max_part_type(run))))
             enddo
@@ -612,7 +612,7 @@ contains
         ! L_{0,1,2} norms of walker weights by excitation level.
         if (tLogEXLEVELStats) then
             do run = 1, inum_runs
-#ifdef __CMPLX
+#ifdef CMPLX_
                 w(0) = real(1 + max_part_type(run) - min_part_type(run), dp)
                 w(1) = sum(abs(RealwSign(min_part_type(run):&
                                          max_part_type(run))))
@@ -734,9 +734,9 @@ contains
                     trial_denom = trial_denom + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
-#ifdef __CMPLX
+#ifdef CMPLX_
                             trial_denom(run-1) = trial_denom(run-1) + current_trial_amps(run/2,ind)* &
                                 cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run/2,ind)* &
@@ -749,7 +749,7 @@ contains
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
-#ifdef __CMPLX
+#ifdef CMPLX_
                         do run=1,inum_runs
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run,ind)* &
                                 cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
@@ -767,7 +767,7 @@ contains
                         trial_numerator = trial_numerator + amps(1)*sgn
                     else
                         if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                             do run = 2, inum_runs, 2
                                 trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
                             end do
@@ -787,9 +787,9 @@ contains
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
-#ifdef __CMPLX
+#ifdef CMPLX_
                             trial_numerator(run-1) = trial_numerator(run-1) + current_trial_amps(run/2,ind)* &
                                 cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run/2,ind)* &
@@ -802,7 +802,7 @@ contains
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
-#ifdef __CMPLX
+#ifdef CMPLX_
                         do run=1,inum_runs
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run,ind)* &
                                 cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
@@ -829,7 +829,7 @@ contains
                     exlevel = 2
                 end if
             end if
-#ifdef __CMPLX
+#ifdef CMPLX_
             sgn_run = cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
 #else
             sgn_run = sgn(run)
@@ -880,7 +880,7 @@ contains
           implicit none
           real(dp), intent(inout) :: var(lenof_sign)
           
-#ifdef __CMPLX
+#ifdef CMPLX_
           var(min_part_type(run)) = var(min_part_type(run)) + real(sgn_run)
           var(max_part_type(run)) = var(max_part_type(run)) + aimag(sgn_run)
 #else
@@ -1388,7 +1388,7 @@ contains
          subroutine add_part_number(var)
            real(dp), intent(inout) :: var(inum_runs)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
            do run = 1, inum_runs
               var(run) = var(run) + sum(TotParts(min_part_type(run):max_part_type(run)))
            enddo
@@ -2178,7 +2178,7 @@ contains
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             NoDied(run) = NoDied(run) &
                 + sum(min(iDie(min_part_type(run):max_part_type(run)), abs(RealwSign(min_part_type(run):max_part_type(run)) )))
@@ -2189,7 +2189,7 @@ contains
 
         ! Count any antiparticles
         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             NoBorn(run) = NoBorn(run) &
                 + sum(max(iDie(min_part_type(run):max_part_type(run)) &

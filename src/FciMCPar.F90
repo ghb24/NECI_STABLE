@@ -1168,7 +1168,7 @@ module FciMCParMod
                 SpawnSign = get_all_spawn_pops(j)
                 do run = 1, inum_runs
                     if(.not. is_run_unnocc(SignCurr, run) .and. .not. is_run_unnocc(SpawnSign, run)) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                         !For complex walkers, we consider the sign changed when the argument of the complex
                         !number changes more than pi/2.
 
@@ -1186,7 +1186,7 @@ module FciMCParMod
                         call reset_tau_int(j, run)
                         call reset_shift_int(j, run)
                         call set_spawn_pop(j, min_part_type(run), SignCurr(min_part_type(run)))
-#ifdef __CMPLX
+#ifdef CMPLX_
                         call set_spawn_pop(j, max_part_type(run), SignCurr(max_part_type(run)))
 #endif
                     else

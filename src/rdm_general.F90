@@ -60,7 +60,7 @@ contains
         integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(t_r, 'Filling of reduced density matrices not working with complex walkers yet.')
 #endif
 

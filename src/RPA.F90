@@ -198,7 +198,7 @@ module RPA_Mod
             write(6,"(A)")
             write(6,"(A)") "Calculating RPA from stability matrix..."
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             call stop_all(t_r,"Not coded up for complex integrals. Bug ghb24")
 #endif
 

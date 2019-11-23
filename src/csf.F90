@@ -1699,7 +1699,7 @@ contains
                     c = coeffs(i)
                 else
                     call extract_sign (iluts(:,i), sgn)
-#ifdef __CMPLX
+#ifdef CMPLX_
                     c = abs(cmplx(sgn(1), sgn(2)))
 #else
                     c = abs(sgn(1))

@@ -173,12 +173,12 @@ contains
         ! The signs array
         NOffSgn = NOffY + NIfY
         NIfSgn = lenof_sign
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         write(6,*) 'Calculation supports multiple parallel runs'
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
         WRITE(6,*) "Double run in use."
 #endif
-#if defined(__CMPLX)
+#if defined(CMPLX_)
         WRITE(6,*) "Complex walkers in use."
 #endif
         write(6,*) 'Number of simultaneous walker distributions: ',inum_runs
@@ -187,7 +187,7 @@ contains
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         if (lenof_sign_max /= 20) then
             call stop_all(this_routine, "Invalid build configuration. Update &
                          &flags to account for new lenof_sign_max, then &
@@ -305,7 +305,7 @@ contains
 
         ! Strange bug in compiler
         unused_var(run)
-#ifdef __CMPLX
+#ifdef CMPLX_
         sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), extract_part_sign(ilut, max_part_type(run)))
 #else
         sgn = extract_part_sign(ilut, min_part_type(run))
@@ -429,7 +429,7 @@ contains
 
         ASSERT(run<=inum_runs)
         call encode_part_sign(ilut, real_sgn, min_part_type(run))
-#ifdef __CMPLX
+#ifdef CMPLX_
         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
 #else
         unused_var(imag_sgn)
@@ -560,7 +560,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         logical :: zero
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'bit_parent_zero'
 #endif
 
@@ -574,7 +574,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         integer(n_int), intent(out) :: parent_ilut(0:NIfDBO)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'extract_parent'
 #endif
 
@@ -589,7 +589,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:NIfBCast)
         integer(n_int), intent(in) :: ilut_parent(0:NIfTot)
         real(dp), intent(in) :: RDMBiasFacCurr
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'encode_parent'
 #endif
 
@@ -607,7 +607,7 @@ contains
     subroutine zero_parent(ilut)
 
         integer(n_int), intent(inout) :: ilut(0:nIfBCast)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'zero_parent'
 #endif
 

@@ -50,7 +50,7 @@ contains
         ! values of S, Ms for all allowed unpaired electrons.
 
         integer :: nopen, ncsf
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'init_yama_store'
 #endif
 
@@ -200,7 +200,7 @@ contains
         real(dp) :: elem, elem_i, elem_j, tot_wgt, elem_sum, tot_sum
         real(dp) :: tot_wgt_2, tot_sum_2
         character(20) :: fmt_str, fmt_num
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'csf_spin_project_one_yama'
 #endif
 
@@ -374,7 +374,7 @@ contains
         integer(n_int) :: iUnused2
         logical :: lUnused
         HElement_t(dp) :: hUnused
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'get_spawn_helement_spin_proj'
 #endif
 
