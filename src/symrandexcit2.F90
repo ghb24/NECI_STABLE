@@ -1429,7 +1429,7 @@ MODULE GenRandSymExcitNUMod
         ! Construct the new determinant, excitation matrix and parity
         call make_single (nI, nJ, eleci, orb, ExcitMat, tParity)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! These are useful (but O[N]) operations to test the determinant
         ! generated. If there are any problems with then excitations, I
         ! recommend uncommenting these tests to check the results.
@@ -3332,7 +3332,7 @@ SUBROUTINE SpinOrbSymSetup()
             SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)
         endif
     enddo
-#ifdef __DEBUG
+#ifdef DEBUG_
     WRITE(6,*) "SpinOrbSymLabel: "
     do i=1,nBasis
         WRITE(6,*) i,SpinOrbSymLabel(i)
@@ -3362,7 +3362,7 @@ SUBROUTINE SpinOrbSymSetup()
                 SymTableLabels(j,i)=Lab-1
             enddo
         enddo
-#ifdef __DEBUG
+#ifdef DEBUG_
         WRITE(6,*) "SymTable:"
         do i=0,nSymLabels-1
             do j=0,nSymLabels-1
@@ -3415,7 +3415,7 @@ SUBROUTINE SpinOrbSymSetup()
             SymInvLabel(i) = i
         endif
     enddo
-#ifdef __DEBUG
+#ifdef DEBUG_
     write(6,*) "SymInvLabel: "
     do i = 0, nSymLabels - 1
         write(6,*) i, SymInvLabel(i)

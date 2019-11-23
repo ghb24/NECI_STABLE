@@ -417,7 +417,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         nJ = nI
         call FindExcitDet (ExcitMat, nJ, 1, tParity)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! For debugging purposes only (O[N] operation).
         if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
             call stop_all(this_routine, 'Invalid excitation generated')

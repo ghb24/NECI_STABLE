@@ -3,7 +3,7 @@ module orthogonalise
 
     use FciMCData, only: TotWalkers, CurrentDets, all_norm_psi_squared, &
                          NoBorn, NoDied, fcimc_iter_data,  replica_overlaps_real, &
-#ifdef __CMPLX
+#ifdef CMPLX_
                          replica_overlaps_imag, &
 #endif
                          HolesInList, iter
@@ -34,7 +34,7 @@ contains
         integer :: low_loop_bound, high_loop_bound, loop_step
         real(dp) :: norms(inum_runs), overlaps_real(inum_runs, inum_runs)
         real(dp) :: sgn(lenof_sign), sgn_orig, delta_real, r
-#ifdef __CMPLX
+#ifdef CMPLX_
         ! the min_part_type and max_part_type macros return the index of the sgns
         ! corresponding to the real and imag parts of a replica respectively
         real(dp) :: overlaps_imag(inum_runs, inum_runs), all_overlaps_imag(inum_runs, inum_runs)
@@ -43,7 +43,7 @@ contains
         logical :: tCoreDet
         character(*), parameter :: this_routine = 'orthogonalise_replicas'
 
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
         call stop_all(this_routine, "orthogonalise replicas requires mneci or kmneci")
 #endif
 
@@ -56,7 +56,7 @@ contains
 
         norms = 0.0_dp
         overlaps_real = 0.0_dp
-#ifdef __CMPLX
+#ifdef CMPLX_
         overlaps_imag = 0.0_dp
 #endif
 
@@ -88,7 +88,7 @@ contains
                 endif
 
                 do src_run = low_loop_bound, high_loop_bound, loop_step
-#ifdef __CMPLX
+#ifdef CMPLX_
                     ! (a + ib)*(c + id) = ac - bd + i(ad +bc)
                     delta_real = - ( sgn(min_part_type(src_run)) &
                                     * all_overlaps_real(src_run, tgt_run) &
@@ -167,7 +167,7 @@ contains
                 !
                 ! n.b. These are the values _after_ orthogonalisation with
                 !      the previous runs
-#ifdef __CMPLX
+#ifdef CMPLX_
                 ! (a+ib)*(a-ib) = a^2 + b^2
                 norms(tgt_run) = norms(tgt_run) &
                     + sgn(min_part_type(tgt_run))**2 + sgn(max_part_type(tgt_run))**2
@@ -175,7 +175,7 @@ contains
                 norms(tgt_run) = norms(tgt_run) + sgn(tgt_run)**2
 #endif
                 do run = tgt_run + 1, inum_runs
-#ifdef __CMPLX
+#ifdef CMPLX_
                     ! we want the inner product of the vectors:
                     !        ___
                     ! <n| =  \  ` [ a(n,r) - ib(n,r) ] <r|
@@ -225,7 +225,7 @@ contains
             ! of the processors.
             call MPISumAll(norms, all_norms)
             call MPISumAll(overlaps_real, all_overlaps_real)
-#ifdef __CMPLX
+#ifdef CMPLX_
             call MPISumAll(overlaps_imag, all_overlaps_imag)
 #endif
 
@@ -238,7 +238,7 @@ contains
                 replica_overlaps_real(src_run, tgt_run) = &
                     all_overlaps_real(src_run, tgt_run) / &
                     sqrt(all_norms(src_run) * all_norms(tgt_run))
-#ifdef __CMPLX
+#ifdef CMPLX_
                 replica_overlaps_imag(src_run, tgt_run) = &
                     all_overlaps_imag(src_run, tgt_run) / &
                     sqrt(all_norms(src_run) * all_norms(tgt_run))
@@ -290,7 +290,7 @@ contains
         character(len=*), parameter :: this_routine = "orthogonalise_replica_pairs"
 
         ASSERT(inum_runs == lenof_sign)
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
         unused_var(iter_data)
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #else
@@ -448,7 +448,7 @@ contains
         ASSERT(inum_runs == 2)
         ASSERT(lenof_sign == 2)
 
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #else
 
@@ -570,7 +570,7 @@ contains
 
         ! Not implemented for complex (yet)
         ASSERT(inum_runs == lenof_sign)
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
         call stop_all(this_routine, "orthogonalise replicas requires mneci.x")
 #else
 
@@ -708,7 +708,7 @@ contains
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn)) cycle
 
-#ifndef __CMPLX
+#ifndef CMPLX_
             norms = norms + sgn*sgn
 #endif
 

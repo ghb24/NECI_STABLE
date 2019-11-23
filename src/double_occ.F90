@@ -21,7 +21,7 @@ module double_occ_mod
     use hash, only: hash_table_lookup
     use FciMCData, only: fcimc_iter_data
 
-#ifdef __DEBUG
+#ifdef DEBUG_
 !     use Determinants, only: writedetbit
 #endif
 
@@ -128,7 +128,7 @@ contains
         ! always the same and i guess i have atleast on contribution atleast
         ! for each occupied orbital
 #if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#ifdef CMPLX_
         ! i do not want to deal with complex runs for now..
         call stop_all(this_routine, &
             "complex double occupancy measurement not yet implemented!")
@@ -273,7 +273,7 @@ contains
             ! y = which position in integer?
             if (btest(alpha(x),y)) then
 #if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
 !                 spin_up_occ(i) = spin_up_occ(i) + &
@@ -290,7 +290,7 @@ contains
 
             if (btest(beta(x),y)) then
 #if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
 !                 spin_down_occ(i) = spin_down_occ(i) + &
@@ -324,7 +324,7 @@ contains
             spat_orb = gtid(spin_orb)
             if (is_alpha(spin_orb)) then
 #if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
 !                 spin_up_occ(spat_orb) = spin_up_occ(spat_orb) + &
@@ -340,7 +340,7 @@ contains
             end if
             if (is_beta(spin_orb)) then
 #if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
 !                 spin_down_occ(spat_orb) = spin_down_occ(spat_orb) + &
@@ -391,7 +391,7 @@ contains
         real(dp) :: frac_double_orbs
         integer(n_int) :: sgn(lenof_sign)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         complex(dp) :: complex_sgn
 #endif
 
@@ -413,8 +413,8 @@ contains
         ! do i want to do that for complex walkers also?? i guess so..
         ! to get it running do it only for  single run for now!
         ! do not do the division here, but only in the output!
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
+#ifdef CMPLX_
         call stop_all(this_routine, &
             "complex double occupancy measurement not yet implemented!")
         ! i in the case of complex runs i guess that the double_occ
@@ -428,7 +428,7 @@ contains
         double_occ = real_sgn(1) * real_sgn(2) * frac_double_orbs
 #endif
 #else
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(this_routine, &
             "complex double occupancy measurement not yet implemented!")
 #endif

@@ -490,13 +490,13 @@ module hamiltonian_linalg
 
         do i = 1, this%space_sizes(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
-#ifdef __CMPLX
+#ifdef CMPLX_
                 this%partial_H_ket(i) = this%partial_H_ket(i) + &
                     sparse_ham(i)%elements(j)*output_vector(sparse_ham(i)%positions(j))
 #endif
             end do
         end do
-#ifdef __CMPLX
+#ifdef CMPLX_
         call MPIGatherV(this%partial_H_ket, output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
 #else
         call MPIGatherV(cmplx(this%partial_H_ket,0.0_dp,dp), output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)

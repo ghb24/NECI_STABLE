@@ -90,7 +90,7 @@ contains
         n = size(matrix,1)
 
         tmp_matrix = matrix 
-#ifdef __CMPLX
+#ifdef CMPLX_
         allocate(rwork(max(1,3*n-2)))
         call zheev('N','N', n, tmp_matrix, n, e_values, work, 3*n, rwork)
         deallocate(rwork)
@@ -149,7 +149,7 @@ contains
 
 !             print *, "bounds left_ev: ", lbound(left_ev,1),ubound(left_ev,1), &
             !                 lbound(left_ev,2),ubound(left_ev,2)
-#ifdef __CMPLX
+#ifdef CMPLX_
             allocate(rwork(max(1,3*n-2)))
             call zheev(&
                  left, &
@@ -668,7 +668,7 @@ contains
         integer :: n 
 
         n = size(A,1) 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call zgemm('N','N', n, n, n, cmplx(1.0_dp,0.0_dp), A, n, B, n, cmplx(1.0_dp,0.0_dp), C, n)
 #else
         call dgemm('N', 'N', n, n, n, 1.0_dp, A, n, B, n, 0.0_dp, C, n)
@@ -720,7 +720,7 @@ contains
         ! first i need to diagonalise the matrix and calculate the 
         ! eigenvectors 
         vectors = matrix
-#ifdef __CMPLX
+#ifdef CMPLX_
         allocate(rwork(max(1,3*n-2)))
         call zheev('V', 'U', n, vectors, n, values, work, 3*n-1, rwork, info)
         deallocate(rwork)

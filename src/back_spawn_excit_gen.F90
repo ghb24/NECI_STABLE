@@ -35,7 +35,7 @@ module back_spawn_excit_gen
 
     use lattice_models_utils, only: make_ilutJ, get_orb_from_kpoints, get_ispn
 
-#ifdef __DEBUG 
+#ifdef DEBUG_
     use SystemData, only: tNoFailAb
 #endif
 
@@ -58,7 +58,7 @@ contains
 
         integer :: iUnused
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         real(dp) :: pgen2
         HElement_t(dp) :: temp_hel
 #endif
@@ -77,7 +77,7 @@ contains
             call gen_double_back_spawn_ueg_new(nI, ilutI, part_type, nJ, ilutJ, tParity, &
                 ExcitMat, pgen)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_back_spawn_ueg_new(nI, ilutI, ExcitMat, ic, part_type)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -109,7 +109,7 @@ contains
 
             call gen_double_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, pgen)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_ueg(ilutI, ExcitMat, ic)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -317,7 +317,7 @@ contains
         character(*), parameter :: this_routine = "gen_excit_back_spawn_hubbard"
 
         integer :: iUnused
-#ifdef __DEBUG
+#ifdef DEBUG_
         real(dp) :: pgen2
         HElement_t(dp) :: temp_hel
 #endif
@@ -344,7 +344,7 @@ contains
             call gen_double_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, &
                 pgen)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_back_spawn_hubbard(nI, ilutI, ExcitMat, ic, part_type)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -376,7 +376,7 @@ contains
 
             if (.not. IsNullDet(nJ)) ilutJ = make_ilutJ(ilutI, ExcitMat, ic)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 call CalcPGenLattice(ExcitMat, pgen2)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -662,7 +662,7 @@ contains
         character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg"
 
         integer :: iUnused
-#ifdef __DEBUG
+#ifdef DEBUG_
         real(dp) :: pgen2
         HElement_t(dp) :: temp_hel
 #endif
@@ -687,7 +687,7 @@ contains
             call gen_double_back_spawn_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, &
                 pgen)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_back_spawn_ueg(ilutI, ExcitMat, ic, part_type)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -719,7 +719,7 @@ contains
 
             if (.not. IsNullDet(nJ)) ilutJ = make_ilutJ(ilutI, ExcitMat, ic)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 call CalcPGenLattice(ExcitMat, pgen2)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -899,7 +899,7 @@ contains
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn"
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         HElement_t(dp) :: temp_hel
         real(dp) :: pgen2
 #endif
@@ -931,7 +931,7 @@ contains
 
             end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_back_spawn(nI, ilutI, ExcitMat, ic, part_type)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -977,7 +977,7 @@ contains
                 pgen = pgen * pDoubles
 
             end if
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                  pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then

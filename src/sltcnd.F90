@@ -78,7 +78,7 @@ contains
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sltcnd_compat"
 #endif
 
@@ -175,7 +175,7 @@ contains
         HElement_t(dp) :: hel
         integer :: ex(2,maxExcit)
         logical :: tSign
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sltcnd_knowIC"
 #endif
 

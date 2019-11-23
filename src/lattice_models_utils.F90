@@ -61,7 +61,7 @@ contains
         ! return the same determinant 
         integer(n_int), intent(in) :: ilut_in(0:niftot)
         integer(n_int) :: ilut_out(0:niftot)
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "return_hphf_sym_det"
 #endif
         INTEGER(n_int) :: iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot)
@@ -110,7 +110,7 @@ contains
         integer, intent(in) :: nI(nel), ex(:,:) 
         integer, intent(out) :: nJ(nel) 
         integer, intent(out), allocatable :: ex2(:,:)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "swap_excitations" 
 #endif
 
@@ -156,7 +156,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2)
         real(dp), intent(out) :: p_elec
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "pick_spin_opp_elecs"
 #endif
         ! think of a routine to get the possible spin-opposite electron 
@@ -186,7 +186,7 @@ contains
         real(dp), intent(in) :: cum_arr(:), cum_sum
         integer, intent(out) :: ind
         real(dp), intent(out) :: pgen 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "pick_from_cum_list" 
 #endif
         real(dp) :: r
@@ -279,7 +279,7 @@ contains
         integer(n_int), intent(in) :: det_list_in(0:NIfTot,n_excits_in)
         integer, intent(out) :: n_excits_out
         integer(n_int), intent(out), allocatable :: det_list_out(:,:)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "spin_purify"
 #endif 
         integer :: nI(nel), nJ(nel), i, pos, cnt
@@ -321,7 +321,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:,:) 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "gen_all_doubles_rs_hub_hop_transcorr"
 #endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
@@ -407,7 +407,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:,:) 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_all_singles_rs_hub_hop_transcorr"
 #endif 
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
@@ -471,7 +471,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: n_excits
         integer(n_int), intent(out), allocatable :: det_list(:,:) 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_all_singles_rs_hub_default" 
 #endif
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
@@ -685,7 +685,7 @@ contains
         integer, intent(in), optional :: n_doubles 
         integer(n_int) :: spin_basis(n_total) 
         character(*), parameter :: this_routine = "combine_spin_basis" 
-#ifdef __DEBUG
+#ifdef DEBUG_
         integer, allocatable :: n_dets(:)
 #endif 
         integer :: n_doub, i, j, n_remain, n
@@ -695,7 +695,7 @@ contains
         ! special? maybe.. 
 
         ASSERT(n_first >= n_second) 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         ! be sure that the provided n_total fits with the n_doubles if 
         ! provided 
         n_dets = calc_n_double(n_orbs, n_first, n_second)
@@ -861,7 +861,7 @@ contains
     function create_one_spin_basis(n_orbs, n_spins) result(one_spin_basis) 
         integer, intent(in) :: n_orbs, n_spins 
         integer(n_int), allocatable :: one_spin_basis(:) 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_one_spin_basis" 
 #endif
 
@@ -917,7 +917,7 @@ contains
         ! dependent orbital n_orbs 
         integer(n_int), intent(in) :: i
         integer, intent(in) :: n_orbs
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "right_most_zero" 
 #endif
         integer, allocatable :: nZeros(:), nOnes(:) 
@@ -952,7 +952,7 @@ contains
         ! number of doubly occupied sites..
         integer, intent(in) :: n_orbs, n_alpha, n_beta
         integer, allocatable :: n_double(:)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_n_double"
 #endif
 
@@ -1022,7 +1022,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: orbs(2) 
         real(dp), intent(out) :: p_orb 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "pick_spin_opp_holes"
 #endif
 
@@ -1068,7 +1068,7 @@ contains
         integer, intent(out) :: orb 
         real(dp), intent(out) :: p_orb
         integer, intent(in), optional :: spin 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "pick_random_hole" 
 #endif
         integer, parameter :: max_trials = 100
@@ -1132,7 +1132,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:niftot) 
         integer, intent(in) :: spin_orb 
         real(dp) :: spin_opp_neighbors
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_spin_opp_neighbors" 
 #endif 
         integer :: i, flip 
@@ -1364,7 +1364,7 @@ contains
         integer, intent(out) :: n_states
         integer, intent(out), allocatable :: state_list_ni(:,:) 
         integer(n_int), intent(out), allocatable :: state_list_ilut(:,:) 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_hilbert_space_kspace"
 #endif
 
@@ -1451,7 +1451,7 @@ contains
         ! momentum conservation for three-body terms 
         integer, intent(in) :: src(3), orb_a, orb_b
         integer :: orb_c 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_orb_from_kpoints_three"
 #endif
         integer :: sum_ms, kc(3), spin_c, spin_ab
@@ -1538,7 +1538,7 @@ contains
         integer, intent(out) :: elecs(3)
         real(dp), intent(out) :: p_elec 
         integer, intent(out), optional :: opt_sum_ms
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "pick_three_opp_elecs"
 #endif
         integer :: sum_ms
@@ -1619,7 +1619,7 @@ contains
         integer, intent(out) :: elecs(2)
         real(dp), intent(out) :: p_elec 
         integer, intent(out), optional :: opt_ispn
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "pick_spin_par_elecs"
 #endif 
         integer :: ispn
@@ -1662,7 +1662,7 @@ contains
         ! returns the opposite spin
         integer, intent(in) :: spins(:) 
         integer :: opp
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "find_minority_spin" 
 #endif 
         integer :: i
@@ -1941,13 +1941,13 @@ contains
         integer, intent(in) :: ex(2,ic)
         integer(n_int) :: ilutJ(0:niftot) 
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "make_ilutJ"
 #endif
 
         integer :: ij(ic), ab(ic), i
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ASSERT(ic == 1 .or. ic == 2 .or. ic == 3)
         ! should this every be called with 0 orbitals.. i guess no.. 
         do i = 1, ic 
@@ -1975,7 +1975,7 @@ contains
         ! routine to find the number of the elctron in spin-orbital orb
         integer, intent(in) :: nI(nel), orb
         integer :: elec 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "find_elec_in_ni"
 #endif
 
@@ -2000,7 +2000,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: orb 
         real(dp) :: occ_neighbors
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_occ_neighbors" 
 #endif
         integer, allocatable :: neighbors(:)
@@ -2027,7 +2027,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot) 
         integer, intent(in) :: orb
         real(dp) :: spin_dens_neighbors
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_spin_density_neighbors"
 #endif 
         integer, allocatable :: neighbors(:) 

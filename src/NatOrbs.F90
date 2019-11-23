@@ -387,7 +387,7 @@ contains
         integer :: Spins
         logical :: tSign
         real(dp) :: SignDet
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "FillOneRDM"
 #endif
 
@@ -577,7 +577,7 @@ contains
         character(len=*), parameter :: t_r = 'FillMP2VDM'
         HElement_t(dp) :: HEl01,HEl02
 
-#ifdef __CMPLX
+#ifdef CMPLX_
          call stop_all('FillMP2VDM', 'Natural Orbitals not implemented for complex orbitals.')
 #endif
         ! Calculating the MP2VDM (D2_ab) matrix whose eigenvectors become the

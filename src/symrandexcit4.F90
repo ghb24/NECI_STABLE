@@ -212,7 +212,7 @@ contains
         end if
 
         ! And a careful check!
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (.not. IsNullDet(nJ)) then
             pgen2 = calc_pgen_4ind_weighted(nI, ilutI, ExcitMat, ic, &
                                             store%ClassCountUnocc)
@@ -426,7 +426,7 @@ contains
         ! Get the new index
         cc_ret = ClassCountInd (spn_j, sym_j, mom_j)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (cc_ret /= -1) then
             if (class_count_ml(cc_ind) /= mom_i) &
                 call stop_all(this_routine, 'wrong_mom_i')
@@ -1234,7 +1234,7 @@ contains
 
         ! do i need the matele cutoff here too? i shouldnt..
         ! check in debug mode!
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (t_matele_cutoff) then
             if (cum_sum < matele_cutoff) then
                 call stop_all(this_routine, &
@@ -1342,7 +1342,7 @@ contains
         end if
 
         ! And a careful check!
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (.not. IsNullDet(nJ)) then
             pgen2 = calc_pgen_4ind_reverse (nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then

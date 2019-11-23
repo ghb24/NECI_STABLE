@@ -102,7 +102,7 @@ MODULE HPHFRandExcitMod
         integer :: ic
         integer :: Ex2(2,maxExcit),nJ_loc(nel),nJ2(nel)
         integer(kind=n_int) :: iLutnJ_loc(0:niftot),iLutnJ2(0:niftot)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "CalcPGenHPHF"
 #endif
         tSameFunc = .false.
@@ -414,7 +414,7 @@ MODULE HPHFRandExcitMod
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:) 
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
-! #ifdef __DEBUG
+! #ifdef DEBUG_
 !                                     temp_ex(1,:) = ExcitMat(2,:)
 !                                     temp_ex(2,:) = ExcitMat(1,:)
 !                                     ASSERT(ic == ExcitLevel)
@@ -439,7 +439,7 @@ MODULE HPHFRandExcitMod
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:) 
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
-! #ifdef __DEBUG 
+! #ifdef DEBUG_ 
 !                                     temp_ex(1,:) = ex2(2,:)
 !                                     temp_ex(2,:) = ex2(1,:)
 !                                     ASSERT(ic == ExcitLevel)
@@ -689,7 +689,7 @@ MODULE HPHFRandExcitMod
 
         ENDIF
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         ! We return Hij, but the requested matrix element is Hji = Hij* -> conjugate
         ! (only required with complex matrix elements)
         HEl = conjg(HEl)

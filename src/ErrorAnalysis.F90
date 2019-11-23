@@ -951,9 +951,6 @@ module errors
             endif
             j=j+1
         enddo
-#ifdef __DEBUG
-!        if (abs(tmp(new_length)) < 1.0e-10_dp) call stop_all(t_r,"Whole length of new vector not properly used")
-#endif
         deallocate(this)
         allocate(this(new_length))
         this=0.0_dp

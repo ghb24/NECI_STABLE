@@ -147,7 +147,7 @@ contains
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
         run = part_type_to_run(part_type)
-#ifdef __DEBUG
+#ifdef DEBUG_
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
 #endif
 
@@ -394,7 +394,7 @@ contains
               list_full=.true.
       end if
       if (list_full) then
-#ifdef __DEBUG
+#ifdef DEBUG_
          write(6,*) "Attempting to spawn particle onto processor: ", proc
          write(6,*) "No memory slots available for this spawn."
          write(6,*) "Please increase MEMORYFACSPAWN"
@@ -434,7 +434,7 @@ contains
         HElement_t(dp) :: HOffDiag(inum_runs)
         character(*), parameter :: this_routine = 'SumEContrib'
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         complex(dp) :: CmplxwSign
 #endif
 
@@ -450,7 +450,7 @@ contains
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
-#ifdef __CMPLX
+#ifdef CMPLX_
         CmplxwSign = ARR_RE_OR_CPLX(realwsign, 1)
 
         if (tTrialWavefunction .and. present(ind)) then
@@ -591,14 +591,13 @@ contains
            ! RT_M_Merge: Adjusted to kmneci
            ! rmneci_setup: Added multirun functionality for real-time
             if (ExcitLevel_local == 2) then
-               do run = 1, inum_runs
-#if defined(__CMPLX)
-                  NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign &
-                       (min_part_type(run):max_part_type(run))))
+#ifdef CMPLX_
+            do run = 1, inum_runs
+                NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign(min_part_type(run):max_part_type(run))))
+            enddo
 #else
                   NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
 #endif
-               enddo
                ! add the k-matrix contribution
                if(tLogKMatProjE) call addProjEContrib(ProjEDet(:,1),nI,RealWSign)
             end if
@@ -622,7 +621,7 @@ contains
         ! L_{0,1,2} norms of walker weights by excitation level.
         if (tLogEXLEVELStats) then
             do run = 1, inum_runs
-#ifdef __CMPLX
+#ifdef CMPLX_
                 w(0) = real(1 + max_part_type(run) - min_part_type(run), dp)
                 w(1) = sum(abs(RealwSign(min_part_type(run):&
                                          max_part_type(run))))
@@ -742,9 +741,9 @@ contains
                     trial_denom = trial_denom + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
-#ifdef __CMPLX
+#ifdef CMPLX_
                             trial_denom(run-1) = trial_denom(run-1) + current_trial_amps(run/2,ind)* &
                                 cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run/2,ind)* &
@@ -757,7 +756,7 @@ contains
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
-#ifdef __CMPLX
+#ifdef CMPLX_
                         do run=1,inum_runs
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run,ind)* &
                                 cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
@@ -775,7 +774,7 @@ contains
                         trial_numerator = trial_numerator + amps(1)*sgn
                     else
                         if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                             do run = 2, inum_runs, 2
                                 trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
                             end do
@@ -795,9 +794,9 @@ contains
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
-#ifdef __CMPLX
+#ifdef CMPLX_
                             trial_numerator(run-1) = trial_numerator(run-1) + current_trial_amps(run/2,ind)* &
                                 cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run/2,ind)* &
@@ -810,7 +809,7 @@ contains
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
-#ifdef __CMPLX
+#ifdef CMPLX_
                         do run=1,inum_runs
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run,ind)* &
                                 cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
@@ -837,7 +836,7 @@ contains
                     exlevel = 2
                 end if
             end if
-#ifdef __CMPLX
+#ifdef CMPLX_
             sgn_run = cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
 #else
             sgn_run = sgn(run)
@@ -847,7 +846,7 @@ contains
             if (exlevel == 0) then
 
                 if (iter > nEquilSteps) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                     SumNoatHF(min_part_type(run)) = SumNoatHF(min_part_type(run)) + real(sgn_run)
                     SumNoatHF(max_part_type(run)) = SumNoatHF(max_part_type(run)) + aimag(sgn_run)
                     NoatHF(min_part_type(run)) = NoatHF(min_part_type(run)) + real(sgn_run)
@@ -1391,9 +1390,7 @@ contains
 
         ! SumWalkersCyc calculates the total number of walkers over an update
         ! cycle on each process.
-        ! in the real-time, for now, also keep track of the intermediate
-        ! walker number per cycle..
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             SumWalkersCyc(run) = SumWalkersCyc(run) + sum(TotParts(min_part_type(run):max_part_type(run)))
         enddo
@@ -1592,7 +1589,7 @@ contains
 
         integer :: NoInFrozenCore, MinVirt, ExcitLevel, i
         integer :: k(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "CheckAllowedTruncSpawn"
 #endif
 
@@ -2205,7 +2202,7 @@ contains
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             NoDied(run) = NoDied(run) &
                 + sum(min(iDie(min_part_type(run):max_part_type(run)), abs(RealwSign(min_part_type(run):max_part_type(run)) )))
@@ -2216,8 +2213,7 @@ contains
 
         ! Count any antiparticles
         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
-
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             NoBorn(run) = NoBorn(run) &
                 + sum(max(iDie(min_part_type(run):max_part_type(run)) &

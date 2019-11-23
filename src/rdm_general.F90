@@ -60,7 +60,7 @@ contains
         integer :: irdm, iproc, ierr
         character(len=*), parameter :: t_r = 'init_rdms'
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(t_r, 'Filling of reduced density matrices not working with complex walkers yet.')
 #endif
 
@@ -1074,6 +1074,8 @@ contains
             ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero
             ! so it is not worth carrying on.
             call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
+        ! in the case of non-variational rdms, we also require the parent to be an initiator,
+        ! -> only take non-initiators when the init-agnostic rdms are requested (tNonInitsForRDMs)
         else if(tNonInitsForRDMs .or. all_runs_are_initiator(ilutI)) then
 
             ! First we want to check if this Di.Dj pair has already been accounted for.

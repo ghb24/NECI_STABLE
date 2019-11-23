@@ -184,7 +184,7 @@ contains
 
         integer, intent(in) :: i, j
         HElement_t(dp) :: ret
-#ifdef __CMPLX
+#ifdef CMPLX_
         HElement_t(dp) :: t
 #endif
 
@@ -196,7 +196,7 @@ contains
             else
                 ! Work around a bug in gfortran's parser: it doesn't like
                 ! doing conjg(TMatSym).
-#ifdef __CMPLX
+#ifdef CMPLX_
                 t = TMatSym(TmatInd(i,j))
                 ret = conjg(t)
 #else
@@ -236,7 +236,7 @@ contains
         HElement_t(dp) GetNEWTMATEl
 
         if (tCPMDSymTMat) then
-#ifdef __CMPLX
+#ifdef CMPLX_
             if (j.ge.i) then
                 GetNewTMatEl=TMATSYM2(TMatInd(I,J))
             else

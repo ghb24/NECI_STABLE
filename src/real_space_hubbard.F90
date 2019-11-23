@@ -284,7 +284,7 @@ contains
 !         ! hopping only 
 !         real(dp), intent(in) :: J
 !         integer, intent(in) :: r_vec(3)
-! #ifdef __DEBUG
+! #ifdef DEBUG_
 !         character(*), parameter :: this_routine = "spin_trancorr_factor"
 ! #endif 
 !         complex(dp) :: temp 
@@ -309,7 +309,7 @@ contains
         ! hopping transcorrelated real-space hubbard 
         real(dp), intent(in) :: J 
         integer, intent(in) :: r_vec(3) 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "hop_transcorr_factor"
 #endif 
         complex(dp) :: temp
@@ -347,7 +347,7 @@ contains
 !     subroutine init_spin_transcorr_fac_cached(J_fac, in_lat)
 !         real(dp), intent(in) :: J_fac 
 !         class(lattice), intent(in) :: in_lat
-! #ifdef __DEBUG 
+! #ifdef DEBUG_ 
 !         character(*), parameter :: this_routine = "init_spin_transcorr_fac_cached"
 ! #endif
 ! 
@@ -360,7 +360,7 @@ contains
         ! associated with it!
         real(dp), intent(in) :: J_fac
         class(lattice), intent(in) :: in_lat
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "init_hop_trancorr_fac_cached"
 #endif
         integer :: n_sites, i, j, r_vec(3), k_vec(3)
@@ -408,7 +408,7 @@ contains
         ! not need to map r-vectors to orbital indices.. 
         real(dp), intent(in) :: J_fac
         class(lattice), intent(in) :: in_lat
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "init_hop_trancorr_fac_cached_vec"
 #endif
         integer :: n_sites, i, j, k, ri(3), rj(3), r_vec(3), r_min(3), r_max(3)
@@ -478,7 +478,7 @@ contains
         ! transcorrelation factors in the modified 1-body term in the 
         ! spin-dependent hopping trancorrelated real-space hubbard model
         integer, intent(in) :: r1(3), r2(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sum_spin_transcorr_factor_vec"
 #endif
         integer :: i, m_vec(3), ind_1(3), ind_2(3)
@@ -519,7 +519,7 @@ contains
         ! transcorrelation factors in the 2-body term of the hopping 
         ! transcorrelated real-space hubbard model 
         integer, intent(in) :: r1(3), r2(3), r3(3), r4(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sum_hop_transcorr_factor_vec"
 #endif
         integer i, m_vec(3)
@@ -565,7 +565,7 @@ contains
         ! similat to below, but just for the spin-transcorrelated 
         ! real-space hubbard model.
         integer, intent(in) :: i, j
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sum_spin_transcorr_factor_orb"
 #endif
         integer :: r1(3), r2(3)
@@ -584,7 +584,7 @@ contains
         ! transcorrelation factors in the 2-body term of the hopping 
         ! transcorrelated real-space hubbard model 
         integer, intent(in) :: i, j, k, l
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sum_hop_transcorr_factor_orb"
 #endif
         integer :: r1(3), r2(3), r3(3), r4(3)
@@ -634,7 +634,7 @@ contains
     end function sum_hop_transcorr_factor_orb
 
     subroutine init_tmat_rs_hub_spin_transcorr()
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "init_tmat_rs_hub_spin_transcorr"
 #endif
         integer :: n_sites, i, j 
@@ -687,7 +687,7 @@ contains
         ! for now do it really stupidly without any concern for the symmetry 
         ! of the integrals 
         integer :: n_sites, i, j, k, l
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "init_umat_rs_hub_transcorr"
         integer :: r1(3), ri(3)
 #endif
@@ -743,7 +743,7 @@ contains
             root_print "Done"
         end if
 
-! #ifdef __DEBUG 
+! #ifdef DEBUG_ 
 !         ! also check if the distance is figured out correctly.. 
 !         r1 = lat%get_r_vec(1)
 !         print *, "matrix elements from r1: ", r1, "umat(1,1,1,i), umat(1,1,i,i), umat(1,i,1,i), umat(1,i,i,i)"
@@ -811,7 +811,7 @@ contains
         ! Hongjuns derivation was for the k-space hubbard and in the low 
         ! density and U limit though.. 
         real(dp) :: corr_factor
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_optimal_correlation_factor" 
 #endif
 
@@ -979,7 +979,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard_transcorr_uniform"
 #endif 
 
@@ -1207,7 +1207,7 @@ contains
         real(dp), intent(out) :: cum_arr(nBasis/2), cum_sum
         integer, intent(in), optional :: tgt 
         real(dp), intent(out), optional :: p_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_rs_hubbard_transcorr_single"
 #endif
         integer :: spin, ex(2,maxExcit), nJ(nel), i, orb
@@ -1298,7 +1298,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "gen_double_excit_rs_hub_transcorr"
 #endif
         integer :: elecs(2), orbs(2), src(2), ind
@@ -1363,7 +1363,7 @@ contains
         real(dp), intent(out) :: cum_arr(nBasis/2), cum_sum 
         integer, intent(in), optional :: tgt 
         real(dp), intent(out), optional :: p_orb
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "create_cum_list_rs_hubbard_transcorr_double"
 #endif
         integer :: ex(2,2), spin, b, nJ(nel), orb_b
@@ -1459,7 +1459,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2)
         logical, intent(in) :: tPar 
         HElement_t(dp) :: hel 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_single_helem_rs_hub_transcorr"
 #endif 
         ASSERT(same_spin(ex(1),ex(2)))
@@ -1479,7 +1479,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2), ic 
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard_transcorr"
 #endif
         integer :: src(2), tgt(2)
@@ -1610,7 +1610,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2), ic 
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard"
 #endif
         integer :: src, tgt, n_orbs
@@ -1657,7 +1657,7 @@ contains
         real(dp), intent(out), allocatable :: cum_arr(:)
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_rs_hubbard"
 #endif
 
@@ -1740,7 +1740,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: src, tgt
         real(dp) :: weight 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "trans_corr_fac"
 #endif
         real(dp) :: ni_opp, nj_opp 
@@ -1960,7 +1960,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2) 
         logical, intent(in) :: tpar 
         HElement_t(dp) :: hel
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_double_helem_rs_hub_transcorr"
 #endif
         integer :: src(2), tgt(2), ij(2), ab(2)
@@ -2060,7 +2060,7 @@ contains
         ! dependent transcorrelated real-space hubbard model.
         integer, intent(in) :: nI(nel), ex(2)
         HElement_t(dp) :: hel 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_1_body_contrib_spin_transcorr"
 #endif
         integer :: i, idX(2), id(nel), r1(3), r2(3), r_vec(3), ind_1(3), ind_2(3)
@@ -2103,7 +2103,7 @@ contains
         ! outside this function
         integer, intent(in) :: nI(nel), ex(2)
         HElement_t(dp) :: hel
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_2_body_contrib_transcorr_hop"
 #endif
         integer :: i, idX(2), idN
@@ -2143,7 +2143,7 @@ contains
     function get_umat_el_hub(i,j,k,l) result(hel)
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_umat_el_hub"
 #endif
         if (i == j .and. i == k .and. i == l) then 
@@ -2168,7 +2168,7 @@ contains
         ! the one, whhich access the "normal" fcidump.. figure out! 
         integer, intent(in) :: i,j,k,l
         HElement_t(dp) :: hel 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_umat_rs_hub_trans"
 #endif 
 

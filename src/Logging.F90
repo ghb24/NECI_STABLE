@@ -173,7 +173,7 @@ MODULE Logging
       iHDF5TruncPopsEx = 0
       tWriteRefs = .false.
       maxInitExLvlWrite = 8
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
       tFCIMCStats2 = .true.
 #else
       tFCIMCStats2 = .false.
@@ -531,7 +531,7 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         case("PAIRED-REPLICAS")
             tPairedReplicas = .true.
             nreplicas = 2
@@ -539,14 +539,14 @@ MODULE Logging
 
         case("UNPAIRED-REPLICAS")
             tUseOnlySingleReplicas = .true.
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
             tPairedReplicas = .false.
             nreplicas = 1
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
 #endif
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         case("REPLICA-ESTIMATES")
             tReplicaEstimates = .true.
             tPairedReplicas = .true.
@@ -565,13 +565,13 @@ MODULE Logging
             call readi(IterRDMonFly)
             call readi(RDMEnergyIter)
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
             ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
                 tPairedReplicas = .true.
                 nreplicas = 2
             end if
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             tPairedReplicas = .true.
 #endif
             if (IterRDMOnFly < semistoch_shift_iter) then
@@ -596,13 +596,13 @@ MODULE Logging
             call readi(RDMEnergyIter)
 
             iSampleRDMIters = n_samples * RDMEnergyIter
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
           ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
                 tPairedReplicas = .true.
                 nreplicas = 2
             end if
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             tPairedReplicas = .true.
 #endif
             if (IterRDMOnFly < semistoch_shift_iter) then

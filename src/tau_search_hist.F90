@@ -878,7 +878,7 @@ contains
         integer :: ind
         integer :: indi,indj,inda,indb
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (pgen < EPS) then
             print *, "pgen: ", pgen
             print *, "matrix element: ", mat_ele
@@ -991,7 +991,7 @@ contains
 !                 print *, " excitation-matrix: ", ex
                 print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
                 print *, " Consider increasing the bound!"
-#ifdef __DEBUG
+#ifdef DEBUG_
                 indi = gtid(ex(1,1))
                 indj = gtid(ex(1,2))
                 inda = gtid(ex(2,1))
@@ -1022,7 +1022,7 @@ contains
             if (t_parallel) then
 
                 ratio = ratio * (pDoubles * pParallel)
-#ifdef __DEBUG
+#ifdef DEBUG_
                 ! analyse the really low and really high ratios:
                 if (ratio < 0.001_dp) then
                     print *, "******************"
@@ -1062,7 +1062,7 @@ contains
                     frequency_bins_para(ind) = frequency_bins_para(ind) + 1
                 else
                     above_max_para = above_max_para + 1
-#ifdef __DEBUG
+#ifdef DEBUG_
                     print *, "mat_ele: ", mat_ele
                     print *, "pgen: ", pgen
                     print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
@@ -1093,7 +1093,7 @@ contains
 
                 ratio = ratio * (pDoubles * (1.0_dp - pParallel))
                 ! analyse the really low and really high ratios:
-#ifdef __DEBUG
+#ifdef DEBUG_
                 if (ratio < 0.001_dp) then
                     print *, "******************"
                     print *, "anti-parallel excitation:"
@@ -1133,7 +1133,7 @@ contains
 
                 else
                     above_max_anti = above_max_anti + 1
-#ifdef __DEBUG
+#ifdef DEBUG_
                     print *, "mat_ele: ", mat_ele
                     print *, "pgen: ", pgen
                     print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)

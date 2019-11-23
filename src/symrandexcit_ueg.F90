@@ -39,7 +39,9 @@ contains
         integer, intent(in), optional :: part_type
 
         unused_var(exFlag); unused_var(store); unused_var(part_type);
+#ifdef WARNING_WORKAROUND_
         HelGen = 0.0_dp
+#endif
 
         ! W.D:
         ! split this functionality to allow back-spawning to reuse code

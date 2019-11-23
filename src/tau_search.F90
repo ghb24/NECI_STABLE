@@ -187,7 +187,7 @@ contains
         real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "log_spawn_magnitude"
 #endif
         ! i need some changes for 3 body excitations for dynamic tau-search!

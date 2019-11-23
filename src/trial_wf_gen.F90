@@ -81,7 +81,7 @@ contains
         write(6,'("Generating the trial space...")'); call neci_flush(6)
 
         if (qmc_trial_wf) then
-#ifdef __CMPLX
+#ifdef CMPLX_
             call stop_all(t_r, "QMC trial state initiation not supported for complex wavefunctions.")
 #else
             call calc_trial_states_qmc(trial_in, nexcit_keep, CurrentDets, HashIndex, replica_pairs, &
@@ -131,7 +131,7 @@ contains
         call assign_elements_on_procs(tot_trial_space_size, min_elem, max_elem, num_elem)
 
         ! set the size of the entries in con_ht
-#ifdef __CMPLX
+#ifdef CMPLX_
         NConEntry = NIfDBO + 2*nexcit_keep
 #else
         NConEntry = NIfDBO + nexcit_keep
@@ -311,7 +311,7 @@ contains
         real(dp) :: fciqmc_amps_real(size(energies_kept)), all_fciqmc_amps(lenof_sign)
         real(dp) :: overlaps_real(size(energies_kept), size(trial_amps,1))
         real(dp) :: all_overlaps_real(size(energies_kept), size(trial_amps,1))
-#ifdef __CMPLX
+#ifdef CMPLX_
         real(dp) :: overlaps_imag(size(energies_kept), size(trial_amps,1))
         real(dp) :: all_overlaps_imag(size(energies_kept), size(trial_amps,1))
         real(dp) :: fciqmc_amps_imag(size(energies_kept))
@@ -320,7 +320,7 @@ contains
 
         overlaps_real = 0.0_dp
         all_overlaps_real = 0.0_dp
-#ifdef __CMPLX
+#ifdef CMPLX_
         overlaps_imag = 0.0_dp
         all_overlaps_imag = 0.0_dp
 #endif
@@ -337,7 +337,7 @@ contains
             call hash_table_lookup(nI, trial_dets(:,idet), NIfDBO, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
             if (tDetFound) then
                 call extract_sign(ilut_list(:,det_ind), all_fciqmc_amps)
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i=1, inum_runs
                 fciqmc_amps_real(i) = all_fciqmc_amps(min_part_type(i))
                 fciqmc_amps_imag(i) = all_fciqmc_amps(max_part_type(i))
@@ -355,7 +355,7 @@ contains
                 ! Add in the outer product between fciqmc_amps and the trial
                 ! state amplitudes.
                 do itrial = 1, size(trial_amps,1)
-#ifdef __CMPLX
+#ifdef CMPLX_
                     ! (a+ib)(c+id) = ac-bd +i(ad+bc)
                     overlaps_real(:,itrial) = overlaps_real(:,itrial) &
                         + real(trial_amps(itrial,idet))*fciqmc_amps_real - aimag(trial_amps(itrial, idet))*fciqmc_amps_imag
@@ -369,14 +369,14 @@ contains
         end do
 
         call MPISumAll(overlaps_real, all_overlaps_real)
-#ifdef __CMPLX
+#ifdef CMPLX_
         call MPISumAll(overlaps_imag, all_overlaps_imag)
 #endif
 
         ! Now, find the best trial state for each FCIQMC replica:
         if (t_choose_trial_state) then
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             do ireplica = 1, inum_runs
                 trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
                 energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
@@ -404,7 +404,7 @@ contains
             end if
 #endif
         else
-#ifdef __CMPLX
+#ifdef CMPLX_
             do ireplica = 1, inum_runs
                 best_trial = maxloc(abs(all_overlaps_real(ireplica,:)**2+all_overlaps_imag(ireplica,:)**2))
                 trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
@@ -416,7 +416,7 @@ contains
                     best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
                     trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
                     energies_kept(ireplica) = energies(best_trial(1))
-#ifdef __DEBUG
+#ifdef DEBUG_
                     root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
                         " based on overlap, with energy: ", energies(best_trial(1))
 #endif
@@ -789,7 +789,7 @@ contains
 
         integer :: i, nclash, hash_val, mode, ierr
         integer :: nI(nel)
-#ifdef __CMPLX
+#ifdef CMPLX_
         integer(n_int) :: temp(2*nexcit)
 #else
         integer(n_int) :: temp(nexcit)

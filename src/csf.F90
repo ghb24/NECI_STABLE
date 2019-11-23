@@ -84,7 +84,7 @@ contains
         HElement_t(dp) :: hUnused
 
         ! Avoid compiler warnings
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
         iUnused=notic; tUnused=nottParity; hUnused=notHelgen
         if(notic.gt.0) iUnused=notex(1,1)
 #endif
@@ -1702,7 +1702,7 @@ contains
                     c = coeffs(i)
                 else
                     call extract_sign (iluts(:,i), sgn)
-#ifdef __CMPLX
+#ifdef CMPLX_
                     c = abs(cmplx(sgn(1), sgn(2)))
 #else
                     c = abs(sgn(1))

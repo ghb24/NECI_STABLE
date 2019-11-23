@@ -422,7 +422,7 @@ contains
         integer, intent(out), allocatable :: ic_list(:) 
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_tJ_model"
 #endif
         integer :: i, nI(nel), temp_ex(2,maxExcit)
@@ -553,7 +553,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2,2), ic
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_tJ_model"
 #endif
 
@@ -612,7 +612,7 @@ contains
 
             p_orb = cpt_1 + cpt_2 
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (is_beta(src(1)) .eqv. is_beta(tgt(1))) then 
                 ! then those to orbitls were chosen 
                 ASSERT(is_beta(src(2)) .eqv. is_beta(tgt(2)))
@@ -646,7 +646,7 @@ contains
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: run
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_heisenberg_model"
 #endif
         integer :: elec, src, ind, tgt, src_opp, tgt_opp, elec_opp
@@ -724,7 +724,7 @@ contains
         real(dp), intent(out) :: cum_sum 
         integer, intent(in), optional :: tgt 
         real(dp), intent(out), optional :: cpt 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "create_cum_list_heisenberg"
 #endif 
         integer :: flip, i, temp_ex(2,maxExcit), nI(nel)
@@ -804,7 +804,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2,ic), ic
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_heisenberg_model"
 #endif
         integer :: src(2), tgt(2) 
@@ -844,7 +844,7 @@ contains
                 cum_arr, cum_sum, tgt(2), cpt_1)
             call create_cum_list_heisenberg(ilutI, src(2), lat%get_spinorb_neighbors(src(2)), &
                 cum_arr, cum_sum, tgt(1), cpt_2)
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         else 
             call stop_all(this_routine, "something went wrong!")
 #endif
@@ -863,7 +863,7 @@ contains
         ! spins have to be checked before this function call! 
         integer, intent(in) :: src, tgt 
         HElement_t(dp) :: hel 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_heisenberg_exchange"
 
         ASSERT(src > 0) 
@@ -1096,7 +1096,7 @@ contains
     function get_diag_helement_heisenberg(nI) result(hel)
         integer, intent(in) :: nI(nel) 
         HElement_t(dp) :: hel 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_diag_helement_heisenberg"
 #endif 
         integer :: i, j, src, flip
@@ -1160,7 +1160,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2)
         logical, intent(in) :: tpar 
         HElement_t(dp) :: hel 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_offdiag_helement_heisenberg"
 #endif
         integer(n_int) :: ilutI(0:NIfTot)
@@ -1216,7 +1216,7 @@ contains
             end if
 
 
-! #ifdef __DEBUG 
+! #ifdef DEBUG_ 
 !             if (.not. is_in_pair(ex(1,1),ex(2,1))) then 
 !                 print *, "NOT IN PAIR!"
 !             end if
@@ -1242,7 +1242,7 @@ contains
     function determine_optimal_time_step_tJ(time_step_death) result(time_step)
         real(dp), intent(out), optional :: time_step_death 
         real(dp) :: time_step
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "determine_optimal_time_step_tJ"
 #endif
 
@@ -1254,7 +1254,7 @@ contains
     function determine_optimal_time_step_heisenberg(time_step_death) result(time_step) 
         real(dp), intent(out), optional :: time_step_death 
         real(dp) :: time_step 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "determine_optimal_time_step_heisenberg" 
 #endif 
         real(dp) :: p_elec, p_hole, mat_ele, max_diag 
@@ -1275,7 +1275,7 @@ contains
     function get_umat_el_heisenberg(i,j,k,l) result(hel) 
         integer, intent(in) :: i,j,k,l
         HElement_t(dp) :: hel 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_umat_el_heisenberg" 
 #endif
         ! how exactly do i do that? i access umat with spatial orbitals 

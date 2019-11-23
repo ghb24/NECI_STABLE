@@ -457,7 +457,7 @@ MODULE SymExcit2
          INTEGER nI(nEl),nJ(nEl)
          LOGICAL tIsConnectedDet
          LOGICAL IsUHFDet
-#ifdef __DEBUG
+#ifdef DEBUG_
          character(*), PARAMETER :: this_routine = "IsConnectedDetInternal"
 #endif
         ASSERT(.not. t_3_body_excits)

@@ -318,7 +318,7 @@ contains
         real(dp), intent(in) :: AvSignJ(:), AvSignHF(:)
         integer, intent(in) :: walkExcitLevel
         integer, intent(in) :: IterRDM(:)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_HFConnections_Norm"
 #endif
 
@@ -356,7 +356,7 @@ contains
         real(dp), intent(in) :: AvSignJ(:), AvSignHF(:)
         integer, intent(in) :: walkExcitLevel
         integer, intent(in) :: IterRDM(:)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_HFConnections_HPHF"
 #endif
 
@@ -468,16 +468,23 @@ contains
             source_part_type = int(Spawned_Parents(NIfDBO+3,i))
 
             ! if we only sum in initiator contriubtions, check the flags here
+            ! This block is entered if
+            ! a) tNonInits == .false. -> we are looking at the inits-rdms
+            ! b) tNonInitsForRDMs == .false. -> we are calculating inits-only rdms
+            ! In both cases, an initiator check is required
             if(.not. (tNonInits .and. tNonInitsForRDMs)) then
-               tNonInitParent = .false.
-               if(.not. (all_runs_are_initiator(ilutJ) .or. tNonVariationalRDMs)) return
-               do run = 1, inum_runs
-                  if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
-                       get_initiator_flag_by_run(run))) tNonInitParent = .true.
-                  ! if a non-initiator is participating, do not sum in
-                  ! that contribution
-               end do
-               if(tNonInitParent) cycle
+                tNonInitParent = .false.
+                ! Only initiators are used
+                if(.not. (all_runs_are_initiator(ilutJ) .or. &
+                    ! or the non-variational inits-only version (only require an init in the ket)
+                    (tNonVariationalRDMs .and. .not. tNonInits) )) return
+                do run = 1, inum_runs
+                    if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
+                        get_initiator_flag_by_run(run))) tNonInitParent = .true.
+                    ! if a non-initiator is participating, do not sum in
+                    ! that contribution
+                end do
+                if(tNonInitParent) cycle
             endif
 
             ! Loop over all RDMs to which the simulation with label
@@ -667,7 +674,7 @@ contains
         integer :: Ex(2,maxExcit), Ex_symm(2,maxExcit)
         logical :: tParity
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_From_IJ_Pair"
 #endif
         Ex(:,:) = 0

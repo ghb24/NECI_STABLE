@@ -309,7 +309,7 @@ C   JSS  Calculate the elements of the type <ij|ij> and <ij|ji> efficiently.
                   ELSE
                       TMAT2D(II,JJ)=TOT
                       TMAT2D(II+1,JJ+1)=TOT
-#ifdef __CMPLX
+#ifdef CMPLX_
                       TMAT2D(JJ,II)=conjg(TOT)
                       TMAT2D(JJ+1,II+1)=conjg(TOT)
 #else

@@ -314,7 +314,7 @@ contains
                     endif
                 end if
             end if
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
                 if (tReadPops .and. .not. t_no_append_stats) then
@@ -1793,7 +1793,7 @@ contains
         end if
 
          replica_overlaps_real(:, :) = 0.0_dp
-#ifdef __CMPLX
+#ifdef CMPLX_
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
 
@@ -2527,6 +2527,9 @@ contains
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
             InitialPartVec(min_part_type(run))=InitialPart
+#ifdef CMPLX_
+            InitialPartVec(max_part_type(run))=0.0_dp
+#endif
         enddo
 
         !Setup initial walker local variables for HF walkers start
@@ -2582,11 +2585,13 @@ contains
                 TotPartsOld(:) = InitialPartVec(:)
             else
                 do run=1, inum_runs
-                    InitialSign(min_part_type(run)) = InitWalkers
-                    TotParts(max_part_type(run)) = 0.0_dp
-                    TotPartsOld(max_part_type(run)) = 0.0_dp
-                    TotParts(min_part_type(run)) = real(InitWalkers,dp)
-                    TotPartsOld(min_part_type(run)) = real(InitWalkers,dp)
+                   InitialSign(min_part_type(run)) = InitWalkers
+                   TotParts(min_part_type(run)) = real(InitWalkers,dp)
+                   TotPartsOld(min_part_type(run)) = real(InitWalkers,dp)
+#ifdef CMPLX_
+                   TotParts(max_part_type(run)) = 0.0_dp
+                   TotPartsOld(max_part_type(run)) = 0.0_dp
+#endif
                 enddo
             endif
 
@@ -2812,7 +2817,7 @@ contains
         integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'set_initial_run_references'
 #endif
 
@@ -2891,7 +2896,7 @@ contains
         integer  :: tmp_det(nel), det_max, run
         type(ll_node), pointer :: TempNode
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(this_routine,"StartCAS currently does not work with complex walkers")
 #endif
         if(tReadPops) call stop_all(this_routine,"StartCAS cannot work with with ReadPops")
@@ -3318,7 +3323,7 @@ contains
         type(ll_node), pointer :: TempNode
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
 #endif
         if(tReadPops) call stop_all(this_routine,"StartMP1 cannot work with with ReadPops")
@@ -4407,7 +4412,7 @@ contains
       call MPISumAll(norm_psi_squared,all_norm_psi_squared)
 
       ! assign the sqrt norm
-#ifdef __CMPLX
+#ifdef CMPLX_
       norm_psi = sqrt(sum(all_norm_psi_squared))
       norm_semistoch = sqrt(sum(norm_semistoch_squared))
 #else

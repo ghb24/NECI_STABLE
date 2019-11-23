@@ -84,7 +84,7 @@ contains
                  replica_overlaps_real(inum_runs, inum_runs), &
                  all_norms(inum_runs), &
                  all_overlaps(inum_runs, inum_runs), &
-#ifdef __CMPLX
+#ifdef CMPLX_
                  replica_overlaps_imag(inum_runs, inum_runs), &
 #endif
                  tSpinCoupProjE(inum_runs), &
@@ -180,7 +180,7 @@ contains
                    replica_overlaps_real, &
                    all_norms, &
                    all_overlaps, &
-#ifdef __CMPLX
+#ifdef CMPLX_
                    replica_overlaps_imag, &
 #endif
                    tSpinCoupProjE, &
@@ -350,12 +350,12 @@ contains
         call MPISumAll(NoatHF, AllNoatHF)
         OldAllNoatHF = AllNoatHF
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         do run = 1, inum_runs
             OldAllAvWalkersCyc(run) = sum(AllTotParts(min_part_type(run):max_part_type(run)))
         enddo
 #else
-#ifdef __CMPLX
+#ifdef CMPLX_
         OldAllAvWalkersCyc = sum(AllTotParts)
 #else
         OldAllAvWalkersCyc = AllTotParts

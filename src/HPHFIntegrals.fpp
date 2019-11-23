@@ -1,4 +1,5 @@
 #include "macros.h"
+#:include "macros.fpp"
 
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int, maxExcit
@@ -29,8 +30,7 @@ module hphf_integrals
         HElement_t(dp) :: hel
         HElement_t(dp), intent(in) :: HElGen
 
-        unused_var(IC); unused_var(ex); unused_var(nI); unused_var(nJ);
-        unused_var(iLutI); unused_var(iLutJ); unused_var(tParity)
+        @:unused_var(IC, ex, nI, nJ, iLutI, iLutJ, tParity)
 
         hel = HElGen
 

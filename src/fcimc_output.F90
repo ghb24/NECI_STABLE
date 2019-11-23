@@ -110,7 +110,7 @@ contains
                 write (EXLEVELStats_unit, '()', advance='yes')
             endif ! tLogEXLEVELStats
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             if(tMCOutput) then
                 write(iout, '(a)') "       Step     Shift      WalkerCng(Re)  &
                        &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
@@ -144,7 +144,7 @@ contains
 
             write(fcimcstats_unit, "()", advance = 'yes')
 
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -171,7 +171,7 @@ contains
 
            write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
-#ifndef __CMPLX
+#ifndef CMPLX_
             if(tMCOutput) then
                 write(iout, "(A)", advance = 'no') "        Step    Shift           &
                       &WalkerCng       GrowRate        TotWalkers      Annihil         &
@@ -263,7 +263,7 @@ contains
 
         if (iProcIndex == root) then
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,&
 
@@ -348,7 +348,7 @@ contains
                     Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &
@@ -396,7 +396,7 @@ contains
 
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
-#ifndef __CMPLX
+#ifndef CMPLX_
 
             write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
@@ -631,10 +631,10 @@ contains
                 call stats_out(state,.true., sum(abs(AllTotParts))/inum_runs, &
                      'Tot. parts real')
                 call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
-#ifdef __CMPLX
+#ifdef CMPLX_
                 call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
                 call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
-#ifndef __CMPLX
+#ifndef CMPLX_
                 call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
 #endif
@@ -644,7 +644,7 @@ contains
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
                 call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
                 call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
-#ifdef __CMPLX
+#ifdef CMPLX_
                 call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
                                'Tot. Proj. E')
                 call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
@@ -671,7 +671,7 @@ contains
                  'trunc. Weight')
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#if defined __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
@@ -682,7 +682,7 @@ contains
                                 'ref. energy offset('//trim(adjustl(tmpc))// ')')
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ')')
-#ifdef __CMPLX
+#ifdef CMPLX_
                 call stats_out (state, .false., real(proje_iter(p) + OutputHii), &
                                 'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., aimag(proje_iter(p) + OutputHii), &
@@ -756,7 +756,7 @@ contains
                 if (tPrintReplicaOverlaps) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q
-#ifdef __CMPLX
+#ifdef CMPLX_
                         call stats_out(state, .false.,  replica_overlaps_real(p, q),&
                                        '<psi_' // trim(adjustl(tmpc)) // '|' &
                                        // 'psi_' // trim(adjustl(tmpc2)) &
@@ -850,7 +850,7 @@ contains
             call decode_bit_det(TempnI, WalkVecDets(:,i))
             ms = sum(get_spin_pn(Tempni(1:nel)))
             walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(TempSign(1))
-#ifdef __CMPLX
+#ifdef CMPLX_
             walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(TempSign(2))
 #endif
             write(mswalkercounts_unit,*) ms, TempSign
@@ -890,7 +890,7 @@ contains
                 norm1(j)=norm1(j)+AllHistogram(j,i)**2
             enddo
         enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
         norm2=SQRT(sum(norm1))
 #else
         norm1=SQRT(norm1)
@@ -898,7 +898,7 @@ contains
         WRITE(iout,*) "Total FCIMC Wavefuction normalisation:",norm1
         do i=1,Det
             do j=1,lenof_sign
-#ifdef __CMPLX
+#ifdef CMPLX_
                 AllHistogram(j,i)=AllHistogram(j,i)/norm2
 #else
                 AllHistogram(j,i)=AllHistogram(j,i)/norm1(j)
@@ -927,7 +927,7 @@ contains
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
                     ExcitLevel = FindBitExcitLevel(iLutHF, FCIDets(:,i), nel)
                     CALL decode_bit_det(nI,FCIDets(0:NIfTot,i))
-#ifdef __CMPLX
+#ifdef CMPLX_
                     WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,sum(norm)
 #else
                     WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,norm(1)
@@ -995,7 +995,7 @@ contains
                     norm3(j)=norm3(j)+AllAvAnnihil(j,i)**2
                 enddo
             enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
             norm_c=SQRT(sum(norm))
             norm1_c=SQRT(sum(norm1))
             norm2_c=SQRT(sum(norm2))
@@ -1008,7 +1008,7 @@ contains
 #endif
             do i=1,Det
                 do j=1,lenof_sign
-#ifdef __CMPLX
+#ifdef CMPLX_
                     AllHistogram(j,i)=AllHistogram(j,i)/norm_c
                     AllInstHist(j,i)=AllInstHist(j,i)/norm1_c
                     IF(norm2_c.ne.0.0_dp) THEN
@@ -1048,7 +1048,7 @@ contains
                     WRITE(io2,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
-#ifdef __CMPLX
+#ifdef CMPLX_
                 IF(AllHFCyc(1).eq.0.0_dp) THEN
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsOld)
                 ELSE
@@ -1066,7 +1066,7 @@ contains
 
             ELSE
                 OPEN(io2,FILE=abstr2,STATUS='UNKNOWN')
-#ifdef __CMPLX
+#ifdef CMPLX_
                 WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)
 #else
                 WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumCyc(1)/AllHFCyc(1),AllTotPartsOld(1)
@@ -1098,7 +1098,7 @@ contains
                           AllInstAnnihil(1,i), AllAvAnnihil(1,i), norm1, &
                           FinalPop, BeforeNormHist(i)
                 ELSE
-#ifdef __CMPLX
+#ifdef CMPLX_
                     WRITE(io1,"(I13,6G25.16)") i, AllHistogram(1,i), sum(norm), &
                           AllInstHist(1,i), AllInstAnnihil(1,i), &
                           AllAvAnnihil(1,i), sum(norm1)
@@ -1414,7 +1414,7 @@ contains
                 call extract_sign (LargestWalkers(:,j), SignCurr)
                 if (any(LargestWalkers(:,j) /= 0)) then
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                     HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                     HighSign = sum(real(abs(SignCurr),dp))
@@ -1456,7 +1456,7 @@ contains
             do i=1,iHighPopWrite
                 !How many non-zero determinants do we actually have?
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-#ifdef __CMPLX
+#ifdef CMPLX_
                 HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                 HighSign=sum(real(abs(SignCurr),dp))
@@ -1521,7 +1521,7 @@ contains
                     write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"
                 endif
             else
-#ifdef __CMPLX
+#ifdef CMPLX_
                 if(tHPHF) then
                     write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
@@ -1567,7 +1567,7 @@ contains
                 do j=1,lenof_sign
                     write(iout,"(G16.7)",advance='no') SignCurr(j)
                 enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
                 HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                 HighSign=sum(real(abs(SignCurr),dp))
@@ -1804,7 +1804,7 @@ contains
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             if(tMolpro) then
                 write (iout, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
@@ -1834,7 +1834,7 @@ contains
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                     if(tMolpro) then
                         write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
@@ -1861,7 +1861,7 @@ contains
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
             if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                 if(tMolpro) then
                     write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&

@@ -697,7 +697,7 @@ contains
         ! since i need it also in the real-space lattice for the 
         ! hopping transcorrelation move the symmetry setup for the 
         ! k-spae hubbard model into the lattice_mod 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "setup_lattice_symmetry"
 #endif
         integer :: i, kmin(3), kmax(3), j, k_i(3), k, l, ind
@@ -774,7 +774,7 @@ contains
         ! actually i could get rid of this function and directly call 
         ! the dispersion relation of the lattice.. 
         integer, intent(in) :: k_vec(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "epsilon_kvec_vector"
 #endif
 
@@ -846,7 +846,7 @@ contains
         class(lattice) :: this
         integer, intent(in) :: k_1(3), k_2(3)
         integer :: k_out(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "add_k_vec"
 #endif
 
@@ -863,7 +863,7 @@ contains
         class(lattice) :: this 
         integer, intent(in) :: sym_1, sym_2
         integer :: sym_out 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "add_k_vec_symbol"
 #endif
 
@@ -877,7 +877,7 @@ contains
         class(lattice) :: this 
         integer, intent(in) :: k(3)
         integer :: k_inv(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "inv_k_vec"
 #endif
 
@@ -915,7 +915,7 @@ contains
         class(lattice) :: this 
         integer, intent(in) :: sym 
         integer :: inv_sym
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine ="inv_k_vec_symbol"
 #endif
 
@@ -939,7 +939,7 @@ contains
         integer, intent(in) :: k_in(3) 
         integer, intent(in), optional :: spin
         integer :: orb
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_orb_from_k_vec"
 #endif
         integer :: k_vec(3), i
@@ -1097,7 +1097,7 @@ contains
         class(lattice) :: this 
         integer, intent(in) :: k_in(sdim) 
         integer, allocatable :: k_out(:,:) 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "apply_basis_vector_general"
 #endif 
         
@@ -1111,7 +1111,7 @@ contains
         integer, intent(in) :: k_in(3) 
         integer, intent(in), optional :: ind 
         integer :: k_out(3)
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "apply_basis_vector_cube" 
 #endif
 
@@ -1124,7 +1124,7 @@ contains
         integer, intent(in) :: k_in(3) 
         integer, intent(in), optional :: ind 
         integer :: k_out(3) 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "apply_basis_vector_rect"
 #endif
 
@@ -1159,12 +1159,12 @@ contains
         integer, intent(in) :: k_in(3) 
         integer, intent(in), optional :: ind 
         integer :: k_out(3) 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "apply_basis_vector_chain"
 #endif
         integer :: basis_vec(4,3) 
 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         if (t_trans_corr_2body) then 
             ASSERT(ind > 0 .and. ind <= 4) 
         else
@@ -1267,7 +1267,7 @@ contains
         integer, intent(in) :: k_in(3)
         integer, intent(in), optional :: ind 
         integer :: k_out(3) 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "apply_basis_vector_ole"
 #endif
 
@@ -1687,7 +1687,7 @@ contains
         ! data-structure is to it in the nicest, safest way.. until i profile!
         class(lattice) :: this 
         integer, intent(in) :: ind
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_site_index"
 #endif
 
@@ -3145,7 +3145,7 @@ contains
         class(chain) :: this 
         integer, intent(in) :: k_vec(3) 
         real(dp) :: disp 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "dispersion_rel_chain" 
 #endif
 
@@ -3183,7 +3183,7 @@ contains
         class(rectangle) :: this 
         integer, intent(in) :: k_vec(3)
         real(dp) :: disp 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "dispersion_rel_rect"
 #endif
 
@@ -3198,7 +3198,7 @@ contains
         class(cube) :: this 
         integer, intent(in) :: k_vec(3)
         real(dp) :: disp 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "dispersion_rel_cube" 
 #endif 
 
@@ -3214,7 +3214,7 @@ contains
         class(tilted) :: this 
         integer, intent(in) :: k_vec(3)
         real(dp) :: disp
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "dispersion_rel_tilted"
 #endif
 
@@ -3240,7 +3240,7 @@ contains
         class(ole) :: this
         integer, intent(in) :: k_vec(3) 
         real(dp) :: disp 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine ="dispersion_rel_ole"
 #endif
 
@@ -3642,7 +3642,7 @@ contains
         ! maybe move this function to lattice_mod?!
         class(lattice) :: this
         integer, intent(out), optional :: r_min(3), r_max(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "init_hop_cache_bounds"
 #endif
         integer :: n_sites, i, j, ri(3), rj(3), r_diff(3)
@@ -4236,7 +4236,7 @@ contains
         class(lattice) :: this
         integer, intent(in) :: ind 
         integer :: n_neighbors
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_num_neighbors_lattice"
 #endif
        
@@ -4259,7 +4259,7 @@ contains
         ! want to avoid.. so allocate it here!
 !         integer :: neighbors(this%sites(ind)%n_neighbors)
         integer, allocatable :: neighbors(:)
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_neighbors_lattice"
 #endif 
 
@@ -4292,7 +4292,7 @@ contains
         class(lattice) :: this 
         integer, intent(in) :: spinorb
         integer, allocatable :: neighbors(:) 
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "get_spinorb_neighbors_lat"
 #endif
 
@@ -4567,7 +4567,7 @@ contains
         class(cube) :: this 
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), parameter :: this_routine = "set_length_cube"
 #endif
 
@@ -4678,7 +4678,7 @@ contains
     integer function get_length_cube(this, dimen) 
         class(cube) :: this 
         integer, intent(in), optional :: dimen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_length_cube"
 #endif
 
@@ -4753,7 +4753,7 @@ contains
     logical function is_periodic_cube(this, dimen) 
         class(cube) :: this 
         integer, intent(in), optional :: dimen 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "is_periodic_cube"
 #endif 
 

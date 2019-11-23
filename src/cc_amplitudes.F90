@@ -2304,7 +2304,7 @@ contains
         ! write a new binomial function using the fortran2008 standard 
         ! gamma function 
         integer, intent(in) :: n, k 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "binomial"
 #endif
 

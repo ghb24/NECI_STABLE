@@ -384,7 +384,7 @@ contains
         character(1), intent(in) :: mirror_axis
         integer, intent(out), optional :: sort_ind(size(ilut_list,2))
         integer(n_int) :: mir_wf(size(ilut_list,1),size(ilut_list,2))
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "apply_mirror_wf"
 #endif
         integer :: orig_orbs(nBasis/2), trans_orbs(nBasis/2), i, &
@@ -420,7 +420,7 @@ contains
         integer(n_int), intent(inout) :: ilut_list(:,:)
         real(dp), intent(in) :: rot_angle
         integer(n_int) :: rot_wf(size(ilut_list,1),size(ilut_list,2))
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "apply_rotation_wf"
 #endif
         integer :: orig_orbs(nBasis/2), trans_orbs(nBasis/2), i, &
@@ -676,7 +676,7 @@ contains
         real(dp), intent(out) :: transformed_weights(n_states)
         integer, intent(out), optional :: sort_ind(n_states)
         integer(n_int), intent(out) :: transformed_states_ilut(0:niftot,n_states)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "transform_states"
 #endif
         integer :: i, n_phase, ind(n_states)
@@ -731,7 +731,7 @@ contains
         integer, intent(in) :: nI(nel), orig_orbs(nBasis/2), trans_orbs(nBasis/2)
         integer, intent(out) :: nJ(nel)
         integer, intent(out), optional :: n_phase
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "apply_transformation"
 #endif
         integer :: i, pos
@@ -840,7 +840,7 @@ contains
         integer, intent(in) :: nI_search(nel,n_states)
         integer(n_int), intent(in) :: ilut_list(0:niftot,n_states)
         real(dp), intent(out) :: nI_weights(n_states)
-#ifdef __DEBUG 
+#ifdef DEBUG_ 
         character(*), PARAMETER :: this_routine = "find_states_in_list"
 #endif 
         integer(n_int) :: ilut(0:niftot)
@@ -870,7 +870,7 @@ contains
         integer, intent(in) :: n_states
         integer(n_int), intent(out) :: largest_dets(0:niftot, n_states)
         real(dp), intent(out), optional :: norm
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_highest_pop"
 #endif
         integer(n_int) :: largest_dets_node(0:niftot,n_states)
@@ -904,7 +904,7 @@ contains
                 ! why is this call?
                 if (any(largest_dets_node(:,j) /= 0)) then
  
-#ifdef __CMPLX
+#ifdef CMPLX_
                     max_sign = sqrt(sum(abs(tmp_sign(1::2)))**2 + sum(abs(tmp_sign(2::2)))**2)
 #else
                     max_sign = sum(real(abs(tmp_sign),dp))
@@ -941,7 +941,7 @@ contains
         integer, intent(in) :: n_states
         integer(n_int), intent(out) :: largest_dets(0:niftot, n_states)
         real(dp), intent(out), optional :: all_norm
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_highest_pop_node"
 #endif
         real(dp) :: norm
@@ -978,7 +978,7 @@ contains
         integer, intent(in) :: in_orbs(nBasis/2)
         character(1), intent(in) :: mirror_axis
         integer :: out_orbs(nBasis/2)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "apply_mirror"
 #endif
         integer :: i
@@ -1000,7 +1000,7 @@ contains
         integer, intent(in) :: in_orbs(nBasis/2)
         real(dp), intent(in) :: rot_angle
         integer :: out_orbs(nBasis/2)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "apply_rotation"
 #endif
         integer :: i
@@ -1024,7 +1024,7 @@ contains
         integer, intent(in) :: in_orb
         character(1), intent(in) :: mirror_axis
         integer :: out_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "mirror_orb"
 #endif
         integer :: vec(3), mir_vec(3)
@@ -1083,7 +1083,7 @@ contains
     function inversion_orb(in_orb) result(out_orb)
         integer, intent(in) :: in_orb
         integer :: out_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "inversion_orb"
 #endif
         integer :: vec(3), inv_vec(3)
@@ -1116,7 +1116,7 @@ contains
         integer, intent(in) :: in_orb
         real(dp), intent(in) :: rot_angle
         integer :: out_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "rotate_orb"
 #endif
         integer :: vec(3), rot_vec(3)

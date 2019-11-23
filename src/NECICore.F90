@@ -241,13 +241,6 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     logical, intent(in) :: tCPMD,tVASP
     INTEGER :: rank, ierr
 
-#ifdef PARALLEL
-! Tell Molpro plugin server that we have finished
-    CALL MolproPluginTerm(0)
-! CPMD and VASP have their own MPI initialisation and termination routines.
-    call MPIEnd(molpro_plugin.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.called_as_lib)
-#endif
-
 !    CALL N_MEMORY_CHECK
 
     ! Cleanup any memory that hasn't been deallocated elsewhere, and isn't
@@ -257,6 +250,13 @@ subroutine NECICodeEnd(tCPMD,tVASP)
     if (.not.tCPMD .and. .not.called_as_lib) call LeaveMemoryManager()
     call end_timing()
     call print_timing_report()
+
+#ifdef PARALLEL
+! Tell Molpro plugin server that we have finished
+    CALL MolproPluginTerm(0)
+! CPMD and VASP have their own MPI initialisation and termination routines.
+    call MPIEnd(molpro_plugin.or.(tMolpro.and.(.not.tMolproMimic)).or.tCPMD.or.tVASP.or.called_as_lib)
+#endif
 
 end subroutine NECICodeEnd
 

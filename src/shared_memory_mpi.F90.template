@@ -75,7 +75,7 @@ contains
       character(255) :: string
       TYPE(C_PTR):: cptr_shm
 
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
 
       if (iProcIndex_intra.eq.0) then
          wsize=product(dims)*(%(sizeb)s)
@@ -110,7 +110,7 @@ contains
       integer(MPIArg):: win_shm
       %(type1)s, dimension(%(dim)s), pointer :: p_shm
       integer(MPIArg):: ierr
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
       nullify(p_shm)
       call mpi_win_unlock_all(win_shm,ierr)
       call mpi_win_free(win_shm,ierr)
@@ -125,7 +125,7 @@ supermodule shared_memory_mpi
 use scalar_shared_memory_mpi
 implicit none
 contains
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
     subroutine shared_sync_mpi(win_shm)
       integer(MPIArg):: win_shm
       integer(MPIArg):: ierr

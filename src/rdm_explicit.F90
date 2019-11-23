@@ -740,7 +740,7 @@ contains
         use rdm_filling, only: fill_sings_1rdm, fill_spawn_rdm_singles
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Sing_SearchOccDets"
 #endif
 
@@ -829,7 +829,7 @@ contains
         use rdm_data_utils, only: add_to_rdm_spawn_t
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Doub_SearchOccDets"
 #endif
         integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
@@ -925,7 +925,7 @@ contains
         logical :: tDetFound, tParity
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Sing_Hist_SearchOccDets"
 #endif
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
@@ -1030,7 +1030,7 @@ contains
         logical :: tDetFound, tParity
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Doub_Hist_SearchOccDets"
 #endif
         ! Take each Dj, and binary search the CurrentDets to see if it is occupied.

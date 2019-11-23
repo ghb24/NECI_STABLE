@@ -13,7 +13,7 @@ module util_mod
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
-#ifdef __IFORT
+#ifdef IFORT_
     use ifport, only: etime
 #endif
     implicit none
@@ -181,7 +181,7 @@ contains
     pure real(dp) function abs_int4_sign(sgn)
         integer(int32), intent(in) :: sgn(lenof_sign/inum_runs)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             abs_int4_sign=real(int(sqrt(real(sgn(1),dp)**2+real(sgn(2),dp)**2)),dp)
             ! The integerisation here is an approximation, but one that is
             ! used in the integer algorithm, so is retained in this real
@@ -195,7 +195,7 @@ contains
     pure integer(kind=int64) function abs_int8_sign(wsign)
         integer(kind=int64), dimension(lenof_sign/inum_runs), intent(in) :: wsign
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             abs_int8_sign=nint(sqrt(real(wsign(1),dp)**2+real(wsign(2),dp)**2),int64)
 #else
             abs_int8_sign=abs(wsign(1))
@@ -204,7 +204,7 @@ contains
 
     pure real(dp) function abs_real_sign (sgn)
         real(dp), intent(in) :: sgn(lenof_sign/inum_runs)
-#ifdef __CMPLX
+#ifdef CMPLX_
             abs_real_sign = real(nint(sqrt(sum(sgn ** 2))), dp)
 #else
             abs_real_sign = abs(sgn(1))
@@ -431,7 +431,7 @@ contains
     elemental logical function isnan_neci (r)
         real(dp), intent(in) :: r
 
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         isnan_neci = isnan(r)
 #else
         if ( (r == 0) .and. (r * 1 == 1) ) then
@@ -485,7 +485,7 @@ contains
 
     elemental integer(int32) function div_int32(a, b)
         integer(int32), intent(in) :: a, b
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
         div_int32 = int(real(a, kind=sp) / real(b, kind=sp), kind=int32)
 #else
         div_int32 = a / b
@@ -494,7 +494,7 @@ contains
 
     elemental integer(int64) function div_int64(a, b)
         integer(int64), intent(in) :: a, b
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
         div_int64 = int(real(a, kind=dp) / real(b, kind=dp), kind=int64)
 #else
         div_int64 = a / b
@@ -1057,7 +1057,7 @@ contains
     end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
-#ifndef __IFORT
+#ifndef IFORT_
       use mpi
 #endif
         ! Return elapsed time for timing and calculation ending purposes.
@@ -1065,7 +1065,7 @@ contains
         real(dp), intent(out) :: time(2)
         real(dp) :: ret
 
-#ifdef __IFORT
+#ifdef IFORT_
         ! intels etime takes a real(4)
         real(4) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules.
@@ -1272,7 +1272,7 @@ end module
 
 #endif
 
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
     function g_loc (var) result(addr)
 
         use iso_c_binding
