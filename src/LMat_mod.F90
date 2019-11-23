@@ -18,7 +18,7 @@ module LMat_mod
   use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter, &
        lMatIndSpin
   use LMat_calc, only: readlMatFactors, freelMatFactors, lMatCalc, lMatABCalc
-#ifdef __USE_HDF5
+#ifdef USE_HDF5_
   use hdf5
 #endif
   implicit none
@@ -33,7 +33,7 @@ module LMat_mod
        integer(int64), intent(in) :: index
        HElement_t(dp) :: matel
      end function lMatAccess_t
-     
+
   end interface
 
   ! actual objects storing the 6-index integrals
@@ -43,12 +43,12 @@ module LMat_mod
 
   contains
 
-!------------------------------------------------------------------------------------------!    
+!------------------------------------------------------------------------------------------!
 ! Access function for six-index integrals: get a matrix element given the spin-orbitals
 !------------------------------------------------------------------------------------------!
 
-!------------------------------------------------------------------------------------------!  
-    
+!------------------------------------------------------------------------------------------!
+
     ! this is the common logic of all 6-index lmat-acceses
     function get_lmat_el_base(a,b,c,i,j,k) result(matel)
       ! Input: a,b,c - indices of orbitals to excite to
@@ -66,13 +66,13 @@ module LMat_mod
 
       ! initialize spin-correlator check: if all spins are the same, use LMat
       ! without spin-dependent correlator, always use LMat
-      
+
       ! for matrix elements involving different spins, there are three cases:
       ! each of the orbitals i,j,k can have the different spin
       ! The position is important because the spinCorrelator breaks permutation symmetry
       ! w.r.t spin -> we fix the differing spin
       tSameSpin = .not. tSpinCorrelator .or. (G1(a)%MS==G1(b)%ms .and. G1(a)%MS==G1(c)%MS)
-      
+
       ! convert to spatial orbs if required
       ida = gtID(a)
       idb = gtID(b)
@@ -96,7 +96,7 @@ module LMat_mod
       ! if a heuristic spin-projection is done, it happens here
       if(tDampKMat .and. .not. tDampLMat) call dampLMatel(a,b,c,matel)
 
-      contains 
+      contains
 
         subroutine addMatelContribution(p,q,r,idp,idq,idr,sgn)
           ! get a single entry of the LMat array and add it to the matrix element
@@ -109,7 +109,7 @@ module LMat_mod
           type(lMat_t), pointer :: lMatPtr
           real(dp) :: lMatVal
      !     integer(int64) :: ai,bj,ck
-          
+
           if(G1(p)%ms == G1(a)%ms .and. G1(q)%ms == G1(b)%ms .and. G1(r)%ms == G1(c)%ms) then
 
              if(tContact) then
@@ -123,10 +123,10 @@ module LMat_mod
                 end if
              else
                  ! pick the lMat object used here according to the spin-relation
-                 if(tSameSpin) then                
-                    lMatPtr => lMat                
-                    ! the indexing function is contained in the lMat object                      
-                    index = lMatPtr%indexFunc(ida,idb,idc,idp,idq,idr)                
+                 if(tSameSpin) then
+                    lMatPtr => lMat
+                    ! the indexing function is contained in the lMat object
+                    index = lMatPtr%indexFunc(ida,idb,idc,idp,idq,idr)
                  else
                     ! for different spins, check which one is the different one and
                     ! call the index function accordingly
@@ -150,7 +150,7 @@ module LMat_mod
           endif
 
         end subroutine addMatelContribution
-        
+
       end function get_lmat_el_base
 
 !------------------------------------------------------------------------------------------!
@@ -163,20 +163,20 @@ module LMat_mod
         HElement_t(dp) :: matel
 
         matel = 0.0_dp
-        
-        ! get_lmat_el_base is not symmetric in this case => symmetrize w.r. 
+
+        ! get_lmat_el_base is not symmetric in this case => symmetrize w.r.
         ! to exchange of electrons
         matel = matel + get_lmat_el_symInternal(a,b,c,i,j,k)
         matel = matel + get_lmat_el_symInternal(b,c,a,j,k,i)
         matel = matel + get_lmat_el_symInternal(c,a,b,k,i,j)
-        ! + spin correction (get_lmat_el_base(ap,bp,cp,ip,jp,kp) with ap etc being the 
+        ! + spin correction (get_lmat_el_base(ap,bp,cp,ip,jp,kp) with ap etc being the
         ! spin-swapped indices)
         matel = matel / 3.0_dp
-        
+
       end function get_lmat_el_symmetrized
 
 !------------------------------------------------------------------------------------------!
-      
+
       function get_lmat_el_spinProj(a,b,c,i,j,k) result(matel)
         ! get the spin-projected matel
         implicit none
@@ -190,7 +190,7 @@ module LMat_mod
         real(dp), parameter :: directFac = 0.5625_dp
         real(dp), parameter :: swapFac = -0.1875_dp
         real(dp), parameter :: permFac = 0.0625_dp
-        
+
         matel = 0.0_dp
         matel = matel + directFac * get_lmat_el_base(a,b,c,i,j,k)
         call resetAux()
@@ -203,7 +203,7 @@ module LMat_mod
         call swapSpins(ap,cp,ip,kp)
         call swapSpins(ap,bp,ip,jp)
         matel = matel + permFac * get_lmat_el_base(ap,bp,cp,ip,jp,kp)
-      
+
       contains
 
         subroutine resetAux()
@@ -239,7 +239,7 @@ module LMat_mod
 
 
 !------------------------------------------------------------------------------------------!
-! Auxiliary functions for indexing and accessing the LMat    
+! Auxiliary functions for indexing and accessing the LMat
 !------------------------------------------------------------------------------------------!
 
     subroutine initializeLMatPtrs()
@@ -315,7 +315,7 @@ module LMat_mod
       end function LMatHash
 
 !------------------------------------------------------------------------------------------!
-! Functions that access single entries of the LMat array      
+! Functions that access single entries of the LMat array
 !------------------------------------------------------------------------------------------!
 
       function lMatHashedAccess(lMatCtr,index) result(matel)
@@ -327,7 +327,7 @@ module LMat_mod
         integer(int64) :: hashVal
         type(ll_node), pointer :: tmp_node
         logical :: found
-        
+
         hashVal = LMatHash(index, lMatCtr%htSize)
         ! this is the kernel of hash_table_lookup from the hash module
         found = .false.
@@ -341,9 +341,9 @@ module LMat_mod
               tmp_node => tmp_node%next
            end do
         end if
-        
+
         ! now, tmp_node%ind is the index of the element we wanted to have
-        if(found) then 
+        if(found) then
            matel = lMatCtr%LMatPtr(tmp_node%ind)
         else
            ! if not found, the matrix element is 0
@@ -361,12 +361,12 @@ module LMat_mod
         type(lMat_t), intent(in) :: lMatCtr
         integer(int64), intent(in) :: index
         HElement_t(dp) :: matel
-        
+
         matel = lMatCtr%lMatPtr(index)
       end function lMatDirectAccess
 
 !------------------------------------------------------------------------------------------!
-! Six-index integral I/O functions    
+! Six-index integral I/O functions
 !------------------------------------------------------------------------------------------!
 
     subroutine readLMat()
@@ -384,7 +384,7 @@ module LMat_mod
       else
           ! now, read lmat from file
           call readLMatArray(LMat,"TCDUMP","tcdump.h5")
-          ! for spin-dependent LMat, also read the opp. spin matrices 
+          ! for spin-dependent LMat, also read the opp. spin matrices
           if(tSpinCorrelator) then
              ! they break permutational symmetry w.r.t spin, so the cheapest solution is
              ! to have three instances, one for each spin-permutation
@@ -405,7 +405,7 @@ module LMat_mod
       integer :: iunit, ierr
       integer(int64) :: a,b,c,i,j,k
       HElement_t(dp) :: matel
-      integer(int64) :: LMatSize      
+      integer(int64) :: LMatSize
       character(*), parameter :: t_r = "readLMat"
       integer(int64) :: counter
 
@@ -421,7 +421,7 @@ module LMat_mod
       endif
 
       if(tHDF5LMat) then
-#ifdef __USE_HDF
+#ifdef USE_HDF_
          call readHDF5LMat(LMatLoc,h5filename)
 #else
          call stop_all(t_r, "HDF5 integral files disabled at compile time")
@@ -445,7 +445,7 @@ module LMat_mod
                   ! else assign the matrix element
                   if(lMatLoc%indexFunc(a,b,c,i,j,k) > LMatSize) then
                      counter = lMatLoc%indexFunc(a,b,c,i,j,k)
-                     write(iout,*) "Warning, exceeding size" 
+                     write(iout,*) "Warning, exceeding size"
                   endif
                   if(abs(3.0_dp*matel) > LMatEps) &
                        LMatLoc%LMatPtr(lMatLoc%indexFunc(a,b,c,i,j,k)) = 3.0_dp * matel
@@ -469,9 +469,9 @@ module LMat_mod
     end subroutine readLMatArray
 
 !------------------------------------------------------------------------------------------!
-! Memory management for the LMat_t objects    
+! Memory management for the LMat_t objects
 !------------------------------------------------------------------------------------------!
-    
+
     subroutine allocLMat(LMatLoc,LMatSize)
       use HElem, only: Helement_t_sizeB
       implicit none
@@ -479,7 +479,7 @@ module LMat_mod
       integer(int64), intent(in) :: LMatSize
       integer :: k
       character(*), parameter :: t_r = "allocLMat"
-      
+
       write(iout,*) "Allocating LMat, memory required:", LMatSize*HElement_t_sizeB/(2.0_dp**30), "GB"
       LMatLoc%nInts = LMatSize
       ! allocate LMat (shared memory)
@@ -515,7 +515,7 @@ module LMat_mod
           call deallocLMatArray(LMat)
       end if
 
-      contains 
+      contains
 
         subroutine deallocLMatArray(LMatLoc)
           implicit none
@@ -545,7 +545,7 @@ module LMat_mod
 ! HDF5 Functionality
 !------------------------------------------------------------------------------------------!
 
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     subroutine readHDF5LMat(LMatLoc, filename)
       use hdf5
       use hdf5_util
@@ -694,7 +694,7 @@ module LMat_mod
          ! once all procs on this node are done reading, we can exit
          call MPI_ALLREDUCE(running, any_running, 1, MPI_LOGICAL, MPI_LOR, mpi_comm_intra, ierr)
 
-         ! communicate how many nonzero entries have been read and set the starting point 
+         ! communicate how many nonzero entries have been read and set the starting point
          ! for the next write
          if(tSparseLMat) then
             call MPI_ALLREDUCE(counter,allCounter,1,MPI_INT,MPI_SUM,mpi_comm_intra,ierr)
@@ -715,8 +715,8 @@ module LMat_mod
          LMatLoc%nInts = sparseBlockStart
          call initLMatHash(LMatLoc)
       endif
-     
-      contains 
+
+      contains
 
         function count_entries(entries) result(nEntries)
           integer(hsize_t), intent(in) :: entries(:,:)
@@ -730,7 +730,7 @@ module LMat_mod
           do j = 1, blocksize
              if(abs(3.0*transfer(entries(1,j),rVal)) > lMatEps) nEntries = nEntries + 1
           end do
-             
+
         end function count_entries
 
     end subroutine readHDF5LMat
@@ -752,7 +752,7 @@ module LMat_mod
       ! convert to spatial orbs if required
 
       matel = 0
-      
+
       if(G1(a)%ms == G1(b)%ms .and. G1(a)%ms.ne.G1(c)%ms ) then
          a2=a
          b2=b
@@ -802,7 +802,7 @@ module LMat_mod
       integer, parameter :: minExp = 10
       integer :: histogram(0:minExp)
       real :: ratios(0:minExp)
-      
+
       histogram = 0
       do i = 1, size(lMatObj%LMatPtr)
          do thresh = minExp,1,-1
@@ -829,7 +829,7 @@ module LMat_mod
     end subroutine histogramLMat
 
 !------------------------------------------------------------------------------------------!
-    
+
     function getPCWeightOffset() result(offset)
       ! get the offset used for generating precomputed weights
       ! Output: offset - constant to be added to each weight of the precomputed-excitation generators
@@ -862,14 +862,14 @@ module LMat_mod
       integer :: i
       character(*), parameter :: lmatfilename = "LMAT_FILE"
       integer :: iunit
-      
+
       iunit = get_free_unit()
       open(iunit,file=lmatfilename,status='UNKNOWN')
       do i = 1, size(LMat%LMatPtr)
          write(iunit,*) LMat%LMatPtr(i)
       end do
       close(iunit)
-      
+
     end subroutine write_lmat_debug
 
 end module LMat_mod

@@ -1,5 +1,5 @@
 module LMat_calc
-#ifdef __USE_HDF5
+#ifdef USE_HDF5_
   use hdf5
 #endif
   use hdf5_util
@@ -8,7 +8,7 @@ module LMat_calc
   implicit none
 
   double precision, allocatable :: qwprod(:,:,:), ycoulomb(:,:,:,:), ycoulombAB(:,:,:,:)
-#ifdef __USE_HDF5
+#ifdef USE_HDF5_
   integer(hsize_t) :: nBasis, nGrid
 #else
   integer :: nGrid
@@ -28,13 +28,13 @@ module LMat_calc
     character(*), parameter :: nm_grp = "tcfactors", nm_nBasis = "nBasis", nm_nGrid = "nGrid", &
                                nm_weights="weights", nm_mo_vals="mo_vals", nm_ycoulomb="ycoulomb", nm_ycoulombAB="ycoulombAB"
     double precision, allocatable :: mo_vals(:,:), weights(:)
-#ifdef __USE_HDF5
+#ifdef USE_HDF5_
     integer(hid_t) :: err, file_id, grp_id, dataset, type_id
     integer(hsize_t) :: weights_dims(1), mo_vals_dims(2), ycoulomb_dims(4)
 #endif
     integer i, a, b
     character(*), parameter :: this_routine = "readLMatFactors"
-#ifdef __USE_HDF5
+#ifdef USE_HDF5_
     write(iout,*) "**************** Reading TcFactors File ****************"
     call h5open_f(err)
 
@@ -175,7 +175,7 @@ module LMat_calc
     end if
   end subroutine freeLMatFactors
 
-  
+
   function lMatCalc(i,k,m,j,l,n) result (matel)
     integer(int64), intent(in) :: i,j,k,l,m,n
     HElement_t(dp) :: matel
@@ -192,13 +192,13 @@ module LMat_calc
     if(hashKey==LMatCalcHKeys(hashInd))then
         lMatCalcHit = lMatCalcHit + 1
         matel = LMatCalcHVals(hashInd)
-        return 
+        return
     end if
 
     !It does not exist. So let's calculate it
 
     matel = 0.0_dp
-    !Manual Optimization: 
+    !Manual Optimization:
     !1-loop over first index is unrolled.
     !2-indpendent summations are done in seperate loops to enhance CPU-cahce utilization
     do ii = 1,nGrid
@@ -253,7 +253,7 @@ module LMat_calc
     if(hashKey==LMatABCalcHKeys(hashInd))then
         lMatABCalcHit = lMatABCalcHit + 1
         matel = LMatABCalcHVals(hashInd)
-        return 
+        return
     end if
 
     !It does not exist. So let's calculate it

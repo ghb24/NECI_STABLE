@@ -591,13 +591,13 @@ contains
            ! RT_M_Merge: Adjusted to kmneci
            ! rmneci_setup: Added multirun functionality for real-time
             if (ExcitLevel_local == 2) then
-#ifdef CMPLX_
             do run = 1, inum_runs
+#ifdef CMPLX_
                 NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign(min_part_type(run):max_part_type(run))))
-            enddo
 #else
-                  NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
+                NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
 #endif
+            enddo
                ! add the k-matrix contribution
                if(tLogKMatProjE) call addProjEContrib(ProjEDet(:,1),nI,RealWSign)
             end if
