@@ -12,7 +12,7 @@ module hdf5_util
     ! guarantee compatibility across programming languages, compilers and
     ! build configurations, then it helps to be explicit.
 
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     use iso_c_hack
     use constants
     use util_mod
@@ -849,7 +849,7 @@ contains
         integer(hdf_err) :: err
         integer(hsize_t) :: mem_dims(2)
         integer(int32), pointer :: ptr(:,:)
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
        val = 0_int64
 #endif
 

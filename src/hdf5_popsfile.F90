@@ -76,7 +76,7 @@ module hdf5_popsfile
     use CalcData, only: tAutoAdaptiveShift
     use LoggingData, only: tPopAutoAdaptiveShift
     use global_det_data, only: writeFFuncAsInt
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     use hdf5
 #endif
     implicit none
@@ -147,7 +147,8 @@ module hdf5_popsfile
 
 contains
 
-    subroutine write_popsfile_hdf5()
+
+    subroutine write_popsfile_hdf5(MaxEx)
 
         use CalcData, only: iPopsFileNoWrite
         use LoggingData, only: tIncrementPops
@@ -158,22 +159,38 @@ contains
         ! 3) Deal with HDF5 build configurations without MPIO
         ! 4) Should we in some way make incrementpops default?
 
+        integer, intent(in), optional :: MaxEx
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
-#ifdef __USE_HDF
+#ifdef USE_HDF_
         integer(hid_t) :: plist_id, file_id
         integer(hdf_err) :: err
         integer :: mpi_err
         character(255) :: filename
+        character(30) :: stem
+        character(4) :: MaxExStr
 
         ! Get a unique filename for this popsfile. This needs to be done on
         ! the head node to avoid collisions.
-        if (iProcIndex == 0) &
-            call get_unique_filename('popsfile', tIncrementPops, .true., &
-                                     iPopsFileNoWrite, filename, ext='.h5')
+        if (iProcIndex == 0) then
+            if(present(MaxEx))then
+                write (MaxExStr,'(I0)') MaxEx
+                stem = 'popsfile_trunc'//MaxExStr
+            else
+                stem = 'popsfile'
+            end if
+            call get_unique_filename(trim(stem), &
+                                     tIncrementPops, .true., iPopsFileNoWrite, &
+                                     filename, ext='.h5')
+        endif
+
         call MPIBCast(filename)
 
         write(6,*)
-        write(6,*) "============== Writing HDF5 popsfile =============="
+        if(present(MaxEx))then
+            write(6,*) "============== Writing Truncated HDF5 popsfile =============="
+        else
+            write(6,*) "============== Writing HDF5 popsfile =============="
+        end if
         write(6,*) "File name: ", trim(filename)
 
         ! Initialise the hdf5 fortran interface
@@ -194,8 +211,13 @@ contains
         call write_calc_data(file_id)
 
         call MPIBarrier(mpi_err)
-        write(6,*) "writing walkers"
-        call write_walkers(file_id)
+
+        if(present(MaxEx))then
+            write(6,*) "writing walkers up to excitation level: ", MaxExStr
+        else
+            write(6,*) "writing walkers"
+        end if
+        call write_walkers(file_id, MaxEx)
 
         call MPIBarrier(mpi_err)
         write(6,*) "closing popsfile"
@@ -208,12 +230,13 @@ contains
         call MPIBarrier(mpi_err)
 
         write(6,*) "popsfile write successful"
+
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
+        unused_var(MaxEx)
 #endif
 
     end subroutine write_popsfile_hdf5
-
 
     function read_popsfile_hdf5(dets) result(CurrWalkers)
 
@@ -228,7 +251,7 @@ contains
         integer(n_int), intent(out) :: dets(:, :)
         integer(int64) :: CurrWalkers
         character(*), parameter :: t_r = 'read_popsfile_hdf5'
-#ifdef __USE_HDF
+#ifdef USE_HDF_
         integer(hid_t) :: file_id, plist_id
         integer(hdf_err) :: err
         integer :: mpi_err
@@ -278,7 +301,7 @@ contains
     end function
 
 
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     subroutine write_metadata(parent)
 
         use CalcData, only: calc_seq_no
@@ -490,7 +513,7 @@ contains
         ! (n.b. ensure values on all procs)
         call MPIBcast(AllSumENum)
         call MPIBcast(AllSumNoatHF)
-#ifdef __CMPLX
+#ifdef CMPLX_
         call write_cplx_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
 #else
         call write_dp_1d_dataset(acc_grp, nm_sum_enum, AllSumENum)
@@ -697,7 +720,7 @@ contains
         call h5gopen_f(parent, nm_acc_grp, grp_id, err)
         call read_dp_1d_dataset(grp_id, nm_sum_no_ref, AllSumNoatHF, &
                                 required=.true.)
-#ifdef __CMPLX
+#ifdef CMPLX_
         call read_cplx_1d_dataset(grp_id, nm_sum_enum, AllSumENum, &
                                   required=.true.)
 #else
@@ -709,18 +732,20 @@ contains
 
     end subroutine
 
-    subroutine write_walkers(parent)
+    subroutine write_walkers(parent, MaxEx)
 
         use iso_c_hack
-        use bit_rep_data, only: NIfD, NIfTot, NOffSgn
+        use bit_rep_data, only: NIfD, NIfTot, NOffSgn, extract_sign
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
-                             TotWalkers
+                             TotWalkers, iLutHF
         use CalcData, only: tUseRealCoeffs
+        use DetBitOps, only: FindBitExcitLevel
 
         ! Output the wavefunction information to the relevant groups in the
         ! wavefunction.
 
         integer(hid_t), intent(in) :: parent
+        integer, intent(in), optional :: MaxEx
         type(c_ptr) :: cptr
         integer(int32), pointer :: ptr(:)
         integer(int32) :: boop
@@ -739,9 +764,51 @@ contains
         integer(hsize_t) :: dims(2), hyperdims(2)
         real(dp) :: all_parts(lenof_sign), all_norm_sqr(lenof_sign)
         integer(hsize_t) :: block_size, block_start, block_end
-        integer(hsize_t), dimension(:,:), allocatable :: temp_dets
         integer :: ierr
         integer(n_int), allocatable :: fvals(:,:)
+
+        integer :: ExcitLevel
+        integer(hsize_t) :: printed_count
+        integer(kind=n_int) , allocatable , target :: TmpVecDets(:,:)
+        integer(kind=n_int) , pointer :: PrintedDets(:,:)
+        integer :: i, run
+        real(dp) :: CurrentSign(lenof_sign), printed_tot_parts(lenof_sign), &
+                    printed_norm_sqr(inum_runs)
+
+
+        if(present(MaxEx))then
+            ! We want to print only dets up to a certine excitation level
+            ! Let us find out which ones they are and copy them
+            allocate(TmpVecDets(0:NIfTot, TotWalkers))
+            PrintedDets => TmpVecDets
+            printed_count = 0
+            printed_norm_sqr = 0
+            printed_tot_parts = 0
+            do i = 1, int(TotWalkers)
+                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
+                if(ExcitLevel<=MaxEx)then
+                    call extract_sign(CurrentDets(:,i),CurrentSign)
+                    if(IsUnoccDet(CurrentSign)) cycle
+                    printed_count = printed_count + 1
+                    PrintedDets(:,printed_count) = CurrentDets(:,i)
+                    ! Fill in stats
+                    printed_tot_parts = printed_tot_parts + abs(CurrentSign)
+#if defined(CMPLX_)
+                    do run = 1, inum_runs
+                       printed_norm_sqr(run) = printed_norm_sqr(run) + &
+                            sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+                    enddo
+#else
+                    printed_norm_sqr = printed_norm_sqr + CurrentSign**2
+#endif
+                end if
+            end do
+        else
+            PrintedDets => CurrentDets
+            printed_count = TotWalkers
+            printed_norm_sqr = norm_psi_squared
+            printed_tot_parts = TotParts
+        endif
 
         ! TODO: Add a (slower) fallback routine for weird cases, odd HDF libs
 
@@ -759,7 +826,7 @@ contains
         end if
 
         ! How many occuiped determinants are there on each of the processors
-        call MPIAllGather(TotWalkers, counts, ierr)
+        call MPIAllGather(printed_count, counts, ierr)
         all_count = sum(counts)
         write_offset = [0_hsize_t, sum(counts(0:iProcIndex-1))]
 
@@ -776,9 +843,8 @@ contains
 
         ! Accumulated values only valid on head node. collate_iter_data
         ! has not yet run.
-        all_parts = AllTotParts
-        call MPISumAll(norm_psi_squared, all_norm_sqr)
-        call MPIBcast(all_parts)
+        call MPISumAll(printed_norm_sqr, all_norm_sqr)
+        call MPISumAll(printed_tot_parts, all_parts)
         call write_dp_1d_attribute(wfn_grp_id, nm_norm_sqr, all_norm_sqr)
         call write_dp_1d_attribute(wfn_grp_id, nm_num_parts, all_parts)
 
@@ -786,8 +852,9 @@ contains
         !complicated hyperslabs + collective buffering
         ! Write out the determinant bit-representations
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, CurrentDets, &
-                [int(nifd+1, hsize_t), int(TotWalkers, hsize_t)], & ! dims
+                wfn_grp_id, nm_ilut, H5T_NATIVE_INTEGER_8, &
+                PrintedDets, &
+                [int(nifd+1, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], & ! offset
                 [int(nifd+1, hsize_t), all_count], & ! all dims
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
@@ -798,8 +865,9 @@ contains
 !            call stop_all(t_r, "This could go badly...")
 
         call write_2d_multi_arr_chunk_buff( &
-                wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, CurrentDets, &
-                [int(lenof_sign, hsize_t), int(TotWalkers, hsize_t)], & ! dims
+                wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
+                PrintedDets, &
+                [int(lenof_sign, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [int(nOffSgn, hsize_t), 0_hsize_t], & ! offset
                 [int(lenof_sign, hsize_t), all_count], & ! all dims
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
@@ -808,12 +876,12 @@ contains
         ! if auto-adaptive shift was used, also write the gathered information on
         ! accepted/total spawns
         if(tAutoAdaptiveShift) then
-           allocate(fvals(2*inum_runs,TotWalkers))
+           allocate(fvals(2*inum_runs,printed_count))
            ! get the statistics of THIS processor
-           call writeFFuncAsInt(TotWalkers, fvals)
+           call writeFFuncAsInt(TotWalkers,fvals, MaxEx)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, fvals, &
-                [int(2*inum_runs, hsize_t), int(TotWalkers, hsize_t)], & ! dims
+                [int(2*inum_runs, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
                 [int(2*inum_runs, hsize_t), all_count], &
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] &
@@ -823,6 +891,10 @@ contains
 
         ! And we are done
         call h5gclose_f(wfn_grp_id, err)
+
+        if(present(MaxEx))then
+            deallocate(TmpVecDets)
+        endif
 
     end subroutine write_walkers
 
@@ -901,7 +973,7 @@ contains
         ! as lenof_sign is of type int, do not force tmp_lenof_sign to be int32
         tmp_lenof_sign = int(read_lenof_sign)
         ! assign the tmp_inum_runs accordingly
-#ifdef __CMPLX
+#ifdef CMPLX_
         tmp_inum_runs = tmp_lenof_sign/2
 #else
         tmp_inum_runs = tmp_lenof_sign
@@ -1122,7 +1194,7 @@ contains
         integer(hid_t) :: plist_id
         integer :: tmp_lenof_fvals
 
-#ifdef __INT64
+#ifdef INT64_
 
         call read_2d_multi_chunk( &
                 ds_ilut, temp_ilut, H5T_NATIVE_INTEGER_8, &
@@ -1489,7 +1561,7 @@ contains
     end subroutine
 
 !------------------------------------------------------------------------------------------!
-#ifdef __USE_HDF
+#ifdef USE_HDF_
     subroutine clone_signs(tmp_sgns, tmp_lenof_sign, lenof_sign, num_signs)
       implicit none
       ! expand/shrink the sign to the target lenof_sign
@@ -1602,9 +1674,9 @@ contains
 
         call extract_sign(ilut, real_sign)
 
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
         pops_norm = pops_norm + real_sign(1)*real_sign(2)
-#elif __CMPLX
+#elif CMPLX_
         pops_norm = pops_norm + real_sign(1)**2 + real_sign(2)**2
 #else
         pops_norm = pops_norm + real_sign(1)*real_sign(1)

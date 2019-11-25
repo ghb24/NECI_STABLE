@@ -16,7 +16,7 @@ contains
         integer, intent(in) :: nI(nel), elec, tgt
         integer, intent(out) :: ex(2,2), nJ(nel)
         logical, intent(out) :: tParity
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'make_single'
 #endif
         integer :: i, src
@@ -60,7 +60,7 @@ contains
         ! Magic! Avoids conditional tests.
         tParity = .not. btest(elec - i, 0)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! This is a useful (but O[N]) check to test the generated determinant.
         if (.not. SymAllowedExcit(nI, nJ, 1, ex)) &
             call stop_all(this_routine, 'Generating invalid excitation')
@@ -74,7 +74,7 @@ contains
         integer, intent(in) :: nI(:), elec1, elec2, tgt1, tgt2
         integer, intent(inout) :: ex(2,2), nJ(:)
         logical, intent(out) :: tParity
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'make_double'
 #endif
 
@@ -149,7 +149,7 @@ contains
         tParity = btest(pos_moved, 0)
 !        parity = 1 - 2 * modulo(pos_moved, 2)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! This is a useful (but O[N]) check to test the generated determinant.
         if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then
             print *, "nI: ", nI

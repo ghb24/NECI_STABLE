@@ -570,7 +570,7 @@ contains
         integer :: i,j,k,l,a,b,g,d,ierr,Temp4indintsTag,a2,d2,b2,g2
         real(dp), allocatable :: Temp4indints(:,:)
         character(len=*), parameter :: t_r= 'Transform2ElIntsMemSave_RDM'
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all('Transform2ElIntsMemSave_RDM', &
                     'Rotating orbitals not implemented for complex orbitals.')
 #endif
@@ -763,7 +763,7 @@ contains
         real(dp), allocatable :: TMAT2DPart(:,:)
         character(len=*), parameter :: t_r = 'RefillUMATandTMAT2D_RDM'
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all('RefillUMATandTMAT2D_RDM', &
                     'Rotating orbitals not implemented for complex orbitals.')
 #endif

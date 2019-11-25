@@ -1144,11 +1144,11 @@ the \texttt{endsys} keyword.
     Set the number of iterations for sampling the RDMs to $n$. After $n$
     iterations of sampling, the calculation ends.
     \codeitem{inits-rdm}
-    Only take into account initiators when calculating RDMs.
-    \codeitem{non-variational-rdms}
-    Only take into account initiators for the right vector used in RDM
-    calculation. This makes the RDMs non-variational, and the resulting energy
+    Only take into account initiators when calculating RDMs. By default, only
+    restricts to initiators for the right vector used in RDM calculation. This makes the RDMs non-variational, and the resulting energy
     is the projected energy on the initiator space.
+    \codeitem{strict-inits-rdm}
+    Require both sides of the inits-rdm to be initiators.
     \codeitem{no-lagrangian-rdms}
     This option disables the correction used for RDM calculation for the
     adaptive shift. Use this only for debugging purposes, as the resulting
@@ -1354,6 +1354,10 @@ the \texttt{endsys} keyword.
       \codeitem{nomcoutput}
       Suppress the printing of iteration information to stdout. This data is
       still written to disk.
+      \codeitem{stepsOutput $n$}
+      Write the iteration data to stdout/disk every $n$ iterations. Defaults
+      to the number of iterations per shift cycle. Setting $n=0$ disables
+      iteration data output to stdout and uses the shift cycle for disk output.
     \end{description}
     \subsubsection{Semi-stochastic output options}
     \begin{description}

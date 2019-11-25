@@ -143,7 +143,7 @@ contains
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
         run = part_type_to_run(part_type)
-#ifdef __DEBUG
+#ifdef DEBUG_
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
 #endif
 
@@ -164,7 +164,7 @@ contains
         end if
 
         if (list_full) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             write(6,*) "Attempting to spawn particle onto processor: ", proc
             write(6,*) "No memory slots available for this spawn."
             write(6,*) "Please increase MEMORYFACSPAWN"
@@ -373,7 +373,7 @@ contains
             end if
 
             if (list_full) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                 write(6,*) "Attempting to spawn particle onto processor: ", proc
                 write(6,*) "No memory slots available for this spawn."
                 write(6,*) "Please increase MEMORYFACSPAWN"
@@ -437,7 +437,7 @@ contains
         HElement_t(dp) :: HOffDiag(inum_runs)
         character(*), parameter :: this_routine = 'SumEContrib'
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         complex(dp) :: CmplxwSign
 #endif
 
@@ -453,7 +453,7 @@ contains
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
-#ifdef __CMPLX
+#ifdef CMPLX_
         CmplxwSign = ARR_RE_OR_CPLX(realwsign, 1)
 
         if (tTrialWavefunction .and. present(ind)) then
@@ -572,6 +572,7 @@ contains
             NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
             ! Number at HF * sign over course of update cycle
             HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+            HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
 
         elseif (ExcitLevel_local == 2 .or. &
                 (ExcitLevel_local == 1 .and. tNoBrillouin)) then
@@ -586,7 +587,7 @@ contains
             ! along with the doubles
 
             if (ExcitLevel_local == 2) then
-#ifdef __CMPLX
+#ifdef CMPLX_
             do run = 1, inum_runs
                 NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign(min_part_type(run):max_part_type(run))))
             enddo
@@ -611,7 +612,7 @@ contains
         ! L_{0,1,2} norms of walker weights by excitation level.
         if (tLogEXLEVELStats) then
             do run = 1, inum_runs
-#ifdef __CMPLX
+#ifdef CMPLX_
                 w(0) = real(1 + max_part_type(run) - min_part_type(run), dp)
                 w(1) = sum(abs(RealwSign(min_part_type(run):&
                                          max_part_type(run))))
@@ -629,17 +630,15 @@ contains
 
         ! Sum in energy contribution
         do run=1, inum_runs
+           
            if (iter > NEquilSteps) &
-                SumENum(run) = SumENum(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
-                / dProbFin
+                SumENum(run) = SumENum(run) + enum_contrib()
 
-           ENumCyc(run) = ENumCyc(run) + (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
-           ENumCycAbs(run) = ENumCycAbs(run) + abs(HoffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) &
-                / dProbFin
-           if(test_flag(ilut, get_initiator_flag_by_run(run))) then
-              InitsENumCyc(run) = InitsENumCyc(run) + (HOffDiag(run) &
-                   * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
-           endif
+           ENumCyc(run) = ENumCyc(run) + enum_contrib()
+           ENumOut(run) = ENumOut(run) + enum_contrib()
+           ENumCycAbs(run) = ENumCycAbs(run) + abs(enum_contrib() )
+           if(test_flag(ilut, get_initiator_flag_by_run(run))) &
+                InitsENumCyc(run) = InitsENumCyc(run) + enum_contrib()
         end do
 
         ! -----------------------------------
@@ -678,8 +677,17 @@ contains
                         = OrbOccs(iand(nI(i), csf_orbital_mask)) &
                                    + (RealwSign(1) * RealwSign(1))
             endif
-        endif
+         endif
 
+       contains
+
+         function enum_contrib() result(dE)
+           implicit none
+           HElement_t(dp) :: dE
+
+           dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+         end function enum_contrib
+        
     end subroutine SumEContrib
 
 
@@ -726,9 +734,9 @@ contains
                     trial_denom = trial_denom + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
-#ifdef __CMPLX
+#ifdef CMPLX_
                             trial_denom(run-1) = trial_denom(run-1) + current_trial_amps(run/2,ind)* &
                                 cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run/2,ind)* &
@@ -741,7 +749,7 @@ contains
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
-#ifdef __CMPLX
+#ifdef CMPLX_
                         do run=1,inum_runs
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run,ind)* &
                                 cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
@@ -759,7 +767,7 @@ contains
                         trial_numerator = trial_numerator + amps(1)*sgn
                     else
                         if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                             do run = 2, inum_runs, 2
                                 trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
                             end do
@@ -779,9 +787,9 @@ contains
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
-#ifdef __CMPLX
+#ifdef CMPLX_
                             trial_numerator(run-1) = trial_numerator(run-1) + current_trial_amps(run/2,ind)* &
                                 cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run/2,ind)* &
@@ -794,7 +802,7 @@ contains
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
-#ifdef __CMPLX
+#ifdef CMPLX_
                         do run=1,inum_runs
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run,ind)* &
                                 cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
@@ -821,7 +829,7 @@ contains
                     exlevel = 2
                 end if
             end if
-#ifdef __CMPLX
+#ifdef CMPLX_
             sgn_run = cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
 #else
             sgn_run = sgn(run)
@@ -830,19 +838,11 @@ contains
             hoffdiag = 0.0_dp
             if (exlevel == 0) then
 
-                if (iter > nEquilSteps) then
-#ifdef __CMPLX
-                    SumNoatHF(min_part_type(run)) = SumNoatHF(min_part_type(run)) + real(sgn_run)
-                    SumNoatHF(max_part_type(run)) = SumNoatHF(max_part_type(run)) + aimag(sgn_run)
-                    NoatHF(min_part_type(run)) = NoatHF(min_part_type(run)) + real(sgn_run)
-                    NoatHF(max_part_type(run)) = NoatHF(max_part_type(run)) + aimag(sgn_run)
-                    HFCyc(min_part_type(run)) = HFCyc(min_part_type(run)) + real(sgn_run)
-                    HFCyc(max_part_type(run)) = HFCyc(max_part_type(run)) + aimag(sgn_run)
-#else
-                    SumNoatHF(run) = SumNoatHF(run) + sgn_run
-                    NoatHF(run) = NoatHF(run) + sgn_run
-                    HFCyc(run) = HFCyc(run) + sgn_run
-#endif
+               if (iter > nEquilSteps) then
+                  call add_sign_on_run(SumNoatHF)
+                  call add_sign_on_run(NoatHF)
+                  call add_sign_on_run(HFCyc)
+                  call add_sign_on_run(HFOut)
                 endif
 
             else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
@@ -867,12 +867,34 @@ contains
 
             ! Sum in energy contributions
             if (iter > nEquilSteps) &
-                SumENum(run) = SumENum(run) + (hoffdiag * sgn_run) / dProbFin
-            ENumCyc(run) = ENumCyc(run) + (hoffdiag * sgn_run) / dProbFin
-            ENumCycAbs(run) = ENumCycAbs(run) + abs(hoffdiag * sgn_run) / dProbFin
+                SumENum(run) = SumENum(run) + enum_contrib()
+            ENumCyc(run) = ENumCyc(run) + enum_contrib()
+            ENumOut(run) = ENumOut(run) + enum_contrib()
+            ENumCycAbs(run) = ENumCycAbs(run) + abs(enum_contrib() )
 
         end do
 
+      contains
+
+        subroutine add_sign_on_run(var)
+          implicit none
+          real(dp), intent(inout) :: var(lenof_sign)
+          
+#ifdef CMPLX_
+          var(min_part_type(run)) = var(min_part_type(run)) + real(sgn_run)
+          var(max_part_type(run)) = var(max_part_type(run)) + aimag(sgn_run)
+#else
+          var(run) = var(run) + sgn_run
+#endif
+        end subroutine add_sign_on_run
+
+        function enum_contrib() result(dE)
+          implicit none
+          HElement_t(dp) :: dE
+
+          dE = (hoffdiag * sgn_run) / dProbFin
+        end function enum_contrib
+        
     end subroutine SumEContrib_different_refs
 
     subroutine CalcParentFlag_normal(j, parent_flags)
@@ -1342,14 +1364,10 @@ contains
         integer :: run
 
         ! SumWalkersCyc calculates the total number of walkers over an update
-        ! cycle on each process.
-#ifdef __CMPLX
-        do run = 1, inum_runs
-            SumWalkersCyc(run) = SumWalkersCyc(run) + sum(TotParts(min_part_type(run):max_part_type(run)))
-        enddo
-#else
-        SumWalkersCyc = SumWalkersCyc + TotParts
-#endif
+        ! cycle on each process. (used for shift update)
+        call add_part_number(SumWalkersCyc)
+        ! SumWalkersOut is the total walker number over an output cycle (used for acc. rate)
+        call add_part_number(SumWalkersOut)
 
         ! Write initiator histograms if on the correct iteration.
         ! Why is this done here - before annihilation!
@@ -1361,7 +1379,21 @@ contains
                                        &initiator determinant populations.'
                 call WriteInitPops (iter + PreviousCycles)
             end if
-        endif
+         endif
+
+       contains
+
+         subroutine add_part_number(var)
+           real(dp), intent(inout) :: var(inum_runs)
+
+#ifdef CMPLX_
+           do run = 1, inum_runs
+              var(run) = var(run) + sum(TotParts(min_part_type(run):max_part_type(run)))
+           enddo
+#else
+           var = var + TotParts
+#endif           
+         end subroutine add_part_number
 
     end subroutine end_iter_stats
 
@@ -2144,7 +2176,7 @@ contains
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             NoDied(run) = NoDied(run) &
                 + sum(min(iDie(min_part_type(run):max_part_type(run)), abs(RealwSign(min_part_type(run):max_part_type(run)) )))
@@ -2155,7 +2187,7 @@ contains
 
         ! Count any antiparticles
         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             NoBorn(run) = NoBorn(run) &
                 + sum(max(iDie(min_part_type(run):max_part_type(run)) &
@@ -2439,6 +2471,7 @@ contains
         ! Reset the accumulators
         HFCyc = 0.0_dp
         ENumCyc = 0.0_dp
+        NoatDoubs = 0.0_dp
 
         ! Main loop
         do j = 1, int(TotWalkers, sizeof_int)
@@ -2455,8 +2488,8 @@ contains
         end do
 
         ! Accumulate values over all processors
-        call MPISum(HFCyc, RealAllHFCyc)
-        call MPISum(ENumCyc, AllENumCyc)
+        call MPISumAll(HFCyc, RealAllHFCyc)
+        call MPISumAll(ENumCyc, AllENumCyc)
 
         do run = 1, inum_runs
             AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
@@ -2464,7 +2497,6 @@ contains
 
         proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
 
-        write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
 

@@ -19,7 +19,7 @@ module tau_search_hist
                             MPISumAll, MPISUM, mpireduce, MPI_MIN
     use ParallelHelper, only: iprocindex, root
     use constants, only: dp, EPS, iout
-    use tau_search, only: FindMaxTauDoubs
+    use tau_search, only: FindMaxTauDoubs, max_death_cpt
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
     use procedure_pointers, only: get_umat_el
@@ -33,7 +33,7 @@ module tau_search_hist
     implicit none
     ! variables which i might have to define differently:
     logical :: consider_par_bias
-    real(dp) :: max_permitted_spawn, max_death_cpt
+    real(dp) :: max_permitted_spawn
     integer :: n_opp, n_par
     ! do i have to define this here or in the CalcData:??
     integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
@@ -622,7 +622,7 @@ contains
                     return
                 end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                 print *, "ratio_doubles: ", ratio_doubles
 #endif
                 ! to compare the influences on the time-step:
@@ -763,7 +763,7 @@ contains
         integer :: ind
         integer :: indi,indj,inda,indb
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (pgen < EPS) then
             print *, "pgen: ", pgen
             print *, "matrix element: ", mat_ele
@@ -784,7 +784,7 @@ contains
         ! talk to ali about that!
 !         if (mat_ele < EPS) then
         if (mat_ele < matele_cutoff) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             print *, "zero matele should not be here!"
             print *, "mat_ele: ", mat_ele
             print *, "pgen: ", pgen
@@ -890,7 +890,7 @@ contains
 !                 print *, " excitation-matrix: ", ex
                 print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
                 print *, " Consider increasing the bound!"
-#ifdef __DEBUG
+#ifdef DEBUG_
                 indi = gtid(ex(1,1))
                 indj = gtid(ex(1,2))
                 inda = gtid(ex(2,1))
@@ -921,7 +921,7 @@ contains
             if (t_parallel) then
 
                 ratio = ratio * (pDoubles * pParallel)
-#ifdef __DEBUG
+#ifdef DEBUG_
                 ! analyse the really low and really high ratios:
                 if (ratio < 0.001_dp) then
                     print *, "******************"
@@ -961,7 +961,7 @@ contains
                     frequency_bins_para(ind) = frequency_bins_para(ind) + 1
                 else
                     above_max_para = above_max_para + 1
-#ifdef __DEBUG
+#ifdef DEBUG_
                     print *, "mat_ele: ", mat_ele
                     print *, "pgen: ", pgen
                     print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
@@ -992,7 +992,7 @@ contains
 
                 ratio = ratio * (pDoubles * (1.0_dp - pParallel))
                 ! analyse the really low and really high ratios:
-#ifdef __DEBUG
+#ifdef DEBUG_
                 if (ratio < 0.001_dp) then
                     print *, "******************"
                     print *, "anti-parallel excitation:"
@@ -1032,7 +1032,7 @@ contains
 
                 else
                     above_max_anti = above_max_anti + 1
-#ifdef __DEBUG
+#ifdef DEBUG_
                     print *, "mat_ele: ", mat_ele
                     print *, "pgen: ", pgen
                     print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
@@ -1090,7 +1090,7 @@ contains
         ASSERT( ic == 1 .or. ic == 2)
 
         if (mat_ele < matele_cutoff) then
-! #ifdef __DEBUG
+! #ifdef DEBUG_
 ! !             print *, "zero matele should not be here!"
 ! !             print *, "mat_ele: ", mat_ele
 ! !             print *, "pgen: ", pgen

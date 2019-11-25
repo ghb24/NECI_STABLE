@@ -38,7 +38,7 @@ contains
         integer, intent(in), optional :: part_type
 
         unused_var(exFlag); unused_var(store); unused_var(part_type);
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
         HelGen = 0.0_dp
 #endif
 

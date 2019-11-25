@@ -118,7 +118,7 @@ C..
       HSTEPY=2.0_dp*A(2)/N
       HSTEPZ=0
 
-#if defined(NAGF95) || defined(__GFORTRAN__) || defined(BLUEGENE_HACKS)
+#if defined(NAGF95) || defined(GFORTRAN_) || defined(BLUEGENE_HACKS)
       call stop_all(t_r,"No ERF in NAG?")
 #endif
 
@@ -134,7 +134,7 @@ c          DO K=-N/2,N/2-1
             IF(.not. near_zero(AUX)) THEN
               IF(TALPHA) THEN
                 R=SQRT(AUX)
-#if !defined(NAGF95) && !defined(__GFORTRAN__) && !defined(BLUEGENE_HACKS)
+#if !defined(NAGF95) && !defined(GFORTRAN_) && !defined(BLUEGENE_HACKS)
                 AUX=1.0_dp/R*(-1)**(I+J)*DERF(R/ALPHA)
 #endif
               ELSE
@@ -222,7 +222,7 @@ C..PI*K/A(3)
               G=SQRT(GX*GX+GY*GY+GZ*GZ)
               IF (.not. near_zero(G)) THEN
 c sum=2 Pi * erf(a G/2)/G/omegap
-#if !defined(NAGF95) && !defined(__GFORTRAN__) && !defined(BLUEGENE_HACKS)
+#if !defined(NAGF95) && !defined(GFORTRAN_) && !defined(BLUEGENE_HACKS)
                 SUM=2.0_dp*PI*DERF(ALPHA*G/2)/OMEGAP/G
 #endif
 C                AUX=EXP(-G2*ALPHA2/4.0_dp)

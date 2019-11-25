@@ -44,7 +44,7 @@ contains
         logical :: tMC
         character(len=*), parameter :: t_r = 'frsblk_wrapper'
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(t_r,'frsblk cannot work with complex wavefunctions currently')
 #endif
 

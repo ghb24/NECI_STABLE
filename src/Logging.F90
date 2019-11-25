@@ -31,6 +31,10 @@ MODULE Logging
       use default_sets
       implicit none
 
+      ! By default, the output is given by the shift cycle
+      StepsPrint = 10
+      tCoupleCycleOutput = .true.
+      
       tDipoles = .false.
       tPrintInitiators = .false.
       tDiagAllSpaceEver = .false.
@@ -160,10 +164,13 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
+      tPopsInstProjE = .false.
+      tHDF5TruncPopsWrite = .false.
+      iHDF5TruncPopsEx = 0
       tWriteRefs = .false.
 
       maxInitExLvlWrite = 8
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
       tFCIMCStats2 = .true.
 #else
       tFCIMCStats2 = .false.
@@ -234,7 +241,17 @@ MODULE Logging
 
         case("NOMCOUTPUT")
             !No output to stdout from the fcimc iterations
-            tMCOutput=.false.
+           tMCOutput=.false.
+
+        case("STEPSOUTPUT")
+           ! This is the number of steps taken between two lines in the output
+           ! The default is equal to the update cycle length of the shift, since
+           ! this saves some communication
+           ! This clearly indicates that we do not want to have output and shift update
+           ! going hand in hand
+           tCoupleCycleOutput = .false.
+           call geti(StepsPrint)
+           
         case("LOGCOMPLEXWALKERS")
             !This means that the complex walker populations are now logged.
             tLogComplexPops=.true.
@@ -517,7 +534,7 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         case("PAIRED-REPLICAS")
             tPairedReplicas = .true.
             nreplicas = 2
@@ -525,14 +542,14 @@ MODULE Logging
 
         case("UNPAIRED-REPLICAS")
             tUseOnlySingleReplicas = .true.
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
             tPairedReplicas = .false.
             nreplicas = 1
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
 #endif
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         case("REPLICA-ESTIMATES")
             tReplicaEstimates = .true.
             tPairedReplicas = .true.
@@ -551,13 +568,13 @@ MODULE Logging
             call readi(IterRDMonFly)
             call readi(RDMEnergyIter)
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
             ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
                 tPairedReplicas = .true.
                 nreplicas = 2
             end if
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             tPairedReplicas = .true.
 #endif
             if (IterRDMOnFly < semistoch_shift_iter) then
@@ -582,13 +599,13 @@ MODULE Logging
             call readi(RDMEnergyIter)
 
             iSampleRDMIters = n_samples * RDMEnergyIter
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
           ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
                 tPairedReplicas = .true.
                 nreplicas = 2
             end if
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             tPairedReplicas = .true.
 #endif
             if (IterRDMOnFly < semistoch_shift_iter) then
@@ -932,6 +949,20 @@ MODULE Logging
         case("HDF5-POPS-WRITE")
             ! Use the new HDF5 popsfile format just for writing
             tHDF5PopsWrite = .true.
+
+        case("POPS-INST-PROJE")
+            ! Whether to calculate and print the instanenous project energy of
+            ! wavefunction printed to popsfile
+            tPopsInstProjE = .true.
+
+        case("HDF5-TRUNC-POPS-WRITE")
+            ! Whether to write another HDF5 popsfile with dets restricted to a maximum
+            ! exitation level
+            tHDF5TruncPopsWrite = .true.
+            call readi(iHDF5TruncPopsEx)
+            if(iHDF5TruncPopsEx<2) then
+                call stop_all(t_r,'Maximum excitation level should greater than 1')
+            end if
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.

@@ -58,9 +58,9 @@ module fcimc_initialisation
     use LoggingData, only: tTruncRODump, tCalcVariationalEnergy, tReadRDMs, &
                            tDiagAllSpaceEver, tFCIMCStats2, tCalcFCIMCPsi, &
                            tLogComplexPops, tHistExcitToFrom, tPopsFile, &
-                           iWritePopsEvery, tRDMOnFly, &
+                           iWritePopsEvery, tRDMOnFly, tCoupleCycleOutput, StepsPrint, &
                            tDiagWalkerSubspace, tPrintOrbOcc, OrbOccs, &
-                           tHistInitPops, OrbOccsTag, tHistEnergies, &
+                           tHistInitPops, OrbOccsTag, tHistEnergies, tMCOutput, &
                            HistInitPops, AllHistInitPops, OffDiagMax, &
                            OffDiagBinRange, iDiagSubspaceIter, &
                            AllHistInitPopsTag, HistInitPopsTag, tHDF5PopsRead, &
@@ -238,6 +238,7 @@ contains
         ! Initialize
         AllTotParts = 0.0_dp
         AllTotPartsOld = 0.0_dp
+        AllTotPartsLastOutput = 0.0_dp
 
         IF(TDebug) THEN
 !This will open a file called LOCALPOPS-"iprocindex" on unit number 11 on every node.
@@ -266,7 +267,7 @@ contains
                     endif
                 end if
             end if
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
                 if (tReadPops .and. .not. t_no_append_stats) then
@@ -853,12 +854,15 @@ contains
         max_death_cpt = 0.0_dp
         NoDied=0
         HFCyc=0.0_dp
+        HFOut=0.0_dp
         ENumCyc=0.0_dp
+        ENumOut=0.0_dp
         ENUmCycAbs = 0.0_dp
         VaryShiftCycles=0
         AvDiagSft(:)=0.0_dp
         SumDiagSft(:)=0.0_dp
         SumWalkersCyc(:)=0.0_dp
+        SumWalkersOut(:)=0.0_dp
 !        SumDiagSftAbort=0.0_dp
 !        AvDiagSftAbort=0.0_dp
         NoAborted(:)=0.0_dp
@@ -878,8 +882,6 @@ contains
         DiagSftIm=0.0_dp
         sum_proje_denominator = 0
         cyc_proje_denominator = 0
-        initsSpawned = 0
-        allInitsSpawned = 0
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum(:)=0.0_dp
         AllInitsENumCyc(:) = 0.0_dp
@@ -891,6 +893,7 @@ contains
         AllGrowRateAbort(:)=0
 !        AllMeanExcitLevel=0.0_dp
         AllSumWalkersCyc(:)=0
+        AllSumWalkersOut(:)=0.0_dp
         AllAvSign=0.0_dp
         AllAvSignHFD=0.0_dp
         AllNoBorn(:)=0
@@ -898,8 +901,10 @@ contains
         AllNoDied(:)=0
         AllAnnihilated(:)=0
         AllENumCyc(:)=0.0_dp
+        AllENumOut(:)=0.0_dp
         AllENumCycAbs = 0.0_dp
         AllHFCyc(:)=0.0_dp
+        AllHFOut(:)=0.0_dp
 !        AllDetsNorm=0.0_dp
         AllNoAborted=0
         AllNoRemoved=0
@@ -1107,7 +1112,18 @@ contains
             StepsSft=NINT(StepsSftImag/Tau)
             IF(StepsSft.eq.0) StepsSft=1
             WRITE(iout,*) "StepsShift set to: ",StepsSft
-        ENDIF
+         ENDIF
+
+         ! StepsPrint < 1 while not coupling update and output cycle means no std output
+         if(.not. tCoupleCycleOutput .and. StepsPrint < 1) then
+            tMCOutput = .false.
+            ! But there shall be output in the FCIMCStats file
+            ! There is no specified output cycle, so we default to the shift cycle -> couple them
+            tCoupleCycleOutput = .true.
+         endif
+         ! Coupling output and shift update means these two are the same
+         if(tCoupleCycleOutput) StepsPrint = StepsSft
+         if(StepsPrint == StepsSft) tCoupleCycleOutput = .true.
 
         IF(TPopsFile) THEN
             IF(mod(iWritePopsEvery,StepsSft).ne.0) then
@@ -1506,6 +1522,8 @@ contains
 
         ENDIF   !End if initial walkers method
 
+        ! There was no last output, use the same value as for the shift update
+        AllTotPartsLastOutput = AllTotPartsOld
 !Put a barrier here so all processes synchronise
         CALL MPIBarrier(error)
 
@@ -1666,7 +1684,7 @@ contains
         end if
 
          replica_overlaps_real(:, :) = 0.0_dp
-#ifdef __CMPLX
+#ifdef CMPLX_
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
 
@@ -2340,7 +2358,7 @@ contains
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
             InitialPartVec(min_part_type(run))=InitialPart
-#ifdef __CMPLX
+#ifdef CMPLX_
             InitialPartVec(max_part_type(run))=0.0_dp
 #endif
         enddo
@@ -2400,7 +2418,7 @@ contains
                    InitialSign(min_part_type(run)) = InitWalkers
                    TotParts(min_part_type(run)) = real(InitWalkers,dp)
                    TotPartsOld(min_part_type(run)) = real(InitWalkers,dp)
-#ifdef __CMPLX
+#ifdef CMPLX_
                    TotParts(max_part_type(run)) = 0.0_dp
                    TotPartsOld(max_part_type(run)) = 0.0_dp
 #endif
@@ -2628,7 +2646,7 @@ contains
         integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'set_initial_run_references'
 #endif
 
@@ -2707,7 +2725,7 @@ contains
         integer  :: tmp_det(nel), det_max, run
         type(ll_node), pointer :: TempNode
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(this_routine,"StartCAS currently does not work with complex walkers")
 #endif
         if(tReadPops) call stop_all(this_routine,"StartCAS cannot work with with ReadPops")
@@ -3126,7 +3144,7 @@ contains
         type(ll_node), pointer :: TempNode
         character(len=*), parameter :: this_routine="InitFCIMC_MP1"
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
 #endif
         if(tReadPops) call stop_all(this_routine,"StartMP1 cannot work with with ReadPops")
@@ -4209,7 +4227,7 @@ contains
       call MPISumAll(norm_psi_squared,all_norm_psi_squared)
 
       ! assign the sqrt norm
-#ifdef __CMPLX
+#ifdef CMPLX_
       norm_psi = sqrt(sum(all_norm_psi_squared))
       norm_semistoch = sqrt(sum(norm_semistoch_squared))
 #else

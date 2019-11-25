@@ -30,7 +30,9 @@ module FciMCParMod
                            compare_amps_period, PopsFileTimer, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
-                           t_hist_fvals, enGrid, arGrid
+                           tCoupleCycleOutput, StepsPrint, &
+                           t_hist_fvals, enGrid, arGrid, &
+                           tHDF5TruncPopsWrite, iHDF5TruncPopsEx                               
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -97,6 +99,7 @@ module FciMCParMod
     use back_spawn, only: init_back_spawn
 
     use sltcnd_mod, only: sltcnd_excit
+    use hdf5_popsfile, only: write_popsfile_hdf5
 
     implicit none
 
@@ -137,6 +140,7 @@ module FciMCParMod
 
         real(dp):: lt_imb
         integer:: rest, err, allErr
+        logical :: t_comm_done
 
         ! Procedure pointer temporaries
         procedure(generate_excitation_t), pointer :: ge_tmp
@@ -407,7 +411,21 @@ module FciMCParMod
                   ! hence, nRefs cannot be updated that often
                   if(mod(iter,nRefUpdateInterval) == 0) call adjust_nRefs()
                   call update_reference_space(tReadPops .or. all(.not. tSinglePartPhase))
-                  endif
+               endif
+            endif
+
+            ! as alternative to the update cycle bound output, a specified output interval
+            ! may be given that is not correlated with the update cycle
+            ! -> do the output independently, only requires communication + write
+            ! An output frequency below 1 means no output
+            t_comm_done = .false.
+            if( StepsPrint > 0 .and. .not. tCoupleCycleOutput) then
+               if( mod(Iter, StepsPrint) == 0) then
+                  ! just perform a communication + output, without update
+                   call iteration_output_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
+                  ! mark that the communication has been done
+                   t_comm_done = .true.
+               endif
             endif
 
             if (mod(Iter, StepsSft) == 0) then
@@ -444,7 +462,11 @@ module FciMCParMod
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
                 call set_timer(Stats_Comms_Time)
-                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, tPairedReplicas)
+                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, &
+                    tPairedReplicas, t_comm_req = .not. t_comm_done)
+                ! If the output is in sync, do a non-communicated output
+                if(tCoupleCycleOutput) call iteration_output_wrapper(iter_data_fciqmc, TotParts, &
+                    tPairedReplicas, t_comm_req = .false.)
                 call halt_timer(Stats_Comms_Time)
 
                 ! in calculate_new_shift_wrapper output is plotted too!
@@ -675,7 +697,15 @@ module FciMCParMod
         IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+
+            if(tHDF5TruncPopsWrite)then
+                call write_popsfile_hdf5(iHDF5TruncPopsEx)
+                call calc_inst_proje()
+                write(6,*) 'Instantaneous projected energy of truncated popsfile:', proje_iter
+            endif
         ENDIF
+
+
         IF(tCalcFCIMCPsi) THEN
 !This routine will actually only print the matrix if tPrintFCIMCPsi is on
             CALL PrintFCIMCPsi()
@@ -1141,7 +1171,7 @@ module FciMCParMod
                 SpawnSign = get_all_spawn_pops(j)
                 do run = 1, inum_runs
                     if(.not. is_run_unnocc(SignCurr, run) .and. .not. is_run_unnocc(SpawnSign, run)) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                         !For complex walkers, we consider the sign changed when the argument of the complex
                         !number changes more than pi/2.
 
@@ -1159,7 +1189,7 @@ module FciMCParMod
                         call reset_tau_int(j, run)
                         call reset_shift_int(j, run)
                         call set_spawn_pop(j, min_part_type(run), SignCurr(min_part_type(run)))
-#ifdef __CMPLX
+#ifdef CMPLX_
                         call set_spawn_pop(j, max_part_type(run), SignCurr(max_part_type(run)))
 #endif
                     else

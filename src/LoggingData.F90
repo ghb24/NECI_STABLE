@@ -89,6 +89,11 @@ module LoggingData
                tDumpHamilOverlap
     logical :: tFCIMCStats2
 
+    ! optional: have a specified output interval
+    integer :: StepsPrint
+    ! flag to indicate whether output and shift update cycle shall be coupled
+    logical :: tCoupleCycleOutput = .true.
+
     !If we want to force the Cauchy--Schwarz inequality (e.g. if we know the 1RDM is undersampled)
     logical :: tForceCauchySchwarz
     ! If we'd like to rotate the NOs again so as to obtain broken symmetry NOs
@@ -105,6 +110,18 @@ module LoggingData
     logical :: tOutputLoadDistribution
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
+
+    ! Whether to write another HDF5 popsfile with dets restricted to a maximum
+    ! exitation level
+    logical :: tHDF5TruncPopsWrite
+    ! The maximum excitation level of dets writen to truncated HDF5 popsfile
+    integer :: iHDF5TruncPopsEx
+
+    ! Whether to calculate and print the instanenous project energy of
+    ! wavefunction printed to popsfile
+    logical :: tPopsInstProjE
+
+    logical :: tOldRDMs = .false.
 
     logical :: tTransitionRDMs = .false.
 

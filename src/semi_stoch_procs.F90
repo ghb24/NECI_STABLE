@@ -58,7 +58,7 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     do run = 1, inum_runs
@@ -82,7 +82,7 @@ contains
 
             ! Now add shift*full_determ_vecs to account for the shift, not stored in
             ! sparse_core_ham.
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                ! Only scale the shift for the corespace when the option is set
                if(tCoreAdaptiveShift .and. tAdaptiveShift) then
@@ -211,7 +211,7 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     do run = 1, inum_runs
@@ -292,7 +292,7 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, approx_ham(i)%num_elements
                     do run = 1, inum_runs
@@ -316,7 +316,7 @@ contains
 
             ! Now add shift*full_determ_vecs to account for the shift, not stored in
             ! approx_ham.
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                 do part_type  = 1, lenof_sign
                     partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
@@ -978,7 +978,7 @@ contains
 
         ! Test that SpawnedParts is going to be big enough
         if (determ_sizes(iProcIndex) > MaxSpawned) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             write(6,*) 'Spawned parts array will not be big enough for &
                        &Semi-Stochastic initialisation'
             write(6,*) 'Please increase MEMORYFACSPAWN'
@@ -1046,7 +1046,7 @@ contains
                 ! Add a quick test in, to ensure that we don't overflow the
                 ! spawned parts array...
                 if (i_non_core > MaxSpawned) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                     write(6,*) 'Spawned parts array too small for &
                                &semi-stochastic initialisation'
                     write(6,*) 'Please increase MEMORYFACSPAWN'
@@ -1141,7 +1141,7 @@ contains
         do i = 1, int(TotWalkers,sizeof_int)
             call extract_sign(CurrentDets(:,i), sign_curr)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
 #else
             if(tSignedRepAv) then
@@ -1160,7 +1160,7 @@ contains
                 ! Instead of resorting, just find new smallest sign and position.
                 call extract_sign(largest_walkers(:,1),low_sign)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                 smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
 #else
                 smallest_sign = sum(real(abs(low_sign),dp))
@@ -1169,7 +1169,7 @@ contains
                 smallest_pos = 1
                 do j = 2, n_keep
                     call extract_sign(largest_walkers(:,j), low_sign)
-#ifdef __CMPLX
+#ifdef CMPLX_
                     sign_curr_real = sqrt(sum(real(low_sign**2,dp)))
 #else
                     sign_curr_real = sum(real(abs(low_sign),dp))

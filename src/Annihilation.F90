@@ -194,7 +194,7 @@ module AnnihilationMod
         ! Max index is the largest occupied index in the array of hashes to be
         ! ordered in each processor
         if (MaxIndex > (0.9_dp*MaxSpawned)) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             write(6,*) MaxIndex,MaxSpawned
 #else
             write(iout,*) 'On task ',iProcIndex,': ',MaxIndex,MaxSpawned
@@ -1129,8 +1129,6 @@ module AnnihilationMod
                             ScaledOccupiedThresh, t_truncate_this_det)
                     enddo
 
-                    if(any(scFVal * InitiatorWalkNo < abs(SpawnedSign))) initsSpawned = initsSpawned + 1
-
                     if(.not. IsUnoccDet(SpawnedSign)) then
                        ! Walkers have not been aborted and so we should copy the
                        ! determinant straight over to the main list. We do not
@@ -1187,14 +1185,18 @@ module AnnihilationMod
               end if
 
               if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
-                 ! We must use the instantaneous value for the off-diagonal contribution.
-                 if(tNonInitsForRDMs .or. tNonVariationalRDMs) &
+                  ! We must use the instantaneous value for the off-diagonal contribution.
+                  ! Here, one side was unoccupied -> not an initiator -> only matters
+                  ! if non-inits are counted
+                  if(tNonInitsForRDMs) &
                       call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
-                 if(tInitsRDM .and. tNonVariationalRDMs) &
+                  ! Same argument, this only matters in the non-variational case, where one
+                  ! side does not have to be an initiator
+                  if(tInitsRDM .and. tNonVariationalRDMs) &
                       call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
                       inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign,.false.)
               end if
-           end if
+          end if
            ! store the spawn in the global data
            if(tLogAverageSpawns) call store_spawn(PartInd, SpawnedSign)
         end do
