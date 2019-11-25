@@ -1043,6 +1043,11 @@ contains
         integer, intent(out) :: ijab_klcd(8)
         character(*), parameter :: this_routine = "order_quad_indices_3_1"
 
+#ifdef WARNING_WORKAROUND_
+        ijab_klcd = 0
+        phase = 0.0_dp
+#endif
+
     end subroutine order_quad_indices_3_1
 
 

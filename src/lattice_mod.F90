@@ -417,7 +417,6 @@ module lattice_mod
         procedure :: calc_nsites => calc_nsites_kagome
         procedure :: initialize_sites => init_sites_kagome
 
-
     end type kagome
 
     type, extends(rectangle) :: hexagonal 
@@ -430,7 +429,6 @@ module lattice_mod
 
         procedure :: calc_nsites => calc_nsites_hexagonal 
         procedure :: initialize_sites => init_sites_hexagonal
-
     end type hexagonal
 
     type, extends(rectangle) :: triangular
@@ -604,7 +602,7 @@ module lattice_mod
 
         function dispersion_rel_t(this, k_vec) result(disp) 
             use constants, only: dp
-            import :: lattice 
+            import :: lattice            
             class(lattice) :: this 
             integer, intent(in) :: k_vec(3) 
             real(dp) :: disp 
@@ -1101,8 +1099,11 @@ contains
         character(*), parameter :: this_routine = "apply_basis_vector_general"
 #endif 
         
-        ! todo
-        
+
+        call stop_all("apply_basis_vector_general", "not yet implemented!")
+#ifdef WARNING_WORKAROUND_
+        k_out = 0
+#endif
 
     end function apply_basis_vector_general
 
@@ -1116,6 +1117,9 @@ contains
 #endif
 
         call stop_all("apply_basis_vector_cube", "not yet implemented!")
+#ifdef WARNING_WORKAROUND_
+        k_out = 0
+#endif
 
     end function apply_basis_vector_cube
 
@@ -3265,19 +3269,12 @@ contains
 
         call stop_all(this_routine, &
             "dispersion relation not yet implemented for this lattice type!")
+#ifdef WARNING_WORKAROUND_
+        disp = 0.0_dp
+#endif
 
+        
     end function dispersion_rel_not_implemented
-
-    function dispersion_rel_not_implemented_orb(this, orb) result(disp)
-        class(lattice) :: this 
-        integer, intent(in) :: orb
-        real(dp) :: disp 
-        character(*), parameter :: this_routine = "dispersion_rel"
-
-        call stop_all(this_routine, &
-            "dispersion relation not yet implemented for this lattice type!")
-
-    end function dispersion_rel_not_implemented_orb
 
     function dispersion_rel_orb(this, orb) result(disp) 
         class(lattice) :: this 
@@ -3311,6 +3308,9 @@ contains
         character(*), parameter :: this_routine ="dot_prod_not_implemented" 
 
         call stop_all(this_routine, "not yet implemented for this lattice type!")
+#ifdef WARNING_WORKAROUND_
+        dot = 0.0_dp
+#endif
 
     end function dot_prod_not_implemented
 
@@ -4496,38 +4496,6 @@ contains
 
     end function calc_nsites_ole
 
-    function calc_nsites_lattice(this, length_x, length_y) result(n_sites) 
-        class(lattice) :: this 
-        integer, intent(in) :: length_x, length_y
-        integer :: n_sites 
-        character(*), parameter :: this_routine = "calc_nsites_lattice"
-
-        call stop_all(this_routine, &
-            'type(lattice) should never be actually instantiated!') 
-
-    end function calc_nsites_lattice
-
-    ! Setter and getter routines for the private data of the lattice types
-    function get_length_lattice(this) result(length)
-        class(lattice) :: this 
-        integer :: length
-        character(*), parameter :: this_routine = "get_length_lattice"
-
-        call stop_all(this_routine, &
-            'type(lattice) should never be actually instantiated!') 
-
-    end function get_length_lattice
-
-    subroutine set_length_lattice(this, length_x, length_y) 
-        class(lattice) :: this 
-        integer, intent(in) :: length_x, length_y
-        character(*), parameter :: this_routine = "set_length_lattice"
-
-        call stop_all(this_routine, &
-            'type(lattice) should never be actually instantiated!') 
-
-    end subroutine set_length_lattice
-
     subroutine set_length_aim_star(this, length_x, length_y, length_z)
         class(aim_star) :: this 
         integer, intent(in) :: length_x, length_y
@@ -4538,6 +4506,7 @@ contains
         ! maybe i should rethink if i make this part of the 
         ! original lattice class then.. 
         call stop_all(this_routine, "length not defined for 'star' geometry!")
+
     end subroutine set_length_aim_star
 
     subroutine set_length_star(this, length_x, length_y, length_z)
@@ -4791,15 +4760,6 @@ contains
 
     end function is_periodic_rect
     
-    logical function is_periodic_lattice(this)
-        class(lattice) :: this 
-        character(*), parameter :: this_routine = "is_periodic_lattice"
-        call stop_all(this_routine, &
-            "lattice should not be directly instantiated!")
-
-
-    end function is_periodic_lattice
-
     logical function is_periodic_x(this) 
         class(lattice) :: this 
 
@@ -4953,40 +4913,5 @@ contains
         end if
 
     end function determine_optimal_time_step
-
-    ! general non-type bound routines
-!     subroutine get_lattice_type(this, string) 
-!         class(lattice) :: this 
-!         character(*), intent(out) :: string 
-! 
-!         select type (this) 
-!         class is (chain) 
-! 
-!             string = 'chain'
-! 
-!         end select 
-! 
-!     end subroutine get_lattice_type
-! 
-!     function is_valid_lattice(this) result(flag) 
-!         ! maybe it would be nice to have a routine which checks the basic 
-!         ! necessities to be a proper lattice 
-!         class(lattice) :: this 
-!         logical :: flag
-! 
-!         character(*) :: string
-! 
-!         call this%get_lattice_type(string)
-! 
-!         select case (string)
-!         case ('chain','lattice') 
-!             flag = .true. 
-! 
-!         case default 
-!             flag = .false. 
-! 
-!         end select 
-! 
-!     end function is_valid_lattice
 
 end module lattice_mod

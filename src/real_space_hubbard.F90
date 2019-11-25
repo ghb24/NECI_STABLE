@@ -904,6 +904,9 @@ contains
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif        
 
         ASSERT(associated(lat))
 
@@ -1036,6 +1039,9 @@ contains
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif        
 
         ASSERT(associated(lat))
 
@@ -1126,6 +1132,9 @@ contains
         ic = 0
         nJ(1) = 0
 
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif        
         ASSERT(associated(lat))
 
         ic = 1 
@@ -1566,7 +1575,10 @@ contains
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, elem, r, p_elec, p_orb
 
-        iunused = exflag; 
+        iunused = exflag;
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif
 
         ASSERT(associated(lat))
 

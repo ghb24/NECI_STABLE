@@ -548,6 +548,9 @@ contains
         integer :: elecs(2), orbs(2), src(2)
         logical :: isvaliddet
 
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif        
         ! i first have to choose an electron pair (ij) at random 
         ! but with the condition that they have to have opposite spin! 
         call pick_spin_opp_elecs(nI, elecs, p_elec) 

@@ -18,8 +18,6 @@ module cepa_shifts
     real(dp) :: aqcc_factor = 0.0_dp
     logical :: t_apply_full_cepa = .false.
 
-!     real(dp), allocatable :: cepa_shift_single(:), cepa_shift_double(:)
-
     ! there are different sorts of shift i can apply.. which and also there 
     ! is a choice on which excitation level i want to apply those 
     ! in  0 = <ijab|H - E_0 - D_ij|Psi>
@@ -65,10 +63,6 @@ contains
         character(*), parameter :: this_routine = "init_cepa_shifts"
 
         integer :: i
-        ! i have to allocate it for each replica
-!         allocate(cepa_shift_single(inum_runs))
-!         allocate(cepa_shift_double(inum_runs))
-
         print *, "init cepa shifts "
 
         if (.not. allocated(ilutref)) then 
@@ -88,19 +82,6 @@ contains
             ! point to the shift.. hm.. i guess i can't do that so nicely.. 
             cepa_shift_single => cepa_0
             cepa_shift_double => cepa_0
-
-        case ('1') 
-            
-            cepa_shift_single => cepa_1_single
-            cepa_shift_double => cepa_1_double
-            call stop_all(this_routine, "cepa(1) not yet implemented!")
-
-        case ('3') 
-
-            cepa_shift_single => cepa_3_single
-            cepa_shift_double => cepa_3_double
-
-            call stop_all(this_routine, "cepa(3) not yet implemented!")
 
         case ('acpf') 
 
@@ -196,26 +177,6 @@ contains
 !         cepa_0 = 0.0_dp
         cepa_0 = diagsft(run)
     end function cepa_0
-
-    real(dp) function cepa_1_single(run)
-        integer, intent(in) :: run
-        ! todo
-    end function cepa_1_single
-
-    real(dp) function cepa_1_double(run)
-        integer, intent(in) :: run 
-        ! tod-
-    end function cepa_1_double
-
-    real(dp) function cepa_3_single(run) 
-        integer, intent(in) :: run 
-        ! todo 
-    end function cepa_3_single
-
-    real(dp) function cepa_3_double(run) 
-        integer, intent(in) :: run 
-        ! todo 
-    end function cepa_3_double
 
     real(dp) function cepa_acpf(run) 
         integer, intent(in) :: run 

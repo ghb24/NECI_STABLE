@@ -314,6 +314,9 @@ contains
 
         ! use the lattice type like in the real-space hubbard implementation
         ASSERT(associated(lat))
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif        
 
         elec = 1 + int(genrand_real2_dsfmt() * nel) 
 
@@ -656,6 +659,9 @@ contains
 
         ASSERT(associated(lat))
         ASSERT(nel == nbasis/2)
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+#endif        
         
         ic = 2
 
@@ -1238,18 +1244,6 @@ contains
         if (tpar) hel = -hel
 
     end function get_offdiag_helement_heisenberg
-
-    function determine_optimal_time_step_tJ(time_step_death) result(time_step)
-        real(dp), intent(out), optional :: time_step_death 
-        real(dp) :: time_step
-#ifdef DEBUG_ 
-        character(*), parameter :: this_routine = "determine_optimal_time_step_tJ"
-#endif
-
-        ! moved this functionality to lattice_mod
-        print *, "todo! have to find out which contribution of excitations is bigger"
-
-    end function determine_optimal_time_step_tJ
 
     function determine_optimal_time_step_heisenberg(time_step_death) result(time_step) 
         real(dp), intent(out), optional :: time_step_death 
