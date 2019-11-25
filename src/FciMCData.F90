@@ -15,7 +15,7 @@ MODULE FciMCData
 
       ! Type for creating linked lists for the linear scaling algorithm.
       type ll_node
-          integer :: ind
+          integer :: ind = 0
           type(ll_node), pointer :: next => null()
       end type ll_node
 
