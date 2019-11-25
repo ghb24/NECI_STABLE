@@ -41,7 +41,8 @@ program test_molecular_tc
     subroutine setup_tests()
       ! initialization of the tests: mimic the environment of a NECI calculation
       use procedure_pointers, only: get_umat_el
-      use sltcnd_mod, only: nullUMat, initSltCndPtr
+      use sltcnd_mod, only: initSltCndPtr
+      use UMatCache, only: nullUMat
       use SystemData, only: nOccAlpha, nOccBeta, AA_elec_pairs, AB_elec_pairs, &
            BB_elec_pairs, par_elec_pairs, tNoSymGenRandExcits, t_mol_3_body
       use dSFMT_interface, only: dSFMT_init
@@ -119,7 +120,7 @@ program test_molecular_tc
       HElement_t(dp) :: matel
       ! the example determinant
       nI = (/2,4,6,11,13,14/)
-      call setup_mol_tc_excitgen(nI)
+      call setup_mol_tc_excitgen()
 
       ! get_lmat_el already accounts for all permutations/exchange terms
       print *, "Direct matrix element", get_lmat_el(1,2,3,1,2,3)
@@ -175,7 +176,7 @@ program test_molecular_tc
          print *, "Generated: ", nJ
          print *, "Prob: ", pgen
 
-         call assert_true(abs(pgen-calc_pgen_triple(nI,ExcitMat)) < eps)
+         call assert_true(abs(pgen-calc_pgen_triple(ExcitMat)) < eps)
       end do
     end subroutine run_excitgen_test
 

@@ -327,8 +327,6 @@ module lattice_mod
     contains 
         private 
 
-!         procedure :: initialize => init_aim
-
         procedure :: set_n_imps
         procedure :: set_n_bath
         procedure :: calc_nsites => calc_nsites_aim
@@ -892,7 +890,8 @@ contains
         ! spatial orbital (orb)
         class(lattice) ::  this 
         integer, intent(in) :: orb 
-        integer :: sym 
+        integer :: sym
+        unused_var(this)
 
         sym = lat%sites(orb)%k_sym
 
@@ -926,7 +925,8 @@ contains
     function subtract_k_vec(this, k_1, k_2) result(k_out) 
         class(lattice) :: this 
         integer, intent(in) :: k_1(3), k_2(3)
-        integer :: k_out(3) 
+        integer :: k_out(3)
+        unused_var(this)
 
         k_out = lat%add_k_vec(k_1, lat%inv_k_vec(k_2))
 
@@ -1104,6 +1104,8 @@ contains
 #ifdef WARNING_WORKAROUND_
         k_out = 0
 #endif
+        unused_var(this)
+        unused_var(k_in)        
 
     end function apply_basis_vector_general
 
@@ -1119,7 +1121,12 @@ contains
         call stop_all("apply_basis_vector_cube", "not yet implemented!")
 #ifdef WARNING_WORKAROUND_
         k_out = 0
-#endif
+#endif        
+        unused_var(this)
+        unused_var(k_in)
+        if(present(ind)) then
+            unused_var(ind)
+        endif
 
     end function apply_basis_vector_cube
 
@@ -1193,7 +1200,9 @@ contains
         class(lattice) :: this 
         character(*), parameter :: this_routine = "init_basis_vecs"
 
+        ! K.G. 25.11.2019: Why is this a runtime check? Should be done compile-time
         call stop_all(this_routine, "this routine should always be deferred!")
+        unused_var(this)
 
     end subroutine init_basis_vecs
 
@@ -1432,6 +1441,10 @@ contains
     integer function get_length_aim_star(this, dimen)
         class(aim_star) :: this 
         integer, intent(in), optional :: dimen
+        unused_var(this)
+        if(present(dimen)) then
+            unused_var(dimen)
+        endif
 
         get_length_aim_star = STAR_LENGTH 
 
@@ -1503,6 +1516,10 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_aim"
+        unused_var(this)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         ! for AIM systems assume first length input is number of impurity 
         ! sites and bath sites are number of path sites per impurity!!
@@ -1665,6 +1682,10 @@ contains
     logical function is_periodic_aim(this, dimen)
         class(aim) :: this 
         integer, intent(in), optional :: dimen
+        unused_var(this)
+        if(present(dimen)) then
+            unused_var(dimen)
+        endif
 
         ! this function should never get called with dimension input or?
         is_periodic_aim = .false.
@@ -1702,13 +1723,6 @@ contains
 
     end function get_site_index
 
-    subroutine init_sites_lattice(this) 
-        ! these are the important routines.. which set up the connectivity 
-        ! of the lattice sites. or atleast call the specific init-routines! 
-        class(lattice) :: this
-
-    end subroutine init_sites_lattice
-
     subroutine site_assign(lhs, rhs) 
         type(site), intent(out) :: lhs 
         type(site), intent(in) :: rhs 
@@ -1742,7 +1756,8 @@ contains
         ! todo although.. since i cannot use class(lattice) in the main 
         ! program without allocatable or pointer attribute anyway.. 
         ! i think there is no need of an assignment overload!
-        call stop_all(this_routine, "not yet implemented!")
+        call stop_all(this_routine, "Lattice assignment operator deleted")
+        unused_var(rhs)
         
     end subroutine lattice_assign
 
@@ -3271,6 +3286,8 @@ contains
             "dispersion relation not yet implemented for this lattice type!")
 #ifdef WARNING_WORKAROUND_
         disp = 0.0_dp
+        unused_var(this)
+        unused_var(k_vec)
 #endif
 
         
@@ -3310,6 +3327,9 @@ contains
         call stop_all(this_routine, "not yet implemented for this lattice type!")
 #ifdef WARNING_WORKAROUND_
         dot = 0.0_dp
+        unused_var(this)
+        unused_var(k_vec)
+        unused_var(r_vec)
 #endif
 
     end function dot_prod_not_implemented
@@ -3368,13 +3388,6 @@ contains
         allocate(output(i), source=unique(1:i))
 
     end function sort_unique
-
-    subroutine init_aim(this, length_x, length_y) 
-        class(aim) :: this 
-        integer, intent(in) :: length_x, length_y
-        character(*), parameter :: this_routine = "init_aim"
-
-    end subroutine init_aim
 
     subroutine init_lattice(this, length_x, length_y, length_z, & 
             t_periodic_x, t_periodic_y, t_periodic_z)
@@ -4318,7 +4331,11 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_aim_star"
-
+        unused_var(this)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
+        
         if (length_x < 1) then 
             call stop_all(this_routine, "n_imps < 1!") 
         end if
@@ -4339,6 +4356,10 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites 
         character(*), parameter :: this_routine = "calc_nsites_star"
+        unused_var(this)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         if (max(length_x,length_y) < 1 .or. min(length_x, length_y) > 1 .or. & 
             min(length_x,length_y) < 0) then 
@@ -4356,7 +4377,8 @@ contains
     logical function is_periodic_aim_star(this, dimen)
         class(aim_star) :: this 
         integer, intent(in), optional :: dimen
-
+        unused_var(this)
+        unused_var(dimen)
         is_periodic_aim_star = .false.
 
     end function is_periodic_aim_star
@@ -4372,6 +4394,10 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites 
         character(*), parameter :: this_routine = "calc_nsites_chain" 
+        unused_var(this)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         if (max(length_x,length_y) < 1 .or. min(length_x, length_y) > 1 .or. & 
             min(length_x,length_y) < 0) then 
@@ -4391,7 +4417,7 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_cube"
-        
+        unused_var(this)
         if (max(length_x, length_y, length_z) < 2) then 
             call stop_all(this_routine, "too small cube lengths specified! (< 2)")
         end if
@@ -4406,6 +4432,10 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites 
         character(*), parameter :: this_routine = "calc_nsites_hexagonal" 
+        unused_var(this)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         ! the length_x of the hexagonal is defined as the number of unit cells.. 
         ! and there are 8 sites in my hexagonal unit cell.. 
@@ -4422,6 +4452,10 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites 
         character(*), parameter :: this_routine = "calc_nsites_kagome" 
+        unused_var(this)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         ! the length_x and length_y of the kagome are defined as the number of unit cells.. 
         ! and there are 8 sites in my kagome unit cell.. 
@@ -4438,6 +4472,10 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites
         character(*), parameter :: this_routine = "calc_nsites_rect"
+        unused_var(this)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         if (length_x < 2 .or. length_y < 2) then 
             print *, "length_x: ", length_x
@@ -4457,17 +4495,11 @@ contains
         integer, intent(in), optional :: length_z
         integer :: n_sites 
         character(*), parameter :: this_routine = "calc_nsites_tilted" 
-
-        ! this rectriction gets lifted now: there are also rectangular 
-        ! and 1xY and Yx1 with 2 * Y sites tilted lattices possible 
-!         if (length_x < 2 .or. length_y < 2) then 
-!             print *, "length_x: ", length_x
-!             print *, "length_y: ", length_y
-!             call stop_all(this_routine, "length input wrong for type tilted!")
-! 
-!         else 
-            n_sites = 2 * length_x * length_y
-!         end if
+        unused_var(this)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
+        n_sites = 2 * length_x * length_y
 
     end function calc_nsites_tilted
 
@@ -4476,7 +4508,11 @@ contains
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
         integer :: n_sites
-        character(*), parameter :: this_routine = "calc_nsites_ole" 
+        character(*), parameter :: this_routine = "calc_nsites_ole"
+        unused_var(this)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         ! oles cluster we want to look at are defined by the vectors 
         ! (x,x), (-y,x) and i also think  y = x + 2 is a requisite but i am 
@@ -4506,7 +4542,12 @@ contains
         ! maybe i should rethink if i make this part of the 
         ! original lattice class then.. 
         call stop_all(this_routine, "length not defined for 'star' geometry!")
-
+        unused_var(length_x)
+        unused_var(length_y)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
+        unused_var(this)
     end subroutine set_length_aim_star
 
     subroutine set_length_star(this, length_x, length_y, length_z)
@@ -4514,11 +4555,16 @@ contains
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
         character(*), parameter :: this_routine = "set_length_star"
-
         ! actually the length of a start is not really defined.. 
         ! maybe i should rethink if i make this part of the 
         ! original lattice class then.. 
         call stop_all(this_routine, "length not defined for 'star' geometry!")
+        unused_var(length_x)
+        unused_var(length_y)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
+        unused_var(this)        
     end subroutine set_length_star
 
     subroutine set_length_chain(this, length_x, length_y, length_z) 
@@ -4526,6 +4572,9 @@ contains
         integer, intent(in) :: length_x, length_y 
         integer, intent(in), optional :: length_z
         character(*), parameter :: this_routine = "set_length_chain"
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         ! the input checkin is all done in the calc_nsites routine!
         this%length = this%calc_nsites(length_x, length_y)
@@ -4555,6 +4604,9 @@ contains
         class(rectangle) :: this 
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         this%length(1) = length_x
         this%length(2) = length_y
@@ -4622,7 +4674,9 @@ contains
     ! so always ouput STAR_LENGTH
     integer function get_length_star(this, dimen)
         class(star) :: this 
-        integer, intent(in), optional:: dimen 
+        integer, intent(in), optional:: dimen
+        unused_var(dimen)
+        unused_var(this)
 
         get_length_star = STAR_LENGTH
 
@@ -4691,6 +4745,10 @@ contains
         class(aim_chain) :: this 
         integer, intent(in) :: length_x, length_y
         integer, intent(in), optional :: length_z
+        unused_var(length_x)
+        if(present(length_z)) then
+            unused_var(length_z)
+        endif
 
         ! as a definition make the length, even for multiple impurity chains 
         ! as bath_sites + 1
@@ -4702,6 +4760,8 @@ contains
         ! this is always false.. the star geometry can't be periodic
         class(star) :: this 
         integer, intent(in), optional :: dimen
+        unused_var(dimen)
+        unused_var(this)
 
         is_periodic_star = .false.
 
@@ -4710,12 +4770,11 @@ contains
     logical function is_periodic_chain(this, dimen)
         class(chain) :: this 
         integer, intent(in), optional :: dimen
-
+        unused_var(dimen)
         ! we do not want to deal with two dimensional flags for chains or? 
         is_periodic_chain = this%t_periodic(1)
         ! the chain is only treated as periodic if both the flags are set 
         ! to be periodic!
-!         is_periodic_chain = (this%is_periodic_x() .and. this%is_periodic_y())
 
     end function is_periodic_chain
 

@@ -1717,7 +1717,7 @@ close(i_unit)
         use SystemData, only: dimen
         use constants, only: int64
         integer(int64), intent(in) :: l1,l2,l3,r1,r2,r3
-        integer :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
+        integer(int64) :: i,j,k,a,b,c,k1(3),k2(3),k3(3)
         real(dp) :: hel,ak(3),bk(3),ck(3),a2,b2,c2
         i=(l1-1)*2+1
         j=(l2-1)*2+1

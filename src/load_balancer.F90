@@ -45,32 +45,6 @@ module load_balance
 
 contains
 
-
- subroutine test_hash_table(info,except)
-    use hash, only :hash_table_lookup
-    use FciMCData, only :HashIndex
-    use bit_rep_data, only : nifdbo
-    use bit_reps, only : decode_bit_det
-    character(len=*), intent(in) :: info
-    integer, intent(in), optional :: except
-    integer :: i,dind,dh,nI(nel)
-    real(dp) :: CurrentSign(lenof_sign)
-    logical :: test
-    do i=1,TotWalkers
-       if(present(except)) then
-          if(i == except) cycle
-       endif
-       call decode_bit_det(nI,CurrentDets(:,i))
-       call extract_sign(CurrentDets(:,i),CurrentSign)
-       call hash_table_lookup(nI,CurrentDets(:,i),NIfDBO,HashIndex,&
-            CurrentDets,dind,dh,test)
-       if((.not. test) .and. sum(abs(CurrentSign)) >= 1.e-12_dp) then
-          call stop_all("Hash_test", "Entry missing in hashtable")
-       endif
-    end do
-    print *,info
-  end subroutine test_hash_table
-
     subroutine init_load_balance()
 
         ! Initialise the load balancing.
@@ -908,7 +882,8 @@ contains
       use FciMCData, only: ntrial_excits
       implicit none
       integer, intent(out) :: ntrial, ncon
-      integer :: i, nI(nel)
+      integer :: nI(nel)
+      integer(int64) :: i
       real(dp) :: sgn(lenof_sign)
       logical :: tTrial, tCon
       HElement_t(dp) :: amp(ntrial_excits)

@@ -41,6 +41,7 @@ contains
     ! to get the breathing effect, we need to know the exchanged momentum
     ! therefore, compare the momentum of i to that of k/l with the matching
     ! spin
+    unused_var(j)
 
     if(G1(i)%MS == G1(k)%MS) then
        tgt = k

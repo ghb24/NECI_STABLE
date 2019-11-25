@@ -1,7 +1,7 @@
 #include "macros.h"
 module kMatProjE
-  use SystemData, only: nBasis, tStoreSpinOrbs, tReltvy, G1, nel, nBI
-  use UMatCache, only: UMatInd
+  use SystemData, only: nBasis, tStoreSpinOrbs, tReltvy, G1, nel
+  use UMatCache, only: UMatInd, numBasisIndices
   use constants
   use util_mod, only: get_free_unit, open_new_file
   use UMatCache, only: gtID
@@ -205,8 +205,10 @@ module kMatProjE
       real(dp) :: tmp
       integer(MPIArg) :: ierror
       integer :: kMatSize
-      
-      kMatSize = determineKMatSize()
+      integer :: nBI
+
+      nBI = numBasisIndices(nBasis)
+      kMatSize = int(determineKMatSize())
 
 ! I/O only done by root
       if(iProcIndex.eq.root) then
@@ -248,7 +250,8 @@ module kMatProjE
     subroutine readKMat()
       implicit none
       character(*), parameter :: t_r = "readKMat"
-      integer :: ierr, kMatSize
+      integer :: ierr
+      integer(int64) :: kMatSize
       call kMatLin%readKMatFromFile("KDUMPLIN")
       call kMatSq%readKMatFromFile("KDUMPSQ")
 
@@ -276,10 +279,12 @@ module kMatProjE
     function determineKMatSize() result(kMatSize)
       implicit none
       integer(int64) :: kMatSize
+      integer :: nBI
 
+      nBI = numBasisIndices(nBasis)
 ! kmat has the same access pattern as umat, so use UMatInd as indexing function
 ! the index of the largest element
-      kMatSize = UMatInd(int(nBI),int(nBI),int(nBI),int(nBI))
+      kMatSize = UMatInd(nBI,nBI,nBI,nBI)
     end function determineKMatSize
 
 !------------------------------------------------------------------------------!    

@@ -20,7 +20,7 @@ module analyse_wf_symmetry
 
     use constants, only: n_int, dp, pi, lenof_sign
 
-    use util_mod, only: binary_search, binary_search_int
+    use util_mod, only: binary_search, binary_search_int, operator(.isclose.)
 
     use bit_reps, only: extract_sign, encode_sign, decode_bit_det
 
@@ -864,12 +864,11 @@ contains
 
     end subroutine find_states_in_list
 
-    subroutine get_highest_pop(n_states, largest_dets, norm)
+    subroutine get_highest_pop(n_states, largest_dets)
         ! routine to give the n_states most populated states largest_dets
         ! globally
         integer, intent(in) :: n_states
         integer(n_int), intent(out) :: largest_dets(0:niftot, n_states)
-        real(dp), intent(out), optional :: norm
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "get_highest_pop"
 #endif
@@ -1005,8 +1004,8 @@ contains
 #endif
         integer :: i
 
-        if (.not. t_symmetry_rotation .or. (rot_angle == 0.0_dp & 
-            .or. rot_angle == 360.0_dp)) then 
+        if (.not. t_symmetry_rotation .or. ((rot_angle .isclose. 0.0_dp) & 
+            .or. (rot_angle .isclose. 360.0_dp))) then 
             out_orbs = in_orbs
             return
         end if
@@ -1123,7 +1122,7 @@ contains
 
         ASSERT(associated(lat))
 
-        if (rot_angle == 0.0_dp .or. rot_angle == 360.0_dp) then 
+        if ((rot_angle .isclose. 0.0_dp) .or. (rot_angle .isclose. 0.0_dp)) then 
             out_orb = in_orb
             return
         end if

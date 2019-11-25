@@ -52,13 +52,12 @@ module tc_three_body_excitgen
 
 !------------------------------------------------------------------------------------------!
 
-    function calc_pgen_mol_tc(nI, ilutI, ex, ic, ClassCount, &
+    function calc_pgen_mol_tc(nI, ex, ic, ClassCount, &
          ClassCountUnocc, pDoub) result(pgen)
       implicit none
       integer, intent(in) :: nI(nel), ex(2,ic), ic
       integer, intent(in) :: ClassCount(ScratchSize)
       integer, intent(in) :: ClassCountUnocc(ScratchSize)
-      integer(n_int), intent(in) :: ilutI(0:NIfTot)
       real(dp), intent(in) :: pDoub
       real(dp) :: pgen
 
@@ -71,17 +70,17 @@ module tc_three_body_excitgen
          ! and take into account the bias for triples
       else if(ic == 3) then
          ! else, use the local routine
-         pgen = calc_pgen_triple(nI, ex)
+         pgen = calc_pgen_triple(ex)
       endif
 
     end function calc_pgen_mol_tc
 
 !------------------------------------------------------------------------------------------!
 
-    function calc_pgen_triple(nI, ex) result(pgen)
+    function calc_pgen_triple(ex) result(pgen)
       ! get the probability to get excitation `ex` from a determinant `nI`
       implicit none
-      integer, intent(in) :: nI(nel), ex(2,3)
+      integer, intent(in) :: ex(2,3)
       real(dp) :: pgen
       integer :: ms, i
       character(*), parameter :: t_r = "calc_pgen_triple"
@@ -112,14 +111,13 @@ module tc_three_body_excitgen
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine setup_mol_tc_excitgen(HF)
+    subroutine setup_mol_tc_excitgen()
       implicit none
-      integer, intent(in) :: HF(nel)
 
       ! initialize the biases and auxiliary variables for the molecular
       ! transcorrelated 3-body excitation generator
 
-      call init_mol_tc_biases(HF)
+      call init_mol_tc_biases()
       call precompute_pgen()
     end subroutine setup_mol_tc_excitgen
 
@@ -162,12 +160,11 @@ module tc_three_body_excitgen
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine init_mol_tc_biases(HF)
+    subroutine init_mol_tc_biases()
       use SystemData, only: tSmallBasisForThreeBody
       implicit none
       ! reference determinant for initializing the biases
       real(dp) :: normalization
-      integer, intent(in) :: HF(nel)
       ! if we read in a value, use that one
       if(abs(pTriples) < eps) then
          pTriples = 0.1
@@ -219,7 +216,7 @@ module tc_three_body_excitgen
 
       integer :: sym_prod, src(3), tgt(3), elecs(3)
       integer :: ms
-
+      unused_var(store)
       HElGen = 0.0_dp
 
       ! first, pick three electrons at random
@@ -236,7 +233,7 @@ module tc_three_body_excitgen
            nJ = 0
            ilutJ = 0_n_int
            ExcitMat = 0
-           tParity = 0
+           tParity = .false.
            return
           end if
          else
@@ -252,7 +249,7 @@ module tc_three_body_excitgen
          nJ = 0
          ilutJ = 0_n_int
          ExcitMat = 0
-         tParity = 0
+         tParity = .false.
       endif
 
     end subroutine generate_triple_excit

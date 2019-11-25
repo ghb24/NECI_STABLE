@@ -949,32 +949,6 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    function test_ref_double(ilut, run) result(is_accessible)
-      ! We check if a target determinant for a spawn is valid in the sense
-      ! that we allow any non-initiator to spawn there.
-      ! This is an experimental and potentially dangerous feature as it can
-      ! lead to sign instabilities
-      use adi_data, only: tAccessibleDoubles, tAccessibleSingles
-      implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer, intent(in) :: run
-      logical :: is_accessible
-      integer :: iRef, exLevel
-
-      is_accessible = .false.
-      exLevel = -1
-      do iRef = 1, nRefs
-         exLevel = FindBitExcitLevel(ilutRefAdi(:,iRef), ilut)
-         if(exLevel == 0) is_accessible = .true.
-         if(tAccessibleDoubles .and. exLevel == 2) is_accessible = .true.
-         if(tAccessibleSingles .and. exLevel == 1) is_accessible = .true.
-         if(is_accessible) exit
-      end do
-    end function test_ref_double
-
-
-!------------------------------------------------------------------------------------------!
-
 
     subroutine reset_coherence_counter()
       use adi_data, only: nCoherentDoubles

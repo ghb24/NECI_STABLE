@@ -1281,7 +1281,7 @@ MODULE HPHFRandExcitMod
         ! i guess i do.. or i go the unnecessary way of checking again in 
         ! the called back-spawn functions 
         if(t_mol_3_body.or.t_ueg_3_body) then
-           pgen = calc_pgen_mol_tc(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2, pDoub)
+           pgen = calc_pgen_mol_tc(nI, ex, ic, ClassCount2, ClassCountUnocc2, pDoub)
         else if ((t_back_spawn .or. t_back_spawn_flex) .and. &
             (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type),nifdbo)) .and. &
             (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then
@@ -1316,14 +1316,14 @@ MODULE HPHFRandExcitMod
             else if (t_new_real_space_hubbard) then 
                 if (t_trans_corr_hop) then 
                     if (t_uniform_excits) then 
-                        pgen = calc_pgen_rs_hubbard_transcorr_uniform(nI, ilutI, ex, ic)
+                        pgen = calc_pgen_rs_hubbard_transcorr_uniform(ex, ic)
                     else 
                         pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
                     end if
                 else if (t_spin_dependent_transcorr) then 
                     pgen = calc_pgen_rs_hubbard_spin_dependent_transcorr(nI,ilutI,ex,ic)
                 else
-                    pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
+                    pgen = calc_pgen_rs_hubbard(ilutI, ex, ic)
                 end if
 
             else if (t_tJ_model) then 

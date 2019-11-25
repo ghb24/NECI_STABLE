@@ -41,7 +41,7 @@ module tc_three_body_data
      integer(MPIArg) :: shm_win, index_win
      integer(int64) :: nInts
      type(ll_node), pointer :: hTable(:)
-     integer :: htSize
+     integer(int64) :: htSize
      procedure(lMatInd_t), nopass, pointer :: indexFunc => lMatIndSym
   end type lMat_t  
   

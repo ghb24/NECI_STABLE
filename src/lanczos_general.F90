@@ -352,10 +352,13 @@ module lanczos_general
 
         if (t_calc_eigenvectors) then
             ! move the eigenvectors out of the working array
-!             this%T_eigenvectors(1:N,1:this%n_states) = &
-!                 cmplx(this%super%projected_hamil_work(1:N, 1:this%n_states))
+#ifdef CMPLX_            
             this%T_eigenvectors(1:N,1:this%n_states) = &
-                cmplx(e_vectors(1:N,1:this%n_states))
+                cmplx(e_vectors(1:N,1:this%n_states),kind=dp)
+#else
+            this%T_eigenvectors(1:N,1:this%n_states) = &
+                e_vectors(1:N,1:this%n_states)
+#endif       
         endif
 
 

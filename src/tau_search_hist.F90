@@ -1565,7 +1565,7 @@ contains
             if (iProcIndex == root) then
                 write(iout,*) "Number of zero-valued excitations: ", tmp_int_64
                 write(iout,*) "Number of valid excitations: ", sum_all
-                write(iout,*), "ratio of zero-valued excitations: ", &
+                write(iout,*) "ratio of zero-valued excitations: ", &
                     real(tmp_int_64, dp) / sum_all
                 ! i guess i should also output the number of excitations
                 ! above the threshold!

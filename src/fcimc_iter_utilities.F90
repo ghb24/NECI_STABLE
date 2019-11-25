@@ -493,6 +493,8 @@ contains
         ! number of successful/invalid excits
         sizes(36) = 1
         sizes(37) = 1
+        ! en pert space size
+        if (tEN2) sizes(38) = 1        
 
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
              "No space left in arrays for communication of estimates. Please increase &
@@ -548,6 +550,10 @@ contains
         ! excitation number trackers
         low = upp + 1; upp = low + sizes(36) - 1; send_arr(low:upp) = nInvalidExcits;
         low = upp + 1; upp = low + sizes(37) - 1; send_arr(low:upp) = nValidExcits;
+        ! en pert space size
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = en_pert_main%ndets;
+        endif        
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -592,9 +598,9 @@ contains
            low = upp + 1; upp = low + sizes(28) - 1; allDoubleSpawns = nint(recv_arr(low));
            doubleSpawns = 0
         endif
-        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = recv_arr(low);
-        low = upp + 1; upp = low + sizes(30) - 1; AllIncoherentDets = recv_arr(low);
-        low = upp + 1; upp = low + sizes(31) - 1; AllConnection = recv_arr(low);
+        low = upp + 1; upp = low + sizes(29) - 1; AllCoherentDoubles = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(30) - 1; AllIncoherentDets = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(31) - 1; AllConnection = nint(recv_arr(low));
 
         if (t_spin_measurements) then
             low = upp + 1; upp = low + sizes(32) - 1; all_inst_spin_diff = recv_arr(low:upp)
@@ -604,10 +610,15 @@ contains
         ! truncated weight
         low = upp + 1; upp = low + sizes(34) - 1; AllTruncatedWeight = recv_arr(low);
         ! initiators per excitation level
-        low = upp + 1; upp = low + sizes(35) - 1; AllInitsPerExLvl = recv_arr(low:upp);
+        low = upp + 1; upp = low + sizes(35) - 1; AllInitsPerExLvl = nint(recv_arr(low:upp));
         ! excitation number trackers
-        low = upp + 1; upp = low + sizes(36) - 1; allNInvalidExcits = recv_arr(low);
-        low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = recv_arr(low);
+        low = upp + 1; upp = low + sizes(36) - 1; allNInvalidExcits = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = nint(recv_arr(low));
+        ! en_pert space size
+        if (tEN2) then
+           low = upp + 1; upp = low + sizes(38) - 1; en_pert_main%ndets_all = nint(recv_arr(low));
+        endif
+
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -625,8 +636,7 @@ contains
             sizes(10) = size(init_trial_numerator)
             sizes(11) = size(init_trial_denom)
         end if
-        if (tEN2) sizes(12) = 1
-        sizes(13) = size(InitsEnumCyc)
+        sizes(12) = size(InitsEnumCyc)
 
         if (sum(sizes(1:11)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
@@ -645,10 +655,7 @@ contains
             low = upp + 1; upp = low + sizes(10) - 1; send_arr_helem(low:upp) = init_trial_numerator;
             low = upp + 1; upp = low + sizes(11) - 1; send_arr_helem(low:upp) = init_trial_denom;
         end if
-        if (tEN2) then
-           low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low) = en_pert_main%ndets;
-        endif
-        low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = InitsENumCyc;
+        low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low:upp) = InitsENumCyc;
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -667,10 +674,7 @@ contains
             low = upp + 1; upp = low + sizes(10) - 1; tot_init_trial_numerator = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(11) - 1; tot_init_trial_denom = recv_arr_helem(low:upp);
         end if
-        if (tEN2) then
-           low = upp + 1; upp = low + sizes(12) - 1; en_pert_main%ndets_all = recv_arr_helem(low);
-        endif
-        low = upp + 1; upp = low + sizes(13) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
+        low = upp + 1; upp = low + sizes(12) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -1284,7 +1288,7 @@ contains
     function get_occ_dets() result(nOccDets)
       implicit none
       integer :: nOccDets
-      integer :: i
+      integer(int64) :: i
       real(dp) :: check_sign(lenof_sign)
 
       nOccDets = 0

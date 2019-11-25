@@ -75,7 +75,7 @@ module real_space_hubbard
     real(dp), allocatable :: umat_rs_hub_trancorr_hop(:,:,:,:), &
                              tmat_rs_hub_spin_transcorr(:,:)
 
-    complex(dp), parameter :: imag_unit = cmplx(0.0_dp,1.0_dp)
+    complex(dp), parameter :: imag_unit = cmplx(0.0_dp,1.0_dp,dp)
 
     real(dp), allocatable :: hop_transcorr_factor_cached(:), &
                              hop_transcorr_factor_cached_m(:), &
@@ -669,7 +669,7 @@ contains
                 elem = nOccBeta * uhub * sum_spin_transcorr_factor(i,j)
                 if (abs(elem) > matele_cutoff) then 
                     if (t_print_tmat) then 
-                        write(iunit,*), 2*i, 2*j, elem
+                        write(iunit,*) 2*i, 2*j, elem
                     end if
                     tmat_rs_hub_spin_transcorr(2*i,2*j) = elem
                 end if
@@ -906,7 +906,11 @@ contains
         nJ(1) = 0
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
-#endif        
+        if(present(run)) then
+            unused_var(run)
+        endif
+#endif
+        unused_var(store)
 
         ASSERT(associated(lat))
 
@@ -978,9 +982,8 @@ contains
 
     end subroutine gen_excit_rs_hubbard_transcorr_uniform
 
-    function calc_pgen_rs_hubbard_transcorr_uniform(nI, ilutI, ex, ic) result(pgen)
-        integer, intent(in) :: nI(nel), ex(2,2), ic
-        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+    function calc_pgen_rs_hubbard_transcorr_uniform(ex, ic) result(pgen)
+        integer, intent(in) :: ex(2,2), ic
         real(dp) :: pgen
 #ifdef DEBUG_ 
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard_transcorr_uniform"
@@ -1041,7 +1044,11 @@ contains
         nJ(1) = 0
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
-#endif        
+        if(present(run)) then            
+            unused_var(run)
+        endif        
+#endif
+        unused_var(store)
 
         ASSERT(associated(lat))
 
@@ -1134,7 +1141,11 @@ contains
 
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
-#endif        
+        if(present(run)) then            
+            unused_var(run)
+        endif
+#endif
+        unused_var(store)
         ASSERT(associated(lat))
 
         ic = 1 
@@ -1202,7 +1213,7 @@ contains
         if (is_alpha(ex(1,1))) then
             pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
         else
-            pgen = calc_pgen_rs_hubbard(nI, ilutI, ex, ic)
+            pgen = calc_pgen_rs_hubbard(ilutI, ex, ic)
         endif
 
     end function calc_pgen_rs_hubbard_spin_dependent_transcorr
@@ -1578,7 +1589,11 @@ contains
         iunused = exflag;
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
+        if(present(run)) then            
+            unused_var(run)
+        endif
 #endif
+        unused_var(store)
 
         ASSERT(associated(lat))
 
@@ -1615,11 +1630,11 @@ contains
 
     end subroutine gen_excit_rs_hubbard
 
-    function calc_pgen_rs_hubbard(nI, ilutI, ex, ic) result(pgen) 
+    function calc_pgen_rs_hubbard(ilutI, ex, ic) result(pgen) 
         ! i also need a pgen recalculator.. specifically for the HPHF 
         ! implementation and i need to take the transcorrelated keyword 
         ! into account here! 
-        integer, intent(in) :: nI(nel), ex(2,2), ic 
+        integer, intent(in) :: ex(2,2), ic 
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen 
 #ifdef DEBUG_ 
@@ -1977,7 +1992,8 @@ contains
 #endif
         integer :: src(2), tgt(2), ij(2), ab(2)
     
-        ASSERT(t_trans_corr_hop) 
+        ASSERT(t_trans_corr_hop)
+        unused_var(nI)
 
         if (same_spin(ex(1,1),ex(1,2)) .or. &
             same_spin(ex(2,1),ex(2,2))) then 

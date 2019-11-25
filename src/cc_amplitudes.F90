@@ -867,50 +867,6 @@ contains
 
             print *, "cc-4 L0 norm after T2^2", cc_amp_norm(0,4), "on proc: ", &
                 iProcIndex
-
-            ! do i also want to do the T1*T3, T1^2*T2 T1^4
-            do i = 1, cc_ops(3)%n_ops 
-                ijk_abc = cc_ops(3)%get_ex(i)
-
-                do j = 1, cc_ops(1)%n_ops 
-                    if (cc_ops(1)%set_flag(j) == 1) then 
-                        l_d = cc_ops(1)%get_ex(j) 
-
-                        if (unique_quad_ind_3_1(ijk_abc, l_d)) then 
-                            
-                            call order_quad_indices_3_1(ijk_abc, l_d, phase, ijab_klcd)
-
-                            amp = phase * cc_ops(3)%get_amp(i) * cc_ops(1)%get_amp(j)
-
-                            temp_int = apply_excit_ops(ilutRef, &
-                                [ijk_abc(1,:),l_d(1,1)], [ijk_abc(2,:),l_d(2,1)])
-
-                            call cc_hash_look_up(ijab_klcd, temp_int, quad_hash, & 
-                                hash_ind, t_found)
-
-                            ! it it is found in the hash-table i want to 
-                            ! update the amplitude 
-                            if (t_found) then 
-                                call cc_hash_update(quad_hash, hash_ind, & 
-                                    temp_int, amp)
-                            else 
-                                ! otherwise i want to add the entry 
-                                call cc_hash_add(quad_hash, hash_ind, & 
-                                    temp_int, amp)
-
-                                ! and only in this case we found a new 
-                                ! quadruple coefficient
-                                cc_amp_norm(0,4) = cc_amp_norm(0,4) + 1
-                            end if
-
-                        end if
-                    end if
-                end do
-            end do
-            print *, "cc-4 L0 norm after T3*T1", cc_amp_norm(0,4), "on proc: ",&
-                iProcIndex
-
-
         else 
             do i = 1, cc_ops(2)%n_ops 
                 if (cc_ops(2)%set_flag(i) == 1) then 
@@ -1035,21 +991,6 @@ contains
         nullify(temp_node)
 
     end subroutine cc_hash_add
-
-
-    subroutine order_quad_indices_3_1(ijk_abc, l_d, phase, ijab_klcd)
-        integer, intent(inout) :: ijk_abc(2,3), l_d(2,1)
-        real(dp), intent(out) :: phase 
-        integer, intent(out) :: ijab_klcd(8)
-        character(*), parameter :: this_routine = "order_quad_indices_3_1"
-
-#ifdef WARNING_WORKAROUND_
-        ijab_klcd = 0
-        phase = 0.0_dp
-#endif
-
-    end subroutine order_quad_indices_3_1
-
 
     subroutine order_quad_indices_2_2(ij_ab, kl_cd, phase, ijab_klcd)
         integer, intent(inout) :: ij_ab(2,2), kl_cd(2,2)

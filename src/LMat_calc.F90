@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module LMat_calc
 #ifdef USE_HDF5_
   use hdf5
@@ -157,6 +159,7 @@ module LMat_calc
     write(iout,*) "********************************************************"
 #else
     call stop_all(this_routine, 'HDF5 support not enabled at compile time')
+    unused_var(filename)
 #endif
   end subroutine readLMatFactors
 

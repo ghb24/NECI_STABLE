@@ -1,3 +1,4 @@
+#include "macros.h"
 
 MODULE UMatCache
 
@@ -1392,17 +1393,14 @@ MODULE UMatCache
       function numBasisIndices(nBasis) result(nBI)
         implicit none
         integer, intent(in) :: nBasis
-        integer :: iSS
         integer :: nBI
 
         if(tStoreSpinOrbs) then
-           iSS = 1
+           nBI = nBasis
         else
-           iSS = 2
+           nBI = nBasis / 2
         endif
 
-        ! number of distinct indices of the integrals
-        nBI = nBasis / iSS
       end function numBasisIndices
 
       !------------------------------------------------------------------------------------------!
@@ -1428,7 +1426,25 @@ MODULE UMatCache
               endif
            end do
         end do
-      end subroutine SetupUMat2d_dense
+    end subroutine SetupUMat2d_dense
+
+    !------------------------------------------------------------------------------------------!
+    ! Empty umat for tests
+    !------------------------------------------------------------------------------------------!
+
+    function nullUMat(i,j,k,l) result(hel)
+        use constants
+        integer, intent(in) :: i,j,k,l
+        HElement_t(dp) :: hel
+
+        ! This functions shows the behaviour of an empty UMat
+        unused_var(i)
+        unused_var(j)
+        unused_var(k)
+        unused_var(l)
+        hel = 0.0_dp
+    end function nullUMat
+    
 
 END MODULE UMatCache
 ! Still useful to keep CacheUMatEl and GetCachedUMatEl outside of the module for

@@ -9,7 +9,7 @@ module Integrals_neci
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
-                         nTypes, gen2CPMDInts, tDFInts
+                         nTypes, gen2CPMDInts, tDFInts, numBasisIndices
 
     use util_mod, only: get_nan
 
@@ -736,14 +736,7 @@ contains
 
       ! Setup the umatel pointers as well
       call init_getumatel_fn_pointers ()
-
-      ! number of discinct orbitals - used by both lmat and kmat
-      if(tStoreSpinOrbs) then
-         nBI = nBasis
-      else
-         nBI = nBasis / 2
-      endif
-
+      
       if(t_mol_3_body) call readLMat()
 
       tUseKMat = tDampKMat .or. tLogKMatProjE

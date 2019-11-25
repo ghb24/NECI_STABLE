@@ -1334,7 +1334,7 @@ contains
         ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
         ! by the number of alpha and beta electrons and the number of orbitals
         ! and can hence be precomputed
-        if(t_mol_3_body.or.t_ueg_3_body) call setup_mol_tc_excitgen(hfdet)
+        if(t_mol_3_body.or.t_ueg_3_body) call setup_mol_tc_excitgen()
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1819,7 +1819,7 @@ contains
          ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
          ! by the number of alpha and beta electrons and the number of orbitals
          ! and can hence be precomputed
-         if(t_mol_3_body.or.t_ueg_3_body) call setup_mol_tc_excitgen(hfdet)
+         if(t_mol_3_body.or.t_ueg_3_body) call setup_mol_tc_excitgen()
 
         if (tInitiatorSpace) call init_initiator_space(i_space_in)
 

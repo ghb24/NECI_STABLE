@@ -316,7 +316,12 @@ contains
         ASSERT(associated(lat))
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
-#endif        
+        if(present(run)) then
+            unused_var(run)
+        endif
+#endif
+        unused_var(store)
+        unused_var(exflag)
 
         elec = 1 + int(genrand_real2_dsfmt() * nel) 
 
@@ -661,7 +666,12 @@ contains
         ASSERT(nel == nbasis/2)
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
-#endif        
+        if(present(run)) then
+            unused_var(run)
+        end if
+#endif
+        unused_var(store)
+        unused_var(exflag)
         
         ic = 2
 
@@ -1245,8 +1255,7 @@ contains
 
     end function get_offdiag_helement_heisenberg
 
-    function determine_optimal_time_step_heisenberg(time_step_death) result(time_step) 
-        real(dp), intent(out), optional :: time_step_death 
+    function determine_optimal_time_step_heisenberg() result(time_step) 
         real(dp) :: time_step 
 #ifdef DEBUG_ 
         character(*), parameter :: this_routine = "determine_optimal_time_step_heisenberg" 

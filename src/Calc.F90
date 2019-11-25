@@ -58,7 +58,7 @@ MODULE Calc
     use cepa_shifts, only: t_cepa_shift, cepa_method
     use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
     use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat
-    use util_mod, only: near_zero, operator(.isclose.)
+    use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
 
     implicit none
 
@@ -1561,14 +1561,14 @@ contains
                 ! lowest or best overlapping per replica
                 t_choose_trial_state = .true.
                 if (tPairedReplicas) then
-                    allocate(trial_excit_choice(inum_runs/2))
+                    allocate(trial_excit_choice(inum_runs .div. 2))
                 else
                     allocate(trial_excit_choice(inum_runs))
                 end if
 
                 if (item < nitems) then
                     if (tPairedReplicas) then
-                        do i = 1, inum_runs/2
+                        do i = 1, inum_runs .div. 2
                             call geti(trial_excit_choice(i))
                         end do
                     else

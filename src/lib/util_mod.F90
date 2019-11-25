@@ -329,7 +329,7 @@ contains
       ! qp and pq are considered to be the same index
       ! -> permutational symmetry
       ! implemented in terms of fuseIndex_int64
-      ind = fuseIndex_int64(int(q,int64),int(p,int64))
+      ind = int(fuseIndex_int64(int(q,int64),int(p,int64)))
     end function fuseIndex_int32
     
 !------------------------------------------------------------------------------------------!

@@ -469,11 +469,8 @@ contains
         integer :: i
         character(12) :: num
 
-        if (present(initial)) then
-            state%init = initial
-        else
-            state%init = .false.
-        end if
+        unused_var(iter_data)        
+        def_default(state%init,initial,.false.)
 
         if (iProcIndex == root .and. .not. inited) then
             state%funit = get_free_unit()
@@ -492,7 +489,7 @@ contains
             end if
 
             state%cols = 0
-            state%cols_mc = tMCOutput
+            state%mc_out = tMCOutput
 
             call stats_out(state, .false., iter + PreviousCycles, 'Iter.')
 
@@ -610,12 +607,8 @@ contains
         integer :: i
         character(12) :: num
 
-        ! Provide default 'initial' option
-        if (present(initial)) then
-            state%init = initial
-        else
-            state%init = .false.
-        end if
+        unused_var(iter_data)
+        def_default(state%init,initial,.false.)
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then

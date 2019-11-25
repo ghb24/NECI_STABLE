@@ -507,13 +507,15 @@ contains
 
             if (tMCOutput .and. tLMatCalc .and. mod(Iter, lMatCalcStatsIters) == 0) then
                 write(iout, *) "============ LMatCalc Caching Stats ==============="
-                write(iout, *) "LMatCalc Cache Fill Ratio: ", lMatCalcHUsed/real(lMatCalcHSize)
+                write(iout, *) "LMatCalc Cache Fill Ratio: ", &
+                    real(lMatCalcHUsed,dp)/real(lMatCalcHSize,dp)
                 write(iout, *) "LMatCalc Cache Hit Rate  : ", lMatCalcHit/real(lMatCalcTot)
                 lMatCalcHit = 0
                 lMatCalcTot = 0
 
                 if (ycoulombAB_exists) then
-                    write(iout, *) "LMatABCalc Cache Fill Ratio: ", lMatABCalcHUsed/real(lMatABCalcHSize)
+                    write(iout, *) "LMatABCalc Cache Fill Ratio: ", &
+                        real(lMatABCalcHUsed,dp)/real(lMatABCalcHSize,dp)
                     write(iout, *) "LMatABCalc Cache Hit Rate  : ", lMatABCalcHit/real(lMatABCalcTot)
                     lMatABCalcHit = 0
                     lMatABCalcTot = 0

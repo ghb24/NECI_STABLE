@@ -1,13 +1,16 @@
+#include "macros.h"
+
 module LMat_mod
   use constants
   use FciMCData, only: ll_node
   use HElem, only: HElement_t_SizeB
-  use SystemData, only: nBasis, t12FoldSym, G1, t_mol_3_body, nel, nBI, tStoreSpinOrbs, tContact
+  use SystemData, only: nBasis, t12FoldSym, G1, t_mol_3_body, nel, tStoreSpinOrbs, tContact
   use MemoryManager, only: LogMemAlloc, LogMemDealloc
-  use util_mod, only: get_free_unit, fuseIndex
+  use util_mod, only: get_free_unit, fuseIndex, operator(.div.)
   use gen_coul_ueg_mod, only: get_lmat_ueg, get_lmat_ua
   use shared_memory_mpi
   use sort_mod
+  use UMatCache, only: numBasisIndices
   use hash, only: add_hash_table_entry, clear_hash_table
   use ParallelHelper, only: iProcIndex_intra
   use tc_three_body_data, only: tDampKMat, tDampLMat, tSpinCorrelator, lMatEps, &
@@ -244,9 +247,11 @@ module LMat_mod
 
     subroutine initializeLMatPtrs()
       implicit none
-
+      integer :: nBI
+      
+      nBI = numBasisIndices(nBasis)
       ! some typical array dimensions useful in the indexing functions
-      strideInner = fuseIndex(int(nBI),int(nBI))
+      strideInner = fuseIndex(nBI,nBI)
       strideOuter = strideInner**2
       ! set the LMatInd function pointer
       if(t12FoldSym) then
@@ -289,16 +294,15 @@ module LMat_mod
       subroutine initLMatHash(lMatCtr)
         implicit none
         type(LMat_t), intent(inout) :: lMatCtr
-        integer :: i
-        integer :: hashVal
+        integer(int64) :: i
+        integer(int64) :: hashVal
 
         allocate(lMatCtr%htable(lMatCtr%htSize))
-
         ! for each entry, store the index at the position in the hashtable given
         ! by its hash value
         do i = 1, lMatCtr%nInts
-           hashVal = LMatHash(lMatCtr%indexPtr(i), lMatCtr%htSize)
-           call add_hash_table_entry(lMatCtr%htable, i, hashVal)
+            hashVal = LMatHash(lMatCtr%indexPtr(i), lMatCtr%htSize)
+            call add_hash_table_entry(lMatCtr%htable, int(i), int(hashVal))
         end do
       end subroutine initLMatHash
 
@@ -307,8 +311,8 @@ module LMat_mod
       function LMatHash(index, htSize) result(hashVal)
         implicit none
         integer(int64), intent(in) :: index
-        integer, intent(in) :: htSize
-        integer :: hashVal
+        integer(int64), intent(in) :: htSize
+        integer(int64) :: hashVal
 
 ! TODO: Implement an actual hash function
         hashVal = mod(int(index)-1,htSize)+1
@@ -408,23 +412,26 @@ module LMat_mod
       integer(int64) :: LMatSize
       character(*), parameter :: t_r = "readLMat"
       integer(int64) :: counter
+      integer(int64) :: nBI
 
       if(.not.tSparseLMat) then
          ! for sparse storage, we first need to get the number of integrals
          ! this works differently for hdf5 and non-hdf5 dumpfiles, so it is
          ! done directly in the respective code
 
-         ! The size is given by the largest index (LMatInd is monotonous in all arguments)
-         LMatSize = lMatLoc%indexFunc(nBI,nBI,nBI,nBI,nBI,nBI)
+          ! The size is given by the largest index (LMatInd is monotonous in all arguments)
+          nBI = int(numBasisIndices(nBasis),int64)
+          LMatSize = lMatLoc%indexFunc(nBI,nBI,nBI,nBI,nBI,nBI)
 
          call allocLMat(LMatLoc,LMatSize)
       endif
 
       if(tHDF5LMat) then
 #ifdef USE_HDF_
-         call readHDF5LMat(LMatLoc,h5filename)
+          call readHDF5LMat(LMatLoc,h5filename)
 #else
-         call stop_all(t_r, "HDF5 integral files disabled at compile time")
+          call stop_all(t_r, "HDF5 integral files disabled at compile time")
+          unused_var(h5filename)
 #endif
       else
 
@@ -456,9 +463,9 @@ module LMat_mod
 
             counter = counter / 12
 
-            write(iout, *), "Sparsity of LMat", real(counter)/real(LMatSize)
-            write(iout, *), "Nonzero elements in LMat", counter
-            write(iout, *), "Allocated size of LMat", LMatSize
+            write(iout, *) "Sparsity of LMat", real(counter)/real(LMatSize)
+            write(iout, *) "Nonzero elements in LMat", counter
+            write(iout, *) "Allocated size of LMat", LMatSize
          endif
          call MPIBcast(counter)
          LMatLoc%nInts = counter
@@ -477,7 +484,7 @@ module LMat_mod
       implicit none
       type(lMat_t) :: LMatLoc
       integer(int64), intent(in) :: LMatSize
-      integer :: k
+      integer(int64) :: k
       character(*), parameter :: t_r = "allocLMat"
 
       write(iout,*) "Allocating LMat, memory required:", LMatSize*HElement_t_sizeB/(2.0_dp**30), "GB"
@@ -608,7 +615,7 @@ module LMat_mod
       call h5dopen_f(grp_id, nm_indices, ds_inds, err)
 
       ! reserve max. 100MB buffer size for dumpfile I/O
-      blocksize = 100000000/(7*sizeof(LMatLoc%LMatPtr(1)))
+      blocksize = 100000000_int64 .div. (7*sizeof(LMatLoc%LMatPtr(1)))
       blockstart = offsets(iProcIndex_intra)
 
       ! the last element to read on each proc
@@ -659,7 +666,7 @@ module LMat_mod
             end do
          endif
          ! assign LMat entries
-         do i = 1, this_blocksize
+         do i = 1, int(this_blocksize)
             ! truncate down to lMatEps
             rVal = 3.0_dp * transfer(entries(1,i),rVal)
             if(abs(rVal)>lMatEps) then
@@ -825,7 +832,7 @@ module LMat_mod
          write(iout,*) "Matrix elements from", 0.1**(i+1),"to",0.1**(i),":",ratios(i)
       end do
       write(iout,*) "Matrix elements above", 0.1,":",ratios(0)
-      write(iout,*), "Total number of logged matrix elements", lMatObj%nInts
+      write(iout,*) "Total number of logged matrix elements", lMatObj%nInts
     end subroutine histogramLMat
 
 !------------------------------------------------------------------------------------------!

@@ -550,7 +550,14 @@ contains
 
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
-#endif        
+        ! mark unused vars
+        if(present(run)) then
+            unused_var(run)
+        endif
+#endif
+        unused_var(store)
+        unused_var(exflag)
+        
         ! i first have to choose an electron pair (ij) at random 
         ! but with the condition that they have to have opposite spin! 
         call pick_spin_opp_elecs(nI, elecs, p_elec) 
@@ -611,6 +618,13 @@ contains
       integer :: i, a, b, ki(N_DIM), kj(N_DIM), ka(N_DIM), kb(N_DIM), elecs(2)
       integer, parameter :: maxTrials = 1000
 
+      ! mark unused vars
+      if(present(run)) then
+          unused_var(run)
+      endif
+      unused_var(store)
+      unused_var(exflag)
+
       hel = 0.0_dp
       ilutJ = 0
       ic = 0
@@ -666,6 +680,13 @@ contains
         integer :: temp_ex(2,3) , elecs(3), ispn, i, a, b, c, src(3), sum_ms
         real(dp) :: p_elec, p_orb, p_orb_a
         integer, parameter :: max_trials = 1000
+
+        ! mark unused variables
+        if(present(run)) then
+            unused_var(run)
+        end if
+        unused_var(store)
+        unused_var(exflag)
 
         hel = 0.0_dp 
         ilutJ = 0_n_int 
@@ -1053,9 +1074,8 @@ contains
                         ! i should actually switch the order of the 
                         ! determinants in matrix element calculation
                         ! old one: 
-!                         elem = abs(get_3_body_helement_ks_hub(nI, ex, .false.))
                         call swap_excitations(nI, ex, nJ, ex2)
-                        elem = abs(get_3_body_helement_ks_hub(nJ, ex2, .false.))
+                        elem = abs(get_3_body_helement_ks_hub(ex2, .false.))
 
                     end if
                 end if
@@ -1083,7 +1103,7 @@ contains
 
                         ex(2,2:3) = [orb_b, c] 
                         call swap_excitations(nI, ex, nJ, ex2)
-                        elem = abs(get_3_body_helement_ks_hub(nJ, ex2, .false.))
+                        elem = abs(get_3_body_helement_ks_hub(ex2, .false.))
  
                     end if
                 end if 
@@ -1527,11 +1547,10 @@ contains
 
     end subroutine create_ab_list_hubbard
 
-    function calc_pgen_k_space_hubbard_uniform_transcorr(nI, ilutI, ex, ic) result(pgen)
+    function calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic) result(pgen)
         ! need a calc pgen functionality for the uniform transcorrelated 
         ! excitation generator
-        integer, intent(in) :: nI(nel), ex(:,:), ic
-        integer(n_int), intent(in) :: ilutI(0:niftot) 
+        integer, intent(in) :: ex(:,:), ic
         real(dp) :: pgen 
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_uniform_transcorr"
@@ -1833,7 +1852,7 @@ contains
 
         else if (ic == 3 .and. t_trans_corr_2body) then 
 
-            hel = get_3_body_helement_ks_hub(nI, ex, tpar)
+            hel = get_3_body_helement_ks_hub(ex, tpar)
 
         else 
 
@@ -1870,7 +1889,7 @@ contains
             else if (ic_ret == 3 .and. t_trans_corr_2body) then 
                 ex(1,1) = 3 
                 call GetExcitation(nI, nJ, nel, ex, tpar) 
-                hel = get_3_body_helement_ks_hub(nI, ex, tpar)
+                hel = get_3_body_helement_ks_hub(ex, tpar)
 
             else if (ic_ret == -1) then 
                 call EncodeBitDet(nI, ilutI) 
@@ -1891,7 +1910,7 @@ contains
                     ex(1,1) = 3 
                     call GetBitExcitation(ilutI, ilutJ, ex, tpar) 
 
-                    hel = get_3_body_helement_ks_hub(nI, ex, tpar) 
+                    hel = get_3_body_helement_ks_hub(ex, tpar) 
 
                 else 
                     hel = h_cast(0.0_dp) 
@@ -1917,7 +1936,7 @@ contains
                 ex(1,1) = 3 
                 call GetBitExcitation(ilutI, ilutJ, ex, tpar) 
 
-                hel = get_3_body_helement_ks_hub(nI, ex, tpar) 
+                hel = get_3_body_helement_ks_hub(ex, tpar) 
 
             else 
                 hel = h_cast(0.0_dp) 
@@ -3138,11 +3157,11 @@ contains
 
     end function three_body_transcorr_fac_ksym
 
-    function get_3_body_helement_ks_hub(nI, ex, tpar) result(hel)
+    function get_3_body_helement_ks_hub(ex, tpar) result(hel)
         ! the 3-body matrix element.. here i have to be careful about 
         ! the sign and stuff.. and also if momentum conservation is 
         ! fullfilled .. 
-        integer, intent(in) :: nI(nel), ex(2,3)
+        integer, intent(in) ::  ex(2,3)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
 #ifdef DEBUG_

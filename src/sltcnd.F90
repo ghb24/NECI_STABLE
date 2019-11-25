@@ -468,6 +468,7 @@ contains
         integer, intent(in) :: ex(2,2)
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
+        unused_var(nI)
 
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
@@ -612,28 +613,11 @@ contains
       integer, intent(in) :: ex(2,3)
       logical, intent(in) :: tSign
       HElement_t(dp) :: hel
-
+      unused_var(ex)
+      unused_var(tSign)
+      
       hel = 0
-    end function sltcnd_3_base
-
-    function nullUMat(i,j,k,l) result(hel)
-      use constants
-      implicit none
-
-      integer, intent(in) :: i, j, k, l
-      HElement_t(dp) :: hel
-
-      hel = 0.0
-
-    end function nullUMat
-
-    subroutine debugOut(a,b,c,i,j,k,neg)
-      implicit none
-      integer, intent(in) :: a,b,c,i,j,k
-      integer, intent(in) :: neg
-
-      print *, "Add", a,b,c,i,j,k,neg*get_lmat_el(a,b,c,i,j,k)
-    end subroutine debugOut
+  end function sltcnd_3_base
 
   !------------------------------------------------------------------------------------------!
   !      slater condon rules for ultracold atoms
@@ -754,6 +738,7 @@ contains
         integer, intent(in) :: ex(2,2)
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
+        unused_var(nI)
 
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).

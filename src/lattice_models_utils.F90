@@ -7,7 +7,7 @@ module lattice_models_utils
 
     use constants, only: dp, n_int, bits_n_int, eps, pi, lenof_sign
 
-    use util_mod, only: binary_search, binary_search_first_ge, choose, swap
+    use util_mod, only: binary_search, binary_search_first_ge, choose, swap, operator(.isclose.)
 
     use sort_mod, only: sort
 
@@ -1013,7 +1013,7 @@ contains
         end do
 
         ! make sure that the sum of basis states is the whole hilber space
-        ASSERT(sum(n_double) == choose(n_orbs, n_alpha)*choose(n_orbs,n_beta))
+        ASSERT(real(sum(n_double),dp) .isclose. choose(n_orbs, n_alpha)*choose(n_orbs,n_beta))
 
     end function calc_n_double
 
@@ -1743,7 +1743,7 @@ contains
                                             ex(2,:) = [a,b,c] 
                                             ! should i check the matrix element too?
                                             ! and also be sure that the momentum fits
-!                                             if (abs(get_3_body_helement_ks_hub(nI,ex,.false.)) > EPS) then 
+
                                             elem = abs(get_helement_lattice(nI, 3, ex, .false.))
                                             if (elem > EPS) then
                                                 ilutJ = make_ilutJ(ilut, ex,3)
