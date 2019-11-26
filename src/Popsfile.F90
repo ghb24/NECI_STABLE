@@ -37,7 +37,7 @@ MODULE PopsfileMod
         gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
-        store_decoding
+        store_decoding, max_ratio_size, fvals_size
     use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
@@ -978,7 +978,8 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         ! decide which global det data is read
-        call gdata_read_handler%init_gdata_io(tPopAutoAdaptiveShift, tPopScaleBlooms)
+        call gdata_read_handler%init_gdata_io(tPopAutoAdaptiveShift, tPopScaleBlooms, &
+            fvals_size, max_ratio_size)
 
         ! If applying perturbations, read the popsfile into the array
         ! popsfile_dets and then apply the perturbations to the determinants
@@ -1738,7 +1739,8 @@ r_loop: do while(.not.tStoreDet)
         end if
         
         ! set the module variables for global det data i/o
-        call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms)
+        call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms, &
+            fvals_size, max_ratio_size)
 
         if (iProcIndex == root) then
 

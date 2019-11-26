@@ -498,7 +498,7 @@ contains
 
 #ifdef USE_HDF_
     ! nasty bit of code to cope with hdf5 I/O which is using integer(hsize_t)
-    subroutine set_tot_acc_spawn_hdf5Int(fvals, j)
+    subroutine set_tot_acc_spawns_hdf5Int(fvals, j)
       use hdf5
       implicit none
       integer(hsize_t), intent(in) :: fvals(:)
@@ -511,17 +511,17 @@ contains
          global_determinant_data(pos_acc_spawns+run-1,j) = transfer(fvals(run),realVal)
          global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+inum_runs),realVal)
       end do
-    end subroutine set_tot_acc_spawn_hdf5Int
+    end subroutine set_tot_acc_spawns_hdf5Int
 #endif
 
-    subroutine writeFFuncAsInt(fvals, ndets, MaxEx)
+    subroutine writeFFuncAsInt(fvals, ndets, max_ex)
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
       use DetBitOps, only: FindBitExcitLevel
       implicit none
       integer(n_int), intent(inout) :: fvals(:,:)
       integer, intent(in) :: ndets
-      integer, intent(in), optional :: MaxEx
+      integer, intent(in), optional :: max_ex
       integer :: j, k
       integer :: ExcitLevel, counter
       real(dp) :: CurrentSign(lenof_sign)
@@ -530,10 +530,10 @@ contains
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
 
       counter = 0
-      do j = 1,int(ndets)
-        if(present(MaxEx))then
+      do j = 1, ndets
+        if(present(max_ex))then
              ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-             if(ExcitLevel>MaxEx) cycle
+             if(ExcitLevel>max_ex) cycle
              call extract_sign(CurrentDets(:,j),CurrentSign)
              if(IsUnoccDet(CurrentSign)) cycle
              counter = counter + 1
@@ -881,73 +881,130 @@ contains
 
         global_determinant_data(pos_max_ratio,j) = val
     end subroutine set_max_ratio
-
-  !------------------------------------------------------------------------------------------!
   
-  subroutine write_max_ratio(ms_vals, ndets)
-      ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
-      ! Input: ndets - number of determinants
-      !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
-      implicit none
-      integer, intent(in) :: ndets
-      ! use a 2-d array for compatibility - the caller does not need to know that the first
-      ! dimension is of size 1
-      real(dp), intent(out) :: ms_vals(:,:)
-
-      integer :: j
-
-      do j = 1, ndets
-          ms_vals(1,j) = global_determinant_data(pos_max_ratio,j)
-      end do
-      
-  end subroutine write_max_ratio
-
-  !------------------------------------------------------------------------------------------!
-
-  subroutine set_all_max_ratios(ms_vals, ndets, initial)
-      ! Set the maximum ratios stored to the values in ms_vals
-      ! Input: ms_vals - Ratios to be stored. Has to be of size 1 x ndets
-      !        ndets - number of values to be read in
-      !        initial - index of the first entry to fill (everything before will be unchanged
-      implicit none
-      real(dp), intent(in) :: ms_vals(:,:)      
-      integer, intent(in) :: ndets
-      integer, intent(in), optional :: initial
-
-      integer :: j, start
-
-      def_default(start, initial, 1)
-
-      do j = 1, ndets
-          call set_max_ratio(ms_vals(1,j), j + start - 1)
-      end do
+    !------------------------------------------------------------------------------------------!
     
-  end subroutine set_all_max_ratios
+    subroutine write_max_ratio(ms_vals, ndets)
+        ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
+        ! Input: ndets - number of determinants
+        !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
+        implicit none
+        integer, intent(in) :: ndets
+        ! use a 2-d array for compatibility - the caller does not need to know that the first
+        ! dimension is of size 1
+        real(dp), intent(out) :: ms_vals(:,:)
 
-  !------------------------------------------------------------------------------------------!
-  !    Global storage for storing nI for each occupied determinant to save time for
-  !    conversion from ilut to nI
-  !------------------------------------------------------------------------------------------!
+        integer :: j
+
+        do j = 1, ndets
+            ms_vals(1,j) = global_determinant_data(pos_max_ratio,j)
+        end do
+
+    end subroutine write_max_ratio
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine set_all_max_ratios(ms_vals, ndets, initial)
+        ! Set the maximum ratios stored to the values in ms_vals
+        ! Input: ms_vals - Ratios to be stored. Has to be of size 1 x ndets
+        !        ndets - number of values to be read in
+        !        initial - index of the first entry to fill (everything before will be unchanged
+        implicit none
+        real(dp), intent(in) :: ms_vals(:,:)      
+        integer, intent(in) :: ndets
+        integer, intent(in), optional :: initial
+
+        integer :: j, start
+
+        def_default(start, initial, 1)
+
+        do j = 1, ndets
+            call set_max_ratio(ms_vals(1,j), j + start - 1)
+        end do
+
+    end subroutine set_all_max_ratios
+
+    !------------------------------------------------------------------------------------------!    
+
+#ifdef USE_HDF_
+    subroutine set_max_ratio_hdf5Int(val, j)
+        use hdf5, only: hsize_t
+        ! Set the maximum ratio Hij/pgen for the determinant j to val
+        ! Input: j - index of the determinant
+        !        val - new maximum Hij/pgen ratio, bitwise re-interpreted as hsize_t int        
+        implicit none
+        integer(hsize_t), intent(in) :: val(:)
+        integer, intent(in) :: j
+        ! dummy to specify the target type
+        real(dp) :: real_val
+        real_val = 0.0_dp
+
+        global_determinant_data(pos_max_ratio, j) = transfer(val(1), real_val)
+    end subroutine set_max_ratio_hdf5Int
+
+    !------------------------------------------------------------------------------------------!
+    
+    subroutine write_max_ratio_as_int(ms_vals, ndets, max_ex)
+        use hdf5, only: hsize_t
+      use FciMCData, only: CurrentDets, iLutHF
+      use bit_rep_data, only: extract_sign
+      use DetBitOps, only: FindBitExcitLevel        
+        ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
+        ! Input: ndets - number of determinants
+        !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
+        implicit none
+        integer, intent(in) :: ndets
+        ! use a 2-d array for compatibility - the caller does not need to know that the first
+        ! dimension is of size 1
+        integer(hsize_t), intent(out) :: ms_vals(:,:)
+        integer, intent(in), optional :: max_ex
+        integer(hsize_t) :: int_val
+        integer :: j, counter, ExcitLevel
+        real(dp) :: CurrentSign(lenof_sign)
+
+        ! dummy value to specify the target type
+        counter = 0
+        do j = 1, ndets
+            if(present(max_ex))then
+                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+                if(ExcitLevel>max_ex) cycle
+                call extract_sign(CurrentDets(:,j),CurrentSign)
+                if(IsUnoccDet(CurrentSign)) cycle
+                counter = counter + 1
+            else
+                counter = j
+            end if
+            ms_vals(1,j) = transfer(global_determinant_data(pos_max_ratio,j), ms_vals(1,j))
+        end do
+
+    end subroutine write_max_ratio_as_int
+    
+#endif    
+
+    !------------------------------------------------------------------------------------------!
+    !    Global storage for storing nI for each occupied determinant to save time for
+    !    conversion from ilut to nI
+    !------------------------------------------------------------------------------------------!
 
     subroutine store_decoding(j, nI)
-      implicit none
-      integer, intent(in) :: j, nI(nel)
+        implicit none
+        integer, intent(in) :: j, nI(nel)
 
-      if(tStoredDets) then
-         global_determinants(:,j) = nI
-      endif
+        if(tStoredDets) then
+            global_determinants(:,j) = nI
+        endif
     end subroutine store_decoding
 
     function get_determinant(j) result(nI)
-      implicit none
-      integer, intent(in) :: j
-      integer :: nI(nel)
+        implicit none
+        integer, intent(in) :: j
+        integer :: nI(nel)
 
-      if(tStoredDets) then
-         nI = global_determinants(:,j)
-      else
-         nI = 0
-      endif
+        if(tStoredDets) then
+            nI = global_determinants(:,j)
+        else
+            nI = 0
+        endif
     end function get_determinant
 
 end module
