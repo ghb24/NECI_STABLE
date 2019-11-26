@@ -3,7 +3,7 @@
 module global_det_data
 
   use SystemData, only: nel
-    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, tau, &
+    use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
         tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, tReplicaEstimates, &
         tScaleBlooms
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
@@ -37,6 +37,8 @@ module global_det_data
     ! Total spawns and the number of successful ones according the initiator criterion
     integer :: len_tot_spawns, len_acc_spawns
     integer :: pos_tot_spawns, pos_acc_spawns
+    ! total size of acc + tot spawns
+    integer :: fvals_size
 
     ! Average sign and first occupation of iteration.
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
@@ -64,7 +66,7 @@ module global_det_data
     integer :: pos_det_orbs, len_det_orbs
 
     ! position + length of the maximum Hij/pgen ration per determinant
-    integer :: pos_max_spawn, len_max_spawn
+    integer :: pos_max_spawn, len_max_spawn, max_spawn_size
     
     ! Legth of arrays storing estimates to be written to the replica_est file
     integer :: replica_est_len
@@ -158,6 +160,7 @@ contains
             len_tau_int = 0
             len_shift_int = 0
         end if
+        
         if(tAutoAdaptiveShift)then
             len_tot_spawns = inum_runs
             len_acc_spawns = inum_runs
@@ -165,6 +168,7 @@ contains
             len_tot_spawns = 0
             len_acc_spawns = 0
         end if
+        fvals_size = len_tot_spawns + len_acc_spawns
 
 
         ! If we are using calculating RDMs stochastically, need to include the
@@ -211,12 +215,13 @@ contains
            len_pos_spawns = 0
            len_neg_spawns = 0
         endif
-
+       
         if(tScaleBlooms) then
            len_max_spawn = 1
         else
            len_max_spawn = 0
         endif
+        max_spawn_size = len_max_spawn
 
         ! Get the starting positions
         pos_spawn_pop = pos_hel+len_hel
@@ -470,17 +475,14 @@ contains
 
     subroutine set_tot_acc_spawns(fvals, ndets, initial)
       implicit none
-      integer, intent(in) :: ndets
       real(dp), intent(in) :: fvals(2*inum_runs, ndets)
+      integer, intent(in) :: ndets
       integer, intent(in), optional :: initial
+      integer :: start
+      integer :: j
+      integer :: run
 
-      integer :: j, run, start
-
-      if(present(initial)) then
-         start = initial
-      else
-         start = 1
-      endif
+      def_default(start,initial,1)
 
       ! set all values of tot/acc spawns using the read-in values from fvals
       ! this is used in popsfile read-in to get the values from the previous calculation
@@ -500,7 +502,7 @@ contains
       use hdf5
       implicit none
       integer(hsize_t), intent(in) :: fvals(:)
-      integer(int64), intent(in) :: j
+      integer, intent(in) :: j
 
       integer :: run
       real(dp) :: realVal = 0.0_dp
@@ -512,15 +514,14 @@ contains
     end subroutine set_tot_acc_spawn_hdf5Int
 #endif
 
-    subroutine writeFFuncAsInt(ndets, fvals, MaxEx)
+    subroutine writeFFuncAsInt(fvals, ndets, MaxEx)
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
       use DetBitOps, only: FindBitExcitLevel
       implicit none
-      integer(int64), intent(in) :: ndets
       integer(n_int), intent(inout) :: fvals(:,:)
+      integer, intent(in) :: ndets
       integer, intent(in), optional :: MaxEx
-
       integer :: j, k
       integer :: ExcitLevel, counter
       real(dp) :: CurrentSign(lenof_sign)
@@ -548,11 +549,10 @@ contains
       end do
     end subroutine writeFFuncAsInt
 
-    subroutine writeFFunc(ndets, fvals)
+    subroutine writeFFunc(fvals, ndets)
       implicit none
-      integer(int64), intent(in) :: ndets
       real(dp), intent(inout) :: fvals(:,:)
-
+      integer, intent(in) :: ndets      
       integer :: j, k
 
       ! write the acc. and tot. spawns per determinant in a contiguous array
@@ -844,46 +844,85 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-    function get_max_spawn(j) result(maxSpawn)
+    function get_max_ratio(j) result(maxSpawn)
       ! Get the maximum ratio Hij/pgen for the determinant j so far
       ! Input: j - index of the determinant
-      ! Output: maxSpawn - maximum tau*Hij/pgen of spawning attempts from Determinant j so far
+      ! Output: maxSpawn - maximum Hij/pgen of spawning attempts from Determinant j so far
       implicit none
       integer, intent(in) :: j
       real(dp) :: maxSpawn
 
-      maxSpawn = tau * global_determinant_data(pos_max_spawn,j)      
-    end function get_max_spawn
+      maxSpawn = global_determinant_data(pos_max_spawn,j)      
+    end function get_max_ratio
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine update_max_spawn(j,spawn)
-      ! Update the maximum ratio Hij/pgen for the determinant j when spawning spawn walkers
-      ! Input: j - index of the determinant
-      !        spawn - walkers to spawn in this attempt
-      implicit none
-      integer, intent(in) :: j
-      real(dp), intent(in) :: spawn
-      ! spawn/tau - renormalized spawning prob. Hij/pgen
-      real(dp) :: renomSpawn
-      renomSpawn = spawn / tau
-
-      if(abs(renomSpawn) > global_determinant_data(pos_max_spawn,j)) &
-           call set_max_spawn(j,renomSpawn)
-    end subroutine update_max_spawn
+    subroutine update_max_ratio(spawn, j)
+        ! Update the maximum ratio Hij/pgen for the determinant j when spawning spawn walkers
+        ! Input: j - index of the determinant
+        !        spawn - walkers to spawn in this attempt
+        implicit none
+        real(dp), intent(in) :: spawn        
+        integer, intent(in) :: j
+        
+        if(abs(spawn) > get_max_ratio(j)) &
+            call set_max_ratio(abs(spawn), j)
+    end subroutine update_max_ratio
 
     !------------------------------------------------------------------------------------------!    
 
-    subroutine set_max_spawn(j,val)
-      ! Set the maximum ratio Hij/pgen for the determinant j to val
-      ! Input: j - index of the determinant
-      !        val - new maximum Hij/pgen ratio
-      implicit none
-      integer, intent(in) :: j
-      real(dp), intent(in) :: val
+    subroutine set_max_ratio(val, j)
+        ! Set the maximum ratio Hij/pgen for the determinant j to val
+        ! Input: j - index of the determinant
+        !        val - new maximum Hij/pgen ratio
+        implicit none
+        real(dp), intent(in) :: val        
+        integer, intent(in) :: j
 
-      global_determinant_data(pos_max_spawn,j) = val
-    end subroutine set_max_spawn
+        global_determinant_data(pos_max_spawn,j) = val
+    end subroutine set_max_ratio
+
+  !------------------------------------------------------------------------------------------!
+  
+  subroutine write_max_ratio(ms_vals, ndets)
+      ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
+      ! Input: ndets - number of determinants
+      !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
+      implicit none
+      integer, intent(in) :: ndets
+      ! use a 2-d array for compatibility - the caller does not need to know that the first
+      ! dimension is of size 1
+      real(dp), intent(out) :: ms_vals(:,:)
+
+      integer :: j
+
+      do j = 1, ndets
+          ms_vals(1,j) = global_determinant_data(pos_max_spawn,j)
+      end do
+      
+  end subroutine write_max_ratio
+
+  !------------------------------------------------------------------------------------------!
+
+  subroutine set_all_max_ratios(ms_vals, ndets, initial)
+      ! Set the maximum ratios stored to the values in ms_vals
+      ! Input: ms_vals - Ratios to be stored. Has to be of size 1 x ndets
+      !        ndets - number of values to be read in
+      !        initial - index of the first entry to fill (everything before will be unchanged
+      implicit none
+      real(dp), intent(in) :: ms_vals(:,:)      
+      integer, intent(in) :: ndets
+      integer, intent(in), optional :: initial
+
+      integer :: j, start
+
+      def_default(start, initial, 1)
+
+      do j = 1, ndets
+          call set_max_ratio(ms_vals(1,j), j + start - 1)
+      end do
+    
+  end subroutine set_all_max_ratios
 
   !------------------------------------------------------------------------------------------!
   !    Global storage for storing nI for each occupied determinant to save time for

@@ -878,7 +878,7 @@ contains
         if(tAutoAdaptiveShift) then
            allocate(fvals(2*inum_runs,printed_count))
            ! get the statistics of THIS processor
-           call writeFFuncAsInt(TotWalkers,fvals, MaxEx)
+           call writeFFuncAsInt(fvals, int(TotWalkers), MaxEx)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, fvals, &
                 [int(2*inum_runs, hsize_t), int(printed_count, hsize_t)], & ! dims
@@ -1461,7 +1461,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), int(CurrWalkers))
               end if
            end do
         else
@@ -1481,7 +1481,7 @@ contains
                  parts = parts + abs(sgn)
 
                  if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
+                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), int(CurrWalkers))
               end if
            end do
 

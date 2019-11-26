@@ -72,7 +72,7 @@ module FciMCParMod
                                reset_shift_int, update_shift_int, &
                                update_tau_int, set_spawn_pop, &
                                get_tot_spawns, get_acc_spawns, &
-                               replica_est_len, update_max_spawn, get_max_spawn
+                               replica_est_len, get_max_ratio, update_max_ratio
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -1280,7 +1280,7 @@ module FciMCParMod
                 if(tScaleBlooms .and. .not. tSearchTau &
                     .and. .not. (t_hist_tau_search .and. tSinglePartPhase(&
                     part_type_to_run(part_type)))) then
-                    max_spawn = get_max_spawn(j)
+                    max_spawn = tau * get_max_ratio(j)
                     if(max_spawn > max_allowed_spawn) then
                         scale = max_spawn / max_allowed_spawn
                         AvMCExcitsLoc = AvMCExcitsLoc * scale
@@ -1379,12 +1379,11 @@ module FciMCParMod
 
                         if (tPreCond) child_for_stats = child_for_stats/precond_fac
 
+                        if(tScaleBlooms) call update_max_ratio(HElGen / prob, j)
+
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel, &
                                               child_for_stats, parent_flags, part_type)
-
-                        ! update the maximum Hij/pgen ratio that was spawned from this det
-                        if(tScaleBlooms) call update_max_spawn(j, child(part_type))
 
                         if (use_spawn_hash_table) then
                             call create_particle_with_hash_table (nJ, ilutnJ, child, part_type, &

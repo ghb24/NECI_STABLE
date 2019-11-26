@@ -12,7 +12,7 @@ MODULE PopsfileMod
                         MemoryFacSpawn, tSemiStochastic, tTrialWavefunction, &
                         pops_norm, tWritePopsNorm, t_keep_tau_fixed, t_hist_tau_search, &
                         t_restart_hist_tau, t_fill_frequency_hists, t_previous_hist_tau, &
-                        t_hist_tau_search_option, hdf5_diagsft, tAutoAdaptiveShift
+                        t_hist_tau_search_option, hdf5_diagsft, tAutoAdaptiveShift, tScaleBlooms
     use DetBitOps, only: DetBitLT, FindBitExcitLevel, DetBitEQ, EncodeBitDet, &
                          ilut_lt, ilut_gt
     use procedure_pointers, only: scaleFunction
@@ -31,14 +31,14 @@ MODULE PopsfileMod
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
                        binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite, &
                        t_print_frq_histograms, tPopAutoAdaptiveShift, &
-                       tPopsInstProjE 
+                       tPopsInstProjE
     use sort_mod
-    use util_mod, only: get_free_unit,get_unique_filename
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
         gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
-         store_decoding, set_tot_acc_spawns, writeFFunc
+        store_decoding, set_tot_acc_spawns, writeFFunc, max_spawn_size, fvals_size, &
+        set_all_max_ratios, write_max_ratio
     use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
@@ -50,8 +50,15 @@ MODULE PopsfileMod
 
     implicit none
 
-    logical :: tRealPOPSfile
-
+    logical :: tRealPOPSfile, tPopScaleBlooms
+    integer :: gdata_size = 0
+    logical :: t_read_gdata = .false.
+    logical :: t_write_gdata = .false.
+    integer :: fvals_start, fvals_end
+    integer :: max_spawn_start, max_spawn_end
+    private :: gdata_size, t_read_gdata, t_write_gdata, fvals_start, fvals_end, &
+        max_spawn_start, max_spawn_end, tPopScaleBlooms
+    
     interface
         subroutine ChangeRefDet(det)
             use SystemData, only: nel
@@ -348,8 +355,10 @@ contains
         ! The buffer is able to store the maximum number of particles on any
         ! determinant.
         integer(n_int), allocatable :: buffer(:,:)
-        real(dp), allocatable :: fvalsBuf(:,:)
-        real(dp) :: fvals_tmp(2*inum_runs)
+        real(dp), allocatable :: gdata_buf(:,:)
+        ! Global determinant data might be stored with the popsfile
+        ! this is read in using gdata
+        real(dp) :: gdata_tmp(gdata_size)
         integer :: ndets, det, ierr, nelem, proc
         integer(int64) :: nattempts, nread
         logical :: tEOF
@@ -357,7 +366,7 @@ contains
         ! A tag is used to identify this send/recv pair over any others
         integer, parameter :: mpi_tag = 123456  !z'beef'
         integer, parameter :: mpi_tag_dets = 123458
-        integer, parameter :: mpi_tag_fvals = 123459
+        integer, parameter :: mpi_tag_gdata = 123459
 
         ! Initialise counters
         CurrWalkers = 0
@@ -369,10 +378,10 @@ contains
             call stop_all(this_routine, "Insufficient particle storage &
                          &allocated to store particles in POPSFILE")
 
-        if(tAutoAdaptiveShift) then
-           allocate(fvalsBuf(2*inum_runs, max_dets), stat=ierr)
+        if(t_read_gdata) then
+           allocate(gdata_buf(gdata_size, max_dets), stat=ierr)
         else
-           allocate(fvalsBuf(0,0), stat = ierr)
+           allocate(gdata_buf(0,0), stat = ierr)
         endif
         ! If we are on the root processor, then we do the reading in. Otherwise
         ! we just need to wait to have particles sent in!
@@ -403,7 +412,7 @@ contains
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                          buffer(:, ndets), unused, &
                          PopNIfSgn, .false., nread, &
-                         fvals_tmp, &
+                         gdata_tmp, &
                          read_walkers_on_nodes(proc) - nattempts, &
                          trimmed_parts=trimmed_parts)
                     nattempts = nattempts + nread
@@ -422,7 +431,7 @@ contains
                         ! Add the contribution from this determinant to the
                         ! norm of the popsfile wave function.
                         call add_pops_norm_contrib(buffer(:, ndets))
-                        if(tAutoAdaptiveShift) fvalsBuf(:,ndets) = fvals_tmp(:)
+                        if(t_read_gdata) gdata_buf(:,ndets) = gdata_tmp(:)
                     end if
 
                 end do
@@ -441,9 +450,9 @@ contains
                     nelem = ndets * (1 + NIfTot)
                     call MPISend(ndets, 1, proc, mpi_tag_dets, ierr)
                     call MPISend(buffer(:,1:ndets), nelem, proc, mpi_tag, ierr)
-                    if(tAutoAdaptiveShift) then
-                       nelem = ndets * 2 * inum_runs
-                       call MPISend(fvalsBuf(:,1:ndets),nelem, proc, mpi_tag_fvals, ierr)
+                    if(t_read_gdata) then
+                       nelem = ndets * gdata_size
+                       call MPISend(gdata_buf(1:gdata_size,1:ndets),nelem, proc, mpi_tag_gdata, ierr)
                     endif
                 end if
 
@@ -458,9 +467,9 @@ contains
             call MPIRecv(ndets, 1, root, mpi_tag_dets, ierr)
             nelem = ndets * (1 + NIfTot)
             call MPIRecv(det_list, nelem, root, mpi_tag, ierr)
-            if(tAutoAdaptiveShift) then
-               nelem = ndets * 2 * inum_runs
-               call MPIRecv(fvalsBuf, nelem, root, mpi_tag_fvals, ierr)
+            if(t_read_gdata) then
+               nelem = ndets * gdata_size
+               call MPIRecv(gdata_buf, nelem, root, mpi_tag_gdata, ierr)
             endif
 
             ! Now we know how many particles are on this node
@@ -468,10 +477,17 @@ contains
 
         end if
 
-        if(tAutoAdaptiveShift) then
-           call set_tot_acc_spawns(fvalsBuf, ndets)
+        if(t_read_gdata) then
+            if(tPopAutoAdaptiveShift .and. tAutoAdaptiveShift) then
+                ! set the global det data for auto adaptive shift
+                call set_tot_acc_spawns(gdata_buf(fvals_start:fvals_end,:), ndets)
+            endif
+            if(tPopScaleBlooms .and. tScaleBlooms) then
+                ! set the global det data for bloom scaling
+                call set_all_max_ratios(gdata_buf(max_spawn_start:max_spawn_end,:), ndets)
+            end if
         endif
-        deallocate(fvalsBuf)
+        deallocate(gdata_buf)
 
     end function
 
@@ -494,8 +510,8 @@ contains
         character(*), parameter :: this_routine = 'read_pops_splitpops'
 
         integer(n_int), allocatable :: BatchRead(:,:)
-        real(dp), allocatable :: fvals(:,:)
-        real(dp) :: fvals_tmp(2*inum_runs)
+        real(dp), allocatable :: gdata(:,:)
+        real(dp) :: gdata_tmp(gdata_size)
         logical :: tEOF
         integer :: proc
         integer(int64) :: nread
@@ -509,10 +525,10 @@ contains
         CurrWalkers = 0
         pops_norm = 0.0_dp
 
-        if(tAutoAdaptiveShift) then
-           allocate(fvals(2*inum_runs,MaxWalkersPart))
+        if(t_read_gdata) then
+           allocate(gdata(gdata_size,MaxWalkersPart))
         else
-           allocate(fvals(0,0))
+           allocate(gdata(0,0))
         endif
         ! If we are using pre-split popsfiles, then we need to do the
         ! reading on all of the nodes.
@@ -527,14 +543,14 @@ contains
                 tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                           det_list(:, CurrWalkers+1), &
                                           det_tmp, PopNIfSgn, &
-                                          .true., nread, fvals_tmp, &
+                                          .true., nread, gdata_tmp, &
                                           trimmed_parts=trimmed_parts)
 
                 ! When we have got to the end of the file, we are done.
                 if (tEOF) exit
 
                 CurrWalkers = CurrWalkers + 1
-                if(tAutoAdaptiveShift) fvals(:,CurrWalkers) = fvals_tmp(:)
+                if(t_read_gdata) gdata(:,CurrWalkers) = gdata_tmp(:)
 
                 ! Add the contribution from this determinant to the
                 ! norm of the popsfile wave function.
@@ -550,8 +566,14 @@ contains
 
         endif
 
-        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, int(CurrWalkers))
-        deallocate(fvals)
+        ! store the global det data (if available)
+        if(t_read_gdata) then
+            if(tPopAutoAdaptiveShift) call set_tot_acc_spawns(&
+                gdata(fvals_start:fvals_end,:), int(CurrWalkers))
+            if(tPopScaleBlooms) call set_all_max_ratios(&
+                gdata(max_spawn_start:max_spawn_end,:), int(CurrWalkers))
+        endif
+        deallocate(gdata)
         deallocate(BatchRead)
 
     end function read_pops_splitpops
@@ -584,10 +606,11 @@ contains
         integer :: PopsInitialSlots(0:nNodes-1), PopsSendList(0:nNodes-1)
         integer :: batch_size, MaxSendIndex, i, j, nBatches, err, proc
         integer(n_int) :: ilut_tmp(0:NIfTot)
-        real(dp), allocatable :: fvalsRead(:,:), fvals(:,:)
-        real(dp) :: fvals_tmp(2*inum_runs)
+        real(dp), allocatable :: gdataRead(:,:), gdata(:,:)
+        real(dp) :: gdata_tmp(gdata_size)
         integer(int64) :: det_attempt, nread
-        real(dp) :: aasFactor
+        integer :: nelem
+        real(dp) :: gdata_factor
         integer(n_int), allocatable :: BatchRead(:,:)
 
         ! If we are on the root processor, we need a buffer array which stores
@@ -597,14 +620,14 @@ contains
         ! segfaults in MPIScatter.
         allocate(BatchRead(0:NIfTot, merge(ReadBatch, 1, iProcIndex == root)))
 
+        ! global determinant data (if available)
+        if(t_read_gdata) then
+            allocate(gdataRead(gdata_size,ReadBatch))
+        else
+            allocate(gdataRead(0,0))
+        endif
 
         if (iProcIndex == root) then
-           ! auto-adaptive shift f function
-           if(tAutoAdaptiveShift) then
-              allocate(fvalsRead(2*inum_runs,ReadBatch))
-           else
-              allocate(fvalsRead(0,0))
-           endif
 
             ! This is the size of the batches in the above array (only has
             ! meaning on the root processor)
@@ -617,8 +640,6 @@ contains
             write(6, '(a,i12,a)') "Reading in a maximum of ", ReadBatch, &
                                   " determinants at a time from POPSFILE'"
             call neci_flush(6)
-         else
-            allocate(fvalsRead(0,0))
         end if
 
         ! Keep reading until all of the particles have been read in!
@@ -647,7 +668,7 @@ r_loop: do while (.not. tReadAllPops)
                     ! The decoded form is placed in det_tmp
                     tEOF = read_popsfile_det (iunit, PopNel, binary_pops, &
                                               ilut_tmp, det_tmp, PopNIfSgn, &
-                                              .true., nread, fvals_tmp, &
+                                              .true., nread, gdata_tmp, &
                                               trimmed_parts=trimmed_parts)
                     det_attempt = det_attempt + nread
 
@@ -671,7 +692,7 @@ r_loop: do while (.not. tReadAllPops)
                     ! and if we have filled up the slot in the list then
                     ! distribute it when it is full.
                     BatchRead(:,PopsSendList(proc)) = ilut_tmp(:)
-                    if(tAutoAdaptiveShift) fvalsRead(:,PopsSendList(proc)) = fvals_tmp(:)
+                    if(t_read_gdata) gdataRead(:,PopsSendList(proc)) = gdata_tmp(:)
                     PopsSendList(proc) = PopsSendList(proc) + 1
 
                     ! If we have filled up the lists, exit the loop so that the
@@ -707,7 +728,7 @@ r_loop: do while (.not. tReadAllPops)
                 ! How much data goes to each processor?
                 call MPIScatter (sendcounts, recvcount, err, roots)
                 ! allocate the buffer for the acc/tot spawns
-                if(tAutoAdaptiveShift) allocate(fvals(2*inum_runs, recvcount / (NIfTot + 1)))
+                if(t_read_gdata) allocate(gdata(gdata_size, recvcount / (NIfTot + 1)))
                 if (err /= 0) &
                     call stop_all (this_routine, "MPI scatter error")
 
@@ -719,25 +740,28 @@ r_loop: do while (.not. tReadAllPops)
                 if (err /= 0) &
                     call stop_all (this_routine, "MPI scatterV error")
 
+                ! number of communicated elements
+                nelem = recvcount .div. (NIfTot + 1)
                 ! in auto-adaptive shift mode, also communicate the accumulated
                 ! acc/tot spawns so far
-                if(tAutoAdaptiveShift) then
-                   ! aas data has a different first dimension -> rescale
-                   aasFactor = 2.0_dp * real(inum_runs,dp) / real(NIfTot + 1,dp)
-                   recvcount = int(recvcount * aasFactor, MPIArg)
-                   sendcounts = int(sendcounts * aasFactor, MPIArg)
-                   call MPIScatterV(fvalsRead(1:2*inum_runs,1:MaxSendIndex), sendcounts, disps, &
-                        fvals(1:2*inum_runs,1:(recvcount/(2*inum_runs))), &
-                                  recvcount, err, Roots)
-                   call set_tot_acc_spawns(fvals,(recvcount/(2*inum_runs)),&
-                        int(CurrWalkers)+1)
-                   ! scale back the recvcount because it is still used
-                   recvcount = int(recvcount / aasFactor, MPIArg)
-                   deallocate(fvals)
+                ! same for the Hij/pgen ratios, if available
+                if(t_read_gdata) then
+                    ! aas data has a different first dimension -> rescale
+                    gdata_factor = real(gdata_size,dp) / real(NIfTot + 1, dp)
+                    recvcount = int(recvcount * gdata_factor, MPIArg)
+                    sendcounts = int(sendcounts * gdata_factor, MPIArg)
+                    call MPIScatterV(gdataRead(1:gdata_size,1:MaxSendIndex), sendcounts, disps, &
+                        gdata(1:gdata_size,1:nelem),recvcount, err, Roots)
+                    if(tPopAutoAdaptiveShift) &
+                        call set_tot_acc_spawns(gdata(fvals_start:fvals_end,:),&
+                        nelem,int(CurrWalkers)+1)
+                    if(tPopScaleBlooms) &
+                        call set_all_max_ratios(gdata(max_spawn_start:max_spawn_end,:),&
+                        nelem,int(CurrWalkers)+1)
+                    deallocate(gdata)
                 endif
 
-
-                CurrWalkers = CurrWalkers + recvcount / (NIfTot + 1)
+                CurrWalkers = CurrWalkers + nelem
 
             end if
 
@@ -750,7 +774,7 @@ r_loop: do while (.not. tReadAllPops)
         write(6,*) "Number of configurations read in to this process: ", &
                    CurrWalkers
 
-        deallocate(fvalsRead)
+        deallocate(gdataRead)
         deallocate(BatchRead)
 
     end function read_pops_general
@@ -764,7 +788,7 @@ r_loop: do while (.not. tReadAllPops)
     ! WalkerTemp = Determinant entry returned
     function read_popsfile_det (iunit, nel_loc, BinPops, WalkerTemp, nI, &
                                 PopNifSgn, decode_det, &
-                                nread, fvals_tmp, read_max, trimmed_parts) result(tEOF)
+                                nread, gdata_tmp, read_max, trimmed_parts) result(tEOF)
 
         integer, intent(in) :: iunit
         integer, intent(in) :: nel_loc
@@ -776,20 +800,19 @@ r_loop: do while (.not. tReadAllPops)
         logical, intent(inout), optional :: trimmed_parts
         integer(int64), intent(out) :: nread
         integer(int64), intent(in), optional :: read_max
-        real(dp), intent(out) :: fvals_tmp(:)
+        real(dp), intent(out) :: gdata_tmp(:)
         integer(n_int) :: sgn_int(PopNifSgn)
         integer :: flg, stat, k
         real(dp) :: sgn(PopNifSgn)
         real(dp) :: new_sgn(lenof_sign)
         integer(n_int) :: flg_read
-        logical :: tStoreDet, tEOF, tReadFvals
+        logical :: tStoreDet, tEOF
 
         WalkerTemp = 0_n_int
         flg_read = 0_n_int
         tStoreDet=.false.
         tEOF = .false.
         nread = 0
-        tReadFvals = tPopAutoAdaptiveShift .and. tAutoAdaptiveShift
 r_loop: do while(.not.tStoreDet)
 
             ! If we have specified a maximum number of read attempts, then
@@ -800,21 +823,21 @@ r_loop: do while(.not.tStoreDet)
                     exit
                 end if
             end if
-
+            gdata_tmp = 0.0_dp
             ! All basis parameters match --> Read in directly.
             if (tRealPOPSfile) then
                 if (BinPops) then
-                   if(tReadFvals) then
+                   if(t_read_gdata) then
                       read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
-                           flg_read, fvals_tmp
+                           flg_read, gdata_tmp
                    else
                       read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
                            flg_read
                    endif
                 else
-                   if(tReadFvals) then
+                   if(t_read_gdata) then
                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                           sgn, flg_read, fvals_tmp
+                           sgn, flg_read, gdata_tmp
                    else
                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
                            sgn, flg_read
@@ -822,17 +845,17 @@ r_loop: do while(.not.tStoreDet)
                 end if
             else
                 if (BinPops) then
-                   if(tReadFvals) then
+                   if(t_read_gdata) then
                       read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
-                           sgn_int, flg_read, fvals_tmp
+                           sgn_int, flg_read, gdata_tmp
                    else
                       read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
                         sgn_int, flg_read
                    endif
                 else
-                   if(tReadFvals) then
+                   if(t_read_gdata) then
                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
-                           sgn_int, flg_read, fvals_tmp
+                           sgn_int, flg_read, gdata_tmp
                    else
                       read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
                            sgn_int, flg_read
@@ -841,7 +864,6 @@ r_loop: do while(.not.tStoreDet)
 
                 sgn = sgn_int
             end if
-            if(tAutoAdaptiveShift .and. .not. tPopAutoAdaptiveShift) fvals_tmp = 0_n_int
             if (stat < 0) then
                 tEOF = .true. ! End of file reached.
                 exit r_loop
@@ -1003,7 +1025,10 @@ r_loop: do while(.not.tStoreDet)
         apply_pert = .false.
         if (present(perturbs)) then
             if (allocated(perturbs)) apply_pert = .true.
-         end if
+        end if
+
+        ! decide which global det data is read
+        call init_gdata_read()             
 
         ! If applying perturbations, read the popsfile into the array
         ! popsfile_dets and then apply the perturbations to the determinants
@@ -1397,7 +1422,7 @@ r_loop: do while(.not.tStoreDet)
                     PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
                     PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
                     PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
-                    PopPreviousHistTau, tPopAutoAdaptiveShift
+                    PopPreviousHistTau, tPopAutoAdaptiveShift, tPopScaleBlooms
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -1412,6 +1437,7 @@ r_loop: do while(.not.tStoreDet)
         PopNNodes = 0
         PopPreviousHistTau = .false.
         tPopAutoAdaptiveShift = .false.
+        tPopScaleBlooms = .false.
         if(iProcIndex.eq.root) then
             read(iunithead,POPSHEAD)
         endif
@@ -1472,6 +1498,8 @@ r_loop: do while(.not.tStoreDet)
         call MPIBcast(PopRandomHash)
         call MPIBcast(PopBalanceBlocks)
         call MPIBCast(PopPreviousHistTau)
+        call MPIBCast(tPopAutoAdaptiveShift)
+        call MPIBCast(tPopScaleBlooms)
 
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
@@ -1681,7 +1709,7 @@ r_loop: do while(.not.tStoreDet)
         INTEGER :: Tag, Tag2, fTag
         INTEGER :: i,j
         INTEGER(KIND=n_int), ALLOCATABLE :: Parts(:,:)
-        real(dp), allocatable :: fvals(:,:)
+        real(dp), allocatable :: gdata(:,:)
         INTEGER(TagIntType) :: PartsTag=0
         integer :: nMaxDets
         integer :: iunit, iunit_2, Initiator_Count, nwrite
@@ -1755,6 +1783,9 @@ r_loop: do while(.not.tStoreDet)
                                          &binary pops files")
         end if
 
+        ! set the module variables for global det data i/o
+        call init_gdata_write()
+
         if (iProcIndex == root) then
 
             ! Construct an output string to give feedback about what is
@@ -1806,13 +1837,17 @@ r_loop: do while(.not.tStoreDet)
         write_count_sum = 0
 
         nMaxDets = int(maxval(node_write_attempts), sizeof_int)
-        if(tAutoAdaptiveShift) then
-           allocate(fvals(2*inum_runs,nMaxDets), stat=error)
-           call writeFFunc(ndets, fvals)
+        if(t_write_gdata) then
+            allocate(gdata(gdata_size,nMaxDets), stat=error)
+            ! write the global det data to the buffer
+            if(tAutoAdaptiveShift) call writeFFunc(&
+                gdata(fvals_start:fvals_end,:), int(ndets))
+            if(tScaleBlooms) call write_max_ratio(&
+                gdata(max_spawn_start:max_spawn_end,:), int(ndets))
         else
-           ! when not using auto-adaptive shift, no fvals are written, but the
+           ! when not using auto-adaptive shift, no gdata are written, but the
            ! array is passed and later deallocated, so allocate empty
-           allocate(fvals(0,0), stat=error)
+           allocate(gdata(0,0), stat=error)
         endif
 
         if ((tSplitPops .and. bNodeRoot) .or. iProcIndex == root) then
@@ -1865,7 +1900,7 @@ r_loop: do while(.not.tStoreDet)
             ! are in split-pops mode.
             do j = 1, int(ndets, sizeof_int)
                 ! Count the number of written particles
-                if (write_pops_det (iunit, iunit_2, Dets(:,j), j, fvals)) then
+                if (write_pops_det (iunit, iunit_2, Dets(:,j), j, gdata)) then
                     !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                     !    write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
                     !endif
@@ -1895,9 +1930,9 @@ r_loop: do while(.not.tStoreDet)
                     j = int(node_write_attempts(i), sizeof_int) * (NIfTot+1)
                     call MPIRecv (Parts(:, 1:node_write_attempts(i)), j, &
                                   NodeRoots(i), Tag, error)
-                    if(tAutoAdaptiveShift) then
-                       j = int(node_write_attempts(i), sizeof_int) * 2 * inum_runs
-                       call MPIRecv(fvals(:,1:node_write_attempts(i)), j, NodeRoots(i), &
+                    if(t_write_gdata) then
+                       j = int(node_write_attempts(i), sizeof_int) * gdata_size
+                       call MPIRecv(gdata(1:gdata_size,1:node_write_attempts(i)), j, NodeRoots(i), &
                             fTag, error)
                     endif
                     ! SDS: Catherine seems to have disabled writing these out
@@ -1912,7 +1947,7 @@ r_loop: do while(.not.tStoreDet)
                     ! Then write it out in the same way as above.
                     nwrite = int(node_write_attempts(i), sizeof_int)
                     do j = 1, nwrite
-                        if (write_pops_det(iunit, iunit_2, Parts(:,j), j, fvals)) then
+                        if (write_pops_det(iunit, iunit_2, Parts(:,j), j, gdata)) then
                             !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
                             !    write(iunit_3) AllCurrentH(1:1+2*lenof_sign,j)
                             !endif
@@ -1936,10 +1971,10 @@ r_loop: do while(.not.tStoreDet)
             ASSERT(.not. tSplitPops)
             j = int(nDets, sizeof_int) * (NIfTot + 1)
             call MPISend (Dets(0:NIfTot, 1:nDets), j, root, Tag, error)
-            if(tAutoAdaptiveShift) then
-               ! fvals have already been written
-               j = int(nDets, sizeof_int) * 2 * inum_runs
-               call MPISend(fvals(:, 1:nDets), j, root, fTag, error)
+            if(t_write_gdata) then
+               ! gdata have already been written
+               j = int(nDets, sizeof_int) * gdata_size
+               call MPISend(gdata(1:gdata_size, 1:nDets), j, root, fTag, error)
             endif
             !!!if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
             !!!    j = int(nDets, sizeof_int) * (1+2*lenof_sign)
@@ -1989,7 +2024,7 @@ r_loop: do while(.not.tStoreDet)
           call LogMemDealloc('Popsfile',PartsTag)
         end if
 
-        if(allocated(fvals)) deallocate(fvals)
+        if(allocated(gdata)) deallocate(gdata)
         ! Reset some globals
         AllSumNoatHF = 0
         AllSumENum = 0
@@ -2096,12 +2131,13 @@ r_loop: do while(.not.tStoreDet)
         if (t_hist_tau_search_option .or. t_previous_hist_tau) then
             write(iunit, *) "PopPreviousHistTau=", .true.
         end if
-        if(tAutoAdaptiveShift) then
-           tPopAutoAdaptiveShift = .true.
-        else
-           tPopAutoAdaptiveShift = .false.
+        ! add information about the global data stored in the popsfile:
+        ! is auto-adaptive shift data available?
+        write(iunit,*) "tPopAutoAdaptiveShift=", tAutoAdaptiveShift
+        ! are the maximum spawn amplitued available?
+        if(tScaleBlooms) then            
+            write(iunit,*) "tPopScaleBlooms=", tScaleBlooms
         endif
-        write(iunit,*) "tPopAutoAdaptiveShift=", tPopAutoAdaptiveShift
 
         ! Store the random hash in the header to allow later processing
         ! n.b. RandomHash has been renamed to RandomOrbIndex for clarity
@@ -2117,13 +2153,13 @@ r_loop: do while(.not.tStoreDet)
     end subroutine
 
 
-    function write_pops_det (iunit, iunit_2, det, j, fvals) result(bWritten)
+    function write_pops_det (iunit, iunit_2, det, j, gdata) result(bWritten)
 
         ! Output a particle to a popsfile in format acceptable for popsfile v4
 
         integer, intent(in) :: iunit, iunit_2
         integer(n_int), intent(inout) :: det(0:NIfTot)
-        real(dp), intent(in) :: fvals(:,:)
+        real(dp), intent(in) :: gdata(:,:)
         real(dp) :: real_sgn(lenof_sign), detenergy
         integer :: flg, j, k, ex_level, nopen, nI(nel)
         logical :: bWritten, is_init, is_init_tmp
@@ -2150,8 +2186,8 @@ r_loop: do while(.not.tStoreDet)
                 ! All write statements MUST be on the same line, or we end
                 ! up with multiple records.
                 ! TODO: For POPSFILE V5 --> stream output.
-               if(tAutoAdaptiveShift) then
-                  write(iunit) det(0:NIfD), real_sgn, int(flg, n_int), fvals(1:2*inum_runs,j)
+               if(t_write_gdata) then
+                  write(iunit) det(0:NIfD), real_sgn, int(flg, n_int), gdata(1:gdata_size,j)
                else
                   write(iunit) det(0:NIfD), real_sgn, int(flg, n_int)
                endif
@@ -2163,9 +2199,9 @@ r_loop: do while(.not.tStoreDet)
                     write(iunit, '(f30.8)', advance='no') real_sgn(k)
                 end do
                 write(iunit, '(i24)', advance='no') flg
-                if(tAutoAdaptiveShift) then
-                   do k = 1, 2*inum_runs
-                      write(iunit,'(f30.8)', advance='no') fvals(k,j)
+                if(t_write_gdata) then
+                   do k = 1, gdata_size
+                      write(iunit,'(f30.8)', advance='no') gdata(k,j)
                    end do
                 endif
                 write(iunit, *)
@@ -2453,6 +2489,7 @@ r_loop: do while(.not.tStoreDet)
         ! the current determinant list (particularly diagonal matrix
         ! elements, i.e. CurrentH; now global_determinant_data).
         call init_global_det_data(rdm_definitions%nrdms_standard, rdm_definitions%nrdms_transition)
+        
 
 ! The hashing will be different in the new calculation from the one where the
 !  POPSFILE was produced, this means we must recalculate the processor each
@@ -3116,5 +3153,46 @@ r_loop: do while(.not.tStoreDet)
         write(pops_norm_unit,'(1x,es19.12)') sqrt(pops_norm)
 
     end subroutine write_pops_norm
+
+    !------------------------------------------------------------------------------------------!
+    ! Manage the global det data stored in the popsfile
+    !------------------------------------------------------------------------------------------!    
+
+    subroutine init_gdata_write()
+        implicit none
+
+        ! we write all gdata useful for continuation obtained
+        ! this is auto adaptive shift data and max spawn data
+        t_write_gdata = tAutoAdaptiveShift .or. tScaleBlooms
+        call init_gdata_io(tAutoAdaptiveShift, tScaleBlooms)
+    end subroutine init_gdata_write
+
+    subroutine init_gdata_read()
+        implicit none
+
+        ! decide if we are reading global determinant data (we read it if its there)
+        t_read_gdata = tPopAutoAdaptiveShift .or. tPopScaleBlooms
+        call init_gdata_io(tPopAutoAdaptiveShift, tPopScaleBlooms)
+    end subroutine init_gdata_read
+
+    subroutine init_gdata_io(t_aas, t_ms)
+        implicit none
+        logical, intent(in) :: t_aas, t_ms
+        ! how much data is to be read?        
+        gdata_size = 0
+        ! set the offset for reading to the gdata buffer
+        fvals_start = 1
+        max_spawn_start = 1
+        if(t_aas) then
+            gdata_size = gdata_size + fvals_size
+            ! increase the offset for all following data
+            fvals_end = fvals_start + fvals_size - 1
+            max_spawn_start = fvals_end + 1
+        endif
+        if(t_ms) then
+            gdata_size = gdata_size + max_spawn_size
+            max_spawn_end = max_spawn_start + max_spawn_size - 1
+        endif        
+    end subroutine init_gdata_io
 
 END MODULE PopsfileMod
