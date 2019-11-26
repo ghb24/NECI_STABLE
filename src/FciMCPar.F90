@@ -1379,7 +1379,7 @@ module FciMCParMod
 
                         if (tPreCond) child_for_stats = child_for_stats/precond_fac
 
-                        if(tScaleBlooms) call update_max_ratio(HElGen / prob, j)
+                        if(tScaleBlooms) call update_max_ratio(abs(HElGen) / prob, j)
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel, &
