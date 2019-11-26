@@ -66,7 +66,7 @@ module global_det_data
     integer :: pos_det_orbs, len_det_orbs
 
     ! position + length of the maximum Hij/pgen ration per determinant
-    integer :: pos_max_spawn, len_max_spawn, max_spawn_size
+    integer :: pos_max_ratio, len_max_ratio, max_ratio_size
     
     ! Legth of arrays storing estimates to be written to the replica_est file
     integer :: replica_est_len
@@ -217,11 +217,11 @@ contains
         endif
        
         if(tScaleBlooms) then
-           len_max_spawn = 1
+           len_max_ratio = 1
         else
-           len_max_spawn = 0
+           len_max_ratio = 0
         endif
-        max_spawn_size = len_max_spawn
+        max_ratio_size = len_max_ratio
 
         ! Get the starting positions
         pos_spawn_pop = pos_hel+len_hel
@@ -236,10 +236,10 @@ contains
         pos_spawn_rate = pos_iter_occ_transition + len_iter_occ_transition
         pos_pos_spawns = pos_spawn_rate + len_spawn_rate
         pos_neg_spawns = pos_pos_spawns + len_pos_spawns
-        pos_max_spawn = pos_neg_spawns + len_neg_spawns
+        pos_max_ratio = pos_neg_spawns + len_neg_spawns
 
         tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_tot_spawns + len_acc_spawns + &
-             len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns + len_max_spawn
+             len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns + len_max_ratio
 
         if (tPairedReplicas) then
             replica_est_len = lenof_sign .div. 2
@@ -852,7 +852,7 @@ contains
       integer, intent(in) :: j
       real(dp) :: maxSpawn
 
-      maxSpawn = global_determinant_data(pos_max_spawn,j)      
+      maxSpawn = global_determinant_data(pos_max_ratio,j)      
     end function get_max_ratio
 
     !------------------------------------------------------------------------------------------!
@@ -879,7 +879,7 @@ contains
         real(dp), intent(in) :: val        
         integer, intent(in) :: j
 
-        global_determinant_data(pos_max_spawn,j) = val
+        global_determinant_data(pos_max_ratio,j) = val
     end subroutine set_max_ratio
 
   !------------------------------------------------------------------------------------------!
@@ -897,7 +897,7 @@ contains
       integer :: j
 
       do j = 1, ndets
-          ms_vals(1,j) = global_determinant_data(pos_max_spawn,j)
+          ms_vals(1,j) = global_determinant_data(pos_max_ratio,j)
       end do
       
   end subroutine write_max_ratio
