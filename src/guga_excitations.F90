@@ -2402,7 +2402,7 @@ contains
         integer(n_int), allocatable :: det_list(:,:)
         integer, allocatable :: excitTyp(:)
         real(dp), allocatable :: contrib_list(:), pgen_list(:)
-        HElement_t(dp), allocatable :: matEle_list(:)
+        HElement_t(dp), allocatable :: matEle_list(:), exact_helements(:)
         logical, allocatable :: generated_list(:)
         logical :: par
         real(dp) :: contrib, pgen, sum_helement, sum_pgens
@@ -2433,6 +2433,9 @@ contains
         ! and convert them back to a list of neci iluts
         allocate(det_list(0:niftot, nexcit))
 
+        allocate(exact_helements(nExcit))
+        exact_helements = 0.0_dp
+
         do i = 1, nexcit
             call convert_ilut_toNECI(excitations(:,i), det_list(:,i), helgen)
 
@@ -2442,9 +2445,11 @@ contains
             ! actHamiltonian routine.. i probably should.. but this is quite
             ! costly.. hm.. init_csf_information is already called in
             ! acthamiltonian..
+            exact_helements(i) = helgen
             if (t_guga_mat_eles) then
-                call calc_guga_matrix_element(ilut, excitations(:,i), excitInfo, &
+                call calc_guga_matrix_element(ilut, det_list(:,i), excitInfo, &
                     temp_mat, .true., 2)
+
 
                 diff = abs(helgen - temp_mat)
 
@@ -2467,12 +2472,11 @@ contains
         allocate(generated_list(nexcit))
         allocate(contrib_list(nexcit))
         allocate(pgen_list(nexcit))
-        allocate(matEle_list(nExcit))
+        allocate(matEle_list(nExcit), source = 0.0_dp)
         allocate(excitTyp(nExcit))
         generated_list = .false.
         contrib_list = 0
         pgen_list = 0.0_dp
-        matEle_list = 0.0_dp
 
         ! set the not needed inputs for guga
         ex = 0
@@ -2509,6 +2513,18 @@ contains
                 call stop_all(this_routine, 'Unexpected determinant generated')
             else
                 generated_list(pos) = .true.
+
+                diff = abs(helgen - exact_helements(pos))
+
+                if (diff < 1.0e-10_dp) diff = 0.0_dp
+
+                if (diff > EPS) then
+                    print *, "different matrix elements for CSFs: "
+                    call write_det_guga(6,ilut)
+                    call write_det_guga(6,excitations(:,i))
+                    print *, "actHamiltonian result: ", helgen
+                    print *, "calc_guga_matrix_element result: ", temp_mat
+                end if
 
                 ! Count this det, and sum in its contribution.
                 ngen = ngen + 1
@@ -2553,7 +2569,7 @@ contains
             call write_det_guga(iunit, ilutG, .false.)
             write(iunit,"(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
             write(iunit, "(e16.7)", advance='no') pgen_list(i)
-            write(iunit, "(e16.7)", advance='no') matEle_list(i)
+            write(iunit, "(e16.7)", advance='no') exact_helements(i)
             write(iunit, *) excitTyp(i)
         end do
         close(iunit)
@@ -2568,7 +2584,7 @@ contains
 
         do i = 1, nExcit
             write(iunit, "(e16.7)", advance = 'no') pgen_list(i) !/sum_pgens
-            write(iunit, "(e16.7)", advance = 'no') matEle_list(i) !/sum_helement
+            write(iunit, "(e16.7)", advance = 'no') exact_helements(i) !/sum_helement
             write(iunit, "(f16.7)", advance = 'no') contrib_list(i) / real(iterations,dp)
             write(iunit, "(i3)") excitTyp(i)
         end do
@@ -2623,6 +2639,7 @@ contains
         deallocate(generated_list)
         deallocate(pgen_list)
         deallocate(matEle_list)
+        deallocate(exact_helements)
         deallocate(excitations)
         call LogMemDealloc(this_routine, tag_excitations)
 
@@ -22498,7 +22515,6 @@ contains
                         ! have to exclude both electrons at spatial orb i
                         if (n_id(j) == id_i) cycle
                         hel = hel + abs(get_umat_el(id_i, n_id(j), s_orb, n_id(j)))
-
                         hel = hel + abs(get_umat_el(id_i, n_id(j), n_id(j), s_orb))
 
                     end do
