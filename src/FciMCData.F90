@@ -184,8 +184,8 @@ MODULE FciMCData
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
 
-      ! The sum of all walkers over an update cycle on each processor
-      real(dp), allocatable :: SumWalkersCyc(:)
+      ! The sum of all walkers over an update/output cycle on each processor
+      real(dp), allocatable :: SumWalkersCyc(:), SumWalkersOut(:)
       ! The number annihilated per processor
       real(dp), allocatable :: Annihilated(:)
       ! The (instantaneous) number of particles on the Reference det
@@ -194,9 +194,9 @@ MODULE FciMCData
       ! L_{0,1,2} norms of weights per excitation level (i.e., extension of
       ! NoatHF / NoatDoubs, which are L1 norms at two excitation levels).
       real(dp), allocatable :: EXLEVEL_WNorm(:,:,:)
-      ! Number of accepted spawns (separately on each node)
-      real(dp), allocatable :: Acceptances(:)
-      ! Acceptance ratio (on each node) over the update cycle
+      ! Number of accepted spawns (separately on each node / summed)
+      real(dp), allocatable :: Acceptances(:), AllAcceptances(:)
+      ! Acceptance ratio (global) over the output cycle
       real(dp), allocatable :: AccRat(:)
       ! This is just for the head node, so that it can store the number of
       ! previous cycles when reading from POPSFILE
@@ -205,16 +205,21 @@ MODULE FciMCData
       ! These will output the number of particles in the last update cycle
       ! which have been spawned by a single excitation.
       real(dp), allocatable :: SpawnFromSing (:), AllSpawnFromSing(:)
-      REAL(dp), allocatable :: HFCyc(:)
+      REAL(dp), allocatable :: HFCyc(:), HFOut(:)
       !This is the number of HF*sign particles on a given processor over the course of the update cycle
-      HElement_t(dp), allocatable :: AllHFCyc(:)
-      !This is the sum of HF*sign particles over all processors over the course of the update cycle
-      HElement_t(dp), allocatable :: OldAllHFCyc(:)
+      ! (respectively output cycle)
+      HElement_t(dp), allocatable :: AllHFCyc(:), AllHFOut(:)
+      !This is the sum of HF*sign particles over all processors over the course of the update/output cycle
+      HElement_t(dp), allocatable :: OldAllHFCyc(:) 
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t(dp), allocatable :: ENumCyc(:), InitsENumCyc(:)
-      !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
+      !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
+      HElement_t(dp), allocatable :: ENumOut(:)
+      ! This is the same sum over the course of one output cycle
       HElement_t(dp), allocatable :: AllENumCyc(:), AllInitsENumCyc(:)
-      !This is the sum of double*sign*Hij over all processors over the course of the update cyc
+      !This is the sum of double*sign*Hij over all processors over the course of the update cycle
+      HElement_t(dp), allocatable :: AllENumOut(:)
+      !This is the same sum over the course of one output cycle
       HElement_t(dp), allocatable :: ENumCycAbs(:)
       !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" ""
       HElement_t(dp), allocatable :: AllENumCycAbs(:)
@@ -232,9 +237,9 @@ MODULE FciMCData
       ! the above per-node values
       real(dp), allocatable :: AllGrowRate(:)
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
-      real(dp), allocatable :: AllTotParts(:), AllTotPartsOld(:)
+      real(dp), allocatable :: AllTotParts(:), AllTotPartsOld(:), AllTotPartsLastOutput(:)
       real(dp), allocatable :: AllSumNoatHF(:)
-      real(dp), allocatable :: AllSumWalkersCyc(:)
+      real(dp), allocatable :: AllSumWalkersCyc(:), AllSumWalkersOut(:)
       real(dp), allocatable :: OldAllAvWalkersCyc(:)
       real(dp), allocatable :: AllAnnihilated(:)
       real(dp), allocatable :: AllNoAtDoubs(:)

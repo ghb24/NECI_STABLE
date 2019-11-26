@@ -43,8 +43,9 @@ contains
 
                  TotParts(lenof_sign), AllTotParts(lenof_sign), &
                  TotPartsOld(lenof_sign), AllTotPartsOld(lenof_sign), &
+                 AllTotPartsLastOutput(lenof_sign), &
                  ! n.b. AllHFCyc is in inum_runs, with different type
-                 HFCyc(lenof_sign), &
+                 HFCyc(lenof_sign), HFOut(lenof_sign), &
                  proje_denominator_cyc(lenof_sign), &
                  proje_denominator_sum(lenof_sign), &
                  InitialPartVec(lenof_sign), &
@@ -77,7 +78,7 @@ contains
                  NoBorn(inum_runs), AllNoBorn(inum_runs), &
                  NoDied(inum_runs), AllNoDied(inum_runs), &
                  Annihilated(inum_runs), AllAnnihilated(inum_runs), &
-                 Acceptances(inum_runs), &
+                 Acceptances(inum_runs), AllAcceptances(inum_runs), &
                  SpawnFromSing(inum_runs), AllSpawnFromSing(inum_runs), &
                  iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
                  iHighestPop(inum_runs), &
@@ -90,13 +91,15 @@ contains
                  tSpinCoupProjE(inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
-                 AccRat(inum_runs), &
+                 AccRat(inum_runs), AllHFOut(inum_runs), &
                  AllHFCyc(inum_runs), OldAllHFCyc(inum_runs), &
                  ENumCyc(inum_runs), AllENumCyc(inum_runs), &
+                 ENumOut(inum_runs), AllENumOut(inum_runs), &
                  ENumCycAbs(inum_runs), AllENumCycAbs(inum_runs), &
                  ProjECyc(inum_runs), &
                  AllGrowRate(inum_runs), &
-                 SumWalkersCyc(inum_runs), AllSumWalkersCyc(Inum_runs), &
+                 SumWalkersCyc(inum_runs), AllSumWalkersCyc(inum_runs), &
+                 SumWalkersOut(inum_runs), AllSumWalkersOut(inum_runs), &
                  OldAllAvWalkersCyc(inum_runs), &
                  proj_e_for_precond(lenof_sign), &
 
@@ -186,8 +189,8 @@ contains
                    tSpinCoupProjE, &
 
                    TotParts, AllTotParts, &
-                   TotPartsOld, AllTotPartsOld, &
-                   HFCyc, &
+                   TotPartsOld, AllTotPartsOld, AllTotPartsLastOutput, &
+                   HFCyc, HFOut, &
                    proje_denominator_cyc, proje_denominator_sum, &
                    InitialPartVec, &
 
@@ -210,18 +213,20 @@ contains
                    NoBorn, AllNoBorn, &
                    NoDied, AllNoDied, &
                    Annihilated, AllAnnihilated, &
-                   Acceptances, &
+                   Acceptances, AllAcceptances, &
                    SpawnFromSing, AllSpawnFromSing, &
                    AllGrowRateAbort, &
 
                    NoatDoubs, AllNoatDoubs, &
                    AccRat, &
-                   AllHFCyc, OldAllHFCyc, &
+                   AllHFCyc, OldAllHFCyc, AllHFOut, &
                    ENumCyc, AllENumCyc, ENumCycAbs, AllENumCycAbs, &
+                   ENumOut, AllENumOut, &
                    InitsENumCyc, AllInitsEnumCyc, &
                    ProjECyc, &
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
+                   SumWalkersOut, AllSumWalkersOut, &
                    OldAllAvWalkersCyc, &
                    proj_e_for_precond, &
 
