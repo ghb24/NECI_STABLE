@@ -248,7 +248,7 @@ module LMat_mod
     subroutine initializeLMatPtrs()
       implicit none
       integer :: nBI
-      
+
       nBI = numBasisIndices(nBasis)
       ! some typical array dimensions useful in the indexing functions
       strideInner = fuseIndex(nBI,nBI)
@@ -384,7 +384,7 @@ module LMat_mod
       call initializeLMatPtrs()
 
       if(tLMatCalc) then
-           call readLMatFactors("tcfactors.h5")
+           call readLMatFactors()
       else
           ! now, read lmat from file
           call readLMatArray(LMat,"TCDUMP","tcdump.h5")

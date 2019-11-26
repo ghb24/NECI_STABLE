@@ -24,9 +24,9 @@ module LMat_calc
   integer(int64) :: lMatABIndMax
   contains
 
-  subroutine readLMatFactors(filename)
+  subroutine readLMatFactors()
 
-    character(*), intent(in) :: filename
+    character(*), parameter :: filename = "tcfactors.h5"
     character(*), parameter :: nm_grp = "tcfactors", nm_nBasis = "nBasis", nm_nGrid = "nGrid", &
                                nm_weights="weights", nm_mo_vals="mo_vals", nm_ycoulomb="ycoulomb", nm_ycoulombAB="ycoulombAB"
     double precision, allocatable :: mo_vals(:,:), weights(:)
