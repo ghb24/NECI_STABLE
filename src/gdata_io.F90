@@ -187,11 +187,8 @@ contains
         integer, intent(in) :: tmp_fvals_size, fvals_size
 
         integer(hsize_t), allocatable :: tmp_fvals(:,:), tmp_mr(:,:)
-        integer :: nsigns, max_ratio_size, gdata_size
+        integer :: nsigns, max_ratio_size, gdata_size, tmp_gdata_size
         logical :: t_aas, t_sb
-
-        ! auxiliary gdata_io_t object to get the bounds for the new array
-        type(gdata_io_t) :: new_handler
 
         ! get the number of determinants
         nsigns = size(gdata_buf, dim=2)
@@ -210,23 +207,25 @@ contains
             ! clone the content of the temporary
             call clone_signs(tmp_fvals, tmp_fvals_size, fvals_size, int(nsigns,int64))
 
-            ! adjust the gdata offsets of this io handler
-            call new_handler%init_gdata_io(t_aas, t_sb, fvals_size, max_ratio_size)
-
             ! resize the full buffer to fit the cloned data -> deallocate and then allocate
-            gdata_size = this%entry_size()
+            tmp_gdata_size = this%entry_size()
             ! if there is data remaining, copy it along
             if(t_sb) then
-                allocate(tmp_mr(gdata_size - fvals_size, nsigns))
+                allocate(tmp_mr(tmp_gdata_size - tmp_fvals_size, nsigns))
                 tmp_mr(:,:) = gdata_buf(this%max_ratio_start:this%max_ratio_end,:)
             endif
             deallocate(gdata_buf)
-            ! resize the buffer
+            ! adjust the gdata offsets of this io handler
+            call this%init_gdata_io(t_aas, t_sb, fvals_size, max_ratio_size)
+
+            ! resize the buffer - with the new gdata_size
+            gdata_size = this%entry_size()            
             allocate(gdata_buf(gdata_size,nsigns))
+            
             ! fill in the resized data
-            gdata_buf(new_handler%fvals_start:new_handler%fvals_end,:) = tmp_fvals(:,:)
+            gdata_buf(this%fvals_start:this%fvals_end,:) = tmp_fvals(:,:)
             if(t_sb) then
-                gdata_buf(new_handler%max_ratio_start:new_handler%max_ratio_end,:) = tmp_mr(:,:)
+                gdata_buf(this%max_ratio_start:this%max_ratio_end,:) = tmp_mr(:,:)
                 deallocate(tmp_mr)
             end if
             deallocate(tmp_fvals)

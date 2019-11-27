@@ -640,7 +640,7 @@ contains
          ! now it depends if val is larger or smaller than buf
          if(dimsVal < dimsBuf) then
             ! depending, we either omit the last entries
-            val(1:dimsVal) = buf(1:dimsBuf)
+            val(1:dimsVal) = buf(1:dimsVal)
          else
             ! or copy the last one
             val(1:dimsBuf) = buf(1:dimsBuf)
@@ -1104,6 +1104,7 @@ contains
         call h5sget_simple_extent_dims_f(dataspace, ds_dims, ds_max_dims, err)
         if (.not. all(dims == ds_dims)) then
             write(6,*) 'Dataset name: ', nm
+            write(6,*) "Dimensions", dims, ds_dims
             call stop_all(t_r, "Invalid dataset dimensions found")
         end if
         call h5sclose_f(dataspace, err)

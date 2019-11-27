@@ -507,9 +507,11 @@ contains
       integer :: run
       real(dp) :: realVal = 0.0_dp
 
-      do run = 1, inum_runs
+      ! For hdf5 storage, we store the acc/tot spawns next to each other,
+      ! this allows for easy re-sizing when changing the number of replicas      
+      do run = 1, inum_runs, 2
          global_determinant_data(pos_acc_spawns+run-1,j) = transfer(fvals(run),realVal)
-         global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+inum_runs),realVal)
+         global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+1),realVal)
       end do
     end subroutine set_tot_acc_spawns_hdf5Int
 #endif
@@ -540,11 +542,11 @@ contains
         else
             counter = j
         end if
-        do k = 1, inum_runs
-           fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
-        end do
-        do k = 1, inum_runs
-           fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
+        ! For hdf5 storage, we store the acc/tot spawns next to each other,
+        ! this allows for easy re-sizing when changing the number of replicas
+        do k = 1, inum_runs, 2
+            fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
+            fvals(k+1,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))            
         end do
       end do
     end subroutine writeFFuncAsInt

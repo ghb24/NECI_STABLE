@@ -533,7 +533,8 @@ contains
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
-        logical :: exists
+        integer :: tmp_inum_runs
+        logical :: exists, t_resize
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
 
@@ -564,11 +565,11 @@ contains
         else
             tSinglePartPhase = .true.
 
+            ! if the number of runs changed, the shift also has a different size
             ! i still want to capture the diagshift in a temporary file
             ! atleast
             call read_dp_1d_dataset(grp_id, nm_shift, hdf5_diagsft, required=.true.)
             hdf5_diagsft = hdf5_diagsft - Hii
-
         end if
 
         ! [W.D.]:
@@ -947,7 +948,7 @@ contains
         integer(hsize_t), dimension(:,:), allocatable :: tmp_gdata, tmp_mr
         integer :: temp_ilut_tag, temp_sgns_tag, rest
         integer(int32) :: read_lenof_sign
-        type(gdata_io_t) :: gdata_tmp_handler, gdata_read_handler
+        type(gdata_io_t) :: gdata_read_handler
         integer :: gdata_size, tmp_fvals_size
         logical :: t_read_gdata
 
@@ -983,7 +984,7 @@ contains
         tmp_lenof_sign = int(read_lenof_sign)
         ! assign the tmp_inum_runs accordingly
 #ifdef CMPLX_
-        tmp_inum_runs = tmp_lenof_sign/2
+        tmp_inum_runs = tmp_lenof_sign .div. 2
 #else
         tmp_inum_runs = tmp_lenof_sign
 #endif
@@ -1047,15 +1048,12 @@ contains
         call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
 
-        ! create an io handler for the data that is stored in memory
-        call gdata_read_handler%init_gdata_io(&
-            tPopAutoAdaptiveShift, tPopScaleBlooms, fvals_size, max_ratio_size)
         ! create an io handler for the data that is actually in the file
         ! (can have different lenof_sign and options than the one we will be using)
         tmp_fvals_size = 2 * tmp_inum_runs
-        call gdata_tmp_handler%init_gdata_io(&
+        call gdata_read_handler%init_gdata_io(&
             tPopAutoAdaptiveShift, tPopScaleBlooms, tmp_fvals_size, max_ratio_size)
-        gdata_size = gdata_tmp_handler%entry_size()
+        gdata_size = gdata_read_handler%entry_size()
         
         t_read_gdata = gdata_read_handler%t_io()
         if(t_read_gdata) then
@@ -1132,6 +1130,8 @@ contains
                allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
                deallocate(gdata_buf)
                allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)
+               call gdata_read_handler%init_gdata_io(&
+                   tPopAutoAdaptiveShift, tPopScaleBlooms, tmp_fvals_size, max_ratio_size)
             end if
 
             call read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, &
@@ -1142,7 +1142,7 @@ contains
                call clone_signs(temp_sgns,tmp_lenof_sign, lenof_sign, this_block_size)
                ! resize the fvals in the same manner
                if(t_read_gdata) then
-                   call gdata_tmp_handler%clone_gdata(&
+                   call gdata_read_handler%clone_gdata(&
                        gdata_buf, tmp_fvals_size, fvals_size)
                endif
             endif
