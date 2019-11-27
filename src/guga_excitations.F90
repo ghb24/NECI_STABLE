@@ -2435,6 +2435,7 @@ contains
 
         allocate(exact_helements(nExcit))
         exact_helements = 0.0_dp
+        allocate(excitLvl(nexcit), source = -1)
 
         do i = 1, nexcit
             call convert_ilut_toNECI(excitations(:,i), det_list(:,i), helgen)
@@ -2446,6 +2447,7 @@ contains
             ! costly.. hm.. init_csf_information is already called in
             ! acthamiltonian..
             exact_helements(i) = helgen
+            excitLvl(i) = getDeltaB(excitations(:,i))
             if (t_guga_mat_eles) then
                 call calc_guga_matrix_element(ilut, det_list(:,i), excitInfo, &
                     temp_mat, .true., 2)
@@ -2473,7 +2475,7 @@ contains
         allocate(contrib_list(nexcit))
         allocate(pgen_list(nexcit))
         allocate(matEle_list(nExcit), source = 0.0_dp)
-        allocate(excitTyp(nExcit))
+        allocate(excitTyp(nExcit), source = -1)
         generated_list = .false.
         contrib_list = 0
         pgen_list = 0.0_dp
@@ -2570,6 +2572,7 @@ contains
             write(iunit,"(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
             write(iunit, "(e16.7)", advance='no') pgen_list(i)
             write(iunit, "(e16.7)", advance='no') exact_helements(i)
+            write(iunit, "(3i)", advance = 'no') excitLvl(i)
             write(iunit, *) excitTyp(i)
         end do
         close(iunit)
@@ -2586,6 +2589,7 @@ contains
             write(iunit, "(e16.7)", advance = 'no') pgen_list(i) !/sum_pgens
             write(iunit, "(e16.7)", advance = 'no') exact_helements(i) !/sum_helement
             write(iunit, "(f16.7)", advance = 'no') contrib_list(i) / real(iterations,dp)
+            write(iunit, "(3i)", advance = 'no') excitLvl(i)
             write(iunit, "(i3)") excitTyp(i)
         end do
         close(iunit)
