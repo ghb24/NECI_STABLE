@@ -5,7 +5,8 @@ module guga_excitations
     ! modules
     use CalcData, only: t_guga_mat_eles, t_trunc_guga_pgen, t_trunc_guga_matel, &
                         trunc_guga_pgen, trunc_guga_matel, t_trunc_guga_pgen_noninits, &
-                        t_guga_back_spawn, n_guga_back_spawn_lvl, t_guga_back_spawn_trunc
+                        t_guga_back_spawn, n_guga_back_spawn_lvl, t_guga_back_spawn_trunc, &
+                        t_matele_cutoff, matele_cutoff
 
 
     use SystemData, only: nEl, nBasis, ElecPairs, G1, nmaxx, &
@@ -573,6 +574,7 @@ contains
 
         end select
 
+        if (t_matele_cutoff .and. abs(mat_ele) < matele_cutoff) mat_ele = h_cast(0.0_dp)
 
     end subroutine calc_guga_matrix_element
 
@@ -2426,7 +2428,7 @@ contains
         ! calc. all excitations for the given ilut
         call actHamiltonian(ilutG, excitations, nexcit)
 
-        print *, "all excact excitations: "
+        print *, "all excact excitations: ", nexcit
 
         call write_guga_list(iout, excitations(:,1:nexcit))
 
@@ -2549,7 +2551,7 @@ contains
         call write_det_guga(iunit, ilutG)
         write(iunit,*) "=============================="
         do i = 1, nexcit
-            call convert_ilut_toGUGA(det_list(:,i), ilutG)
+            call convert_ilut_toGUGA(det_list(:,i), ilutG, matEle_list(i), excitTyp(i))
             call write_det_guga(iunit, ilutG, .false.)
             write(iunit,"(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
             write(iunit, "(e16.7)", advance='no') pgen_list(i)
@@ -2587,7 +2589,7 @@ contains
 
             do i = 1, nexcit
                 if (.not. generated_list(i)) then
-                    call convert_ilut_toGUGA(det_list(:,i), ilutG)
+                    call convert_ilut_toGUGA(det_list(:,i), ilutG, matEle_list(i), excitTyp(i))
                     call write_det_guga(6, ilutG)
                 end if
 
@@ -4654,7 +4656,7 @@ contains
         if (pgen < EPS) then
             ! indicate NullDet to skip spawn step
             nJ(1) = 0
-            HElGen = 0.0_dp
+            HElGen = h_cast(0.0_dp)
 
         else
 
@@ -4671,6 +4673,15 @@ contains
             ! otherwise extract H element and convert to 0
 
             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
+
+            if (t_matele_cutoff .and. abs(HElGen) < matele_cutoff) then
+                HElgen = h_cast(0.0_dp)
+                nJ(1) = 0
+                pgen = 0.0_dp
+                return
+            end if
+
+
             call decode_bit_det(nJ, ilutJ)
 
             if (tHub .and. .not. treal) then
@@ -14255,6 +14266,7 @@ contains
         integer(n_int), pointer :: tempExcits(:,:)
         logical :: t_temp_singles
         integer :: n
+        real(dp) :: cmp
 
         if (.not. present(t_singles_only)) then
             t_temp_singles = .false.
@@ -14410,8 +14422,14 @@ contains
         ! do an additional check if matrix element is 0
 
         j = 1
+        if (t_matele_cutoff) then
+            cmp = matele_cutoff
+        else
+            cmp = EPS
+        end if
+
         do i = 1, nTot
-            if (abs(extract_matrix_element(tmp_all_excits(:,i),1)) < EPS) cycle
+            if (abs(extract_matrix_element(tmp_all_excits(:,i),1)) < cmp) cycle
 
             tmp_all_excits(:,j) = tmp_all_excits(:,i)
 
@@ -14516,7 +14534,7 @@ contains
 
         type(excitationInformation) :: excitInfo
         integer(n_int), pointer :: tempExcits(:,:)
-        integer :: ierr, iOrb, iEx, st
+        integer :: ierr, iOrb, iEx, st, cnt
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     tempWeight, plusWeight, minusWeight
         HElement_t(dp) :: tmat
@@ -14642,7 +14660,6 @@ contains
             call update_matrix_element(excitations(:,iEx), tmat, 1)
             call setDeltaB(1, excitations(:,iEx))
         end do
-
 
     end subroutine calcAllExcitations_single
 
@@ -15825,6 +15842,7 @@ contains
         integer :: iEx, cnt, ende, ierr, gen, deltaB
         integer(n_int) :: t(0:nifguga)
         real(dp) :: bVal, tempWeight
+        HElement_t(dp) :: tmat
 
         ! with the correct and consistent use of the probabilistic weight
         ! functions during the excitation creation, and the assertment that
@@ -16251,7 +16269,7 @@ contains
 
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         HElement_t(dp) :: umat
-        integer :: ierr, n, exlevel
+        integer :: ierr, n, exlevel, cnt
         type(excitationInformation) :: excitInfo
         logical :: compFlag
 

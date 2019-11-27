@@ -1988,19 +1988,30 @@ contains
 
     end subroutine convert_ilut_toNECI
 
-    subroutine convert_ilut_toGUGA(ilutN, ilutG)
+    subroutine convert_ilut_toGUGA(ilutN, ilutG, HElement, delta_b)
         integer(n_int), intent(in) :: ilutN(0:niftot)
         integer(n_int), intent(out) :: ilutG(0:nifguga)
+        HElement_t(dp), intent(in), optional :: HElement
+        integer, intent(in), optional :: delta_b
         character(*), parameter :: this_routine = "convert_ilut_toGUGA"
 
         ! need only the det part essentially..
         ilutG(0:nifd) = ilutN(0:nifd)
 
+        if (present(HElement)) then
+            call encode_matrix_element(ilutG, 0.0_dp, 2)
+            call encode_matrix_element(ilutG,HElement,1)
+        else
         ! and set matrix elements to 1 and delta b to 0
-        call encode_matrix_element(ilutG,1.0_dp,1)
-        call encode_matrix_element(ilutG,0.0_dp,2)
+            call encode_matrix_element(ilutG,1.0_dp,1)
+            call encode_matrix_element(ilutG,0.0_dp,2)
+        end if
 
-        call setDeltaB(0,ilutG)
+        if (present(delta_b)) then
+            call setDeltaB(delta_b, ilutG)
+        else
+            call setDeltaB(0,ilutG)
+        end if
 
     end subroutine convert_ilut_toGUGA
 
