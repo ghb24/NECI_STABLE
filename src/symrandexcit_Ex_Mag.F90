@@ -60,9 +60,7 @@ contains
         logical tAllExcitFound, tij_lt_ab_only, tSpinRestrict
         integer doubleExcitsFound
 
-#ifdef __WARNING_WORKAROUND
-        call unused(part_type)
-#endif
+        unused_variable(part_type)
 
         ! Just in case
         ilutJ(0) = -1
@@ -120,6 +118,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         endif
 
 
+#ifdef __DEBUG
         if (nJ(1)/=0 .and. excitType.ne.getExcitationType(ExcitMat, IC)) then
             write(iout,*) "NI", ni
             write(iout,*) "NJ", nj
@@ -136,6 +135,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
             call stop_all(this_routine, "invalid excitation generated")
         endif
+#endif
 
 ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 

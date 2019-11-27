@@ -275,7 +275,7 @@ contains
             pgen = calc_pgen_mol_guga(nHF, ilutHF, nJ, ilutJ, excitInfo)
 
             if (abs(hel) > EPS) then
-                pGenFac = pgen * nAddFac / hel
+                pGenFac = pgen * nAddFac / abs(hel)
 
                 if (tau > pGenFac .and. pGenFac > EPS) then
                     tau = pGenFac
@@ -802,8 +802,7 @@ contains
         call MPIAllLORLogical(enough_doub_hist, mpi_ltmp)
         enough_doub_hist = mpi_ltmp
 
-        call integrate_frequency_histogram_spec(size(frequency_bins_singles), &
-            frequency_bins_singles, ratio_singles)
+        call integrate_frequency_histogram_spec(frequency_bins_singles, ratio_singles)
 
         ! if i have a integer overflow i should probably deal here with it..
         if (ratio_singles < 0.0_dp) then
@@ -825,8 +824,7 @@ contains
         if (t_consider_diff_bias) then
             ! i have to do that above too.. only check mixed excitaitons
             ! if i actually use consider_diff_bias
-            call integrate_frequency_histogram_spec(size(frequency_bins_type2), &
-                frequency_bins_type2, ratio_type2)
+            call integrate_frequency_histogram_spec(frequency_bins_type2, ratio_type2)
 
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_type2 < 0.0_dp) then
@@ -839,8 +837,7 @@ contains
                 return
             end if
 
-            call integrate_frequency_histogram_spec(size(frequency_bins_type2_diff), &
-                frequency_bins_type2_diff, ratio_type2_diff)
+            call integrate_frequency_histogram_spec(frequency_bins_type2_diff, ratio_type2_diff)
 
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_type2_diff < 0.0_dp) then
@@ -853,8 +850,7 @@ contains
                 return
             end if
 
-            call integrate_frequency_histogram_spec(size(frequency_bins_type3), &
-                frequency_bins_type3, ratio_type3)
+            call integrate_frequency_histogram_spec(frequency_bins_type3, ratio_type3)
 
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_type3 < 0.0_dp) then
@@ -867,8 +863,7 @@ contains
                 return
             end if
 
-            call integrate_frequency_histogram_spec(size(frequency_bins_type3_diff), &
-                frequency_bins_type3_diff, ratio_type3_diff)
+            call integrate_frequency_histogram_spec(frequency_bins_type3_diff, ratio_type3_diff)
 
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_type3_diff < 0.0_dp) then
@@ -881,8 +876,7 @@ contains
                 return
             end if
 
-            call integrate_frequency_histogram_spec(size(frequency_bins_type4), &
-                frequency_bins_type4, ratio_type4)
+            call integrate_frequency_histogram_spec(frequency_bins_type4, ratio_type4)
 
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_type4 < 0.0_dp) then
@@ -979,8 +973,7 @@ contains
         else
             ! no differentiating between mixed and alike type 2 and 3
             ! excitations
-            call integrate_frequency_histogram_spec(size(frequency_bins_type2), &
-                frequency_bins_type2, ratio_type2)
+            call integrate_frequency_histogram_spec(frequency_bins_type2, ratio_type2)
 
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_type2 < 0.0_dp) then
@@ -993,8 +986,7 @@ contains
                 return
             end if
 
-            call integrate_frequency_histogram_spec(size(frequency_bins_type3), &
-                frequency_bins_type3, ratio_type3)
+            call integrate_frequency_histogram_spec(frequency_bins_type3, ratio_type3)
 
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_type3 < 0.0_dp) then
@@ -1007,8 +999,7 @@ contains
                 return
             end if
 
-            call integrate_frequency_histogram_spec(size(frequency_bins_type4), &
-                frequency_bins_type4, ratio_type4)
+            call integrate_frequency_histogram_spec(frequency_bins_type4, ratio_type4)
 
             ! if i have a integer overflow i should probably deal here with it..
             if (ratio_type4 < 0.0_dp) then

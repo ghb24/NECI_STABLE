@@ -97,8 +97,7 @@ contains
       if(maxNRefs>0) then
          ! Get the nRefs most populated determinants
          refs_found = 0
-         call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found, &
-            CurrentDets, int(TotWalkers))
+         call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found)
          ! Communicate the refs_found info
          mpi_refs_found = int(refs_found,MPIArg)
          call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
@@ -699,12 +698,12 @@ contains
     integer :: iRef, nI(nel), exLevel
     real(dp) :: unsignedCache
     HElement_t(dp) :: signedCache
+    integer :: connections
 #ifdef __DEBUG
     character(*), parameter :: this_routine = "get_sign_op_run"
-#endif
-    integer :: connections
-
     ASSERT(.not. t_3_body_excits)
+#endif
+
 
     call initialize_c_caches(signedCache, unsignedCache, connections)
     ! Sum up all Hij cj for all superinitiators j
@@ -999,6 +998,7 @@ contains
     end subroutine remove_superinitiator
 
 !------------------------------------------------------------------------------------------!
+
     subroutine clean_adi()
       implicit none
 

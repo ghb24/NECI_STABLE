@@ -56,9 +56,10 @@ module AnnihilationMod
     contains
 
     subroutine DirectAnnihilation(TotWalkersNew, MaxIndex, iter_data, err)
-        integer, intent(inout) :: TotWalkersNew, MaxIndex
-        integer, intent(out) :: err
-        type(fcimc_iter_data), intent(inout) :: iter_data
+
+      integer, intent(inout) :: TotWalkersNew, MaxIndex
+      integer, intent(out) :: err
+      type(fcimc_iter_data), intent(inout) :: iter_data
 
         ! If the semi-stochastic approach is being used then the following routine performs the
         ! annihilation of the deterministic states. These states are subsequently skipped in the
@@ -407,7 +408,6 @@ module AnnihilationMod
                     call FindResidualParticle (cum_det, SpawnedParts(:,i), part_type, iter_data, &
                                                     VecInd, Parent_Array_Ind)
                end do
-
             end do ! Loop over particle type.
 
 
@@ -941,6 +941,7 @@ module AnnihilationMod
         call set_timer(BinSearch_time,45)
 
         do i = 1, ValidSpawned
+
            call decode_bit_det(nJ, SpawnedParts(:,i))
            ! Just to be sure
            CurrentSign = 0.0_dp
@@ -1016,11 +1017,12 @@ module AnnihilationMod
 
               do j = 1, lenof_sign
                  run = part_type_to_run(j)
-                 if (is_run_unnocc(CurrentSign,run)) then
+
+                 if (tTruncInitiator) then
                     ! This determinant is actually *unoccupied* for the
                     ! run we're considering. We need to
                     ! decide whether to abort it or not.
-                    if (tTruncInitiator) then
+                    if (is_run_unnocc(CurrentSign,run)) then
                        if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
                             .not. tDetermState) then
                             ! Walkers came from outside initiator space.
@@ -1076,30 +1078,30 @@ module AnnihilationMod
                          2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
                     if (tHistSpawn) then
-                        ! We want to histogram where the particle
-                        ! annihilations are taking place.
-                        ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i), iLutHF, nel)
-                        if (ExcitLevel == NEl) then
-                            call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), Det, PartIndex, tSuc)
-                        else if (ExcitLevel == 0) then
-                            PartIndex = 1
-                            tSuc = .true.
-                        else
-                            call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), &
-                                    FCIDetIndex(ExcitLevel+1)-1, PartIndex, tSuc)
-                        end if
-                        !HistMinInd2(ExcitLevel) = PartIndex
-                        if (tSuc) then
-                            AvAnnihil(j,PartIndex) = AvAnnihil(j,PartIndex)+ &
-                            real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
-                            InstAnnihil(j,PartIndex) = InstAnnihil(j,PartIndex)+ &
-                            real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
-                        else
-                            write(6,*) "***",SpawnedParts(0:NIftot,i)
-                            Call WriteBitDet(6,SpawnedParts(0:NIfTot,i), .true.)
-                            call stop_all("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
-                                & //"determinant when histogramming")
-                        end if
+                       ! We want to histogram where the particle
+                       ! annihilations are taking place.
+                       ExcitLevel = FindBitExcitLevel(SpawnedParts(:,i), iLutHF, nel)
+                       if (ExcitLevel == NEl) then
+                          call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), Det, PartIndex, tSuc)
+                       else if (ExcitLevel == 0) then
+                          PartIndex = 1
+                          tSuc = .true.
+                       else
+                          call BinSearchParts2(SpawnedParts(:,i), HistMinInd2(ExcitLevel), &
+                               FCIDetIndex(ExcitLevel+1)-1, PartIndex, tSuc)
+                       end if
+                       HistMinInd2(ExcitLevel) = PartIndex
+                       if (tSuc) then
+                          AvAnnihil(j,PartIndex) = AvAnnihil(j,PartIndex)+ &
+                               real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
+                          InstAnnihil(j,PartIndex) = InstAnnihil(j,PartIndex)+ &
+                               real(2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j)))), dp)
+                       else
+                          write(6,*) "***",SpawnedParts(0:NIftot,i)
+                          Call WriteBitDet(6,SpawnedParts(0:NIfTot,i), .true.)
+                          call stop_all("AnnihilateSpawnedParts","Cannot find corresponding FCI "&
+                               & //"determinant when histogramming")
+                       end if
                     end if
                  end if
 
@@ -1135,6 +1137,8 @@ module AnnihilationMod
                       CurrentDets(:,PartInd), TempCurrentSign)
               end if
            else
+
+
               ! Determinant in newly spawned list is not found in CurrentDets.
               ! Usually this would mean the walkers just stay in this list and
               ! get merged later - but in this case we want to check where the
@@ -1163,9 +1167,7 @@ module AnnihilationMod
 
                        ! If this option is on, include the walker to be
                        ! cancelled in the trial energy estimate.
-                       if (tIncCancelledInitEnergy) then
-                           call add_trial_energy_contrib(SpawnedParts(:,i), SpawnedSign(j), j)
-                       end if
+                       if (tIncCancelledInitEnergy) call add_trial_energy_contrib(SpawnedParts(:,i), SpawnedSign(j), j)
 
                        ! Walkers came from outside initiator space.
                        NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
@@ -1229,7 +1231,7 @@ module AnnihilationMod
                  if (tTruncSpawn) then
                     ! Needs to be truncated away, and a contribution
                     ! added to the EN2 correction.
-                    call add_en2_pert_for_trunc_calc(i, nJ, SignTemp, iter_data)
+                    call add_en2_pert_for_trunc_calc(i, nJ, SpawnedSign, iter_data)
                  else
                     do j = 1, lenof_sign
                        ! truncate the spawn if required
@@ -1262,8 +1264,8 @@ module AnnihilationMod
            end if
            ! store the spawn in the global data
            if(tLogAverageSpawns) call store_spawn(PartInd, SpawnedSign)
+        end do
 
-      end do
 
       call halt_timer(BinSearch_time)
 

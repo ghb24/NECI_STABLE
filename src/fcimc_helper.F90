@@ -41,7 +41,7 @@ module fcimc_helper
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
                            initsPerExLvl
 
-    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
+    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
@@ -49,9 +49,9 @@ module fcimc_helper
                         MaxWalkerBloom, tEN2, tEN2Started, &
                         NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tLargeMatelSurvive, &
+                        t_back_spawn_flex, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
-                        initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
+                        tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, &
                         t_trunc_nopen_diff, trunc_nopen_diff, t_guga_mat_eles,&
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, &
@@ -375,12 +375,11 @@ contains
             ! distinguish here, as only "proper" spawns are treated here!
             if(.not. tPrecond) then
                sgn_prod = real_sign_old * child_sign
-
-
                do i = 1, lenof_sign
                   if (sgn_prod(i) < 0.0_dp) then
-                     run = part_type_to_run(i)
+                     iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
 #ifdef __REALTIME
+                     run = part_type_to_run(i)
                      if(runge_kutta_step == 1) then
                         Annihilated_1(run) = Annihilated_1(run) + &
                              2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
@@ -388,12 +387,7 @@ contains
                         Annihilated(run) = Annihilated(run) + &
                              2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
                      endif
-#else
-                     Annihilated(run) = Annihilated(run) + &
-                          2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
 #endif
-
-                     iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
                   end if
                end do
             endif
@@ -432,9 +426,9 @@ contains
            ! log the spawn
            global_position = ind
         else
-           ! Determine which processor the particle should end up on in the
-           ! DirectAnnihilation algorithm.
-           proc = DetermineDetNode(nel, nI_child, 0)
+            ! Determine which processor the particle should end up on in the
+            ! DirectAnnihilation algorithm.
+            proc = DetermineDetNode(nel, nI_child, 0)
 
             ! Check that the position described by ValidSpawnedList is acceptable.
             ! If we have filled up the memory that would be acceptable, then
@@ -460,9 +454,9 @@ contains
 #endif
                 err = 1
                 return
-           end if
+            end if
 
-           call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
+            call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
 
            ! If the parent was an initiator then set the initiator flag for the
            ! child, to allow it to survive.
@@ -1025,10 +1019,7 @@ contains
                     HFCyc(min_part_type(run)) = HFCyc(min_part_type(run)) + real(sgn_run)
                     HFCyc(max_part_type(run)) = HFCyc(max_part_type(run)) + aimag(sgn_run)
 #else
-                    ! do we also need here: todo
-                    if (iter > nEquilSteps) then
-                        SumNoatHF(run) = SumNoatHF(run) + sgn_run
-                    end if
+                    SumNoatHF(run) = SumNoatHF(run) + sgn_run
                     NoatHF(run) = NoatHF(run) + sgn_run
                     HFCyc(run) = HFCyc(run) + sgn_run
 #endif
@@ -1184,6 +1175,7 @@ contains
 
       end function TestInitiator_ilut
 
+
       function TestInitiator_explicit(ilut, nI, det_idx,is_init, sgn, exLvl, run) result(initiator)
         use adi_initiators, only: check_static_init
         implicit none
@@ -1215,10 +1207,6 @@ contains
         ! initiator flag according to SI or a static initiator space
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
 
-        if(tSeniorityInits) then
-           staticInit = staticInit .or. (count_open_orbs(ilut) <= initMaxSenior)
-        endif
-
         if (tInitiatorSpace) then
             staticInit = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic)
             if (.not. staticInit) then
@@ -1228,20 +1216,6 @@ contains
                 end if
             end if
         end if
-
-        ! check if there are sign conflicts across the replicas
-        if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
-           ! one initial check: if the replicas dont agree on the sign
-           ! dont make this an initiator under any circumstances
-           if(tReplicaCoherentInits .and. .not. &
-                ! maybe except for corepsace determinants
-                test_flag(ilut, flag_deterministic)) then
-              ! log this, if we remove an initiator here
-              if(is_init) NoAddedInitiators = NoAddedInitiators - 1_int64
-              initiator = .false.
-              return
-           endif
-        endif
 
         ! By default the particles status will stay the same
         initiator = is_init
@@ -1299,6 +1273,7 @@ contains
            endif
 
         end if
+
       end function TestInitiator_explicit
 
       function TestInitiator_pure_space(ilut, nI, site_idx, initiator_before, run) result(initiator)
@@ -1561,6 +1536,7 @@ contains
         end if
 
     end subroutine
+
 
     subroutine end_iter_stats (TotWalkersNew)
 

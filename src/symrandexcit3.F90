@@ -51,9 +51,7 @@ contains
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit3'
 
-#ifdef __WARNING_WORKAROUND
-        call unused(part_type)
-#endif
+        unused_variable(part_type)
 
         ! Just in case
         ilutJ(0) = -1

@@ -48,34 +48,8 @@ module load_balance
 
 contains
 
-
- subroutine test_hash_table(info,except)
-    use hash, only :hash_table_lookup
-    use FciMCData, only :HashIndex
-    use bit_rep_data, only : nifdbo
-    use bit_reps, only : decode_bit_det
-    character(len=*), intent(in) :: info
-    integer, intent(in), optional :: except
-    integer :: dind,dh,nI(nel)
-    integer(int64) :: i
-    real(dp) :: CurrentSign(lenof_sign)
-    logical :: test
-    do i=1,TotWalkers
-       if(present(except)) then
-          if(i == except) cycle
-       endif
-       call decode_bit_det(nI,CurrentDets(:,i))
-       call extract_sign(CurrentDets(:,i),CurrentSign)
-       call hash_table_lookup(nI,CurrentDets(:,i),NIfDBO,HashIndex,&
-            CurrentDets,dind,dh,test)
-       if((.not. test) .and. sum(abs(CurrentSign)) >= 1.e-12_dp) then
-          call stop_all("Hash_test", "Entry missing in hashtable")
-       endif
-    end do
-    print *,info
-  end subroutine test_hash_table
-
     subroutine init_load_balance()
+
 
         ! Initialise the load balancing.
         !
@@ -513,13 +487,13 @@ contains
         if (iStartFreeSlot <= iEndFreeSlot) then
             ! We can slot it into a free slot in the main list, rather than increase its length
             DetPosition = FreeSlot(iStartFreeSlot)
+            CurrentDets(:, DetPosition) = iLutCurr(:)
             iStartFreeSlot = iStartFreeSlot + 1
         else
             ! We must increase the length of the main list to slot the new walker in
             TotWalkersNew = TotWalkersNew + 1
             DetPosition = TotWalkersNew
             if (TotWalkersNew >= MaxWalkersPart) then
-
                ! return with an error
                err = 1
                return
@@ -532,7 +506,6 @@ contains
                write(iout,*) "Warning: Starting to randomly kill singly-spawned walkers"
             endif
         end if
-        CurrentDets(:,DetPosition) = iLutCurr(:)
 
         ! For the RDM code we need to set all of the elements of CurrentH to 0,
         ! except the first one, holding the diagonal Hamiltonian element.
@@ -598,10 +571,7 @@ contains
         end if
 
         ! Add the new determinant to the hash table.
-
         call add_hash_table_entry(HashIndex, DetPosition, DetHash)
-
-
 
     end subroutine AddNewHashDet
 
@@ -647,9 +617,9 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
 
         integer :: i, j, AnnihilatedDet, lbnd, ubnd, part_type
-        real(dp) :: CurrentSign(lenof_sign), ratio(lenof_sign)
+        real(dp) :: CurrentSign(lenof_sign)
         real(dp) :: pRemove, r
-        integer :: run, ic, nI(nel)
+        integer :: nI(nel), run, ic
         logical :: tIsStateDeterm
         real(dp) :: hij, scaledOccupiedThresh
         character(*), parameter :: t_r = 'CalcHashTableStats'
@@ -669,13 +639,12 @@ contains
             do i=1,TotWalkersNew
 
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     AnnihilatedDet = AnnihilatedDet + 1
-
                 else
+
                    ! count the number of walkers that are single-spawns at the threshold
                    if(t_prone_walkers) then
                       if(test_flag(CurrentDets(:,i), flag_prone)) n_prone_dets = n_prone_dets + 1
@@ -721,16 +690,6 @@ contains
 
                     TotParts = TotParts + abs(CurrentSign)
 
-#if defined(__CMPLX)
-                    do run = 1, inum_runs
-                        norm_psi_squared(run) = norm_psi_squared(run) + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
-                        if (tIsStateDeterm) then
-                            norm_semistoch_squared(run) = norm_semistoch_squared(run) &
-                                + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
-                        endif
-                    enddo
-
-#endif
                     call addNormContribution(CurrentSign, tIsStateDeterm)
 
                     if (tCheckHighestPop) then

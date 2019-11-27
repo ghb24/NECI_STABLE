@@ -70,7 +70,7 @@ module real_time
     use fcimc_initialisation, only: CalcApproxpDoubles
     use LoggingData, only: tPopsFile, write_end_core_size, tWriteCoreEnd
     use PopsFileMod, only: WriteToPopsfileParOneArr
-    use load_balance, only: test_hash_table, tLoadBalanceBlocks, adjust_load_balance, &
+    use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, &
          CalcHashTableStats
     use Parallel_neci
     use util_mod, only : neci_etime, near_zero

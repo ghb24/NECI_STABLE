@@ -1783,7 +1783,7 @@ contains
         ! space_size slots in it (overwriting anything which was there before,
         ! which presumably won't be needed now).
         call generate_space_most_populated(target_space_size, .false., 0, &
-            SpawnedParts, space_size, CurrentDets, int(TotWalkers))
+            SpawnedParts, space_size)!, CurrentDets, int(TotWalkers))
 
         write(6,'("Writing the most populated states to DETFILE...")'); call neci_flush(6)
 

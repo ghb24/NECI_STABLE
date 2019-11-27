@@ -183,17 +183,13 @@ contains
 
         if (tGUGA) then
             call print_spinfree_2rdm(rdm_defs, rdm_recv, est%norm)
-        end if
+        else
+            if (tWriteSpinFreeRDM) &
+                call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
 
-        if (tWriteSpinFreeRDM .and. .not. tGUGA) then
-            call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
-
-        end if
-
-
-        if (tWrite_Normalised_RDMs .and. .not. tGUGA) then
-            call print_rdms_spin_sym_wrapper(rdm_defs, rdm, rdm_recv, rdm_recv_2, &
-                                             spawn, est%norm, tOpenShell)
+            if (tWrite_Normalised_RDMs) &
+                call print_rdms_spin_sym_wrapper(rdm_defs, rdm, rdm_recv, rdm_recv_2, &
+                                                 spawn, est%norm, tOpenShell)
         end if
 
     end subroutine output_2rdm_wrapper
@@ -1158,11 +1154,11 @@ contains
                         rdm_filename = "2-RDM-GUGA"
                     else
                         if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                           write(rdm_filename, '("spinfree_TwoRDM.",'&
+                           write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//'",".",'&
                                  //int_fmt(state_labels(1,irdm),0)//')') irdm
                         else
-                            write(rdm_filename, '("spinfree_",'//trim(rdm_defs%output_file_prefix)//&
-                                 ',".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                            write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//&
+                                 '",".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
                                  //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
                                  state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
                          end if
@@ -1257,9 +1253,7 @@ contains
                 ! Only non-transition RDMs should be hermitian and obey the
                 ! Cauchy-Schwarz inequalityo.
                 do irdm = 1, rdm_defs%nrdms_standard
-!                     if (t_test_sym_fill) then
-                        call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
-!                     end if
+                    call make_1e_rdm_hermitian(one_rdms(irdm)%matrix, norm_1rdm(irdm))
                     if (tForceCauchySchwarz) call Force_Cauchy_Schwarz(one_rdms(irdm)%matrix)
                 end do
             end if

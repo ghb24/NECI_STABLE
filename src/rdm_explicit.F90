@@ -309,8 +309,6 @@ contains
             call fill_spawn_rdm_diag(two_rdm_spawn, nI, full_sign)
         end if
 
-        ! TODO: Be careful with my GUGA changes here..
-!         if (.not. t_test_diagonal) then
             ! Zeros in ExcitMat3 starts off at the first single excitation.
             ExcitMat3(:,:) = 0
 

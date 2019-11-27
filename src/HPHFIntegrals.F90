@@ -342,7 +342,6 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
         HElement_t(dp) :: hel
 
-!        integer :: nI2(nel)
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
         HElement_t(dp) :: MatEl2

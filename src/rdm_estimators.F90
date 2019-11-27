@@ -333,13 +333,8 @@ contains
             if (tRDMInstEnergy) then
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(3x,es20.13)', advance='no') &
-                        est%energy_num_inst(irdm)
-
-                    if (.not. tGUGA) then
-                        write(est%write_unit, '(3x,es20.13)', advance='no') &
-                            est%spin_num_inst(irdm)
-                    end if
+                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
+                        est%energy_num_inst(irdm), est%spin_num_inst(irdm)
                     if (tEN2) then
                         write(est%write_unit,'(2(3x,es20.13))', advance='no') &
                             est%energy_pert_inst(irdm), est%energy_pert_inst(irdm) + est%energy_num_inst(irdm)
@@ -365,12 +360,8 @@ contains
             else
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(3x,es20.13)', advance='no') &
-                        est%energy_num(irdm)
-                    if (.not. tGUGA) then
-                        write(est%write_unit, '(3x,es20.13)', advance='no') &
-                            est%spin_num(irdm)
-                    end if
+                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
+                        est%energy_num(irdm), est%spin_num(irdm)
                     if (tEN2) then
                         write(est%write_unit,'(2(3x,es20.13))', advance='no') &
                             est%energy_pert(irdm), est%energy_pert(irdm) + est%energy_num(irdm)
@@ -759,7 +750,6 @@ contains
         do ielem = 1, rdm_recv%nelements
             call extract_sign_rdm(rdm_recv%elements(:,ielem), rdm_sign)
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
-            if (ij == kl) cycle
             rdm_sign = abs(rdm_sign)
             max_error_herm = max(max_error_herm, rdm_sign)
             sum_error_herm = sum_error_herm + rdm_sign

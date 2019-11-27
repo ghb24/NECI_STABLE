@@ -1069,12 +1069,18 @@ contains
         nExChecks = 0
         nExCheckFails = 0
 
+        if (allocated(ConflictExLvl))       deallocate(ConflictExLvl)
+        if (allocated(AllConflictExLvl))    deallocate(AllConflictExLvl)
+
         allocate(ConflictExLvl(maxConflictExLvl))
         ConflictExLvl = 0
         allocate(AllConflictExLvl(maxConflictExLvl))
         AllConflictExLvl = 0
         NoConflicts = 0
         AllNoConflicts = 0
+
+        if (allocated(HolesByExLvl))    deallocate(HolesByExLvl)
+        if (allocated(allHolesByExLvl)) deallocate(allHolesByExLvl)
 
         allocate(HolesByExLvl(maxHoleExLvlWrite))
         allocate(allHolesByExLvl(maxHoleExLvlWrite))
@@ -1252,20 +1258,6 @@ contains
             WRITE(iout,*) "Timestep set to: ",Tau
         ENDIF
 
-        ! [Werner Dobrautz 5.5.2017:]
-        ! if this is a continued run from a histogramming tau-search
-        ! and a restart of the tau-search is not forced by input, turn
-        ! both the new and the old tau-search off!
-        ! i cannot do it here, since this is called before the popsfile read-in
-        if (t_previous_hist_tau) then
-            ! i have to check for tau-search option and stuff also, so that
-            ! the death tau adaption is still used atleast! todo!
-            tSearchTau = .false.
-            t_hist_tau_search = .false.
-            t_fill_frequency_hists = .false.
-            Write(iout,*) "Turning OFF the tau-search, since continued run!"
-        end if
-
         ! [W.D.] I guess I want to initialize that before the tau-search,
         ! or otherwise some pgens get calculated incorrectly
         if (t_back_spawn .or. t_back_spawn_flex) then
@@ -1294,40 +1286,6 @@ contains
 
         if (t_new_real_space_hubbard) then
             call init_real_space_hubbard
-        end if
-
-        if (tSearchTau) then
-            if (tGen_nosym_guga) then
-                call init_tau_search_guga_nosym()
-            else
-                call init_tau_search()
-            end if
-            ! set!
-            ! [Werner Dobrautz 4.4.2017:]
-            if (t_hist_tau_search) then
-                ! some setup went wrong!
-                call Stop_All(t_r, &
-                    "Input error! both standard AND Histogram tau-search chosen!")
-            end if
-
-        else if (t_hist_tau_search) then
-            if (tGen_nosym_guga) then
-                call init_hist_tau_search_guga_nosym()
-            else
-                call init_hist_tau_search()
-            end if
-
-        else if (t_hist_tau_search) then
-            call init_hist_tau_search()
-
-        else
-            ! Add a couple of checks for sanity
-            if (nOccAlpha == 0 .or. nOccBeta == 0) then
-                pParallel = 1.0_dp
-            end if
-            if (nOccAlpha == 1 .and. nOccBeta == 1) then
-                pParallel = 0.0_dp
-            end if
         end if
 
         if (t_spin_measurements) then
@@ -1796,6 +1754,41 @@ contains
            t_fill_frequency_hists = .false.
            Write(iout,*) "Turning OFF the tau-search, since continued run!"
         end if
+
+        if (tSearchTau) then
+            if (tGen_nosym_guga) then
+                call init_tau_search_guga_nosym()
+            else
+                call init_tau_search()
+            end if
+            ! set!
+            ! [Werner Dobrautz 4.4.2017:]
+            if (t_hist_tau_search) then
+                ! some setup went wrong!
+                call Stop_All(t_r, &
+                    "Input error! both standard AND Histogram tau-search chosen!")
+            end if
+
+        else if (t_hist_tau_search) then
+            if (tGen_nosym_guga) then
+                call init_hist_tau_search_guga_nosym()
+            else
+                call init_hist_tau_search()
+            end if
+
+        else if (t_hist_tau_search) then
+            call init_hist_tau_search()
+
+        else
+            ! Add a couple of checks for sanity
+            if (nOccAlpha == 0 .or. nOccBeta == 0) then
+                pParallel = 1.0_dp
+            end if
+            if (nOccAlpha == 1 .and. nOccBeta == 1) then
+                pParallel = 0.0_dp
+            end if
+        end if
+
 
         IF((NMCyc.ne.0).and.(tRotateOrbs.and.(.not.tFindCINatOrbs))) then
             CALL Stop_All(this_routine,"Currently not set up to rotate and then go straight into a spawning &
