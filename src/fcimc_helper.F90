@@ -379,34 +379,41 @@ contains
     end subroutine create_particle_with_hash_table
 
     function checkValidSpawnedList(proc) result(list_full)
-      ! Check that the position described by ValidSpawnedList is acceptable.
-      ! If we have filled up the memory that would be acceptable, then
-      ! end the calculation, i.e. throw an error
-      implicit none
-      logical :: list_full
-      integer, intent(in) :: proc
-      list_full = .false.
-      if (proc == nNodes - 1) then
-         if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
-      else
-         if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
-              list_full=.true.
-      end if
-      if (list_full) then
+        ! Check that the position described by ValidSpawnedList is acceptable.
+        ! If we have filled up the memory that would be acceptable, then
+        ! end the calculation, i.e. throw an error
+        implicit none
+        logical :: list_full
+        integer, intent(in) :: proc
+        list_full = .false.
+        if (proc == nNodes - 1) then
+            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
+        else
+            if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
+                list_full=.true.
+        end if
+        if (list_full) then
 #ifdef DEBUG_
-         write(6,*) "Attempting to spawn particle onto processor: ", proc
-         write(6,*) "No memory slots available for this spawn."
-         write(6,*) "Please increase MEMORYFACSPAWN"
-         write(6,*) ValidSpawnedList
-         write(6,*) InitialSpawnedSlots
+            write(6,*) "Attempting to spawn particle onto processor: ", proc
+            write(6,*) "No memory slots available for this spawn."
+            write(6,*) "Please increase MEMORYFACSPAWN"
+            write(6,*) ValidSpawnedList
+            write(6,*) InitialSpawnedSlots
+            if(MaxSpawned / nProcessors < 0.1_dp * TotWalkers) write(6,*) &
+                "Memory available for spawns is too low, number of processes might be too high for the given walker number"            
 #else
-         write(6,*) "Attempting to spawn particle onto processor: ", proc
-         write(6,*) "No memory slots available for this spawn."
-         write(6,*) "Please increase MEMORYFACSPAWN"
-         write(6,*) ValidSpawnedList
-         write(6,*) InitialSpawnedSlots
+            print *, "Attempting to spawn particle onto processor: ", proc
+            print *, "No memory slots available for this spawn, terminating calculation"
+            print *, "Please increase MEMORYFACSPAWN"
+            print *, ValidSpawnedList
+            print *, InitialSpawnedSlots
+
+            ! give a note on the counter-intuitive scaling behaviour
+            if(MaxSpawned / nProcessors < 0.1_dp * TotWalkers) print *, &
+                "Memory available for spawns is too low, number of processes might be too high for the given walker number"    
 #endif
-      end if
+        end if
+        
     end function checkValidSpawnedList
 
     ! This routine sums in the energy contribution from a given walker and
