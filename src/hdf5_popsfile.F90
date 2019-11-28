@@ -1013,8 +1013,8 @@ contains
            ! currently only for real population
 #ifndef __CMLPX
            ! resize the attributes
-           call resize_attribute(pops_norm_sqr, lenof_sign, tmp_lenof_sign)
-           call resize_attribute(pops_num_parts, lenof_sign, tmp_lenof_sign)
+           call resize_attribute(pops_norm_sqr, lenof_sign)
+           call resize_attribute(pops_num_parts, lenof_sign)
            ! notify
            write(6,*) "WARNING: Popsfile and input lenof_sign mismatch. Cloning replicas"
 #else
@@ -1048,9 +1048,11 @@ contains
         call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
 
+        print *, "Max ratio size", max_ratio_size
+        ! size of the ms data read in
+        tmp_fvals_size = 2*tmp_inum_runs
         ! create an io handler for the data that is actually in the file
         ! (can have different lenof_sign and options than the one we will be using)
-        tmp_fvals_size = 2 * tmp_inum_runs
         call gdata_read_handler%init_gdata_io(&
             tPopAutoAdaptiveShift, tPopScaleBlooms, tmp_fvals_size, max_ratio_size)
         gdata_size = gdata_read_handler%entry_size()
@@ -1143,7 +1145,7 @@ contains
                ! resize the fvals in the same manner
                if(t_read_gdata) then
                    call gdata_read_handler%clone_gdata(&
-                       gdata_buf, tmp_fvals_size, fvals_size)
+                       gdata_buf, tmp_fvals_size, fvals_size, this_block_size)
                endif
             endif
 

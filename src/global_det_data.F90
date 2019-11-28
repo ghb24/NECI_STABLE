@@ -215,13 +215,13 @@ contains
            len_pos_spawns = 0
            len_neg_spawns = 0
         endif
-       
+
+        max_ratio_size = 1
         if(tScaleBlooms) then
-           len_max_ratio = 1
+           len_max_ratio = max_ratio_size
         else
            len_max_ratio = 0
         endif
-        max_ratio_size = len_max_ratio
 
         ! Get the starting positions
         pos_spawn_pop = pos_hel+len_hel
@@ -492,7 +492,7 @@ contains
                  fvals(run,j)
             global_determinant_data(pos_tot_spawns+run-1,j + start - 1) = &
                  fvals(inum_runs+run,j)
-         end do
+        end do
       end do
     end subroutine set_tot_acc_spawns
 
@@ -507,12 +507,16 @@ contains
       integer :: run
       real(dp) :: realVal = 0.0_dp
 
-      ! For hdf5 storage, we store the acc/tot spawns next to each other,
-      ! this allows for easy re-sizing when changing the number of replicas      
-      do run = 1, inum_runs, 2
-         global_determinant_data(pos_acc_spawns+run-1,j) = transfer(fvals(run),realVal)
-         global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+1),realVal)
-      end do
+      ! Check the input's size
+      if(size(fvals, dim=1) >= (2*inum_runs)) then
+          do run = 1, inum_runs
+              global_determinant_data(pos_acc_spawns+run-1,j) = transfer(fvals(run),realVal)
+              global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+inum_runs),realVal)
+          end do
+      else
+          print *, "WARNING: Dimension mismatch in set_tot_acc_spawns_hdf5Int. Ignoring read data"
+      endif
+
     end subroutine set_tot_acc_spawns_hdf5Int
 #endif
 
@@ -531,24 +535,30 @@ contains
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
 
-      counter = 0
-      do j = 1, ndets
-        if(present(max_ex))then
-             ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-             if(ExcitLevel>max_ex) cycle
-             call extract_sign(CurrentDets(:,j),CurrentSign)
-             if(IsUnoccDet(CurrentSign)) cycle
-             counter = counter + 1
-        else
-            counter = j
-        end if
-        ! For hdf5 storage, we store the acc/tot spawns next to each other,
-        ! this allows for easy re-sizing when changing the number of replicas
-        do k = 1, inum_runs, 2
-            fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
-            fvals(k+1,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))            
-        end do
-      end do
+      if(size(fvals,dim=1) >= 2*inum_runs) then
+          counter = 0
+          do j = 1, ndets
+              if(present(max_ex))then
+                  ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+                  if(ExcitLevel>max_ex) cycle
+                  call extract_sign(CurrentDets(:,j),CurrentSign)
+                  if(IsUnoccDet(CurrentSign)) cycle
+                  counter = counter + 1
+              else
+                  counter = j
+              end if
+              ! For hdf5 storage, we store the acc/tot spawns next to each other,
+              ! this allows for easy re-sizing when changing the number of replicas
+              do k = 1, inum_runs
+                  fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
+                  fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
+              end do
+          end do
+      else
+          ! the buffer has unsuitable size, print a warning
+          print *, "WARNING: Dimension mismatch in writeFFuncAsInt. Writing 0"
+          fvals = 0
+      endif
     end subroutine writeFFuncAsInt
 
     subroutine writeFFunc(fvals, ndets)
