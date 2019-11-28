@@ -962,8 +962,6 @@ contains
         ! for the half-filled ms=0 case, it is how often we can distribute 
         ! n/2 electrons in n orbitals (since the rest then gets filled up 
         ! by the other spin electrons -> nchoosek(n, n/2) 
-        ! todo: merge the cc_amplitudes branch or atleast the 
-        ! functionality in there! 
         ! for ms/=0 but still at half-filling it i still the binomial 
         ! coefficient of one spin-type 
 

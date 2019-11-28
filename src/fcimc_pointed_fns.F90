@@ -41,7 +41,6 @@ module fcimc_pointed_fns
                                fill_frequency_histogram
 
     use excit_gen_5, only: pgen_select_a_orb
-    use cepa_shifts, only: t_cepa_shift, cepa_shift
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
     use global_det_data, only: get_tot_spawns, get_acc_spawns
@@ -599,12 +598,7 @@ module fcimc_pointed_fns
 
 
         do i=1, inum_runs
-            if (t_cepa_shift) then
-
-                fac(i) = tau * (Kii -  (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
-                call log_death_magnitude(Kii - (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
-
-            else if (tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
+            if (tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
                 !If we are fixing the population of reference det, skip death/birth
                 fac(i)=0.0
             else

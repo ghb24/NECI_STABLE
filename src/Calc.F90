@@ -55,8 +55,6 @@ MODULE Calc
     use DetBitOps, only: DetBitEq, EncodeBitDet
     use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
-    use cepa_shifts, only: t_cepa_shift, cepa_method
-    use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
     use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat
     use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
 
@@ -3025,32 +3023,6 @@ contains
                 ! to indicate (de-)excitation
                 if (item < nitems) then
                     call geti(occ_virt_level)
-                end if
-
-            case ("CEPA-SHIFTS", "CEPA", "CEPA-SHIFT")
-                t_cepa_shift = .true.
-                if (item < nitems) then
-                    call readl(cepa_method)
-                else
-                    cepa_method = '0'
-                end if
-
-            case ("CC-AMPLITUDES")
-                t_cc_amplitudes = .true.
-                if (item < nitems) then
-                    call geti(cc_order)
-                    if (item < nitems) then
-                        call geti(cc_delay)
-                    else
-                        cc_delay = 1000
-                    end if
-                else
-                    ! 2 is the default cc_order
-                    cc_order = 2
-                    ! and also have an default delay of iterations after
-                    ! the variable shift mode is turned on, when we want
-                    ! to do the amplitude sampling
-                    cc_delay = 1000
                 end if
 
              case("DAMP-KMAT")

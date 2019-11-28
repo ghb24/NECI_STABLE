@@ -110,8 +110,6 @@ module FciMCParMod
     use tJ_model, only: init_tJ_model, init_heisenberg_model
     use k_space_hubbard, only: init_k_space_hubbard, gen_excit_k_space_hub_transcorr, &
                                gen_excit_uniform_k_space_hub_transcorr
-    use cc_amplitudes, only: t_cc_amplitudes, init_cc_amplitudes, cc_delay, &
-                            t_plot_cc_amplitudes, print_cc_amplitudes
 
     use analyse_wf_symmetry, only: analyze_wavefunction_symmetry, t_symmetry_analysis
 
@@ -393,13 +391,6 @@ module FciMCParMod
                     t_back_spawn = .true.
                 end if
                 call init_back_spawn()
-            end if
-
-            if (t_cc_amplitudes .and. cc_delay /= 0 .and. all(.not. tSinglePartPhase)) then
-                if ((iter - maxval(VaryShiftIter)) == cc_delay + 1) then
-                    ! for now just test if it works
-                    call init_cc_amplitudes()
-                end if
             end if
 
             ! Is this an iteration where trial-wavefunction estimators are
@@ -749,9 +740,6 @@ module FciMCParMod
             call deallocate_histograms()
         end if
 
-        if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then
-            call print_cc_amplitudes()
-        end if
         if(t_hist_fvals) call print_fval_hist(enGrid,arGrid)
 
         ! Remove the signal handlers now that there is no way for the

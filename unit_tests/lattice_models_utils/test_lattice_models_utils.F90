@@ -30,7 +30,6 @@ contains
         call run_test_case(combine_spin_basis_test, "combine_spin_basis_test")
         call run_test_case(create_all_open_shell_dets_test, "create_all_open_shell_dets_test")
         call run_test_case(get_spin_opp_neighbors_test, "get_spin_density_neighbors")
-        call run_test_case(get_orb_from_kpoints_three_test, "get_orb_from_kpoints_three_test")
         call run_test_case(find_elec_in_ni_test, "find_elec_in_ni_test")
         call run_test_case(get_occ_neighbors_test, "get_occ_neighbors_test")
         call run_test_case(get_spin_density_neighbors_test, "get_spin_density_neighbors_test")
@@ -229,55 +228,6 @@ contains
         nbasis = -1
 
     end subroutine find_elec_in_ni_test
-
-
-    subroutine get_orb_from_kpoints_three_test
-!       use SystemData, only: nel, nbasis, G1
-!       use symdata, only: SymTable
-
-        print *, ""
-        print *, "testing: get_orb_from_kpoints_three: "
-!       nel = 3
-!       nbasis = 9
-
-!       allocate(G1(nbasis))
-!       allocate(SymTable(1,1,1))
-!       allocate(KPointToBasisFn(-1:2,-1:2,-1:1,2))
-
-!       G1(1)%k = [0,0,0]
-!       G1(2)%k = [1,0,0]
-!       G1(3)%k = [0,1,0]
-!       G1(4)%k = [0,0,1]
-!       G1(5)%k = [1,1,0]
-!       G1(6)%k = [1,0,1]
-!       G1(7)%k = [0,1,1]
-!       G1(8)%k = [0,0,-1]
-!       G1(9)%k = [1,1,1]
-
-!       KPointToBasisFn(1,1,0,2) = 3
-!       KPointToBasisFn(2,0,-1,1) = 4
-!       KPointtobasisfn(-1,2,0,2) = 5
-
-!       call assert_equals(3, get_orb_from_kpoints_three([1,2,3],1,2))
-!       call assert_equals(5, get_orb_from_kpoints_three([1,2,3],1,5))
-!       call assert_equals(5, get_orb_from_kpoints_three([1,3,5],1,3))
-!       call assert_equals(2, get_orb_from_kpoints_three([2,4,6],4,6))
-!       call assert_equals(2, get_orb_from_kpoints_three([1,2,3],7,8))
-!       call assert_equals(9, get_orb_from_kpoints_three([3,4,5],6,8))
-
-        call assert_equals(3, get_orb_from_kpoints_three([1,2,3],1,2))
-        call assert_equals(5, get_orb_from_kpoints_three([1,2,3],4,5))
-        call assert_equals(5, get_orb_from_kpoints_three([1,3,5],1,3))
-        call assert_equals(2, get_orb_from_kpoints_three([2,4,6],4,6))
-        call assert_equals(7, get_orb_from_kpoints_three([1,2,3],7,8))
-        call assert_equals(7, get_orb_from_kpoints_three([3,4,5],6,8))
-
-!       deallocate(G1, SymTable, KPointToBasisFn)
-!       nel = -1
-!       nbasis = -1
-
-    end subroutine get_orb_from_kpoints_three_test
-
 
     subroutine create_all_open_shell_dets_test
         use bit_rep_data, only: niftot, nifd
@@ -543,11 +493,6 @@ contains
         call assert_equals([1,4,5,8], create_neel_state_chain(), 4)
 
         nel = -1
-
-        print *, ""
-        print *, "for HPHF we must create the correct version"
-        call assert_true(.false.)
-
     end subroutine create_neel_state_chain_test
 
     subroutine create_neel_state_test
