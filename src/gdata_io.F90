@@ -119,12 +119,12 @@ contains
         ! do a sanity check: there has to be some data
         if(this%t_io()) then
             if(this%entry_size() <= size(gdata_buf, dim=1)) then
-                if(tPopAutoAdaptiveShift .and. tAutoAdaptiveShift) then
+                if(tAutoAdaptiveShift) then
                     ! set the global det data for auto adaptive shift
                     call set_tot_acc_spawns(&
                         gdata_buf(this%fvals_start:this%fvals_end,:), ndets, initial)
                 endif
-                if(tPopScaleBlooms .and. tScaleBlooms) then
+                if(tScaleBlooms) then
                     ! set the global det data for bloom scaling
                     call set_all_max_ratios(&
                         gdata_buf(this%max_ratio_start:this%max_ratio_end,:), ndets, initial)
@@ -178,10 +178,10 @@ contains
 
         if(this%t_io()) then
             if(this%entry_size() <= size(gdata_buf)) then
-                if(tPopAutoAdaptiveShift .and. tAutoAdaptiveShift) then
+                if(tAutoAdaptiveShift) then
                     call set_tot_acc_spawns_hdf5Int(gdata_buf(this%fvals_start:this%fvals_end), pos)
                 endif
-                if(tPopScaleBlooms .and. tScaleBlooms) then
+                if(tScaleBlooms) then
                     ! set the global det data for bloom scaling
                     call set_max_ratio_hdf5Int(&
                         gdata_buf(this%max_ratio_start:this%max_ratio_end), pos)
