@@ -122,6 +122,12 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
+[hdf5/mneci/*/]
+program = mneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 _default_ = neci kneci mneci kmneci
 
 # add new hdf5 class so this is not tested standardly on altest currently, since there is a problem compiling hdf5
