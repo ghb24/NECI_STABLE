@@ -52,12 +52,10 @@ contains
         real(dp) :: pgen2
         real(dp) :: cum_arr(nbasis)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         HElement_t(dp) :: temp_hel
 #endif
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag); call unused(part_type); call unused(store%nI_beta)
-#endif
+        unused_var(exFlag); unused_var(part_type); unused_var(store)
 
         HElGen = HEl_zero
 
@@ -81,7 +79,7 @@ contains
         end if
 
         ! And a careful check!
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (.not. IsNullDet(nJ)) then
              pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -435,7 +433,7 @@ contains
             cpt = cum_arr(orb) - cum_arr(orb - 1)
         end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         call pgen_select_a_orb(ilut, src, orb, iSpn, cpt_tst, cum_tst, &
                                cum_arr, .false.)
         if (abs(cpt_tst - cpt) > 1e-6 .or. abs(cum_tst - cum_sum) > 1e-6) then

@@ -197,7 +197,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                U=R
 C/RII
                DO J=1,I_V
-#ifdef __CMPLX
+#ifdef CMPLX_
                   T=HIJS2(J)*RIJMAT(J,I)*conjg(RIJMAT(1,I))
 #else
                   T=HIJS2(J)*RIJMAT(J,I)*(RIJMAT(1,I))
@@ -361,7 +361,7 @@ C.. divide through by RHOII^P
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
-#ifdef __CMPLX
+#ifdef CMPLX_
                      S=S*RIJMAT(J,I)*conjg(RIJMAT(1,I))
 #else
                      S=S*RIJMAT(J,I)*(RIJMAT(1,I))
@@ -497,7 +497,7 @@ C.. divide through by RHOII^P
 C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                   DO J=1,I_V
                      S=SS
-#ifdef __CMPLX
+#ifdef CMPLX_
                      S=S*RIJMAT(J,I)*conjg(RIJMAT(1,I))
 #else
                      S=S*RIJMAT(J,I)*(RIJMAT(1,I))
@@ -617,7 +617,7 @@ C.. calculate <D|H exp(-b H)|D>/RHO_ii^P
                U=R
 C/RII
                DO J=1,I_V
-#ifdef __CMPLX
+#ifdef CMPLX_
                   T=HIJS2(J)*RIJMAT(J,I)*conjg(RIJMAT(1,I))
 #else
                   T=HIJS2(J)*RIJMAT(J,I)*(RIJMAT(1,I))

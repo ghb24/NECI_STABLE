@@ -131,7 +131,7 @@ module ParallelHelper
 #ifdef PARALLEL
     ! MpiDetInt needs to be defined here, so that it can make use of the
     ! above
-#ifdef __INT64
+#ifdef INT64_
     integer(MPIArg), parameter :: MpiDetInt = MPI_INTEGER8
 #else
     integer(MPIArg), parameter :: MpiDetInt = MPI_INTEGER4
@@ -399,7 +399,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr, rptr

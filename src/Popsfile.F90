@@ -1080,7 +1080,7 @@ r_loop: do while(.not.tStoreDet)
             tot_walkers = int(0.95 * InitWalkers * nNodes, int64)
             do run = 1, inum_runs
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                 if ((tLetInitialPopDie .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) < tot_walkers) .or. &
                     ((.not. tLetInitialPopDie) .and. sum(AllTotParts(min_part_type(run):max_part_type(run))) > tot_walkers)) then
                     write(6,'("WALKCONTGROW set in input, but simulation already exceeds target number of particles")')
@@ -1144,7 +1144,7 @@ r_loop: do while(.not.tStoreDet)
         character(len=*) , parameter :: this_routine='CheckPopsParams'
 
         !Ensure all NIF and symmetry options the same as when popsfile was written out.
-#ifdef __INT64
+#ifdef INT64_
         if(.not.tPop64Bit) call stop_all(this_routine,"Popsfile created with 32 bit walkers, but now using 64 bit.")
 #else
         if(tPop64Bit) call stop_all(this_routine,"Popsfile created with 64 bit walkers, but now using 32 bit.")
@@ -1981,12 +1981,12 @@ r_loop: do while(.not.tStoreDet)
 
         ! And stop timing
         call halt_timer(write_timer)
-#ifdef _MOLCAS_
+
         if(allocated(Parts)) then
           deallocate(Parts)
           call LogMemDealloc('Popsfile',PartsTag)
         end if
-#endif
+
         if(allocated(fvals)) deallocate(fvals)
         ! Reset some globals
         AllSumNoatHF = 0
@@ -2135,7 +2135,7 @@ r_loop: do while(.not.tStoreDet)
 
         if (bWritten) then
 
-            ! Write output in the desired format. If __INT64, we are
+            ! Write output in the desired format. If INT64_, we are
             ! including the flag information with the signs in storage in
             ! memory --> need to extract these before outputting them.
             flg = extract_flags(det)
@@ -2512,7 +2512,7 @@ r_loop: do while(.not.tStoreDet)
                 RealTempSign(j) = transfer(TempSign64, RealTempSign(j))
             enddo
 
-#ifdef __INT64
+#ifdef INT64_
             if (.not.tPop64BitDets) then
                 ! If we are using 64 bit integers, but have read in 32 bit
                 ! integers, then we need to convert them.
@@ -2948,7 +2948,7 @@ r_loop: do while(.not.tStoreDet)
                 RealTempSign(j) = transfer(TempSign64, RealTempSign(j))
             enddo
 
-#ifdef __INT64
+#ifdef INT64_
             if (.not.tPop64BitDets) then
                 ! If we are using 64 bit integers, but have read in 32 bit
                 ! integers, then we need to convert them.

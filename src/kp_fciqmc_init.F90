@@ -62,7 +62,7 @@ contains
         scaling_factor = 1.0_dp
 
         tPairedReplicas = .true.
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         nreplicas = 2
 #endif
         tOrthogKPReplicas = .false.
@@ -78,7 +78,7 @@ contains
             case("END-KP-FCIQMC")
                 exit read_inp
             case("EXCITED-STATE-KP")
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
                 tExcitedStateKP = .true.
                 call geti(kp%nvecs)
 #else
@@ -289,7 +289,7 @@ contains
                 kp_trial_space_in%tFCI = .false.
             case("UNPAIRED-REPLICAS")
                 tPairedReplicas = .false.
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
                 nreplicas = 1
 #endif
             case("ORTHOGONALISE-REPLICAS")
@@ -368,14 +368,14 @@ contains
             tSemiStochasticKPHamil = .false.
         end if
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         ! The number of *repeated* replicas for a particular state.
         ! i.e. if tExcitedState = .true. then this is the number of repeated
         ! replicas for each excited state. If tExcitedState = .false. (doing
         ! the old KP-FCIQMC algorithm), this is the number of repeats for the
         ! KP-FCIQMC wave function.
 
-#ifndef __CMPLX
+#ifndef CMPLX_
         if (tPairedReplicas) then
             lenof_sign_kp = 2
         else

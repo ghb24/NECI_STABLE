@@ -1652,7 +1652,7 @@ contains
                     call construct_ijab_one (i, j, k, l, vasp_int(1,0))
                     call construct_ijab_one (i, l, k, j, vasp_int(1,1))
                 end if
-#ifdef __CMPLX
+#ifdef CMPLX_
                 !cpp to avoid gfortran compiler warnings
                 UElems(0) = vasp_int(1,0)
                 UElems(1) = vasp_int(1,1)
@@ -1663,7 +1663,7 @@ contains
                 ! Bit 0 tells us which integral in the slot we need
                 hel = UElems(iand(iType, 1))
                 ! Bit 1 tells us whether we need to complex conj the integral
-#ifdef __CMPLX
+#ifdef CMPLX_
                 if (btest(iType, 1)) hel = conjg(hel)
 #endif
             else
@@ -1689,7 +1689,7 @@ contains
                 ! Bit 0 tells us which integral in the slot we need
                 hel = UElems (iand(iType, 1))
                 ! Bit 1 tells us whether we need to complex conj the integral
-#ifdef __CMPLX
+#ifdef CMPLX_
                 if (btest(iType, 1)) hel = conjg(hel)
 #endif
             endif
@@ -1725,7 +1725,7 @@ contains
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
 !        integer, dimension(3) :: ksymx,ksymy,ksymx_c
-#ifdef __CMPLX
+#ifdef CMPLX_
         character(len=*), parameter :: t_r='get_umat_el_comporb_spinorbs'
 #endif
 
@@ -1758,7 +1758,7 @@ contains
 !            write(6,*) "Symmetry forbidden", i,j,k,l
            hel = 0
         endif
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(t_r,"Should not be requesting a complex integral")
 #endif
 
@@ -1784,7 +1784,7 @@ contains
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
-#ifdef __CMPLX
+#ifdef CMPLX_
         character(len=*), parameter :: t_r='get_umat_el_comporb_notspinorbs'
 #endif
 
@@ -1809,7 +1809,7 @@ contains
         else
             hel = 0
         endif
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(t_r,"Should not be requesting a complex integral")
 #endif
 
@@ -1890,7 +1890,7 @@ contains
         HElement_t(dp) :: hel
 
         hel = UMAT (UMatInd(idi, idj, idk, idl))
-#ifdef __CMPLX
+#ifdef CMPLX_
         hel = UMatConj(idi, idj, idk, idl, hel)
 #endif
 

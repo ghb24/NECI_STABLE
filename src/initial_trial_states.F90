@@ -142,7 +142,7 @@ contains
 
             allocate(evec_abs(ndets_all_procs), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
-            evec_abs = 0.0_dp
+            evec_abs = 0
         endif
 
         ! Perform the Lanczos procedure in parallel.
@@ -327,7 +327,7 @@ contains
 
             allocate(evec_abs(ndets_all_procs), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
-            evec_abs = 0.0_dp
+            evec_abs = 0
 
 
             ! [W.D.]
@@ -340,7 +340,7 @@ contains
 
             ! Perform a direct diagonalisation in the trial space.
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             ! First to build the Hamiltonian matrix
             ndets_int=int(ndets_all_procs,sizeof_int)
             allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)

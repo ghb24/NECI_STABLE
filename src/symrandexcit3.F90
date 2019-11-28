@@ -27,7 +27,7 @@ module symrandexcit3
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
     use Parallel_neci
-    use util_mod, only: binary_search_first_ge, unused
+    use util_mod, only: binary_search_first_ge
     implicit none
 
 contains
@@ -51,9 +51,7 @@ contains
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit3'
 
-#ifdef __WARNING_WORKAROUND
-        call unused(part_type)
-#endif
+        unused_var(part_type)
 
         ! Just in case
         ilutJ(0) = -1
@@ -419,7 +417,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         nJ = nI
         call FindExcitDet (ExcitMat, nJ, 1, tParity)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! For debugging purposes only (O[N] operation).
         if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
             call stop_all(this_routine, 'Invalid excitation generated')

@@ -30,6 +30,7 @@ module FciMCParMod
                            compare_amps_period, PopsFileTimer, &
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
+                           tCoupleCycleOutput, StepsPrint, &
                            t_hist_fvals, enGrid, arGrid, &
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
                            tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
@@ -105,10 +106,6 @@ module FciMCParMod
     use sltcnd_mod, only: sltcnd_excit
     use hdf5_popsfile, only: write_popsfile_hdf5
 
-#ifdef MOLPRO
-    use outputResult
-#endif
-
     implicit none
 
     !array for timings of the main compute loop
@@ -126,9 +123,6 @@ module FciMCParMod
 
         real(dp), intent(out), allocatable :: energy_final_output(:)
 
-#ifdef MOLPRO
-        integer :: nv, ityp(1)
-#endif
         integer :: iroot, isymh
         real(dp) :: Weight, Energyxw, BestEnergy
         INTEGER :: error, irdm
@@ -159,10 +153,8 @@ module FciMCParMod
         HElement_t(dp):: InstE(inum_runs)
         HElement_t(dp):: AccumE(inum_runs)
         integer :: ExcitLevel
-#ifdef MOLPRO
-        real(dp) :: get_scalar
-        include "common/molen"
-#endif
+
+        logical :: t_comm_done
 
         ! Procedure pointer temporaries
         procedure(generate_excitation_t), pointer :: ge_tmp
@@ -472,7 +464,21 @@ module FciMCParMod
                   ! hence, nRefs cannot be updated that often
                   if(mod(iter,nRefUpdateInterval) == 0) call adjust_nRefs()
                   call update_reference_space(tReadPops .or. all(.not. tSinglePartPhase))
-                  endif
+               endif
+            endif
+
+            ! as alternative to the update cycle bound output, a specified output interval
+            ! may be given that is not correlated with the update cycle
+            ! -> do the output independently, only requires communication + write
+            ! An output frequency below 1 means no output
+            t_comm_done = .false.
+            if( StepsPrint > 0 .and. .not. tCoupleCycleOutput) then
+               if( mod(Iter, StepsPrint) == 0) then
+                  ! just perform a communication + output, without update
+                   call iteration_output_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
+                  ! mark that the communication has been done
+                   t_comm_done = .true.
+               endif
             endif
 
             if (mod(Iter, StepsSft) == 0) then
@@ -509,7 +515,11 @@ module FciMCParMod
                 ! things). Generally, collate information from all processors,
                 ! update statistics and output them to the user.
                 call set_timer(Stats_Comms_Time)
-                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, tPairedReplicas)
+                call calculate_new_shift_wrapper (iter_data_fciqmc, TotParts, &
+                    tPairedReplicas, t_comm_req = .not. t_comm_done)
+                ! If the output is in sync, do a non-communicated output
+                if(tCoupleCycleOutput) call iteration_output_wrapper(iter_data_fciqmc, TotParts, &
+                    tPairedReplicas, t_comm_req = .false.)
                 call halt_timer(Stats_Comms_Time)
 
                 ! in calculate_new_shift_wrapper output is plotted too!
@@ -968,29 +978,6 @@ module FciMCParMod
             end do
         end if
 
-#ifdef MOLPRO
-        call output_result('FCIQMC','ENERGY',BestEnergy,iroot,isymh)
-        if (iroot.eq.1) call clearvar('ENERGY')
-        ityp(1)=1
-        call setvar('ENERGY',BestEnergy,'AU',ityp,1,nv,iroot)
-        do i=10,2,-1
-            gesnam(i)=gesnam(i-1)
-            energ(i)=energ(i-1)
-        enddo
-        gesnam(i) = 'FCIQMC'
-        energ(i) = get_scalar("ENERGY")
-        if(.not.(tNoShiftValue.and.tNoProjEValue)) then
-            call output_result('FCIQMC','FCIQMC_ERR',BestErr,iroot,isymh)
-            if (iroot.eq.1) call clearvar('FCIQMC_ERR')
-            call setvar('FCIQMC_ERR',BestErr,'AU',ityp,1,nv,iroot)
-!            do i=10,2,-1
-!                gesnam(i)=gesnam(i-1)
-!                energ(i)=energ(i-1)
-!            enddo
-!            gesnam(i) = 'FCIQMC_ERR'
-!            energ(i) = get_scalar("FCIQMC_ERR")
-        endif
-#endif
         CALL MolproPluginResult('ENERGY',[BestEnergy])
         CALL MolproPluginResult('FCIQMC_ERR',[min(ProjE_Err_re,shift_err)])
         write(iout,"(/)")
@@ -1256,7 +1243,7 @@ module FciMCParMod
                 SpawnSign = get_all_spawn_pops(j)
                 do run = 1, inum_runs
                     if(.not. is_run_unnocc(SignCurr, run) .and. .not. is_run_unnocc(SpawnSign, run)) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                         !For complex walkers, we consider the sign changed when the argument of the complex
                         !number changes more than pi/2.
 
@@ -1274,7 +1261,7 @@ module FciMCParMod
                         call reset_tau_int(j, run)
                         call reset_shift_int(j, run)
                         call set_spawn_pop(j, min_part_type(run), SignCurr(min_part_type(run)))
-#ifdef __CMPLX
+#ifdef CMPLX_
                         call set_spawn_pop(j, max_part_type(run), SignCurr(max_part_type(run)))
 #endif
                     else
@@ -1649,7 +1636,6 @@ module FciMCParMod
     end subroutine PerformFCIMCycPar
 
     subroutine test_routine()
-
         integer(n_int) :: list_1(0:NIfTot, 10)
         integer(n_int) :: list_2(0:NIfTot, 12)
         integer(n_int) :: list_out(0:NIfTot, 11)

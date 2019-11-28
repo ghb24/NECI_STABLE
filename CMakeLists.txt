@@ -63,11 +63,6 @@ neci_add_option(
     REQUIRED_PACKAGES HDF5_NECI ) # HDF5_NECI adds the Fortran COMPONENT to the default (and the ability to build)
 
 neci_add_option(
-    FEATURE MOLCAS
-    DEFAULT OFF
-    DESCRIPTION "Build NECI with molcas functionality" )
-
-neci_add_option(
     FEATURE SHARED
     DEFAULT OFF
     DESCRIPTION "Build using shared libraries, rather than static linking" )
@@ -87,18 +82,18 @@ find_package( LAPACK_NECI REQUIRED )
 
 set(${PROJECT_NAME}_CONFIGURATIONS neci kneci dneci mneci kdneci kmneci)
 set(${PROJECT_NAME}_neci_DEFINITIONS HElement_t=real)
-set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex __CMPLX)
-set(${PROJECT_NAME}_dneci_DEFINITIONS HElement_t=real __DOUBLERUN)
-set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real __PROG_NUMRUNS)
-set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex __CMPLX __DOUBLERUN)
-set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex __CMPLX __PROG_NUMRUNS)
+set(${PROJECT_NAME}_kneci_DEFINITIONS HElement_t=complex CMPLX_)
+set(${PROJECT_NAME}_dneci_DEFINITIONS HElement_t=real DOUBLERUN_)
+set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real PROG_NUMRUNS_)
+set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex CMPLX_ DOUBLERUN_)
+set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex CMPLX_ PROG_NUMRUNS_)
 set(${PROJECT_NAME}_neci_WARNERR TRUE)
 set(${PROJECT_NAME}_dneci_WARNERR TRUE)
 
 # Global (always on) defines
 
 list(APPEND NECI_GLOBAL_DEFINES
-    __Linux
+    Linux_
     MAXMEM=99999
     DSFMT_MEXP=19937
     _CONFIG="cmake-${CMAKE_Fortran_COMPILER_ID}-$<$<BOOL:${HAVE_MPI}>:par>-${CMAKE_BUILD_TYPE}"
@@ -108,23 +103,22 @@ list(APPEND NECI_GLOBAL_DEFINES
     $<$<NOT:$<BOOL:${${PROJECT_NAME}_DISABLE_SSE2}>>:HAVE_SSE2>
 
     # Is this a 32/64bit build
-    $<$<BOOL:${${PROJECT_NAME}_64BIT_BUILD}>:__INT64>
+    $<$<BOOL:${${PROJECT_NAME}_64BIT_BUILD}>:INT64_>
     $<$<BOOL:${${PROJECT_NAME}_64BIT_BUILD}>:POINTER8>
 
     # Is this a debug build
-    $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:__DEBUG>
+    $<$<STREQUAL:${CMAKE_BUILD_TYPE},DEBUG>:DEBUG_>
 
     # Global defines that depend on options
     $<$<BOOL:${HAVE_MPI}>:PARALLEL>
-    $<$<BOOL:${HAVE_SHARED_MEMORY}>:__SHARED_MEM>
+    $<$<BOOL:${HAVE_SHARED_MEMORY}>:SHARED_MEM_>
     $<$<NOT:$<BOOL:${HAVE_FFTW}>>:DISABLE_FFTW>
-    $<$<BOOL:${HAVE_HDF5}>:__USE_HDF>
-    $<$<BOOL:${HAVE_MOLCAS}>:_MOLCAS_>
+    $<$<BOOL:${HAVE_HDF5}>:USE_HDF_>
 
     # Identify the compiler to the code
-    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},Intel>:__IFORT>
-    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},GNU>:__GFORTRAN__>
-    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},PGI>:__PGI>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},Intel>:IFORT_>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},GNU>:GFORTRAN_>
+    $<$<STREQUAL:${CMAKE_Fortran_COMPILER_ID},PGI>:PGI_>
 )
 
 # Add the source directory as an include path for everything

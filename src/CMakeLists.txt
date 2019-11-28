@@ -33,7 +33,6 @@ set( SRC_FILES
     Determinants.F90
     determ_proj.F90
     detham.F
-    DipMoms.F
     direct_ci.F90
     enumerate_excitations.F90
     ErrorAnalysis.F90
@@ -71,7 +70,7 @@ set( SRC_FILES
     hilbert_space_size.F90
     hist_data.F90
     hist.F90
-    HPHFIntegrals.F90
+#     HPHFIntegrals.F90
     HPHFRandExcit.F90
     hubbard.F
     init_coul2D.F
@@ -200,6 +199,10 @@ set( SRC_FILES
     lib/fortran_strings.f90
 )
 
+set( FYPP_SRC_FILES
+    HPHFIntegrals.fpp
+)
+
 set( TEMPLATED_SRC_FILES
 
     BinSearch.F90.template
@@ -212,7 +215,6 @@ set( TEMPLATED_SRC_FILES
     lib/util_mod_cpts.F90.template
     lib/util_mod_numerical.F90.template
     lib/util_mod_epsilon_close.F90.template
-    lib/util_mod_unused.F90.template
 )
 
 
@@ -260,6 +262,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         OUTPUT_NAME ${_config}
         SOURCES ${SRC_FILES}
         TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
+        FYPP_SOURCES ${FYPP_SRC_FILES}
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
@@ -287,5 +290,3 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     )
 
 endforeach()
-
-add_subdirectory( test_loop )

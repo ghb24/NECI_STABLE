@@ -931,7 +931,7 @@ contains
 
         integer, intent(in) :: j
         real(dp) :: rate
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'get_spawn_rate'
 #endif
 
@@ -944,7 +944,7 @@ contains
 
         integer, intent(in) :: j
         real(dp), intent(in) :: rate
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'set_spawn_rate'
 #endif
 

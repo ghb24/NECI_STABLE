@@ -485,13 +485,13 @@ module hamiltonian_linalg
 
         do i = 1, this%space_sizes(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
-#ifdef __CMPLX
+#ifdef CMPLX_
                 this%partial_H_ket(i) = this%partial_H_ket(i) + &
                     sparse_ham(i)%elements(j)*output_vector(sparse_ham(i)%positions(j))
 #endif
             end do
         end do
-#ifdef __CMPLX
+#ifdef CMPLX_
         call MPIGatherV(this%partial_H_ket, output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
 #else
         call MPIGatherV(cmplx(this%partial_H_ket,0.0_dp,dp), output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
@@ -528,15 +528,12 @@ module hamiltonian_linalg
         use direct_ci, only: perform_multiplication, transfer_from_block_form, transfer_to_block_form
         use FciMCData, only: davidson_ras, davidson_classes, davidson_strings, davidson_iluts, davidson_excits
         use SystemData, only: ecore
-        use util_mod, only: unused
 
         complex(dp), intent(in) :: input_vector(:)
         complex(dp), intent(out) :: output_vector(:)
         character(*), parameter :: t_r = "mult_hamil_vector_direct_ci_complex"
 
-#ifdef __WARNING_WORKAROUND
-        call unused(input_vector)
-#endif
+        unused_var(input_vector)
         output_vector = 0.0d0
         call stop_all(t_r, "not yet implemented for complex CI coefficients")
 

@@ -64,10 +64,7 @@ contains
 
         integer :: nsing, ndoub, nexcit
 
-#ifdef __WARNING_WORKAROUND
-        call unused(part_type); call unused(exFlag);
-        call unused(store%nel_alpha)
-#endif
+        unused_var(part_type); unused_var(exFlag); unused_var(store)
 
         ! Count how many singles and doubles there are!
         call CountExcitations3 (nI, 3, nsing, ndoub)
@@ -181,9 +178,7 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag); call unused(part_type)
-#endif
+        unused_var(exFlag); unused_var(part_type)
 
         HElGen = HEl_zero
         ! We now use the class counts to do the construction. This is an
@@ -215,7 +210,7 @@ contains
         end if
 
         ! And a careful check!
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (.not. IsNullDet(nJ)) then
             pgen2 = calc_pgen_4ind_weighted(nI, ilutI, ExcitMat, ic, &
                                             store%ClassCountUnocc)
@@ -429,7 +424,7 @@ contains
         ! Get the new index
         cc_ret = ClassCountInd (spn_j, sym_j, mom_j)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (cc_ret /= -1) then
             if (class_count_ml(cc_ind) /= mom_i) &
                 call stop_all(this_routine, 'wrong_mom_i')
@@ -1158,7 +1153,7 @@ contains
 
         ! do i need the matele cutoff here too? i shouldnt..
         ! check in debug mode!
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (t_matele_cutoff) then
             if (cum_sum < matele_cutoff) then
                 call stop_all(this_routine, &
@@ -1244,10 +1239,7 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag); call unused(part_type);
-        call unused(store%nel_alpha)
-#endif
+        unused_var(exFlag); unused_var(part_type); unused_var(store)
 
         HElGen = HEl_zero
         if (genrand_real2_dSFMT() < pSingles) then
@@ -1269,7 +1261,7 @@ contains
         end if
 
         ! And a careful check!
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (.not. IsNullDet(nJ)) then
             pgen2 = calc_pgen_4ind_reverse (nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then

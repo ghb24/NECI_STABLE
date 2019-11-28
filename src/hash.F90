@@ -107,7 +107,7 @@ module hash
         integer :: hash_val
         type(ll_node), pointer :: prev, curr
         logical :: found
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(len=*), parameter :: this_routine = "remove_hash_table_entry"
 #endif
 
@@ -148,7 +148,7 @@ module hash
         integer :: hash_val
         type(ll_node), pointer :: prev, curr
         logical :: found
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(len=*), parameter :: this_routine = "update_hash_table_ind"
 #endif
 
@@ -397,7 +397,7 @@ module hash
         real(dp) :: real_sign(lenof_sign)
         logical :: found, tCoreDet
         type(ll_node), pointer :: temp_node, prev
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(len=*), parameter :: this_routine = "rm_unocc_dets_from_hash_table"
 #endif
 

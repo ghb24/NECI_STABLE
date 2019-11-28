@@ -1,11 +1,10 @@
-
+#include "macros.h"
 
 !Diagonalize a compressed hamiltonian (in HAMIL), returning eigenvalues in W and eigenvectors in CK.
        SUBROUTINE HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,
      &                     NBLOCKSTARTS,NBLOCKS)
          use constants, only: dp,int32!,n_int
          use SystemData, only: BasisFN
-         use util_mod, only: unused
          use global_utilities
          use HElem, only: HElement_t_size
 !         use DetCalcData, only: NMRKS
@@ -27,9 +26,8 @@
          type(timer), save :: proc_timer
          real(dp) GSEN
          character(len=*), parameter :: t_r="HDIAG_neci"
-#ifdef __WARNING_WORKAROUND
-        call unused(WORK)
-#endif
+
+         unused_var(WORK)
          proc_timer%timer_name='HDIAG     '
          call set_timer(proc_timer)
          GSEN=1.D100
@@ -52,7 +50,7 @@ C.. Now we fill the RIJ array
              !ensure hermitian
              do i=1,ndet
                  do j=1,i-1
-#ifdef __CMPLX
+#ifdef CMPLX_
                      !To avoid compiler warnings
                      CK(i,j)=CONJG(CMPLX(CK(j,i),kind=kind(0.0_dp)))
 #endif
@@ -80,14 +78,14 @@ C.. Diagonalize
          DO I=1,NBLOCKS
             NBS=NBLOCKSTARTS(I)
             IF(HElement_t_size.EQ.1) THEN
-#ifndef __CMPLX
+#ifndef CMPLX_
                CALL DSYEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK2,3*NDET,INFO)
 #else
                call stop_all(t_r,"This block for real calcs only")
 #endif
             ELSE
-#ifdef __CMPLX
+#ifdef CMPLX_
                  CALL ZHEEV('V','U',NBLOCKSTARTS(I+1)-NBS,CK(NBS,NBS),
      &            NDET,W(NBS),WORK,4*NDET,WORK2,INFO)
 #else

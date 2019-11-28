@@ -7,14 +7,14 @@ module fcimc_output
                            instant_s2_multiplier, tPrintFCIMCPsi, &
                            iWriteHistEvery, tDiagAllSpaceEver, OffDiagMax, &
                            OffDiagBinRange, tCalcVariationalEnergy, &
-                           iHighPopWrite, tLogEXLEVELStats, &
+                           iHighPopWrite, tLogEXLEVELStats, StepsPrint, &
                            maxInitExLvlWrite, AllInitsPerExLvl
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
+                        tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
                         tGlobalInitFlag, t_truncate_spawns
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -106,7 +106,7 @@ contains
                 write (EXLEVELStats_unit, '()', advance='yes')
             endif ! tLogEXLEVELStats
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             if(tMCOutput) then
                 write(iout, '(a)') "       Step     Shift      WalkerCng(Re)  &
                        &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
@@ -140,7 +140,7 @@ contains
 
             write(fcimcstats_unit, "()", advance = 'yes')
 
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -167,7 +167,7 @@ contains
 
            write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
-#ifndef __CMPLX
+#ifndef CMPLX_
             if(tMCOutput) then
                 write(iout, "(A)", advance = 'no') "        Step    Shift           &
                       &WalkerCng       GrowRate        TotWalkers      Annihil         &
@@ -224,7 +224,7 @@ contains
 
         ! What is the current value of S2
         if (tCalcInstantS2) then
-            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+            if (mod(iter / StepsPrint, instant_s2_multiplier) == 0) then
                 if (tSpatialOnlyhash) then
                     curr_S2 = calc_s_squared (.false.)
                 else
@@ -237,7 +237,7 @@ contains
 
         ! What is the current value of S2 considering only initiators
         if (tCalcInstantS2Init) then
-            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) then
+            if (mod(iter / StepsPrint, instant_s2_multiplier_init) == 0) then
                 if (tSpatialOnlyhash) then
                     curr_S2_init = calc_s_squared (.true.)
                 else
@@ -259,15 +259,15 @@ contains
 
         if (iProcIndex == root) then
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,&
 
                                   &g16.7)",advance='no') &
                 Iter + PreviousCycles, &                !1.
                 DiagSft, &                              !2.
-                AllTotParts(1) - AllTotPartsOld(1), &   !3.
-                AllTotParts(2) - AllTotPartsOld(2), &   !4.
+                AllTotParts(1) - AllTotPartsLastOutput(1), &   !3.
+                AllTotParts(2) - AllTotPartsLastOutput(2), &   !4.
                 AllTotParts(1), &                       !5.
                 AllTotParts(2), &                       !6.
                 real(ProjectionE, dp), &                !7.     real \sum[ nj H0j / n0 ]
@@ -286,9 +286,9 @@ contains
                 TotImagTime, &                               !20.
                 HFShift, &                                   !21.
                 InstShift, &                                 !22.
-                real((AllHFCyc*conjg(AllHFCyc)),dp), &     !23 |n0|^2  denominator for both calcs
-                real((AllENumCyc*conjg(AllHFCyc)),dp), &   !24. Re[\sum njH0j]xRe[n0]+Im[\sum njH0j]xIm[n0]   No div by StepsSft
-                aimag(AllENumCyc*conjg(AllHFCyc)), &       !25.Im[\sum njH0j]xRe[n0]-Re[\sum njH0j]xIm[n0]   since no physicality
+                real((AllHFOut*conjg(AllHFOut)),dp), &     !23 |n0|^2  denominator for both calcs
+                real((AllENumOut*conjg(AllHFOut)),dp), &   !24. Re[\sum njH0j]xRe[n0]+Im[\sum njH0j]xIm[n0]   No div by StepsPrint
+                aimag(AllENumOut*conjg(AllHFOut)), &       !25.Im[\sum njH0j]xRe[n0]-Re[\sum njH0j]xIm[n0]   since no physicality
                 sqrt(sum(AllNoatHF**2)) / norm_psi, & !26
                 norm_psi, &                           !27
                 curr_S2, &                            !28
@@ -296,9 +296,9 @@ contains
                 all_max_cyc_spawn                     !30
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(7(1X,es18.11))", advance = 'no') &
-                    (tot_trial_numerator(1) / StepsSft), &              ! 31. 32
-                    (tot_trial_denom(1) / StepsSft), &                  ! 33. 34
-                    abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft))), &  ! 35.
+                    (tot_trial_numerator(1) / StepsPrint), &              ! 31. 32
+                    (tot_trial_denom(1) / StepsPrint), &                  ! 33. 34
+                    abs((tot_trial_denom(1) / (norm_psi(1)*StepsPrint))), &  ! 35.
                     tot_trial_numerator(1)/tot_trial_denom(1)           ! 36. 37.
                 end if
                 write(fcimcstats_unit, "()", advance = 'yes')
@@ -307,8 +307,8 @@ contains
                 write (iout, "(I12,13G16.7,2I12,G13.5)") &
                     Iter + PreviousCycles, &
                     DiagSft, &
-                    AllTotParts(1) - AllTotPartsOld(1), &
-                    AllTotParts(2) - AllTotPartsOld(2), &
+                    AllTotParts(1) - AllTotPartsLastOutput(1), &
+                    AllTotParts(2) - AllTotPartsLastOutput(2), &
                     AllTotParts(1), &
                     AllTotParts(2), &
                     real(ProjectionE, dp), &
@@ -333,9 +333,9 @@ contains
                    inits_proje_iter(1) + Hii
                if(tTrialWavefunction .or. tStartTrialLater) &
                     write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
-                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
+                    tot_init_trial_numerator(1)/StepsPrint, tot_init_trial_denom(1)/StepsPrint
                do j = 1, maxInitExLvlWrite
-                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)/StepsSft
+                  write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)/StepsPrint
                end do
                write(initiatorstats_unit,'()', advance = 'yes')
             endif
@@ -344,13 +344,13 @@ contains
                     Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(2), &                              ! 2.
-                AllTotParts(2) - AllTotPartsOld(2), &      ! 3.
+                AllTotParts(2) - AllTotPartsLastOutput(2), &      ! 3.
                 AllGrowRate(2), &                          ! 4.
                 AllTotParts(2), &                          ! 5.
                 AllAnnihilated(2), &                       ! 6.
@@ -371,8 +371,8 @@ contains
                 HFShift(2), &                              ! 21.
                 InstShift(2), &                            ! 22.
                 proje_iter(2) + OutputHii, &                     ! 23.
-                (AllHFCyc(2) / StepsSft), &                ! 24.
-                (AllENumCyc(2) / StepsSft), &              ! 25.
+                (AllHFOut(2) / StepsPrint), &                ! 24.
+                (AllENumOut(2) / StepsPrint), &              ! 25.
                 AllNoatHF(2) / norm_psi(2), &              ! 26.
                 norm_psi(2), &                             ! 27.
                 curr_S2(2), curr_S2_init(2), &             ! 28, 29.
@@ -382,9 +382,9 @@ contains
                 all_max_cyc_spawn                          ! 33.
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit2, "(3(1X,es17.10))", advance = 'no') &
-                    (tot_trial_numerator(2) / StepsSft), &
-                    (tot_trial_denom(2) / StepsSft), &
-                    abs(tot_trial_denom(2) / (norm_psi(2)*StepsSft))
+                    (tot_trial_numerator(2) / StepsPrint), &
+                    (tot_trial_denom(2) / StepsPrint), &
+                    abs(tot_trial_denom(2) / (norm_psi(2)*StepsPrint))
                 end if
                 if(t_truncate_spawns) then
                    write(fcimcstats_unit2, "(1X,es18.11)", advance = 'no') AllTruncatedWeight
@@ -392,19 +392,19 @@ contains
 
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
-#ifndef __CMPLX
+#ifndef CMPLX_
 
             write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,4g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
                 DiagSft(1), &                              ! 2.
-                AllTotParts(1) - AllTotPartsOld(1), &      ! 3.
+                AllTotParts(1) - AllTotPartsLastOutput(1), &      ! 3.
                 AllGrowRate(1), &                          ! 4.
                 AllTotParts(1), &                          ! 5.
-                AllAnnihilated(1), &                       ! 6.
-                AllNoDied(1), &                            ! 7.
-                AllNoBorn(1), &                            ! 8.
+                AllAnnihilated(1)/StepsPrint, &            ! 6.
+                AllNoDied(1)/StepsPrint, &                 ! 7.
+                AllNoBorn(1)/StepsPrint, &                 ! 8.
                 ProjectionE(1), &                          ! 9.
                 AvDiagSft(1), &                            ! 10.
                 proje_iter(1), &                           ! 11.
@@ -420,8 +420,8 @@ contains
                 HFShift(1), &                              ! 21.
                 InstShift(1), &                            ! 22.
                 proje_iter(1) + OutputHii, &                     ! 23.
-                (AllHFCyc(1) / StepsSft), &                ! 24.
-                (AllENumCyc(1) / StepsSft), &              ! 25.
+                (AllHFOut(1) / StepsPrint), &                ! 24.
+                (AllENumOut(1) / StepsPrint), &              ! 25.
                 AllNoatHF(1) / norm_psi(1), &              ! 26.
                 norm_psi(1), &                             ! 27.
                 curr_S2(1), curr_S2_init(1), &             ! 28, 29.
@@ -431,9 +431,9 @@ contains
                 all_max_cyc_spawn                          ! 33
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     write(fcimcstats_unit, "(3(1X,es18.11))", advance = 'no') &
-                    (tot_trial_numerator(1) / StepsSft), &              ! 34.
-                    (tot_trial_denom(1) / StepsSft), &                  ! 35.
-                    abs((tot_trial_denom(1) / (norm_psi(1)*StepsSft)))  ! 36.
+                    (tot_trial_numerator(1) / StepsPrint), &              ! 34.
+                    (tot_trial_denom(1) / StepsPrint), &                  ! 35.
+                    abs((tot_trial_denom(1) / (norm_psi(1)*StepsPrint)))  ! 36.
                  end if
                  write(fcimcstats_unit, "(2g16.7)", advance = 'no') &
                       allNInvalidExcits, & ! 34/37.
@@ -447,7 +447,7 @@ contains
                 write (iout, "(I12,10G16.7)", advance = 'no') &
                     Iter + PreviousCycles, &
                     DiagSft(1), &
-                    AllTotParts(1) - AllTotPartsOld(1), &
+                    AllTotParts(1) - AllTotPartsLastOutput(1), &
                     AllGrowRate(1), &
                     AllTotParts(1), &
                     AllAnnihilated(1), &
@@ -480,7 +480,7 @@ contains
                    inits_proje_iter(1) + Hii
                if(tTrialWavefunction .or. tStartTrialLater) &
                     write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
-                    tot_init_trial_numerator(1)/StepsSft, tot_init_trial_denom(1)/StepsSft
+                    tot_init_trial_numerator(1)/StepsPrint, tot_init_trial_denom(1)/StepsPrint
                do j = 1, maxInitExLvlWrite
                   write(initiatorstats_unit,'(1I20)', advance ='no') AllInitsPerExLvl(j)
                end do
@@ -593,9 +593,7 @@ contains
         logical :: init
 
 ! Is in the interface to refactor the procedure lateron.
-#ifdef __WARNING_WORKAROUND
-        call unused(iter_data%update_iters)
-#endif
+        unused_var(iter_data)
 
         call getProjEOffset()
 
@@ -637,7 +635,7 @@ contains
             if (.not. tOrthogonaliseReplicas) then
                 call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
                 call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
-#ifdef __CMPLX
+#ifdef CMPLX_
                 call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
                 call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
 #else
@@ -649,7 +647,7 @@ contains
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
 !!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
 !!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
-#ifdef __CMPLX
+#ifdef CMPLX_
                 call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
                                'Tot. Proj. E')
                 call stats_out(state,.true., aimag(proje_iter_tot) + OutputHii, &
@@ -678,7 +676,7 @@ contains
 
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
@@ -687,52 +685,52 @@ contains
                                 'Ref (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ")")
-#ifdef __CMPLX
+#ifdef CMPLX_
                 call stats_out (state, .false., real(proje_iter(p) + OutputHii), &
                                 'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., aimag(proje_iter(p) + OutputHii), &
                                 'Tot ProjE imag (' // trim(adjustl(tmpc)) // ")")
 
-                call stats_out (state, .false., real(AllHFCyc(p) / StepsSft), &
+                call stats_out (state, .false., real(AllHFOut(p) / StepsPrint), &
                                 'ProjE Denom real (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., aimag(AllHFCyc(p) / StepsSft), &
+                call stats_out (state, .false., aimag(AllHFOut(p) / StepsPrint), &
                                 'ProjE Denom imag (' // trim(adjustl(tmpc)) // ")")
 
                 call stats_out (state, .false., &
-                                real((AllENumCyc(p) + OutputHii*AllHFCyc(p))) / StepsSft,&
+                                real((AllENumOut(p) + OutputHii*AllHFOut(p))) / StepsPrint,&
                                 'ProjE Num real (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., &
-                                aimag((AllENumCyc(p) + OutputHii*AllHFCyc(p))) / StepsSft,&
+                                aimag((AllENumOut(p) + OutputHii*AllHFOut(p))) / StepsPrint,&
                                 'ProjE Num imag (' // trim(adjustl(tmpc)) // ")")
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
-                                    real(tot_trial_numerator(p) / StepsSft), &
+                                    real(tot_trial_numerator(p) / StepsPrint), &
                                     'TrialE Num real (' // trim(adjustl(tmpc)) // ")")
                     call stats_out (state, .false., &
-                                    aimag(tot_trial_numerator(p) / StepsSft), &
+                                    aimag(tot_trial_numerator(p) / StepsPrint), &
                                     'TrialE Num imag (' // trim(adjustl(tmpc)) // ")")
 
                     call stats_out (state, .false., &
-                                    real(tot_trial_denom(p) / StepsSft), &
+                                    real(tot_trial_denom(p) / StepsPrint), &
                                     'TrialE Denom real (' // trim(adjustl(tmpc)) // ")")
                     call stats_out (state, .false., &
-                                    aimag(tot_trial_denom(p) / StepsSft), &
+                                    aimag(tot_trial_denom(p) / StepsPrint), &
                                     'TrialE Denom imag (' // trim(adjustl(tmpc)) // ")")
                 end if
 #else
                 call stats_out (state, .false., proje_iter(p) + OutputHii, &
                                 'Tot ProjE (' // trim(adjustl(tmpc)) // ")")
-                call stats_out (state, .false., AllHFCyc(p) / StepsSft, &
+                call stats_out (state, .false., AllHFOut(p) / StepsPrint, &
                                 'ProjE Denom (' // trim(adjustl(tmpc)) // ")")
                 call stats_out (state, .false., &
-                                (AllENumCyc(p) + OutputHii*AllHFCyc(p)) / StepsSft,&
+                                (AllENumOut(p) + OutputHii*AllHFOut(p)) / StepsPrint,&
                                 'ProjE Num (' // trim(adjustl(tmpc)) // ")")
                 if (tTrialWavefunction .or. tStartTrialLater) then
                     call stats_out (state, .false., &
-                                    tot_trial_numerator(p) / StepsSft, &
+                                    tot_trial_numerator(p) / StepsPrint, &
                                     'TrialE Num (' // trim(adjustl(tmpc)) // ")")
                     call stats_out (state, .false., &
-                                    tot_trial_denom(p) / StepsSft, &
+                                    tot_trial_denom(p) / StepsPrint, &
                                     'TrialE Denom (' // trim(adjustl(tmpc)) // ")")
                 end if
 #endif
@@ -758,7 +756,7 @@ contains
                 if (tPrintReplicaOverlaps) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q
-#ifdef __CMPLX
+#ifdef CMPLX_
                         call stats_out(state, .false.,  replica_overlaps_real(p, q),&
                                        '<psi_' // trim(adjustl(tmpc)) // '|' &
                                        // 'psi_' // trim(adjustl(tmpc2)) &
@@ -851,7 +849,7 @@ contains
             call decode_bit_det(TempnI, WalkVecDets(:,i))
             ms = sum(get_spin_pn(Tempni(1:nel)))
             walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(TempSign(1))
-#ifdef __CMPLX
+#ifdef CMPLX_
             walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(TempSign(2))
 #endif
             write(mswalkercounts_unit,*) ms, TempSign
@@ -891,7 +889,7 @@ contains
                 norm1(j)=norm1(j)+AllHistogram(j,i)**2
             enddo
         enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
         norm2=SQRT(sum(norm1))
 #else
         norm1=SQRT(norm1)
@@ -899,7 +897,7 @@ contains
         WRITE(iout,*) "Total FCIMC Wavefuction normalisation:",norm1
         do i=1,Det
             do j=1,lenof_sign
-#ifdef __CMPLX
+#ifdef CMPLX_
                 AllHistogram(j,i)=AllHistogram(j,i)/norm2
 #else
                 AllHistogram(j,i)=AllHistogram(j,i)/norm1(j)
@@ -928,7 +926,7 @@ contains
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
                     ExcitLevel = FindBitExcitLevel(iLutHF, FCIDets(:,i), nel)
                     CALL decode_bit_det(nI,FCIDets(0:NIfTot,i))
-#ifdef __CMPLX
+#ifdef CMPLX_
                     WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,sum(norm)
 #else
                     WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,norm(1)
@@ -996,7 +994,7 @@ contains
                     norm3(j)=norm3(j)+AllAvAnnihil(j,i)**2
                 enddo
             enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
             norm_c=SQRT(sum(norm))
             norm1_c=SQRT(sum(norm1))
             norm2_c=SQRT(sum(norm2))
@@ -1009,7 +1007,7 @@ contains
 #endif
             do i=1,Det
                 do j=1,lenof_sign
-#ifdef __CMPLX
+#ifdef CMPLX_
                     AllHistogram(j,i)=AllHistogram(j,i)/norm_c
                     AllInstHist(j,i)=AllInstHist(j,i)/norm1_c
                     IF(norm2_c.ne.0.0_dp) THEN
@@ -1049,17 +1047,17 @@ contains
                     WRITE(io2,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
-#ifdef __CMPLX
-                IF(AllHFCyc(1).eq.0.0_dp) THEN
-                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsOld)
+#ifdef CMPLX_
+                IF(AllHFOut(1).eq.0.0_dp) THEN
+                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsLastOutput)
                 ELSE
-                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)
+                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumOut/AllHFOut,SUM(AllTotPartsLastOutput)
                 ENDIF
 #else
-                IF(near_zero(AllHFCyc(1))) THEN
-                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllERead,AllTotPartsOld(1)
+                IF(near_zero(AllHFOut(1))) THEN
+                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllERead,AllTotPartsLastOutput(1)
                 ELSE
-                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumCyc(1)/AllHFCyc(1),AllTotPartsOld(1)
+                    WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumOut(1)/AllHFOut(1),AllTotPartsLastOutput(1)
                 ENDIF
 #endif
                 CLOSE(io2)
@@ -1067,10 +1065,10 @@ contains
 
             ELSE
                 OPEN(io2,FILE=abstr2,STATUS='UNKNOWN')
-#ifdef __CMPLX
-                WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumCyc/AllHFCyc,SUM(AllTotPartsOld)
+#ifdef CMPLX_
+                WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumOut/AllHFOut,SUM(AllTotPartsLastOutput)
 #else
-                WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumCyc(1)/AllHFCyc(1),AllTotPartsOld(1)
+                WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumOut(1)/AllHFOut(1),AllTotPartsLastOutput(1)
 #endif
                 CLOSE(io2)
             ENDIF
@@ -1099,7 +1097,7 @@ contains
                           AllInstAnnihil(1,i), AllAvAnnihil(1,i), norm1, &
                           FinalPop, BeforeNormHist(i)
                 ELSE
-#ifdef __CMPLX
+#ifdef CMPLX_
                     WRITE(io1,"(I13,6G25.16)") i, AllHistogram(1,i), sum(norm), &
                           AllInstHist(1,i), AllInstAnnihil(1,i), &
                           AllAvAnnihil(1,i), sum(norm1)
@@ -1408,7 +1406,7 @@ contains
                 call extract_sign (LargestWalkers(:,j), SignCurr)
                 if (any(LargestWalkers(:,j) /= 0)) then
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                     HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                     HighSign = sum(real(abs(SignCurr),dp))
@@ -1450,7 +1448,7 @@ contains
             do i=1,iHighPopWrite
                 !How many non-zero determinants do we actually have?
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-#ifdef __CMPLX
+#ifdef CMPLX_
                 HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                 HighSign=sum(real(abs(SignCurr),dp))
@@ -1534,7 +1532,7 @@ contains
                 do j=1,lenof_sign
                     write(iout,"(G16.7)",advance='no') SignCurr(j)
                 enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
                 HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                 HighSign=sum(real(abs(SignCurr),dp))
@@ -1771,7 +1769,7 @@ contains
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             if(tMolpro) then
                 write (iout, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
@@ -1801,7 +1799,7 @@ contains
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                     if(tMolpro) then
                         write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
@@ -1828,7 +1826,7 @@ contains
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
             if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                 if(tMolpro) then
                     write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&

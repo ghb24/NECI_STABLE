@@ -95,7 +95,7 @@ contains
              tKPntSym=.false.
          ENDIF
 
-#ifndef __CMPLX
+#ifndef CMPLX_
          if(PropBitLen.ne.0) then
              !We have compiled the code in real, but we are looking at a complex FCIDUMP, potentially
              !even with multiple k-points. However, these orbitals must be real, and ensure that the
@@ -140,8 +140,10 @@ contains
          endif
          if(.not.tDetectSym) then
              write(6,*) "Only one irrep found. Turning off symmetry for rest of calculation."
-             tNoSymGenRandExcits = .true.
-             lNoSymmetry = .true.
+             if(.not.tFixLz.or.tKPntSym) then
+                 tNoSymGenRandExcits = .true.
+                 lNoSymmetry = .true.
+             endif
          endif
 
          IF(NELEC.NE.NEL) THEN
@@ -412,7 +414,7 @@ contains
                  ! functions and so the integer labels run into each other.
                  ! This means it won't work with more than 999 basis
                  ! functions...
-#ifdef __CMPLX
+#ifdef CMPLX_
 1               READ(iunit,*,END=99) Z,I,J,K,L
 #else
 1               CONTINUE
@@ -719,7 +721,7 @@ contains
              ! This means it won't work with more than 999 basis
              ! functions...
 
-#ifdef __CMPLX
+#ifdef CMPLX_
 101          READ(iunit,*,END=199) Z,I,J,K,L
 #else
 101          CONTINUE
@@ -856,7 +858,7 @@ contains
                    ENDIF
 
                    TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
-#ifdef __CMPLX
+#ifdef CMPLX_
                    TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
 #else
                    TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
@@ -866,7 +868,7 @@ contains
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
 !..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-#ifdef __CMPLX
+#ifdef CMPLX_
                 Z = UMatConj(I,K,J,L,Z)
 #endif
                 IF(TUMAT2D) THEN
@@ -1154,7 +1156,7 @@ contains
                   endif
 
                   OneElInts(iSpins*I-ispn+1,iSpins*J-ispn+1)=z
-#ifdef __CMPLX
+#ifdef CMPLX_
                   OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=conjg(z)
 #else
                   OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=z
