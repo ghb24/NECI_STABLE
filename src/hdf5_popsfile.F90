@@ -837,14 +837,15 @@ contains
 
             ! Fill in stats
             printed_tot_parts = printed_tot_parts + abs(CurrentSign)
-#if defined(__CMPLX)
             do run = 1, inum_runs
+#if defined(__CMPLX)
                printed_norm_sqr(run) = printed_norm_sqr(run) + &
                     sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
-            enddo
 #else
-            printed_norm_sqr = printed_norm_sqr + CurrentSign**2
+                printed_norm_sqr(run) = printed_norm_sqr(run) + &
+                    CurrentSign(run)**2
 #endif
+            enddo
         end do
 
         ! TODO: Add a (slower) fallback routine for weird cases, odd HDF libs
