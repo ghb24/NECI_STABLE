@@ -1115,7 +1115,7 @@ r_loop: do while(.not.tStoreDet)
         ! If necessary, recalculate the instantaneous projected energy, and
         ! then update the shift to that value.
         if (tPopsJumpShift .and. .not. tWalkContGrow) then
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(this_routine,"Cannot set shift equal to a complex projected energy")
 #else
         call calc_proje(DiagSft)

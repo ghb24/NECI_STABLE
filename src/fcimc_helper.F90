@@ -2511,14 +2511,14 @@ contains
                         exlevel = 2
                     end if
                 end if
-#ifdef __CMPLX
+#ifdef CMPLX_
                 sgn_run = cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
 #else
                 sgn_run = sgn(run)
 #endif
 
                 if(tCalcAccumE) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                     accum_sgn_run = cmplx(accum_sgn(min_part_type(run)),accum_sgn(max_part_type(run)),dp)
 #else
                     accum_sgn_run = accum_sgn(run)
@@ -2528,14 +2528,14 @@ contains
                 hoffdiag = 0.0_dp
                 if (exlevel == 0) then
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                     HFInst(min_part_type(run)) = HFInst(min_part_type(run)) + real(sgn_run)
                     HFInst(max_part_type(run)) = HFInst(max_part_type(run)) + aimag(sgn_run)
 #else
                     HFInst(run) = HFInst(run) + sgn_run
 #endif
                     if(tCalcAccumE) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                     HFAccum(min_part_type(run)) = HFAccum(min_part_type(run)) + real(accum_sgn_run)
                     HFAccum(max_part_type(run)) = HFAccum(max_part_type(run)) + aimag(accum_sgn_run)
 #else
