@@ -184,16 +184,20 @@ contains
         ! Count the number of particles inside each of the blocks
         block_parts = 0
         HolesInList = 0
-        FreeSlot(1:iEndFreeSlot)=0
-        iStartFreeSlot=1
-        iEndFreeSlot=0
+        if(tAccumPopsActive)then
+            FreeSlot(1:iEndFreeSlot)=0
+            iStartFreeSlot=1
+            iEndFreeSlot=0
+        endif
         do j = 1, int(TotWalkers, sizeof_int)
 
             call extract_sign(CurrentDets(:,j), sgn)
             if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) then
                 HolesInList = HolesInList + 1
-                iEndFreeSlot = iEndFreeSlot + 1
-                FreeSlot(iEndFreeSlot) = j
+                if(tAccumPopsActive)then
+                    iEndFreeSlot = iEndFreeSlot + 1
+                    FreeSlot(iEndFreeSlot) = j
+                endif
                 cycle
             end if
 
@@ -604,8 +608,6 @@ contains
       ! Add to "freeslot" list so it can be filled in.
       iEndFreeSlot = iEndFreeSlot + 1
       FreeSlot(iEndFreeSlot) = PartInd
-      ! Reset global data associated with a determinant
-      global_determinant_data(:, PartInd) = 0.0_dp
       ! Mark it as removed
       call set_flag(CurrentDets(:, PartInd), flag_removed, .true.)
 
