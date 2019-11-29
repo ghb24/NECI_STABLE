@@ -552,16 +552,18 @@ module LMat_mod
 ! HDF5 Functionality
 !------------------------------------------------------------------------------------------!
 
-#ifdef USE_HDF_
-    subroutine readHDF5LMat(LMatLoc, filename)
+      subroutine readHDF5LMat(LMatLoc, filename)
+#ifdef USE_HDF_          
       use hdf5
       use hdf5_util
+#endif
       use ParallelHelper, only: mpi_comm_inter, mpiInfoNull, iProcIndex, &
            mpi_comm_intra
       use Parallel_neci, only: nProcessors
       implicit none
       type(lMat_t) :: LMatLoc
       character(*), intent(in) :: filename
+#ifdef USE_HDF_
       integer :: proc, i
       integer(hid_t) :: err, file_id, plist_id, grp_id, ds_vals, ds_inds
       integer(hsize_t) :: nInts, rest, blocksize, blockstart, blockend, this_blocksize, countsEnd
@@ -739,9 +741,9 @@ module LMat_mod
           end do
 
         end function count_entries
-
-    end subroutine readHDF5LMat
 #endif
+    end subroutine readHDF5LMat
+
 !------------------------------------------------------------------------------------------------
 !functions for contact interaction
 

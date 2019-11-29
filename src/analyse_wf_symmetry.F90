@@ -53,12 +53,12 @@ module analyse_wf_symmetry
     real(dp), allocatable :: symmetry_weights(:)
     integer(n_int), allocatable :: symmetry_states_ilut(:,:)
 
-    real(dp) :: mirror_x(2,2) = reshape([1.0,0.0,0.0,-1.0],[2,2])
-    real(dp) :: mirror_y(2,2) = reshape([-1.0,0.0,0.0,1.0],[2,2])
-    real(dp) :: mirror_d(2,2) = reshape([0.0,-1.0,-1.0,0.0],[2,2])
-    real(dp) :: mirror_o(2,2) = reshape([0.0,1.0,1.0,0.0],[2,2])
+    real(dp), parameter :: mirror_x(2,2) = reshape([1.0,0.0,0.0,-1.0],[2,2])
+    real(dp), parameter :: mirror_y(2,2) = reshape([-1.0,0.0,0.0,1.0],[2,2])
+    real(dp), parameter :: mirror_d(2,2) = reshape([0.0,-1.0,-1.0,0.0],[2,2])
+    real(dp), parameter :: mirror_o(2,2) = reshape([0.0,1.0,1.0,0.0],[2,2])
 
-    real(dp) :: inv_matrix(2,2) = reshape([-1.0,0.0,0.0,-1.0],[2,2])
+    real(dp), parameter :: inv_matrix(2,2) = reshape([-1.0,0.0,0.0,-1.0],[2,2])
 
     interface inversion
         module procedure inversion_orb
