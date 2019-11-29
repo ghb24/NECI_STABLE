@@ -2402,7 +2402,7 @@ contains
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
         integer(n_int), allocatable :: det_list(:,:)
-        integer, allocatable :: excitTyp(:)
+        integer, allocatable :: excitTyp(:), excitLvl(:)
         real(dp), allocatable :: contrib_list(:), pgen_list(:)
         HElement_t(dp), allocatable :: matEle_list(:), exact_helements(:)
         logical, allocatable :: generated_list(:)
