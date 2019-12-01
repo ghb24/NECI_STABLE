@@ -2,7 +2,7 @@
 
 module global_det_data
 
-  use SystemData, only: nel
+    use SystemData, only: nel
     use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
                         tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, tReplicaEstimates
     use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
@@ -61,10 +61,8 @@ module global_det_data
 
     ! lenght of the determinant and its position
     integer :: pos_det_orbs, len_det_orbs
-
     ! Legth of arrays storing estimates to be written to the replica_est file
     integer :: replica_est_len
-
 
     ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:,:) => null()

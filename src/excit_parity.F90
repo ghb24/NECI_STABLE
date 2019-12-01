@@ -2,10 +2,11 @@
 module get_excit
 
     use constants
-    use SystemData, only: nel
+    use SystemData, only: nel, G1, nBasisMax
     use bit_rep_data, only: NIfTot
     use DeterminantData, only: write_det
     use sym_general_mod, only: SymAllowedExcit
+    use sym_mod, only: MomPbcSym
     implicit none
 
 
@@ -14,7 +15,7 @@ contains
     subroutine make_single (nI, nJ, elec, tgt, ex, tParity)
 
         integer, intent(in) :: nI(nel), elec, tgt
-        integer, intent(out) :: ex(2,2), nJ(nel)
+        integer, intent(out) :: ex(2,1), nJ(nel)
         logical, intent(out) :: tParity
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'make_single'
@@ -93,12 +94,19 @@ contains
         nJ = nI
 
         ! As we move these around we need to do some playing!
+        ! wtf? this comment above does not mean anything! 
+        ! ahh. this is done since, after we move the first electron over 
+        ! the second, we need an index lowered by one to indicate the 
+        ! now second orbital in the modified nJ! 
         if (srcs(1) < tgts(1) .and. srcs(2) < tgts(1)) then
             elecs(2) = elecs(2) - 1
         end if
 
         ! Count how far we have moved normal orbitals
         pos_moved = 0
+!         print *, ""
+!         print *, "----------------"
+!         print *, "nI: ", nI
         do k = 1, 2
 
             ! If we need to search up or down depends on the relative sizes
@@ -107,7 +115,7 @@ contains
 
                 ! How far do we have to move the unaffected orbitals?
                 if (elecs(k) == nel) then
-                    i = nel+1
+                    i = nel + 1
                     nJ(nel) = tgts(k)
                 else
                     do i = elecs(k)+1, nel
@@ -142,13 +150,16 @@ contains
 
             end if
 
+!             print *, "k: ", k
+!             print *, "nJ: ", nJ 
             pos_moved = pos_moved + elecs(k) - i + 1
+!             print *, "pos_moved: ", pos_moved
+!             print *, "----------------"
 
         end do
 
         tParity = btest(pos_moved, 0)
 !        parity = 1 - 2 * modulo(pos_moved, 2)
-
 #ifdef DEBUG_
         ! This is a useful (but O[N]) check to test the generated determinant.
         if (.not. SymAllowedExcit(nI, nJ, 2, ex)) then

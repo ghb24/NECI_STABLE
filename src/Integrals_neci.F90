@@ -2,23 +2,57 @@
 module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
-                          tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
-                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS, ECore
+                          tFixLz, Symmetry, tCacheFCIDUMPInts, &
+                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, LMS, ECore, &
+                          t_new_real_space_hubbard, t_trans_corr_hop, t_mol_3_body, &
+                          tContact, tStoreSpinOrbs, nBI, t12FoldSym
+
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
-                         nTypes, gen2CPMDInts, tDFInts
+                         nTypes, gen2CPMDInts, tDFInts, numBasisIndices
+
+    use util_mod, only: get_nan
+
     use vasp_neci_interface
+
     use IntegralsData
+
     use shared_memory_mpi
+
     use global_utilities
+
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
-                                get_hub_umat_el
+                                get_hub_umat_el, get_contact_umat_el
+
     use HElem, only: HElement_t_size, HElement_t_sizeB
+
     use Parallel_neci, only: iProcIndex
+
     use bit_reps, only: init_bit_rep
+
     use procedure_pointers, only: get_umat_el, get_umat_el_secondary
+
     use constants
 
+    use tJ_model, only: t_tJ_model, t_heisenberg_model
+
+    use sym_mod, only: symProd, symConj, totsymrep
+
+    USE OneEInts, only : TMAT2D
+
+    use util_mod, only: get_free_unit
+
+    use SymData, only: Symmetry
+
+    use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
+
+    use real_space_hubbard, only: init_umat_rs_hub_transcorr, &
+                                  init_hopping_transcorr
+
+    use LoggingData, only: tLogKMatProjE
+    use kMatProjE, only: readKMat, freeKMat, readSpinKMat
+    use tc_three_body_data, only: tDampKMat, tUseKMat, tSpinCorrelator, tHDF5LMat, &
+         tSymBrokenLMat, tSparseLMat, tLMatCalc, LMatCalcHFactor, LMatABCalcHFactor
     implicit none
 
 contains
@@ -78,11 +112,17 @@ contains
       HFRand=0.01_dp
       DMatEpsilon=0
       tPostFreezeHF=.false.
-
+      tSparseLMat = .false.
+      tSymBrokenLMat = .false.
+      tHDF5LMat = .false.
 !Feb 08 defaults
       IF(Feb08) THEN
          NTAY(2)=3
       ENDIF
+
+      tLMatCalc = .false.
+      lMatCalcHFactor = 1.0
+      lMatABCalcHFactor = 1.0
 
     end subroutine SetIntDefaults
 
@@ -331,9 +371,38 @@ contains
                call report("keyword "//trim(w)//" not recognized in DFMETHOD block",.true.)
             end select
         case("POSTFREEZEHF")
-          tPostFreezeHF=.true.
+           tPostFreezeHF=.true.
+
+        case("HDF5-INTEGRALS")
+           tHDF5LMat = .true.
+        case("SPARSE-LMAT")
+           tSparseLMat = .true.
+        case("UNSYMMETRIC-INTEGRALS")
+           ! the 6-index integrals are not symmetrized yet (has to be done
+           ! on the fly then)
+           tSymBrokenLMat = .true.
+
         case("DMATEPSILON")
           call readf(DMatEpsilon)
+
+        case("LMATCALC")
+
+            if(tSymBrokenLMat .or. t12FoldSym)then
+               call report("LMATCALC assumes 48-fold symmetry",.true.)
+          end if
+
+          tLMatCalc = .true.
+
+          if (item.lt.nitems) then
+           call readf(lMatCalcHFactor)
+          end if
+
+          if (item.lt.nitems) then
+            call readf(lMatABCalcHFactor)
+          else
+            lMatABCalcHFactor = lMatCalcHFactor
+          end if
+
         case("ENDINT")
              exit integral
         case default
@@ -356,12 +425,17 @@ contains
       use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
       use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
       use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
+      use SystemData, only: t_new_real_space_hubbard, t_new_hubbard, t_k_space_hubbard
       use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
       use LoggingData, only:tCalcPropEst, iNumPropToEst, EstPropFile
       use Parallel_neci, only : iProcIndex,MPIBcast
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
+      use LMat_mod, only: readLMat
+      use real_space_hubbard, only: init_tmat
+      use k_space_hubbard, only: init_tmat_kspace
+      use lattice_mod, only: lat
       implicit none
       INTEGER iCacheFlag
       complex(dp),ALLOCATABLE :: ZIA(:)
@@ -519,6 +593,20 @@ contains
                IF(THUB.AND.TREAL) THEN
     !!C.. Real space hubbard
     !!C.. we pre-compute the 2-e integrals
+                  if ((t_new_real_space_hubbard .and. .not. t_trans_corr_hop) &
+                      .or. t_tJ_model .or. t_heisenberg_model) then
+                     WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
+                     UMatInt = 1_int64
+                     call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
+!                      call shared_allocate ("umat", umat, (/1_int64/))
+                     !Allocate(UMat(1), stat=ierr)
+                     LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
+                     UMAT(1)=UHUB
+                 else if (t_new_real_space_hubbard .and. t_trans_corr_hop) then
+
+                     call init_hopping_transcorr()
+                     call init_umat_rs_hub_transcorr()
+                 else
                   WRITE(6,*) "Generating 2e integrals"
     !!C.. Generate the 2e integrals (UMAT)
                   CALL GetUMatSize(nBasis,UMATINT)
@@ -528,6 +616,7 @@ contains
                   UMat = 0.0_dp
                   WRITE(6,*) "Size of UMat is: ",UMATINT
                   CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
+                 end if
                ELSEIF(THUB.AND..NOT.TPBC) THEN
     !!C.. we pre-compute the 2-e integrals
                   WRITE(6,*) "Generating 2e integrals"
@@ -595,7 +684,17 @@ contains
          !CALL N_MEMORY(IP_TMAT,HElement_t_size*nBasis*nBasis,'TMAT')
          !TMAT=(0.0_dp)
          IF(THUB) THEN
-            CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
+             if (t_new_hubbard) then
+                 if (t_k_space_hubbard) then
+                     ! also change here to the new k-space implementation
+                     call init_tmat_kspace(lat)
+
+                 else if (t_new_real_space_hubbard) then
+                     call init_tmat(lat)
+                 end if
+             else
+                 CALL CALCTMATHUB(NBASIS,NBASISMAX,BHUB,TTILT,G1,TREAL,TPBC)
+             end if
          ELSE
     !!C..Cube multiplier
              CST=PI*PI/(2.0_dp*ALAT(1)*ALAT(1))
@@ -635,12 +734,21 @@ contains
 !         enddo
 !     enddo
 
-    ! Setup the umatel pointers as well
-    call init_getumatel_fn_pointers ()
+      ! Setup the umatel pointers as well
+      call init_getumatel_fn_pointers ()
+      
+      if(t_mol_3_body) call readLMat()
 
+      tUseKMat = tDampKMat .or. tLogKMatProjE
+      if(tUseKMat) then
+         ! the k-Matrix can be read in separated into different contributions,
+         ! or all at one, we leave this to the kMat module
+         call readKMat()
+      endif
+
+      if(tSpinCorrelator) call readSpinKMat()
 
     End Subroutine IntInit
-
 
 
     Subroutine IntFreeze
@@ -762,8 +870,13 @@ contains
         use UMatCache, only: iDumpCacheFlag, tReadInCache, nStates, &
                              nStatesDump, DumpUMatCache, DestroyUMatCache, &
                              WriteUMatCacheStats
+        use LMat_mod, only: freeLMat
         integer :: iCacheFlag
         character(*), parameter :: this_routine = 'IntCleanup'
+
+        if(tUseKMat) call freeKMat()
+
+        if(t_mol_3_body) call freeLMat()
 
         if ((btest(iDumpCacheFlag, 0) .and. &
             (nStatesDump < nStates .or. .not. tReadInCache)) .or. &
@@ -797,13 +910,16 @@ contains
     SUBROUTINE IntFREEZEBASIS(NHG,NBASIS,UMAT,UMAT2,ECORE,           &
    &         G1,NBASISMAX,ISS,BRR,NFROZEN,NTFROZEN,NFROZENIN,NTFROZENIN,NEL)
        use SystemData, only: Symmetry, BasisFN, arr, tagarr
-       use OneEInts
+       use OneEInts, only: GetPropIntEl, GetTMATEl, TMATSYM2, TMAT2D2, PropCore, &
+                           OneEPropInts2, OneEPropInts, tOneElecDiag, NewTMatInd, &
+                           GetNEWTMATEl, tCPMDSymTMat, SetupTMAT2, SWAPTMAT, &
+                           SwapOneEPropInts, SetupPropInts2
        USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
        use LoggingData, only:tCalcPropEst, iNumPropToEst
        use UMatCache, only: GTID
        use global_utilities
-       use sym_mod
+       use sym_mod, only: getsym, SetupFREEZEALLSYM, FREEZESYMLABELS
        use util_mod, only: NECI_ICOPY
 
        IMPLICIT NONE
@@ -1429,6 +1545,9 @@ contains
 
     subroutine init_getumatel_fn_pointers ()
 
+        use SystemData, only: t_k_space_hubbard
+        use k_space_hubbard, only: get_umat_kspace
+
         integer :: iss
 
         if (nBasisMax(1,3) >= 0) then
@@ -1452,19 +1571,28 @@ contains
                     get_umat_el => get_umat_el_tumat2d
                 else
                     ! see if in the cache. This is the fallback if ids are
-                    ! such that umat2d canot be used anyway.
+                    ! such that umat2d cannot be used anyway.
                     get_umat_el => get_umat_el_cache
                 endif
             else if (iss == -1) then
                 ! Non-stored hubbard integral
-                get_umat_el => get_hub_umat_el
+                if (t_k_space_hubbard) then
+                    get_umat_el => get_umat_kspace
+                else
+                    get_umat_el => get_hub_umat_el
+                end if
+
             else
                 write (6, '(" Setting normal GetUMatEl routine")')
                 get_umat_el => get_umat_el_normal
             endif
         else if (nBasisMax(1,3) == -1) then
             ! UEG integral
-            get_umat_el => get_ueg_umat_el
+            if (tContact) then
+                   get_umat_el => get_contact_umat_el
+            else
+                   get_umat_el => get_ueg_umat_el
+            endif
         endif
 
         ! Note that this comes AFTER the above tests
@@ -1520,7 +1648,6 @@ contains
         integer :: i, j
         HElement_t(dp) :: hel
 
-
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
             ! <ii|ii>
             hel = umat2d (idi, idi)
@@ -1567,8 +1694,7 @@ contains
         ! used locally (even though it's in the module-level use statement) in
         ! order to avoid an internal gfortran segfault when compiling the
         ! TotSymRep call.  Weird!
-        use SymData, only: Symmetry
-        use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
+        use SystemData, only: G1
 
         integer, intent(in) :: idi, idj, idk, idl
         integer :: i, j, k, l, a, b
@@ -1577,7 +1703,6 @@ contains
         HElement_t(dp) :: hel, UElems(0:nTypes-1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
-
 
         i = idi
         j = idj
@@ -1720,7 +1845,7 @@ contains
 
         ! In:
         !    i,j,k,l: spin-orbital indices.
-
+        use SystemData, only: G1
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
@@ -1765,7 +1890,7 @@ contains
     end function
 
     function get_umat_el_comporb_notspinorbs (i, j, k, l) result(hel)
-        use sym_mod, only: symProd, symConj, totsymrep
+        use SystemData, only: G1
 
         ! Obtains the Coulomb integral <ij|kl>.
 
@@ -1827,7 +1952,7 @@ contains
 
         ! In:
         !    i,j,k,l: spin-orbital indices.
-
+        use SystemData, only: G1
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
 
@@ -1856,6 +1981,7 @@ contains
         ! In:
         !    i,j,k,l: spatial orbital indices.
 
+        use SystemData, only: G1
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
 
@@ -1896,17 +2022,16 @@ contains
 
     end function
 
-    SUBROUTINE WRITESYMCLASSES(NBASIS)
+    SUBROUTINE WRITESYMCLASSES(nbasis)
       use SystemData, only: BasisFN, Symmetry
       USE UMatCache
       use SymData, only: SymClasses,SymLabelCounts,nSymLabels
       use util_mod, only: get_free_unit
       IMPLICIT NONE
-      INTEGER I,NBASIS,iunit
-
+      INTEGER I,nbasis,iunit
       iunit = get_free_unit()
       open(iunit, file="SYMCLASSES", status="unknown")
-      DO I=1,NBASIS/2
+      DO I=1,nbasis/2
           WRITE(iunit,*) I,SYMCLASSES(I)
           CALL neci_flush(iunit)
       ENDDO
@@ -1918,8 +2043,7 @@ contains
     END subroutine writesymclasses
 
     subroutine DumpFCIDUMP()
-        USE OneEInts, only : TMAT2D
-        use util_mod, only: get_free_unit
+        use SystemData, only: G1, nBasis, nel
         implicit none
         integer :: i,j,k,l,iunit
         character(len=*), parameter :: t_r='DumpFCIDUMP'
@@ -1964,6 +2088,9 @@ contains
 
     end subroutine DumpFCIDUMP
 
+!------------------------------------------------------------------------------------------!
+
+
 END MODULE Integrals_neci
 
 
@@ -1992,7 +2119,7 @@ END MODULE Integrals_neci
 ! It is easiest to include this periodic image correction with the kinetic
 ! (one-electron) terms.
 
-SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
+SUBROUTINE CALCTMATUEG(nbasis,ALAT,G1,CST,TPERIODIC,OMEGA)
   use constants, only: dp
   use SystemData, only: BasisFN, k_offset, iPeriodicDampingType, kvec, k_lattice_constant
   USE OneEInts, only : SetupTMAT,TMAT2D
@@ -2001,8 +2128,8 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   use Parallel_neci, only: iProcIndex, Root
 
   IMPLICIT NONE
-  INTEGER NBASIS
-  TYPE(BASISFN) G1(NBASIS)
+  INTEGER nbasis
+  TYPE(BASISFN) G1(nbasis)
   real(dp) ALAT(4),CST,K_REAL(3), temp
   INTEGER I
   INTEGER iSIZE, iunit
@@ -2018,8 +2145,8 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
       iunit = get_free_unit()
 
       if(iProcIndex.eq.Root) OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-      CALL SetupTMAT(NBASIS,2,iSIZE)
-      DO I=1,NBASIS
+      CALL SetupTMAT(nbasis,2,iSIZE)
+      DO I=1,nbasis
          !K_OFFSET in cartesian coordinates
          K_REAL=real(kvec(I, 1:3)+K_OFFSET, dp)
          temp=K_REAL(1)**2+K_REAL(2)**2+K_REAL(3)**2
@@ -2036,9 +2163,9 @@ SUBROUTINE CALCTMATUEG(NBASIS,ALAT,G1,CST,TPERIODIC,OMEGA)
   IF(TPERIODIC) WRITE(6,*) "Periodic UEG"
   iunit = get_free_unit()
   if(iProcIndex.eq.Root) OPEN(iunit,FILE='TMAT',STATUS='UNKNOWN')
-  CALL SetupTMAT(NBASIS,2,iSIZE)
+  CALL SetupTMAT(nbasis,2,iSIZE)
 
-  DO I=1,NBASIS
+  DO I=1,nbasis
     K_REAL=G1(I)%K+K_OFFSET
     TMAT2D(I,1)=((ALAT(1)**2)*((K_REAL(1)**2)/(ALAT(1)**2)+        &
 &        (K_REAL(2)**2)/(ALAT(2)**2)+(K_REAL(3)**2)/(ALAT(3)**2)))

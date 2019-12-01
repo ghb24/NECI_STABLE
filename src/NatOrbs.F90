@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module NatOrbsMod
 
     ! This file is primarily concerned with finding the one electron reduced
@@ -14,7 +16,8 @@ module NatOrbsMod
     use UMatCache, only: UMatInd
     use SystemData, only: NEl, nBasis, G1, ARR, BRR, lNoSymmetry, LMS, tStoreSpinOrbs, nOccAlpha, &
                           nOccBeta, tSeparateOccVirt, tRotateOccOnly, tRotateVirtOnly, &
-                          tFindCINatOrbs, tUseMP2VarDenMat, nBasisMax, ALAT, iSpinSkip
+                          tFindCINatOrbs, tUseMP2VarDenMat, nBasisMax, ALAT, iSpinSkip, &
+                          t_3_body_excits
     use bit_reps, only: NIfY, NIfTot
     use RotateOrbsData, only: SymLabelList2_rot, SymLabelCounts2_rot, SymLabelCounts2_rotTag, &
                               SymLabelListInv_rot, NoOrbs, SpatOrbs, FillOneRDM_time, &
@@ -384,6 +387,9 @@ contains
         integer :: Spins
         logical :: tSign
         real(dp) :: SignDet
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "FillOneRDM"
+#endif
 
         ! Density matrix = D_pq = < Psi | a_q+ a_p | Psi >
         !                = sum_ij [ c_i* c_j < D_i | a_q+ a_p | D_j > ]
@@ -482,6 +488,7 @@ contains
                         Ex(:,:) = 0
                         Ex(1,1) = ExcitLevel
 
+                        ASSERT(.not. t_3_body_excits)
                         call GetBitExcitation(FCIDets(:,i), FCIDets(:,j), Ex, tSign)
                         ! Gives the orbitals involved in the excitation Ex(1,1)
                         ! in i -> Ex(2,1) in j (in spin orbitals).

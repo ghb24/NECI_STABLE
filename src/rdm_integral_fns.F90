@@ -19,10 +19,11 @@ contains
 
     function two_elec_int(i, j, k, l) result(integral)
 
-        use sltcnd_mod, only: sltcnd_2
+        use sltcnd_mod, only: sltcnd_2_kernel
+        use UMatCache, only: gtID
 
         integer, intent(in) :: i, j, k, l
-        integer :: ex(2,2)
+        integer :: ex(2,maxExcit)
         real(dp) :: integral
 
         ex(1,1) = j
@@ -30,7 +31,7 @@ contains
         ex(2,1) = l
         ex(2,2) = k
 
-        integral = real(sltcnd_2(ex, .false.), dp)
+        integral = real(sltcnd_2_kernel(ex), dp)
 
     end function two_elec_int
 

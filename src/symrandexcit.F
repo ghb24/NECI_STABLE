@@ -5,7 +5,7 @@
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SystemData, only: nEl,G1, nBasis,nBasisMax
-         use constants, only: dp,sizeof_int
+         use constants, only: dp,sizeof_int, maxExcit
          use SystemData, only: Arr,nMax,tAssumeSizeExcitgen
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
@@ -13,7 +13,7 @@
          IMPLICIT NONE
          INTEGER NI(NEL)
          INTEGER,pointer :: DSTORE(:)
-         INTEGER EXCITMAT(2,2)
+         INTEGER EXCITMAT(2,maxExcit)
          LOGICAL TPARITY
          INTEGER,target :: NMEM(*)
          integer NJ(NEL),IC,ICOUNT
@@ -90,11 +90,11 @@ C.. This version is based on GenRandSymExcitIt2, but does not need values it ext
          use IntegralsData, only: UMat
          use SymData, only: SymClassSize,nSymPairProds,nSymLabels
          use legacy_data, only: irat
-         use constants, only: dp
+         use constants, only: dp, maxExcit
          IMPLICIT NONE
          INTEGER NI(NEL)
          INTEGER, pointer :: DSTORE(:)
-         INTEGER EXCITMAT(2,2)
+         INTEGER EXCITMAT(2,maxExcit)
          LOGICAL TPARITY
          INTEGER,target :: NMEM(*)
          integer  NJ(NEL),IC,ICOUNT
@@ -167,11 +167,11 @@ C..   use GenRandSymExcitIt3
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,nBasis
          use SymData, only: SymClassSize
          use legacy_data, only: irat
-         use constants, only: dp
+         use constants, only: dp, maxExcit
          IMPLICIT NONE
          INTEGER NEL,NI(NEL)
          INTEGER,pointer :: DSTORE(:)
-         INTEGER EXCITMAT(2,2)
+         INTEGER EXCITMAT(2,maxExcit)
          INTEGER,target :: NMEM(*)
          integer NJ(NEL),ICOUNT,IC
          LOGICAL TPARITY
@@ -211,7 +211,7 @@ C.. Actually generate a det
      &               SYMPRODIND,ILUT,ORBPAIRS,IEXCIT,ISPN,IFROM,ITO,
      &               I,J,K,L,ITOTAL,ISEED,
      &               NK,IC,NBASISMAX,ARR,NBASIS,PGEN)
-      use constants, only: dp,sizeof_int
+      use constants, only: dp,sizeof_int, maxExcit
       USE symexcit2
       use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -227,7 +227,7 @@ C.. Actually generate a det
       TYPE(SymClass) CLASSES(*)
       INTEGER IEXCIT
       INTEGER IFROM,ITO,ISPN
-      INTEGER IFROMSL,ITOSL,ExcitMat(2,2)
+      INTEGER IFROMSL,ITOSL,ExcitMat(2,maxExcit)
       LOGICAL L1,L2,TParity
 !.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
 
@@ -556,11 +556,11 @@ C.. Actually generate a det
       Subroutine SymGenRandExcitIt2_Sing_GT_NoW(iSeed,nI,nEl,
      &              I,iSpn,iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
-         use constants, only: dp
+         use constants, only: dp, maxExcit
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
-         INTEGER I,ExcitMat(2,2)
+         INTEGER I,ExcitMat(2,maxExcit)
          INTEGER iSpn,iTo
          INTEGER OrbChosen,norbs,spinorb
          INTEGER J,State
@@ -628,11 +628,11 @@ C.. Actually generate a det
      &   iTo,nK,ExcitMat,TParity)
       use SymData, only: SymClass,SymLabelCounts,SymLabelList
         use Determinants, only: write_det
-         use constants, only: dp,sizeof_int
+         use constants, only: dp,sizeof_int, maxExcit
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nEl,nI(nEl)
-         INTEGER I,ExcitMat(2,2)
+         INTEGER I,ExcitMat(2,maxExcit)
          INTEGER iSpn,iTo
          LOGICAL TParity
          INTEGER iCount
@@ -839,12 +839,12 @@ C.. Actually generate a det
          use SystemData, only: nEl
          use SymData, only: tAbelianFastExcitgen
          use SymData, only: SymPairProds,SymStatePairs
-         use constants, only: dp
+         use constants, only: dp, maxExcit
          IMPLICIT NONE
          INTEGER iSeed
          INTEGER nI(nEl)
          INTEGER ExcitTypes(5,*)
-         INTEGER iExcit,ExcitMat(2,2)
+         INTEGER iExcit,ExcitMat(2,maxExcit)
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,1:*)
          INTEGER iSpn,iFrom,iTo,FinalA,FinalB
@@ -1013,13 +1013,13 @@ C.. Actually generate a det
          use SystemData, only: G1, nBasis, nBasisMax
          use SystemData, only: Arr,nEl
          use IntegralsData, only: UMat
-         use constants, only: dp
+         use constants, only: dp, maxExcit
          IMPLICIT NONE
          LOGICAL TParity
          INTEGER iSeed
          INTEGER nI(nEl)
          INTEGER ExcitTypes(5,*)
-         INTEGER iExcit,ExcitMat(2,2)
+         INTEGER iExcit,ExcitMat(2,maxExcit)
          INTEGER OrbPairs(2,*)
          INTEGER SymProdInd(2,3,1:*)
          INTEGER iSpn,iFrom

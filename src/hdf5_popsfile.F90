@@ -117,6 +117,7 @@ module hdf5_popsfile
             nm_psingles = 'psingles', &
             nm_pdoubles = 'pdoubles', &
             nm_pparallel = 'pparallel', &
+            nm_ptriples = 'ptriples', &
             nm_tau = 'tau', &
             ! [W.D.]:
             ! can i just add another entry without breaking anything?
@@ -412,6 +413,7 @@ contains
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt
         use FciMCData, only: pSingles, pDoubles, pParallel
+        use tc_three_body_data, only: pTriples
         use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
 
         integer(hid_t), intent(in) :: parent
@@ -423,7 +425,7 @@ contains
         logical :: all_en_sing, all_en_doub, all_en_opp, all_en_par
         integer :: max_cnt_sing, max_cnt_doub, max_cnt_opp, max_cnt_par
 
-        real(dp) :: all_pdoub, all_psing, all_ppar, all_tau
+        real(dp) :: all_pdoub, all_psing, all_ppar, all_tau, all_trip
 
         ! Create the group
         call h5gcreate_f(parent, nm_tau_grp, tau_grp, err)
@@ -473,16 +475,18 @@ contains
             call write_int64_scalar(tau_grp, nm_cnt_par, max_cnt_par)
 
         ! Use the probability values from the head node
-        all_psing = pSingles; all_pdoub = pDoubles; all_ppar = pParallel
+        all_psing = pSingles; all_pdoub = pDoubles; all_ppar = pParallel; all_trip = pTriples
         all_tau = tau
         call MPIBcast(all_psing)
         call MPIBcast(all_pdoub)
         call MPIBcast(all_ppar)
+        call MPIBCast(all_trip)
         call MPIBcast(all_tau)
 
         call write_dp_scalar(tau_grp, nm_psingles, all_psing)
         call write_dp_scalar(tau_grp, nm_pdoubles, all_pdoub)
         call write_dp_scalar(tau_grp, nm_pparallel, all_ppar)
+        call write_dp_scalar(tau_grp, nm_ptriples, all_trip)
         call write_dp_scalar(tau_grp, nm_tau, all_tau)
 
         ! [W.D.]:
@@ -619,6 +623,7 @@ contains
                               cnt_par, max_death_cpt, update_tau
         use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
                              tSearchTauOption
+        use tc_three_body_data, only: pTriples, tReadPTriples
         use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
                             t_hist_tau_search, t_hist_tau_search_option, &
                             t_fill_frequency_hists
@@ -655,6 +660,8 @@ contains
 
         call read_dp_scalar(grp_id, nm_psingles, psingles)
         call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists = tReadPTriples, default = 0.1_dp, &
+             required = .false.)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
         ! here i want to make the distinction if we want to tau-search
         ! or not
@@ -926,7 +933,6 @@ contains
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
         integer(hid_t) :: ds_sgns, ds_ilut, ds_fvals
-
         integer(int64) :: nread_walkers
         integer :: ierr
 
@@ -1047,7 +1053,6 @@ contains
         call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
                                   [int(bit_rep_width,hsize_t), all_count])
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
-
                                   [int(tmp_lenof_sign, hsize_t), all_count])
         if(tReadFVals) then
            call check_dataset_params(ds_fvals, nm_fvals, 8_hsize_t, H5T_FLOAT_F, &
