@@ -1159,6 +1159,7 @@ module FciMCParMod
                         ! and remove it from the hashtable
                         if(.not. tAccumEmptyDet(CurrentDets(:,j))) &
                             call RemoveHashDet(HashIndex, DetCurr, j)
+                        cycle
                      endif
                   endif
                end if
