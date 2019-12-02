@@ -20,7 +20,7 @@ module FciMCParMod
                         tSkipRef, tFixTrial, tTrialShift, t_activate_decay, &
                         tEN2Init, tEN2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
                         tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
-                        tCoreAdaptiveShift
+                        tCoreAdaptiveShift, tAS_TrialOffset, ShiftOffset
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
                         tDelayAllDoubsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -141,6 +141,7 @@ module FciMCParMod
         real(dp):: lt_imb
         integer:: rest, err, allErr
         logical :: t_comm_done
+        integer :: run
 
         ! Procedure pointer temporaries
         procedure(generate_excitation_t), pointer :: ge_tmp
@@ -353,6 +354,13 @@ module FciMCParMod
                     else
                         call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
                     end if
+                    if(tAS_TrialOffset)then
+                        do run=1, inum_runs
+                            if(trial_energies(run)-Hii<ShiftOffset) &
+                                ShiftOffset = trial_energies(run) - Hii
+                        enddo
+                        write(6,*) "The adaptive shift is offset by the correlation energy of trail-wavefunction: ", ShiftOffset
+                    endif
                 end if
             end if
 
