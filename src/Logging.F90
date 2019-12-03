@@ -175,9 +175,12 @@ MODULE Logging
 #else
       tFCIMCStats2 = .false.
 #endif
-      t_hist_fvals = .true.
-      enGrid = 100
-      arGrid = 100
+      tFvalEnergyHist = .false.
+      FvalEnergyHist_EnergyBins = 100
+      FvalEnergyHist_FValBins = 10
+      tFvalPopHist = .false.
+      FvalPopHist_PopBins = 100
+      FvalPopHist_FValBins = 10
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -386,10 +389,6 @@ MODULE Logging
                 i = i+1
             enddo
 
-         case("ACC-RATE-POINTS")
-            ! number of grid points for 2d-histogramming the acc rate used for adaptive shift
-            if(item < nitems) call readi(arGrid)
-            if(item < nitems) call readi(enGrid)
 
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
@@ -1146,6 +1145,16 @@ MODULE Logging
 !             ! option to print out the histograms used in the tau-search!
 !             ! note: but for now they are always printed by default
 !             t_print_frq_histograms = .true.
+
+        case("FVAL-ENERGY-HIST")
+            tFValEnergyHist = .true.
+            if(item < nitems) call readi(FValEnergyHist_EnergyBins)
+            if(item < nitems) call readi(FValEnergyHist_FvalBins)
+
+        case("FVAL-POP-HIST")
+            tFValPopHist = .true.
+            if(item < nitems) call readi(FValPopHist_PopBins)
+            if(item < nitems) call readi(FValPopHist_FvalBins)
 
         case("ENDLOG")
             exit logging

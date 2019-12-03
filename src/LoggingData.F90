@@ -191,7 +191,8 @@ module LoggingData
     logical :: tWriteRefs
     character(255) :: ref_filename
     ! for the histogramming of the acceptance rates used in the adaptive shift mode
-    logical :: t_hist_fvals
-    integer :: enGrid, arGrid
+    logical :: tFValEnergyHist, tFValPopHist
+    integer :: FvalEnergyHist_EnergyBins, FvalEnergyHist_FValBins
+    integer :: FvalPopHist_PopBins, FvalPopHist_FValBins
 
 end module LoggingData
