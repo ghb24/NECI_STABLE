@@ -82,7 +82,7 @@ contains
 
     function identify_excitation(ilutI, ilutJ) result(excitInfo)
         integer(n_int), intent(in) :: ilutI(0:nifd), ilutJ(0:nifd)
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "identify_excitation"
 
         integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), &
@@ -1242,7 +1242,7 @@ contains
         integer, intent(in), optional :: overlap
         real(dp), intent(in) :: order, order1
         logical, intent(in) :: spin_change
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! todo: asserts!
         excitInfo%typ = typ
@@ -1278,7 +1278,7 @@ contains
             result(excitInfo)
         integer, intent(in) :: gen, i, j, fullStart, fullEnd
         integer, intent(in), optional :: typ
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! set default values for single excitations: which cause errors if
         ! called in incorrect places

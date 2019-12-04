@@ -4,7 +4,7 @@ module guga_write_H_matrix
     use constants, only: n_int, dp
     use display_matrices, only: write_matrix
 
-    use guga_data, only: excitationInformation
+    use guga_data, only: ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element
     use guga_bitRepOps, onlY: write_det_guga
     implicit none
@@ -33,7 +33,7 @@ contains
         function calc_mat_ele(ilutG_i, ilutG_j) result(res)
             integer(n_int), intent(in) :: ilutG_i(:), ilutG_j(:)
             HElement_t(dp) :: res
-            type(excitationInformation) :: excit_info
+            type(ExcitationInformation_t) :: excit_info
             call calc_guga_matrix_element( &
                 ilutG_i, ilutG_j, excit_info, res, &
                 t_hamil=.true., calc_type=2)

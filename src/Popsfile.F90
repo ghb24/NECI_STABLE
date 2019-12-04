@@ -62,7 +62,7 @@ MODULE PopsfileMod
     use SystemData, only: tGUGA
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
     use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
-    use guga_data, only: excitationInformation
+    use guga_data, only: ExcitationInformation_t
 
     implicit none
 
@@ -2253,7 +2253,7 @@ r_loop: do while(.not.tStoreDet)
         integer :: flg, j, k, ex_level, nopen, nI(nel), ex(2,nel)
         logical :: bWritten, is_init, is_init_tmp
         character(12) :: format_string
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         bWritten = .false.
 

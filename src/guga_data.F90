@@ -37,7 +37,7 @@ module guga_data
     ! define a type structure to store excitation information between two
     ! CSFs needed in the matrix element calculation between them
     ! this may also be used/needed for the excitation generation
-    type :: excitationInformation
+    type :: ExcitationInformation_t
         integer :: typ = -1
         ! save type of excitation encoded as integer: all different possibs:
         ! 0 ... all kind of excitations which dont need much care
@@ -150,7 +150,7 @@ module guga_data
         ! indicate if a spin_change happened
         logical :: spin_change = .false.
 
-    end type excitationInformation
+    end type ExcitationInformation_t
 
     ! logical to indicate that GUGA and core space, like doubles and singles
     ! are used as the semi-stochastic core space

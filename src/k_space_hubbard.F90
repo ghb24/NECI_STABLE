@@ -91,7 +91,7 @@ module k_space_hubbard
                                 calc_guga_matrix_element, global_excitinfo, print_excitInfo
     use guga_bitRepOps, only: convert_ilut_toGUGA, init_csf_information, &
                               isProperCSF_ilut
-    use guga_data, only: excitationInformation, tNewDet
+    use guga_data, only: ExcitationInformation_t, tNewDet
 
     implicit none
 
@@ -562,7 +562,7 @@ contains
         real(dp) :: p_elec, p_orb
         integer :: elecs(2), orbs(2), src(2)
         logical :: isvaliddet
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
         unused_variable(exFlag)

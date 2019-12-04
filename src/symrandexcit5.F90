@@ -38,7 +38,7 @@ module excit_gen_5
 
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, write_det_guga, &
                               init_csf_information
-    use guga_data, only: excitationInformation, tNewDet
+    use guga_data, only: ExcitationInformation_t, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, &
                                 global_excitinfo, print_excitInfo
 
@@ -62,7 +62,7 @@ contains
 
         real(dp) :: pgen2
         real(dp) :: cum_arr(nbasis)
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
 #ifdef __DEBUG

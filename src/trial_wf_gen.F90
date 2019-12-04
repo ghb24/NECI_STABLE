@@ -10,7 +10,7 @@ module trial_wf_gen
     use sparse_arrays
     use SystemData, only: nel, tHPHF, t_non_hermitian
 
-    use guga_data, only: excitationInformation
+    use guga_data, only: ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element
     use guga_bitrepops, only: write_det_guga, init_csf_information
 
@@ -597,7 +597,7 @@ contains
         integer :: nI(nel), nJ(nel)
         HElement_t(dp) :: H_ij
         character (len=*), parameter :: t_r = "generate_connected_space_vector"
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         con_vecs = 0.0_dp
 
         ! do i need to change this here for the non-hermitian transcorrelated

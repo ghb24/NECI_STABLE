@@ -29,7 +29,7 @@ module guga_rdm
                                 calcFullStartR2L, calcFullStartFullStopAlike, &
                                 calcFullStartFullStopMixed, &
                                 calcRemainingSwitches_excitInfo_double
-    use guga_data, only: excitationInformation, tag_tmp_excits, tag_excitations
+    use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -589,10 +589,10 @@ contains
         integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
         real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
         integer(int_rdm), intent(in) :: rdm_ind
-        type(excitationInformation), intent(in), optional :: excitInfo_opt
+        type(ExcitationInformation_t), intent(in), optional :: excitInfo_opt
         character(*), parameter :: this_routine = "fill_mixed_2rdm_guga"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer :: ij, kl, i, j, k, l
         ! mimic the stochastic processes for the explicit excitation
         ! generation
@@ -642,7 +642,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
         real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         character(*), parameter :: this_routine = "fill_mixed_end"
 
         integer :: st, se, en, step, sw, elecInd, holeInd, i, j
@@ -832,7 +832,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
         real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         character(*), parameter :: this_routine = "fill_mixed_start"
 
         integer :: sw, i, st, se, step, en, elecInd, holeInd
@@ -1026,7 +1026,7 @@ contains
         type(rdm_spawn_t), intent(inout) :: spawn
         integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
         real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         character(*), parameter :: this_routine = "fill_mixed_start_end"
 
         integer :: first, last, deltaB(nSpatOrbs), i, j, k, step1, step2
@@ -1957,7 +1957,7 @@ contains
 
         real(dp) :: umat, posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer :: ierr, n, exlevel
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         logical :: compFlag
         integer(n_int) :: tmp_ilut(0:niftot)
         integer(int_rdm) :: ijkl
@@ -2209,7 +2209,7 @@ contains
         integer, intent(out) :: n_excits
         character(*), parameter :: this_routine = "calc_all_excits_guga_rdm_singles"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         type(weight_obj) :: weights
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer :: st, iEx, iOrb, ierr

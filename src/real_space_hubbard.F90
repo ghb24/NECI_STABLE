@@ -67,7 +67,7 @@ module real_space_hubbard
 
     use ParallelHelper, only: iProcIndex
 
-    use guga_data, only: excitationInformation, excitationInformation, tNewDet
+    use guga_data, only: ExcitationInformation_t, ExcitationInformation_t, tNewDet
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
                                global_excitinfo
     use guga_bitRepOps, only: isProperCSF_ilut, convert_ilut_toGUGA, init_csf_information
@@ -1910,7 +1910,7 @@ contains
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, elem, r, p_elec, p_orb
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
         unused_variable(run)
@@ -2402,7 +2402,7 @@ contains
 
         integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
         real(dp) :: n_i, n_j
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         if (tGUGA) then
             call EncodeBitDet(nI, ilut)
@@ -2586,5 +2586,3 @@ contains
     end function get_umat_rs_hub_trans
 
 end module real_space_hubbard
-
-

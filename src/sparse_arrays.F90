@@ -33,7 +33,7 @@ module sparse_arrays
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
                               init_csf_information
     use util_mod, only: binary_search
-    use guga_data, only: tag_excitations, excitationInformation
+    use guga_data, only: tag_excitations, ExcitationInformation_t
     use guga_matrixElements, only: calcDiagMatEleGuga_nI
 
     implicit none
@@ -190,7 +190,7 @@ contains
         integer :: pos, nexcits
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         allocate(sparse_ham(num_states))
         allocate(SparseHamilTags(2, num_states))
@@ -355,7 +355,7 @@ contains
         integer :: pos, nexcits
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         num_states_tot = int(sum(num_states), sizeof_int)
         disps(0) = 0
@@ -503,7 +503,7 @@ contains
         integer :: pos, nExcit
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         character(len=*), parameter :: t_r = "calc_determ_hamil_sparse"
 

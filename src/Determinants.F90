@@ -23,7 +23,7 @@ MODULE Determinants
     use MemoryManager, only: TagIntType
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-    use guga_data, only: excitationInformation
+    use guga_data, only: ExcitationInformation_t
 
     use lattice_mod, only: get_helement_lattice
     use util_mod, only: NECI_ICOPY
@@ -499,7 +499,7 @@ contains
         integer :: temp_ic
         integer(n_int) :: t_i(0:NIfTot), t_j(0:NIfTot)
         ! GUGA implementation:
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         if (tGUGA) then
             if (all(nI == nJ)) then
@@ -566,7 +566,7 @@ contains
         integer(kind=n_int) :: ilut(0:NIfTot,2)
         integer(n_int) :: t_i(0:niftot), t_j(0:niftot)
         ! GUGA implementation:
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         if (tGUGA) then
 

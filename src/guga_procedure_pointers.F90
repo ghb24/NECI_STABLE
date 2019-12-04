@@ -6,12 +6,12 @@ module guga_procedure_pointers
         subroutine pickOrbitals_t(ilut, nI, excitInfo, pgen)
             use constants, only: dp, n_int
             use bit_reps, only: nifguga
-            use guga_data, only: excitationInformation
+            use guga_data, only: ExcitationInformation_t
             use SystemData, only: nel
             implicit none
             integer(n_int), intent(in) :: ilut(0:nifguga)
             integer, intent(in) :: nI(nel)
-            type(excitationInformation), intent(out) :: excitInfo
+            type(ExcitationInformation_t), intent(out) :: excitInfo
             real(dp), intent(out) :: pgen
         end subroutine pickOrbitals_t
 
@@ -27,10 +27,10 @@ module guga_procedure_pointers
         subroutine calc_mixed_contr_t(ilut, t, excitInfo, pgen, integral)
             use constants, only: dp, n_int
             use bit_reps, only: nifguga
-            use guga_data, only: excitationInformation
+            use guga_data, only: ExcitationInformation_t
             implicit none
             integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-            type(excitationInformation), intent(inout) :: excitInfo
+            type(ExcitationInformation_t), intent(inout) :: excitInfo
             real(dp), intent(out) :: pgen
             HElement_t(dp), intent(out) :: integral
         end subroutine calc_mixed_contr_t
@@ -39,11 +39,11 @@ module guga_procedure_pointers
                 integral)
             use constants, only: dp, n_int
             use bit_reps, only: nifguga
-            use guga_data, only: excitationInformation
+            use guga_data, only: ExcitationInformation_t
             implicit none
             integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
             real(dp), intent(inout) :: branch_pgen
-            type(excitationInformation), intent(inout) :: excitInfo
+            type(ExcitationInformation_t), intent(inout) :: excitInfo
             real(dp), intent(out) :: pgen
             HElement_t(dp), intent(out) :: integral
         end subroutine calc_mixed_start_contr_t

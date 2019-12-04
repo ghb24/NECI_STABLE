@@ -55,7 +55,7 @@ module tJ_model
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
                                 assign_excitInfo_values_double, assign_excitInfo_values_single
 
-    use guga_data, only: excitationInformation
+    use guga_data, only: ExcitationInformation_t
 
     use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij
 
@@ -931,7 +931,7 @@ contains
         ! actually.
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen
         character(*), parameter :: this_routine = "pick_orbitals_guga_tJ"
 
@@ -1030,7 +1030,7 @@ contains
         ! spin-free Heisenberg exchange
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: orb_pgen
         character(*), parameter :: this_routine = "pick_orbitals_guga_heisenberg"
 

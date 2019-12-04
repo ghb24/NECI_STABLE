@@ -104,14 +104,14 @@ contains
         use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
         use SystemData, only: tHPHF, nel
         use guga_excitations, only: calc_guga_matrix_element
-        use guga_data, only: excitationInformation
+        use guga_data, only: ExcitationInformation_t
         integer(n_int), intent(in) :: ilut_list(0:,:)
         HElement_t(dp), intent(inout), allocatable :: local_hamil(:,:)
 
         integer :: ndets, i, j, ierr
         integer :: nI(nel), nJ(nel)
         character(*), parameter :: t_r = "calculate_full_hamiltonian"
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! Initial checks that arrays passed in are consistent.
         ndets = size(ilut_list, 2)
