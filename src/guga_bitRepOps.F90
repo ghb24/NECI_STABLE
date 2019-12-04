@@ -23,6 +23,26 @@ module guga_bitRepOps
 
     implicit none
 
+    private
+    public :: isDouble, &
+        isProperCSF_nI, isProperCSF_ilut, getDeltaB, setDeltaB, &
+        encode_matrix_element, update_matrix_element, &
+        extract_matrix_element, write_det_guga, &
+        convert_ilut_toGUGA, convert_ilut_toNECI, convert_guga_to_ni, &
+        write_guga_list, add_guga_lists, &
+        findFirstSwitch, findLastSwitch, find_switches, &
+        calcstepvector, &
+        calcB_vector_int, calcB_vector_nI, calcB_vector_ilut, &
+        count_open_orbs, count_open_orbs_ij, &
+        count_beta_orbs_ij, count_alpha_orbs_ij, &
+        calcOcc_vector_ilut, calcOcc_vector_int, &
+        encodebitdet_guga, identify_excitation, init_csf_information, &
+        calc_csf_info, extract_h_element, getexcitation_guga, &
+        getspatialoccupation, getExcitationRangeMask
+
+
+
+
     ! interfaces
     interface isProperCSF_ilut
         module procedure isProperCSF_b
@@ -2559,6 +2579,4 @@ contains
         if (allocated(currentOcc_int))     deallocate(currentOcc_int)
 
     end subroutine deinit_csf_information
-
-
 end module guga_bitRepOps
