@@ -2574,7 +2574,7 @@ contains
             write(iunit,"(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
             write(iunit, "(e16.7)", advance='no') pgen_list(i)
             write(iunit, "(e16.7)", advance='no') exact_helements(i)
-            write(iunit, "(3i)", advance = 'no') excitLvl(i)
+            write(iunit, "(I3)", advance = 'no') excitLvl(i)
             write(iunit, *) excitTyp(i)
         end do
         close(iunit)
@@ -2591,7 +2591,7 @@ contains
             write(iunit, "(e16.7)", advance = 'no') pgen_list(i) !/sum_pgens
             write(iunit, "(e16.7)", advance = 'no') exact_helements(i) !/sum_helement
             write(iunit, "(f16.7)", advance = 'no') contrib_list(i) / real(iterations,dp)
-            write(iunit, "(3i)", advance = 'no') excitLvl(i)
+            write(iunit, "(I3)", advance = 'no') excitLvl(i)
             write(iunit, "(i3)") excitTyp(i)
         end do
         close(iunit)
