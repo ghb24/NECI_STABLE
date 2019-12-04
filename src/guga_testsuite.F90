@@ -21,6 +21,7 @@ module guga_testsuite
     use guga_data
     use guga_init
     use guga_procedure_pointers
+    use guga_write_H_matrix, only: write_H_mat
     use constants
     use DetBitOps
     use Determinants
@@ -103,6 +104,7 @@ contains
             print *, " Test the excitation generator of the ", n_most_populated, &
                 & " most populated CSFs."
             call run_test_excit_gen_most_populated(n_most_populated)
+
 
         else
             print *, " only run the excitation generator tests!"
@@ -616,6 +618,7 @@ contains
         end do
     end subroutine run_test_excit_gen_guga_general
 
+
     subroutine run_test_excit_gen_most_populated(n_most_populated)
         integer, intent(in) :: n_most_populated
         character(*), parameter :: this_routine = "run_test_excit_gen_most_populated"
@@ -629,6 +632,8 @@ contains
         do i = 1, n_most_populated
             call test_excit_gen_guga(ilutG(:,i), n_guga_excit_gen)
         end do
+
+        call write_H_mat(ilutG, './H_mat.csv')
 
         contains
 
