@@ -2402,7 +2402,7 @@ contains
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
         integer(n_int), allocatable :: det_list(:,:)
-        integer, allocatable :: excitTyp(:), excitLvl(:)
+        integer, allocatable :: excitTyp(:), excitLvl(:), excit_mat(:,:)
         real(dp), allocatable :: contrib_list(:), pgen_list(:)
         HElement_t(dp), allocatable :: matEle_list(:), exact_helements(:)
         logical, allocatable :: generated_list(:)
@@ -2438,6 +2438,7 @@ contains
         allocate(exact_helements(nExcit))
         exact_helements = 0.0_dp
         allocate(excitLvl(nexcit), source = -1)
+        allocate(excit_mat(nexcit,4), source = 0)
 
         do i = 1, nexcit
             call convert_ilut_toNECI(excitations(:,i), det_list(:,i), helgen)
@@ -2454,6 +2455,7 @@ contains
                 call calc_guga_matrix_element(ilut, det_list(:,i), excitInfo, &
                     temp_mat, .true., 2)
 
+                excit_mat(i,:) = [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l]
 
                 diff = abs(helgen - temp_mat)
 
@@ -2575,7 +2577,7 @@ contains
             write(iunit, "(e16.7)", advance='no') pgen_list(i)
             write(iunit, "(e16.7)", advance='no') exact_helements(i)
             write(iunit, "(I3)", advance = 'no') excitLvl(i)
-            write(iunit, *) excitTyp(i)
+            write(iunit, *) excit_mat(i,:)
         end do
         close(iunit)
 
@@ -2592,7 +2594,7 @@ contains
             write(iunit, "(e16.7)", advance = 'no') exact_helements(i) !/sum_helement
             write(iunit, "(f16.7)", advance = 'no') contrib_list(i) / real(iterations,dp)
             write(iunit, "(I3)", advance = 'no') excitLvl(i)
-            write(iunit, "(i3)") excitTyp(i)
+            write(iunit, "(I3)") excit_mat(i,:)
         end do
         close(iunit)
 
@@ -13779,12 +13781,8 @@ contains
         real(dp) :: minusWeight
         character(*), parameter :: this_routine = "getMinus_double"
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
-        if (bVal < EPS) then
-            minusWeight = double%F + nSwitches
-        else
-            minusWeight = double%F + nSwitches/bVal
-        end if
+
+        minusWeight = double%F + nSwitches / max(1.0_dp,bVal)
 
         ASSERT(minusWeight >= 0.0_dp)
     end function getMinus_double
@@ -13795,7 +13793,6 @@ contains
         real(dp) :: plusWeight
         character(*), parameter :: this_routine = "getPlus_double"
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
         ! update: the correct check for the b value in the case of the +2
         ! double excitation branch should be that its not allowed to be
@@ -13835,18 +13832,13 @@ contains
         character(*), parameter :: this_routine = "getZero_double"
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
         ! UPDATE: cant set it to one, because there are cases, when a 0
         ! branch comes to a 2 in a double excitation, where one has to
         ! compare against the -2 branch, which can also be non-zero
         ! so to have the correct weights, just ignore b
-        if (bVal  < EPS) then
-            zeroWeight = 1.0_dp + negSwitches * double%G + posSwitches * double%F
-        else
-            zeroWeight = 1.0_dp + 1.0_dp/bVal * &
-                (negSwitches * double%G + posSwitches * double%F)
-        end if
+        zeroWeight = 1.0_dp + &
+            (negSwitches * double%G + posSwitches * double%F) / max(1.0_dp,bVal)
 
         ASSERT(zeroWeight >= 0.0_dp)
     end function getZero_double
@@ -13900,13 +13892,19 @@ contains
         ! no of course it can still be 0 at a 0/3 start... but also
         ! set it to the technical value only
 
-        if (bVal < EPS) then
-            minusWeight = fullStart%F * fullStart%minus + nSwitches * &
-                (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus)
-        else
-            minusWeight = fullStart%F * fullStart%minus + nSwitches/bVal * &
-                (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus)
-        end if
+        ! try an adhoc second order fix..
+        minusWeight = fullStart%F * fullStart%minus + nSwitches / max(1.0_dp,bval) &
+            * (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus) &
+            + (max(nSwitches-1,0.0_dp) * fullStart%G * fullStart%plus / (max(1.0_dp,bval)**2))
+
+!         if (bVal < EPS) then
+!             minusWeight = fullStart%F * fullStart%minus + nSwitches * &
+!                 (fullStart%G * fullStart%plus + fullStart%F * fullStart%minus)
+!         else
+!             minusWeight = fullStart%F * fullStart%minus + nSwitches/bVal * &
+!                 (fullStart%G * fullStart%plus + fullStart%F * fullStart%minus)
+!         end if
+
         ASSERT(minusWeight >= 0.0_dp)
 
     end function getMinus_fullStart
@@ -13918,14 +13916,14 @@ contains
         character(*), parameter :: this_routine = "getPlus_fullStart"
 
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
         ! same as above: have to check if < 2
         if (bVal < 2.0_dp) then
             plusWeight = 0.0_dp
         else
             plusWeight = fullStart%G * fullStart%plus + nSwitches/bVal * &
-                (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus)
+                (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus) &
+                + (max(nSwitches-1,0.0_dp) * fullStart%F * fullStart%minus / (max(1.0_dp,bval)**2))
         end if
 
         ASSERT(plusWeight >= 0.0_dp)
@@ -13941,18 +13939,10 @@ contains
 
         ASSERT(negSwitches >= 0.0_dp)
         ASSERT(posSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
-        if (bVal < EPS) then
-             zeroWeight = fullStart%F*fullStart%plus + fullStart%G*fullStart%minus + &
-                negSwitches * fullStart%G * fullStart%plus + &
-                posSwitches * fullStart%F * fullStart%minus
-        else
-
-            zeroWeight = fullStart%F*fullStart%plus + fullStart%G*fullStart%minus + &
-                1.0_dp/bval*(negSwitches * fullStart%G * fullStart%plus + &
-                posSwitches * fullStart%F * fullStart%minus)
-        end if
+        zeroWeight = fullStart%F*fullStart%plus + fullStart%G*fullStart%minus + &
+                (negSwitches * fullStart%G * fullStart%plus + &
+                posSwitches * fullStart%F * fullStart%minus) / max(1.0_dp,bval)
 
         ASSERT(zeroWeight >= 0.0_dp)
 
@@ -14028,17 +14018,11 @@ contains
         character(*), parameter :: this_routine = "getMinus_semiStart"
 
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
         ! change b value treatment, by just checking if excitations is
         ! technically possible if b == 0
-        if (bVal < EPS) then
-            minusWeight = semiStart%F*semiStart%zero + semiStart%G*semiStart%minus + &
-                nSwitches*(semiStart%F*semiStart%plus + semiStart%G*semiStart%zero)
-        else
 
-            minusWeight = semiStart%F*semiStart%zero + semiStart%G*semiStart%minus + &
-                nSwitches/bVal*(semiStart%F*semiStart%plus + semiStart%G*semiStart%zero)
-        end if
+        minusWeight = semiStart%F*semiStart%zero + semiStart%G*semiStart%minus + &
+            nSwitches / max(1.0_dp,bval) * (semiStart%F*semiStart%plus + semiStart%G*semiStart%zero)
 
         ASSERT(minusWeight >= 0.0_dp)
 
@@ -14052,12 +14036,11 @@ contains
         character(*), parameter :: this_routine = "getPlus_semiStart"
 
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
         ! just set +1 branch probability to 0 if b == 0
-        if (bVal < EPS) then
+
+        if (near_zero(bVal)) then
             plusWeight = 0.0_dp
         else
-
             plusWeight = semiStart%G*semiStart%zero + semiStart%F*semiStart%plus + &
                 nSwitches/bVal*(semiStart%G*semiStart%minus + semiStart%F*semiStart%zero)
         end if
@@ -14147,7 +14130,6 @@ contains
         character(*), parameter :: this_routine = "getMinus_overlapRaising"
 
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
         if (bVal < EPS) then
             !minusWeight = dat%F*(dat%minus + (1.0_dp - dat%G)*dat%plus) + &
@@ -14173,7 +14155,6 @@ contains
         character(*), parameter :: this_routine = "getPlus_overlapRaising"
 
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
         if (bVal < EPS) then
             plusWeight = 0.0_dp
@@ -14969,7 +14950,6 @@ contains
 
             ! also do the possibilities at a step=2
         else if (current_stepvector(sO) == 2) then
-!         else if (isTwo(ilut, sO)) then
             if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
                 ! everything possible!
                 do iEx = 1, nExcits
@@ -15195,397 +15175,6 @@ contains
                 call stop_all(this_routine, "should not be here. all 3 weights 0 at s=2 in!")
             end if
         end if
-
-!
-!
-!         if (isOne(ilut,sOrb)) then
-!             ! check different bValue and weight restrictions
-!             if (bVal > 0.0_dp .and. minusWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
-!                 ! all excitations are possible in this case.
-!                 ! first do the on track
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     ! need it two times for matrix elements
-!                     s = t
-!                     deltaB = getDeltaB(t)
-!
-!                     ! just calc matrix element for 1 -> 1 on track
-!                     call getDoubleMatrixElement(1, 1, deltaB, gen1, gen2, &
-!                         bVal , order, tempWeight_0, tempWeight_1)
-!
-!                     call update_matrix_element(t, tempWeight_0, 1)
-!
-!                     call update_matrix_element(t, tempWeight_1, 2)
-!
-!                     tempExcits(:,iEx) = t
-!
-!                     ! if deltaB != 2 do :
-!                     if (deltaB /= 2) then
-!                         ! then do the 1 -> 2 switch
-!                         clr_orb(s,2*sOrb-1)
-!                         set_orb(s,2*sOrb)
-!
-!                         ! change deltaB
-!                         call setDeltaB(deltaB + 2, s)
-!
-!                         ! calc matrix elements, only x1 matrix elements here
-!                         call getDoubleMatrixElement(2,1,deltaB, gen1, gen2, &
-!                             bVal, order, x1_element = tempWeight_1)
-!
-!                         call encode_matrix_element(s, 0.0_dp, 1)
-!                         call update_matrix_element(s, tempWeight_1, 2)
-!
-!                         nExcits = nExcits + 1
-!
-!                         tempExcits(:,nExcits) = s
-!
-!                     end if
-!                 end do
-!
-!             else if ((bVal == 0.0_dp .or. plusWeight < EPS) .and. &
-!                 minusWeight > 0.0_dp) then
-!                 ! both +2 branches end.. only -2 branching
-!                 ! not yet sure about the if statement, but implementation clear
-!                 ! if plus weight is 0, +2 wouldnt be here. and also if bValue
-!                 ! is so low the branch wouldnt be possible here
-!                 ! try new more strict implo
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     deltaB = getDeltaB(t)
-!
-!                     ! -2 branches have branch possibility here, but both 0 and
-!                     ! -2 can stay
-!                     ASSERT(deltaB /= 2)
-!
-!                     ! do possible switch first, as i need stored matrix lement
-!                     if (deltaB == -2) then
-!                         s = t
-!
-!                         ! switch 1 -> 2
-!                         clr_orb(s, 2*sOrb - 1)
-!                         set_orb(s, 2*sOrb)
-!
-!                         ! change deltaB
-!                         call setDeltaB(0, s)
-!
-!                         ! and matrix element(only x1)
-!                         call getDoubleMatrixElement(2,1,deltaB,gen1,gen2, &
-!                             bVal , order, x1_element = tempWeight_1)
-!
-!                         call encode_matrix_element(s, 0.0_dp, 1)
-!                         call update_matrix_element(s, tempWeight_1, 2)
-!
-!                         nExcits = nExcits + 1
-!
-!                         tempExcits(:,nExcits) = s
-!                     end if
-!
-!                     ! then do staying for both
-!
-!                     call getDoubleMatrixElement(1, 1, deltaB, gen1, gen2, &
-!                         bVal , order, tempWeight_0, tempWeight_1)
-!
-!                     call update_matrix_element(t, tempWeight_0, 1)
-!                     call update_matrix_element(t, tempWeight_1, 2)
-!
-!                     tempExcits(:,iEx) = t
-!
-!                 end do
-!
-!             else if (minusWeight < EPS .and. bVal > 0.0_dp .and. plusWeight > 0.0_dp) then
-!                 ! -2 branch not possible, all others possible
-!                 ! for 0 branch and staying, for -2 only switching for +2 only stayin
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     deltaB = getDeltaB(t)
-!
-!                     if (deltaB == -2) then
-!                         ! if minusWeight is 0 here, i shouldnt even end up
-!                         ! here since it should have been 0 beforehand too
-!                         ! -> check
-!                         ASSERT(deltaB /= -2)
-!
-!                         ! do only 1 -> 2 switch
-!                         clr_orb(t, 2*sOrb - 1)
-!                         set_orb(t, 2*sOrb)
-!
-!                         call setDeltaB(0, t)
-!
-!                         call getDoubleMatrixElement(2,1,deltaB, gen1, gen2, &
-!                             bVal , order, x1_element = tempWeight_1)
-!
-!                         call encode_matrix_element(t, 0.0_dp, 1)
-!                         call update_matrix_element(t, tempWeight_1, 2)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                     else
-!                         ! for the other 2 atleast staying is possible
-!                         ! not always... not if there is a 2 at a semistop then
-!                         ! which causes a -1 branch to go on which is not
-!                         ! possible!
-!                         ! if correctly set up.. i shouldn get on the 0 branch
-!                         ! with 0 minusweight
-!
-!                         ! check if branching is possible first, since i need the
-!                         ! matrix element
-!                         if (deltaB == 0) then
-!                             s = t
-!
-!                             ! do 1 -> 2 switch
-!                             clr_orb(s, 2*sOrb - 1)
-!                             set_orb(s, 2*sOrb)
-!
-!                             call setDeltaB(2, s)
-!
-!                             call getDoubleMatrixElement(2,1,deltaB,gen1,gen2,bVal,&
-!                                 order, x1_element = tempWeight_1)
-!
-!                             call encode_matrix_element(s, 0.0_dp, 1)
-!                             call update_matrix_element(s, tempWeight_1, 2)
-!
-!                             nExcits = nExcits + 1
-!
-!                             tempExcits(:,nExcits) = s
-!
-!                         end if
-!
-!                         ! do staying then
-!                         call getDoubleMatrixElement(1,1,deltaB, gen1, gen2, &
-!                             bVal, order, tempWeight_0, tempWeight_1)
-!
-!                         call update_matrix_element(t, tempWeight_0, 1)
-!                         call update_matrix_element(t, tempWeight_1, 2)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                     end if
-!                 end do
-!
-!
-!             else if ((bVal == 0.0_dp .or. plusWeight <EPS) .and. &
-!                 minusWeight <EPS) then
-!                 ! only 0 branches going on. +2 -> +2 then always not possible
-!                 ! since when 0 -> 2 not going always excludes 2 -> 2 also
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     deltaB = getDeltaB(t)
-!
-!                     ASSERT(deltaB /= 2)
-!
-!                     if (deltaB == 0) then
-!                         ! 0 branch stays
-!
-!                         call getDoubleMatrixElement(1,1,deltaB ,gen1,gen2,&
-!                             bVal , order, tempWeight_0, tempWeight_1)
-!
-!                     else
-!                         ! -2 branch has to switch 1 -> 2
-!                         clr_orb(t, 2*sOrb - 1)
-!                         set_orb(t, 2*sOrb)
-!
-!                         call getDoubleMatrixElement(2,1,deltaB ,gen1, gen2,&
-!                             bVal , order, x1_element = tempWeight_1)
-!
-!                         call setDeltaB(0, t)
-!
-!                     end if
-!
-!                     call update_matrix_element(t, tempWeight_0, 1)
-!                     call update_matrix_element(t, tempWeight_1, 2)
-!
-!                     tempExcits(:,iEx) = t
-!
-!                 end do
-!
-!             else
-!                 ! in the double excitation the 0 branch is always possible
-!                 ! so an ending excitation ... so shouldnt be here ...
-!                 ! but not yet sure.. todo
-!                 call stop_all(this_routine, "something went wrong. shouldn be here!")
-!
-! !             end if
-! !
-!         else if (isTwo(ilut,sOrb)) then
-!             ! check all weights and b value restrictions..
-!             if (bVal > 2.0_dp .and. minusWeight > 0.0_dp .and. plusWeight > 0.0_dp) then
-!                 ! all excitations possible
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     deltaB = getDeltaB(t)
-!
-!                     ! staying is possible for all, switching only for 0 and 2
-!                     ! do that first because i need matrix elements there
-!                     if (deltaB /= -2) then
-!                         s = t
-!                         ! switch 2 -> 1
-!                         set_orb(s, 2*sOrb - 1)
-!                         clr_orb(s, 2*sOrb)
-!
-!                         call setDeltaB(deltaB - 2, s)
-!
-!                         call getDoubleMatrixElement(1,2,deltaB,gen1,gen2,&
-!                             bVal, order, x1_element = tempWeight_1)
-!
-!                         call encode_matrix_element(s, 0.0_dp, 1)
-!                         call update_matrix_element(s, tempWeight_1, 2)
-!
-!                         nExcits = nExcits + 1
-!
-!                         tempExcits(:,nExcits) = s
-!
-!                     end if
-!                     ! then to the staying part
-!
-!                     call getDoubleMatrixElement(2,2,deltaB,gen1,gen2,&
-!                         bVal , order, tempWeight_0, tempWeight_1)
-!
-!                     call update_matrix_element(t, tempWeight_0, 1)
-!                     call update_matrix_element(t, tempWeight_1, 2)
-!
-!                     tempExcits(:,iEx) = t
-!
-!                 end do
-!
-!             else if (minusWeight <EPS .and. bVal > 2.0_dp .and. plusWeight > 0.0_dp) then
-!                 ! -2 branch not possible, everything else is
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     deltaB = getDeltaB(t)
-!
-!                     ! -2 branch shouldnt even arrive here
-!                     ASSERT(deltaB /= -2)
-!
-!                     ! both remaining can stay and +2 can branch even.
-!                     ! do branching first due to matrix element need
-!                     if (deltaB == 2) then
-!                         s = t
-!
-!                         ! switch 2 -> 1
-!                         set_orb(s, 2*sOrb - 1)
-!                         clr_orb(s, 2*sOrb)
-!
-!                         call setDeltaB(0, s)
-!
-!                         call getDoubleMatrixElement(1,2,deltaB,gen1,gen2,&
-!                             bVal, order, x1_element = tempWeight_1)
-!
-!                         call encode_matrix_element(s, 0.0_dp, 1)
-!                         call update_matrix_element(s, tempWeight_1, 2)
-!
-!                         nExcits = nExcits + 1
-!
-!                         tempExcits(:,nExcits) = s
-!                     end if
-!                     ! and then do staying part
-!
-!                     call getDoubleMatrixElement(2,2,deltaB,gen1,gen2,&
-!                         bVal , order, tempWeight_0, tempWeight_1)
-!
-!                     call update_matrix_element(t, tempWeight_0, 1)
-!                     call update_matrix_element(t, tempWeight_1, 2)
-!
-!                     tempExcits(:,iEx) = t
-!                 end do
-!
-!             else if (minusWeight <EPS .and. (plusWeight <EPS .or. bVal < 3.0_dp)) then
-!                 ! only 0 branches can continue
-!                 ! which means 0 branch stays and +2 branch switches
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     deltaB = getDeltaB(t)
-!
-!                     ASSERT(deltaB /= -2)
-!
-!                     if (deltaB == 0) then
-!                         call getDoubleMatrixElement(2,2,deltaB,gen1,gen2,&
-!                             bVal , order, tempWeight_0, tempWeight_1)
-!
-!                     else
-!                         ! +2 branch switches 2 -> 1
-!                         set_orb(t, 2*sOrb - 1)
-!                         clr_orb(t, 2*sOrb)
-!
-!                         call setDeltaB(0, t)
-!
-!                         call getDoubleMatrixElement(1,2,deltaB,gen1, gen2, &
-!                             bVal, order, x1_element = tempWeight_1)
-!
-!                         tempWeight_0 = 0.0_dp
-!
-!                     end if
-!
-!                     call update_matrix_element(t, tempWeight_0, 1)
-!                     call update_matrix_element(t, tempWeight_1, 2)
-!
-!                     tempExcits(:,iEx) = t
-!
-!                 end do
-!
-!             else if (minusWeight > 0.0_dp .and. (bVal < 3.0_dp .or. plusWeight <EPS)) then
-!                 ! only 0 and -2 branches continue
-!                 ! +2 branch has to switch 0 and -2 can stay, o can also switch
-!                 do iEx = 1, nExcits
-!                     t = tempExcits(:,iEx)
-!                     deltaB = getDeltaB(t)
-!
-!                     if (deltaB == 2) then
-!                         ! do switch 2 -> 1
-!                         set_orb(t, 2*sOrb - 1)
-!                         clr_orb(t, 2*sOrb)
-!
-!                         call setDeltaB(0, t)
-!
-!                         call getDoubleMatrixElement(1,2,deltaB,gen1,gen2,&
-!                             bVal , order, x1_element = tempWeight_1)
-!
-!                         call encode_matrix_element(t, 0.0_dp, 1)
-!                         call update_matrix_element(t, tempWeight_1, 2)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                     else
-!
-!                         if (deltaB == 0) then
-!                             s = t
-!
-!                             ! do switch 2 -> 1 switch first too
-!                             set_orb(s, 2*sOrb - 1)
-!                             clr_orb(s, 2*sOrb)
-!
-!                             call setDeltaB(-2,s)
-!
-!                             call getDoubleMatrixElement(1,2,deltaB,gen1,gen2,&
-!                                 bVal,order,x1_element = tempWeight_1)
-!
-!                             call encode_matrix_element(s, 0.0_dp, 1)
-!                             call update_matrix_element(s, tempWeight_1, 2)
-!
-!                             nExcits = nExcits + 1
-!
-!                             tempExcits(:,nExcits) = s
-!
-!                         end if
-!                         ! then do staying
-!
-!                         call getDoubleMatrixElement(2,2,deltaB,gen1,gen2,&
-!                             bVal , order, tempWeight_0, tempWeight_1)
-!
-!                         call update_matrix_element(t, tempWeight_0, 1)
-!                         call update_matrix_element(t, tempWeight_1, 2)
-!
-!                         tempExcits(:,iEx) = t
-!
-!                     end if
-!                 end do
-!
-!             else
-!                 ! since 0 branch alway possible in double excitation
-!                 ! should usually get here ... but not sure yet todo
-!                 call stop_all(this_routine, "something went wrong. shouldnt be here!")
-!             end if
-!
-!         end if
 
     end subroutine doubleUpdate
 
@@ -16313,6 +15902,7 @@ contains
         ! first check two-particle integral
         umat = get_umat_el(i,k,j,l)
 
+
         if (abs(umat) < EPS) then
             allocate(excitations(0,0), stat = ierr)
             return
@@ -16713,6 +16303,7 @@ contains
         real(dp) :: plusWeight, minusWeight, zeroWeight
         integer(n_int), pointer :: tempExcits(:,:)
         !todo asserts
+
 #ifdef __DEBUG
         if (excitInfo%gen1 == excitInfo%gen2) then
             ! two raising
@@ -16743,6 +16334,7 @@ contains
         call createSingleStart(ilut, excitInfo, posSwitches, negSwitches, &
             weights, tempExcits, nExcits)
 
+
         ! and single update until semi start
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
             call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
@@ -16755,6 +16347,7 @@ contains
         plusWeight = weights%proc%plus(posSwitches(start2), currentB_ilut(start2),weights%dat)
         zeroWeight = weights%proc%zero(negSwitches(start2), posSwitches(start2), &
             currentB_ilut(start2), weights%dat)
+
 
         ! change weights... maybe need both single and double type weights
         ! then do lowering semi start
@@ -16786,6 +16379,7 @@ contains
             call singleUpdate(ilut, iOrb, excitInfo, posSwitches, negSwitches, &
                 weights, tempExcits, nExcits)
         end do
+
 
         ! and finally end step
         call singleEnd(ilut, excitInfo, tempExcits, nExcits, excitations)
@@ -19404,7 +18998,6 @@ contains
 
             case (3)
                 ! has to be 3 in lowering case
-                ASSERT(isThree(ilut,s))
 
                 ! update: for a fulldouble excitation the 0-weight
                 ! is not always > 0 dependending on the semistop and
@@ -19881,7 +19474,6 @@ contains
 
             case (0)
                 ! has to be 0 in raising case
-                ASSERT(isZero(ilut,s))
 
                 ! update: for a fulldouble excitation the 0-weight
                 ! is not always > 0 dependending on the semistop and
