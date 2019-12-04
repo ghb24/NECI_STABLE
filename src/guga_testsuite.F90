@@ -14,6 +14,7 @@ module guga_testsuite
     ! do that later, for now implement just some random tests which get
     ! executed at the end of the NECI initialisation and check them by hand
     use SystemData
+    use CalcData, only: tReadPops
     use guga_bitRepOps
     use guga_excitations
     use guga_matrixElements
@@ -25,6 +26,7 @@ module guga_testsuite
     use Determinants
     use bit_reps
     use FciMCData
+    use semi_stoch_procs, only: return_most_populated_states
     use dsfmt_interface, only: dsfmt_init
     use genrandsymexcitnumod, only: testgenrandsymexcitnu
     use symrandexcit3, only: test_sym_excit3
@@ -96,6 +98,11 @@ contains
 !             deallocate(currentOcc_int)
 !             deallocate(current_stepvector)
 !             deallocate(currentB_int)
+
+        else if (t_test_most_populated) then
+            print *, " Test the excitation generator of the ", n_most_populated, &
+                & " most populated CSFs."
+            call run_test_excit_gen_most_populated(n_most_populated)
 
         else
             print *, " only run the excitation generator tests!"
@@ -287,128 +294,7 @@ contains
         pExcit2_same = 0.9_dp
         pExcit3_same = 0.9_dp
 
-!         if (nEl == 4 .and. nBasis/2 == 4 .and. STOT == 2) then
-! !             call run_test_excit_gen_guga_S2
-!             call run_test_excit_gen_guga_general
-!
-!         else if (nEL == 3 .and. nBasis/2 == 4 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nEl_3_S_1
-!
-!         else if (nEl == 2 .and. nBasis/2 == 4) then
-!             call run_test_excit_gen_guga_nEl_2_S_0
-!
-!         else if (nEl == 5 .and. nBasis/2 == 4) then
-!             call run_test_excit_gen_guga_nEl_5_S_1
-!
-!         else if (nEl == 6 .and. nBasis/2 == 4) then
-!             call run_test_excit_gen_guga_nEl_6_S_0
-!
-!         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 0) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_0
-!
-! !             call run_test_excit_gen_guga_single([1,3,5,7,10,12])
-!
-!         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 2) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_2
-! !             call run_test_excit_gen_guga_single([1,3,4,5,10,11])
-!
-!         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 4) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_4
-!
-!         else if (nEl == 4 .and. nBasis/2 == 6 .and. STOT == 0) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_4_S_0
-!
-!         else if (nEl == 4 .and. nBasis/2 == 6 .and. STOT == 2) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_4_S_2
-!
-!         else if (nEl == 5 .and. nBasis/2 == 6 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_5_S_1
-!
-!         else if (nEl == 5 .and. nBasis/2 == 6 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_5_S_3
-!
-!         else if (nEl == 7 .and. nBasis/2 == 6 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_7_S_1
-!
-!         else if (nEl == 7 .and. nBasis/2 == 6 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_7_S_3
-!
-!         else if (nEl == 5 .and. nBasis/2 == 9 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_5_S_1
-!
-!         else if (nEl == 5 .and. nBasis/2 == 9 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_5_S_3
-!
-!         else if (nEl == 7 .and. nBasis/2 == 9 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_7_S_1
-!
-!         else if (nEl == 7 .and. nBasis/2 == 9 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_7_S_3
-!
-!         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 0) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_0
-!
-!         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 6) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_6
-!
-! !         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 4) then
-! !             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_4
-! !
-! !         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 2) then
-! !             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_2
-!
-!         else if (nEl == 9 .and. nBasis/2 == 9 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_9_S_3
-!
-!         else if (nEl == 9 .and. nBasis/2 == 9 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_9_S_1
-!
-!         else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 0) then
-!             call run_test_excit_gen_guga_nOrb_18_nel_18_S_0
-!
-!         else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 2) then
-!             call run_test_excit_gen_guga_nOrb_18_nel_18_S_2
-!
-!         else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 6) then
-!             call run_test_excit_gen_guga_nOrb_18_nel_18_S_6
-!         else
-            ! todo: create a general excit_gen tester which uses the
-            ! guessed HF determinant as a start and uses some of the
-            ! exactly created determinants from that to check for pgen and
-            ! matrix element consistency!
-!
-
-!             call run_test_excit_gen_guga_multiple(&
-!                 [1,2,3,4,5,6,7,8])
-!             call run_test_excit_gen_guga_multiple(&
-!                 [9,10,11,12,13,14,15,16])
-!             call run_test_excit_gen_guga_multiple(&
-!                 [1,3,5,7,10,12,14,16])
-!             call run_test_excit_gen_guga_multiple(&
-!                 [1,3,6,7,10,11,14,16])
-!             call run_test_excit_gen_guga_multiple(&
-!                 [1,4,5,8,9,12,13,16])
-            call run_test_excit_gen_guga_general
-!             call run_test_excit_gen_guga_multiple([3,7,8,9,10,12,13,14])
-!             call run_test_excit_gen_guga_multiple([1,4,5,7])
-!             call run_test_excit_gen_guga_multiple([1,3,6,7])
-!             call run_test_excit_gen_guga_multiple([1,2,5,8])
-!             call run_test_excit_gen_guga_multiple([1,3,4,8])
-
-!             call run_test_excit_gen_guga_single([1,2,3,5,6,7,8,9,11,12,13,14,15,18])
-!             call run_test_excit_gen_guga_single([1,2,3,4,5,6,7,8,9,10,11,13,16,18])
-!             call run_test_excit_gen_guga_single([1,2,3,4,5,7,8,10,11,12,13,14,17,18])
-!             call run_test_excit_gen_guga_multiple(&
-!                 convert_guga_to_ni([0,0,0,0,1,1,1,2,1,2,3,3,3,1,2],15))
-!             call run_test_excit_gen_guga_single()
-!             call run_test_excit_gen_guga_single(&
-!                 convert_guga_to_ni([3,3,3,3,3,1,0,3,1],9))
-
-!             call run_test_excit_gen_guga_single(&
-!                 [1,2,3,5,7,10,12,13,14,15,17,18,20,21,25,27,30,32,34,35,36,&
-!                 37,39,41,44,46,48,49,50,51,54,58])
-
-!         end if
+        call run_test_excit_gen_guga_general
 
     end subroutine run_test_excit_gen_guga
 
@@ -678,9 +564,10 @@ contains
 
     end subroutine test_guga_bitRepOps
 
-    subroutine run_test_excit_gen_guga_general
+    subroutine run_test_excit_gen_guga_general()
         character(*), parameter :: this_routine = "run_test_excit_gen_guga_general"
-        integer(n_int) :: ilut(0:niftot)
+
+        integer(n_int) :: ilutG(0:nIfGUGA), ilut(0:nIfTot)
         integer(n_int), pointer :: ex(:,:)
         integer :: nEx, i
         integer :: nTest
@@ -688,12 +575,12 @@ contains
 
         ! use fdet as first determinant and test on all excitations from this..!
         ! maybe a bit too much for bigger system?
-        print *, "running general test_excit_gen_guga()"
-
-        ! first act the hamiltonian on the fdet
         call EncodeBitDet(fdet, ilut)
+        call convert_ilut_toGUGA(ilut, ilutG)
 
-        call actHamiltonian(ilut, ex, nEx)
+        print *, "running", this_routine
+
+        call actHamiltonian(ilutG, ex, nEx)
 
         if (t_full_guga_tests .or. t_guga_testsuite) then
             ! in this case also check if not too many n_guga_excits are
@@ -720,15 +607,46 @@ contains
 
         print *, "running tests on nExcits: ", nTest
         call write_guga_list(6, ex(:,1:nEx))
-        call test_excit_gen_guga(ilut, n_guga_excit_gen)
-        ! then loop over the excitations and check the excitation generator
+        call test_excit_gen_guga(ilutG, n_guga_excit_gen)
 
+        ! then loop over the excitations and check the excitation generator
         ! dont do it for all excitatons... too much
         do i = 1, nTest
             call test_excit_gen_guga(ex(:,i), n_guga_excit_gen)
         end do
-
     end subroutine run_test_excit_gen_guga_general
+
+    subroutine run_test_excit_gen_most_populated(n_most_populated)
+        integer, intent(in) :: n_most_populated
+        character(*), parameter :: this_routine = "run_test_excit_gen_most_populated"
+        integer(n_int) :: ilutG(0:nIfGUGA, n_most_populated)
+        integer :: i
+
+        print *, "running general", this_routine
+
+        call get_most_populated(n_most_populated, ilutG)
+
+        do i = 1, n_most_populated
+            call test_excit_gen_guga(ilutG(:,i), n_guga_excit_gen)
+        end do
+
+        contains
+
+        subroutine get_most_populated(n_most_populated, ilutG)
+            integer, intent(in) :: n_most_populated
+            integer(n_int), intent(out) :: ilutG(0:nIfGUGA, n_most_populated)
+
+            integer(n_int), allocatable :: ilut(:, :)
+            integer :: i
+
+            allocate(ilut(0:nIfTot, n_most_populated))
+            call return_most_populated_states(n_most_populated, ilut)
+            do i = 1, size(ilut, 2)
+                call convert_ilut_toGUGA(ilut(:, i), ilutG(:, i))
+            end do
+        end subroutine
+
+    end subroutine run_test_excit_gen_most_populated
 
     subroutine run_test_excit_gen_guga_single(nI)
         integer, intent(in), optional :: nI(nEl)
