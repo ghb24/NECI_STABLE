@@ -47,7 +47,7 @@ contains
     ! The interface is common to all excitation generators, see proc_ptrs.F90
     integer, intent(in) :: nI(nel), exFlag
     integer(n_int), intent(in) :: iLut(0:niftot)
-   integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
     logical, intent(out) :: tParity
     real(dp), intent(out) :: pGen
     type(excit_gen_store_type), intent(inout), target :: store
@@ -734,6 +734,13 @@ contains
 
     integer, intent(in) :: i,a
     real(dp) :: w
+    !integer :: ex(2,2)
+
+    !ex(1,1) = i
+    !ex(2,1) = i
+    !ex(1,2) = a
+    !ex(2,2) = a
+    !w = sqrt(abs(sltcnd_excit(refDet,2,ex,.false.)))
 
     w = sqrt(abs(get_umat_el(gtID(i),gtID(a),gtID(a),gtID(i))))
   end function pp_weight_function

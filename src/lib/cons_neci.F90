@@ -22,6 +22,7 @@ real(dp), parameter ::  PI2   = 9.8696044010893586188344909998761511353136994072
 real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333333_dp
 real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753769_dp
 real(dp), parameter :: EPS = 0.0000000000001_dp
+real(dp), parameter :: INFINITY = huge(1.0_dp)
 !real(dp), parameter ::  Root2 = sqrt(2.0_dp)   !Removed since sun comiler didn't like this: bug 3853
 
 integer :: temp
@@ -39,6 +40,9 @@ integer, parameter :: sizeof_int64 = 8
 integer, parameter :: sizeof_dp = 8
 integer, parameter :: sizeof_complexdp = 16
 integer, parameter :: sizeof_sp = 4
+
+! number of possible excitations per step
+integer, parameter :: maxExcit = 3
 
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant

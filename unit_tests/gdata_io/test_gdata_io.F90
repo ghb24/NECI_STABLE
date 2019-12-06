@@ -26,6 +26,9 @@ contains
         call test_sizes()
         call test_read()
         call test_write()
+#ifdef USE_HDF_
+        call test_write_hdf5()
+#endif
     end subroutine gdata_io_test_driver
 
     !------------------------------------------------------------------------------------------!

@@ -146,10 +146,11 @@ module LoggingData
     ! shift changes
     integer :: equi_iter_double_occ = 0
     logical :: t_calc_double_occ_av = .false.
-    ! I essentially only need a local and a global storage for the
-    ! the expectation vaulue <n_u n_d>
-    ! and also some storage for the instantaneous, averaged, summed over
-    ! stuff etc..
+
+    ! I essentially only need a local and a global storage for the 
+    ! the expectation vaulue <n_u n_d> 
+    ! and also some storage for the instantaneous, averaged, summed over 
+    ! stuff etc.. 
 !     real(dp) :: n_double_occ_loc, n_double_occ_all
     ! [Werner Dobrautz 4.4.2017]
     ! changes belonging to the histogram tau-search
@@ -194,4 +195,17 @@ module LoggingData
     logical :: t_hist_fvals
     integer :: enGrid, arGrid
 
+    ! spatial resolved double occupancy and spin difference measurements
+    logical :: t_spin_measurements = .false.
+!     logical :: t_inst_spin_diff = .false.
+!     logical :: t_inst_spat_doub_occ = .false. 
+!     logical :: t_spatial_double_occ = .false.
+
+    logical :: t_print_core_info = .false.
+
+    ! for transcorrelated approach: do we separately keep track of the TC part of
+    ! the correlation energy
+    logical :: tLogKMatProjE
+    ! histogram the matrix elements of the six-index operator
+    logical :: tHistLMat
 end module LoggingData

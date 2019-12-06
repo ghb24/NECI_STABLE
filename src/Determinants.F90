@@ -1,21 +1,31 @@
 #include "macros.h"
 MODULE Determinants
-    use constants, only: dp, n_int, bits_n_int
+    use constants, only: dp, n_int, bits_n_int, int64, maxExcit
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
                           tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
+                          t_lattice_model, arr, lms, tFixLz, tUEGSpecifyMomentum, &
+                          tRef_Not_HF, tMolpro, tHub, tUEG, &
                           nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
-    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
-    sltcnd_knowIC, sltcnd_0, SumFock
+    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_compat, &
+                          sltcnd_knowIC, sltcnd_0, SumFock, CalcFockOrbEnergy
+    use procedure_pointers, only: sltcnd_2
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
     use DeterminantData
-    use bit_reps, only: NIfTot
+    use bit_reps
     use MemoryManager, only: TagIntType
+    use lattice_mod, only: get_helement_lattice
+    use util_mod, only: NECI_ICOPY
+    use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
+    use sym_mod
+    use sort_mod
+    use global_utilities
+
     implicit none
 
     ! TODO: Add an interface for getting a diagonal helement with an ordered
@@ -50,7 +60,6 @@ MODULE Determinants
       integer(TagIntType) :: tagDefDet=0
 
 contains
-
 
   Subroutine DetPreFreezeInit()
     Use global_utilities
@@ -190,12 +199,6 @@ contains
 
 
     Subroutine DetInit()
-        Use global_utilities
-        use constants, only: dp,int64
-        use SystemData, only: nel, G1, nBasis, Arr, tHub, tUEG
-        use SymData , only : nSymLabels,SymLabelList,SymLabelCounts,TwoCycleSymGens
-        use sym_mod
-
       real(dp) DNDET
       integer i,j
       integer(int64) nDet
@@ -352,8 +355,6 @@ contains
     End Subroutine DetInit
 
     function get_helement_compat (nI, nJ, IC, iLutI, iLutJ) result (hel)
-        use constants, only: n_int
-
         ! Get the matrix element of the hamiltonian. This assumes that we
         ! already know IC. We do not need to know iLutI, iLutJ (although
         ! they are helpful). This better fits the requirements of existing
@@ -371,9 +372,25 @@ contains
 
         character(*), parameter :: this_routine = 'get_helement_compat'
 
+        integer :: temp_ic
+
         if (tHPHFInts) &
             call stop_all (this_routine, "Should not be calling HPHF &
                           &integrals from here.")
+
+        ! nobody actually uses Simons old CSF implementations..
+!         if (tCSF) then
+!             if (iscsf(nI) .or. iscsf(nJ)) then
+!                 hel = CSFGetHelement (nI, nJ)
+!                 return
+!             endif
+!         endif
+
+        if (t_lattice_model) then
+            temp_ic = ic
+            hel = get_helement_lattice(nI, nJ, temp_ic)
+            return
+        end if
 
         if (tCSF) then
             if (iscsf(nI) .or. iscsf(nJ)) then
@@ -401,7 +418,6 @@ contains
     end function
 
     function get_helement_normal (nI, nJ, iLutI, iLutJ, ICret) result(hel)
-        use constants, only: n_int
 
         ! Get the matrix element of the hamiltonian.
         !
@@ -430,6 +446,17 @@ contains
             endif
         endif
 
+        if (t_lattice_model) then
+            if (present(ICret)) then
+                ic = -1
+                hel = get_helement_lattice(nI, nJ, ic)
+                ICret = ic
+            else
+                hel = get_helement_lattice(nI,nJ)
+            end if
+            return
+        end if
+
         if (tStoreAsExcitations .and. nI(1) == -1 .and. nJ(1) == -1) then
             ! TODO: how to express requirement for double?
             !if (IC /= 2) &
@@ -438,7 +465,7 @@ contains
 
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
-            hel = sltcnd_2 (ex, .false.)
+            hel = sltcnd_2 (nI, ex, .false.)
         endif
 
         if (present(iLutJ)) then
@@ -477,11 +504,22 @@ contains
         ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
-        integer, intent(in) :: ExcitMat(2,2)
+        integer, intent(in) :: ExcitMat(2,ic)
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel
 
         character(*), parameter :: this_routine = 'get_helement_excit'
+
+        ! intermediately put the special call to the hubbard matrix elements
+        ! here. Although I want to change that in the whole code to have
+        ! procedure pointers similar to the excitation generator, which gets
+        ! intialized to the correct function at the beginning of the
+        ! excitations
+        ! store all the lattice model matrix elements in one call.
+        if (t_lattice_model) then
+            hel = get_helement_lattice(nI, ic, ExcitMat, tParity)
+            return
+        end if
 
         ! If we are using CSFs, then call the csf routine.
         ! TODO: Passing through of ExcitMat to CSFGetHelement
@@ -522,8 +560,7 @@ contains
         !      tParity      - Parity of the excitation
         ! Ret: hel          - The H matrix element
 
-        use constants, only: n_int
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,ic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel
@@ -532,6 +569,12 @@ contains
         ! Eliminate compiler warnings
         integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
         iUnused=iLutJ(1); iUnused=iLutI(1); iUnused2=nJ(1); hUnused = helgen
+
+        ! switch to lattice matrix element:
+        if (t_lattice_model) then
+            hel = get_helement_lattice(nI,ic, ex, tParity)
+            return
+        end if
 
         hel = sltcnd_excit (nI, IC, ex, tParity)
 
@@ -568,8 +611,6 @@ contains
        !  consistent with GetHElement3, i.e. offer the most abstraction possible.
        ! In:
        !    nI(nEl)  list of occupied spin orbitals in the determinant.
-       use constants, only: dp
-       use SystemData, only: nEl,nBasis,Arr,ECore
        integer nI(nEl)
        HElement_t(dp) hEl
        call GetH0Element(nI,nEl,Arr(1:nBasis,1:2),nBasis,ECore,hEl)
@@ -580,7 +621,6 @@ contains
     End Subroutine DetCleanup
 
     subroutine write_bit_rep(iUnit, iLut, lTerm)
-       use bit_reps
        implicit none
        integer iUnit
        logical lTerm

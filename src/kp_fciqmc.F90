@@ -53,8 +53,8 @@ contains
         integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, MaxIndex, determ_ind, ic, ex(2,2), ms_parent
-        integer :: nI_parent(nel), nI_child(nel)
+        integer :: TotWalkersNew, determ_ind, ic, ex(2,maxExcit), ms_parent
+        integer :: nI_parent(nel), nI_child(nel), MaxIndex
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
@@ -381,7 +381,7 @@ contains
         integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, MaxIndex, determ_ind, ic, ex(2,2)
+        integer :: TotWalkersNew, determ_ind, ic, ex(2,maxExcit), MaxIndex
         integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)

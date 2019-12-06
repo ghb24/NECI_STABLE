@@ -40,7 +40,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -120,7 +120,7 @@ contains
         real(dp) :: pgen, cum_arr(nbasis)
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted2'
 
-        integer :: iSpn, src(2), tgt(2)
+        integer :: iSpn, src(ic), tgt(ic)
         real(dp) :: cum_sums(2), int_cpt(2), cpt_pair(2), sum_pair(2)
         logical :: generate_list
 
@@ -220,7 +220,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
@@ -510,7 +510,7 @@ contains
         integer, intent(in) :: iterations
         character(*), parameter :: this_routine = 'test_excit_gen_take2'
 
-        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,2)
+        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,maxExcit)
         integer :: flag, ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)

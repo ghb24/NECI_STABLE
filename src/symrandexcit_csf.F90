@@ -46,7 +46,7 @@ contains
 
         integer, intent(in)    :: nI(nel), exFlag
         integer(kind=n_int), intent(in)    :: iLut(0:NIfTot)
-        integer, intent(out)   :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out)   :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out)   :: tParity
         real(dp),  intent(out)   :: pGen
         type(excit_gen_store_type), intent(inout), target :: store
@@ -1813,7 +1813,7 @@ contains
         real(dp),  intent(in) :: pSingle, pDouble
         character(*), parameter :: this_routine = 'TestGenRandSymCSFExcit'
         integer(kind=n_int) :: iLut(0:NIfTot)
-        integer :: nJ(nel), ExcitMat(2,2), IC, nopen
+        integer :: nJ(nel), ExcitMat(2,maxExcit), IC, nopen
         integer :: i, j, k, l, ierr, nexcit, ind(4)
         logical :: bTestList, tParity
         real(dp)  :: pGen, avContrib, avContribAll

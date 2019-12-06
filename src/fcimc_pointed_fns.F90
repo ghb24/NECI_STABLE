@@ -3,16 +3,20 @@
 module fcimc_pointed_fns
 
     use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
-                          tGen_4ind_reverse,  nBasis, tHPHF
+                          tGen_4ind_reverse,  nBasis, t_3_body_excits, &
+                          t_k_space_hubbard, t_new_real_space_hubbard, &
+                          t_trans_corr_2body, t_trans_corr_hop, tHPHF, nBasis, G1
+
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
+
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
                         RealCoeffExcitThresh, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, &
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        tTruncInitiator, tSkipRef, t_truncate_unocc, &
+                        tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
-                        tAutoAdaptiveShift, AAS_Thresh, AAS_Expo, AAS_Cut, &
+                        AAS_Thresh, AAS_Expo, AAS_Cut, &
                         tPrecond, AAS_Const, EAS_Scale
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
@@ -25,6 +29,9 @@ module fcimc_pointed_fns
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
+    use UMatCache, only: UMatInd, gtID
+    use kMatProjE, only: kMat
+    use tc_three_body_data, only: tDampKMat
     use util_mod
     use FciMCData
     use constants
@@ -50,7 +57,7 @@ module fcimc_pointed_fns
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,2), walkExcitLevel
+        integer, intent(in) :: ic, ex(2,ic), walkExcitLevel
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -109,7 +116,7 @@ module fcimc_pointed_fns
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,2), walkExcitLevel
+        integer, intent(in) :: ic, ex(2,ic), walkExcitLevel
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -158,7 +165,7 @@ module fcimc_pointed_fns
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,2), walkExcitLevel
+        integer, intent(in) :: ic, ex(2,ic), walkExcitLevel
         real(dp), dimension(lenof_sign), intent(in) :: RealwSign
         logical, intent(in) :: tParity
         real(dp), intent(inout) :: prob
@@ -168,7 +175,6 @@ module fcimc_pointed_fns
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         HElement_t(dp) , intent(inout) :: HElGen
-
         character(*), parameter :: this_routine = 'attempt_create_normal'
 
         real(dp) :: rat, r, walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac
@@ -180,7 +186,10 @@ module fcimc_pointed_fns
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
         integer :: ispn
 
+        integer :: temp_ex(2,ic)
+
         unused_var(AvSignCurr)
+
         ! Just in case
         child = 0.0_dp
 
@@ -193,30 +202,28 @@ module fcimc_pointed_fns
         ! element is calculated at the time of the excitation generation,
         ! and returned in HElGen. In this case, get_spawn_helement simply
         ! returns HElGen, rather than recomputing the matrix element.
-        rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
-                                 tParity, HElGen)
+!         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
+!                                  tParity, HElGen)
 
-        ! We actually want to calculate Hji - take the complex conjugate,
-        ! rather than swap around DetCurr and nJ.
-#ifdef CMPLX_
-        rh_used = conjg(rh)
-#else
-        rh_used = rh
-#endif
+        temp_ex(1,:) = ex(2,:)
+        temp_ex(2,:) = ex(1,:)
+
+        rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
+            tParity, HElGen)
+        
         ! assign the matrix element
         HElGen = abs(rh)
-
         ! [W.D.]
         ! if the matrix element happens to be zero, i guess i should
         ! abort as early as possible? so check that here already, or even
         ! earlier..
-!         if (abs(rh_used) < EPS) then
+!         if (abs(rh) < EPS) then
 !             child = 0.0_dp
 !             return
 !         end if
 !
 !         if (t_matele_cutoff) then
-!             if (abs(rh_used) < EPS) then
+!             if (abs(rh) < EPS) then
 !                 child = 0.0_dp
 !             end if
 !         end if
@@ -239,19 +246,26 @@ module fcimc_pointed_fns
         ! fill in the frequency histograms here!
         ! [Werner Dobrautz 4.4.2017:]
         if (t_fill_frequency_hists) then
-            if (tHUB .or. tUEG) then
-                call fill_frequency_histogram(abs(rh_used / precond_fac), prob)
+
+            if (tHUB .or. tUEG .or. &
+                (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
+                (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then
+                call fill_frequency_histogram(abs(rh / precond_fac), prob)
             else
-                if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
-                    t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+                if (t_consider_par_bias) then
+                    ! t_par only has meaning for double excitations
+                    if(ic == 2) then
+                        t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
+                    else
+                        t_par = .false.
+                    endif
 
                     ! not sure about the AvMCExcits!! TODO
-                    call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob, &
+                    call fill_frequency_histogram_4ind(abs(rh / precond_fac), prob, &
                         ic, t_par, ex)
-
                 else
 
-                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob, ic)
+                    call fill_frequency_histogram_sd(abs(rh / precond_fac), prob, ic)
 
                 end if
             end if
@@ -278,7 +292,7 @@ module fcimc_pointed_fns
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
-        matEl = real(rh_used, dp)
+        matEl = real(rh, dp)
         if (t_matele_cutoff) then
             if (abs(matEl) < matele_cutoff) matel = 0.0_dp
         end if
@@ -308,31 +322,29 @@ module fcimc_pointed_fns
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
-            if (btest(component,0)) then
+            if (mod(component,2) == 1) then
                 ! real component
-                MatEl = real(rh_used, dp)
+                MatEl = real(rh, dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
             else
 #ifdef CMPLX_
-                MatEl = real(aimag(rh_used), dp)
+                MatEl = real(aimag(rh), dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
                 ! n.b. In this case, spawning is of opposite sign.
-                if (.not. btest(part_type,0)) then
-                    ! imaginary parent -> imaginary child
-                    walkerweight = -walkerweight
+                if(mod(part_type,2) == 0) then
+                   walkerweight = - walkerweight
                 endif
 #endif
             end if
 #endif
+
             nSpawn = - tau * MatEl * walkerweight / prob
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
-
-
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
             if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
@@ -424,14 +436,17 @@ module fcimc_pointed_fns
     subroutine null_encode_child (ilutI, ilutJ, ic, ex)
         implicit none
         integer(kind=n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(in) :: ic, ex(2,2)
+        integer, intent(in) :: ic
+        integer, intent(in) :: ex(2,ic)
         integer(kind=n_int), intent(inout) :: ilutj(0:niftot)
 
         ! Avoid compiler warnings
         integer :: iUnused
         integer(n_int) :: iUnused2
-        iLutJ(0) = iLutJ(0); iUnused = IC; iUnused = ex(2,2)
+        integer :: iUnused3(2,ic)
+        iLutJ(0) = iLutJ(0); iUnused = IC
         iUnused2 = iLutI(0)
+        iUnused3 = ex
     end subroutine
 
     subroutine new_child_stats_hist_hamil (iter_data, iLutI, nJ, iLutJ, ic, &
@@ -584,9 +599,10 @@ module fcimc_pointed_fns
 #endif
         real(dp) :: shift
 
+
         do i=1, inum_runs
-            !If we are fixing the population of reference det, skip death/birth
-            if(tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
+            if (tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
+                !If we are fixing the population of reference det, skip death/birth
                 fac(i)=0.0
             else
                  ! rescale the shift
@@ -665,8 +681,8 @@ module fcimc_pointed_fns
 
     end function attempt_die_normal
 
-    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel, DetPos) result(ndie)
 
+    function attempt_die_precond (DetCurr, Kii, realwSign, WalkExcitLevel, DetPos) result(ndie)
         ! Should we kill the particle at determinant DetCurr.
         ! The function allows multiple births (if +ve shift), or deaths from
         ! the same particle. The returned number is the number of deaths if
@@ -684,6 +700,7 @@ module fcimc_pointed_fns
         real(dp), intent(in) :: Kii
         real(dp), dimension(lenof_sign) :: ndie
         integer, intent(in) :: WalkExcitLevel
+
         integer, intent(in), optional :: DetPos
         character(*), parameter :: t_r = 'attempt_die_normal'
 

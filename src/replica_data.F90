@@ -157,6 +157,9 @@ contains
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
 
+        ! real-time FCIQMC: keep track of first and second Runge-Kutta step 
+        ! seperately, think of which stats i need for it!
+        ! maybe move that to real-time init module..
         ! KPFCIQMC
         allocate(TotPartsInit(lenof_sign), &
                  AllTotPartsInit(lenof_sign), &
@@ -264,7 +267,9 @@ contains
                    AllTotPartsInit, &
                    tSinglePartPhaseKPInit)
 
+                   ! real-time fciqmc
         if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
+
 
         call clean_iter_data(iter_data_fciqmc)
 
