@@ -8,7 +8,7 @@ module aliasSampling
   implicit none
 
   private
-  public :: aliasSampler_t, aliasSamplerArray_t, clear_sampler_array
+  public :: aliasSampler_t, aliasSamplerArray_t, clear_sampler_array, aliasTable_t
 
   ! type for tables: contains everything you need to get a random number
   ! with given biases
@@ -25,13 +25,13 @@ module aliasSampling
      integer(MPIArg) :: aliasTableShmw
    contains
      ! constructor
-     procedure, private :: setupTable
+     procedure :: setupTable
      ! only load the data, without allocation
-     procedure, private :: initTable
+     procedure :: initTable
      ! destructor - final would be suited better, but is not supported by all compilers
-     procedure, private :: tableDestructor
+     procedure :: tableDestructor
      ! get a random value from the alias table
-     procedure, private :: getRand
+     procedure :: getRand
   end type aliasTable_t
 
   !------------------------------------------------------------------------------------------!
