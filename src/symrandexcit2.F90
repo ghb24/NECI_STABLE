@@ -2589,6 +2589,7 @@ MODULE GenRandSymExcitNUMod
             IF(iAllowedExcites.eq.0) THEN
             !    WRITE(6,*) "No allowed excitations from this ij pair"
                 nJ(1)=0
+                pGen = 1.0_dp
                 RETURN
             ENDIF
         ENDIF

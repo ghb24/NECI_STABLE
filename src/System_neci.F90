@@ -234,6 +234,7 @@ MODULE System
 ! Coulomb damping function currently removed.
       FCOULDAMPBETA=-1.0_dp
       COULDAMPORB=0
+      k_offset = 0.0_dp
 
     end subroutine SetSysDefaults
 
