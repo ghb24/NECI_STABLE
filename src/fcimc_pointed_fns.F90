@@ -10,7 +10,7 @@ module fcimc_pointed_fns
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
     use CalcData, only: RealSpawnCutoff, tRealSpawnCutoff, tAllRealCoeff, &
-                        RealCoeffExcitThresh, AVMcExcits, tau, DiagSft, &
+                        RealCoeffExcitThresh, tau, DiagSft, &
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, &
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
@@ -52,7 +52,7 @@ module fcimc_pointed_fns
     function attempt_create_trunc_spawn (DetCurr,&
                                          iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type, &
-                                         AvSignCurr, RDMBiasFacCurr, precond_fac) result(child)
+                                         AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -63,6 +63,7 @@ module fcimc_pointed_fns
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
+        real(dp), intent(in) :: AvExPerWalker
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
@@ -81,7 +82,7 @@ module fcimc_pointed_fns
                 child = attempt_create_normal (DetCurr, &
                                    iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                    tParity, walkExcitLevel, part_type, AvSignCurr, &
-                                   RDMBiasFacCurr, precond_fac)
+                                   AvExPerWalker, RDMBiasFacCurr, precond_fac)
             else
                 child = 0
             endif
@@ -89,7 +90,7 @@ module fcimc_pointed_fns
             child = attempt_create_normal (DetCurr, &
                                iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                tParity, walkExcitLevel, part_type, AvSignCurr, &
-                               RDMBiasFacCurr, precond_fac)
+                               AvExPerWalker, RDMBiasFacCurr, precond_fac)
         end if
     end function
 
@@ -110,7 +111,7 @@ module fcimc_pointed_fns
     function att_create_trunc_spawn_enc (DetCurr,&
                                          iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
                                          ic, ex, tparity, walkExcitLevel, part_type, &
-                                         AvSignCurr,RDMBiasFacCurr, precond_fac) result(child)
+                                         AvSignCurr, AvExPerWalker,  RDMBiasFacCurr, precond_fac) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -121,6 +122,7 @@ module fcimc_pointed_fns
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
+        real(dp), intent(in) :: AvExPerWalker        
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
@@ -142,7 +144,7 @@ module fcimc_pointed_fns
                 child = attempt_create_normal (DetCurr, &
                                    iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                    tParity, walkExcitLevel, part_type, AvSignCurr, &
-                                   RDMBiasFacCurr, precond_fac)
+                                   AvExPerWalker, RDMBiasFacCurr, precond_fac)
             else
                 child = 0
             endif
@@ -150,14 +152,14 @@ module fcimc_pointed_fns
             child = attempt_create_normal (DetCurr, &
                                iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
                                tParity, walkExcitLevel, part_type, AvSignCurr, &
-                               RDMBiasFacCurr, precond_fac)
+                               AvExPerWalker, RDMBiasFacCurr, precond_fac)
         end if
     end function
 
     function attempt_create_normal (DetCurr, iLutCurr, &
                                     RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, tParity, &
-                                    walkExcitLevel, part_type, AvSignCurr, RDMBiasFacCurr, &
-                                    precond_fac) result(child)
+                                    walkExcitLevel, part_type, AvSignCurr, AvExPerWalker, &
+                                    RDMBiasFacCurr, precond_fac) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
@@ -169,6 +171,7 @@ module fcimc_pointed_fns
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
+        real(dp), intent(in) :: AvExPerWalker
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         HElement_t(dp) , intent(inout) :: HElGen
@@ -191,9 +194,9 @@ module fcimc_pointed_fns
         child = 0.0_dp
 
         ! If each walker does not have exactly one spawning attempt
-        ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
+        ! (if AvExPerWalker /= 1.0_dp) then the probability of an excitation
         ! having been chosen, prob, must be altered accordingly.
-        prob = prob * AvMCExcits
+        prob = prob * AvExPerWalker
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation,
@@ -348,10 +351,10 @@ module fcimc_pointed_fns
                  n_truncate_spawns .and. .not. tEScaleWalkers) then
                ! does not work with scaled walkers, as the scaling factor is not
                ! computed here for performance reasons (it was a huge performance bottleneck)
-                ! TODO: add some additional output if this event happens
-                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
-                truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
-                nSpawn = sign(n_truncate_spawns, nspawn)
+               ! TODO: add some additional output if this event happens
+               write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+               truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
+               nSpawn = sign(n_truncate_spawns, nspawn)
 
             end if
 
@@ -424,7 +427,7 @@ module fcimc_pointed_fns
         endif
 
         ! Avoid compiler warnings
-        iUnused = walkExcitLevel
+        iUnused = walkExcitLevel        
     end function
 
     !

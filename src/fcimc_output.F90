@@ -1886,7 +1886,7 @@ contains
 #endif
                 call neci_flush(iout)
             endif
-        endif
+         endif
 
     end subroutine end_iteration_print_warn
 
