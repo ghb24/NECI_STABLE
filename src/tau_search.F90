@@ -388,6 +388,9 @@ contains
 
         end if
 
+        ! default value for pTriples_new
+        pTriples_new = pTriples
+        
         ! What needs doing depends on the number of parameters that are being
         ! updated.
 
@@ -452,9 +455,7 @@ contains
 
 !               checking for triples
                 if (enough_trip) then
-                        pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
-                else
-                        pTriples_new = pTriples
+                    pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
                 endif
                 ! We only want to update the opposite spins bias here, as we only
                 ! consider it here!
@@ -475,7 +476,7 @@ contains
             ! values
             if ((tUEG .or. enough_sing) .and. enough_doub) then
                 psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
-                if(enough_trip) pTriples_new = max(gamma_trip, prob_min_thresh)
+                if(enough_trip) pTriples_new = max(gamma_trip / gamma_sum, prob_min_thresh)
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1/gamma_sum
                     pDoub_spindiff1_new = gamma_doub_spindiff1/gamma_sum
@@ -488,10 +489,8 @@ contains
                 ! actually also adapt the time-step!!
                 ! but psingles stays 1
                 psingles_new = pSingles
-                pTriples_new = pTriples
                 tau_new = max_permitted_spawn / gamma_sum
              else
-                pTriples_new = pTriples
                 psingles_new = pSingles
 
                 if (tReltvy) then
