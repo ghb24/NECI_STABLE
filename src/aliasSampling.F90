@@ -8,7 +8,7 @@ module aliasSampling
   implicit none
 
   private
-  public :: aliasSampler_t, aliasTable_t, aliasSamplerArray_t, clear_sampler_array
+  public :: aliasSampler_t, aliasSamplerArray_t, clear_sampler_array, aliasTable_t
 
   ! type for tables: contains everything you need to get a random number
   ! with given biases
@@ -32,10 +32,6 @@ module aliasSampling
      procedure :: tableDestructor
      ! get a random value from the alias table
      procedure :: getRand
-
-     ! this hurts, but the array class has to have a mean of setting the pointers
-     procedure :: setBiasTablePtr
-     procedure :: setAliasTablePtr
   end type aliasTable_t
 
   !------------------------------------------------------------------------------------------!
@@ -56,19 +52,15 @@ module aliasSampling
      ! constructor
      procedure :: setupSampler
      ! only load the data, without allocation
-     procedure :: initSampler
+     procedure, private :: initSampler
      ! initialize the probabilities
-     procedure :: initProbs
+     procedure, private :: initProbs
      ! destructor - see above re final
      procedure :: samplerDestructor
      ! get a random element and the generation probability
      procedure :: sample
      ! get the probability to produce a given value
      procedure :: getProb
-     ! I'm so sorry, but this is required for the array class to access the probs pointer
-     procedure :: setProbsPtr
-     procedure :: setBiasPtr
-     procedure :: setAliasPtr
   end type aliasSampler_t
 
   !------------------------------------------------------------------------------------------!
@@ -416,41 +408,6 @@ contains
   end function getProb
 
   !------------------------------------------------------------------------------------------!
-  ! Manually set the member ptr - do not use unless you know what you are doing
-  !------------------------------------------------------------------------------------------!
-
-  subroutine setProbsPtr(this,ptr)
-    ! Input: ptr - new target for the probs
-    implicit none
-    class(aliasSampler_t) :: this
-    real(dp), pointer :: ptr(:)
-
-    this%probs => ptr
-  end subroutine setProbsPtr
-
-  !------------------------------------------------------------------------------------------!
-
-  subroutine setBiasPtr(this,ptr)
-    ! Input: ptr - new target for the bias table
-    implicit none
-    class(aliasSampler_t) :: this
-    real(dp), pointer :: ptr(:)
-
-    call this%table%setBiasTablePtr(ptr)
-  end subroutine setBiasPtr
-
-  !------------------------------------------------------------------------------------------!
-
-  subroutine setAliasPtr(this,ptr)
-    ! Input: ptr - new target for the alias table
-    implicit none
-    class(aliasSampler_t) :: this
-    integer, pointer :: ptr(:)
-
-    call this%table%setAliasTablePtr(ptr)
-  end subroutine setAliasPtr
-
-  !------------------------------------------------------------------------------------------!
   ! This is where stuff gets technical...
   ! A sampler array class is required since intel mpi cannot have more than 16381 shared
   ! memory windows (i.e. we could not handle more than ~5500 samplers, which is easily
@@ -485,13 +442,13 @@ contains
 
        ! set this entry's pointers
        probPtr => this%allProbs(windowStart:windowEnd)
-       call this%samplerArray(iEntry)%setProbsPtr(probPtr)
+       this%samplerArray(iEntry)%probs => probPtr
 
        aliasPtr => this%allAliasTable(windowStart:windowEnd)
-       call this%samplerArray(iEntry)%setAliasPtr(aliasPtr)
+       this%samplerArray(iEntry)%table%aliasTable => aliasPtr
 
        biasPtr => this%allBiasTable(windowStart:windowEnd)
-       call this%samplerArray(iEntry)%setBiasPtr(biasPtr)
+       this%samplerArray(iEntry)%table%biasTable => biasPtr
     end do
 
   end subroutine setupSamplerArray
