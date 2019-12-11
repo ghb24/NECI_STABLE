@@ -19,6 +19,9 @@ module sltcnd_mod
     use timing_neci
     use bit_reps, only: NIfTot
     implicit none
+    private
+    public :: sltcnd_compat, sltcnd_excit, sltcnd, CalcFockOrbEnergy, &
+        sltcnd_0, sltcnd_1, sltcnd_2, sumfock, sltcnd_knowIC
 
 contains
     function sltcnd_compat (nI, nJ, IC) result (hel)

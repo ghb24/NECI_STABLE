@@ -15,7 +15,7 @@ module gasci
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
     use new_sltcnd_mod, only: SingleExc_t, DoubleExc_t, sltcnd_excit, &
-        UNKNOWN, matrix
+        UNKNOWN
     implicit none
 
     private
@@ -421,13 +421,13 @@ contains
         character(*), parameter :: this_routine = "s_get_cumulative_list"
 
         trial_exc = exc
-        ASSERT(trial_exc%tgt == UNKNOWN)
+        ASSERT(trial_exc%val(2) == UNKNOWN)
 
         previous = 0.0_dp
         do i = 1, size(Orb_list)
             tgt = Orb_list(i)
             if (all(occ_Orb_list /= tgt)) then
-                trial_exc%tgt = tgt
+                trial_exc%val(2) = tgt
                 cSum(i) = &
                     previous + abs(sltcnd_excit(occ_Orb_list, trial_exc, .false.))
             else
@@ -452,13 +452,13 @@ contains
         character(*), parameter :: this_routine = "d_get_cumulative_list"
 
         trial_exc = exc
-        ASSERT(trial_exc%tgt2 == UNKNOWN)
+        ASSERT(trial_exc%val(2, 2) == UNKNOWN)
 
         previous = 0.0_dp
         do i = 1, size(Orb_list)
             tgt = Orb_list(i)
-            if (all(occ_Orb_list /= tgt) .and. trial_exc%tgt1 /= tgt) then
-                trial_exc%tgt2 = tgt
+            if (all(occ_Orb_list /= tgt) .and. trial_exc%val(1, 2) /= tgt) then
+                trial_exc%val(2, 2) = tgt
                 cSum(i) = &
                     previous + abs(sltcnd_excit(occ_Orb_list, trial_exc, .false.))
             else
