@@ -1,3 +1,6 @@
+#ifndef MACROS_INCLUDEGUARD_
+#define MACROS_INCLUDEGUARD_
+
 #define log_alloc(arr, tag, ierr) call LogMemAlloc("arr",size(arr),tbs_(arr),t_r,tag,ierr)
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
@@ -216,3 +219,5 @@ endif
 
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
+
+#endif
