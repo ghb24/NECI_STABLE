@@ -21,7 +21,7 @@ module fcimc_iter_utils
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
-         AllInitsPerExLvl, initsPerExLvl
+         AllInitsPerExLvl, initsPerExLvl, tCoupleCycleOutput
     use tau_search, only: update_tau
     use rdm_data, only: en_pert_main, InstRDMCorrectionFactor
     use Parallel_neci
@@ -40,7 +40,34 @@ module fcimc_iter_utils
 
 contains
 
-    ! TODO: COMMENTING
+
+  subroutine output_diagnostics()
+    ! Updates Time measures and gets the acceptance rate printed in output
+
+    ! Update the total imaginary time passed
+    TotImagTime = TotImagTime + StepsPrint * Tau
+
+    ! Set Iter time to equal the average time per iteration in the
+    ! previous update cycle.
+    IterTime = IterTime / real(StepsPrint,sp)
+
+    ! Calculate the acceptance ratio
+    if (tContTimeFCIMC .and. .not. tContTimeFull) then
+       if(.not. near_zero(real(cont_spawn_attempts))) then
+          AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
+       else
+          AccRat = 0.0_dp
+       endif
+    else
+       if(.not. any(near_zero(AllSumWalkersOut))) then
+          AccRat = real(AllAcceptances, dp) / AllSumWalkersOut
+       else
+          AccRat = 0.0_dp
+       endif
+    end if
+  end subroutine output_diagnostics
+
+  ! TODO: COMMENTING
     subroutine iter_diagnostics ()
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
@@ -100,7 +127,7 @@ contains
 #ifdef CMPLX_
             tRestart = .false.
             do run = 1, inum_runs
-                if (sum(AllTotParts(min_part_type(run):max_part_type(run))) ==0 )  then
+                if (near_zero(sum(AllTotParts(min_part_type(run):max_part_type(run)))))  then
                     write(iout,"(A)") "All particles have died. Restarting."
                     tRestart=.true.
                     exit
@@ -365,7 +392,7 @@ contains
 
     end subroutine population_check
 
-    subroutine communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
+    subroutine communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all, t_output)
 
         ! This routine sums all estimators and stats over all processes.
 
@@ -390,14 +417,16 @@ contains
         type(fcimc_iter_data) :: iter_data
         real(dp), intent(in) :: tot_parts_new(lenof_sign)
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
-
+        logical, intent(in) :: t_output
+        logical :: t_comm_trial
         ! Allow room to send up to 1000 elements.
         real(dp) :: send_arr(1000)
         ! Allow room to receive up to 1000 elements.
         real(dp) :: recv_arr(1000)
         ! Equivalent arrays for HElement_t variables.
-        HElement_t(dp) :: send_arr_helem(100)
-        HElement_t(dp) :: recv_arr_helem(100)
+        integer, parameter :: arr_helem_size = 300
+        HElement_t(dp) :: send_arr_helem(arr_helem_size)
+        HElement_t(dp) :: recv_arr_helem(arr_helem_size)
         ! Equivalent arrays for EXLEVELStats (of exactly required size).
         real(dp) :: send_arr_WNorm(3*(NEl+1)*inum_runs), &
                     recv_arr_WNorm(3*(NEl+1)*inum_runs)
@@ -408,6 +437,7 @@ contains
         integer(int64) :: TotWalkersTemp
         real(dp) :: bloom_sz_tmp(0:2)
         real(dp) :: RealAllHFCyc(max(lenof_sign,inum_runs))
+        real(dp) :: RealAllHFOut(max(lenof_sign,inum_runs))
 !         real(dp) :: all_norm_psi_squared(inum_runs)
         real(dp) :: all_norm_semistoch_squared(inum_runs)
         character(len=*), parameter :: t_r = 'communicate_estimates'
@@ -415,6 +445,9 @@ contains
         ! Remove the holes in the main list when wanting the number of uniquely
         ! occupied determinants.
         TotWalkersTemp = TotWalkers - HolesInList
+
+        ! The trial wavefunction is communicated before output and only if the option is on
+        t_comm_trial = t_output .and. tTrialWavefunction
 
         sizes = 0
 
@@ -459,8 +492,14 @@ contains
         sizes(29) = size(initsPerExLvl)
         sizes(30) = 1
         sizes(31) = 1
+        ! Output variable
+        if(t_output) then
+           sizes(32) = size(HFOut)
+           sizes(33) = size(Acceptances)
+           sizes(34) = size(SumWalkersOut)
+        endif
 
-        if (sum(sizes(1:31)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
+        if (sum(sizes(1:34)) > 1000) call stop_all(t_r, "No space left in arrays for communication of estimates. Please increase &
                                                         & the size of the send_arr and recv_arr arrays in the source code.")
 
         low = upp + 1; upp = low + sizes(1 ) - 1; send_arr(low:upp) = SpawnFromSing;
@@ -501,6 +540,11 @@ contains
         ! excitation number trackers
         low = upp + 1; upp = low + sizes(30) - 1; send_arr(low:upp) = nInvalidExcits;
         low = upp + 1; upp = low + sizes(31) - 1; send_arr(low:upp) = nValidExcits;
+        if(t_output) then
+           low = upp + 1; upp = low + sizes(32) - 1; send_arr(low:upp) = HFOut
+           low = upp + 1; upp = low + sizes(33) - 1; send_arr(low:upp) = Acceptances
+           low = upp + 1; upp = low + sizes(34) - 1; send_arr(low:upp) = SumWalkersOut
+        endif
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
 
@@ -547,6 +591,12 @@ contains
         ! excitation number trackers
         low = upp + 1; upp = low + sizes(30) - 1; allNInvalidExcits = nint(recv_arr(low));
         low = upp + 1; upp = low + sizes(31) - 1; allNValidExcits = nint(recv_arr(low));
+        ! Output variables
+        if(t_output) then
+           low = upp + 1; upp = low + sizes(32) - 1; RealAllHFOut = recv_arr(low:upp)
+           low = upp + 1; upp = low + sizes(33) - 1; AllAcceptances = recv_arr(low:upp)
+           low = upp + 1; upp = low + sizes(34) - 1; AllSumWalkersOut = recv_arr(low:upp)
+        endif
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -556,7 +606,7 @@ contains
         sizes(3) = size(ENumCycAbs)
         sizes(4) = size(cyc_proje_denominator)
         sizes(5) = size(sum_proje_denominator)
-        if (tTrialWavefunction) then
+        if (t_comm_trial) then
             sizes(6) = size(trial_numerator)
             sizes(7) = size(trial_denom)
             sizes(8) = size(trial_num_inst)
@@ -566,8 +616,10 @@ contains
         end if
         if (tEN2) sizes(12) = 1
         sizes(13) = size(InitsEnumCyc)
+        sizes(14) = size(ENumOut)
 
-        if (sum(sizes(1:11)) > 100) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
+
+        if (sum(sizes(1:14)) > arr_helem_size) call stop_all(t_r, "No space left in arrays for communication of estimates. Please &
                                                         & increase the size of the send_arr_helem and recv_arr_helem &
                                                         & arrays in the source code.")
 
@@ -576,7 +628,7 @@ contains
         low = upp + 1; upp = low + sizes(3) - 1; send_arr_helem(low:upp) = ENumCycAbs;
         low = upp + 1; upp = low + sizes(4) - 1; send_arr_helem(low:upp) = cyc_proje_denominator;
         low = upp + 1; upp = low + sizes(5) - 1; send_arr_helem(low:upp) = sum_proje_denominator;
-        if (tTrialWavefunction) then
+        if (t_comm_trial) then
             low = upp + 1; upp = low + sizes(6) - 1; send_arr_helem(low:upp) = trial_numerator;
             low = upp + 1; upp = low + sizes(7) - 1; send_arr_helem(low:upp) = trial_denom;
             low = upp + 1; upp = low + sizes(8) - 1; send_arr_helem(low:upp) = trial_num_inst;
@@ -588,6 +640,9 @@ contains
            low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low) = en_pert_main%ndets;
         endif
         low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = InitsENumCyc;
+        if(t_output) then
+           low = upp + 1; upp = low + sizes(14) - 1; send_arr_helem(low:upp) = ENumOut;
+        endif
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -598,7 +653,7 @@ contains
         low = upp + 1; upp = low + sizes(3) - 1; AllENumCycAbs = recv_arr_helem(low:upp);
         low = upp + 1; upp = low + sizes(4) - 1; all_cyc_proje_denominator = recv_arr_helem(low:upp);
         low = upp + 1; upp = low + sizes(5) - 1; all_sum_proje_denominator = recv_arr_helem(low:upp);
-        if (tTrialWavefunction) then
+        if (t_comm_trial) then
             low = upp + 1; upp = low + sizes(6) - 1; tot_trial_numerator = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(7) - 1; tot_trial_denom = recv_arr_helem(low:upp);
             low = upp + 1; upp = low + sizes(8) - 1; tot_trial_num_inst = recv_arr_helem(low:upp);
@@ -610,6 +665,9 @@ contains
            low = upp + 1; upp = low + sizes(12) - 1; en_pert_main%ndets_all = int(recv_arr_helem(low));
         endif
         low = upp + 1; upp = low + sizes(13) - 1; AllInitsENumCyc = recv_arr_helem(low:upp);
+        if(t_output) then
+           low = upp + 1; upp = low + sizes(14) - 1; AllEnumOut = recv_arr_helem(low:upp);
+        endif
 
         ! Optionally communicate EXLEVEL_WNorm.
         if (tLogEXLEVELStats) then
@@ -626,7 +684,8 @@ contains
 
         ! Convert real array into HElement_t one.
         do run = 1, inum_runs
-            AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
+           AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
+           AllHFOut(run) = ARR_RE_OR_CPLX(RealAllHFOut, run)
         end do
 
 #ifdef CMPLX_
@@ -649,12 +708,9 @@ contains
 
     end subroutine communicate_estimates
 
-    subroutine collate_iter_data(iter_data, replica_pairs)
+    subroutine collate_iter_data(iter_data)
 
         type(fcimc_iter_data) :: iter_data
-        logical, intent(in) :: replica_pairs
-
-        integer :: run
         logical :: ltmp
         character(len=*), parameter :: this_routine = 'collate_iter_data'
 
@@ -674,32 +730,6 @@ contains
             .and. (.not. tFillingStochRDMonFly))) then
             call update_tau_hist()
         end if
-
-        if (tTrialWavefunction) then
-            if (.not. qmc_trial_wf) then
-                ! Becuase tot_trial_numerator/tot_trial_denom is the energy
-                ! relative to the the trial energy, add on this contribution to
-                ! make it relative to the HF energy.
-                if (ntrial_excits == 1) then
-                    tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies(1))
-                    tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*&
-                         trial_energies(1))
-                else
-                    if (replica_pairs) then
-                        do run = 2, inum_runs, 2
-                            tot_trial_numerator(run-1:run) = tot_trial_numerator(run-1:run) + &
-                                tot_trial_denom(run-1:run)*trial_energies(run/2)
-                            tot_init_trial_numerator(run-1:run) = tot_init_trial_numerator(run-1:run) + &
-                                tot_init_trial_denom(run-1:run)*trial_energies(run/2)
-                        end do
-                    else
-                        tot_trial_numerator = tot_trial_numerator + (tot_trial_denom*trial_energies)
-                        tot_init_trial_numerator = tot_init_trial_numerator + (tot_init_trial_denom*trial_energies)
-                    end if
-                end if
-            end if
-        end if
-
 
         ! quick fix for the double occupancy:
         if (t_calc_double_occ_av) then
@@ -728,18 +758,50 @@ contains
         endif
 #endif
 
-    end subroutine collate_iter_data
+      end subroutine collate_iter_data
 
-    subroutine update_shift (iter_data)
+      function relative_trial_numerator(tt_numerator, tt_denom, replica_pairs) &
+           result(rel_tot_trial_numerator)
+        implicit none
+        HElement_t(dp), intent(in) :: tt_numerator(inum_runs), tt_denom(inum_runs)
+        logical, intent(in) :: replica_pairs
+        HElement_t(dp) :: rel_tot_trial_numerator(inum_runs)
+        integer :: run
+
+        if (.not. qmc_trial_wf) then
+           ! Becuase tot_trial_numerator/tot_trial_denom is the energy
+           ! relative to the the trial energy, add on this contribution to
+           ! make it relative to the HF energy.
+           if (ntrial_excits == 1) then
+              rel_tot_trial_numerator = tt_numerator + (tt_denom*trial_energies(1))
+           else
+              if (replica_pairs) then
+                 do run = 2, inum_runs, 2
+                    rel_tot_trial_numerator(run-1:run) = tt_numerator(run-1:run) + &
+                         tt_denom(run-1:run)*trial_energies(run/2)
+                 end do
+              else
+                 rel_tot_trial_numerator = tt_numerator + (tt_denom*trial_energies)
+              end if
+           end if
+        else
+           rel_tot_trial_numerator = tt_numerator
+        end if
+
+      end function relative_trial_numerator
+
+    subroutine update_shift (iter_data, replica_pairs)
 
         use CalcData, only: tInstGrowthRate, tL2GrowRate
 
         type(fcimc_iter_data), intent(in) :: iter_data
+        logical, intent(in) :: replica_pairs
         integer(int64) :: tot_walkers
         logical, dimension(inum_runs) :: tReZeroShift
         real(dp), dimension(inum_runs) :: AllGrowRateRe, AllGrowRateIm
         real(dp), dimension(inum_runs)  :: AllHFGrowRate
         real(dp), dimension(lenof_sign) :: denominator, all_denominator
+        real(dp), dimension(inum_runs) :: rel_tot_trial_numerator
         integer :: error, i, proc, pos, run, lb, ub
         logical, dimension(inum_runs) :: defer_update
         logical :: start_varying_shift
@@ -797,6 +859,11 @@ contains
                 end if
             enddo
 #endif
+            ! If any run uses the fixtrial option, we need to add the offset to the
+            ! trial numerator
+            if(tTrialWavefunction .and. tTrialShift) &
+                 rel_tot_trial_numerator = relative_trial_numerator(&
+                 tot_trial_numerator, tot_trial_denom, replica_pairs)
 
             ! Exit the single particle phase if the number of walkers exceeds
             ! the value in the input file. If particle no has fallen, re-enter
@@ -856,7 +923,7 @@ contains
                         !fluctuations of the trial energy.
 
                         !ToDo: Make DiafSft complex
-                        DiagSft(run) = (tot_trial_numerator(run) / tot_trial_denom(run))-Hii
+                        DiagSft(run) = (rel_tot_trial_numerator(run) / tot_trial_denom(run))-Hii
 
                         ! Update the shift averages
                         if ((iter - VaryShiftIter(run)) >= nShiftEquilSteps) then
@@ -1093,8 +1160,35 @@ contains
                 end if
             endif
         enddo
+      end subroutine update_shift
 
-    end subroutine update_shift
+      subroutine rezero_output_stats()
+        ! Zero all accumulated variables that are only used in output
+        IterTime = 0.0_sp
+        Acceptances = 0.0_dp
+        NoBorn = 0.0_dp
+        NoDied = 0.0_dp
+        Annihilated = 0.0_dp
+        max_cyc_spawn = 0.0_dp
+        trial_numerator = 0.0_dp
+        trial_denom = 0.0_dp
+
+        ! These are dedicated output variables
+        ENumOut = 0.0_dp
+        HFOut = 0.0_dp
+        AllTotPartsLastOutput = AllTotParts
+        SumWalkersOut = 0.0_dp
+
+        ! reset the truncated weight
+        truncatedWeight = 0.0_dp
+
+        ! reset the logged number of initiators
+        initsPerExLvl = 0
+
+        ! and the number of excits
+        nInvalidExcits = 0
+        nValidExcits = 0
+      end subroutine rezero_output_stats
 
     subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
@@ -1102,21 +1196,13 @@ contains
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new_all
 
         ! Zero all of the variables which accumulate for each iteration.
-
-        IterTime = 0.0_sp
         SumWalkersCyc(:)=0.0_dp
-        Annihilated = 0.0_dp
-        Acceptances = 0.0_dp
-        NoBorn = 0.0_dp
         SpawnFromSing = 0.0_dp
-        NoDied = 0.0_dp
         ENumCyc = 0.0_dp
         InitsENumCyc = 0.0_dp
         ENumCycAbs = 0.0_dp
         HFCyc = 0.0_dp
         cyc_proje_denominator=0.0_dp
-        trial_numerator = 0.0_dp
-        trial_denom = 0.0_dp
 
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
@@ -1143,47 +1229,95 @@ contains
         iter_data%update_iters = 0
         iter_data%tot_parts_old = tot_parts_new_all
 
-        max_cyc_spawn = 0.0_dp
-
         cont_spawn_attempts = 0
         cont_spawn_success = 0
 
-        ! reset the truncated weight
-        truncatedWeight = 0.0_dp
-
-        ! reset the logged number of initiators
-        initsPerExLvl = 0
-
-        ! and the number of excits
-        nInvalidExcits = 0
-        nValidExcits = 0
-
     end subroutine rezero_iter_stats_update_cycle
 
-    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs)
+    subroutine iteration_output_wrapper(iter_data, tot_parts_new, &
+        replica_pairs, t_comm_req)
+        type(fcimc_iter_data), intent(inout) :: iter_data
+        real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
+        real(dp), dimension(lenof_sign) :: tot_parts_new_all
+        logical, intent(in) :: replica_pairs
+        logical, intent(in), optional :: t_comm_req
+        logical :: t_do_comm
+
+        ! The comm can be switched off
+        if(present(t_comm_req)) then
+            t_do_comm = t_comm_req
+        else
+            t_do_comm = .true.
+        endif
+
+        if(t_do_comm) &
+            call communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all, .true.)
+        if(tPrintDataTables) &
+            call write_to_stats()
+
+        contains
+            subroutine write_to_stats()
+                ! Write the current output cycle's stats to the FCIMCStats/fciqmc_stats output file
+                ! + stdout
+
+                ! adjust the trial numerator for output (add in the offset)
+                if(tTrialWavefunction) then
+                    tot_trial_numerator = relative_trial_numerator(&
+                        tot_trial_numerator, tot_trial_denom, replica_pairs)
+                    if(tTruncInitiator) &
+                        tot_init_trial_numerator = relative_trial_numerator(&
+                        tot_init_trial_numerator, tot_init_trial_denom, replica_pairs)
+                endif
+                call output_diagnostics()
+
+                if (tFCIMCStats2) then
+                    call write_fcimcstats2(iter_data_fciqmc)
+                else
+                    call WriteFCIMCStats ()
+                end if
+                ! reset accumulated output variables
+                call rezero_output_stats()
+            end subroutine write_to_stats
+        end subroutine iteration_output_wrapper
+
+    subroutine calculate_new_shift_wrapper (iter_data, tot_parts_new, replica_pairs, t_comm_req)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new
         real(dp), dimension(lenof_sign) :: tot_parts_new_all
         logical, intent(in) :: replica_pairs
+        ! optional argument: if false is passed, do not do the shift update and diagnostics,
+        !                    only produce output
+        logical, intent(in), optional :: t_comm_req
+        logical :: t_do_comm
 
-        call communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all)
-        call collate_iter_data (iter_data, replica_pairs)
-        call iter_diagnostics ()
-        if(tRestart) return
-        call population_check ()
-        call update_shift (iter_data)
-        if (tPrintDataTables) then
-            if (tFCIMCStats2) then
-                call write_fcimcstats2(iter_data)
-            else
-                call WriteFCIMCStats ()
-            end if
-        end if
+        ! TODO: use def_default once available
+        if(present(t_comm_req)) then
+            t_do_comm = t_comm_req
+        else
+            t_do_comm = .true.
+        endif
 
+        ! communication of trial wf properties is only done for output steps
+        if(t_do_comm) &
+            call communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all, tCoupleCycleOutput)
+
+        ! update the shift and rezero the cycle data
+        call shift_update()
         call rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)
 
-    end subroutine calculate_new_shift_wrapper
+      contains
+
+        subroutine shift_update()
+          ! This is what defines the update of the shift
+          call collate_iter_data (iter_data)
+          call iter_diagnostics ()
+          if(tRestart) return
+          call population_check ()
+          call update_shift (iter_data, replica_pairs)
+        end subroutine shift_update
+
+      end subroutine calculate_new_shift_wrapper
 
     subroutine update_iter_data(iter_data)
 

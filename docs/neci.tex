@@ -1350,6 +1350,10 @@ the \texttt{endsys} keyword.
       \codeitem{nomcoutput}
       Suppress the printing of iteration information to stdout. This data is
       still written to disk.
+      \codeitem{stepsOutput $n$}
+      Write the iteration data to stdout/disk every $n$ iterations. Defaults
+      to the number of iterations per shift cycle. Setting $n=0$ disables
+      iteration data output to stdout and uses the shift cycle for disk output.
     \end{description}
     \subsubsection{Semi-stochastic output options}
     \begin{description}
