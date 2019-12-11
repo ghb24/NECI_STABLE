@@ -139,7 +139,6 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-    sltcnd.F90
     sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
@@ -200,7 +199,7 @@ set( SRC_FILES
 
 set( FYPP_SRC_FILES
     HPHFIntegrals.fpp
-    new_sltcnd.fpp
+    sltcnd.fpp
     gasci.fpp
 )
 

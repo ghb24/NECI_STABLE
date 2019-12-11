@@ -14,7 +14,7 @@ module gasci
     use get_excit, only: make_double, make_single
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
-    use new_sltcnd_mod, only: SingleExc_t, DoubleExc_t, sltcnd_excit, &
+    use sltcnd_mod, only: SingleExc_t, DoubleExc_t, sltcnd_excit, &
         UNKNOWN
     implicit none
 

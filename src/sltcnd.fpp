@@ -1,4 +1,6 @@
 #include "macros.h"
+#:include "macros.fpp"
+#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
 module sltcnd_mod
     use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy
@@ -20,8 +22,54 @@ module sltcnd_mod
     use bit_reps, only: NIfTot
     implicit none
     private
-    public :: sltcnd_compat, sltcnd_excit, sltcnd, CalcFockOrbEnergy, &
-        sltcnd_0, sltcnd_1, sltcnd_2, sumfock, sltcnd_knowIC
+    public :: sltcnd_compat, sltcnd, CalcFockOrbEnergy, &
+        sltcnd_0, sltcnd_1, sltcnd_2, sumfock, sltcnd_knowIC, &
+        SingleExc_t, DoubleExc_t, UNKNOWN, sltcnd_excit, defined
+
+!> Arbitrary non occuring (?!) orbital index.
+    integer, parameter :: UNKNOWN = -10**5
+
+!> Represents the orbital indices of a single excitation.
+!> The array is sorted like:
+!> [src1, tgt2]
+    type :: SingleExc_t
+        sequence
+        integer :: val(2) = [UNKNOWN, UNKNOWN]
+    end type
+
+!> Represents the orbital indices of a double excitation.
+!> The array is sorted like:
+!> [[src1, src2],
+!>  [tgt1, tgt2]]
+    type :: DoubleExc_t
+        sequence
+        integer :: val(2, 2) = reshape([UNKNOWN, UNKNOWN, UNKNOWN, UNKNOWN], [2, 2])
+    end type
+
+!> Additional constructors for the excitation types from integers instead
+!> of an integer array.
+    #:for excitation_t in ExcitationTypes
+    interface ${excitation_t}$
+        module procedure from_integer_${excitation_t}$
+    end interface
+    #:endfor
+
+!> Returns true if all sources and targets are not UNKNOWN.
+    interface defined
+    #:for excitation_t in ExcitationTypes
+        module procedure defined_${excitation_t}$
+    #:endfor
+    end interface
+
+!> Evaluate the H-matrix element using the Slater-Condon rules.
+!> Generic function that accepts arguments of ExcitationTypes,
+!> or the old-style integers.
+    interface sltcnd_excit
+        module procedure sltcnd_excit_old
+    #:for excitation_t in ExcitationTypes
+        module procedure sltcnd_excit_${excitation_t}$
+    #:endfor
+    end interface
 
 contains
     function sltcnd_compat (nI, nJ, IC) result (hel)
@@ -63,7 +111,7 @@ contains
     end function sltcnd_compat
 
 
-    HElement_t(dp) function sltcnd_excit (nI, IC, ex, tParity)
+    HElement_t(dp) function sltcnd_excit_old (nI, IC, ex, tParity)
 
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.
@@ -77,7 +125,7 @@ contains
         integer, intent(in) :: nI(nel), IC
         integer, intent(in), optional :: ex(2,2)
         logical, intent(in), optional :: tParity
-        character(*), parameter :: this_routine = 'sltcnd_excit'
+        character(*), parameter :: this_routine = 'sltcnd_excit_old'
 
         if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
             call stop_all (this_routine, "ex and tParity must be provided to &
@@ -86,19 +134,19 @@ contains
         select case (IC)
         case (0)
             ! The determinants are exactly the same
-            sltcnd_excit = sltcnd_0 (nI)
+            sltcnd_excit_old = sltcnd_0 (nI)
 
         case (1)
             ! The determnants differ by only one orbital
-            sltcnd_excit = sltcnd_1 (nI, ex(:,1), tParity)
+            sltcnd_excit_old = sltcnd_1 (nI, ex(:,1), tParity)
 
         case (2)
             ! The determinants differ by two orbitals
-            sltcnd_excit = sltcnd_2 (ex, tParity)
+            sltcnd_excit_old = sltcnd_2 (ex, tParity)
 
         case default
             ! The determinants differ yb more than 2 orbitals
-            sltcnd_excit = 0
+            sltcnd_excit_old = 0
         end select
     end function
 
@@ -392,4 +440,46 @@ contains
 
         if (tSign) hel = -hel
     end function sltcnd_2
+
+    #:for excitation_t in ExcitationTypes
+    elemental function defined_${excitation_t}$(exc) result(res)
+        type(${excitation_t}$), intent(in) :: exc
+        logical :: res
+        res = all(exc%val /= UNKNOWN)
+    end function
+    #:endfor
+
+    HElement_t(dp) function sltcnd_excit_SingleExc_t(ref, exc, tParity)
+        integer, intent(in) :: ref(nel)
+        type(SingleExc_t), intent(in) :: exc
+        logical, intent(in) :: tParity
+
+        sltcnd_excit_SingleExc_t = sltcnd_1(ref, exc%val, tParity)
+    end function
+
+    HElement_t(dp) function sltcnd_excit_DoubleExc_t(ref, exc, tParity)
+        integer, intent(in) :: ref(nel)
+        type(DoubleExc_t), intent(in) :: exc
+        logical, intent(in) :: tParity
+
+        @:unused_var(ref)
+
+        sltcnd_excit_DoubleExc_t = sltcnd_2(exc%val, tParity)
+    end function
+
+    pure function from_integer_SingleExc_t(src, tgt) result(res)
+        integer, intent(in), optional :: src, tgt
+        type(SingleExc_t) :: res
+        if (present(src)) res%val(1) = src
+        if (present(tgt)) res%val(1) = tgt
+    end function
+
+    pure function from_integer_DoubleExc_t(src1, tgt1, src2, tgt2) result(res)
+        integer, intent(in), optional :: src1, tgt1, src2, tgt2
+        type(DoubleExc_t) :: res
+        if (present(src1)) res%val(1, 1) = src1
+        if (present(tgt1)) res%val(1, 2) = tgt1
+        if (present(src2)) res%val(2, 1) = src2
+        if (present(tgt2)) res%val(2, 2) = tgt2
+    end function
 end module
