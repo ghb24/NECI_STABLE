@@ -31,7 +31,7 @@ module guga_excitations
 
     use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ
 
-    use guga_data, only: excitationInformation, getSingleMatrixElement, &
+    use guga_data, only: ExcitationInformation_t, getSingleMatrixElement, &
                     getDoubleMatrixElement, getMixedFullStop, &
                     weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
@@ -109,7 +109,7 @@ module guga_excitations
     ! use a global excitationInformation type variable to store information
     ! about the last generated excitation to analyze matrix elements and
     ! pgens
-    type(excitationInformation) :: global_excitInfo
+    type(ExcitationInformation_t) :: global_excitInfo
 
     abstract interface
         function calc_pgen_general(i) result(pgen)
@@ -180,7 +180,7 @@ contains
         character(*), parameter :: this_routine = "calc_off_diag_guga_ref_direct"
 
         integer(n_int) :: tmp_ilut(0:niftot)
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! hm.. why is the calc_type always set to 2??
         ! thats a waste of effort actually and can improve the code quite a
@@ -240,7 +240,7 @@ contains
         !           (does this mean i could get rid of the t_hamil flag?)
 
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_hamil
         integer, intent(in) :: calc_type
@@ -584,7 +584,7 @@ contains
         ! connected CSFs, with the option to output also all the indices and
         ! overlap matrix elements necessary for the rdm calculation
         integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -750,7 +750,7 @@ contains
             t_calc_full, rdm_ind, rdm_mat)
         ! routine to exactly calculate the matrix element between 2 CSFs
         ! connected by a single overlap excitation with mixed generators
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -886,7 +886,7 @@ contains
         ! integrals, which i have to fix anyway still.. since there are
         ! some discrepancies in the handling of those..
         ! and also the order parameter.. how i set it up now it is always 1
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -1013,7 +1013,7 @@ contains
         ! 4 different spatial orbitals. here i have to consider if a
         ! spin change happened in the overlap. if no, i also have to calc. the
         ! non-overlap contribution!
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -1229,7 +1229,7 @@ contains
     subroutine calc_fullstop_alike_ex(ilutJ, excitInfo, mat_ele, &
             t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -1343,7 +1343,7 @@ contains
     subroutine calc_fullstart_alike_ex(ilutJ, excitInfo, mat_ele, &
             t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -1437,7 +1437,7 @@ contains
     subroutine calc_fullstart_fullstop_alike_ex(ilutJ, excitInfo, &
             mat_ele, t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutJ(0:niftot)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -1479,7 +1479,7 @@ contains
         ! from the excitInfo i know the first switch position.
         ! this makes things a bit easier for the exact calculation
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -1654,7 +1654,7 @@ contains
     subroutine calc_fullstart_mixed_ex(ilutI, ilutJ, excitInfo, mat_ele, &
             t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -1807,7 +1807,7 @@ contains
     subroutine calc_fullstart_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, &
             mat_ele, t_hamil, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
         integer, intent(out), allocatable, optional :: rdm_ind(:,:)
@@ -2411,7 +2411,7 @@ contains
         HElement_t(dp) :: helgen, temp_mat
         real(dp) :: diff
         character(255) :: filename
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)
@@ -2577,7 +2577,6 @@ contains
             write(iunit, "(e16.7)", advance='no') pgen_list(i)
             write(iunit, "(e16.7)", advance='no') exact_helements(i)
             write(iunit, "(3i)", advance = 'yes') excitLvl(i)
-!             write(iunit, *) excit_mat(i,:)
         end do
         close(iunit)
 
@@ -2594,7 +2593,6 @@ contains
             write(iunit, "(e16.7)", advance = 'no') exact_helements(i) !/sum_helement
             write(iunit, "(f16.7)", advance = 'no') contrib_list(i) / real(iterations,dp)
             write(iunit, "(3i)", advance = 'yes') excitLvl(i)
-!             write(iunit, "(i3)") excit_mat(i,:)
         end do
         close(iunit)
 
@@ -2671,7 +2669,7 @@ contains
         integer(n_int) :: ilut(0:nifguga), excitation(0:nifguga)
         integer :: ierr, excit_typ(2)
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         real(dp) :: tmp_mat, diff, tmp_mat1
         integer :: tmp_ex1, tmp_ex2
 
@@ -2773,10 +2771,10 @@ contains
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(out) :: exc(0:nifguga)
         real(dp), intent(out) :: pgen
-        type(excitationInformation), intent(in), optional :: excitInfo_in
+        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
         character(*), parameter :: this_routine = "create_crude_guga_double"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         real(dp) :: branch_pgen, orb_pgen
@@ -2874,7 +2872,7 @@ contains
         ! this is needed in the crude back-spawn approximation to
         ! create determinant-like excitations
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer, intent(out) :: elecs(2)
         integer, intent(out) :: orbs(2)
         real(dp), intent(out) :: pgen
@@ -3316,7 +3314,7 @@ contains
     subroutine create_crude_single_overlap_l2r(exc, pgen, excitInfo)
         integer(n_int), intent(out) :: exc(0:nifguga)
         real(dp), intent(out) :: pgen
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         character(*), parameter :: this_routine = "create_crude_single_overlap_l2r"
 
         integer :: st, en, mid, start_d, end_d
@@ -3401,7 +3399,7 @@ contains
     subroutine create_crude_single_overlap_r2l(exc, pgen, excitInfo)
         integer(n_int), intent(out) :: exc(0:nifguga)
         real(dp), intent(out) :: pgen
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         character(*), parameter :: this_routine = "create_crude_single_overlap_r2l"
 
         integer :: st, en, mid, start_d, end_d
@@ -3484,11 +3482,11 @@ contains
     function calc_pgen_guga_crude_iluts(ilutI, nI, ilutJ, nJ, excitInfo_in) result(pgen)
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(excitationInformation), intent(in), optional :: excitInfo_in
+        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_guga_crude_iluts"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer :: ic
 
         if (present(excitInfo_in)) then
@@ -3538,10 +3536,10 @@ contains
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(out) :: exc(0:nifguga)
         real(dp), intent(out) :: pgen
-        type(excitationInformation), intent(in), optional :: excitInfo_in
+        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
         character(*), parameter :: this_routine = "create_crude_guga_single"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer :: i, j, st, en, start_d, end_d, gen
         real(dp) :: orb_pgen, r, branch_pgen
         HElement_t(dp) :: mat_ele
@@ -3812,7 +3810,7 @@ contains
     end subroutine create_crude_guga_single
 
     function increase_ex_levl(excitInfo) result(flag)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         logical :: flag
         character(*), parameter :: this_routine = "increase_ex_levl"
 
@@ -4093,10 +4091,10 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer(n_int), intent(inout) :: exc(0:nifguga)
         real(dp), intent(out) :: branch_pgen
-        type(excitationInformation), intent(in), optional :: excitInfo_in
+        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
         character(*), parameter :: this_routine = "create_crude_double"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
 
         if (present(excitInfo_in)) then
@@ -4131,10 +4129,10 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer(n_int), intent(inout) :: exc(0:nifguga)
         real(dp), intent(out) :: branch_pgen
-        type(excitationInformation), intent(in), optional :: excitInfo_in
+        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
         character(*), parameter :: this_routine = "create_crude_single"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer :: elec, orb
         real(dp) :: r
 
@@ -4254,7 +4252,7 @@ contains
     subroutine pick_orbitals_single_crude(ilut, nI, excitInfo, pgen)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pick_orbitals_single_crude"
 
@@ -4562,7 +4560,7 @@ contains
         integer(n_int) :: ilut(0:nifguga), excitation(0:nifguga)
         integer :: ierr, excit_typ(2)
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         real(dp) :: diff
         HElement_t(dp) :: tmp_mat1
         HElement_t(dp) :: tmp_mat
@@ -4726,7 +4724,7 @@ contains
         integer, intent(out) :: excit_typ(2)
         character(*), parameter :: this_routine = "createStochasticExcitation_double"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer :: excitLvl, ierr
         integer(n_int), pointer :: excitations(:,:)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
@@ -5211,7 +5209,7 @@ contains
     subroutine calcFullStartFullStopMixedStochastic(ilut, excitInfo, t, pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -5314,7 +5312,7 @@ contains
 
     subroutine calc_mixed_contr_nosym(ilut, t, excitInfo, pgen, integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
         character(*), parameter :: this_routine = "calc_mixed_contr_nosym"
@@ -5436,7 +5434,7 @@ contains
         character(*), parameter :: this_routine = "calc_orbital_pgen_contr_ueg"
 
         real(dp) :: cum_sum, cum_arr(nSpatOrbs)
-        type(excitationInformation) :: tmp_excitInfo(nSpatOrbs)
+        type(ExcitationInformation_t) :: tmp_excitInfo(nSpatOrbs)
         integer :: tmp_orbArr(nSpatOrbs)
         integer :: i, j
 
@@ -5468,7 +5466,7 @@ contains
         ! NEW: combine pgen and matrix element contribution finally!
         ! to optimize!
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
         character(*), parameter :: this_routine = "calc_mixed_contr_sym"
@@ -5481,7 +5479,7 @@ contains
         type(weight_obj) :: weights
         logical :: above_flag, below_flag
         HElement_t(dp) :: temp_int
-        type(excitationInformation) :: tmp_excitInfo
+        type(ExcitationInformation_t) :: tmp_excitInfo
 
         tmp_excitInfo = excitInfo
 
@@ -5880,7 +5878,7 @@ contains
 
     function calcMixedPgenContribution(ilut, t, excitInfo) result(pgen)
         integer(n_int) ,intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calcMixedPgenContribution"
 
@@ -6152,7 +6150,7 @@ contains
     subroutine calcDoubleR2L_stochastic(ilut, excitInfo, t, branch_pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -6328,7 +6326,7 @@ contains
     subroutine calcDoubleL2R_stochastic(ilut, excitInfo, t, branch_pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -6477,7 +6475,7 @@ contains
     subroutine calcDoubleL2R2L_stochastic(ilut, excitInfo, t, branch_pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -6652,7 +6650,7 @@ contains
     subroutine calcDoubleRaisingStochastic(ilut, excitInfo, t, branch_pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -6789,7 +6787,7 @@ contains
     subroutine calcDoubleR2L2R_stochastic(ilut, excitInfo, t, branch_pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -6941,7 +6939,7 @@ contains
     subroutine calcDoubleLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -7084,7 +7082,7 @@ contains
     subroutine calcFullStopL2R_stochastic(ilut,excitInfo, t, pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -7223,7 +7221,7 @@ contains
         ! for the approx. mixed end contribution i "just" need to
         ! calculate the correct matrix element influences
         integer(n_int), intent(in) :: t(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: integral
         character(*), parameter :: this_routine = "calc_mixed_end_contr_approx"
 
@@ -7328,7 +7326,7 @@ contains
     subroutine calc_mixed_end_l2r_contr_nosym(ilut, t, excitInfo, branch_pgen, &
             pgen, integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
@@ -7723,7 +7721,7 @@ contains
     subroutine calcFullStopR2L_stochastic(ilut, excitInfo, t, pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -7958,7 +7956,7 @@ contains
     subroutine calc_mixed_end_contr_sym(ilut, t, excitInfo, branch_pgen, pgen, &
             integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
@@ -8357,7 +8355,7 @@ contains
     subroutine calc_mixed_end_r2l_contr_nosym(ilut, t, excitInfo, branch_pgen, &
             pgen, integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
@@ -8748,7 +8746,7 @@ contains
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: s
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
@@ -9028,7 +9026,7 @@ contains
 
     subroutine mixedFullStopStochastic(ilut, excitInfo, t)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout) :: t(0:nifguga)
         character(*), parameter :: this_routine = "mixedFullStopStochastic"
 
@@ -9111,7 +9109,7 @@ contains
     subroutine calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
@@ -9284,7 +9282,7 @@ contains
     subroutine calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
@@ -9454,7 +9452,7 @@ contains
     subroutine calcRaisingSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
@@ -9631,7 +9629,7 @@ contains
     subroutine calcLoweringSemiStopStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
@@ -9801,7 +9799,7 @@ contains
     subroutine calcFullStartR2L_stochastic(ilut, excitInfo, t, pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -9938,7 +9936,7 @@ contains
 
     subroutine calc_mixed_start_contr_approx(t, excitInfo, integral)
         integer(n_int), intent(in) :: t(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: integral
         character(*), parameter :: this_routine = "calc_mixed_start_contr_approx"
 
@@ -10032,7 +10030,7 @@ contains
     subroutine calc_mixed_start_r2l_contr_nosym(ilut, t, excitInfo, branch_pgen, &
             pgen, integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
@@ -10441,7 +10439,7 @@ contains
     subroutine calcFullStartL2R_stochastic(ilut, excitInfo, t, pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -10605,14 +10603,14 @@ contains
 
     subroutine perform_crude_excitation(ilut, excitInfo, excitation, compFlag)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: excitation(0:nifguga)
         logical, intent(out) :: compFlag
         character(*), parameter :: this_routine = "perform_crude_excitation"
 
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         HElement_t(dp) :: mat_ele
-        type(excitationInformation) :: dummy
+        type(ExcitationInformation_t) :: dummy
 
         excitation = ilut
 
@@ -10840,7 +10838,7 @@ contains
 
     subroutine calc_mixed_x2x_ueg(ilut, t, excitInfo, branch_pgen, pgen, integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
@@ -10862,7 +10860,7 @@ contains
     subroutine calc_mixed_start_contr_sym(ilut, t, excitInfo, branch_pgen, &
             pgen, integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
@@ -11433,7 +11431,7 @@ contains
     subroutine calc_mixed_start_l2r_contr_nosym(ilut, t, excitInfo, branch_pgen, &
             pgen, integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
@@ -11806,7 +11804,7 @@ contains
         ! as delta B = -1 ones -> so access getDoubleMatrixElement with
         ! db = -1 below!
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: probWeight
         character(*), parameter :: this_routine = "forced_mixed_start"
@@ -11885,7 +11883,7 @@ contains
         ! as delta B = -1 ones -> so access getDoubleMatrixElement with
         ! db = -1 below!
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out) :: t(0:nifguga)
@@ -12023,7 +12021,7 @@ contains
     subroutine calcSingleOverlapMixedStochastic(ilut, excitInfo, t, branch_pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -12148,7 +12146,7 @@ contains
     subroutine calcFullstopRaisingStochastic(ilut, excitInfo, t, branch_pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -12290,7 +12288,7 @@ contains
     subroutine calcFullstopLoweringStochastic(ilut, excitInfo, t, branch_pgen, &
             posSwitches, negSwitches, opt_weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -12436,7 +12434,7 @@ contains
         ! are uniquely determined and thus can be efficiently calculated on
         ! the fly
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -12604,7 +12602,7 @@ contains
         ! are uniquely determined and thus can be efficiently calculated on
         ! the fly
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -12789,7 +12787,7 @@ contains
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "createStochasticExcitation_single"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                      branch_pgen, orb_pgen, temp_pgen
         HElement_t(dp) :: integral, mat_ele
@@ -13168,7 +13166,7 @@ contains
 
     subroutine singleStochasticEnd(excitInfo, t)
         ! routine to end a stochastic excitation for a single generator
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout) :: t(0:nifguga)
         character(*), parameter :: this_routine = "singleStochasticEnd"
 
@@ -13281,7 +13279,7 @@ contains
                 negSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: s
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out) :: t(0:nifguga) ! to use macros, have to use short names..
@@ -13481,7 +13479,7 @@ contains
         ! essentially exactly the same as in the full excitation calculation
         ! except that at a 0/3 start we have to do it stochastically ...
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out) :: t(0:nifguga) ! to use macros, have to use short names..
@@ -14468,7 +14466,7 @@ contains
             negSwitches, tmatFlag, excitations, nExcits)
         ! excitation calculation if excitInfo is already calculated
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(in) :: tmatFlag
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out), pointer :: excitations(:,:)
@@ -14533,7 +14531,7 @@ contains
         integer, intent(out) :: nExcits
         character(*), parameter :: this_routine = "calcAllExcitations_single_ilut"
 
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer(n_int), pointer :: tempExcits(:,:)
         integer :: ierr, iOrb, iEx, st, cnt
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
@@ -14670,7 +14668,7 @@ contains
         ! for double excitation weights are usually always already calculated
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sO
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         type(weight_obj), intent(in) :: weights
         integer(n_int), intent(inout) :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
@@ -15186,7 +15184,7 @@ contains
         ! specific excitations
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         type(weight_obj) :: weightObj
         integer(n_int), intent(inout) :: tempExcits(:,:)
@@ -15444,7 +15442,7 @@ contains
         ! ilut
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer(n_int), intent(inout), pointer :: tempExcits(:,:)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer, intent(inout) :: nExcits
         integer(n_int), intent(out), pointer :: excitations(:,:)
         character(*), parameter :: this_routine = "singleEnd"
@@ -15665,7 +15663,7 @@ contains
         ! probabilitstic weight functions(to exclude excitations eventually
         ! leading to zero weight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         type(weight_obj), intent(in) :: weightObj
         integer(n_int), intent(out), pointer :: tempExcits(:,:)
@@ -15879,7 +15877,7 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         HElement_t(dp) :: umat
         integer :: ierr, n, exlevel, cnt
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         logical :: compFlag
 
         integer(n_int) :: tmp_ilut(0:niftot)
@@ -16114,7 +16112,7 @@ contains
     subroutine calcDoubleR2L(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -16202,7 +16200,7 @@ contains
     subroutine calcDoubleL2R(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -16291,7 +16289,7 @@ contains
         ! case since the called functions are the same
 
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -16393,7 +16391,7 @@ contains
         ! this function can deal with 2 lowering and the mixed R->L-R
         ! case, since the called functions are the same
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -16483,7 +16481,7 @@ contains
 
     subroutine calcFullStartFullStopAlike(ilut, excitInfo, excitations)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         character(*), parameter :: this_routine = "calcFullStartFullStopAlike"
 
@@ -16529,7 +16527,7 @@ contains
     subroutine calcFullStartFullStopMixed(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -16599,7 +16597,7 @@ contains
     subroutine calcFullStartR2L(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -16698,7 +16696,7 @@ contains
     subroutine calcFullStartL2R(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -16796,7 +16794,7 @@ contains
     subroutine calcRaisingSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
             minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer(n_int), intent(inout), pointer :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight
@@ -17313,7 +17311,7 @@ contains
     subroutine calcLoweringSemiStop(ilut, excitInfo, tempExcits, nExcits, plusWeight, &
             minusWeight, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer(n_int), intent(inout), pointer :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight
@@ -17828,7 +17826,7 @@ contains
         ! as deltaB = -1 mixed ones... so access matrix element below with
         ! deltaB = -1 !!
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: plusWeight, minusWeight, zeroWeight
         integer(n_int), intent(out), pointer :: tempExcits(:,:)
         integer, intent(out) :: nExcits
@@ -18017,7 +18015,7 @@ contains
     subroutine calcFullStartRaising(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -18205,7 +18203,7 @@ contains
     subroutine calcFullStartLowering(ilut, excitInfo, excitations, nExcits, &
                 posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -18385,7 +18383,7 @@ contains
     subroutine calcFullStopR2L(ilut, excitInfo, excitations, nExcits, &
             posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -18509,7 +18507,7 @@ contains
     subroutine calcFullStopL2R(ilut, excitInfo, excitations, nExcits, &
             posSwitches, negSwitches, t_no_singles_opt)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -18632,7 +18630,7 @@ contains
             t_no_singles_opt)
         ! full stop routine for mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout), pointer :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         integer(n_int), intent(out), pointer :: excitations(:,:)
@@ -18816,7 +18814,7 @@ contains
         ! so hopefully a way is to use the imaginary matrix element storage
         ! for these kind of excitations! -> ask simon
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout) :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight, zeroWeight
@@ -19292,7 +19290,7 @@ contains
         ! so hopefully a way is to use the imaginary matrix element storage
         ! for these kind of excitations! -> ask simon
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(inout) :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: plusWeight, minusWeight, zeroWeight
@@ -19762,7 +19760,7 @@ contains
     subroutine calcFullstopLowering(ilut, excitInfo, excitations, nExcits, &
             posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -19927,7 +19925,7 @@ contains
     subroutine calcFullstopRaising(ilut, excitInfo, excitations, nExcits, &
             posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -20085,7 +20083,7 @@ contains
     subroutine calcSingleOverlapLowering(ilut, excitInfo, excitations, nExcits, &
             posSwitches, negSwitches)
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -20179,7 +20177,7 @@ contains
         ! special function to calculate all excitations for a single overlap
         ! double excitations with only raising generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -20347,7 +20345,7 @@ contains
         ! control routine to calculate the single overlap excitation with
         ! mixed generators
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(inout) :: excitInfo
+        type(ExcitationInformation_t), intent(inout) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -20440,7 +20438,7 @@ contains
             posSwitches, negSwitches)
         ! specific subroutine to calculate the non overlap double excitations
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -20448,7 +20446,7 @@ contains
 
         integer(n_int), pointer :: tempExcits(:,:), tempExcits2(:,:), tmp_excitations(:,:)
         integer :: tmpNum, iEx, tmpNum2, nOpen1, nOpen2, ierr, iEx2, nMax, i, j
-        type(excitationInformation) :: tmpInfo
+        type(ExcitationInformation_t) :: tmpInfo
 
         ! plan is to first calculate all lower excitation, and for each state
         ! there calculate the top excitation
@@ -20524,7 +20522,7 @@ contains
         ! subroutine to calculate the double excitations involving a weight
         ! generator, which is really similar so a normal single excitation
         integer(n_int), intent(in) :: ilut(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nExcits
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -20568,7 +20566,7 @@ contains
         ! TODO use current_stepvector quantity in here!
         ! to improve performance
         integer(n_int), intent(in) :: L(0:nifguga)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         logical, intent(out) :: flag
         real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
                                            negSwitches(nSpatOrbs)
@@ -21237,7 +21235,7 @@ contains
     end subroutine checkCompatibility
 
     function get_excit_level_from_excitInfo(excitInfo) result(ic)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer :: ic
 
         character(*), parameter :: this_routine = "get_excit_level_from_excitInfo"
@@ -21251,7 +21249,7 @@ contains
     function calc_pgen_mol_guga_double(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         integer, intent(in) :: nI(nel), nJ(nel)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_mol_guga_double"
         real(dp) :: p_elec
@@ -21272,10 +21270,10 @@ contains
     function calc_pgen_mol_guga(nI, ilutI, nJ, ilutJ, excitInfo_in) result(pgen)
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(excitationInformation), intent(in), optional :: excitInfo_in
+        type(ExcitationInformation_t), intent(in), optional :: excitInfo_in
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_mol_guga"
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         integer :: ic
 
         if (present(excitInfo_in)) then
@@ -21303,7 +21301,7 @@ contains
     function calc_pgen_mol_guga_single(ilutI, nI, ilutJ, nJ, excitInfo) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         integer, intent(in) :: nI(nel), nJ(nel)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_mol_guga_single"
         real(dp) :: p_orbs, p_guga
@@ -21326,7 +21324,7 @@ contains
         ! generation probability!
         integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
         integer, intent(in) :: nI(nel), nJ(nel)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         character(*), parameter :: this_routine ="calc_pgen_mol_guga_single_guga"
 
@@ -21346,7 +21344,7 @@ contains
     function calc_pgen_mol_guga_single_orbs(ilut, nI, excitInfo) result(pgen)
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp) :: pgen
         character(*), parameter :: this_routine = "calc_pgen_mol_guga_single_orbs"
         real(dp) :: p_elec, p_orb, cum_sum
@@ -21407,7 +21405,7 @@ contains
     subroutine get_orbs_from_excit_info(excitInfo, a, b, c, d)
         ! routine to extract the orbitals from a excitation information
         ! c and d are optional for double excitations
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         integer, intent(out) :: a, b
         integer, intent(out), optional :: c, d
 
@@ -21430,7 +21428,7 @@ contains
         ! this also applies for double excitations!! -> think about that !
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_mol_single"
 
@@ -21673,7 +21671,7 @@ contains
     subroutine pickOrbs_real_hubbard_double(ilut, nI, excitInfo, pgen)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_real_hubbard_double"
 
@@ -21694,7 +21692,7 @@ contains
         ! we have to take the correct TMAT values for the ml-spin values
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_real_hubbard_single"
 
@@ -22198,13 +22196,13 @@ contains
         ! full k-point symmetry
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_ueg_double"
 
         integer :: occ_orbs(2), ind, eleci, elecj, orb, orb_2, orb_arr(nSpatOrbs)
         real(dp) :: cum_sum, cum_arr(nSpatOrbs), pelec, r, cpt1, cpt2
-        type(excitationInformation) :: excit_arr(nBasis)
+        type(ExcitationInformation_t) :: excit_arr(nBasis)
 
         ! pick 2 electrons uniformly first:
 
@@ -22271,7 +22269,7 @@ contains
         ! hubbard/ueg models gets called incorrectly
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_ueg_single"
 
@@ -22294,7 +22292,7 @@ contains
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_arr(nSpatOrbs)
-        type(excitationInformation), intent(out) :: excit_arr(nBasis)
+        type(ExcitationInformation_t), intent(out) :: excit_arr(nBasis)
         character(*), parameter :: this_routine = "gen_ab_cum_list_ueg"
 
         ! determine the GUGA restrictions:
@@ -22331,7 +22329,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
-        type(excitationInformation), intent(out), optional :: excit_arr(nSpatOrbs)
+        type(ExcitationInformation_t), intent(out), optional :: excit_arr(nSpatOrbs)
         integer, intent(out), optional :: orb_arr(nSpatOrbs)
         character(*), parameter :: this_routine = "gen_ab_cum_list_1_1"
 
@@ -22339,7 +22337,7 @@ contains
         integer :: z_ind
         real(dp) :: cum_sum, contrib
         logical :: tSwitch
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! for legacy compatibility
         z_ind = ubound(kPointToBasisFn, 3)
@@ -22639,14 +22637,14 @@ contains
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_arr(nSpatOrbs)
-        type(excitationInformation), intent(out) :: excit_arr(nSpatOrbs)
+        type(ExcitationInformation_t), intent(out) :: excit_arr(nSpatOrbs)
         character(*), parameter :: this_routine = "gen_ab_cum_list_3_3"
 
         integer :: ki(3), kj(3), n_id(2), orb_a, ka(3), kb(3), orb_b, st, en
         integer :: z_ind
 
         real(dp) :: cum_sum, contrib
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! for legacy compatibility
         z_ind = ubound(kPointToBasisFn,3)
@@ -22876,12 +22874,12 @@ contains
         integer, intent(in) :: occ_orbs(2)
         real(dp), intent(out) :: cum_arr(nSpatOrbs)
         integer, intent(out) :: orb_arr(nSpatOrbs)
-        type(excitationInformation), intent(out) :: excit_arr(nSpatOrbs)
+        type(ExcitationInformation_t), intent(out) :: excit_arr(nSpatOrbs)
         character(*), parameter :: this_routine = "gen_ab_cum_list_3"
 
         integer :: ki(3), kj(3), ka(3), kb(3), a, b, en, st, i, z_ind
         real(dp) :: cum_sum, contrib
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         logical :: tSwitch
 
         z_ind = ubound(kPointToBasisFn,3)
@@ -23105,7 +23103,7 @@ contains
         ! implemented one for the determinant version
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbs_sym_uniform_mol_double"
 
@@ -24859,7 +24857,7 @@ contains
         ! the orbitals uniformly!
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbitals_nosym_double"
 
@@ -26988,7 +26986,7 @@ contains
         ! single excitation. todo how to combine that with integral files...
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: nI(nel)
-        type(excitationInformation), intent(out) :: excitInfo
+        type(ExcitationInformation_t), intent(out) :: excitInfo
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "pickOrbitals_nosym_single"
 
@@ -27273,7 +27271,7 @@ contains
         ! stored in a custom type(excitationInformation) defined in the
         ! guga_data module
         integer, intent(in) :: i, j, k, l
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "excitationIdentifier_double"
         integer :: ierr, start1, end1, start2, end2, num, iOrb, ind
 
@@ -27633,7 +27631,7 @@ contains
         ! single lowering
         ! single weight
         integer, intent(in) :: i, j
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "excitationIdentifier_single"
         integer :: ierr, ind
 
@@ -27696,7 +27694,7 @@ contains
         ! stepValue = 1 -> positive delta B switch possibility
         ! stepValue = 2 -> negative delta B switch possibility
         ! assume exitInfo is already calculated
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer :: iOrb
@@ -27769,7 +27767,7 @@ contains
         real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         character(*), parameter :: this_routine = "calcRemainingSwitches_double"
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! if it gets called with k = l = 0 call the single excitation case
         if (k == 0 .and. l == 0) then
@@ -27796,7 +27794,7 @@ contains
         ! excitations between spatial orbitals (i,j,k,l). orbital indices are
         ! given in type(excitationInformation), extra flag is needed to
         ! indicate that this is a double excitaiton then
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(out) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
         integer :: iOrb, end1, start2, end2
@@ -28093,7 +28091,7 @@ contains
                                fullEnd, weight, excitLvl
         integer, intent(in), optional :: overlap
         real(dp), intent(in) :: order, order1
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! todo: asserts!
         excitInfo%typ = typ
@@ -28128,7 +28126,7 @@ contains
             result(excitInfo)
         integer, intent(in) :: gen, i, j, fullStart, fullEnd
         integer, intent(in), optional :: typ
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! set default values for single excitations: which cause errors if
         ! called in incorrect places
@@ -28171,7 +28169,7 @@ contains
     function create_excitInfo_ik_jl(i,j,k,l) result(excitInfo)
         ! specific excitation information creator for full double exctiations
         integer, intent(in) :: i,j,k,l
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "create_excitInfo_ik_jl"
 
         ! e_{ik,jl]
@@ -28327,7 +28325,7 @@ contains
 
     function create_excitInfo_il_kj(i,j,k,l) result(excitInfo)
         integer, intent(in) :: i,j,k,l
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "create_excitInfo_il_kj"
 
 
@@ -28494,7 +28492,7 @@ contains
 
     function create_excitInfo_ik_lj(i,j,k,l) result(excitInfo)
         integer, intent(in) :: i,j,k,l
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "create_excitInfo_ik_lj"
 
         ! e_{ik,lj}
@@ -28660,7 +28658,7 @@ contains
 
     function create_excitInfo_il_jk(i,j,k,l) result(excitInfo)
         integer, intent(in) :: i,j,k,l
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "create_excitInfo_il_jk"
 
 
@@ -28828,7 +28826,7 @@ contains
 
     function create_excitInfo_ki_lj(i,j,k,l) result(excitInfo)
         integer, intent(in) :: i,j,k,l
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "create_excitInfo_ki_lj"
 
         ! e_{ki,lj}
@@ -28994,7 +28992,7 @@ contains
 
     function create_excitInfo_ki_jl(i,j,k,l) result(excitInfo)
         integer, intent(in) :: i,j,k,l
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "create_excitInfo_ki_jl"
 
         ! e_{ki,jl}
@@ -29160,7 +29158,7 @@ contains
 
     function create_excitInfo_li_jk(i,j,k,l) result(excitInfo)
         integer, intent(in) :: i,j,k,l
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "create_excitInfo_li_jk"
 
 
@@ -29327,7 +29325,7 @@ contains
 
     function create_excitInfo_li_kj(i,j,k,l) result(excitInfo)
         integer, intent(in) :: i,j,k,l
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "create_excitInfo_li_kj"
 
         ! e_{li,kj}
@@ -29592,14 +29590,14 @@ contains
     end function calc_pgen_yix_end_11
 
     subroutine print_indices(excitInfo)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
 
         print *, "ijkl:", excitInfo%i, excitInfo%j,excitInfo%k,excitInfo%l
 
     end subroutine print_indices
 
     subroutine print_excitInfo(excitInfo)
-        type(excitationInformation), intent(in) :: excitInfo
+        type(ExcitationInformation_t), intent(in) :: excitInfo
 
         print *, "Excitation Information: "
         print *, "Typ: ", excitInfo%typ
@@ -29617,4 +29615,3 @@ contains
 
 
 end module guga_excitations
-

@@ -32,7 +32,7 @@ module guga_tausearch
     use bit_reps, only: nifguga, niftot, decode_bit_det
     use guga_excitations, only: actHamiltonian, calc_pgen_mol_guga, calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
-    use guga_data, only: excitationInformation
+    use guga_data, only: ExcitationInformation_t
 
     use util_mod, only: operator(.isclose.)
 
@@ -232,7 +232,7 @@ contains
         integer(n_int) :: ilutJ(0:niftot)
         real(dp) :: pgen, pGenFac, nAddFac
         HElement_t(dp) :: helgen, hel, abs_hel
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         call stop_all(this_routine, "TODO implement!")
 

@@ -1505,9 +1505,9 @@ contains
 #endif
 
     subroutine calc_determin_hamil_full(hamil)
-        use guga_data, only: excitationInformation
+        use guga_data, only: ExcitationInformation_t
         use guga_excitations, only: calc_guga_matrix_element
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         HElement_t(dp), allocatable, intent(out) :: hamil(:,:)
         integer :: i, j, nI(nel), nJ(nel)
@@ -1590,7 +1590,7 @@ contains
         use SystemData, only: tGUGA
         use guga_matrixElements, only: calcDiagMatEleGUGA_nI
         use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
-        use guga_data, only: excitationInformation
+        use guga_data, only: ExcitationInformation_t
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: ex(2,2)
@@ -1598,7 +1598,7 @@ contains
         real(dp), intent(out) :: amp, energy_contrib
         integer :: ic
         HElement_t(dp) :: hel, H0tmp, denom
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         amp = 0.0_dp
         energy_contrib = 0.0_dp

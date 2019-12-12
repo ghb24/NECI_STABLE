@@ -516,7 +516,7 @@ contains
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_off_diag_helement
     use guga_excitations, only: calc_guga_matrix_element
-    use guga_data, only: excitationInformation
+    use guga_data, only: ExcitationInformation_t
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer, intent(in) :: iRef, run, nI(nel)
@@ -527,7 +527,7 @@ contains
 #ifdef __CMPLX
       complex(dp) :: tmp
 #endif
-      type(excitationInformation) :: excitInfo
+      type(ExcitationInformation_t) :: excitInfo
       HElement_t(dp) :: h_el
 
       is_coherent = .true.
@@ -591,7 +591,7 @@ contains
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_off_diag_helement
     use guga_excitations, only: calc_guga_matrix_element
-    use guga_data, only: excitationInformation
+    use guga_data, only: ExcitationInformation_t
     implicit none
     integer, intent(in) :: nI(nel), i
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -602,7 +602,7 @@ contains
     integer :: run
     HElement_t(dp) :: h_el, tmp
     character(*), parameter :: this_routine = "upadte_coherence_check"
-    type(excitationInformation) :: excitInfo
+    type(ExcitationInformation_t) :: excitInfo
 
     ! TODO: Only if ilutRefAdi(:,i) is a SI on this run
 

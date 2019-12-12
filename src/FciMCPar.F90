@@ -284,7 +284,7 @@ module FciMCParMod
          end if
 #endif
 
-        if(n_int.eq.4) CALL Stop_All('Setup Parameters', &
+        if(n_int /= int64) CALL Stop_All('Setup Parameters', &
                 'Use of RealCoefficients does not work with 32 bit integers due to the use &
                 &of the transfer operation from dp reals to 64 bit integers.')
 

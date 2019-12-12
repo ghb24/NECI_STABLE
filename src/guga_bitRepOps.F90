@@ -23,6 +23,26 @@ module guga_bitRepOps
 
     implicit none
 
+    private
+    public :: isDouble, &
+        isProperCSF_nI, isProperCSF_ilut, getDeltaB, setDeltaB, &
+        encode_matrix_element, update_matrix_element, &
+        extract_matrix_element, write_det_guga, &
+        convert_ilut_toGUGA, convert_ilut_toNECI, convert_guga_to_ni, &
+        write_guga_list, add_guga_lists, &
+        findFirstSwitch, findLastSwitch, find_switches, &
+        calcstepvector, &
+        calcB_vector_int, calcB_vector_nI, calcB_vector_ilut, &
+        count_open_orbs, count_open_orbs_ij, &
+        count_beta_orbs_ij, count_alpha_orbs_ij, &
+        calcOcc_vector_ilut, calcOcc_vector_int, &
+        encodebitdet_guga, identify_excitation, init_csf_information, &
+        calc_csf_info, extract_h_element, getexcitation_guga, &
+        getspatialoccupation, getExcitationRangeMask
+
+
+
+
     ! interfaces
     interface isProperCSF_ilut
         module procedure isProperCSF_b
@@ -62,7 +82,7 @@ contains
 
     function identify_excitation(ilutI, ilutJ) result(excitInfo)
         integer(n_int), intent(in) :: ilutI(0:nifd), ilutJ(0:nifd)
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
         character(*), parameter :: this_routine = "identify_excitation"
 
         integer(n_int) :: alpha_i(0:nifd), alpha_j(0:nifd), beta_i(0:nifd), &
@@ -1222,7 +1242,7 @@ contains
         integer, intent(in), optional :: overlap
         real(dp), intent(in) :: order, order1
         logical, intent(in) :: spin_change
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! todo: asserts!
         excitInfo%typ = typ
@@ -1258,7 +1278,7 @@ contains
             result(excitInfo)
         integer, intent(in) :: gen, i, j, fullStart, fullEnd
         integer, intent(in), optional :: typ
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ! set default values for single excitations: which cause errors if
         ! called in incorrect places
@@ -2559,6 +2579,4 @@ contains
         if (allocated(currentOcc_int))     deallocate(currentOcc_int)
 
     end subroutine deinit_csf_information
-
-
 end module guga_bitRepOps

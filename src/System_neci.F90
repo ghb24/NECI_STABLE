@@ -422,6 +422,15 @@ system: do
             end if
             t_guga_unit_tests = .true.
 
+        case ("TEST-MOST-POPULATED")
+            if (item < nitems) then
+                call geti(n_most_populated)
+            else
+                n_most_populated = 10**4
+            end if
+            t_test_most_populated = .true.
+
+
         case ("TEST-EXCIT-GEN")
             t_test_excit_gen = .true.
 

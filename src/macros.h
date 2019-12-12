@@ -1,3 +1,6 @@
+#ifndef MACROS_INCLUDEGUARD_
+#define MACROS_INCLUDEGUARD_
+
 #define log_alloc(arr, tag, ierr) call LogMemAlloc("arr",size(arr),tbs_(arr),t_r,tag,ierr)
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
@@ -22,7 +25,7 @@
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
-! extract single step vector value of a spatial orbital from ilut 
+! extract single step vector value of a spatial orbital from ilut
 #define getStepvalue(ilut,sOrb) int(ishft(iand(ilut((sOrb-1)/bn2_),ishft(3_n_int,2*mod((sOrb-1),bn2_))),-2*mod((sOrb-1),bn2_)))
 ! also directly implement 0,1,2,3 comparisons
 ! also directly implement 0,1,2,3 comparisons
@@ -60,7 +63,7 @@
 ! Is the specified orbital part of a doubly occupied pair?
 #define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
 
-! salso reimplement a get_spatial orbital macro here 
+! salso reimplement a get_spatial orbital macro here
 #define get_spatial(orb) (orb - 1)/2 + 1
 
 ! Are the two orbitals specified (may be the same orbital) from the same
@@ -255,4 +258,6 @@ endif
 #define unused_variable(x) associate(x=>x); end associate
 #else
 #define unused_variable(x)
+#endif
+
 #endif

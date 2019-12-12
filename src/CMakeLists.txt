@@ -193,6 +193,7 @@ set( SRC_FILES
     guga_data.F90
     guga_excitations.F90
     guga_init.F90
+    guga_write_H_matrix.F90
     guga_matrixElements.F90
     guga_procedure_pointers.F90
     guga_tausearch.F90
@@ -226,6 +227,7 @@ set( SRC_FILES
     lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
+    lib/display_matrices.F90
 )
 
 set( TEMPLATED_SRC_FILES

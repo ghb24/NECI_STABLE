@@ -480,7 +480,7 @@ contains
                         ! searching deal with it
                         write(iout, '("** WARNING ** Death probability > 2: Algorithm unstable.")')
                         write(iout, '("** WARNING ** Truncating spawn to ensure stability")')
-                        do run = 1, 2
+                        do run = 1, lenof_sign
                             fac(run) = min(2.0_dp, fac(run))
                         end do
                     else

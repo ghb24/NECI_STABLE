@@ -13,7 +13,7 @@
 
       use guga_matrixElements, only: calcDiagMatEleGuga_nI
       use guga_excitations, only: calc_guga_matrix_element
-      use guga_data, only: excitationInformation
+      use guga_data, only: ExcitationInformation_t
       use guga_bitrepops, only: init_csf_information
 
       use lattice_mod, only: get_helement_lattice
@@ -32,7 +32,7 @@
       integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
       HElement_t(dp) totSUM
       type(timer), save :: proc_timer
-      type(excitationInformation) :: excitInfo
+      type(ExcitationInformation_t) :: excitInfo
       integer :: ic=0
 !      LOGICAL TSTAR
 C ==-------------------------------------------------------------------==

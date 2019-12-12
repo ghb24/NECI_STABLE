@@ -248,7 +248,7 @@ contains
         use SystemData, only: nel, tAllSymSectors
         use lanczos_wrapper, only: frsblk_wrapper
         use guga_excitations, only: calc_guga_matrix_element
-        use guga_data, only: excitationInformation
+        use guga_data, only: ExcitationInformation_t
 
         type(subspace_in) :: space_in
         integer, intent(in) :: nexcit
@@ -272,7 +272,7 @@ contains
         HElement_t(dp), allocatable :: work(:)
         real(dp), allocatable :: evals_all(:), rwork(:)
         character(len=*), parameter :: t_r = "calc_trial_states_direct"
-        type(excitationInformation) :: excitInfo
+        type(ExcitationInformation_t) :: excitInfo
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int
