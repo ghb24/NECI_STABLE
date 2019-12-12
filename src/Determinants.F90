@@ -10,9 +10,9 @@ MODULE Determinants
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
+    use excitation_types, only: DoubleExc_t
     use sltcnd_mod, only: sltcnd, sltcnd_excit_old, sltcnd_compat, &
-                          sltcnd_knowIC, SumFock, CalcFockOrbEnergy
-    use procedure_pointers, only: sltcnd_2
+                          sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
@@ -464,7 +464,7 @@ contains
 
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
-            hel = sltcnd_2 (nI, ex, .false.)
+            hel = sltcnd_excit(nI, DoubleExc_t(ex), .false.)
         endif
 
         if (present(iLutJ)) then

@@ -14,7 +14,7 @@ module sltcnd_mod
     use UMatCache, only: GTID, UMatInd
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
-    use procedure_pointers, only: get_umat_el, sltcnd_0, sltcnd_1, sltcnd_2, sltcnd_3
+    use procedure_pointers, only: get_umat_el
     use excitation_types, only: NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, UNKNOWN
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
@@ -36,11 +36,47 @@ module sltcnd_mod
 !> Generic function that accepts arguments of ExcitationTypes,
 !> or the old-style integers.
     interface sltcnd_excit
-!         module procedure sltcnd_excit_old
     #:for excitation_t in ExcitationTypes
         module procedure sltcnd_excit_${excitation_t}$
     #:endfor
     end interface
+
+    abstract interface
+        function sltcnd_0_t(nI, exc) result(hel)
+            import :: dp, nel, NoExc_t
+            integer, intent(in) :: nI(nel)
+            type(NoExc_t), intent(in) :: exc
+            HElement_t(dp) :: hel
+        end function sltcnd_0_t
+
+        function sltcnd_1_t(nI, exc, tSign) result(hel)
+            import :: dp, nel, SingleExc_t
+            integer, intent(in) :: nI(nel)
+            type(SingleExc_t), intent(in) :: exc
+            logical, intent(in) :: tSign
+            HElement_t(dp) :: hel
+        end function sltcnd_1_t
+
+        function sltcnd_2_t(nI, ex, tSign) result(hel)
+            import :: dp, nel, DoubleExc_t
+            integer, intent(in) :: nI(nel)
+            type(DoubleExc_t), intent(in) :: ex
+            logical, intent(in) :: tSign
+            HElement_t(dp) :: hel
+        end function sltcnd_2_t
+
+        function sltcnd_3_t(ex,tSign) result(hel)
+            import :: dp, nel
+            integer, intent(in) :: ex(2,3)
+            logical, intent(in) :: tSign
+            HElement_t(dp) :: hel
+        end function sltcnd_3_t
+    end interface
+
+    procedure(sltcnd_0_t), pointer :: sltcnd_0
+    procedure(sltcnd_1_t), pointer :: sltcnd_1
+    procedure(sltcnd_2_t), pointer :: sltcnd_2
+    procedure(sltcnd_3_t), pointer :: sltcnd_3
 
 contains
 
@@ -50,7 +86,8 @@ contains
 
         if (TContact) then
 
-        if (t_mol_3_body.or.t_ueg_3_body .and. nel > 2 .and. tSmallBasisForThreeBody) then
+            if (t_mol_3_body &
+                .or. t_ueg_3_body .and. nel > 2 .and. tSmallBasisForThreeBody) then
 
                 sltcnd_0 => sltcnd_0_tc_ua
                 sltcnd_1 => sltcnd_1_tc_ua
@@ -149,7 +186,7 @@ contains
         select case (IC)
         case (0)
             ! The determinants are exactly the same
-            hel = sltcnd_excit(nI, NoExc_t(), tParity)
+            hel = sltcnd_excit(nI, NoExc_t())
         case (1)
             hel = sltcnd_excit(nI, SingleExc_t(ex(:, 1)), tParity)
         case (2)
@@ -330,11 +367,10 @@ contains
     end function SumFock
 
     function sltcnd_0_base(nI, exc) result(hel)
-        use SystemData, only: nel
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
         integer, intent(in) :: nI(nel)
-        type(NoExc_t) :: exc
+        type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
         integer :: id(nel), i, j, idN, idX
 
@@ -393,9 +429,6 @@ contains
     function sltcnd_1_base(nI, ex, tSign) result(hel)
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by one orbital exactly.
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         integer, intent(in) :: nI(nel)
         type(SingleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
@@ -410,7 +443,6 @@ contains
     end function sltcnd_1_base
 
     function sltcnd_1_kernel(nI, ex) result(hel)
-        implicit none
         integer, intent(in) :: nI(nel)
         type(SingleExc_t), intent(in) :: ex
         HElement_t(dp) :: hel
@@ -465,31 +497,28 @@ contains
         hel = hel + GetTMATEl(ex%val(1), ex%val(2))
     end function sltcnd_1_kernel
 
-    function sltcnd_2_base(nI, ex, tSign) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-
+    function sltcnd_2_base(nI, exc, tSign) result(hel)
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by two orbitals exactly (the simplest case).
         integer, intent(in) :: nI(nel)
-        integer, intent(in) :: ex(2, 2)
+        type(DoubleExc_t), intent(in) :: exc
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
         unused_var(nI)
 
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
-        hel = sltcnd_2_kernel(ex)
+        hel = sltcnd_2_kernel(exc)
 
         if (tSign) hel = -hel
     end function sltcnd_2_base
 
-    function sltcnd_2_kernel(ex) result(hel)
-        implicit none
-        integer, intent(in) :: ex(2, 2)
+    function sltcnd_2_kernel(exc) result(hel)
+        type(DoubleExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
-        integer :: id(2, 2)
+        integer :: id(2, 2), ex(2, 2)
         ! Obtain spatial rather than spin indices if required
+        ex = exc%val
         id = gtID(ex)
 
         if (tReltvy .or. ((G1(ex(1, 1))%Ms == G1(ex(2, 1))%Ms) .and. &
@@ -531,9 +560,6 @@ contains
     !------------------------------------------------------------------------------------------!
 
     function sltcnd_0_tc(nI, exc) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
@@ -554,9 +580,6 @@ contains
     end function sltcnd_0_tc
 
     function sltcnd_1_tc(nI, ex, tSign) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         integer, intent(in) :: nI(nel)
         type(SingleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
@@ -579,24 +602,25 @@ contains
         if (tSign) hel = -hel
     end function sltcnd_1_tc
 
-    function sltcnd_2_tc(nI, ex, tSign) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
-        integer, intent(in) :: nI(nel), ex(2, 2)
+    function sltcnd_2_tc(nI, exc, tSign) result(hel)
+        integer, intent(in) :: nI(nel)
+        type(DoubleExc_t), intent(in) :: exc
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
         integer :: i
 
         ! get the matrix element up to 2-body terms
-        hel = sltcnd_2_kernel(ex)
+        hel = sltcnd_2_kernel(exc)
         ! and the 3-body term
-        do i = 1, nel
-            if (ex(1, 1) /= nI(i) .and. ex(1, 2) /= nI(i)) then
-                hel = hel + get_lmat_el(&
-                    ex(1, 1), ex(1, 2), nI(i), ex(2, 1), ex(2, 2), nI(i))
-            end if
-        end do
+        associate(src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
+                  src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
+            do i = 1, nel
+                if (src1 /= nI(i) .and. src2 /= nI(i)) then
+                    hel = hel + get_lmat_el(&
+                        src1, src2, nI(i), tgt1, tgt2, nI(i))
+                end if
+            end do
+        end associate
 
         ! take fermi sign into account
         if (tSign) hel = -hel
@@ -604,9 +628,6 @@ contains
     end function sltcnd_2_tc
 
     function sltcnd_3_tc(ex, tSign) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         integer, intent(in) :: ex(2, 3)
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
@@ -619,9 +640,6 @@ contains
 
     ! dummy function for 3-body matrix elements without tc
     function sltcnd_3_base(ex, tSign) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         integer, intent(in) :: ex(2, 3)
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
@@ -636,9 +654,6 @@ contains
     !------------------------------------------------------------------------------------------!
 
     function sltcnd_0_base_ua(nI, exc) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         ! Calculate the  by the SlaterCondon Rules when the two
         ! determinants are the same (so we only need to specify one).
         integer, intent(in) :: nI(nel)
@@ -689,11 +704,8 @@ contains
     function sltcnd_1_base_ua(nI, ex, tSign) result(hel)
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by one orbital exactly.
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         integer, intent(in) :: nI(nel)
-        type(SingleExc_t) :: ex
+        type(SingleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
 
@@ -706,7 +718,6 @@ contains
     end function sltcnd_1_base_ua
 
     function sltcnd_1_kernel_ua(nI, exc) result(hel)
-        implicit none
         integer, intent(in) :: nI(nel)
         type(SingleExc_t) :: exc
         HElement_t(dp) :: hel
@@ -744,13 +755,10 @@ contains
     end function sltcnd_1_kernel_ua
 
     function sltcnd_2_base_ua(nI, ex, tSign) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-
         ! Calculate the  by the Slater-Condon Rules when the two
         ! determinants differ by two orbitals exactly (the simplest case).
         integer, intent(in) :: nI(nel)
-        integer, intent(in) :: ex(2, 2)
+        type(DoubleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
         unused_var(nI)
@@ -764,31 +772,37 @@ contains
 
     function sltcnd_2_kernel_ua(ex) result(hel)
         implicit none
-        integer, intent(in) :: ex(2, 2)
+        type(DoubleExc_t), intent(in) :: ex
         HElement_t(dp) :: hel
         integer :: id(2, 2)
         ! Obtain spatial rather than spin indices if required
-        id = ex
+        id = ex%val
 
-        if (tReltvy .or. ((G1(ex(1, 1))%Ms == G1(ex(2, 1))%Ms) .and. &
-                          (G1(ex(1, 2))%Ms == G1(ex(2, 2))%Ms))) then
-            hel = get_umat_el(id(1, 1), id(1, 2), id(2, 1), id(2, 2))
-        else
-            hel = (0)
-        endif
-        if (tReltvy .or. ((G1(ex(1, 1))%Ms == G1(ex(2, 2))%Ms) .and. &
-                          (G1(ex(1, 2))%Ms == G1(Ex(2, 1))%Ms))) then
-            hel = hel - get_umat_el(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
-        endif
+        associate(src1 => ex%val(1, 1), tgt1 => ex%val(2, 1), &
+                  src2 => ex%val(1, 2), tgt2 => ex%val(2, 2))
+
+            if (tReltvy .or. ((G1(src1)%Ms == G1(tgt1)%Ms) .and. &
+                              (G1(src2)%Ms == G1(tgt2)%Ms))) then
+                hel = get_umat_el(id(1, 1), id(1, 2), id(2, 1), id(2, 2))
+            else
+                hel = (0)
+            endif
+            if (tReltvy .or. ((G1(src1)%Ms == G1(tgt2)%Ms) .and. &
+                              (G1(src2)%Ms == G1(tgt1)%Ms))) then
+                hel = hel - get_umat_el(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
+            endif
+        end associate
     end function sltcnd_2_kernel_ua
 
-    function sltcnd_2_kernel_ua_3b(nI, ex) result(hel)
+    function sltcnd_2_kernel_ua_3b(nI, exc) result(hel)
         implicit none
-        integer, intent(in) :: nI(nel), ex(2, 2)
+        integer, intent(in) :: nI(nel)
+        type(DoubleExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
-        integer :: id(2, 2)
+        integer :: id(2, 2), ex(2, 2)
         ! Obtain spatial rather than spin indices if required
-        id = ex
+        id = exc%val
+        ex = exc%val
 
         hel = (0)
         if (G1(ex(1, 1))%Ms == G1(ex(1, 2))%Ms) then
@@ -815,9 +829,6 @@ contains
     end function sltcnd_2_kernel_ua_3b
 
     function sltcnd_0_tc_ua(nI, exc) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         integer, intent(in) :: nI(nel)
         type(NoExc_t), intent(in) :: exc
         HElement_t(dp) :: hel
@@ -838,9 +849,6 @@ contains
     end function sltcnd_0_tc_ua
 
     function sltcnd_1_tc_ua(nI, exc, tSign) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         integer, intent(in) :: nI(nel)
         type(SingleExc_t), intent(in) :: exc
         logical, intent(in) :: tSign
@@ -867,10 +875,8 @@ contains
     end function sltcnd_1_tc_ua
 
     function sltcnd_2_tc_ua(nI, ex, tSign) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
-        integer, intent(in) :: nI(nel), ex(2, 2)
+        integer, intent(in) :: nI(nel)
+        type(DoubleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel, heltc
         integer :: i
@@ -903,9 +909,6 @@ contains
     end function sltcnd_2_tc_ua
 
     function sltcnd_3_tc_ua(ex, tSign) result(hel)
-        use constants, only: dp
-        use SystemData, only: nel
-        implicit none
         integer, intent(in) :: ex(2, 3)
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
@@ -916,11 +919,9 @@ hel = get_lmat_el_ua(ex(1, 1), ex(1, 2), ex(1, 3), ex(2, 1), ex(2, 2), ex(2, 3))
         if (tSign) hel = -hel
     end function sltcnd_3_tc_ua
 
-    HElement_t(dp) function sltcnd_excit_NoExc_t(ref, exc, tParity)
+    HElement_t(dp) function sltcnd_excit_NoExc_t(ref, exc)
         integer, intent(in) :: ref(nel)
         type(NoExc_t), intent(in), optional :: exc
-        logical, intent(in), optional :: tParity
-        @:unused_var(exc, tParity)
 
         sltcnd_excit_NoExc_t = sltcnd_0(ref, exc)
     end function
@@ -938,7 +939,7 @@ hel = get_lmat_el_ua(ex(1, 1), ex(1, 2), ex(1, 3), ex(2, 1), ex(2, 2), ex(2, 3))
         type(DoubleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
 
-        sltcnd_excit_DoubleExc_t = sltcnd_2(ref, exc%val, tParity)
+        sltcnd_excit_DoubleExc_t = sltcnd_2(ref, exc, tParity)
     end function
 
     HElement_t(dp) function sltcnd_excit_TripleExc_t(ref, exc, tParity)

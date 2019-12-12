@@ -212,47 +212,6 @@ module procedure_pointers
 !             integer(n_int), intent(out), allocatable :: det_list(:,:)
 !         end subroutine generate_all_excits_t
 
-        ! slater-condon rules types
-        function sltcnd_0_t(nI, exc) result(hel)
-          use constants, only: dp
-          use SystemData, only: nel
-          use excitation_types, only: NoExc_t
-          implicit none
-          integer, intent(in) :: nI(nel)
-          type(NoExc_t), intent(in) :: exc
-          HElement_t(dp) :: hel
-        end function sltcnd_0_t
-
-        function sltcnd_1_t(nI, exc, tSign) result(hel)
-          use constants, only: dp
-          use SystemData, only: nel
-          use excitation_types, only: SingleExc_t
-          implicit none
-          integer, intent(in) :: nI(nel)
-          type(SingleExc_t), intent(in) :: exc
-          logical, intent(in) :: tSign
-          HElement_t(dp) :: hel
-        end function sltcnd_1_t
-
-        function sltcnd_2_t(nI, ex, tSign) result(hel)
-          use constants, only: dp
-          use SystemData, only: nel
-          implicit none
-          integer, intent(in) :: nI(nel)
-          integer, intent(in) :: ex(2,2)
-          logical, intent(in) :: tSign
-          HElement_t(dp) :: hel
-        end function sltcnd_2_t
-
-        function sltcnd_3_t(ex,tSign) result(hel)
-          use constants, only: dp
-          use SystemData, only: nel
-          implicit none
-          integer, intent(in) :: ex(2,3)
-          logical, intent(in) :: tSign
-          HElement_t(dp) :: hel
-        end function sltcnd_3_t
-
         pure function scale_function_t(hdiag) result(Si)
           use constants
           implicit none
@@ -308,11 +267,6 @@ module procedure_pointers
     procedure(get_umat_el_t), pointer :: get_umat_el
     procedure(get_umat_el_t), pointer :: get_umat_el_secondary
 
-    ! slater condon rules
-    procedure(sltcnd_0_t), pointer :: sltcnd_0
-    procedure(sltcnd_1_t), pointer :: sltcnd_1
-    procedure(sltcnd_2_t), pointer :: sltcnd_2
-    procedure(sltcnd_3_t), pointer :: sltcnd_3
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
     ! the function used to scale the shift
