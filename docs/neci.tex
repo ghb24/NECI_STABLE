@@ -755,6 +755,10 @@ the \texttt{endsys} keyword.
     Dynamically update the number of spawns attempted per walker. Can be used
     if the excitation generator creates a lot of invalid excitations, but
     should be avoided else.
+    \codeitem{scale-spawns}
+    Store the maximum value of $\frac{H_{ij}}{p_{gen}}$ for each determinant
+    and use it to estimate the number of spawns per walker to prevent
+    blooms. Useful when this fraction strongly depends on the determinant.
   \end{description}
 
   \subsubsection{Population control options}
@@ -1140,11 +1144,11 @@ the \texttt{endsys} keyword.
     Set the number of iterations for sampling the RDMs to $n$. After $n$
     iterations of sampling, the calculation ends.
     \codeitem{inits-rdm}
-    Only take into account initiators when calculating RDMs.
-    \codeitem{non-variational-rdms}
-    Only take into account initiators for the right vector used in RDM
-    calculation. This makes the RDMs non-variational, and the resulting energy
+    Only take into account initiators when calculating RDMs. By default, only
+    restricts to initiators for the right vector used in RDM calculation. This makes the RDMs non-variational, and the resulting energy
     is the projected energy on the initiator space.
+    \codeitem{strict-inits-rdm}
+    Require both sides of the inits-rdm to be initiators.
     \codeitem{no-lagrangian-rdms}
     This option disables the correction used for RDM calculation for the
     adaptive shift. Use this only for debugging purposes, as the resulting

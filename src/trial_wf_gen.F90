@@ -111,6 +111,7 @@ contains
             else
                 trial_wfs = temp_wfs
                 trial_energies = temp_energies
+                root_print "energy eigenvalue(s): ", trial_energies(1:nexcit_keep)
             end if
             deallocate(temp_wfs, stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error deallocating temp_wfs.")
@@ -149,7 +150,7 @@ contains
                     real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
-            con_space = 0_n_int
+            con_space = 0_n_int 
 
             write(6,'("States found on this processor, including repeats:",1X,i8)') con_space_size
 
@@ -246,7 +247,9 @@ contains
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
+        write(6,*)"before generate_connected_space_vector"
         call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
+        write(6,*)"after generate_connected_space_vector"
 
         call MPIBarrier(ierr)
 
@@ -273,14 +276,11 @@ contains
         call halt_timer(Trial_Init_Time)
 
         if (.not. qmc_trial_wf) then
-            write(6,'("Energy eigenvalue(s) of the trial space:")', advance='no')
-            do i = 1, nexcit_keep
-                write(6,'(2X,g19.12e3)', advance='no') trial_energies(i)
-            end do
+            root_print "Energy eigenvalue(s) of the trial space:", trial_energies(1:nexcit_keep)
         end if
-        write(6,'(/,"Trial wavefunction initialisation complete.")')
-        write(6,'("Total time (seconds) taken for trial wavefunction initialisation:",f9.3,/)') &
-                   get_total_time(Trial_Init_Time)
+        root_print "Trial wavefunction initialisation complete."
+        root_print "Total time (seconds) taken for trial wavefunction initialisation:",&
+            get_total_time(Trial_Init_Time)
         call neci_flush(6)
 
     end subroutine init_trial_wf
@@ -376,27 +376,67 @@ contains
 #endif
 
         ! Now, find the best trial state for each FCIQMC replica:
+        if (t_choose_trial_state) then
+
 #ifdef CMPLX_
-        do ireplica = 1, inum_runs
-            best_trial = maxloc(abs(all_overlaps_real(ireplica,:)**2+all_overlaps_imag(ireplica,:)**2))
-            trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-            energies_kept(ireplica) = energies(best_trial(1))
-        end do
+            do ireplica = 1, inum_runs
+                trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
+            end do
 #else
-        if (replica_pairs) then
-            do ireplica = 1, lenof_sign .div. 2
-                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
-                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-                energies_kept(ireplica) = energies(best_trial(1))
-            end do
-        else
-            do ireplica = 1, lenof_sign
-                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
-                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-                energies_kept(ireplica) = energies(best_trial(1))
-            end do
-        end if
+            if (replica_pairs) then
+                do ireplica = 1, lenof_sign .div. 2
+                    trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                    energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
+
+                    root_print "trial state: ", trial_excit_choice(ireplica), &
+                        " chosen for replica: ", ireplica, &
+                        " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
+                end do
+            else
+                do ireplica = 1, lenof_sign
+                    trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                    energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
+
+                    root_print "trial state: ", trial_excit_choice(ireplica), &
+                        " chosen for replica: ", ireplica, &
+                        " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
+
+                end do
+            end if
 #endif
+        else
+#ifdef CMPLX_
+            do ireplica = 1, inum_runs
+                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)**2+all_overlaps_imag(ireplica,:)**2))
+                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                energies_kept(ireplica) = energies(best_trial(1))
+            end do
+#else
+            if (replica_pairs) then
+                do ireplica = 1, lenof_sign .div. 2
+                    best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
+                    trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                    energies_kept(ireplica) = energies(best_trial(1))
+#ifdef DEBUG_
+                    root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
+                        " based on overlap, with energy: ", energies(best_trial(1))
+#endif
+                end do
+            else
+                do ireplica = 1, lenof_sign
+                    best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
+                    trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                    energies_kept(ireplica) = energies(best_trial(1))
+
+                    root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
+                        " based on overlap, with energy: ", energies(best_trial(1))
+
+                end do
+            end if
+#endif
+        end if
+
 
     end subroutine assign_trial_states
 
@@ -492,6 +532,8 @@ contains
 
         con_vecs = 0.0_dp
 
+        ! do i need to change this here for the non-hermitian transcorrelated 
+        ! hamiltonians?
         do i = 1, size(con_vecs,2)
             call decode_bit_det(nI, con_space(0:NIfTot, i))
             do j = 1, size(trial_vecs,2)

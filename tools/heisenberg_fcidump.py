@@ -44,10 +44,10 @@ def write_fcidump(nsites, J, Ms, nbonds, bonds):
     print('  ISYM=1 UHF=.TRUE.')
     print(' &END')
     for i in range(1, nbonds+1):
-        print(' %20.13f%3d%3d%3d%3d' % (-J/4, 2*bonds[i][0]-1, 2*bonds[i][0]-1, 2*bonds[i][1]-1, 2*bonds[i][1]-1))
-        print(' %20.13f%3d%3d%3d%3d' % (J/4, 2*bonds[i][0]-1, 2*bonds[i][0]-1, 2*bonds[i][1], 2*bonds[i][1]))
-        print(' %20.13f%3d%3d%3d%3d' % (J/4, 2*bonds[i][0], 2*bonds[i][0], 2*bonds[i][1]-1, 2*bonds[i][1]-1))
-        print(' %20.13f%3d%3d%3d%3d' % (-J/4, 2*bonds[i][0], 2*bonds[i][0], 2*bonds[i][1], 2*bonds[i][1]))
+        print(' %20.13f%3d%3d%3d%3d' % (J/4, 2*bonds[i][0]-1, 2*bonds[i][0]-1, 2*bonds[i][1]-1, 2*bonds[i][1]-1))
+        print(' %20.13f%3d%3d%3d%3d' % (-J/4, 2*bonds[i][0]-1, 2*bonds[i][0]-1, 2*bonds[i][1], 2*bonds[i][1]))
+        print(' %20.13f%3d%3d%3d%3d' % (-J/4, 2*bonds[i][0], 2*bonds[i][0], 2*bonds[i][1]-1, 2*bonds[i][1]-1))
+        print(' %20.13f%3d%3d%3d%3d' % (J/4, 2*bonds[i][0], 2*bonds[i][0], 2*bonds[i][1], 2*bonds[i][1]))
         print(' %20.13f%3d%3d%3d%3d' % (-J/2, 2*bonds[i][0]-1, 2*bonds[i][1]-1, 2*bonds[i][1], 2*bonds[i][0]))
         print(' %20.13f%3d%3d%3d%3d' % (-J/2, 2*bonds[i][0], 2*bonds[i][1], 2*bonds[i][1]-1, 2*bonds[i][0]-1))
 

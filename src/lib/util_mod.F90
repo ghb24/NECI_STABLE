@@ -13,7 +13,7 @@ module util_mod
 
     ! We want to use the builtin etime intrinsic with ifort to
     ! work around some broken behaviour.
-#ifdef __IFORT
+#ifdef IFORT_
     use ifport, only: etime
 #endif
     implicit none
@@ -78,12 +78,33 @@ module util_mod
         module procedure abs_real_sign
     end interface
 
-    interface abs_l1
+     interface abs_l1
         module procedure abs_l1_dp
         module procedure abs_l1_sp
         module procedure abs_l1_cdp
         module procedure abs_l1_csp
-    end interface
+     end interface abs_l1
+
+     interface fuseIndex
+        module procedure fuseIndex_int32
+        module procedure fuseIndex_int64
+     end interface fuseIndex
+
+     interface intSwap
+        module procedure intSwap_int64
+        module procedure intSwap_int32
+     end interface intSwap
+
+    ! sds: It would be nice to use a proper private/public interface here,
+    !      BUT PGI throws a wobbly on using the public definition on
+    !      a new declared operator. --> "Empty Operator" errors!
+    !      to fix when compilers work!
+!    private
+
+!    public :: swap, arr_lt, arr_gt, operator(.arrlt.), operator(.arrgt.)
+!    public :: factrl, choose, int_fmt, binary_search
+!    public :: append_ext, get_unique_filename, get_nan, isnan_neci
+
 contains
 
     function stochastic_round (r) result(i)
@@ -296,7 +317,7 @@ contains
 
 !--- Indexing utilities
 
-   function fuseIndex(q,p) result(ind)
+   pure function fuseIndex_int32(q,p) result(ind)
      ! fuse p,q into one symmetric index
      ! the resulting index is not contigious in p or q
      ! Input: p,q - 2d-array indices
@@ -307,13 +328,66 @@ contains
 
       ! qp and pq are considered to be the same index
       ! -> permutational symmetry
+      ! implemented in terms of fuseIndex_int64
+      ind = int(fuseIndex_int64(int(q,int64),int(p,int64)))
+    end function fuseIndex_int32
 
-      if(p > q) then
-         ind = q + p*(p-1)/2
+!------------------------------------------------------------------------------------------!
+
+    pure function fuseIndex_int64(x,y) result(xy)
+      ! create a composite index out of two indices, assuming they are unordered
+      ! i.e. their ordering does not matter
+      ! Input: p,q - 2d-array indices
+      ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
+      implicit none
+      integer(int64), intent(in) :: x,y
+      integer(int64) :: xy
+
+      if(x < y) then
+         xy = x + y*(y-1)/2
       else
-         ind = p + q*(q-1)/2
-      end if
-    end function fuseIndex
+         xy = y + x*(x-1)/2
+      endif
+    end function fuseIndex_int64
+
+!------------------------------------------------------------------------------------------!
+
+    pure subroutine intswap_int32(a,b)
+      ! exchange the value of two integers a,b
+      ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
+      integer, intent(inout) :: a,b
+      integer :: tmp
+
+      tmp = a
+      a = b
+      b = tmp
+    end subroutine intswap_int32
+
+!------------------------------------------------------------------------------------------!
+
+
+    pure subroutine intswap_int64(a,b)
+      ! exchange the value of two integers a,b
+      ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
+      integer(int64), intent(inout) :: a,b
+      integer(int64) :: tmp
+
+      tmp = a
+      a = b
+      b = tmp
+    end subroutine intswap_int64
+
+!------------------------------------------------------------------------------------------!
+
+    pure subroutine pairSwap(a,i,b,j)
+      ! exchange a pair of integers
+      integer(int64), intent(inout) :: a,i,b,j
+
+      call intswap(a,b)
+      call intswap(i,j)
+    end subroutine pairSwap
+
+!------------------------------------------------------------------------------------------!
 
     function linearIndex(p,q,dim) result(ind)
       ! fuse p,q into one contiguous index
@@ -341,18 +415,6 @@ contains
     ms = mod(orb,2)
   end function getSpinIndex
 
-  pure subroutine intswap(a,b)
-    ! Swap two integers a and b
-    ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
-    integer, intent(inout) :: a,b
-    integer :: tmp
-
-    tmp = a
-    a = b
-    b = tmp
-  end subroutine intswap
-    
-
 !--- Numerical utilities ---
 
     ! If all of the compilers supported ieee_arithmetic
@@ -369,7 +431,7 @@ contains
     elemental logical function isnan_neci (r)
         real(dp), intent(in) :: r
 
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         isnan_neci = isnan(r)
 #else
         if ( (r == 0) .and. (r * 1 == 1) ) then
@@ -604,6 +666,48 @@ contains
 
     end function binary_search
 
+    function binary_search_int (arr, val) result(pos)
+        ! W.D.: also write a binary search for "normal" lists of ints
+        integer, intent(in) :: arr(:)
+        integer, intent(in) :: val
+        integer :: pos
+
+        integer :: hi, lo
+
+        lo = lbound(arr,1)
+        hi = ubound(arr,1)
+
+        if (hi < lo) then
+            pos  = -lo
+            return
+        end if
+
+        do while (hi /= lo)
+            pos = int(real(hi + lo, sp) / 2.0_dp)
+
+            if (arr(pos) == val) then
+                exit
+            else if (val > arr(pos)) then
+                lo = pos + 1
+            else
+                hi = pos
+            end if
+        end do
+
+        if (hi == lo) then
+            if (arr(hi) == val) then
+                pos = hi
+            else if (val > arr(hi)) then
+                pos = -hi - 1
+
+            else
+                pos = -hi
+            end if
+        end if
+
+    end function binary_search_int
+
+
     function binary_search_real (arr, val, thresh) &
                                  result(pos)
 
@@ -793,9 +897,7 @@ contains
         !        filename is simply set to be equal to stem.
         !    tnext: the next unused filename is found if true, else the
         !        filename is set to be stem.x where stem.x exists and stem.x+1
-        !        doesn't and x is greater than istart or unless the file
-        !        stem exists, then the filename is set to be stem (with no
-        !        extension).
+        !        doesn't and x is greater than istart
         !    istart: the integer of the first x value to check.
         !        If istart is negative, then the filename is set to be stem.x,
         !        where x = |istart+1|.  This overrides everything else.
@@ -955,7 +1057,7 @@ contains
     end subroutine find_next_comb
 
     function neci_etime(time) result(ret)
-#ifndef __IFORT
+#ifndef IFORT_
       use mpi
 #endif
         ! Return elapsed time for timing and calculation ending purposes.
@@ -963,7 +1065,7 @@ contains
         real(dp), intent(out) :: time(2)
         real(dp) :: ret
 
-#ifdef __IFORT
+#ifdef IFORT_
         ! intels etime takes a real(4)
         real(4) :: ioTime(2)
         ! Ifort defines etime directly in its compatibility modules.
@@ -984,6 +1086,46 @@ contains
 #endif
 
     end function neci_etime
+
+    subroutine open_new_file(funit,filename)
+      implicit none
+      integer, intent(in) :: funit
+      character(*), intent(in) :: filename
+      logical :: exists
+      integer :: ierr, i
+      character(43) :: filename2
+      character(12) :: num
+      character(*), parameter :: t_r = 'open_new_file'
+
+      ! If we are doing a normal calculation, move existing fciqmc_stats
+      ! files so that they are not overwritten, and then create a new one
+      inquire(file=filename, exist=exists)
+
+      if (exists) then
+
+         ! Loop until we find an available spot to move the existing
+         ! file to.
+         i = 1
+         do while(exists)
+            write(num, '(i12)') i
+            filename2 = trim(adjustl(filename)) // "." // &
+                 trim(adjustl(num))
+            inquire(file=filename2, exist=exists)
+            if (i > 10000) &
+                 call stop_all(t_r, 'Error finding free fciqmc_stats.*')
+            i = i + 1
+         end do
+
+         ! Move the file
+         call rename(filename, filename2)
+
+      end if
+
+      ! And finally open the file
+      open(funit, file=filename, status='unknown', iostat=ierr)
+
+    end subroutine open_new_file
+
 end module
 
 !Hacks for compiler specific system calls.
@@ -1130,7 +1272,7 @@ end module
 
 #endif
 
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
     function g_loc (var) result(addr)
 
         use iso_c_binding

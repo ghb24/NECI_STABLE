@@ -7,7 +7,7 @@
 typedef double real_t;
 
 // Are we using 32- or 64-bit integers?
-#ifdef __INT64
+#ifdef INT64_
 typedef int64_t int_t;
 typedef uint64_t uint_t;
 #else

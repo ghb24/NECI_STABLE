@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module Parallel_Calc
 
 != Algorithms for calculations in parallel.
@@ -31,7 +33,8 @@ subroutine ParMP2(nI)
 
    use constants, only: dp
    use System, only: AreSameSpatialOrb
-   use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry
+   use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry, & 
+                         t_3_body_excits
    use CalcData, only: NWHTAY
    use Integrals_neci, only: GetUMatEl2
    use UMatCache, only: GTID
@@ -154,6 +157,7 @@ subroutine ParMP2(nI)
 
          ! Alternatively, calculate the energy of the excited determinant
          ! in reference to that of the reference determinant (i.e. setting dE1=0).
+         ASSERT(.not. t_3_body_excits)
          Excit(1,1)=2
          call GetExcitation(nI,nJ,nEl,Excit,tSign)
 

@@ -28,6 +28,12 @@ max_nprocs = 2
 program = neci
 max_nprocs = 1
 
+[neci/tc/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 [neci/parallel/*/]
 program = neci
 nprocs = 2
@@ -68,6 +74,10 @@ tolerance = (5e-10, None, 'energy_summed')
 program = dneci
 nprocs = 2
 tolerance = (2e-9, None, '1_rdm_diag_sum'),(5e-10, None, 'energy_rdm_1'),(1e-5,None,'sum_error_rdm_1')
+
+[kneci/Se2_mag_semi_pops/]
+program = kneci
+tolerance = (2e-9, None, 'final_energy_1')
 
 [mneci/kpfciqmc/fci_all_sym/]
 program = mneci
@@ -117,6 +127,18 @@ max_nprocs = 2
 tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 
 [hdf5/neci/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[hdf5/mneci/*/]
+program = mneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[hdf5/tc/*/]
 program = neci
 nprocs = 2
 min_nprocs = 2

@@ -12,7 +12,7 @@ MODULE FciMCLoggingMod
     USE Determinants , only : get_helement, get_helement_excit
     use CalcData, only: NMCyc, StepsSft, InitiatorWalkNo
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel
-    use constants, only: dp,n_int
+    use constants, only: dp,n_int, maxExcit
     use MemoryManager, only: TagIntType
     use FciMCData, only: HighPopNeg, HighPopPos, MaxInitPopNeg, MaxInitPopPos
     use fortran_strings, only: str
@@ -415,7 +415,7 @@ MODULE FciMCLoggingMod
             CALL LogMemAlloc('AllHistInitPops', 50000, 4, this_routine, &
                              AllHistInitPopsTag, ierr)
             AllHistInitPops = 0
-#ifdef __DEBUG
+#ifdef DEBUG_
          else
             ! in debug mode, we have to allocate this on all procs
             if (allocated(AllHistInitPops)) then
@@ -473,7 +473,7 @@ MODULE FciMCLoggingMod
 
 
     SUBROUTINE TrackSpawnAttempts(Child,DetCurr,nJ,IC,Ex,tParity)
-        INTEGER :: Child,DetCurr(NEl),nJ(NEl),IC,Ex(2,2)
+        INTEGER :: Child,DetCurr(NEl),nJ(NEl),IC,Ex(2,maxExcit)
         LOGICAL :: tParity
         HElement_t(dp) :: HEl
 

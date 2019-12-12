@@ -1,10 +1,29 @@
+#include "macros.h"
 
 MODULE UMatCache
+
     use constants, only: dp,sizeof_int,int64
-    use SystemData, only: tROHF,tStoreSpinOrbs, tComplexWalkers_RealInts
-    use util_mod, only: swap, near_zero
+
+    use SystemData, only: tROHF,tStoreSpinOrbs, tComplexWalkers_RealInts, &
+                          Symmetry, BasisFN, UMatEps, tROHF
+
+    use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts, t_non_hermitian
+
+    use util_mod, only: swap, get_free_unit, NECI_ICOPY, near_zero
+
     use sort_mod
-    use MemoryManager, only: TagIntType
+
+    use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
+
+    use HElem, only: HElement_t_size
+
+    use CPMDData, only: NKPS
+
+    use sym_mod, only: TotSymRep, LSymSym
+
+    use HElem, only: HElement_t_size
+
+    use legacy_data, only: irat
     use procedure_pointers, only: get_umat_el
 
       IMPLICIT NONE
@@ -48,6 +67,9 @@ MODULE UMatCache
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
       HElement_t(dp), Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
+      HElement_t(dp), Pointer :: UMat2DExch(:,:) => null()
+      HElement_t(dp), Pointer :: UMat3d(:,:,:) => null()
+      HElement_t(dp), Pointer :: UMat3dExch(:,:,:) => null()
       LOGICAL :: tUMat2D, tDeferred_Umat2d
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
@@ -112,8 +134,10 @@ MODULE UMatCache
       integer(TagIntType) :: tagOUMatCacheData=0
       integer(TagIntType) :: tagOUMatLabels=0
       integer(TagIntType) :: tagUMat2D=0
-      integer(TagIntType) :: tagTMat2D=0
-      integer(TagIntType) :: tagTMat2D2=0
+      ! [W.D]
+      ! those two tags are also defined in OneEInts..
+!       integer(TagIntType) :: tagTMat2D=0
+!       integer(TagIntType) :: tagTMat2D2=0
       integer(TagIntType) :: tagTransTable=0
       integer(TagIntType) :: tagInvTransTable=0
       integer(TagIntType) :: tagDFCoeffs=0
@@ -132,7 +156,6 @@ MODULE UMatCache
       !    nBasis: size of bais
       ! InvBRR is the inverse of BRR.  InvBRR(j)=i: the j-th lowest energy
       ! orbital corresponds to the i-th orbital in the original basis.
-        use global_utilities
         IMPLICIT NONE
         INTEGER NBASIS
         INTEGER BRR2(NBASIS),ierr,I,t
@@ -166,7 +189,6 @@ MODULE UMatCache
       !    nBasis: size of bais
       ! InvBRR is the inverse of BRR.  InvBRR(j)=i: the j-th lowest energy
       ! orbital corresponds to the i-th orbital in the original basis.
-        use global_utilities
         IMPLICIT NONE
         INTEGER NBASIS
         INTEGER BRR(NBASIS),ierr,I,t
@@ -200,23 +222,38 @@ MODULE UMatCache
          !    nBasis: size of basis. If =0, use nStates instead.
          !    nOccupied: # of occupied orbitals.  If =0, then nOcc is used.
          !    Should only be passed as non-zero during the freezing process.
+         use SystemData, only: nbasis
          IMPLICIT NONE
          INTEGER, intent(in) :: I,J,K,L
-         INTEGER A,B
+         INTEGER A,B, nbi, iss
 
-         !Combine indices I and K, ensuring I>K
-         IF(I.GT.K) THEN
-             A=(I*(I-1))/2+K
-         ELSE
-             A=(K*(K-1))/2+I
-         ENDIF
+         if (t_non_hermitian) then
+             IF(tStoreSpinOrbs) THEN
+                 iSS=1
+             ELSE
+                 iSS=2
+             ENDIF
 
-         !Combine indices J and L, ensuring J>K
-         IF(J.GT.L) THEN
-             B=(J*(J-1))/2+L
-         ELSE
-             B=(L*(L-1))/2+J
-         ENDIF
+             nBi=nBasis/iSS
+
+             A=(I-1)*nBi+K
+             B=(J-1)*nBi+L
+         else
+
+             !Combine indices I and K, ensuring I>K
+             IF(I.GT.K) THEN
+                 A=(I*(I-1))/2+K
+             ELSE
+                 A=(K*(K-1))/2+I
+             ENDIF
+
+             !Combine indices J and L, ensuring J>K
+             IF(J.GT.L) THEN
+                 B=(J*(J-1))/2+L
+             ELSE
+                 B=(L*(L-1))/2+J
+             ENDIF
+         end if
 
          !Combine (IK) and (JL) in a unique way  (k > l or if k = l then i > j)
          IF(A.GT.B) THEN
@@ -226,12 +263,12 @@ MODULE UMatCache
          ENDIF
 #ifdef CMPLX_
          if(.not. tComplexWalkers_RealInts) then
-         UMatInd = (UmatInd-1)*2 + 1
-         !We need to test whether we have swapped i and k or j and l independantly of each other
-         !If we have done this, it is one of the 'other' integrals - add one.
-         if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
-            UMatInd = UMatInd + 1
-         endif
+             UMatInd = (UmatInd-1)*2 + 1
+             !We need to test whether we have swapped i and k or j and l independantly of each other
+             !If we have done this, it is one of the 'other' integrals - add one.
+             if (((I.gt.K).and.(J.lt.L)) .or. ((I.lt.K).and.(J.gt.L))) then
+                UMatInd = UMatInd + 1
+             endif
          endif
 #endif
       END FUNCTION UMatInd
@@ -315,7 +352,6 @@ MODULE UMatCache
       ! storing FCIDUMP 2-e integrals
       ! In:
       !    nBasis: as above.
-      !    nEl: # electrons.
       !    iSS: ratio of spatial orbitals to spin orbitals.
       !         iSS=0 integrals not stored in UMAT.
       !         iSS=1 unrestricted calculation
@@ -325,7 +361,7 @@ MODULE UMatCache
       !    iSize: size of UMAT.
          IMPLICIT NONE
          INTEGER nBasis,iSS
-         INTEGER iPairs,nBi,nEl,noccup
+         INTEGER iPairs,nBi,noccup
          INTEGER(int64), intent(out) :: iSize
          IF(tStoreSpinOrbs) THEN
              iSS=1
@@ -334,9 +370,11 @@ MODULE UMatCache
          ENDIF
 
          nBi=nBasis/iSS
-!         WRITE(6,*) iSS,nBasis,nBi
-!         CALL neci_flush(6)
-         iPairs=(nBi*(nBi+1))/2
+         if (t_non_hermitian) then
+             iPairs = nbi**2
+         else
+             iPairs=(nBi*(nBi+1))/2
+         end if
          iSize=(int(iPairs,int64)*int(iPairs+1,int64))/2
 #ifdef CMPLX_
          !Since we now only have 4-fold symmetry, rather than 8-fold.
@@ -349,9 +387,6 @@ MODULE UMatCache
       SUBROUTINE SETUPUMATCACHE(NSTATE,TSMALL)
          ! nState: # states.
          ! TSMALL is used if we create a pre-freezing cache to hold just the <ij|kj> integrals.
-         use global_utilities
-         use legacy_data, only: irat
-         use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER NSTATE
          real(dp) Memory
@@ -407,8 +442,6 @@ MODULE UMatCache
          ENDIF
       END SUBROUTINE SetupUMatCache
 
-
-
       SUBROUTINE SETUPUMAT2D(G1,HarInt)
          ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals,
          ! and pre-calculate the common integrals (<ij|u|ij>, <ij|u|ji>,
@@ -417,9 +450,6 @@ MODULE UMatCache
          !    G1: symmetry and momentum information on the basis functions.
          ! Out:
          !    HarInt(i,j)=<i|v_har|j>, where v_har is the Hartree potential.
-         use SystemData, only: BasisFN
-         use global_utilities
-         use HElem, only: HElement_t_size
          IMPLICIT NONE
          TYPE(BasisFN) G1(*)
          INTEGER ierr
@@ -431,6 +461,7 @@ MODULE UMatCache
          ELSE
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
+            UMat2D = 0.0_dp
             call LogMemAlloc('UMat2D',nStates**2,8*HElement_t_size,thisroutine,tagUMat2D,ierr)
             CALL CPMDANTISYMINTEL(G1,UMAT2D,HarInt,NSTATES)
          ENDIF
@@ -441,9 +472,6 @@ MODULE UMatCache
       SUBROUTINE SETUPUMAT2D_DF()
          ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals for
          ! density fitting calculations.
-         use SystemData, only: tRIIntegrals,tCacheFCIDUMPInts
-         use global_utilities
-         use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER ierr
          character(len=*),parameter :: thisroutine='SETUPUMAT2D_DF'
@@ -453,6 +481,7 @@ MODULE UMatCache
          ELSE
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
+            UMat2D = 0.0_dp
 !            WRITE(6,*) "nStates for UMat2D: ",nStates
             call LogMemAlloc('UMat2D',nStates**2,8*HElement_t_size,thisroutine,tagUMat2D,ierr)
             IF(tRIIntegrals.or.tCacheFCIDUMPInts) THEN
@@ -472,8 +501,6 @@ MODULE UMatCache
          ! Currently only called in cpmdinit to re-order states by the
          ! one-particle energies (option is rarely used).
          ! Copy to UMatCache's translation table.
-         use global_utilities
-         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER TRANS(NSTATES),ierr
          character(*), parameter :: thisroutine='SetupUMatTrans'
@@ -492,7 +519,6 @@ MODULE UMatCache
          !    nNew: # of new states.
          !    OldNew: convert index in the old (pre-freezing) indexing scheme to
          !            the new (post-freezing) indexing scheme.
-         use global_utilities
          IMPLICIT NONE
          INTEGER nNew,nOld,I
          INTEGER OldNew(*),ierr
@@ -523,7 +549,6 @@ MODULE UMatCache
 
 
       SUBROUTINE DESTROYUMATCACHE
-         use global_utilities
          IMPLICIT NONE
          character(len=*), parameter :: thisroutine='DESTROYUMATCACHE'
          CALL WriteUMatCacheStats()
@@ -775,8 +800,6 @@ MODULE UMatCache
 
 
       SUBROUTINE FreezeUMAT2D(OldBasis,NewBasis,OrbTrans,iSS)
-         use global_utilities
-         use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER NewBasis,OldBasis,iSS,ierr,OrbTrans(OldBasis),i,j
          HElement_t(dp),POINTER :: NUMat2D(:,:)
@@ -806,8 +829,6 @@ MODULE UMatCache
 
 
       SUBROUTINE FreezeUMatCacheInt(OrbTrans,nOld,nNew,onSlots,onPairs)
-         use global_utilities
-         use HElem, only: HElement_t_size
          IMPLICIT NONE
          INTEGER nOld,nNew,OrbTrans(nOld)
          HElement_t(dp),Pointer :: NUMat2D(:,:) !(nNew/2,nNew/2)
@@ -908,8 +929,6 @@ MODULE UMatCache
 
 
       SUBROUTINE CacheFCIDUMP(I,J,K,L,Z,CacheInd,ZeroedInt,NonZeroInt)
-          use SystemData, only : UMatEps
-          use constants, only: dp
           IMPLICIT NONE
           INTEGER :: I,J,K,L,CacheInd(nPairs)
           INTEGER(int64) :: ZeroedInt,NonZeroInt
@@ -978,8 +997,6 @@ MODULE UMatCache
 !We are assuming that there is no more than one integral per i,j pair and so permutational
 !symmetry is taken into account when determining islotsmax.
       SUBROUTINE CalcNSlotsInit(I,J,K,L,Z,nPairs2,MaxSlots)
-          use SystemData, only : UMatEps,tROHF
-          use constants, only: dp
           IMPLICIT NONE
           INTEGER :: I,J,K,L,nPairs2,MaxSlots(1:nPairs2),A,B,C,D,X,Y
           HElement_t(dp) :: Z
@@ -1029,7 +1046,6 @@ MODULE UMatCache
 
       subroutine ReadInUMatCache()
       ! Read in cache file from CacheDump.
-      use util_mod, only: get_free_unit
       implicit none
       integer  i,j,k,l,iCache1,iCache2,A,B,readerr,iType, iunit
       HElement_t(dp) UMatEl(0:nTypes-1),DummyUMatEl(0:nTypes-1)
@@ -1074,9 +1090,6 @@ MODULE UMatCache
       ! Print out the cache contents so they can be read back in for a future
       ! calculation.  Need to print out the full set of indices, as the number of
       ! states may change with the next calculation.
-      use SystemData, only: Symmetry,BasisFN
-      use util_mod, only: get_free_unit
-      use sym_mod
       implicit none
       ! Variables
       integer iPair,iSlot,i,j,k,l,iCache1,iCache2,A,B,iType
@@ -1120,7 +1133,6 @@ MODULE UMatCache
 
 
       logical function HasKPoints()
-         use CPMDData, only: NKPS
          IMPLICIT NONE
          IF(NKPS.GT.1) THEN
             HasKPoints=.TRUE.
@@ -1187,8 +1199,6 @@ MODULE UMatCache
 ! ICACHEI is the index in that cache where the cache should be located.
 ! Note: (i,k)>(j,l) := (k>l) || ((k==l)&&(i>j))
 
-         use constants, only: dp
-         use HElem, only: HElement_t_size
 !         use SystemData, only : nBasis,G1
          IMPLICIT NONE
          INTEGER IDI,IDJ,IDK,IDL,ICACHE,ICACHEI
@@ -1264,7 +1274,7 @@ MODULE UMatCache
 !  Using notation abcd rather than ijkl.  6/2/07 and 19/2/06
 !
 !  <> mean swap pairs <ab|cd> -> <ba|dc>
-!  *.  means complex conjugate of first codensity i.e. <ab|cd> -> <ca|bd>
+!  *.  means complex conjugate of first codensity i.e. <ab|cd> -> <cb|ad>
 !  .* for second and ** for both.
 !
 !  abcd   -> badc <>
@@ -1383,17 +1393,14 @@ MODULE UMatCache
       function numBasisIndices(nBasis) result(nBI)
         implicit none
         integer, intent(in) :: nBasis
-        integer :: iSS
         integer :: nBI
 
         if(tStoreSpinOrbs) then
-           iSS = 1
+           nBI = nBasis
         else
-           iSS = 2
+           nBI = nBasis / 2
         endif
 
-        ! number of distinct indices of the integrals
-        nBI = nBasis / iSS
       end function numBasisIndices
 
       !------------------------------------------------------------------------------------------!
@@ -1404,30 +1411,40 @@ MODULE UMatCache
         integer :: nBI, i, j, idX, idN
 
         nBI = numBasisIndices(nBasis)
-        allocate(UMat2D(nBI,nBI))
+        ! allocate the storage
+        if(.not.associated(UMat2D)) allocate(UMat2D(nBI,nBI))
 
+        ! and fill in the array
         do i = 1, nBI
            do j = 1, nBI
-              idX = max(i,j)
-              idN = min(i,j)
-              ! here, we introduce a cheap redundancy in memory to allow
-              ! for faster access (no need to get max/min of indices
-              ! and have contiguous access)
-              ! store the integrals <ij|ij> in UMat2D
-              UMat2D(j,i) = get_umat_el(idN,idX,idN,idX)
+              if(i == j) then
+                 UMat2d(i,i) = get_umat_el(i,i,i,i)
+              else
+                 ! similarly the integrals <ij|ij> in UMat2D
+                 UMat2D(j,i) = get_umat_el(i,j,i,j)
+                 UMat2D(i,j) = get_umat_el(i,j,j,i)
+              endif
            end do
         end do
-      end subroutine SetupUMat2d_dense
+    end subroutine SetupUMat2d_dense
 
-      !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
+    ! Empty umat for tests
+    !------------------------------------------------------------------------------------------!
 
-      subroutine freeUmat2d_dense()
-        implicit none
+    function nullUMat(i,j,k,l) result(hel)
+        use constants
+        integer, intent(in) :: i,j,k,l
+        HElement_t(dp) :: hel
 
-        ! deallocate auxiliary arrays storing the integrals <ij|ij> and <ij|ji>
-        if(associated(UMat2d)) deallocate(UMat2d)
-      end subroutine freeUmat2d_dense
-
+        ! This functions shows the behaviour of an empty UMat
+        unused_var(i)
+        unused_var(j)
+        unused_var(k)
+        unused_var(l)
+        hel = 0.0_dp
+    end function nullUMat
+    
 
 END MODULE UMatCache
 ! Still useful to keep CacheUMatEl and GetCachedUMatEl outside of the module for

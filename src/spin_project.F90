@@ -9,7 +9,7 @@ module spin_project
                         get_initiator_flag_by_run
     use csf, only: csf_get_yamas, get_num_csfs, csf_coeff, random_spin_permute
     use constants, only: dp, bits_n_int, lenof_sign, n_int, end_n_int, int32,sizeof_int, &
-                        inum_runs
+                        inum_runs, maxExcit
     use FciMCData, only: TotWalkers, CurrentDets, fcimc_iter_data, &
                          yama_global, excit_gen_store_type, &
                          fcimc_excit_gen_store
@@ -24,7 +24,8 @@ module spin_project
     ! have support for logical(8). Gah.
     logical :: spin_proj_spawn_initiators, spin_proj_no_death
 
-    logical :: tSpinProject, spin_proj_stochastic_yama
+    ! tSpinProject moved to CalcData to avoid circular dependencies
+    logical :: spin_proj_stochastic_yama
     logical :: disable_spin_proj_varyshift
     integer :: spin_proj_interval, spin_proj_cutoff, spin_proj_iter_count
     integer :: spin_proj_nopen_max
@@ -50,7 +51,7 @@ contains
         ! values of S, Ms for all allowed unpaired electrons.
 
         integer :: nopen, ncsf
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'init_yama_store'
 #endif
 
@@ -200,7 +201,7 @@ contains
         real(dp) :: elem, elem_i, elem_j, tot_wgt, elem_sum, tot_sum
         real(dp) :: tot_wgt_2, tot_sum_2
         character(20) :: fmt_str, fmt_num
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'csf_spin_project_one_yama'
 #endif
 
@@ -365,7 +366,7 @@ contains
 
         integer, intent(in) :: nI(nel), nJ(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer, intent(in) :: ic, ex(2,2)
+        integer, intent(in) :: ic, ex(2,ic)
         logical, intent(in) :: tParity
         HElement_t(dp), intent(in) :: HElGen
         HElement_t(dp) :: hel
@@ -374,7 +375,7 @@ contains
         integer(n_int) :: iUnused2
         logical :: lUnused
         HElement_t(dp) :: hUnused
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'get_spawn_helement_spin_proj'
 #endif
 
@@ -419,7 +420,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutJ(0:niftot)
-        integer, intent(out) :: ic, ex(2,2)
+        integer, intent(out) :: ic, ex(2,maxExcit)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: HElGen

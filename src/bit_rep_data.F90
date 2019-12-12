@@ -52,14 +52,15 @@ module bit_rep_data
 
     ! Flags which we can store
     integer :: flag_counter
+
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
                           flag_prone = 4, &
-                          flag_large_matel = 5
+                          flag_rescale = 5
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
     integer, parameter :: flag_initiator(lenof_sign_max) &
                             = (/6, 7, 8, 10, 11, 12, 13, 14, 15, &
                                 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26/), &
@@ -106,6 +107,7 @@ contains
         integer(n_int) :: sgn(lenof_sign)
 
         sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        ! transfer operates elementwise
         real_sgn = transfer(sgn, real_sgn)
 
     end subroutine extract_sign

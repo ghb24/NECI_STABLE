@@ -157,6 +157,9 @@ contains
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
 
+        ! real-time FCIQMC: keep track of first and second Runge-Kutta step 
+        ! seperately, think of which stats i need for it!
+        ! maybe move that to real-time init module..
         ! KPFCIQMC
         allocate(TotPartsInit(lenof_sign), &
                  AllTotPartsInit(lenof_sign), &
@@ -264,7 +267,9 @@ contains
                    AllTotPartsInit, &
                    tSinglePartPhaseKPInit)
 
+                   ! real-time fciqmc
         if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
+
 
         call clean_iter_data(iter_data_fciqmc)
 
@@ -350,7 +355,7 @@ contains
         call MPISumAll(NoatHF, AllNoatHF)
         OldAllNoatHF = AllNoatHF
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         do run = 1, inum_runs
             OldAllAvWalkersCyc(run) = sum(AllTotParts(min_part_type(run):max_part_type(run)))
         enddo

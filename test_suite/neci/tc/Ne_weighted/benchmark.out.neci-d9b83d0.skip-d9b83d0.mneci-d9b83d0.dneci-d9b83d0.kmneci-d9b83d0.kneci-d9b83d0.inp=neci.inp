@@ -1,0 +1,668 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Processor            2 /           2  moving to local output.
+ outfile=NodeFile2           
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Nov 14 2019 at 18:29:39
+ Compiled using configuration:
+     cmake-GNU-par-DEBUG
+ VCS BASE repository version:
+     d9b83d083c9aa38c7a4cccaa3a6b92229124f3d5
+ Working directory: 
+     /home/jeszenszki/NECI_moltrcorr_devel/test_suite/neci/tc/Ne_weighted
+ Running on: ctcp-cluster
+ Started running on 15/11/2019 at 18:49:38
+ ================================================================
+
+ Processing argumentsneci.inp                                                                                                                                                                                                                                                       
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+TITLE
+
+SYSTEM READ NOORDER
+ELECTRONS   10
+NOBRILLOUINTHEOREM
+molecular-transcorr 3-body
+nonuniformrandexcits 4ind-weighted
+ENDSYS
+
+CALC
+METHODS
+METHOD VERTEX FCIMC
+ENDMETHODS
+nmcyc 2000
+SEED        -7
+TOTALWALKERS       10000
+DIAGSHIFT       1.5000000000
+SHIFTDAMP       0.1000000000
+STEPSSHIFT      10
+tau 0.001 search
+min-tau 0.000001
+MEMORYFACPART         1.500000000000000
+MEMORYFACSPAWN         5.
+TRUNCINITIATOR
+ADDTOINITIATOR        2
+allrealcoeff
+realspawncutoff 1.
+AVGROWTHRATE
+startsinglepart 40
+definedet 1 2 3 4 5 6 7 8 9 10
+ENDCALC
+
+LOGGING
+popsfile -1
+ENDLOG
+END
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ Processor      Node
+         0         0
+         1         1
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  No restriction on the spin state of the system, TSPN :  F
+  GLOBAL MS :            0
+  *** GENERIC SYSTEM ***  
+ Only one irrep found. Turning off symmetry for rest of calculation.
+  NUMBER OF SPIN ORBITALS IN BASIS :    28
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   1
+ Turning Symmetry off
+  Generating abelian symmetry table with  0 generators
+  Number of symmetry classes: 1
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0      -49.910603400      -49.910603400
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0      -49.910603400      -49.910603400
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0      -11.112050756      -11.112050756
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0      -11.112050756      -11.112050756
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0      -10.095132496      -10.095132496
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0      -10.095132496      -10.095132496
+      7      7      0      0      0     -1 ( 0, 0, 0) 0   0      -10.095132496      -10.095132496
+      8      8      0      0      0      1 ( 0, 0, 0) 0   0      -10.095132496      -10.095132496
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0      -10.095132496      -10.095132496
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0      -10.095132496      -10.095132496
+     11     11      0      0      0     -1 ( 0, 0, 0) 0   0       -6.598502077       -6.598502077
+     12     12      0      0      0      1 ( 0, 0, 0) 0   0       -6.598502077       -6.598502077
+     13     13      0      0      0     -1 ( 0, 0, 0) 0   0       -6.598502077       -6.598502077
+     14     14      0      0      0      1 ( 0, 0, 0) 0   0       -6.598502077       -6.598502077
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0       -6.598502077       -6.598502077
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0       -6.598502077       -6.598502077
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0       -6.289390392       -6.289390392
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0       -6.289390392       -6.289390392
+     19     19      0      0      0     -1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+     20     20      0      0      0      1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+     21     21      0      0      0     -1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+     22     22      0      0      0      1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+     23     23      0      0      0     -1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+     24     24      0      0      0      1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+     25     25      0      0      0     -1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+     26     26      0      0      0      1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+     27     27      0      0      0     -1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+     28     28      0      0      0      1 ( 0, 0, 0) 0   0       -4.922246571       -4.922246571
+ Turning Symmetry off
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 19306
+Memory required for integral storage:     0.1472930908     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   0   0|   0   0):    4.9999999999999996E-199
+ Number of removed two-index integrals:                     1
+ Number of non-zero integrals:                 17358
+ ECORE=   0.0000000000000000     
+ Setting normal GetUMatEl routine
+ Allocating LMat, memory required:   1.4788284897804260E-003 GB
+ Successfully allocated LMat
+ Sparsity of LMat   5.04672900E-02
+ Nonzero elements in LMat                10017
+ Allocated size of LMat               198485
+ Defining FDet according to input
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -182.61610329040835     
+ Setting normal GetUMatEl routine
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            1
+Setting integer length of determinants as bit-strings to:      3
+Setting integer bit-length of determinants as bit-strings to:     64
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           1  Symmetry PAIRS
+           1  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ SpinOrbSymLabel: 
+           1           0
+           2           0
+           3           0
+           4           0
+           5           0
+           6           0
+           7           0
+           8           0
+           9           0
+          10           0
+          11           0
+          12           0
+          13           0
+          14           0
+          15           0
+          16           0
+          17           0
+          18           0
+          19           0
+          20           0
+          21           0
+          22           0
+          23           0
+          24           0
+          25           0
+          26           0
+          27           0
+          28           0
+ SymInvLabel: 
+           0           0
+ Not storing the H matrix.
+ <D0|H|D0>=  -128.75308429065140     
+ <D0|T|D0>=  -182.61610329040835     
+ FDet has     5 alpha electrons, and     5 beta electrons.
+               10  alpha-alpha occupied electron pairs
+               10  beta-beta occupied electron pairs
+               25  alpha-beta occupied electron pairs
+               36 alpha-alpha (vacant) hole pairs
+               36 beta-beta (vacant) hole pairs
+               81 alpha-beta (vacant) hole pairs
+
+ Performing Parallel FCIQMC....
+
+ Generated reference determinants:
+(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10) E =   -128.753084291
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:      -128.7530842907
+Highest energy determinant is (approximately):     -3.95089277119510    
+Corresponding to a correlation energy of:      124.802191519456    
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+   2745 double excitations, and      90 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.968254
+ pSingles set to:       0.031746
+ Using initial time-step:    1.0000000000000000E-003
+Will dynamically update timestep to limit spawning probability to   2.00000
+Initial Diagonal Shift:         1.5000000000
+ Connectivity of HF determinant is:         2835
+ pTriples set to   0.10000000149011612     
+Memory allocated for a maximum particle number per node of:           7500
+ Determinant related persistent storage requires:       0.114441 Mb / processor
+Spawning vectors allowing for a total of        25000 particles to be spawned in any one iteration per core.
+ Memory requirement   0.38146972656250000      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            3500
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        1
+Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    8,    9,   10)
+Initial number of particles set to         40 and shift will be held at     1.500 until particle number gets to           10000
+ tLatticeGens= F
+ ptriples,pdoubles=  0.10000000149011612       0.96825396825396826        3.1746031746031744E-002
+ Initial memory (without excitgens + temp arrays) consists of :       1.316071 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ Using initial time-step:    1.0000000000000000E-003
+Will dynamically update timestep to limit spawning probability to   2.00000
+ pTriples set to   0.10000000149011612     
+ HF:            1           2           3           4           5           6           7           8           9          10
+ HF_true:            1           2           3           4           5           6           7           8           9          10
+ Ref:            1           2           3           4           5           6           7           8           9          10
+ ProjEDet:            1           2           3           4           5           6           7           8           9          10
+ 
+        Step    Shift           WalkerCng       GrowRate        TotWalkers      Annihil         NoDied          NoBorn          Proj.E          Av.Shift        Proj.E.Cyc      NoatHF          NoatDoubs       AccRat        UniqueDets    NumDetsSpawned   IterTime
+           0    1.500000        0.000000        0.000000        40.00000        0.000000        0.000000        0.000000        0.000000        0.000000        0.000000        40.00000        0.000000        0.000000               1           0   0.0000    
+ Updating parallel-spin bias; new pParallel =   0.26334464672423996     
+          10    1.500000        15.16133        1.170280        55.16133        0.000000       0.5439631        20.70529      -0.3568721E-02    0.000000      -0.3568721E-02    40.54325        13.67298        0.000000              15           2  0.10360E-02
+ Updating parallel-spin bias; new pParallel =   0.24191018829188077     
+          20    1.500000        21.05124        1.381453        76.21258        0.000000        1.641071        36.69009      -0.6852783E-02    0.000000      -0.1008799E-01    41.15552        31.00000       0.7954545E-01          35           6  0.12179E-02
+ Updating parallel-spin bias; new pParallel =   0.25294462563832304     
+ Updating time-step. New time-step =    3.7167091140801957E-003
+ Updating singles/doubles bias. pSingles =    1.9538265753212110E-002
+  pDoubles =   0.89590331438433868     
+ Updating triple-excitation bias. pTriples =   8.6243467652930714E-002
+          30    1.500000        5.528946        1.242705        81.74152        0.000000        2.902039        25.30710      -0.9363024E-02    0.000000      -0.1427203E-01    41.77704        39.91681       0.2929803E-01          39           1  0.14736E-02
+          40    1.500000        64.25383        1.367635        145.9954        3.935165        17.94855        189.1610      -0.1270327E-01    0.000000      -0.2225155E-01    43.98646        87.45009       0.1611019              89          17  0.15152E-02
+ Updating time-step. New time-step =    3.6019052682903026E-003
+ Updating singles/doubles bias. pSingles =    4.9823330924155765E-002
+  pDoubles =   0.87054922721222117     
+ Updating triple-excitation bias. pTriples =   8.3802775268171828E-002
+          50    1.500000        55.96367        1.559589        201.9590        7.901672        33.93573        278.6897      -0.1837595E-01    0.000000      -0.3889816E-01    47.51800        132.2447       0.1264350             129          28  0.21077E-02
+Bloom of more than n_add on double excit: A max of       2.18 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.26946277635451987     
+ Updating time-step. New time-step =    3.5261480567825064E-003
+ Updating singles/doubles bias. pSingles =    4.8775419794434186E-002
+  pDoubles =   0.86939040100015763     
+ Updating triple-excitation bias. pTriples =   8.6030345418243198E-002
+          60    1.500000        54.40878        1.323376        256.3678        6.000000        49.94730        342.7208      -0.2447861E-01    0.000000      -0.5081709E-01    50.15725        165.8116       0.1448939             174          29  0.40026E-02
+Bloom of more than n_add on double excit: A max of       2.01 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.26997375188016426     
+ Updating singles/doubles bias. pSingles =    4.8742966660204091E-002
+  pDoubles =   0.86961134284539243     
+ Updating triple-excitation bias. pTriples =   8.5829263419741855E-002
+          70    1.500000        43.60154        1.224415        299.9693        11.60185        68.45163        407.3108      -0.3000076E-01    0.000000      -0.5783041E-01    52.88020        195.2336       0.1277544             200          31  0.49335E-02
+Bloom of more than n_add on double excit: A max of       2.00 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.26957965222768293     
+ Updating time-step. New time-step =    3.5189083461863125E-003
+ Updating singles/doubles bias. pSingles =    4.8675276545247489E-002
+  pDoubles =   0.86385886092166009     
+ Updating triple-excitation bias. pTriples =   9.1941122076023271E-002
+          80    1.500000        100.3029        1.248783        400.2722        9.941714        84.52991        560.7847      -0.3582542E-01    0.000000      -0.6919707E-01    55.74291        232.9007       0.1206179             282          54  0.58029E-02
+          90    1.500000        50.42289        1.224565        450.6951        11.81361        115.8143        624.8190      -0.4084735E-01    0.000000      -0.7290745E-01    58.75653        264.2087       0.1275883             330          54  0.54498E-02
+ Updating triple-excitation bias. pTriples =  0.10975571858967698     
+         100    1.500000        73.51688        1.127034        524.2120        17.58852        128.3457        732.7354      -0.4513488E-01    0.000000      -0.7517053E-01    61.93263        285.0239       0.1190989             376          63  0.59310E-02
+Bloom of more than n_add on single excit: A max of       3.90 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =    3.3631493681670044E-003
+ Updating singles/doubles bias. pSingles =    9.0784178543335273E-002
+  pDoubles =   0.81337569924943509     
+ Updating triple-excitation bias. pTriples =  0.10540965076221727     
+         110    1.500000        68.32442        1.158704        592.5364        19.73249        151.1305        816.8302      -0.4923220E-01    0.000000      -0.8035052E-01    65.28041        332.1560       0.1282066             422          56  0.72343E-02
+         120    1.500000        63.42361        1.117071        655.9601        29.60321        172.9905        884.6762      -0.5296723E-01    0.000000      -0.8336423E-01    69.67040        358.5138       0.1141293             466          63  0.10359E-01
+Bloom of more than n_add on double excit: A max of       2.02 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.27120573903698392     
+ Updating time-step. New time-step =    3.3440653377797866E-003
+ Updating singles/doubles bias. pSingles =    9.0269028060160655E-002
+  pDoubles =   0.80811849305375061     
+ Updating triple-excitation bias. pTriples =  0.11169508571244771     
+         130    1.500000        93.14987        1.125491        749.1099        25.45067        195.2582        1020.157      -0.5633804E-01    0.000000      -0.8529364E-01    73.26595        392.1569       0.1264977             535          86  0.12653E-01
+Bloom of more than n_add on single excit: A max of       3.42 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       2.06 particles created.        3 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.26952493975565833     
+ Updating time-step. New time-step =    3.0695668980852027E-003
+ Updating singles/doubles bias. pSingles =   0.14187190809462830     
+  pDoubles =   0.76883692465756148     
+ Updating triple-excitation bias. pTriples =  0.10405342522880209     
+         140    1.500000        72.14704        1.127968        821.2570        17.76538        216.9130        1055.842      -0.5918559E-01    0.000000      -0.8460724E-01    79.09863        405.1689       0.1136765             586          82  0.12004E-01
+         150    1.500000        37.86878        1.057848        859.1257        29.69201        214.1878        1094.369      -0.6127846E-01    0.000000      -0.8097688E-01    82.85095        418.8213       0.1043459             622          99  0.17900E-01
+         160    1.500000        97.87591        1.083057        957.0017        29.25762        238.9745        1141.184      -0.6346069E-01    0.000000      -0.8516225E-01    86.74571        461.8365       0.9897797E-01         690         103  0.19627E-01
+Bloom of more than n_add on double excit: A max of       2.11 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.25953104946325450     
+ Updating time-step. New time-step =    2.9713795557348623E-003
+ Updating singles/doubles bias. pSingles =   0.13733380025320191     
+  pDoubles =   0.77247775233274452     
+ Updating triple-excitation bias. pTriples =  0.10454617028060789     
+         170    1.500000        90.21662        1.113681        1047.218        37.56972        288.5391        1365.999      -0.6552718E-01    0.000000      -0.8712867E-01    90.82357        492.1421       0.1122934             757         106  0.22363E-01
+ Updating time-step. New time-step =    2.7863089184611061E-003
+ Updating singles/doubles bias. pSingles =   0.19106445981620904     
+  pDoubles =   0.72911211173173407     
+ Updating triple-excitation bias. pTriples =   9.8677118864033270E-002
+         180    1.500000        47.93153        1.064240        1095.150        29.70018        292.3835        1300.005      -0.6715835E-01    0.000000      -0.8501361E-01    94.96773        500.3798       0.1039280             791         100  0.23577E-01
+         190    1.500000        60.89340        1.051431        1156.043        49.23844        280.2192        1359.939      -0.6856028E-01    0.000000      -0.8459984E-01    99.03973        504.3003       0.1031863             838         113  0.30332E-01
+Bloom of more than n_add on single excit: A max of       4.02 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =    2.3361646617860621E-003
+ Updating singles/doubles bias. pSingles =   0.32175265631208538     
+  pDoubles =   0.62122330299387163     
+ Updating triple-excitation bias. pTriples =   8.4075582786626704E-002
+         200    1.500000        74.29683        1.057045        1230.340        43.49939        298.7895        1423.026      -0.6968553E-01    0.000000      -0.8304636E-01    104.2746        531.9574       0.9788971E-01         882         125  0.34372E-01
+Bloom of more than n_add on single excit: A max of       2.40 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =    2.1939682337648496E-003
+ Updating singles/doubles bias. pSingles =   0.36303585486606177     
+  pDoubles =   0.58576644303961678     
+ Updating triple-excitation bias. pTriples =   8.0377682928378671E-002
+         210    1.500000        81.37268        1.062057        1311.713        42.33102        259.8867        1226.385      -0.7067317E-01    0.000000      -0.8284654E-01    108.0595        547.9515       0.7873700E-01         944         113  0.53884E-01
+ Updating triple-excitation bias. pTriples =   8.3167987805234198E-002
+         220    1.500000        44.28924        1.067028        1356.002        33.74340        264.7245        1285.587      -0.7147058E-01    0.000000      -0.8174133E-01    111.6925        568.0555       0.8182517E-01         985         112  0.62662E-01
+         230    1.500000        16.45445        1.006121        1372.456        49.53203        258.5720        1156.157      -0.7201422E-01    0.000000      -0.7931612E-01    115.4232        577.3056       0.7080027E-01         997          99  0.71758E-01
+ Updating triple-excitation bias. pTriples =  0.13712888100241458     
+         240    1.500000        14.13132        1.015222        1386.588        43.32354        266.8279        1227.653      -0.7232325E-01    0.000000      -0.7663888E-01    119.2785        586.2299       0.7488615E-01        1003         100  0.64853E-01
+Bloom of more than n_add on double excit: A max of       2.04 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.26359901752699016     
+ Updating time-step. New time-step =    2.1862754585617265E-003
+ Updating singles/doubles bias. pSingles =   0.36176293159434880     
+  pDoubles =   0.55214618657709091     
+ Updating triple-excitation bias. pTriples =  0.13488856428163865     
+         250    1.500000        129.2716        1.051671        1515.859        47.87341        285.3065        1395.992      -0.7262328E-01    0.000000      -0.7696803E-01    123.2625        642.0771       0.7756332E-01        1086         110  0.63020E-01
+         260    1.500000        15.91396        1.056051        1531.773        69.25477        304.5630        1400.517      -0.7308866E-01    0.000000      -0.8006081E-01    127.3664        651.6457       0.7166395E-01        1089         118  0.67656E-01
+ Updating parallel-spin bias; new pParallel =   0.26367341114868009     
+ Updating triple-excitation bias. pTriples =  0.13484811590799922     
+         270    1.500000        65.47084        1.021905        1597.244        49.23946        309.5462        1419.507      -0.7354331E-01    0.000000      -0.8057540E-01    131.6055        677.8254       0.8082469E-01        1130         119  0.70843E-01
+Bloom of more than n_add on single excit: A max of       2.49 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       2.22 particles created.        1 blooms occurred.
+ Updating parallel-spin bias; new pParallel =   0.24355884812482204     
+ Updating time-step. New time-step =    1.9142489378087112E-003
+ Updating singles/doubles bias. pSingles =   0.39496310103808929     
+  pDoubles =   0.52714901746027765     
+ Updating triple-excitation bias. pTriples =  0.12873244860812430     
+         280    1.500000        108.2322        1.059674        1705.476        59.67440        327.8084        1544.140      -0.7411216E-01    0.000000      -0.8317772E-01    135.9854        699.3517       0.7277070E-01        1201         135  0.76564E-01
+         290    1.500000        85.01696        1.055249        1790.493        51.54686        302.4422        1372.419      -0.7481857E-01    0.000000      -0.8641860E-01    139.9978        725.2574       0.6216069E-01        1259         116  0.87418E-01
+         300    1.500000        67.36644        1.049372        1857.860        51.39557        320.0651        1438.509      -0.7554658E-01    0.000000      -0.8787093E-01    144.0700        763.2183       0.6361256E-01        1292         114  0.92440E-01
+         310    1.500000        130.0935        1.054632        1987.953        71.70828        349.7058        1633.539      -0.7620849E-01    0.000000      -0.8774028E-01    148.2606        789.7193       0.6965150E-01        1389         127  0.93492E-01
+         320    1.500000        105.5769        1.058644        2093.530        70.93196        373.9617        1652.745      -0.7694722E-01    0.000000      -0.9017145E-01    152.5732        814.5644       0.6536899E-01        1462         133  0.98747E-01
+ Updating time-step. New time-step =    1.7103491730569528E-003
+ Updating singles/doubles bias. pSingles =   0.45940972494777155     
+  pDoubles =   0.47754697280261899     
+ Updating triple-excitation bias. pTriples =  0.11661937914720834     
+         330    1.500000        67.16777        1.035543        2160.698        65.54584        393.6263        1661.207      -0.7747324E-01    0.000000      -0.8713475E-01    157.0111        831.5385       0.6151022E-01        1522         163  0.10210    
+         340    1.500000        26.68721        1.022660        2187.385        71.27668        358.6637        1572.197      -0.7780386E-01    0.000000      -0.8401885E-01    162.1430        837.1744       0.5994999E-01        1527         122  0.12411    
+         350    1.500000        71.04750        1.027939        2258.433        70.00123        376.5761        1572.322      -0.7801761E-01    0.000000      -0.8212730E-01    166.3512        862.2585       0.5942178E-01        1583         116  0.12397    
+         360    1.500000        51.22898        1.018025        2309.662        75.25116        379.7964        1616.435      -0.7818879E-01    0.000000      -0.8156335E-01    170.6685        876.6167       0.5955444E-01        1607         127  0.12074    
+         370    1.500000        20.73034        1.020131        2330.392        71.28576        381.5029        1580.791      -0.7822721E-01    0.000000      -0.7900289E-01    175.0980        907.5021       0.5247329E-01        1615         129  0.12586    
+         380    1.500000        141.3231        1.041074        2471.715        71.03774        399.3834        1741.191      -0.7830233E-01    0.000000      -0.7985385E-01    179.6424        929.1543       0.6059817E-01        1725         138  0.12543    
+         390    1.500000        47.76794        1.038187        2519.483        75.56293        418.1515        1795.688      -0.7834691E-01    0.000000      -0.7928530E-01    185.3150        963.2033       0.5827322E-01        1742         136  0.13305    
+         400    1.500000        48.16330        1.012781        2567.646        92.06662        416.9964        1790.412      -0.7832272E-01    0.000000      -0.7780426E-01    190.1246        966.2046       0.5888930E-01        1781         163  0.13883    
+         410    1.500000        89.46666        1.028913        2657.113        79.32610        428.9697        1811.539      -0.7837743E-01    0.000000      -0.7957369E-01    195.0590        1003.928       0.5597325E-01        1856         156  0.15161    
+         420    1.500000        56.51946        1.032954        2713.632        81.16501        440.5121        1819.624      -0.7844129E-01    0.000000      -0.7986369E-01    201.1214        1022.620       0.5271874E-01        1881         134  0.15746    
+         430    1.500000        78.71743        1.022977        2792.350        96.86119        450.2605        1924.489      -0.7852574E-01    0.000000      -0.8043322E-01    206.3412        1060.782       0.5882726E-01        1928         157  0.16211    
+         440    1.500000        105.0622        1.033910        2897.412        103.9876        467.8047        2006.809      -0.7870523E-01    0.000000      -0.8283141E-01    211.6965        1075.101       0.5785663E-01        1999         138  0.17055    
+         450    1.500000        53.77276        1.027900        2951.185        92.89453        478.8374        2005.268      -0.7889621E-01    0.000000      -0.8334488E-01    218.2089        1112.788       0.5390414E-01        2006         166  0.17609    
+         460    1.500000        146.4256        1.035201        3097.610        69.47644        489.9717        2135.593      -0.7905293E-01    0.000000      -0.8276042E-01    223.8721        1147.614       0.6004517E-01        2108         167  0.18280    
+         470    1.500000        87.63586        1.033825        3185.246        121.3121        509.2656        2132.572      -0.7911085E-01    0.000000      -0.8050282E-01    229.6824        1140.864       0.5733157E-01        2171         180  0.18793    
+         480    1.500000        65.40652        1.031782        3250.653        128.5033        532.0382        2308.880      -0.7907003E-01    0.000000      -0.7807423E-01    235.6434        1161.233       0.5922733E-01        2222         194  0.19784    
+         490    1.500000        87.58522        1.020544        3338.238        131.1698        545.9451        2315.564      -0.7904509E-01    0.000000      -0.7842762E-01    241.7592        1201.742       0.5911091E-01        2287         205  0.20912    
+         500    1.500000        109.0989        1.030385        3447.337        138.6491        574.4900        2394.640      -0.7908614E-01    0.000000      -0.8011670E-01    248.0337        1230.388       0.5738288E-01        2360         192  0.20945    
+         510    1.500000        75.26638        1.023995        3522.603        136.9288        587.8065        2413.900      -0.7913811E-01    0.000000      -0.8046038E-01    254.4710        1246.168       0.5642779E-01        2404         223  0.21310    
+         520    1.500000        82.12270        1.023066        3604.726        138.6370        597.8757        2533.816      -0.7919543E-01    0.000000      -0.8067301E-01    261.0754        1303.256       0.5565414E-01        2452         196  0.21674    
+         530    1.500000        111.0096        1.031157        3715.736        132.9194        612.7517        2507.710      -0.7927509E-01    0.000000      -0.8135424E-01    267.8512        1339.201       0.5312570E-01        2514         206  0.21792    
+         540    1.500000        137.6054        1.032617        3853.341        156.5767        635.4324        2622.665      -0.7940036E-01    0.000000      -0.8270926E-01    274.8029        1388.657       0.5468447E-01        2609         193  0.22933    
+         550    1.500000        143.9094        1.034535        3997.250        154.7326        667.0602        2782.198      -0.7947726E-01    0.000000      -0.8153205E-01    281.9350        1428.402       0.5701594E-01        2700         236  0.23622    
+ Updating time-step. New time-step =    1.6078387433403757E-003
+ Updating singles/doubles bias. pSingles =   0.49181020917004292     
+  pDoubles =   0.45208491785884958     
+ Updating triple-excitation bias. pTriples =  0.11040141691842927     
+         560    1.500000        90.36804        1.028005        4087.618        160.7149        691.0256        2829.487      -0.7962734E-01    0.000000      -0.8368229E-01    289.2522        1465.145       0.5763047E-01        2727         215  0.23972    
+         570    1.500000        63.21977        1.018413        4150.838        150.4621        656.6746        2600.092      -0.7978599E-01    0.000000      -0.8411602E-01    297.3571        1498.104       0.5188738E-01        2754         202  0.23891    
+         580    1.500000        168.5825        1.027456        4319.421        164.4389        675.0976        2828.726      -0.7993208E-01    0.000000      -0.8395454E-01    305.6118        1557.046       0.5383524E-01        2851         229  0.24396    
+         590    1.500000        144.3902        1.044661        4463.811        150.3023        705.0302        2853.024      -0.8009328E-01    0.000000      -0.8457358E-01    313.0630        1591.636       0.5122701E-01        2937         236  0.25546    
+         600    1.500000        122.8367        1.025179        4586.648        172.4497        728.9665        2992.750      -0.8021573E-01    0.000000      -0.8365736E-01    320.6958        1616.296       0.5351244E-01        3036         254  0.25918    
+         610    1.500000        99.88876        1.030640        4686.536        207.6386        758.7675        3015.700      -0.8029693E-01    0.000000      -0.8260336E-01    329.5146        1660.310       0.5094743E-01        3082         240  0.26990    
+         620    1.500000        191.7563        1.027362        4878.293        207.8632        774.7032        3243.729      -0.8038384E-01    0.000000      -0.8287184E-01    337.5486        1727.062       0.5804677E-01        3190         262  0.27721    
+         630    1.500000        134.6316        1.034274        5012.924        196.8803        801.1484        3085.562      -0.8051286E-01    0.000000      -0.8424446E-01    345.7783        1757.611       0.5224269E-01        3247         240  0.29760    
+         640    1.500000        176.1883        1.034104        5189.112        211.7210        825.7070        3369.556      -0.8062396E-01    0.000000      -0.8384875E-01    357.2549        1796.281       0.5395274E-01        3380         270  0.30764    
+         650    1.500000        208.7369        1.037558        5397.849        198.5422        874.4525        3521.755      -0.8070729E-01    0.000000      -0.8314437E-01    365.9651        1846.699       0.5379410E-01        3530         279  0.30736    
+         660    1.500000        165.8449        1.032290        5563.694        247.0013        909.6925        3637.431      -0.8075271E-01    0.000000      -0.8209379E-01    374.8877        1890.638       0.5494201E-01        3648         310  0.31044    
+ Updating time-step. New time-step =    9.8113561556238422E-004
+ Updating singles/doubles bias. pSingles =   0.68989234441969405     
+  pDoubles =   0.28827651718293495     
+ Updating triple-excitation bias. pTriples =   7.0398579346641080E-002
+         670    1.500000        176.9786        1.028499        5740.673        247.9596        925.2470        3708.560      -0.8081606E-01    0.000000      -0.8270382E-01    384.0279        1955.342       0.5235057E-01        3745         310  0.34039    
+         680    1.500000        135.9863        1.032411        5876.659        147.0114        583.6302        2333.662      -0.8091604E-01    0.000000      -0.8392698E-01    391.0964        1988.709       0.3334032E-01        3837         194  0.51028    
+         690    1.500000        119.1293        1.021912        5995.788        157.5014        603.1864        2415.766      -0.8101161E-01    0.000000      -0.8394182E-01    396.8904        2023.238       0.3245906E-01        3910         185  0.52933    
+         700    1.500000        79.45473        1.018166        6075.243        185.2437        616.3720        2421.575      -0.8109893E-01    0.000000      -0.8382354E-01    402.7703        2054.633       0.3126456E-01        3962         198  0.53518    
+         710    1.500000        119.9904        1.012139        6195.233        139.2394        620.2200        2427.097      -0.8119932E-01    0.000000      -0.8438447E-01    408.7373        2105.235       0.3169751E-01        4023         211  0.54492    
+         720    1.500000        136.9936        1.022019        6332.227        153.0491        636.3798        2491.918      -0.8133146E-01    0.000000      -0.8559311E-01    414.7927        2130.407       0.3263473E-01        4117         191  0.55516    
+         730    1.500000        121.2832        1.024470        6453.510        161.6731        655.6989        2597.789      -0.8146859E-01    0.000000      -0.8596188E-01    420.9378        2198.613       0.3064063E-01        4191         217  0.53715    
+         740    1.500000        120.0897        1.013174        6573.600        191.6371        671.8924        2612.435      -0.8159202E-01    0.000000      -0.8569881E-01    427.1739        2213.024       0.3206465E-01        4250         212  0.52768    
+         750    1.500000        70.36865        1.015578        6643.969        196.8068        688.0340        2656.541      -0.8170816E-01    0.000000      -0.8562969E-01    434.5025        2218.419       0.3214015E-01        4283         210  0.52548    
+         760    1.500000        52.99392        1.011185        6696.963        214.8311        694.7551        2641.085      -0.8179604E-01    0.000000      -0.8480040E-01    440.9396        2251.792       0.3149169E-01        4307         221  0.53264    
+         770    1.500000        53.79867        1.009778        6750.761        192.6788        693.3213        2671.180      -0.8188682E-01    0.000000      -0.8502915E-01    448.4809        2308.167       0.3157364E-01        4310         231  0.54211    
+         780    1.500000        132.1221        1.011448        6882.883        174.9888        702.5076        2734.921      -0.8197644E-01    0.000000      -0.8512014E-01    455.1251        2341.661       0.3237821E-01        4403         185  0.57180    
+         790    1.500000        119.9483        1.019981        7002.832        214.6381        723.4918        2818.782      -0.8203956E-01    0.000000      -0.8427843E-01    463.8795        2347.051       0.3340313E-01        4510         241  0.60568    
+         800    1.500000        117.6450        1.016880        7120.477        190.6146        741.5738        2895.176      -0.8210775E-01    0.000000      -0.8455281E-01    470.7519        2396.296       0.3218813E-01        4557         245  0.63687    
+         810    1.500000        89.35198        1.012805        7209.828        225.0618        745.3089        2868.408      -0.8219726E-01    0.000000      -0.8544838E-01    477.7260        2409.609       0.3147741E-01        4589         215  0.63832    
+         820    1.500000        202.0308        1.020903        7411.859        182.7672        756.3355        2902.134      -0.8229436E-01    0.000000      -0.8586412E-01    485.8049        2463.017       0.3279241E-01        4714         225  0.68164    
+         830    1.500000        91.01325        1.022765        7502.873        191.0501        775.0189        2919.865      -0.8237884E-01    0.000000      -0.8551327E-01    494.0095        2480.966       0.2993634E-01        4770         221  0.63057    
+         840    1.500000        121.2292        1.010044        7624.102        233.5965        780.1692        3020.955      -0.8244305E-01    0.000000      -0.8485221E-01    501.3281        2541.181       0.3194228E-01        4832         257  0.59917    
+         850    1.500000        178.8153        1.023086        7802.917        220.8710        809.6421        3160.232      -0.8251635E-01    0.000000      -0.8529648E-01    509.7582        2595.408       0.3143342E-01        4940         263  0.62878    
+         860    1.500000        98.57757        1.016371        7901.495        244.3123        820.1840        3056.226      -0.8257904E-01    0.000000      -0.8498103E-01    517.3102        2652.664       0.3098872E-01        4978         232  0.62332    
+         870    1.500000        154.3841        1.016250        8055.879        241.5100        831.4728        3251.817      -0.8264502E-01    0.000000      -0.8520088E-01    524.9741        2689.826       0.3299889E-01        5063         261  0.64057    
+         880    1.500000        199.1627        1.022235        8255.041        260.2159        853.0836        3293.158      -0.8270534E-01    0.000000      -0.8506724E-01    532.7515        2714.852       0.3200474E-01        5201         265  0.70443    
+         890    1.500000        134.7345        1.020424        8389.776        218.6735        880.5624        3271.454      -0.8276317E-01    0.000000      -0.8505068E-01    541.6457        2770.958       0.3196065E-01        5304         276  0.74002    
+         900    1.500000        123.6971        1.017433        8513.473        254.8790        892.7009        3410.101      -0.8280072E-01    0.000000      -0.8429912E-01    549.6701        2785.514       0.3321510E-01        5363         269  0.76339    
+         910    1.500000        130.9246        1.017808        8644.398        252.3414        916.1934        3376.188      -0.8281727E-01    0.000000      -0.8348385E-01    558.8208        2822.920       0.3166671E-01        5467         253  0.77263    
+         920    1.500000        153.8036        1.013700        8798.201        236.9592        926.2140        3427.534      -0.8284504E-01    0.000000      -0.8397258E-01    568.1026        2865.561       0.3202605E-01        5544         243  0.73905    
+ Updating time-step. New time-step =    9.1603056353881768E-004
+ Updating singles/doubles bias. pSingles =   0.71047010627975005     
+  pDoubles =   0.27041060385527910     
+ Updating triple-excitation bias. pTriples =   6.6035633209758735E-002
+         930    1.500000        103.5167        1.012482        8901.718        300.2357        934.6244        3511.027      -0.8285171E-01    0.000000      -0.8312492E-01    576.5189        2893.990       0.3167937E-01        5587         280  0.72037    
+         940    1.500000        134.8814        1.012658        9036.599        288.7927        877.4408        3252.395      -0.8284650E-01    0.000000      -0.8263090E-01    584.5467        2939.457       0.2847423E-01        5679         291  0.77289    
+         950    1.500000        63.25135        1.014413        9099.851        270.4058        898.6146        3394.242      -0.8282972E-01    0.000000      -0.8212986E-01    594.6382        2944.257       0.2978124E-01        5715         275  0.76834    
+         960    1.500000        148.0395        1.009643        9247.890        307.9498        899.0961        3495.213      -0.8281776E-01    0.000000      -0.8231416E-01    601.8484        3008.225       0.3021873E-01        5765         295  0.85646    
+         970    1.500000        186.3751        1.020691        9434.265        265.6976        927.6764        3500.792      -0.8279786E-01    0.000000      -0.8195181E-01    611.1749        3071.173       0.2868295E-01        5834         278  0.87771    
+         980    1.500000        182.4444        1.017448        9616.710        274.3221        937.4638        3528.463      -0.8280671E-01    0.000000      -0.8318578E-01    620.6290        3158.141       0.2904117E-01        5929         279  0.87422    
+         990    1.500000        108.6907        1.017043        9725.400        284.1879        948.4948        3517.269      -0.8281482E-01    0.000000      -0.8316535E-01    630.2097        3202.235       0.2939796E-01        5981         316  0.88661    
+Moving load balancing block       115 from processor      1 to      0
+Moving load balancing block       124 from processor      1 to      0
+Moving load balancing block       178 from processor      1 to      0
+Moving load balancing block       195 from processor      1 to      0
+Moving load balancing block       166 from processor      1 to      0
+Moving load balancing block       109 from processor      1 to      0
+Moving load balancing block       161 from processor      1 to      0
+Moving load balancing block       170 from processor      1 to      0
+Moving load balancing block       174 from processor      1 to      0
+Moving load balancing block       125 from processor      1 to      0
+Moving load balancing block       175 from processor      1 to      0
+Moving load balancing block       136 from processor      1 to      0
+        1000    1.500000        212.6919        1.015111        9938.092        296.9340        965.3216        3648.971      -0.8280865E-01    0.000000      -0.8254077E-01    640.9393        3252.259       0.2990997E-01        6129         316  0.84145    
+Exiting the single particle growth phase on iteration:          1010 - Shift can now change for population1
+        1010  -0.8254077E-01    104.8954        1.015197        10042.99        354.7209        980.3858        3646.336      -0.8280675E-01    0.000000      -0.8272327E-01    649.8008        3271.331       0.2906613E-01        6187         284  0.77796    
+        1020  -0.9830166E-01   -98.36854        1.001445        9944.619        284.4166        1121.110        3637.169      -0.8279217E-01    0.000000      -0.8214449E-01    651.2506        3240.364       0.2899051E-01        6102         299  0.78536    
+        1030  -0.5297007E-01    17.37016       0.9958561        9961.989        362.1106        1124.454        3833.125      -0.8276660E-01    0.000000      -0.8160590E-01    651.6732        3219.599       0.3099082E-01        6130         289  0.81578    
+        1040  -0.6610012E-01   -3.894846        1.001203        9958.094        302.1837        1126.584        3791.233      -0.8274081E-01    0.000000      -0.8154608E-01    653.3297        3222.826       0.3041021E-01        6120         284  0.85508    
+        1050  -0.9674031E-01    59.35039        1.002811        10017.44        312.0776        1139.648        3803.286      -0.8273444E-01    0.000000      -0.8243334E-01    653.9416        3255.838       0.3029684E-01        6182         312  0.86191    
+        1060  -0.1404347       -3.110872        1.004011        10014.33        322.2826        1156.010        3850.274      -0.8271183E-01    0.000000      -0.8162102E-01    653.3807        3246.532       0.3122257E-01        6197         297  0.86185    
+        1070  -0.1235390       -7.527205       0.9984535        10006.81        329.6587        1153.060        3729.454      -0.8267112E-01    0.000000      -0.8066606E-01    653.5661        3235.457       0.2952424E-01        6224         300  0.79896    
+        1080  -0.8733953E-01   -52.24741       0.9966895        9954.559        312.4602        1140.605        3743.235      -0.8262509E-01    0.000000      -0.8031415E-01    653.8158        3233.296       0.2969224E-01        6184         314  0.78687    
+        1090  -0.6113354E-01    28.68592       0.9976023        9983.245        349.6742        1138.526        3798.086      -0.8258835E-01    0.000000      -0.8070521E-01    653.2712        3248.264       0.2943918E-01        6197         288  0.77261    
+        1100  -0.7028865E-01   -32.21585        1.000839        9951.029        295.0990        1134.230        3681.369      -0.8255491E-01    0.000000      -0.8080621E-01    652.8898        3222.207       0.2797289E-01        6188         300  0.80607    
+        1110  -0.6679591E-01   -14.11654       0.9996801        9936.913        314.4203        1137.730        3689.976      -0.8252269E-01    0.000000      -0.8080424E-01    652.4750        3221.519       0.2864477E-01        6199         303  0.85035    
+        1120  -0.5968342E-01   -9.711453       0.9993487        9927.201        315.3018        1135.298        3790.982      -0.8248331E-01    0.000000      -0.8034463E-01    653.0735        3245.084       0.3000134E-01        6189         251  0.85881    
+        1130  -0.4738246E-02   -42.06651       0.9949795        9885.135        304.0515        1120.220        3738.289      -0.8244404E-01    0.000000      -0.8027228E-01    652.7123        3230.949       0.2949996E-01        6134         312  0.87029    
+        1140   0.4096116E-01   -14.78013       0.9958225        9870.355        332.4150        1109.038        3765.617      -0.8240039E-01    0.000000      -0.7994133E-01    652.6511        3226.647       0.3007633E-01        6121         298  0.78677    
+        1150   0.3693683E-01   -1.972747        1.000369        9868.382        333.5820        1111.660        3722.948      -0.8236325E-01    0.000000      -0.8023716E-01    653.8690        3251.243       0.2917902E-01        6099         303  0.77784    
+        1160   0.3705964E-01    30.34311       0.9999888        9898.725        310.1668        1118.378        3725.831      -0.8233448E-01    0.000000      -0.8065986E-01    655.0926        3255.580       0.2909912E-01        6101         306  0.79723    
+        1170   0.4468516E-02   -46.10096        1.002990        9852.624        331.7939        1115.596        3673.529      -0.8230580E-01    0.000000      -0.8061127E-01    655.3150        3263.489       0.2942952E-01        6058         276  0.79138    
+        1180   0.5761169E-01    9.217635       0.9951438        9861.842        330.0167        1108.378        3765.255      -0.8227557E-01    0.000000      -0.8045919E-01    655.3614        3272.607       0.3056235E-01        6047         295  0.84664    
+        1190   0.3390860E-01    11.85738        1.002174        9873.699        324.7580        1109.099        3663.285      -0.8225200E-01    0.000000      -0.8081263E-01    655.6754        3266.301       0.2915933E-01        6069         297  0.85335    
+        1200   0.4648722E-03    54.86662        1.003068        9928.566        307.9495        1118.753        3761.442      -0.8224367E-01    0.000000      -0.8172644E-01    655.8933        3292.222       0.3041754E-01        6096         299  0.85216    
+        1210  -0.5808610E-01    62.71553        1.005378        9991.281        297.8048        1136.477        3835.599      -0.8223700E-01    0.000000      -0.8181662E-01    655.9162        3296.956       0.2961870E-01        6136         297  0.83779    
+        1220  -0.7519547E-01   -34.46546        1.001568        9956.816        338.5450        1143.910        3736.280      -0.8222508E-01    0.000000      -0.8146163E-01    655.6025        3251.946       0.2929882E-01        6147         305  0.81711    
+        1230  -0.2367660E-01   -71.15359       0.9952918        9885.662        310.7127        1133.602        3797.598      -0.8220719E-01    0.000000      -0.8104262E-01    655.1613        3236.617       0.3029472E-01        6093         291  0.77414    
+        1240   0.3339874E-01   -32.39373       0.9947854        9853.269        300.6819        1119.503        3770.093      -0.8217665E-01    0.000000      -0.8015763E-01    654.9883        3233.841       0.3065525E-01        6078         266  0.76138    
+        1250   0.1082091       -36.01627       0.9931706        9817.252        326.0372        1102.141        3685.744      -0.8214175E-01    0.000000      -0.7980285E-01    656.1547        3232.311       0.3043558E-01        6059         301  0.82637    
+        1260   0.1070074E-01    123.4185        1.008972        9940.671        292.1133        1109.251        3764.318      -0.8212793E-01    0.000000      -0.8118852E-01    656.7604        3252.890       0.3047683E-01        6113         310  0.86507    
+        1270  -0.8785014E-01    93.68569        1.009068        10034.36        319.4650        1132.676        3902.233      -0.8211696E-01    0.000000      -0.8136133E-01    658.8835        3279.205       0.3094785E-01        6173         325  0.86178    
+        1280  -0.1398125       -2.518863        1.004771        10031.84        282.2702        1154.903        3769.937      -0.8210082E-01    0.000000      -0.8097629E-01    659.4127        3273.397       0.2922604E-01        6177         282  0.85767    
+        1290  -0.1572409       -6.720006        1.001598        10025.12        349.9483        1151.679        3841.411      -0.8207285E-01    0.000000      -0.8009674E-01    659.5994        3258.096       0.3084427E-01        6162         314  0.81841    
+        1300  -0.1378404        7.146759       0.9982244        10032.26        329.6835        1141.868        3792.730      -0.8204968E-01    0.000000      -0.8038867E-01    658.6604        3270.459       0.3031925E-01        6160         289  0.79447    
+        1310  -0.1524228       -3.195697        1.001337        10029.07        323.2322        1144.631        3756.729      -0.8203138E-01    0.000000      -0.8069926E-01    657.8175        3287.522       0.2857861E-01        6160         300  0.82533    
+        1320  -0.1637025        1.879036        1.001034        10030.95        357.7732        1149.218        3846.192      -0.8201090E-01    0.000000      -0.8049711E-01    656.9084        3270.316       0.2875129E-01        6174         299  0.81897    
+        1330  -0.1308701        4.943696       0.9969970        10035.89        270.1534        1147.340        3745.718      -0.8199098E-01    0.000000      -0.8049683E-01    655.9308        3268.820       0.3001847E-01        6208         303  0.87674    
+        1340  -0.2032452        89.35473        1.006652        10125.25        328.1372        1163.165        3835.767      -0.8197257E-01    0.000000      -0.8057325E-01    656.1242        3272.877       0.2930151E-01        6263         303  0.88311    
+        1350  -0.2275438       -5.979637        1.002228        10119.27        335.4613        1174.078        3860.864      -0.8194175E-01    0.000000      -0.7956564E-01    654.9471        3261.075       0.2983166E-01        6249         304  0.87649    
+        1360  -0.2479452        32.03693        1.001871        10151.30        262.1158        1172.395        3839.485      -0.8191579E-01    0.000000      -0.7988394E-01    653.5978        3296.675       0.3026759E-01        6239         300  0.78830    
+        1370  -0.2503581       -47.19779        1.000221        10104.11        341.7118        1167.461        3856.348      -0.8190693E-01    0.000000      -0.8120466E-01    654.1247        3284.032       0.3024324E-01        6215         291  0.80397    
+        1380  -0.2477554        11.13607       0.9997616        10115.24        310.4437        1168.059        3889.291      -0.8189720E-01    0.000000      -0.8111520E-01    652.6276        3284.863       0.3018677E-01        6227         289  0.79973    
+        1390  -0.2121715       -56.47747       0.9967457        10058.76        314.1204        1160.557        3739.971      -0.8188741E-01    0.000000      -0.8108912E-01    651.1464        3277.561       0.2902382E-01        6181         297  0.83937    
+        1400  -0.1569870       -65.88997       0.9949577        9992.874        285.9669        1149.519        3778.437      -0.8188299E-01    0.000000      -0.8151745E-01    649.8608        3277.428       0.3048613E-01        6138         280  0.94947    
+Bloom of more than n_add on single excit: A max of       2.75 particles created.        1 blooms occurred.
+        1410  -0.1065827        34.40444       0.9953935        10027.28        322.0875        1143.702        3860.218      -0.8187217E-01    0.000000      -0.8096448E-01    648.8940        3245.745       0.3117154E-01        6191         317  0.86971    
+        1420  -0.1287711       -28.13502        1.002035        9999.144        294.8022        1144.481        3739.359      -0.8185491E-01    0.000000      -0.8038860E-01    649.2305        3246.291       0.2792273E-01        6184         309  0.86080    
+        1430  -0.1106493       -25.90787       0.9983414        9973.236        278.6908        1140.118        3686.816      -0.8184576E-01    0.000000      -0.8105960E-01    648.4783        3230.261       0.2930765E-01        6214         275  0.82699    
+        1440  -0.1372865        59.24914        1.002443        10032.48        323.5780        1153.325        3819.512      -0.8183823E-01    0.000000      -0.8118283E-01    647.8106        3220.750       0.3043194E-01        6233         285  0.78419    
+        1450  -0.1340880        16.48838       0.9997070        10048.97        262.3990        1153.752        3820.772      -0.8183173E-01    0.000000      -0.8125925E-01    647.0121        3218.930       0.2872676E-01        6245         313  0.77246    
+        1460  -0.1603073       -22.49728        1.002405        10026.48        296.5037        1151.887        3883.552      -0.8183027E-01    0.000000      -0.8169975E-01    647.2153        3243.723       0.2984818E-01        6210         305  0.79508    
+        1470  -0.1312945        7.460161       0.9973459        10033.94        280.0631        1150.955        3772.154      -0.8182638E-01    0.000000      -0.8147500E-01    646.2811        3241.800       0.2868973E-01        6217         297  0.85995    
+        1480  -0.1209814       -3.897452       0.9990557        10030.04        334.5661        1148.809        3835.316      -0.8182468E-01    0.000000      -0.8167003E-01    645.4871        3237.925       0.3009035E-01        6211         312  0.86506    
+        1490  -0.1636738       -3.355992        1.003918        10026.68        292.3055        1159.180        3852.848      -0.8182988E-01    0.000000      -0.8230959E-01    646.7644        3245.878       0.3001775E-01        6177         307  0.92155    
+        1500  -0.1261980       -14.42410       0.9965730        10012.26        332.0458        1148.481        3787.150      -0.8183870E-01    0.000000      -0.8266144E-01    645.8207        3283.365       0.2986387E-01        6133         304  0.90820    
+        1510  -0.1950837        157.1518        1.006330        10169.41        285.9569        1153.548        3860.103      -0.8186263E-01    0.000000      -0.8412190E-01    645.0523        3320.697       0.2954687E-01        6263         282  0.78797    
+        1520  -0.2978382       -16.13522        1.009457        10153.28        343.5939        1185.790        3894.125      -0.8189288E-01    0.000000      -0.8478361E-01    643.9412        3312.485       0.3007400E-01        6276         329  0.77999    
+        1530  -0.2971344        56.03370       0.9999355        10209.31        375.5239        1198.138        3948.285      -0.8191779E-01    0.000000      -0.8432861E-01    642.2469        3310.555       0.3101526E-01        6349         294  0.78546    
+Bloom of more than n_add on single excit: A max of       3.24 particles created.        1 blooms occurred.
+        1540  -0.3096442       -47.48246        1.001147        10161.83        305.7778        1200.505        3880.857      -0.8194142E-01    0.000000      -0.8425719E-01    640.5006        3282.264       0.2962133E-01        6294         315  0.91012    
+        1550  -0.2573929       -39.37977       0.9952251        10122.45        309.4546        1186.481        3792.768      -0.8196581E-01    0.000000      -0.8438842E-01    638.6935        3268.103       0.2878683E-01        6274         304  0.92323    
+        1560  -0.2357933       -79.67460       0.9980234        10042.77        282.4461        1177.127        3831.663      -0.8198625E-01    0.000000      -0.8404173E-01    638.1589        3260.898       0.2960483E-01        6206         299  0.87047    
+        1570  -0.1462882       -41.61113       0.9918346        10001.16        310.9018        1154.899        3720.346      -0.8201069E-01    0.000000      -0.8449547E-01    636.7692        3250.184       0.2935637E-01        6199         282  0.81554    
+        1580  -0.1062558        33.08099       0.9963396        10034.24        319.9168        1139.676        3840.936      -0.8203513E-01    0.000000      -0.8454865E-01    635.8643        3242.135       0.3041512E-01        6244         307  0.80216    
+        1590  -0.1742324        22.58835        1.006246        10056.83        337.6875        1146.433        3805.197      -0.8205354E-01    0.000000      -0.8396566E-01    636.2220        3239.752       0.3003338E-01        6268         284  0.79953    
+        1600  -0.1774211        52.03063        1.000292        10108.86        284.5366        1158.025        3790.312      -0.8206324E-01    0.000000      -0.8308071E-01    635.2468        3225.997       0.2912725E-01        6316         303  0.89582    
+        1610  -0.2992192        75.84250        1.011220        10184.70        275.9680        1175.378        3870.788      -0.8207431E-01    0.000000      -0.8324893E-01    634.2170        3218.533       0.2931154E-01        6377         292  0.87386    
+        1620  -0.2380466       -120.5423       0.9944121        10064.16        299.8367        1174.363        3745.963      -0.8208206E-01    0.000000      -0.8291324E-01    633.5511        3213.252       0.2950367E-01        6287         270  0.87449    
+        1630  -0.1600763       -24.40049       0.9928831        10039.76        349.5544        1154.539        3863.834      -0.8208813E-01    0.000000      -0.8274527E-01    633.1338        3229.968       0.2928941E-01        6271         278  0.88998    
+        1640  -0.1716889        34.20291        1.001064        10073.96        305.8745        1145.571        3731.278      -0.8209676E-01    0.000000      -0.8304050E-01    633.1603        3232.028       0.2939471E-01        6290         269  0.82180    
+        1650  -0.1555353       -49.46798       0.9985214        10024.50        337.5657        1139.496        3782.535      -0.8210303E-01    0.000000      -0.8279390E-01    634.1703        3241.396       0.2878192E-01        6235         298  0.77964    
+        1660  -0.1348240        34.46906       0.9981046        10058.96        346.5636        1144.110        3844.174      -0.8210548E-01    0.000000      -0.8237877E-01    634.2573        3231.672       0.2989930E-01        6273         339  0.77310    
+        1670  -0.1598217       -37.36086        1.002292        10021.60        331.8544        1149.490        3794.723      -0.8210690E-01    0.000000      -0.8226534E-01    634.4615        3229.320       0.2889231E-01        6231         292  0.78561    
+        1680  -0.1361327        2.427558       0.9978324        10024.03        298.2846        1143.230        3821.933      -0.8210767E-01    0.000000      -0.8219560E-01    634.5476        3229.854       0.2984899E-01        6226         307  0.84383    
+        1690  -0.1506830       -34.03805        1.001334        9989.993        315.3455        1139.516        3807.283      -0.8210752E-01    0.000000      -0.8208975E-01    634.7423        3213.552       0.3044568E-01        6225         301  0.86940    
+        1700  -0.7298115E-01    18.48139       0.9929075        10008.47        324.7727        1130.805        3801.125      -0.8210370E-01    0.000000      -0.8166361E-01    633.8751        3214.684       0.3042426E-01        6259         318  0.86424    
+        1710  -0.1087329        7.884936        1.003280        10016.36        305.5872        1131.715        3849.543      -0.8209599E-01    0.000000      -0.8119949E-01    633.4064        3184.127       0.3064958E-01        6288         326  0.84663    
+        1720  -0.5376996E-01   -111.9095       0.9949779        9904.450        318.3921        1132.363        3750.927      -0.8208549E-01    0.000000      -0.8085340E-01    632.7965        3141.139       0.2910435E-01        6224         329  0.77305    
+        1730   0.9591567E-02   -35.88110       0.9942127        9868.569        266.0249        1120.500        3697.464      -0.8207461E-01    0.000000      -0.8078575E-01    632.4531        3163.978       0.2768138E-01        6165         272  0.77596    
+        1740   0.2349580E-01    10.92156       0.9987271        9879.491        271.5363        1106.598        3722.450      -0.8206194E-01    0.000000      -0.8055166E-01    634.4721        3158.044       0.2921748E-01        6174         290  0.77580    
+        1750   0.2806405E-01   -21.88329       0.9995816        9857.607        299.4696        1109.787        3694.442      -0.8204365E-01    0.000000      -0.7985291E-01    636.6009        3179.402       0.2893716E-01        6133         299  0.79279    
+        1760   0.5393762E-01   -23.18303       0.9976327        9834.424        304.2296        1098.120        3730.376      -0.8202963E-01    0.000000      -0.8033821E-01    636.7619        3190.546       0.2959424E-01        6113         277  0.85223    
+        1770   0.2786819E-03    140.8110        1.004927        9975.235        315.7650        1107.971        3858.864      -0.8201988E-01    0.000000      -0.8083361E-01    638.0615        3201.842       0.3140904E-01        6206         325  0.86136    
+        1780  -0.6896689E-01   -14.00921        1.006363        9961.226        357.7611        1119.039        3751.950      -0.8201930E-01    0.000000      -0.8194765E-01    638.0945        3207.718       0.2996361E-01        6228         297  0.86975    
+        1790  -0.7885248E-01   -36.34665        1.000906        9924.879        315.6597        1120.605        3773.305      -0.8201937E-01    0.000000      -0.8202890E-01    638.7314        3212.938       0.2898814E-01        6161         292  0.80935    
+        1800  -0.8641353E-01    41.21739        1.000693        9966.097        314.7740        1122.041        3749.620      -0.8202240E-01    0.000000      -0.8239838E-01    638.2760        3246.097       0.3071257E-01        6176         288  0.78120    
+        1810  -0.6660955E-01    33.24790       0.9981875        9999.345        355.3579        1119.985        3816.178      -0.8202251E-01    0.000000      -0.8203680E-01    639.7740        3237.746       0.3022184E-01        6206         299  0.77702    
+        1820  -0.1425168        59.99689        1.006978        10059.34        333.9295        1136.455        3863.856      -0.8202673E-01    0.000000      -0.8255846E-01    639.3721        3237.157       0.3111028E-01        6264         312  0.83662    
+        1830  -0.1205759       -74.53312       0.9979922        9984.808        339.3777        1144.553        3710.236      -0.8202458E-01    0.000000      -0.8175139E-01    639.5817        3204.205       0.2924017E-01        6196         298  0.85708    
+        1840  -0.1320668        60.67832        1.001053        10045.49        324.3891        1149.453        3855.412      -0.8202008E-01    0.000000      -0.8144395E-01    639.8625        3233.109       0.2960598E-01        6237         324  0.86317    
+        1850  -0.1772980       -15.30030        1.004152        10030.19        323.5457        1162.832        3843.491      -0.8202025E-01    0.000000      -0.8204240E-01    641.0946        3205.207       0.3047612E-01        6276         297  0.88114    
+        1860  -0.1159199       -58.32226       0.9943934        9971.864        323.3382        1153.057        3761.289      -0.8202055E-01    0.000000      -0.8205837E-01    643.0783        3233.385       0.2999742E-01        6213         268  0.80536    
+        1870  -0.8622455E-01   -9.893893       0.9972835        9961.970        315.0860        1137.686        3773.859      -0.8202478E-01    0.000000      -0.8257710E-01    642.3596        3219.296       0.2983509E-01        6222         280  0.79561    
+        1880  -0.4850903E-01   -34.25648       0.9965511        9927.714        312.7523        1130.833        3783.724      -0.8202845E-01    0.000000      -0.8251235E-01    641.8350        3230.168       0.2992355E-01        6179         301  0.77693    
+        1890  -0.2026583E-01   -42.73731       0.9974162        9884.977        278.8817        1129.019        3626.399      -0.8202822E-01    0.000000      -0.8199646E-01    641.5276        3215.275       0.2815063E-01        6160         279  0.77903    
+        1900   0.3921596E-01   -8.626956       0.9945661        9876.350        353.3958        1110.002        3757.058      -0.8202776E-01    0.000000      -0.8196676E-01    643.3918        3223.734       0.3025029E-01        6136         309  0.82710    
+        1910   0.5067541E-02    36.31744        1.003133        9912.667        331.5390        1109.645        3782.269      -0.8202671E-01    0.000000      -0.8188649E-01    644.5881        3210.585       0.2969896E-01        6163         320  0.85218    
+        1920  -0.4420734E-01    32.70100        1.004524        9945.368        286.2293        1122.251        3809.947      -0.8202986E-01    0.000000      -0.8245555E-01    644.6382        3229.374       0.3012336E-01        6178         284  0.86093    
+        1930  -0.5278427E-01    8.033083        1.000786        9953.401        266.1306        1133.280        3771.855      -0.8203014E-01    0.000000      -0.8206786E-01    645.4060        3228.992       0.2963913E-01        6163         280  0.87251    
+        1940  -0.6858047E-01   -28.56326        1.001448        9924.838        264.1616        1131.891        3848.731      -0.8203239E-01    0.000000      -0.8233996E-01    645.0991        3254.873       0.3073427E-01        6129         301  0.79278    
+        1950  -0.6665790E-01    75.10805       0.9998239        9999.946        296.2085        1118.776        3804.735      -0.8203502E-01    0.000000      -0.8239858E-01    645.7033        3260.313       0.3066217E-01        6219         292  0.78612    
+        1960  -0.9068687E-01   -46.57197        1.002204        9953.374        309.8607        1123.336        3741.625      -0.8202745E-01    0.000000      -0.8097566E-01    645.3080        3226.600       0.2961522E-01        6200         298  0.77590    
+        1970  -0.1154259        105.8084        1.002269        10059.18        285.1636        1129.505        3892.755      -0.8201984E-01    0.000000      -0.8095506E-01    644.7863        3256.805       0.3055006E-01        6260         316  0.83120    
+        1980  -0.1737531        4.408827        1.005357        10063.59        305.7581        1140.755        3734.151      -0.8201544E-01    0.000000      -0.8139411E-01    645.1191        3281.919       0.2838597E-01        6273         287  0.88019    
+        1990  -0.1348867       -44.36258       0.9964460        10019.23        335.2084        1150.030        3686.565      -0.8200780E-01    0.000000      -0.8092204E-01    644.1274        3265.770       0.2886972E-01        6236         318  0.87608    
+Moving load balancing block       186 from processor      1 to      0
+Moving load balancing block       181 from processor      1 to      0
+Moving load balancing block       124 from processor      0 to      1
+        2000  -0.1137317       -9.654476       0.9980640        10009.57        321.1188        1145.333        3821.705      -0.8200325E-01    0.000000      -0.8135189E-01    643.3091        3260.785       0.2985771E-01        6216         300  0.87530    
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    1133.4344041347504     
+ Time lost due to load imbalance:    35.631275296211243     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ 
+Current reference: 
+(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10)
+ Number of superinitiators           1
+
+Input DEFINEDET line (includes frozen orbs):
+definedet    1-10
+ 
+Most occupied         15 determinants as excitations from reference: 
+
+ Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc
+1111111111000000000000000000    0    0    643.2296      0.95883  Y      1
+1111010111100010000000000000    2    4    25.47220      0.03797  Y      1
+1110011111100000010000000000    2    4   -22.59617      0.03368  Y      1
+1101111110000001100000000000    2    4   -21.94261      0.03271  Y      1
+1111110011001100000000000000    2    0   -21.85917      0.03258  Y      1
+1101101111010000100000000000    2    4   -21.54639      0.03212  Y      0
+1111111100001001000000000000    2    2    20.91600      0.03118  Y      0
+1111011101001010000000000000    2    4   -20.67221      0.03082  Y      0
+1111110011110000000000000000    2    0   -20.23973      0.03017  Y      0
+1111011011110000000000000000    2    2   -19.67270      0.02933  Y      0
+1111111100001100000000000000    2    0   -19.47511      0.02903  Y      0
+1111101110000101000000000000    2    4   -19.45981      0.02901  Y      1
+1111111100000110000000000000    2    2   -18.24681      0.02720  Y      1
+1111001111110000000000000000    2    0   -18.22183      0.02716  Y      1
+1110110111100000010000000000    2    4   -18.09166      0.02697  Y      0
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process    3362.0000000000
+ Min number of determinants/process               3141
+ Max number of determinants/process               3583
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:         1010
+Reading back in FCIMCStats datafile...
+Number of comment lines found in file:            3
+Number of data points found in file:          200
+Number of useable data points:           99
+Relaxation time for projected energy estimated to be        0 update cycles.
+Relaxation time for shift estimated to be        0 update cycles.
+WARNING: Error increases monotonically on the blocking graph for *denominator of projected energy*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in projected energy denominator:      12
+WARNING: Error increases monotonically on the blocking graph for *numerator of projected energy*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in projected energy numerator:      12
+WARNING: Error increases monotonically on the blocking graph for *shift*
+         whilst performing Flyvbjerg and Petersen blocking analysis.
+         Inspect BLOCKING files carefully. Manual reblocking may be necessary.
+Number of blocks assumed for calculation of error in shift:      12
+ProjE_denominator:        646.1651987466 +/-        2.4380203     Relative error:       0.3773060416E-02
+ProjE_numerator:          -52.7612565840 +/-       0.17111608     Relative error:       0.3243214636E-02
+ Current reference energy                            -128.753084290651
+ Projected correlation energy                          -0.081652891066
+ Estimated error in Projected correlation energy        0.000322931145
+ Shift correlation energy                              -0.104358211228
+ Estimated error in shift correlation energy            0.022410291497
+
+ Projected and shift energy estimates agree to within two sigma of largest error: EDiff =      0.02270532
+
+ Total projected energy        -128.83473718 +/-    0.322931E-03
+ Total shift energy            -128.85744250 +/-    0.224103E-01
+
+
+ Final energy estimate for state 1:     -128.83508754523    
+ Warning: attempting to log deallocation but never logged allocation.
+
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :       3.1
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ LMat              allocLMat          freeLMat              1.5MB
+ SpawnVec          InitFCIMCPar       DeallocFciMCMemPar  585.9KB
+ SpawnVec2         InitFCIMCPar       DeallocFciMCMemPar  585.9KB
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar  175.8KB
+ UMat              IntInit            IntCleanup          150.8KB
+ global_determinantinit_global_det_datclean_global_det_da 117.2KB
+ TMAT2D            SetupTMAT          DestroyTMat           6.1KB
+ G1                SysInit            NECICore              1.5KB
+ LoadBalanceMappinginit_load_balance  clean_load_balance     800B
+ Arr               SysInit            NECICore               448B
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                2000   1124.91
+ DeathTime                                 2000      3.78
+ AnnMainTime                               2000      3.04
+ SortTime                                  2000      1.23
+ NECICUBE                                     1      0.52
+ AnnihilTime                               2000      0.20
+ Compress Sort interface                   2000      0.10
+ Compression interface                     2000      0.05
+ SysInit                                      1      0.05
+ StatsCommsTime                             200      0.03
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                1133.93
+
+ Global wall clock time       1134.47
+ ================================================================
+ Calculation ended 15/11/2019 at 19:08:32
+ ================================================================

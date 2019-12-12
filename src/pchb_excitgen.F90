@@ -15,6 +15,8 @@ module pchb_excitgen
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
+  use sym_general_mod, only: IsSymAllowedExcitMat
+  use LMat_mod, only: getPCWeightOffset
   implicit none
 
   ! there are three pchb_samplers:
@@ -35,7 +37,7 @@ module pchb_excitgen
     ! The interface is common to all excitation generators, see proc_ptrs.F90
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
-      integer, intent(out) :: nJ(nel), ic, ex(2,2)
+      integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
       integer(n_int), intent(out) :: ilutJ(0:NIfTot)
       logical, intent(out) :: tpar
       real(dp), intent(out) :: pGen
@@ -95,7 +97,7 @@ module pchb_excitgen
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel)
       integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-      integer, intent(out) :: ex(2,2)
+      integer, intent(out) :: ex(2,maxExcit)
       real(dp), intent(out) :: pGen
       logical, intent(out) :: tpar
 
@@ -158,8 +160,8 @@ module pchb_excitgen
          ! -> return nulldet
          nJ = 0
          ilutJ = 0_n_int
-         ex(2,:) = orbs
-         ex(1,:) = src
+         ex(2,1:2) = orbs
+         ex(1,1:2) = src
       else
          ! else, construct the det from the chosen orbs/elecs
 
