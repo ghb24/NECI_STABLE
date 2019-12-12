@@ -1,5 +1,5 @@
 #include "macros.h"
-#:include "macros.fpp"
+#:include "macros.fpph"
 #:set ExcitationTypes = ['NoExc_t', 'SingleExc_t', 'DoubleExc_t', 'TripleExc_t']
 
 module sltcnd_mod
@@ -168,12 +168,12 @@ contains
         case default
             ! The determinants differ by more than 3 orbitals
             ASSERT(.not. t_3_body_excits)
-            hel = (0)
+            hel = h_cast(0.0_dp)
         end select
     end function sltcnd_compat
 
 
-    HElement_t(dp) function sltcnd_excit_old(nI, IC, ex, tParity)
+    HElement_t(dp) function sltcnd_excit_old(nI, IC, ex, tParity) result(hel)
 
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.
@@ -187,6 +187,7 @@ contains
         integer, intent(in) :: nI(nel), IC
         integer, intent(in), optional :: ex(2,ic)
         logical, intent(in), optional :: tParity
+        HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'sltcnd_excit_old'
 
         if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
@@ -195,18 +196,18 @@ contains
         select case (IC)
         case (0)
             ! The determinants are exactly the same
-            sltcnd_excit_old = sltcnd_excit(nI, NoExc_t(), tParity)
+            hel = sltcnd_excit(nI, NoExc_t(), tParity)
         case (1)
-            sltcnd_excit_old = sltcnd_excit(nI, SingleExc_t(ex(:, 1)), tParity)
+            hel = sltcnd_excit(nI, SingleExc_t(ex(:, 1)), tParity)
         case (2)
             ! The determinants differ by two orbitals
-            sltcnd_excit_old = sltcnd_excit(nI, DoubleExc_t(ex(:, :2)), tParity)
+            hel = sltcnd_excit(nI, DoubleExc_t(ex(:, :2)), tParity)
          case(3)
-            sltcnd_excit_old = sltcnd_excit(nI, TripleExc_t(ex(:, :3)), tParity)
+            hel = sltcnd_excit(nI, TripleExc_t(ex(:, :3)), tParity)
         case default
             ! The determinants differ by more than 2 orbitals
             ASSERT(.not. t_3_body_excits)
-            sltcnd_excit_old = 0
+            hel = h_cast(0.0_dp)
         end select
     end function
 
@@ -234,27 +235,27 @@ contains
         select case (IC)
         case (0)
             ! The determinants are exactly the same
-            hel = sltcnd_0 (nI)
+            hel = sltcnd_excit(nI, NoExc_t())
 
         case (1)
             ! The determinants differ by only one orbital
             ex(1,1) = IC
             call GetBitExcitation (iLutI, iLutJ, ex, tSign)
-            hel = sltcnd_1 (nI, Ex(:,1), tSign)
+            hel = sltcnd_excit(nI, SingleExc_t(ex(:, 1)), tSign)
 
         case (2)
             ! The determinants differ by two orbitals
             ex(1,1) = IC
             call GetBitExcitation (iLutI, iLutJ, ex, tSign)
-            hel = sltcnd_2 (nI, ex, tSign)
+            hel = sltcnd_excit(nI, DoubleExc_t(ex(:, :2)), tSign)
         case(3)
             ex(1,1) = IC
             call GetBitExcitation (iLutI, iLutJ, ex, tSign)
-            hel = sltcnd_3 (ex, tSign)
+            hel = sltcnd_excit(nI, TripleExc_t(ex(:, :3)), tSign)
 
         case default
             ! The determinants differ by more than two orbitals
-            hel = 0
+            hel = h_cast(0.0_dp)
         endselect
 
     end function
@@ -953,16 +954,18 @@ contains
     end function sltcnd_3_tc_ua
 
     #:for excitation_t in ExcitationTypes[1:]
-    elemental function defined_${excitation_t}$(exc) result(res)
-        type(${excitation_t}$), intent(in) :: exc
-        logical :: res
-        res = all(exc%val /= UNKNOWN)
-    end function
+        elemental function defined_${excitation_t}$(exc) result(res)
+            type(${excitation_t}$), intent(in) :: exc
+            logical :: res
+
+            res = all(exc%val /= UNKNOWN)
+        end function
     #:endfor
 
     elemental function defined_NoExc_t(exc) result(res)
         type(NoExc_t), intent(in) :: exc
         logical :: res
+
         res = .true.
     end function
 
@@ -971,6 +974,7 @@ contains
         type(NoExc_t), intent(in), optional :: exc
         logical, intent(in), optional :: tParity
         @:unused_var(exc, tParity)
+
         sltcnd_excit_NoExc_t = sltcnd_0(ref)
     end function
 
@@ -986,6 +990,7 @@ contains
         integer, intent(in) :: ref(nel)
         type(DoubleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
+
         sltcnd_excit_DoubleExc_t = sltcnd_2(ref, exc%val, tParity)
     end function
 
@@ -994,12 +999,15 @@ contains
         type(TripleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
         @:unused_var(ref)
+
         sltcnd_excit_TripleExc_t = sltcnd_3(exc%val, tParity)
     end function
 
     pure function from_integer_SingleExc_t(src, tgt) result(res)
         integer, intent(in), optional :: src, tgt
         type(SingleExc_t) :: res
+
+        ! The values default to UNKNOWN, in the type.
         if (present(src)) res%val(1) = src
         if (present(tgt)) res%val(1) = tgt
     end function
@@ -1007,6 +1015,8 @@ contains
     pure function from_integer_DoubleExc_t(src1, tgt1, src2, tgt2) result(res)
         integer, intent(in), optional :: src1, tgt1, src2, tgt2
         type(DoubleExc_t) :: res
+
+        ! The values default to UNKNOWN, in the type.
         if (present(src1)) res%val(1, 1) = src1
         if (present(tgt1)) res%val(2, 1) = tgt1
         if (present(src2)) res%val(1, 2) = src2
@@ -1016,6 +1026,8 @@ contains
     pure function from_integer_TripleExc_t(src1, tgt1, src2, tgt2, src3, tgt3) result(res)
         integer, intent(in), optional :: src1, tgt1, src2, tgt2, src3, tgt3
         type(DoubleExc_t) :: res
+
+        ! The values default to UNKNOWN, in the type.
         if (present(src1)) res%val(1, 1) = src1
         if (present(tgt1)) res%val(2, 1) = tgt1
         if (present(src2)) res%val(1, 2) = src2

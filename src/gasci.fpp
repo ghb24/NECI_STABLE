@@ -1,5 +1,5 @@
 #include "macros.h"
-#:include "macros.fpp"
+#:include "macros.fpph"
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 
 module gasci
