@@ -29,6 +29,7 @@ module guga_testsuite
     use genrandsymexcitnumod, only: testgenrandsymexcitnu
     use symrandexcit3, only: test_sym_excit3
     use util_mod, only: operator(.isclose.), near_zero, operator(.div.)
+
     implicit none
 
     real(dp), parameter :: tol = 1.0e-10_dp
@@ -91,17 +92,18 @@ contains
             ! why the S = 2???
             call run_test_excit_gen_guga_S0
 
-!             deallocate(currentB_ilut)
-!             deallocate(currentOcc_ilut)
-!             deallocate(currentOcc_int)
-!             deallocate(current_stepvector)
-!             deallocate(currentB_int)
-
-        else
+        else if (t_test_excit_gen) then
             print *, " only run the excitation generator tests!"
-!             call run_test_excit_gen_guga_S0
 
             call run_test_excit_gen_guga()
+
+        else if (t_test_double) then
+
+            call run_test_double()
+
+        else if (t_test_single) then
+
+            call run_test_single()
 
         end if
 
@@ -118,6 +120,58 @@ contains
         end if
 
     end subroutine runTestsGUGA
+
+    subroutine run_test_double()
+
+        character(*), parameter :: this_routine = "run_test_double"
+        integer(n_int) :: ilut(0:niftot), ilutG(0:nifguga)
+        integer(n_int), pointer :: ex(:,:)
+        integer :: nex
+
+        print *, ""
+        print *, " testing acthamiltonian for specific excitation"
+
+
+        call EncodeBitDet(fdet, ilut)
+        call convert_ilut_toGUGA(ilut, ilutG)
+
+        call init_csf_information(ilut(0:nifd))
+        call calcAllExcitations(ilutG, test_i, test_j, test_k, test_l, ex, nEx)
+
+        print *, " all ", nEx, " double excitation of: "
+        call write_det_guga(6, ilutG)
+        print *, " for indices (i,j,k,l): ", test_i, test_j, test_k, test_l
+
+        call write_guga_list(6, ex(:,1:nex))
+
+
+        call stop_all(this_routine, "here")
+
+    end subroutine run_test_double
+
+    subroutine run_test_single()
+        character(*), parameter :: this_routine = "run_test_single"
+        integer(n_int) :: ilut(0:niftot), ilutG(0:nifguga)
+        integer(n_int), pointer :: ex(:,:)
+        integer :: nex
+
+        print *, ""
+        print *, "test deterministic single excitation"
+
+        call EncodeBitDet(fdet, ilut)
+        call convert_ilut_toGUGA(ilut, ilutG)
+
+        call calcAllExcitations(ilutG, test_i, test_j, ex, nex)
+
+        print *, " all ", nEx, " single excitation of: "
+        call write_det_guga(6, ilutG)
+        print *, " for indices (i,j)", test_i, test_j
+
+        call write_guga_list(6, ex(:,1:nex))
+
+        call stop_all(this_routine, "here")
+
+    end subroutine run_test_single
 
     subroutine run_test_excit_gen_det
         character(*), parameter :: this_routine = "run_test_excit_gen_det"
@@ -287,128 +341,7 @@ contains
         pExcit2_same = 0.9_dp
         pExcit3_same = 0.9_dp
 
-!         if (nEl == 4 .and. nBasis/2 == 4 .and. STOT == 2) then
-! !             call run_test_excit_gen_guga_S2
-!             call run_test_excit_gen_guga_general
-!
-!         else if (nEL == 3 .and. nBasis/2 == 4 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nEl_3_S_1
-!
-!         else if (nEl == 2 .and. nBasis/2 == 4) then
-!             call run_test_excit_gen_guga_nEl_2_S_0
-!
-!         else if (nEl == 5 .and. nBasis/2 == 4) then
-!             call run_test_excit_gen_guga_nEl_5_S_1
-!
-!         else if (nEl == 6 .and. nBasis/2 == 4) then
-!             call run_test_excit_gen_guga_nEl_6_S_0
-!
-!         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 0) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_0
-!
-! !             call run_test_excit_gen_guga_single([1,3,5,7,10,12])
-!
-!         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 2) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_2
-! !             call run_test_excit_gen_guga_single([1,3,4,5,10,11])
-!
-!         else if (nEl == 6 .and. nBasis/2 == 6 .and. STOT == 4) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_6_S_4
-!
-!         else if (nEl == 4 .and. nBasis/2 == 6 .and. STOT == 0) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_4_S_0
-!
-!         else if (nEl == 4 .and. nBasis/2 == 6 .and. STOT == 2) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_4_S_2
-!
-!         else if (nEl == 5 .and. nBasis/2 == 6 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_5_S_1
-!
-!         else if (nEl == 5 .and. nBasis/2 == 6 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_5_S_3
-!
-!         else if (nEl == 7 .and. nBasis/2 == 6 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_7_S_1
-!
-!         else if (nEl == 7 .and. nBasis/2 == 6 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_6_nEl_7_S_3
-!
-!         else if (nEl == 5 .and. nBasis/2 == 9 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_5_S_1
-!
-!         else if (nEl == 5 .and. nBasis/2 == 9 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_5_S_3
-!
-!         else if (nEl == 7 .and. nBasis/2 == 9 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_7_S_1
-!
-!         else if (nEl == 7 .and. nBasis/2 == 9 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_7_S_3
-!
-!         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 0) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_0
-!
-!         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 6) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_6
-!
-! !         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 4) then
-! !             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_4
-! !
-! !         else if (nEl == 10 .and. nBasis/2 == 9 .and. STOT == 2) then
-! !             call run_test_excit_gen_guga_nOrb_9_nEl_10_S_2
-!
-!         else if (nEl == 9 .and. nBasis/2 == 9 .and. STOT == 3) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_9_S_3
-!
-!         else if (nEl == 9 .and. nBasis/2 == 9 .and. STOT == 1) then
-!             call run_test_excit_gen_guga_nOrb_9_nEl_9_S_1
-!
-!         else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 0) then
-!             call run_test_excit_gen_guga_nOrb_18_nel_18_S_0
-!
-!         else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 2) then
-!             call run_test_excit_gen_guga_nOrb_18_nel_18_S_2
-!
-!         else if (nEl == 18 .and. nBasis/2 == 18 .and. STOT == 6) then
-!             call run_test_excit_gen_guga_nOrb_18_nel_18_S_6
-!         else
-            ! todo: create a general excit_gen tester which uses the
-            ! guessed HF determinant as a start and uses some of the
-            ! exactly created determinants from that to check for pgen and
-            ! matrix element consistency!
-!
-
-!             call run_test_excit_gen_guga_multiple(&
-!                 [1,2,3,4,5,6,7,8])
-!             call run_test_excit_gen_guga_multiple(&
-!                 [9,10,11,12,13,14,15,16])
-!             call run_test_excit_gen_guga_multiple(&
-!                 [1,3,5,7,10,12,14,16])
-!             call run_test_excit_gen_guga_multiple(&
-!                 [1,3,6,7,10,11,14,16])
-!             call run_test_excit_gen_guga_multiple(&
-!                 [1,4,5,8,9,12,13,16])
-            call run_test_excit_gen_guga_general
-!             call run_test_excit_gen_guga_multiple([3,7,8,9,10,12,13,14])
-!             call run_test_excit_gen_guga_multiple([1,4,5,7])
-!             call run_test_excit_gen_guga_multiple([1,3,6,7])
-!             call run_test_excit_gen_guga_multiple([1,2,5,8])
-!             call run_test_excit_gen_guga_multiple([1,3,4,8])
-
-!             call run_test_excit_gen_guga_single([1,2,3,5,6,7,8,9,11,12,13,14,15,18])
-!             call run_test_excit_gen_guga_single([1,2,3,4,5,6,7,8,9,10,11,13,16,18])
-!             call run_test_excit_gen_guga_single([1,2,3,4,5,7,8,10,11,12,13,14,17,18])
-!             call run_test_excit_gen_guga_multiple(&
-!                 convert_guga_to_ni([0,0,0,0,1,1,1,2,1,2,3,3,3,1,2],15))
-!             call run_test_excit_gen_guga_single()
-!             call run_test_excit_gen_guga_single(&
-!                 convert_guga_to_ni([3,3,3,3,3,1,0,3,1],9))
-
-!             call run_test_excit_gen_guga_single(&
-!                 [1,2,3,5,7,10,12,13,14,15,17,18,20,21,25,27,30,32,34,35,36,&
-!                 37,39,41,44,46,48,49,50,51,54,58])
-
-!         end if
+        call run_test_excit_gen_guga_general
 
     end subroutine run_test_excit_gen_guga
 

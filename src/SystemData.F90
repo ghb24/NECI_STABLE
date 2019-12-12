@@ -415,6 +415,8 @@ logical :: t_mixed_hubbard = .false.
 
 logical :: t_olle_hubbard = .false.
 
+logical :: t_test_double = .false., t_test_single = .false.
+integer :: test_i, test_j, test_k, test_l
 
 ! Operators for type(symmetry)
 interface assignment (=)

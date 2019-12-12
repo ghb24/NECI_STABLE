@@ -431,6 +431,20 @@ system: do
                 n_guga_excit_gen = 1000000
             end if
 
+        case ("TEST-DOUBLE")
+            t_test_double = .true.
+
+            call geti(test_i)
+            call geti(test_j)
+            call geti(test_k)
+            call geti(test_l)
+
+        case ("TEST-SINGLE")
+            t_test_single = .true.
+
+            call geti(test_i)
+            call geti(test_j)
+
         case("FULL-GUGA-TESTS")
             if (item < nitems) then
                 call geti(n_guga_excit_gen)

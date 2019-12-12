@@ -2576,8 +2576,8 @@ contains
             write(iunit,"(f16.7)", advance='no') contrib_list(i) / real(iterations, dp)
             write(iunit, "(e16.7)", advance='no') pgen_list(i)
             write(iunit, "(e16.7)", advance='no') exact_helements(i)
-            write(iunit, "(3i)", advance = 'no') excitLvl(i)
-            write(iunit, *) excit_mat(i,:)
+            write(iunit, "(3i)", advance = 'yes') excitLvl(i)
+!             write(iunit, *) excit_mat(i,:)
         end do
         close(iunit)
 
@@ -2585,7 +2585,7 @@ contains
         iunit = get_free_unit()
         call get_unique_filename("pgen_vs_matrixElements",.true.,.true.,1,filename)
         open(iunit, file=filename,status='unknown')
-        write(iunit,*) "pgens and matrix elements for CSF:"
+        write(iunit,*) "# pgens and matrix elements for CSF:"
         call convert_ilut_toGUGA(ilut, ilutG)
         call write_det_guga(iunit, ilutG)
 
@@ -2593,8 +2593,8 @@ contains
             write(iunit, "(e16.7)", advance = 'no') pgen_list(i) !/sum_pgens
             write(iunit, "(e16.7)", advance = 'no') exact_helements(i) !/sum_helement
             write(iunit, "(f16.7)", advance = 'no') contrib_list(i) / real(iterations,dp)
-            write(iunit, "(3i)", advance = 'no') excitLvl(i)
-            write(iunit, "(i3)") excit_mat(i,:)
+            write(iunit, "(3i)", advance = 'yes') excitLvl(i)
+!             write(iunit, "(i3)") excit_mat(i,:)
         end do
         close(iunit)
 
@@ -14396,7 +14396,6 @@ contains
                             ! for non-open orbitals i
                             ! NO assert since i exclude excitations where
                             ! x1 is always 0
-!                             ASSERT(nExcits > 0)
                             ! or otherwise somthings wrong... and then only
                             ! update the list if another excitation is
                             ! encountered
