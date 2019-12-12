@@ -11,7 +11,7 @@ MODULE Determinants
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_compat, &
-                          sltcnd_knowIC, sltcnd_0, SumFock, CalcFockOrbEnergy
+                          sltcnd_knowIC, SumFock, CalcFockOrbEnergy
     use procedure_pointers, only: sltcnd_2
     use global_utilities
     use sort_mod

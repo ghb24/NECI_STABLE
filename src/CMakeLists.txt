@@ -216,6 +216,7 @@ set( SRC_FILES
 set( FYPP_SRC_FILES
     HPHFIntegrals.fpp
     sltcnd.fpp
+    excitation_types.fpp
     gasci.fpp
 )
 

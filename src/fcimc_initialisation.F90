@@ -174,7 +174,8 @@ module fcimc_initialisation
 
     use get_excit, only: make_double
 
-    use sltcnd_mod, only: sltcnd_0
+    use excitation_types, only: NoExc_t
+    use sltcnd_mod, only: sltcnd_excit
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
          ThisRDMIter
     use rdm_data, only: nrdms_transition_input
@@ -4263,7 +4264,8 @@ contains
                     label_idx = SymLabelCounts2(1, cc_idx)
                     norb = OrbClassCount(cc_idx)
 
-                    ! nb. sltcnd_0 does not depend on the ordering of the det,
+                    ! nb. No excitation is performed,
+                    !     so it does not depend on the ordering of the det,
                     !     so we don't need to do any sorting here.
                     energies(i) = 9999999.9_dp
                     do j = 1, norb
@@ -4272,7 +4274,7 @@ contains
                             (.not. any(orb2 == found_orbs))) then
                             det = HFDet
                             det(i) = orb2
-                            hdiag = real(sltcnd_0(det), dp)
+                            hdiag = real(sltcnd_excit(det, NoExc_t()), dp)
                             if (hdiag < energies(i)) then
                                 energies(i) = hdiag
                                 orbs(i) = orb2

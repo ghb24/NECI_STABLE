@@ -213,20 +213,23 @@ module procedure_pointers
 !         end subroutine generate_all_excits_t
 
         ! slater-condon rules types
-        function sltcnd_0_t(nI) result(hel)
+        function sltcnd_0_t(nI, exc) result(hel)
           use constants, only: dp
           use SystemData, only: nel
+          use excitation_types, only: NoExc_t
           implicit none
           integer, intent(in) :: nI(nel)
+          type(NoExc_t), intent(in) :: exc
           HElement_t(dp) :: hel
         end function sltcnd_0_t
 
-        function sltcnd_1_t(nI,ex,tSign) result(hel)
+        function sltcnd_1_t(nI, exc, tSign) result(hel)
           use constants, only: dp
           use SystemData, only: nel
+          use excitation_types, only: SingleExc_t
           implicit none
           integer, intent(in) :: nI(nel)
-          integer, intent(in) :: ex(2)
+          type(SingleExc_t), intent(in) :: exc
           logical, intent(in) :: tSign
           HElement_t(dp) :: hel
         end function sltcnd_1_t
