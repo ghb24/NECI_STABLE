@@ -35,14 +35,18 @@ module sltcnd_mod
 !> Arbitrary non occuring (?!) orbital index.
     integer, parameter :: UNKNOWN = -10**5
 
+!> Base class that represents an excitation.
+    type :: Excitation_t
+    end type
+
 !> Represents a No-Op excitation.
-    type :: NoExc_t
+    type, extends(Excitation_t) :: NoExc_t
     end type
 
 !> Represents the orbital indices of a single excitation.
 !> The array is sorted like:
 !> [src1, tgt2]
-    type :: SingleExc_t
+    type, extends(Excitation_t) :: SingleExc_t
         integer :: val(2) = UNKNOWN
     end type
 
@@ -50,7 +54,7 @@ module sltcnd_mod
 !> The array is sorted like:
 !> [[src1, src2],
 !>  [tgt1, tgt2]]
-    type :: DoubleExc_t
+    type, extends(Excitation_t) :: DoubleExc_t
         integer :: val(2, 2) = UNKNOWN
     end type
 
@@ -124,6 +128,46 @@ contains
 
    endif
   end subroutine initSltCndPtr
+
+    function new_sltcnd_compat(nI, nJ, IC) result(hel)
+        integer, intent(in) :: nI(nel), nJ(nel), IC
+        HElement_t(dp) :: hel
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "sltcnd_compat"
+#endif
+        class(Excitation) :: exc
+        logical :: tParity
+
+        select case (IC)
+        case (0)
+            exc = NoExc_t
+            tParity = .true.
+        case (1)
+            exc = SingleExc_t
+            call GetExcitation(nI, nJ, nel, exc%val, tParity)
+            ! The determinants differ by only one orbital
+            ex(1,1) = IC
+            call GetExcitation (nI, nJ, nel, ex, tParity)
+            hel = sltcnd_1 (nI, ex(:,1), tParity)
+
+        case (2)
+            ! The determinants differ by two orbitals
+            ex(1,1) = IC
+            call GetExcitation (nI, nJ, nel, ex, tParity)
+            hel = sltcnd_2 (nI, ex, tParity)
+         case(3)
+            ! The determinants differ by three orbitals
+            ex(1,1) = IC
+            call GetExcitation(nI,nJ,nel,ex,tParity)
+            hel = sltcnd_3(ex,tParity)
+
+        case default
+            ! The determinants differ by more than 3 orbitals
+            ASSERT(.not. t_3_body_excits)
+            hel = (0)
+        end select
+
+  end function
 
 
     function sltcnd_compat (nI, nJ, IC) result (hel)
