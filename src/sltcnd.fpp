@@ -173,7 +173,7 @@ contains
     end function sltcnd_compat
 
 
-    HElement_t(dp) function sltcnd_excit_old(nI, IC, ex, tParity) result(hel)
+    function sltcnd_excit_old(nI, IC, ex, tParity) result(hel)
 
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.

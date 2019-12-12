@@ -1,5 +1,5 @@
 #include "macros.h"
-#:include "macros.fpp"
+#:include "macros.fpph"
 
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int, maxExcit
