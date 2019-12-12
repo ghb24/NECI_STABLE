@@ -10,8 +10,6 @@ module sltcnd_mod
     !        to be more reliably set (see for example test H2O_RI)
     ! TODO: We need to sort this out so that they are consistent
     !       --> Talk to George/Alex to see what impact that might have?
-    ! TODO: It would be nice to reduce the number of variants of sltcnd_...
-    !       which are floating around.
     use constants, only: dp, n_int, maxExcit
     use UMatCache, only: GTID, UMatInd
     use IntegralsData, only: UMAT
@@ -398,7 +396,8 @@ contains
         use constants, only: dp
         use SystemData, only: nel
         implicit none
-        integer, intent(in) :: nI(nel), ex(2)
+        integer, intent(in) :: nI(nel)
+        type(SingleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
 
@@ -412,25 +411,26 @@ contains
 
     function sltcnd_1_kernel(nI, ex) result(hel)
         implicit none
-        integer, intent(in) :: nI(nel), ex(2)
+        integer, intent(in) :: nI(nel)
+        type(SingleExc_t), intent(in) :: ex
         HElement_t(dp) :: hel
         integer :: i, id, id_ex(2)
 
         ! Obtain spatial rather than spin indices if required
-        id_ex = gtID(ex)
+        id_ex = gtID(ex%val)
 
         hel = (0)
-        if (tReltvy .or. (G1(ex(1))%Ms == G1(ex(2))%Ms)) then
+        if (tReltvy .or. (G1(ex%val(1))%Ms == G1(ex%val(2))%Ms)) then
             do i = 1, nel
-                if (ex(1) /= nI(i)) then
+                if (ex%val(1) /= nI(i)) then
                     id = gtID(nI(i))
                     hel = hel + get_umat_el(id_ex(1), id, id_ex(2), id)
                     if (tSpinCorrelator) then
                         hel = hel &
-       + spinKMatContrib(id_ex(1), id, id_ex(2), id, G1(ex(1))%MS, G1(nI(i))%MS)
+       + spinKMatContrib(id_ex(1), id, id_ex(2), id, G1(ex%val(1))%MS, G1(nI(i))%MS)
                     endif
                     if (tDampKMat) then
-                        if (G1(ex(1))%Ms == G1(nI(i))%Ms) then
+                        if (G1(ex%val(1))%Ms == G1(nI(i))%Ms) then
                    hel = hel + kMatParSpinCorrection(id_ex(1), id, id_ex(2), id)
                         else
                             ! opposite spin correction only for different orbs, which is given here
@@ -443,10 +443,10 @@ contains
         ! Exchange contribution is only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
-        if (tExch .and. ((G1(ex(1))%Ms == G1(ex(2))%Ms) .or. tReltvy)) then
+        if (tExch .and. ((G1(ex%val(1))%Ms == G1(ex%val(2))%Ms) .or. tReltvy)) then
             do i = 1, nel
-                if (ex(1) /= nI(i)) then
-                    if (tReltvy .or. (G1(ex(1))%Ms == G1(nI(i))%Ms)) then
+                if (ex%val(1) /= nI(i)) then
+                    if (tReltvy .or. (G1(ex%val(1))%Ms == G1(nI(i))%Ms)) then
                         id = gtID(nI(i))
                         hel = hel - get_umat_el(id_ex(1), id, id, id_ex(2))
                         if (tSpinCorrelator) &
@@ -462,7 +462,7 @@ contains
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
-        hel = hel + GetTMATEl(ex(1), ex(2))
+        hel = hel + GetTMATEl(ex%val(1), ex%val(2))
     end function sltcnd_1_kernel
 
     function sltcnd_2_base(nI, ex, tSign) result(hel)
@@ -557,7 +557,8 @@ contains
         use constants, only: dp
         use SystemData, only: nel
         implicit none
-        integer, intent(in) :: nI(nel), ex(2)
+        integer, intent(in) :: nI(nel)
+        type(SingleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
         integer :: i, j
@@ -568,8 +569,8 @@ contains
         ! then add the 3-body correction
         do i = 1, nel - 1
             do j = i + 1, nel
-                if (ex(1) /= nI(i) .and. ex(1) /= nI(j)) then
-                    hel = hel + get_lmat_el(ex(1), nI(i), nI(j), ex(2), nI(i), nI(j))
+                if (ex%val(1) /= nI(i) .and. ex%val(1) /= nI(j)) then
+                    hel = hel + get_lmat_el(ex%val(1), nI(i), nI(j), ex%val(2), nI(i), nI(j))
                 end if
             end do
         end do
@@ -594,6 +595,7 @@ contains
             if (ex(1, 1) /= nI(i) .and. ex(1, 2) /= nI(i)) then
                 hel = hel + get_lmat_el(&
                     ex(1, 1), ex(1, 2), nI(i), ex(2, 1), ex(2, 2), nI(i))
+            end if
         end do
 
         ! take fermi sign into account
@@ -690,7 +692,8 @@ contains
         use constants, only: dp
         use SystemData, only: nel
         implicit none
-        integer, intent(in) :: nI(nel), ex(2)
+        integer, intent(in) :: nI(nel)
+        type(SingleExc_t) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
 
@@ -702,19 +705,20 @@ contains
         if (tSign) hel = -hel
     end function sltcnd_1_base_ua
 
-    function sltcnd_1_kernel_ua(nI, ex) result(hel)
+    function sltcnd_1_kernel_ua(nI, exc) result(hel)
         implicit none
-        integer, intent(in) :: nI(nel), ex(2)
+        integer, intent(in) :: nI(nel)
+        type(SingleExc_t) :: exc
         HElement_t(dp) :: hel
         integer :: i, id, id_ex(2)
 
         ! Obtain spatial rather than spin indices if required
-        id_ex = ex
+        id_ex = exc%val
 
         hel = (0)
-        if (tReltvy .or. (G1(ex(1))%Ms == G1(ex(2))%Ms)) then
+        if (tReltvy .or. (G1(exc%val(1))%Ms == G1(exc%val(2))%Ms)) then
             do i = 1, nel
-                if (ex(1) /= nI(i)) then
+                if (exc%val(1) /= nI(i)) then
                     id = nI(i)
                     hel = hel + get_umat_el(id_ex(1), id, id_ex(2), id)
                 endif
@@ -723,10 +727,10 @@ contains
         ! Exchange contribution is only considered if tExch set.
         ! This is only separated from the above loop to keep "if (tExch)" out
         ! of the tight loop for efficiency.
-        if (tExch .and. ((G1(ex(1))%Ms == G1(ex(2))%Ms) .or. tReltvy)) then
+        if (tExch .and. ((G1(exc%val(1))%Ms == G1(exc%val(2))%Ms) .or. tReltvy)) then
             do i = 1, nel
-                if (ex(1) /= nI(i)) then
-                    if (tReltvy .or. (G1(ex(1))%Ms == G1(nI(i))%Ms)) then
+                if (exc%val(1) /= nI(i)) then
+                    if (tReltvy .or. (G1(exc%val(1))%Ms == G1(nI(i))%Ms)) then
                         id = nI(i)
                         hel = hel - get_umat_el(id_ex(1), id, id, id_ex(2))
                     endif
@@ -736,7 +740,7 @@ contains
         ! consider the non-diagonal part of the kinetic energy -
         ! <psi_a|T|psi_a'> where a, a' are the only basis fns that differ in
         ! nI, nJ
-        hel = hel + GetTMATEl(ex(1), ex(2))
+        hel = hel + GetTMATEl(exc%val(1), exc%val(2))
     end function sltcnd_1_kernel_ua
 
     function sltcnd_2_base_ua(nI, ex, tSign) result(hel)
@@ -833,23 +837,24 @@ contains
 
     end function sltcnd_0_tc_ua
 
-    function sltcnd_1_tc_ua(nI, ex, tSign) result(hel)
+    function sltcnd_1_tc_ua(nI, exc, tSign) result(hel)
         use constants, only: dp
         use SystemData, only: nel
         implicit none
-        integer, intent(in) :: nI(nel), ex(2)
+        integer, intent(in) :: nI(nel)
+        type(SingleExc_t), intent(in) :: exc
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
         integer :: i, j
 
         ! start with the normal matrix element
-        hel = sltcnd_1_kernel_ua(nI, ex)
+        hel = sltcnd_1_kernel_ua(nI, exc)
 
         ! then add the 3-body correction
         do i = 1, nel - 1
             do j = i + 1, nel
-                if (ex(1) /= nI(i) .and. ex(1) /= nI(j)) then
-            hel = hel + get_lmat_el_ua(ex(1), nI(i), nI(j), ex(2), nI(i), nI(j))
+                if (exc%val(1) /= nI(i) .and. exc%val(1) /= nI(j)) then
+            hel = hel + get_lmat_el_ua(exc%val(1), nI(i), nI(j), exc%val(2), nI(i), nI(j))
 !      print *, "from", ex(1), nI(i),nI(j)
 !      print *, "to", ex(2),nI(i),nI(j)
 !      print *, "hel", hel,get_lmat_el_ua(ex(1),nI(i),nI(j),ex(2),nI(i),nI(j))
@@ -925,7 +930,7 @@ hel = get_lmat_el_ua(ex(1, 1), ex(1, 2), ex(1, 3), ex(2, 1), ex(2, 2), ex(2, 3))
         type(SingleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
 
-        sltcnd_excit_SingleExc_t = sltcnd_1(ref, exc%val, tParity)
+        sltcnd_excit_SingleExc_t = sltcnd_1(ref, exc, tParity)
     end function
 
     HElement_t(dp) function sltcnd_excit_DoubleExc_t(ref, exc, tParity)
