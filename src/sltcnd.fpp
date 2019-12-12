@@ -30,13 +30,13 @@ module sltcnd_mod
     public :: initSltCndPtr, sltcnd_compat, sltcnd, CalcFockOrbEnergy, &
               sltcnd_2_kernel, &
               sumfock, sltcnd_knowIC, &
-              sltcnd_excit
+              sltcnd_excit, sltcnd_excit_old
 
 !> Evaluate the H-matrix element using the Slater-Condon rules.
 !> Generic function that accepts arguments of ExcitationTypes,
 !> or the old-style integers.
     interface sltcnd_excit
-        module procedure sltcnd_excit_old
+!         module procedure sltcnd_excit_old
     #:for excitation_t in ExcitationTypes
         module procedure sltcnd_excit_${excitation_t}$
     #:endfor

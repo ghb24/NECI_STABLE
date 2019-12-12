@@ -8,6 +8,7 @@ module pchb_excitgen
   use excit_gens_int_weighted, only: pick_biased_elecs
   use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
        projEDet, pParallel, pDoubles
+  use excitation_types, only: DoubleExc_t
   use sltcnd_mod, only: sltcnd_excit
   use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
@@ -327,7 +328,7 @@ module pchb_excitgen
                        ! b is alpha for sampe-spin (1) and opp spin w exchange (3)
                        ex(2,1) = map_orb(b,(/1,3/))
                        ! use the actual matrix elements as weights
-                       w(ab) = abs(sltcnd_excit(projEDet(:,1),2,ex,.false.))
+                       w(ab) = abs(sltcnd_excit(projEDet(:,1),DoubleExc_t(ex),.false.))
                     end do
                  end do
                  ij = fuseIndex(i,j)
