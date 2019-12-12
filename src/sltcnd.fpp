@@ -35,18 +35,14 @@ module sltcnd_mod
 !> Arbitrary non occuring (?!) orbital index.
     integer, parameter :: UNKNOWN = -10**5
 
-!> Base class that represents an excitation.
-    type :: Excitation_t
-    end type
-
 !> Represents a No-Op excitation.
-    type, extends(Excitation_t) :: NoExc_t
+    type :: NoExc_t
     end type
 
 !> Represents the orbital indices of a single excitation.
 !> The array is sorted like:
 !> [src1, tgt2]
-    type, extends(Excitation_t) :: SingleExc_t
+    type :: SingleExc_t
         integer :: val(2) = UNKNOWN
     end type
 
@@ -54,7 +50,7 @@ module sltcnd_mod
 !> The array is sorted like:
 !> [[src1, src2],
 !>  [tgt1, tgt2]]
-    type, extends(Excitation_t) :: DoubleExc_t
+    type :: DoubleExc_t
         integer :: val(2, 2) = UNKNOWN
     end type
 
@@ -129,47 +125,6 @@ contains
    endif
   end subroutine initSltCndPtr
 
-    function new_sltcnd_compat(nI, nJ, IC) result(hel)
-        integer, intent(in) :: nI(nel), nJ(nel), IC
-        HElement_t(dp) :: hel
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "sltcnd_compat"
-#endif
-        class(Excitation) :: exc
-        logical :: tParity
-
-        select case (IC)
-        case (0)
-            exc = NoExc_t
-            tParity = .true.
-        case (1)
-            exc = SingleExc_t
-            call GetExcitation(nI, nJ, nel, exc%val, tParity)
-            ! The determinants differ by only one orbital
-            ex(1,1) = IC
-            call GetExcitation (nI, nJ, nel, ex, tParity)
-            hel = sltcnd_1 (nI, ex(:,1), tParity)
-
-        case (2)
-            ! The determinants differ by two orbitals
-            ex(1,1) = IC
-            call GetExcitation (nI, nJ, nel, ex, tParity)
-            hel = sltcnd_2 (nI, ex, tParity)
-         case(3)
-            ! The determinants differ by three orbitals
-            ex(1,1) = IC
-            call GetExcitation(nI,nJ,nel,ex,tParity)
-            hel = sltcnd_3(ex,tParity)
-
-        case default
-            ! The determinants differ by more than 3 orbitals
-            ASSERT(.not. t_3_body_excits)
-            hel = (0)
-        end select
-
-  end function
-
-
     function sltcnd_compat (nI, nJ, IC) result (hel)
 
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
@@ -237,25 +192,19 @@ contains
         if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
             call stop_all (this_routine, "ex and tParity must be provided to &
                           &sltcnd_excit for all IC /= 0")
-
         select case (IC)
         case (0)
             ! The determinants are exactly the same
-            sltcnd_excit_old = sltcnd_0 (nI)
-
+            sltcnd_excit_old = sltcnd_excit(nI, NoExc_t(), tParity)
         case (1)
-            ! The determnants differ by only one orbital
-            sltcnd_excit_old = sltcnd_1 (nI, ex(:,1), tParity)
-
+            sltcnd_excit_old = sltcnd_excit(nI, SingleExc_t(ex(:, 1)), tParity)
         case (2)
             ! The determinants differ by two orbitals
-            sltcnd_excit_old = sltcnd_2 (nI, ex, tParity)
-
+            sltcnd_excit_old = sltcnd_excit(nI, DoubleExc_t(ex(:, :2)), tParity)
          case(3)
-            sltcnd_excit_old = sltcnd_3(ex, tParity)
-
+            sltcnd_excit_old = sltcnd_excit(nI, TripleExc_t(ex(:, :3)), tParity)
         case default
-            ! The determinants differ yb more than 2 orbitals
+            ! The determinants differ by more than 2 orbitals
             ASSERT(.not. t_3_body_excits)
             sltcnd_excit_old = 0
         end select
@@ -299,9 +248,9 @@ contains
             call GetBitExcitation (iLutI, iLutJ, ex, tSign)
             hel = sltcnd_2 (nI, ex, tSign)
         case(3)
-           ex(1,1) = IC
-           call GetBitExcitation (iLutI, iLutJ, ex, tSign)
-           hel = sltcnd_3 (ex, tSign)
+            ex(1,1) = IC
+            call GetBitExcitation (iLutI, iLutJ, ex, tSign)
+            hel = sltcnd_3 (ex, tSign)
 
         case default
             ! The determinants differ by more than two orbitals
@@ -1019,8 +968,8 @@ contains
 
     HElement_t(dp) function sltcnd_excit_NoExc_t(ref, exc, tParity)
         integer, intent(in) :: ref(nel)
-        type(NoExc_t), intent(in) :: exc
-        logical, intent(in) :: tParity
+        type(NoExc_t), intent(in), optional :: exc
+        logical, intent(in), optional :: tParity
         @:unused_var(exc, tParity)
         sltcnd_excit_NoExc_t = sltcnd_0(ref)
     end function
