@@ -112,10 +112,10 @@ contains
         if (present(tgt2)) res%val(2, 3) = tgt3
     end function
 
-    function create_excitation(ic, ex) result(exc)
+    subroutine create_excitation(exc, ic, ex)
         integer, intent(in) :: IC
         integer, intent(in), optional :: ex(2, ic)
-        class(excitation_t), allocatable :: exc
+        class(excitation_t), allocatable, intent(out) :: exc
 
         ASSERT(IC /= 0 .and. present(ex) .or. IC == 0 .and. .not. present(ex))
         select case (IC)
@@ -141,14 +141,14 @@ contains
                 exc%val = ex
             end select
         end if
-    end function
+    end subroutine
 
     subroutine get_excitation(nI, nJ, IC, exc, tParity)
         integer, intent(in) :: nI(nEl), nJ(nEl), IC
         class(excitation_t), allocatable, intent(out) :: exc
         logical, intent(out) :: tParity
 
-        exc = create_excitation(IC)
+        call create_excitation(exc, IC)
 
         ! The compiler has to statically know, of what the type exc is.
         select type (exc)
@@ -167,7 +167,7 @@ contains
         class(excitation_t), allocatable, intent(out) :: exc
         logical, intent(out) :: tParity
 
-        exc = create_excitation(IC)
+        call create_excitation(exc, IC)
 
         ! The compiler has to statically know, what the type of exc is.
         select type (exc)
