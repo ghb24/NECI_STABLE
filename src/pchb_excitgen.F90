@@ -17,7 +17,6 @@ module pchb_excitgen
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
   use sym_general_mod, only: IsSymAllowedExcitMat
-  use LMat_mod, only: getPCWeightOffset
   implicit none
 
   ! there are three pchb_samplers:

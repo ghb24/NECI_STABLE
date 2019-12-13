@@ -93,6 +93,7 @@ set( SRC_FILES
     lineup.F
     LMat_aux.F90
     LMat_calc.F90
+	LMat_class.F90
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
@@ -146,6 +147,7 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
+	shared_rhash.F90
     sltcnd.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -216,6 +218,7 @@ set( SRC_FILES
 
 set( FYPP_SRC_FILES
     HPHFIntegrals.fpp
+	shared_array.fpp
 )
 
 set( TEMPLATED_SRC_FILES

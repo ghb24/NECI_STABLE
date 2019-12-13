@@ -41,7 +41,6 @@ contains
     ! for in-depth insight, study the output and consider the ratio of pGen and the number of occurences per excitation (should fluctuate around 1)
     call assert_true(abs(1.0-pTot)<0.01)
 
-
     call free_ref()
     call finalize_excitgen_test()
   end subroutine pcpp_test_driver

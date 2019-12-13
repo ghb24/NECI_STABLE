@@ -1,8 +1,8 @@
 module tc_three_body_data
   use constants
   use FciMCData, only: ll_node
-  use procedure_pointers, only: lMatInd_t
-  use lMat_indexing, only: lMatIndSym  
+  use lMat_indexing, only: lMatIndSym
+  use shared_array
   implicit none
 
   ! biases for 3-body excitation generation
@@ -32,20 +32,7 @@ module tc_three_body_data
   logical :: tHDF5LMat = .false.
 
   ! Number of entries in a UMat obj.
-  integer(int64) :: twoIndexSize, fourIndexSize
-
-  type lMat_t
-     HElement_t(dp), pointer :: LMatPtr(:)
-     integer(int64), pointer :: indexPtr(:)
-     integer :: tag, indexTag
-     integer(MPIArg) :: shm_win, index_win
-     integer(int64) :: nInts
-     type(ll_node), pointer :: hTable(:)
-     integer(int64) :: htSize
-     procedure(lMatInd_t), nopass, pointer :: indexFunc => lMatIndSym
-  end type lMat_t  
-  
-  
+  integer(int64) :: twoIndexSize, fourIndexSize  
 
   logical :: tLMatCalc !Calculate LMat on the fly. tcfactors.h5 is required.
   real :: lMatCalcHFactor !Size of hash table used to cache LMat values as a fraction of total LMat size.
