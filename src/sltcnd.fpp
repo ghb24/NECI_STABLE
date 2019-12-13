@@ -16,7 +16,7 @@ module sltcnd_mod
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
     use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
-        UNKNOWN, get_excitation
+        UNKNOWN, get_excitation, create_excitation
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing_neci
@@ -157,22 +157,7 @@ contains
         if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
             call stop_all(this_routine, "ex and tParity must be provided to &
                           &sltcnd_excit for all IC /= 0")
-        select case (IC)
-        case (0)
-            ! The determinants are exactly the same
-            hel = sltcnd_excit(nI, NoExc_t())
-        case (1)
-            hel = sltcnd_excit(nI, SingleExc_t(ex(:, 1)), tParity)
-        case (2)
-            ! The determinants differ by two orbitals
-            hel = sltcnd_excit(nI, DoubleExc_t(ex(:, :2)), tParity)
-        case (3)
-            hel = sltcnd_excit(nI, TripleExc_t(ex(:, :3)), tParity)
-        case default
-            ! The determinants differ by more than 2 orbitals
-            ASSERT(.not. t_3_body_excits)
-            hel = h_cast(0.0_dp)
-        end select
+        hel = dyn_sltcnd_excit(nI, create_excitation(IC, ex), tParity)
     end function
 
     function sltcnd_knowIC(nI, iLutI, iLutJ, IC) result(hel)
@@ -907,6 +892,7 @@ contains
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel
 
+        ! The compiler has to statically know, of what type exc is.
         select type(exc)
         type is (NoExc_t)
             hel = sltcnd_excit(ref, exc)

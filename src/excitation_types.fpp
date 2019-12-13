@@ -8,7 +8,7 @@ module excitation_types
     implicit none
     private
     public :: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
-        UNKNOWN, defined, get_excitation
+        UNKNOWN, defined, get_excitation, create_excitation
 
 
 !> Arbitrary non occuring (?!) orbital index.
@@ -111,10 +111,10 @@ contains
         if (present(tgt2)) res%val(2, 3) = tgt3
     end function
 
-    subroutine get_excitation(nI, nJ, IC, exc, tParity)
-        integer, intent(in) :: nI(nEl), nJ(nEl), IC
-        class(excitation_t), allocatable, intent(out) :: exc
-        logical, intent(out) :: tParity
+    function create_excitation(ic, ex) result(exc)
+        integer, intent(in) :: IC
+        integer, intent(in), optional :: ex(2, ic)
+        class(excitation_t), allocatable :: exc
 
         select case (IC)
         case(0)
@@ -129,6 +129,26 @@ contains
             allocate(exc)
         end select
 
+        if (present(ex)) then
+            select type (exc)
+            type is (SingleExc_t)
+                exc%val = ex(:, 1)
+            type is (DoubleExc_t)
+                exc%val = ex
+            type is (TripleExc_t)
+                exc%val = ex
+            end select
+        end if
+    end function
+
+    subroutine get_excitation(nI, nJ, IC, exc, tParity)
+        integer, intent(in) :: nI(nEl), nJ(nEl), IC
+        class(excitation_t), allocatable, intent(out) :: exc
+        logical, intent(out) :: tParity
+
+        exc = create_excitation(ic)
+
+        ! The compiler has to statically know, of what the type exc is.
         select type (exc)
         type is (SingleExc_t)
             call GetExcitation(nI, nJ, nel, exc%val, tParity)
