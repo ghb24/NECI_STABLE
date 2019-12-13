@@ -16,7 +16,7 @@ module sltcnd_mod
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
     use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
-        UNKNOWN, get_excitation, create_excitation
+        UNKNOWN, get_excitation, get_bit_excitation, create_excitation
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing_neci
@@ -174,38 +174,14 @@ contains
         integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
+
         HElement_t(dp) :: hel
-        integer :: ex(2, maxExcit)
-        logical :: tSign
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "sltcnd_knowIC"
-#endif
 
-        select case (IC)
-        case (0)
-            ! The determinants are exactly the same
-            hel = sltcnd_excit(nI, NoExc_t())
+        class(excitation_t), allocatable :: exc
+        logical :: tParity
 
-        case (1)
-            ! The determinants differ by only one orbital
-            ex(1, 1) = IC
-            call GetBitExcitation(iLutI, iLutJ, ex, tSign)
-            hel = sltcnd_excit(nI, SingleExc_t(ex(:, 1)), tSign)
-
-        case (2)
-            ! The determinants differ by two orbitals
-            ex(1, 1) = IC
-            call GetBitExcitation(iLutI, iLutJ, ex, tSign)
-            hel = sltcnd_excit(nI, DoubleExc_t(ex(:, :2)), tSign)
-        case (3)
-            ex(1, 1) = IC
-            call GetBitExcitation(iLutI, iLutJ, ex, tSign)
-            hel = sltcnd_excit(nI, TripleExc_t(ex(:, :3)), tSign)
-
-        case default
-            ! The determinants differ by more than two orbitals
-            hel = h_cast(0.0_dp)
-        endselect
+        call get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
+        hel = dyn_sltcnd_excit(nI, exc, tParity)
 
     end function
 

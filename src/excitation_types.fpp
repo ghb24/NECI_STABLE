@@ -3,12 +3,13 @@
 #:set ExcitationTypes = ['NoExc_t', 'SingleExc_t', 'DoubleExc_t', 'TripleExc_t']
 
 module excitation_types
-    use constants, only: dp
+    use constants, only: dp, n_int
+    use bit_rep_data, only: nIfTot
     use SystemData, only: nEl
     implicit none
     private
     public :: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
-        UNKNOWN, defined, get_excitation, create_excitation
+        UNKNOWN, defined, create_excitation, get_excitation, get_bit_excitation
 
 
 !> Arbitrary non occuring (?!) orbital index.
@@ -116,6 +117,7 @@ contains
         integer, intent(in), optional :: ex(2, ic)
         class(excitation_t), allocatable :: exc
 
+        ASSERT(IC /= 0 .and. present(ex) .or. IC == 0 .and. .not. present(ex))
         select case (IC)
         case(0)
             allocate(NoExc_t :: exc)
@@ -146,7 +148,7 @@ contains
         class(excitation_t), allocatable, intent(out) :: exc
         logical, intent(out) :: tParity
 
-        exc = create_excitation(ic)
+        exc = create_excitation(IC)
 
         ! The compiler has to statically know, of what the type exc is.
         select type (exc)
@@ -158,4 +160,26 @@ contains
             call GetExcitation(nI, nJ, nel, exc%val, tParity)
         end select
     end subroutine get_excitation
+
+    subroutine get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
+        integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
+        integer, intent(in) :: IC
+        class(excitation_t), allocatable, intent(out) :: exc
+        logical, intent(out) :: tParity
+
+        exc = create_excitation(IC)
+
+        ! The compiler has to statically know, what the type of exc is.
+        select type (exc)
+        type is (SingleExc_t)
+            exc%val(1) = IC
+            call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
+        type is (DoubleExc_t)
+            exc%val(1, 1) = IC
+            call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
+        type is (TripleExc_t)
+            exc%val(1, 1) = IC
+            call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
+        end select
+    end subroutine get_bit_excitation
 end module
