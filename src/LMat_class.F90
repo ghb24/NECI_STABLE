@@ -147,12 +147,11 @@ module LMat_class
             character(*), intent(in) :: h5_filename            
         end subroutine read_t
 
-        subroutine read_op_t(this, indices, entries, mode)
+        subroutine read_op_t(this, indices, entries)
             use constants            
             import :: lMat_t
             class(lMat_t), intent(inout) :: this
             integer(int64), intent(in) :: indices(:,:), entries(:,:)
-            integer, intent(in) :: mode
         end subroutine read_op_t
     end interface
 
@@ -345,7 +344,7 @@ contains
 
         call reader%open(filename, nInts)
         this%nInts = nInts
-        call reader%loop_file(this,0)
+        call reader%loop_file(this)
         call reader%close()
 #else
         character(*), parameter :: t_r
@@ -358,14 +357,12 @@ contains
     ! Read/count operations
     !------------------------------------------------------------------------------------------!
 
-    subroutine read_op_dense_hdf5(this, indices, entries, mode)
+    subroutine read_op_dense_hdf5(this, indices, entries)
         class(dense_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: indices(:,:), entries(:,:)
-        integer, intent(in) :: mode
         integer(int64) :: i, this_blocksize
         real(dp) :: rVal
 
-        unused_var(mode)
         this_blocksize = size(entries, dim=2)        
 
         do i = 1, this_blocksize
@@ -457,9 +454,9 @@ contains
 
         call reader%open(h5_filename, nInts)
         call this%alloc(nInts)
-        call reader%loop_file(this,0)
+        call reader%loop_file(this)
         call this%htable%setup_offsets()
-        call reader%loop_file(this,1)
+        call reader%loop_file(this)
         call this%htable%finalize_setup()
         call reader%close()
 #else
@@ -471,10 +468,9 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine read_op_sparse(this, indices, entries, mode) 
+    subroutine read_op_sparse(this, indices, entries) 
         class(sparse_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: indices(:,:), entries(:,:)
-        integer, intent(in) :: mode
 
         integer(int64) :: block_size, i
         integer(int64), allocatable :: combined_inds(:)        
@@ -487,12 +483,11 @@ contains
                 indices(4, i), indices(5, i), indices(6,i))
         end do
 
-        select case(mode)
-        case(0)
-            call this%count_conflicts(combined_inds)
-        case(1)
+        if(this%htable%known_conflicts()) then
             call this%read_data(combined_inds, entries(1,:))
-        end select
+        else
+            call this%count_conflicts(combined_inds)
+        endif
 
         deallocate(combined_inds)        
     end subroutine read_op_sparse
@@ -685,10 +680,9 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine loop_file(this, lMat, mode)
+    subroutine loop_file(this, lMat)
         class(lMat_hdf5_read_t), intent(inout) :: this
         class(lMat_t), intent(inout) :: lMat
-        integer, intent(in) :: mode
 
         real(dp) :: rVal
         logical :: running, any_running
@@ -730,7 +724,7 @@ contains
 
             ! Do something with the read-in values
             ! This has to be threadsafe !!!
-            call lMat%read_op_hdf5(indices, entries, mode)
+            call lMat%read_op_hdf5(indices, entries)
 
             deallocate(entries)
             deallocate(indices)            

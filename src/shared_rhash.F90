@@ -27,6 +27,9 @@ module shared_rhash
         ! auxiliary 
         integer, allocatable :: mult(:)
 
+        ! are the conflicts of the hashtable already counted (have the offsets been set?)
+        logical :: t_conflicts_known = .false.
+
     contains
         procedure :: hash_func
         ! Allocate the memory
@@ -43,6 +46,9 @@ module shared_rhash
 
         ! Look up an index. Returns the position in the contiguous array
         procedure :: lookup
+
+        ! Tell if the conflicts have been counted
+        procedure :: known_conflicts
     end type shared_rhash_t
 
 contains
@@ -120,6 +126,7 @@ contains
                 this%hval_offsets%ptr(i) = this%hval_offsets%ptr(i) + this%hval_offsets%ptr(i-1)
             end do
         endif
+        this%t_conflicts_known = .true.
     end subroutine setup_offsets
 
     !------------------------------------------------------------------------------------------!
@@ -175,5 +182,14 @@ contains
             end if
         end do
     end subroutine lookup
+
+    !------------------------------------------------------------------------------------------!
+
+    function known_conflicts(this) result(t_kc)
+        class(shared_rhash_t), intent(in) :: this
+        logical :: t_kc
+
+        t_kc = this%t_conflicts_known
+    end function known_conflicts
     
 end module shared_rhash
