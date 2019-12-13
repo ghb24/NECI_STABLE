@@ -150,7 +150,7 @@ contains
                     real(con_space_size,dp)*(NIfTot+1.0_dp)*7.629392e-06_dp; call neci_flush(6)
             allocate(con_space(0:NIfTot, con_space_size), stat=ierr)
             call LogMemAlloc('con_space', con_space_size*(NIfTot+1), size_n_int, t_r, ConTag, ierr)
-            con_space = 0_n_int 
+            con_space = 0_n_int
 
             write(6,'("States found on this processor, including repeats:",1X,i8)') con_space_size
 
@@ -344,7 +344,7 @@ contains
             enddo
 #else
                 if (replica_pairs) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                     do i = 1, lenof_sign .div. 2
                         ! When using pairs of replicas, average their amplitudes.
                         fciqmc_amps_real(i) = sum(all_fciqmc_amps(2*i-1:2*i))/2.0_dp
@@ -532,7 +532,7 @@ contains
 
         con_vecs = 0.0_dp
 
-        ! do i need to change this here for the non-hermitian transcorrelated 
+        ! do i need to change this here for the non-hermitian transcorrelated
         ! hamiltonians?
         do i = 1, size(con_vecs,2)
             call decode_bit_det(nI, con_space(0:NIfTot, i))
