@@ -375,7 +375,7 @@ contains
         acceptances(run) = &
              acceptances(run) + maxval(abs(child_sign))
 
-    end subroutine create_particle_with_hash_table
+      end subroutine create_particle_with_hash_table
 
     function checkValidSpawnedList(proc) result(list_full)
         ! Check that the position described by ValidSpawnedList is acceptable.
@@ -1198,8 +1198,6 @@ contains
         else
            scaledInitiatorWalkNo = InitiatorWalkNo
         endif
-
-
         ! option to use the average population instead of the local one
         ! for purpose of initiator threshold
         if(tGlobalInitFlag) then
@@ -1710,8 +1708,8 @@ contains
         endif
 
 
-    end function CheckAllowedTruncSpawn
-
+      end function CheckAllowedTruncSpawn
+      
 !Routine which takes a set of determinants and returns the ground state energy
     subroutine LanczosFindGroundE(Dets,DetLen,GroundE,ProjGroundE,tInit)
         use DetCalcData, only : NKRY,NBLK,B2L,nCycle

@@ -472,6 +472,9 @@ contains
           tOutputInitsRDM = .false.
           tNonVariationalRDMs = .false.
 
+          ! scaling of spawns
+          tScaleBlooms = .false.
+          max_allowed_spawn = MaxWalkerBloom
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -1397,6 +1400,8 @@ contains
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)
+                ! default the maximum spaw to MaxWalkerBloom
+                max_allowed_spawn = MaxWalkerBloom
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
@@ -3217,6 +3222,11 @@ contains
                      call readf(sFBeta)
                 ! set the cutoff to the minimal value
                 RealSpawnCutoff = sFBeta
+
+             case("SCALE-SPAWNS")
+                ! scale down potential blooms to prevent instability
+                ! increases the number of spawns to unbias for scaling
+                tScaleBlooms = .true.
 
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population

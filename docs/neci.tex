@@ -755,6 +755,10 @@ the \texttt{endsys} keyword.
     Dynamically update the number of spawns attempted per walker. Can be used
     if the excitation generator creates a lot of invalid excitations, but
     should be avoided else.
+    \codeitem{scale-spawns}
+    Store the maximum value of $\frac{H_{ij}}{p_{gen}}$ for each determinant
+    and use it to estimate the number of spawns per walker to prevent
+    blooms. Useful when this fraction strongly depends on the determinant.
   \end{description}
 
   \subsubsection{Population control options}

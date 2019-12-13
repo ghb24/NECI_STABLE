@@ -950,7 +950,6 @@ contains
         DiagSftIm=0.0_dp
         sum_proje_denominator = 0
         cyc_proje_denominator = 0
-
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum(:)=0.0_dp
         AllInitsENumCyc(:) = 0.0_dp

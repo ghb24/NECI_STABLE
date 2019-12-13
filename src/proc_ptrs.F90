@@ -36,7 +36,8 @@ module procedure_pointers
         ! Generic attempt create routine
         function attempt_create_t (nI, ilutI, wSign, nJ, ilutJ, prob, HElGen, &
                                    ic, ex, tPar, exLevel, part_type, &
-                                   AvSignCurr, RDMBiasFacCurr, precond_fac) result(child)
+                                   AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) &
+                                   result(child)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -51,6 +52,8 @@ module procedure_pointers
             logical, intent(in) :: tPar
             real(dp), intent(inout) :: prob
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
+            ! average number of excitations per walker for this determinant
+            real(dp), intent(in) :: AvExPerWalker
             real(dp), intent(out) :: RDMBiasFacCurr
             real(dp), intent(in) :: precond_fac
             HElement_t(dp), intent(inout) :: HElGen

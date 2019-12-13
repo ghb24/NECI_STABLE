@@ -40,3 +40,4 @@ add_subdirectory( lattice_models_utils )
 
 add_subdirectory( pcpp_excitgen)
 
+add_subdirectory( gdata_io )

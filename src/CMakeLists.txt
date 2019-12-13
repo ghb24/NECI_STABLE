@@ -52,6 +52,7 @@ set( SRC_FILES
     fcoul.F
     frsblk.F
     ftlm_neci.F90
+	gdata_io.F90
     gen_coul.F
     gen_coul_ueg.F90
     global_det_data.F90
