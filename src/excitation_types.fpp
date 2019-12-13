@@ -6,21 +6,24 @@ module excitation_types
     use constants, only: dp
     implicit none
     private
-    public :: NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, UNKNOWN, &
-        defined
+    public :: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
+        UNKNOWN, defined
 
 
 !> Arbitrary non occuring (?!) orbital index.
     integer, parameter :: UNKNOWN = -10**5
 
+    type :: excitation_t
+    end type
+
 !> Represents a No-Op excitation.
-    type :: NoExc_t
+    type, extends(excitation_t) :: NoExc_t
     end type
 
 !> Represents the orbital indices of a single excitation.
 !> The array is sorted like:
 !> [src1, tgt2]
-    type :: SingleExc_t
+    type, extends(excitation_t) :: SingleExc_t
         integer :: val(2) = UNKNOWN
     end type
 
@@ -28,7 +31,7 @@ module excitation_types
 !> The array is sorted like:
 !> [[src1, src2],
 !>  [tgt1, tgt2]]
-    type :: DoubleExc_t
+    type, extends(excitation_t) :: DoubleExc_t
         integer :: val(2, 2) = UNKNOWN
     end type
 
@@ -36,7 +39,7 @@ module excitation_types
 !> The array is sorted like:
 !> [[src1, src2, src3],
 !>  [tgt1, tgt2, tgt3]]
-    type :: TripleExc_t
+    type, extends(excitation_t) :: TripleExc_t
         integer :: val(2, 3) = UNKNOWN
     end type
 
@@ -96,7 +99,7 @@ contains
 
     pure function from_integer_TripleExc_t(src1, tgt1, src2, tgt2, src3, tgt3) result(res)
         integer, intent(in), optional :: src1, tgt1, src2, tgt2, src3, tgt3
-        type(DoubleExc_t) :: res
+        type(TripleExc_t) :: res
 
         ! The values default to UNKNOWN, in the type.
         if (present(src1)) res%val(1, 1) = src1
@@ -106,5 +109,4 @@ contains
         if (present(src2)) res%val(1, 3) = src3
         if (present(tgt2)) res%val(2, 3) = tgt3
     end function
-
 end module

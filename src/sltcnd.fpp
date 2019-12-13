@@ -15,8 +15,8 @@ module sltcnd_mod
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
-    use excitation_types, only: NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, UNKNOWN
-    use DetBitOps, only: count_open_orbs, FindBitExcitLevel
+    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, UNKNOWN
+    use DetBitOps, only: count_open_orbs, FindBitExcitLevel, getbitexcitation
     use csf_data, only: csf_sort_det_block
     use timing_neci
     use bit_reps, only: NIfTot
@@ -27,14 +27,16 @@ module sltcnd_mod
                          kMatAA
     implicit none
     private
-    public :: initSltCndPtr, sltcnd_compat, sltcnd, CalcFockOrbEnergy, &
-              sltcnd_2_kernel, &
+    public :: initSltCndPtr, &
+              ! dynamically known
+              sltcnd_compat, sltcnd, sltcnd_excit_old, dyn_sltcnd_excit, &
+              CalcFockOrbEnergy, &
               sumfock, sltcnd_knowIC, &
-              sltcnd_excit, sltcnd_excit_old
+              ! statically known
+              sltcnd_excit, sltcnd_2_kernel
 
 !> Evaluate the H-matrix element using the Slater-Condon rules.
-!> Generic function that accepts arguments of ExcitationTypes,
-!> or the old-style integers.
+!> Generic function that accepts arguments of ExcitationTypes.
     interface sltcnd_excit
     #:for excitation_t in ExcitationTypes
         module procedure sltcnd_excit_${excitation_t}$
@@ -67,7 +69,7 @@ module sltcnd_mod
 
         function sltcnd_3_t(ex,tSign) result(hel)
             import :: dp, nel
-            integer, intent(in) :: ex(2,3)
+            integer, intent(in) :: ex(2, 3)
             logical, intent(in) :: tSign
             HElement_t(dp) :: hel
         end function sltcnd_3_t
@@ -914,14 +916,42 @@ contains
         HElement_t(dp) :: hel
 
         ! this is directly the fully symmetrized entry of the L-matrix
-hel = get_lmat_el_ua(ex(1, 1), ex(1, 2), ex(1, 3), ex(2, 1), ex(2, 2), ex(2, 3))
+        hel = get_lmat_el_ua(ex(1, 1), ex(1, 2), ex(1, 3), &
+                             ex(2, 1), ex(2, 2), ex(2, 3))
         ! take fermi sign into account
         if (tSign) hel = -hel
     end function sltcnd_3_tc_ua
 
+    function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
+        !> Use the Slater-Condon Rules to evaluate the H-matrix element between
+        !> two determinants, where the excitation is already known.
+        !>
+        !> In:  ref          - The reference
+        !>      ex           - The excitation.
+        !>      tParity      - The parity of the excitation
+        !> Ret: hel          - The H matrix element
+        integer, intent(in) :: ref(nel)
+        class(excitation_t), intent(in) :: exc
+        logical, intent(in) :: tParity
+        HElement_t(dp) :: hel
+
+        select type(exc)
+        type is (NoExc_t)
+            hel = sltcnd_excit(ref, exc)
+        type is (SingleExc_t)
+            hel = sltcnd_excit(ref, exc, tParity)
+        type is (DoubleExc_t)
+            hel = sltcnd_excit(ref, exc, tParity)
+        type is (TripleExc_t)
+            hel = sltcnd_excit(ref, exc, tParity)
+        class default
+            call stop_all('sltcnd_excit', 'Error in downcast.')
+        end select
+    end function
+
     HElement_t(dp) function sltcnd_excit_NoExc_t(ref, exc)
         integer, intent(in) :: ref(nel)
-        type(NoExc_t), intent(in), optional :: exc
+        type(NoExc_t), intent(in) :: exc
 
         sltcnd_excit_NoExc_t = sltcnd_0(ref, exc)
     end function
@@ -952,4 +982,3 @@ hel = get_lmat_el_ua(ex(1, 1), ex(1, 2), ex(1, 3), ex(2, 1), ex(2, 2), ex(2, 3))
     end function
 
 end module
-
