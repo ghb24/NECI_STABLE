@@ -43,7 +43,7 @@ MODULE HPHFRandExcitMod
 
     use constants, only: dp,n_int, EPS, maxExcit
 
-    use sltcnd_mod, only: sltcnd_excit_old
+    use sltcnd_mod, only: dyn_sltcnd_excit_old
 
     use bit_reps, only: NIfD, NIfDBO, NIfTot
 
@@ -321,7 +321,7 @@ MODULE HPHFRandExcitMod
                                 ! except for hopping transcorrelatd real-space hubbard!
                             end if
                         else
-                            HEl = sltcnd_excit_old(nI, IC, ExcitMat, tSignOrig)
+                            HEl = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tSignOrig)
                         end if
                     endif
                 ELSE
@@ -335,7 +335,7 @@ MODULE HPHFRandExcitMod
                             temp_ex(2,:) = ExcitMat(1,:)
                             Matel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit_old(nI, IC, ExcitMat, tSignOrig)
+                            MatEl = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tSignOrig)
                         end if
                         HEl=MatEl*SQRT(2.0_dp)
                     endif
@@ -413,9 +413,9 @@ MODULE HPHFRandExcitMod
                                 end if
                             else
                                 IF(tSwapped) THEN
-                                    MatEl = sltcnd_excit_old(nI, IC, Ex2, tSign)
+                                    MatEl = dyn_sltcnd_excit_old(nI, IC, Ex2, tSign)
                                 ELSE
-                                    MatEl = sltcnd_excit_old(nI, IC, ExcitMat, &
+                                    MatEl = dyn_sltcnd_excit_old(nI, IC, ExcitMat, &
                                                           tSignOrig)
                                 ENDIF
                             endif
@@ -436,10 +436,10 @@ MODULE HPHFRandExcitMod
                             end if
                         else
                             IF(tSwapped) THEN
-                                MatEl = sltcnd_excit_old (nI, ExcitLevel, Ex2, &
+                                MatEl = dyn_sltcnd_excit_old (nI, ExcitLevel, Ex2, &
                                                       tSign)
                             ELSE
-                                MatEl = sltcnd_excit_old (nI, IC, ExcitMat, &
+                                MatEl = dyn_sltcnd_excit_old (nI, IC, ExcitMat, &
                                                       tSignOrig)
                             ENDIF
                         end if
@@ -463,7 +463,7 @@ MODULE HPHFRandExcitMod
                                     temp_ex(2,:) = ExcitMat(1,:)
                                     MatEl2 = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
                                 else
-                                    MatEl2 = sltcnd_excit_old(nI, IC, ExcitMat, &
+                                    MatEl2 = dyn_sltcnd_excit_old(nI, IC, ExcitMat, &
                                                        tSignOrig)
                                end if
                             ELSE
@@ -476,7 +476,7 @@ MODULE HPHFRandExcitMod
                                     temp_ex(2,:) = ex2(1,:)
                                     MatEl2 = get_helement_lattice(nJ2, ExcitLevel, temp_ex, tSign)
                                 else
-                                    MatEl2 = sltcnd_excit_old(nI,  ExcitLevel, &
+                                    MatEl2 = dyn_sltcnd_excit_old(nI,  ExcitLevel, &
                                                        Ex2, tSign)
                                 end if
                             ENDIF
@@ -542,7 +542,7 @@ MODULE HPHFRandExcitMod
                             temp_ex(2,:) = ExcitMat(1,:)
                             MatEl = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit_old(nI,  IC, ExcitMat, tSignOrig)
+                            MatEl = dyn_sltcnd_excit_old(nI,  IC, ExcitMat, tSignOrig)
                         endif
                     ELSE
                         if (t_lattice_model) then
@@ -550,7 +550,7 @@ MODULE HPHFRandExcitMod
                             temp_ex(2,:) = ExcitMat(1,:)
                             MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit_old(nI, IC, ExcitMat, tSignOrig)
+                            MatEl = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tSignOrig)
                         end if
                     ENDIF
 
@@ -915,5 +915,3 @@ MODULE HPHFRandExcitMod
 
 
 END MODULE HPHFRandExcitMod
-
-

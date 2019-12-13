@@ -29,12 +29,12 @@ module sltcnd_mod
     implicit none
     private
     public :: initSltCndPtr, &
-              ! dynamically known
-              sltcnd_compat, sltcnd, sltcnd_excit_old, dyn_sltcnd_excit, &
-              CalcFockOrbEnergy, &
-              sumfock, sltcnd_knowIC, &
               ! statically known
-              sltcnd_excit, sltcnd_2_kernel
+              sltcnd_excit, sltcnd_2_kernel, &
+              ! dynamically known
+              dyn_sltcnd_excit_old, dyn_sltcnd_excit, &
+              sltcnd_compat, sltcnd, sltcnd_knowIC, &
+              CalcFockOrbEnergy, sumfock
 
 !> Evaluate the H-matrix element using the Slater-Condon rules.
 !> Generic function that accepts arguments of ExcitationTypes.
@@ -120,24 +120,36 @@ contains
         endif
     end subroutine initSltCndPtr
 
-    function sltcnd_compat(nI, nJ, IC) result(hel)
-        ! Use the Slater-Condon Rules to evaluate the H-matrix element between
-        ! two determinants, where the value of IC is already known.
-        !
-        ! In:  nI, nJ       - The determinants to evaluate
-        !      IC           - The number of orbitals I,J differ by
-        ! Ret: hel          - The H matrix element
-        integer, intent(in) :: nI(nel), nJ(nel), IC
+
+    function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
+        !> Use the Slater-Condon Rules to evaluate the H-matrix element between
+        !> two determinants, where the excitation is already known.
+        !>
+        !> In:  ref          - The reference
+        !>      ex           - The excitation.
+        !>      tParity      - The parity of the excitation
+        !> Ret: hel          - The H matrix element
+        integer, intent(in) :: ref(nel)
+        class(excitation_t), intent(in) :: exc
+        logical, intent(in) :: tParity
         HElement_t(dp) :: hel
 
-        class(excitation_t), allocatable :: exc
-        logical :: tParity
+        ! The compiler has to statically know, of what type exc is.
+        select type(exc)
+        type is (NoExc_t)
+            hel = sltcnd_excit(ref, exc)
+        type is (SingleExc_t)
+            hel = sltcnd_excit(ref, exc, tParity)
+        type is (DoubleExc_t)
+            hel = sltcnd_excit(ref, exc, tParity)
+        type is (TripleExc_t)
+            hel = sltcnd_excit(ref, exc, tParity)
+        class default
+            hel = h_cast(0.0_dp)
+        end select
+    end function
 
-        call get_excitation(nI, nJ, IC, exc, tParity)
-        hel = dyn_sltcnd_excit(nI, exc, tParity)
-    end function sltcnd_compat
-
-    function sltcnd_excit_old(nI, IC, ex, tParity) result(hel)
+    function dyn_sltcnd_excit_old(nI, IC, ex, tParity) result(hel)
 
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the excitation matrix is already known.
@@ -159,6 +171,18 @@ contains
                           &sltcnd_excit for all IC /= 0")
         hel = dyn_sltcnd_excit(nI, create_excitation(IC, ex), tParity)
     end function
+
+
+    function sltcnd_compat(nI, nJ, IC) result(hel)
+        integer, intent(in) :: nI(nel), nJ(nel), IC
+        HElement_t(dp) :: hel
+
+        class(excitation_t), allocatable :: exc
+        logical :: tParity
+
+        call get_excitation(nI, nJ, IC, exc, tParity)
+        hel = dyn_sltcnd_excit(nI, exc, tParity)
+    end function sltcnd_compat
 
     function sltcnd_knowIC(nI, iLutI, iLutJ, IC) result(hel)
 
@@ -854,34 +878,6 @@ contains
         ! take fermi sign into account
         if (tSign) hel = -hel
     end function sltcnd_3_tc_ua
-
-    function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
-        !> Use the Slater-Condon Rules to evaluate the H-matrix element between
-        !> two determinants, where the excitation is already known.
-        !>
-        !> In:  ref          - The reference
-        !>      ex           - The excitation.
-        !>      tParity      - The parity of the excitation
-        !> Ret: hel          - The H matrix element
-        integer, intent(in) :: ref(nel)
-        class(excitation_t), intent(in) :: exc
-        logical, intent(in) :: tParity
-        HElement_t(dp) :: hel
-
-        ! The compiler has to statically know, of what type exc is.
-        select type(exc)
-        type is (NoExc_t)
-            hel = sltcnd_excit(ref, exc)
-        type is (SingleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
-        type is (DoubleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
-        type is (TripleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
-        class default
-            hel = h_cast(0.0_dp)
-        end select
-    end function
 
     HElement_t(dp) function sltcnd_excit_NoExc_t(ref, exc)
         integer, intent(in) :: ref(nel)
