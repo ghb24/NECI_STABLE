@@ -8,6 +8,7 @@ module LMat_class
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
     use constants
+    use MemoryManager, only: LogMemALloc, LogMemDealloc
     use shared_rhash, only: shared_rhash_t
     use mpi
     use util_mod, only: get_free_unit, operator(.div.)
@@ -357,10 +358,10 @@ contains
     !------------------------------------------------------------------------------------------!    
 
     subroutine read_hdf5_dense(this, filename)
-#ifdef USE_HDF_
         implicit none
         class(dense_lMat_t), intent(inout) :: this
-        character(*), intent(in) :: filename      
+        character(*), intent(in) :: filename
+#ifdef USE_HDF_        
         type(lMat_hdf5_read_t) :: reader
         integer(hsize_t) :: nInts
 
@@ -368,9 +369,10 @@ contains
         call reader%loop_file(this)
         call reader%close()
 #else
-        character(*), parameter :: t_r
-
-        call stop_all(t_r, "hdf5 format")
+        character(*), parameter :: t_r = "read_hdf5_dense"
+        unused_var(this)
+        unused_var(filename)
+        call stop_all(t_r, "hdf5 support disabled at compile time")
 #endif
     end subroutine read_hdf5_dense
 
@@ -464,13 +466,16 @@ contains
     !------------------------------------------------------------------------------------------!    
 
     subroutine read_sparse(this, filename, h5_filename)
-#ifdef USE_HDF_
         implicit none
         class(sparse_lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
-        character(*), intent(in) :: h5_filename        
+        character(*), intent(in) :: h5_filename
+        character(*), parameter :: t_r = "read_sparse"        
+#ifdef USE_HDF_        
         type(lMat_hdf5_read_t) :: reader
         integer(hsize_t) :: nInts
+
+        if(.not. tHDF5LMat) call stop_all(t_r, "Sparse 6-index integrals require hdf5 format")
 
         call reader%open(h5_filename, nInts)
         call this%alloc(nInts)
@@ -479,9 +484,11 @@ contains
         call reader%loop_file(this)
         call this%htable%finalize_setup()
         call reader%close()
-#else
-        character(*), parameter :: t_r
+#else        
 
+        unused_var(this)
+        unused_var(filename)
+        unused_var(h5_filename)
         call stop_all(t_r, "Sparse 6-index integrals are only available for hdf5 format")
 #endif
     end subroutine read_sparse
@@ -639,7 +646,6 @@ contains
         write(iout,*) "Matrix elements above", 0.1,":",ratios(0)
         write(iout,*) "Total number of logged matrix elements", sum(histogram)
 
-        write(iout,*) "First element", this%get_elem(1)
     end subroutine histogram_lMat
 
     !------------------------------------------------------------------------------------------!
