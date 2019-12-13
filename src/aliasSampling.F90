@@ -5,6 +5,7 @@ module aliasSampling
   use shared_memory_mpi
   use ParallelHelper, only: iProcIndex_intra
   use dSFMT_interface , only : genrand_real2_dSFMT
+  use shared_array
   implicit none
 
   private
@@ -16,13 +17,10 @@ module aliasSampling
      private
      ! WARNING: DO NOT MANUALLY RE-ASSIGN THESE POINTERS, THIS WILL MOST LIKELY BREAK STUFF
      ! this is the table of bias
-     real(dp), pointer :: biasTable(:) => null()
+     type(shared_array_real_t) :: biasTable
      ! this is the lookup table for the resulting random number
-     integer, pointer :: aliasTable(:) => null()
+     type(shared_array_int32_t) :: aliasTable
 
-     ! shared memory windows
-     integer(MPIArg) :: biasTableShmw
-     integer(MPIArg) :: aliasTableShmw
    contains
      ! constructor
      procedure :: setupTable
@@ -44,10 +42,8 @@ module aliasSampling
      type(aliasTable_t) :: table
      ! WARNING: DO NOT MANUALLY RE-ASSIGN THIS POINTER, THIS WILL MOST LIKELY BREAK STUFF
      ! the probabilities
-     real(dp), pointer :: probs(:) => null()
-     ! the shm window for the probabilities
-     integer(MPIArg) :: probsShmw
-
+     type(shared_array_real_t) :: probs
+     
    contains
      ! constructor
      procedure :: setupSampler
@@ -74,10 +70,9 @@ module aliasSampling
      type(aliasSampler_t), allocatable :: samplerArray(:)
 
      ! shared resources of the array entries
-     real(dp), pointer :: allProbs(:) => null()
-     integer, pointer :: allAliasTable(:) => null()
-     real(dp), pointer :: allBiasTable(:) => null()
-     integer(MPIArg) :: allProbsShmw, allAliasShmw, allBiasShmw
+     type(shared_array_real_t) :: allProbs
+     type(shared_array_real_t) :: allBiasTable
+     type(shared_array_int32_t) :: allAliasTable
    contains
      ! constructor
      procedure :: setupSamplerArray
@@ -111,10 +106,8 @@ contains
     ! allocate the shared memory segment for the alias table
     arrSize = size(arr)
 
-    call safe_shared_memory_alloc(this%biasTableShmw, this%biasTable, arrSize)
-    if(associated(this%aliasTable)) &
-         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)
-    call shared_allocate_mpi(this%aliasTableShmw, this%aliasTable, (/arrSize/))
+    call this%biasTable%shared_alloc(arrSize)
+    call this%aliasTable%shared_alloc(arrSize)
 
     call this%initTable(arr)
 
@@ -138,7 +131,7 @@ contains
     ! as this is shared memory, only node-root has to do this
     if(iProcIndex_intra == 0) then
        ! initialize the probabilities
-       this%biasTable = arr/sum(arr)*arrSize
+       this%biasTable%ptr = arr/sum(arr)*arrSize
 
        ! indices of subarrays
        allocate(overfull(arrSize))
@@ -162,9 +155,9 @@ contains
           i = overfull(cV)
           j = underfull(cU)
           ! set the alias of the underfull to be the other
-          this%aliasTable(j) = i
+          this%aliasTable%ptr(j) = i
           ! correct the bias
-          this%biasTable(i) = this%biasTable(i) + this%biasTable(j) - 1.0_dp
+          this%biasTable%ptr(i) = this%biasTable%ptr(i) + this%biasTable%ptr(j) - 1.0_dp
 
           ! unmark j
           cU = cU - 1
@@ -184,7 +177,7 @@ contains
     subroutine assignLabel(i)
       integer, intent(in) :: i
 
-      if(this%biasTable(i) > 1) then
+      if(this%biasTable%ptr(i) > 1) then
          cV = cV + 1
          overfull(cV) = i
       else
@@ -201,8 +194,8 @@ contains
       ! (error is negligible then)
       if(cI > 0) then
          do i = 1, cI
-            this%biasTable(labels(i)) = 1.0_dp
-            this%aliasTable(labels(i)) = labels(i)
+            this%biasTable%ptr(labels(i)) = 1.0_dp
+            this%aliasTable%ptr(labels(i)) = labels(i)
          end do
       endif
 
@@ -216,9 +209,8 @@ contains
     implicit none
     class(aliasTable_t) :: this
 
-    if(associated(this%aliasTable)) &
-         call shared_deallocate_mpi(this%aliasTableShmw, this%aliasTable)
-    call safe_shared_memory_dealloc(this%biasTableShmw, this%biasTable)
+    call this%aliasTable%shared_dealloc()
+    call this%biasTable%shared_dealloc()
   end subroutine tableDestructor
 
   !------------------------------------------------------------------------------------------!
@@ -237,7 +229,7 @@ contains
     real(dp) :: r, bias
     integer :: sizeArr, pos
 
-    sizeArr = size(this%biasTable)
+    sizeArr = size(this%biasTable%ptr)
     ! random number between 0 and 1
     r = genrand_real2_dSFMT()
     ! random position in arr
@@ -248,36 +240,12 @@ contains
     ! -> ensure that bias>=0
     bias = max(sizeArr*r + 1.0_dp - real(pos,dp),0.0_dp)
 
-    if(bias < this%biasTable(pos)) then
+    if(bias < this%biasTable%ptr(pos)) then
        ind = pos
     else
-       ind = this%aliasTable(pos)
+       ind = this%aliasTable%ptr(pos)
     endif
   end function getRand
-
-  !------------------------------------------------------------------------------------------!
-  ! Functions to .... set the pointers manually (do NOT use them unless you know what you do)
-  !------------------------------------------------------------------------------------------!
-
-  subroutine setBiasTablePtr(this,ptr)
-    ! Input: ptr - new target for the biasTable
-    implicit none
-    class(aliasTable_t) :: this
-    real(dp), pointer :: ptr(:)
-
-    this%biasTable => ptr
-  end subroutine setBiasTablePtr
-
-  !------------------------------------------------------------------------------------------!
-
-  subroutine setAliasTablePtr(this,ptr)
-    ! Input: ptr - new target for the aliasTable
-    implicit none
-    class(aliasTable_t) :: this
-    integer, pointer :: ptr(:)
-
-    this%aliasTable => ptr
-  end subroutine setAliasTablePtr
 
   !------------------------------------------------------------------------------------------!
   ! Initialization / Finalization routines of the sampler
@@ -305,7 +273,7 @@ contains
     arrSize = size(arr)
 
     ! allocate the probabilities
-    call safe_shared_memory_alloc(this%probsShmw, this%probs, arrSize)
+    call this%probs%shared_alloc(arrSize)
 
     ! set the probabilities
     call this%initProbs(arr)
@@ -327,7 +295,7 @@ contains
        write(iout,*) &
             "Warning: trying to initialize sampler with empty probability distribution"
        ! if we reach this point, probs is uninitialized -> null it
-       this%probs => null()
+       this%probs%ptr => null()
        return
     endif
 
@@ -349,7 +317,7 @@ contains
     ! the array is shared memory, so only node-root has to do this
     if(iProcIndex_intra == 0) then
        ! the probabilities are taken from input and normalized
-       this%probs = arr / sum(arr)
+       this%probs%ptr = arr / sum(arr)
     end if
   end subroutine initProbs
 
@@ -360,7 +328,7 @@ contains
     class(aliasSampler_t) :: this
 
     ! free the stored probabilities
-    call safe_shared_memory_dealloc(this%probsShmw, this%probs)
+    call this%probs%shared_dealloc()
     ! free the corresponding alias table
     call this%table%tableDestructor()
   end subroutine samplerDestructor
@@ -377,7 +345,7 @@ contains
     real(dp), intent(out) :: prob
 
     ! empty samplers don't return anything - since probs defaults to null(), this check is safe
-    if(.not.associated(this%probs)) then
+    if(.not.associated(this%probs%ptr)) then
        tgt = 0
        prob = 1.0
        return
@@ -385,7 +353,7 @@ contains
     ! get the drawn number from the alias table
     tgt = this%table%getRand()
     ! and its probability
-    prob = this%probs(tgt)
+    prob = this%probs%ptr(tgt)
   end subroutine sample
 
   !------------------------------------------------------------------------------------------!
@@ -400,10 +368,10 @@ contains
     real(dp) :: prob
 
     ! the probability of drawing anything from an empty sampler is 0
-    if(.not.associated(this%probs)) then
+    if(.not.associated(this%probs%ptr)) then
        prob = 0.0
     else
-       prob = this%probs(tgt)
+       prob = this%probs%ptr(tgt)
     endif
   end function getProb
 
@@ -429,11 +397,9 @@ contains
     ! all entries in the array use the same shared memory window, just different
     ! portions of it
     totalSize = nEntries * entrySize
-    call safe_shared_memory_alloc(this%allProbsShmw, this%allProbs, totalSize)
-    call safe_shared_memory_alloc(this%allBiasShmw, this%allBiasTable, totalSize)
-    if(associated(this%allAliasTable)) &
-         call shared_deallocate_mpi(this%allAliasShmw, this%allAliasTable)
-    call shared_allocate_mpi(this%allAliasShmw, this%allAliasTable, (/totalSize/))
+    call this%allProbs%shared_alloc(totalSize)
+    call this%allBiasTable%shared_alloc(totalSize)
+    call this%allAliasTable%shared_alloc(totalSize)
 
     do iEntry = 1, nEntries
        ! from where to where this entry has memory access in the shared resources
@@ -441,14 +407,9 @@ contains
        windowEnd = windowStart + entrySize - 1
 
        ! set this entry's pointers
-       probPtr => this%allProbs(windowStart:windowEnd)
-       this%samplerArray(iEntry)%probs => probPtr
-
-       aliasPtr => this%allAliasTable(windowStart:windowEnd)
-       this%samplerArray(iEntry)%table%aliasTable => aliasPtr
-
-       biasPtr => this%allBiasTable(windowStart:windowEnd)
-       this%samplerArray(iEntry)%table%biasTable => biasPtr
+       this%samplerArray(iEntry)%probs%ptr => this%allProbs%ptr(windowStart:windowEnd)
+       this%samplerArray(iEntry)%table%aliasTable%ptr => this%allAliasTable%ptr(windowStart:windowEnd)
+       this%samplerArray(iEntry)%table%biasTable%ptr => this%allBiasTable%ptr(windowStart:windowEnd)
     end do
 
   end subroutine setupSamplerArray
@@ -473,14 +434,13 @@ contains
     class(aliasSamplerArray_t) :: this
 
     ! free the collective resources
-    call safe_shared_memory_dealloc(this%allBiasShmw, this%allBiasTable)
-    call safe_shared_memory_dealloc(this%allProbsShmw, this%allProbs)
-    if(associated(this%allAliasTable)) &
-         call shared_deallocate_mpi(this%allAliasShmw, this%allAliasTable)
+    call this%allAliasTable%shared_dealloc()
+    call this%allProbs%shared_dealloc()    
+    call this%allBiasTable%shared_dealloc()
 
-    this%allBiasTable => null()
-    this%allProbs => null()
-    this%allAliasTable => null()
+    this%allBiasTable%ptr => null()
+    this%allProbs%ptr => null()
+    this%allAliasTable%ptr => null()
   end subroutine samplerArrayDestructor
 
   !------------------------------------------------------------------------------------------!
@@ -514,42 +474,6 @@ contains
 
     prob = this%samplerArray(iEntry)%getProb(tgt)
   end function aGetProb
-
-  !------------------------------------------------------------------------------------------!
-  ! Auxiliary functions to prevent code duplication
-  !------------------------------------------------------------------------------------------!
-
-  subroutine safe_shared_memory_alloc(win,ptr,size)
-    ! wrapper for shared_allocate_mpi that tests if the pointer is associated
-    ! Input: win - MPI shared memory window for internal MPI usage
-    !        ptr - pointer to be allocated, on return points to a shared memory segment of given size
-    !        size - size of the memory segment to be allocated
-    implicit none
-    integer(MPIArg) :: win
-    real(dp), pointer :: ptr(:)
-    integer(int64) :: size
-
-    ! if pointer was allocated prior, re-allocate the probabilities
-    ! WARNING: DO NOT MANUALLY RE-ASSIGN ptr, THIS WILL MOST LIKELY BREAK STUFF
-    call safe_shared_memory_dealloc(win,ptr)
-    call shared_allocate_mpi(win, ptr, (/size/))
-  end subroutine safe_shared_memory_alloc
-
-  !------------------------------------------------------------------------------------------!
-
-  subroutine safe_shared_memory_dealloc(win,ptr)
-    ! wrapper for shared_deallocate_mpi that tests if the pointer is associated
-    ! Input: win - MPI shared memory window for internal MPI usage
-    !        ptr - pointer to be deallocated (if associated)
-    ! WARNING: THIS ASSUMES THAT IF ptr IS ASSOCIATED, IT POINTS TO AN MPI SHARED MEMORY
-    !          WINDOW win
-    implicit none
-    integer(MPIArg) :: win
-    real(dp), pointer :: ptr(:)
-
-    ! assume that if ptr is associated, it points to mpi shared memory
-    if(associated(ptr)) call shared_deallocate_mpi(win, ptr)
-  end subroutine safe_shared_memory_dealloc
 
   !------------------------------------------------------------------------------------------!
   ! Public non-member function to deallocate 1d-arrays of samplers (common task)
