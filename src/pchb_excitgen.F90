@@ -82,17 +82,16 @@ module pchb_excitgen
 
     !------------------------------------------------------------------------------------------!
 
+    !> given the initial determinant (both as nI and ilut), create a random double
+    !! excitation using the hamiltonian matrix elements as weights
+    !> @param[in] nI  determinant to excite from
+    !> @param[in] elec_map  map to translate electron picks to orbitals
+    !> @param[in] ilut  determinant to excite from in ilut format
+    !> @param[out] nJ  on return, excited determinant
+    !> @param[out] excitMat  on return, excitation matrix nI -> nJ
+    !> @param[out] tParity  on return, the parity of the excitation nI -> nJ
+    !> @param[out] pGen  on return, the probability of generating the excitation nI -> nJ    
     subroutine generate_double_pchb(nI,ilutI,nJ,ilutJ,ex,tpar,pgen)
-      ! given the initial determinant (both as nI and ilut), create a random double
-      ! excitation using the hamiltonian matrix elements as weights
-      ! Input: nI - determinant to excite from
-      !        elec_map - map to translate electron picks to orbitals
-      !        ilut - determinant to excite from in ilut format
-      !        nJ - on return, excited determinant
-      !        excitMat - on return, excitation matrix nI -> nJ
-      !        tParity - on return, the parity of the excitation nI -> nJ
-      !        pGen - on return, the probability of generating the excitation nI -> nJ
-
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel)
@@ -167,14 +166,14 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
+    !> Calculate the probability of generating a given excitation with the pchb excitgen
+    !> @param[in] nI  determinant to start from
+    !> @param[in] ex  2x2 excitation matrix
+    !> @param[in] ic  excitation level
+    !> @param[in] ClassCount2  symmetry information of the determinant
+    !> @param[in] ClassCountUnocc2  symmetry information of the virtual orbitals
+    !> @return pGen  probability of drawing this excitation with the pchb excitgen    
     function calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-      ! Calculate the probability of generating a given excitation with the pchb excitgen
-      ! Input: nI - determinant to start from
-      !        ex - 2x2 excitation matrix
-      !        ic - excitation level
-      !        ClassCount2 - symmetry information of the determinant
-      !        ClassCountUnocc2 - symmetry information of the virtual orbitals
-      ! Output: pGen - probability of drawing this excitation with the pchb excitgen
       implicit none
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: ex(2,2), ic
@@ -194,10 +193,10 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
+    !> Calculate the probability of drawing a given double excitation ex
+    !> @param[in] ex  2x2 excitation matrix
+    !> @return pgen  probability of generating this double with the pchb double excitgen    
     function calc_double_pgen_pchb(ex) result(pgen)
-      ! Calculate the probability of drawing a given double excitation ex
-      ! Input: ex - 2x2 excitation matrix
-      ! Output: pgen - probability of generating this double with the pchb double excitgen
       implicit none
       integer, intent(in) :: ex(2,2)
       real(dp) :: pgen
@@ -234,11 +233,11 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
+    !> initialize the pchb excitation generator
+    !! this does two things:
+    !! 1. setup the lookup table for the mapping ab -> (a,b)
+    !! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>    
     subroutine init_pchb_excitgen()
-      ! initialize the pchb excitation generator
-      ! this does two things:
-      ! 1. setup the lookup table for the mapping ab -> (a,b)
-      ! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
       implicit none
       integer :: ab, a, b, abMax
       integer :: aerr, nBI
@@ -360,8 +359,8 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
+    !> deallocate the sampler and the mapping ab -> (a,b)    
     subroutine finalize_pchb_excitgen()
-      ! deallocate the sampler and the mapping ab -> (a,b)
       implicit none
       integer :: samplerIndex
 

@@ -23,10 +23,10 @@ module LMat_class
     private
     public :: lMat_t, sparse_lMat_t, dense_lMat_t
 
+    !> Abstract base class for lMat_t objects (6-index integrals)
     type, abstract :: lMat_t
         private
-        integer(int64) :: nInts
-
+        
         ! Generic indexing routine
         procedure(lMatInd_t), nopass, pointer, public :: indexFunc => lMatIndSym        
     contains
@@ -39,9 +39,14 @@ module LMat_class
         procedure :: dealloc => void_zero
 
         ! I/O routines
+        ! Interfaced read routine: Delegates to the read_kernel
         procedure :: read
-        procedure(read_t), deferred :: read_kernel
-        procedure(read_op_t), deferred :: read_op_hdf5
+        ! Routine to read in any format (ascii/hdf5) to this object
+        procedure(read_t), deferred, private :: read_kernel
+        ! When reading hdf5, the read is done by a lMat_hdf5_read object. This object
+        ! calls a read_op_t from the respective lMat to load the data to memory
+        ! This has to be threadsafe
+        procedure(read_op_t), deferred, private :: read_op_hdf5
 
         procedure :: lMat_size
         procedure :: histogram_lMat
@@ -49,14 +54,16 @@ module LMat_class
 
     !------------------------------------------------------------------------------------------!
 
+    !> Implementation for densely stored 6-index objects
     type, extends(lMat_t) :: dense_lMat_t
         private
-        ! Dense lMat type
+        ! The values of the integrals
 #ifdef CMPLX_
         type(shared_array_cmplx_t) :: lMat_vals
 #else
         type(shared_array_real_t) :: lMat_vals
 #endif
+        ! Tag for the NECI memory manager
         integer :: tag
     contains
         ! Element getters/setters
@@ -68,21 +75,23 @@ module LMat_class
         procedure :: dealloc => dealloc_dense
 
         ! I/O routines
-        procedure :: read_kernel => read_dense
+        procedure, private :: read_kernel => read_dense
         procedure, private :: read_hdf5_dense
-        procedure :: read_op_hdf5 => read_op_dense_hdf5
+        procedure, private :: read_op_hdf5 => read_op_dense_hdf5
     end type dense_lMat_t
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Implementation for sparsely stored 6-index objects
     type, extends(lMat_t) :: sparse_lMat_t
         private
-        ! Sparse lMat type
+        ! The values of the nonzero integrals
 #ifdef CMPLX_
         type(shared_array_cmplx_t) :: nonzero_vals
 #else
         type(shared_array_real_t) :: nonzero_vals
 #endif
+        ! Tags for NECI memory manager
         integer :: tag, ht_tag
         ! read-only shared memory hash table
         type(shared_rhash_t) :: htable
@@ -96,8 +105,8 @@ module LMat_class
         procedure :: dealloc => dealloc_sparse
 
         ! I/O routines
-        procedure :: read_kernel => read_sparse
-        procedure :: read_op_hdf5 => read_op_sparse
+        procedure, private :: read_kernel => read_sparse
+        procedure, private :: read_op_hdf5 => read_op_sparse
 
         ! These are auxiliary internal I/O routines
         procedure, private :: read_data
@@ -105,6 +114,12 @@ module LMat_class
     end type sparse_lMat_t
 
     !------------------------------------------------------------------------------------------!
+
+    !> Handler for reading hdf5 tcdump files. Calls the read_op_hdf5 of the calling lMat_t
+    ! This cannot go into a separate module since this would introduce a cyclical dependency.
+    ! Every way of lifting this cyclical dependency would couple different modules tightly
+    ! and introduce logic belonging to the lMat objects and their components to other, unrelated
+    ! objects. Hence, this is contained here.
 #ifdef USE_HDF_
     type :: lMat_hdf5_read_t
         private
@@ -117,6 +132,7 @@ module LMat_class
         procedure :: loop_file
     end type lMat_hdf5_read_t
 #endif
+    
     ! Names of the LMat hdf5 datasets
     character(*), parameter :: nm_grp = "tcdump", nm_nInts = "nInts", nm_vals = "values", nm_indices = "indices"    
 
@@ -124,6 +140,7 @@ module LMat_class
 
     ! Interfaces for deferred functions
     abstract interface
+        !> Set an element of a lMat
         subroutine set_elem_t(this, index, element)
             use constants            
             import :: lMat_t
@@ -132,6 +149,7 @@ module LMat_class
             HElement_t(dp), intent(in) :: element
         end subroutine set_elem_t
 
+        !> Get an element of a lMat. This replaces the old lMatAccess function pointer
         function get_elem_t(this, index) result(element)
             use constants            
             import :: lMat_t
@@ -140,6 +158,7 @@ module LMat_class
             HElement_t(dp) :: element
         end function get_elem_t
 
+        !> Read a lMat from a file
         subroutine read_t(this, filename, h5_filename)
             import :: lMat_t
             class(lMat_t), intent(inout) :: this
@@ -147,6 +166,7 @@ module LMat_class
             character(*), intent(in) :: h5_filename            
         end subroutine read_t
 
+        !> Read operation on a single block of data read from an hdf5 file
         subroutine read_op_t(this, indices, entries)
             use constants            
             import :: lMat_t
@@ -163,11 +183,16 @@ contains
 
     subroutine void_zero(this)
         class(lMat_t), intent(inout) :: this
+
+        unused_var(this)
     end subroutine void_zero
 
     subroutine void_one(this, size)
         class(lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: size
+
+        unused_var(this)
+        unused_var(size)
     end subroutine void_one
 
     !------------------------------------------------------------------------------------------!    
@@ -176,7 +201,11 @@ contains
         class(lMat_t), intent(in) :: this
         integer(int64) :: size
 
-        size = this%nInts
+        integer(int64) :: nBI
+
+        nBI = int(numBasisIndices(nBasis),int64)
+        ! The size is given by the largest index (LMatInd is monotonous in all arguments)        
+        size = this%indexFunc(nBI,nBI,nBI,nBI,nBI,nBI)
     end function lMat_size
 
     !------------------------------------------------------------------------------------------!
@@ -237,7 +266,6 @@ contains
         class(dense_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: size
 
-        this%nInts = size
         call alloc_vals(this%lmat_vals, size, this%tag)
     end subroutine alloc_dense
 
@@ -278,15 +306,10 @@ contains
         integer :: iunit, ierr
         integer(int64) :: a,b,c,i,j,k
         HElement_t(dp) :: matel
-        integer(int64) :: lMat_size
         character(*), parameter :: t_r = "readLMat"
         integer(int64) :: counter
-        integer(int64) :: nBI
 
-        nBI = int(numBasisIndices(nBasis),int64)
-        ! The size is given by the largest index (LMatInd is monotonous in all arguments)        
-        lMat_size = this%indexFunc(nBI,nBI,nBI,nBI,nBI,nBI)
-        call this%alloc(lMat_size)
+        call this%alloc(this%lMat_size())
 
         if(tHDF5LMat) then
 #ifdef USE_HDF_
@@ -310,7 +333,7 @@ contains
                         call stop_all(t_r,"Error reading TCDUMP file")
                     else
                         ! else assign the matrix element
-                        if(this%indexFunc(a,b,c,i,j,k) > lMat_size) then
+                        if(this%indexFunc(a,b,c,i,j,k) > this%lMat_size()) then
                             counter = this%indexFunc(a,b,c,i,j,k)
                             write(iout,*) "Warning, exceeding size"
                         endif
@@ -323,12 +346,11 @@ contains
 
                 counter = counter / 12
 
-                write(iout, *) "Sparsity of LMat", real(counter)/real(lMat_size)
+                write(iout, *) "Sparsity of LMat", real(counter)/real(this%lMat_size())
                 write(iout, *) "Nonzero elements in LMat", counter
-                write(iout, *) "Allocated size of LMat", this%nInts
+                write(iout, *) "Allocated size of LMat", this%lMat_size()
             endif
             call MPIBcast(counter)
-            this%nInts = counter
         end if
     end subroutine read_dense
 
@@ -343,7 +365,6 @@ contains
         integer(hsize_t) :: nInts
 
         call reader%open(filename, nInts)
-        this%nInts = nInts
         call reader%loop_file(this)
         call reader%close()
 #else
@@ -386,7 +407,6 @@ contains
         integer(int64), intent(in) :: size
         character(*), parameter :: t_r = "alloc_sparse"
 
-        this%nInts = size
         call alloc_vals(this%nonzero_vals, size, this%tag)
         ! For now, have the htable of the same size as the integrals
         call this%htable%alloc(size,size)
@@ -564,7 +584,7 @@ contains
         allocate(displs(0:procs_per_node-1))
         displs(0) = 0
         do i = 1, procs_per_node-1
-            displs(i) = displs(i-1) + block_sizes(i)
+            displs(i) = displs(i-1) + block_sizes(i-1)
         end do
 
         total_size = sum(block_sizes)
@@ -594,12 +614,9 @@ contains
         integer, parameter :: minExp = 10
         integer :: histogram(0:minExp)
         real :: ratios(0:minExp)
-        integer(int64) :: lMat_size, nBI
 
-        nBI = int(numBasisIndices(nBasis), int64)
-        lMat_size = this%indexFunc(nBI,nBI,nBI,nBI,nBI,nBI)
         histogram = 0
-        do i = 1, lMat_size
+        do i = 1, this%lMat_size()
             do thresh = minExp,1,-1
                 ! in each step, count all matrix elements that are below the threshold and
                 ! have not been counted yet
@@ -613,14 +630,14 @@ contains
             end do
         end do
 
-        ratios(:) = real(histogram(:)) / lMat_size
+        ratios(:) = real(histogram(:)) / real(this%lMat_size())
         ! print the ratios
         write(iout,*) "Matrix elements below", 0.1**(minExp), ":", ratios(minExp)
         do i = minExp-1,1,-1
             write(iout,*) "Matrix elements from", 0.1**(i+1),"to",0.1**(i),":",ratios(i)
         end do
         write(iout,*) "Matrix elements above", 0.1,":",ratios(0)
-        write(iout,*) "Total number of logged matrix elements", this%nInts
+        write(iout,*) "Total number of logged matrix elements", sum(histogram)
 
         write(iout,*) "First element", this%get_elem(1)
     end subroutine histogram_lMat
@@ -628,7 +645,11 @@ contains
     !------------------------------------------------------------------------------------------!
     ! HDF5 I/O class methods
     !------------------------------------------------------------------------------------------!
+    
 #ifdef USE_HDF_
+    !> Open an hdf5 file containing 6-index integrals
+    !> @param[in] filename  name of the file
+    !> @param[out] nInts  number of integrals stored in the file (normally only nonzeros)
     subroutine open(this, filename, nInts)
         class(lMat_hdf5_read_t) :: this
         character(*), intent(in) :: filename
@@ -680,6 +701,9 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> Apply the read_op_hdf5 of an lMat to the data in the currently opened file
+    !! The file will be read chunkwise and the read_op_hdf5 operation applied per chunk
+    !> @param[in] lMat  the lMat object to read the data to
     subroutine loop_file(this, lMat)
         class(lMat_hdf5_read_t), intent(inout) :: this
         class(lMat_t), intent(inout) :: lMat
@@ -744,6 +768,7 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Close the currently opened hdf5 file - requires a previous call to open()
     subroutine close(this)
         class(lMat_hdf5_read_t) :: this
         integer(hid_t) :: err

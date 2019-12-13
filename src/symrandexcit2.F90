@@ -2607,7 +2607,11 @@ MODULE GenRandSymExcitNUMod
 !             if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(temp_run))) then
 !                 pgen = pgen * real(nOccBeta*nOccAlpha,dp) * pgen_back
 !             end if
-            IF (.not.tNoFailAb) RETURN
+            IF (.not.tNoFailAb) then
+                ! For an invalid excitation we still need to have a valid value for pGen
+                if(nJ(1) == 0) pGen = 1.0_dp
+                RETURN
+            endif
             IF (nJ(1).ne.0) EXIT ! i.e. if we are using the NoFail algorithm only exit on successful nJ(1)!=0
         ENDDO
 

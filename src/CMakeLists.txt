@@ -81,7 +81,6 @@ set( SRC_FILES
     IntegralsData.F90
     Integrals_neci.F90
     ISKRandExcit.F90
-    kMatProjE.F90
     kp_fciqmc_data.F90
     kp_fciqmc.F90
     kp_fciqmc_init.F90
@@ -91,7 +90,6 @@ set( SRC_FILES
     lanczos_wrapper.F90
     legacy_data.F90
     lineup.F
-    LMat_aux.F90
     LMat_calc.F90
 	LMat_class.F90
     LMat_indexing.F90

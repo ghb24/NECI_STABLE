@@ -11,26 +11,35 @@ module shared_rhash
 
     private
     public :: shared_rhash_t
-    ! We always hash integer values (typically indices)
-    ! -> the array we address can have any type
-    type :: shared_rhash_t
+
+    !> The shared read-only hash table stores a given number of arbitrary input values
+    !! in one contiguous array and addresses this contiguous array using a hashtable
+    !! The input values are stored in order of ascending hash value, with conflicts stored
+    !! adjacently. For each hash value, the position of the first value with that hash value
+    !! is stored. The lookup then searches for a given value between the first and the last
+    !! stored value with the same hash value. 
+    type :: shared_rhash_t             
         ! All arrays here are mpi-3 shared memory
         private
-        ! The hashed indices are stored in one contiguous array
+        ! The hashed data is stored in one contiguous array
+        ! Typically, we will be storing indices of some array
         type(shared_array_int64_t) :: indices
 
-        ! Alongside, we store the offset of the hash values
+        ! Alongside, we store the offset of the hash values - the position of the first
+        ! index for each hash value
         type(shared_array_int64_t) :: hval_offsets
         ! The range of the hash function
         integer(int64) :: hval_range
 
-        ! auxiliary 
+        ! auxiliary array for initialisation. This stores how many input values we already
+        ! added for each hash value
         integer, allocatable :: mult(:)
 
         ! are the conflicts of the hashtable already counted (have the offsets been set?)
         logical :: t_conflicts_known = .false.
 
     contains
+        ! The hash function used for storing indices
         procedure :: hash_func
         ! Allocate the memory
         procedure :: alloc
@@ -53,6 +62,8 @@ module shared_rhash
 
 contains
 
+    !> Get the hash value for an arbitrary input value
+    !> @param index input value to get the hash value for
     function hash_func(this, index) result(hval)
         class(shared_rhash_t), intent(in) :: this 
         integer(int64), intent(in) :: index
@@ -66,6 +77,9 @@ contains
     ! Memory management
     !------------------------------------------------------------------------------------------!   
 
+    !> Allocate the internal (shared) memory
+    !> @param[in] n_elem number of distinct values to store
+    !> @param[in] htsize range of the hash function
     subroutine alloc(this, n_elem, htsize)
         class(shared_rhash_t), intent(inout) :: this
         integer(int64), intent(in) :: n_elem
@@ -88,6 +102,7 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> Deallocate all arrays associated with this hash table object
     subroutine dealloc(this)
         class(shared_rhash_t), intent(inout) :: this
 
@@ -100,6 +115,9 @@ contains
     ! Initialisation routines
     !------------------------------------------------------------------------------------------!  
 
+    !> Log the occurence of this index in the set of indices to be stored
+    !! Does not add it, only updates the offsets
+    !> @param[in] index value to be logged
     subroutine count_index(this, index)
         class(shared_rhash_t), intent(inout) :: this
         integer(int64), intent(in) :: index
@@ -115,6 +133,9 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> For performance reasons, we cannot directly calculate the offsets, but instead
+    !! first count the number of conflicts per hash value. Then, we sum these up cumulatively
+    !! Directly counting the offsets is horrifically slow
     subroutine setup_offsets(this)
         class(shared_rhash_t), intent(inout) :: this
 
@@ -131,6 +152,9 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> Add an input value to the stored values, assuming we already know the offsets
+    !> @param[in] index value to be stored
+    !> @param[out] pos on return, the position where this value was stored
     subroutine add_index(this, index, pos)
         class(shared_rhash_t), intent(inout) :: this
         integer(int64), intent(in) :: index
@@ -148,6 +172,7 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> Dealloates temporary arrays used for initialisation
     subroutine finalize_setup(this)
         class(shared_rhash_t), intent(inout) :: this
 
@@ -159,7 +184,11 @@ contains
     !------------------------------------------------------------------------------------------!
     ! Read access
     !------------------------------------------------------------------------------------------!
-    
+
+    !> Look up a value in this hash table. Returns whether the value is stored and if yes, where
+    !> @param[in] index value to be looked up
+    !> @param[out] pos on return, the position of index if found, else 0
+    !> @param[out] t_found on return, true if and only if index was found
     subroutine lookup(this, index, pos, t_found)
         class(shared_rhash_t), intent(in) :: this
         integer(int64), intent(in) :: index
@@ -185,6 +214,10 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> During initialisation, we can only start writing values once the offsets are known.
+    !! This requires knowledge about the number of conflicts per hash value. This function
+    !! tells us whether the conflicts have already been counted.
+    !> @return t_kc true if and only if the conflicts have already been counted.
     function known_conflicts(this) result(t_kc)
         class(shared_rhash_t), intent(in) :: this
         logical :: t_kc

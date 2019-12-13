@@ -12,14 +12,11 @@ module LMat_mod
     use sort_mod
     use hash, only: add_hash_table_entry, clear_hash_table
     use ParallelHelper, only: iProcIndex_intra
-    use tc_three_body_data, only: tDampKMat, tDampLMat, tSpinCorrelator, lMatEps, &
-        tSymBrokenLMat, tSparseLMat, tLMatCalc
-    use procedure_pointers, only: get_lmat_el, get_lmat_el_symInternal
+    use tc_three_body_data, only: lMatEps, tSparseLMat, tLMatCalc, tSymBrokenLMat
     use UMatCache, only: numBasisIndices  
-    use LMat_aux, only: diffSpinPos, dampLMatel
     use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter, &
         lMatIndSpin
-    use LMat_calc, only: readlMatFactors, freelMatFactors, lMatCalc, lMatABCalc
+    use LMat_calc, only: readlMatFactors, freelMatFactors, lMatCalc
     use LMat_class, only: lMat_t, sparse_lMat_t, dense_lMat_t
 #ifdef USE_HDF5_
     use hdf5
@@ -27,7 +24,7 @@ module LMat_mod
     implicit none
 
     ! actual objects storing the 6-index integrals
-    class(lMat_t), allocatable, target :: LMat, LMatAB
+    class(lMat_t), allocatable, target :: LMat
 
 contains
 
@@ -38,7 +35,7 @@ contains
     !------------------------------------------------------------------------------------------!
 
     ! this is the common logic of all 6-index lmat-acceses
-    function get_lmat_el_base(a,b,c,i,j,k) result(matel)
+    function get_lmat_el(a,b,c,i,j,k) result(matel)
         ! Input: a,b,c - indices of orbitals to excite to
         !        i,j,k - indices of orbitals to excite from
         ! Output: matel - matrix element of this excitation, including all exchange terms
@@ -50,17 +47,10 @@ contains
         integer, value :: i,j,k
         HElement_t(dp) :: matel
         integer(int64) :: ida, idb, idc, idi, idj, idk
-        logical :: tSameSpin
 
         ! initialize spin-correlator check: if all spins are the same, use LMat
         ! without spin-dependent correlator, always use LMat
-
-        ! for matrix elements involving different spins, there are three cases:
-        ! each of the orbitals i,j,k can have the different spin
-        ! The position is important because the spinCorrelator breaks permutation symmetry
-        ! w.r.t spin -> we fix the differing spin
-        tSameSpin = .not. tSpinCorrelator .or. (G1(a)%MS==G1(b)%ms .and. G1(a)%MS==G1(c)%MS)
-
+        
         ! convert to spatial orbs if required
         ida = gtID(a)
         idb = gtID(b)
@@ -72,8 +62,6 @@ contains
         matel = 0
         ! only add the contribution if the spins match
 
-        ! TODO: Use sameSpin to determine which contributions can appear - no need for
-        ! any further checks (remember to tweak for sameSpin!= possible without tSpinCorrelator)
         ! here, we add up all the exchange terms
         call addMatelContribution(i,j,k,idi,idj,idk,1)
         call addMatelContribution(j,k,i,idj,idk,idi,1)
@@ -81,8 +69,6 @@ contains
         call addMatelContribution(j,i,k,idj,idi,idk,-1)
         call addMatelContribution(i,k,j,idi,idk,idj,-1)
         call addMatelContribution(k,j,i,idk,idj,idi,-1)
-        ! if a heuristic spin-projection is done, it happens here
-        if(tDampKMat .and. .not. tDampLMat) call dampLMatel(a,b,c,matel)
 
     contains
 
@@ -103,127 +89,19 @@ contains
                 if(tContact) then
                     lMatVal = get_lmat_ueg(ida,idb,idc,idp,idq,idr)
                 else if(tLMatCalc)then
-                    if(tSameSpin) then
-                        lMatVal = lMatCalc(ida,idb,idc,idp,idq,idr)
-                    else
-                        spinPos = diffSpinPos(p,q,r,a,b,c)
-                        lMatVal = lMatABCalc(ida,idb,idc,idp,idq,idr, spinPos)
-                    end if
+                    lMatVal = lMatCalc(ida,idb,idc,idp,idq,idr)
                 else
-                    ! pick the lMat object used here according to the spin-relation
-                    if(tSameSpin) then
-                        lMatPtr => lMat
-                        ! the indexing function is contained in the lMat object
-                        index = lMatPtr%indexFunc(ida,idb,idc,idp,idq,idr)
-                    else
-                        ! for different spins, check which one is the different one and
-                        ! call the index function accordingly
-                        lMatPtr => lMatAB
-                        spinPos = diffSpinPos(p,q,r,a,b,c)
-                        ! the different-spin LMat assumes the first electron in the
-                        ! index function has the different spin (the order of the other two does
-                        ! not matter)
-                        select case(spinPos)
-                        case(1)
-                            index = lMatPtr%indexFunc(ida,idb,idc,idp,idq,idr)
-                        case(2)
-                            index = lMatPtr%indexFunc(idb,ida,idc,idq,idp,idr)
-                        case(3)
-                            index = lMatPtr%indexFunc(idc,idb,ida,idr,idq,idp)
-                        end select
-                    endif
-                    lMatVal = real(lMatPtr%get_elem(index),dp)
+                    ! the indexing function is contained in the lMat object
+                    index = lMat%indexFunc(ida,idb,idc,idp,idq,idr)
+                    lMatVal = real(lMat%get_elem(index),dp)
                 endif
                 matel = matel + sgn * lMatVal
             endif
 
         end subroutine addMatelContribution
 
-    end function get_lmat_el_base
-
-    !------------------------------------------------------------------------------------------!
-
-    function get_lmat_el_symmetrized(a,b,c,i,j,k) result(matel)
-        ! post-symmetrized access when storing non-symmetrized lMat
-        implicit none
-        integer, value :: a,b,c
-        integer, value :: i,j,k
-        HElement_t(dp) :: matel
-
-        matel = 0.0_dp
-
-        ! get_lmat_el_base is not symmetric in this case => symmetrize w.r.
-        ! to exchange of electrons
-        matel = matel + get_lmat_el_symInternal(a,b,c,i,j,k)
-        matel = matel + get_lmat_el_symInternal(b,c,a,j,k,i)
-        matel = matel + get_lmat_el_symInternal(c,a,b,k,i,j)
-        ! + spin correction (get_lmat_el_base(ap,bp,cp,ip,jp,kp) with ap etc being the
-        ! spin-swapped indices)
-        matel = matel / 3.0_dp
-
-    end function get_lmat_el_symmetrized
-
-    !------------------------------------------------------------------------------------------!
-
-    function get_lmat_el_spinProj(a,b,c,i,j,k) result(matel)
-        ! get the spin-projected matel
-        implicit none
-        integer, value :: a,b,c
-        integer, value :: i,j,k
-        HElement_t(dp) :: matel
-
-        ! auxiliary, spin-swapped indices
-        integer :: ap, bp, cp, ip, jp, kp
-        ! prefactors for the different parts
-        real(dp), parameter :: directFac = 0.5625_dp
-        real(dp), parameter :: swapFac = -0.1875_dp
-        real(dp), parameter :: permFac = 0.0625_dp
-
-        matel = 0.0_dp
-        matel = matel + directFac * get_lmat_el_base(a,b,c,i,j,k)
-        call resetAux()
-        call swapSpins(ap,bp,ip,jp)
-        matel = matel + swapFac * get_lmat_el_base(ap,bp,cp,ip,jp,kp)
-        call resetAux()
-        call swapSpins(ap,cp,ip,kp)
-        matel = matel + swapFac * get_lmat_el_base(ap,bp,cp,ip,jp,kp)
-        call resetAux()
-        call swapSpins(ap,cp,ip,kp)
-        call swapSpins(ap,bp,ip,jp)
-        matel = matel + permFac * get_lmat_el_base(ap,bp,cp,ip,jp,kp)
-
-    contains
-
-        subroutine resetAux()
-            implicit none
-            ! reset the auxiliary variables
-            ap = a
-            bp = b
-            cp = c
-            ip = i
-            jp = j
-            kp = k
-        end subroutine resetAux
-
-        subroutine swapSpins(src1, src2, tgt1, tgt2)
-            implicit none
-            integer, intent(inout) :: src1, src2, tgt1, tgt2
-            integer :: mst1, mst2, mss1, mss2
-
-            ! get the spin values
-            mss1 = mod(src1,2)
-            mss2 = mod(src2,2)
-            mst1 = mod(tgt1,2)
-            mst2 = mod(tgt2,2)
-
-            ! swap two spins
-            src1 = src1 + mss1 - mss2
-            src2 = src2 + mss2 - mss1
-            tgt1 = tgt1 + mst1 - mst2
-            tgt2 = tgt2 + mst2 - mst1
-        end subroutine swapSpins
-    end function get_lmat_el_spinProj
-
+    end function get_lmat_el
+    
     !------------------------------------------------------------------------------------------!
     ! Auxiliary functions for indexing and accessing the LMat
     !------------------------------------------------------------------------------------------!
@@ -239,10 +117,8 @@ contains
 
         if(tSparseLMat) then
             allocate(sparse_lMat_t :: lMat)
-            allocate(sparse_lMat_t :: lMatAB)
         else
             allocate(dense_lMat_t :: lMat)
-            allocate(dense_lMat_t :: lMatAB)
         endif
         ! set the LMatInd function pointer
         if(t12FoldSym) then
@@ -252,22 +128,6 @@ contains
             lMat%indexFunc => lMatIndSymBroken
         else
             lMat%indexFunc => lMatIndSym
-        endif
-        ! set the spin-correlator index functions
-        lMatAB%indexFunc => lMatIndSpin
-
-        ! set the get_lmat_el function pointer
-        if(tSymBrokenLMat) then
-            get_lmat_el => get_lmat_el_symmetrized
-        else
-            get_lmat_el => get_lmat_el_base
-        endif
-
-        ! the internal pointer of get_lmat_el_symmetrized
-        if(tDampLMat) then
-            get_lmat_el_symInternal => get_lmat_el_spinProj
-        else
-            get_lmat_el_symInternal => get_lmat_el_base
         endif
 
     end subroutine initializeLMatPtrs
@@ -291,14 +151,6 @@ contains
         else
             ! now, read lmat from file
             call lMat%read("TCDUMP","tcdump.h5")
-            ! for spin-dependent LMat, also read the opp. spin matrices
-            if(tSpinCorrelator) then
-                ! they break permutational symmetry w.r.t spin, so the cheapest solution is
-                ! to have three instances, one for each spin-permutation
-                ! (the alternatives are: spin-orbitals with full symmetry or spatial orbitals
-                ! without spin symmetry - both more expensive)
-                call LMatAB%read("TCDUMPAB","tcdumpab.h5")
-            end if
         end if
     end subroutine readLMat
 
@@ -312,7 +164,6 @@ contains
             call freeLMatFactors()
         else
             ! These are always safe to call, regardless of allocation
-            call LMatAB%dealloc()
             call LMat%dealloc()
         end if
     end subroutine freeLMat

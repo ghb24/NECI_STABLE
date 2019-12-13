@@ -14,18 +14,10 @@ module tc_three_body_data
   real(dp) :: pgen0B, pgen1B, pgen2B, pgen3B
   ! number of empty alpha/beta electrons
   integer :: nUnoccAlpha, nUnoccBeta
-  
-  ! option to reduce the k-matrix element for same-spin excitations
-  logical :: tDampKMat = .false.
-  logical :: tDampLMat = .false.
-  
-  ! if kMatrix is used
-  logical :: tUseKMat
-  
-  ! if lMat does not have permutational symmetry (required for spin-projection)
-  logical :: tSymBrokenLMat = .false.
-  logical :: tSpinCorrelator = .false.
 
+  ! Is the permutational symmetry of the 6-index integrals broken?
+  logical :: tSymBrokenLMat = .false.
+  
   ! using a sparse format to store the 6-index integrals
   logical :: tSparseLMat
   ! storage options for hdf5
@@ -40,7 +32,4 @@ module tc_three_body_data
   integer :: lMatCalcTot, lMatCalcHit !Total calls of lMatCalc and the number of times the value found in cache.
   integer :: lMatCalcStatsIters = 100 !How often to print lMatCalc statistics.
 
-  real :: lMatABCalcHFactor !Size of hash table used to cache LMatAB values as a fraction of total LMatAB size.
-  integer(int64) :: lMatABCalcHSize, lMatABCalcHUsed !Size of hash table and number of entries used
-  integer :: lMatABCalcTot, lMatABCalcHit !Total calls of lMatABCalc and the number of times the value found in cache.
 end module tc_three_body_data

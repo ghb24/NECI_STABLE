@@ -49,10 +49,8 @@ module Integrals_neci
     use real_space_hubbard, only: init_umat_rs_hub_transcorr, &
                                   init_hopping_transcorr
 
-    use LoggingData, only: tLogKMatProjE
-    use kMatProjE, only: readKMat, freeKMat, readSpinKMat
-    use tc_three_body_data, only: tDampKMat, tUseKMat, tSpinCorrelator, tHDF5LMat, &
-         tSymBrokenLMat, tSparseLMat, tLMatCalc, LMatCalcHFactor, LMatABCalcHFactor
+    use tc_three_body_data, only: tHDF5LMat, &
+         tSparseLMat, tLMatCalc, LMatCalcHFactor, tSymBrokenLMat
     implicit none
 
 contains
@@ -115,6 +113,7 @@ contains
       tSparseLMat = .false.
       tSymBrokenLMat = .false.
       tHDF5LMat = .false.
+      tSymBrokenLMat = .false.
 !Feb 08 defaults
       IF(Feb08) THEN
          NTAY(2)=3
@@ -122,7 +121,6 @@ contains
 
       tLMatCalc = .false.
       lMatCalcHFactor = 1.0
-      lMatABCalcHFactor = 1.0
 
     end subroutine SetIntDefaults
 
@@ -373,10 +371,15 @@ contains
         case("POSTFREEZEHF")
            tPostFreezeHF=.true.
 
-        case("HDF5-INTEGRALS")
+       case("HDF5-INTEGRALS")
+           ! Read the 6-index integrals from an hdf5 file
            tHDF5LMat = .true.
-        case("SPARSE-LMAT")
-           tSparseLMat = .true.
+       case("SPARSE-LMAT")
+           ! Allows for storing the 6-index integrals in a sparse format
+            tSparseLMat = .true.
+        case("SYM-BROKEN-LMAT")
+            ! Can be used to disable the permuational symmetry of the 6-index integrals
+            tSymBrokenLMat = .true.
         case("UNSYMMETRIC-INTEGRALS")
            ! the 6-index integrals are not symmetrized yet (has to be done
            ! on the fly then)
@@ -395,12 +398,6 @@ contains
 
           if (item.lt.nitems) then
            call readf(lMatCalcHFactor)
-          end if
-
-          if (item.lt.nitems) then
-            call readf(lMatABCalcHFactor)
-          else
-            lMatABCalcHFactor = lMatCalcHFactor
           end if
 
         case("ENDINT")
@@ -739,15 +736,6 @@ contains
       
       if(t_mol_3_body) call readLMat()
 
-      tUseKMat = tDampKMat .or. tLogKMatProjE
-      if(tUseKMat) then
-         ! the k-Matrix can be read in separated into different contributions,
-         ! or all at one, we leave this to the kMat module
-         call readKMat()
-      endif
-
-      if(tSpinCorrelator) call readSpinKMat()
-
     End Subroutine IntInit
 
 
@@ -873,8 +861,6 @@ contains
         use LMat_mod, only: freeLMat
         integer :: iCacheFlag
         character(*), parameter :: this_routine = 'IntCleanup'
-
-        if(tUseKMat) call freeKMat()
 
         if(t_mol_3_body) call freeLMat()
 

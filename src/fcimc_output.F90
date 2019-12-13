@@ -37,9 +37,7 @@ module fcimc_output
     use sort_mod
     use util_mod
     use tc_three_body_data, only: tLMatCalc, lMatCalcStatsIters, &
-                                  lMatCalcHit,   lMatCalcTot,    lMatCalcHUsed,   lMatCalcHSize, &
-                                  lMatABCalcHit, lMatABCalcTot,  lMatABCalcHUsed, lMatABCalcHSize
-    use LMat_calc, only: ycoulombAB_exists
+                                  lMatCalcHit,   lMatCalcTot,    lMatCalcHUsed,   lMatCalcHSize
     use fortran_strings, only: str
 
     implicit none
@@ -512,14 +510,6 @@ contains
                 write(iout, *) "LMatCalc Cache Hit Rate  : ", lMatCalcHit/real(lMatCalcTot)
                 lMatCalcHit = 0
                 lMatCalcTot = 0
-
-                if (ycoulombAB_exists) then
-                    write(iout, *) "LMatABCalc Cache Fill Ratio: ", &
-                        real(lMatABCalcHUsed,dp)/real(lMatABCalcHSize,dp)
-                    write(iout, *) "LMatABCalc Cache Hit Rate  : ", lMatABCalcHit/real(lMatABCalcTot)
-                    lMatABCalcHit = 0
-                    lMatABCalcTot = 0
-                end if
                 write(iout, *) "==================================================="
             end if
 
