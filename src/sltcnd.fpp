@@ -15,8 +15,9 @@ module sltcnd_mod
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
-    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, UNKNOWN
-    use DetBitOps, only: count_open_orbs, FindBitExcitLevel, getbitexcitation
+    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
+        UNKNOWN, get_excitation
+    use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing_neci
     use bit_reps, only: NIfTot
@@ -120,49 +121,20 @@ contains
     end subroutine initSltCndPtr
 
     function sltcnd_compat(nI, nJ, IC) result(hel)
-
         ! Use the Slater-Condon Rules to evaluate the H-matrix element between
         ! two determinants, where the value of IC is already known.
         !
         ! In:  nI, nJ       - The determinants to evaluate
         !      IC           - The number of orbitals I,J differ by
         ! Ret: hel          - The H matrix element
-
         integer, intent(in) :: nI(nel), nJ(nel), IC
         HElement_t(dp) :: hel
-#ifdef DEBUG_
-        character(*), parameter :: this_routine = "sltcnd_compat"
-#endif
 
-        integer :: ex(2, maxExcit)
+        class(excitation_t), allocatable :: exc
         logical :: tParity
 
-        select case (IC)
-        case (0)
-            ! The determinants are exactly the same
-            hel = sltcnd_excit(nI, NoExc_t())
-
-        case (1)
-            ! The determinants differ by only one orbital
-            ex(1, 1) = IC
-            call GetExcitation(nI, nJ, nel, ex, tParity)
-            hel = sltcnd_excit(nI, SingleExc_t(ex(:, 1)), tParity)
-        case (2)
-            ! The determinants differ by two orbitals
-            ex(1, 1) = IC
-            call GetExcitation(nI, nJ, nel, ex, tParity)
-            hel = sltcnd_excit(nI, DoubleExc_t(ex(:, :2)), tParity)
-        case (3)
-            ! The determinants differ by three orbitals
-            ex(1, 1) = IC
-            call GetExcitation(nI, nJ, nel, ex, tParity)
-            hel = sltcnd_excit(nI, TripleExc_t(ex(:, :3)), tParity)
-
-        case default
-            ! The determinants differ by more than 3 orbitals
-            ASSERT(.not. t_3_body_excits)
-            hel = h_cast(0.0_dp)
-        end select
+        call get_excitation(nI, nJ, IC, exc, tParity)
+        hel = dyn_sltcnd_excit(nI, exc, tParity)
     end function sltcnd_compat
 
     function sltcnd_excit_old(nI, IC, ex, tParity) result(hel)
@@ -945,7 +917,7 @@ contains
         type is (TripleExc_t)
             hel = sltcnd_excit(ref, exc, tParity)
         class default
-            call stop_all('sltcnd_excit', 'Error in downcast.')
+            hel = h_cast(0.0_dp)
         end select
     end function
 

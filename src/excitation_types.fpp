@@ -4,10 +4,11 @@
 
 module excitation_types
     use constants, only: dp
+    use SystemData, only: nEl
     implicit none
     private
     public :: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
-        UNKNOWN, defined
+        UNKNOWN, defined, get_excitation
 
 
 !> Arbitrary non occuring (?!) orbital index.
@@ -109,4 +110,32 @@ contains
         if (present(src2)) res%val(1, 3) = src3
         if (present(tgt2)) res%val(2, 3) = tgt3
     end function
+
+    subroutine get_excitation(nI, nJ, IC, exc, tParity)
+        integer, intent(in) :: nI(nEl), nJ(nEl), IC
+        class(excitation_t), allocatable, intent(out) :: exc
+        logical, intent(out) :: tParity
+
+        select case (IC)
+        case(0)
+            allocate(NoExc_t :: exc)
+        case(1)
+            allocate(SingleExc_t :: exc)
+        case(2)
+            allocate(DoubleExc_t :: exc)
+        case(3)
+            allocate(TripleExc_t :: exc)
+        case default
+            allocate(exc)
+        end select
+
+        select type (exc)
+        type is (SingleExc_t)
+            call GetExcitation(nI, nJ, nel, exc%val, tParity)
+        type is (DoubleExc_t)
+            call GetExcitation(nI, nJ, nel, exc%val, tParity)
+        type is (TripleExc_t)
+            call GetExcitation(nI, nJ, nel, exc%val, tParity)
+        end select
+    end subroutine get_excitation
 end module
