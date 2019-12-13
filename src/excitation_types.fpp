@@ -116,6 +116,10 @@ contains
         integer, intent(in) :: IC
         integer, intent(in), optional :: ex(2, ic)
         class(excitation_t), allocatable, intent(out) :: exc
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = 'create_excitation'
+#endif
+
 
         ASSERT(IC /= 0 .and. present(ex) .or. IC == 0 .and. .not. present(ex))
         select case (IC)
