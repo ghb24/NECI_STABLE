@@ -1,6 +1,8 @@
 #include "macros.h"
 #:include "macros.fpph"
-#:set ExcitationTypes = ['NoExc_t', 'SingleExc_t', 'DoubleExc_t', 'TripleExc_t']
+#:set excitations = ['NoExc_t', 'FurtherExc_t', 'SingleExc_t', 'DoubleExc_t', 'TripleExc_t']
+#:set trivial_excitations = excitations[:2]
+#:set non_trivial_excitations = excitations[2:]
 
 module excitation_types
     use constants, only: dp, n_int
@@ -9,13 +11,15 @@ module excitation_types
     implicit none
     private
     public :: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
-        UNKNOWN, defined, create_excitation, get_excitation, get_bit_excitation
+        FurtherExc_t, UNKNOWN, defined, &
+        create_excitation, get_excitation, get_bit_excitation
 
 
 !> Arbitrary non occuring (?!) orbital index.
     integer, parameter :: UNKNOWN = -10**5
 
-    type :: excitation_t
+!> Abstract base class for excitations.
+    type, abstract :: excitation_t
     end type
 
 !> Represents a No-Op excitation.
@@ -45,9 +49,14 @@ module excitation_types
         integer :: val(2, 3) = UNKNOWN
     end type
 
+!> Represents an excitation with so many differing indices,
+!> that it is for sure zero.
+    type, extends(excitation_t) :: FurtherExc_t
+    end type
+
 !> Additional constructors for the excitation types from integers instead
 !> of an integer array.
-    #:for excitation_t in ExcitationTypes[1:]
+    #:for excitation_t in non_trivial_excitations
     interface ${excitation_t}$
         module procedure from_integer_${excitation_t}$
     end interface
@@ -55,7 +64,7 @@ module excitation_types
 
 !> Returns true if all sources and targets are not UNKNOWN.
     interface defined
-    #:for excitation_t in ExcitationTypes
+    #:for excitation_t in non_trivial_excitations
         module procedure defined_${excitation_t}$
     #:endfor
     end interface
@@ -63,7 +72,7 @@ module excitation_types
 
 contains
 
-    #:for excitation_t in ExcitationTypes[1:]
+    #:for excitation_t in non_trivial_excitations
         elemental function defined_${excitation_t}$(exc) result(res)
             type(${excitation_t}$), intent(in) :: exc
             logical :: res
@@ -72,18 +81,11 @@ contains
         end function
     #:endfor
 
-    elemental function defined_NoExc_t(exc) result(res)
-        type(NoExc_t), intent(in) :: exc
-        logical :: res
-
-        res = .true.
-    end function
-
     pure function from_integer_SingleExc_t(src, tgt) result(res)
         integer, intent(in), optional :: src, tgt
         type(SingleExc_t) :: res
 
-        ! The values default to UNKNOWN, in the type.
+        ! The values default to UNKNOWN automatically.
         if (present(src)) res%val(1) = src
         if (present(tgt)) res%val(1) = tgt
     end function
@@ -92,7 +94,7 @@ contains
         integer, intent(in), optional :: src1, tgt1, src2, tgt2
         type(DoubleExc_t) :: res
 
-        ! The values default to UNKNOWN, in the type.
+        ! The values default to UNKNOWN automatically.
         if (present(src1)) res%val(1, 1) = src1
         if (present(tgt1)) res%val(2, 1) = tgt1
         if (present(src2)) res%val(1, 2) = src2
@@ -103,7 +105,7 @@ contains
         integer, intent(in), optional :: src1, tgt1, src2, tgt2, src3, tgt3
         type(TripleExc_t) :: res
 
-        ! The values default to UNKNOWN, in the type.
+        ! The values default to UNKNOWN automatically.
         if (present(src1)) res%val(1, 1) = src1
         if (present(tgt1)) res%val(2, 1) = tgt1
         if (present(src2)) res%val(1, 2) = src2
@@ -120,7 +122,6 @@ contains
         character(*), parameter :: this_routine = 'create_excitation'
 #endif
 
-
         ASSERT(IC /= 0 .and. present(ex) .or. IC == 0 .and. .not. present(ex))
         select case (IC)
         case(0)
@@ -131,8 +132,11 @@ contains
             allocate(DoubleExc_t :: exc)
         case(3)
             allocate(TripleExc_t :: exc)
-        case default
-            allocate(exc)
+        case (4:)
+            allocate(FurtherExc_t :: exc)
+#ifdef DEBUG_
+        call stop_all(this_routine, 'invalid IC < 0 passed.')
+#endif
         end select
 
         if (present(ex)) then

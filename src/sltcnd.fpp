@@ -1,6 +1,6 @@
 #include "macros.h"
 #:include "macros.fpph"
-#:set ExcitationTypes = ['NoExc_t', 'SingleExc_t', 'DoubleExc_t', 'TripleExc_t']
+#:set excitations = ['NoExc_t', 'FurtherExc_t', 'SingleExc_t', 'DoubleExc_t', 'TripleExc_t']
 
 module sltcnd_mod
     use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, t_3_body_excits, &
@@ -15,7 +15,8 @@ module sltcnd_mod
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
-    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
+    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
+        TripleExc_t, FurtherExc_t, &
         UNKNOWN, get_excitation, get_bit_excitation, create_excitation
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
@@ -37,9 +38,9 @@ module sltcnd_mod
               CalcFockOrbEnergy, sumfock
 
 !> Evaluate the H-matrix element using the Slater-Condon rules.
-!> Generic function that accepts arguments of ExcitationTypes.
+!> Generic function that accepts arguments of Excitation Types.
     interface sltcnd_excit
-    #:for excitation_t in ExcitationTypes
+    #:for excitation_t in excitations
         module procedure sltcnd_excit_${excitation_t}$
     #:endfor
     end interface
@@ -133,6 +134,7 @@ contains
         class(excitation_t), intent(in) :: exc
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel
+        character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
 
         ! The compiler has to statically know, of what type exc is.
         select type(exc)
@@ -143,9 +145,11 @@ contains
         type is (DoubleExc_t)
             hel = sltcnd_excit(ref, exc, tParity)
         type is (TripleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
+            hel = sltcnd_excit(exc, tParity)
+        type is (FurtherExc_t)
+            hel = sltcnd_excit(exc)
         class default
-            hel = h_cast(0.0_dp)
+            call stop_all(this_routine, "Error in downcast.")
         end select
     end function
 
@@ -905,13 +909,19 @@ contains
         sltcnd_excit_DoubleExc_t = sltcnd_2(ref, exc, tParity)
     end function
 
-    HElement_t(dp) function sltcnd_excit_TripleExc_t(ref, exc, tParity)
-        integer, intent(in) :: ref(nel)
+    HElement_t(dp) function sltcnd_excit_TripleExc_t(exc, tParity)
         type(TripleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
-        @:unused_var(ref)
 
         sltcnd_excit_TripleExc_t = sltcnd_3(exc%val, tParity)
+    end function
+
+    HElement_t(dp) function sltcnd_excit_FurtherExc_t(exc)
+        type(FurtherExc_t), intent(in) :: exc
+        ! Only the type, not the value of this variable is used.
+        @:unused_var(exc)
+
+        sltcnd_excit_FurtherExc_t = h_cast(0.0_dp)
     end function
 
 end module
