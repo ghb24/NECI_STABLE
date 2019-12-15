@@ -84,7 +84,6 @@ contains
         character(*), parameter :: t_r = this_routine
         integer :: run, part_type
 
-
 #ifndef CMPLX_
         if (tPositiveHFSign) then
             do part_type = 1, lenof_sign

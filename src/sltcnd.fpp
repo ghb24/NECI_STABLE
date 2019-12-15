@@ -418,7 +418,9 @@ contains
         id_ex = gtID(ex%val)
 
         hel = (0)
+        write(*, *) 'Before problematic line'
         if (tReltvy .or. (G1(ex%val(1))%Ms == G1(ex%val(2))%Ms)) then
+        write(*, *) 'After problematic line'
             do i = 1, nel
                 if (ex%val(1) /= nI(i)) then
                     id = gtID(nI(i))
@@ -897,6 +899,7 @@ contains
         integer, intent(in) :: ref(nel)
         type(SingleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
+
 
         sltcnd_excit_SingleExc_t = sltcnd_1(ref, exc, tParity)
     end function
