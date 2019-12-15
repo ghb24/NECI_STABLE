@@ -82,30 +82,7 @@ contains
 
         character(*), parameter :: this_routine = 'iter_diagnostics'
         character(*), parameter :: t_r = this_routine
-        real(dp) :: mean_walkers
-        integer :: part_type, run
-
-        ! Update the total imaginary time passed
-        TotImagTime = TotImagTime + StepsSft * Tau
-
-        ! Set Iter time to equal the average time per iteration in the
-        ! previous update cycle.
-        IterTime = IterTime / real(StepsSft,sp)
-
-        ! Calculate the acceptance ratio
-        if (tContTimeFCIMC .and. .not. tContTimeFull) then
-           if(abs(real(cont_spawn_attempts)) > eps) then
-              AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
-           else
-              AccRat = 0.0_dp
-           endif
-        else
-           if(all(abs(SumWalkersCyc) > eps)) then
-              AccRat = real(Acceptances, dp) / SumWalkersCyc
-           else
-              AccRat = 0.0_dp
-           endif
-        end if
+        integer :: run, part_type
 
 
 #ifndef CMPLX_
