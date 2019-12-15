@@ -643,6 +643,8 @@ contains
                      call make_single(refDet(:), nI, j, b, ex%val, tPar)
                      ! this is a symbolic excitation, we do NOT require src to be occupied
                      ! we just use the formula for excitation matrix elements
+                     ! TODO(@Kai, @Oskar): Here there is a bug.
+                     write(*, *) 'ni', ni, 'src', src, 'tgt', tgt, 'tPar', tPar
                      prob = prob + abs(sltcnd_excit(nI, SingleExc_t(src, tgt), tPar))
                   endif
                end do
