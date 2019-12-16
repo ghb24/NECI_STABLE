@@ -393,7 +393,6 @@ contains
 
         ! Obtain the spatial rather than spin indices if required
         id = gtID(nI)
-        !write(6,*) "****",id(:)
 
         ! Sum in the two electron contributions. Use max(id...) as we cannot
         ! guarantee that if j>i then nI(j)>nI(i).
@@ -684,7 +683,6 @@ contains
 
         ! Obtain the spatial rather than spin indices if required
         id = nI
-        !write(6,*) "****",id(:)
 
         ! Sum in the two electron contributions. Use max(id...) as we cannot
         ! guarantee that if j>i then nI(j)>nI(i).
@@ -879,9 +877,6 @@ contains
             do j = i + 1, nel
                 if (exc%val(1) /= nI(i) .and. exc%val(1) /= nI(j)) then
             hel = hel + get_lmat_el_ua(exc%val(1), nI(i), nI(j), exc%val(2), nI(i), nI(j))
-!      print *, "from", ex(1), nI(i),nI(j)
-!      print *, "to", ex(2),nI(i),nI(j)
-!      print *, "hel", hel,get_lmat_el_ua(ex(1),nI(i),nI(j),ex(2),nI(i),nI(j))
                 endif
             end do
         end do
@@ -900,28 +895,11 @@ contains
         ! get the matrix element up to 2-body terms
         hel = sltcnd_2_kernel_ua(ex)
         ! and the 3-body term
-!       heltc= 0.d0
-!     do i = 1, nel
-!        if(ex(1,1).ne.nI(i) .and. ex(1,2).ne.nI(i)) then! &
-!        heltc = heltc + get_lmat_el_ua(ex(1,1),ex(1,2),nI(i),ex(2,1),ex(2,2),nI(i))
-!       endif
-!     end do
-!         hel=heltc
-!         heltc=0.d0
         heltc = sltcnd_2_kernel_ua_3b(nI, ex)
-!       if(dabs(hel-heltc).gt.0.000000001) then
-!       write(6,*) 'nI', nI(1:nel)
-!       write(6,*) 'ex', ex(1,1:2), '->', ex(2,1:2)
-!       write(6,*) 'heltc', heltc
-!       write(6,*) 'hel', hel
-!               call stop_all()
-!       endif
-
         hel = hel + heltc
 
         ! take fermi sign into account
         if (tSign) hel = -hel
-
     end function sltcnd_2_tc_ua
 
     function sltcnd_3_tc_ua(ex, tSign) result(hel)
