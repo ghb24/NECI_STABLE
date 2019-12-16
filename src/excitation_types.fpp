@@ -219,7 +219,7 @@ contains
 !>  @param[in] ic, The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
 !>  @param[out] exc, An excitation of type excitation_t.
 !>      By using select type(exc) one can select the actual type at runtime
-!>      **and** statically dispatch as much as possible at runtime.
+!>      **and** statically dispatch as much as possible at compile time.
 !>  @param[out] tParity, The parity of the excitation.
     subroutine get_excitation(nI, nJ, IC, exc, tParity)
         integer, intent(in) :: nI(nEl), nJ(nEl), IC
