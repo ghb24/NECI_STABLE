@@ -134,7 +134,7 @@ program test_molecular_tc
 
     subroutine init_dummy()
       use OneEInts, only: TMat2D, tOneElecDiag
-      use UMatCache, only: UMat2D, UMat2DExch
+      use UMatCache, only: UMat2D
       use SymData
       use SymExcitDataMod, only: SpinOrbSymLabel
       implicit none
@@ -154,7 +154,7 @@ program test_molecular_tc
 
     subroutine clear_resources()
       use OneEInts, only: TMat2D
-      use UMatCache, only: UMat2D, UMat2DExch
+      use UMatCache, only: UMat2D
       use SymData
       implicit none
       
