@@ -235,6 +235,7 @@ contains
         character(*), parameter :: t_r = "alloc_vals"        
 
         call vals%shared_alloc(size)
+        write(iout,*) "Six-index integrals require", real(size)*real(HElement_t_SizeB)/(2.0**30), "GB" 
         call LogMemAlloc("LMat", int(size), HElement_t_SizeB, t_r, tag)
         if(iProcIndex_intra == 0) then
             vals%ptr = 0.0_dp
@@ -412,6 +413,7 @@ contains
         call alloc_vals(this%nonzero_vals, size, this%tag)
         ! For now, have the htable of the same size as the integrals
         call this%htable%alloc(size,size)
+        write(iout,*) "Sparse format overhead is", 2*real(size)*real(sizeof_int64)/(2.0**30), "GB"
         call LogMemAlloc("LMat HTable", int(size), 2*sizeof_int64, t_r, this%ht_tag)
     end subroutine alloc_sparse
 
@@ -474,7 +476,8 @@ contains
 #ifdef USE_HDF_        
         type(lMat_hdf5_read_t) :: reader
         integer(hsize_t) :: nInts
-
+        ! There is no sparse ascii reader yet, so filename is never used
+        unused_var(filename)
         if(.not. tHDF5LMat) call stop_all(t_r, "Sparse 6-index integrals require hdf5 format")
 
         call reader%open(h5_filename, nInts)
