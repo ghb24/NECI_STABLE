@@ -104,12 +104,6 @@ contains
                 & " most populated CSFs."
             call run_test_excit_gen_most_populated(n_most_populated)
 
-
-        else
-            print *, " only run the excitation generator tests!"
-
-            call run_test_excit_gen_guga()
-
         else if (t_test_double) then
 
             call run_test_double()
@@ -117,6 +111,11 @@ contains
         else if (t_test_single) then
 
             call run_test_single()
+
+        else
+            print *, " only run the excitation generator tests!"
+
+            call run_test_excit_gen_guga()
 
         end if
 
