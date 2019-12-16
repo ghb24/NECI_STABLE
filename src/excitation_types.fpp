@@ -4,6 +4,23 @@
 #:set trivial_excitations = excitations[:2]
 #:set non_trivial_excitations = excitations[2:]
 
+!>  @brief
+!>      A module for representing different excitations.
+!>
+!>  @author Oskar Weser
+!>
+!>  @details
+!>  There is one abstract base class excitation_t that represents
+!>  an arbitrary excitation.
+!>  Possible excitations are the
+!>  non trivial excitations SingleExc_t, DoubleExc_t, and TripleExc_t
+!>  and the trivial excitations NoExc_t and FurtherExc_t.
+!>
+!>  The non trivial excitations can "know" only some indices
+!>  and leave the rest UNKNOWN, which is an arbitrary integer constant.
+!>
+!>  The procedures create_excitation, get_excitation, and get_bit_excitation
+!>  can be used, to create excitations from nIs, or iluts at runtime.
 module excitation_types
     use constants, only: dp, n_int
     use bit_rep_data, only: nIfTot
@@ -18,25 +35,29 @@ module excitation_types
 !> Arbitrary non occuring (?!) orbital index.
     integer, parameter :: UNKNOWN = -10**5
 
-!> Abstract base class for excitations.
+!>  @brief
+!>      Abstract base class for excitations.
     type, abstract :: excitation_t
     end type
 
-!> Represents a No-Op excitation.
+!>  @brief
+!>      Represents a No-Op excitation.
     type, extends(excitation_t) :: NoExc_t
     end type
 
-!> Represents the orbital indices of a single excitation.
-!> The array is sorted like:
-!> [src1, tgt2]
+!>  @brief
+!>      Represents the orbital indices of a single excitation.
+!>      The array is sorted like:
+!>      [src1, tgt2]
     type, extends(excitation_t) :: SingleExc_t
         integer :: val(2) = UNKNOWN
     end type
 
-!> Represents the orbital indices of a double excitation.
-!> The array is sorted like:
-!> [[src1, src2],
-!>  [tgt1, tgt2]]
+!>  @brief
+!>      Represents the orbital indices of a double excitation.
+!>      The array is sorted like:
+!>      [[src1, src2],
+!>      [tgt1, tgt2]]
     type, extends(excitation_t) :: DoubleExc_t
         integer :: val(2, 2) = UNKNOWN
     end type
@@ -54,15 +75,44 @@ module excitation_types
     type, extends(excitation_t) :: FurtherExc_t
     end type
 
-!> Additional constructors for the excitation types from integers instead
-!> of an integer array.
     #:for excitation_t in non_trivial_excitations
+!>  @brief
+!>      Additional constructors for the excitation types from integers instead
+!>      of an integer array.
+!>
+!>  @author Oskar Weser
+!>
+!>  @details
+!>  The non trivial excitations SingleExc_t, DoubleExc_t, and TripleExc_t
+!>  are initialized by passing the respective integer arrays into
+!>  the type.
+!>  Alternatively one can use integer arguments to initialize.
+!>  Omitted indices are set to UNKNOWN.
+!>
+!>  \code{.unparsed}
+!>  SingleExc_t([1, 2]) == SingleExc_t(src=1, tgt=2)
+!>  ! If the target should be UNKNOWN, just omit it
+!>  SingleExc_t(src=1)
+!>  \endcode
+!>
+!>  The signature is (src_1, tgt_1, src_2, tgt_2, ...).
+!>  depending on the actual type.
+!>
+!>  @param[in] src_i
+!>  @param[in] tgt_i
     interface ${excitation_t}$
         module procedure from_integer_${excitation_t}$
     end interface
     #:endfor
 
-!> Returns true if all sources and targets are not UNKNOWN.
+!>  @brief
+!>     Return true if all sources and targets are not UNKNOWN.
+!>
+!>  @author Oskar Weser
+!>
+!>  @details
+!>
+!>  @param[in] exc, A non_trivial_excitation.
     interface defined
     #:for excitation_t in non_trivial_excitations
         module procedure defined_${excitation_t}$
@@ -114,6 +164,15 @@ contains
         if (present(tgt2)) res%val(2, 3) = tgt3
     end function
 
+!>  @brief
+!>      Create an excitation from an excitation matrix and excitation level IC
+!>
+!>  @param[out] exc, An excitation of type excitation_t.
+!>      By using select type(exc) one can select the actual type at runtime
+!>      **and** statically dispatch as much as possible at runtime.
+!>  @param[in] ic, The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
+!>  @param[in] ex, An excitation matrix as in the %val component of
+!>      the excitation types.
     subroutine create_excitation(exc, ic, ex)
         integer, intent(in) :: IC
         integer, intent(in), optional :: ex(2, ic)
@@ -151,6 +210,17 @@ contains
         end if
     end subroutine
 
+!>  @brief
+!>      Create an excitation from nI to nJ where the excitation level
+!>      is already known.
+!>
+!>  @param[in] nI, An array of occupied orbital indices.
+!>  @param[in] nJ, An array of occupied orbital indices.
+!>  @param[in] ic, The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
+!>  @param[out] exc, An excitation of type excitation_t.
+!>      By using select type(exc) one can select the actual type at runtime
+!>      **and** statically dispatch as much as possible at runtime.
+!>  @param[out] tParity, The parity of the excitation.
     subroutine get_excitation(nI, nJ, IC, exc, tParity)
         integer, intent(in) :: nI(nEl), nJ(nEl), IC
         class(excitation_t), allocatable, intent(out) :: exc
@@ -158,7 +228,7 @@ contains
 
         call create_excitation(exc, IC)
 
-        ! The compiler has to statically know, of what the type exc is.
+        ! The compiler has to statically know, what the type of exc is.
         select type (exc)
         type is (SingleExc_t)
             call GetExcitation(nI, nJ, nel, exc%val, tParity)
@@ -169,6 +239,17 @@ contains
         end select
     end subroutine get_excitation
 
+!>  @brief
+!>      Create an excitation from ilutI to ilutJ where the excitation level
+!>      is already known.
+!>
+!>  @param[in] ilutI, A bitmask encoding occupation of spin orbitals.
+!>  @param[in] ilutJ, A bitmask encoding occupation of spin orbitals.
+!>  @param[in] ic, The excitation level. (1=SingleExc_t, 2=DoubleExc_t, ...)
+!>  @param[out] exc, An excitation of type excitation_t.
+!>      By using select type(exc) one can select the actual type at runtime
+!>      **and** statically dispatch as much as possible at runtime.
+!>  @param[out] tParity, The parity of the excitation.
     subroutine get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
