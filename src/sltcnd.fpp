@@ -465,9 +465,7 @@ contains
         id_ex = gtID(ex%val)
 
         hel = (0)
-        write(*, *) 'Before problematic line'
         if (tReltvy .or. (G1(ex%val(1))%Ms == G1(ex%val(2))%Ms)) then
-        write(*, *) 'After problematic line'
             do i = 1, nel
                 if (ex%val(1) /= nI(i)) then
                     id = gtID(nI(i))

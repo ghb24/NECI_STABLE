@@ -137,7 +137,7 @@ contains
 
         ! The values default to UNKNOWN automatically.
         if (present(src)) res%val(1) = src
-        if (present(tgt)) res%val(1) = tgt
+        if (present(tgt)) res%val(2) = tgt
     end function
 
     pure function from_integer_DoubleExc_t(src1, tgt1, src2, tgt2) result(res)
@@ -181,7 +181,6 @@ contains
         character(*), parameter :: this_routine = 'create_excitation'
 #endif
 
-        ASSERT(IC /= 0 .and. present(ex) .or. IC == 0 .and. .not. present(ex))
         select case (IC)
         case(0)
             allocate(NoExc_t :: exc)
