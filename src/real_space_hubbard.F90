@@ -1030,9 +1030,9 @@ contains
         real(dp) :: temp_pgen
 #endif
 
-        unused_variable(exFlag)
-        unused_variable(run)
-        unused_variable(store)
+        unused_var(exFlag)
+        unused_var(run)
+        unused_var(store)
 
         ilutJ = 0_n_int
         ic = 0
@@ -1184,9 +1184,9 @@ contains
         real(dp) :: temp_pgen
 #endif
 
-        unused_variable(exFlag)
-        unused_variable(run)
-        unused_variable(store)
+        unused_var(exFlag)
+        unused_var(run)
+        unused_var(store)
 
         ilutJ = 0_n_int
         ic = 0
@@ -1293,9 +1293,9 @@ contains
         integer, allocatable :: neighbors(:)
 
 
-        unused_variable(exFlag)
-        unused_variable(store)
-        unused_variable(run)
+        unused_var(exFlag)
+        unused_var(store)
+        unused_var(run)
 
         ilutJ = 0_n_int
         ic = 0
@@ -1468,9 +1468,9 @@ contains
         integer, allocatable :: neighbors(:), orbs(:)
         real(dp) :: cum_sum, p_elec, p_orb
 
-        unused_variable(exFlag)
-        unused_variable(run)
-        unused_variable(store)
+        unused_var(exFlag)
+        unused_var(run)
+        unused_var(store)
 
         ilutJ = 0_n_int
         ic = 0
@@ -1913,9 +1913,9 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
-        unused_variable(run)
-        unused_variable(store)
-        unused_variable(exFlag)
+        unused_var(run)
+        unused_var(store)
+        unused_var(exFlag)
         hel = h_cast(0.0_dp)
 
         ASSERT(associated(lat))

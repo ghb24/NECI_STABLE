@@ -1529,13 +1529,7 @@ supermodule par_internal
 contains
 
     subroutine MPIInit (tExternal)
-#ifdef MOLPRO
-        USE molpro_options, only : molpro_helper_server
-#endif
         implicit none
-#ifdef MOLPRO
-        integer :: iglobal_worker_comm
-#endif
         ! Determine the number of processors, and fork each off to its own
         ! NodeFile output file
         !
@@ -1550,9 +1544,6 @@ contains
         character(len=20) NodeFile
         logical(MPIArg) :: initialised
         character(*), parameter :: t_r = 'MPIInit'
-#ifdef MOLPRO
-        integer :: MolpComm
-#endif
 
     if (neci_MPIInit_called) return
     neci_MPIInit_called = .true.
@@ -1575,14 +1566,8 @@ contains
         MPI_COMM_WORLD = mpicommworld_c2f()
 #endif
 
-#ifdef MOLPRO
-        ! Obtain the communicator for MOLPRO
-        MolpComm = iglobal_worker_comm()
-        CommGlobal = int(MolpComm, MPIArg)
-#else
         ! If we are using the C bindings, this just sets it to 0
         CommGlobal = MPI_COMM_WORLD
-#endif
 
         call MPI_Comm_rank (CommGlobal, iProcInd, ierr)
         iProcIndex = iProcInd
@@ -1614,25 +1599,6 @@ contains
             write(6,*) 'Number of processors: ', nProcessors
 
         mpiInfoNull = MPI_INFO_NULL
-
-#ifdef MOLPRO
-#ifdef CBINDMPI
-        if(molpro_helper_server.and.(nProcessors.gt.1)) then
-            write(6,"(A)") "********************************************************************"
-            write(6,"(A)") "***************************  WARNING  ******************************"
-            write(6,"(A)") "********************************************************************"
-            write(6,"(A)") "***                                                              ***"
-            write(6,"(A)") "*** FCIQMC module run in parallel, but 'no-helper-server' option ***"
-            write(6,"(A)") "*** not invoked on command line. This is highly recommended when ***"
-            write(6,"(A)") "*** running with more than one MPI thread, since one processor   ***"
-            write(6,"(A)") "*** is now entirely idle. If running with multiple processes,    ***"
-            write(6,"(A)") "*** recommend re-running with 'no-helper-server' command line    ***"
-            write(6,"(A)") "*** option.                                                      ***"
-            write(6,"(A)") "***                                                              ***"
-            write(6,"(A)") "********************************************************************"
-        endif
-#endif
-#endif
 
         if(tExternal) then
             write(6,*) "NECI Processor ",iProcIndex+1,'/',nProcessors
@@ -1692,20 +1658,6 @@ contains
 #endif
 
 #else
-
-#if defined(_MOLCAS_MPP_)
-        write(6,"(A)") "********************************************************************"
-        write(6,"(A)") "***************************  WARNING  ******************************"
-        write(6,"(A)") "********************************************************************"
-        write(6,"(A)") "***                                                              ***"
-        write(6,"(A)") "*** FCIQMC module run in parallel, but Molcas not compiled with  ***"
-        write(6,"(A)") "*** MPI. FCIQMC module cannot support compilation with Global    ***"
-        write(6,"(A)") "*** Arrays with TCGMSG, and so will now run in serial mode       ***"
-        write(6,"(A)") "*** instead. Recompilation of molpro with linking to MPI module  ***"
-        write(6,"(A)") "*** recommended.                                                 ***"
-        write(6,"(A)") "***                                                              ***"
-        write(6,"(A)") "********************************************************************"
-#endif
 
        ! Dummy set up for serial work.
        iProcIndex = 0

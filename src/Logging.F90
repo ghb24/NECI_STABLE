@@ -50,6 +50,10 @@ MODULE Logging
       cnt_real_time_copies = 1
       t_prepare_real_time = .false.
 
+      ! By default, the output is given by the shift cycle
+      StepsPrint = 10
+      tCoupleCycleOutput = .true.
+
       tDipoles = .false.
       tPrintInitiators = .false.
       tDiagAllSpaceEver = .false.
@@ -270,7 +274,17 @@ MODULE Logging
 
         case("NOMCOUTPUT")
             !No output to stdout from the fcimc iterations
-            tMCOutput=.false.
+           tMCOutput=.false.
+
+        case("STEPSOUTPUT")
+           ! This is the number of steps taken between two lines in the output
+           ! The default is equal to the update cycle length of the shift, since
+           ! this saves some communication
+           ! This clearly indicates that we do not want to have output and shift update
+           ! going hand in hand
+           tCoupleCycleOutput = .false.
+           call geti(StepsPrint)
+
         case("LOGCOMPLEXWALKERS")
             !This means that the complex walker populations are now logged.
             tLogComplexPops=.true.

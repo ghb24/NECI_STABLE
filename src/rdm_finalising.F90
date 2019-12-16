@@ -22,7 +22,7 @@ module rdm_finalising
 
     implicit none
 
-    real(dp) :: RDM_energy
+    real(dp), public, protected :: RDM_energy
 
 contains
 

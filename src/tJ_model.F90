@@ -509,9 +509,9 @@ contains
         integer, allocatable :: neighbors(:)
         real(dp), allocatable :: cum_arr(:)
 
-        unused_variable(exFlag)
-        unused_variable(store)
-        unused_variable(run)
+        unused_var(exFlag)
+        unused_var(store)
+        unused_var(run)
 
         hel = h_cast(0.0_dp)
 
@@ -604,9 +604,9 @@ contains
         ! if it is occupied by an electron of same spin no excitation with
         ! this neighbor is possible
 
-        unused_variable(exFlag)
-        unused_variable(store)
-        unused_variable(run)
+        unused_var(exFlag)
+        unused_var(store)
+        unused_var(run)
 
         hel = h_cast(0.0_dp)
 
@@ -940,7 +940,7 @@ contains
         integer, allocatable :: neighbors(:)
         real(dp), allocatable :: cum_arr(:)
 
-        unused_variable(ilut)
+        unused_var(ilut)
 
         elec = 1 + int(genrand_real2_dsfmt() * nel)
         p_elec = 1.0_dp / real(nel, dp)

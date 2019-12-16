@@ -1030,8 +1030,8 @@ contains
         character(*), parameter :: this_routine = "order_quad_indices_3_1"
 
         call stop_all(this_routine, "TODO")
-        unused_variable(ijk_abc)
-        unused_variable(l_d)
+        unused_var(ijk_abc)
+        unused_var(l_d)
         phase = 0.0_dp
         ijab_klcd = 0
 

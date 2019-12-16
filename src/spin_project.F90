@@ -15,7 +15,7 @@ module spin_project
                          fcimc_excit_gen_store
     use DeterminantData, only: write_det, get_lexicographic
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use util_mod, only: choose, binary_search, unused
+    use util_mod, only: choose, binary_search
     use DetBitOps, only: IsAllowedHPHF, count_open_orbs
 
     implicit none
@@ -433,9 +433,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         real(dp) :: sgn_tmp(lenof_sign)
         character(*), parameter :: this_routine = 'generate_excit_spin_proj'
 
-#ifdef __WARNING_WORKAROUND
-        if (present(part_type)) call unused(part_type)
-#endif
+        unused_var(part_type)
 
         ! Only consider determinants with a significant (specified) weight.
         call extract_sign (iLutI, sgn_tmp)
@@ -558,9 +556,7 @@ ASSERT(count_open_orbs(ilutI) /= 0)
         real(dp) :: elem, r, rat, rUnused
         integer :: i, iUnused
 
-#ifdef __WARNING_WORKAROUND
-        if (present(DetPosition)) call unused(DetPosition)
-#endif
+        unused_var(DetPosition)
 
         ! If we are not allowing death, or we are below the cutoff for
         ! consideration, then the particle cannot die

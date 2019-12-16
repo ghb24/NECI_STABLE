@@ -565,9 +565,9 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
-        unused_variable(exFlag)
-        unused_variable(store)
-        unused_variable(run)
+        unused_var(exFlag)
+        unused_var(store)
+        unused_var(run)
 
         hel = h_cast(0.0_dp)
         ic = 0
@@ -668,9 +668,9 @@ contains
       integer :: i, a, b, ki(N_DIM), kj(N_DIM), ka(N_DIM), kb(N_DIM), elecs(2)
       integer, parameter :: maxTrials = 1000
 
-      unused_variable(run)
-      unused_variable(store)
-      unused_variable(exFlag)
+      unused_var(run)
+      unused_var(store)
+      unused_var(exFlag)
 
       hel = h_cast(0.0_dp)
       ilutJ = 0
@@ -725,9 +725,9 @@ contains
         character(*), parameter :: this_routine = "gen_excit_uniform_k_space_hub_transcorr"
 #endif
 
-        unused_variable(exFlag)
-        unused_variable(run)
-        unused_variable(store)
+        unused_var(exFlag)
+        unused_var(run)
+        unused_var(store)
 
         hel = h_cast(0.0_dp)
         ilutJ = 0_n_int
@@ -800,9 +800,9 @@ contains
         character(*), parameter :: this_routine = "gen_excit_mixed_k_space_hub_transcorr"
 #endif
 
-        unused_variable(exFlag)
-        unused_variable(store)
-        unused_variable(run)
+        unused_var(exFlag)
+        unused_var(store)
+        unused_var(run)
 
         hel = h_cast(0.0_dp)
         ilutJ = 0_n_int
@@ -1136,9 +1136,9 @@ contains
         real(dp) :: p_elec, p_orb, p_orb_a
         integer, parameter :: max_trials = 1000
 
-        unused_variable(exFlag)
-        unused_variable(store)
-        unused_variable(run)
+        unused_var(exFlag)
+        unused_var(store)
+        unused_var(run)
 
         hel = h_cast(0.0_dp)
         ilutJ = 0_n_int

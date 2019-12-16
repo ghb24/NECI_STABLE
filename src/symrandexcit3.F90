@@ -27,7 +27,7 @@ module symrandexcit3
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
     use Parallel_neci
-    use util_mod, only: binary_search_first_ge, unused
+    use util_mod, only: binary_search_first_ge
     implicit none
 
 contains
@@ -51,7 +51,7 @@ contains
         real(dp) :: r
         character(*), parameter :: this_routine = 'gen_rand_excit3'
 
-        unused_variable(part_type)
+        unused_var(part_type)
 
         ! Just in case
         ilutJ(0) = -1
@@ -71,7 +71,7 @@ contains
         ! If exFlag is 3, select singles or doubles randomly, according
         ! to the value in pDoubles. Otherwise exFlag = 1 gives a single,
         ! and exFlag = 2 gives a double.
-ASSERT(exFlag<=3.and.exFlag>=1)
+        ASSERT(exFlag<=3.and.exFlag>=1)
         IC = exFlag
         select case(IC)
         case(1)

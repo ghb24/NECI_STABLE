@@ -11,7 +11,7 @@ module rdm_general
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
     use SystemData, only: tGUGA
-    use util_mod, only: near_zero, unused
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -780,9 +780,7 @@ contains
         real(dp), intent(out) :: IterRDMStartI(len_iter_occ_tot), AvSignI(len_av_sgn_tot)
         type(excit_gen_store_type), intent(inout), optional :: store
 
-#ifdef __WARNING_WORKAROUND
-        call unused(j); call unused(rdm_defs%nrdms)
-#endif
+        unused_var(j); unused_var(rdm_defs)
 
         ! This extracts everything.
         call extract_bit_rep (iLutnI, nI, SignI, FlagsI, j, store)
@@ -828,8 +826,10 @@ contains
         real(dp), intent(out) :: IterRDMStartI(len_iter_occ_tot), AvSignI(len_av_sgn_tot)
         type(excit_gen_store_type), intent(inout), optional :: store
 
-        integer :: part_ind, irdm, iunused
+        integer :: part_ind, irdm
         integer :: av_ind_1, av_ind_2
+
+        unused_var(store)
 
         ! This is the iteration from which this determinant has been occupied.
         IterRDMStartI = get_iter_occ_tot(j)
@@ -913,9 +913,6 @@ contains
         end if
 
         end associate
-
-        ! Eliminate warnings
-        iunused = store%nopen
 
     end subroutine extract_bit_rep_avsign_norm
 

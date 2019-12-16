@@ -1832,7 +1832,7 @@ contains
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
-        unused_variable(ilut)
+        unused_var(ilut)
 
         nOpen = 0
 
@@ -1859,7 +1859,7 @@ contains
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
-        unused_variable(ilut)
+        unused_var(ilut)
 
         nOpen = 0
 

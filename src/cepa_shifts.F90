@@ -198,7 +198,7 @@ contains
         integer, intent(in) :: run
         ! todo
         call stop_all("cepa_1_single", "TODO")
-        unused_variable(run)
+        unused_var(run)
         cepa_1_single = 0.0_dp
 
     end function cepa_1_single
@@ -207,7 +207,7 @@ contains
         integer, intent(in) :: run
         ! tod-
         call stop_all("cepa_1_double", "TODO")
-        unused_variable(run)
+        unused_var(run)
         cepa_1_double= 0.0_dp
 
     end function cepa_1_double
@@ -216,7 +216,7 @@ contains
         integer, intent(in) :: run
         ! todo
         call stop_all("cepa_3_single", "TODO")
-        unused_variable(run)
+        unused_var(run)
         cepa_3_single= 0.0_dp
     end function cepa_3_single
 
@@ -224,7 +224,7 @@ contains
         integer, intent(in) :: run
         ! todo
         call stop_all("cepa_3_double", "TODO")
-        unused_variable(run)
+        unused_var(run)
         cepa_3_double= 0.0_dp
     end function cepa_3_double
 

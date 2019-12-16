@@ -323,7 +323,7 @@ contains
         logical :: list_full
         integer, parameter :: flags = 0
 
-        unused_variable(iter_data)
+        unused_var(iter_data)
 
         ! Note that this is a diagonal event, no communication is needed
 
@@ -703,8 +703,8 @@ contains
         logical :: tRealSpawning
         HElement_t(dp) :: rh, rh_used
 
-        unused_variable(precond_fac)
-        unused_variable(AvSignCurr)
+        unused_var(precond_fac)
+        unused_var(AvSignCurr)
 
         ! This is crucial
         child = 0.0_dp

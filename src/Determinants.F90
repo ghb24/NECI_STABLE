@@ -723,10 +723,10 @@ contains
         integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
         character(*), parameter :: this_routine = "get_helement_det_only"
 
-        unused_variable(ilutJ)
-        unused_variable(ilutI)
-        unused_variable(nJ)
-        unused_variable(helgen)
+        unused_var(ilutJ)
+        unused_var(ilutI)
+        unused_var(nJ)
+        unused_var(helgen)
 
         ! GUGA implementation:
         if (tGUGA) then

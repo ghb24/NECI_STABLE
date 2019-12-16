@@ -68,10 +68,7 @@ contains
 #ifdef __DEBUG
         HElement_t(dp) :: temp_hel
 #endif
-
-        unused_variable(exFlag)
-        unused_variable(part_type)
-        unused_variable(store)
+        unused_var(exFlag); unused_var(part_type); unused_var(store)
 
         HElGen = HEl_zero
 

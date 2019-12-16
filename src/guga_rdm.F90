@@ -1036,7 +1036,7 @@ contains
         real(dp) :: inter, tempWeight_1, real_b(nSpatOrbs), tempWeight
         real(dp) :: occ_i(nSpatOrbs), occ_j(nSpatOrbs)
 
-        unused_variable(mat_ele)
+        unused_var(mat_ele)
 
         first = findFirstSwitch(ilutI, ilutJ, excitInfo%fullStart, excitInfo%fullEnd)
         last = findLastSwitch(ilutI, ilutJ, first, excitInfo%fullEnd)

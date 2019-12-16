@@ -112,6 +112,13 @@ endif
 #define ENDIFDEBUG endif
 #endif
 
+! define a precompiler setup for the warning workaround
+#ifdef __WARNING_WORKAROUND
+#define unused_var(x) associate(x=>x); end associate
+#else
+#define unused_var(x)
+#endif
+
 ! Write out from the root node (concisely)
 #define root_write if (iProcIndex == 0) write
 #define root_print root_write (6, *)
@@ -252,12 +259,5 @@ endif
 
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
-
-! define a precompiler setup for the warning workaround
-#ifdef __WARNING_WORKAROUND
-#define unused_variable(x) associate(x=>x); end associate
-#else
-#define unused_variable(x)
-#endif
 
 #endif

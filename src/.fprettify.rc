@@ -1,5 +1,6 @@
 indent=4
 whitespace=4
+line-length=80
 whitespace-comma=true
 whitespace-assignment=true
 whitespace-relational=true
@@ -8,6 +9,6 @@ whitespace-plusminus=true
 whitespace-multdiv=true
 whitespace-print=true
 whitespace-type=false
-whitespace-intrinsics=true
+whitespace-intrinsics=false
 enable-replacements=true
 c-relations=true

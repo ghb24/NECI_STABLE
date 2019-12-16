@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int
     use SystemData, only: NEl, nBasisMax, G1, nBasis, Brr, tHub, ECore, &
@@ -8,9 +10,8 @@ module hphf_integrals
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs
     use sltcnd_mod, only: sltcnd, sltcnd_knowIC, sltcnd_excit
-    use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
+    use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
     use lattice_mod, only: get_helement_lattice
-    use util_mod, only: unused
     implicit none
 
     interface hphf_off_diag_helement
@@ -28,10 +29,8 @@ module hphf_integrals
         HElement_t(dp) :: hel
         HElement_t(dp), intent(in) :: HElGen
 
-#ifdef __WARNING_WORKAROUND
-        call unused(IC); call unused(ex); call unused(nI); call unused(nJ);
-        call unused(iLutI); call unused(iLutJ); call unused(tParity)
-#endif
+        unused_var(IC); unused_var(ex); unused_var(nI); unused_var(nJ);
+        unused_var(iLutI); unused_var(iLutJ); unused_var(tParity)
 
         hel = HElGen
 
@@ -46,10 +45,7 @@ module hphf_integrals
         HElement_t(dp) :: hel
         HElement_t(dp) , intent(in) :: HElGen
 
-#ifdef __WARNING_WORKAROUND
-        call unused(IC); call unused(ex); call unused(tParity);
-        call unused(HElGen)
-#endif
+        unused_var(IC); unused_var(ex); unused_var(tParity); unused_var(HElGen)
 
         hel = hphf_off_diag_helement_norm (nI, nJ, iLutI, iLutJ)
 
@@ -79,9 +75,7 @@ module hphf_integrals
         logical :: tSign
         integer :: temp_ex(2,2)
 
-#ifdef __WARNING_WORKAROUND
-        call unused(nJ)
-#endif
+        unused_var(nJ)
 
         if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
             ! Do not allow a 'diagonal' matrix element. The problem is

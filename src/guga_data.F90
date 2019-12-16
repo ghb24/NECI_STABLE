@@ -653,7 +653,7 @@ contains
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
 
-        unused_variable(b)
+        unused_var(b)
 
         if (present(x0)) x0 = 0.0_dp
         if (present(x1)) x1 = 0.0_dp
@@ -674,7 +674,7 @@ contains
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
 
-        unused_variable(b)
+        unused_var(b)
 
         if (present(x0)) x0 = 0.0_dp
         if (present(x1)) x1 = 1.0_dp
@@ -694,7 +694,7 @@ contains
         real(dp), intent(in) :: b
         real(dp), intent(out), optional :: x0, x1
 
-        unused_variable(b)
+        unused_var(b)
 
         if (present(x0)) x0 = Root2
         if (present(x1)) x1 = 0.0_dp
@@ -731,35 +731,35 @@ contains
     function funMinusTwo(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        unused_variable(b)
+        unused_var(b)
         ret = -2.0_dp
     end function funMinusTwo
 
     function funSqrt2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        unused_variable(b)
+        unused_var(b)
         ret = Root2
     end function funSqrt2
 
     function minFunSqrt2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        unused_variable(b)
+        unused_var(b)
         ret = -Root2
     end function minFunSqrt2
 
     function funOverRoot2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        unused_variable(b)
+        unused_var(b)
         ret = OverR2
     end function funOverRoot2
 
     function minFunOverR2(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        unused_variable(b)
+        unused_var(b)
         ret = -OverR2
     end function minFunOverR2
 
@@ -1021,7 +1021,7 @@ contains
     function funZero(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        unused_variable(b)
+        unused_var(b)
         ret = 0.0_dp
     end function funZero
 
@@ -1029,21 +1029,21 @@ contains
         ! think of a better way to include that -> wasted time
         real(dp), intent(in) :: b
         real(dp) :: ret
-        unused_variable(b)
+        unused_var(b)
         ret = 1.0_dp
     end function funPlus1
 
     function funMinus1(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        unused_variable(b)
+        unused_var(b)
         ret = -1.0_dp
     end function funMinus1
 
     function funTwo(b) result(ret)
         real(dp), intent(in) :: b
         real(dp) :: ret
-        unused_variable(b)
+        unused_var(b)
         ret = 2.0_dp
     end function funTwo
 

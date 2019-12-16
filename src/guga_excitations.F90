@@ -2231,10 +2231,10 @@ contains
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
-        unused_variable(weights)
-        unused_variable(bVal)
-        unused_variable(negSwitches)
-        unused_variable(posSwitches)
+        unused_var(weights)
+        unused_var(bVal)
+        unused_var(negSwitches)
+        unused_var(posSwitches)
 
         prob = 1.0_dp
 
@@ -2254,7 +2254,7 @@ contains
         integer(n_int), pointer :: excitations(:,:)
         type(timer), save :: proc_timer
 
-        unused_variable(excitLvl)
+        unused_var(excitLvl)
 
         proc_timer%timer_name = this_routine
         call set_timer(proc_timer)
@@ -2673,9 +2673,9 @@ contains
         real(dp) :: tmp_mat, diff, tmp_mat1
         integer :: tmp_ex1, tmp_ex2
 
-        unused_variable(exFlag)
-        unused_variable(store)
-        unused_variable(part_type)
+        unused_var(exFlag)
+        unused_var(store)
+        unused_var(part_type)
 
         ! think about default values and unneeded variables for GUGA, but
         ! which have to be processed anyway to interface to NECI
@@ -3498,10 +3498,10 @@ contains
         ic = get_excit_level_from_excitInfo(excitInfo)
 
         call stop_all(this_routine, "TODO")
-        unused_variable(ilutI)
-        unused_variable(nI)
-        unused_variable(ilutJ)
-        unused_variable(nJ)
+        unused_var(ilutI)
+        unused_var(nI)
+        unused_var(ilutJ)
+        unused_var(nJ)
 
         pgen = 0.0_dp
 
@@ -3522,10 +3522,10 @@ contains
         character(*), parameter :: this_routine = "calc_pgen_guga_crude_exmat"
 
         call stop_all(this_routine, "TODO")
-        unused_variable(nI)
-        unused_variable(ilutI)
-        unused_variable(ex)
-        unused_variable(ic)
+        unused_var(nI)
+        unused_var(ilutI)
+        unused_var(ex)
+        unused_var(ic)
 
         pgen = 0.0_dp
 
@@ -4260,7 +4260,7 @@ contains
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, r, elec_factor
 
-        unused_variable(ilut)
+        unused_var(ilut)
 
         ! first pick completely random from electrons only!
         elec = 1 + floor(genrand_real2_dSFMT() * nEl)
@@ -4566,9 +4566,9 @@ contains
         HElement_t(dp) :: tmp_mat
         integer :: tmp_ex1, tmp_ex2
 
-        unused_variable(exFlag)
-        unused_variable(part_type)
-        unused_variable(store)
+        unused_var(exFlag)
+        unused_var(part_type)
+        unused_var(store)
 
         ! think about default values and unneeded variables for GUGA, but
         ! which have to be processed anyway to interface to NECI
@@ -5337,7 +5337,7 @@ contains
         integer :: i, j, orb, sym_prod, sum_ml
         real(dp) :: cum_sum, cpt_ab, cpt_ba, ba_sum, ab_sum
 
-        unused_variable(ilut)
+        unused_var(ilut)
 
         ! given 2 already picked electrons, this routine creates a list of
         ! p(a)*p(b|a) probabilities to pick the already determined holes
@@ -7339,7 +7339,7 @@ contains
         type(weight_obj) :: weights
         procedure(calc_pgen_general), pointer :: calc_pgen_yix
 
-        unused_variable(branch_pgen)
+        unused_var(branch_pgen)
 
         st = excitInfo%fullStart
         se = excitInfo%secondStart
@@ -8368,7 +8368,7 @@ contains
         type(weight_obj) :: weights
         procedure(calc_pgen_general), pointer :: calc_pgen_yix
 
-        unused_variable(branch_pgen)
+        unused_var(branch_pgen)
 
         st = excitInfo%fullStart
         se = excitInfo%secondStart
@@ -10850,10 +10850,10 @@ contains
         call stop_all(this_routine,&
             "in Hubbard/UEG calculations with full k-point symmetry, this excitation shouldnt be reached!")
 
-        unused_variable(ilut)
-        unused_variable(t)
-        unused_variable(excitInfo)
-        unused_variable(branch_pgen)
+        unused_var(ilut)
+        unused_var(t)
+        unused_var(excitInfo)
+        unused_var(branch_pgen)
 
     end subroutine calc_mixed_x2x_ueg
 
@@ -21241,7 +21241,7 @@ contains
         character(*), parameter :: this_routine = "get_excit_level_from_excitInfo"
 
         call stop_all(this_routine, "TODO")
-        unused_variable(excitInfo)
+        unused_var(excitInfo)
         ic = 0
 
     end function get_excit_level_from_excitInfo
@@ -21258,11 +21258,11 @@ contains
 
         call stop_all(this_routine, "TODO")
 
-        unused_variable(ilutI)
-        unused_variable(nI)
-        unused_variable(ilutJ)
-        unused_variable(nJ)
-        unused_variable(excitInfo)
+        unused_var(ilutI)
+        unused_var(nI)
+        unused_var(ilutJ)
+        unused_var(nJ)
+        unused_var(excitInfo)
         pgen = 0.0_dp
 
     end function calc_pgen_mol_guga_double
@@ -21331,11 +21331,11 @@ contains
         call stop_all(this_routine, "TODO")
 
         ! todo
-        unused_variable(ilutI)
-        unused_variable(nI)
-        unused_variable(ilutJ)
-        unused_variable(nJ)
-        unused_variable(excitInfo)
+        unused_var(ilutI)
+        unused_var(nI)
+        unused_var(ilutJ)
+        unused_var(nJ)
+        unused_var(excitInfo)
 
         pgen = 0.0_dp
 
@@ -21416,7 +21416,7 @@ contains
         b = 0
         c = 0
         d = 0
-        unused_variable(excitInfo)
+        unused_var(excitInfo)
 
     end subroutine get_orbs_from_excit_info
 
@@ -21436,7 +21436,7 @@ contains
         real(dp), allocatable :: cum_arr(:)
         real(dp) :: cum_sum, r, elec_factor
 
-        unused_variable(ilut)
+        unused_var(ilut)
 
         ! first pick completely random from electrons only!
         elec = 1 + floor(genrand_real2_dSFMT() * nEl)
@@ -21679,9 +21679,9 @@ contains
         print *, "psingles, pDoubles: ", pSingles, pDoubles
         call stop_all(this_routine, &
             "should not be at double excitations in the real-space hubbard model!")
-        unused_variable(ilut)
-        unused_variable(nI)
-        unused_variable(excitInfo)
+        unused_var(ilut)
+        unused_var(nI)
+        unused_var(excitInfo)
         pgen = 0.0_dp
 
     end subroutine pickOrbs_real_hubbard_double
@@ -21699,7 +21699,7 @@ contains
         integer :: elec, orb_i, orb_a
         real(dp) :: cum_arr(nSpatOrbs), elec_factor, cum_sum, r
 
-        unused_variable(ilut)
+        unused_var(ilut)
 
         ! first pick electron randomly:
         elec = 1 + floor(genrand_real2_dSFMT() * nel)
@@ -22278,9 +22278,9 @@ contains
         call stop_all(this_routine, &
             "single excitation should not be called in Hubbard/UEG models due to k-point symmetries! abort!")
         pgen = 0.0_dp
-        unused_variable(ilut)
-        unused_variable(nI)
-        unused_variable(excitInfo)
+        unused_var(ilut)
+        unused_var(nI)
+        unused_var(excitInfo)
 
     end subroutine pickOrbs_sym_uniform_ueg_single
 
@@ -24865,8 +24865,8 @@ contains
         real(dp) :: r, temp_pgen, temp_pgen2, temp_pgen3, nDouble, nSingle, &
             nEmpty, nOrbs
 
-        unused_variable(ilut)
-        unused_variable(nI)
+        unused_var(ilut)
+        unused_var(nI)
 
         ! change to different excitation type biasing:
         call pick_first_orbital(i, pgen, excit_lvl, excit_typ)
@@ -26994,7 +26994,7 @@ contains
         real(dp) :: factor
         ASSERT(isProperCSF_ilut(ilut))
 
-        unused_variable(nI)
+        unused_var(nI)
 
         excitInfo%typ = 0
         excitInfo%excitLvl = 2

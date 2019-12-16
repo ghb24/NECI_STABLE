@@ -33,7 +33,6 @@ set( SRC_FILES
     Determinants.F90
     determ_proj.F90
     detham.F
-    DipMoms.F
     direct_ci.F90
     enumerate_excitations.F90
     ErrorAnalysis.F90
@@ -242,7 +241,6 @@ set( TEMPLATED_SRC_FILES
     lib/util_mod_cpts.F90.template
     lib/util_mod_numerical.F90.template
     lib/util_mod_epsilon_close.F90.template
-    lib/util_mod_unused.F90.template
 )
 
 
@@ -317,5 +315,3 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     )
 
 endforeach()
-
-add_subdirectory( test_loop )

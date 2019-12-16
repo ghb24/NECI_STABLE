@@ -977,7 +977,7 @@ contains
                 write(6,'(i8,1X,a12)') old_num_states, "states kept."
                 call neci_flush(6)
 
-                call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
+                call deallocate_sparse_ham(sparse_ham, SparseHamilTags)
                 deallocate(hamil_diag, stat=ierr)
                 call LogMemDealloc(t_r, HDiagTag, ierr)
 

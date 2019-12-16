@@ -67,10 +67,7 @@ contains
 
         integer :: nsing, ndoub, nexcit
 
-#ifdef __WARNING_WORKAROUND
-        call unused(part_type); call unused(exFlag);
-        call unused(store%nel_alpha)
-#endif
+        unused_var(part_type); unused_var(exFlag); unused_var(store)
 
         ! Count how many singles and doubles there are!
         call CountExcitations3 (nI, 3, nsing, ndoub)
@@ -187,9 +184,7 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag); call unused(part_type)
-#endif
+        unused_var(exFlag); unused_var(part_type)
 
         HElGen = HEl_zero
 
@@ -1210,10 +1205,7 @@ contains
         integer :: orb
         real(dp) :: pgen2
 
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag); call unused(part_type);
-        call unused(store%nel_alpha)
-#endif
+        unused_var(exFlag); unused_var(part_type); unused_var(store)
 
         HElGen = HEl_zero
         if (genrand_real2_dSFMT() < pSingles) then

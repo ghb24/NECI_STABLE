@@ -1431,7 +1431,7 @@ contains
         call LogMemDealloc(t_r, DavidsonTag, ierr)
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
-        call deallocate_sparse_ham(sparse_ham, 'sparse_ham', SparseHamilTags)
+        call deallocate_sparse_ham(sparse_ham, SparseHamilTags)
 
     end subroutine diagonalize_core
 
@@ -1723,7 +1723,7 @@ contains
         character(len=*), parameter :: t_r = "end_semistoch"
         integer :: ierr
 
-        call deallocate_sparse_ham(sparse_core_ham, 'sparse_core_ham', SparseCoreHamilTags)
+        call deallocate_sparse_ham(sparse_core_ham, SparseCoreHamilTags)
 
         call deallocate_core_hashtable(core_ht)
 
