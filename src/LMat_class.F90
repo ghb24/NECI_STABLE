@@ -384,7 +384,7 @@ contains
         class(dense_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: indices(:,:), entries(:,:)
         integer(int64) :: i, this_blocksize
-        real(dp) :: rVal
+        HElement_t(dp) :: rVal
 
         this_blocksize = size(entries, dim=2)        
 
