@@ -193,25 +193,6 @@ module procedure_pointers
 
         end function
 
-        ! generic lMat element routine (3e integrals)
-        function get_lmat_el_t(a,b,c,i,j,k) result(hel)
-          use constants
-          implicit none
-
-          integer, value :: a,b,c
-          integer, value :: i,j,k
-          HElement_t(dp) :: hel
-
-        end function get_lmat_el_t
-
-!         subroutine generate_all_excits_t(nI, n_excits, det_list) 
-!             use SystemData, only: nel 
-!             use constants, only: n_int
-!             integer, intent(in) :: nI(nel) 
-!             integer, intent(out) :: n_excits
-!             integer(n_int), intent(out), allocatable :: det_list(:,:)
-!         end subroutine generate_all_excits_t
-
         ! slater-condon rules types
         function sltcnd_0_t(nI) result(hel)
           use constants, only: dp
@@ -314,9 +295,5 @@ module procedure_pointers
     procedure(scale_function_t), pointer :: scaleFunction
     ! the function used to scale the shift
     procedure(shift_factor_function_t), pointer :: shiftFactorFunction
-
-    ! indexing function of the six-index integrals
-    procedure(get_lmat_el_t), pointer :: get_lmat_el
-    procedure(get_lmat_el_t), pointer :: get_lmat_el_symInternal
 
 end module

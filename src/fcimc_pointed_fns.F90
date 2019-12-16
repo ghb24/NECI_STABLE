@@ -30,8 +30,6 @@ module fcimc_pointed_fns
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
     use UMatCache, only: UMatInd, gtID
-    use kMatProjE, only: kMat
-    use tc_three_body_data, only: tDampKMat
     use util_mod
     use FciMCData
     use constants

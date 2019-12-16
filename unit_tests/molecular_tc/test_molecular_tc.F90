@@ -8,6 +8,7 @@ program test_molecular_tc
   use fruit
   use Parallel_neci, only: MPIInit, MPIEnd
   use tc_three_body_data, only: tSparseLMat, tHDF5LMat
+  use tc_three_body_excitgen, only: setup_mol_tc_excitgen
 
   implicit none
 
@@ -27,12 +28,7 @@ program test_molecular_tc
     subroutine molecular_tc_test_driver()
       implicit none
       call setup_tests()
-      ! three things to test:
-      ! the sixindex initialization
-      call run_lmat_test()
-      ! the tc slater condon rules
-      call run_sltcnd_test()
-      ! and the three-body excitation generator
+      ! test the three-body excitation generator
       call run_excitgen_test()
 
       call clear_resources()
@@ -52,7 +48,7 @@ program test_molecular_tc
 
       integer :: i
       
-      nBasis = 28
+      nBasis = 14
       tStoreSpinOrbs = .false.
       nel = 6
 
@@ -66,8 +62,6 @@ program test_molecular_tc
             G1(i)%ms = 1
          end if
       end do
-      
-      get_umat_el => nullUMat
 
       t_mol_3_body = .true.
       ! the slater condon rules in the TC are routed via procedure pointers, they have to
@@ -98,48 +92,10 @@ program test_molecular_tc
       ! assign the the sixindex access functions
       tSparseLMat = .true.
       tHDF5LMat = .true.
-      call initializeLMatPtrs()
-    end subroutine setup_tests
 
-    subroutine run_lmat_test()
-      implicit none
-      integer, parameter :: a=13,b=28,c=2,i=1,j=6,k=2
-      integer, parameter :: ap=21,bp=22,cp=1,ip=5,jp=6,kp=1
-      
-      ! we read an exemplary sixindex integral file
-      call readLMat()
-    end subroutine run_lmat_test
-   
-    subroutine run_sltcnd_test()
-      ! check the slater condon rules by computing some exemplary matrix elements of H
-      use sltcnd_mod
-      use tc_three_body_excitgen, only: setup_mol_tc_excitgen
-      implicit none
-      
-      integer :: nI(nel), nJ(nel)
-      HElement_t(dp) :: matel
-      ! the example determinant
-      nI = (/2,4,6,11,13,14/)
+      ! initialize the excitgen
       call setup_mol_tc_excitgen()
-
-      ! get_lmat_el already accounts for all permutations/exchange terms
-      print *, "Direct matrix element", get_lmat_el(1,2,3,1,2,3)
-      print *, "Exchange matrix el (should be the same)", get_lmat_el(2,1,3,2,1,3)
-      print *, "Exchange matrix el (should be the same)", get_lmat_el(3,1,2,3,1,2)
-
-      nJ = (/8,10,11,12,13,14/)
-      matel = sltcnd_compat(nI,nJ,3)
-      print *, "Triple matrix element", matel
-      
-      nJ = (/4,10,11,12,13,14/)
-      print *, "Double matrix element", sltcnd_compat(nI,nJ,2)
-
-      nJ = (/2,4,11,12,13,14/)
-      print *, "Single matrix element", sltcnd_compat(nI,nJ,1)
-
-      print *, "Diagonal matrix element", sltcnd_compat(nI,nI,0)
-
-    end subroutine run_sltcnd_test
+    end subroutine setup_tests
 
     subroutine run_excitgen_test()
       ! TODO: Scrap this crap and use the proper excitation generator unit test
@@ -173,23 +129,17 @@ program test_molecular_tc
          call gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
               tParity, pgen, helgen, store)
 
-         print *, "Generated: ", nJ
-         print *, "Prob: ", pgen
-
          call assert_true(abs(pgen-calc_pgen_triple(ExcitMat)) < eps)
       end do
     end subroutine run_excitgen_test
 
     subroutine init_dummy()
       use OneEInts, only: TMat2D, tOneElecDiag
-      use UMatCache, only: UMat2D, UMat2DExch
+      use UMatCache, only: UMat2D
       use SymData
       use SymExcitDataMod, only: SpinOrbSymLabel
       implicit none
       tOneElecDiag = .false.
-
-      allocate(TMat2D(nBasis,nBasis))
-      TMat2D = 0.0
 
       allocate(Symclasses(nBasis))
       Symclasses = 1
@@ -198,10 +148,6 @@ program test_molecular_tc
       allocate(StateSymMap(nBasis))
       StateSymMap = 1
 
-      allocate(UMat2D(nBasis,nBasis))
-      allocate(UMat2DExch(nBasis,nBasis))
-      UMat2D = 0.0
-      UMat2DExch = 0.0
 
       allocate(spinorbsymlabel(nBasis), source = 0)
       
@@ -209,16 +155,13 @@ program test_molecular_tc
 
     subroutine clear_resources()
       use OneEInts, only: TMat2D
-      use UMatCache, only: UMat2D, UMat2DExch
+      use UMatCache, only: UMat2D
       use SymData
       implicit none
       
-      deallocate(UMat2DExch)
-      deallocate(UMat2D)
       deallocate(StateSymMap)
       deallocate(symlabelintscum)
       deallocate(Symclasses)
-      deallocate(TMat2D)
     end subroutine clear_resources
 
     

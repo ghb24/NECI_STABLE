@@ -67,7 +67,6 @@ MODULE UMatCache
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
       HElement_t(dp), Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
-      HElement_t(dp), Pointer :: UMat2DExch(:,:) => null()
       HElement_t(dp), Pointer :: UMat3d(:,:,:) => null()
       HElement_t(dp), Pointer :: UMat3dExch(:,:,:) => null()
       LOGICAL :: tUMat2D, tDeferred_Umat2d
