@@ -301,7 +301,8 @@ module tc_three_body_excitgen
             call get_missing_elec(nI,elecs,nOccAlpha,1,.true.,pgen)
             ms = 1
             pgen = pgen * p1B/(1.0_dp - (p0B+p0A))
-         endif
+        endif
+        pgen = pgen * 2.0_dp
       endif
 
       ! sort the generated electrons
@@ -409,7 +410,7 @@ module tc_three_body_excitgen
       end do
 
       ! adjust the probability by taking permutations into account
-      pgen = pgen * 4 * abs(ms)
+      pgen = pgen * 2 * abs(ms)
 
     end subroutine pick_three_orbs
 

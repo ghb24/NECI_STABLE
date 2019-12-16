@@ -8,6 +8,7 @@ program test_molecular_tc
   use fruit
   use Parallel_neci, only: MPIInit, MPIEnd
   use tc_three_body_data, only: tSparseLMat, tHDF5LMat
+  use tc_three_body_excitgen, only: setup_mol_tc_excitgen
 
   implicit none
 
@@ -47,7 +48,7 @@ program test_molecular_tc
 
       integer :: i
       
-      nBasis = 28
+      nBasis = 14
       tStoreSpinOrbs = .false.
       nel = 6
 
@@ -91,6 +92,9 @@ program test_molecular_tc
       ! assign the the sixindex access functions
       tSparseLMat = .true.
       tHDF5LMat = .true.
+
+      ! initialize the excitgen
+      call setup_mol_tc_excitgen()
     end subroutine setup_tests
 
     subroutine run_excitgen_test()
@@ -124,9 +128,6 @@ program test_molecular_tc
          ilutJ = 0_n_int
          call gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
               tParity, pgen, helgen, store)
-
-         print *, "Generated: ", nJ
-         print *, "Prob: ", pgen
 
          call assert_true(abs(pgen-calc_pgen_triple(ExcitMat)) < eps)
       end do
