@@ -2,6 +2,23 @@
 #:include "macros.fpph"
 #:set excitations = ['NoExc_t', 'FurtherExc_t', 'SingleExc_t', 'DoubleExc_t', 'TripleExc_t']
 
+!>  @brief
+!>      A module to evaluate the Slater-Condon Rules.
+!>
+!>  @details
+!>  Heavily relies on the excitation_types module to represent different excitations.
+!>
+!>  The main functions are sltcnd_excit and dyn_sltcnd_excit.
+!>  Because sltcnd_excit dispatches statically at compile time,
+!>  depending on the excitation type, it is the preferred function,
+!>  if the excitation level is known at compile time.
+!>
+!>  If the excitation level is not known at compile time,
+!>  use dyn_sltcnd_excit which accepts a polymorphic excitation_t class.
+!>
+!>  The procedures create_excitation, get_excitation, and get_bit_excitation
+!>  from the excitation_types module
+!>  can be used, to create excitations from nIs, or iluts at runtime.
 module sltcnd_mod
     use SystemData, only: nel, nBasisMax, tExch, G1, ALAT, tReltvy, t_3_body_excits, &
                           t_mol_3_body, t_ueg_3_body, tContact
@@ -37,8 +54,33 @@ module sltcnd_mod
               sltcnd_compat, sltcnd, sltcnd_knowIC, &
               CalcFockOrbEnergy, sumfock
 
-!> Evaluate the H-matrix element using the Slater-Condon rules.
-!> Generic function that accepts arguments of Excitation Types.
+!>  @brief
+!>      Evaluate Matrix Element for different excitations
+!>      using the Slater-Condon rules.
+!>
+!>  @details
+!>  This generic function uses compile time dispatch.
+!>  This means that exc cannot be just of class(excitation_t) but has
+!>  to be a proper non-polymorphic type.
+!>  For run time dispatch use dyn_sltcnd_excit.
+!>
+!>  Depending on the excitation type of exc the interfaces differ.
+!>  NoExc_t:
+!>  sltcnd_excit(integer :: nI(neL), type(NoExc_t) :: exc)
+!>
+!>  SingleExc_t:
+!>  sltcnd_excit(integer :: nI(neL), type(SingleExc_t) :: exc, logical :: tParity)
+!>
+!>  DoubleExc_t:
+!>  sltcnd_excit(integer :: nI(neL), type(DoubleExc_t) :: exc, logical :: tParity)
+!>
+!>  TripleExc_t:
+!>  sltcnd_excit(type(TripleExc_t) :: exc, logical :: tParity)
+!>
+!>  FurtherExc_t:
+!>  sltcnd_excit(type(FurtherExc_t) :: exc, logical :: tParity)
+!>
+!>  @param[in] exc, An excitation of a subtype of excitation_t.
     interface sltcnd_excit
     #:for excitation_t in excitations
         module procedure sltcnd_excit_${excitation_t}$
@@ -122,14 +164,20 @@ contains
     end subroutine initSltCndPtr
 
 
+!>  @brief
+!>      Evaluate Matrix Element for different excitations
+!>      using the Slater-Condon rules.
+!>
+!>  @details
+!>  This generic function uses run time dispatch.
+!>  This means that exc can be any subtype of class(excitation_t).
+!>  For performance reason it is advised to use sltcnd_excit,
+!>  if the actual type is known at compile time.
+!>
+!>  @param[in] ref, The reference determinant as array of occupied orbital indices.
+!>  @param[in] exc, An excitation of type excitation_t.
+!>  @param[in] tParity, The parity of the excitation.
     function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
-        !> Use the Slater-Condon Rules to evaluate the H-matrix element between
-        !> two determinants, where the excitation is already known.
-        !>
-        !> In:  ref          - The reference
-        !>      ex           - The excitation.
-        !>      tParity      - The parity of the excitation
-        !> Ret: hel          - The H matrix element
         integer, intent(in) :: ref(nel)
         class(excitation_t), intent(in) :: exc
         logical, intent(in) :: tParity
@@ -888,6 +936,11 @@ contains
         if (tSign) hel = -hel
     end function sltcnd_3_tc_ua
 
+!>  @brief
+!>      Evaluate Matrix Element for the reference (no Excitation).
+!>
+!>  @param[in] ref, An array of occupied orbital indices in the reference.
+!>  @param[in] exc, An excitation of type NoExc_t.
     HElement_t(dp) function sltcnd_excit_NoExc_t(ref, exc)
         integer, intent(in) :: ref(nel)
         type(NoExc_t), intent(in) :: exc
@@ -895,6 +948,12 @@ contains
         sltcnd_excit_NoExc_t = sltcnd_0(ref, exc)
     end function
 
+!>  @brief
+!>      Evaluate Matrix Element for SingleExc_t.
+!>
+!>  @param[in] ref, An array of occupied orbital indices in the reference.
+!>  @param[in] exc, An excitation of type SingleExc_t.
+!>  @param[in] tParity, The parity of the excitation.
     HElement_t(dp) function sltcnd_excit_SingleExc_t(ref, exc, tParity)
         integer, intent(in) :: ref(nel)
         type(SingleExc_t), intent(in) :: exc
@@ -904,6 +963,12 @@ contains
         sltcnd_excit_SingleExc_t = sltcnd_1(ref, exc, tParity)
     end function
 
+!>  @brief
+!>      Evaluate Matrix Element for DoubleExc_t.
+!>
+!>  @param[in] ref, An array of occupied orbital indices in the reference.
+!>  @param[in] exc, An excitation of type DoubleExc_t.
+!>  @param[in] tParity, The parity of the excitation.
     HElement_t(dp) function sltcnd_excit_DoubleExc_t(ref, exc, tParity)
         integer, intent(in) :: ref(nel)
         type(DoubleExc_t), intent(in) :: exc
@@ -912,6 +977,11 @@ contains
         sltcnd_excit_DoubleExc_t = sltcnd_2(ref, exc, tParity)
     end function
 
+!>  @brief
+!>      Evaluate Matrix Element for TripleExc_t.
+!>
+!>  @param[in] exc, An excitation of type TripleExc_t.
+!>  @param[in] tParity, The parity of the excitation.
     HElement_t(dp) function sltcnd_excit_TripleExc_t(exc, tParity)
         type(TripleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
@@ -919,6 +989,10 @@ contains
         sltcnd_excit_TripleExc_t = sltcnd_3(exc%val, tParity)
     end function
 
+!>  @brief
+!>      Excitations further than TripleExc_t should return 0
+!>
+!>  @param[in] exc
     HElement_t(dp) function sltcnd_excit_FurtherExc_t(exc)
         type(FurtherExc_t), intent(in) :: exc
         ! Only the type, not the value of this variable is used.
