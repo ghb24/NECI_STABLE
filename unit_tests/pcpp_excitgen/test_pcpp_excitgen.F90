@@ -4,6 +4,7 @@ program test_pcpp_excitgen
   use pcpp_excitgen
   use unit_test_helper_excitgen
   use procedure_pointers, only: generate_excitation
+  use FciMCData, only: projEDet
   implicit none
 
   call init_fruit()
@@ -19,7 +20,7 @@ contains
     implicit none
     real(dp) :: pTot, pNull
     integer :: numEx, nFound
-    integer, parameter :: nSamples = 100000
+    integer, parameter :: nSamples = 200000
 
     ! set the excitation we want to test
     generate_excitation => gen_rand_excit_pcpp
