@@ -134,10 +134,8 @@ contains
         integer, intent(in) :: src(2)
         real(dp), intent(out) :: cum_arr(nbasis), cum_sum
 
-        integer :: ex(2,2), orba, orbb, ispn
+        integer :: ispn
         real(dp) :: elem, testE
-
-        ex(1,:) = src
 
         ispn = get_ispn(src)
 
@@ -159,9 +157,8 @@ contains
 
                         ! We don't need to worry about which a,b is which, as
                         ! we don't care about the overall sign.
-                        ex(2, 1) = orba
-                        ex(2, 2) = orbb
-                        elem = abs(sltcnd_2_kernel(DoubleExc_t(ex)))
+                        elem = abs(sltcnd_2_kernel( &
+                            DoubleExc_t(src1=src, tgt1=src, src2=orba, tgt2=orbb)))
                     end if
                 end if
             end if
