@@ -2478,7 +2478,8 @@ contains
         allocate(generated_list(nexcit))
         allocate(contrib_list(nexcit))
         allocate(pgen_list(nexcit))
-        allocate(matEle_list(nExcit), source = 0.0_dp)
+        allocate(matEle_list(nExcit))
+        matEle_list = h_cast(0.0_dp)
         allocate(excitTyp(nExcit), source = -1)
         generated_list = .false.
         contrib_list = 0
