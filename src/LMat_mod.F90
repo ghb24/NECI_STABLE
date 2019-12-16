@@ -42,7 +42,6 @@ contains
         use UMatCache, only: gtID
         ! Gets an entry of the 3-body tensor L:
         ! L_{abc}^{ijk} - triple excitation from abc to ijk
-        implicit none
         integer, value :: a,b,c
         integer, value :: i,j,k
         HElement_t(dp) :: matel
@@ -74,7 +73,6 @@ contains
 
         subroutine addMatelContribution(p,q,r,idp,idq,idr,sgn)
             ! get a single entry of the LMat array and add it to the matrix element
-            implicit none
             integer(int64), value :: idp,idq,idr
             integer, value :: p,q,r
             integer, intent(in) :: sgn
@@ -107,7 +105,6 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine initializeLMatPtrs()
-        implicit none
         integer :: nBI
 
         nBI = numBasisIndices(nBasis)
@@ -138,7 +135,6 @@ contains
 
     subroutine readLMat()
         use SystemData, only: nel
-        implicit none
 
         ! we need at least three electrons to make use of the six-index integrals
         ! => for less electrons, this can be skipped
@@ -157,7 +153,6 @@ contains
     !------------------------------------------------------------------------------------------!  
 
     subroutine freeLMat()
-        implicit none
         character(*), parameter :: t_r = "freeLMat"
 
         if(tLMatCalc) then
@@ -176,7 +171,6 @@ contains
         use UMatCache, only: gtID
         ! Gets an entry of the 3-body tensor L:
         ! L_{abc}^{ijk} - triple excitation from abc to ijk
-        implicit none
         integer, value :: a,b,c
         integer :: a2,b2,c2
         integer, intent(in) :: i,j,k
@@ -212,7 +206,6 @@ contains
     contains
 
         subroutine addMatelContribution_ua(p,q,r,sgn)
-            implicit none
             integer, value :: p,q,r
             integer, intent(in) :: sgn
             !     integer(int64) :: ai,bj,ck

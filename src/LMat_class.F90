@@ -359,7 +359,6 @@ contains
     !------------------------------------------------------------------------------------------!    
 
     subroutine read_hdf5_dense(this, filename)
-        implicit none
         class(dense_lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
 #ifdef USE_HDF_        
@@ -468,7 +467,6 @@ contains
     !------------------------------------------------------------------------------------------!    
 
     subroutine read_sparse(this, filename, h5_filename)
-        implicit none
         class(sparse_lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
         character(*), intent(in) :: h5_filename
@@ -617,7 +615,6 @@ contains
     !------------------------------------------------------------------------------------------!
 
     subroutine histogram_lMat(this)
-        implicit none
         class(lMat_t), intent(in) :: this
         integer(int64) :: i
         integer :: thresh

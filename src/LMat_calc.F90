@@ -9,14 +9,14 @@ module LMat_calc
   use LMat_Indexing, only: lMatIndSym, lMatIndSpin
   implicit none
 
-  double precision, allocatable :: qwprod(:,:,:), ycoulomb(:,:,:,:)
+  real(dp), allocatable :: qwprod(:,:,:), ycoulomb(:,:,:,:)
 #ifdef USE_HDF5_
   integer(hsize_t) :: nBasis, nGrid
 #else
   integer :: nGrid
 #endif
   integer(int64), allocatable :: lMatCalcHKeys(:)
-  double precision, allocatable :: lMatCalcHVals(:)
+  real(dp), allocatable :: lMatCalcHVals(:)
   integer(int64) :: lMatIndMax
   contains
 
@@ -25,7 +25,7 @@ module LMat_calc
     character(*), parameter :: filename = "tcfactors.h5"
     character(*), parameter :: nm_grp = "tcfactors", nm_nBasis = "nBasis", nm_nGrid = "nGrid", &
                                nm_weights="weights", nm_mo_vals="mo_vals", nm_ycoulomb="ycoulomb"
-    double precision, allocatable :: mo_vals(:,:), weights(:)
+    real(dp), allocatable :: mo_vals(:,:), weights(:)
 #ifdef USE_HDF5_
     integer(hid_t) :: err, file_id, grp_id, dataset, type_id
     integer(hsize_t) :: weights_dims(1), mo_vals_dims(2), ycoulomb_dims(4)

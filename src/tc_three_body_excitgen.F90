@@ -17,12 +17,13 @@ module tc_three_body_excitgen
        createSingleExcit, createDoubExcit, construct_class_counts,      &
        gen_rand_excit
   use procedure_pointers, only: generate_two_body_excitation
+
+  implicit none
   contains
 
     subroutine gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
          tParity, pGen, HelGen, store, part_type)
       use ueg_excit_gens, only: gen_ueg_excit
-      implicit none
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
@@ -54,7 +55,6 @@ module tc_three_body_excitgen
 
     function calc_pgen_mol_tc(nI, ex, ic, ClassCount, &
          ClassCountUnocc, pDoub) result(pgen)
-      implicit none
       integer, intent(in) :: nI(nel), ex(2,ic), ic
       integer, intent(in) :: ClassCount(ScratchSize)
       integer, intent(in) :: ClassCountUnocc(ScratchSize)
@@ -79,7 +79,6 @@ module tc_three_body_excitgen
 
     function calc_pgen_triple(ex) result(pgen)
       ! get the probability to get excitation `ex` from a determinant `nI`
-      implicit none
       integer, intent(in) :: ex(2,3)
       real(dp) :: pgen
       integer :: ms, i
@@ -112,8 +111,6 @@ module tc_three_body_excitgen
 !------------------------------------------------------------------------------------------!
 
     subroutine setup_mol_tc_excitgen()
-      implicit none
-
       ! initialize the biases and auxiliary variables for the molecular
       ! transcorrelated 3-body excitation generator
 
@@ -124,8 +121,6 @@ module tc_three_body_excitgen
 !------------------------------------------------------------------------------------------!
 
     subroutine precompute_pgen()
-      implicit none
-
       ! set the number of unoccupied alpha/beta
       nUnoccAlpha = nBasis/2 - nOccAlpha
       nUnoccBeta = nBasis/2 - nOccBeta
@@ -162,7 +157,6 @@ module tc_three_body_excitgen
 
     subroutine init_mol_tc_biases()
       use SystemData, only: tSmallBasisForThreeBody
-      implicit none
       ! reference determinant for initializing the biases
       real(dp) :: normalization
       ! if we read in a value, use that one
@@ -204,7 +198,6 @@ module tc_three_body_excitgen
 
     subroutine generate_triple_excit(nI, ilutI, nJ, ilutJ, ExcitMat, tParity, pGen, &
          HelGen, store)
-      implicit none
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
@@ -258,7 +251,6 @@ module tc_three_body_excitgen
 
     subroutine pick_three_elecs(nI, elecs, src, sym_prod, pgen, ms)
       ! picks three random electrons from nI, biased towards 0, 1, 2 or 3 beta electrons
-      implicit none
       integer, intent(in) :: nI(nel)
       integer, intent(out) :: elecs(3), src(3), sym_prod, ms
       real(dp), intent(out) :: pgen
@@ -320,7 +312,6 @@ module tc_three_body_excitgen
 !------------------------------------------------------------------------------------------!
 
     subroutine get_missing_elec(nI, elecs, nOcc, nPicked, tAlpha, pgen)
-      implicit none
       ! after picking two electrons using the symrandexcit routines,
       ! get a third one with the missing spin
       integer, intent(in) :: nI(nel)
@@ -365,7 +356,6 @@ module tc_three_body_excitgen
       contains
 
         subroutine skipElec(ind)
-          implicit none
           integer, intent(in) :: ind
 
           ! if we need to skip an index
@@ -386,7 +376,6 @@ module tc_three_body_excitgen
 !------------------------------------------------------------------------------------------!
 
     subroutine pick_three_orbs(nI, tgt, pgen, ms)
-      implicit none
       ! picks three random unoccupied orbitals, given the occupied orbitals
       integer, intent(in) :: nI(nel), ms
       integer, intent(out) :: tgt(3)
@@ -419,7 +408,6 @@ module tc_three_body_excitgen
       use SystemData , only: nBasisMax,tOrbECutoff,OrbECutoff,nmaxx,nmaxy,nmaxz
       use sym_mod, only: mompbcsym
 
-      implicit none
       ! picks three random unoccupied orbitals, given the occupied orbitals
       integer, intent(in) :: nI(nel), ms, src(3)
       integer, intent(out) :: tgt(3)
@@ -530,7 +518,6 @@ module tc_three_body_excitgen
 !------------------------------------------------------------------------------------------!
 
     subroutine get_rand_orb(nI, tgt, ms, nPicked, pgen)
-      implicit none
       integer, intent(inout) :: tgt(3)
       integer, intent(in) :: ms, nPicked, nI(nel)
       real(dp), intent(inout) :: pgen
@@ -567,7 +554,6 @@ module tc_three_body_excitgen
 
       contains
         pure function spinOrb(orb) result(sorb)
-          implicit none
           integer, intent(in) :: orb
           integer :: sorb
 
@@ -575,7 +561,6 @@ module tc_three_body_excitgen
         end function spinOrb
 
         subroutine skipPicked()
-          implicit none
           integer :: i
           integer :: invalidOrbs(nel+nPicked)
 
