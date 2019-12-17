@@ -55,7 +55,6 @@ MODULE Calc
     use DetBitOps, only: DetBitEq, EncodeBitDet
     use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
-    use tc_three_body_data, only: tDampKMat, tDampLMat, tSymBrokenLMat
     use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
 
     implicit none
@@ -476,10 +475,6 @@ contains
           ! scaling of spawns
           tScaleBlooms = .false.
           max_allowed_spawn = MaxWalkerBloom
-          ! apply the tc two-body integrals differently for same-spin excitations?
-          tDampKMat = .false.
-          tDampLMat = .false.
-
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -3029,16 +3024,6 @@ contains
                 if (item < nitems) then
                     call geti(occ_virt_level)
                 end if
-
-             case("DAMP-KMAT")
-                ! multiply kmat with a factor of 0.5 for same-spin
-                tDampKMat = .true.
-
-             case("DAMP-CORRELATOR")
-                tDampLMat = .true.
-                tDampKMat = .true.
-                ! requires explicitly symmetry-broken six-index integrals
-                tSymBrokenLMat = .true.
 
               case("DELAY-DEATHS")
                  ! Outdated keyword

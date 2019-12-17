@@ -47,7 +47,7 @@
 ! Is the specified orbital part of a doubly occupied pair?
 #define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
 
-! salso reimplement a get_spatial orbital macro here 
+! salso reimplement a get_spatial orbital macro here
 #define get_spatial(orb) (orb - 1)/2 + 1
 
 ! Are the two orbitals specified (may be the same orbital) from the same
@@ -209,7 +209,7 @@ endif
 
 ! Cast a real value to HElement_t
 #ifdef CMPLX_
-#define h_cast(val) cmplx(val,0.0_dp)
+#define h_cast(val) cmplx(val,0.0_dp,kind=dp)
 #else
 #define h_cast(val) val
 #endif

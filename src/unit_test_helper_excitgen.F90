@@ -317,7 +317,7 @@ contains
        do j = 1, i
           do k = i, nBasisBase
              do l = 1, k
-                matel = sqrt(umatRand(i,k)*umatRand(j,l))
+                matel = sqrt(umatRand(i,j)*umatRand(k,l))
                 if(matel > eps) write(iunit, *) matel,i,j,k,l
              end do
           end do

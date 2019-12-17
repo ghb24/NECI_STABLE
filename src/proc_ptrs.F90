@@ -272,8 +272,4 @@ module procedure_pointers
     ! the function used to scale the shift
     procedure(shift_factor_function_t), pointer :: shiftFactorFunction
 
-    ! indexing function of the six-index integrals
-    procedure(get_lmat_el_t), pointer :: get_lmat_el
-    procedure(get_lmat_el_t), pointer :: get_lmat_el_symInternal
-
 end module

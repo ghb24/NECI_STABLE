@@ -164,7 +164,7 @@ contains
     if(G1(src1)%MS.ne.G1(src2)%MS) then
        if(genrand_real2_dSFMT() < 0.5) call intswap(tgt1MS,tgt2MS)
        pGen = pGen * 0.5
-    endif
+   endif
 
     call double_hole_one_sampler(src1,tgt1MS)%sample(tgt1,pTGen1)
     ! update generation probability so far to ensure it has a valid value on return in any case
@@ -733,13 +733,6 @@ contains
 
     integer, intent(in) :: i,a
     real(dp) :: w
-    !integer :: ex(2,2)
-
-    !ex(1,1) = i
-    !ex(2,1) = i
-    !ex(1,2) = a
-    !ex(2,2) = a
-    !w = sqrt(abs(sltcnd_excit(refDet,2,ex,.false.)))
 
     w = sqrt(abs(get_umat_el(gtID(i),gtID(a),gtID(a),gtID(i))))
   end function pp_weight_function

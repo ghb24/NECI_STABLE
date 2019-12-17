@@ -16,8 +16,9 @@ character(12) :: MolproID
 
 logical :: tNoSingExcits    !True if there are no single excitations in the system
 logical :: t_mol_3_body     ! using molecular 3-body transcorr. matels
-logical :: t_exclude_3_body_excits
-logical :: t_ueg_transcorr, t_ueg_dump, t_ueg_3_body, tSmallBasisForThreeBody     ! using  3-body transcorr. matels for ueg and ultracold atoms
+logical :: t_exclude_3_body_excits = .false.
+logical :: t_ueg_transcorr, t_ueg_dump, t_ueg_3_body
+logical :: tSmallBasisForThreeBody = .true.     ! using  3-body transcorr. matels for ueg and ultracold atoms
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault

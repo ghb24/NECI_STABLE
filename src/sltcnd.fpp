@@ -41,9 +41,6 @@ module sltcnd_mod
     use bit_reps, only: NIfTot
     use LMat_mod, only: get_lmat_el, get_lmat_el_ua
     use gen_coul_ueg_mod, only: get_contact_umat_el_3b_sp, get_contact_umat_el_3b_sap
-    use tc_three_body_data, only: tDampKMat, tSpinCorrelator
-    use kMatProjE, only: kMatParSpinCorrection, kMatOppSpinCorrection, spinKMatContrib, &
-                         kMatAA
     implicit none
     private
     public :: initSltCndPtr, &
@@ -388,6 +385,8 @@ contains
         HElement_t(dp) :: hel, hel_sing, hel_doub, hel_tmp
         integer :: id(nel), i, j, idN, idX
 
+        @:unused_var(exc)
+
         ! Sum in the one electron integrals (KE --> TMAT)
         hel_sing = sum(GetTMATEl(nI, nI))
 
@@ -401,19 +400,6 @@ contains
         do i = 1, nel - 1
             do j = i + 1, nel
                 hel_doub = hel_doub + get_umat_el(id(i), id(j), id(i), id(j))
-                if (tSpinCorrelator) then
-                    hel_doub = hel_doub &
-       + spinKMatContrib(id(i), id(j), id(i), id(j), G1(nI(i))%MS, G1(nI(j))%MS)
-                endif
-                if (tDampKMat) then
-                    ! same-spin correction: a factor of 0.5
-                    if (G1(nI(i))%Ms == G1(nI(j))%Ms) then
-         hel_doub = hel_doub + kMatParSpinCorrection(id(i), id(j), id(i), id(j))
-                        ! opposite-spin correction (if different orbs)
-                    else if (id(i) /= id(j)) then
-         hel_doub = hel_doub + kMatOppSpinCorrection(id(i), id(j), id(i), id(j))
-                    endif
-                endif
             enddo
         enddo
 
@@ -425,12 +411,7 @@ contains
                 do j = i + 1, nel
                     ! Exchange contribution is zero if I,J are alpha/beta
                     if ((G1(nI(i))%Ms == G1(nI(j))%Ms) .or. tReltvy) then
-                     hel_tmp = hel_tmp - get_umat_el(id(i), id(j), id(j), id(i))
-                        if (tSpinCorrelator) &
-                            ! here, i and j always have the same spin
-              hel_tmp = hel_tmp + kMatAA%exchElement(id(i), id(j), id(i), id(j))
-                        if (tDampKMat) &
-           hel_tmp = hel_tmp - kMatParSpinCorrection(id(i), id(j), id(j), id(i))
+                        hel_tmp = hel_tmp - get_umat_el(id(i), id(j), id(j), id(i))
                     endif
                 enddo
             enddo
@@ -470,18 +451,6 @@ contains
                 if (ex%val(1) /= nI(i)) then
                     id = gtID(nI(i))
                     hel = hel + get_umat_el(id_ex(1), id, id_ex(2), id)
-                    if (tSpinCorrelator) then
-                        hel = hel &
-       + spinKMatContrib(id_ex(1), id, id_ex(2), id, G1(ex%val(1))%MS, G1(nI(i))%MS)
-                    endif
-                    if (tDampKMat) then
-                        if (G1(ex%val(1))%Ms == G1(nI(i))%Ms) then
-                   hel = hel + kMatParSpinCorrection(id_ex(1), id, id_ex(2), id)
-                        else
-                            ! opposite spin correction only for different orbs, which is given here
-                   hel = hel + kMatOppSpinCorrection(id_ex(1), id, id_ex(2), id)
-                        endif
-                    endif
                 endif
             enddo
         endif
@@ -494,12 +463,6 @@ contains
                     if (tReltvy .or. (G1(ex%val(1))%Ms == G1(nI(i))%Ms)) then
                         id = gtID(nI(i))
                         hel = hel - get_umat_el(id_ex(1), id, id, id_ex(2))
-                        if (tSpinCorrelator) &
-                      hel = hel + kMatAA%exchElement(id_ex(1), id, id_ex(2), id)
-                        if (tDampKMat) &
-                            ! only parallel spin excits can have exchange terms entering in the one-body
-                            ! matrix element -> no need for opposite spin correction
-                   hel = hel - kMatParSpinCorrection(id_ex(1), id, id, id_ex(2))
                     endif
                 endif
             enddo
@@ -517,7 +480,7 @@ contains
         type(DoubleExc_t), intent(in) :: exc
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        unused_var(nI)
+        @:unused_var(nI)
 
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).
@@ -537,35 +500,14 @@ contains
         if (tReltvy .or. ((G1(ex(1, 1))%Ms == G1(ex(2, 1))%Ms) .and. &
                           (G1(ex(1, 2))%Ms == G1(ex(2, 2))%Ms))) then
             hel = get_umat_el(id(1, 1), id(1, 2), id(2, 1), id(2, 2))
-            if (tSpinCorrelator) then
-            hel = hel + spinKMatContrib(id(1,1),id(1,2),id(2,1),id(2,2),G1(ex(1,1))%MS,G1(ex(1,2))%MS)
-            endif
         else
             hel = (0)
         endif
         if (tReltvy .or. ((G1(ex(1, 1))%Ms == G1(ex(2, 2))%Ms) .and. &
                           (G1(ex(1, 2))%Ms == G1(Ex(2, 1))%Ms))) then
             hel = hel - get_umat_el(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
-            if (tSpinCorrelator) then
-            hel = hel - spinKMatContrib(id(1,1),id(1,2),id(2,2),id(2,1),G1(ex(1,1))%MS,G1(ex(1,2))%MS)
-            endif
         endif
 
-        if (tDampKMat) then
-            ! same-spin excitations have only half of KMat acting
-            if (G1(ex(1, 1))%Ms == G1(ex(1, 2))%Ms .and. &
-  G1(ex(1, 2))%Ms == G1(ex(2, 2))%Ms .and. G1(ex(1, 1))%Ms == G1(ex(2, 1))%Ms) &
-     hel = hel + kMatParSpinCorrection(id(1, 1), id(1, 2), id(2, 1), id(2, 2)) &
-                 - kMatParSpinCorrection(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
-            ! opposite-spin excitations of different orbitals have a different weighting of
-            ! normal vs exchange term (not relevant for same-orbtial excits, for lack of exchange)
-         if (G1(ex(1, 1))%MS /= G1(ex(1, 2))%MS .and. id(1, 1) /= id(1, 2)) then
-                if (G1(ex(1, 1))%MS == G1(ex(2, 1))%MS) &
-       hel = hel - kMatOppSpinCorrection(id(1, 1), id(1, 2), id(2, 1), id(2, 2))
-                if (G1(ex(1, 1))%MS == G1(ex(2, 2))%MS) &
-       hel = hel + kMatOppSpinCorrection(id(1, 1), id(1, 2), id(2, 2), id(2, 1))
-            endif
-        endif
     end function sltcnd_2_kernel
 
     !------------------------------------------------------------------------------------------!
@@ -656,8 +598,8 @@ contains
         integer, intent(in) :: ex(2, 3)
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        unused_var(ex)
-        unused_var(tSign)
+
+        @:unused_var(ex, tSign)
 
         hel = 0
     end function sltcnd_3_base
@@ -675,6 +617,8 @@ contains
 
         HElement_t(dp) :: hel_sing, hel_doub, hel_tmp
         integer :: id(nel), i, j, idN, idX
+
+        @:unused_var(exc)
 
         ! Sum in the one electron integrals (KE --> TMAT)
         hel_sing = sum(GetTMATEl(nI, nI))
@@ -773,7 +717,8 @@ contains
         type(DoubleExc_t), intent(in) :: ex
         logical, intent(in) :: tSign
         HElement_t(dp) :: hel
-        unused_var(nI)
+
+        @:unused_var(nI)
 
         ! Only non-zero contributions if Ms preserved in each term (consider
         ! physical notation).

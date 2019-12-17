@@ -9,27 +9,23 @@ module LMat_calc
   use LMat_Indexing, only: lMatIndSym, lMatIndSpin
   implicit none
 
-  double precision, allocatable :: qwprod(:,:,:), ycoulomb(:,:,:,:), ycoulombAB(:,:,:,:)
+  real(dp), allocatable :: qwprod(:,:,:), ycoulomb(:,:,:,:)
 #ifdef USE_HDF5_
   integer(hsize_t) :: nBasis, nGrid
 #else
   integer :: nGrid
 #endif
-  logical :: ycoulombAB_exists
   integer(int64), allocatable :: lMatCalcHKeys(:)
-  double precision, allocatable :: lMatCalcHVals(:)
+  real(dp), allocatable :: lMatCalcHVals(:)
   integer(int64) :: lMatIndMax
-  integer(int64), allocatable :: lMatABCalcHKeys(:)
-  double precision, allocatable :: lMatABCalcHVals(:)
-  integer(int64) :: lMatABIndMax
   contains
 
   subroutine readLMatFactors()
 
     character(*), parameter :: filename = "tcfactors.h5"
     character(*), parameter :: nm_grp = "tcfactors", nm_nBasis = "nBasis", nm_nGrid = "nGrid", &
-                               nm_weights="weights", nm_mo_vals="mo_vals", nm_ycoulomb="ycoulomb", nm_ycoulombAB="ycoulombAB"
-    double precision, allocatable :: mo_vals(:,:), weights(:)
+                               nm_weights="weights", nm_mo_vals="mo_vals", nm_ycoulomb="ycoulomb"
+    real(dp), allocatable :: mo_vals(:,:), weights(:)
 #ifdef USE_HDF5_
     integer(hid_t) :: err, file_id, grp_id, dataset, type_id
     integer(hsize_t) :: weights_dims(1), mo_vals_dims(2), ycoulomb_dims(4)
@@ -78,25 +74,10 @@ module LMat_calc
     call h5tclose_f(type_id, err)
     call h5dclose_f(dataset, err)
 
-    call h5lexists_f(grp_id, nm_ycoulombAB, ycoulombAB_exists, err)
-    if (ycoulombAB_exists) then
-        ! load ycoulombAB
-        allocate(ycoulombAB(3, nGrid, nBasis, nBasis))
-        call h5dopen_f(grp_id, nm_ycoulombAB, dataset, err)
-        call h5dget_type_f(dataset, type_id, err)
-        call h5dread_f(dataset, type_id, ycoulombAB, ycoulomb_dims, err)
-        call h5tclose_f(type_id, err)
-        call h5dclose_f(dataset, err)
-    end if
-
     ! close the file, finalize hdf5
     call h5gclose_f(grp_id, err)
     call h5fclose_f(file_id, err)
     call h5close_f(err)
-
-    if(.not. ycoulombAB_exists .and. tSpinCorrelator) then
-        call stop_all(this_routine, "ycoulombAB is needed for Spin-Correlator but not found in TcFactors file.")
-    end if
 
     !Combine weights and molecular oribtals
     allocate(qwprod(nGrid, nBasis, nBasis))
@@ -116,14 +97,6 @@ module LMat_calc
         end do
     end do
 
-    if (ycoulombAB_exists) then
-        do a=1,nBasis
-            do b=a+1,nBasis
-                ycoulombAB(:,:,a,b) = ycoulombAB(:,:,b,a)
-            end do
-        end do
-    end if
-
     lMatIndMax = lMatIndSym(nBasis,nBasis,nBasis,nBasis,nBasis,nBasis)
     lMatCalcHSize = lMatCalcHFactor * lMatIndMax
 
@@ -139,23 +112,6 @@ module LMat_calc
     lMatCalcTot = 0
     lMatCalcHUsed = 0
 
-    if (ycoulombAB_exists) then
-        lMatABIndMax = lMatIndSpin(nBasis,nBasis,nBasis,nBasis,nBasis,nBasis)
-        lMatABCalcHSize = lMatABCalcHFactor * lMatABIndMax
-
-        write(iout, *) "Total Size of LMatAB: ", lMatABIndMax
-        write(iout, *) "Size of LMatABCalc Hash Table: ", lMatABCalcHSize
-
-        allocate(lMatABCalcHKeys(lMatABCalcHSize))
-        allocate(lMatABCalcHVals(lMatABCalcHSize))
-        do i=1,lMatABCalcHSize
-            lMatABCalcHKeys(i) = -1
-        end do
-        lMatABCalcHit = 0
-        lMatABCalcTot = 0
-        lMatABCalcHUsed = 0
-    endif
-
     write(iout,*) "********************************************************"
 #else
     call stop_all(this_routine, 'HDF5 support not enabled at compile time')
@@ -170,12 +126,6 @@ module LMat_calc
     deallocate(qwprod)
     deallocate(lMatCalcHKeys)
     deallocate(lMatCalcHVals)
-
-    if (ycoulombAB_exists) then
-        deallocate(ycoulombAB)
-        deallocate(lMatABCalcHKeys)
-        deallocate(lMatABCalcHVals)
-    end if
   end subroutine freeLMatFactors
 
 
@@ -232,103 +182,4 @@ module LMat_calc
 
   end function
 
-  function lMatABCalc(i,k,m,j,l,n, spinMixture) result (matel)
-    integer(int64), intent(in) :: i,j,k,l,m,n
-    integer, intent(in) :: spinMixture
-    HElement_t(dp) :: matel
-    integer(int64) :: hashKey, hashInd
-    integer :: ii
-    character(*), parameter :: this_routine = "lMatCalc"
-
-    lMatABCalcTot = lMatABCalcTot + 1
-
-    !First look up the value in the hash table
-    select case(spinMixture)
-      case(1) ! ij has different spin
-            hashKey = lMatIndSpin(i,k,m,j,l,n)
-      case(2) !kl has different spin
-            hashKey = lMatIndSpin(k,i,m,l,j,n)
-      case(3) !mn has different spin
-            hashKey = lMatIndSpin(m,k,i,n,l,j)
-    end select
-    hashInd = mod(hashKey-1,lMatABCalcHSize)+1 !Try whether other hash functions could imporve the hit rate
-
-    if(hashKey==LMatABCalcHKeys(hashInd))then
-        lMatABCalcHit = lMatABCalcHit + 1
-        matel = LMatABCalcHVals(hashInd)
-        return
-    end if
-
-    !It does not exist. So let's calculate it
-    matel = 0.0_dp
-    select case(spinMixture)
-      case(1) ! ij has different spin
-        do ii = 1,nGrid
-          matel = matel - qwprod(ii,m,n)*(&
-                ycoulombAB(1,ii,i,j)*ycoulomb(1,ii,k,l)+&
-                ycoulombAB(2,ii,i,j)*ycoulomb(2,ii,k,l)+&
-                ycoulombAB(3,ii,i,j)*ycoulomb(3,ii,k,l))
-        end do
-        do ii = 1,nGrid
-          matel = matel - qwprod(ii,k,l)*(&
-                ycoulombAB(1,ii,i,j)*ycoulomb(1,ii,m,n)+&
-                ycoulombAB(2,ii,i,j)*ycoulomb(2,ii,m,n)+&
-                ycoulombAB(3,ii,i,j)*ycoulomb(3,ii,m,n))
-        end do
-        do ii = 1,nGrid
-          matel = matel - qwprod(ii,i,j)*(&
-                ycoulombAB(1,ii,k,l)*ycoulombAB(1,ii,m,n)+&
-                ycoulombAB(2,ii,k,l)*ycoulombAB(2,ii,m,n)+&
-                ycoulombAB(3,ii,k,l)*ycoulombAB(3,ii,m,n))
-        end do
-
-      case(2) !kl has different spin
-        do ii = 1,nGrid
-          matel = matel - qwprod(ii,m,n)*(&
-                ycoulomb(1,ii,i,j)*ycoulombAB(1,ii,k,l)+&
-                ycoulomb(2,ii,i,j)*ycoulombAB(2,ii,k,l)+&
-                ycoulomb(3,ii,i,j)*ycoulombAB(3,ii,k,l))
-        end do
-        do ii = 1,nGrid
-          matel = matel - qwprod(ii,k,l)*(&
-                ycoulombAB(1,ii,i,j)*ycoulombAB(1,ii,m,n)+&
-                ycoulombAB(2,ii,i,j)*ycoulombAB(2,ii,m,n)+&
-                ycoulombAB(3,ii,i,j)*ycoulombAB(3,ii,m,n))
-        end do
-        do ii = 1,nGrid
-          matel = matel - qwprod(ii,i,j)*(&
-                ycoulombAB(1,ii,k,l)*ycoulomb(1,ii,m,n)+&
-                ycoulombAB(2,ii,k,l)*ycoulomb(2,ii,m,n)+&
-                ycoulombAB(3,ii,k,l)*ycoulomb(3,ii,m,n))
-        end do
-
-      case(3) !mn has different spin
-        do ii = 1,nGrid
-          matel = matel - qwprod(ii,m,n)*(&
-                ycoulombAB(1,ii,i,j)*ycoulombAB(1,ii,k,l)+&
-                ycoulombAB(2,ii,i,j)*ycoulombAB(2,ii,k,l)+&
-                ycoulombAB(3,ii,i,j)*ycoulombAB(3,ii,k,l))
-        end do
-        do ii = 1,nGrid
-          matel = matel - qwprod(ii,k,l)*(&
-                ycoulomb(1,ii,i,j)*ycoulombAB(1,ii,m,n)+&
-                ycoulomb(2,ii,i,j)*ycoulombAB(2,ii,m,n)+&
-                ycoulomb(3,ii,i,j)*ycoulombAB(3,ii,m,n))
-        end do
-        do ii = 1,nGrid
-          matel = matel - qwprod(ii,i,j)*(&
-                ycoulomb(1,ii,k,l)*ycoulombAB(1,ii,m,n)+&
-                ycoulomb(2,ii,k,l)*ycoulombAB(2,ii,m,n)+&
-                ycoulomb(3,ii,k,l)*ycoulombAB(3,ii,m,n))
-        end do
-      end select
-
-    !Store the new value in the hash table
-    if(LMatABCalcHKeys(hashInd)==-1)then
-        LMatABCalcHUsed = LMatABCalcHUsed + 1
-    end if
-    LMatABCalcHKeys(hashInd) = hashKey
-    LMatABCalcHVals(hashInd) = matel
-
-  end function
 end module LMat_calc

@@ -16,7 +16,7 @@ MODULE System
     use lattice_mod, only: lattice, lat
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
-    use tc_three_body_data, only: tSymBrokenLMat, tSpinCorrelator, LMatEps, tSparseLMat
+    use tc_three_body_data, only: LMatEps, tSparseLMat
     use ParallelHelper, only: iprocindex, root
 
     IMPLICIT NONE
@@ -220,7 +220,6 @@ MODULE System
       TUnitary=.false.
       Tperiodicinmom=.false.
       t12FoldSym = .false.
-      tSpinCorrelator = .false.
 
       inum_runs = 1
 #ifdef CMPLX_
@@ -392,8 +391,6 @@ system: do
            tRIIntegrals = .true.
         case("READCACHEINTS")
            tCacheFCIDUMPInts=.true.
-        case("SPIN-CORRELATOR")
-           tSpinCorrelator = .true.
         case("ELECTRONS","NEL")
             call geti(NEL)
         case("SPIN-RESTRICT")

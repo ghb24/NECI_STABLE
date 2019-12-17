@@ -20,7 +20,6 @@ module lMat_indexing
       ! Input: a,b,c - orbital indices of electrons
       !        i,j,k - orbital indices of holes
       ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry
-      implicit none
       integer(int64), value, intent(in) :: a,b,c ! occupied orb indices
       integer(int64), value, intent(in) :: i,j,k ! unoccupied orb
       integer(int64) :: index
@@ -47,7 +46,6 @@ module lMat_indexing
       ! Input: a,b,c - orbital indices of electrons
       !        i,j,k - orbital indices of holes
       ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry
-      implicit none
       integer(int64), value, intent(in) :: aI,bI,cI ! occupied orb indices
       integer(int64), value, intent(in) :: iI,jI,kI ! unoccupied orb
       integer(int64) :: index
@@ -86,7 +84,6 @@ module lMat_indexing
         ! sorts the indices a,b and i,j with respect to the
         ! ordering selected in iPermute
         pure subroutine sort2Els(r,s,p,q)
-          implicit none
           integer(int64), intent(inout) :: r,s,p,q
 
           if(r > s) then
@@ -106,7 +103,6 @@ module lMat_indexing
       ! Input: a,b,c - orbital indices of electrons
       !        i,j,k - orbital indices of holes
       ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry
-      implicit none
       integer(int64), value, intent(in) :: a,b,c ! occupied orb indices
       integer(int64), value, intent(in) :: i,j,k ! unoccupied orb
       integer(int64) :: index
