@@ -172,7 +172,9 @@ module LMat_class
             use constants            
             import :: lMat_t
             class(lMat_t), intent(inout) :: this
-            integer(int64), intent(in) :: indices(:,:), entries(:,:)
+            ! The read operation is allowed to deallocate the input to make
+            ! memory available
+            integer(int64), allocatable, intent(inout) :: indices(:,:), entries(:,:)
         end subroutine read_op_t
     end interface
 
@@ -382,7 +384,7 @@ contains
 
     subroutine read_op_dense_hdf5(this, indices, entries)
         class(dense_lMat_t), intent(inout) :: this
-        integer(int64), intent(in) :: indices(:,:), entries(:,:)
+        integer(int64), allocatable, intent(inout) :: indices(:,:), entries(:,:)
         integer(int64) :: i, this_blocksize
         HElement_t(dp) :: rVal
 
@@ -498,7 +500,8 @@ contains
 
     subroutine read_op_sparse(this, indices, entries) 
         class(sparse_lMat_t), intent(inout) :: this
-        integer(int64), intent(in) :: indices(:,:), entries(:,:)
+        ! We allow deallocation of indices/entries
+        integer(int64), allocatable, intent(inout) :: indices(:,:), entries(:,:)
 
         integer(int64) :: block_size, i
         integer(int64), allocatable :: combined_inds(:)        
@@ -510,6 +513,8 @@ contains
             combined_inds(i) = this%indexFunc(indices(1,i), indices(2, i), indices(3, i), &
                 indices(4, i), indices(5, i), indices(6,i))
         end do
+        ! We might need this memory - all these operations can be memory critical
+        deallocate(indices)
 
         if(this%htable%known_conflicts()) then
             call this%read_data(combined_inds, entries(1,:))
@@ -531,6 +536,7 @@ contains
 
         ! Gather all read indices on node-root
         call gather_block(indices, tmp)
+        call check_invalid(tmp,"count_conflicts")
         total_size = size(tmp)
 
         if(iProcIndex_intra == 0) then
@@ -554,6 +560,7 @@ contains
         HElement_t(dp), parameter :: rVal = 0.0_dp
         ! Gather all data on node root
         call gather_block(indices, tmp_inds)
+        call check_invalid(tmp_inds,"read_data")
         call gather_block(entries, tmp_entries)
         total_size = size(tmp_inds)
 
@@ -609,6 +616,20 @@ contains
         deallocate(block_sizes)
         deallocate(displs)
     end subroutine gather_block
+
+    subroutine check_invalid(data, caller)
+        integer(int64) :: data(:)
+        character(*), intent(in) :: caller
+
+        integer :: i
+
+        do i = 1, size(data)
+            if(data(i) < 0) then
+                print *, "Error: invalid index", data(i), size(data), i
+                call stop_all(caller, "Error")
+            endif
+        end do
+    end subroutine check_invalid
 
     !------------------------------------------------------------------------------------------!
     ! Histogramming
@@ -722,7 +743,7 @@ contains
         rVal = 0.0_dp        
 
         ! reserve max. 100MB buffer size for dumpfile I/O
-        blocksize = 100000000_int64
+        blocksize = 5000000_int64
         blockstart = this%offsets(iProcIndex_intra)
 
         blockend = min(blockstart + blocksize - 1, this%countsEnd)
@@ -756,8 +777,9 @@ contains
             ! This has to be threadsafe !!!
             call lMat%read_op_hdf5(indices, entries)
 
-            deallocate(entries)
-            deallocate(indices)            
+            ! the read_op is allowed to deallocate if memory has to be made available
+            if(allocated(entries)) deallocate(entries)
+            if(allocated(indices)) deallocate(indices)            
 
             ! set the size/offset for the next block
             if(running) then
