@@ -1045,15 +1045,21 @@ This file can similarly be generated using \code{gen_emacs_tags.sh}, then you ca
 	Memory is logged using the functions \code{LogMemAlloc} and
 	\code{LogMemDealloc}.
 
-
-
 \section{Code templating}
 \label{sect:templating}
-	NECI has an additional build step in comparison with most Fortran code.
-	Prior to running the C preprocessor, the custom script
-	\code{tools/f90_template.py} converts all of the files with filenames
-	\code{*.F90.template} into files with the corresponding names
-	\code{*.F90}.
+    NECI supports two ways of templating code, the python-based Fortran
+    preprocessor \code{fypp} (,
+    \url{https://github.com/aradi/fypp}) and the custom script
+    \code{tools/f90_template.py}. It is strongly suggested for new code to
+    make use of \code{fypp}, which allows for handling preprocessor flags
+    using python syntax, and provides an easy route to templating code with
+    little effort. All files named \code{*.fpp} have the \code{fypp}
+    preprocessor applied. An in-depth documentation can be found at \url{https://fypp.readthedocs.io/en/stable/}.
+
+    As \code{fypp} support is a recent addition, most of NECI's templates are
+    contained in \code{*.F90.template} files, which are automatically converted by
+    \code{tools/f90_template.py} into files with the corresponding names
+	\code{*.F90} prior to running the C preprocessor.
 
 	This mechanism exists to allow general code to be written, and reused for
 	different types, and combinations of types. While this is largely a
