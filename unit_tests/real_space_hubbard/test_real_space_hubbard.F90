@@ -445,10 +445,10 @@ contains
         integer(n_int), intent(in) :: phi_L_states(:,:), phi_R_states(:,:)
         real(dp), intent(in) :: phi_L_coeff(:), phi_R_coeff(:)
 
-        unused_variable(phi_L_states)
-        unused_variable(phi_L_coeff)
-        unused_variable(phi_R_coeff)
-        unused_variable(phi_R_states)
+        unused_var(phi_L_states)
+        unused_var(phi_L_coeff)
+        unused_var(phi_R_coeff)
+        unused_var(phi_R_states)
         get_corr_overlap = 0.0_dp
         call stop_all("get_corr_overlap", "TODO")
 
@@ -458,9 +458,9 @@ contains
         integer(n_int), intent(in) :: phi_L_states(:,:), phi_R_states(:,:)
         real(dp), intent(in) :: phi_L_coeff(:), phi_R_coeff(:)
 
-        unused_variable(phi_L_states)
-        unused_variable(phi_L_coeff)
-        unused_variable(phi_R_coeff)
+        unused_var(phi_L_states)
+        unused_var(phi_L_coeff)
+        unused_var(phi_R_coeff)
         get_overlap = 0.0_dp
         call stop_all("get_overlap", "TODO")
 
@@ -473,8 +473,8 @@ contains
         integer(n_int), intent(out), allocatable :: phi_states(:,:)
         real(dp), intent(out) :: phi_coeff(:)
 
-        unused_variable(hf_states)
-        unused_variable(hf_coeff)
+        unused_var(hf_states)
+        unused_var(hf_coeff)
         allocate(phi_states(0,0), source = 0_n_int)
         phi_coeff = 0.0_dp
         call stop_all("apply_H", "TODO")
@@ -485,7 +485,7 @@ contains
     subroutine set_H_transcorr(j)
         real(dp), intent(in) :: j
 
-        unused_variable(j)
+        unused_var(j)
         call stop_all("set_H_transcorr", "TODO")
 
     end subroutine set_H_transcorr
@@ -498,8 +498,8 @@ contains
         ! of the k-space HF solution, or if i have the eigenvectors of the
         ! t_ij matrix, it is just a unitary transformation of HF
 
-        unused_variable(hf_states)
-        unused_variable(hf_coeff)
+        unused_var(hf_states)
+        unused_var(hf_coeff)
 
         call stop_all("get_real_space_hf", "TODO")
 
@@ -558,7 +558,7 @@ contains
         real(dp) :: phase
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
 
-        unused_variable(U)
+        unused_var(U)
 
         t_calc_singles = .true.
         ! also consider the spin-flipped of the neel state
