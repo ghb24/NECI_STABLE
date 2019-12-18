@@ -48,7 +48,7 @@ module k_space_hubbard
 
     use OneEInts, only: GetTMatEl, tmat2d
 
-    use sltcnd_mod, only: sltcnd_0
+    use sltcnd_mod, only: sltcnd_0, initSltCndPtr
 
     use sym_mod, only: RoundSym, AddElecSym, SetupSym, lChkSym, mompbcsym, &
                        TotSymRep, GenMolpSymTable, SymProd, gensymstatepairs
@@ -2170,6 +2170,9 @@ contains
         ! maybe i have to initialize more here, especially if we are using the
         ! HPHF keyword I guess..
 
+        call initSltCndPtr()
+
+
     end subroutine init_get_helement_k_space_hub
 
     function get_helement_k_space_hub_ex_mat(nI, ic, ex, tpar) result(hel)
@@ -2367,6 +2370,7 @@ contains
             hel = hel_sing + hel_doub + hel_one + hel_three
 
         else
+            print *, "here?"
             hel = sltcnd_0(nI)
         end if
 
