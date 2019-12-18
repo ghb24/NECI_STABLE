@@ -448,7 +448,7 @@ contains
             t_mat = get_tranformation_matrix(H, nOccAlpha*nOccBeta)
         end if
 
-        trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), real(H,dp)), matrix_exponential(t_mat))
+        trans_H = blas_matmul(blas_matmul(matrix_exponential(-t_mat), H), matrix_exponential(t_mat))
 
     end function similarity_transform
 

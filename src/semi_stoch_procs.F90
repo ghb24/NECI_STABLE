@@ -33,9 +33,7 @@ module semi_stoch_procs
 
     use timing_neci
 
-#ifndef CMPLX_
     use unit_test_helpers, only: eig
-#endif
 
     use bit_reps, only: encode_sign
 
@@ -1364,7 +1362,8 @@ contains
         real(dp) :: eigenvec_pop, eigenvec_pop_tot, pop_sign(lenof_sign)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground_full"
         real(dp), allocatable :: temp_determ_vec(:)
-        real(dp), allocatable :: e_values(:), e_vectors(:,:), gs_vector(:)
+        real(dp), allocatable :: e_values(:)
+        HElement_t(dp), allocatable ::  e_vectors(:,:), gs_vector(:)
         real(dp) :: gs_energy
 
         if (tPrintInfo) then
@@ -1531,7 +1530,6 @@ contains
 
     end subroutine create_sparse_ham_from_core
 
-#ifndef CMPLX_
     subroutine diagonalize_core_non_hermitian(e_values, e_vectors)
         real(dp), allocatable, intent(out) :: e_values(:)
         HElement_t(dp), allocatable :: e_vectors(:,:)
@@ -1577,7 +1575,6 @@ contains
         root_print "Full diagonalisation for non-hermitian Hamiltonian completed!"
 
     end subroutine diagonalize_core_non_hermitian
-#endif
 
     subroutine calc_determin_hamil_full(hamil)
         use guga_data, only: ExcitationInformation_t

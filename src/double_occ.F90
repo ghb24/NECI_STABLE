@@ -568,7 +568,6 @@ contains
         integer :: i
         character(12) :: num
 
-        unused_var(iter_data)
         def_default(state%init,initial,.false.)
 
         ! If the output file hasn't been opened yet, then create it.

@@ -711,6 +711,7 @@ contains
 #else
                 call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
 #endif
+            end if
 
             if(.not. t_real_time_fciqmc) then
 #ifdef CMPLX_
@@ -721,31 +722,30 @@ contains
 #endif
 #endif
             end if
-                call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
+            call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
 #ifdef REALTIME_
-                call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
+            call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
 #endif
-                call stats_out(state,.false., sum(AllNoBorn), 'No. born')
-                call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
+            call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+            call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
 #ifdef REALTIME_
-                call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
-                call stats_out(state,.false., real_time_info%damping, 'eta')
-                call stats_out(state,.false., IterTime, 'Iter. time')
+            call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
+            call stats_out(state,.false., real_time_info%damping, 'eta')
+            call stats_out(state,.false., IterTime, 'Iter. time')
 #else
-                call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+            call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
 #endif
 
-                call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
-                call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
+            call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
+            call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
 #ifdef CMPLX_
-                call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
-                               'Tot. Proj. E')
-                call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
+            call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
+                           'Tot. Proj. E')
+            call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
 #else
-                call stats_out(state,.true., proje_iter_tot + OutputHii, &
-                               'Tot. Proj. E')
+            call stats_out(state,.true., proje_iter_tot + OutputHii, &
+                           'Tot. Proj. E')
 #endif
-            end if
             call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.true., nspawned_tot, 'Dets spawned')
             call stats_out(state,.false., Hii, 'reference energy')
@@ -909,7 +909,7 @@ contains
                      end do
                   end if
                end do
-
+           end if
 #endif
             if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
 

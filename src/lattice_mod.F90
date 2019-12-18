@@ -667,7 +667,6 @@ contains
         ! hopping transcorrelation move the symmetry setup for the
         ! k-spae hubbard model into the lattice_mod
 #ifdef DEBUG_
->>>>>>> origin/devel
         character(*), parameter :: this_routine = "setup_lattice_symmetry"
 #endif
         integer :: i, kmin(3), kmax(3), j, k_i(3), k, l, ind

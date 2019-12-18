@@ -108,7 +108,7 @@ contains
             ! But if the actual number of determinants on this processor is
             ! less than the number we're running through, feed in 0
             ! determinants and 0 sign.
-            if (near_zero(Histogram(1, i))) then
+            if (near_zero(real(Histogram(1, i)))) then
                 iLutnI(:) = 0
                 blank_det = .true.
             else

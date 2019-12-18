@@ -6,6 +6,7 @@ program test_tJ_model
     use tJ_model
     use fruit
     use lattice_mod, only: lat
+    use constants, only: maxExcit
 
     implicit none
 
@@ -183,7 +184,7 @@ contains
 
         integer, allocatable :: nI(:), nJ(:)
         integer(n_int), allocatable :: ilutI(:), ilutJ(:)
-        integer :: ex(2,2), ic
+        integer :: ex(2,maxExcit), ic
         logical :: tpar
         real(dp) :: pgen
         HElement_t(dp) :: hel
@@ -559,7 +560,7 @@ contains
 
         integer, allocatable :: nI(:), nJ(:)
         integer(n_int), allocatable :: ilutI(:), ilutJ(:)
-        integer :: ex(2,2), ic
+        integer :: ex(2,maxExcit), ic
         logical :: tpar
         real(dp) :: pgen
         HElement_t(dp) :: hel

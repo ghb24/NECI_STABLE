@@ -2981,7 +2981,7 @@ contains
 
     subroutine test_generate_excitation_guga_double
         character(*), parameter :: this_routine = "test_generate_excitation_guga_double"
-        integer :: nI(4), nJ(4), IC, excitMat(2,2), exFlag, nEx, pos
+        integer :: nI(4), nJ(4), IC, excitMat(2,maxExcit), exFlag, nEx, pos
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
         logical :: tParity
@@ -3577,7 +3577,7 @@ contains
 
     subroutine test_generate_excitation_guga_single
         character(*), parameter :: this_routine = "test_generate_excitation_guga_single"
-        integer :: nI(4), nJ(4), IC, excitMat(2,2), exFlag, nEx, pos
+        integer :: nI(4), nJ(4), IC, excitMat(2,maxExcit), exFlag, nEx, pos
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot), ilutGi(0:nifguga)
         integer(n_int) :: ilutGj(0:nifguga)
         logical :: tParity

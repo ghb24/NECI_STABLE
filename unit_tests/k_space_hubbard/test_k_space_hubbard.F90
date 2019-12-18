@@ -2741,7 +2741,7 @@ contains
 
     subroutine gen_excit_k_space_hub_test
 
-        integer :: nI(4), ex(2,2), nJ(4)
+        integer :: nI(4), ex(2,maxExcit), nJ(4)
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         HElement_t(dp) :: hel
         real(dp) :: pgen

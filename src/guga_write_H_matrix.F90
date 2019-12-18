@@ -8,6 +8,7 @@ module guga_write_H_matrix
     use guga_data, only: ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element
     use guga_bitRepOps, onlY: write_det_guga
+    use bit_reps, only: nifguga
     implicit none
     private
     public :: write_H_mat
@@ -18,6 +19,9 @@ contains
         integer(n_int), intent(in) :: ilutG(:, :)
         HElement_t(dp), allocatable :: H_mat(:, :)
         integer :: i, j
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "get_H_mat"
+#endif
 
         ASSERT(lbound(ilutG, 1) == 0 .and. ubound(ilutG, 1) == nIfGUGA)
 
@@ -47,6 +51,9 @@ contains
 
         HElement_t(dp), allocatable :: H_mat(:, :)
         integer :: file_id
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "write_H_mat"
+#endif
 
         ASSERT(lbound(ilutG, 1) == 0 .and. ubound(ilutG, 2) == nIfGUGA)
 
@@ -71,6 +78,9 @@ contains
             integer, intent(in) :: unit_id
 
             integer :: i
+#ifdef DEBUG_
+            character(*), parameter :: this_routine = "write_CSF_repr"
+#endif
 
             ASSERT(lbound(ilutG, 1) == 0 .and. ubound(ilutG, 2) == nIfGUGA)
 

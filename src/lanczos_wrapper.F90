@@ -62,7 +62,9 @@ contains
         ! hamiltonian in the same way as DetHam for determinants..
         ! only use the "old" version when t_guga_mat_eles is not set!
         if (tGUGA .and. (.not. t_guga_mat_eles)) then
+#ifndef CMPLX_
             call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil)
+#endif
         else
             ! just to make sure we pass valid objects
             allocate(Lab(1),stat=ierr)

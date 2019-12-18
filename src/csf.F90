@@ -1704,7 +1704,7 @@ contains
                 else
                     call extract_sign (iluts(:,i), sgn)
 #ifdef CMPLX_
-                    c = abs(cmplx(sgn(1), sgn(2)), kind=dp)
+                    c = abs(cmplx(sgn(1), sgn(2), kind=dp))
 #else
                     c = abs(sgn(1))
 #endif
