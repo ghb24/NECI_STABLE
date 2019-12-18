@@ -10,7 +10,7 @@ module tJ_model
                           t_trans_corr_2body, trans_corr_param_2body, &
                           nSpatOrbs, current_stepvector, currentB_int
 
-    use constants, only: dp, n_int, EPS, bits_n_int
+    use constants, only: dp, n_int, EPS, bits_n_int, maxExcit
 
     use real_space_hubbard, only: lat_tau_factor, t_start_neel_state,  &
                                   check_real_space_hubbard_input, init_tmat, &
@@ -442,9 +442,6 @@ contains
                 call stop_all(this_routine, &
                     "more than half-filling! does neel state make sense?")
             end if
-!             call write_det(6, neel_state_ni, .true.)
-!             call changerefdet(neel_state_ni)
-!             call update_run_reference(ilut_neel, 1)
 
         end if
 
@@ -494,14 +491,14 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: run
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_heisenberg_model"
 #endif
         integer :: elec, src, ind, tgt, src_opp, tgt_opp, elec_opp
@@ -511,7 +508,9 @@ contains
 
         unused_var(exFlag)
         unused_var(store)
-        unused_var(run)
+        if (present(run)) then
+            unused_var(run)
+        end if
 
         hel = h_cast(0.0_dp)
 
@@ -582,7 +581,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -612,6 +611,14 @@ contains
 
         ! use the lattice type like in the real-space hubbard implementation
         ASSERT(associated(lat))
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+        if(present(run)) then
+            unused_var(run)
+        endif
+#endif
+        unused_var(store)
+        unused_var(exflag)
 
         elec = 1 + int(genrand_real2_dsfmt() * nel)
 
@@ -714,10 +721,10 @@ contains
         integer, intent(out), allocatable :: ic_list(:)
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_tJ_model"
 #endif
-        integer :: i, nI(nel), temp_ex(2,2)
+        integer :: i, nI(nel), temp_ex(2,maxExcit)
         integer, allocatable :: single_excits(:)
         integer, allocatable :: spin_flips(:)
         real(dp) :: elem
@@ -845,7 +852,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ex(2,2), ic
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_tJ_model"
 #endif
 
@@ -904,7 +911,7 @@ contains
 
             p_orb = cpt_1 + cpt_2
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (is_beta(src(1)) .eqv. is_beta(tgt(1))) then
                 ! then those to orbitls were chosen
                 ASSERT(is_beta(src(2)) .eqv. is_beta(tgt(2)))
@@ -1256,10 +1263,10 @@ contains
         real(dp), intent(out) :: cum_sum
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_heisenberg"
 #endif
-        integer :: flip, i, temp_ex(2,2), nI(nel)
+        integer :: flip, i, temp_ex(2,maxExcit), nI(nel)
         real(dp) :: elem
 
         ASSERT(IsOcc(ilutI,src))
@@ -1334,9 +1341,9 @@ contains
 
     function calc_pgen_heisenberg_model(ilutI, ex, ic) result(pgen)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(in) :: ex(2,2), ic
+        integer, intent(in) :: ex(2,ic), ic
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_heisenberg_model"
 #endif
         integer :: src(2), tgt(2)
@@ -1376,7 +1383,7 @@ contains
                 cum_arr, cum_sum, tgt(2), cpt_1)
             call create_cum_list_heisenberg(ilutI, src(2), lat%get_spinorb_neighbors(src(2)), &
                 cum_arr, cum_sum, tgt(1), cpt_2)
-#ifdef __DEBUG
+#ifdef DEBUG_
         else
             call stop_all(this_routine, "something went wrong!")
 #endif
@@ -1395,8 +1402,9 @@ contains
         ! spins have to be checked before this function call!
         integer, intent(in) :: src, tgt
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_heisenberg_exchange"
+#endif
 
         ASSERT(src > 0)
         ASSERT(src <= nbasis)
@@ -1405,14 +1413,7 @@ contains
 
         ASSERT(associated(lat))
         ! i also want to get 0 matrix elements ofc.. so leave the possibility
-!         ASSERT(is_beta(src) .neqv. is_beta(tgt))
-!         if (is_beta(src)) then
-!             ASSERT(any(tgt == lat%get_spinorb_neighbors(src)+1))
-!         else
-!             ASSERT(any(tgt == lat%get_spinorb_neighbors(src)-1))
-!         end if
         ASSERT(allocated(exchange_matrix))
-#endif
 
         hel = h_cast(exchange_matrix(src, tgt))
 
@@ -1515,7 +1516,7 @@ contains
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel
 
-        integer :: ic, ex(2,2)
+        integer :: ic, ex(2,maxExcit)
         logical :: tpar
         integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
 
@@ -1603,7 +1604,7 @@ contains
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel
 
-        integer :: ic, ex(2,2)
+        integer :: ic, ex(2,maxExcit)
         logical :: tpar
         integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
 
@@ -1661,7 +1662,7 @@ contains
     function get_diag_helement_heisenberg(nI) result(hel)
         integer, intent(in) :: nI(nel)
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_diag_helement_heisenberg"
 #endif
         integer :: i, j, src, flip
@@ -1725,7 +1726,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_offdiag_helement_heisenberg"
 #endif
         integer(n_int) :: ilutI(0:NIfTot)
@@ -1787,15 +1788,12 @@ contains
 
     end function get_offdiag_helement_heisenberg
 
-    function determine_optimal_time_step_heisenberg(time_step_death) result(time_step)
-        real(dp), intent(out), optional :: time_step_death
+    function determine_optimal_time_step_heisenberg() result(time_step)
         real(dp) :: time_step
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "determine_optimal_time_step_heisenberg"
+#endif
         real(dp) :: p_elec, p_hole, mat_ele, max_diag
-
-        ASSERT(associated(lat))
-
-        if (present(time_step_death)) call stop_all(this_routine, "TODO")
 
         p_elec = 1.0_dp / real(nel, dp)
 
@@ -1814,7 +1812,7 @@ contains
         ! the spin-orbitals
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_umat_heisenberg_spin_free"
 #endif
 
@@ -1837,7 +1835,7 @@ contains
     function get_umat_el_heisenberg(i,j,k,l) result(hel)
         integer, intent(in) :: i,j,k,l
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_umat_el_heisenberg"
 #endif
         ! how exactly do i do that? i access umat with spatial orbitals

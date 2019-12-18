@@ -51,7 +51,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -65,7 +65,7 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         HElement_t(dp) :: temp_hel
 #endif
         unused_var(exFlag); unused_var(part_type); unused_var(store)
@@ -133,7 +133,7 @@ contains
         end if
 
         ! And a careful check!
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (.not. IsNullDet(nJ)) then
              pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
             if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -171,7 +171,7 @@ contains
         real(dp) :: pgen, cum_arr(nbasis)
         character(*), parameter :: this_routine = 'calc_pgen_4ind_weighted2'
 
-        integer :: iSpn, src(2), tgt(2)
+        integer :: iSpn, src(ic), tgt(ic)
         real(dp) :: cum_sums(2), int_cpt(2), cpt_pair(2), sum_pair(2)
         logical :: generate_list
 
@@ -276,7 +276,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
@@ -490,7 +490,7 @@ contains
             cpt = cum_arr(orb) - cum_arr(orb - 1)
         end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         call pgen_select_a_orb(ilut, src, orb, iSpn, cpt_tst, cum_tst, &
                                cum_arr, .false.)
         if (abs(cpt_tst - cpt) > 1e-6 .or. abs(cum_tst - cum_sum) > 1e-6) then
@@ -569,7 +569,7 @@ contains
         integer, intent(in) :: iterations
         character(*), parameter :: this_routine = 'test_excit_gen_take2'
 
-        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,2)
+        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,maxExcit)
         integer :: flag, ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)

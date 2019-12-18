@@ -320,7 +320,7 @@ contains
         real(dp), intent(in) :: AvSignJ(:), AvSignHF(:)
         integer, intent(in) :: walkExcitLevel
         integer, intent(in) :: IterRDM(:)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_HFConnections_Norm"
 #endif
 
@@ -358,7 +358,7 @@ contains
         real(dp), intent(in) :: AvSignJ(:), AvSignHF(:)
         integer, intent(in) :: walkExcitLevel
         integer, intent(in) :: IterRDM(:)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_HFConnections_HPHF"
 #endif
 
@@ -470,16 +470,23 @@ contains
             source_part_type = int(Spawned_Parents(NIfDBO+3,i))
 
             ! if we only sum in initiator contriubtions, check the flags here
+            ! This block is entered if
+            ! a) tNonInits == .false. -> we are looking at the inits-rdms
+            ! b) tNonInitsForRDMs == .false. -> we are calculating inits-only rdms
+            ! In both cases, an initiator check is required
             if(.not. (tNonInits .and. tNonInitsForRDMs)) then
-               tNonInitParent = .false.
-               if(.not. (all_runs_are_initiator(ilutJ) .or. tNonVariationalRDMs)) return
-               do run = 1, inum_runs
-                  if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
-                       get_initiator_flag_by_run(run))) tNonInitParent = .true.
-                  ! if a non-initiator is participating, do not sum in
-                  ! that contribution
-               end do
-               if(tNonInitParent) cycle
+                tNonInitParent = .false.
+                ! Only initiators are used
+                if(.not. (all_runs_are_initiator(ilutJ) .or. &
+                    ! or the non-variational inits-only version (only require an init in the ket)
+                    (tNonVariationalRDMs .and. .not. tNonInits) )) return
+                do run = 1, inum_runs
+                    if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
+                        get_initiator_flag_by_run(run))) tNonInitParent = .true.
+                    ! if a non-initiator is participating, do not sum in
+                    ! that contribution
+                end do
+                if(tNonInitParent) cycle
             endif
 
             ! Loop over all RDMs to which the simulation with label
@@ -666,10 +673,10 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         real(dp), intent(in) :: realSignI(:), realSignJ(:)
 
-        integer :: Ex(2,2), Ex_symm(2,2)
+        integer :: Ex(2,maxExcit), Ex_symm(2,maxExcit)
         logical :: tParity
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_From_IJ_Pair"
 #endif
         Ex(:,:) = 0
@@ -748,7 +755,7 @@ contains
         use SystemData, only: nel
 
         type(rdm_spawn_t), intent(inout) :: spawn
-        integer, intent(in) :: nI(nel), Ex(2,2)
+        integer, intent(in) :: nI(nel), Ex(2,maxExcit)
         real(dp), intent(in) :: full_sign(spawn%rdm_send%sign_length)
 
         integer :: iel
@@ -788,7 +795,7 @@ contains
         ! 1-RDM, obtained by tracing over the spin component.
 
         use rdm_data, only: one_rdm_t, tOpenShell
-        use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag
+        use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag, tExplicitAllRDM
         use RotateOrbsData, only: SymLabelListInv_rot
         use UMatCache, only: gtID
 
@@ -835,7 +842,6 @@ contains
             else
                 ind = SymLabelListInv_rot(gtID(nI(i)))
             end if
-
             if (size(contrib_sign) == 1) then
                 final_contrib = contrib_sign**2 * RDMIters * ScaleContribFac
             else
@@ -860,7 +866,7 @@ contains
         use UMatCache, only: gtID
 
         type(one_rdm_t), intent(inout) :: one_rdms(:)
-        integer, intent(in) :: Ex(2,2)
+        integer, intent(in) :: Ex(2,maxExcit)
         logical, intent(in) :: tParity
         real(dp), intent(in) :: contrib_sign_i(:), contrib_sign_j(:)
         logical, intent(in) :: fill_symmetric
@@ -895,6 +901,8 @@ contains
                 one_rdms(irdm)%matrix( ind_i, ind_a ) = one_rdms(irdm)%matrix( ind_i, ind_a ) + &
                                                         (ParityFactor * contrib_sign_i(irdm) * contrib_sign_j(irdm))
             end if
+                write(6,*)irdm,ind_i, ind_a, one_rdms(irdm)%matrix( ind_a,ind_i )
+                write(6,*)fill_symmetric, ParityFactor, contrib_sign_i(irdm), contrib_sign_j(irdm)
         end do
 
     end subroutine fill_sings_1rdm
@@ -918,7 +926,7 @@ contains
         type(one_rdm_t), intent(inout) :: one_rdms(:)
 
         integer :: i, j, irdm
-        integer :: SingEx(2,1), Ex(2,2)
+        integer :: SingEx(2,1), Ex(2,maxExcit)
         real(dp) :: AvSignI(spawn%rdm_send%sign_length), AvSignJ(spawn%rdm_send%sign_length)
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity

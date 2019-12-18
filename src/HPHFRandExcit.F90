@@ -16,7 +16,7 @@ MODULE HPHFRandExcitMod
                           t_tJ_model, t_heisenberg_model, t_lattice_model, &
                           t_k_space_hubbard, t_3_body_excits, t_uniform_excits, &
                           t_trans_corr_hop, t_spin_dependent_transcorr, &
-                          t_pchb_excitgen
+                          t_pchb_excitgen, t_mol_3_body, t_ueg_3_body
 
     use IntegralsData, only: UMat, fck, nMax
 
@@ -27,11 +27,13 @@ MODULE HPHFRandExcitMod
     use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &
                                     ScratchSize, CalcPGenLattice
 
+    use tc_three_body_excitgen, only: calc_pgen_mol_tc, gen_excit_mol_tc
+
     use excit_gens_int_weighted, only: gen_excit_4ind_weighted, &
                                        gen_excit_4ind_reverse, &
                                        calc_pgen_4ind_weighted, &
                                        calc_pgen_4ind_reverse
-
+    use tc_three_body_excitgen, only: gen_excit_mol_tc
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, MaskAlpha, MaskBeta, &
                          TestClosedShellDet, CalcOpenOrbs, IsAllowedHPHF, &
@@ -39,7 +41,7 @@ MODULE HPHFRandExcitMod
 
     use FciMCData, only: pDoubles, excit_gen_store_type, ilutRef
 
-    use constants, only: dp,n_int, EPS
+    use constants, only: dp,n_int, EPS, maxExcit
 
     use sltcnd_mod, only: sltcnd_excit
 
@@ -93,16 +95,16 @@ MODULE HPHFRandExcitMod
         integer, intent(in) :: nI(nel)
         integer(kind=n_int), intent(in) :: iLutnI(0:niftot),iLutnJ(0:niftot)
         integer, intent(in) :: ClassCount(ScratchSize),ClassCountUnocc(ScratchSize)
-        integer, intent(in) :: nJ(nel),ex(2,2)
+        integer, intent(in) :: nJ(nel),ex(2,maxExcit)
         real(dp), intent(in) :: pDoubles
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tSameFunc
         logical :: tSign,tSwapped
         real(dp) :: pGen2
         integer :: ic
-        integer :: Ex2(2,2),nJ_loc(nel),nJ2(nel)
+        integer :: Ex2(2,maxExcit),nJ_loc(nel),nJ2(nel)
         integer(kind=n_int) :: iLutnJ_loc(0:niftot),iLutnJ2(0:niftot)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "CalcPGenHPHF"
 #endif
         tSameFunc = .false.
@@ -184,7 +186,7 @@ MODULE HPHFRandExcitMod
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
-        integer, intent(out) :: IC, ExcitMat(2,2)
+        integer, intent(out) :: IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity ! Not used
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HEl
@@ -193,12 +195,12 @@ MODULE HPHFRandExcitMod
         character(*), parameter :: this_routine = "gen_hphf_excit"
 
         integer(kind=n_int) :: iLutnJ2(0:niftot)
-        integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,2), excitLevel
+        integer :: openOrbsI, openOrbsJ, nJ2(nel), ex2(2,maxExcit), excitLevel
         real(dp) :: pGen2
         HElement_t(dp) :: MatEl, MatEl2
         logical :: tSign, tSignOrig
         logical :: tSwapped
-        integer :: temp_ex(2,2)
+        integer :: temp_ex(2,maxExcit)
 
         ! Avoid warnings
         tParity = .false.
@@ -206,8 +208,10 @@ MODULE HPHFRandExcitMod
         ! [W.D] this whole hphf should be optimized.. and cleaned up
         ! because it is a mess really..
         ! Generate a normal excitation.
-
-        if (t_back_spawn .or. t_back_spawn_flex) then
+        if(t_mol_3_body.or.t_ueg_3_body) then
+           call gen_excit_mol_tc(nI, ilutnI, nJ, ilutnJ, exFlag, ic, ExcitMat, &
+                tSignOrig, pgen, Hel, store, part_type)
+        else if (t_back_spawn .or. t_back_spawn_flex) then
             if (tUEGNewGenerator .and. tLatticeGens) then
                 call gen_excit_back_spawn_ueg_new(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                           ExcitMat, tSignOrig, pgen, Hel, store, part_type)
@@ -274,7 +278,7 @@ MODULE HPHFRandExcitMod
                                           store)
         else if (t_pchb_excitgen) then
             call gen_rand_excit_pchb(nI, ilutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
-                                 tSignOrig, pGen, HEl, store)
+                 tSignOrig, pGen, HEl, store)
         else
             call gen_rand_excit (nI, iLutnI, nJ, iLutnJ, exFlag, IC, ExcitMat,&
                                  tSignOrig, pGen, HEl, store)
@@ -648,6 +652,12 @@ MODULE HPHFRandExcitMod
     END SUBROUTINE FindExcitBitDetSym
 
 
+!!This routine will take a HPHF nI, and find Iterations number of excitations of it.
+!It will then histogram these, summing in 1/pGen for every occurance of
+!!the excitation. This means that all excitations should be 0 or 1 after enough iterations.
+!It will then count the excitations and compare the number to the
+!!number of excitations generated using the full enumeration excitation generation.
+
     SUBROUTINE BinSearchListHPHF(iLut,List,Length,MinInd,MaxInd,PartInd,tSuccess)
         INTEGER :: Length,MinInd,MaxInd,PartInd
         INTEGER(KIND=n_int) :: iLut(0:NIfTot),List(0:NIfTot,Length)
@@ -756,7 +766,7 @@ MODULE HPHFRandExcitMod
         use bit_reps, only: get_initiator_flag
         use bit_rep_data, only: test_flag
 
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: nI(nel), ex(2,maxExcit), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: ClassCount2(ScratchSize)
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
@@ -784,7 +794,9 @@ MODULE HPHFRandExcitMod
         ! do i need to  check if it is actually a non-initiator?
         ! i guess i do.. or i go the unnecessary way of checking again in
         ! the called back-spawn functions
-        if ((t_back_spawn .or. t_back_spawn_flex) .and. &
+        if(t_mol_3_body.or.t_ueg_3_body) then
+           pgen = calc_pgen_mol_tc(nI, ex, ic, ClassCount2, ClassCountUnocc2, pDoub)
+        else if ((t_back_spawn .or. t_back_spawn_flex) .and. &
             (.not. DetBitEq(ilutI,ilutRef(:,temp_part_type),nifdbo)) .and. &
             (.not. test_flag(ilutI, get_initiator_flag(temp_part_type)))) then
             ! i just realised this also has to be done for the hubbard
@@ -856,7 +868,6 @@ MODULE HPHFRandExcitMod
                 end if
             else if (t_pchb_excitgen) then
                 pgen = calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2)
-
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

@@ -35,9 +35,6 @@ module load_balance
     use constants
     use util_mod
     use hash
-#ifdef __REALTIME
-    use real_time_data, only: runge_kutta_step, TotParts_1
-#endif
 
     implicit none
 
@@ -316,7 +313,6 @@ contains
 
 
     subroutine move_block(block, tgt_proc)
-        use real_time_aux, only: move_overlap_block
         implicit none
         integer, intent(in) :: block, tgt_proc
 
@@ -454,11 +450,6 @@ contains
 
         end if
 
-#ifdef __REALTIME
-        ! in real-time, also load balance the corresponding states in the overlap states
-        call move_overlap_block(block,tgt_proc)
-#endif
-
         ! Adjust the load balancing mapping
         LoadBalanceMapping(block) = tgt_proc
 
@@ -475,8 +466,8 @@ contains
         integer, intent(inout) :: TotWalkersNew
         integer(n_int), intent(inout) :: iLutCurr(0:NIfTot)
         integer, intent(in) :: DetHash, nJ(nel)
-        real(dp), intent(in) :: HDiag
         integer, intent(out) :: DetPosition
+        real(dp), intent(in) :: HDiag
         integer, intent(out) :: err
         HElement_t(dp) :: trial_amps(ntrial_excits)
         logical :: tTrial, tCon
@@ -506,6 +497,7 @@ contains
                write(iout,*) "Warning: Starting to randomly kill singly-spawned walkers"
             endif
         end if
+        CurrentDets(:,DetPosition) = iLutCurr(:)
 
         ! For the RDM code we need to set all of the elements of CurrentH to 0,
         ! except the first one, holding the diagonal Hamiltonian element.
@@ -752,7 +744,7 @@ contains
             enddo
         ENDIFDEBUG
 
-#ifdef __REALTIME
+#ifdef REALTIME_
         ! in the real-time fciqmc i also want to keep track of the number
         ! of particles after the first RK step
         if (runge_kutta_step == 1) TotParts_1 = TotParts
@@ -778,7 +770,7 @@ contains
       logical, intent(in) :: tIsStateDeterm
       integer :: run
 
-#if defined(__CMPLX)
+#if defined(CMPLX_)
       do run = 1, inum_runs
          norm_psi_squared(run) = norm_psi_squared(run) + sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
          if (tIsStateDeterm) then

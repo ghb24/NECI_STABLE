@@ -25,7 +25,7 @@ module symrandexcit_Ex_mag
     use FciMCData, only: pDoubles, pSingles, iter, excit_gen_store_type, &
                          pDoub_spindiff1, pDoub_spindiff2, pSing_spindiff1
     use bit_reps, only: niftot, decode_bit_det_lists, getExcitationType
-    use constants, only: dp, n_int, bits_n_int
+    use constants, only: dp, n_int, bits_n_int, maxExcit
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
     use Parallel_neci
@@ -46,7 +46,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -118,7 +118,7 @@ contains
         endif
 
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (nJ(1)/=0 .and. excitType.ne.getExcitationType(ExcitMat, IC)) then
             write(iout,*) "NI", ni
             write(iout,*) "NJ", nj
@@ -204,7 +204,7 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: nJ(nel)
-        integer, intent(out) :: ExcitMat(2,2)
+        integer, intent(out) :: ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         integer, intent(in) :: excitType
         type(excit_gen_store_type), intent(inout), target :: store
@@ -350,7 +350,7 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
                          store, excitType) result(pGen)
 
         integer, intent(in) :: nI(nel)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         ! pair_list is in store%scratch3
         type(excit_gen_store_type), intent(inout), target :: store
@@ -436,7 +436,7 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
         ! Generate the new determinant
         nJ = nI
         call FindExcitDet (ExcitMat, nJ, 1, tParity)
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! For debugging purposes only (O[N] operation).
         if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat) .or. ExcitMat(1,1)*ExcitMat(2,1)==0) then
             write(iout,*) "ccocc(1)", store%ClassCountOcc(1)
@@ -477,7 +477,7 @@ ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
     use SymExcit4, only: CountExcitations4
     use neci_intfce
     IMPLICIT NONE
-    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
+    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,maxExcit),kx,ky,kz,ktrial(3)
     real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
     INTEGER :: iExcit

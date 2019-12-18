@@ -173,7 +173,9 @@ contains
                 endif
                 SpawnedParts(0:NIfTot, ValidSpawnedList(proc)) = ilut
                 ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
-                call checkValidSpawnedList(proc,this_routine)
+                if(checkValidSpawnedList(proc)) then
+                   call stop_all(this_routine, "Not enough memory to apply perturbation")
+                endif
             end if
         end do
 

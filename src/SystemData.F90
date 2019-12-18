@@ -15,7 +15,10 @@ logical :: tMolproMimic !True if the code is being run from standalone neci, but
 character(12) :: MolproID
 
 logical :: tNoSingExcits    !True if there are no single excitations in the system
-
+logical :: t_mol_3_body     ! using molecular 3-body transcorr. matels
+logical :: t_exclude_3_body_excits = .false.
+logical :: t_ueg_transcorr, t_ueg_dump, t_ueg_3_body
+logical :: tSmallBasisForThreeBody = .true.     ! using  3-body transcorr. matels for ueg and ultracold atoms
 logical :: tStarBin, tReadInt, tHFOrder, tDFRead, tPBC, tUEG, tUEG2, tCPMD, tHUB, tHeisenberg
 logical :: tHPHF, tHPHFInts, tUHF, tSPN, tParity, tUseBrillouin, tExch, tReal
 logical :: tTilt, tOneElIntMax, tOnePartOrbEnMax, tROHF, tBrillouinsDefault
@@ -110,6 +113,10 @@ real(dp) :: Madelung ! variable storage for self-interaction term
 logical :: tUEGFreeze ! Freeze core electrons for the UEG, a crude hack for this to work-around freezing not working for UEG
 real(dp) :: FreezeCutoff
 logical :: tRef_Not_HF
+logical :: tTranscorr, tRPA_tc, tInfSumTCCalc, tInfSumTCPrint, tInfSumTCRead
+integer :: TranscorrCutoff, TranscorrIntCutoff
+real(dp) :: PotentialStrength, TranscorrGaussCutoff
+logical :: tContact, tUnitary, tTrcorrExgen, tTrCorrRandExgen, t_trcorr_gausscutoff, Tperiodicinmom !used for ultracold atoms
 
 ! Inputs for the UEG2
 character(len=3) :: real_lattice_type ! type of reciprocal lattice (eg. fcc, sc, bcc, hcp)
@@ -183,6 +190,7 @@ INTEGER :: nBasisMax(5,7) = 0
 real(dp) :: ALAT(5)
 real(dp) :: ECore
 INTEGER :: nBasis
+integer(int64) :: nBI
 integer :: nMax
 integer :: nnr
 integer :: nocc
@@ -363,10 +371,14 @@ real(dp) :: pholefocus = 0.5_dp
 logical :: t_precond_hub = .false.
 logical :: t_no_ref_shift = .false.
 
+logical :: t12FoldSym = .false.
 
 ! and the other lattice models:
 logical :: t_tJ_model = .false.
 logical :: t_heisenberg_model = .false.
+
+! if the hamiltonian supports singles
+logical :: tNoSinglesPossible = .false.
 
 ! and also the exchange strength
 real(dp) :: exchange_j = 0.0_dp

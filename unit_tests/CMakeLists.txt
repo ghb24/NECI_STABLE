@@ -28,7 +28,8 @@ add_subdirectory( real_space_hubbard )
 add_subdirectory( lattice_mod )
 
 
-#add_subdirectory( impurity_excit_gen )
+# finally get unit testing integrated in software projects
+add_subdirectory( molecular_tc)
 
 # finally do some unit-testing also with my newly added features
 add_subdirectory( back_spawn )
@@ -47,9 +48,8 @@ add_subdirectory( cc_amplitudes )
 
 add_subdirectory( cepa_shifts )
 
-#add_subdirectory( analyse_wf_symmetry )
+add_subdirectory( guga )
 
 add_subdirectory( pcpp_excitgen)
 
-
-add_subdirectory( guga )
+add_subdirectory( gdata_io )

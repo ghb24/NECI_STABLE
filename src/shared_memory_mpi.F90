@@ -6,7 +6,7 @@ module shared_memory_mpi
   private
 contains
 
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
 
       subroutine shared_allocate_mpi (win_shm, p_shm, dims)
       use HElem

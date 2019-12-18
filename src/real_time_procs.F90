@@ -809,7 +809,7 @@ contains
 
             ! We actually want to calculate Hji - take the complex conjugate,
             ! rather than swap around DetCurr and nJ.
-#ifdef __REALTIME
+#ifdef REALTIME_
             rh_used = conjg(rh)
 #endif
 
@@ -826,7 +826,7 @@ contains
                 walkerweight = sign(1.0_dp,RealwSign(part_type))
                 if (mod(part_type,2) == 0 .and. component == 1) &
                      sepSign = (-1.0_dp)
-#ifdef __REALTIME
+#ifdef REALTIME_
                 ! part_type is given as input, for that part_type, the real part of
                 ! the HElement is used if rotation occurs and the imaginary part if not
                 if (mod(component,2) == mod(part_type,2)) then
@@ -1259,7 +1259,7 @@ contains
 
         call set_timer(SemiStoch_Multiply_Time)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
 
         if (determ_sizes(iProcIndex) >= 1) then
 
@@ -1473,7 +1473,7 @@ contains
       nPertRefs = 0
       ! i.e. take the most populated determinant (over all procs)
       call generate_space_most_populated(1,.false.,1,tmpRef,nPertRefs,&
-           perturbed_buf, tmp_totwalkers)
+           perturbed_buf, int(tmp_totwalkers, n_int))
 
       ! from now on, we treat the perturbed_buf as 1-sized
       perturbed_buf = 0
@@ -1814,7 +1814,7 @@ contains
       space_size = 0
       allocate(determ_sizes(0:nProcessors-1))
       call generate_space_most_populated(ss_space_in%npops, ss_space_in%tApproxSpace, &
-           ss_space_in%nApproxSpace, SpawnedParts, space_size, buffer, buffer_size)
+           ss_space_in%nApproxSpace, SpawnedParts, space_size, buffer, int(buffer_size,n_int))
 
       ! Then, communicate the number of states per core
       mpi_buf = int(space_size,MPIArg)

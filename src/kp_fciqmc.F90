@@ -53,8 +53,8 @@ contains
         integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, MaxIndex, determ_ind, ic, ex(2,2), ms_parent
-        integer :: nI_parent(nel), nI_child(nel)
+        integer :: TotWalkersNew, determ_ind, ic, ex(2,maxExcit), ms_parent
+        integer :: nI_parent(nel), nI_child(nel), MaxIndex
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
         real(dp) :: prob, unused_rdm_real, parent_hdiag
@@ -254,7 +254,7 @@ contains
                                             child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                                 nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                                                 ex_level_to_ref, ireplica, unused_sign, &
-                                                                unused_rdm_real, precond_fac)
+                                                                AvMCExcits, unused_rdm_real, precond_fac)
 
                                         else
                                             child_sign = 0.0_dp
@@ -382,7 +382,7 @@ contains
         integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
-        integer :: TotWalkersNew, MaxIndex, determ_ind, ic, ex(2,2)
+        integer :: TotWalkersNew, determ_ind, ic, ex(2,maxExcit), MaxIndex
         integer :: nI_parent(nel), nI_child(nel), unused_vecslot
         integer(n_int) :: ilut_child(0:NIfTot)
         integer(n_int), pointer :: ilut_parent(:)
@@ -612,7 +612,7 @@ contains
                                     child_sign = attempt_create (nI_parent, ilut_parent, parent_sign, &
                                                         nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
                                                         ex_level_to_ref, ireplica, unused_sign, &
-                                                        unused_rdm_real, precond_fac)
+                                                        AvMCExcits, unused_rdm_real, precond_fac)
                                 else
                                     child_sign = 0.0_dp
                                 end if

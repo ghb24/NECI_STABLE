@@ -156,8 +156,6 @@ module soft_exit
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
 
-    use real_time_data, only: n_real_time_copies, t_prepare_real_time
-
     implicit none
 
     logical, volatile :: tSoftExitFound = .false.
@@ -432,11 +430,11 @@ contains
                             tPopsFile = .true.
                             tPrintPopsDefault = .false.
                             tIncrementPops = .true.
-#ifdef __REALTIME
+#ifdef REALTIME_
                             t_prepare_real_time = .true.
 #endif
                             if (item < nitems) then
-#ifdef __REALTIME
+#ifdef REALTIME_
                                 call readi(n_real_time_copies)
 #endif
                                 call readi(iWritePopsEvery)

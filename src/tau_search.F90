@@ -9,7 +9,8 @@ module tau_search
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, &
                           t_trans_corr, tHub, t_trans_corr_hop, umateps, tGUGA, &
-                          t_mixed_hubbard, t_olle_hubbard
+                          t_mixed_hubbard, t_olle_hubbard, &
+                          t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body
 
     use CalcData
 
@@ -21,6 +22,8 @@ module tau_search
 
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
+
+    use tc_three_body_data, only: pTriples
 
     use SymExcit3, only: GenExcitations3
 
@@ -57,6 +60,8 @@ module tau_search
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
     implicit none
+
+
     ! this is to keep probabilities of generating excitations of allowed classes above zero
     real(dp) :: prob_min_thresh
 
@@ -69,10 +74,11 @@ contains
         character(*), parameter :: this_routine = "init_tau_search"
 
         ! We want to start off with zero-values
-        gamma_sing = 0
-        gamma_doub = 0
-        gamma_opp = 0
-        gamma_par = 0
+        gamma_sing = 0.0_dp
+        gamma_doub = 0.0_dp
+        gamma_trip = 0.0_dp
+        gamma_opp = 0.0_dp
+        gamma_par = 0.0_dp
         if (tReltvy) then
             gamma_sing_spindiff1 = 0
             gamma_doub_spindiff1 = 0
@@ -93,6 +99,7 @@ contains
         enough_doub = .false.
         enough_opp = .false.
         enough_par = .false.
+        enough_trip = .false.
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
@@ -170,11 +177,11 @@ contains
 
     subroutine log_spawn_magnitude (ic, ex, matel, prob)
 
-        integer, intent(in) :: ic, ex(2,2)
+        integer, intent(in) :: ic, ex(2,ic)
         real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "log_spawn_magnitude"
 #endif
 
@@ -184,9 +191,7 @@ contains
             ! Log the details if necessary!
             tmp_prob = prob / pSingles
             tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_sing) &
-                gamma_sing = tmp_gamma
-
+            if (tmp_gamma > gamma_sing)  gamma_sing = tmp_gamma
             ! And keep count!
             if (.not. enough_sing .and. gamma_sing > 0) then
                 cnt_sing = cnt_sing + 1
@@ -221,7 +226,7 @@ contains
                     if (tmp_gamma > gamma_par) then
                         gamma_par = tmp_gamma
                     end if
-!
+
                     ! And keep count
                     if (.not. enough_par) then
                         cnt_par = cnt_par + 1
@@ -234,7 +239,7 @@ contains
                     if (tmp_gamma > gamma_opp) then
                         gamma_opp = tmp_gamma
                     end if
-!
+
                     ! And keep count
                     if (.not. enough_opp) then
                         cnt_opp = cnt_opp + 1
@@ -247,7 +252,7 @@ contains
                 ! then we should just treat doubles like the singles
                 tmp_gamma = abs(matel) / tmp_prob
                 if (tmp_gamma > gamma_doub) gamma_doub = tmp_gamma
-!
+
                 ! And keep count
                 if (.not. enough_doub .and. tmp_gamma > 0) then
                     cnt_doub = cnt_doub + 1
@@ -290,11 +295,22 @@ contains
             ! k-space hubbard model, where there are still no single
             ! excitations -> so reuse the quantities for the the singles
             ! instead of introducing yet more variables
-            tmp_prob = prob / (1.0_dp - pDoubles)
-            tmp_gamma = abs(matel) / tmp_prob
-         end select
+           if(.not. t_exclude_3_body_excits) then
+              tmp_prob = prob / pTriples
+              tmp_gamma = abs(matel) / tmp_prob
+           else
+              tmp_gamma = 0.0_dp
+           end if
 
-    end subroutine
+            if (tmp_gamma > gamma_trip) gamma_trip = tmp_gamma
+            ! And keep count!
+            if (.not. enough_trip) then
+                cnt_trip = cnt_trip + 1
+                if (cnt_trip > cnt_threshold) enough_trip = .true.
+            endif
+
+         end select
+     end subroutine
 
     subroutine log_death_magnitude (mult)
 
@@ -313,7 +329,7 @@ contains
 
         use FcimCData, only: iter
 
-        real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
+        real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new, pTriples_new
         real(dp) :: pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
@@ -357,6 +373,9 @@ contains
 
         end if
 
+        ! default value for pTriples_new
+        pTriples_new = pTriples
+
         ! What needs doing depends on the number of parameters that are being
         ! updated.
 
@@ -364,12 +383,16 @@ contains
         enough_sing = mpi_ltmp
         call MPIAllLORLogical(enough_doub, mpi_ltmp)
         enough_doub = mpi_ltmp
+        call MPIAllLORLogical(enough_trip, mpi_ltmp)
+        enough_trip = mpi_ltmp
 
-        ! Only considering a direct singles/doubles bias
+        ! Only considering a direct singles/doubles/triples bias
         call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
         gamma_sing = mpi_tmp
         call MPIAllReduce (gamma_doub, MPI_MAX, mpi_tmp)
         gamma_doub = mpi_tmp
+        call MPIAllReduce (gamma_trip, MPI_MAX, mpi_tmp)
+        gamma_trip = mpi_tmp
         if (tReltvy) then
             call MPIAllReduce (gamma_sing_spindiff1, MPI_MAX, mpi_tmp)
             gamma_sing_spindiff1 = mpi_tmp
@@ -415,6 +438,10 @@ contains
                     endif
                 end if
 
+!               checking for triples
+                if (enough_trip) then
+                    pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
+                endif
                 ! We only want to update the opposite spins bias here, as we only
                 ! consider it here!
                 if (enough_opp .and. enough_par) then
@@ -429,10 +456,12 @@ contains
             endif
         else
 
+
             ! Get the probabilities and tau that correspond to the stored
             ! values
-            if ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing) .and. enough_doub) then
-                psingles_new = gamma_sing / gamma_sum
+            if ((tUEG .or. enough_sing) .and. enough_doub) then
+                psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
+                if(enough_trip) pTriples_new = max(gamma_trip / gamma_sum, prob_min_thresh)
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1/gamma_sum
                     pDoub_spindiff1_new = gamma_doub_spindiff1/gamma_sum
@@ -446,30 +475,34 @@ contains
                 ! but psingles stays 1
                 psingles_new = pSingles
                 tau_new = max_permitted_spawn / gamma_sum
-            else
+             else
                 psingles_new = pSingles
+
                 if (tReltvy) then
-                    pSing_spindiff1_new = pSing_spindiff1
-                    pDoub_spindiff1_new = pDoub_spindiff1
-                    pDoub_spindiff2_new = pDoub_spindiff2
+                   pSing_spindiff1_new = pSing_spindiff1
+                   pDoub_spindiff1_new = pDoub_spindiff1
+                   pDoub_spindiff2_new = pDoub_spindiff2
                 endif
-           ! If no single/double spawns occurred, they are also not taken into account
-           ! (else would be undefined)
+                ! If no single/double spawns occurred, they are also not taken into account
+                ! (else would be undefined)
                 if(abs(gamma_doub) > EPS .and. abs(gamma_sing) > EPS) then
                    tau_new = max_permitted_spawn * &
                         min(pSingles / gamma_sing, pDoubles / gamma_doub)
                 else if(abs(gamma_doub) > EPS) then
                    ! If only doubles were counted, take them
                    tau_new = max_permitted_spawn * pDoubles / gamma_doub
-                else if(abs(gamma_sing) > EPS) then
+                else if(abs(gamma_sing) > eps) then
                    ! else, we had to have some singles
                    tau_new = max_permitted_spawn * pSingles / gamma_sing
+                else if(abs(gamma_trip) > eps) then
+                   tau_new = max_permitted_spawn * PTriples / gamma_trip
                 else
+                   ! no spawns
                    tau_new = tau
                 endif
-            end if
+             end if
 
-        end if
+          end if
 
         ! The range of tau is restricted by particle death. It MUST be <=
         ! the value obtained to restrict the maximum death-factor to 1.0.
@@ -497,7 +530,7 @@ contains
         ! remember enough_sing is (mis)used for triples in the
         ! 2-body transcorrelated k-space hubbard
         if (tau_new < tau .or. (enough_sing .and. enough_doub) .or. &
-            (tUEG .or. tHub .or. enough_sing .or. &
+            ((tUEG.and..not.t_ueg_3_body) .or. tHub .or. enough_sing .or. &
             (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub) .or. &
             (t_new_real_space_hubbard .and. enough_sing .and. &
             (t_trans_corr_2body .or. t_trans_corr)) .or. &
@@ -540,20 +573,29 @@ contains
                         ", pDoubles(st->s't') = ", pDoub_spindiff2_new
                 else
                     root_print "Updating singles/doubles bias. pSingles = ", psingles_new
-                    root_print " pDoubles = ", 1.0_dp - psingles_new
+                    root_print " pDoubles = ", (1.0_dp - pSingles_new)*(1.0 - pTriples_new)
                 endif
             end if
-            pSingles = max(psingles_new, prob_min_thresh)
-            if (tReltvy) then
-                pSing_spindiff1 = max(pSing_spindiff1_new, prob_min_thresh)
-                pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
-                pDoub_spindiff2 = max(pDoub_spindiff2_new, prob_min_thresh)
-                pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
-                ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
-            else
-                pDoubles = 1.0_dp - pSingles
-            endif
-        end if
+
+              pSingles = pSingles_new
+              if (tReltvy) then
+                 pSing_spindiff1 = max(pSing_spindiff1_new, prob_min_thresh)
+                 pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
+                 pDoub_spindiff2 = max(pDoub_spindiff2_new, prob_min_thresh)
+                 pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
+                 ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
+              else
+                 pDoubles = 1.0_dp - pSingles
+             endif
+         end  if
+
+       !checking whether we have enouigh triples
+        if(enough_trip) then
+           if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
+                 root_print "Updating triple-excitation bias. pTriples =", pTriples_new
+                 pTriples = pTriples_new
+           endif
+        endif
 
     end subroutine update_tau
 
@@ -572,11 +614,11 @@ contains
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
         character(len=*), parameter :: this_routine ="FindMaxTauDoubs"
-        integer :: ex(2,2),ex2(2,2),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
+        integer :: ex(2,maxExcit),ex2(2,maxExcit),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
         integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
         HElement_t(dp) :: hel
-        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
+        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,maxExcit)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
 
         type(ExcitGenSessionType) :: session
@@ -961,7 +1003,7 @@ contains
 
         ASSERT(pgen > EPS)
         ASSERT(ic == 1 .or. ic == 2)
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (ic == 2) then
             ASSERT(typ == 2 .or. typ == 3 .or. typ == 4)
         end if

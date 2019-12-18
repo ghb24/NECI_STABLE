@@ -9,13 +9,13 @@ module csf
     use integralsdata, only: umat, fck, nmax
     use constants, only: dp, n_int, lenof_sign
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use sltcnd_mod, only: sltcnd, sltcnd_2
+    use sltcnd_mod, only: sltcnd
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
                          get_bit_open_unique_ind, FindSpatialBitExcitLevel, &
                          DetBitEq
     use CalcData, only: InitiatorWalkNo
     use OneEInts, only: GetTMatEl
-    use procedure_pointers, only: get_umat_el
+    use procedure_pointers, only: get_umat_el, sltcnd_2
     use UMatCache, only: gtID
     use csf_data
     use timing_neci
@@ -73,7 +73,7 @@ contains
     function get_csf_helement (nI, nJ, iLutI, iLutJ, notic, notex, &
                                nottParity, notHElGen) result (hel_ret)
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer, intent(in) :: notic, notex(2,2)
+        integer, intent(in) :: notic, notex(2,notic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: nottParity
         HElement_t(dp) :: hel_ret
@@ -85,7 +85,10 @@ contains
         HElement_t(dp) :: hUnused
 
         ! Avoid compiler warnings
-        iUnused=notic; iUnused=notex(1,1); tUnused=nottParity; hUnused=notHelgen
+#ifdef WARNING_WORKAROUND_
+        iUnused=notic; tUnused=nottParity; hUnused=notHelgen
+        if(notic.gt.0) iUnused=notex(1,1)
+#endif
 
         ! Are these both CSFs?
         bCSF(1) = iscsf(nI)
@@ -484,7 +487,7 @@ contains
                     ex(2,:) = ab_pair(ex(1,:))
 
                     ! We know this is a double spin-orbital excitation.
-                    hel = sltcnd_2 (ex, .false.)
+                    hel = sltcnd_2 (dets1(:,det), ex, .false.)
 
                     hel_ret = hel_ret &
                               + hel*(coeffs1(det)*coeffs2(indj))&
@@ -1700,8 +1703,8 @@ contains
                     c = coeffs(i)
                 else
                     call extract_sign (iluts(:,i), sgn)
-#ifdef __CMPLX
-                    c = abs(cmplx(sgn(1), sgn(2), kind = dp))
+#ifdef CMPLX_
+                    c = abs(cmplx(sgn(1), sgn(2)), kind=dp)
 #else
                     c = abs(sgn(1))
 #endif

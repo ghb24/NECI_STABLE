@@ -1,7 +1,7 @@
 #include "macros.h"
 
 module bit_reps
-    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, tLogNumSpawns, blank_det
+    use FciMCData, only: WalkVecDets, MaxWalkersPart, tLogNumSpawns, blank_det
 
     use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level, &
                         tGUGA
@@ -9,7 +9,6 @@ module bit_reps
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
                         tStartTrialLater, tPreCond, tReplicaEstimates, tStoredDets
-
     use csf_data, only: csf_yama_bit, csf_test_bit
 
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
@@ -26,8 +25,6 @@ module bit_reps
                                SymLabelCounts2
 
     use sym_general_mod, only: ClassCountInd
-
-    use real_time_data, only: tGenerateCoreSpace
 
     use util_mod, only: binary_search_custom
 
@@ -190,12 +187,12 @@ contains
         ! The signs array
         NOffSgn = NOffY + NIfY
         NIfSgn = lenof_sign
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         write(6,*) 'Calculation supports multiple parallel runs'
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
         WRITE(6,*) "Double run in use."
 #endif
-#if defined(__CMPLX)
+#if defined(CMPLX_)
         WRITE(6,*) "Complex walkers in use."
 #endif
         write(6,*) 'Number of simultaneous walker distributions: ',inum_runs
@@ -204,7 +201,7 @@ contains
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         if (lenof_sign_max /= 20) then
             call stop_all(this_routine, "Invalid build configuration. Update &
                          &flags to account for new lenof_sign_max, then &
@@ -341,7 +338,7 @@ contains
 
         ! Strange bug in compiler
         unused_var(run)
-#ifdef __CMPLX
+#ifdef CMPLX_
         sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), extract_part_sign(ilut, max_part_type(run)))
 #else
         sgn = extract_part_sign(ilut, min_part_type(run))
@@ -465,7 +462,7 @@ contains
 
         ASSERT(run<=inum_runs)
         call encode_part_sign(ilut, real_sgn, min_part_type(run))
-#ifdef __CMPLX
+#ifdef CMPLX_
         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
 #else
         unused_var(imag_sgn)
@@ -596,7 +593,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         logical :: zero
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'bit_parent_zero'
 #endif
 
@@ -610,7 +607,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         integer(n_int), intent(out) :: parent_ilut(0:NIfDBO)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'extract_parent'
 #endif
 
@@ -625,7 +622,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:NIfBCast)
         integer(n_int), intent(in) :: ilut_parent(0:NIfTot)
         real(dp), intent(in) :: RDMBiasFacCurr
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'encode_parent'
 #endif
 
@@ -643,7 +640,7 @@ contains
     subroutine zero_parent(ilut)
 
         integer(n_int), intent(inout) :: ilut(0:nIfBCast)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'zero_parent'
 #endif
 
@@ -1139,7 +1136,7 @@ contains
     end subroutine decode_bit_det_bitwise
 
     subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
-         ndets_out,prefactor)
+         ndets_out, prefactor)
 
         ! WARNING 1: This routine assumes that both list_1 and list_2 contain no
         ! repeated iluts, even if one of the repeated iluts has zero amplitude.
@@ -1156,7 +1153,7 @@ contains
         integer(n_int), intent(inout) :: list_2(0:,1:)
         integer(n_int), intent(inout) :: list_out(0:,1:)
         integer, intent(out) :: ndets_out
-        real(dp), intent(in), optional :: prefactor ! prefactor of list_2 relative to list_1 (real)
+        real(dp), intent(in), optional :: prefactor
 
         integer :: i, pos, min_ind
         real(dp) :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)

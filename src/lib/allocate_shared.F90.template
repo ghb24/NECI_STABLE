@@ -197,12 +197,12 @@ module shared_alloc
     use ParallelHelper, only: iProcIndex
     implicit none
 
-#ifndef __PGI
+#ifndef PGI_
     private
     public :: shared_allocate, shared_deallocate, shared_allocate_iluts
 #endif
 
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
     interface
         subroutine alloc_shared_worker (nm, pt, sz, proc) bind(c)
             use iso_c_hack
@@ -234,7 +234,7 @@ module shared_alloc
         function test_shared_permissions () result(bAvail) bind(c)
             use iso_c_hack
             implicit none
-#if defined __PGI || defined __G95__
+#if defined PGI_ || defined __G95__
             logical :: bAvail
 #else
             logical(c_bool) :: bAvail
@@ -273,7 +273,7 @@ contains
         integer, intent(in),optional :: node
         character(len_trim(nm) + 10) :: name_tmp
 
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
         integer(int64) :: sz
         type(c_ptr) :: tmp
         %(type)s, dimension(%(dim)s), pointer :: ptr_tmp
@@ -298,7 +298,7 @@ contains
                   &" bytes of shared memory named: ", a)') sz, nm
 
 #else
-        ! Non-shared memory also used if __SHARED_MEM is not defined
+        ! Non-shared memory also used if SHARED_MEM_ is not defined
         allocate(ptr(%(alloc_str)s))
 #endif
     end subroutine
@@ -320,7 +320,7 @@ contains
         character(len=len_trim(nm)+10) :: name_tmp
         integer, intent(in),optional :: node
 
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
         integer(int64) :: sz
         type(c_ptr) :: tmp
 
@@ -351,7 +351,7 @@ contains
                   &" bytes of shared memory named: ", a)') sz, nm
 
 #else
-        ! Non-shared memory also used if __SHARED_MEM is not defined
+        ! Non-shared memory also used if SHARED_MEM_ is not defined
         allocate(ptr(0:%(alloc_str)s))
 #endif
     end subroutine
@@ -368,7 +368,7 @@ contains
     subroutine shared_deallocate (ptr)
         %(type)s, dimension(%(dim)s), intent(inout), pointer :: ptr
 
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
 
         %(type)s, pointer :: pt1
 
@@ -402,7 +402,7 @@ end module
 
 
 supermodule shared_alloc
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
     interface
         subroutine cleanup_shared_alloc () bind(c)
         end subroutine

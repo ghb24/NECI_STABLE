@@ -549,7 +549,7 @@ contains
         ! n.b. This will produce spurious warnings if run in valgrind, as
         !      a is not initialised. Not a problem in optimised build.
         i = 0
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! it IS a problem in debug build, however
         ! *** HACK MOD ***
         !to prevent crashes in debug mode

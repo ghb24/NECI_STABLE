@@ -1071,7 +1071,7 @@ contains
                            &when there are no slots remaining.")'); call neci_flush(6)
             end if
 
-            en_pert%dets(0:nifdbo, en_pert%ndets) = ilut(0:NIfDBO)
+            en_pert%dets(0:NIfDBO, en_pert%ndets) = ilut(0:NIfDBO)
             call encode_sign_EN(en_pert%sign_length, en_pert%dets(:, en_pert%ndets), contrib_sign)
 
             call add_hash_table_entry(en_pert%hash_table, en_pert%ndets, hash_val)

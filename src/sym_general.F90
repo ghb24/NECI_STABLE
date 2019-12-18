@@ -84,7 +84,7 @@ contains
         ! Get the new index
         cc_ret = ClassCountInd (spn_j, sym_j, mom_j)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (cc_ret /= -1) then
             if (class_count_ml(cc_ind) /= mom_i) &
                 call stop_all(this_routine, 'wrong_mom_i')
@@ -310,11 +310,11 @@ contains
         ! symmetry specification of the determinant nI. This also checks that
         ! the excitation relating these two determinants (ic, ex) is valid.
 
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2, 2)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2, ic)
         character(50), intent(out), optional :: err_msg
         logical :: bValid
 
-        integer :: exLevel, ms1, ms2, ml1, ml2, i
+        integer :: exLevel, ml1, ml2, i
         integer :: sym_prod_i, sym_prod_j
         type(Symmetry) :: sym_prod1, sym_prod2
         integer(n_int) :: ilut(0:niftot)
@@ -374,27 +374,8 @@ contains
 
         if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then
             ! Check the symmetry properties of the excitation matrix
-            if (.not. tNoSymGenRandExcits .and. .not. tKPntSym &
-                .and. associated(g1)) then
-                if (ic == 2) then
-                    sym_prod1 = SYMPROD(G1(ex(1,1))%Sym, G1(ex(1,2))%Sym)
-                    sym_prod2 = SYMPROD(G1(ex(2,1))%Sym, G1(ex(2,2))%Sym)
-                    ms1 = G1(ex(1,1))%ms + G1(ex(1,2))%ms
-                    ms2 = G1(ex(2,1))%ms + G1(ex(2,2))%ms
-                else
-                    sym_prod1 = G1(ex(1,1))%Sym
-                    sym_prod2 = G1(ex(2,1))%Sym
-                    ms1 = G1(ex(1,1))%ms
-                    ms2 = G1(ex(2,1))%ms
-                end if
-                if (.not. SYMEQ(sym_prod1, sym_prod2)) then
-                    bValid = .false.
-                    if (present(err_msg)) err_msg = 'ex-matrix not symmetry conserving'
-                end if
-                if (ms1 /= ms2 .and.(.not.tReltvy)) then
-                    bValid = .false.
-                    if (present(err_msg)) err_msg = 'ms is not conserved'
-                end if
+           if (.not. tNoSymGenRandExcits .and. .not. tKPntSym) then
+              bValid = bValid .and. IsSymAllowedExcitMat(ex,ic)
             end if
         end if
         ! should i do extra tests for heisenberg and tJ? i think so
@@ -451,6 +432,29 @@ contains
             end if
         end if
 
-    end function
+      end function SymAllowedExcit
+
+      function IsSymAllowedExcitMat(ex,ic) result(bValid)
+        integer, intent(in) :: ex(2,ic), ic
+        logical :: bValid
+
+        type(symmetry) :: sym_prod1, sym_prod2
+        integer :: ms1, ms2, i
+        bValid = .true.
+
+        ! Check the symmetry properties of the excitation matrix
+        sym_prod1 = G1(ex(1,1))%Sym
+        sym_prod2 = G1(ex(2,1))%Sym
+        ms1 = G1(ex(1,1))%ms
+        ms2 = G1(ex(2,1))%ms
+        do i = 2, ic
+           sym_prod1 = SYMPROD(sym_prod1, G1(ex(1,i))%Sym)
+           sym_prod2 = SYMPROD(sym_prod2, G1(ex(2,i))%Sym)
+           ms1 = ms1 + G1(ex(1,i))%ms
+           ms2 = ms2 + G1(ex(2,i))%ms
+        end do
+        if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
+        if (ms1 /= ms2 .and.(.not.tReltvy)) bValid = .false.
+      end function IsSymAllowedExcitMat
 
 end module

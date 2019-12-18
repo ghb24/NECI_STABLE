@@ -6,7 +6,7 @@ MODULE SymExcit3
 
     use SystemData, only: NEl, G1, nBasis, tNoSymGenRandExcits
     use bit_reps, only: NIfTot
-    use constants, only: n_int
+    use constants, only: n_int, maxExcit
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
     use SymExcitDataMod, only: SpinOrbSymLabel
     use get_excit, only: make_double
@@ -183,9 +183,7 @@ MODULE SymExcit3
 
 
 
-    ENDSUBROUTINE GenExcitations3
-
-
+      ENDSUBROUTINE GenExcitations3
 
     SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).

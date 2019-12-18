@@ -18,7 +18,9 @@ module fcimc_initialisation
                           t_k_space_hubbard, t_3_body_excits, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
                           tgen_guga_crude, nOccOrbs, nClosedOrbs, &
-                          t_impurity_system, t_pcpp_excitgen, t_pchb_excitgen
+                          t_pcpp_excitgen, t_pchb_excitgen, &
+                          t_uniform_excits, t_mol_3_body,t_ueg_3_body,&
+                          tTrcorrExgen, tNoSinglesPossible
 
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
@@ -35,8 +37,8 @@ module fcimc_initialisation
                         trunc_nopen_max, MemoryFacInit, MaxNoatHF, HFPopThresh, &
                         tAddToInitiator, InitiatorWalkNo, tRestartHighPop, &
                         tAllRealCoeff, tRealCoeffByExcitLevel, tTruncInitiator, &
-                        RealCoeffExcitThresh, aliasStem, tPopsAlias, allCorespaceWalkers, &
-                        tDynamicCoreSpace, RealCoeffExcitThresh, TargetGrowRate, &
+                        RealCoeffExcitThresh, aliasStem, tPopsAlias, &
+                        tDynamicCoreSpace, TargetGrowRate, &
                         TargetGrowRateWalk, InputTargetGrowRate, semistoch_shift_iter,&
                         InputTargetGrowRateWalk, tOrthogonaliseReplicas, &
                         use_spawn_hash_table, tReplicaSingleDetStart, RealSpawnCutoff, &
@@ -52,7 +54,7 @@ module fcimc_initialisation
                         t_back_spawn_flex, back_spawn_delay, ScaleWalkers, tfixedN0, &
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
-                        tInitiatorSpace, i_space_in, corespaceWalkers, tSpinProject, &
+                        tInitiatorSpace, i_space_in, tSpinProject, &
                         tAutoAdaptiveShift, &
                         tInitializeCSF, S2Init, tWalkContgrow, tSkipRef, &
                         AAS_Cut, tLinearAdaptiveShift
@@ -118,7 +120,7 @@ module fcimc_initialisation
                                   attempt_die, extract_bit_rep_avsign, &
                                   fill_rdm_diag_currdet, &
                                   new_child_stats, get_conn_helement, scaleFunction, &
-                                  shiftFactorFunction
+                                  generate_two_body_excitation, shiftFactorFunction
 
     use symrandexcit3, only: gen_rand_excit3
     use symrandexcit_Ex_Mag, only: gen_rand_excit_Ex_Mag
@@ -169,10 +171,10 @@ module fcimc_initialisation
     use ueg_excit_gens, only: gen_ueg_excit
     use gndts_mod, only: gndts
     use excit_gen_5, only: gen_excit_4ind_weighted2
-
+    use tc_three_body_excitgen, only: gen_excit_mol_tc, setup_mol_tc_excitgen
     use pcpp_excitgen, only: gen_rand_excit_pcpp, init_pcpp_excitgen, finalize_pcpp_excitgen
-
     use csf, only: get_csf_helement
+
     use tau_search, only: init_tau_search, max_death_cpt
 
     use fcimc_helper, only: CalcParentFlag, update_run_reference
@@ -223,6 +225,7 @@ module fcimc_initialisation
     use adi_references, only: setup_reference_space, clean_adi
 
     use tau_search_hist, only: init_hist_tau_search
+
     use double_occ_mod, only: init_spin_measurements
 
     use back_spawn, only: init_back_spawn, setup_virtual_mask
@@ -237,11 +240,10 @@ module fcimc_initialisation
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg, &
                         init_get_helement_heisenberg_guga, init_get_helement_tj_guga
 
-    use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard
+    use k_space_hubbard, only: init_get_helement_k_space_hub, init_k_space_hubbard, &
+         gen_excit_k_space_hub_transcorr, gen_excit_uniform_k_space_hub_transcorr
 
     use OneEInts, only: tmat2d
-
-    use impurityModels, only: setupImpurityExcitgen, gen_excit_impurity_model
 
     use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
@@ -344,7 +346,7 @@ contains
                     endif
                 end if
             end if
-#ifndef __PROG_NUMRUNS
+#ifndef PROG_NUMRUNS_
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()
                 if (tReadPops .and. .not. t_no_append_stats) then
@@ -999,9 +1001,6 @@ contains
         NoAddedInitiators=0
         NoInitDets=0
         NoNonInitDets=0
-        NoSIInitsConflicts = 0
-        NoInitsConflicts = 0
-        avSigns = 0.0_dp
         NoInitWalk(:)=0.0_dp
         NoNonInitWalk(:)=0.0_dp
         NoExtraInitDoubs=0
@@ -1011,7 +1010,6 @@ contains
         DiagSftIm=0.0_dp
         sum_proje_denominator = 0
         cyc_proje_denominator = 0
-
 !Also reinitialise the global variables - should not necessarily need to do this...
         AllSumENum(:)=0.0_dp
         AllInitsENumCyc(:) = 0.0_dp
@@ -1034,6 +1032,7 @@ contains
         AllENumOut(:)=0.0_dp
         AllENumCycAbs = 0.0_dp
         AllHFCyc(:)=0.0_dp
+        all_cyc_proje_denominator = 1.0_dp
         AllHFOut(:)=0.0_dp
 !        AllDetsNorm=0.0_dp
         AllNoAborted=0
@@ -1065,9 +1064,6 @@ contains
 
         ! Set the flag to indicate that no shift adjustment has been made
         tfirst_cycle = .true.
-
-        allCorespaceWalkers = 0.0_dp
-        corespaceWalkers = 0.0_dp
 
         ! Initialise the fciqmc counters
         iter_data_fciqmc%update_growth = 0.0_dp
@@ -1105,7 +1101,6 @@ contains
         rdmCorrectionFactor = 0.0_dp
         InstRDMCorrectionFactor = 0.0_dp
         ThisRDMIter = 0.0_dp
-
         ! initialize excitation number trackers
         nInvalidExcits = 0
         nValidExcits = 0
@@ -1119,6 +1114,7 @@ contains
               RealSpawnCutoff = sFBeta
            endif
         endif
+        tNoSinglesPossible = t_k_space_hubbard .or. tUEG .or. tNoSinglesPossible
 
         if(.not. allocated(allInitsPerExLvl)) allocate(allInitsPerExLvl(maxInitExLvlWrite))
         if(.not. allocated(initsPerExLvl)) allocate(initsPerExLvl(maxInitExLvlWrite))
@@ -1284,7 +1280,6 @@ contains
                 "Do you really want a delayed back-spawn in a restarted run?")
         end if
 
-
         ! can i initialize the k-space hubbard here already?
         ! because we need information for the tau-search already..
         if (t_k_space_hubbard) then
@@ -1417,6 +1412,12 @@ contains
                     &unpaired electrons.")') trunc_nopen_max
         endif
 
+
+        ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
+        ! by the number of alpha and beta electrons and the number of orbitals
+        ! and can hence be precomputed
+        if(t_mol_3_body.or.t_ueg_3_body) call setup_mol_tc_excitgen()
+
     END SUBROUTINE SetupParameters
 
     ! This initialises the calculation, by allocating memory, setting up the
@@ -1427,7 +1428,7 @@ contains
         INTEGER :: error,MemoryAlloc,PopsVersion
         character(*), parameter :: t_r = 'InitFCIMCPar', this_routine = t_r
         integer :: PopBlockingIter
-        real(dp) :: ExpectedMemWalk,read_tau, read_psingles, read_pparallel
+        real(dp) :: ExpectedMemWalk,read_tau, read_psingles, read_pparallel, read_ptriples
         integer(int64) :: read_walkers_on_nodes(0:nProcessors-1)
         integer :: read_nnodes
         !Variables from popsfile header...
@@ -1500,7 +1501,7 @@ contains
                             iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                             read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                            read_pparallel, read_nnodes, read_walkers_on_nodes,&
+                            read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes,&
                             PopBalanceBlocks)
                     ! Use the random hash from the Popsfile. This is so that,
                     ! if we are using the same number of processors as the job
@@ -1529,7 +1530,7 @@ contains
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
                         PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
                         MaxWalkersUncorrected,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
-                        perturb_ncreate, perturb_nannihilate)
+                        read_ptriples, perturb_ncreate, perturb_nannihilate)
 
                 if(iProcIndex.eq.root) close(iunithead)
             else
@@ -1537,7 +1538,6 @@ contains
             endif
 
             MaxWalkersPart=NINT(MemoryFacPart*MaxWalkersUncorrected)
-            ! this hardly makes sense at all - it can even REDUCE the allocated memory
             ExpectedMemWalk=real((NIfTot+1)*MaxWalkersPart*size_n_int+8*MaxWalkersPart,dp)/1048576.0_dp
             if(ExpectedMemWalk.lt.20.0) then
                 !Increase memory allowance for small runs to a min of 20mb
@@ -1706,7 +1706,7 @@ contains
 
                 endif   !tStartmp1
             endif
-
+            if(t_ueg_3_body.and.tTrcorrExgen)tLatticeGens = .false.
             WRITE(iout,"(A,F14.6,A)") " Initial memory (without excitgens + temp arrays) consists of : ", &
                 & REAL(MemoryAlloc,dp)/1048576.0_dp," Mb/Processor"
             WRITE(iout,*) "Only one array of memory to store main particle list allocated..."
@@ -1892,7 +1892,7 @@ contains
         end if
 
          replica_overlaps_real(:, :) = 0.0_dp
-#ifdef __CMPLX
+#ifdef CMPLX_
          replica_overlaps_imag(:, :) = 0.0_dp
 #endif
 
@@ -1915,6 +1915,11 @@ contains
         end if
 
         if(tRDMonFly .and. tDynamicCoreSpace) call sync_rdm_sampling_iter()
+
+         ! for the (uniform) 3-body excitgen, the generation probabilities are uniquely given
+         ! by the number of alpha and beta electrons and the number of orbitals
+         ! and can hence be precomputed
+         if(t_mol_3_body.or.t_ueg_3_body) call setup_mol_tc_excitgen()
 
         if (tInitiatorSpace) call init_initiator_space(i_space_in)
 
@@ -1966,11 +1971,21 @@ contains
         character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
 
         ! Select the excitation generator.
-        if (tHPHF) then
-            generate_excitation => gen_hphf_excit
-         elseif(t_impurity_system) then
-            call setupImpurityExcitgen()
-            generate_excitation => gen_excit_impurity_model
+        if(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
+           if (t_uniform_excits) then
+            generate_excitation => gen_excit_uniform_k_space_hub_transcorr
+           else
+            generate_excitation => gen_excit_k_space_hub_transcorr
+           endif
+        elseif (tHPHF) then
+         generate_excitation => gen_hphf_excit
+        elseif (t_ueg_3_body) then
+            if(tTrcorrExgen) then
+                generate_two_body_excitation => gen_ueg_excit
+            elseif(TLatticeGens) then
+                generate_two_body_excitation => gen_rand_excit
+            endif
+         generate_excitation => gen_excit_mol_tc
         elseif ((t_back_spawn_option .or. t_back_spawn_flex_option)) then
             if (tHUB .and. tLatticeGens) then
                 ! for now the hubbard + back-spawn still uses the old
@@ -1992,7 +2007,7 @@ contains
             if (tReltvy) then
                 generate_excitation => gen_rand_excit_Ex_Mag
             else
-                generate_excitation => gen_rand_excit3
+                call stop_all(t_r,"Excitation generator has not been set!")
             endif
         elseif (tGenHelWeighted) then
             generate_excitation => gen_excit_hel_weighted
@@ -2017,6 +2032,15 @@ contains
          else
             generate_excitation => gen_rand_excit
         endif
+
+        ! if we are using the 3-body excitation generator, embed the chosen excitgen
+        ! in the three-body one
+        if(t_mol_3_body) then
+           ! yes, fortran pointers work this way
+           generate_two_body_excitation => generate_excitation
+           generate_excitation => gen_excit_mol_tc
+        endif
+
         ! In the main loop, we only need to find out if a determinant is
         ! connected to the reference det or not (so no ex. level above 2 is
         ! required). Except in some cases where we need to know the maximum
@@ -2032,9 +2056,7 @@ contains
         endif
 
         ! How many children should we spawn given an excitation?
-        if (t_real_time_fciqmc) then
-            attempt_create => attempt_create_realtime
-         else if (tTruncCas .or. tTruncSpace .or. &
+        if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen .or. t_trunc_nopen_diff) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then
@@ -2590,6 +2612,9 @@ contains
         InitialPartVec = 0.0_dp
         do run=1,inum_runs
             InitialPartVec(min_part_type(run))=InitialPart
+#ifdef CMPLX_
+            InitialPartVec(max_part_type(run))=0.0_dp
+#endif
         enddo
 
         !Setup initial walker local variables for HF walkers start
@@ -2608,7 +2633,7 @@ contains
             ! Set reference determinant as an initiator if
             ! tTruncInitiator is set, for both imaginary and real flags
             ! in real-time calculations, the reference does not have any special role
-            if (tTruncInitiator .and. .not. t_real_time_fciqmc) then
+            if (tTruncInitiator) then
                 do run = 1, inum_runs
                     call set_flag (CurrentDets(:,1), get_initiator_flag_by_run(run))
                 enddo
@@ -2645,11 +2670,13 @@ contains
                 TotPartsOld(:) = InitialPartVec(:)
             else
                 do run=1, inum_runs
-                    InitialSign(min_part_type(run)) = InitWalkers
-                    TotParts(max_part_type(run)) = 0.0_dp
-                    TotPartsOld(max_part_type(run)) = 0.0_dp
-                    TotParts(min_part_type(run)) = real(InitWalkers,dp)
-                    TotPartsOld(min_part_type(run)) = real(InitWalkers,dp)
+                   InitialSign(min_part_type(run)) = InitWalkers
+                   TotParts(min_part_type(run)) = real(InitWalkers,dp)
+                   TotPartsOld(min_part_type(run)) = real(InitWalkers,dp)
+#ifdef CMPLX_
+                   TotParts(max_part_type(run)) = 0.0_dp
+                   TotPartsOld(max_part_type(run)) = 0.0_dp
+#endif
                 enddo
             endif
 
@@ -2875,7 +2902,7 @@ contains
         integer(int32) :: proc_highest
         integer(n_int) :: ilut(0:NIfTot)
         integer(int32) :: int_tmp(2)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'set_initial_run_references'
 #endif
 
@@ -2954,7 +2981,7 @@ contains
         integer  :: tmp_det(nel), det_max, run
         type(ll_node), pointer :: TempNode
         character(len=*) , parameter :: this_routine='InitFCIMC_CAS'
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(this_routine,"StartCAS currently does not work with complex walkers")
 #endif
         if(tReadPops) call stop_all(this_routine,"StartCAS cannot work with with ReadPops")
@@ -3373,7 +3400,7 @@ contains
     subroutine InitFCIMC_MP1()
         real(dp) :: TotMP1Weight,amp,MP2Energy,PartFac,rat,r,energy_contrib
         HElement_t(dp) :: HDiagtemp
-        integer :: iExcits, exflag, Ex(2,2), nJ(NEl), DetIndex, iNode
+        integer :: iExcits, exflag, Ex(2,maxExcit), nJ(NEl), DetIndex, iNode
         integer :: iInit, DetHash, ExcitLevel, run, part_type
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: NoWalkers, temp_sign(lenof_sign)
@@ -3384,7 +3411,7 @@ contains
         integer(n_int), pointer :: excitations(:,:)
         integer :: i
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(this_routine,"StartMP1 currently does not work with complex walkers")
 #endif
         if(tReadPops) call stop_all(this_routine,"StartMP1 cannot work with with ReadPops")
@@ -4028,7 +4055,7 @@ contains
                                 Madelung,tMadelung,tUEGFreeze,FreezeCutoff, kvec, tUEG2
         use Determinants, only: GetH0Element4, get_helement_excit
         integer :: Ki(3),Kj(3),Ka(3),LowLoop,HighLoop,X,i,Elec1Ind,Elec2Ind,K,Orbi,Orbj
-        integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,2),kx,ky,kz,OrbB
+        integer :: iSpn,FirstA,nJ(NEl),a_loc,Ex(2,maxExcit),kx,ky,kz,OrbB
         integer :: ki2,kj2
         logical :: tParity
         real(dp) :: Ranger,mp2,mp2all,length
@@ -4567,7 +4594,7 @@ contains
       call MPISumAll(norm_psi_squared,all_norm_psi_squared)
 
       ! assign the sqrt norm
-#ifdef __CMPLX
+#ifdef CMPLX_
       norm_psi = sqrt(sum(all_norm_psi_squared))
       norm_semistoch = sqrt(sum(norm_semistoch_squared))
 #else

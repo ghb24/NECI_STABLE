@@ -87,7 +87,7 @@ program test_k_space_hubbard
     if (t_run_explicit) call run_explicit_test_cases
     ! change flag to misuse the unit tests do an exact study..
     t_exact_study = .false.
-#ifndef __CMPLX
+#ifndef CMPLX_
     if (t_exact_study) call exact_study()
 #endif
     call get_failed_count(failed_count)
@@ -146,7 +146,7 @@ contains
     end subroutine test_excit_gen_k_space
 
     subroutine run_explicit_test_cases
-#ifndef __CMPLX
+#ifndef CMPLX_
         call run_test_case(test_3e_4orbs_par, "test_3e_4orbs_par")
         call run_test_case(test_3e_4orbs_trip, "test_3e_4orbs_trip")
         call run_test_case(test_4e_ms1, "test_4e_ms1")
@@ -156,7 +156,7 @@ contains
 #endif
     end subroutine run_explicit_test_cases
 
-#ifndef __CMPLX
+#ifndef CMPLX_
     subroutine exact_study
 
         use DetCalcData, only: nkry, nblk, b2l, ncycle
@@ -1443,7 +1443,7 @@ contains
     end subroutine init_k_space_unit_tests
 
 
-#ifndef __CMPLX
+#ifndef CMPLX_
     subroutine test_3e_4orbs_par
 
         integer :: hilbert_nI(3,6), i, j, work(18), info, nI(3), n_states
@@ -1695,7 +1695,7 @@ contains
 
     end subroutine setup_all
 
-#ifndef __CMPLX
+#ifndef CMPLX_
     subroutine exact_transcorrelation(lat_ptr, nI, J, U, hilbert_space_opt)
         class(lattice), pointer, intent(in) :: lat_ptr
         integer, intent(in) :: nI(:)
@@ -2167,7 +2167,7 @@ contains
 
     end function get_tmat_next
 
-#ifndef __CMPLX
+#ifndef CMPLX_
     subroutine test_general
 
         ! find the smallest system, where my code fails again..

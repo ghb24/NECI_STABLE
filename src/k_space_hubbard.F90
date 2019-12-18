@@ -26,7 +26,7 @@ module k_space_hubbard
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
-    use constants, only: n_int, dp, EPS, bits_n_int, int64
+    use constants, only: n_int, dp, EPS, bits_n_int, int64, maxExcit
 
     use bit_rep_data, only: NIfTot, nifd
 
@@ -291,8 +291,7 @@ contains
 
             end do
         end do
-!
-#ifdef __DEBUG
+#ifdef DEBUG_
         WRITE(6,*) "Symmetry, Symmetry Conjugate"
         do i = 1, lat%get_nsites()
             print *, i, SymConjTab(i)
@@ -360,7 +359,7 @@ contains
         ! fullfil k_k + k_l = k_i + k_j
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel, hel2
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_umat_kspace"
 #endif
 
@@ -549,14 +548,14 @@ contains
                                       ex, tParity, pGen, hel, store, run)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: run
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_k_space_hub"
 #endif
         real(dp) :: p_elec, p_orb
@@ -567,7 +566,12 @@ contains
 
         unused_var(exFlag)
         unused_var(store)
-        unused_var(run)
+#ifdef WARNING_WORKAROUND_
+        ! mark unused vars
+        if(present(run)) then
+            unused_var(run)
+        endif
+#endif
 
         hel = h_cast(0.0_dp)
         ic = 0
@@ -635,7 +639,7 @@ contains
             return
         end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (.not. isvaliddet(nI,nel)) then
             if (nJ(1) /= 0) then
                 print *, "nI: ", nI
@@ -654,7 +658,7 @@ contains
       implicit none
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
-      integer, intent(out) :: nJ(nel), ic, ex(2,2)
+      integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
       real(dp), intent(out) :: pGen
       logical, intent(out) :: tParity
       type(excit_gen_store_type), intent(inout), target :: store
@@ -668,11 +672,15 @@ contains
       integer :: i, a, b, ki(N_DIM), kj(N_DIM), ka(N_DIM), kb(N_DIM), elecs(2)
       integer, parameter :: maxTrials = 1000
 
-      unused_var(run)
       unused_var(store)
       unused_var(exFlag)
 
+      if(present(run)) then
+          unused_var(run)
+      endif
+
       hel = h_cast(0.0_dp)
+
       ilutJ = 0
       ic = 0
 
@@ -714,23 +722,26 @@ contains
             exFlag, ic, ex, tParity, pgen, hel, store, run)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,3)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         real(dp), intent(out) :: pgen
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: run
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_uniform_k_space_hub_transcorr"
 #endif
 
         unused_var(exFlag)
-        unused_var(run)
         unused_var(store)
+        if(present(run)) then
+            unused_var(run)
+        end if
 
         hel = h_cast(0.0_dp)
         ilutJ = 0_n_int
+
         ic = 0
         nJ(1) = 0
 
@@ -767,7 +778,7 @@ contains
 
         end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (nJ(1) /= 0) then
             if (abs(pgen - calc_pgen_k_space_hubbard_uniform_transcorr(ex, ic))>EPS) then
                 print *, "nI: ", nI
@@ -796,7 +807,7 @@ contains
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: run
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_mixed_k_space_hub_transcorr"
 #endif
 
@@ -836,7 +847,7 @@ contains
 
         end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (nJ(1) /= 0) then
             if (abs(pgen - calc_pgen_mixed_k_space_hub_transcorr(nI, ilutI, ex, ic))>EPS) then
                 print *, "nI: ", nI
@@ -855,7 +866,7 @@ contains
         integer, intent(in) :: nI(nel), ex(:,:), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_mixed_k_space_hub_transcorr"
 #endif
         real(dp) :: p_elec, p_orb
@@ -902,7 +913,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_uniform_double_para"
 #endif
         integer :: elecs(2), ispn, spin, i, a, b
@@ -921,7 +932,7 @@ contains
         else if (ispn == 3) then
             spin = 2
             p_orb = 1.0_dp / real(nbasis/2 - nOccAlpha, dp)
-#ifdef __DEBUG
+#ifdef DEBUG_
         else
             call stop_all(this_routine, "no parallel spin!")
 #endif
@@ -964,7 +975,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_uniform_double_anti"
 #endif
         integer :: elecs(2), ispn, spin, i, a, b
@@ -1013,7 +1024,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_uniform_triple"
 #endif
         integer :: elecs(3), ispn, spin, i, a, b, c, sum_ms, src(3)
@@ -1073,14 +1084,14 @@ contains
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic
-        integer, intent(out) :: ex(2,3)
+        integer, intent(out) :: ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: run
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_k_space_hub_transcorr"
 #endif
         integer :: temp_ex(2,3)
@@ -1129,7 +1140,7 @@ contains
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: run
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_uniform_k_space_hub_test"
 #endif
         integer :: temp_ex(2,3) , elecs(3), ispn, i, a, b, c, src(3), sum_ms, spin
@@ -1189,14 +1200,14 @@ contains
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(out) :: nJ(nel), ic
-        integer, intent(out) :: ex(2,2)
+        integer, intent(out) :: ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: run
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_excit_k_space_hub_transcorr_test"
 #endif
         integer :: temp_ex(2,3)
@@ -1236,7 +1247,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_triple_hubbard"
 #endif
         integer :: elecs(3), orbs(3), src(3), sum_ms
@@ -1288,7 +1299,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: orbs(2)
         real(dp), intent(out) :: p_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "pick_bc_orbitals_hubbard"
         real(dp) :: test
 #endif
@@ -1307,7 +1318,7 @@ contains
 
         orbs = orb_list(ind,:)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! the influence of orb_a is important in the pgen recalc!!
         call create_bc_list_hubbard(nI, ilutI, src, orb_a, orb_list, cum_arr, cum_sum, &
             orbs(2), test)
@@ -1337,7 +1348,7 @@ contains
         real(dp), intent(out) :: cum_arr(nbasis/2), cum_sum
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_bc_list_hubbard"
 #endif
         integer :: b, c, ex(2,3), spin, orb_b
@@ -1400,7 +1411,6 @@ contains
                         ! actually i messed up with the non-hermiticity
                         ! i should actually switch the order of the
                         ! determinants in matrix element calculation
-                        ! old one:
                         call swap_excitations(nI, ex, nJ, ex2)
                         elem = abs(get_3_body_helement_ks_hub(ex2, .false.))
 
@@ -1432,7 +1442,6 @@ contains
                         ex(2,2:3) = [orb_b, c]
                         call swap_excitations(nI, ex, nJ, ex2)
                         elem = abs(get_3_body_helement_ks_hub(ex2, .false.))
-
                     end if
                 end if
                 cum_sum = cum_sum + elem
@@ -1452,7 +1461,7 @@ contains
         integer, intent(out) :: orb
         real(dp), intent(out) :: p_orb
         integer, intent(in), optional :: sum_ms
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "pick_a_orbital_hubbard"
 #endif
         integer :: spin
@@ -1497,7 +1506,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_parallel_double_hubbard"
 #endif
         real(dp) :: p_elec, p_orb
@@ -1545,7 +1554,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: orbs(2)
         real(dp), intent(out) :: p_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "pick_ab_orbitals_par_hubbard"
         real(dp) :: test, test_arr(nBasis/2)
         integer :: ex(2,2)
@@ -1573,7 +1582,7 @@ contains
 
         orbs = orb_list(ind,:)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! check that the other way of picking the orbital has the same
         ! probability..
         call create_ab_list_par_hubbard(nI, ilutI, src, orb_list, test_arr, cum_sum, &
@@ -1614,7 +1623,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(out) :: orbs(2)
         real(dp), intent(out) :: p_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "pick_ab_orbitals_hubbard"
         real(dp) :: test
         integer :: ex(2,2)
@@ -1640,7 +1649,7 @@ contains
 
         orbs = orb_list(ind,:)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! check that the other way of picking the orbital has the same
         ! probability..
         call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, &
@@ -1679,7 +1688,7 @@ contains
         real(dp), intent(out) :: cum_sum
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_ab_list_par_hubbard"
 #endif
         integer :: a, b, ex(2,2), spin, orb_a
@@ -1776,7 +1785,7 @@ contains
         real(dp), intent(out) :: cum_sum
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_ab_list_hubbard"
 #endif
         integer :: a, b, ex(2,2)
@@ -1881,7 +1890,7 @@ contains
         ! excitation generator
         integer, intent(in) :: ex(:,:), ic
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_uniform_transcorr"
 #endif
         real(dp) :: p_elec, p_orb
@@ -1947,7 +1956,7 @@ contains
         integer, intent(in) :: nI(nel), ex(:,:), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_transcorr"
 #endif
 
@@ -1981,7 +1990,7 @@ contains
         integer, intent(in) :: nI(nel), ex(:,:), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_triples"
         real(dp) :: test
 #endif
@@ -2026,7 +2035,7 @@ contains
 
         pgen = p_elec * product(p_orb) * 2.0_dp
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         call create_bc_list_hubbard(nI, ilutI, ex(1,:), orb_a, orb_list, cum_arr, &
             cum_sum, orbs(2), test)
 
@@ -2044,7 +2053,7 @@ contains
         integer, intent(in) :: nI(nel), ex(:,:), ic
         integer(n_int), intent(in) :: ilutI(0:niftot)
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard_par"
         real(dp) :: test
 #endif
@@ -2075,7 +2084,7 @@ contains
 
         pgen = p_elec * p_orb * 2.0_dp
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         call create_ab_list_par_hubbard(nI, ilutI, ex(1,1:2), orb_list, cum_arr, &
             cum_sum, ex(2,1), test)
 
@@ -2094,7 +2103,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: nI(nel), ex(2,2), ic
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_k_space_hubbard"
         real(dp) :: test
 #endif
@@ -2118,7 +2127,7 @@ contains
         call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, &
                 ex(2,1), p_orb)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         call create_ab_list_hubbard(nI, ilutI, src, orb_list, cum_arr, cum_sum, &
                 ex(2,2), test)
 
@@ -2167,7 +2176,7 @@ contains
         integer, intent(in) :: nI(nel), ic, ex(2,ic)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine ="get_helement_k_space_hub_ex_mat"
 #endif
 
@@ -2200,7 +2209,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_helement_k_space_hub_general"
 #endif
         integer :: ic, ex(2,3), ex_2(2,2)
@@ -2281,7 +2290,7 @@ contains
     function get_diag_helement_k_sp_hub(nI) result(hel)
         integer, intent(in) :: nI(nel)
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_diag_helement_k_sp_hub"
 #endif
         integer :: i, j, id(nel), idX, idN, spin, k, k_vec(3), p_vec(3)
@@ -2502,7 +2511,7 @@ contains
         HElement_t(dp) :: hel
 
         integer :: i, sgn, k(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_one_body_diag_sym"
 #endif
         ! change this routine to also use just the symmetry symbols
@@ -2566,7 +2575,7 @@ contains
         HElement_t(dp) :: hel
 
         integer :: i, sgn, k(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_one_body_diag_kvec"
 #endif
         ! change this routine to also use just the symmetry symbols
@@ -2635,7 +2644,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_offdiag_helement_k_sp_hub"
 #endif
         integer :: src(2), tgt(2), ij(2), ab(2), k_vec_a(3), spin, k_vec_b(3)
@@ -2815,7 +2824,7 @@ contains
         ! for triple excitations and spin-parallel doubles not so much.. todo
         integer, intent(in) :: ex(:,:)
         integer, intent(out) :: k_vec_a(3), k_vec_b(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_transferred_momenta"
 #endif
         integer :: sort_ex(2,size(ex,2))
@@ -2935,7 +2944,7 @@ contains
             !This ensures that the symmetry labels go from 0 -> nSymLabels-1
                 SpinOrbSymLabel(i)=SymClasses(((i+1)/2))-1
             end do
-#ifdef __DEBUG
+#ifdef DEBUG_
             WRITE(6,*) "SpinOrbSymLabel: "
             do i=1,nBasis
                 WRITE(6,*) i,SpinOrbSymLabel(i)
@@ -2965,7 +2974,7 @@ contains
                     SymTableLabels(j,i)=Lab-1
                 enddo
             enddo
-#ifdef __DEBUG
+#ifdef DEBUG_
             WRITE(6,*) "SymTable:"
             do i=0,nSymLabels-1
                 do j=0,nSymLabels-1
@@ -3012,7 +3021,7 @@ contains
                     call stop_all(this_routine,"No inverse symmetry found - error")
                 endif
             enddo
-#ifdef __DEBUG
+#ifdef DEBUG_
             write(6,*) "SymInvLabel: "
             do i = 0, nSymLabels - 1
                 write(6,*) i, SymInvLabel(i)
@@ -3278,7 +3287,7 @@ contains
         ! gives the rpa contribution in the J-optimization
         real(dp), intent(in) :: J
         integer, intent(in) :: p(N_DIM), k(N_DIM), spin
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "rpa_contrib_kvec"
 #endif
         integer :: q(N_DIM)
@@ -3300,7 +3309,7 @@ contains
         real(dp), intent(in) :: J
         type(symmetry), intent(in) :: p, a
         integer, intent(in) :: spin
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "rpa_contrib_ksym"
 #endif
         real(dp) :: n_opp_loc
@@ -3355,7 +3364,7 @@ contains
         ! the 3-body exchange contribution for the J optimization
         integer, intent(in) :: nI(:), p(N_DIM), q(N_DIM), k(N_DIM), spin
         real(dp), intent(in) :: J
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "exchange_contrib_kvec"
 #endif
         integer :: k1(N_DIM), k2(N_DIM)
@@ -3379,7 +3388,7 @@ contains
         integer, intent(in) :: nI(:), spin
         real(dp), intent(in) :: J
         type(symmetry), intent(in) :: p, q, a
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "exchange_contrib_ksym"
 #endif
         type(symmetry) :: k1, k2
@@ -3449,11 +3458,10 @@ contains
 
     HElement_t(dp) function three_body_transcorr_fac_kvec(nI, p, q, k, spin)
         integer, intent(in) :: nI(nel), p(N_DIM), q(N_DIM), k(N_DIM), spin
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "three_body_transcorr_fac_kvec"
 #endif
         integer :: k1(3), k2(3)
-        real(dp) :: n_opp_loc
 
         ASSERT(spin == 1 .or. spin == -1)
 
@@ -3469,7 +3477,7 @@ contains
     HElement_t(dp) function three_body_transcorr_fac_ksym(nI, p, q, k, spin)
         integer, intent(in) :: nI(nel), spin
         type(symmetry) :: p, q, k
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "three_body_transcorr_fac_ksym"
 #endif
         type(symmetry) :: k1, k2
@@ -3518,10 +3526,10 @@ contains
         ! the 3-body matrix element.. here i have to be careful about
         ! the sign and stuff.. and also if momentum conservation is
         ! fullfilled ..
-        integer, intent(in) :: ex(2,3)
+        integer, intent(in) ::  ex(2,3)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_3_body_helement_ks_hub"
 #endif
         integer :: ms_elec, ms_orbs, opp_elec, opp_orb, par_elecs(2), par_orbs(2)
@@ -3648,10 +3656,9 @@ contains
         ! although this could in fact be used for a general check of
         ! symmetry adaptability
         integer, intent(in) :: elecs(:), orbs(:)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "check_momentum_sym"
 #endif
-!         type(BasisFN) :: ka, kb
         integer :: i
         type(Symmetry) :: sym_1, sym_2
 
@@ -3699,7 +3706,7 @@ contains
         integer, intent(in) :: nI(nel), elecs(3), orbs(3)
         integer, intent(out) :: nJ(nel), ex(2,3)
         logical, intent(out) :: tPar
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "make_triple"
 #endif
         integer :: sort_elecs(3), sort_orbs(3), src(3), pos_moved, k, i

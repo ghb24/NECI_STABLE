@@ -36,9 +36,10 @@ type subspace_in
     logical :: tPopsAuto = .false.
     ! Read states from a file.
     logical :: tRead = .false.
-    ! Use the space of all single and double excitations from the
+    ! Use the space of all single and double (+triple) excitations from the
     ! Hartree-Fock determinant (and also include the HF determinant).
     logical :: tDoubles = .false.
+    logical :: tTriples = .false.
     ! Use all connections to the Hartree-Fock.
     logical :: tHFConn = .false.
     ! Use a CAS space.
@@ -152,6 +153,7 @@ logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e
 logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
 logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted moves.
 logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
+logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
 real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 real(dp) :: AAS_Const
 logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
@@ -177,14 +179,13 @@ integer :: trunc_nopen_max
 ! compared to the reference determinant
 logical :: t_trunc_nopen_diff = .false.
 integer :: trunc_nopen_diff = 0
-integer :: reference_seniority = 0
+! are determinants with low number of open orbs always inits?
+logical :: tSeniorityInits
+integer :: initMaxSenior
 ! do we keep certain spawns up to a given excitation + seniority level
 logical :: tSpawnSeniorityBased
 integer, allocatable :: maxKeepExLvl(:)
 integer :: numMaxExLvlsSet
-! do we keep certain spawns based on the matrix element (w.r. to initiator criterium)
-logical :: tLargeMatelSurvive
-real(dp) :: spawnMatelThresh
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
@@ -202,6 +203,10 @@ real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
+! Options for dynamic rescaling of spawn attempts + blooms
+logical :: tScaleBlooms = .false.
+real(dp) :: max_allowed_spawn
+
 real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
 
 ! The average number of excitations to be performed from each walker.
@@ -270,7 +275,6 @@ logical :: tDynamicCoreSpace, tStaticCore, tIntervalSet ! update the corespace
 integer :: coreSpaceUpdateCycle, semistochStartIter
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
-real(dp) :: corespaceWalkers, allCorespaceWalkers
 
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.
@@ -364,7 +368,7 @@ integer :: orthogonalise_iter
 logical :: t_test_overlap = .false.
 real(dp) :: overlap_eps = 1.0e-5_dp
 integer :: n_stop_ortho = -1
-
+logical :: tAVReps, tReplicaCoherentInits
 ! Information on a trial space to create trial excited states with.
 
 type(subspace_in) :: init_trial_in
@@ -453,14 +457,11 @@ logical :: t_previous_hist_tau = .false.
 ! keyword in case the tau-search is not converged enough
 logical :: t_restart_hist_tau = .false.
 
-! use a global variable for this control:
 logical :: t_consider_par_bias = .false.
 
 ! quickly implement a control parameter to test the order of matrix element
 ! calculation in the transcorrelated approach
 logical :: t_test_order = .false.
-
-! also introduce an integer, to delay the actual changing of the time-step
 ! for a set amount of iterations
 ! (in the restart case for now!)
 integer :: hist_search_delay = 0
@@ -494,8 +495,10 @@ logical :: t_truncate_unocc = .false., t_truncate_multi = .false.
 logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 2.0_dp
 
+
 ! flags for global storage
 logical :: tLogAverageSpawns, tActivateLAS
+logical :: tTimedDeaths
 ! threshold value to make something an initiator based on spawn coherence
 real(dp) :: spawnSgnThresh
 integer :: minInitSpawns
@@ -527,11 +530,13 @@ integer :: occ_virt_level = 0
 ! 4ind-weighted variables:
 real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt, &
             max_permitted_spawn
+real(dp) :: gamma_trip
 logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
+logical :: enough_trip
 real(dp) :: gamma_sum
 
 real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
-integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
+integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par, cnt_trip
 ! guga-specific:
 integer :: cnt_four, cnt_three_same, cnt_three_mixed, cnt_two_same, cnt_two_mixed
 integer :: n_opp, n_par
@@ -635,7 +640,6 @@ real(dp) :: pSinglesIn, pParallelIn, pDoublesIn
 
 ! If true then allow set_initial_run_references to be called
 logical :: tSetInitialRunRef
-
 ! If true, then when using the pops-core option, don't allow the
 ! pops-core-approx option to take over, even in the default case
 ! where it has been decided that it is efficient and appropriate.
@@ -663,4 +667,5 @@ logical :: t_guga_back_spawn_trunc = .false.
 integer :: n_guga_back_spawn_lvl = 0
 
 
+logical :: tLogGreensfunction
 end module CalcData

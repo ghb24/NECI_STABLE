@@ -33,7 +33,6 @@ contains
         call run_test_case(combine_spin_basis_test, "combine_spin_basis_test")
         call run_test_case(create_all_open_shell_dets_test, "create_all_open_shell_dets_test")
         call run_test_case(get_spin_opp_neighbors_test, "get_spin_density_neighbors")
-        call run_test_case(get_orb_from_kpoints_three_test, "get_orb_from_kpoints_three_test")
         call run_test_case(find_elec_in_ni_test, "find_elec_in_ni_test")
         call run_test_case(get_occ_neighbors_test, "get_occ_neighbors_test")
         call run_test_case(get_spin_density_neighbors_test, "get_spin_density_neighbors_test")
@@ -691,7 +690,6 @@ contains
         call assert_equals([1,4,5,8], create_neel_state_chain(), 4)
 
         nel = -1
-
     end subroutine create_neel_state_chain_test
 
     subroutine create_neel_state_test

@@ -11,7 +11,7 @@ module pcpp_excitgen
   use Integrals_neci, only: get_umat_el
   use UMatCache, only: gtID
   use sltcnd_mod, only: sltcnd_excit
-  use util_mod, only: binary_search_first_ge
+  use util_mod, only: binary_search_first_ge, getSpinIndex, intswap
   use get_excit, only: make_double, make_single
   implicit none
 
@@ -47,7 +47,7 @@ contains
     ! The interface is common to all excitation generators, see proc_ptrs.F90
     integer, intent(in) :: nI(nel), exFlag
     integer(n_int), intent(in) :: iLut(0:niftot)
-   integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
     logical, intent(out) :: tParity
     real(dp), intent(out) :: pGen
     type(excit_gen_store_type), intent(inout), target :: store
@@ -163,7 +163,7 @@ contains
     if(G1(src1)%MS.ne.G1(src2)%MS) then
        if(genrand_real2_dSFMT() < 0.5) call intswap(tgt1MS,tgt2MS)
        pGen = pGen * 0.5
-    endif
+   endif
 
     call double_hole_one_sampler(src1,tgt1MS)%sample(tgt1,pTGen1)
     ! update generation probability so far to ensure it has a valid value on return in any case
@@ -750,33 +750,5 @@ contains
 
     allowed = same_spin(a,b) .and. (G1(a)%Sym%s == G1(b)%Sym%s)
   end function symAllowed
-
-  !------------------------------------------------------------------------------------------!
-
-  function getSpinIndex(orb) result(ms)
-    ! return a spin index of the orbital orb which can be used to address arrays
-    ! Input: orb - spin orbital
-    ! Output: ms - spin index of orb with the following values:
-    !              0 - alpha
-    !              1 - beta
-    implicit none
-    integer, intent(in) :: orb
-    integer :: ms
-
-    ms = mod(orb,2)
-  end function getSpinIndex
-
-  !------------------------------------------------------------------------------------------!
-
-  pure subroutine intswap(a,b)
-    ! Swap two integers a and b
-    ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
-    integer, intent(inout) :: a,b
-    integer :: tmp
-
-    tmp = a
-    a = b
-    b = tmp
-  end subroutine intswap
 
 end module pcpp_excitgen

@@ -596,6 +596,8 @@ contains
 
             if (t_k_space_hubbard) then
 
+                ! for every loop we have to save the excitations per
+                ! do we have to check if the list is unique?? i guess i do
                 call gen_all_excits_k_space_hubbard(nI, n_excits, temp_dets)
 
                 if (tStoreConnSpace) then

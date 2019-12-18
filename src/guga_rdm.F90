@@ -1601,7 +1601,7 @@ contains
                 Sing_ExcDjs(:, Sing_ExcList(proc)) = excits(:,i)
                 Sing_ExcList(proc) = Sing_ExcList(proc) + 1
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                 if (Sing_ExcList(Proc) .gt. nint(OneEl_Gap*(Proc+1))) then
                     write(6,*) 'Proc', Proc
                     write(6,*) 'Sing_ExcList', Sing_ExcList
@@ -1622,7 +1622,7 @@ contains
                 Doub_ExcDjs(:, Doub_ExcList(proc)) = excits(:,i)
                 Doub_ExcList(proc) = Doub_ExcList(proc) + 1
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                 if (Doub_ExcList(Proc) .gt. nint(TwoEl_Gap*(Proc+1))) then
                     write(6,*) 'Proc', Proc
                     write(6,*) 'Doub_ExcList', Doub_ExcList
@@ -1662,7 +1662,7 @@ contains
                     call calc_all_excits_guga_rdm_doubles(ilut, j, i, i, j, &
                         temp_excits, n_excits)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                     do n = 1, n_excits
                         ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                     end do
@@ -1688,7 +1688,7 @@ contains
                             call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
                                 temp_excits, n_excits)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                             do n = 1, n_excits
                                 if (.not. isProperCSF_ilut(temp_excits(:,n),.true.)) then
                                     print *, "===="
@@ -1703,7 +1703,7 @@ contains
                                 ! exclude the diagonal exchange here,
                                 ! as it is already accounted for in the
                                 ! diagonal contribution routine
-#ifdef __DEBUG
+#ifdef DEBUG_
                                 if (n_excits > 0) then
                                     if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
                                         print *, "not equal!"
@@ -1751,13 +1751,13 @@ contains
                             call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
                                 temp_excits, n_excits)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                             do n = 1, n_excits
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
                             if (t_direct_exchange .and. (i == l .and. j == k)) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                                 if (n_excits > 0) then
                                     if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
                                         print *, "not equal!"
@@ -1796,13 +1796,13 @@ contains
                             call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
                                 temp_excits, n_excits)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                             do n = 1, n_excits
                                 ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                             end do
 #endif
                             if (t_direct_exchange .and. (i == l .and. j == k)) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                                 if (n_excits > 0) then
                                     if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
                                         print *, "not equal!"
@@ -1884,7 +1884,7 @@ contains
                     call calc_all_excits_guga_rdm_singles(ilut, i, j, temp_excits, &
                         n_excits)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                     do n = 1, n_excits
                         ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                     end do
@@ -1906,7 +1906,7 @@ contains
                     call calc_all_excits_guga_rdm_singles(ilut, i, j, temp_excits, &
                         n_excits)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                     do n = 1, n_excits
                         ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                     end do

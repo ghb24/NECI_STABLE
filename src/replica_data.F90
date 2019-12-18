@@ -7,10 +7,10 @@ module replica_data
     use CalcData
     use util_mod
     use kp_fciqmc_data_mod
-    use real_time_data
     use SystemData, only : NEl
     use IntegralsData, only : NFrozen
     use LoggingData, only : tLogEXLEVELStats
+    use real_time_data, only: TotPartsStorage, TotPartsLastAlpha
     implicit none
 
 contains
@@ -87,7 +87,7 @@ contains
                  replica_overlaps_real(inum_runs, inum_runs), &
                  all_norms(inum_runs), &
                  all_overlaps(inum_runs, inum_runs), &
-#ifdef __CMPLX
+#ifdef CMPLX_
                  replica_overlaps_imag(inum_runs, inum_runs), &
 #endif
                  tSpinCoupProjE(inum_runs), &
@@ -162,7 +162,7 @@ contains
         ! real-time FCIQMC: keep track of first and second Runge-Kutta step
         ! seperately, think of which stats i need for it!
         ! maybe move that to real-time init module..
-#ifdef __REALTIME
+#ifdef REALTIME_
         allocate(NoAborted_1(lenof_sign), AllNoAborted_1(lenof_sign), &
                  AllNoAbortedOld_1(lenof_sign), &
                  NoRemoved_1(lenof_sign), AllNoRemoved_1(lenof_sign), &
@@ -214,7 +214,7 @@ contains
                    replica_overlaps_real, &
                    all_norms, &
                    all_overlaps, &
-#ifdef __CMPLX
+#ifdef CMPLX_
                    replica_overlaps_imag, &
 #endif
                    tSpinCoupProjE, &
@@ -299,7 +299,7 @@ contains
                    tSinglePartPhaseKPInit)
 
                    ! real-time fciqmc
-#ifdef __REALTIME
+#ifdef REALTIME_
                    deallocate(NoAborted_1, AllNoAborted_1, AllNoAbortedOld_1, &
                        NoRemoved_1, AllNoRemoved_1, AllNoRemovedOld_1, &
                        NoAddedInitiators_1, AllNoAddedInitiators_1, &
@@ -396,12 +396,12 @@ contains
         call MPISumAll(NoatHF, AllNoatHF)
         OldAllNoatHF = AllNoatHF
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         do run = 1, inum_runs
             OldAllAvWalkersCyc(run) = sum(AllTotParts(min_part_type(run):max_part_type(run)))
         enddo
 #else
-#ifdef __CMPLX
+#ifdef CMPLX_
         OldAllAvWalkersCyc = sum(AllTotParts)
 #else
         OldAllAvWalkersCyc = AllTotParts

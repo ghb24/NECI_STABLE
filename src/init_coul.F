@@ -118,7 +118,7 @@ C..
       HSTEPY=2.0_dp*A(2)/N
       HSTEPZ=2.0_dp*A(3)/N
 C..
-#if defined(NAGF95) || defined(__GFORTRAN__) || defined(BLUEGENE_HACKS)
+#if defined(NAGF95) || defined(GFORTRAN_) || defined(BLUEGENE_HACKS)
       call stop_all(t_r,"No ERF in NAG/GFortran?")
 #endif
       DO I=-N/2,N/2-1
@@ -131,7 +131,7 @@ C..
             IF(.not. near_zero(AUX)) THEN
               IF(TALPHA) THEN
                 R=SQRT(AUX)
-#if !defined(NAGF95) && !defined(__GFORTRAN__) && !defined(BLUEGENE_HACKS)
+#if !defined(NAGF95) && !defined(GFORTRAN_) && !defined(BLUEGENE_HACKS)
                 AUX=1.0_dp/R*(-1)**(I+J+K)*DERF(R/ALPHA)
 #endif
               ELSE

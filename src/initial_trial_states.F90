@@ -6,7 +6,7 @@ module initial_trial_states
     use constants
     use kp_fciqmc_data_mod
     use SystemData, only: t_non_hermitian
-#if !defined(__CMPLX)
+#ifndef CMPLX_
     use unit_test_helpers, only: eig, print_matrix
 #endif
     use util_mod, only: operator(.div.)
@@ -363,7 +363,7 @@ contains
 
             ! Perform a direct diagonalisation in the trial space.
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             ! First to build the Hamiltonian matrix
             ndets_int=int(ndets_all_procs,sizeof_int)
             allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
@@ -451,8 +451,13 @@ contains
 
                 ! i think i need the left eigenvector for the trial-projection
                 ! if it is non-hermitian..
-!                 call eig(H_tmp, evals_all, evecs_all,.true.)
-                call eig(H_tmp, evals_all, evecs_all)
+                call eig(H_tmp, evals_all, evecs_all,.true.)
+
+#ifdef DEBUG_
+                if_root
+                    call print_matrix(evecs_all)
+                end_if_root
+#endif
 
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:,1:nexcit)

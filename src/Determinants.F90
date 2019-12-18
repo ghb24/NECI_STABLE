@@ -1,20 +1,21 @@
 #include "macros.h"
 MODULE Determinants
-    use constants, only: dp, n_int, bits_n_int, int64
+    use constants, only: dp, n_int, bits_n_int, int64, maxExcit
     use SystemData, only: BasisFN, tCSF, nel, G1, Brr, ECore, ALat, NMSH, &
                           nBasis, nBasisMax, tStoreAsExcitations, tHPHFInts, &
                           tCSF, tCPMD, tPickVirtUniform, LMS, modk_offdiag, &
                           tGUGA, STOT, &
-                          t_lattice_model, arr, lms, tFixLz, tUEGSpecifyMomentum, &
+                          t_lattice_model, arr, tFixLz, tUEGSpecifyMomentum, &
                           tRef_Not_HF, tMolpro, tHub, tUEG, &
                           nClosedOrbs, nOccOrbs, nIrreps, tspn, irrepOrbOffset
 
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
-    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_2, sltcnd_compat, &
+    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_compat, &
                           sltcnd_knowIC, sltcnd_0, SumFock , CalcFockOrbEnergy
 
+    use procedure_pointers, only: sltcnd_2
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
@@ -66,7 +67,6 @@ MODULE Determinants
 contains
 
   Subroutine DetPreFreezeInit_old()
-    Use global_utilities
     use SystemData, only : nEl, ECore, Arr, Brr, G1, nBasis, LMS, nBasisMax,&
          tFixLz, tUEGSpecifyMomentum, tRef_Not_HF
     use SystemData, only : tMolpro
@@ -321,7 +321,6 @@ contains
 
     End Subroutine DetPreFreezeInit
 
-
     Subroutine DetInit()
       real(dp) DNDET
       integer i,j
@@ -515,19 +514,18 @@ contains
                           &integrals from here.")
 
         ! nobody actually uses Simons old CSF implementations..
-        ! there is a test in the test suite that does....
-         if (tCSF) then
-             if (iscsf(nI) .or. iscsf(nJ)) then
-                 hel = CSFGetHelement (nI, nJ)
-                 return
-             endif
-         endif
-
         if (t_lattice_model) then
             temp_ic = ic
             hel = get_helement_lattice(nI, nJ, temp_ic)
             return
         end if
+
+        if (tCSF) then
+            if (iscsf(nI) .or. iscsf(nJ)) then
+                hel = CSFGetHelement (nI, nJ)
+                return
+            endif
+        endif
 
         if (tStoreAsExcitations) &
             call stop_all(this_routine, "tStoreExcitations not supported")
@@ -608,7 +606,7 @@ contains
 
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
-            hel = sltcnd_2 (ex, .false.)
+            hel = sltcnd_2 (nI, ex, .false.)
         endif
 
         if (present(iLutJ)) then
@@ -647,7 +645,7 @@ contains
         ! Ret: hel          - The H matrix element
 
         integer, intent(in) :: nI(nel), nJ(nel), IC
-        integer, intent(in) :: ExcitMat(2,2)
+        integer, intent(in) :: ExcitMat(2,ic)
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel
 
@@ -713,7 +711,7 @@ contains
         !      tParity      - Parity of the excitation
         ! Ret: hel          - The H matrix element
 
-        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,2)
+        integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2,ic)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel

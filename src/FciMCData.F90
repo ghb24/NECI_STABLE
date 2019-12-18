@@ -15,7 +15,7 @@ MODULE FciMCData
 
       ! Type for creating linked lists for the linear scaling algorithm.
       type ll_node
-          integer :: ind
+          integer :: ind = 0
           type(ll_node), pointer :: next => null()
       end type ll_node
 
@@ -80,9 +80,6 @@ MODULE FciMCData
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
 
-      logical :: tLogGreensfunction
-
-
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
 
@@ -97,9 +94,6 @@ MODULE FciMCData
     real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
-    integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
-
-    real(dp) :: avSigns, AllAvSigns
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
     integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
@@ -222,7 +216,7 @@ MODULE FciMCData
       ! (respectively output cycle)
       HElement_t(dp), allocatable :: AllHFCyc(:), AllHFOut(:)
       !This is the sum of HF*sign particles over all processors over the course of the update/output cycle
-      HElement_t(dp), allocatable :: OldAllHFCyc(:) 
+      HElement_t(dp), allocatable :: OldAllHFCyc(:)
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t(dp), allocatable :: ENumCyc(:), InitsENumCyc(:)
       !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
@@ -299,6 +293,7 @@ MODULE FciMCData
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            SemiStoch_Hamil_Time, SemiStoch_Davidson_Time, &
+                           SemiStoch_nonhermit_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
                            subspace_spin_time, sign_correction_time, &
@@ -366,7 +361,7 @@ MODULE FciMCData
       integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.
+      LOGICAL :: tGenMatHEl=.true.
 
       ! Number of update cycles that the shift has been allowed to vary
       integer, allocatable :: VaryShiftCycles(:)
@@ -644,7 +639,7 @@ MODULE FciMCData
       type(perturbation), allocatable :: pops_pert(:)
 
       real(dp), allocatable :: replica_overlaps_real(:,:)
-#ifdef __CMPLX
+#ifdef CMPLX_
       real(dp), allocatable :: replica_overlaps_imag(:,:)
 #endif
       real(dp), allocatable :: all_norms(:), all_overlaps(:,:)

@@ -73,7 +73,7 @@
                DOT=0.0_dp
                NORM=0.0_dp
                DO K=1,LEN
-#ifdef __CMPLX
+#ifdef CMPLX_
                   DOT=DOT+conjg(MAT(K,J))*MAT(K,I)
 #else
                   DOT=DOT+(MAT(K,J))*MAT(K,I)

@@ -46,7 +46,7 @@ contains
         logical :: tMC
         character(len=*), parameter :: t_r = 'frsblk_wrapper'
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(t_r,'frsblk cannot work with complex wavefunctions currently')
 #endif
 
@@ -62,9 +62,7 @@ contains
         ! hamiltonian in the same way as DetHam for determinants..
         ! only use the "old" version when t_guga_mat_eles is not set!
         if (tGUGA .and. (.not. t_guga_mat_eles)) then
-#ifndef __CMPLX
             call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil)
-#endif
         else
             ! just to make sure we pass valid objects
             allocate(Lab(1),stat=ierr)

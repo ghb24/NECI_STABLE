@@ -971,7 +971,7 @@ contains
         integer, intent(in), optional :: n_opt
         integer(n_int), intent(in), optional :: ilut_list_opt(0:,:)
         real(dp) :: ssq
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "ssquared_contrib"
 #endif
         integer(n_int) :: splus(0:NIfD), sminus(0:NIfD)

@@ -71,7 +71,8 @@ module bit_rep_data
                           flag_negative_sign = 11, &
                           flag_large_matel = 12
 
-#ifdef __PROG_NUMRUNS
+
+#ifdef PROG_NUMRUNS_
     integer, parameter :: flag_initiator(lenof_sign_max) &
                             = (/ 13, 14, 15, 16, 17, 18, 19, &
                                 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32/), &

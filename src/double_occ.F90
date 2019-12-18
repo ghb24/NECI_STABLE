@@ -18,10 +18,7 @@ module double_occ_mod
                               calc_combined_rdm_label
     use UMatCache, only: spatial
     use sort_mod, only: sort
-
-#ifdef __DEBUG
-!     use Determinants, only: writedetbit
-#endif
+    use FciMCData, only: fcimc_iter_data
 
     implicit none
 
@@ -125,8 +122,8 @@ contains
         ! i can calculate the C_i^2 at the beginning already since it is
         ! always the same and i guess i have atleast on contribution atleast
         ! for each occupied orbital
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
+#ifdef CMPLX_
         ! i do not want to deal with complex runs for now..
         call stop_all(this_routine, &
             "complex double occupancy measurement not yet implemented!")
@@ -254,8 +251,8 @@ contains
             ! x = which integer?
             ! y = which position in integer?
             if (btest(alpha(x),y)) then
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
+#ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
 #else
@@ -267,8 +264,8 @@ contains
             end if
 
             if (btest(beta(x),y)) then
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
+#ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
 
@@ -298,8 +295,8 @@ contains
             spin_orb = nI(i)
             spat_orb = gtid(spin_orb)
             if (is_alpha(spin_orb)) then
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
+#ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
 #else
@@ -310,8 +307,8 @@ contains
 #endif
             end if
             if (is_beta(spin_orb)) then
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
+#ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
 #else
@@ -341,7 +338,7 @@ contains
         ! the doubly occupied orbitals are just the number of electrons
         ! minus the number of open orbitals divided by 2
         n_double_orbs = (nel - n_open_orbs)/2
-#ifdef __DEBUG
+#ifdef DEBUG_
         print *, "double occupied orbs for determinant:", n_double_orbs
         call writedetbit(6, ilut, .true.)
 #endif
@@ -362,7 +359,7 @@ contains
         real(dp) :: frac_double_orbs
         integer(n_int) :: sgn(lenof_sign)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         complex(dp) :: complex_sgn
 #endif
 
@@ -382,8 +379,8 @@ contains
         ! do i want to do that for complex walkers also?? i guess so..
         ! to get it running do it only for  single run for now!
         ! do not do the division here, but only in the output!
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
-#ifdef __CMPLX
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
+#ifdef CMPLX_
         call stop_all(this_routine, &
             "complex double occupancy measurement not yet implemented!")
         ! i in the case of complex runs i guess that the double_occ
@@ -393,7 +390,7 @@ contains
         double_occ = real_sgn(1) * real_sgn(2) * frac_double_orbs
 #endif
 #else
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(this_routine, &
             "complex double occupancy measurement not yet implemented!")
 #endif
@@ -425,6 +422,7 @@ contains
 
     subroutine write_spin_diff_stats(initial)
         ! routine to print out the instant spin-difference to a file
+        ! routine to print out the instant spin-difference to a file
         logical, intent(in), optional :: initial
         character(*), parameter :: this_routine = "write_spin_diff_stats"
 
@@ -433,11 +431,7 @@ contains
         integer :: i
         character(12) :: num
 
-        if (present(initial)) then
-            state%init = initial
-        else
-            state%init = .false.
-        end if
+        def_default(state%init,initial,.false.)
 
         if (iProcIndex == root .and. .not. inited) then
             state%funit = get_free_unit()
@@ -574,12 +568,8 @@ contains
         integer :: i
         character(12) :: num
 
-        ! Provide default 'initial' option
-        if (present(initial)) then
-            state%init = initial
-        else
-            state%init = .false.
-        end if
+        unused_var(iter_data)
+        def_default(state%init,initial,.false.)
 
         ! If the output file hasn't been opened yet, then create it.
         if (iProcIndex == Root .and. .not. inited) then
@@ -733,7 +723,7 @@ contains
         real(dp), intent(out), optional :: inst_occ
         character(*), parameter :: this_routine = "calc_double_occ_from_rdm"
 
-        integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr
+        integer :: ielem, ij, kl, i, j, k, l, p, q, r, s, iproc, irdm, ierr, hash_val
         integer(int_rdm) :: ijkl
         real(dp) :: rdm_sign(rdm%sign_length)
         real(dp) :: double_occ(rdm%sign_length), all_double_occ(rdm%sign_length)

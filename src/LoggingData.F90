@@ -34,7 +34,7 @@ module LoggingData
     ! Logical(4) datatypes for compilation with builds of openmpi that don't
     ! have support for logical(8). Gah.
     logical :: tExplicitAllRDM, tChangeVarsRDM
-    logical :: tPopAutoAdaptiveShift
+    logical :: tPopAutoAdaptiveShift, tPopScaleBlooms
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs
@@ -113,6 +113,17 @@ module LoggingData
 
     ! output umat also in the case of the momentum space hubbard
     logical :: t_umat_output = .false.
+    ! Whether to write another HDF5 popsfile with dets restricted to a maximum
+    ! exitation level
+    logical :: tHDF5TruncPopsWrite
+    ! The maximum excitation level of dets writen to truncated HDF5 popsfile
+    integer :: iHDF5TruncPopsEx
+
+    ! Whether to calculate and print the instanenous project energy of
+    ! wavefunction printed to popsfile
+    logical :: tPopsInstProjE
+
+    logical :: tOldRDMs = .false.
 
     logical :: tTransitionRDMs = .false.
 
@@ -183,10 +194,12 @@ module LoggingData
     logical :: t_spin_measurements = .false.
 
     logical :: t_print_core_info = .false.
-    logical :: tWriteConflictLvls
 
     ! for the histogramming of the acceptance rates used in the adaptive shift mode
     logical :: t_hist_fvals
     integer :: enGrid, arGrid
+
+    ! histogram the matrix elements of the six-index operator
+    logical :: tHistLMat
 
 end module LoggingData

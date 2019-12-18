@@ -34,14 +34,14 @@
          integer, intent(inout) :: ExcitMat(2,ic)
          integer, intent(inout) :: nI(nel)
          logical, intent(out) :: tParity
-#ifdef __DEBUG
+#ifdef DEBUG_
          character(*), parameter :: this_routine = "FindExcitDet"
 #endif
          integer :: i,j,k, pos_moved
          integer :: src(ic), sort_orbs(ic), sort_elecs(ic)
 
          ! adapt this for double excitations now..
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (IC < 0 .or. ic > 3) then
             call stop_all(this_routine, "wrong ic!")
         end if
@@ -131,7 +131,6 @@
         end do
 
         tParity = btest(pos_moved, 0)
-
          RETURN
 
       END SUBROUTINE FindExcitDet

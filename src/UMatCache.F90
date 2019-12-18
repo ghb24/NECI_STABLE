@@ -1,3 +1,4 @@
+#include "macros.h"
 
 MODULE UMatCache
 
@@ -67,6 +68,8 @@ MODULE UMatCache
 !     <ij|ij> is stored in the upper diagaonal, <ij|ji> in the
 !     off-diagonal elements of the lower triangle.
       HElement_t(dp), Pointer :: UMat2D(:,:) => null() !(nStates,nStates)
+      HElement_t(dp), Pointer :: UMat3d(:,:,:) => null()
+      HElement_t(dp), Pointer :: UMat3dExch(:,:,:) => null()
       LOGICAL :: tUMat2D, tDeferred_Umat2d
 
 ! This vector stores the energy ordering for each spatial orbital, which is the inverse of the BRR vector
@@ -258,7 +261,7 @@ MODULE UMatCache
          ELSE
              UMatInd=(int(B,int64)*int(B-1,int64))/2+int(A,int64)
          ENDIF
-#ifdef __CMPLX
+#ifdef CMPLX_
          if(.not. tComplexWalkers_RealInts) then
              UMatInd = (UmatInd-1)*2 + 1
              !We need to test whether we have swapped i and k or j and l independantly of each other
@@ -273,7 +276,7 @@ MODULE UMatCache
       HElement_t(dp) function UMatConj(I,J,K,L,val)
          integer, intent(in) :: I,J,K,L
          HElement_t(dp), intent(in) :: val
-#ifdef __CMPLX
+#ifdef CMPLX_
          INTEGER :: IDI,IDJ,IDK,IDL,NewA,A
 
          !Changing index ordering for the real ordering.
@@ -348,7 +351,6 @@ MODULE UMatCache
       ! storing FCIDUMP 2-e integrals
       ! In:
       !    nBasis: as above.
-      !    nEl: # electrons.
       !    iSS: ratio of spatial orbitals to spin orbitals.
       !         iSS=0 integrals not stored in UMAT.
       !         iSS=1 unrestricted calculation
@@ -373,7 +375,7 @@ MODULE UMatCache
              iPairs=(nBi*(nBi+1))/2
          end if
          iSize=(int(iPairs,int64)*int(iPairs+1,int64))/2
-#ifdef __CMPLX
+#ifdef CMPLX_
          !Since we now only have 4-fold symmetry, rather than 8-fold.
          iSize = iSize * 2
 #endif
@@ -439,8 +441,6 @@ MODULE UMatCache
          ENDIF
       END SUBROUTINE SetupUMatCache
 
-
-
       SUBROUTINE SETUPUMAT2D(G1,HarInt)
          ! Set up UMat2D for storing the <ij|u|ij> and <ij|u|ji> integrals,
          ! and pre-calculate the common integrals (<ij|u|ij>, <ij|u|ji>,
@@ -460,6 +460,7 @@ MODULE UMatCache
          ELSE
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
+            UMat2D = 0.0_dp
             call LogMemAlloc('UMat2D',nStates**2,8*HElement_t_size,thisroutine,tagUMat2D,ierr)
             CALL CPMDANTISYMINTEL(G1,UMAT2D,HarInt,NSTATES)
          ENDIF
@@ -479,6 +480,7 @@ MODULE UMatCache
          ELSE
             TUMAT2D=.TRUE.
             Allocate(UMat2D(nStates,nStates),STAT=ierr)
+            UMat2D = 0.0_dp
 !            WRITE(6,*) "nStates for UMat2D: ",nStates
             call LogMemAlloc('UMat2D',nStates**2,8*HElement_t_size,thisroutine,tagUMat2D,ierr)
             IF(tRIIntegrals.or.tCacheFCIDUMPInts) THEN
@@ -1372,7 +1374,7 @@ MODULE UMatCache
          IF(UMATLABELS(ICACHEI,ICACHE).EQ.B) THEN
             !WRITE(6,*) "C",IDI,IDJ,IDK,IDL,ITYPE,UMatCacheData(0:nTypes-1,ICACHEI,ICACHE)
             UMATEL=UMatCacheData(IAND(ITYPE,1),ICACHEI,ICACHE)
-#ifdef __CMPLX
+#ifdef CMPLX_
             IF(BTEST(ITYPE,1)) UMATEL=CONJG(UMATEL)  ! Bit 1 tells us whether we need to complex conjg the integral
 #endif
 !   signal success
@@ -1390,17 +1392,14 @@ MODULE UMatCache
       function numBasisIndices(nBasis) result(nBI)
         implicit none
         integer, intent(in) :: nBasis
-        integer :: iSS
         integer :: nBI
 
         if(tStoreSpinOrbs) then
-           iSS = 1
+           nBI = nBasis
         else
-           iSS = 2
+           nBI = nBasis / 2
         endif
 
-        ! number of distinct indices of the integrals
-        nBI = nBasis / iSS
       end function numBasisIndices
 
       !------------------------------------------------------------------------------------------!
@@ -1411,29 +1410,39 @@ MODULE UMatCache
         integer :: nBI, i, j, idX, idN
 
         nBI = numBasisIndices(nBasis)
-        allocate(UMat2D(nBI,nBI))
+        ! allocate the storage
+        if(.not.associated(UMat2D)) allocate(UMat2D(nBI,nBI))
 
+        ! and fill in the array
         do i = 1, nBI
            do j = 1, nBI
-              idX = max(i,j)
-              idN = min(i,j)
-              ! here, we introduce a cheap redundancy in memory to allow
-              ! for faster access (no need to get max/min of indices
-              ! and have contiguous access)
-              ! store the integrals <ij|ij> in UMat2D
-              UMat2D(j,i) = get_umat_el(idN,idX,idN,idX)
+              if(i == j) then
+                 UMat2d(i,i) = get_umat_el(i,i,i,i)
+              else
+                 ! similarly the integrals <ij|ij> in UMat2D
+                 UMat2D(j,i) = get_umat_el(i,j,i,j)
+                 UMat2D(i,j) = get_umat_el(i,j,j,i)
+              endif
            end do
         end do
-      end subroutine SetupUMat2d_dense
+    end subroutine SetupUMat2d_dense
 
-      !------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
+    ! Empty umat for tests
+    !------------------------------------------------------------------------------------------!
 
-      subroutine freeUmat2d_dense()
-        implicit none
+    function nullUMat(i,j,k,l) result(hel)
+        use constants
+        integer, intent(in) :: i,j,k,l
+        HElement_t(dp) :: hel
 
-        ! deallocate auxiliary arrays storing the integrals <ij|ij> and <ij|ji>
-        if(associated(UMat2d)) deallocate(UMat2d)
-      end subroutine freeUmat2d_dense
+        ! This functions shows the behaviour of an empty UMat
+        unused_var(i)
+        unused_var(j)
+        unused_var(k)
+        unused_var(l)
+        hel = 0.0_dp
+    end function nullUMat
 
 
 END MODULE UMatCache
@@ -1479,7 +1488,7 @@ END MODULE UMatCache
 !  First get which pos in the slot will be the new first pos
             iIntPos=iand(iType,1)
 !  If bit 1 is set we must conjg the (to-be-)first integral
-#ifdef __CMPLX
+#ifdef CMPLX_
             if(btest(iType,1)) then
                Tmp(0)=conjg(UMatEl(iIntPos))
             else
@@ -1489,7 +1498,7 @@ END MODULE UMatCache
             Tmp(0)=UMatEl(iIntPos)
 #endif
 !  If bit 2 is set we must conjg the (to-be-)second integral
-#ifdef __CMPLX
+#ifdef CMPLX_
             if(btest(iType,2)) then
                Tmp(1)=conjg(UMatEl(1-iIntPos))
             else

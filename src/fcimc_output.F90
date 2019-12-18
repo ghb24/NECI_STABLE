@@ -27,8 +27,7 @@ module fcimc_output
                         frequency_bins_type2, frequency_bins_type3, &
                         frequency_bins_type4, frequency_bins_type2_diff, &
                         frequency_bins_type3_diff, n_frequency_bins, &
-                        tSemiStochastic, allCorespaceWalkers, &
-                        t_truncate_spawns
+                        tSemiStochastic, t_truncate_spawns, tLogGreensfunction
 
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
@@ -64,7 +63,6 @@ module fcimc_output
     use sort_mod
 
     use util_mod
-    use fortran_strings, only: str
 
     use tau_search, only: comm_frequency_histogram, comm_frequency_histogram_spec
 
@@ -74,6 +72,11 @@ module fcimc_output
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
                               elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
                               dyn_norm_red, real_time_info, allPopSnapshot, numSnapshotOrbs
+
+    use tc_three_body_data, only: tLMatCalc, lMatCalcStatsIters, &
+                                  lMatCalcHit,   lMatCalcTot,    lMatCalcHUsed,   lMatCalcHSize
+    use fortran_strings, only: str
+
     implicit none
 
 contains
@@ -142,7 +145,7 @@ contains
                 write (EXLEVELStats_unit, '()', advance='yes')
             endif ! tLogEXLEVELStats
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             if(tMCOutput) then
                 write(iout, '(a)') "       Step     Shift      WalkerCng(Re)  &
                        &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
@@ -176,7 +179,7 @@ contains
 
             write(fcimcstats_unit, "()", advance = 'yes')
 
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -203,7 +206,7 @@ contains
 
            write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
-#ifndef __CMPLX
+#ifndef CMPLX_
             if(tMCOutput) then
                 write(iout, "(A)", advance = 'no') "        Step    Shift           &
                       &WalkerCng       GrowRate        TotWalkers      Annihil         &
@@ -308,7 +311,8 @@ contains
         enddo
 
         if (iProcIndex == root) then
-#ifdef __CMPLX
+
+#ifdef CMPLX_
             write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,&
 
@@ -393,7 +397,7 @@ contains
                     Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &
@@ -441,7 +445,7 @@ contains
 
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
-#ifndef __CMPLX
+#ifndef CMPLX_
 
             write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
@@ -550,6 +554,15 @@ contains
                 write (EXLEVELStats_unit, '()', advance='yes')
             endif ! tLogEXLEVELStats
 
+            if (tMCOutput .and. tLMatCalc .and. mod(Iter, lMatCalcStatsIters) == 0) then
+                write(iout, *) "============ LMatCalc Caching Stats ==============="
+                write(iout, *) "LMatCalc Cache Fill Ratio: ", &
+                    real(lMatCalcHUsed,dp)/real(lMatCalcHSize,dp)
+                write(iout, *) "LMatCalc Cache Hit Rate  : ", lMatCalcHit/real(lMatCalcTot)
+                lMatCalcHit = 0
+                lMatCalcTot = 0
+                write(iout, *) "==================================================="
+            end if
 
             if(tMCOutput) then
                 call neci_flush(iout)
@@ -572,8 +585,6 @@ contains
         character(30) :: filename
         character(43) :: filename2
         character(12) :: num
-        integer :: i, ierr
-        logical :: exists
 
         ! If we are using Molpro, then append the molpro ID to uniquely
         ! identify the output
@@ -584,39 +595,14 @@ contains
         end if
 
 
-        if (tReadPops .and. .not. t_real_time_fciqmc) then
+        if (tReadPops) then
 
             ! If we are reading from a POPSFILE, then we want to continue an
             ! existing fciqmc_stats file if it exists.
             open(funit, file=filename, status='unknown', position='append')
         else
 
-            ! If we are doing a normal calculation, move existing fciqmc_stats
-            ! files so that they are not overwritten, and then create a new one
-            inquire(file=filename, exist=exists)
-
-            if (exists) then
-
-                ! Loop until we find an available spot to move the existing
-                ! file to.
-                i = 1
-                do while(exists)
-                    write(num, '(i12)') i
-                    filename2 = trim(adjustl(filename)) // "." // &
-                                trim(adjustl(num))
-                    inquire(file=filename2, exist=exists)
-                    if (i > 10000) &
-                        call stop_all(t_r, 'Error finding free fciqmc_stats.*')
-                    i = i + 1
-                end do
-
-                ! Move the file
-                call rename(filename, filename2)
-
-            end if
-
-            ! And finally open the file
-            open(funit, file=filename, status='unknown', iostat=ierr)
+           call open_new_file(funit, filename)
 
         end if
 
@@ -646,7 +632,6 @@ contains
         unused_var(iter_data)
 
         call getProjEOffset()
-
         ! Provide default 'initial' option
         if (present(initial)) then
             state%init = initial
@@ -707,7 +692,7 @@ contains
             state%cols_mc = 0
             state%mc_out = tMCOutput
 
-#ifdef __REALTIME
+#ifdef REALTIME_
             l1_norm = 0.0
             do run = 1, inum_runs
                l1_norm = l1_norm + abs(cmplx(AllTotParts(min_part_type(run)), &
@@ -718,46 +703,44 @@ contains
             if (.not. tOrthogonaliseReplicas) then
                ! note that due to the averaging, the printed value is not necessarily
                ! an integer
-                call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
-#ifdef __REALTIME
+                call stats_out(state,.true., sum(abs(AllTotParts))/inum_runs, &
+                     'Tot. parts real')
+#ifdef REALTIME_
                 call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
                 call stats_out(state,.false., l1_norm/inum_runs ,'L1 Norm')
 #else
-                call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
+                call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
 #endif
+
             if(.not. t_real_time_fciqmc) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                 call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
                 call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
-#else
+#ifndef CMPLX_
                 call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
+#endif
             end if
-                call stats_out(state,.true., sum(DiagSft/inum_runs), 'Shift. (cyc)')
-#ifdef __REALTIME
+                call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
+#ifdef REALTIME_
                 call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
 #endif
-!                 if(.not. tSemiStochastic) then
-                   call stats_out(state,.false., sum(AllNoBorn), 'No. born')
-!                 else
-!                    call stats_out(state,.false., allCorespaceWalkers/inum_runs, &
-!                         'Walkers in corespace')
-!                 endif
-                call stats_out(state,.false., sum(AllNoDied), 'No. died')
-#ifdef __REALTIME
+                call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+                call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
+#ifdef REALTIME_
                 call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
                 call stats_out(state,.false., real_time_info%damping, 'eta')
                 call stats_out(state,.false., IterTime, 'Iter. time')
 #else
                 call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
-!                 call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
-!                 call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
 #endif
-#ifdef __CMPLX
+
+                call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
+                call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
+#ifdef CMPLX_
                 call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
-                               'Tot. Proj. E (real)')
-                call stats_out(state,.true., aimag(proje_iter_tot) + OutputHii, &
-                               'Tot. Proj. E (imag)')
+                               'Tot. Proj. E')
+                call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
 #else
                 call stats_out(state,.true., proje_iter_tot + OutputHii, &
                                'Tot. Proj. E')
@@ -765,19 +748,20 @@ contains
             end if
             call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.true., nspawned_tot, 'Dets spawned')
-!             call stats_out(state,.true., Hii, 'reference energy')
-!             call stats_out(state,.false., AccRat(1), 'Acc. Rat.')
-#ifdef __REALTIME
+            call stats_out(state,.false., Hii, 'reference energy')
+#ifdef REALTIME_
             call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
 #else
             call stats_out(state,.true., IterTime, 'Iter. time')
 #endif
-#ifdef __REALTIME
+#ifdef REALTIME_
             call stats_out(state, .true., elapsedRealTime, 'Re. time')
             call stats_out(state, .true., elapsedImagTime, 'Im. time')
 #else
             call stats_out(state,.false., TotImagTime, 'Im. time')
 #endif
+
+            call stats_out(state,.true., TotImagTime, 'Im. time')
 
             ! Put the conditional columns at the end, so that the column
             ! numbers of the data are as stable as reasonably possible (for
@@ -804,7 +788,7 @@ contains
                            trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
                    enddo
                 enddo
-#ifdef __REALTIME
+#ifdef REALTIME_
                 do p = 1, numSnapshotOrbs
                    ! if any orbitals are monitored, output their population
                    write(tmpc, '(i5)') snapShotOrbs(p)
@@ -817,11 +801,10 @@ contains
             ! if we truncate walkers, print out the total truncated weight here
             if(t_truncate_spawns) call stats_out(state, .false., AllTruncatedWeight, &
                  'trunc. Weight')
-
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
+#ifdef PROG_NUMRUNS_
             if(.not. t_real_time_fciqmc) then
-#if defined __PROG_NUMRUNS
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
@@ -832,7 +815,7 @@ contains
                                 'ref. energy offset('//trim(adjustl(tmpc))// ')')
                 call stats_out (state, .false., DiagSft(p) + Hii, &
                                 'Shift (' // trim(adjustl(tmpc)) // ')')
-#ifdef __CMPLX
+#ifdef CMPLX_
                 call stats_out (state, .false., real(proje_iter(p) + OutputHii), &
                                 'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., aimag(proje_iter(p) + OutputHii), &
@@ -883,56 +866,52 @@ contains
 #endif
 
 
-              call stats_out (state, .false., &
-                   AllNoBorn(p), &
-                   'Born (' // trim(adjustl(tmpc)) // ')')
-              call stats_out (state, .false., &
-                   AllNoDied(p), &
-                   'Died (' // trim(adjustl(tmpc)) // ')')
-              call stats_out (state, .false., &
-                   AllAnnihilated(p), &
-                   'Annihil (' // trim(adjustl(tmpc)) // ')')
-              call stats_out (state, .false., &
-                   AllNoAtDoubs(p), &
-                   'Doubs (' // trim(adjustl(tmpc)) // ')')
-           end do
+                call stats_out (state, .false., &
+                                AllNoBorn(p), &
+                                'Born (' // trim(adjustl(tmpc)) // ')')
+                call stats_out (state, .false., &
+                                AllNoDied(p), &
+                                'Died (' // trim(adjustl(tmpc)) // ')')
+                call stats_out (state, .false., &
+                                AllAnnihilated(p), &
+                                'Annihil (' // trim(adjustl(tmpc)) // ')')
+                call stats_out (state, .false., &
+                                AllNoAtDoubs(p), &
+                                'Doubs (' // trim(adjustl(tmpc)) // ')')
+            end do
 
-       ! Print overlaps between replicas at the end.
-       do p = 1, inum_runs
-          write(tmpc, '(i5)') p
-          if (tPrintReplicaOverlaps) then
-             do q = p+1, inum_runs
-                write(tmpc2, '(i5)') q
-#ifdef __CMPLX
-            call stats_out(state, .false.,  replica_overlaps_real(p, q),&
-                 '<psi_' // trim(adjustl(tmpc)) // '|' &
-                 // 'psi_' // trim(adjustl(tmpc2)) &
-                 // '> (real)')
-            call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
-                 '<psi_' // trim(adjustl(tmpc)) // '|' &
-                 // 'psi_' // trim(adjustl(tmpc2)) &
-                 // '> (imag)')
+            call stats_out(state,.false.,all_max_cyc_spawn, &
+                 'MaxCycSpawn')
+
+            ! Print overlaps between replicas at the end.
+            do p = 1, inum_runs
+                write(tmpc, '(i5)') p
+                if (tPrintReplicaOverlaps) then
+                    do q = p+1, inum_runs
+                        write(tmpc2, '(i5)') q
+#ifdef CMPLX_
+                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                       // 'psi_' // trim(adjustl(tmpc2)) &
+                                       // '> (real)')
+                        call stats_out(state, .false.,  replica_overlaps_imag(p, q),&
+                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
+                                       // 'psi_' // trim(adjustl(tmpc2)) &
+                                       // '> (imag)')
 
 #else
-            call stats_out(state, .false.,  replica_overlaps_real(p, q),&
-                 '<psi_' // trim(adjustl(tmpc)) // '|' &
-                 // 'psi_' // trim(adjustl(tmpc2)) &
-                 // '>')
+                        call stats_out(state, .false.,  replica_overlaps_real(p, q),&
+                             '<psi_' // trim(adjustl(tmpc)) // '|' &
+                             // 'psi_' // trim(adjustl(tmpc2)) &
+                             // '>')
 #endif
 
-         end do
-      end if
-   end do
+                     end do
+                  end if
+               end do
 
 #endif
-
-   if(tCalcInstantS2) &
-        call stats_out(state,.true.,sum(curr_S2)/inum_runs,'S^2')
-   if(tCalcInstantS2Init) &
-        call stats_out(state,.true.,sum(curr_S2_init)/inum_runs,'S^2 (inits)')
-
-   if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
-endif
+            if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
 
             if (tTruncInitiator) then
                 call stats_out(state_i, .false., Iter + PreviousCycles, 'Iter.')
@@ -992,7 +971,6 @@ endif
     end subroutine write_padding_init
 
     subroutine writeMsWalkerCountsAndCloseUnit()
-!         integer :: i, ms, tempni(1:nel)
         integer :: ms, tempni(1:nel)
         integer(int64) :: i
         real(dp) :: totWalkPopByMsReal(nel+1), totWalkPopByMsImag(nel+1), &
@@ -1003,7 +981,7 @@ endif
             call decode_bit_det(TempnI, WalkVecDets(:,i))
             ms = sum(get_spin_pn(Tempni(1:nel)))
             walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(TempSign(1))
-#ifdef __CMPLX
+#ifdef CMPLX_
             walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(TempSign(2))
 #endif
             write(mswalkercounts_unit,*) ms, TempSign
@@ -1043,7 +1021,7 @@ endif
                 norm1(j)=norm1(j)+AllHistogram(j,i)**2
             enddo
         enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
         norm2=SQRT(sum(norm1))
 #else
         norm1=SQRT(norm1)
@@ -1051,7 +1029,7 @@ endif
         WRITE(iout,*) "Total FCIMC Wavefuction normalisation:",norm1
         do i=1,Det
             do j=1,lenof_sign
-#ifdef __CMPLX
+#ifdef CMPLX_
                 AllHistogram(j,i)=AllHistogram(j,i)/norm2
 #else
                 AllHistogram(j,i)=AllHistogram(j,i)/norm1(j)
@@ -1080,7 +1058,7 @@ endif
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
                     ExcitLevel = FindBitExcitLevel(iLutHF, FCIDets(:,i), nel)
                     CALL decode_bit_det(nI,FCIDets(0:NIfTot,i))
-#ifdef __CMPLX
+#ifdef CMPLX_
                     WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,sum(norm)
 #else
                     WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,norm(1)
@@ -1148,7 +1126,7 @@ endif
                     norm3(j)=norm3(j)+AllAvAnnihil(j,i)**2
                 enddo
             enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
             norm_c=SQRT(sum(norm))
             norm1_c=SQRT(sum(norm1))
             norm2_c=SQRT(sum(norm2))
@@ -1161,7 +1139,7 @@ endif
 #endif
             do i=1,Det
                 do j=1,lenof_sign
-#ifdef __CMPLX
+#ifdef CMPLX_
                     AllHistogram(j,i)=AllHistogram(j,i)/norm_c
                     AllInstHist(j,i)=AllInstHist(j,i)/norm1_c
                     IF(.not. near_zero(norm2_c)) THEN
@@ -1201,7 +1179,7 @@ endif
                     WRITE(io2,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
-#ifdef __CMPLX
+#ifdef CMPLX_
                 IF(near_zero(AllHFOut(1))) then
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsLastOutput)
                 ELSE
@@ -1219,7 +1197,7 @@ endif
 
             ELSE
                 OPEN(io2,FILE=abstr2,STATUS='UNKNOWN')
-#ifdef __CMPLX
+#ifdef CMPLX_
                 WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumOut/AllHFOut,SUM(AllTotPartsLastOutput)
 #else
                 WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumOut(1)/AllHFOut(1),AllTotPartsLastOutput(1)
@@ -1251,7 +1229,7 @@ endif
                           AllInstAnnihil(1,i), AllAvAnnihil(1,i), norm1, &
                           FinalPop, BeforeNormHist(i)
                 ELSE
-#ifdef __CMPLX
+#ifdef CMPLX_
                     WRITE(io1,"(I13,6G25.16)") i, AllHistogram(1,i), sum(norm), &
                           AllInstHist(1,i), AllInstAnnihil(1,i), &
                           AllAvAnnihil(1,i), sum(norm1)
@@ -1276,9 +1254,6 @@ endif
                 allocate(HOrderedInstHist(1:Det))
                 HOrderedInstHist(:) = AllInstHist(1,:)
                 call sort(ReIndex(1:Det),HOrderedHist(1:Det),HOrderedInstHist(1:Det))
-
-!                write(6,*) ReIndex(1:10)    !Must be in increasing order
-!                write(6,*) HOrderedHist(:)
 
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedHist,CKN,.true.)
                 AvVarEnergy = DDOT(Det,HOrderedHist,1,CKN,1)
@@ -1562,7 +1537,7 @@ endif
                 call extract_sign (LargestWalkers(:,j), SignCurr)
                 if (any(LargestWalkers(:,j) /= 0)) then
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                     HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                     HighSign = sum(real(abs(SignCurr),dp))
@@ -1604,7 +1579,7 @@ endif
             do i=1,iHighPopWrite
                 !How many non-zero determinants do we actually have?
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-#ifdef __CMPLX
+#ifdef CMPLX_
                 HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                 HighSign=sum(real(abs(SignCurr),dp))
@@ -1669,7 +1644,7 @@ endif
                     write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"
                 endif
             else
-#ifdef __CMPLX
+#ifdef CMPLX_
                 if(tHPHF) then
                     write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
@@ -1715,7 +1690,7 @@ endif
                 do j=1,lenof_sign
                     write(iout,"(G16.7)",advance='no') SignCurr(j)
                 enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
                 HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                 HighSign=sum(real(abs(SignCurr),dp))
@@ -1952,7 +1927,7 @@ endif
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             if(tMolpro) then
                 write (iout, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
@@ -1982,7 +1957,7 @@ endif
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                     if(tMolpro) then
                         write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
@@ -2009,7 +1984,7 @@ endif
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
             if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                 if(tMolpro) then
                     write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
@@ -2032,7 +2007,7 @@ endif
 #endif
                 call neci_flush(iout)
             endif
-        endif
+         endif
 
     end subroutine end_iteration_print_warn
 

@@ -21,7 +21,7 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel), exFlag
             integer(n_int), intent(in) :: ilutI(0:NIfTot)
-            integer, intent(out) :: nJ(nel), ic, ex(2,2)
+            integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
             integer(n_int), intent(out) :: ilutJ(0:NifTot)
             real(dp), intent(out) :: pGen
             logical, intent(out) :: tParity
@@ -36,7 +36,8 @@ module procedure_pointers
         ! Generic attempt create routine
         function attempt_create_t (nI, ilutI, wSign, nJ, ilutJ, prob, HElGen, &
                                    ic, ex, tPar, exLevel, part_type, &
-                                   AvSignCurr, RDMBiasFacCurr, precond_fac) result(child)
+                                   AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) &
+                                   result(child)
 
             use SystemData, only: nel
             use bit_rep_data, only: NIfTot
@@ -51,6 +52,8 @@ module procedure_pointers
             logical, intent(in) :: tPar
             real(dp), intent(inout) :: prob
             real(dp), dimension(lenof_sign), intent(in) :: AvSignCurr
+            ! average number of excitations per walker for this determinant
+            real(dp), intent(in) :: AvExPerWalker
             real(dp), intent(out) :: RDMBiasFacCurr
             real(dp), intent(in) :: precond_fac
             HElement_t(dp), intent(inout) :: HElGen
@@ -71,7 +74,7 @@ module procedure_pointers
 
             integer, intent(in) :: nI(nel), nJ(nel)
             integer(n_int), intent(in) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
-            integer, intent(in) :: ic, ex(2,2)
+            integer, intent(in) :: ic, ex(2,ic)
             logical, intent(in) :: tParity
             HElement_t(dp), intent(in) :: HElGen
             HElement_t(dp) :: hel
@@ -190,6 +193,44 @@ module procedure_pointers
 
         end function
 
+        ! slater-condon rules types
+        function sltcnd_0_t(nI) result(hel)
+          use constants, only: dp
+          use SystemData, only: nel
+          implicit none
+          integer, intent(in) :: nI(nel)
+          HElement_t(dp) :: hel
+        end function sltcnd_0_t
+
+        function sltcnd_1_t(nI,ex,tSign) result(hel)
+          use constants, only: dp
+          use SystemData, only: nel
+          implicit none
+          integer, intent(in) :: nI(nel)
+          integer, intent(in) :: ex(2)
+          logical, intent(in) :: tSign
+          HElement_t(dp) :: hel
+        end function sltcnd_1_t
+
+        function sltcnd_2_t(nI, ex,tSign) result(hel)
+          use constants, only: dp
+          use SystemData, only: nel
+          implicit none
+          integer, intent(in) :: nI(nel)
+          integer, intent(in) :: ex(2,2)
+          logical, intent(in) :: tSign
+          HElement_t(dp) :: hel
+        end function sltcnd_2_t
+
+        function sltcnd_3_t(ex,tSign) result(hel)
+          use constants, only: dp
+          use SystemData, only: nel
+          implicit none
+          integer, intent(in) :: ex(2,3)
+          logical, intent(in) :: tSign
+          HElement_t(dp) :: hel
+        end function sltcnd_3_t
+
         pure function scale_function_t(hdiag) result(Si)
           use constants
           implicit none
@@ -198,6 +239,14 @@ module procedure_pointers
           real(dp) :: Si
 
         end function scale_function_t
+
+        pure function lMatInd_t(a,b,c,i,j,k) result(index)
+          use constants, only: int64
+          implicit none
+          integer(int64), value :: a,b,c ! occupied orb indices
+          integer(int64), value :: i,j,k ! unoccupied orb
+          integer(int64) :: index
+        end function lMatInd_t
 
         pure function shift_factor_function_t(pos, run , pop) result(f)
           ! Scale facotr function for adpative shift
@@ -220,6 +269,7 @@ module procedure_pointers
     !
     ! And here are the stored procedure pointers (for use in FCIQMC)
     procedure(generate_excitation_t), pointer :: generate_excitation
+    procedure(generate_excitation_t), pointer :: generate_two_body_excitation
     procedure(attempt_create_t), pointer :: attempt_create
     procedure(get_spawn_helement_t), pointer :: get_spawn_helement
     procedure(get_spawn_helement_t), pointer :: get_conn_helement
@@ -236,6 +286,11 @@ module procedure_pointers
     procedure(get_umat_el_t), pointer :: get_umat_el
     procedure(get_umat_el_t), pointer :: get_umat_el_secondary
 
+    ! slater condon rules
+    procedure(sltcnd_0_t), pointer :: sltcnd_0
+    procedure(sltcnd_1_t), pointer :: sltcnd_1
+    procedure(sltcnd_2_t), pointer :: sltcnd_2
+    procedure(sltcnd_3_t), pointer :: sltcnd_3
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
     ! the function used to scale the shift

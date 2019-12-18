@@ -588,6 +588,7 @@ contains
                     read_psingles, read_pparallel
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         character(255) :: popsfile
+        real(dp) :: unused_triples
 
         character(*), parameter :: this_routine = "read_popsfile_real_time"
 
@@ -603,7 +604,7 @@ contains
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
                 PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
                 read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-                read_pparallel, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
+                read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
         else
             ! if popsfiles are stored in binary! there are seperate files for
@@ -641,6 +642,7 @@ contains
         logical :: tStartedFromCoreGround
         character(255) :: rtPOPSFILE_name
         character(*), parameter :: this_routine = "readTimeEvolvedState"
+        real(dp) :: unused_triples
 
         if(tSemiStochastic) then
            ! if semi-stochastic mode is enabled, it has to be disabled for read-in again
@@ -663,7 +665,7 @@ contains
              iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
              PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
              read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
-             read_pparallel, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
+             read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
         ! at this point, we do not want to perturb the state and have no use for the
         ! pops_pert variable anymore -> deallocate it

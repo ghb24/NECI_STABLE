@@ -41,6 +41,7 @@ contains
     ! to get the breathing effect, we need to know the exchanged momentum
     ! therefore, compare the momentum of i to that of k/l with the matching
     ! spin
+    unused_var(j)
 
     unused_var(j)
 

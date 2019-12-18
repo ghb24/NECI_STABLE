@@ -4,7 +4,7 @@
 
 module verlet_aux
 
-  use constants, only: n_int, lenof_sign, dp, EPS, inum_runs, null_part
+  use constants, only: n_int, lenof_sign, dp, EPS, inum_runs, null_part, maxExcit
 
   use AnnihilationMod, only: DirectAnnihilation, SendProcNewParts, CompressSpawnedList
 
@@ -259,10 +259,10 @@ module verlet_aux
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilut_parent(0:niftot)
       logical, intent(in) :: tCoreDet
-      integer :: part, nspawn, ispawn, nI_child(nel), ic, ex(2,2), unused_ex_level
+      integer :: part, nspawn, ispawn, nI_child(nel), ic, ex(2,maxExcit), unused_ex_level
       integer(n_int) :: ilut_child(0:niftot)!, ilut_parent_init(0:niftot)
       real(dp) :: prob, child_sign(lenof_sign), unused_rdm_real, unused_sign(nel)
-      real(dp) :: unused_precond_fac
+      real(dp) :: unused_precond_fac, unused_avEx
       logical :: tParity, break
       integer :: err
       HElement_t(dp) :: HElGen
@@ -291,7 +291,7 @@ module verlet_aux
 
                child_sign = attempt_create(nI,iLut_parent,parent_sign,nI_child,iLut_child, &
                     prob, HElGen, ic, ex, tParity, unused_ex_level, part, &
-                    unused_sign, unused_rdm_real, unused_precond_fac)
+                    unused_sign, unused_avEx, unused_rdm_real, unused_precond_fac)
             else
                child_sign = 0.0_dp
             endif
@@ -313,7 +313,8 @@ module verlet_aux
             !call set_flag(ilut_parent_init,get_initiator_flag(part_type))
             ! we have to think about whether diagonal spawns get special treatment
             ! I think they should be subject to the same rules as offdiagonal spawns
-            call create_diagonal_with_hashtable(nI, iLut_parent, child_sign)
+            call create_diagonal_with_hashtable(nI, iLut_parent, child_sign, err)
+            if(err.ne.0) return
          endif
       endif
 
@@ -321,18 +322,21 @@ module verlet_aux
 
 !-----------------------------------------------------------------------------------------------!
 
-    subroutine create_diagonal_with_hashtable(nI, iLut, sign)
+    subroutine create_diagonal_with_hashtable(nI, iLut, sign, err)
       ! this subroutine is somewhat a variant of create_particle_with_hashtable
       ! that takes a global sign with many entries as it appears in diagonal spawning events
       implicit none
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: iLut(0:niftot)
       real(dp), intent(in) :: sign(lenof_sign)
+      integer, intent(out) :: err
       integer :: ind, hash_val, run, proc
       integer, parameter :: flags = 0
       logical :: tSuccess
       real(dp) :: old_sign(lenof_sign)
       character(*), parameter :: this_routine = "create_diagonal_with_hashtable"
+
+      err = 0
 
       call hash_table_lookup(nI,iLut,nifdbo,spawn_ht,SpawnedParts,ind,hash_val,tSuccess)
       if(tSuccess) then
@@ -358,7 +362,10 @@ module verlet_aux
       else
          proc = DetermineDetNode(nel, nI, 0)
 
-         call checkValidSpawnedList(proc,this_routine)
+         if(checkValidSpawnedList(proc)) then
+            err = 1
+            return
+         endif
 
          call encode_bit_rep(SpawnedParts(:,ValidSpawnedList(proc)),ilut(0:nifdbo), &
               sign, flags)

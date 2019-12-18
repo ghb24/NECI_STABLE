@@ -30,7 +30,7 @@ module real_space_hubbard
                     get_helement_lattice_general, init_dispersion_rel_cache, &
                     epsilon_kvec, setup_lattice_symmetry
 
-    use constants, only: dp, EPS, n_int, bits_n_int, pi
+    use constants, only: dp, EPS, n_int, bits_n_int, pi, maxExcit
 
     use procedure_pointers, only: get_umat_el, generate_excitation
 
@@ -249,16 +249,12 @@ contains
         end if
 
         if (t_start_neel_state) then
-!             neel_state_ni = create_neel_state(ilut_neel)
 
             print *, "starting from the Neel state: "
             if (nel > nbasis/2) then
                 call stop_all(this_routine, &
                     "more than half-filling! does neel state make sense?")
             end if
-!             call write_det(6, neel_state_ni, .true.)
-!             call changerefdet(neel_state_ni)
-!             call update_run_reference(ilut_neel, 1)
 
         end if
 
@@ -296,7 +292,7 @@ contains
         ! hopping transcorrelated real-space hubbard
         real(dp), intent(in) :: J
         integer, intent(in) :: r_vec(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "hop_transcorr_factor"
 #endif
         complex(dp) :: temp
@@ -331,7 +327,7 @@ contains
         ! associated with it!
         real(dp), intent(in) :: J_fac
         class(lattice), intent(in) :: in_lat
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "init_hop_trancorr_fac_cached"
 #endif
         integer :: n_sites, i, j, r_vec(3), k_vec(3)
@@ -379,7 +375,7 @@ contains
         ! not need to map r-vectors to orbital indices..
         real(dp), intent(in) :: J_fac
         class(lattice), intent(in) :: in_lat
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "init_hop_trancorr_fac_cached_vec"
 #endif
         integer :: n_sites, i, j, k, ri(3), rj(3), r_vec(3), r_min(3), r_max(3)
@@ -449,7 +445,7 @@ contains
         ! transcorrelation factors in the modified 1-body term in the
         ! spin-dependent hopping trancorrelated real-space hubbard model
         integer, intent(in) :: r1(3), r2(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sum_spin_transcorr_factor_vec"
 #endif
         integer :: i, m_vec(3), ind_1(3), ind_2(3)
@@ -490,7 +486,7 @@ contains
         ! transcorrelation factors in the 2-body term of the hopping
         ! transcorrelated real-space hubbard model
         integer, intent(in) :: r1(3), r2(3), r3(3), r4(3)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sum_hop_transcorr_factor_vec"
 #endif
         integer i, m_vec(3)
@@ -536,7 +532,7 @@ contains
         ! similat to below, but just for the spin-transcorrelated
         ! real-space hubbard model.
         integer, intent(in) :: i, j
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sum_spin_transcorr_factor_orb"
 #endif
         integer :: r1(3), r2(3)
@@ -555,7 +551,7 @@ contains
         ! transcorrelation factors in the 2-body term of the hopping
         ! transcorrelated real-space hubbard model
         integer, intent(in) :: i, j, k, l
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "sum_hop_transcorr_factor_orb"
 #endif
         integer :: r1(3), r2(3), r3(3), r4(3)
@@ -605,7 +601,7 @@ contains
     end function sum_hop_transcorr_factor_orb
 
     subroutine init_tmat_rs_hub_spin_transcorr()
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "init_tmat_rs_hub_spin_transcorr"
 #endif
         integer :: n_sites, i, j
@@ -658,7 +654,7 @@ contains
         ! for now do it really stupidly without any concern for the symmetry
         ! of the integrals
         integer :: n_sites, i, j, k, l
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "init_umat_rs_hub_transcorr"
         integer :: r1(3), ri(3)
 #endif
@@ -735,7 +731,6 @@ contains
                 tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact, &
                 tGen_4ind_2, tGen_4ind_2_symmetric, tGen_4ind_unbound, tStoreSpinOrbs, &
                 tReal
-!         use umatcache, only : tTransGTid
         use OneEInts, only: tcpmdsymtmat, tOneelecdiag
 
         character(*), parameter :: this_routine = "check_real_space_hubbard_input"
@@ -760,7 +755,6 @@ contains
         if (tGen_4ind_2_symmetric) call stop_all(this_routine, "tGen_4ind_2_symmetric")
         if (tGen_4ind_unbound)      call stop_all(this_routine, "tGen_4ind_unbound")
         if (tStoreSpinOrbs)     call stop_all(this_routine, "tStoreSpinOrbs")
-!         if (tTransGTid)         call stop_all(this_routine, "tTransGTid")
         if (tcpmdsymtmat)        call stop_all(this_routine, "tcpmdsymmat")
         if (tOneelecdiag)       call stop_all(this_routine, "tOneelecdiag")
 
@@ -770,7 +764,7 @@ contains
         ! Hongjuns derivation was for the k-space hubbard and in the low
         ! density and U limit though..
         real(dp) :: corr_factor
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_optimal_correlation_factor"
 #endif
 
@@ -898,7 +892,7 @@ contains
                                     "twisted BCs only implemented up to 2D")
                             end if
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                             mat_el = imag * bhub
 #else
                             mat_el = h_cast(imag) * bhub
@@ -1015,7 +1009,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1026,18 +1020,22 @@ contains
 
         integer :: elecs(2), orbs(2), src(2), spin
         real(dp) :: p_elec, p_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         real(dp) :: temp_pgen
 #endif
 
         unused_var(exFlag)
-        unused_var(run)
         unused_var(store)
 
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
         hel = h_cast(0.0_dp)
+#ifdef WARNING_WORKAROUND_
+        if(present(run)) then
+            unused_var(run)
+        endif
+#endif
 
         ASSERT(associated(lat))
 
@@ -1107,7 +1105,7 @@ contains
             end if
         end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr_uniform(ex,ic)
         if (abs(pgen - temp_pgen) > EPS) then
             print *, "calculated pgen differ for exitation: "
@@ -1125,7 +1123,7 @@ contains
     function calc_pgen_rs_hubbard_transcorr_uniform(ex, ic) result(pgen)
         integer, intent(in) :: ex(2,2), ic
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard_transcorr_uniform"
 #endif
 
@@ -1167,7 +1165,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1180,18 +1178,22 @@ contains
         integer :: ind , elec, src, orb
         real(dp) :: cum_arr(nBasis/2)
         real(dp) :: cum_sum, p_elec, p_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         real(dp) :: temp_pgen
 #endif
 
         unused_var(exFlag)
-        unused_var(run)
         unused_var(store)
 
         ilutJ = 0_n_int
         ic = 0
         nJ(1) = 0
         hel = h_cast(0.0_dp)
+#ifdef WARNING_WORKAROUND_
+        if(present(run)) then
+            unused_var(run)
+        endif
+#endif
 
         ASSERT(associated(lat))
 
@@ -1247,7 +1249,7 @@ contains
 
         ilutJ = make_ilutJ(ilutI, ex, ic)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr(nI,ilutI,ex,ic)
         if (abs(pgen - temp_pgen) > EPS) then
             print *, "calculated pgen differ for exitation: "
@@ -1273,7 +1275,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1286,7 +1288,7 @@ contains
         integer :: ind , elec, src, orb
         real(dp) :: cum_arr(nBasis/2)
         real(dp) :: cum_sum, p_elec, p_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         real(dp) :: temp_pgen
 #endif
         integer :: n_spatial_hole,ind_spatial_hole(nBasis/2),n_e_h_pair,ind_e_h_pair(4*nel,2),i,n_double
@@ -1424,7 +1426,7 @@ contains
 
         ilutJ = make_ilutJ(ilutI, ex, ic)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         temp_pgen = calc_pgen_rs_hubbard_transcorr(nI,ilutI,ex,ic)
         if (abs(pgen - temp_pgen) > EPS) then
             print *, "calculated pgen differ for exitation: "
@@ -1451,7 +1453,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1477,6 +1479,13 @@ contains
         nJ(1) = 0
         hel = h_cast(0.0_dp)
 
+#ifdef WARNING_WORKAROUND_
+        hel = 0.0_dp
+        if(present(run)) then
+            unused_var(run)
+        endif
+#endif
+        unused_var(store)
         ASSERT(associated(lat))
 
         ic = 1
@@ -1558,10 +1567,10 @@ contains
         real(dp), intent(out) :: cum_arr(nBasis/2), cum_sum
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: p_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_rs_hubbard_transcorr_single"
 #endif
-        integer :: spin, ex(2,2), nJ(nel), i, orb
+        integer :: spin, ex(2,maxExcit), nJ(nel), i, orb
         integer, allocatable :: ex2(:,:)
         real(dp) :: elem
         real(dp) :: temp
@@ -1649,7 +1658,7 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "gen_double_excit_rs_hub_transcorr"
 #endif
         integer :: elecs(2), orbs(2), src(2), ind
@@ -1714,7 +1723,7 @@ contains
         real(dp), intent(out) :: cum_arr(nBasis/2), cum_sum
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: p_orb
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_rs_hubbard_transcorr_double"
 #endif
         integer :: ex(2,2), spin, b, nJ(nel), orb_b
@@ -1802,7 +1811,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2)
         logical, intent(in) :: tPar
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_single_helem_rs_hub_transcorr"
 #endif
         ASSERT(same_spin(ex(1),ex(2)))
@@ -1823,7 +1832,7 @@ contains
         integer, intent(in) :: nI(nel), ex(2,2), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard_transcorr"
 #endif
         integer :: src(2), tgt(2)
@@ -1895,7 +1904,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2,2)
+        integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -1913,10 +1922,14 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
 
-        unused_var(run)
-        unused_var(store)
         unused_var(exFlag)
         hel = h_cast(0.0_dp)
+#ifdef WARNING_WORKAROUND_
+        if(present(run)) then
+            unused_var(run)
+        endif
+#endif
+        unused_var(store)
 
         ASSERT(associated(lat))
 
@@ -1999,7 +2012,7 @@ contains
         integer, intent(in) :: ex(2,2), ic
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "calc_pgen_rs_hubbard"
 #endif
         integer :: src, tgt, n_orbs
@@ -2046,7 +2059,7 @@ contains
         real(dp), intent(out), allocatable :: cum_arr(:)
         integer, intent(in), optional :: tgt
         real(dp), intent(out), optional :: cpt
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "create_cum_list_rs_hubbard"
 #endif
 
@@ -2129,7 +2142,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: src, tgt
         real(dp) :: weight
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "trans_corr_fac"
 #endif
         real(dp) :: ni_opp, nj_opp
@@ -2186,8 +2199,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel)
         integer, intent(inout), optional :: ic_ret
         HElement_t(dp) :: hel
-
-        integer :: ic, ex(2,2)
+        integer :: ic, ex(2,maxExcit)
         logical :: tpar
         integer(n_int) :: ilutI(0:NIfTot), ilutJ(0:NIfTot)
 
@@ -2198,8 +2210,6 @@ contains
             else if (ic_ret == 1) then
                 ex(1,1) = 1
                 ! exchange for fix with twisted BCs
-!                 call GetExcitation(nI, nJ, nel, ex, tpar)
-!                 hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
                 call GetExcitation(nJ, nI, nel, ex, tpar)
                 hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar)
 
@@ -2223,8 +2233,6 @@ contains
                 else if (ic_ret == 1) then
                     ex(1,1) = 1
                     ! exchange for fix with twisted BCs
-!                     call GetBitExcitation(ilutI, ilutJ, ex, tpar)
-!                     hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
                     call GetBitExcitation(ilutJ, ilutI, ex, tpar)
                     hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar)
 
@@ -2252,8 +2260,6 @@ contains
             else if (ic == 1) then
                 ex(1,1) = 1
                 ! exchange for fix with twisted BCs
-!                 call GetBitExcitation(ilutI, ilutJ, ex, tpar)
-!                 hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
                 call GetBitExcitation(ilutJ, ilutI, ex, tpar)
                 hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar)
 
@@ -2338,11 +2344,6 @@ contains
             do j = 1, nel
                 if (.not. same_spin(nI(i), nI(j))) then
 
-!                     idX = max(id(i),id(j))
-!                     idN = min(id(i),id(j))
-!                     ! is this sufficient? do i have a factor of 1/2?
-!                     hel = hel + 0.5_dp * get_umat_rs_hub_trans(idN,idX,idN,idX)
-
                     hel = hel + 0.5_dp * get_umat_rs_hub_trans(id(i),id(j),id(j),id(i))
 
                 end if
@@ -2357,7 +2358,7 @@ contains
         integer, intent(in) :: ex(2,2)
         logical, intent(in) :: tpar
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_double_helem_rs_hub_transcorr"
 #endif
         integer :: src(2), tgt(2), ij(2), ab(2)
@@ -2468,7 +2469,7 @@ contains
         ! dependent transcorrelated real-space hubbard model.
         integer, intent(in) :: nI(nel), ex(2)
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_1_body_contrib_spin_transcorr"
 #endif
         integer :: i, idX(2), id(nel), r1(3), r2(3), r_vec(3), ind_1(3), ind_2(3)
@@ -2511,7 +2512,7 @@ contains
         ! outside this function
         integer, intent(in) :: nI(nel), ex(2)
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_2_body_contrib_transcorr_hop"
 #endif
         integer :: i, idX(2), idN
@@ -2533,7 +2534,6 @@ contains
                     ! for the setup of umat!
                     idN = get_spatial(nI(i))
                     hel = hel + get_umat_rs_hub_trans(idX(1),idN,idN,idX(2))
-!                     hel = hel + get_umat_rs_hub_trans(idX(1),idN,idX(2),idN)
                 end if
             end do
         else
@@ -2541,7 +2541,6 @@ contains
                 if (is_beta(nI(i))) then
                     idN = get_spatial(nI(i))
                     hel = hel + get_umat_rs_hub_trans(idX(1),idN,idN,idX(2))
-!                     hel = hel + get_umat_rs_hub_trans(idX(1),idN,idX(2),idN)
                 end if
             end do
         end if
@@ -2551,7 +2550,7 @@ contains
     function get_umat_el_hub(i,j,k,l) result(hel)
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_umat_el_hub"
 #endif
 
@@ -2577,7 +2576,7 @@ contains
         ! the one, whhich access the "normal" fcidump.. figure out!
         integer, intent(in) :: i,j,k,l
         HElement_t(dp) :: hel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "get_umat_rs_hub_trans"
 #endif
 

@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
 
 #include <stdio.h>
 #include <stdint.h>
@@ -360,7 +360,7 @@ extern "C" void dealloc_shared_worker (void * ptr)
 }
 
 
-#endif // __SHARED_MEM
+#endif // SHARED_MEM_
 
 //
 // Clean up any shared allocations which have not been properly deallocated.
@@ -368,7 +368,7 @@ extern "C" void dealloc_shared_worker (void * ptr)
 //      it won't do anything).
 extern "C" void cleanup_shared_alloc ()
 {
-#ifdef __SHARED_MEM
+#ifdef SHARED_MEM_
 #ifdef _WIN32
 	// Iterate through the list of shared allocations and clear up (windows)
 	map<void*,map_det_t>::iterator iter;
@@ -415,7 +415,7 @@ extern "C" void cleanup_shared_alloc ()
 		g_shm_list.clear();
 	}
 #endif
-#endif // __SHARED_MEM
+#endif // SHARED_MEM_
 }
 
 

@@ -19,12 +19,12 @@ module semi_stoch_gen
     use semi_stoch_procs
     use sparse_arrays
     use timing_neci
+    use SystemData, only: t_non_hermitian, nBasis
 
     use guga_excitations, only: actHamiltonian
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: tGUGACore
 
-    use SystemData, only: t_non_hermitian
     implicit none
 
 contains
@@ -45,6 +45,7 @@ contains
         use FciMCData, only: tStartCoreGroundState, iter_data_fciqmc, SemiStoch_Init_Time
         use FciMCData, only: tFillingStochRdmOnFly, core_space, SemiStoch_Hamil_Time
         use FciMCData, only: SemiStoch_Davidson_Time, determ_last, s_first_ind, s_last_ind
+        use FciMCData, only: SemiStoch_nonhermit_Time
         use FciMCData, only: NoInitDets, AllNoInitDets
         use FciMCData, only: tFillingStochRdmOnFly
         use load_balance, only: adjust_load_balance
@@ -54,6 +55,7 @@ contains
         use sparse_arrays, only: SparseHamilTags
         use LoggingData, only: t_print_core_info
         use SystemData, only: nel, tAllSymSectors, tReltvy, nOccAlpha, nOccBeta
+        use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
 
         type(subspace_in) :: core_in
         logical, intent(out) :: tStartedFromCoreGround
@@ -62,7 +64,9 @@ contains
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
-        real(dp), allocatable :: e_values(:), e_vectors(:,:), gs_vector(:)
+        type(DavidsonCalcType) :: davidsonCalc
+        real(dp), allocatable :: e_values(:)
+        HElement_t(dp), allocatable :: e_vectors(:,:), gs_vector(:)
         real(dp) :: gs_energy
 
         ! If we are load balancing, this gets disabled once semi stochastic
@@ -208,18 +212,21 @@ contains
             end if
         end if
 
-#if !defined(__CMPLX)
+#ifndef CMPLX_
         if (t_print_core_info) then
             ! i think i also want information, like the energy and the
             ! eigenvectors of the core-space
+               root_print "I am before the diagonalization step with", t_non_hermitian
+            if (t_non_hermitian) then
                 call diagonalize_core_non_hermitian(e_values, e_vectors)
                 if (t_choose_trial_state) then
                     gs_energy = e_values(trial_excit_choice(1))
                 else
                     gs_energy = e_values(1)
                 end if
-
-            root_print "semi-stochastic space GS energy: ", gs_energy
+            else
+                root_print "semi-stochastic space GS energy: ", gs_energy
+            end if
         end if
 #endif
 
@@ -245,12 +252,21 @@ contains
 
         tStartedFromCoreGround = .false.
         if (tStartCoreGroundState .and. (.not. tReadPops) .and. tStaticCore .and. (.not. tTrialInit)) then
+          if (t_non_hermitian) then
+            call set_timer(SemiStoch_nonhermit_Time)
+            call start_walkers_from_core_ground_nonhermit(tPrintInfo = .true.)
+            call halt_timer(SemiStoch_nonhermit_Time)
+            tStartedFromCoreGround = .true.
+            write(6,'("Total time (seconds) taken for non-hermitian diagonalization:", f9.3)') &
+               get_total_time(SemiStoch_nonhermit_Time)
+          else
             call set_timer(SemiStoch_Davidson_Time)
             call start_walkers_from_core_ground(tPrintInfo = .true.)
             call halt_timer(SemiStoch_Davidson_Time)
             tStartedFromCoreGround = .true.
             write(6,'("Total time (seconds) taken for Davidson calculation:", f9.3)') &
                get_total_time(SemiStoch_Davidson_Time)
+          endif
         end if
 
         ! Call MPIBarrier here so that Semistoch_Init_Time will give the
@@ -287,10 +303,13 @@ contains
         ! Call the requested generating routines.
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, &
-                                    core_in%tApproxSpace, core_in%nApproxSpace, SpawnedParts, space_size)
+                                    core_in%tApproxSpace, core_in%nApproxSpace, &
+                                    SpawnedParts, space_size, CurrentDets, TotWalkers)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. tCSFCore) then
-            if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
+           if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
+           if(core_in%tTriples) call generate_trip_determinants(SpawnedParts, space_size, &
+                core_in%tHFConn)
             if (core_in%tCAS) call generate_cas(core_in%occ_cas, core_in%virt_cas, SpawnedParts, space_size)
             if (core_in%tRAS) call generate_ras(core_in%ras, SpawnedParts, space_size)
             if (core_in%tOptimised) call generate_optimised_space(core_in%opt_data, core_in%tLimitSpace, &
@@ -550,7 +569,70 @@ contains
             end do
         end if
 
-    end subroutine generate_sing_doub_determinants
+      end subroutine generate_sing_doub_determinants
+
+!------------------------------------------------------------------------------------------!
+
+      subroutine generate_trip_determinants(ilut_list, space_size, only_keep_conn)
+        use lattice_models_utils, only: make_ilutJ
+        use sym_general_mod, only: IsSymAllowedExcitMat
+        ! Generate a list of all singles, doubles and triples
+        implicit none
+        integer(n_int), intent(inout) :: ilut_list(0:,:)
+        integer, intent(inout) :: space_size
+        logical, intent(in) :: only_keep_conn
+
+        integer :: i,j,k
+        integer :: a,b,c
+        integer :: ex(2,3), nI(nel)
+        integer(n_int) :: ilut_ex(0:NifTot)
+        HElement_t(dp) :: HEl
+        ! add all triples of the HF
+        ! enumerate them as follows: take three electrons i,j,k
+        ! with i>j>k
+        ! then, pick three (unocc) orbitals a,b,c with a>b>c
+        ! => triple excitation
+        do i = 1, nel
+           ex(1,1) = HFDet(i)
+           do j = 1, i-1
+              ex(1,2) = HFDet(j)
+              do k = 1, j-1
+                 ex(1,3) = HFDet(k)
+                 do a = 1, nBasis
+                    ! for the target orbs, only take unoccupied
+                    if(IsNotOcc(ilutHF,a)) then
+                       ex(2,3) = a
+                       do b = 1, a-1
+                          if(IsNotOcc(ilutHF,b)) then
+                             ex(2,2) = b
+                             do c = 1, b-1
+                                if(IsNotOcc(ilutHF,c)) then
+                                   ex(2,1) = c
+                                   ! create the triple excitation with these elecs/orbs
+                                   ilut_ex = make_ilutJ(ilutHF, ex, 3)
+                                   ! if enabled, only keep connected determinants
+                                   if(only_keep_conn) then
+                                      HEl = get_helement(HFDet, nI, ilutHF, ilut_ex)
+                                      if(abs(HEl) < eps) cycle
+                                   endif
+
+                                   ! definitely keep only determinants in the same symmetry-sector
+                                   if(.not.IsSymAllowedExcitMat(ex,3)) cycle
+                                   call decode_bit_det(nI, ilut_ex)
+                                   call add_state_to_space(ilut_ex, ilut_list, space_size, nI)
+                                end if
+                             end do
+                          endif
+                       end do
+                    endif
+                 end do
+              end do
+           end do
+        end do
+
+      end subroutine generate_trip_determinants
+
+!------------------------------------------------------------------------------------------!
 
     subroutine generate_sing_doub_csfs(ilut_list, space_size)
 
@@ -1047,7 +1129,7 @@ contains
         use bit_reps, only: extract_sign
 
         integer, intent(in) :: target_space_size, nApproxSpace
-        integer, intent(in), optional :: opt_source_size
+        integer(n_int), intent(in), optional :: opt_source_size
         integer(n_int), intent(in), optional, pointer :: opt_source(:,:)
         logical, intent(in) :: tApproxSpace
         integer(n_int), intent(inout) :: ilut_list(0:,:)
@@ -1331,7 +1413,7 @@ contains
         real(dp), allocatable :: amp_list(:)
         integer(n_int) :: ilut(0:NIfTot)
         integer :: nI(nel)
-        integer :: ex(2,2), ex_flag, ndets
+        integer :: ex(2,maxExcit), ex_flag, ndets
         integer :: pos, i
         real(dp) :: amp, energy_contrib
         logical :: tAllExcitFound, tParity

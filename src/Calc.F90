@@ -29,7 +29,6 @@ MODULE Calc
     use rdm_data, only: tApplyLC
     use FciMCData, only: tTimeExit,MaxTimeExit, InputDiagSft, tSearchTau, &
                          nWalkerHashes, HashLengthFrac, tSearchTauDeath, &
-                         tLogGreensfunction, &
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
@@ -56,7 +55,6 @@ MODULE Calc
     use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
                         init_get_helement_heisenberg_guga, init_get_helement_tj_guga
     use k_space_hubbard, only: init_get_helement_k_space_hub
-    use real_time_data, only: t_real_time_fciqmc, gf_type, allGfs, gf_count
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
     use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
     use DeterminantData, only: write_det
@@ -68,6 +66,7 @@ MODULE Calc
 
     use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
 
+    use real_time_data, only: allGfs, gf_count, gf_type
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -349,6 +348,15 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
+          ! initiators based on number of open orbs
+          tSeniorityInits = .false.
+          initMaxSenior = 0
+
+          ! keep spawns up to a given seniority + excitation level
+          tSpawnSeniorityBased = .false.
+          numMaxExLvlsSet = 0
+          allocate(maxKeepExLvl(0))
+
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
           t_prone_walkers = .false.
@@ -356,9 +364,6 @@ contains
 
           hash_shift=0
           tUniqueHFNode = .false.
-
-          ! real-time fciqmc:
-          t_real_time_fciqmc = .false.
 
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
@@ -393,7 +398,6 @@ contains
           tIncludeGroundSpectral = .false.
           alloc_popsfile_dets = .false.
           tDetermHFSpawning = .true.
-          tLogGreensfunction = .false.
           tOverlapPert = .false.
 
           if (t_mixed_hubbard .or. t_olle_hubbard) then
@@ -493,6 +497,9 @@ contains
           tOutputInitsRDM = .false.
           tNonVariationalRDMs = .false.
 
+          ! scaling of spawns
+          tScaleBlooms = .false.
+          max_allowed_spawn = MaxWalkerBloom
         end subroutine SetCalcDefaults
 
         SUBROUTINE CalcReadInput()
@@ -725,18 +732,27 @@ contains
      &                 //"method",.true.)
                 end if
 
-             case("INITS-RDM")
-                ! only take into account initiators when calculating RDMs
+            case("INITS-RDM")
+                ! also calculate the RDMs only taking into account initiators (to an extra file)
+                ! by default uses the non-variational inits-rdms (only require initiator in the ket)
                 tOutputInitsRDM = .true.
                 tInitsRDM = .true.
-             case("NO-LAGRANGIAN-RDMS")
+                ! Imply non-variational-rdms (for the init-rdms)
+                tNonVariationalRDMs = .true.
+            case("NO-LAGRANGIAN-RDMS")
                 ! use the default rdms even for adaptive-shift
                 ! this is mainly for debugging/testing purposes, it should not be used in
                 ! production (as the resulting RDMs are flawed)
                 tApplyLC = .false.
-             case("STRICT-INITS-RDM")
+            case("STRICT-INITS-RDM")
+                ! Fill the inits-rdms with the rdm of the initiator-only wave function
+                tNonVariationalRDMs = .false.
+            case("INITS-ONLY-RDM")
+                ! Fill the rdms with the rdm of the initiator-only wave function
                 tNonInitsForRDMs = .false.
-             case("NON-VARIATIONAL-RDMS")
+            case("NON-VARIATIONAL-RDMS")
+                ! This is only here for backwards-compatibility, tNonVariationalRDMs is
+                ! turned on by default when meaningful (only affects inits-only rdms)
                 tNonVariationalRDMs = .true.
             case("VVDISALLOW")
                 TVVDISALLOW=.TRUE.
@@ -971,10 +987,21 @@ contains
                   CALL LogMemAlloc('DefDet',NEl,4,t_r,tagDefDet,ierr)
                 end if
                 DefDet(:)=0
-                do i=1,NEl
-                    call geti(DefDet(i))
-                enddo
-                ! what if HPHF? i think this is not adressed correctyl..
+
+                i = 1
+                do while(item.lt.nitems)
+                   call readu(w)
+                   if(scan(w,"-").eq.0) then
+                      read(w,*) start
+                      call setDefdet(i,start)
+                   else
+                      call getRange(w, start, end)
+                      do j = start, end
+                         call setDefdet(i,j)
+                      end do
+                   endif
+                end do
+                if(i-1.ne.nel) call stop_all(t_r, "Insufficient orbitals given in DEFINEDET")
                 ! there is something going wrong later in the init, so
                 ! do it actually here
                 if (tHPHF) then
@@ -1495,6 +1522,8 @@ contains
             case("MAXWALKERBLOOM")
                 !Set the maximum allowed walkers to create in one go, before reducing tau to compensate.
                 call getf(MaxWalkerBloom)
+                ! default the maximum spaw to MaxWalkerBloom
+                max_allowed_spawn = MaxWalkerBloom
             case("SHIFTDAMP")
 !For FCIMC, this is the damping parameter with respect to the update in the DiagSft value for a given number of MC cycles.
                 call getf(SftDamp)
@@ -1543,7 +1572,12 @@ contains
                 ss_space_in%tAllConnCore = .true.
 
             case("DOUBLES-CORE")
-                ss_space_in%tDoubles = .true.
+               ss_space_in%tDoubles = .true.
+            case("TRIPLES-CORE")
+               ! Triples-core is the core space consisting of all excitations up to
+               ! triple excitations -> include double-core
+               ss_space_in%tDoubles = .true.
+               ss_space_in%tTriples = .true.
             case("HF-CONN-CORE")
                 ss_space_in%tDoubles = .true.
                 ss_space_in%tHFConn = .true.
@@ -1933,7 +1967,7 @@ contains
                  end if
 
             case("FIXED-N0")
-#ifdef __CMPL
+#ifdef CMPLX_
                 call stop_all(t_r, 'FIXED-N0 currently not implemented for complex')
 #endif
                 tFixedN0 = .true.
@@ -1945,7 +1979,7 @@ contains
                 tReadPopsChangeRef = .false.
                 tChangeProjEDet = .false.
             case("TRIAL-SHIFT")
-#ifdef __CMPL
+#ifdef CMPLX_
                 call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
 #endif
                 if (item.lt.nitems) then
@@ -2398,6 +2432,10 @@ contains
             case("EN2-RIGOROUS")
                 tEN2 = .true.
                 tEN2Rigorous = .true.
+
+            case("KEEPDOUBSPAWNS")
+!This option is now on permanently by default and cannot be turned off.
+
 
             case("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated -
@@ -3444,6 +3482,11 @@ contains
                 ! set the cutoff to the minimal value
                 RealSpawnCutoff = sFBeta
 
+             case("SCALE-SPAWNS")
+                ! scale down potential blooms to prevent instability
+                ! increases the number of spawns to unbias for scaling
+                tScaleBlooms = .true.
+
              case("SUPERINITIATOR-POPULATION-THRESHOLD")
                 ! set the minimum value for superinitiator population
                 call readf(NoTypeN)
@@ -3521,8 +3564,9 @@ contains
 
         Subroutine CalcInit()
           use constants, only: dp
-          use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl
+          use SystemData, only: G1, Alat, Beta, BRR, ECore, LMS, nBasis, nBasisMax, STot,tCSF,nMsh,nEl,tSmallBasisForThreeBody
           use SystemData, only: tUEG,nOccAlpha,nOccBeta,ElecPairs,tExactSizeSpace,tMCSizeSpace,MaxABPairs,tMCSizeTruncSpace
+          use SystemData, only: tContact
           use IntegralsData, only: FCK, CST, nMax, UMat
           use IntegralsData, only: HFEDelta, HFMix, NHFIt, tHFCalc
           Use Determinants, only: FDet, tSpecDet, SpecDet, get_helement
@@ -3531,7 +3575,7 @@ contains
           use hilbert_space_size, only: FindSymSizeofSpace, FindSymSizeofTruncSpace
           use hilbert_space_size, only: FindSymMCSizeofSpace, FindSymMCSizeExcitLevel
           use global_utilities
-
+          use sltcnd_mod, only: initSltCndPtr
           real(dp) CalcT, CalcT2, GetRhoEps
 
 
@@ -3539,6 +3583,26 @@ contains
           INTEGER nList
           HElement_t(dp) HDiagTemp
           character(*), parameter :: this_routine='CalcInit'
+
+
+          !Checking whether we have large enoguh basis for ultracold atoms and
+          !three-body excitations
+          if(tContact.and.((nBasis/2).lt.(noccAlpha+2).or.(nBasis/2).lt.(noccBeta+2))) then
+            if (noccAlpha.eq.1.or.noccBeta.eq.1) then
+             tSmallBasisForThreeBody= .false.
+            else
+             write(6,*) 'There is not enough unoccupied orbitals for a poper three-body ', &
+                  'excitation! Some of the three-body excitations are possible', &
+                  'some of or not. If you really would like to calculate this system, ',  &
+                  'you have to implement the handling of cases, which are not possible.'
+             stop
+            endif
+          else
+            tSmallBasisForThreeBody= .true.
+          endif
+
+          ! initialize the slater condon rules
+          call initSltCndPtr()
 
           Allocate(MCDet(nEl))
           call LogMemAlloc('MCDet',nEl,4,this_routine,tagMCDet)
@@ -3759,7 +3823,6 @@ contains
           use kp_fciqmc, only: perform_kp_fciqmc, perform_subspace_fciqmc
           use kp_fciqmc_data_mod, only: tExcitedStateKP
           use kp_fciqmc_procs, only: kp_fciqmc_data
-          use real_time, only: perform_real_time_fciqmc
           use util_mod, only: int_fmt
 
           real(dp) :: EN,WeightDum, EnerDum
@@ -3772,57 +3835,65 @@ contains
           iSeed = 7
 
           IF (tMP2Standalone) then
-              call ParMP2(FDet)
-
+             call ParMP2(FDet)
+             ! Parallal 2v sum currently for testing only.
+             !          call Par2vSum(FDet)
           ELSE IF(tDavidson) then
               davidsonCalc = davidson_direct_ci_init()
-              if (t_non_hermitian) then
-                  call stop_all(this_routine, &
-                      "perform_davidson not adapted for non-hermitian Hamiltonians!")
-              end if
-              call perform_davidson(davidsonCalc, direct_ci_type, .true.)
-              call davidson_direct_ci_end(davidsonCalc)
-              call DestroyDavidsonCalc(davidsonCalc)
+             if (t_non_hermitian) then
+                call stop_all(this_routine, &
+                     "perform_davidson not adapted for non-hermitian Hamiltonians!")
+             end if
+             call perform_davidson(davidsonCalc, direct_ci_type, .true.)
+             call davidson_direct_ci_end(davidsonCalc)
+             call DestroyDavidsonCalc(davidsonCalc)
 
           ELSE IF(NPATHS.NE.0.OR.DETINV.GT.0) THEN
+             !Old and obsiolecte
+             !             IF(TRHOIJND) THEN
+             !C.. We're calculating the RHOs for interest's sake, and writing them,
+             !C.. but not keeping them in memory
+             !                  WRITE(6,*) "Calculating RHOS..."
+             !                  WRITE(6,*) "Using approx NTAY=",NTAY
+             !                  CALL CALCRHOSD(NMRKS,BETA,I_P,I_HMAX,I_VMAX,NEL,NDET,        &
+             !     &               NBASISMAX,G1,nBasis,BRR,NMSH,FCK,NMAX,ALAT,UMAT,             &
+             !     &               NTAY,RHOEPS,NWHTAY,ECORE)
+             !             ENDIF
 
              if(tFCIMC) then
                 call FciMCPar(final_energy)
-                if (allocated(final_energy)) then
-                   if ((.not. tMolpro) .and. (.not. tMolproMimic)) then
-                       do i = 1, size(final_energy)
-                          write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
-                               i, final_energy(i)
-                       end do
-                   end if
-
+                if ((.not.tMolpro) .and. (.not.tMolproMimic)) then
+                  if (allocated(final_energy)) then
+                   do i = 1, size(final_energy)
+                      write(6,'(1X,"Final energy estimate for state",1X,'//int_fmt(i)//',":",g25.14)') &
+                           i, final_energy(i)
+                   end do
+                  endif
                 end if
              elseif(tRPA_QBA) then
                 call RunRPA_QBA(WeightDum,EnerDum)
                 WRITE(6,*) "Summed approx E(Beta)=",EnerDum
              elseif(tKP_FCIQMC) then
-                if (tExcitedStateKP) then
-                   call perform_subspace_fciqmc(kp)
-                else
-                   call perform_kp_fciqmc(kp)
-                end if
-                ! RT_M_Merge: Real time step added, deprecated cases removed
-             else if (t_real_time_fciqmc) then
-                call perform_real_time_fciqmc()
-             endif
-             IF(TMONTE.and..not.tMP2Standalone) THEN
-                !             DBRAT=0.01
-                !             DBETA=DBRAT*BETA
-                WRITE(6,*) "I_HMAX:",I_HMAX
-                WRITE(6,*) "Calculating MC Energy..."
-                CALL neci_flush(6)
-                IF(NTAY(1).GT.0) THEN
-                   WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
-                   !C.. NMAX is now ARR
-                   call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
-                ELSEIF(NTAY(1).EQ.0) THEN
-                   IF(TENERGY) THEN
-                      WRITE(6,*) "Using exact RHOs generated on the fly"
+                 if (tExcitedStateKP) then
+                     call perform_subspace_fciqmc(kp)
+                 else
+                     call perform_kp_fciqmc(kp)
+                 end if
+              ENDIF
+          endif
+          IF(TMONTE.and..not.tMP2Standalone) THEN
+!             DBRAT=0.01
+!             DBETA=DBRAT*BETA
+             WRITE(6,*) "I_HMAX:",I_HMAX
+             WRITE(6,*) "Calculating MC Energy..."
+             CALL neci_flush(6)
+             IF(NTAY(1).GT.0) THEN
+                WRITE(6,*) "Using approx RHOs generated on the fly, NTAY=",NTAY(1)
+!C.. NMAX is now ARR
+                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
+             ELSEIF(NTAY(1).EQ.0) THEN
+                IF(TENERGY) THEN
+                   WRITE(6,*) "Using exact RHOs generated on the fly"
 !C.. NTAY=0 signifying we're going to calculate the RHO values when we
 !C.. need them from the list of eigenvalues.
 !C.. Hide NMSH=NEVAL
@@ -3831,19 +3902,17 @@ contains
 !C..         UMAT=NDET
 !C..         ALAT=NMRKS
 !C..         NMAX=ARR
-                      call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
+                call stop_all(this_routine, "DMONTECARLO2 is now non-functional.")
 !                   EN=DMONTECARLO2(MCDET,I_P,BETA,DBETA,I_HMAX,I_VMAX,IMCSTEPS,             &
 !     &                G1,NEL,NBASISMAX,nBasis,BRR,IEQSTEPS,                                 &
 !     &                NEVAL,W,CK,ARR,NMRKS,NDET,NTAY,RHOEPS,NWHTAY,ILOGGING,ECORE,BETAEQ)
-                   ELSE
-                      call stop_all(this_routine, "TENERGY not set, but NTAY=0" )
-                   ENDIF
+                ELSE
+                   call stop_all(this_routine, "TENERGY not set, but NTAY=0" )
                 ENDIF
-                WRITE(6,*) "MC Energy:",EN
-!CC           WRITE(12,*) DBRAT,EN
              ENDIF
+             WRITE(6,*) "MC Energy:",EN
+!CC           WRITE(12,*) DBRAT,EN
           ENDIF
-
 !C.. /AJWT
         End Subroutine CalcDoCalc
 

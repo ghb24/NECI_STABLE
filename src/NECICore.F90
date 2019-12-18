@@ -274,7 +274,8 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation.
 
     use System, only : SysInit
-    use SystemData, only : tRotateOrbs,tFindCINatOrbs, tGUGA
+    use SystemData, only : tRotateOrbs,tFindCINatOrbs, tGUGA, tUEG, &
+                         t_ueg_transcorr,t_ueg_dump,tContact
     use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP
     use IntegralsData, only : tDumpFCIDUMP
     use DetCalc, only : DetCalcInit,DoDetCalc
@@ -283,6 +284,7 @@ subroutine NECICalcInit(iCacheFlag)
     use HFCalc, only: HFDoCalc
     use RotateOrbsMod, only : RotateOrbs
     use replica_data, only: init_replica_arrays
+    use gen_coul_ueg_mod, only: GEN_Umat_TC,prep_ueg_dump, GEN_Umat_TC_Contact
 
     use guga_init, only: init_guga
     implicit none
@@ -314,6 +316,33 @@ subroutine NECICalcInit(iCacheFlag)
     else
         call DetPreFreezeInit()
     end if
+
+    !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+    !! we prepare the contribution of the 2 body transcorrelated operator
+           If(tUEG.and.t_ueg_transcorr)then
+!                  CALL GetUMatSize(nBasis,nEl,UMATINT)
+!                  call shared_allocate ("umat_TC3", umat_TC3, (/UMatInt/))
+!                  !Allocate(UMat(UMatInt), stat=ierr)
+!                  LogAlloc(ierr, 'UMat_TC3', int(UMatInt),HElement_t_SizeB, tagUMat)
+!                  UMat_TC3 = 0.0_dp
+!                  WRITE(6,*) "Size of UMat_TC3 is: ",UMATINT
+
+                 write(6,*) 'prepare the convolution part of the 2 body transcorrelated operator'
+
+                 If(tContact) then
+                      call GEN_Umat_TC_contact
+                 else
+                      call GEN_Umat_TC
+                 endif
+                write(6,*) "The infinite sums for the transcorrelated approach is determined."
+
+              if(t_ueg_dump) call prep_ueg_dump
+
+
+    !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
+          end if
+
+
     if (.not.tPostFreezeHF) call HFDoCalc()
     call IntFreeze()
     ! can i initialize the GUGA stuff here? after freezing? or otherwise

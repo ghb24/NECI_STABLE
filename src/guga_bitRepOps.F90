@@ -56,14 +56,14 @@ module guga_bitRepOps
 
     interface encode_matrix_element
         module procedure encode_matrix_element_real
-#ifdef __CMPLX
+#ifdef CMPLX_
         module procedure encode_matrix_element_cmplx
 #endif
     end interface encode_matrix_element
 
     interface update_matrix_element
         module procedure update_matrix_element_real
-#ifdef __CMPLX
+#ifdef CMPLX_
         module procedure update_matrix_element_cmplx
 #endif
     end interface update_matrix_element
@@ -1730,7 +1730,7 @@ contains
 
     end subroutine encode_matrix_element_real
 
-#ifdef __CMPLX
+#ifdef CMPLX_
     subroutine encode_matrix_element_cmplx(ilut, mat_ele, mat_type)
         ! this is specific for complex matrix elements.. here
         ! i can use the two storage slots for x0 and x1 to encode
@@ -1789,7 +1789,7 @@ contains
 
     end subroutine update_matrix_element_real
 
-#ifdef __CMPLX
+#ifdef CMPLX_
     subroutine update_matrix_element_cmplx(ilut, mat_ele, mat_type)
         ! specific function if we need to update with a complex integral
         integer(n_int), intent(inout) :: ilut(0:nifguga)
@@ -1976,7 +1976,7 @@ contains
         integer(n_int), intent(in) :: ilutG(0:nifguga)
         HElement_t(dp) :: HElement
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         HElement = cmplx(extract_matrix_element(ilutG,1), &
                            extract_matrix_element(ilutG,2),kind=dp)
 #else

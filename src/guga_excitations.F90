@@ -22,7 +22,7 @@ module guga_excitations
                           is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
-                         EPS, bni_, bn2_, iout, int64, inum_runs
+                         EPS, bni_, bn2_, iout, int64, inum_runs, maxExcit
 
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
                         extract_part_sign, nifguga, nifd
@@ -2346,7 +2346,7 @@ contains
                 projE_replica(run)%projE_hel_list(i))
 
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not.(getDeltaB(excitations(:,i)) == 1 .or. &
                 getDeltaB(excitations(:,i)) == 2)) then
 
@@ -2397,7 +2397,7 @@ contains
         integer(n_int) :: ilutG(0:nifguga)
         integer(n_int), pointer :: excitations(:,:)
 
-        integer :: src_det(nel), det(nel), nexcit, ndet, ex(2,2)
+        integer :: src_det(nel), det(nel), nexcit, ndet, ex(2,maxExcit)
         integer :: ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
@@ -3104,7 +3104,7 @@ contains
                     d_elec = elec_1
                     d_orb = orb_1
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                 else
                     call stop_all(this_routine, "something went wrong")
 #endif
@@ -4137,7 +4137,7 @@ contains
         integer :: elec, orb
         real(dp) :: r
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! also assert we are not calling it for a weight gen. accidently
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
@@ -4549,7 +4549,7 @@ contains
             excitMat, tParity, pgen, HElGen, store, part_type)
         integer, intent(in) :: nI(nEl), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nEl), IC, excitMat(2,2)
+        integer, intent(out) :: nJ(nEl), IC, excitMat(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -4636,7 +4636,7 @@ contains
         ! for now add a sanity check to compare the stochastic obtained
         ! matrix elements with the exact calculation..
         ! since something is going obviously wrong..
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (.not. pgen < EPS) then
             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
@@ -4685,7 +4685,7 @@ contains
             ! also store information on type of excitation for the automated
             ! tau-search for the non-weighted guga excitation generator in
             ! the excitMat variable
-            excitMat(1,:) = excit_typ
+            excitMat(1,1:2) = excit_typ
 
             ! profile tells me this costs alot of time.. so remove it
             ! and only do it in debug mode..
@@ -8412,7 +8412,7 @@ contains
                     topCont = Root2*sqrt(currentB_ilut(en)/&
                         (currentB_ilut(en) + 2.0_dp))
                 end if
-#ifdef __DEBUG
+#ifdef DEBUG_
             else
                 call stop_all(this_routine, "wrong stepvalues!")
 #endif
@@ -8725,7 +8725,7 @@ contains
 
                 call getMixedFullStop(1,2,2,currentB_ilut(sw), x1_element = tempWeight_1)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             case default
                 call stop_all(this_routine, "wrong stepvalues!")
 #endif
@@ -9050,7 +9050,7 @@ contains
         ! combine deltaB and stepvalue info here to reduce if statements
         ! asserts dont work anymore with new select case statements
         ! do it out here:
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (current_stepvector(ende) == 1) then
             ASSERT(deltaB /= 2)
         end if
@@ -10140,7 +10140,7 @@ contains
 
                     origWeight = origWeight / (origWeight + switchWeight)
                 end if
-#ifdef __DEBUG
+#ifdef DEBUG_
             else
                 call stop_all(this_routine, "wrong stepvalues!")
 #endif
@@ -11550,7 +11550,7 @@ contains
                     origWeight = origWeight/(origWeight + switchWeight)
 
                 end if
-#ifdef __DEBUG
+#ifdef DEBUG_
             else
                 call stop_all(this_routine, "wrong stepvalues!")
 #endif
@@ -11858,7 +11858,7 @@ contains
             tempWeight = 0.0_dp
 
             call setDeltaB(-2,t)
-#ifdef __DEBUG
+#ifdef DEBUG_
         case default
             call stop_all(this_routine, "wrong stepvalue!")
 #endif
@@ -11999,7 +11999,7 @@ contains
 
             end if
 !         end if
-#ifdef __DEBUG
+#ifdef DEBUG_
         case default
             call stop_all(this_routine, "wrong stepvalue!")
 #endif
@@ -12261,7 +12261,7 @@ contains
 
             call setDeltaB(0, t)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         case (3)
             call stop_all(this_routine, "wrong stepvalue!")
 #endif
@@ -12405,7 +12405,7 @@ contains
 
             call setDeltaB(0, t)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         case (0)
             call stop_all(this_routine, "wrong stepvalue!")
 #endif
@@ -13397,7 +13397,7 @@ contains
 
             else
                 ! forced switch
-#ifdef __DEBUG
+#ifdef DEBUG_
                 minusWeight = weights%proc%minus(negSwitches(s), bVal, weights%dat)
                 if (.not. minusWeight > 0.0_dp) then
                         print *, "+", plusWeight
@@ -13440,7 +13440,7 @@ contains
                 end if
             end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             ! for sanity check for weights here too just to be sure to not get
             ! into non compatible excitations
             plusWeight = weights%proc%plus(posSwitches(s), bVal, weights%dat)
@@ -13492,7 +13492,7 @@ contains
 
         ! and also the possibility of the excitation should be ensured due to
         ! the correct choosing of excitation indices..
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! also assert we are not calling it for a weight gen. accidently
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
@@ -14333,7 +14333,7 @@ contains
                 ! or maybe call the routine below with a dummy variable.
                 ! and store calculated ones in a different variable here..
                 call calcAllExcitations(ilut, i, j, tempExcits, nExcits)
-#ifdef __DEBUG
+#ifdef DEBUG_
                 do n = 1, nExcits
                     ASSERT(isProperCSF_ilut(tempExcits(:,n),.true.))
                 end do
@@ -14375,7 +14375,7 @@ contains
                             nExcits)
 
 
-#ifdef __DEBUG
+#ifdef DEBUG_
                         do n = 1, nExcits
                             if (.not. isProperCSF_ilut(tempExcits(:,n),.true.)) then
                                 call write_guga_list(6, tempExcits(:,1:nExcits))
@@ -15260,7 +15260,7 @@ contains
                 ! matrix element and stay on track
                 do iEx = 1, nExcits
                     ! need deltaB value
-#ifdef __DEBUG
+#ifdef DEBUG_
                     deltaB = getDeltaB(tempExcits(:,iEx))
                     ! check if a -1 is encountert
                     ASSERT(deltaB == -1)
@@ -15389,7 +15389,7 @@ contains
                 ! but no additional excitations...
 
                 do iEx = 1, nExcits
-#ifdef __DEBUG
+#ifdef DEBUG_
                     deltaB = getDeltaB(tempExcits(:, iEx))
 !                     ASSERT(deltaB == +1)
 #endif
@@ -15459,7 +15459,7 @@ contains
 
         ! nevertheless do some asserts in debug mode
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
         if (excitInfo%currentGen == 1) then
@@ -15677,7 +15677,7 @@ contains
         ! have already asserted that start and end values of stepvector and
         ! generator type are consistent to allow for an excitation.
         ! maybe still assert here in debug mode atleast
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! also assert we are not calling it for a weight gen. accidently
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
@@ -16302,7 +16302,7 @@ contains
         integer(n_int), pointer :: tempExcits(:,:)
         !todo asserts
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (excitInfo%gen1 == excitInfo%gen2) then
             ! two raising
             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
@@ -16404,7 +16404,7 @@ contains
         integer(n_int), pointer :: tempExcits(:,:)
         !todo asserts
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         if (excitInfo%gen1 == excitInfo%gen2) then
             ASSERT(.not.isZero(ilut,excitInfo%fullStart))
             ASSERT(.not.isZero(ilut,excitInfo%secondStart))
@@ -26818,7 +26818,6 @@ contains
         integer, intent(in) :: occRes
         real(dp), intent(inout) :: pgen
         integer, intent(out) :: orb
-!         integer, intent(in), optional :: orbRes1
         character(*), parameter :: this_routine = "pickRandomOrb_forced_negate"
 
         integer :: r, nOrbs, ierr
@@ -26830,18 +26829,6 @@ contains
         mask = (currentOcc_int /= occRes)
 
         nOrbs = count(mask)
-
-!
-!         if (present(orbRes1)) then
-!             ASSERT(orbRes1 > 0 .and. orbRes1 <= nSpatOrbs)
-!
-!             mask = (mask .and. orbitalIndex /= orbRes1)
-!         end if
-! #ifdef __DEBUG
-!         if (nOrbs == 0) then
-! !             print *, this_routine, " no orbital fits!"
-!         end if
-! #endif
 
         if (nOrbs > 0) then
             allocate(resOrbs(nOrbs), stat = ierr)

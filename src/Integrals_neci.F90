@@ -5,7 +5,8 @@ module Integrals_neci
                           tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
                           tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS,&
                           ECore, t_new_real_space_hubbard, t_trans_corr_hop, &
-                          t_new_hubbard, t_k_space_hubbard
+                          t_new_hubbard, t_k_space_hubbard,  t_mol_3_body, &
+                          tContact, t12FoldSym
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
@@ -20,7 +21,7 @@ module Integrals_neci
     use global_utilities
 
     use gen_coul_ueg_mod, only: gen_coul_hubnpbc, get_ueg_umat_el, &
-                                get_hub_umat_el
+                                get_hub_umat_el, get_contact_umat_el
 
     use HElem, only: HElement_t_size, HElement_t_sizeB
 
@@ -40,13 +41,13 @@ module Integrals_neci
 
     use util_mod, only: get_free_unit
 
-    use SymData, only: Symmetry
-
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 
     use real_space_hubbard, only: init_umat_rs_hub_transcorr, &
                                   init_hopping_transcorr
 
+    use tc_three_body_data, only: tHDF5LMat, &
+         tSparseLMat, tLMatCalc, LMatCalcHFactor, tSymBrokenLMat
     implicit none
 
 contains
@@ -106,11 +107,17 @@ contains
       HFRand=0.01_dp
       DMatEpsilon=0
       tPostFreezeHF=.false.
-
+      tSparseLMat = .false.
+      tSymBrokenLMat = .false.
+      tHDF5LMat = .false.
+      tSymBrokenLMat = .false.
 !Feb 08 defaults
       IF(Feb08) THEN
          NTAY(2)=3
       ENDIF
+
+      tLMatCalc = .false.
+      lMatCalcHFactor = 1.0
 
     end subroutine SetIntDefaults
 
@@ -359,9 +366,37 @@ contains
                call report("keyword "//trim(w)//" not recognized in DFMETHOD block",.true.)
             end select
         case("POSTFREEZEHF")
-          tPostFreezeHF=.true.
+           tPostFreezeHF=.true.
+
+       case("HDF5-INTEGRALS")
+           ! Read the 6-index integrals from an hdf5 file
+           tHDF5LMat = .true.
+       case("SPARSE-LMAT")
+           ! Allows for storing the 6-index integrals in a sparse format
+            tSparseLMat = .true.
+        case("SYM-BROKEN-LMAT")
+            ! Can be used to disable the permuational symmetry of the 6-index integrals
+            tSymBrokenLMat = .true.
+        case("UNSYMMETRIC-INTEGRALS")
+           ! the 6-index integrals are not symmetrized yet (has to be done
+           ! on the fly then)
+           tSymBrokenLMat = .true.
+
         case("DMATEPSILON")
           call readf(DMatEpsilon)
+
+        case("LMATCALC")
+
+            if(tSymBrokenLMat .or. t12FoldSym)then
+               call report("LMATCALC assumes 48-fold symmetry",.true.)
+          end if
+
+          tLMatCalc = .true.
+
+          if (item.lt.nitems) then
+           call readf(lMatCalcHFactor)
+          end if
+
         case("ENDINT")
              exit integral
         case default
@@ -380,10 +415,10 @@ contains
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
       Use UMatCache, only: SetupUMatCache
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
-      use SystemData, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
-      use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
-      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
-      use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
+      use SystemData, only : G1,iSpinSkip,nBasis,nMax,nMaxZ
+      use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER
+      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tPickVirtUniform
+      use SystemData, only: uhub, arr,alat,treal,tReltvy
       use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
       use LoggingData, only:tCalcPropEst, iNumPropToEst, EstPropFile
       use Parallel_neci, only : iProcIndex,MPIBcast
@@ -394,7 +429,7 @@ contains
       use real_space_hubbard, only: init_tmat
       use k_space_hubbard, only: init_tmat_kspace
       use lattice_mod, only: lat
-
+      use LMat_mod, only: readLMat
       implicit none
       INTEGER iCacheFlag
       complex(dp),ALLOCATABLE :: ZIA(:)
@@ -696,11 +731,12 @@ contains
 !         enddo
 !     enddo
 
-    ! Setup the umatel pointers as well
-    call init_getumatel_fn_pointers ()
+      ! Setup the umatel pointers as well
+      call init_getumatel_fn_pointers ()
+
+      if(t_mol_3_body) call readLMat()
 
     End Subroutine IntInit
-
 
 
     Subroutine IntFreeze
@@ -823,8 +859,11 @@ contains
         use UMatCache, only: iDumpCacheFlag, tReadInCache, nStates, &
                              nStatesDump, DumpUMatCache, DestroyUMatCache, &
                              WriteUMatCacheStats
+        use LMat_mod, only: freeLMat
         integer :: iCacheFlag
         character(*), parameter :: this_routine = 'IntCleanup'
+
+        if(t_mol_3_body) call freeLMat()
 
         if ((btest(iDumpCacheFlag, 0) .and. &
             (nStatesDump < nStates .or. .not. tReadInCache)) .or. &
@@ -862,7 +901,7 @@ contains
                            OneEPropInts2, OneEPropInts, tOneElecDiag, NewTMatInd, &
                            GetNEWTMATEl, tCPMDSymTMat, SetupTMAT2, SWAPTMAT, &
                            SwapOneEPropInts, SetupPropInts2
-       USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
+       USE UMatCache, only: FreezeTransfer,UMatCacheData
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
        use LoggingData, only:tCalcPropEst, iNumPropToEst
        use UMatCache, only: GTID
@@ -1500,7 +1539,6 @@ contains
         integer :: iss
 
         if (t_new_hubbard) then
-
             if (t_k_space_hubbard) then
                 get_umat_el => get_umat_kspace
             else
@@ -1545,7 +1583,11 @@ contains
                 endif
             else if (nBasisMax(1,3) == -1) then
                 ! UEG integral
-                get_umat_el => get_ueg_umat_el
+                if (tContact) then
+                       get_umat_el => get_contact_umat_el
+                else
+                       get_umat_el => get_ueg_umat_el
+                endif
             endif
         end if
 
@@ -1602,7 +1644,6 @@ contains
         integer :: i, j
         HElement_t(dp) :: hel
 
-
         if ( (idi == idj) .and. (idi == idk) .and. (idi == idl) ) then
             ! <ii|ii>
             hel = umat2d (idi, idi)
@@ -1658,7 +1699,6 @@ contains
         HElement_t(dp) :: hel, UElems(0:nTypes-1)
         logical :: calc2ints
         complex(dp) :: vasp_int(1, 0:1)
-
 
         i = idi
         j = idj
@@ -1733,7 +1773,7 @@ contains
                     call construct_ijab_one (i, j, k, l, vasp_int(1,0))
                     call construct_ijab_one (i, l, k, j, vasp_int(1,1))
                 end if
-#ifdef __CMPLX
+#ifdef CMPLX_
                 !cpp to avoid gfortran compiler warnings
                 UElems(0) = vasp_int(1,0)
                 UElems(1) = vasp_int(1,1)
@@ -1744,7 +1784,7 @@ contains
                 ! Bit 0 tells us which integral in the slot we need
                 hel = UElems(iand(iType, 1))
                 ! Bit 1 tells us whether we need to complex conj the integral
-#ifdef __CMPLX
+#ifdef CMPLX_
                 if (btest(iType, 1)) hel = conjg(hel)
 #endif
             else
@@ -1770,7 +1810,7 @@ contains
                 ! Bit 0 tells us which integral in the slot we need
                 hel = UElems (iand(iType, 1))
                 ! Bit 1 tells us whether we need to complex conj the integral
-#ifdef __CMPLX
+#ifdef CMPLX_
                 if (btest(iType, 1)) hel = conjg(hel)
 #endif
             endif
@@ -1801,13 +1841,12 @@ contains
 
         ! In:
         !    i,j,k,l: spin-orbital indices.
-
         use SystemData, only: G1
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
 !        integer, dimension(3) :: ksymx,ksymy,ksymx_c
-#ifdef __CMPLX
+#ifdef CMPLX_
         character(len=*), parameter :: t_r='get_umat_el_comporb_spinorbs'
 #endif
 
@@ -1840,7 +1879,7 @@ contains
 !            write(6,*) "Symmetry forbidden", i,j,k,l
            hel = 0
         endif
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(t_r,"Should not be requesting a complex integral")
 #endif
 
@@ -1866,7 +1905,7 @@ contains
         integer, intent(in) :: i, j, k, l
         HElement_t(dp) :: hel
         type(Symmetry) :: SymX,SymY,SymX_C,symtot,sym_sym
-#ifdef __CMPLX
+#ifdef CMPLX_
         character(len=*), parameter :: t_r='get_umat_el_comporb_notspinorbs'
 #endif
 
@@ -1891,7 +1930,7 @@ contains
         else
             hel = 0
         endif
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all(t_r,"Should not be requesting a complex integral")
 #endif
 
@@ -1973,7 +2012,7 @@ contains
         HElement_t(dp) :: hel
 
         hel = UMAT (UMatInd(idi, idj, idk, idl))
-#ifdef __CMPLX
+#ifdef CMPLX_
         hel = UMatConj(idi, idj, idk, idl, hel)
 #endif
 
@@ -1986,7 +2025,6 @@ contains
       use util_mod, only: get_free_unit
       IMPLICIT NONE
       INTEGER I,nbasis,iunit
-
       iunit = get_free_unit()
       open(iunit, file="SYMCLASSES", status="unknown")
       DO I=1,nbasis/2
@@ -2045,6 +2083,9 @@ contains
         close(iunit)
 
     end subroutine DumpFCIDUMP
+
+!------------------------------------------------------------------------------------------!
+
 
 END MODULE Integrals_neci
 

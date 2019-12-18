@@ -11,12 +11,12 @@ module rdm_explicit
 
     use bit_rep_data, only: NIfTot
     use constants
-    use util_mod, only: near_zero
     use SystemData, only : tReltvy, t_3_body_excits, tGUGA, nel
     use bit_reps, only: extract_bit_rep, decode_bit_det
 
     use guga_bitRepOps, only: encode_matrix_element, convert_ilut_toGUGA
     use guga_rdm, only: gen_exc_djs_guga, send_proc_ex_djs, t_test_diagonal
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -776,7 +776,7 @@ contains
         use rdm_filling, only: fill_sings_1rdm, fill_spawn_rdm_singles
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Sing_SearchOccDets"
 #endif
 
@@ -785,7 +785,7 @@ contains
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
         integer :: i, j, NoDets, StartDets, PartInd
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), Ex_symm(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,maxExcit), Ex_symm(2,maxExcit), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
 
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
@@ -864,14 +864,14 @@ contains
         use rdm_data_utils, only: add_to_rdm_spawn_t
         use searching, only: BinSearchParts_rdm
         use SystemData, only: nel
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Doub_SearchOccDets"
 #endif
         integer(MPIArg), intent(in) :: recvcounts(nProcessors),recvdisps(nProcessors)
         integer(n_int) :: iLutnJ(0:NIfTot)
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
         integer :: i, j, NoDets, StartDets, PartInd
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,maxExcit), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
 
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
@@ -955,11 +955,11 @@ contains
         real(dp), dimension(lenof_sign) :: RealHistPos
 
         integer :: i, j, NoDets, StartDets, PartInd, ExcitLevel
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), Ex_symm(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,maxExcit), Ex_symm(2,maxExcit), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Sing_Hist_SearchOccDets"
 #endif
         ! Take each Dj, and binary search CurrentDets to see if it is occupied.
@@ -1059,11 +1059,11 @@ contains
         integer, dimension(lenof_sign) :: HistPos
         real(dp), dimension(lenof_sign) :: RealHistPos
         integer :: i, j, NoDets, StartDets,PartInd, ExcitLevel
-        integer :: nI(NEl), nJ(NEl), Ex(2,2), FlagsDi, FlagsDj
+        integer :: nI(NEl), nJ(NEl), Ex(2,maxExcit), FlagsDi, FlagsDj
         logical :: tDetFound, tParity
         real(dp) :: SignDi(lenof_sign), SignDj(lenof_sign), full_sign(1)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = "Doub_Hist_SearchOccDets"
 #endif
         ! Take each Dj, and binary search the CurrentDets to see if it is occupied.

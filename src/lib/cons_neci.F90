@@ -21,8 +21,8 @@ real(dp), parameter ::  PI    = 3.1415926535897932384626433832795028841971693993
 real(dp), parameter ::  PI2   = 9.8696044010893586188344909998761511353136994072408_dp
 real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333333_dp
 real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753769_dp
-real(dp), parameter ::  EPS  = 0.0000000000001_dp
 real(dp), parameter ::  OverR2 = 1.0_dp/Root2
+real(dp), parameter :: EPS = 0.0000000000001_dp
 real(dp), parameter :: INFINITY = huge(1.0_dp)
 !real(dp), parameter ::  Root2 = sqrt(2.0_dp)   !Removed since sun comiler didn't like this: bug 3853
 
@@ -42,10 +42,13 @@ integer, parameter :: sizeof_dp = 8
 integer, parameter :: sizeof_complexdp = 16
 integer, parameter :: sizeof_sp = 4
 
+! number of possible excitations per step
+integer, parameter :: maxExcit = 3
+
 ! Give ourselves the option of lenof_sign/inum_runs being a runtime
 ! variable, rather than a compile-time constant
-#if defined(__PROG_NUMRUNS)
-#if defined(__CMPLX)
+#if defined(PROG_NUMRUNS_)
+#if defined(CMPLX_)
 !Complex integrals, (arbitrary, run-time) multiple replicas
     integer :: nreplicas = 1    !1 or 2   (for replica sampling, not multiple states)
     integer :: lenof_sign       !2 x inum_runs (2 for complex x number of seperate wavefuncs sampled)
@@ -69,8 +72,8 @@ integer, parameter :: sizeof_sp = 4
     real(dp), parameter :: HEl_zero = 0.0_dp
 #endif
 
-#elif defined(__DOUBLERUN)
-#if defined(__CMPLX)
+#elif defined(DOUBLERUN_)
+#if defined(CMPLX_)
 !Complex integrals, double replica
     integer, parameter :: nreplicas = 2
     integer, parameter :: lenof_sign = 4
@@ -94,7 +97,7 @@ integer, parameter :: sizeof_sp = 4
 #endif
 
 #else
-#if defined(__CMPLX)
+#if defined(CMPLX_)
 !Complex integrals, single replica
     integer, parameter :: nreplicas = 1
     integer, parameter :: lenof_sign = 2
@@ -123,7 +126,7 @@ real(dp), dimension(lenof_sign_max), parameter :: null_part = 0.0_dp
 !This should normally be integer(4)'s.
 integer, parameter :: MPIArg=int32
 
-#ifdef __INT64
+#ifdef INT64_
 
 ! Kind parameter for 64-bit integers.
 integer, parameter :: n_int=int64
@@ -163,7 +166,7 @@ integer, parameter :: size_int_rdm = bits_int_rdm/8
 ! Index of last bit in an int_rdm integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_int_rdm = bits_int_rdm - 1
 
-    integer, parameter :: iout = 6 
+    integer, parameter :: iout = 6
 
     ! Internal state storage for the stats_out integration
     ! n.b. This shouldn't be here, but there is nowhere els eto put it

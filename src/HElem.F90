@@ -1,7 +1,7 @@
 MODULE HElem
       IMPLICIT NONE
 
-#ifdef __CMPLX
+#ifdef CMPLX_
       integer, parameter :: HElement_t_size=2
 #else
       integer, parameter :: HElement_t_size=1

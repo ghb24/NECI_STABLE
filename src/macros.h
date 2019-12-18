@@ -5,9 +5,9 @@
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
-#define IsNullDet(nI) (nI(1).eq.0)
+#define IsNullDet(nI) (any((nI) .eq. 0))
 
-! i am too stupid to remember where the src and tgt is in ex(2,2)
+! i am too stupid to remember where the src and tgt is in ex(2,maxExcit)
 #define get_src(ex) ex(1,:)
 #define get_tgt(ex) ex(2,:)
 
@@ -87,7 +87,7 @@
 #define set_three(ilut,spat) set_orb(ilut, 2*spat);  set_orb(ilut, 2*spat-1)
 
 ! Useful for fixing things. Requires this_routine to be defined
-#ifdef __DEBUG
+#ifdef DEBUG_
 #define ASSERT(x) \
 if (.not. (x)) then; \
  call stop_all (this_routine, "Assert fail: "//"x"); \
@@ -113,7 +113,7 @@ endif
 #endif
 
 ! define a precompiler setup for the warning workaround
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
 #define unused_var(x) associate(x=>x); end associate
 #else
 #define unused_var(x)
@@ -127,31 +127,31 @@ endif
 #define end_if_root end if
 
 ! Make Re / Cplx builds easier
-#ifdef __CMPLX
-#ifdef __PROG_NUMRUNS
+#ifdef CMPLX_
+#ifdef PROG_NUMRUNS_
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*index-1), arr(2*index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(1), arr(2), dp)
 #endif
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
-#elif defined(__PROG_NUMRUNS)
+#elif defined(PROG_NUMRUNS_)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) real(arr(1), dp)
 #endif
 
-#ifdef __CMPLX
+#ifdef CMPLX_
 ! 1->1 ,2->1, 3->2 ...
 #define part_type_to_run(pt) (1+((pt)-1)/2)
 #define rotate_part(pt) ((pt) - 1 + 2*mod((pt),2))
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))
 #define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
 #define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp
 #else
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))
 #define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
@@ -167,11 +167,11 @@ endif
 ! 1->1 ,2->2, 3->3 ...
 #define part_type_to_run(pt) pt
 #define rotate_part(pt) pt
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
 #define min_part_type(run) run
 #define max_part_type(run) run
 #else
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
 #define min_part_type(run) run
 #define max_part_type(run) run
 #else
@@ -196,7 +196,7 @@ endif
 #else
 #define c_ptr_t integer(int32)
 #endif
-#elif defined(__GFORTRAN__)
+#elif defined(GFORTRAN_)
 #define c_ptr_t type(c_ptr)
 #define loc_neci g_loc
 #else
@@ -208,7 +208,7 @@ endif
 ! gfortran was playing up using a parameter defined to equal C_NULL_PTR
 ! --> use pre-processor defines instead!
 #ifdef CBINDMPI
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
+#if defined(__PATHSCALE__) || defined(ISO_C_HACK_) || defined(__OPEN64__)
 #ifdef POINTER8
 #define MPI_IN_PLACE (0_int64)
 #else
@@ -220,21 +220,21 @@ endif
 #endif
 
 ! To make sure conjugations of both real and complex realisations of HElement_t behave on all compilers:
-#ifdef __CMPLX
+#ifdef CMPLX_
 #define h_conjg(z) conjg(z)
 #else
 #define h_conjg(z) z
 #endif
 
 ! The following is useful for converting from HElement_t to an array of the appropriate length
-#ifdef __CMPLX
+#ifdef CMPLX_
 #define h_to_array(z) (/dble(z), dimag(z)/)
 #else
 #define h_to_array(z) (/ z /)
 #endif
 
 ! Cast a real value to HElement_t
-#ifdef __CMPLX
+#ifdef CMPLX_
 #define h_cast(val) cmplx(val, 0.0, kind=dp)
 #else
 #define h_cast(val) real(val, dp)

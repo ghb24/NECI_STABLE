@@ -5,7 +5,6 @@ module FciMCParMod
     ! main per-iteration processing loop.
     use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tGen_4ind_2, &
                           tGen_4ind_weighted, t_test_excit_gen, tGUGA, &
-                          tHub, tReltvy, &
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
                           tGen_guga_mixed, t_guga_mixed_init, t_guga_mixed_semi, &
@@ -30,7 +29,8 @@ module FciMCParMod
                         t_guga_mat_eles, t_trunc_guga_pgen_noninits, &
                         tLogAverageSpawns, tActivateLAS, &
                         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
-                        tDetermProjApproxHamil, tCoreAdaptiveShift
+                        tDetermProjApproxHamil, tCoreAdaptiveShift, &
+                        tScaleBlooms, max_allowed_spawn
 
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
                         tDelayAllDoubsInits, tReferenceChanged, &
@@ -43,7 +43,8 @@ module FciMCParMod
                            write_end_core_size, t_calc_double_occ, t_calc_double_occ_av, &
                            equi_iter_double_occ, t_print_frq_histograms, &
                            t_spin_measurements, t_hist_fvals, &
-                           enGrid, arGrid, tCoupleCycleOutput, StepsPrint
+                           enGrid, arGrid, tCoupleCycleOutput, StepsPrint, &
+                           tHDF5TruncPopsWrite, iHDF5TruncPopsEx
 
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
@@ -86,7 +87,8 @@ module FciMCParMod
     use cont_time, only: iterate_cont_time
     use global_det_data, only: det_diagH, reset_tau_int, get_all_spawn_pops, &
                                reset_shift_int, update_shift_int, &
-                               update_tau_int, set_spawn_pop, replica_est_len
+                               update_tau_int, set_spawn_pop, replica_est_len, &
+                               get_max_ratio, update_max_ratio
 
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
@@ -130,7 +132,6 @@ module FciMCParMod
                         measure_double_occ_and_spin_diff, rezero_spin_diff, &
                         write_spin_diff_stats, write_spat_doub_occ_stats, &
                         all_sum_double_occ, calc_double_occ_from_rdm
-
     use tau_search_hist, only: print_frequency_histograms, deallocate_histograms
     use back_spawn, only: init_back_spawn
     use real_space_hubbard, only: init_real_space_hubbard, gen_excit_rs_hubbard
@@ -146,6 +147,7 @@ module FciMCParMod
     use analyse_wf_symmetry, only: analyze_wavefunction_symmetry, t_symmetry_analysis
 
     use sltcnd_mod, only: sltcnd_excit
+    use hdf5_popsfile, only: write_popsfile_hdf5
 
     implicit none
 
@@ -199,7 +201,7 @@ module FciMCParMod
 
         integer :: tmp_det(nel)
 
-#ifdef __REALTIME
+#ifdef REALTIME_
         call stop_all(this_routine,"No real-time block specified in input")
 #endif
 
@@ -251,6 +253,16 @@ module FciMCParMod
             call init_k_space_hubbard()
         end if
 
+#ifdef DEBUG_
+        call decode_bit_det(tmp_det, ilutHF)
+        write(iout, *) "HF: ", tmp_det
+        call decode_bit_det(tmp_det, ilutHF_true)
+        write(iout, *) "HF_true: ", tmp_det
+        call decode_bit_det(tmp_det, ilutRef(:,1))
+        write(iout, *) "Ref: ", tmp_det
+        write(iout, *) "ProjEDet: ", ProjEDet
+#endif
+
         ! Attach signal handlers to give a more graceful death-mannerism
         call init_signals()
 
@@ -267,7 +279,7 @@ module FciMCParMod
 
           end if
 
-#ifndef __CMPLX
+#ifndef CMPLX_
          if ((tGen_4ind_2 .or. tGen_4ind_weighted .or. tLatticeGens) .and. t_test_excit_gen) then
              call run_test_excit_gen_det()
          end if
@@ -321,9 +333,11 @@ module FciMCParMod
             call WriteFCIMCStats()
         end if
 
+        ! double occupancy:
         if (t_calc_double_occ) then
             call write_double_occ_stats(initial = .true.)
             call write_double_occ_stats()
+
             if (t_spin_measurements) then
 
                 call write_spin_diff_stats(initial = .true.)
@@ -331,7 +345,6 @@ module FciMCParMod
 
                 call write_spat_doub_occ_stats(initial = .true.)
                 call write_spat_doub_occ_stats()
-
             end if
         end if
         ! Put a barrier here so all processes synchronise before we begin.
@@ -704,7 +717,6 @@ module FciMCParMod
                     CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
                 end if
             ENDIF
-!            IF(TAutoCorr) CALL WriteHistogrammedDets()
 
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
@@ -843,7 +855,15 @@ module FciMCParMod
         IF(TIncrement) Iter=Iter-1
         IF(TPopsFile) THEN
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
+
+            if(tHDF5TruncPopsWrite)then
+                call write_popsfile_hdf5(iHDF5TruncPopsEx)
+                call calc_inst_proje()
+                write(6,*) 'Instantaneous projected energy of truncated popsfile:', proje_iter
+            endif
         ENDIF
+
+
         IF(tCalcFCIMCPsi) THEN
 !This routine will actually only print the matrix if tPrintFCIMCPsi is on
             CALL PrintFCIMCPsi()
@@ -1093,11 +1113,14 @@ module FciMCParMod
 
         integer :: ms, allErr
         real(dp) :: precond_fac
+        ! average number of excitations per walker for a given determinant
+        real(dp) :: AvMCExcitsLoc, scale, max_spawn
         HElement_t(dp) :: hdiag_spawn, h_diag_correct
 
         logical :: signChanged, newlyOccupied, flag_mixed
 
-        real(dp) :: currArg, spawnArg, tau_dead
+        real(dp) :: currArg, spawnArg
+        integer :: scaleFactor
         ! how many entries were added to (the end of) CurrentDets in the last iteration
         integer, save :: detGrowth = 0
 
@@ -1130,10 +1153,6 @@ module FciMCParMod
 
         call rezero_iter_stats_each_iter(iter_data, rdm_definitions)
 
-        ! quick and dirty double occupancy measurement:
-        if (t_calc_double_occ) then
-            call rezero_double_occ_stats()
-        end if
 
         ! The processor with the HF determinant on it will have to check
         ! through each determinant until it's found. Once found, tHFFound is
@@ -1312,7 +1331,7 @@ module FciMCParMod
                 SpawnSign = get_all_spawn_pops(j)
                 do run = 1, inum_runs
                     if(.not. is_run_unnocc(SignCurr, run) .and. .not. is_run_unnocc(SpawnSign, run)) then
-#ifdef __CMPLX
+#ifdef CMPLX_
                         !For complex walkers, we consider the sign changed when the argument of the complex
                         !number changes more than pi/2.
 
@@ -1330,7 +1349,7 @@ module FciMCParMod
                         call reset_tau_int(j, run)
                         call reset_shift_int(j, run)
                         call set_spawn_pop(j, min_part_type(run), SignCurr(min_part_type(run)))
-#ifdef __CMPLX
+#ifdef CMPLX_
                         call set_spawn_pop(j, max_part_type(run), SignCurr(max_part_type(run)))
 #endif
                     else
@@ -1459,20 +1478,35 @@ module FciMCParMod
 
             do part_type = 1, lenof_sign
 
-               run = part_type_to_run(part_type)
-               TempSpawnedPartsInd = 0
+                run = part_type_to_run(part_type)
+                TempSpawnedPartsInd = 0
 
                 ! Loop over all the particles of a given type on the
                 ! determinant. CurrentSign gives number of walkers. Multiply
                 ! up by AvMCExcits if attempting multiple excitations from
                 ! each walker (default 1.0_dp).
-               call decide_num_to_spawn(SignCurr(part_type), AvMCExcits, WalkersToSpawn)
 
                 ! GUGA addition: only recalc b vector and stuff once for each
                 ! CSF -> set tNewDet once for each determinant
                 ! which is set to false inside the guga excitaiton generator
                 tNewDet = .false.
 
+                AvMCExcitsLoc = AvMCExcits
+                ! optional: Adjust the number of spawns to the expected maximum
+                ! Hij/pgen ratio of this determinant -> prevent blooms
+                ! Only done while not updating tau (to prevent interdependencies)
+                ! or, for hist-tau-search, in vairable shift mode
+                ! Usually, this means: done in variable shift mode
+                if(tScaleBlooms .and. .not. tSearchTau &
+                    .and. .not. (t_hist_tau_search .and. tSinglePartPhase(&
+                    part_type_to_run(part_type)))) then
+                    max_spawn = tau * get_max_ratio(j)
+                    if(max_spawn > max_allowed_spawn) then
+                        scale = max_spawn / max_allowed_spawn
+                        AvMCExcitsLoc = AvMCExcitsLoc * scale
+                    endif
+                endif
+                call decide_num_to_spawn(SignCurr(part_type), AvMCExcitsLoc, WalkersToSpawn)
                 do p = 1, WalkersToSpawn
 
                     ! Zero the bit representation, to ensure no extraneous
@@ -1549,7 +1583,7 @@ module FciMCParMod
                                             CurrentDets(:,j), SignCurr, &
                                             nJ,iLutnJ, Prob, HElGen, IC, ex, &
                                             tParity, walkExcitLevel, part_type, &
-                                            AvSignCurr, RDMBiasFacCurr, precond_fac)
+                                            AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac)
                                             ! Note these last two, AvSignCurr and
                                             ! RDMBiasFacCurr are not used unless we're
                                             ! doing an RDM calculation.
@@ -1576,7 +1610,7 @@ module FciMCParMod
                         if (tTrialWavefunction) then
                             call clr_flag(iLutnJ, flag_trial)
                             call clr_flag(iLutnJ, flag_connected)
-                        end if
+                         end if
 
                         ! If using a preconditioner, update the child weight for statistics
                         ! (mainly for blooms and hence updating the time step).
@@ -1585,6 +1619,8 @@ module FciMCParMod
                         child_for_stats = child
 
                         if (tPreCond) child_for_stats = child_for_stats/precond_fac
+
+                        if(tScaleBlooms) call update_max_ratio(abs(HElGen) / prob, j)
 
                         call new_child_stats (iter_data, CurrentDets(:,j), &
                                               nJ, iLutnJ, ic, walkExcitLevel, &
@@ -1603,7 +1639,7 @@ module FciMCParMod
                            exit
                         end if
 
-                    end if ! (child /= 0), Child created.
+                     end if ! (child /= 0), Child created.
 
                 end do ! Cycling over mulitple particles on same determinant.
 

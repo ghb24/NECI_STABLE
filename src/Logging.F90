@@ -16,12 +16,13 @@ MODULE Logging
     use errors, only: Errordebug
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
+
 ! RT_M_Merge: There seems to be no conflict here, so use both
     use real_time_data, only: n_real_time_copies, t_prepare_real_time, &
                               cnt_real_time_copies
+
     use rdm_data, only: nrdms_transition_input, states_for_transition_rdm, tApplyLC
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
-    use cc_amplitudes, only: t_plot_cc_amplitudes
 
     use analyse_wf_symmetry, only: t_symmetry_analysis, t_symmetry_mirror, &
                            t_symmetry_rotation, symmetry_rotation_angle, &
@@ -32,6 +33,8 @@ MODULE Logging
 
     use guga_rdm, only: t_test_sym_fill, t_direct_exchange, t_more_sym, &
                         t_mimic_stochastic
+
+    use cc_amplitudes, only: t_plot_cc_amplitudes
 
     IMPLICIT NONE
 
@@ -183,9 +186,12 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
+      tPopsInstProjE = .false.
+      tHDF5TruncPopsWrite = .false.
+      iHDF5TruncPopsEx = 0
       tWriteRefs = .false.
       maxInitExLvlWrite = 8
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
       tFCIMCStats2 = .true.
 #else
       tFCIMCStats2 = .false.
@@ -193,6 +199,7 @@ MODULE Logging
       t_hist_fvals = .true.
       enGrid = 100
       arGrid = 100
+      tHistLMat = .false.
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -419,6 +426,9 @@ MODULE Logging
                 i = i+1
             enddo
 
+         case("HIST-INTEGRALS")
+            tHistLMat = .true.
+
          case("ACC-RATE-POINTS")
             ! number of grid points for 2d-histogramming the acc rate used for adaptive shift
             if(item < nitems) call readi(arGrid)
@@ -567,7 +577,7 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         case("PAIRED-REPLICAS")
             tPairedReplicas = .true.
             nreplicas = 2
@@ -575,14 +585,14 @@ MODULE Logging
 
         case("UNPAIRED-REPLICAS")
             tUseOnlySingleReplicas = .true.
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
             tPairedReplicas = .false.
             nreplicas = 1
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
 #endif
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         case("REPLICA-ESTIMATES")
             tReplicaEstimates = .true.
             tPairedReplicas = .true.
@@ -601,13 +611,13 @@ MODULE Logging
             call readi(IterRDMonFly)
             call readi(RDMEnergyIter)
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
             ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
                 tPairedReplicas = .true.
                 nreplicas = 2
             end if
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             tPairedReplicas = .true.
 #endif
             if (IterRDMOnFly < semistoch_shift_iter) then
@@ -632,13 +642,13 @@ MODULE Logging
             call readi(RDMEnergyIter)
 
             iSampleRDMIters = n_samples * RDMEnergyIter
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
           ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
                 tPairedReplicas = .true.
                 nreplicas = 2
             end if
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             tPairedReplicas = .true.
 #endif
             if (IterRDMOnFly < semistoch_shift_iter) then
@@ -982,6 +992,20 @@ MODULE Logging
         case("HDF5-POPS-WRITE")
             ! Use the new HDF5 popsfile format just for writing
             tHDF5PopsWrite = .true.
+
+        case("POPS-INST-PROJE")
+            ! Whether to calculate and print the instanenous project energy of
+            ! wavefunction printed to popsfile
+            tPopsInstProjE = .true.
+
+        case("HDF5-TRUNC-POPS-WRITE")
+            ! Whether to write another HDF5 popsfile with dets restricted to a maximum
+            ! exitation level
+            tHDF5TruncPopsWrite = .true.
+            call readi(iHDF5TruncPopsEx)
+            if(iHDF5TruncPopsEx<2) then
+                call stop_all(t_r,'Maximum excitation level should greater than 1')
+            end if
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.

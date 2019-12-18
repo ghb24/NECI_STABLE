@@ -47,7 +47,7 @@ module real_time
     use FciMCParMod, only: rezero_iter_stats_each_iter
     use hash, only: clear_hash_table
     use constants, only: int64, sizeof_int, n_int, lenof_sign, dp, EPS, inum_runs, bits_n_int, &
-         iout
+         iout, maxExcit
     use AnnihilationMod, only: DirectAnnihilation, AnnihilateSpawnedParts, &
          deterministic_annihilation, communicate_and_merge_spawns
     use bit_reps, only: extract_bit_rep, decode_bit_det
@@ -602,7 +602,7 @@ contains
         ! spawning step, but with a different death step and without the
         ! annihilation step at the end!
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
-                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
+                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,maxExcit), &
                    ex_level_to_hf
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
@@ -610,7 +610,7 @@ contains
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
         integer :: determ_index
-        real(dp) :: prefactor, unused_fac
+        real(dp) :: prefactor, unused_fac, unused_avEx
 
         ! declare this is the second runge kutta step
         runge_kutta_step = 2
@@ -708,7 +708,7 @@ contains
                         ! unbias if the number of spawns was truncated
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                              nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                             ex_level_to_ref, ireplica, unused_sign, unused_rdm_real, unused_fac)
+                             ex_level_to_ref, ireplica, unused_sign, unused_avEx, unused_rdm_real, unused_fac)
                         child_sign = prefactor*child_sign
                      else
                         child_sign = 0.0_dp
@@ -772,7 +772,7 @@ contains
       integer, intent(out) :: err
         character(*), parameter :: this_routine = "first_real_time_spawn"
         integer :: idet, parent_flags, nI_parent(nel), unused_flags, ex_level_to_ref, &
-                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,2), &
+                   ireplica, nspawn, ispawn, nI_child(nel), ic, ex(2,maxExcit), &
                    ex_level_to_hf
         integer(n_int) :: ilut_child(0:niftot)
         real(dp) :: parent_sign(lenof_sign), parent_hdiag, prob, child_sign(lenof_sign), &
@@ -780,7 +780,7 @@ contains
         logical :: tParentIsDeterm, tParentUnoccupied, tParity, break
         HElement_t(dp) :: HelGen
         integer :: TotWalkersNew, run, determ_index, MaxIndex
-        real(dp) :: unused_fac
+        real(dp) :: unused_fac, unused_avEx
 
         ! declare this is the first runge kutta step
         runge_kutta_step = 1
@@ -848,13 +848,6 @@ contains
             ! we can the rest of this loop.
             if (ss_space_in%tDoubles .and. ex_level_to_hf == 0 .and. tDetermHFSpawning) cycle
 
-            ! i dont thin i need this below..
-!             if (tAllSymSectors) then
-!                 ms_parent = return_ms(CurrentDets(:,idet))
-!                 nOccAlpha = (nel+ms_parent)/2
-!                 nOccBeta = (nel-ms_parent)/2
-!             end if
-!
             ! If this condition is not met (if all electrons have spin up or all have spin down)
             ! then there will be no determinants to spawn to, so don't attempt spawning.
             ! thats a really specific condition.. shouldnt be checked each
@@ -885,7 +878,7 @@ contains
 
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                            ex_level_to_ref, ireplica, unused_sign, &
+                                            ex_level_to_ref, ireplica, unused_sign, unused_avEx, &
                                             unused_rdm_real, unused_fac)
                         child_sign = child_sign*prefactor
                     else
@@ -1001,7 +994,7 @@ if(iProcIndex == root .and. .false.) then
         print *, "=========================="
      endif
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         call check_update_growth(iter_data_fciqmc,"Error in first RK step")
 #endif
 
@@ -1080,7 +1073,7 @@ endif
         call communicate_and_merge_spawns(MaxIndex, second_spawn_iter_data, .false.)
         call DirectAnnihilation (TotWalkersNew, MaxIndex, second_spawn_iter_data, err)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
 #endif
 

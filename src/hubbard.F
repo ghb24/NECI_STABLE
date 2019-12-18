@@ -469,7 +469,6 @@ C.. now work out which reps are degenerate and label them
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
-
          ! this does not make sense..
          SYMREPS = 0
          DO I=1,NBASIS
