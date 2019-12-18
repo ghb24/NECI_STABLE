@@ -124,7 +124,7 @@ contains
 
         i = int(r)
         res = r - real(i, dp)
-        
+
         if (abs(res) >= 1.0e-12_dp) then
             if (abs(res) > genrand_real2_dSFMT()) &
                 i = i + nint(sign(1.0_dp, r))
@@ -323,22 +323,22 @@ contains
      ! Input: p,q - 2d-array indices
      ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
       implicit none
-      integer, intent(in) :: p,q
-      integer :: ind
+      integer(int32), intent(in) :: p,q
+      integer(int32) :: ind
 
       ! qp and pq are considered to be the same index
       ! -> permutational symmetry
       ! implemented in terms of fuseIndex_int64
       ind = int(fuseIndex_int64(int(q,int64),int(p,int64)))
     end function fuseIndex_int32
-    
+
 !------------------------------------------------------------------------------------------!
 
     pure function fuseIndex_int64(x,y) result(xy)
       ! create a composite index out of two indices, assuming they are unordered
       ! i.e. their ordering does not matter
       ! Input: p,q - 2d-array indices
-      ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q      
+      ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
       implicit none
       integer(int64), intent(in) :: x,y
       integer(int64) :: xy
@@ -354,26 +354,26 @@ contains
 
     pure subroutine intswap_int32(a,b)
       ! exchange the value of two integers a,b
-      ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)      
-      integer, intent(inout) :: a,b
-      integer :: tmp
-      
+      ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
+      integer(int32), intent(inout) :: a,b
+      integer(int32) :: tmp
+
       tmp = a
-      a = b 
+      a = b
       b = tmp
     end subroutine intswap_int32
 
 !------------------------------------------------------------------------------------------!
-    
+
 
     pure subroutine intswap_int64(a,b)
       ! exchange the value of two integers a,b
       ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
       integer(int64), intent(inout) :: a,b
       integer(int64) :: tmp
-      
+
       tmp = a
-      a = b 
+      a = b
       b = tmp
     end subroutine intswap_int64
 
@@ -387,7 +387,7 @@ contains
       call intswap(i,j)
     end subroutine pairSwap
 
-!------------------------------------------------------------------------------------------!        
+!------------------------------------------------------------------------------------------!
 
     function linearIndex(p,q,dim) result(ind)
       ! fuse p,q into one contiguous index
@@ -413,7 +413,7 @@ contains
     integer :: ms
 
     ms = mod(orb,2)
-  end function getSpinIndex    
+  end function getSpinIndex
 
 !--- Numerical utilities ---
 
@@ -666,18 +666,18 @@ contains
 
     end function binary_search
 
-    function binary_search_int (arr, val) result(pos) 
+    function binary_search_int (arr, val) result(pos)
         ! W.D.: also write a binary search for "normal" lists of ints
         integer, intent(in) :: arr(:)
         integer, intent(in) :: val
-        integer :: pos 
+        integer :: pos
 
         integer :: hi, lo
 
         lo = lbound(arr,1)
         hi = ubound(arr,1)
 
-        if (hi < lo) then 
+        if (hi < lo) then
             pos  = -lo
             return
         end if
@@ -685,22 +685,22 @@ contains
         do while (hi /= lo)
             pos = int(real(hi + lo, sp) / 2.0_dp)
 
-            if (arr(pos) == val) then 
-                exit 
-            else if (val > arr(pos)) then 
+            if (arr(pos) == val) then
+                exit
+            else if (val > arr(pos)) then
                 lo = pos + 1
-            else 
+            else
                 hi = pos
             end if
         end do
 
-        if (hi == lo) then 
-            if (arr(hi) == val) then 
-                pos = hi 
-            else if (val > arr(hi)) then 
-                pos = -hi - 1 
+        if (hi == lo) then
+            if (arr(hi) == val) then
+                pos = hi
+            else if (val > arr(hi)) then
+                pos = -hi - 1
 
-            else 
+            else
                 pos = -hi
             end if
         end if
