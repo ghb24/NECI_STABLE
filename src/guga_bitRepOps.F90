@@ -11,7 +11,7 @@ module guga_bitRepOps
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list
     use guga_data ! get explicit here too!
-    use constants, only: dp, n_int, bits_n_int, bni_, bn2_
+    use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
                     CountBits, DetBitEQ
@@ -38,7 +38,9 @@ module guga_bitRepOps
         calcOcc_vector_ilut, calcOcc_vector_int, &
         encodebitdet_guga, identify_excitation, init_csf_information, &
         calc_csf_info, extract_h_element, getexcitation_guga, &
-        getspatialoccupation, getExcitationRangeMask
+        getspatialoccupation, getExcitationRangeMask, &
+        contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
+        extract_2_rdm_ind
 
 
 
@@ -2568,6 +2570,70 @@ contains
         end do
 
     end subroutine init_csf_information
+
+    subroutine extract_1_rdm_ind(rdm_ind, i, a)
+        ! the converstion routine between the combined and explicit rdm
+        ! indices for the 1-RDM
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer, intent(out) :: i, a
+        character(*), parameter :: this_routine = "extract_matrix_element"
+
+        a = int(mod(rdm_ind - 1, nSpatOrbs)  + 1)
+        i = int((rdm_ind - 1)/nSpatOrbs + 1)
+
+    end subroutine extract_1_rdm_ind
+
+    function contract_1_rdm_ind(i,a) result(rdm_ind)
+        ! the inverse function of the routine above, to give the combined
+        ! rdm index of two explicit ones
+        integer, intent(in) :: i, a
+        integer(int_rdm) :: rdm_ind
+        character(*), parameter :: this_routine = "contract_1_rdm_ind"
+
+        rdm_ind = nSpatOrbs * (i - 1) + a
+
+    end function contract_1_rdm_ind
+
+    function contract_2_rdm_ind(i,j,k,l) result(ijkl)
+        ! since I only ever have spatial orbitals in the GUGA-RDM make
+        ! the definition of the RDM-index combination differently
+        integer, intent(in) :: i,j,k,l
+        integer(int_rdm) :: ijkl
+        character(*), parameter :: this_routine = "contract_2_rdm_ind"
+
+        integer :: ij, kl
+
+        ij = (i - 1) * nSpatOrbs + j
+        kl = (k - 1) * nSpatOrbs + l
+
+        ijkl = (ij - 1) * (int(nSpatOrbs, int_rdm)**2) + kl
+
+    end function contract_2_rdm_ind
+
+    subroutine extract_2_rdm_ind(ijkl, i, j, k, l, ij_out, kl_out)
+        ! the inverse routine of the function above.
+        ! it is actually practical to have ij and kl also available at
+        ! times, since it can identify diagonal entries of the two-RDM
+        integer(int_rdm), intent(in) :: ijkl
+        integer, intent(out) :: i,j,k,l
+        integer, intent(out), optional :: ij_out, kl_out
+        character(*), parameter :: this_routine = "extract_2_rdm_ind"
+
+        integer :: ij, kl
+
+        kl = int(mod(ijkl - 1, int(nSpatOrbs, int_rdm)**2) + 1)
+        ij = int((ijkl - kl)/(nSpatOrbs ** 2) + 1)
+
+        j = mod(ij - 1, nSpatOrbs) + 1
+        i = (ij - j) / nSpatOrbs + 1
+
+        l = mod(kl - 1, nSpatOrbs) + 1
+        k = (kl - l) / nSpatOrbs + 1
+
+        if (present(ij_out)) ij_out = ij
+        if (present(kl_out)) kl_out = kl
+
+    end subroutine extract_2_rdm_ind
 
     subroutine deinit_csf_information
         ! deallocate the currently stored csf information

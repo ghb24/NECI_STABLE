@@ -98,6 +98,8 @@ module guga_excitations
     use back_spawn, only: check_electron_location, check_orbital_location, &
         check_electron_location_spatial, check_orbital_location_spatial
 
+    use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
+
     ! variables
     implicit none
     ! use a "global" bVector variable here so that a b vector only has to be
@@ -303,6 +305,16 @@ contains
         ! excitations connecting the same 2 CSFs in the rdm calculation
         ! but do that later!
 
+        ! set defaults for early exits
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = 0
+            rdm_mat = 0.0_dp
+        end if
+
         ! check diagonal case first
         if (DetBitEQ(ilutI,ilutJ)) then
 
@@ -312,17 +324,16 @@ contains
             ! tJ model..
             mat_ele = calcDiagMatEleGUGA_ilut(tmp_i)
 
+            ! should not be here for RDMs or?
+            ! otherwise I have to change smth here
+            ASSERT(.not. present(rdm_ind))
             return
         end if
 
         excitInfo = identify_excitation(ilutI, ilutJ)
 
-        if (.not. excitInfo%valid) then
-            ! more than a double excitation! leave with 0 matrix element
-            mat_ele = h_cast(0.0_dp)
-
-            return
-        end if
+        ! more than a double excitation! leave with 0 matrix element
+        if (.not. excitInfo%valid) return
 
         ! for the hubbard model implementation, depending if it is in the
         ! momentum- or real-space i can get out of here if we identify
@@ -331,35 +342,19 @@ contains
         ! earlier but for now do it here!
         if (tHub .or. t_new_hubbard) then
             if (treal .or. t_new_real_space_hubbard) then
-                if (excitInfo%typ /= 0) then
-                    ! only singles in the real-space hubbard!
-                    mat_ele = h_cast(0.0_dp)
-                    return
-                end if
+                ! only singles in the real-space hubbard!
+                if (excitInfo%typ /= 0) return
             else
-                if (excitInfo%typ == 0) then
-                    ! only double excitations in the momentum-space hubbard!
-                    mat_ele = h_cast(0.0_dp)
-                    return
-                end if
+                ! only double excitations in the momentum-space hubbard!
+                if (excitInfo%typ == 0) return
             end if
         endif
 
         ! make the adjustment for the Heisenberg model
-        if (t_heisenberg_model) then
-            if (excitInfo%typ /= 23) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
-        end if
+        if (t_heisenberg_model .and. excitInfo%typ /= 23) return
 
-        if (t_tJ_model) then
-            if (.not. (excitInfo%typ == 0 .or. excitInfo%typ == 23)) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
-        end if
-
+        if (t_tJ_model .and. (.not. (excitInfo%typ == 0 .or. excitInfo%typ == 23))) &
+            return
 
         ! depending on the type of usage i have to init some csf information
         select case (calc_type)
@@ -604,11 +599,18 @@ contains
 
         def_default(t_calc_full_, t_calc_full, .true.)
 
-        ! this deltaB info can slip through the excitation identifier..
-        if (any(abs(temp_delta_b) > 1)) then
-            mat_ele = h_cast(0.0_dp)
-            return
+        ! set defaults for the output if we excit early..
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_1_rdm_ind(excitInfo%i, excitInfo%j)
+            rdm_mat = 0.0_dp
         end if
+
+        ! this deltaB info can slip through the excitation identifier..
+        if (any(abs(temp_delta_b) > 1)) return
 
         st = excitInfo%fullstart
         en = excitInfo%fullEnd
@@ -662,10 +664,8 @@ contains
         ! i think it can still always happen that the matrix element is 0..
         ! but maybe for the rdm case i have to do something more involved..
         ! to set all the corresponding indices to 0..
-        if (abs(tmp_mat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+
+        if (near_zero(tmp_mat)) return
 
         do iOrb = st + 1, en - 1
 
@@ -676,10 +676,7 @@ contains
 
             tmp_mat = tmp_mat * getSingleMatrixElement(step2,step1,db,gen,bVal)
 
-            if (abs(tmp_mat) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(tmp_mat)) return
 
             if (t_calc_full_) then
                 if (.not. (t_new_real_space_hubbard .or. t_heisenberg_model &
@@ -700,10 +697,7 @@ contains
 
         tmp_mat = tmp_mat * getSingleMatrixElement(step2,step1,db,gen,bVal)
 
-        if (abs(tmp_mat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (near_zero(tmp_mat)) return
 
         ! this has to be adapted .. because inside there i use the
         ! current_stepvector and similar quantities..
@@ -737,12 +731,7 @@ contains
         currentOcc_ilut = temp_curr_occ
         currentB_int = temp_curr_b_int
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
+        if (present(rdm_mat)) rdm_mat = tmp_mat
 
     end subroutine calc_single_excitation_ex
 
@@ -768,10 +757,18 @@ contains
 
         def_default(t_calc_full_, t_calc_full, .true.)
 
-        if (any(abs(temp_delta_b) > 1)) then
-            mat_ele = h_cast(0.0_dp)
-            return
+        ! set some defaults in case of early exit
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
+                                         excitInfo%k, excitInfo%l)
+            rdm_mat = 0.0_dp
         end if
+
+        if (any(abs(temp_delta_b) > 1)) return
 
         if (t_calc_full_) then
             if (excitInfo%typ == 6) then
@@ -793,10 +790,7 @@ contains
 
         ! for the hamiltonian matrix element i can exit here if umat is 0
         ! but for the rdm-contribution i need to calc. the GUGA element
-        if (t_calc_full .and. abs(umat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (t_calc_full .and. near_zero(umat)) return
 
         guga_mat = 1.0_dp
 
@@ -815,10 +809,7 @@ contains
 
         guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,gen,bVal)
 
-        if (abs(guga_mat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (near_zero(guga_mat)) return
 
         do i = st + 1, ss - 1
 
@@ -829,10 +820,7 @@ contains
 
             guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,gen,bVal)
 
-            if (abs(guga_mat) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(guga_mat)) return
 
         end do
 
@@ -846,10 +834,7 @@ contains
 
         guga_mat = guga_mat * temp_mat
 
-        if (abs(guga_mat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (near_zero(guga_mat)) return
 
         do i = ss + 1, en
 
@@ -860,21 +845,13 @@ contains
 
             guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,gen2,bVal)
 
-            if (abs(guga_mat) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(guga_mat)) return
 
         end do
 
         mat_ele = guga_mat * umat
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
+        if (present(rdm_mat)) rdm_mat = guga_mat
 
     end subroutine calc_single_overlap_mixed_ex
 
@@ -1028,8 +1005,18 @@ contains
 
         def_default(t_hamil_, t_hamil, .true.)
 
-        ! the information if a switch happenend is stored in excitInfo!
+        ! set defaults for early exits
+        mat_ele = h_cast(0.0_dp)
 
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
+                                         excitInfo%k, excitInfo%l)
+            rdm_mat = 0.0_dp
+        end if
+
+        ! the information if a switch happenend is stored in excitInfo!
         start1 = excitInfo%fullStart
         start2 = excitInfo%secondStart
         ende1 = excitInfo%firstEnd
@@ -1039,11 +1026,7 @@ contains
         ! the specific parts of the excitations
         if (any(abs(temp_delta_b(start1:start2-1)) > 1) .or. &
             any(abs(temp_delta_b(start2:ende1-1)) > 2) .or. &
-            any(abs(temp_delta_b(ende1:ende2)) > 1)) then
-
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+            any(abs(temp_delta_b(ende1:ende2)) > 1)) return
 
         gen1 = excitInfo%gen1
         gen2 = excitInfo%gen2
@@ -1066,11 +1049,7 @@ contains
 
         guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,firstgen,bVal)
 
-        if (abs(guga_mat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
-
+        if (near_zero(guga_mat)) return
 
         do i = start1 + 1, start2 - 1
 
@@ -1081,10 +1060,7 @@ contains
 
             guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,firstgen,bVal)
 
-            if (abs(guga_mat) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(guga_mat)) return
 
         end do
 
@@ -1105,11 +1081,7 @@ contains
             temp_x0 = temp_x0 * temp_mat0
             temp_x1 = temp_x1 * temp_mat1
 
-            if (abs(temp_x0) < EPS .and. abs(temp_x1) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
-
+            if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
         end do
 
         ! now do second single overlap part
@@ -1126,16 +1098,26 @@ contains
             temp_x0 = temp_x0 * temp_mat0
             temp_x1 = temp_x1 * temp_mat0
 
-            if (abs(temp_x0) < EPS .and. abs(temp_x1) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
-
+            if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
         end do
 
         ! now the excitation-type and spin question come into play..
         ! i actually could combine all "normal" double excitations in one
         ! routine with a if statement at the end here..
+
+        if (present(rdm_mat)) then
+            select case(excitInfo%typ)
+            case(8,9)
+                rdm_mat = temp_x0 * excitInfo%order * excitInfo%order1 * temp_x1
+
+            case(10,11,12,13)
+                if (excitInfo%spin_change) then
+                    rdm_mat = temp_x1
+                else
+                    rdm_mat = temp_x1 - temp_x0
+                end if
+            end select
+        end if
 
         select case (excitInfo%typ)
         case (8)
@@ -1216,13 +1198,6 @@ contains
             ! of the routine is totally the same!
         end select
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
-
 
     end subroutine calc_normal_double_ex
 
@@ -1243,12 +1218,20 @@ contains
 
         def_default(t_hamil_, t_hamil, .true.)
 
+        ! set some defaults in case of early exit
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
+                                         excitInfo%k, excitInfo%l)
+            rdm_mat = 0.0_dp
+        end if
+
         ! can i exclude every deltaB > 1, since only db = 0 allowed in
         ! double overlap region? i think so..
-        if (any(abs(temp_delta_b) > 1)) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (any(abs(temp_delta_b) > 1)) return
 
         if (t_hamil_) then
             if (excitInfo%typ == 14) then
@@ -1270,10 +1253,7 @@ contains
             umat = h_cast(1.0_dp)
         end if
 
-        if (t_hamil_ .and. abs(umat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (t_hamil_ .and. near_zero(umat)) return
 
         st = excitInfo%fullstart
         se = excitInfo%secondstart
@@ -1289,10 +1269,7 @@ contains
 
         guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,gen,bVal)
 
-        if (abs(guga_mat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (near_zero(guga_mat)) return
 
         do i = st + 1, se - 1
 
@@ -1303,10 +1280,7 @@ contains
 
             guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,gen,bval)
 
-            if (abs(guga_mat) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(guga_mat)) return
 
         end do
 
@@ -1320,10 +1294,7 @@ contains
 
         guga_mat = guga_mat * temp_mat
 
-        if (abs(guga_mat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (near_zero(guga_mat)) return
 
         nOpen = (-1.0_dp) ** real(count_open_orbs_ij(excitInfo%secondStart+1, &
             excitInfo%fullEnd-1, ilutJ),dp)
@@ -1331,12 +1302,7 @@ contains
         ! is this the same for both type of gens?
         mat_ele = guga_mat * nOpen * Root2 * umat
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
+        if (present(rdm_mat)) rdm_mat = guga_mat * nOpen * Root2
 
     end subroutine calc_fullstop_alike_ex
 
@@ -1357,6 +1323,17 @@ contains
 
         def_default(t_hamil_, t_hamil, .true.)
 
+        ! set defaults for early exits
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
+                                         excitInfo%k, excitInfo%l)
+            rdm_mat = 0.0_dp
+        end if
+
         start = excitInfo%fullStart
         ende = excitInfo%fullEnd
         semi = excitInfo%firstEnd
@@ -1364,10 +1341,7 @@ contains
 
         ! i think i can exclude every deltaB > 1 sinve only dB = 0 branch
         ! allowed for the alike..
-        if (any(abs(temp_delta_b) > 1)) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (any(abs(temp_delta_b) > 1)) return
 
         if (t_hamil_) then
             if (excitInfo%typ == 18) then
@@ -1384,10 +1358,7 @@ contains
             umat = h_cast(1.0_dp)
         end if
 
-        if (t_hamil_ .and. abs(umat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (t_hamil_ .and. near_zero(umat)) return
 
         nOpen = real(count_open_orbs_ij(start,semi-1,ilutJ),dp)
 
@@ -1399,10 +1370,7 @@ contains
 
         call getDoubleMatrixElement(step2,step1,db,gen,gen,bVal,1.0_dp,temp_mat)
 
-        if (abs(temp_mat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (near_zero(temp_mat)) return
 
         guga_mat = Root2 * temp_mat * (-1.0_dp) ** nOpen
 
@@ -1416,21 +1384,13 @@ contains
 
             guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,gen,bVal)
 
-            if (abs(guga_mat) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(guga_mat)) return
 
         end do
 
         mat_ele = guga_mat * umat
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
+        if (present(rdm_mat)) rdm_mat = guga_mat
 
     end subroutine calc_fullstart_alike_ex
 
@@ -1450,27 +1410,30 @@ contains
 
         def_default(t_hamil_, t_hamil, .true.)
 
+        ! set defaults for early exit
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
+                                         excitInfo%k, excitInfo%l)
+            rdm_mat = 0.0_dp
+        end if
+
         if (t_hamil_) then
             umat = get_umat_el(excitInfo%i,excitInfo%i,excitInfo%j,excitInfo%j)/2.0_dp
         else
             umat = h_cast(1.0_dp)
         end if
 
-        if (t_hamil_ .and. abs(umat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (t_hamil_ .and. near_zero(umat)) return
 
         nOpen = real(count_open_orbs_ij(excitInfo%fullStart, excitInfo%fullEnd,ilutJ(0:nifd)),dp)
 
         mat_ele = 2.0_dp * (-1.0_dp) ** nOpen * umat
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
+        if (present(rdm_mat)) rdm_mat = 2.0_dp ** (-1.0_dp) ** nOpen
 
     end subroutine calc_fullstart_fullstop_alike_ex
 
@@ -1503,11 +1466,19 @@ contains
         en = excitInfo%fullEnd
         firstGen = excitInfo%firstgen
 
-        if (any(abs(temp_delta_b(st:se-1)) > 1) .or. &
-            any(abs(temp_delta_b(se:en)) > 2)) then
-            mat_ele = h_cast(0.0_dp)
-            return
+        ! set defaults in case of early exit
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
+                                         excitInfo%k, excitInfo%l)
+            rdm_mat = 0.0_dp
         end if
+
+        if (any(abs(temp_delta_b(st:se-1)) > 1) .or. &
+            any(abs(temp_delta_b(se:en)) > 2)) return
 
         ! first do single overlap region
         guga_mat = 1.0_dp
@@ -1519,10 +1490,7 @@ contains
 
         guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,firstgen,bval)
 
-        if (abs(guga_mat) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (near_zero(guga_mat)) return
 
         do i = st + 1, se - 1
 
@@ -1533,10 +1501,7 @@ contains
 
             guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,firstgen,bVal)
 
-            if (abs(guga_mat) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(guga_mat)) return
 
         end do
 
@@ -1563,10 +1528,7 @@ contains
             temp_x0 = temp_x0 * temp_mat0
             temp_x1 = temp_x1 * temp_mat1
 
-            if (abs(temp_x0) < EPS .and. abs(temp_x1) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
         end do
 
         ! to the fullstop
@@ -1642,12 +1604,7 @@ contains
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
+        if (present(rdm_mat)) rdm_mat = temp_x1
 
     end subroutine calc_fullstop_mixed_ex
 
@@ -1673,6 +1630,17 @@ contains
 
         def_default(t_hamil_, t_hamil, .true.)
 
+        ! set defaults for early exit
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
+                                         excitInfo%k, excitInfo%l)
+            rdm_mat = 0.0_dp
+        end if
+
         ! create the fullStart
         st = excitInfo%fullStart
         en = excitInfo%fullEnd
@@ -1680,10 +1648,7 @@ contains
         gen = excitInfo%lastGen
 
         if (any(abs(temp_delta_b(st:se-1)) > 2) .or. &
-            any(abs(temp_delta_b(se:en)) > 1)) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+            any(abs(temp_delta_b(se:en)) > 1)) return
 
         ! do the full-start, and i know here that it is singly occupied
 
@@ -1696,10 +1661,7 @@ contains
         call getDoubleMatrixElement(step2,step1,-1,-1,+1,bVal,1.0_dp, &
             temp_x0, temp_x1)
 
-        if (abs(temp_x0) < EPS .and. abs(temp_x1) < EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
 
         ! then do the double overlap range
 
@@ -1716,19 +1678,13 @@ contains
             temp_x0 = temp_x0 * temp_mat0
             temp_x1 = temp_x1 * temp_mat1
 
-            if (abs(temp_x1) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(temp_x1)) return
 
         end do
 
         ! i think here i should also check if the x0 matrix element is non-zero..
 
-        if (abs(temp_x0) > EPS) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (.not. near_zero(temp_x0)) return
 
         guga_mat = temp_x1
         ! do single range
@@ -1742,10 +1698,7 @@ contains
 
             guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,gen,bVal)
 
-            if (abs(guga_mat) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(guga_mat)) return
 
         end do
 
@@ -1794,12 +1747,7 @@ contains
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
+        if (present(rdm_mat)) rdm_mat = guga_mat
 
     end subroutine calc_fullstart_mixed_ex
 
@@ -1822,16 +1770,22 @@ contains
 
         def_default(t_hamil_, t_hamil, .true.)
 
+        ! set default for early exits
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
+                                         excitInfo%k, excitInfo%l)
+            rdm_mat = 0.0_dp
+        end if
         ! the most involved one.. but i think i can reuse a lot of the
         ! stochastic stuff here, since i already needed it there..
 
         ! phew.. i think i can just use calcMixedContribution.. and thats it..
 
-
-        if (any(abs(temp_delta_b) > 2)) then
-            mat_ele = h_cast(0.0_dp)
-            return
-        end if
+        if (any(abs(temp_delta_b) > 2)) return
 
         call convert_ilut_toGUGA(ilutI, tmp_I)
         call convert_ilut_toGUGA(ilutJ, tmp_J)
@@ -1847,20 +1801,75 @@ contains
         if (t_hamil_) then
             mat_ele =  calcMixedContribution(tmp_I, tmp_J, excitInfo%fullstart, excitInfo%fullEnd)
         else
-            call stop_all(this_routine, "TODO!")
+            if (present(rdm_mat)) then
+                rdm_mat = calc_mixed_coupling_coeff(tmp_I, tmp_J, excitInfo)
+            else
+                call stop_all(this_routine, "no hamil and no RDM?!")
+            end if
         end if
 
         current_stepvector = temp_curr_step
         currentOcc_int = temp_curr_occ_int
         currentB_ilut = temp_curr_b
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
     end subroutine calc_fullstart_fullstop_mixed_ex
+
+    function calc_mixed_coupling_coeff(ilutI, ilutJ, excitInfo) result(rdm_mat)
+        ! function which purely calculates the couplind coefficient for
+        ! a fullstart into fullstop mixed excitation for a specific
+        ! set of orbital indices
+        integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        type(excitationInformation_t), intent(in) :: excitInfo
+        real(dp) :: rdm_mat
+        character(*), parameter :: this_routine = "calc_mixed_coupling_coeff"
+
+        integer :: st, en, i, step_i, step_j, deltaB_vec(nSpatOrbs)
+        real(dp) :: tmp_mat, tempWeight
+
+        ! set default
+        tmp_mat = 0.0_dp
+
+
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+
+        ! i 'guess' i 'just have to loop over the excitation range and
+        ! get the coupling coefficient
+
+        step_i = current_stepvector(st)
+        step_j = getStepvalue(ilutJ, st)
+        deltaB_vec = int(currentB_ilut - calcB_vector_ilut(ilutJ(0:nifd)))
+
+
+        ! starting element
+        call getDoubleMatrixElement(step_j, step_i, -1, -1, +1, &
+            currentB_ilut(st), 1.0_dp, x1_element = tmp_mat)
+
+        if (near_zero(tmp_mat)) return
+
+        do i = st + 1, en - 1
+
+            step_i = current_stepvector(i)
+            step_j = getStepvalue(ilutJ, i)
+            call getDoubleMatrixElement(step_j, step_i, deltaB_vec(i-1),-1,+1,&
+                currentB_ilut(i), 1.0_dp, x1_element = tempWeight)
+
+            tmp_mat = tempWeight * tmp_mat
+
+            if (near_zero(tmp_mat)) return
+        end do
+
+        ! end value:
+        step_i = current_stepvector(en)
+        step_j = getStepvalue(ilutJ, en)
+
+        call getMixedFullStop(step_j, step_i, deltaB_vec(en-1), currentB_ilut(en), &
+            x1_element = tempWeight)
+
+        rdm_mat = tempWeight * tmp_mat
+
+
+    end function calc_mixed_coupling_coeff
 
     subroutine Detham_guga(ndets, det_list, hamil, ind, n_row, n_elements)
         ! create a routine which mimicks the functioniality of Detham for

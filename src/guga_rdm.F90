@@ -40,6 +40,8 @@ module guga_rdm
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI, getDeltaB
     use guga_bitRepOps, only: calc_csf_info, add_guga_lists
     use guga_bitRepOps, only: findFirstSwitch, findLastSwitch
+    use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind, &
+                              extract_1_rdm_ind, extract_2_rdm_ind
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_reps, only: nifguga
     use FciMCData, only: projEDet, CurrentDets, TotWalkers
@@ -608,12 +610,6 @@ contains
 
             excitInfo = excitationIdentifier(i, j, k, l)
         end if
-
-!         print *, "========="
-!         call write_det_guga(6, ilutI, .true.)
-!         call write_det_guga(6, ilutJ, .true.)
-!         call print_excitInfo(excitInfo)
-!         print *, "ijkl: ", i,j,k,l
 
         select case (excitInfo%typ)
 
@@ -1513,70 +1509,6 @@ contains
         end do
 
     end subroutine fill_sings_2rdm_guga
-
-    subroutine extract_1_rdm_ind(rdm_ind, i, a)
-        ! the converstion routine between the combined and explicit rdm
-        ! indices for the 1-RDM
-        integer(int_rdm), intent(in) :: rdm_ind
-        integer, intent(out) :: i, a
-        character(*), parameter :: this_routine = "extract_matrix_element"
-
-        a = int(mod(rdm_ind - 1, nSpatOrbs)  + 1)
-        i = int((rdm_ind - 1)/nSpatOrbs + 1)
-
-    end subroutine extract_1_rdm_ind
-
-    function contract_1_rdm_ind(i,a) result(rdm_ind)
-        ! the inverse function of the routine above, to give the combined
-        ! rdm index of two explicit ones
-        integer, intent(in) :: i, a
-        integer(int_rdm) :: rdm_ind
-        character(*), parameter :: this_routine = "contract_1_rdm_ind"
-
-        rdm_ind = nSpatOrbs * (i - 1) + a
-
-    end function contract_1_rdm_ind
-
-    function contract_2_rdm_ind(i,j,k,l) result(ijkl)
-        ! since I only ever have spatial orbitals in the GUGA-RDM make
-        ! the definition of the RDM-index combination differently
-        integer, intent(in) :: i,j,k,l
-        integer(int_rdm) :: ijkl
-        character(*), parameter :: this_routine = "contract_2_rdm_ind"
-
-        integer :: ij, kl
-
-        ij = (i - 1) * nSpatOrbs + j
-        kl = (k - 1) * nSpatOrbs + l
-
-        ijkl = (ij - 1) * (int(nSpatOrbs, int_rdm)**2) + kl
-
-    end function contract_2_rdm_ind
-
-    subroutine extract_2_rdm_ind(ijkl, i, j, k, l, ij_out, kl_out)
-        ! the inverse routine of the function above.
-        ! it is actually practical to have ij and kl also available at
-        ! times, since it can identify diagonal entries of the two-RDM
-        integer(int_rdm), intent(in) :: ijkl
-        integer, intent(out) :: i,j,k,l
-        integer, intent(out), optional :: ij_out, kl_out
-        character(*), parameter :: this_routine = "extract_2_rdm_ind"
-
-        integer :: ij, kl
-
-        kl = int(mod(ijkl - 1, int(nSpatOrbs, int_rdm)**2) + 1)
-        ij = int((ijkl - kl)/(nSpatOrbs ** 2) + 1)
-
-        j = mod(ij - 1, nSpatOrbs) + 1
-        i = (ij - j) / nSpatOrbs + 1
-
-        l = mod(kl - 1, nSpatOrbs) + 1
-        k = (kl - l) / nSpatOrbs + 1
-
-        if (present(ij_out)) ij_out = ij
-        if (present(kl_out)) kl_out = kl
-
-    end subroutine extract_2_rdm_ind
 
 
     subroutine assign_excits_to_proc_guga(n_tot, excits, excit_lvl)
