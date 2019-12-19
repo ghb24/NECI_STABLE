@@ -588,7 +588,7 @@ real(dp), allocatable :: frequency_bounds_type2(:), frequency_bounds_type2_diff(
                          frequency_bounds_type4(:)
 
 ! use also an input dependent ratio cutoff for the time-step adaptation
-real(dp) :: frq_ratio_cutoff = 0.95_dp
+real(dp) :: frq_ratio_cutoff = 0.999_dp
 
 ! also use an additional flag to turn the new tau-search off but keep some
 ! of its functionality anyway..
