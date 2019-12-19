@@ -1072,26 +1072,6 @@ contains
         nExChecks = 0
         nExCheckFails = 0
 
-        if (allocated(ConflictExLvl))       deallocate(ConflictExLvl)
-        if (allocated(AllConflictExLvl))    deallocate(AllConflictExLvl)
-
-        allocate(ConflictExLvl(maxConflictExLvl))
-        ConflictExLvl = 0
-        allocate(AllConflictExLvl(maxConflictExLvl))
-        AllConflictExLvl = 0
-        NoConflicts = 0
-        AllNoConflicts = 0
-
-        if (allocated(HolesByExLvl))    deallocate(HolesByExLvl)
-        if (allocated(allHolesByExLvl)) deallocate(allHolesByExLvl)
-
-        allocate(HolesByExLvl(maxHoleExLvlWrite))
-        allocate(allHolesByExLvl(maxHoleExLvlWrite))
-        allHolesByExLvl = 0
-        HolesByExLvl = 0
-        nUnoccDets = 0
-        allNUnoccDets = 0
-
         ! 0-initialize truncated weight
         truncatedWeight = 0.0_dp
         AllTruncatedWeight = 0.0_dp

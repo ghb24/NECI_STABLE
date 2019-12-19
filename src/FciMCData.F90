@@ -98,9 +98,6 @@ MODULE FciMCData
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
     integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
     integer(int64), allocatable :: AllNoNonInitDets(:)
-    integer :: NoConflicts, AllNoConflicts
-    integer :: maxConflictExLvl
-    integer, allocatable :: ConflictExLvl(:), AllConflictExLvl(:)
     real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)

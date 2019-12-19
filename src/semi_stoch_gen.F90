@@ -304,7 +304,7 @@ contains
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, &
                                     core_in%tApproxSpace, core_in%nApproxSpace, &
-                                    SpawnedParts, space_size, CurrentDets, TotWalkers)
+                                    SpawnedParts(0:niftot,1:space_size), space_size)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. tCSFCore) then
            if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
@@ -1149,17 +1149,21 @@ contains
         integer :: nzero_dets
 
         integer(int64) :: source_size
-        integer(n_int), pointer :: source(:,:)
+        integer(n_int), pointer :: loc_source(:,:)
 
         if (present(opt_source)) then
             ASSERT(present(opt_source_size))
             source_size = int(opt_source_size, int64)
 
-            source => opt_source(0:niftot,1:source_size)
+            allocate(loc_source(0:niftot,1:source_size), &
+                source = opt_source(0:niftot,1:source_size))
+!             loc_source => opt_source
 
         else
             source_size = TotWalkers
-            source => CurrentDets
+            allocate(loc_source(0:niftot,1:source_size), &
+                source = CurrentDets(0:niftot,1:source_size))
+!             loc_source => CurrentDets
         end if
 
         n_pops_keep = target_space_size
@@ -1168,7 +1172,7 @@ contains
         ! zero sign.
         nzero_dets = 0
         do i = 1, source_size
-            call extract_sign(source(:,i), real_sign)
+            call extract_sign(loc_source(:,i), real_sign)
             if (sum(abs(real_sign)) < 1.e-8_dp) nzero_dets = nzero_dets + 1
         end do
 
@@ -1213,7 +1217,7 @@ contains
 
         ! Return the most populated states in source on *this* processor.
         call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states, &
-             source, int(source_size))
+             loc_source, int(source_size))
 
         ! Store the amplitudes in their real form.
         do i = 1, length_this_proc
@@ -1865,7 +1869,7 @@ contains
         ! space_size slots in it (overwriting anything which was there before,
         ! which presumably won't be needed now).
         call generate_space_most_populated(target_space_size, .false., 0, &
-            SpawnedParts, space_size)!, CurrentDets, int(TotWalkers))
+            SpawnedParts(0:niftot,1:space_size), space_size)
 
         write(6,'("Writing the most populated states to DETFILE...")'); call neci_flush(6)
 

@@ -208,7 +208,7 @@ module fcimc_pointed_fns
         integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
-        HElement_t(dp) :: rh, rh_used, Eii_curr
+        HElement_t(dp) :: rh_used, Eii_curr
 #ifdef DEBUG_
         integer :: nOpen
         integer(n_int) :: ilutTmpI(0:nifguga), ilutTmpJ(0:nifguga)
@@ -325,7 +325,7 @@ module fcimc_pointed_fns
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
-        matEl = real(rh, dp)
+        matEl = real(rh_used, dp)
         if (t_matele_cutoff) then
             if (abs(matEl) < matele_cutoff) matel = 0.0_dp
         end if
@@ -357,13 +357,13 @@ module fcimc_pointed_fns
             walkerweight = sign(1.0_dp, RealwSign(part_type))
             if (btest(component,0)) then
                 ! real component
-                MatEl = real(rh, dp)
+                MatEl = real(rh_used, dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
             else
 #ifdef CMPLX_
-                MatEl = real(aimag(rh), dp)
+                MatEl = real(aimag(rh_used), dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if

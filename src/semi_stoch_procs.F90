@@ -1174,7 +1174,7 @@ contains
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
         character(*), parameter :: this_routine = "return_most_populated_states"
 
-        integer(n_int), pointer :: source(:,:)
+        integer(n_int), pointer :: loc_source(:,:)
         integer(int64) :: source_size
 
         if (present(opt_source)) then
@@ -1182,11 +1182,15 @@ contains
 
             source_size = int(opt_source_size, int64)
             ! ask Kai if I have to allocate
-            source => opt_source(0:NIfTot, 1:source_size)
+            allocate(loc_source(0:niftot,1:source_size),&
+                source = opt_source(0:NIfTot, 1:source_size))
+!             loc_source => opt_source
 
         else
             source_size = TotWalkers
-            source => CurrentDets
+            allocate(loc_source(0:niftot,1:source_size), &
+                source = CurrentDets(0:NIfTot,1:source_size))
+!             loc_source => CurrentDets
         end if
 
         largest_walkers = 0_n_int
@@ -1196,7 +1200,7 @@ contains
 
         ! Run through all walkers on process.
         do i = 1, int(source_size,sizeof_int)
-            call extract_sign(source(:,i), sign_curr)
+            call extract_sign(loc_source(:,i), sign_curr)
 
 #ifdef CMPLX_
             sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
@@ -1212,7 +1216,7 @@ contains
             ! Is this determinant more populated than the smallest? First in
             ! the list is always the smallest.
             if (sign_curr_real > smallest_sign) then
-                largest_walkers(:,smallest_pos) = source(:,i)
+                largest_walkers(:,smallest_pos) = loc_source(:,i)
 
                 ! Instead of resorting, just find new smallest sign and position.
                 call extract_sign(largest_walkers(:,1),low_sign)

@@ -1511,8 +1511,7 @@ contains
         if(ierr.ne.0) call stop_all(t_r,"error allocating here")
 
         ! Return the most populated states in CurrentDets on *this* processor only.
-        call return_most_populated_states(iHighPopWrite, LargestWalkers, CurrentDets, &
-             int(TotWalkers), norm)
+        call return_most_populated_states(iHighPopWrite, LargestWalkers, norm = norm)
 
         call MpiSum(norm,allnorm)
         if(iProcIndex.eq.Root) norm=sqrt(allnorm)
