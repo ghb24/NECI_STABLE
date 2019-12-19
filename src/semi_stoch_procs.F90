@@ -1332,10 +1332,12 @@ contains
             dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
         end if
 
+#ifdef DEBUG_
         write(6,*)'davidson eigenvec'
         do i = 1, determ_sizes(iProcIndex)
             print*,  dc%davidson_eigenvector(i)
         end do
+#endif
 
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0

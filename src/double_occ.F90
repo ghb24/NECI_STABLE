@@ -338,10 +338,6 @@ contains
         ! the doubly occupied orbitals are just the number of electrons
         ! minus the number of open orbitals divided by 2
         n_double_orbs = (nel - n_open_orbs)/2
-#ifdef DEBUG_
-        print *, "double occupied orbs for determinant:", n_double_orbs
-        call writedetbit(6, ilut, .true.)
-#endif
 
     end function count_double_orbs
 

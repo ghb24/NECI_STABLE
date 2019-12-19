@@ -453,12 +453,6 @@ contains
                 ! if it is non-hermitian..
                 call eig(H_tmp, evals_all, evecs_all,.true.)
 
-#ifdef DEBUG_
-                if_root
-                    call print_matrix(evecs_all)
-                end_if_root
-#endif
-
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:,1:nexcit)
 
