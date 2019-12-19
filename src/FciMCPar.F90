@@ -1518,7 +1518,7 @@ module FciMCParMod
                     ! all the interfaces to the other excitation generators,
                     ! which all just assume ex(2,2) as size.. so use a
                     ! if here..
-                    if (t_3_body_excits) then
+                    if (t_k_space_hubbard .and. t_3_body_excits) then
                         if (t_uniform_excits) then
                             call gen_excit_uniform_k_space_hub_transcorr(DetCurr, CurrentDets(:,j), &
                                 nJ, ilutnJ, exFlag, ic, ex, tParity, prob, &

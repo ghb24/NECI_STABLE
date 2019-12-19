@@ -1814,7 +1814,8 @@ contains
       space_size = 0
       allocate(determ_sizes(0:nProcessors-1))
       call generate_space_most_populated(ss_space_in%npops, ss_space_in%tApproxSpace, &
-           ss_space_in%nApproxSpace, SpawnedParts, space_size, buffer, int(buffer_size,n_int))
+           ss_space_in%nApproxSpace, SpawnedParts, space_size, buffer, &
+           int(buffer_size,n_int))
 
       ! Then, communicate the number of states per core
       mpi_buf = int(space_size,MPIArg)

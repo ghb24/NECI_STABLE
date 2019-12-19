@@ -208,7 +208,7 @@ module fcimc_pointed_fns
         integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
-        HElement_t(dp) :: rh, rh_used, Eii_curr
+        HElement_t(dp) :: rh_used, Eii_curr
 #ifdef DEBUG_
         integer :: nOpen
         integer(n_int) :: ilutTmpI(0:nifguga), ilutTmpJ(0:nifguga)
@@ -223,6 +223,7 @@ module fcimc_pointed_fns
         ! Just in case
         child = 0.0_dp
 
+        prob = prob * AvExPerWalker
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation,
         ! and returned in HElGen. In this case, get_spawn_helement simply
@@ -274,13 +275,13 @@ module fcimc_pointed_fns
                             prob , ic, ex(1,1))
                     end if
 
-                else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
-                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob , ic)
+!                 else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
+!                     call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob , ic)
 
                 else
                     ! for any other excitation generator just use one histogram
                     ! for all the excitations..
-                    call fill_frequency_histogram(abs(rh_used / precond_fac), prob )
+                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob, ic )
 
                 end if
             end if
@@ -325,7 +326,7 @@ module fcimc_pointed_fns
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
-        matEl = real(rh, dp)
+        matEl = real(rh_used, dp)
         if (t_matele_cutoff) then
             if (abs(matEl) < matele_cutoff) matel = 0.0_dp
         end if
@@ -357,13 +358,13 @@ module fcimc_pointed_fns
             walkerweight = sign(1.0_dp, RealwSign(part_type))
             if (btest(component,0)) then
                 ! real component
-                MatEl = real(rh, dp)
+                MatEl = real(rh_used, dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
             else
 #ifdef CMPLX_
-                MatEl = real(aimag(rh), dp)
+                MatEl = real(aimag(rh_used), dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if

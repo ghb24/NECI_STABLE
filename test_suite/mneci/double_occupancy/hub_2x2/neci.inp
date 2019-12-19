@@ -1,9 +1,9 @@
 title
 
-system hubbard 
+system hubbard
 nonuniformrandexcits nosymgen
 real
-electrons 4 
+electrons 4
 cell 2 2 1
 b -1
 u 16
@@ -28,6 +28,7 @@ shiftdamp 0.1
 stepsshift 10
 
 rdmsamplingiters 10000
+nmcyc 15000
 endcalc
 
 logging
@@ -36,4 +37,4 @@ calcrdmonfly 3 100 100
 printonerdm
 endlog
 
-end 
+end
