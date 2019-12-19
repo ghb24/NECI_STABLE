@@ -223,6 +223,7 @@ module fcimc_pointed_fns
         ! Just in case
         child = 0.0_dp
 
+        prob = prob * AvExPerWalker
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation,
         ! and returned in HElGen. In this case, get_spawn_helement simply
@@ -274,13 +275,13 @@ module fcimc_pointed_fns
                             prob , ic, ex(1,1))
                     end if
 
-                else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
-                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob , ic)
+!                 else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
+!                     call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob , ic)
 
                 else
                     ! for any other excitation generator just use one histogram
                     ! for all the excitations..
-                    call fill_frequency_histogram(abs(rh_used / precond_fac), prob )
+                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob, ic )
 
                 end if
             end if
