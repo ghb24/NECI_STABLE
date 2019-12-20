@@ -1,3 +1,6 @@
+#ifndef MACROS_INCLUDEGUARD_
+#define MACROS_INCLUDEGUARD_
+
 #define log_alloc(arr, tag, ierr) call LogMemAlloc("arr",size(arr),tbs_(arr),t_r,tag,ierr)
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
@@ -44,7 +47,7 @@
 ! Is the specified orbital part of a doubly occupied pair?
 #define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
 
-! salso reimplement a get_spatial orbital macro here 
+! salso reimplement a get_spatial orbital macro here
 #define get_spatial(orb) (orb - 1)/2 + 1
 
 ! Are the two orbitals specified (may be the same orbital) from the same
@@ -230,3 +233,5 @@ endif
 
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
+
+#endif

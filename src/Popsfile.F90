@@ -55,7 +55,7 @@ MODULE PopsfileMod
     implicit none
 
     logical :: tRealPOPSfile
-    
+
     interface
         subroutine ChangeRefDet(det)
             use SystemData, only: nel
@@ -582,10 +582,10 @@ contains
         integer, intent(in) :: iunit, PopNel, ReadBatch, max_dets
         integer, intent(out) :: det_tmp(PopNel)
         integer, intent(in) :: PopNIfSgn
-        logical, intent(in) :: binary_pops        
+        logical, intent(in) :: binary_pops
         integer(n_int), intent(out) :: det_list(0:NIfTot, max_dets)
         integer(int64), intent(in) :: EndPopsList
-        type(gdata_io_t), intent(in) :: gdata_read_handler        
+        type(gdata_io_t), intent(in) :: gdata_read_handler
         integer(int64) :: CurrWalkers
         logical, intent(inout) :: trimmed_parts
         character(*), parameter :: this_routine = 'read_pops_general'
@@ -729,7 +729,7 @@ r_loop: do while (.not. tReadAllPops)
                     call stop_all (this_routine, "MPI scatterV error")
 
                 ! number of communicated elements
-                nelem = recvcount .div. (NIfTot + 1)
+                nelem = int(recvcount) .div. int(NIfTot + 1)
                 ! in auto-adaptive shift mode, also communicate the accumulated
                 ! acc/tot spawns so far
                 ! same for the Hij/pgen ratios, if available
@@ -1809,7 +1809,7 @@ r_loop: do while(.not.tStoreDet)
 
             ! And stop timing
             call halt_timer(write_timer)
-            
+
             if(tPopsInstProjE) then
                 call calc_inst_proje()
                 write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
@@ -1860,7 +1860,7 @@ r_loop: do while(.not.tStoreDet)
             call stop_all (this_routine, "Split pops files only works with &
                                          &binary pops files")
         end if
-        
+
         ! set the module variables for global det data i/o
         call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms, &
             fvals_size, max_ratio_size)
@@ -1918,7 +1918,7 @@ r_loop: do while(.not.tStoreDet)
 
         nMaxDets = int(maxval(node_write_attempts), sizeof_int)
         gdata_size = gdata_write_handler%entry_size()
-        allocate(gdata(gdata_size,nMaxDets), stat=error)        
+        allocate(gdata(gdata_size,nMaxDets), stat=error)
         call gdata_write_handler%write_gdata(gdata, int(ndets))
 
         if ((tSplitPops .and. bNodeRoot) .or. iProcIndex == root) then
@@ -2203,7 +2203,7 @@ r_loop: do while(.not.tStoreDet)
         ! is auto-adaptive shift data available?
         write(iunit,*) "tPopAutoAdaptiveShift=", tAutoAdaptiveShift
         ! are the maximum spawn amplitued available?
-        if(tScaleBlooms) then            
+        if(tScaleBlooms) then
             write(iunit,*) "tPopScaleBlooms=", tScaleBlooms
         endif
 
@@ -2605,7 +2605,7 @@ r_loop: do while(.not.tStoreDet)
         ! the current determinant list (particularly diagonal matrix
         ! elements, i.e. CurrentH; now global_determinant_data).
         call init_global_det_data(rdm_definitions%nrdms_standard, rdm_definitions%nrdms_transition)
-        
+
 
 ! The hashing will be different in the new calculation from the one where the
 !  POPSFILE was produced, this means we must recalculate the processor each
