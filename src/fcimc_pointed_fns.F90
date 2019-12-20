@@ -300,8 +300,6 @@ module fcimc_pointed_fns
         end if
 
 
-        prob = prob * AvExPerWalker
-
         tRealSpawning = .false.
         if (tAllRealCoeff) then
             tRealSpawning = .true.
