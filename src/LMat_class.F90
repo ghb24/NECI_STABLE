@@ -735,7 +735,7 @@ contains
         rVal = 0.0_dp        
 
         ! reserve max. 128MB buffer size for dumpfile I/O
-        blocksize = 2_hsize_t**27 / (7*sizeof(0_int64))
+        blocksize = 2_hsize_t**27 .div. (7*sizeof(0_int64))
         blockstart = this%offsets(iProcIndex_intra)
 
         blockend = min(blockstart + blocksize - 1, this%countsEnd)
