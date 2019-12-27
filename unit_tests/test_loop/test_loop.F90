@@ -35,7 +35,7 @@ contains
         close(input_id)
 
         do i = 1, 3
-            call NECICore(filename_in=input, int_name=fcidump)
+            call NECICore(filename_in=input, int_name=fcidump, call_as_lib=.true.)
         end do
     end subroutine test_loop
 
