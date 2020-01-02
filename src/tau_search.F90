@@ -155,6 +155,9 @@ contains
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
             consider_par_bias = .true.
+        else if(t_pchb_excitgen) then
+            ! The default pchb excitgen also uses parallel biases
+            consider_par_bias = .true.
         else
             consider_par_bias = .false.
         end if
