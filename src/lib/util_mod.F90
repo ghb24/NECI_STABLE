@@ -323,8 +323,8 @@ contains
      ! Input: p,q - 2d-array indices
      ! Output: ind - 1d-array index assuming the array is symmetric w.r. p<->q
       implicit none
-      integer, intent(in) :: p,q
-      integer :: ind
+      integer(int32), intent(in) :: p,q
+      integer(int32) :: ind
 
       ! qp and pq are considered to be the same index
       ! -> permutational symmetry
@@ -355,8 +355,8 @@ contains
     pure subroutine intswap_int32(a,b)
       ! exchange the value of two integers a,b
       ! Input: a,b - integers to swapp (on return, a has the value of b on call and vice versa)
-      integer, intent(inout) :: a,b
-      integer :: tmp
+      integer(int32), intent(inout) :: a,b
+      integer(int32) :: tmp
 
       tmp = a
       a = b
