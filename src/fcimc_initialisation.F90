@@ -267,8 +267,6 @@ contains
                     endif
                 end if
             end if
-
-            write(*, *) 'PEW', 'fcimcstats_unit', fcimcstats_unit
 #ifndef __PROG_NUMRUNS
             if(inum_runs.eq.2) then
                 fcimcstats_unit2 = get_free_unit()

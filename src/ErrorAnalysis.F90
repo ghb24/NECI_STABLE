@@ -2,7 +2,7 @@
 module errors
     use constants
     use SystemData, only: BasisFN, nBasisMax, G1, nel
-    use FciMCData, only: tSinglePartPhase, ProjectionE, iBlockingIter, fcimcstats_unit
+    use FciMCData, only: tSinglePartPhase, ProjectionE, iBlockingIter
     use Determinants, only: get_helement
     use DeterminantData, only: fdet
     use Parallel_neci
@@ -469,12 +469,6 @@ module errors
         integer(int64) :: iters,validdata,datapoints,totdets
         real(dp), dimension(lenof_sign) :: insthf
 
-        ! We close the 'FCIMCStats' file that is opened in appending mode
-        ! and reopen in reading mode.
-        ! If this breaks other code on the technical level, this is good,
-        ! because there is a logical error if data is appended to
-        ! 'FCIMCStats' after doing the error analysis.
-
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
         if(tMolpro .and. .not. tMolproMimic) then
@@ -489,24 +483,6 @@ module errors
             write(6,"(A)") "Reading back in FCIQMCStats datafile..."
         else
             filename = 'FCIMCStats'
-            write(*, *) 'FCIMCStats_unit', fcimcstats_unit
-            write(*, *) 'Closing FCIMCStats'
-            close(fcimcstats_unit, iostat=ierr)
-            write(*, *) 'Error', ierr
-            write(*, *) 'FCIMCStats_unit', fcimcstats_unit
-            block
-                integer :: file_id
-                logical :: connected
-                inquire(file='FCIMCStats', number=file_id, opened=connected)
-                write(*, *) connected, file_id
-
-!                 inquire(unit=file_id, opened=connected)
-!                 write(*, *) 'file_id connected', connected, file_id
-
-                inquire(unit=fcimcstats_unit, opened=connected)
-                write(*, *) 'fcimcstats_unit connected', connected, fcimcstats_unit
-            end block
-
             inquire(file='FCIMCStats',exist=exists)
             if (.not. exists) then
                 write(iout, *) 'No FCIMCStats file found for error analysis'
