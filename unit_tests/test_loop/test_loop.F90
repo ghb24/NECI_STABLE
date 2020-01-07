@@ -27,16 +27,18 @@ contains
         integer :: i
 
         open(fcidump_id, file=fcidump, status='new')
-            call create_fcidump(fcidump_id)
-        close(fcidump_id)
-
         open(input_id, file=input, status='new')
-            call create_input(input_id)
-        close(input_id)
+
+        call create_fcidump(fcidump_id)
+        call create_input(input_id)
 
         do i = 1, 3
-            call NECICore(filename_in=input, int_name=fcidump, call_as_lib=.true.)
+            call NECICore(filename_in=input, int_name=fcidump, &
+                          & call_as_lib=.true.)
         end do
+
+        close(input_id, status='delete')
+        close(fcidump_id, status='delete')
     end subroutine test_loop
 
     subroutine create_fcidump(unit_id)
