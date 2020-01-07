@@ -1,21 +1,29 @@
 program test_loop_program
 
+    use mpi
     use fruit
+
     use util_mod, only: get_free_unit
 
     implicit none
 #include "NECICore.h"
 
-    integer :: failed_count
+    integer :: failed_count, err
+
+
+    call mpi_init(err)
 
     call init_fruit()
+
     call test_loop_driver()
+
     call fruit_summary()
     call fruit_finalize()
-
     call get_failed_count(failed_count)
-    if (failed_count /= 0) stop -1
 
+    if (failed_count /= 0) call stop_all('test_loop_program', 'failed_tests')
+
+    call mpi_finalize(err)
 contains
 
     subroutine test_loop_driver()
@@ -25,23 +33,34 @@ contains
     subroutine test_loop()
         character(*), parameter :: fcidump = 'FCIDUMP', input = 'NECI_input'
         integer :: fcidump_id, input_id
-        integer :: i
+        integer :: i, myrank, err
 
-        fcidump_id = get_free_unit()
-        open(fcidump_id, file=fcidump, status='new')
-        input_id = get_free_unit()
-        open(input_id, file=input, status='new')
+        call mpi_comm_rank(MPI_COMM_WORLD, myrank, err)
 
-        call create_fcidump(fcidump_id)
-        call create_input(input_id)
+        if (myrank == 0) then
+            input_id = get_free_unit()
+            open(input_id, file=input, status='new')
+            call create_input(input_id)
+            close(input_id)
+
+            fcidump_id = get_free_unit()
+            open(fcidump_id, file=fcidump, status='new')
+            call create_fcidump(fcidump_id)
+            close(fcidump_id)
+        end if
 
         do i = 1, 3
             call NECICore(filename_in=input, int_name=fcidump, &
                           & call_as_lib=.true.)
         end do
 
-        close(input_id, status='delete')
-        close(fcidump_id, status='delete')
+        if (myrank == 0) then
+            open(input_id, file=input, status='old')
+            close(input_id, status='delete')
+            open(fcidump_id, file=fcidump, status='old')
+            close(fcidump_id, status='delete')
+        end if
+
     end subroutine test_loop
 
     subroutine create_fcidump(unit_id)
