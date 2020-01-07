@@ -1,4 +1,3 @@
-#
 foreach( _config neci dneci mneci)
 
     neci_add_test(
