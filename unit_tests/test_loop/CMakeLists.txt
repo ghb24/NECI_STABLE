@@ -1,5 +1,5 @@
 #
-foreach( _config neci dneci)
+foreach( _config neci dneci mneci)
 
     neci_add_test(
         TARGET test_${_config}_loop

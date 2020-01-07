@@ -1,6 +1,7 @@
 program test_loop_program
 
     use fruit
+    use util_mod, only: get_free_unit
 
     implicit none
 #include "NECICore.h"
@@ -26,7 +27,9 @@ contains
         integer :: fcidump_id, input_id
         integer :: i
 
+        fcidump_id = get_free_unit()
         open(fcidump_id, file=fcidump, status='new')
+        input_id = get_free_unit()
         open(input_id, file=input, status='new')
 
         call create_fcidump(fcidump_id)
