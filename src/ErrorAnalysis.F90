@@ -469,11 +469,23 @@ module errors
         integer(int64) :: iters,validdata,datapoints,totdets
         real(dp), dimension(lenof_sign) :: insthf
 
+        block
+            ! We close the 'FCIMCStats' file that is opened in appending mode
+            ! and reopen in reading mode.
+            ! If this breaks other code on the technical level, this is good,
+            ! because there is a logical error if data is appended to
+            ! 'FCIMCStats' after doing the error analysis.
+            integer :: file_id
+            logical :: connected
+            inquire(file='FCIMCStats', number=file_id, opened=connected)
+            if (connected) close(file_id)
+        end block
+
         !Open file (FCIMCStats or FCIQMCStats)
         iunit = get_free_unit()
         if(tMolpro .and. .not. tMolproMimic) then
             filename = 'FCIQMCStats_' // adjustl(MolproID)
-            inquire(file=filename,exist=exists)
+            inquire(file=filename, exist=exists)
             if (.not. exists) then
                 write(iout,*) 'No FCIQMCStats file found for error analysis'
                 tFailRead = .true.
