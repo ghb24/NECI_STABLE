@@ -5,11 +5,24 @@ program test_loop_program
 
     use util_mod, only: get_free_unit
 
+
     implicit none
+
+    abstract interface
+        subroutine to_unit_writer_t(iunit)
+            integer, intent(in) :: iunit
+        end subroutine
+    end interface
+
+
+    type :: Writer_t
+        procedure(to_unit_writer_t), pointer, nopass :: writer
+        character(:), allocatable :: filepath
+    end type
+
 #include "NECICore.h"
 
     integer :: failed_count, err
-
 
     call mpi_init(err)
 
@@ -30,38 +43,77 @@ contains
         call run_test_case(test_loop, "test_loop")
     end subroutine test_loop_driver
 
+    subroutine test_loop_factory(writers)
+        type(Writer_t), intent(in) :: writers(:)
+        integer :: units(lbound(writers, 1) : ubound(writers, 1))
+        integer :: file_id
+        integer :: i, j, myrank, err
+
+        call mpi_comm_rank(MPI_COMM_WORLD, myrank, err)
+
+        if (myrank == 0) then
+            do i = lbound(writers, 1), ubound(writers, 1)
+                units(i) = get_free_unit()
+                open(units(i), file=writers(i)%filepath, status='new')
+                    call writers(i)%writer(units(i))
+                close(units(i))
+            end do
+        end if
+
+        do i = 1, 3
+            call NECICore(filename_in=writers(1)%filepath, int_name=writers(2)%filepath, &
+                          & call_as_lib=.true.)
+        end do
+
+        if (myrank == 0) then
+            do i = lbound(writers, 1), ubound(writers, 1)
+                open(units(i), file=writers(i)%filepath, status='old')
+                close(units(i), status='delete')
+            end do
+        end if
+    end subroutine test_loop_factory
+
     subroutine test_loop()
         character(*), parameter :: fcidump = 'FCIDUMP', input = 'NECI_input'
         integer :: fcidump_id, input_id
         integer :: i, myrank, err
 
-        call mpi_comm_rank(MPI_COMM_WORLD, myrank, err)
-
-        if (myrank == 0) then
-            input_id = get_free_unit()
-            open(input_id, file=input, status='new')
-            call create_input(input_id)
-            close(input_id)
-
-            fcidump_id = get_free_unit()
-            open(fcidump_id, file=fcidump, status='new')
-            call create_fcidump(fcidump_id)
-            close(fcidump_id)
-        end if
-
-        do i = 1, 3
-            call NECICore(filename_in=input, int_name=fcidump, &
-                          & call_as_lib=.true.)
-        end do
-
-        if (myrank == 0) then
-            open(input_id, file=input, status='old')
-            close(input_id, status='delete')
-            open(fcidump_id, file=fcidump, status='old')
-            close(fcidump_id, status='delete')
-        end if
-
+        call test_loop_factory([Writer_t(create_input, 'NECI_input'), &
+                                Writer_t(create_fcidump, 'FCIDUMP')])
     end subroutine test_loop
+
+!     subroutine test_loop()
+!         character(*), parameter :: fcidump = 'FCIDUMP', input = 'NECI_input'
+!         integer :: fcidump_id, input_id
+!         integer :: i, myrank, err
+!
+!         call mpi_comm_rank(MPI_COMM_WORLD, myrank, err)
+!
+!         if (myrank == 0) then
+!             input_id = get_free_unit()
+!             open(input_id, file=input, status='new')
+!             call create_input(input_id)
+!             close(input_id)
+!
+!             fcidump_id = get_free_unit()
+!             open(fcidump_id, file=fcidump, status='new')
+!             call create_fcidump(fcidump_id)
+!             close(fcidump_id)
+!         end if
+!
+!         do i = 1, 3
+!             call NECICore(filename_in=input, int_name=fcidump, &
+!                           & call_as_lib=.true.)
+!         end do
+!
+!         if (myrank == 0) then
+!             open(input_id, file=input, status='old')
+!             close(input_id, status='delete')
+!             open(fcidump_id, file=fcidump, status='old')
+!             close(fcidump_id, status='delete')
+!         end if
+!
+!     end subroutine test_loop
 
     subroutine create_fcidump(unit_id)
         integer, intent(in) :: unit_id
