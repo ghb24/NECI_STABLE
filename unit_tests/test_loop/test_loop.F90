@@ -63,6 +63,10 @@ contains
     subroutine delete_file(path)
         character(*), intent(in) :: path
         integer :: file_id
+
+        ! Even though the file is only deleted, the unit has to be assigned
+        file_id = get_free_unit()
+        
         open(file_id, file=path, status='old')
         close(file_id, status='delete')
     end subroutine
@@ -72,7 +76,7 @@ contains
         integer :: file_id
 
         file_id = get_free_unit()
-        open(file_id, file=writer%filepath, status='new')
+        open(file_id, file=writer%filepath)
             call writer%write(file_id)
         close(file_id)
     end subroutine
