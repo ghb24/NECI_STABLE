@@ -446,6 +446,8 @@ contains
         this%allBiasTable%ptr => null()
         this%allProbs%ptr => null()
         this%allAliasTable%ptr => null()
+
+        if(allocated(this%samplerArray)) deallocate(this%samplerArray)
     end subroutine samplerArrayDestructor
 
     !------------------------------------------------------------------------------------------!
