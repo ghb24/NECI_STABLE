@@ -521,7 +521,7 @@ contains
     if(associated(this%allAliasTable)) &
          call shared_deallocate_mpi(this%allAliasShmw, this%allAliasTable)
 
-    ! TODO: null all entry-pointers
+    if(allocated(this%samplerArray)) deallocate(this%samplerArray)
   end subroutine samplerArrayDestructor
 
   !------------------------------------------------------------------------------------------!
