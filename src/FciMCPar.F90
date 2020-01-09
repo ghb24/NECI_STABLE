@@ -25,7 +25,8 @@ module FciMCParMod
                         tLogAverageSpawns, tActivateLAS, tTimedDeaths, &
                         tEn2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
                         tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
-                        tCoreAdaptiveShift, tScaleBlooms, max_allowed_spawn
+                        tCoreAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
+                        tScaleBlooms, max_allowed_spawn
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
                         tDelayAllDoubsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -38,7 +39,9 @@ module FciMCParMod
                            equi_iter_double_occ, t_print_frq_histograms, ref_filename, &
                            t_spin_measurements, &
                            tCoupleCycleOutput, StepsPrint, &
-                           t_hist_fvals, enGrid, arGrid, &
+                           tFValEnergyHist, tFValPopHist, &
+                           FvalEnergyHist_EnergyBins, FvalEnergyHist_FValBins, &
+                           FvalPopHist_PopBins, FvalPopHist_FValBins, &
                            tHDF5TruncPopsWrite, iHDF5TruncPopsEx                               
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
@@ -156,6 +159,7 @@ module FciMCParMod
         real(dp):: lt_imb
         integer:: rest, err, allErr
         logical :: t_comm_done
+        integer :: run
 
         ! Procedure pointer temporaries
         procedure(generate_excitation_t), pointer :: ge_tmp
@@ -404,6 +408,13 @@ module FciMCParMod
                     else
                         call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
                     end if
+                    if(tAS_TrialOffset)then
+                        do run=1, inum_runs
+                            if(trial_energies(run)-Hii<ShiftOffset) &
+                                ShiftOffset = trial_energies(run) - Hii
+                        enddo
+                        write(6,*) "The adaptive shift is offset by the correlation energy of trail-wavefunction: ", ShiftOffset
+                    endif
                 end if
             end if
 
@@ -740,7 +751,8 @@ module FciMCParMod
             call deallocate_histograms()
         end if
 
-        if(t_hist_fvals) call print_fval_hist(enGrid,arGrid)
+        if(tFValEnergyHist) call print_fval_energy_hist(FvalEnergyHist_EnergyBins, FvalEnergyHist_FValBins)
+        if(tFValPopHist) call print_fval_pop_hist(FvalPopHist_PopBins, FvalPopHist_FValBins)
 
         ! Remove the signal handlers now that there is no way for the
         ! soft-exit part to work

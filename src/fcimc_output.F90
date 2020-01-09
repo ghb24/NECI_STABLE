@@ -1648,41 +1648,46 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine print_fval_hist(enPoints, arPoints)
-      use CalcData, only: tAutoAdaptiveShift
+    !> Print out an already genereated 2d-histogram to disk
+    !! The histogram is written with the two axes as first rows, then the data as a 2d-matrix
+    !> @param[in] filename  name of the file to write to
+    !> @param[in] label1  label of the first axis
+    !> @param[in] label2  label of the second axis
+    !> @param[in] hists  array of integers containing the histogram data for each pair of bins
+    !> @param[in] bins1  bins of the first axis
+    !> @param[in] bins2  bins of the second axis
+    subroutine print_2d_hist(filename, label1, label2, hist, bins1, bins2)
       implicit none
-      integer, intent(in) :: enPoints, arPoints ! number of points in the histogram's axes
-      integer, allocatable :: hist(:,:), allHist(:,:)
-      real(dp), allocatable :: histEnergy(:), histAccRate(:)
+      character(len=*), intent(in) :: filename, label1, label2
+      real(dp), intent(in) :: bins1(:), bins2(:)
+      integer, intent(in) :: hist(:,:)
       integer :: hist_unit
-      integer :: j, i
+      integer :: i, j
       character, parameter :: tab = char(9)
 
-      if(tAutoAdaptiveShift) then
-         ! allocate the buffers
-         allocate(histAccRate(aRPoints))
-         allocate(histEnergy(enPoints))
-         allocate(hist(enPoints,arPoints))
-         allocate(allHist(enPoints, arPoints))
-         ! generate the histogram
-
-         call generate_fval_histogram(hist, histEnergy, histAccRate, enPoints, &
-              aRPoints ,allHist)
-
          if(iProcIndex == root) then
+
             ! output the histogram
             hist_unit = get_free_unit()
-            open(hist_unit, file = 'AccRateHistogram', status = 'unknown')
-            write(hist_unit, *) "# Acc. Rate",tab,tab,"Tot. Occ.",tab,tab,"Occ./Energy"
-            write(hist_unit, '("#",36X)', advance = 'no')
-            do j = 1, enPoints
-               write(hist_unit, '(G17.5)', advance = 'no') histEnergy(j)
+            open(hist_unit, file = filename, status = 'unknown')
+            write(hist_unit,"(A, A)") "# Boundaries of the bins of the first (vertical) dimension - ", label1
+            
+            do j = 1, size(bins1)
+               write(hist_unit, '(G17.5)', advance = 'no') bins1(j)
             end do
             write(hist_unit, '()', advance = 'yes')
-            do i = 1, aRPoints
-               write(hist_unit, '(2G17.5)', advance = 'no') histAccRate(i), sum(allHist(:,i))
-               do j = 1, enPoints
-                  write(hist_unit, '(G17.5)', advance = 'no') allHist(j,i)
+            
+            write(hist_unit, "(A, A)") "# Boundaries of the bins of the second (horizontal) dimension - ", label2
+
+            do j = 1, size(bins2)
+               write(hist_unit, '(G17.5)', advance = 'no') bins2(j)
+            end do
+            write(hist_unit, '()', advance = 'yes')
+
+            write(hist_unit, "(A)") "# Histogram - Note: Values laying exactly on a bounday are binned to the left"
+            do i = 1, size(bins1)-1
+                do j = 1, size(bins2)-1
+                  write(hist_unit, '(G17.5)', advance = 'no') hist(i,j)
                end do
                write(hist_unit, '()', advance = 'yes')
             end do
@@ -1690,98 +1695,222 @@ contains
             close(hist_unit)
          endif
 
+    end subroutine print_2d_hist
+
+    !> Wrapper function to create a 2d-histogram of the shift scale factors over energy
+    !> @param[in] EnergyBinsNum  resolution of the energy axis (number of bins)
+    !> @param[in] FValBinsNum  resolution of the factor axis (number of bins)
+    subroutine print_fval_energy_hist(EnergyBinsNum, FValBinsNum)
+      use CalcData, only: tAutoAdaptiveShift
+      implicit none
+      integer, intent(in) :: EnergyBinsNum, FValBinsNum ! number of points in the histogram's axes
+      integer, allocatable :: hist(:,:), allHist(:,:)
+      real(dp), allocatable :: EnergyBins(:), FValBins(:)
+
+      if(tAutoAdaptiveShift) then
+         ! allocate the buffers
+         allocate(EnergyBins(EnergyBinsNum+1))
+         allocate(FValBins(FValBinsNum+1))
+         allocate(hist(EnergyBinsNum,FValBinsNum))
+         allocate(allHist(EnergyBinsNum, FValBinsNum))
+         ! generate the histogram
+
+         call generate_fval_energy_hist(hist, EnergyBins, FvalBins, EnergyBinsNum, &
+              FvalBinsNum ,allHist)
+
+         call print_2d_hist("FValsEnergyHist", "Energy", "FVal", allHist, EnergyBins, FValBins)
+
          ! deallocate the buffers
          if(allocated(allHist)) deallocate(allHist)
          if(allocated(hist)) deallocate(hist)
-         if(allocated(histEnergy)) deallocate(histEnergy)
-         if(allocated(histAccRate)) deallocate(histAccRate)
+         if(allocated(EnergyBins)) deallocate(EnergyBins)
+         if(allocated(FValBins)) deallocate(FValBins)
       endif
-    end subroutine print_fval_hist
+    end subroutine print_fval_energy_hist
 
+    !> Wrapper function to create a 2d-histogram of the shift scale factors over population
+    !> @param[in] PopBinsNum  resolution of the population axis (number of bins)
+    !> @param[in] FValBinsNum  resolution of the factor axis (number of bins)
+    subroutine print_fval_pop_hist(PopBinsNum, FValBinsNum)
+      use CalcData, only: tAutoAdaptiveShift
+      implicit none
+      integer, intent(in) :: PopBinsNum, FValBinsNum ! number of points in the histogram's axes
+      integer, allocatable :: hist(:,:), allHist(:,:)
+      real(dp), allocatable :: PopBins(:), FValBins(:)
+
+      if(tAutoAdaptiveShift) then
+         ! allocate the buffers
+         allocate(PopBins(PopBinsNum+1))
+         allocate(FValBins(FValBinsNum+1))
+         allocate(hist(PopBinsNum,FValBinsNum))
+         allocate(allHist(PopBinsNum, FValBinsNum))
+         ! generate the histogram
+
+         call generate_fval_pop_hist(hist, PopBins, FvalBins, PopBinsNum, &
+              FvalBinsNum ,allHist)
+
+         call print_2d_hist("FValsPopHist", "Population", "FVal", allHist, PopBins, FValBins)
+
+         ! deallocate the buffers
+         if(allocated(allHist)) deallocate(allHist)
+         if(allocated(hist)) deallocate(hist)
+         if(allocated(PopBins)) deallocate(PopBins)
+         if(allocated(FValBins)) deallocate(FValBins)
+      endif
+    end subroutine print_fval_pop_hist
 !------------------------------------------------------------------------------------------!
 
-    subroutine generate_fval_histogram(hist, histEnergy, histAccRate, &
-         enPoints, accRatePoints, allHist)
-      use global_det_data, only: det_diagH, get_acc_spawns, get_tot_spawns
-      ! count the acceptance ratio per energy and create
-      ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
-      ! entries of hist(:,:) : numer of occurances
-      ! entries of histEnergy(:) : energies of histogram entries (with tolerance, second dimension)
-      ! entries of histAccRate(:) : acc. rates of histogram entries (first dimension)
-      implicit none
-      ! number of energy/acc rate windows in the histogram
-      integer, intent(in) :: enPoints, accRatePoints
-      integer, intent(out) :: hist(enPoints,accRatePoints)
-      integer, intent(out) :: allHist(:,:)
-      real(dp), intent(out) :: histEnergy(enPoints), histAccRate(accRatePoints)
-      integer :: i, run
-      integer :: enInd, arInd
-      real(dp) :: minEn, maxEn, enWindow, arWindow, locMinEn, locMaxEn, totSpawn
-
-      ! get the energy window size (the acc. rate window size is just 1.0/(accRatePoints+1))
-      locMinEn = det_diagH(1)
-      locMaxEn = det_diagH(1)
-      do i = 2, int(TotWalkers)
-         if(det_diagH(i) > locMaxEn) locMaxEn = det_diagH(i)
-         if(det_diagH(i) < locMinEn) locMinEn = det_diagH(i)
-      end do
-      ! communicate the energy window
-      call MPIAllReduce(locMinEn, MPI_MIN, minEn)
-      call MPIAllReduce(locMaxEn, MPI_MAX, maxEn)
-      enWindow = (maxEn - minEn) / real(enPoints,dp)
-
-      if(enWindow > eps) then
-         ! set up the histogram axes
-         arWindow = 1.0_dp / real(accRatePoints,dp)
-         do i = 1, accRatePoints
-            histAccRate(i) = ((i-1)+1.0_dp/2.0_dp)*arWindow
-         end do
-
-         do i = 1, enPoints
-            histEnergy(i) = minEn + (i-1)*enWindow + enWindow/2.0_dp
-         end do
-
-         ! then, fill the histogram itself
-         hist = 0
-         do i = 1, int(TotWalkers)
-            do run = 1, inum_runs
-               totSpawn = get_tot_spawns(i,run)
-               if(abs(totSpawn) > eps) then
-                  enInd = getHistIndex(det_diagH(i), minEn, enPoints, enWindow)
-                  arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
-                       0.0_dp, accRatePoints, arWindow)
-                  hist(enInd, arInd) = hist(enInd, arInd) + 1
-               end if
-            end do
-         end do
-
-         ! communicate the histogram
-         call MPISum(hist, allHist)
-      else
-         write(iout,*) "WARNING: Empty histogram of acceptance rates"
-      endif
-
-    contains
-
-      function getHistIndex(val, minVal, nPoints, windowSize) result(ind)
-        ! for a given energy, get the position in the histogram
+    !> For a given value, get the position in a histogram of given window sizes
+    !> @param[in] val  value to get the position
+    !> @param[in] minVal  smallest value appearing in the histogram
+    !> @param[in] nPoints  number of bins in the histogram
+    !> @param[in] windowSize  size of each bin
+    !> @return ind  index of val in the histogram
+    function getHistIndex(val, minVal, nPoints, windowSize) result(ind)
         implicit none
         real(dp), intent(in) :: val, minVal, windowSize
         integer, intent(in) :: nPoints
         integer :: ind
 
-        if(abs(val - minVal) < eps) then
-           ! val == minval would else yield 0, but it still belongs to index 1
-           ind = 1
-        else if(abs(val - (minVal + nPoints*windowSize)) < eps) then
-           ! val == maxVal would else yield nPoints + 1, but it still belongs to the last index
-           ind = nPoints
+        if(val <= minVal) then
+            ind = 1
+        else if(val > minVal + nPoints*windowSize) then
+            ind = nPoints
         else
-           ind = ceiling((val - minVal) / windowSize)
+            ind = ceiling((val - minVal) / windowSize)
         endif
-      end function getHistIndex
+    end function getHistIndex
+    
+    !> Create the data written out in the histogram of shift factor over energy.
+    !! The generated data can be passed to print_2d_hist. This is a synchronizing routine.
+    !> @param[out] hist  on return, histogram data of this proc only
+    !> @param[out] histEnergy  on return, energy axis of the histogram
+    !> @param[out] histAccRate  on return, shift factor axis of the histogram
+    !> @param[in] enPoints  number of bins on the energy axis
+    !> @param[in] accRatePoints  number of bins on the shift factor axis
+    !> @param[out] allHist  on return, histogram data over all procs
+    subroutine generate_fval_energy_hist(hist, histEnergy, histAccRate, &
+        enPoints, accRatePoints, allHist)
+        use global_det_data, only: det_diagH, get_acc_spawns, get_tot_spawns
+        ! count the acceptance ratio per energy and create
+        ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
+        ! entries of hist(:,:) : numer of occurances
+        ! entries of histEnergy(:) : energies of histogram entries (with tolerance, first dimension)
+        ! entries of histAccRate(:) : acc. rates of histogram entries (second dimension)
+        implicit none
+        ! number of energy/acc rate windows in the histogram
+        integer, intent(in) :: enPoints, accRatePoints
+        integer, intent(out) :: hist(enPoints,accRatePoints)
+        integer, intent(out) :: allHist(:,:)
+        real(dp), intent(out) :: histEnergy(enPoints), histAccRate(accRatePoints)
+        integer :: i, run
+        integer :: enInd, arInd
+        real(dp) :: minEn, maxEn, enWindow, arWindow, locMinEn, locMaxEn, totSpawn
 
-    end subroutine generate_fval_histogram
+        ! get the energy window size (the acc. rate window size is just 1.0/(accRatePoints+1))
+        locMinEn = det_diagH(1)
+        locMaxEn = det_diagH(1)
+        do i = 2, int(TotWalkers)
+            if(det_diagH(i) > locMaxEn) locMaxEn = det_diagH(i)
+            if(det_diagH(i) < locMinEn) locMinEn = det_diagH(i)
+        end do
+        ! communicate the energy window
+        call MPIAllReduce(locMinEn, MPI_MIN, minEn)
+        call MPIAllReduce(locMaxEn, MPI_MAX, maxEn)
+        enWindow = (maxEn - minEn) / real(enPoints,dp)
+
+        if(enWindow > eps) then
+            ! set up the histogram axes
+            arWindow = 1.0_dp / real(accRatePoints,dp)
+            do i = 1, accRatePoints+1
+                histAccRate(i) = (i-1)*arWindow
+            end do
+
+            do i = 1, enPoints+1
+                histEnergy(i) = minEn + (i-1)*enWindow
+            end do
+
+            ! then, fill the histogram itself
+            hist = 0
+            do i = 1, int(TotWalkers)
+                do run = 1, inum_runs
+                    totSpawn = get_tot_spawns(i,run)
+                    if(abs(totSpawn) > eps) then
+                        enInd = getHistIndex(det_diagH(i), minEn, enPoints, enWindow)
+                        arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
+                            0.0_dp, accRatePoints, arWindow)
+                        hist(enInd, arInd) = hist(enInd, arInd) + 1
+                    end if
+                end do
+            end do
+
+            ! communicate the histogram
+            call MPISum(hist, allHist)
+        else
+            write(iout,*) "WARNING: Empty energy histogram of acceptance rates"
+        endif
+    end subroutine generate_fval_energy_hist
+
+    !> Create the data written out in the histogram of shift factor over population.
+    !! The generated data can be passed to print_2d_hist. This is a synchronizing routine.
+    !> @param[out] hist  on return, histogram data of this proc only
+    !> @param[out] histPop  on return, population axis of the histogram
+    !> @param[out] histAccRate  on return, shift factor axis of the histogram
+    !> @param[in] popPoints  number of bins on the population axis
+    !> @param[in] accRatePoints  number of bins on the shift factor axis
+    !> @param[out] allHist  on return, histogram data over all procs
+    subroutine generate_fval_pop_hist(hist, histPop, histAccRate, &
+        popPoints, accRatePoints, allHist)
+        use global_det_data, only: get_acc_spawns, get_tot_spawns
+        ! count the acceptance ratio per energy and create
+        ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
+        ! entries of hist(:,:) : numer of occurances
+        ! entries of histPop(:) : populations of histogram entries (with tolerance, first dimension)
+        ! entries of histAccRate(:) : acc. rates of histogram entries (second dimension)
+        implicit none
+        ! number of energy/acc rate windows in the histogram
+        integer, intent(in) :: popPoints, accRatePoints
+        integer, intent(out) :: hist(popPoints,accRatePoints)
+        integer, intent(out) :: allHist(:,:)
+        real(dp), intent(out) :: histPop(popPoints), histAccRate(accRatePoints)
+        integer :: i, run
+        integer :: popInd, arInd
+        real(dp) :: maxPop, locMaxPop, totSpawn, pop
+        real(dp), dimension(lenof_sign) :: sgn
+
+        ! The bins of the population has width of 1, except the last bin which
+        ! constains all populations larger than popPoints-1
+        hist = 0
+        locMaxPop = 0.0
+        do i = 1, int(TotWalkers)
+            call extract_sign(CurrentDets(:,i), sgn)
+            do run = 1, inum_runs
+                pop = mag_of_run(sgn,run) 
+                if(pop > locMaxPop) locMaxPop = pop
+                totSpawn = get_tot_spawns(i,run)
+                if(abs(totSpawn) > eps) then
+                    popInd = getHistIndex(pop, 0.0_dp, popPoints, 1.0_dp)
+                    arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
+                        0.0_dp, accRatePoints, 1.0_dp/real(accRatePoints,dp))
+                    hist(popInd, arInd) = hist(popInd, arInd) + 1
+                end if
+            end do
+        end do
+
+        call MPIAllReduce(locMaxPop, MPI_MAX, maxPop)
+        do i = 1, popPoints+1
+            histPop(i) = real(i-1)
+        end do
+        if(maxPop>histPop(popPoints+1))  histPop(popPoints+1)= maxPop
+
+        do i = 1, accRatePoints+1
+            histAccRate(i) = (i-1)/real(accRatePoints,dp)
+        end do
+
+        ! communicate the histogram
+        call MPISum(hist, allHist)
+
+    end subroutine generate_fval_pop_hist
 
 !------------------------------------------------------------------------------------------!
 

@@ -167,6 +167,8 @@ contains
           tAAS_MatEle4 = .false.
           AAS_DenCut = 0.5
           AAS_Const = 0.0
+          tAS_TrialOffset = .false.
+          ShiftOffset = 0.0_dp
           tInitsRDMRef = .false.
           tInitsRDM = .false.
           tApplyLC = .true.
@@ -1927,6 +1929,9 @@ contains
                 if(AAS_Const<0.0)then
                     call stop_all(t_r, 'AAS-CONST should be greater than or equal zero.')
                 end if
+            case("AS-TRIAL-OFFSET")
+                ! Use the trial energy as an offset for the adaptive shift (instead of reference)
+                tAS_TrialOffset = .true.
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")

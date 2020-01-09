@@ -158,6 +158,8 @@ real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 real(dp) :: AAS_Const
 logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
 real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
+logical :: tAS_TrialOffset !Whether the adaptive shift scheme should be applied with respect to trial-wf energy not HF energy
+real(dp) :: ShiftOffset ! An offest for the adaptive shift
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
