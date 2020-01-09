@@ -2,22 +2,38 @@
 
 module enumerate_excitations
 
-    use SystemData, only : tReltvy
+    use SystemData, only : tReltvy, t_k_space_hubbard
+
     use bit_rep_data, only: NIfD, NIfTot
+
     use bit_reps, only: decode_bit_det
+
     use constants
+
     use DetBitOps, only: IsAllowedHPHF, TestClosedShellDet, EncodeBitDet
+
     use FciMCData, only: SpinInvBRR
+
     use HPHFRandExcitMod, only: FindExcitBitDetSym
+
     use Parallel_neci, only: MPISumAll
+
     use sort_mod, only: sort
+
     use SymData, only: nSymLabels, SymTable, SymLabels, SymClasses
+
     use SymExcit3, only: GenExcitations3
+
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
+
     use SymExcitDataMod
+
     use sym_general_mod
+
     use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
                           tUEG, tKPntSym, tReal, tUseBrillouin, tReltvy
+
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
 
     implicit none
 
@@ -477,6 +493,8 @@ contains
         integer :: nStore(6)
         integer, allocatable :: excit_gen(:)
         logical :: tStoreConnSpace, tSinglesOnly, tTempUseBrill, tAllExcitFound
+        integer :: n_excits 
+        integer(n_int), allocatable :: temp_dets(:,:)
 
 
         if (present(connected_space)) then
@@ -497,22 +515,39 @@ contains
 
             call decode_bit_det(nI, original_space(0:NIfTot,i))
 
-            call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
-            if (tSinglesOnly) ex_flag = 1
 
-            do while(.true.)
+            if (t_k_space_hubbard) then 
 
-                call generate_connection_kpnt(nI, original_space(0:NIfTot,i), nJ, ilutJ, ex_flag, tAllExcitFound, &
-                                               nStore, excit_gen, ncon=connected_space_size)
+                ! for every loop we have to save the excitations per 
+                ! do we have to check if the list is unique?? i guess i do
+                call gen_all_excits_k_space_hubbard(nI, n_excits, temp_dets)
+                
+                if (tStoreConnSpace) then 
+                    connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) & 
+                        = temp_dets(0:nifd,:)
 
-                if (tAllExcitFound) exit
+                end if
 
-                if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                connected_space_size = connected_space_size + n_excits
+                
+            else
 
-            end do
+                call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
+                if (tSinglesOnly) ex_flag = 1
 
-            deallocate(excit_gen)
+                do while(.true.)
 
+                    call generate_connection_kpnt(nI, original_space(:,i), nJ, ilutJ, ex_flag, tAllExcitFound, &
+                                                   nStore, excit_gen, ncon=connected_space_size)
+
+                    if (tAllExcitFound) exit
+
+                    if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+
+                end do
+
+                deallocate(excit_gen)
+            end if
         end do
 
     end subroutine generate_connected_space_kpnt

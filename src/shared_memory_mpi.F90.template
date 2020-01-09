@@ -54,6 +54,7 @@ sizeb=8
 ===================
 
 module shared_memory_mpi
+  use mpi
   use Parallel_neci
   use constants
   use scalar_shared_memory_mpi

@@ -1045,15 +1045,21 @@ This file can similarly be generated using \code{gen_emacs_tags.sh}, then you ca
 	Memory is logged using the functions \code{LogMemAlloc} and
 	\code{LogMemDealloc}.
 
-
-
 \section{Code templating}
 \label{sect:templating}
-	NECI has an additional build step in comparison with most Fortran code.
-	Prior to running the C preprocessor, the custom script
-	\code{tools/f90_template.py} converts all of the files with filenames
-	\code{*.F90.template} into files with the corresponding names
-	\code{*.F90}.
+    NECI supports two ways of templating code, the python-based Fortran
+    preprocessor \code{fypp} (,
+    \url{https://github.com/aradi/fypp}) and the custom script
+    \code{tools/f90_template.py}. It is strongly suggested for new code to
+    make use of \code{fypp}, which allows for handling preprocessor flags
+    using python syntax, and provides an easy route to templating code with
+    little effort. All files named \code{*.fpp} have the \code{fypp}
+    preprocessor applied. An in-depth documentation can be found at \url{https://fypp.readthedocs.io/en/stable/}.
+
+    As \code{fypp} support is a recent addition, most of NECI's templates are
+    contained in \code{*.F90.template} files, which are automatically converted by
+    \code{tools/f90_template.py} into files with the corresponding names
+	\code{*.F90} prior to running the C preprocessor.
 
 	This mechanism exists to allow general code to be written, and reused for
 	different types, and combinations of types. While this is largely a
@@ -3246,7 +3252,33 @@ of the code. This cause a large array of changes to the compiled code:
 					only with experimental initiators).
 			\end{packed_itemize}
 
-%\subsection{Iteration specific data}
-%\subsection{Communication in the main loop}
+\section{Transcorrelated integrals}
+The usage of the transcorrelated approach for ab-initio systems requires us to
+include 3-body interactions, that come with 6-index integrals to be handled by
+NECI, as well as triple excitations to be generated. The triples excitation
+generator is uniform and is located in \code{tc_three_body_excitgen.F90},
+while the handling of the 6-index integrals is done by the
+\code{LMat_class.F90} (for the storage and reading of integrals) and the
+\code{LMat_mod.F90} (for getting matrix elements).
 
+When reading 6-index integrals, they can either be read from an ASCII
+formatted file, or an HDF5 file. When reading them from an ASCII file, the
+file has to be formatted in a general FCIDUMP fashion, containing all non-zero
+integrals $L_{ijk}^{abc}$ in the format
+\begin{lstlisting}
+  <integral> i j k a b c
+\end{lstlisting}
+where \code{i}, \code{j}, \code{k} are the indices of the orbitals to excite
+from and \code{a}, \code{b}, \code{c} those of the orbitals to excite to. No
+further information is required in the file. The default filename is
+\code{TCDUMP}.
+
+~\\
+When reading the 6-index integrals from an HDF5 file, all data is required to
+be contained in a group called \code{tcdump}, containing an attribute named
+\code{nInts} containing the number of non-zero integrals, and two datasets
+called \code{values} and \code{indices}, containing the values of the non-zero
+6-index integrals and their indices. The \code{indices} dataset has to be of 6
+times the size than the \code{values} dataset, each group of 6 indices is
+attributed to one value (in storage order).
 \end{document}

@@ -1,4 +1,5 @@
       SUBROUTINE CPMDBASISINIT(NBASISMAX,ARR,BRR,G1,LEN)
+         use constants, only: dp
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,
      &                         NullBasisFn
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
@@ -7,7 +8,8 @@
          use CPMDData, only: EigenValues,Project,BigCell,Trans_Label
          use CPMDData, only: K_Vectors,KPntInd,CellSizes,TKP,Improper_OP
          use CPMDData, only: nStates,NKPTrans,nKPS,nRotOp
-         use sym_mod
+         use sym_mod, only: ComposeAbelianSym, GenKPtIrreps
+         use sym_mod, only: DECOMPOSEREP, GENIRREPS, GENSYMTABLE
          use util_mod, only: near_zero
          IMPLICIT NONE
          INTEGER LEN,nBasisMax(5,*), BRR(LEN)
@@ -117,9 +119,10 @@ C.. group
       END
 
       SUBROUTINE GENCPMDSYMREPS(G1,NBASIS,ARR)
+         use constants, only: dp
          use CPMDData, only: DegenTol
          use SystemData, only: BasisFN
-         use sym_mod
+         use sym_mod, only: GENSYMREPS
          IMPLICIT NONE
          INTEGER NBASIS
          type(BasisFn) G1(*)
@@ -216,7 +219,7 @@ C.. h_ij=(E_i+xi) delta_ij - Sum_k f_k (ik|jk)
          use OneEInts, only: TMatInd
          use global_utilities
          use sort_mod
-         use sym_mod
+         use sym_mod, only: LCHKSYM
          use MemoryManager, only: TagIntType
          IMPLICIT NONE
          INTEGER NHG

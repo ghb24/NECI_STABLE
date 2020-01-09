@@ -5,7 +5,8 @@ module DetBitOps
     ! A collection of useful operations to perform on the bit-representation
     ! of determinants.
 
-    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, tOddS_HPHF
+    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, tOddS_HPHF, &
+                          tHPHF
     use CalcData, only: tTruncInitiator, tSemiStochastic
     use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, NIfDBO, NOffSgn, extract_sign
@@ -186,22 +187,39 @@ module DetBitOps
     end function
 
 
-    pure function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel) result(IC)
+    pure function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel, t_hphf_ic) result(IC)
 
         ! Find the excitation level of one determinant relative to another
         ! given their bit strings (the number of orbitals they differ by)
         !
         ! In:  iLutnI, iLutnJ    - The bit representations
         !      maxExLevel        - An (optional) maximum ex level to consider
+        !      t_hphf_ic         - An (optional) flag to determine the 
+        !                          minimum excitation level in an HPHF calculation to 
+        !                          both spin-coupled references if present
         ! Ret: FindBitExcitLevel - The number of orbitals i,j differ by
 
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfD), iLutnJ(0:NIfD)
         integer, intent(in), optional :: maxExLevel
+        logical, intent(in), optional :: t_hphf_ic
         integer(kind=n_int) :: tmp(0:NIfD)
         integer :: IC, unused
 
         ! Unused
         if (present(maxExLevel)) unused = maxExLevel
+
+        if (present(t_hphf_ic)) then
+           if(t_hphf_ic .and. tHPHF) then
+              if(.not.(TestClosedShellDet(ilutnI) .and. TestClosedShellDet(iLutnJ)))  then 
+                 ! make sure that we are calculating the correct excitation 
+                 ! level, which should be the minimum of the possible ones in 
+                 ! HPHF mode 
+                 ! if both are closed shell it is fine
+                 ic = FindBitExcitLevel_hphf(ilutnI, ilutnJ)
+                 return
+              endif
+           endif
+        end if
 
         ! Obtain a bit string with only the excited orbitals one one det.
         tmp = ieor(iLutnI, iLutnJ)
@@ -260,6 +278,13 @@ module DetBitOps
 
     !WARNING - I think this *may* be buggy - use with caution - ghb24 8/6/10
     ! I fixed a bug (bits_n_int -> bits_n_int-1), but maybe there's more... - NSB 7/10/14
+    ! [W.D.12.12.2017] so lets fix it then! 
+    ! there are now unit tests in the k_space_hubbard unit test suite for this 
+    ! routine. And i will also code up a version, which determines the sign 
+    ! based on the ilut representation! since this should be much faster 
+    ! than the nI based calculation! use Manu's paper! 
+    ! and this can be done way more effective with the new fortran 2008 
+    ! routines! todo: implement this more efficiently! and write unit tests!
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
 
         ! Obatin the excitation matrix between two determinants from their bit
@@ -684,17 +709,18 @@ module DetBitOps
     ! (nI) as a bit string (iLut(0:NIfTot)) where NIfD=INT(nBasis/32)
     ! If this is a csf, the csf is contained afterwards.
     pure subroutine EncodeBitDet(nI,iLut)
-        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: nI(:)
         integer(kind=n_int), intent(out) :: iLut(0:NIfTot)
-        integer :: i, det, pos, nopen
+        integer :: i, det, pos, nopen, num_el
         logical :: open_shell
 
-        iLut(:)=0
+
+        iLut(:)=0_n_int
         if (tCSF) then
             if(iscsf (nI)) then
                 nopen = 0
                 open_shell = .false.
-                do i=1,nel
+                do i=1,size(nI)
                     ! THe first non-paired orbital has yama symbol = 1
                     if ((.not. open_shell) .and. &
                         btest(nI(i), csf_yama_bit)) open_shell = .true.
@@ -716,7 +742,7 @@ module DetBitOps
         endif
 
         !Decode determinant
-        do i=1,nel
+        do i=1,size(nI)
             pos = (nI(i) - 1) / bits_n_int
             iLut(pos)=ibset(iLut(pos),mod(nI(i)-1,bits_n_int))
         enddo
@@ -765,11 +791,14 @@ module DetBitOps
         ! Out: iLutnJ (0:NIfD) - New bit det
 
         integer, intent(in) :: IC
-        integer, intent(in) :: ExcitMat(2,2)
+        integer, intent(in) :: ExcitMat(2,ic)
         integer(kind=n_int), intent(in) :: iLutnI (0:NIfTot)
         integer(kind=n_int), intent(inout) :: iLutnJ (0:NIfTot)
-        integer :: pos(2,2), bit(2,2), i, ic_tmp
-
+        integer :: pos(2,ic), bit(2,ic), i, ic_tmp
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "FindExcitBitDet"
+#endif
+        
         iLutnJ = iLutnI
         if (IC == 0) then
             if (.not.tCSF) then
@@ -780,14 +809,19 @@ module DetBitOps
             pos = (excitmat - 1) / bits_n_int
             bit = mod(excitmat - 1, bits_n_int)
 
+            ! [W.D.12.12.2017]: 
+            ! why is this changed back to single excitations for ic=3? 
+            ! has this to do with simons CSFs? i can't really find a reason.. 
+            ! try to change it and then lets see what happens! 
+            ASSERT(ic > 0 .and. ic <= 3) 
             ic_tmp = ic
-            if (ic==3) then
-                ! single excitation: only one populated column in ExcitMat
-                ic_tmp=1
-            elseif (ic==4 .or. ic==5) then
-                ! double excitation: both columns populated in ExcitMat
-                ic_tmp=2
-            endif
+!             if (ic==3) then
+!                 ! single excitation: only one populated column in ExcitMat
+!                 ic_tmp=1
+!             elseif (ic==4 .or. ic==5) then
+!                 ! double excitation: both columns populated in ExcitMat
+!                 ic_tmp=2
+!             endif
 
             ! Clear bits for excitation source, and set bits for target
             do i=1,ic_tmp
@@ -970,6 +1004,8 @@ module DetBitOps
     end subroutine
 
 
+    ! [W.D. 12.12.2017]
+    ! why are those routines not used more often?? 
     pure function get_single_parity (ilut, src, tgt) result(par)
 
         ! Find the relative parity of two determinants, where one is ilut
@@ -1052,8 +1088,8 @@ module DetBitOps
     pure function spin_flip(ilut) result(ilut_flip)
       ! Take the determinant represented by ilut and flip every spin
       implicit none
-      integer(n_int), intent(in) :: ilut(0:NIfTot)
-      integer(n_int) :: ilut_flip(0:NIfTot)
+      integer(n_int), intent(in) :: ilut(0:niftot)
+      integer(n_int) :: ilut_flip(0:niftot)
       integer :: i, orb
       logical :: up, down
 
@@ -1077,6 +1113,37 @@ module DetBitOps
          end do
       end do
     end function spin_flip
+
+    pure function FindBitExcitLevel_hphf(ilutnI, iLutnJ) result(ic)
+        integer(n_int), intent(in) :: ilutnI(0:nifd), ilutnJ(0:nifd)
+        integer :: ic 
+        integer(n_int) :: ilutsI(0:nifd,2), ilutsJ(0:nifd,2), tmp(0:nifd)
+        integer :: ic_tmp(4), i, j, k
+
+        ilutsI(:,1) = ilutnI
+        call spin_sym_ilut(ilutnI, ilutsI(:,2))
+!         ilutsI(:,2) = spin_flip(ilutnI)
+
+        ilutsJ(:,1) = ilutnJ
+        call spin_sym_ilut(ilutnJ, ilutsJ(:,2))
+!         ilutsJ(:,2) = spin_flip(ilutnJ)
+
+        i = 1
+        ic_tmp = 9999
+
+        do j = 1, 2
+            do k = 1, 2
+                tmp = ieor(ilutsI(:,j), ilutsJ(:,k))
+                tmp = iand(ilutsI(:,j), tmp)
+
+                ic_tmp(i) = CountBits(tmp, nifd)
+                i = i + 1
+            end do
+        end do
+
+        ic = minval(ic_tmp)
+
+    end function FindBitExcitLevel_hphf
 
 end module
 
@@ -1113,7 +1180,7 @@ end module
 
         tSign=.true.
         max_excit = Ex(1,1)
-        Ex(:,:max_excit) = 0
+        Ex(:,1:max_excit) = 0
 
         if (max_excit > 0) then
 

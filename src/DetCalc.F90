@@ -1,12 +1,20 @@
 #include "macros.h"
 MODULE DetCalc
         use constants, only: dp,n_int
-        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs
+
+        use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
+                              t_non_hermitian
+
         use sort_mod
+
         use DetCalcData
+
         use MemoryManager, only: TagIntType
+
         use gndts_mod, only: gndts
-        use UMatCache, only: UMat2D, tUMat2D, tDeferred_UMat2D, tagUMat2D
+
+        use UMatCache, only: UMat2D, tUMat2D, tDeferred_UMat2D, SetupUMat2d_dense
+
         use procedure_pointers, only: get_umat_el
 
     IMPLICIT NONE
@@ -78,29 +86,10 @@ CONTAINS
 
           ASSERT(.not. btest(nbasis, 0))
 
-          ! Is the storage in spin, or spatial, orbitals?
-          if (tStoreSpinOrbs) then
-              norb = nbasis
-          else
-              norb = nbasis / 2
-          end if
-
-          ! Allocate the storage
-          allocate(umat2d(norb, norb), stat=ierr)
-          LogAlloc(ierr, 'umat2d', norb*norb, HElement_t_sizeB, tagUMat2D)
-
           ! And fill in the array
-          do i = 1, norb
-              do j = i, norb
-                  if (i == j) then
-                      umat2d(i, i) = get_umat_el (i, i, i, i)
-                  else
-                      UMat2D(i, j) = get_umat_el(i, j, i, j)
-                      UMat2D(j, i) = get_umat_el(i, j, j, i)
-                  end if
-              end do
-          end do
+          call SetupUMat2d_dense(nBasis)
       end if
+
 
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
       if(TSPECDET) then
@@ -281,26 +270,39 @@ CONTAINS
             CLOSE(iunit)
          endif
 
+!Update: 14.03.2018, K.Ghanem
+!FDET has already been assigned in DetPreFreezeInit.
+!No idea why it is overwirtten here.
+!Therefore, I comment out the following code and hope for the best.
+!Instead, I look for FDET in the list of determinants NMRKS and assign the index to IFDET.
+
 !C.. Now generate the fermi determiant
 !C.. Work out the fermi det
-         DO I=1,NEL
-            FDET(I)=NMRKS(I,IFDET)
-         ENDDO
-         WRITE(6,*) "Fermi Determinant:",IFDET
-         WRITE(6,*) "Reference determinant to be used for diagonalisation procedure: "
-         call write_det (6, FDET, .true.)
+         !DO I=1,NEL
+            !FDET(I)=NMRKS(I,IFDET)
+         !ENDDO
+         !WRITE(6,*) "Fermi Determinant:",IFDET
+         !WRITE(6,*) "Reference determinant to be used for diagonalisation procedure: "
+         !call write_det (6, FDET, .true.)
 
-         if (tDefineDet) then
-             DO I=1,NEL
-                 IF(DefDet(i+NFROZEN)-NFROZEN.ne.FDET(I)) THEN
-                     WRITE(6,"(A)") "*** WARNING - Defined determinant does not match reference determinant in CI matrix ***"
-                     WRITE(6,*) NMRKS(:,IFDET)
-                     WRITE(6,*) DefDet(:)
-                     EXIT
-                 ENDIF
-             ENDDO
-         ENDIF
-
+         !if (tDefineDet) then
+             !DO I=1,NEL
+                 !IF(DefDet(i+NFROZEN)-NFROZEN.ne.FDET(I)) THEN
+                     !WRITE(6,"(A)") "*** WARNING - Defined determinant does not match reference determinant in CI matrix ***"
+                     !WRITE(6,*) NMRKS(:,IFDET)
+                     !WRITE(6,*) DefDet(:)
+                     !EXIT
+                 !ENDIF
+             !ENDDO
+         !ENDIF
+        IFDET=0
+        DO I=1,NDET
+            IF(ALL(NMRKS(:,I).EQ.FDET))THEN
+                IFDET=I
+                Exit
+            END IF
+        END DO
+        IF(IFDET.EQ.0) call stop_all("DetCalcInit","Fermi determinant is not found in NMRKS!")
 
          WRITE(6,*) ' NUMBER OF SYMMETRY UNIQUE DETS ' , NDET
 
@@ -350,9 +352,9 @@ CONTAINS
     Subroutine DoDetCalc
       Use global_utilities
       use util_mod, only: get_free_unit
-      use Determinants , only : get_helement,FDet
+      use Determinants , only : get_helement,FDet, DefDet, tDefineDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
-      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot
+      use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot, TSPN,LMS
       use IntegralsData, only: FCK,NMAX, UMat
       Use LoggingData, only: iLogging,tLogDets, tCalcVariationalEnergy
       use SystemData, only  : tCSFOLD
@@ -365,6 +367,19 @@ CONTAINS
       use HElem
       use MemoryManager, only: TagIntType
       use hist_data, only: tHistSpawn
+      use CalcData, only: tFCIDavidson
+      !use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc
+      !use davidson_neci, only: perform_davidson
+      !use sparse_arrays, only: calculate_sparse_hamiltonian, deallocate_sparse_ham, &
+                               !sparse_ham, hamil_diag, HDiagTag, SparseHamilTags
+      !use hamiltonian_linalg, only: sparse_hamil_type
+      !use constants, only: size_n_int
+
+      use davidson_neci, only: DavidsonCalcType, DestroyDavidsonCalc
+      use davidson_neci, only: davidson_direct_ci_init, davidson_direct_ci_end, perform_davidson
+      use hamiltonian_linalg, only: direct_ci_type, tCalcHFIndex
+      use FCIMCData, only: davidson_ras, davidson_classes
+      use ras, only: generate_entire_ras_space
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t(dp), ALLOCATABLE :: WORK(:)
@@ -379,7 +394,7 @@ CONTAINS
       INTEGER IN,IND,INDZ
       INTEGER NBLOCK!,OpenOrbs,OpenOrbsSym,Ex(2,NEl)
       INTEGER nKry1
-      INTEGER(KIND=n_int) :: ilut(0:NIfTot)
+      INTEGER(KIND=n_int) :: ilut(0:NIfTot), ilut_temp(0:NIfTot)
       INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
       INTEGER LSCR,LISCR,MaxIndex
       LOGICAL tMC!,TestClosedShellDet,Found,tSign
@@ -387,6 +402,13 @@ CONTAINS
       integer:: ic,TempnI(NEl),MomSymDet(NEl),ICSym,ICConnect,PairedUnit,SelfInvUnit
       integer(n_int) :: iLutMomSym(0:NIfTot)
       logical :: tSuccess
+      type(DavidsonCalcType) :: davidsonCalc
+      integer(n_int), allocatable, dimension(:,:) :: davidson_ilut
+      integer, allocatable, dimension(:) :: davidson_parities
+      integer :: nI(nel)
+      integer :: davidson_size
+      !character (len=*), parameter :: t_r = "DoDetCalc"
+      !integer(TagIntType) :: IlutTag
 
       IF(tEnergy) THEN
           WRITE(6,'(1X,A,E19.3)') ' B2LIMIT : ' , B2L
@@ -465,7 +487,6 @@ CONTAINS
             ENDDO
             CLOSE(iunit)
          ENDIF
-         print *, "toto2:"
         WRITE(6,*) '<D0|H|D0>=',real(GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET), dp)
         WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL)
         CALL neci_flush(6)
@@ -537,6 +558,10 @@ CONTAINS
             CALL LogMemAlloc('V2',NDET*NEVAL,8,this_routine,V2Tag,ierr)
             V2=0.0_dp
 !C..Lanczos iterative diagonalising routine
+            if (t_non_hermitian) then
+                call stop_all(this_routine, &
+                    "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians")
+            end if
             CALL NECI_FRSBLKH(NDET,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A,W,V,AM,BM,T,WT, &
      &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.true.)
 
@@ -554,6 +579,10 @@ CONTAINS
                CALL LogMemAlloc('WORK',4*NDET,8*HElement_t_size,this_routine,WorkTag,ierr)
                ALLOCATE(WORK2(3*NDET),stat=ierr)
                CALL LogMemAlloc('WORK2',3*NDET,8,this_routine,WORK2Tag,ierr)
+               if (t_non_hermitian) then
+                   call stop_all(this_routine, &
+                       "HDIAG_nec is not setup for non-hermitian Hamiltonians")
+               end if
                CALL HDIAG_neci(NDET,HAMIL,LAB,NROW,CK,W,WORK2,WORK,NBLOCKSTARTS,NBLOCKS)
             ENDIF
          ENDIF
@@ -574,6 +603,33 @@ CONTAINS
          WRITE(6,"(A,F19.9)") "EXACT DLWDB(D0)=",GSEN
          WRITE(6,"(A,F19.9)") "GROUND E=",W(1)
 !C.. END ENERGY CALC
+!      ENDIF
+       ELSEIF(tFCIDavidson)THEN
+          if(.not.TSPN .or. LMS.NE.0)then
+              call stop_all("DoDetCalc","FCI-Davidson only works for closed shell systems.")
+          end if
+          davidsonCalc = davidson_direct_ci_init()
+          davidson_size = davidsonCalc%super%space_size
+          allocate(davidson_ilut(0:NIfTot,davidson_size))
+          allocate(davidson_parities(davidson_size))
+          call generate_entire_ras_space(davidson_ras, davidson_classes, davidson_size, davidson_ilut, davidson_parities)
+          !Find HF index
+          !Set this flag, otherwise hfindex will be overwritten
+          tCalcHFIndex = .false.
+          davidsonCalc%super%hfindex=0
+          CALL EncodeBitDet(FDet,iLut(0:NIfDBO))
+          do i=1,davidson_size
+            if(DetBitEq(davidson_ilut(:,i),ilut))then
+                davidsonCalc%super%hfindex=i
+                exit
+            end if
+          end do
+          IF(davidsonCalc%super%hfindex.EQ.0) call stop_all("DoDetCalc","Fermi determinant is not found in RAS space!")
+          if (t_non_hermitian) then
+              call stop_all(this_routine, &
+                  "perform_davidson not adapted for non-hermitian Hamiltonians!")
+          end if
+          call perform_davidson(davidsonCalc, direct_ci_type, .true.)
       ENDIF
 
       call neci_flush(6)
@@ -605,13 +661,30 @@ CONTAINS
 !First, we want to count the number of determinants of the correct symmetry...
             Det=0
             norm=0.0_dp
-            do i=1,NDET
-                CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
-                IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
-                    Det=Det+1
-                    IF(tEnergy) norm=norm+(REAL(CK(i,1),dp))**2
-                ENDIF
-            enddo
+            if(tFCIDavidson)then
+                do i=1,davidson_size
+                    CALL decode_bit_det(nI, davidson_ilut(:,i))
+                    CALL GETSYM(nI,NEL,G1,NBASISMAX,ISYM)
+                    !CALL GetLz(nI,NEL,Lz)
+                    !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
+                    IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
+                        Det=Det+1
+                        norm=norm+(davidsonCalc%davidson_eigenvector(i))**2
+                    ENDIF
+                enddo
+            else
+                do i=1,NDET
+                    CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
+                    !CALL GetLz(NMRKS(:,i),NEL,Lz)
+                    !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
+                    IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
+                        Det=Det+1
+                        IF(tEnergy) THEN
+                            norm=norm+(REAL(CK(i,1),dp))**2
+                        ENDIF
+                    ENDIF
+                enddo
+            end if
             WRITE(6,"(I25,A,I4,A)") Det," determinants of symmetry ",IHFSym%Sym%S," found."
             WRITE(6,*) "Normalization of eigenvector 1 is: ", norm
             CALL neci_flush(6)
@@ -621,7 +694,7 @@ CONTAINS
             ALLOCATE(FCIDetIndex(0:NEl+1),stat=ierr) !+1 so we can store the end of the array too
             ALLOCATE(Temp(Det),stat=ierr)
             IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
-            IF(tEnergy) THEN
+            IF(tEnergy .or. tFCIDavidson) THEN
                 ALLOCATE(FCIGS(Det),stat=ierr)
                 IF(ierr.ne.0) CALL Stop_All("DetCalc","Cannot allocate memory to hold vector")
             ENDIF
@@ -632,28 +705,50 @@ CONTAINS
                 ReIndex(:)=0
             endif
 
+
+
             Det=0
             FCIDetIndex(:)=0
-            do i=1,NDet
-                CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
-                CALL GetLz(NMRKS(:,i),NEL,Lz)
-!                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
-!                    WRITE(6,*) "Found Det: ",NMRKS(:,i)
-!                    WRITE(6,*) i,iSym%Sym%S,REAL(CK(i),8)
-!                ENDIF
-                IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
-                    Det=Det+1
-                    ExcitLevel=iGetExcitLevel_2(FDet,NMRKS(:,i),NEl,NEl)
-! FCIDetIndex is off by one, for later cumulative indexing
-                    FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
-                    Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
-                    CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
-                    IF(tEnergy) THEN
-                        FCIGS(Det)=REAL(CK(i,1),dp)/norm
+            if(tFCIDavidson)then
+                do i=1,davidson_size
+                    CALL decode_bit_det(nI, davidson_ilut(:,i))
+                    CALL GETSYM(nI,NEL,G1,NBASISMAX,ISYM)
+                    !CALL GetLz(nI,NEL,Lz)
+                    !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
+                    IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
+                        Det=Det+1
+                        ExcitLevel= FindBitExcitLevel(davidson_ilut(:,i), iLut) !iGetExcitLevel_2(FDet,nI,NEl,NEl)
+                        FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
+                        Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
+                        FCIDets(:,Det) = davidson_ilut(:, i)
+                        FCIGS(Det)=davidson_parities(i)*davidsonCalc%davidson_eigenvector(i)/norm
                     ENDIF
-                ENDIF
-                if(tCalcVariationalEnergy) ReIndex(i)=i
-            enddo
+                    if(tCalcVariationalEnergy) ReIndex(i)=i
+                enddo
+            else
+                do i=1,NDet
+                    CALL GETSYM(NMRKS(:,i),NEL,G1,NBASISMAX,ISYM)
+                    !CALL GetLz(NMRKS(:,i),NEL,Lz)
+    !                IF((NMRKS(1,i).eq.28).and.(NMRKS(2,i).eq.29).and.(NMRKS(3,i).eq.30).and.(NMRKS(4,i).eq.31)) THEN
+    !                    WRITE(6,*) "Found Det: ",NMRKS(:,i)
+    !                    WRITE(6,*) i,iSym%Sym%S,REAL(CK(i),8)
+    !                ENDIF
+                    !IF((ISym%Sym%S.eq.IHFSYM%Sym%S).and.(Lz.eq.LzTot)) THEN
+                    IF(ISym%Sym%S.eq.IHFSYM%Sym%S) THEN
+                        Det=Det+1
+                        ExcitLevel=iGetExcitLevel_2(FDet,NMRKS(:,i),NEl,NEl)
+    ! FCIDetIndex is off by one, for later cumulative indexing
+                        FCIDetIndex(ExcitLevel+1)=FCIDetIndex(ExcitLevel+1)+1
+                        Temp(Det)=ExcitLevel    !Temp will now temporarily hold the excitation level of the determinant.
+                        CALL EncodeBitDet(NMRKS(:,i),FCIDets(0:NIfTot,Det))
+                        IF(tEnergy) THEN
+                            FCIGS(Det)=REAL(CK(i,1),dp)/norm
+                        ENDIF
+                    ENDIF
+                    if(tCalcVariationalEnergy) ReIndex(i)=i
+                enddo
+            end if
+
             IF(iExcitLevel.le.0) THEN
                 MaxIndex=NEl
             ELSE
@@ -666,7 +761,7 @@ CONTAINS
 
             ! We now want to sort the determinants according to the
             ! excitation level (stored in Temp)
-            IF(.not.tEnergy) THEN
+            IF(.not.tEnergy .and. .not. tFCIDavidson) THEN
                 call sort (temp(1:Det), FCIDets(:,1:Det))
             ELSE
                 if(tCalcVariationalEnergy) then
@@ -700,7 +795,7 @@ CONTAINS
 
 !We now need to sort within the excitation level by the "number" of the determinant
             do i=1,MaxIndex
-                IF(.not.tEnergy) THEN
+                IF(.not.tEnergy .and. .not. tFCIDavidson) THEN
 !                    WRITE(6,*) i,FCIDetIndex(i),FCIDetIndex(i+1)-1
 !                    CALL neci_flush(6)
                     call sort (FCIDets(:,FCIDetIndex(i):FCIDetIndex(i+1)-1), &
@@ -719,7 +814,7 @@ CONTAINS
                 ENDIF
             enddo
 
-            IF(tEnergy) THEN
+            IF(tEnergy .or. tFCIDavidson) THEN
                 IF(tLogDETS.and.iProcIndex.eq.0) THEN
                     iunit = get_free_unit()
                     OPEN(iunit,FILE='SymDETS',STATUS='UNKNOWN')
@@ -827,9 +922,19 @@ CONTAINS
           ENDDO
           CLOSE(iunit)
           WRITE(6,*)   '       ====================================================== '
+      ELSEIF(tFCIDavidson)THEN
+          OPEN(iunit,FILE='ENERGIES',STATUS='UNKNOWN')
+          WRITE(iunit,"(F19.11)") davidsonCalc%davidson_eigenvalue
+          CLOSE(iunit)
 !C., END energy calc
       ENDIF
 
+      IF(tFCIDavidson) THEN
+          call davidson_direct_ci_end(davidsonCalc)
+          call DestroyDavidsonCalc(davidsonCalc)
+          DEALLOCATE(davidson_ilut)
+          DEALLOCATE(davidson_parities)
+      ENDIF
 !C.. Jump to here if just read Psi in
       CONTINUE
 

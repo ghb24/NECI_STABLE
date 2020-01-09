@@ -73,11 +73,12 @@ module hdf5_popsfile
     use constants
     use hdf5_util
     use util_mod
-    use CalcData, only: tAutoAdaptiveShift
-    use LoggingData, only: tPopAutoAdaptiveShift
-    use global_det_data, only: writeFFuncAsInt
+    use CalcData, only: tAutoAdaptiveShift, tScaleBlooms
+    use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms
+    use global_det_data, only: writeFFuncAsInt, max_ratio_size, fvals_size
 #ifdef USE_HDF_
     use hdf5
+    use gdata_io, only: gdata_io_t, clone_signs, resize_attribute    
 #endif
     implicit none
     private
@@ -99,7 +100,7 @@ module hdf5_popsfile
             nm_tot_imag = 'tot_imag_time', &
             nm_shift = 'shift', &
             nm_tAuto = 'tAutoAdaptiveShift', &
-
+            nm_sc_blooms = 'tScaleBlooms', &
             nm_tau_grp = 'tau_search', &
             nm_gam_sing = 'gamma_sing', &
             nm_gam_doub = 'gamma_doub', &
@@ -117,6 +118,7 @@ module hdf5_popsfile
             nm_psingles = 'psingles', &
             nm_pdoubles = 'pdoubles', &
             nm_pparallel = 'pparallel', &
+            nm_ptriples = 'ptriples', &
             nm_tau = 'tau', &
             ! [W.D.]:
             ! can i just add another entry without breaking anything?
@@ -134,13 +136,10 @@ module hdf5_popsfile
             nm_sgns = 'sgns', &
             nm_norm_sqr = 'norm_sqr', &
             nm_num_parts = 'num_parts', &
-            nm_fvals = 'fvals'
+            nm_gdata = 'fvals'
 
     integer(n_int), dimension(:,:), allocatable :: receivebuff
     integer:: receivebuff_tag
-
-    ! if fvals (acc/tot spawns) for auto-adaptive shift are read in
-    logical :: tReadFVals
 
     public :: write_popsfile_hdf5, read_popsfile_hdf5
     public :: add_pops_norm_contrib
@@ -412,6 +411,7 @@ contains
                               enough_par, cnt_sing, cnt_doub, cnt_opp, &
                               cnt_par, max_death_cpt
         use FciMCData, only: pSingles, pDoubles, pParallel
+        use tc_three_body_data, only: pTriples
         use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
 
         integer(hid_t), intent(in) :: parent
@@ -423,7 +423,7 @@ contains
         logical :: all_en_sing, all_en_doub, all_en_opp, all_en_par
         integer :: max_cnt_sing, max_cnt_doub, max_cnt_opp, max_cnt_par
 
-        real(dp) :: all_pdoub, all_psing, all_ppar, all_tau
+        real(dp) :: all_pdoub, all_psing, all_ppar, all_tau, all_trip
 
         ! Create the group
         call h5gcreate_f(parent, nm_tau_grp, tau_grp, err)
@@ -473,16 +473,18 @@ contains
             call write_int64_scalar(tau_grp, nm_cnt_par, max_cnt_par)
 
         ! Use the probability values from the head node
-        all_psing = pSingles; all_pdoub = pDoubles; all_ppar = pParallel
+        all_psing = pSingles; all_pdoub = pDoubles; all_ppar = pParallel; all_trip = pTriples
         all_tau = tau
         call MPIBcast(all_psing)
         call MPIBcast(all_pdoub)
         call MPIBcast(all_ppar)
+        call MPIBCast(all_trip)
         call MPIBcast(all_tau)
 
         call write_dp_scalar(tau_grp, nm_psingles, all_psing)
         call write_dp_scalar(tau_grp, nm_pdoubles, all_pdoub)
         call write_dp_scalar(tau_grp, nm_pparallel, all_ppar)
+        call write_dp_scalar(tau_grp, nm_ptriples, all_trip)
         call write_dp_scalar(tau_grp, nm_tau, all_tau)
 
         ! [W.D.]:
@@ -535,7 +537,8 @@ contains
         integer(hid_t), intent(in) :: parent
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
-        logical :: exists
+        integer :: tmp_inum_runs
+        logical :: exists, t_resize
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
 
@@ -566,11 +569,11 @@ contains
         else
             tSinglePartPhase = .true.
 
+            ! if the number of runs changed, the shift also has a different size
             ! i still want to capture the diagshift in a temporary file
             ! atleast
             call read_dp_1d_dataset(grp_id, nm_shift, hdf5_diagsft, required=.true.)
             hdf5_diagsft = hdf5_diagsft - Hii
-
         end if
 
         ! [W.D.]:
@@ -619,6 +622,7 @@ contains
                               cnt_par, max_death_cpt, update_tau
         use FciMCData, only: pSingles, pDoubles, pParallel, tSearchTau, &
                              tSearchTauOption
+        use tc_three_body_data, only: pTriples, tReadPTriples
         use CalcData, only: tau, t_previous_hist_tau, t_restart_hist_tau, &
                             t_hist_tau_search, t_hist_tau_search_option, &
                             t_fill_frequency_hists
@@ -655,6 +659,8 @@ contains
 
         call read_dp_scalar(grp_id, nm_psingles, psingles)
         call read_dp_scalar(grp_id, nm_pdoubles, pdoubles)
+        call read_dp_scalar(grp_id, nm_ptriples, ptriples, exists = tReadPTriples, default = 0.1_dp, &
+             required = .false.)
         call read_dp_scalar(grp_id, nm_pparallel, pparallel, exists=ppar_set)
         ! here i want to make the distinction if we want to tau-search
         ! or not
@@ -765,7 +771,7 @@ contains
         real(dp) :: all_parts(lenof_sign), all_norm_sqr(lenof_sign)
         integer(hsize_t) :: block_size, block_start, block_end
         integer :: ierr
-        integer(n_int), allocatable :: fvals(:,:)
+        integer(n_int), allocatable :: gdata_buf(:,:)
 
         integer :: ExcitLevel
         integer(hsize_t) :: printed_count
@@ -773,7 +779,9 @@ contains
         integer(kind=n_int) , pointer :: PrintedDets(:,:)
         integer :: i, run
         real(dp) :: CurrentSign(lenof_sign), printed_tot_parts(lenof_sign), &
-                    printed_norm_sqr(inum_runs)
+            printed_norm_sqr(inum_runs)
+        type(gdata_io_t) :: gdata_write_handler
+        integer :: gdata_size
 
 
         if(present(MaxEx))then
@@ -839,6 +847,7 @@ contains
 
         ! denote if auto-adaptive shift was used
         call write_log_scalar(wfn_grp_id, nm_tauto, tAutoAdaptiveShift)
+        call write_log_scalar(wfn_grp_id, nm_sc_blooms, tScaleBlooms)
 
 
         ! Accumulated values only valid on head node. collate_iter_data
@@ -875,18 +884,21 @@ contains
 
         ! if auto-adaptive shift was used, also write the gathered information on
         ! accepted/total spawns
-        if(tAutoAdaptiveShift) then
-           allocate(fvals(2*inum_runs,printed_count))
+        call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, &
+            tScaleBlooms, fvals_size, max_ratio_size)
+        gdata_size = gdata_write_handler%entry_size()        
+        if(gdata_size > 0) then
+           allocate(gdata_buf(gdata_size,printed_count))
            ! get the statistics of THIS processor
-           call writeFFuncAsInt(TotWalkers,fvals, MaxEx)
+           call gdata_write_handler%write_gdata_hdf5(gdata_buf, int(TotWalkers), MaxEx)
            call write_2d_multi_arr_chunk_buff(&
-                wfn_grp_id, nm_fvals, H5T_NATIVE_REAL_8, fvals, &
-                [int(2*inum_runs, hsize_t), int(printed_count, hsize_t)], & ! dims
+                wfn_grp_id, nm_gdata, H5T_NATIVE_REAL_8, gdata_buf, &
+                [int(gdata_size, hsize_t), int(printed_count, hsize_t)], & ! dims
                 [0_hsize_t, 0_hsize_t], &
-                [int(2*inum_runs, hsize_t), all_count], &
+                [int(gdata_size, hsize_t), all_count], &
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] &
                 )
-           deallocate(fvals)
+           deallocate(gdata_buf)
         endif
 
         ! And we are done
@@ -925,8 +937,7 @@ contains
         integer :: proc, nreceived
         integer(hid_t) :: grp_id
         integer(hdf_err) :: err
-        integer(hid_t) :: ds_sgns, ds_ilut, ds_fvals
-
+        integer(hid_t) :: ds_sgns, ds_ilut, ds_gdata
         integer(int64) :: nread_walkers
         integer :: ierr
 
@@ -938,9 +949,14 @@ contains
         real(dp), allocatable :: pops_num_parts(:), pops_norm_sqr(:)
         real(dp) :: norm(lenof_sign), parts(lenof_sign)
         logical :: running, any_running
-        integer(hsize_t), dimension(:,:), allocatable :: temp_ilut, temp_sgns, temp_fvals
+        integer(hsize_t), dimension(:,:), allocatable :: temp_ilut, temp_sgns
+        integer(hsize_t), dimension(:,:), allocatable :: gdata_buf
+        integer(hsize_t), dimension(:,:), allocatable :: tmp_gdata, tmp_mr
         integer :: temp_ilut_tag, temp_sgns_tag, rest
         integer(int32) :: read_lenof_sign
+        type(gdata_io_t) :: gdata_read_handler
+        integer :: gdata_size, tmp_fvals_size
+        logical :: t_read_gdata
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -974,7 +990,7 @@ contains
         tmp_lenof_sign = int(read_lenof_sign)
         ! assign the tmp_inum_runs accordingly
 #ifdef CMPLX_
-        tmp_inum_runs = tmp_lenof_sign/2
+        tmp_inum_runs = tmp_lenof_sign .div. 2
 #else
         tmp_inum_runs = tmp_lenof_sign
 #endif
@@ -984,7 +1000,9 @@ contains
         ! here, so we read it in alongside the walkers
         ! (calcdata has to be read in after the walkers, ugh)
         call read_log_scalar(grp_id, nm_tauto, tPopAutoAdaptiveShift, &
-             default = .false._int32, required=.false.)
+            default = .false._int32, required=.false.)
+        call read_log_scalar(grp_id, nm_sc_blooms, tPopScaleBlooms, &
+            default = .false._int32, required=.false.)
 
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
@@ -1001,8 +1019,8 @@ contains
            ! currently only for real population
 #ifndef __CMLPX
            ! resize the attributes
-           call resize_attribute(pops_norm_sqr, lenof_sign, tmp_lenof_sign)
-           call resize_attribute(pops_num_parts, lenof_sign, tmp_lenof_sign)
+           call resize_attribute(pops_norm_sqr, lenof_sign)
+           call resize_attribute(pops_num_parts, lenof_sign)
            ! notify
            write(6,*) "WARNING: Popsfile and input lenof_sign mismatch. Cloning replicas"
 #else
@@ -1036,22 +1054,28 @@ contains
         call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
 
-        ! only read in acc/tot spawns for auto-adaptive shift
-        ! if auto-adaptive shift is active and the popsfile has them
-        tReadFVals = tAutoAdaptiveShift .and. tPopAutoAdaptiveShift
-        if(tReadFVals) then
-           call h5dopen_f(grp_id, nm_fvals, ds_fvals, err)
+        print *, "Max ratio size", max_ratio_size
+        ! size of the ms data read in
+        tmp_fvals_size = 2*tmp_inum_runs
+        ! create an io handler for the data that is actually in the file
+        ! (can have different lenof_sign and options than the one we will be using)
+        call gdata_read_handler%init_gdata_io(&
+            tPopAutoAdaptiveShift, tPopScaleBlooms, tmp_fvals_size, max_ratio_size)
+        gdata_size = gdata_read_handler%entry_size()
+        
+        t_read_gdata = gdata_read_handler%t_io()
+        if(t_read_gdata) then
+           call h5dopen_f(grp_id, nm_gdata, ds_gdata, err)
         endif
 
         ! Check that these datasets look like we expect them to.
         call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
                                   [int(bit_rep_width,hsize_t), all_count])
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
-
                                   [int(tmp_lenof_sign, hsize_t), all_count])
-        if(tReadFVals) then
-           call check_dataset_params(ds_fvals, nm_fvals, 8_hsize_t, H5T_FLOAT_F, &
-                [int(2*tmp_inum_runs, hsize_t), all_count])
+        if(t_read_gdata) then
+           call check_dataset_params(ds_gdata, nm_gdata, 8_hsize_t, H5T_FLOAT_F, &
+                [int(gdata_size, hsize_t), all_count])
         endif
 
         !limit the buffer size per MPI task to 50MB or MaxSpawned entries
@@ -1094,11 +1118,7 @@ contains
         allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
         call LogMemAlloc('temp_sgns',size(temp_sgns),lenof_sign,'read_walkers',temp_sgns_tag,ierr)
 
-        if(tReadFVals) then
-           allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
-        else
-           allocate(temp_fvals(0,0))
-        endif
+        allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)
 
         do while (any_running)
 
@@ -1115,25 +1135,30 @@ contains
                deallocate(temp_sgns)
 
                allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
-               if(tReadFVals) then
-                  deallocate(temp_fvals)
-                  allocate(temp_fvals(int(2*tmp_inum_runs), int(this_block_size)), stat=ierr)
-               end if
+               deallocate(gdata_buf)
+               allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)
+               call gdata_read_handler%init_gdata_io(&
+                   tPopAutoAdaptiveShift, tPopScaleBlooms, tmp_fvals_size, max_ratio_size)
             end if
 
-            call read_walker_block_buff(ds_ilut, ds_sgns, ds_fvals, block_start, &
+            call read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, &
                                    this_block_size, bit_rep_width, temp_ilut, temp_sgns, &
-                                   temp_fvals)
+                                   gdata_buf)
 
             if(tmp_lenof_sign /= lenof_sign) then
                call clone_signs(temp_sgns,tmp_lenof_sign, lenof_sign, this_block_size)
                ! resize the fvals in the same manner
-               if(tReadFVals) &
-                    call clone_signs(temp_fvals,2*tmp_inum_runs,2*inum_runs, this_block_size)
+               if(t_read_gdata) then
+                   call gdata_read_handler%clone_gdata(&
+                       gdata_buf, tmp_fvals_size, fvals_size, this_block_size)
+               endif
             endif
 
-            call distribute_and_add_walkers(this_block_size, temp_ilut, temp_sgns, &
-                 temp_fvals, dets, nreceived, CurrWalkers, norm, parts)
+            ! distribution and storage of the data is done with the read_handler, which
+            ! has the memory layout for the current calculation
+            call distribute_and_add_walkers(this_block_size, gdata_read_handler, &
+                temp_ilut, temp_sgns, gdata_buf, &
+                dets, nreceived, CurrWalkers, norm, parts)
 
             nread_walkers = nread_walkers + nreceived
 
@@ -1151,12 +1176,12 @@ contains
 
         end do
 
-        deallocate(temp_fvals)
+        deallocate(gdata_buf)
         deallocate(temp_ilut, temp_sgns)
         call LogMemDeAlloc('read_walkers',temp_ilut_tag)
         call LogMemDeAlloc('read_walkers',temp_sgns_tag)
 
-        if(tReadFVals) call h5dclose_f(ds_fvals, err)
+        if(t_read_gdata) call h5dclose_f(ds_gdata, err)
         call h5dclose_f(ds_sgns, err)
         call h5dclose_f(ds_ilut, err)
         call h5gclose_f(grp_id, err)
@@ -1173,8 +1198,8 @@ contains
 
     end subroutine read_walkers
 
-    subroutine read_walker_block_buff(ds_ilut, ds_sgns, ds_fvals, block_start, block_size, &
-                                 bit_rep_width, temp_ilut, temp_sgns, temp_fvals)
+    subroutine read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, block_size, &
+                                 bit_rep_width, temp_ilut, temp_sgns, gdata_buf)
 
         use bit_rep_data, only: NIfD
         use FciMCData, only: SpawnedParts2
@@ -1187,12 +1212,13 @@ contains
         ! --> It would also be possible to read into scratch arrays, and then
         !     do some transferring.
 
-        integer(hid_t), intent(in) :: ds_ilut, ds_sgns, ds_fvals
+        integer(hid_t), intent(in) :: ds_ilut, ds_sgns, ds_gdata
         integer(hsize_t), intent(in) :: block_start, block_size
         integer(int32), intent(in) :: bit_rep_width
-        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns, temp_fvals
+        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns
+        integer(hsize_t), dimension(:,:) :: gdata_buf
         integer(hid_t) :: plist_id
-        integer :: tmp_lenof_fvals
+        integer :: gdata_size
 
 #ifdef INT64_
 
@@ -1208,10 +1234,11 @@ contains
              [0_hsize_t, block_start], &
              [0_hsize_t, 0_hsize_t])
 
-        if(tReadFVals) then
+        gdata_size = size(gdata_buf, dim = 1)
+        if(gdata_size > 0) then
            call read_2d_multi_chunk( &
-                ds_fvals, temp_fvals, H5T_NATIVE_REAL_8, &
-                [int(2*tmp_inum_runs, hsize_t), block_size], &
+                ds_gdata, gdata_buf, H5T_NATIVE_REAL_8, &
+                [int(gdata_size, hsize_t), block_size], &
                 [0_hsize_t, block_start], &
                 [0_hsize_t, 0_hsize_t])
         endif
@@ -1224,44 +1251,43 @@ contains
     end subroutine read_walker_block_buff
 
 
-    subroutine distribute_and_add_walkers(block_size, temp_ilut, temp_sgns, temp_fvals, &
-         dets, nreceived, CurrWalkers, norm, parts)
+    subroutine distribute_and_add_walkers(block_size, gdata_read_handler, &
+        temp_ilut, temp_sgns, gdata_buf, &
+        dets, nreceived, CurrWalkers, norm, parts)
       use FciMCData, only: MaxSpawned
       implicit none
       integer(n_int), intent(out) :: dets(:, :)
       integer(int64), intent(inout) :: CurrWalkers
       integer(hsize_t) :: block_size
+      type(gdata_io_t), intent(in) :: gdata_read_handler
       integer:: nreceived
       real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
-      integer(hsize_t):: temp_ilut(:,:), temp_sgns(:,:), temp_fvals(:,:)
+      integer(hsize_t):: temp_ilut(:,:), temp_sgns(:,:), gdata_buf(:,:)
       integer(MPIArg) :: sendcount(0:nProcessors-1)
       integer :: nlocal=0
+      integer :: gdata_size
       integer :: ierr
-      integer(hsize_t), allocatable :: fvals_comm(:,:), fvals_loc(:,:)
+      integer(hsize_t), allocatable :: gdata_comm(:,:), gdata_loc(:,:)
 
-      ! allocate the buffers for the fvals
-      if(tReadFVals) then
-         allocate(fvals_comm(2*inum_runs,MaxSpawned), stat=ierr)
-         allocate(fvals_loc(2*inum_runs,MaxSpawned), stat=ierr)
-      else
-         allocate(fvals_comm(0,0))
-         allocate(fvals_loc(0,0))
-      endif
+      ! allocate the buffers for the gdata
+      gdata_size = size(gdata_buf, dim = 1)
+      allocate(gdata_comm(gdata_size,MaxSpawned), stat=ierr)
+      allocate(gdata_loc(gdata_size,MaxSpawned), stat=ierr)
 
       call assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, &
-           temp_fvals, fvals_loc, fvals_comm, sendcount)
+           gdata_buf, gdata_loc, gdata_comm, sendcount)
 
       !add elements that are on the right processor already
 #define localfirst
 !#undef localfirst
 #ifdef localfirst
       nlocal=sendcount(iProcIndex)
-      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, fvals_loc)
+      call add_new_parts(dets, nlocal, CurrWalkers, norm, parts, gdata_loc, gdata_read_handler)
       sendcount(iProcIndex)=0
 #endif
       !communicate the remaining elements
-      nreceived = communicate_read_walkers_buff(sendcount, fvals_comm, fvals_loc)
-      call add_new_parts(dets, nreceived, CurrWalkers, norm, parts, fvals_loc)
+      nreceived = communicate_read_walkers_buff(sendcount, gdata_comm, gdata_loc)
+      call add_new_parts(dets, nreceived, CurrWalkers, norm, parts, gdata_loc, gdata_read_handler)
 
       if (allocated(receivebuff)) then
          deallocate(receivebuff)
@@ -1270,13 +1296,13 @@ contains
 
       nreceived=nreceived+nlocal
 
-      if(allocated(fvals_loc)) deallocate(fvals_loc)
-      if(allocated(fvals_comm)) deallocate(fvals_comm)
+      if(allocated(gdata_loc)) deallocate(gdata_loc)
+      if(allocated(gdata_comm)) deallocate(gdata_comm)
 
     end subroutine distribute_and_add_walkers
 
     subroutine assign_dets_to_procs_buff(block_size, temp_ilut, temp_sgns, &
-         temp_fvals, fvals_loc, fvals_comm, sendcount)
+         gdata_buf, gdata_loc, gdata_comm, sendcount)
 
         use load_balance_calcnodes, only: DetermineDetNode
         use bit_reps, only: decode_bit_det, extract_sign
@@ -1288,15 +1314,16 @@ contains
 
         integer(hsize_t), intent(in) :: block_size
         character(*), parameter :: t_r = 'distribute_walkers_from_block'
-        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns, temp_fvals, fvals_comm
-        integer(hsize_t), dimension(:,:) :: fvals_loc
+        integer(hsize_t), dimension(:,:) :: temp_ilut, temp_sgns, gdata_buf, gdata_comm
+        integer(hsize_t), dimension(:,:) :: gdata_loc
         integer(hsize_t) :: onepart(0:NIfBCast)
         integer :: det(nel), p, j, proc, sizeilut, targetproc(block_size)
         integer(MPIArg) :: sendcount(0:nProcessors-1)
         integer :: index, index2
-        logical :: list_full
+        logical :: list_full, t_read_gdata
 
         sizeilut=size(temp_ilut,1)
+        t_read_gdata = size(gdata_buf, dim = 1) > 0
 
         ! Iterate through walkers in temp_ilut+temp_sgns and determine the target processor.
         onepart=0
@@ -1326,8 +1353,8 @@ contains
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
                     SpawnedParts2(:,index2)=onepart
-                    if(tReadFVals)&
-                         fvals_loc(:,index2)=temp_fvals(:,j)
+                    if(t_read_gdata)&
+                         gdata_loc(:,index2)=gdata_buf(:,j)
                     index2=index2+1
                  end if
               end do
@@ -1338,8 +1365,8 @@ contains
                     onepart(0:sizeilut-1)=temp_ilut(:,j)
                     onepart(sizeilut:sizeilut+int(lenof_sign)-1)=temp_sgns(:,j)
                     SpawnedParts(:,index)=onepart
-                    if(tReadFVals) &
-                         fvals_comm(:,index)=temp_fvals(:,j)
+                    if(t_read_gdata) &
+                         gdata_comm(:,index)=gdata_buf(:,j)
                     index=index+1
                  end if
               end do
@@ -1348,11 +1375,11 @@ contains
 
     end subroutine assign_dets_to_procs_buff
 
-    function communicate_read_walkers_buff(sendcounts, fvals_comm, &
-         fvals_loc) result(num_received)
+    function communicate_read_walkers_buff(sendcounts, gdata_comm, &
+         gdata_loc) result(num_received)
         integer(MPIArg), intent(in) :: sendcounts(0:nProcessors-1)
-        integer(hsize_t), intent(inout) :: fvals_comm(:,:)
-        integer(hsize_t), allocatable, intent(inout) :: fvals_loc(:,:)
+        integer(hsize_t), intent(inout) :: gdata_comm(:,:)
+        integer(hsize_t), allocatable, intent(inout) :: gdata_loc(:,:)
         integer :: num_received
         integer(int64) :: lnum_received
 
@@ -1360,7 +1387,7 @@ contains
         integer(MPIArg) :: disps(0:nProcessors-1), recvdisps(0:nProcessors-1)
         integer(MPIArg) :: dispsScaled(0:nProcessors-1), recvdispsScaled(0:nProcessors-1)
         integer(MPIArg) :: sendcountsScaled(0:nProcessors-1)
-        integer :: j, ierr
+        integer :: j, ierr, gdata_size
 
 
         !offsets for data to the different procs
@@ -1381,7 +1408,7 @@ contains
         end do
         num_received = recvdisps(nProcessors-1) + recvcounts(nProcessors-1)
         lnum_received = recvdisps(nProcessors-1) + recvcounts(nProcessors-1)
-
+        gdata_size = size(gdata_loc,1)
         ! Adjust offsets so that they match the size of the array
         call scaleCounts(size(SpawnedParts,1))
 
@@ -1396,20 +1423,20 @@ contains
            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, receivebuff, &
                 recvcountsScaled, recvdispsScaled, ierr)
 
-           ! fvals communication for auto-adaptive shift mode
-           if(tReadFVals) then
-              if(allocated(fvals_loc)) deallocate(fvals_loc)
-              allocate(fvals_loc(2*inum_runs,num_received))
+           ! gdata communication for auto-adaptive shift mode
+           if(gdata_size > 0) then
+              if(allocated(gdata_loc)) deallocate(gdata_loc)
+              allocate(gdata_loc(gdata_size,num_received))
            endif
         else
            call MPIAllToAllV(SpawnedParts, sendcountsScaled, dispsScaled, SpawnedParts2, &
                 recvcountsScaled, recvdispsScaled, ierr)
         end if
 
-        call scaleCounts(size(fvals_loc,1))
+        call scaleCounts(gdata_size)
 
-        if(tReadFVals) then
-           call MPIAllToAllV(fvals_comm, sendcountsScaled, dispsScaled, fvals_loc, &
+        if(gdata_size > 0) then
+           call MPIAllToAllV(gdata_comm, sendcountsScaled, dispsScaled, gdata_loc, &
                 recvcountsScaled, recvdispsScaled, ierr)
         endif
 
@@ -1426,19 +1453,20 @@ contains
           end subroutine scaleCounts
       end function communicate_read_walkers_buff
 
-    subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, fvals_write)
-      use global_det_data, only: set_tot_acc_spawn_hdf5Int
+      subroutine add_new_parts(dets, nreceived, CurrWalkers, norm, parts, &
+          gdata_write, gdata_read_handler)
         use CalcData, only: iWeightPopRead
         use bit_reps, only: extract_sign
 
         ! Integrate the just-read block of walkers into the main list.
 
         integer(n_int), intent(inout) :: dets(:, :)
-        integer(hsize_t), intent(in) :: fvals_write(:,:)
+        integer(hsize_t), intent(in) :: gdata_write(:,:)
         integer, intent(in) :: nreceived
         integer(int64), intent(inout) :: CurrWalkers
         real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
-
+        type(gdata_io_t), intent(in) :: gdata_read_handler
+        
         integer(int64) :: j
         real(dp) :: sgn(lenof_sign)
 
@@ -1460,8 +1488,7 @@ contains
                  norm = norm + sgn**2
                  parts = parts + abs(sgn)
 
-                 if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
+                 call gdata_read_handler%read_gdata_hdf5(gdata_write(:,j), int(CurrWalkers))
               end if
            end do
         else
@@ -1480,8 +1507,7 @@ contains
                  norm = norm + sgn**2
                  parts = parts + abs(sgn)
 
-                 if(tReadFVals) &
-                      call set_tot_acc_spawn_hdf5Int(fvals_write(:,j), CurrWalkers)
+                 call gdata_read_handler%read_gdata_hdf5(gdata_write(:,j), int(CurrWalkers)) 
               end if
            end do
 
@@ -1559,105 +1585,6 @@ contains
         AllTotParts = all_parts
 
     end subroutine
-
-!------------------------------------------------------------------------------------------!
-#ifdef USE_HDF_
-    subroutine clone_signs(tmp_sgns, tmp_lenof_sign, lenof_sign, num_signs)
-      implicit none
-      ! expand/shrink the sign to the target lenof_sign
-      integer(hsize_t), allocatable, intent(inout) :: tmp_sgns(:,:)
-      integer(hsize_t), intent(in) :: num_signs
-      integer, intent(in) :: tmp_lenof_sign, lenof_sign
-
-      ! a temporary buffer to store the old signs while reallocating tmp_sgns
-      integer(hsize_t), allocatable :: sgn_store(:,:)
-      integer :: ierr, i
-
-      if(allocated(tmp_sgns)) then
-         ! copy the signs to a temporary
-         allocate(sgn_store(tmp_lenof_sign,num_signs),stat=ierr)
-         sgn_store(:,:) = tmp_sgns(:,:)
-
-         ! now, resize tmp_sgns
-         deallocate(tmp_sgns)
-         allocate(tmp_sgns(lenof_sign,num_signs),stat=ierr)
-
-         ! and clone the signs to match lenof_sign numbers per entry
-         do i = 1, int(num_signs)
-            ! depending on if we want to remove or add replicas,
-            ! shrink or expand the signs
-            if(tmp_lenof_sign > lenof_sign) then
-               call shrink_sign(tmp_sgns(:,i),lenof_sign,sgn_store(:,i),tmp_lenof_sign)
-            else
-               call expand_sign(tmp_sgns(:,i),lenof_sign,sgn_store(:,i),tmp_lenof_sign)
-            endif
-         end do
-
-         deallocate(sgn_store)
-      else
-         write(6,*) "WARNING: Attempted to adjust lenof_sign for an empty input"
-         ! throw a warning
-      endif
-
-    end subroutine clone_signs
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine shrink_sign(out_sgn, out_size, in_sgn, in_size)
-      implicit none
-
-      integer, intent(in) :: out_size, in_size
-      integer(hsize_t), intent(out) :: out_sgn(out_size)
-      integer(hsize_t), intent(in) :: in_sgn(in_size)
-
-      ! remove the last entries from the input
-      out_sgn(1:out_size) = in_sgn(1:out_size)
-    end subroutine shrink_sign
-
-!------------------------------------------------------------------------------------------!
-
-    subroutine expand_sign(out_sgn, out_size, in_sgn, in_size)
-      implicit none
-
-      integer, intent(in) :: out_size, in_size
-      integer(hsize_t), intent(out) :: out_sgn(out_size)
-      integer(hsize_t), intent(in) :: in_sgn(in_size)
-
-      ! copy the last replica to fill up to the desired number
-      out_sgn(1:in_size) = in_sgn(1:in_size)
-      out_sgn(in_size+1:out_size) = in_sgn(in_size)
-    end subroutine expand_sign
-#endif
-!------------------------------------------------------------------------------------------!
-
-    subroutine resize_attribute(attribute, new_size, old_size)
-      ! take an array and expand/shrink it to a new size
-      implicit none
-      integer, intent(in) :: new_size, old_size
-      real(dp), allocatable, intent(inout) :: attribute(:)
-
-      real(dp), allocatable :: tmp(:)
-      integer :: ierr
-
-      !store the old entries
-      allocate(tmp(old_size), stat = ierr)
-      tmp(:) = attribute(:)
-
-      deallocate(attribute)
-      allocate(attribute(new_size), stat = ierr)
-
-      ! resize
-      if(old_size < new_size) then
-         attribute(1:old_size) = tmp(1:old_size)
-         attribute(old_size+1:new_size) = tmp(old_size)
-      else
-         attribute(1:new_size) = tmp(1:new_size)
-      end if
-
-      deallocate(tmp)
-    end subroutine resize_attribute
-
-!------------------------------------------------------------------------------------------!
 
 #endif
 

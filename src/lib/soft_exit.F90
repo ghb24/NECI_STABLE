@@ -126,7 +126,7 @@ module soft_exit
                         SinglesBias_value => SinglesBias, tau_value => tau, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
-                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift
+                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift, tSpinProject 
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -135,20 +135,22 @@ module soft_exit
                        IterStartBlocking, tHFPopStartBlock, NHistEquilSteps, &
                        IterRDMonFly_value => IterRDMonFly, RDMExcitLevel, &
                        tExplicitAllRDM, tRDMonFly, tChangeVarsRDM, &
-                       RDMEnergyIter, tDiagRDM
+                       RDMEnergyIter, tDiagRDM, tPopsFile, tPrintPopsDefault, &
+                       tIncrementPops, iWritePopsEvery
     use FCIMCLoggingMOD, only: PrintBlocking, RestartBlocking, &
                                PrintShiftBlocking_proc => PrintShiftBlocking,&
                                RestartShiftBlocking_proc=>RestartShiftBlocking
     use constants, only: lenof_sign, int32, dp
     use bit_rep_data, only: extract_sign
     use bit_reps, only: encode_sign
-    use spin_project, only: tSpinProject, spin_proj_gamma, &
+    use spin_project, only: spin_proj_gamma, &
                             spin_proj_interval, spin_proj_shift, &
                             spin_proj_cutoff, spin_proj_spawn_initiators, &
                             spin_proj_no_death, spin_proj_iter_count
     use load_balance_calcnodes, only: DetermineDetNode
     use hist_data, only: Histogram, tHistSpawn
     use Parallel_neci
+
     implicit none
 
     logical, volatile :: tSoftExitFound = .false.
@@ -190,8 +192,7 @@ contains
                               targetgrowrate = 38, refshift = 39, &
                               calc_rdm = 40, calc_explic_rdm = 41, &
                               fill_rdm_iter = 42, diag_one_rdm = 43, &
-                              !! = 44, & -- Currently unused
-                              time = 45
+                              time = 44
         integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list_molp(last_item) &
@@ -223,7 +224,6 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "changeref                    ", &
-                                   "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
@@ -284,7 +284,6 @@ contains
                                    "calcexplicitrdm              ", &
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
-                                   "----  currently unused   ----", &
                                    "time                         "/)
 
         ! Logical(4) datatypes for compilation with builds of openmpi that don't

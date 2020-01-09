@@ -47,7 +47,7 @@ contains
     ! The interface is common to all excitation generators, see proc_ptrs.F90
     integer, intent(in) :: nI(nel), exFlag
     integer(n_int), intent(in) :: iLut(0:niftot)
-   integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+    integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
     logical, intent(out) :: tParity
     real(dp), intent(out) :: pGen
     type(excit_gen_store_type), intent(inout), target :: store
@@ -163,7 +163,7 @@ contains
     if(G1(src1)%MS.ne.G1(src2)%MS) then
        if(genrand_real2_dSFMT() < 0.5) call intswap(tgt1MS,tgt2MS)
        pGen = pGen * 0.5
-    endif
+   endif
 
     call double_hole_one_sampler(src1,tgt1MS)%sample(tgt1,pTGen1)
     ! update generation probability so far to ensure it has a valid value on return in any case

@@ -19,6 +19,13 @@ MODULE Logging
     use rdm_data, only: nrdms_transition_input, states_for_transition_rdm, tApplyLC
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
 
+    use analyse_wf_symmetry, only: t_symmetry_analysis, t_symmetry_mirror, &
+                           t_symmetry_rotation, symmetry_rotation_angle, &
+                           t_symmetry_inversion, symmertry_mirror_axis, &
+                           t_read_symmetry_states, n_symmetry_states, &
+                           t_pop_symmetry_states, symmetry_states, &
+                           symmetry_weights, symmetry_states_ilut
+
     IMPLICIT NONE
 
     logical, public :: RDMlinspace_in_inp, calcrdmonfly_in_inp
@@ -168,7 +175,6 @@ MODULE Logging
       tHDF5TruncPopsWrite = .false.
       iHDF5TruncPopsEx = 0
       tWriteRefs = .false.
-
       maxInitExLvlWrite = 8
 #ifdef PROG_NUMRUNS_
       tFCIMCStats2 = .true.
@@ -389,6 +395,8 @@ MODULE Logging
                 i = i+1
             enddo
 
+         case("HIST-INTEGRALS")
+            tHistLMat = .true.
 
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
@@ -1122,6 +1130,10 @@ MODULE Logging
             ! Output the semi-stochastic core space to a file.
             tWriteCore = .true.
 
+        case ("PRINT-CORE-INFO")
+            ! print core info, like energy, and maybe also the gs vector
+            t_print_core_info = .true.
+
         case("WRITE-MOST-POP-CORE-END")
             ! At the end of a calculation, find the write_end_core_size most
             ! populated determinants and write them to a CORESPACE file.
@@ -1218,6 +1230,134 @@ MODULE Logging
          case("WRITE-REFERENCES")
             ! Output the reference dets to a file
             tWriteRefs = .true.
+
+        case ("SPIN-MEASUREMENTS")
+            ! combine all the spatially resolved double occupancy and 
+            ! spin-difference measurements into one functionality to 
+            ! have a better overview
+            ! this also includes the "standard" double occupancy measurement
+            ! although leave the option to only do the old double occ meas.
+            t_calc_double_occ = .true.
+            t_calc_double_occ_av = .true. 
+            t_spin_measurements = .true.
+
+            if (item < nitems) then 
+                t_calc_double_occ_av = .false.
+                call geti(equi_iter_double_occ)
+            end if
+
+!         case ("DOUBLE-OCC-VECTOR")
+!             ! just a quick insert of spatial resolved double occupancy 
+!             ! measurement
+!             t_spatial_double_occ = .true.
+! 
+!         case ("INSTANT-SPIN-DIFF")
+!             t_inst_spin_diff = .true.
+! 
+!         case ("INSTANT-SPATIAL-DOUB-OCC")
+!             t_inst_spat_doub_occ = .true.
+
+        case ('SYMMETRY-ANALYSIS')
+            ! investigate the symmetry of the important part of the 
+            ! wavefuntion, by applying point-group symmetry operations on 
+            ! a certain number of determinants and check the sign change to 
+            ! the original wavefunction 
+            ! if we want multiple symmetries on has to specify this keyword 
+            ! multiple times with the according keywords
+            t_symmetry_analysis = .true.
+
+            if (item < nitems) then 
+                call readl(w)
+
+                select case(w)
+
+                case('rot','rotation')
+                    t_symmetry_rotation = .true. 
+
+                    if (item < nitems) then 
+                        call getf(symmetry_rotation_angle)
+                    else
+                        symmetry_rotation_angle = 90.0_dp
+                    end if
+
+                case ('mirror')
+                    t_symmetry_mirror = .true. 
+
+                    ! available mirror axes are : 'x','y','d' and 'o'
+                    if (item < nitems) then
+                        call readl(symmertry_mirror_axis)
+                    else
+                        symmertry_mirror_axis = 'x'
+                    end if
+
+                case ('inverstion')
+                    t_symmetry_inversion = .true.
+
+                case default 
+                   CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
+
+               end select
+           else 
+               ! default is 90° rotation:
+               t_symmetry_rotation = .true.
+               symmetry_rotation_angle = 90.0_dp
+
+           end if
+
+        case ('SYMMETRY-STATES')
+            ! required input to determine which states to consider. 
+            ! Two options: 
+            if (item < nitems) then 
+                call readl(w)
+                select case (w)
+                case('input','read')
+                    t_read_symmetry_states = .true.
+
+                    if (item < nitems) then 
+                        call geti(n_symmetry_states)
+                    else
+                        call stop_all(t_r, &
+                            "symmetry-states input need number of states!")
+                    end if
+
+                    allocate(symmetry_states(nel, n_symmetry_states))
+                    symmetry_states = 0
+
+                    do line = 1, n_symmetry_states
+                        call read_line(eof)
+                        do i = 1, nel 
+                            call geti(symmetry_states(i, line))
+                        end do
+                    end do
+
+                case ('pop','most-populated','pops')
+                    ! take the N most populated states
+                    t_pop_symmetry_states = .true.
+
+                    if (item < nItems) then 
+                        call geti(n_symmetry_states)
+                    else
+                        call stop_all(t_r, &
+                            "symmetry-states input need number of states!")
+                    end if
+
+                    allocate(symmetry_states(nel,n_symmetry_states))
+                    symmetry_states = 0
+
+                end select
+            else
+                ! default is: take the 6 most populated ones
+                t_pop_symmetry_states = .true. 
+                n_symmetry_states = 6 
+                allocate(symmetry_states(nel,n_symmetry_states))
+                symmetry_states = 0
+            end if
+
+            allocate(symmetry_weights(n_symmetry_states))
+            symmetry_weights = 0.0_dp
+
+            allocate(symmetry_states_ilut(0:niftot,n_symmetry_states))
+            symmetry_states = 0_n_int
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

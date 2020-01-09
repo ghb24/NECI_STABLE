@@ -159,6 +159,7 @@ MODULE ReadInput_neci
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
                 call kp_fciqmc_read_inp(kp)
+        
             case("END")
                 exit
             case default
@@ -201,7 +202,7 @@ MODULE ReadInput_neci
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
-                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates
+                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates, tSpinProject
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -221,7 +222,7 @@ MODULE ReadInput_neci
         use input_neci
         use constants
         use global_utilities
-        use spin_project, only: tSpinProject, spin_proj_nopen_max
+        use spin_project, only: spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
