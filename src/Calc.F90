@@ -1930,6 +1930,7 @@ contains
                     call stop_all(t_r, 'AAS-CONST should be greater than or equal zero.')
                 end if
             case("AS-TRIAL-OFFSET")
+                ! Use the trial energy as an offset for the adaptive shift (instead of reference)
                 tAS_TrialOffset = .true.
              case("INITS-PROJE")
                 ! deprecated

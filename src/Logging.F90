@@ -1153,17 +1153,16 @@ MODULE Logging
             ! varying excitation levels from the Hartree--Fock.
             tHistExcitToFrom = .true.
 
-!         case("PRINT-FREQUENCY-HISTOGRAMS")
-!             ! option to print out the histograms used in the tau-search!
-!             ! note: but for now they are always printed by default
-!             t_print_frq_histograms = .true.
-
         case("FVAL-ENERGY-HIST")
+            ! When using auto-adaptive shift, print a histogram of the shift factors over
+            ! the energy
             tFValEnergyHist = .true.
             if(item < nitems) call readi(FValEnergyHist_EnergyBins)
             if(item < nitems) call readi(FValEnergyHist_FvalBins)
 
         case("FVAL-POP-HIST")
+            ! When using auto-adaptive shift, print a histogram of the shift factors over
+            ! the population            
             tFValPopHist = .true.
             if(item < nitems) call readi(FValPopHist_PopBins)
             if(item < nitems) call readi(FValPopHist_FvalBins)
