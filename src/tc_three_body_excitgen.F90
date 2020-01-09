@@ -509,7 +509,7 @@ module tc_three_body_excitgen
        end if
 
       ! adjust the probability by taking permutations into account
-      pgen = pgen * 4 * abs(ms)
+      pgen = pgen * 2 * abs(ms)
 
 
 

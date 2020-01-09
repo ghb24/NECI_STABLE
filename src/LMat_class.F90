@@ -8,7 +8,6 @@ module LMat_class
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
     use constants
-    use MemoryManager, only: LogMemALloc, LogMemDealloc
     use shared_rhash, only: shared_rhash_t
     use mpi
     use util_mod, only: get_free_unit, operator(.div.)
@@ -64,8 +63,6 @@ module LMat_class
 #else
         type(shared_array_real_t) :: lMat_vals
 #endif
-        ! Tag for the NECI memory manager
-        integer :: tag
     contains
         ! Element getters/setters
         procedure :: get_elem => get_elem_dense
@@ -92,8 +89,6 @@ module LMat_class
 #else
         type(shared_array_real_t) :: nonzero_vals
 #endif
-        ! Tags for NECI memory manager
-        integer :: tag, ht_tag
         ! read-only shared memory hash table
         type(shared_rhash_t) :: htable
     contains
@@ -160,11 +155,10 @@ module LMat_class
         end function get_elem_t
 
         !> Read a lMat from a file
-        subroutine read_t(this, filename, h5_filename)
+        subroutine read_t(this, filename)
             import :: lMat_t
             class(lMat_t), intent(inout) :: this
             character(*), intent(in) :: filename
-            character(*), intent(in) :: h5_filename            
         end subroutine read_t
 
         !> Read operation on a single block of data read from an hdf5 file
@@ -172,7 +166,9 @@ module LMat_class
             use constants            
             import :: lMat_t
             class(lMat_t), intent(inout) :: this
-            integer(int64), intent(in) :: indices(:,:), entries(:,:)
+            ! The read operation is allowed to deallocate the input to make
+            ! memory available
+            integer(int64), allocatable, intent(inout) :: indices(:,:), entries(:,:)
         end subroutine read_op_t
     end interface
 
@@ -182,12 +178,15 @@ contains
     ! Generic routines
     !------------------------------------------------------------------------------------------!    
 
+    !> Empty routine: This is the default operation without arguments
     subroutine void_zero(this)
         class(lMat_t), intent(inout) :: this
 
         unused_var(this)
     end subroutine void_zero
 
+    !> Empty routine: This is the default operation with one int64 argument
+    !> @param[in] size input argument (no operations performed)
     subroutine void_one(this, size)
         class(lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: size
@@ -198,6 +197,8 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Return the max. index appearing in this lMat_t (i.e. the number of 6-index integrals)
+    !> @return size The number of 6-index integrals of this object, depending on the symmetry.
     function lMat_size(this) result(size)
         class(lMat_t), intent(in) :: this
         integer(int64) :: size
@@ -211,76 +212,51 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine read(this, filename, h5_filename)
+    !> Read in the 6-index integrals from disk and histogram the integrals. The file itself
+    !! only has to store the nonzero integrals, either in ASCII or in HDF5 format. For conventions
+    !! in the HDF5 format, please refer to the developer's guide.
+    !> @param[in] filename name of the integrals file
+    subroutine read(this, filename)
         class(lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
-        character(*), intent(in) :: h5_filename        
 
-        call this%read_kernel(filename, h5_filename)
+        call this%read_kernel(filename)
 
         if(tHistLMat) call this%histogram_lMat()
 
     end subroutine read
 
     !------------------------------------------------------------------------------------------!
-
-    subroutine alloc_vals(vals, size, tag)
-#ifdef CMPLX_
-        type(shared_array_cmplx_t), intent(inout) :: vals
-#else
-        type(shared_array_real_t), intent(inout) :: vals
-#endif
-        integer(int64), intent(in) :: size
-        integer, intent(inout) :: tag
-        character(*), parameter :: t_r = "alloc_vals"        
-
-        call vals%shared_alloc(size)
-        write(iout,*) "Six-index integrals require", real(size)*real(HElement_t_SizeB)/(2.0**30), "GB" 
-        call LogMemAlloc("LMat", int(size), HElement_t_SizeB, t_r, tag)
-        if(iProcIndex_intra == 0) then
-            vals%ptr = 0.0_dp
-        end if
-    end subroutine alloc_vals
-
-    !------------------------------------------------------------------------------------------!
-
-    subroutine dealloc_vals(vals, tag)
-#ifdef CMPLX_
-        type(shared_array_cmplx_t), intent(inout) :: vals
-#else
-        type(shared_array_real_t), intent(inout) :: vals
-#endif
-        integer, intent(inout) :: tag
-
-        character(*), parameter :: t_r = "dealloc_vals"
-
-        ! First, check if we have to log the deallocation
-        if(associated(vals%ptr)) call LogMemDealloc(t_r, tag)
-        ! Then, call the shared array deallocation (only does something if allocated, void else)
-        call vals%shared_dealloc()
-    end subroutine dealloc_vals
-
-    !------------------------------------------------------------------------------------------!
     ! Dense lMat routines
     !------------------------------------------------------------------------------------------!   
 
+    !> Allocate the 6-index integrals for the dense storage
+    !> @param[in] size size of the integral container to be allocated
     subroutine alloc_dense(this, size)
         class(dense_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: size
 
-        call alloc_vals(this%lmat_vals, size, this%tag)
+        write(iout,*) "Six-index integrals require", real(size)*real(HElement_t_SizeB)/(2.0**30), "GB"
+        call this%lmat_vals%shared_alloc(size, "LMat")
+        if(iProcIndex_intra == 0) then
+            this%lmat_vals%ptr = 0.0_dp
+        end if        
     end subroutine alloc_dense
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Deallocate the 6-index integrals (dense)
     subroutine dealloc_dense(this)
         class(dense_lMat_t), intent(inout) :: this
 
-        call dealloc_vals(this%lMat_vals, this%tag)
+        call this%lMat_vals%shared_dealloc()
     end subroutine dealloc_dense
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Set an element in the dense 6-index integrals to a new value
+    !> @param[in] index  position of the element
+    !> @param[in] element  new value of the element
     subroutine set_elem_dense(this, index, element)
         class(dense_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: index
@@ -291,6 +267,9 @@ contains
 
     !------------------------------------------------------------------------------------------!   
 
+    !> Get an element of the 6-index integrals from the densely stored container
+    !> @param[in] index  position of the element
+    !> @return element  value of the element
     function get_elem_dense(this, index) result(element)
         class(dense_lMat_t), intent(in) :: this
         integer(int64), intent(in) :: index
@@ -301,10 +280,11 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine read_dense(this, filename, h5_filename)
+    !> Read the 6-index integrals from a file to dense format
+    !> @param[in] filename  name of the file to read from
+    subroutine read_dense(this, filename)
         class(dense_lMat_t), intent(inout) :: this
-        character(*), intent(in) :: filename
-        character(*), intent(in) :: h5_filename        
+        character(*), intent(in) :: filename    
         integer :: iunit, ierr
         integer(int64) :: a,b,c,i,j,k
         HElement_t(dp) :: matel
@@ -315,10 +295,9 @@ contains
 
         if(tHDF5LMat) then
 #ifdef USE_HDF_
-            call this%read_hdf5_dense(h5_filename)
+            call this%read_hdf5_dense(filename)
 #else
             call stop_all(t_r, "HDF5 integral files disabled at compile time")
-            unused_var(h5_filename)
 #endif
         else
             if(iProcIndex_intra .eq. 0) then
@@ -358,6 +337,8 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Read the integrals from an hdf5 file to dense format
+    !> @param[in] filename  name of the file to read from
     subroutine read_hdf5_dense(this, filename)
         class(dense_lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
@@ -371,7 +352,7 @@ contains
 #else
         character(*), parameter :: t_r = "read_hdf5_dense"
         unused_var(this)
-        unused_var(filename)
+        if(len(filename) /= 0) continue
         call stop_all(t_r, "hdf5 support disabled at compile time")
 #endif
     end subroutine read_hdf5_dense
@@ -380,9 +361,13 @@ contains
     ! Read/count operations
     !------------------------------------------------------------------------------------------!
 
+    !> This is the operation to be performed on each block of data read from an hdf5 file
+    !! both arguments may or may not be still allocated upon return
+    !> @param[in,out] indices  chunk of indices read in from the file
+    !> @param[in,out] entries  chunk of corresponding values
     subroutine read_op_dense_hdf5(this, indices, entries)
         class(dense_lMat_t), intent(inout) :: this
-        integer(int64), intent(in) :: indices(:,:), entries(:,:)
+        integer(int64), allocatable, intent(inout) :: indices(:,:), entries(:,:)
         integer(int64) :: i, this_blocksize
         HElement_t(dp) :: rVal
 
@@ -404,37 +389,45 @@ contains
     ! Sparse lMat functions
     !------------------------------------------------------------------------------------------!    
 
+    !> Allocate memory for the sparse storage of the 6-index integrals
+    !> @param[in] size  number of non-zero integrals
     subroutine alloc_sparse(this, size)
         class(sparse_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: size
         character(*), parameter :: t_r = "alloc_sparse"
 
-        call alloc_vals(this%nonzero_vals, size, this%tag)
+        write(iout,*) "Six-index integrals require", real(size)*real(HElement_t_SizeB)/(2.0**30), "GB"
+        call this%nonzero_vals%shared_alloc(size, "LMat")
         ! For now, have the htable of the same size as the integrals
         call this%htable%alloc(size,size)
         write(iout,*) "Sparse format overhead is", 2*real(size)*real(sizeof_int64)/(2.0**30), "GB"
-        call LogMemAlloc("LMat HTable", int(size), 2*sizeof_int64, t_r, this%ht_tag)
     end subroutine alloc_sparse
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Deallocate memory used for the sparse storage of the 6-index integrals
     subroutine dealloc_sparse(this)
         class(sparse_lMat_t), intent(inout) :: this
         character(*), parameter :: t_r = "dealloc_sparse"
 
-        call dealloc_vals(this%nonzero_vals, this%tag)
+        ! Requires deallocation of the values and the hash table for the indices
+        call this%nonzero_vals%shared_dealloc()
         call this%htable%dealloc()
-        call LogMemDealloc(t_r, this%ht_tag)
     end subroutine dealloc_sparse
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Set an element to the sparsely stored 6-index integrals. This requires the hash
+    !! table to be set up and CANNOT be done once htable%finalize_setup has been called
+    !> @param[in] index  contiguous index of the element (not the one in the sparse array)
+    !> @param[in] element  new value of the element
     subroutine set_elem_sparse(this, index, element)
         class(sparse_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: index
         HElement_t(dp), intent(in) :: element
 
         integer(int64) :: pos
+        character(*), parameter :: t_r = "set_elem_sparse"
 
         ! Add the new entry to the hashtable
         call this%htable%add_index(index, pos)
@@ -444,6 +437,9 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> Retrieve an element from the 6-index integrals stored in sparse format
+    !> @param[in] index  contiguous index of the element to be retrieved
+    !> @return element  value of the element with the given contiguous index
     function get_elem_sparse(this, index) result(element)
         class(sparse_lMat_t), intent(in) :: this
         integer(int64), intent(in) :: index
@@ -466,19 +462,19 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
-    subroutine read_sparse(this, filename, h5_filename)
+    !> Read the 6-index integrals from a file to sparse format
+    !> @param[in] filename  name of the file to read from
+    subroutine read_sparse(this, filename)
         class(sparse_lMat_t), intent(inout) :: this
         character(*), intent(in) :: filename
-        character(*), intent(in) :: h5_filename
         character(*), parameter :: t_r = "read_sparse"        
 #ifdef USE_HDF_        
         type(lMat_hdf5_read_t) :: reader
         integer(hsize_t) :: nInts
         ! There is no sparse ascii reader yet, so filename is never used
-        unused_var(filename)
         if(.not. tHDF5LMat) call stop_all(t_r, "Sparse 6-index integrals require hdf5 format")
 
-        call reader%open(h5_filename, nInts)
+        call reader%open(filename, nInts)
         call this%alloc(nInts)
         call reader%loop_file(this)
         call this%htable%setup_offsets()
@@ -488,17 +484,22 @@ contains
 #else        
 
         unused_var(this)
-        unused_var(filename)
-        unused_var(h5_filename)
+        ! unused_var on strings is not supported by some older compilers
+        if(len(filename) /= 0) continue
         call stop_all(t_r, "Sparse 6-index integrals are only available for hdf5 format")
 #endif
     end subroutine read_sparse
 
     !------------------------------------------------------------------------------------------!
 
+    !> This is the operation to be performed for sparse storage on each block of data read from an hdf5 file
+    !! both arguments may or may not be still allocated upon return.
+    !> @param[in,out] indices  chunk of indices read in from the file
+    !> @param[in,out] entries  chunk of corresponding values
     subroutine read_op_sparse(this, indices, entries) 
         class(sparse_lMat_t), intent(inout) :: this
-        integer(int64), intent(in) :: indices(:,:), entries(:,:)
+        ! We allow deallocation of indices/entries
+        integer(int64), allocatable, intent(inout) :: indices(:,:), entries(:,:)
 
         integer(int64) :: block_size, i
         integer(int64), allocatable :: combined_inds(:)        
@@ -510,6 +511,8 @@ contains
             combined_inds(i) = this%indexFunc(indices(1,i), indices(2, i), indices(3, i), &
                 indices(4, i), indices(5, i), indices(6,i))
         end do
+        ! We might need this memory - all these operations can be memory critical
+        deallocate(indices)
 
         if(this%htable%known_conflicts()) then
             call this%read_data(combined_inds, entries(1,:))
@@ -522,6 +525,9 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> Loop through a chunk of indices and count the number of hash conflicts. This is required
+    !! for setting up the hash table
+    !> @param[in] indices  chunk combined 6-index values for the 6-index integrals
     subroutine count_conflicts(this, indices)
         class(sparse_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: indices(:)
@@ -544,6 +550,9 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> Add the (combined) indices and the corresponding integral values to the sparse storage
+    !> @param[in] indices  chunk of combined 6-index values
+    !> @param[in] entries  corresponding values of the 6-index integrals
     subroutine read_data(this, indices, entries)
         class(sparse_lMat_t), intent(inout) :: this
         integer(int64), intent(in) :: indices(:), entries(:)
@@ -571,9 +580,12 @@ contains
     ! Generic auxiliary routine
     !------------------------------------------------------------------------------------------!
 
+    !> Gather a chunk of data on node-root.
+    !> @param[in] data_block  on each proc, the data from this proc to be gathered
+    !> @param[out] tmp  on return, on node-root the gathered data from all procs on this node, empty on all other procs. Guaranteed to be allocated on return (of size 0 on other than node-root).
     subroutine gather_block(data_block, tmp)
         integer(int64), intent(in) :: data_block(:)
-        integer(int64), allocatable :: tmp(:)
+        integer(int64), allocatable, intent(out) :: tmp(:)
 
         integer(MPIArg) :: procs_per_node
         integer(MPIArg) :: this_block_size, total_size
@@ -614,6 +626,7 @@ contains
     ! Histogramming
     !------------------------------------------------------------------------------------------!
 
+    !> Generate a histogram of the 6-index integrals and write it to stdout
     subroutine histogram_lMat(this)
         class(lMat_t), intent(in) :: this
         integer(int64) :: i
@@ -721,8 +734,8 @@ contains
         integer(MPIArg) :: ierr
         rVal = 0.0_dp        
 
-        ! reserve max. 100MB buffer size for dumpfile I/O
-        blocksize = 100000000_int64
+        ! reserve max. 128MB buffer size for dumpfile I/O
+        blocksize = 2_hsize_t**27 .div. (7*sizeof(0_int64))
         blockstart = this%offsets(iProcIndex_intra)
 
         blockend = min(blockstart + blocksize - 1, this%countsEnd)
@@ -756,8 +769,9 @@ contains
             ! This has to be threadsafe !!!
             call lMat%read_op_hdf5(indices, entries)
 
-            deallocate(entries)
-            deallocate(indices)            
+            ! the read_op is allowed to deallocate if memory has to be made available
+            if(allocated(entries)) deallocate(entries)
+            if(allocated(indices)) deallocate(indices)            
 
             ! set the size/offset for the next block
             if(running) then
