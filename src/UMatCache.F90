@@ -1408,10 +1408,15 @@ MODULE UMatCache
         implicit none
         integer, intent(in) :: nBasis
         integer :: nBI, i, j, idX, idN
+        integer :: ierr
+        character(*), parameter :: t_r = 'SetupUMat2d_dense'
 
         nBI = numBasisIndices(nBasis)
         ! allocate the storage
-        if(.not.associated(UMat2D)) allocate(UMat2D(nBI,nBI))
+        if(.not.associated(UMat2D)) then
+            allocate(UMat2D(nBI,nBI))
+            call LogMemAlloc('UMat2D',nBI**2,8*HElement_t_size,t_r,tagUMat2D,ierr)      
+        endif
 
         ! and fill in the array
         do i = 1, nBI
