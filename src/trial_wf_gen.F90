@@ -344,10 +344,12 @@ contains
             enddo
 #else
                 if (replica_pairs) then
+#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
                     do i = 1, lenof_sign .div. 2
                         ! When using pairs of replicas, average their amplitudes.
                         fciqmc_amps_real(i) = sum(all_fciqmc_amps(2*i-1:2*i))/2.0_dp
                     end do
+#endif
                 else
                     fciqmc_amps_real = all_fciqmc_amps
                 end if

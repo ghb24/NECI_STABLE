@@ -346,7 +346,7 @@ contains
           ! keep spawns up to a given seniority + excitation level
           tSpawnSeniorityBased = .false.
           numMaxExLvlsSet = 0
-          allocate(maxKeepExLvl(0))
+          if (.not. allocated(maxKeepExLvl)) allocate(maxKeepExLvl(0))
 
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
