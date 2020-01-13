@@ -344,7 +344,7 @@ contains
             enddo
 #else
                 if (replica_pairs) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                     do i = 1, lenof_sign .div. 2
                         ! When using pairs of replicas, average their amplitudes.
                         fciqmc_amps_real(i) = sum(all_fciqmc_amps(2*i-1:2*i))/2.0_dp
