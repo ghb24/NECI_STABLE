@@ -14,7 +14,10 @@ module test_loop_helpers
 
     type, abstract :: Writer_t
         procedure(to_unit_writer_t), pointer, nopass :: write
-        character(:), allocatable :: filepath
+        ! I would like it to be:
+        ! character(:), allocatable :: filepath
+        ! but for gfortran <= 4.8.5 it has to be
+        character(512) :: filepath
     end type
 
     type, extends(Writer_t) :: FciDumpWriter_t
@@ -64,9 +67,7 @@ contains
         character(*), intent(in) :: path
         integer :: file_id
 
-        ! Even though the file is only deleted, the unit has to be assigned
         file_id = get_free_unit()
-        
         open(file_id, file=path, status='old')
         close(file_id, status='delete')
     end subroutine
