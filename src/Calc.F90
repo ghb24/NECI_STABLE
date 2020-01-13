@@ -343,11 +343,6 @@ contains
           tSeniorityInits = .false.
           initMaxSenior = 0
 
-          ! keep spawns up to a given seniority + excitation level
-          tSpawnSeniorityBased = .false.
-          numMaxExLvlsSet = 0
-          if (.not. allocated(maxKeepExLvl)) allocate(maxKeepExLvl(0))
-
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
           t_prone_walkers = .false.
@@ -506,7 +501,6 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
-          integer :: maxKeepNOpenBuf, maxKeepExLvlBuf
           real(dp) :: InputDiagSftSingle
           integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
 

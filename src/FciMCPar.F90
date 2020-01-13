@@ -22,7 +22,7 @@ module FciMCParMod
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tFixTrial, tTrialShift, tSpinProject, &
                         tFixTrial, tTrialShift, t_activate_decay, tEn2Init, &
-                        tLogAverageSpawns, tActivateLAS, tTimedDeaths, &
+                        tLogAverageSpawns, tActivateLAS, &
                         tEn2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
                         tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
                         tCoreAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
