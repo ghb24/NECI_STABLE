@@ -234,6 +234,7 @@ contains
         !        pos - position to get the written data from
         class(gdata_io_t), intent(in) :: this
         integer(hsize_t), intent(out) :: gdata_buf(:)
+        integer, intent(in) :: pos
 
         logical :: t_aas, t_sb, t_ap
 
