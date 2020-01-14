@@ -17,7 +17,7 @@ C ===================================================================
 !            UMAT(UMatInd(I+1,I,I+1,I))=UHUB
 !            UMAT(I,I+1,I,I+1)=UHUB
 !            UMAT(I+1,I,I+1,I)=UHUB
-            WRITE(10,'(4I7,F19.9)') I,I,I,I,UHUB
+            WRITE(10,*) I,I,I,I,UHUB, UMatInd(I,I,I,I)
          ENDDO
          CLOSE(10)
          RETURN
@@ -53,7 +53,6 @@ C..Returned in sum
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
-         TOTSUM=COS(2*PI*(I*AX+J*AY)/LX)+COS(2*PI*(I*AY-J*AX)/LX)
          totsum=cos(2*pi*((I+tb_x)*ax + (j+tb_y)*ay)/lx)
          totsum=totsum+cos(2*pi*((i+tb_x)*ay-(j+tb_y)*ax)/lx)
 
@@ -320,12 +319,14 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
          use global_utilities
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: t_k_space_hubbard
          use SymData, only: nSym,SymConjTab,SymClasses,SymLabels
          use SymData, only: nSymLabels,tAbelian,SymTable
          use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
          use SymData, only: tagSymTable
          use sym_mod, only: RoundSym, AddElecSym
          use constants, only: int64
+         use lattice_mod, only: lat
          IMPLICIT NONE
          INTEGER nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis)
@@ -372,8 +373,12 @@ C.. place the sym label of each state in SymClasses(ISTATE).
                SymClasses(I)=nSyms
             ENDIF
 C.. list the symmetry string of each sym label
-            SymLabels(I)%s=2_int64**(I-1_int64)
-!             SymLabels(I)%s=i
+C.. try the new symmetry encoding here 
+            if (t_k_space_hubbard) then 
+                SymLabels(I)%s = i
+            else
+                SymLabels(I)%s=2_int64**(I-1_int64)
+            end if
          ENDDO
 C.. Setup the symmetry product table
          if (allocated(SymTable)) then
@@ -391,10 +396,19 @@ C.. Setup the symmetry product table
          call LogMemAlloc('SymConjTable',nSym,4,this_routine,
      &                                                    tagSymConjTab)
          SYMTABLE(1:NSYM,1:NSYM)=Symmetry(0)
+
          DO I=1,nBasis/2
             NQNS%k=-G1(I*2)%k
             CALL RoundSym(NQNS,nBasisMax)
-            J=iFindBasisFn(NQNS,G1,nBasis)
+            if (t_k_space_hubbard) then
+                ! i could actually include the symmetry rounding in the 
+                ! get_orb_from_k_vec functionality!
+                ! i was doing this incorrectly.. i want the spin orbital
+                ! j
+                J = lat%get_orb_from_k_vec(NQNS%k,2)
+            else
+                J=iFindBasisFn(NQNS,G1,nBasis)
+            end if
             IF(J.EQ.0) THEN
                WRITE(6,*) "Cannot Find symmetry conjugate to basis fn ",
      &            I*2
@@ -407,7 +421,12 @@ C.. Setup the symmetry product table
                CALL AddElecSym(J*2,G1,nBasisMax,S)
                CALL RoundSym(S,nBasisMax)
                NQNs%k=S%k
-               K=iFindBasisFn(NQNS,G1,nBasis)
+               if (t_k_space_hubbard) then
+                   k = lat%get_orb_from_k_vec(S%k,2)
+               else
+                   K=iFindBasisFn(NQNS,G1,nBasis)
+               end if
+
                IF(K.EQ.0) THEN
                 WRITE(6,*) "Cannot find symmetry product of basis fns ",
      &               I*2, J*2
@@ -444,10 +463,12 @@ C.. Setup the symmetry product table
          character(*), parameter :: this_routine='GenHubSymReps'
 
 C.. now work out which reps are degenerate and label them
+         if (allocated(SymReps)) deallocate(symreps)
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
-
+         ! this does not make sense.. 
+         SYMREPS = 0
          DO I=1,NBASIS
             IF(I.EQ.1) THEN
 C.. we have a new rep
@@ -465,6 +486,8 @@ C.. we have a new rep
             ENDIF
             SYMREPS(1,BRR(I))=J
          ENDDO
+
+!         print *, "symreps: " 
 !         DO I=1,NBASIS
 !            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
 !         ENDDO

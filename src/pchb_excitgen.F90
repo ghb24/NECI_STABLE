@@ -16,6 +16,7 @@ module pchb_excitgen
   use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
        calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
+  use sym_general_mod, only: IsSymAllowedExcitMat
   implicit none
 
   ! there are three pchb_samplers:
@@ -36,7 +37,7 @@ module pchb_excitgen
     ! The interface is common to all excitation generators, see proc_ptrs.F90
       integer, intent(in) :: nI(nel), exFlag
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
-      integer, intent(out) :: nJ(nel), ic, ex(2,2)
+      integer, intent(out) :: nJ(nel), ic, ex(2,maxExcit)
       integer(n_int), intent(out) :: ilutJ(0:NIfTot)
       logical, intent(out) :: tpar
       real(dp), intent(out) :: pGen
@@ -81,22 +82,21 @@ module pchb_excitgen
 
     !------------------------------------------------------------------------------------------!
 
+    !> given the initial determinant (both as nI and ilut), create a random double
+    !! excitation using the hamiltonian matrix elements as weights
+    !> @param[in] nI  determinant to excite from
+    !> @param[in] elec_map  map to translate electron picks to orbitals
+    !> @param[in] ilut  determinant to excite from in ilut format
+    !> @param[out] nJ  on return, excited determinant
+    !> @param[out] excitMat  on return, excitation matrix nI -> nJ
+    !> @param[out] tParity  on return, the parity of the excitation nI -> nJ
+    !> @param[out] pGen  on return, the probability of generating the excitation nI -> nJ    
     subroutine generate_double_pchb(nI,ilutI,nJ,ilutJ,ex,tpar,pgen)
-      ! given the initial determinant (both as nI and ilut), create a random double
-      ! excitation using the hamiltonian matrix elements as weights
-      ! Input: nI - determinant to excite from
-      !        elec_map - map to translate electron picks to orbitals
-      !        ilut - determinant to excite from in ilut format
-      !        nJ - on return, excited determinant
-      !        excitMat - on return, excitation matrix nI -> nJ
-      !        tParity - on return, the parity of the excitation nI -> nJ
-      !        pGen - on return, the probability of generating the excitation nI -> nJ
-
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(out) :: nJ(nel)
       integer(n_int), intent(out) :: ilutJ(0:NIfTot)
-      integer, intent(out) :: ex(2,2)
+      integer, intent(out) :: ex(2,maxExcit)
       real(dp), intent(out) :: pGen
       logical, intent(out) :: tpar
 
@@ -109,7 +109,7 @@ module pchb_excitgen
       ! first, pick two random elecs
       call pick_biased_elecs(nI,elecs,src,sym_prod,ispn,sum_ml,pGen)
       if(src(1) > src(2)) call intswap(src(1),src(2))
-      
+
       invalid = .false.
       ! use the sampler for this electron pair -> order of src electrons does not matter
       ij = fuseIndex(gtID(src(1)),gtID(src(2)))
@@ -137,7 +137,7 @@ module pchb_excitgen
       call pchb_samplers(samplerIndex)%aSample(ij,ab,pGenHoles)
       ! split the index ab (using a table containing mapping ab -> (a,b))
       orbs = tgtOrbs(:,ab)
-      ! convert orbs to spin-orbs with the same spin 
+      ! convert orbs to spin-orbs with the same spin
       orbs = 2*orbs - spin
 
       ! check if the picked orbs are a valid choice - if they are the same, match one
@@ -152,8 +152,8 @@ module pchb_excitgen
          ! -> return nulldet
          nJ = 0
          ilutJ = 0_n_int
-         ex(2,:) = orbs
-         ex(1,:) = src
+         ex(2,1:2) = orbs
+         ex(1,1:2) = src
       else
          ! else, construct the det from the chosen orbs/elecs
 
@@ -166,19 +166,19 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
+    !> Calculate the probability of generating a given excitation with the pchb excitgen
+    !> @param[in] nI  determinant to start from
+    !> @param[in] ex  2x2 excitation matrix
+    !> @param[in] ic  excitation level
+    !> @param[in] ClassCount2  symmetry information of the determinant
+    !> @param[in] ClassCountUnocc2  symmetry information of the virtual orbitals
+    !> @return pGen  probability of drawing this excitation with the pchb excitgen    
     function calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
-      ! Calculate the probability of generating a given excitation with the pchb excitgen
-      ! Input: nI - determinant to start from
-      !        ex - 2x2 excitation matrix
-      !        ic - excitation level
-      !        ClassCount2 - symmetry information of the determinant
-      !        ClassCountUnocc2 - symmetry information of the virtual orbitals
-      ! Output: pGen - probability of drawing this excitation with the pchb excitgen
       implicit none
       integer, intent(in) :: nI(nel)
       integer, intent(in) :: ex(2,2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
-      real(dp) :: pgen      
+      real(dp) :: pgen
 
       if(ic==1) then
          ! single excitations are the job of the uniform excitgen
@@ -193,10 +193,10 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
+    !> Calculate the probability of drawing a given double excitation ex
+    !> @param[in] ex  2x2 excitation matrix
+    !> @return pgen  probability of generating this double with the pchb double excitgen    
     function calc_double_pgen_pchb(ex) result(pgen)
-      ! Calculate the probability of drawing a given double excitation ex
-      ! Input: ex - 2x2 excitation matrix
-      ! Output: pgen - probability of generating this double with the pchb double excitgen
       implicit none
       integer, intent(in) :: ex(2,2)
       real(dp) :: pgen
@@ -204,7 +204,7 @@ module pchb_excitgen
 
       ! spatial orbitals of the excitation
       nex = gtID(ex)
-      ij = fuseIndex(nex(1,1),nex(1,2))      
+      ij = fuseIndex(nex(1,1),nex(1,2))
       ! the probability of picking the two electrons: they are chosen uniformly
       ! check which sampler was used
       if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
@@ -233,11 +233,11 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
+    !> initialize the pchb excitation generator
+    !! this does two things:
+    !! 1. setup the lookup table for the mapping ab -> (a,b)
+    !! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>    
     subroutine init_pchb_excitgen()
-      ! initialize the pchb excitation generator
-      ! this does two things:
-      ! 1. setup the lookup table for the mapping ab -> (a,b)
-      ! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
       implicit none
       integer :: ab, a, b, abMax
       integer :: aerr, nBI
@@ -259,7 +259,7 @@ module pchb_excitgen
             tgtOrbs(2,ab) = a
          end do
       end do
-      
+
       ! enable catching exceptions
       tgtOrbs(:,0) = 0
 
@@ -267,7 +267,6 @@ module pchb_excitgen
       call setup_pchb_sampler()
 
       write(iout,*) "Finished excitation generator initialization"
-      write(iout,*) "Excitation generator requires", real(memCost,dp)/2.0_dp**30, "GB of memory"
       ! this is some bias used internally by CreateSingleExcit - not used here
       pDoubNew = 0.0
     contains
@@ -286,11 +285,12 @@ module pchb_excitgen
         allocate(pExch(ijMax), stat = aerr)
         pExch = 0.0_dp
         ! the mask to filter nonzero entries of the bias
-        allocate(mask(ijMax), stat = aerr)        
+        allocate(mask(ijMax), stat = aerr)
         ! temporary storage for the unnormalized prob of not picking an exchange excitation
         allocatE(pNoExch(ijMax), stat = aerr)
         pNoExch = 1.0_dp
         memCost = memCost + abMax*ijMax*24*3
+        write(iout,*) "Excitation generator requires", real(memCost,dp)/2.0_dp**30, "GB of memory"
         write(iout,*) "Generating samplers for PCHB excitation generator"
         ! weights per pair
         allocate(w(abMax), stat = aerr)
@@ -301,7 +301,7 @@ module pchb_excitgen
            do i = 1, nBI
               ! map i to alpha spin (arbitrary choice)
               ex(1,1) = 2*i
-              ! as we order a,b, we can assume j <= i 
+              ! as we order a,b, we can assume j <= i
               do j = 1, i
                  w = 0.0_dp
                  ! for samplerIndex == 1, j is alpha, else, j is beta
@@ -354,13 +354,13 @@ module pchb_excitgen
            sorb = 2*orb - 1
         endif
       end function map_orb
-      
+
     end subroutine init_pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
+    !> deallocate the sampler and the mapping ab -> (a,b)    
     subroutine finalize_pchb_excitgen()
-      ! deallocate the sampler and the mapping ab -> (a,b)
       implicit none
       integer :: samplerIndex
 

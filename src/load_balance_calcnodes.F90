@@ -109,7 +109,7 @@ contains
         else
             do i = 1, nel_loc
                 acc = (large_prime * acc) + &
-                        (RandomOrbIndex(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
+                     (RandomOrbIndex(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
             enddo
         endif
 

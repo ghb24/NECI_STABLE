@@ -36,6 +36,8 @@ module excit_gens_int_weighted
     use util_mod
     use LoggingData, only: t_log_ija, ija_bins_para, ija_bins_anti, ija_thresh, &
                            ija_orbs_para, ija_orbs_anti, ija_bins_sing, ija_orbs_sing
+    use Parallel_neci, only: iProcIndex
+    use LMat_mod, only: get_lmat_el
 
     implicit none
     save
@@ -52,7 +54,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -87,7 +89,7 @@ contains
 
         integer, intent(in) :: nI(nel), nexcit
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -96,7 +98,7 @@ contains
 
         integer(n_int) :: iluts(0:NIfTot, nexcit)
         real(dp) :: hels(nexcit), hel_sum, hel_cum
-        integer :: excit_count, ex(2,2), i, flag
+        integer :: excit_count, ex(2,maxExcit), i, flag
         logical :: found_all, par
 
         ! Generate two lists. One with all of the available excitations, and
@@ -166,7 +168,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -240,7 +242,7 @@ contains
         ! described by the excitation matrix ex, and the excitation level ic,
         ! being generated according to the 4ind_weighted excitaiton generator?
 
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: nI(nel), ex(2,ic), ic
         integer, intent(in) :: ClassCountUnocc(ScratchSize)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         real(dp) :: pgen
@@ -312,7 +314,7 @@ contains
             end do
 
             ! Andjust the probability for this symmetry stuff
-            if (cum_sum < EPS) then
+            if (near_zero(cum_sum)) then
                 pgen = 0
                 return
             else
@@ -333,7 +335,7 @@ contains
 
             ! Deal with cases when there are no available excitations
             ! with the given pathway.
-            if (any(cum_sums < EPS)) then
+            if (any(near_zero(cum_sums))) then
                 cum_sums = 1.0
                 int_cpt = 0.0
             end if
@@ -353,7 +355,7 @@ contains
 
                 ! Deal with cases when there are no available excitations
                 ! with the given pathway.
-                If (any(sum_pair < EPS)) then
+                If (any(near_zero(sum_pair))) then
                     sum_pair = 1.0
                     cpt_pair = 0.0
                 end if
@@ -442,7 +444,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NifTot)
         integer, intent(out) :: nJ(nel)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        integer, intent(out) :: ex(2,2)
+        integer, intent(out) :: ex(2,maxExcit)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
         character(*), parameter :: this_routine = "gen_single_4ind_ex"
@@ -493,7 +495,7 @@ contains
         real(dp) :: pgen
         character(*), parameter :: this_routine = "pgen_single_4ind"
 
-        integer :: cc_index, label_index, norb, n_id(nel), id_src, id_tgt
+        integer :: cc_index, label_index, norb, ex(2), id_src, id_tgt
         integer :: i, j, orb
         real(dp) :: cum_sum, cpt, cpt_tgt
         HElement_t(dp) :: hel
@@ -511,7 +513,7 @@ contains
 
         ! Some ids for utility
         id_src = gtID(src)
-        n_id = gtID(nI)
+        ex(1) = src
 
         ! Generate the cumulative sum, as used in the excitation generator,
         ! and store the relevant term for generating the excitation.
@@ -519,19 +521,9 @@ contains
         do i = 1, norb
             orb = SymLabelList2(label_index + i - 1)
             if (IsNotOcc(ilutI, orb)) then
-                hel = 0
-                id_tgt = gtID(orb)
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id_tgt, &
-                                             n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) then
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j),&
-                                                  id_tgt)
-                    end if
-                end do
-                hel = hel + GetTMATEl(src, orb)
-                cpt = abs_l1(hel)
+               ex(2) = orb
+               hel = sltcnd_1(nI,ex,.false.)
+               cpt = abs_l1(hel)
 
                 if (t_matele_cutoff) then
                     if (cpt < matele_cutoff) then
@@ -544,7 +536,7 @@ contains
         end do
 
         ! Adjust the generation probability for the relevant values.
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum)) then
             pgen = 0.0_dp
         else
             pgen = pgen * cpt_tgt / cum_sum
@@ -565,7 +557,7 @@ contains
         real(dp) :: cum_sum, cumulative_arr(OrbClassCount(cc_index)), r
         real(dp) :: cpt_arr(OrbClassCount(cc_index))
         integer :: orb, norb, label_index, orb_index, i, j
-        integer :: n_id(nel), id_src, id
+        integer :: id_src, id, ex(2)
         HElement_t(dp) :: hel
         real(dp) :: cpt
 
@@ -574,8 +566,8 @@ contains
         label_index = SymLabelCounts2(1, cc_index)
 
         ! Spatial orbital IDs
-        n_id = gtID(nI)
         id_src = gtID(src)
+        ex(1) = src
         ASSERT(tExch)
 
         ! Construct the cumulative list of strengths
@@ -595,17 +587,10 @@ contains
                 !cum_sum = cum_sum &
                 !        + abs_l1(GetTMATEl(src, orb))
 
-                ! This is based on an extract from sltcnd_1. We can assume
-                ! tExch, and SymLabelList2 ensures the spins are equal
-                id = gtID(orb)
-                do j = 1, nel
-                    if (nI(j) == src) cycle
-                    hel = hel + get_umat_el (id_src, n_id(j), id, n_id(j))
-                    if (is_beta(src) .eqv. is_beta(nI(j))) &
-                        hel = hel - get_umat_el (id_src, n_id(j), n_id(j), id)
-                end do
-                hel = hel + GetTMATEl(src, orb)
-
+                ! This is based on an extract from sltcnd_1.
+                ! set the excitation we consider
+                ex(2) = orb
+                hel = sltcnd_1(nI,ex,.false.)
             end if
 
             ! And store the values for later searching
@@ -637,7 +622,7 @@ contains
         ! cutoff.. because i think by ignoring some, we allow other excitations
         ! which should have 0 matrix element to slip through and cause major
         ! headache..
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum)) then
             orb = 0
             pgen = 0.0_dp
             return
@@ -666,7 +651,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         type(excit_gen_store_type), intent(in) :: store
         logical, intent(out) :: par
@@ -753,24 +738,46 @@ contains
         ilutJ = exciteIlut(ilutI,src,orbs)
     end subroutine
 
-    subroutine pick_biased_elecs (nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
+    subroutine pick_biased_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pgen, pBias, pAA)
 
         integer, intent(in) :: nI(nel)
         integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
         real(dp), intent(out) :: pgen
+        real(dp), intent(in), optional :: pBias, pAA
 
-        real(dp) :: ntot, r
+        real(dp) :: ntot, pBiasIntern, r
         integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
         integer :: al_count, be_count
 
         ! We want to have the n'th alpha, or beta electrons in the determinant
         ! Select them according to the availability of pairs (and the
         ! weighting of opposite-spin pairs relative to same-spin ones).
+
+        if(present(pBias)) then
+           pBiasIntern = pBias
+        else
+           pBiasIntern = pParallel
+        endif
+
         r = genrand_real2_dSFMT()
-        if (r < pParallel) then
+        if (r < pBiasIntern) then
             ! Same spin case
-            pgen = pParallel / real(par_elec_pairs, dp)
-            r = (r / pParallel) * par_elec_pairs
+            ! pgen = pBiasIntern / real(par_elec_pairs, dp)
+            ! map the random number either to get a uniform random parallel
+            ! excitation or a parallel excitation biased towards A/B spin
+            ! if a bias is present, use it to round r
+            if(present(pAA)) then
+               ! probability for AA is pAA/(pAA+pBB)=pAA/pBias
+               ! => compare r < pBias * pAA/pBias
+               if(r < pAA) then
+                  r = (r / pBiasIntern * AA_elec_pairs)
+               else
+                  r = (r / pBiasIntern * (par_elec_pairs - AA_elec_pairs)) + AA_elec_pairs
+               endif
+               ! else, round r to par_elec_pairs
+            else
+               r = (r / pBiasIntern) * par_elec_pairs
+            end if
             idx = floor(r)
             if (idx < AA_elec_pairs) then
                 al_req = 2
@@ -778,6 +785,11 @@ contains
                 iSpn = 3
                 al_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
                 al_num(2) = idx + 1 - ((al_num(1) - 1) * (al_num(1) - 2)) / 2
+                if(present(pAA)) then
+                   pgen = pAA / real(AA_elec_pairs,dp)
+                else
+                   pgen = pBiasIntern / real(par_elec_pairs,dp)
+                endif
             else
                 al_req = 0
                 be_req = 2
@@ -785,14 +797,19 @@ contains
                 idx = idx - AA_elec_pairs
                 be_num(1) = ceiling((1 + sqrt(9 + 8*real(idx, dp))) / 2)
                 be_num(2) = idx + 1 - ((be_num(1) - 1) * (be_num(1) - 2)) / 2
+                if(present(pAA)) then
+                   pgen = (pBiasIntern-pAA) / real(par_elec_pairs - AA_elec_pairs,dp)
+                else
+                   pgen = pBiasIntern / real(par_elec_pairs,dp)
+                endif
             end if
         else
             ! Opposite spin case
             iSpn = 2
             al_req = 1
             be_req = 1
-            pgen = (1.0_dp - pParallel) / real(AB_elec_pairs, dp)
-            r = ((r - pParallel) / (1.0_dp - pParallel)) * AB_elec_pairs
+            pgen = (1.0_dp - pBiasIntern) / real(AB_elec_pairs, dp)
+            r = ((r - pBiasIntern) / (1.0_dp - pBiasIntern)) * AB_elec_pairs
             idx = floor(r)
             al_num(1) = 1 + mod(idx, nOccAlpha)
             be_num(1) = 1 + floor(idx / real(nOccAlpha, dp))
@@ -840,6 +857,70 @@ contains
                                          SpinOrbSymLabel(src(2)))
 
     end subroutine
+
+    subroutine pick_oppspin_elecs(nI, elecs, src, sym_prod, ispn, sum_ml, pgen)
+
+        integer, intent(in) :: nI(nel)
+        integer, intent(out) :: elecs(2), src(2), sym_prod, ispn, sum_ml
+        real(dp), intent(out) :: pgen
+
+        real(dp) :: ntot, r
+        integer :: al_req, be_req, al_num(2), be_num(2), elecs_found, i, idx
+        integer :: al_count, be_count
+
+        ! Pick elentrons with opposite spins
+        iSpn = 2
+        al_req = 1
+        be_req = 1
+        pgen = 1.0_dp / real(AB_elec_pairs, dp)
+        r = genrand_real2_dSFMT()
+        r = r * real(AB_elec_pairs, dp)
+        idx = floor(r)
+        al_num(1) = 1 + mod(idx, nOccAlpha)
+        be_num(1) = 1 + floor(real(idx, dp) / real(nOccAlpha, dp))
+
+        ! Loop through the determiant, and select the relevant orbitals from
+        ! it.
+        ! This is not as clean as the implementation in PickElecPair, which
+        ! doesn't consider the spins. Would work MUCH better in an
+        ! environment where the alpha/beta spins were stored seperately...
+        al_count = 0
+        be_count = 0
+        elecs_found = 0
+        do i = 1, nel
+            if (is_alpha(nI(i))) then
+                al_count = al_count + 1
+                if (al_req > 0) then
+                    if (al_count == al_num(al_req)) then
+                        elecs_found = elecs_found + 1
+                        elecs(elecs_found) = i
+                        al_req = al_req - 1
+                    end if
+                end if
+            else
+                be_count = be_count + 1
+                if (be_req > 0) then
+                    if (be_count == be_num(be_req)) then
+                        elecs_found = elecs_found + 1
+                        elecs(elecs_found) = i
+                        be_req = be_req - 1
+                    end if
+                end if
+            end if
+            if (al_req == 0 .and. be_req == 0) exit
+        end do
+
+        ! Generate the orbitals that are being considered
+        src = nI(elecs)
+
+        ! The Ml value is obtained from the orbitals
+        sum_ml = sum(G1(src)%Ml)
+
+        ! Get the symmetries
+        sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
+                                         SpinOrbSymLabel(src(2)))
+
+    end subroutine pick_oppspin_elecs
 
 
     subroutine pgen_select_orb (ilut, src, orb_pair, tgt, cpt, cum_sum)
@@ -916,7 +997,7 @@ contains
             inda = gtID(orba)
             indb = gtID(orbb)
             if (tGen_4ind_unbound) then
-                contrib = abs(get_umat_el(indi, indj, inda, indb))
+                contrib = abs(get_umat_el(inda, indb, indi, indj))
             else
                 contrib = max(sqrt(abs(get_umat_el(indi, indj, inda, indb))), 0.0001_dp)
 !                 contrib = sqrt(abs(get_umat_el(indi, indj, inda, indb)))
@@ -994,8 +1075,8 @@ contains
             inda = gtID(orba)
             indb = gtID(orbb)
             if (tGen_4ind_unbound) then
-                contrib = abs(get_umat_el(indi, indj, inda, indb) &
-                                - get_umat_el(indi, indj, indb, inda))
+                contrib = abs(get_umat_el(inda, indb, indi, indj) &
+                                - get_umat_el(inda, indb, indj, indi))
             else
                 ! finally get rid of this arbitrary thresholds..
                 contrib = max(sqrt(abs(get_umat_el(indi, indj, inda, indb) &
@@ -1050,7 +1131,7 @@ contains
 
 
                 contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))&
-                        + sqrt(abs_l1(UMat2D(max(indj, inda), min(indj, inda))))
+                     + sqrt(abs_l1(UMat2D(max(indj, inda), min(indj, inda))))
             end if
             !sqrt(abs_l1(get_umat_el(srcid(1), srcid(1), inda, inda))) + &
             !sqrt(abs_l1(get_umat_el(srcid(2), srcid(2), inda, inda)))
@@ -1108,7 +1189,7 @@ contains
                 orb = SymLabelList2(label_index + i - 1)
                 if (IsNotOcc(ilut, orb) .and. orb /= orb_pair) then
                     cum_sum = cum_sum + same_spin_pair_contrib(&
-                                             srcid(1), srcid(2), orb, orb_pair)
+                         srcid(1), srcid(2), orb, orb_pair)
                 end if
                 cumulative_arr(i) = cum_sum
 
@@ -1146,7 +1227,7 @@ contains
 
 
         ! If there are no available orbitals to pair with, we need to abort
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum)) then
             orb = 0
             return
         end if
@@ -1226,7 +1307,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pGen
         HElement_t(dp), intent(out) :: HElGen
@@ -1284,7 +1365,7 @@ contains
 
     function calc_pgen_4ind_reverse (nI, ilutI, ex, ic) result(pgen)
 
-        integer, intent(in) :: nI(nel), ex(2,2), ic
+        integer, intent(in) :: nI(nel), ex(2,ic), ic
         integer(n_int), intent(in) :: ilutI(0:NifTot)
         real(dp) :: pgen
         character(*), parameter :: this_routine = 'calc_pgen_4ind_reverse'
@@ -1368,7 +1449,6 @@ contains
             ! And account for the case where this is not a connected excitation
             ! actually this comparison with 0 should be removed..
             if (near_zero(cum_sum)) then
-!             if (cum_sum < EPS) then
                 pgen = 0
             else
                 pgen = pgen * cpt_tgt / cum_sum
@@ -1397,7 +1477,7 @@ contains
         integer(n_int), intent(in) :: ilutI(0:NifTot)
         integer, intent(out) :: nJ(nel)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
-        integer, intent(out) :: ex(2,2)
+        integer, intent(out) :: ex(2,maxExcit)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
 
@@ -1494,7 +1574,6 @@ contains
 
         ! Select a particulor electron, or abort
         if (near_zero(cum_sum)) then
-!         if (cum_sum < EPS) then
             elec = 0
         else
             r = genrand_real2_dSFMT() * cum_sum
@@ -1518,7 +1597,7 @@ contains
 
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: par
         real(dp), intent(out) :: pgen
@@ -1777,7 +1856,7 @@ contains
         integer, intent(in) :: iterations
         character(*), parameter :: this_routine = 'test_excit_gen_4ind'
 
-        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,2)
+        integer :: src_det(nel), det(nel), nsing, ndoub, nexcit, ndet, ex(2,maxExcit)
         integer :: flag, ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)

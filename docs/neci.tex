@@ -687,10 +687,12 @@ the \texttt{endsys} keyword.
 
   \subsubsection{Hubbard model and UEG options}
   \begin{description}
-    \codeitem{cell $x$ $y$ $z$}
-    Sets the lattice size to $x\times y \times z$ sites.
-    \codeitem{kpoints}
-    Use momentum conservation. Requires a momentum-space basis.
+    \codeitem{lattice $type$ $l_x$ $l_y$ $l_Z$}
+    Defines the basis in terms of a lattice of type $type$ with extent $l_x
+    \times l_y \times l_z$. $l_x$ and $l_y$ are mandatory, $l_z$ is
+    optional. $type$ can be any of \texttt{chain}, \texttt{star},
+    \texttt{square}, \texttt{rectangle}, \texttt{tilted}, \texttt{triangular},
+    \texttt{hexagonal}, \texttt{kagome}, \texttt{ole}. 
     \codeitem{U $U$}
     Sets the Hubbard interaction strengh to $U$. Defaults to 4.
     \codeitem{B $t$}
@@ -700,9 +702,6 @@ the \texttt{endsys} keyword.
     applied along x-direction, where $x$ is the lattice size. $t_2$ is
     optional and the additional phase along y-direction, in multiples of
     $\frac{2\Pi}{y}$.
-    \codeitem{real}
-    Use a real-space basis for the Hubbard model. Useful for large values of
-    $U$.
     \codeitem{open-bc $direction$}
     Set the boundary condition in $direction$ to open, i.e. no hopping across
     the cell boundary is possible. $direction$ is optional and can be one of
@@ -712,9 +711,35 @@ the \texttt{endsys} keyword.
     \codeitem{ueg-offset $k_x$ $k_y$ $k_z$}
     Offset $(k_x, k_y, k_z)$ for the momentum grid used in for the uniform
     electron gas.
-    \codeitem{tilt $t_x$ $t_y$}
-    Replaces each site with a tilted $t_x$ by $t_y$ lattice. Recommended to be
-    used only with \texttt{cell 1 1 1}.
+  \end{description}
+
+  \subsubsection{Transcorrelation options}
+  \begin{description}
+    \codeitem{molecular-transcorr}
+    Enable the usage of a transcorrelated ab-initio Hamiltonian. This implies the
+    non-hermiticity of the Hamiltonian as well as the presence of 3-body
+    interactions. Requires passing the 3-body integrals in either ASCII or
+    HDF5 format in a \texttt{TCDUMP} file, or \texttt{tcdump.h5},
+    respectively. Enables triple excitation generation. When using this
+    option, non-uniform random excitation generator become inefficient, so
+    using \texttt{nonUniformRandExcits} is discouraged.
+    \codeitem{ueg-transcorr $mode$}
+    Enable the usage of a transcorrelated Hamiltonian for the uniform electron
+    gas. This implies the non-hermiticity of the Hamiltonian as well as the
+    presence of 3-body interactions. $mode$ can be one of \texttt{3-body},
+    \texttt{trcorr-excitgen} or \texttt{rand-excitgen}.
+    \codeitem{transcorr $J$}
+    Enable the usage of a transcorrelated Hamiltonian for the real-space
+    hubbard mode. This implies the non-hermiticity of the Hamiltonian. The
+    optional parameter $J$ is the transcorrelation parameter and defaults to 1.0.
+    \codeitem{2-body-transcorr $J$.}
+    Enable the usage of a transcorrelated Hamiltonian for the momentum space
+    hubbard model. This implies the non-hermiticity of the Hamiltonian as well as the
+    presence of 3-body interactions. The optional argument $J$ is the
+    correlation parameter and defaults to 0.25.
+    \codeitem{exclude-3-body-ex}
+    Disables the generation of triple excitations, but still takes into
+    account 3-body interactions for all other purposes.
   \end{description}
 
   \subsection{CALC Block}
@@ -755,6 +780,10 @@ the \texttt{endsys} keyword.
     Dynamically update the number of spawns attempted per walker. Can be used
     if the excitation generator creates a lot of invalid excitations, but
     should be avoided else.
+    \codeitem{scale-spawns}
+    Store the maximum value of $\frac{H_{ij}}{p_{gen}}$ for each determinant
+    and use it to estimate the number of spawns per walker to prevent
+    blooms. Useful when this fraction strongly depends on the determinant.
   \end{description}
 
   \subsubsection{Population control options}
@@ -1178,21 +1207,28 @@ the \texttt{endsys} keyword.
     \codeitem{endint}
     Terminates the INTEGRAL block.
     \codeitem{freeze $n$ $m$}
-      Freeze $n$ core and $m$ virtual orbitals which are not to be
-      considered active in this calculation. The orbitals are selected
-      according to orbital energy, the $n$ lowest and $m$ highest orbitals in
-      energy are frozen.
-      \codeitem{freezeInner $n$ $m$}
-      Freeze $n$ core and $m$ virtual orbitals which are not to be
-      considered active in this calculation. The orbitals are selected
-      according to orbital energy, the $n$ highest and $m$ lowest orbitals in
-      energy are frozen.
-      \codeitem{partiallyFreeze $n_\text{orb}$ $n_\text{holes}$}
-        Freeze $n_\text{orb}$ core orbitals partially. This means at most
-        $n_\text{holes}$ holes are now allowed in these orbitals.
-      \codeitem{partiallyFreezeVirt $n_\text{orb}$ $n_\text{els}$}
-        Freeze $n_\text{orb}$ virtual orbitals partially. This means at most
-        $n_\text{els}$ electrons are now allowed in these orbitals.
+    Freeze $n$ core and $m$ virtual orbitals which are not to be
+    considered active in this calculation. The orbitals are selected
+    according to orbital energy, the $n$ lowest and $m$ highest orbitals in
+    energy are frozen.
+    \codeitem{freezeInner $n$ $m$}
+    Freeze $n$ core and $m$ virtual orbitals which are not to be
+    considered active in this calculation. The orbitals are selected
+    according to orbital energy, the $n$ highest and $m$ lowest orbitals in
+    energy are frozen.
+    \codeitem{partiallyFreeze $n_\text{orb}$ $n_\text{holes}$}
+    Freeze $n_\text{orb}$ core orbitals partially. This means at most
+    $n_\text{holes}$ holes are now allowed in these orbitals.
+    \codeitem{partiallyFreezeVirt $n_\text{orb}$ $n_\text{els}$}
+    Freeze $n_\text{orb}$ virtual orbitals partially. This means at most
+    $n_\text{els}$ electrons are now allowed in these orbitals.
+    \codeitem{hdf5-integrals}
+    Read the 3-body integrals for a transcorrelated ab-initio Hamiltonian from an HDF5
+    file. Ignored when the \texttt{molecular-transcorrelated} keyword is not
+    given. Requires compiling with HDF5.
+    \codeitem{sparse-lmat}
+    Store the 3-body integrals in a sparse format to save
+    memory. Initialisation and iterations might be slower. Requires \texttt{hdf5-integrals}.
   \end{description}
 
   \subsection{KP-FCIQMC Block}
@@ -1353,7 +1389,16 @@ the \texttt{endsys} keyword.
       \codeitem{stepsOutput $n$}
       Write the iteration data to stdout/disk every $n$ iterations. Defaults
       to the number of iterations per shift cycle. Setting $n=0$ disables
-      iteration data output to stdout and uses the shift cycle for disk output.
+      iteration data output to stdout and uses the shift cycle for disk
+      output.
+      \codeitem{fval-energy-hist}
+      Create a histogram of the scaling factor used for the auto-adaptive shift
+      over the energy of a determinant. Only has an effect if
+      \code{auto-adaptive-shift} is used.
+      \codeitem{fval-pops-hist}
+      Create a histogram of the scaling factor used for the auto-adaptive shift
+      over the population of a determinant. Only has an effect if
+      \code{auto-adaptive-shift} is used.
     \end{description}
     \subsubsection{Semi-stochastic output options}
     \begin{description}

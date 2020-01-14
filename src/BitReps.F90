@@ -6,16 +6,18 @@ module bit_reps
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
                         tStartTrialLater, tPreCond, tReplicaEstimates, tStoredDets
-
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs, CountBits
+    use DetBitOps, only: ilut_lt, ilut_gt
     use bit_rep_data
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
                                tBuildSpinSepLists, &
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
     use sym_general_mod, only: ClassCountInd
+    use util_mod, only: binary_search_custom
+    use sort_mod, only: sort
     use global_det_data, only: get_determinant
     implicit none
 
@@ -783,9 +785,11 @@ contains
     end subroutine
 
     pure function getExcitationType(ExMat, IC) result(exTypeFlag)
-        integer, intent(in) :: ExMat(2,2), IC
+        integer, intent(in) :: ExMat(2,ic), IC
         integer :: exTypeFlag
 
+        ! i need to initialize to something..
+        exTypeFlag = -1
         if (IC==1) then
             if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
                 exTypeFlag = 3
@@ -837,6 +841,9 @@ contains
                     return
                 endif
             endif
+        else if (ic == 3) then
+            ! todo! need to consider more maybe!
+            exTypeFlag = 6
         endif
 
     end function
@@ -1099,7 +1106,8 @@ contains
         endif
     end subroutine decode_bit_det_bitwise
 
-    subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, ndets_out)
+    subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
+         ndets_out)
 
         ! WARNING 1: This routine assumes that both list_1 and list_2 contain no
         ! repeated iluts, even if one of the repeated iluts has zero amplitude.
@@ -1108,10 +1116,6 @@ contains
         ! then sorted_lists should be input as .false., and the lists will then
         ! be sorted. This routine will not work if unsorted lists are passed in
         ! and sorted_list is input as .true.
-
-        use DetBitOps, only: ilut_lt, ilut_gt
-        use sort_mod, only: sort
-        use util_mod, only: binary_search_custom
 
         integer, intent(in) :: ndets_1
         integer, intent(in) :: ndets_2

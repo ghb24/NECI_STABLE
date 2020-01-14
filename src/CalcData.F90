@@ -36,9 +36,10 @@ type subspace_in
     logical :: tPopsAuto = .false.
     ! Read states from a file.
     logical :: tRead = .false.
-    ! Use the space of all single and double excitations from the
+    ! Use the space of all single and double (+triple) excitations from the
     ! Hartree-Fock determinant (and also include the HF determinant).
     logical :: tDoubles = .false.
+    logical :: tTriples = .false.
     ! Use all connections to the Hartree-Fock.
     logical :: tHFConn = .false.
     ! Use a CAS space.
@@ -100,7 +101,7 @@ LOGICAL :: EXCITFUNCS(10),TNPDERIV,TMONTE,TMCDET
 LOGICAL :: TBETAP,CALCP_SUB2VSTAR,CALCP_LOGWEIGHT,TENPT
 LOGICAL :: TLADDER,TMC,TREADRHO,TRHOIJ,TBiasing,TMoveDets
 LOGICAL :: TBEGRAPH,STARPROD,TDIAGNODES,TSTARSTARS,TGraphMorph
-LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips
+LOGICAL :: TInitStar,TNoSameExcit,TLanczos,TStarTrips, tFCIDavidson
 LOGICAL :: TMaxExcit,TOneExcitConn,TSinglesExcitSpace,TFullDiag
 LOGICAL ::THDiag,TMCStar,TReadPops,TBinCancel,TFCIMC,TMCDets,tDirectAnnihil
 LOGICAL :: tDetermProj, tFTLM, tSpecLanc, tExactSpec, tExactDiagAllSym
@@ -128,6 +129,7 @@ real(dp) :: RealSpawnCutoff, OccupiedThresh
 logical :: tRPA_QBA     !RPA calculation with QB approximation
 logical :: tStartCAS    !Start FCIMC dynamic with walkers distributed according to CAS diag.
 logical :: tShiftonHFPop    !Adjust shift in order to keep the population on HF constant, rather than total pop.
+logical :: tSpecifiedTau
 logical :: tInitializeCSF
 real(dp) :: S2Init
 logical :: tFixedN0 !Fix the reference population by using projected energy as shift.
@@ -135,6 +137,7 @@ logical :: tTrialShift !Fix the overlap with trial wavefunction by using trial e
 logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
 logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically updating one det. One flag for each run.
 integer :: N0_Target !The target reference population in fixed-N0 mode
+
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
 logical :: tAdaptiveShift !Whether any of the adaptive shift schemes is used
 logical :: tCoreAdaptiveShift = .false. ! Whether the adaptive shift is also applied to the corespace
@@ -154,6 +157,8 @@ real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 real(dp) :: AAS_Const
 logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
 real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
+logical :: tAS_TrialOffset !Whether the adaptive shift scheme should be applied with respect to trial-wf energy not HF energy
+real(dp) :: ShiftOffset ! An offest for the adaptive shift
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
@@ -171,6 +176,14 @@ logical :: tStoredDets
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
 
+! are determinants with low number of open orbs always inits?
+logical :: tSeniorityInits
+integer :: initMaxSenior
+! do we keep certain spawns up to a given excitation + seniority level
+logical :: tSpawnSeniorityBased
+integer, allocatable :: maxKeepExLvl(:)
+integer :: numMaxExLvlsSet
+
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,NShiftEquilSteps
@@ -187,7 +200,12 @@ real(dp) :: iWeightPopRead
 real(dp) :: MaxWalkerBloom   !Max number of walkers allowed in one bloom before reducing tau
 INTEGER(int64) :: HFPopThresh
 real(dp) :: InitWalkers, maxnoathf, InitiatorWalkNo, ErrThresh
+! Options for dynamic rescaling of spawn attempts + blooms
+logical :: tScaleBlooms = .false.
+real(dp) :: max_allowed_spawn
+
 real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
+integer :: multiSpawnThreshold
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
@@ -279,6 +297,13 @@ logical :: tTrialWavefunction
 ! How many excited states to calculate in the trial space, for the
 ! trial wave functions estimates
 integer :: ntrial_ex_calc = 0
+
+! if we want to choose a specific excited states as the trial wf, if we 
+! have a reasonable estimate. this must be done for all replicas if 
+! multiple are used 
+logical :: t_choose_trial_state = .false. 
+integer, allocatable :: trial_excit_choice(:)
+
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: trial_space_in
 
@@ -336,7 +361,14 @@ integer :: pops_norm_unit
 logical :: tOrthogonaliseReplicas, tReplicaSingleDetStart
 logical :: tOrthogonaliseSymmetric
 integer :: orthogonalise_iter
+
+! test reintroducing an overlap.
+logical :: t_test_overlap = .false.
+real(dp) :: overlap_eps = 1.0e-5_dp
+integer :: n_stop_ortho = -1
+logical :: tAVReps, tReplicaCoherentInits
 ! Information on a trial space to create trial excited states with.
+
 type(subspace_in) :: init_trial_in
 
 ! Start wave function from solutions with a trial space
@@ -407,7 +439,13 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! fixed to the values obtained from the POPSFILE
 logical :: t_keep_tau_fixed = .false.
 
-! new tau-search using HISTOGRAMS:
+! for the transcorrelated hubbard make it possible to use input-dependent 
+! pDoubles and pParallel values 
+real(dp) :: p_doubles_input = 0.8_dp
+
+logical :: tPopsAlias = .false.
+character(255) :: aliasStem
+! new tau-search using HISTOGRAMS: 
 logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
 logical :: t_fill_frequency_hists = .false.
 
@@ -421,7 +459,13 @@ logical :: t_previous_hist_tau = .false.
 ! keyword in case the tau-search is not converged enough
 logical :: t_restart_hist_tau = .false.
 
-! also introduce an integer, to delay the actual changing of the time-step
+! use a global variable for this control: 
+logical :: t_consider_par_bias = .false.
+
+! quickly implement a control parameter to test the order of matrix element 
+! calculation in the transcorrelated approach 
+logical :: t_test_order = .false.
+! also introduce an integer, to delay the actual changing of the time-step 
 ! for a set amount of iterations
 ! (in the restart case for now!)
 integer :: hist_search_delay = 0
@@ -462,6 +506,7 @@ logical :: t_truncate_unocc, t_truncate_multi
 logical :: t_prone_walkers, t_activate_decay
 real(dp) :: n_truncate_spawns = 3.0_dp
 
+
 ! flags for global storage
 logical :: tLogAverageSpawns, tActivateLAS
 ! threshold value to make something an initiator based on spawn coherence
@@ -497,6 +542,8 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
 
+! move tSpinProject here to avoid circular dependencies 
+logical :: tSpinProject
 ! Use a Jacobi preconditioner in evolution equation
 logical :: tPreCond
 
@@ -513,7 +560,6 @@ real(dp) :: pSinglesIn, pParallelIn
 
 ! If true then allow set_initial_run_references to be called
 logical :: tSetInitialRunRef
-
 ! If true, then when using the pops-core option, don't allow the
 ! pops-core-approx option to take over, even in the default case
 ! where it has been decided that it is efficient and appropriate.

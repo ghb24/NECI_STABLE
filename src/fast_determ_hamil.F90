@@ -1266,7 +1266,7 @@ contains
                 tmp = ieor(core_space(0:NIfD,i_full), core_space(0:NIfD,ind_j))
                 tmp = iand(core_space(0:NIfD,i_full), tmp)
                 IC = CountBits(tmp, NIfD)
-                if (IC <= 2) then
+                if (IC <= maxExcit) then
                     call decode_bit_det(nJ, core_space(:,ind_j))
                     hel = get_helement(nI, nJ, IC, core_space(:,i_full), core_space(:,ind_j))
                     if (abs(hel) > 0.0_dp) then
@@ -1288,7 +1288,7 @@ contains
                 tmp = ieor(core_space(0:NIfD,i_full), core_space(0:NIfD,ind_j))
                 tmp = iand(core_space(0:NIfD,i_full), tmp)
                 IC = CountBits(tmp, NIfD)
-                if (IC <= 2) then
+                if (IC <= maxExcit) then
                     call decode_bit_det(nJ, core_space(:,ind_j))
                     hel = get_helement(nI, nJ, IC, core_space(:,i_full), core_space(:,ind_j))
                     if (abs(hel) > 0.0_dp) then
@@ -1311,7 +1311,7 @@ contains
                 do k = 1, nintersec
                     ind_k = alpha_dets(ind_alpha_conn)%pos( intersec_inds(k) )
                     call decode_bit_det(nK, core_space(:,ind_k))
-                    hel = get_helement(nI, nK, 2, core_space(:,i_full), core_space(:,ind_k))
+                    hel = get_helement(nI, nK, core_space(:,i_full), core_space(:,ind_k))
                     if (abs(hel) > 0.0_dp) then
                         num_conns(i) = num_conns(i) + 1
                         hamil_pos(num_conns(i)) = ind_k

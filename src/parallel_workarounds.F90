@@ -119,7 +119,7 @@ contains
 
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm
-        integer :: v, ret
+        integer :: v, ret, ierr
 
 #ifdef PARALLEL
 

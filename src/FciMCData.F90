@@ -15,7 +15,7 @@ MODULE FciMCData
 
       ! Type for creating linked lists for the linear scaling algorithm.
       type ll_node
-          integer :: ind
+          integer :: ind = 0
           type(ll_node), pointer :: next => null()
       end type ll_node
 
@@ -80,7 +80,6 @@ MODULE FciMCData
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
 
-
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
 
@@ -95,10 +94,6 @@ MODULE FciMCData
     real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
-    integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
-
-    real(dp) :: avSigns, AllAvSigns
-
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
 
@@ -108,7 +103,12 @@ MODULE FciMCData
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
 
+    integer :: doubleSpawns = 0
+    integer :: allDoubleSpawns
+
       logical :: tHFInitiator, tPrintHighPop, tcurr_initiator
+      logical :: tfirst_cycle ! control flag for the iter_utilities for comparing with data
+      ! from previous iterations
 
       integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
@@ -227,9 +227,11 @@ MODULE FciMCData
 
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
-
-      real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
-      integer :: bloom_count(0:2), all_bloom_count(0:2)
+      
+      ! [W.D.12.12.2017]
+      ! for triples allow bigger bloom counts! 
+      real(dp) :: bloom_sizes(0:3), bloom_max(0:3)
+      integer :: bloom_count(0:3), all_bloom_count(0:3)
 
       ! Global, accumulated, values calculated on the root processor from
       ! the above per-node values
@@ -262,6 +264,7 @@ MODULE FciMCData
       ! phase where the shift is fixed and particle numbers are growing
       logical, allocatable :: tSinglePartPhase(:)
 
+
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
       LOGICAL :: TDebug                           !Debugging flag
@@ -284,6 +287,7 @@ MODULE FciMCData
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            SemiStoch_Hamil_Time, SemiStoch_Davidson_Time, &
+                           SemiStoch_nonhermit_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
                            subspace_spin_time, sign_correction_time, &
@@ -310,6 +314,11 @@ MODULE FciMCData
       real(dp) :: pDoubles, pSingles, pParallel
       real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
+      
+      ! Bath and impurity orbital information
+      integer :: nBath, nImp
+      real(dp) :: pBath
+      
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
 
@@ -343,7 +352,7 @@ MODULE FciMCData
       integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.
+      LOGICAL :: tGenMatHEl=.true.
 
       ! Number of update cycles that the shift has been allowed to vary
       integer, allocatable :: VaryShiftCycles(:)

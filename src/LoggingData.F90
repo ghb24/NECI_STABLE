@@ -34,7 +34,8 @@ module LoggingData
     ! Logical(4) datatypes for compilation with builds of openmpi that don't
     ! have support for logical(8). Gah.
     logical :: tExplicitAllRDM, tChangeVarsRDM
-    logical :: tPopAutoAdaptiveShift
+    logical :: tPopAutoAdaptiveShift, tPopScaleBlooms, tPopAccumPops
+    integer :: PopAccumPopsCounter !The number of accumlated populations stored in popsfile
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs
@@ -176,10 +177,11 @@ module LoggingData
     ! shift changes
     integer :: equi_iter_double_occ = 0
     logical :: t_calc_double_occ_av = .false.
-    ! I essentially only need a local and a global storage for the
-    ! the expectation vaulue <n_u n_d>
-    ! and also some storage for the instantaneous, averaged, summed over
-    ! stuff etc..
+
+    ! I essentially only need a local and a global storage for the 
+    ! the expectation vaulue <n_u n_d> 
+    ! and also some storage for the instantaneous, averaged, summed over 
+    ! stuff etc.. 
 !     real(dp) :: n_double_occ_loc, n_double_occ_all
     ! [Werner Dobrautz 4.4.2017]
     ! changes belonging to the histogram tau-search
@@ -221,7 +223,18 @@ module LoggingData
     logical :: tWriteRefs
     character(255) :: ref_filename
     ! for the histogramming of the acceptance rates used in the adaptive shift mode
-    logical :: t_hist_fvals
-    integer :: enGrid, arGrid
+    logical :: tFValEnergyHist, tFValPopHist
+    integer :: FvalEnergyHist_EnergyBins, FvalEnergyHist_FValBins
+    integer :: FvalPopHist_PopBins, FvalPopHist_FValBins
 
+    ! spatial resolved double occupancy and spin difference measurements
+    logical :: t_spin_measurements = .false.
+!     logical :: t_inst_spin_diff = .false.
+!     logical :: t_inst_spat_doub_occ = .false. 
+!     logical :: t_spatial_double_occ = .false.
+
+    logical :: t_print_core_info = .false.
+
+    ! histogram the matrix elements of the six-index operator
+    logical :: tHistLMat
 end module LoggingData
