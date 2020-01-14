@@ -166,6 +166,7 @@ contains
             len_tau_int = 0
             len_shift_int = 0
         end if
+        
         if(tAutoAdaptiveShift)then
             len_tot_spawns = inum_runs
             len_acc_spawns = inum_runs

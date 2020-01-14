@@ -8,7 +8,6 @@ module AnnihilationMod
                           tContTimeFull, InitiatorWalkNo, tau, tEN2, tEN2Init, &
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
-                          tSpawnSeniorityBased, numMaxExLvlsSet, maxKeepExLvl, &
                           tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
                           tNonInitsForRDMs, &
                           tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
@@ -1335,23 +1334,6 @@ module AnnihilationMod
         ! live
         ! same if the spawn matrix element was large enough
         abort = .not. test_flag(ilut_spwn, get_initiator_flag(part_type))
-        ! optionally keep spawns up to a given seniority level + excitaion level
-        if(abort .and. tSpawnSeniorityBased) then
-           ! get the seniority level
-           nopen = count_open_orbs(ilut_spwn)
-           if(nopen < numMaxExLvlsSet) then
-              maxExLvl = 0
-              ! get the corresponding max excitation level
-              do while(maxExLvl == 0)
-                 maxExLvl = maxKeepExLvl(nopen+1)
-                 nopen = nopen + 1
-                 if(nopen >= numMaxExLvlsSet) exit
-              end do
-              ! if we are below this level, keep the spawn anyway
-              if(FindBitExcitLevel(ilutHF, ilut_spwn) <= maxExLvl) abort = .false.
-           end if
-        end if
-
     end function test_abort_spawn
 
     subroutine add_en2_pert_for_init_calc(ispawn, abort, nJ, SpawnedSign)

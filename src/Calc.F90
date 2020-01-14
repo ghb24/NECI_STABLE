@@ -287,7 +287,6 @@ contains
 !           tKeepDoubSpawns = .true.
 !           tMultiSpawnThreshold = .false.
           tAddtoInitiator=.false.
-          tSTDInits = .false.
           tActivateLAS = .false.
           tLogAverageSpawns = .false.
           spawnSgnThresh = 3.0_dp
@@ -305,7 +304,6 @@ contains
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
           tZeroRef = .false.
-          lNoTriples=.false.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
@@ -342,11 +340,6 @@ contains
           ! initiators based on number of open orbs
           tSeniorityInits = .false.
           initMaxSenior = 0
-
-          ! keep spawns up to a given seniority + excitation level
-          tSpawnSeniorityBased = .false.
-          numMaxExLvlsSet = 0
-          allocate(maxKeepExLvl(0))
 
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
@@ -473,10 +466,8 @@ contains
           tNonInitsForRDMs = .true.
           tOutputInitsRDM = .false.
           tNonVariationalRDMs = .false.
-
           tMoveGlobalDetData = .false.
           tAllowSpawnEmpty = .false.
-
           ! scaling of spawns
           tScaleBlooms = .false.
           max_allowed_spawn = MaxWalkerBloom
@@ -509,7 +500,6 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
-          integer :: maxKeepNOpenBuf, maxKeepExLvlBuf
           real(dp) :: InputDiagSftSingle
           integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
 
@@ -1121,8 +1111,6 @@ contains
                 TInitStar=.true.
             case("NOSAMEEXCIT")
                 TNoSameExcit=.true.
-            case("NOTRIPLES")
-                lNoTriples=.true.
             case("ONEEXCITCONN")
 !This means that determinants can only be attached to each other if they differ by one excitation level from HF
                 TOneExcitConn=.true.

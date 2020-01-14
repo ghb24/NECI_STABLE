@@ -313,15 +313,15 @@ contains
             PeakMemLog(:)=MemLog(:)
         end if
 
-        MemoryUsed=MemoryUsed-MemLog(tag)%ObjectSize
-        MemoryLeft=MaxMemory-MemoryUsed
-
         if (tag.eq.-1) then
             ! No record of it in the log: can only print out a debug message.
             if (debug) then
                 write (6,"(2A,I5)") 'Deallocating memory in: ',DeallocRoutine,tag
             end if
         else
+            MemoryUsed=MemoryUsed-MemLog(tag)%ObjectSize
+            MemoryLeft=MaxMemory-MemoryUsed
+
             ! Object was stored in the cache.
             MemLog(tag)%DeallocRoutine=DeallocRoutine
             ObjectName=MemLog(tag)%ObjectName

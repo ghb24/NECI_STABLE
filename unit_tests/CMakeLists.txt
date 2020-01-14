@@ -28,7 +28,7 @@ add_subdirectory( molecular_tc)
 # finally do some unit-testing also with my newly added features 
 add_subdirectory( back_spawn )
 
-add_subdirectory( back_spawn_excit_gen ) 
+add_subdirectory( back_spawn_excit_gen )
 
 add_subdirectory( ueg_excit_gens )
 
@@ -41,3 +41,5 @@ add_subdirectory( lattice_models_utils )
 add_subdirectory( pcpp_excitgen)
 
 add_subdirectory( gdata_io )
+
+add_subdirectory( test_loop )

@@ -17,7 +17,6 @@ module gdata_io
     private
     public :: gdata_io_t, resize_attribute
 
-
 #ifdef USE_HDF_
     public :: clone_signs
 #endif

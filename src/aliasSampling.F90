@@ -117,7 +117,7 @@ contains
 
     !> Set the bias and alias values for each value in range
     !> @param[in] arr - array containing the (not necessarily normalized) probabilities we
-    !>              want to use for sampling    
+    !>              want to use for sampling
     subroutine initTable(this,arr)
         implicit none
         class(aliasTable_t) :: this
@@ -205,7 +205,7 @@ contains
     end subroutine initTable
     !------------------------------------------------------------------------------------------!
 
-    !> clear the memory used by the alias table    
+    !> clear the memory used by the alias table
     subroutine tableDestructor(this)
         implicit none
         class(aliasTable_t) :: this
@@ -220,7 +220,7 @@ contains
 
     !> Draw a random number from an alias table created with the corresponding probabilities
     !> @return ind  random number between 1 and the size of the array used to create the
-    !!               aliasTable object    
+    !!               aliasTable object
     function getRand(this) result(ind)
         implicit none
         class(aliasTable_t) :: this
@@ -283,7 +283,7 @@ contains
     !> load the probability distribution from arr into this
     !! we only use this in the sampler array, but fortran has no friend classes, so its public
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
-    !!              want to use for sampling    
+    !!              want to use for sampling
     subroutine initSampler(this, arr)
         implicit none
         class(aliasSampler_t) :: this
@@ -471,7 +471,7 @@ contains
     !> Returns the probability to draw tgt from the sampler with index iEntry
     !> @param[in] iEntry  index of the sampler to use
     !> @param[in] tgt  the number for which we request the probability of sampling
-    !> @return prob  the probability of drawing tgt with the sample routine    
+    !> @return prob  the probability of drawing tgt with the sample routine
     pure function aGetProb(this, iEntry, tgt) result(prob)
         implicit none
         class(aliasSamplerArray_t), intent(in) :: this
