@@ -180,10 +180,6 @@ integer :: trunc_nopen_max
 ! are determinants with low number of open orbs always inits?
 logical :: tSeniorityInits
 integer :: initMaxSenior
-! do we keep certain spawns up to a given excitation + seniority level
-logical :: tSpawnSeniorityBased
-integer, allocatable :: maxKeepExLvl(:)
-integer :: numMaxExLvlsSet
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
@@ -510,7 +506,6 @@ real(dp) :: n_truncate_spawns = 3.0_dp
 
 ! flags for global storage
 logical :: tLogAverageSpawns, tActivateLAS
-logical :: tTimedDeaths
 ! threshold value to make something an initiator based on spawn coherence
 real(dp) :: spawnSgnThresh
 integer :: minInitSpawns
