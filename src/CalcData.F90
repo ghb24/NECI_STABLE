@@ -115,7 +115,6 @@ LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
 logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
-logical :: tSTDInits
 logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tWalkContGrow,tAnnihilatebyRange
@@ -250,9 +249,6 @@ INTEGER, Allocatable :: MCDet(:)
 INTEGER(TagIntType) :: tagMCDet=0
 real(dp) :: RHOEPS ! calculated from RHOEPSILON
 
-!// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.
-LOGICAL :: lNoTriples
-
 LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
                           ! 0 means use physical nodes.
@@ -363,7 +359,6 @@ integer :: orthogonalise_iter
 logical :: t_test_overlap = .false.
 real(dp) :: overlap_eps = 1.0e-5_dp
 integer :: n_stop_ortho = -1
-logical :: tAVReps, tReplicaCoherentInits
 ! Information on a trial space to create trial excited states with.
 
 type(subspace_in) :: init_trial_in
