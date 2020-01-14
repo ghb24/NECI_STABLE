@@ -58,9 +58,6 @@ UMAT
 popsfile.h5*
 RDM_POPSFILE
 replica_estimates
-CMakeFiles/
-release/
-debug/
 
 # Documentation
 neci.fdb_latexmk

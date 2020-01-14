@@ -175,10 +175,6 @@ logical :: tStoredDets
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
 
-! are determinants with low number of open orbs always inits?
-logical :: tSeniorityInits
-integer :: initMaxSenior
-
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,NShiftEquilSteps

@@ -337,10 +337,6 @@ contains
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
 
-          ! initiators based on number of open orbs
-          tSeniorityInits = .false.
-          initMaxSenior = 0
-
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
           t_prone_walkers = .false.
