@@ -234,8 +234,6 @@ contains
         !        pos - position to get the written data from
         class(gdata_io_t), intent(in) :: this
         integer(hsize_t), intent(out) :: gdata_buf(:)
-        integer, intent(in) :: ndets
-        integer, intent(in), optional :: max_ex
 
         logical :: t_aas, t_sb, t_ap
 
@@ -269,7 +267,7 @@ contains
     ! Generic HDF functionality
     !------------------------------------------------------------------------------------------!    
     
-    subroutine clone_gdata(this, gdata_buf, tmp_fvals_size, fvals_size, tmp_apvals_size, 
+    subroutine clone_gdata(this, gdata_buf, tmp_fvals_size, fvals_size, tmp_apvals_size, & 
                            apvals_size, nsigns)
         ! expand the global det data:
         ! clone the fvals from tmp_fvals_size to fvals_size, leaving the rest of
@@ -285,7 +283,7 @@ contains
         integer(int64), intent(in) :: nsigns
 
         integer(hsize_t), allocatable :: tmp_fvals_acc(:,:), tmp_fvals_tot(:,:), tmp_mr(:,:)
-        integer(hsize_t), allocatable :: tmp_apvals_sum(:,:), tmp_apvals_iter(:)
+        integer(hsize_t), allocatable :: tmp_apvals_sum(:,:), tmp_apvals_iter(:,:)
         integer :: max_ratio_size, gdata_size
         logical :: t_aas, t_sb, t_ap
         integer :: tmp_tot_start, tot_start, tmp_acc_size, acc_size 
@@ -330,9 +328,9 @@ contains
                     tmp_sum_size = tmp_apvals_size - 1
                     tmp_iter_start = this%apvals_start + tmp_sum_size
                     allocate(tmp_apvals_sum(tmp_sum_size, nsigns))
-                    allocate(tmp_apvals_iter(nsigns))
+                    allocate(tmp_apvals_iter(1, nsigns))
                     tmp_apvals_sum(:,:) = gdata_buf(this%apvals_start:tmp_iter_start - 1,:)
-                    tmp_apvals_iter(:) = gdata_buf(tmp_iter_start:this%apvals_end,:)
+                    tmp_apvals_iter(:,:) = gdata_buf(tmp_iter_start:this%apvals_end,:)
 
                     sum_size = apvals_size -1
                     ! clone the content of the temporary pops sum
@@ -362,7 +360,7 @@ contains
                     iter_start = this%apvals_start + sum_size
                     ! fill in the resized data                
                     gdata_buf(this%apvals_start:iter_start-1,:) = tmp_apvals_sum(:,:)
-                    gdata_buf(iter_start:this%apvals_end,:) = tmp_apvals_iter(:)
+                    gdata_buf(iter_start:this%apvals_end,:) = tmp_apvals_iter(:,:)
                     deallocate(tmp_apvals_sum)
                     deallocate(tmp_apvals_iter)
 

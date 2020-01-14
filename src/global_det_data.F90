@@ -530,7 +530,7 @@ contains
     subroutine readFValsAsInt(fvals, j)
       implicit none
       integer(n_int), intent(in) :: fvals(:)
-      integer(int64), intent(in) :: j
+      integer, intent(in) :: j
       integer :: run
       real(dp) :: realVal = 0.0_dp
 
@@ -745,7 +745,7 @@ contains
     subroutine readAPValsAsInt(apvals, j)
       implicit none
       integer(n_int), intent(in) :: apvals(:)
-      integer(int64), intent(in) :: j
+      integer, intent(in) :: j
 
       integer :: k
       real(dp) :: realVal = 0.0_dp
