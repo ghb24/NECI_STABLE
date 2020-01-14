@@ -152,7 +152,6 @@ logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e
 logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
 logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted moves.
 logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
-logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
 real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 real(dp) :: AAS_Const
 logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy

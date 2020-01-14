@@ -9,7 +9,7 @@ module AnnihilationMod
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
-                          tAAS_MatEle, tAAS_MatEle2, tAAS_Reverse, tNonInitsForRDMs, &
+                          tAAS_MatEle, tAAS_MatEle2, tNonInitsForRDMs, &
                           tNonVariationalRDMs, &
                           tPreCond, tReplicaEstimates, tSimpleInit, tAllConnsPureInit
     use DetCalcData, only: Det, FCIDetIndex
@@ -1059,13 +1059,6 @@ module AnnihilationMod
                     end if
                  end if
 
-                 if(tAutoAdaptiveShift .and. tAAS_Reverse)then
-                    do run = 1, inum_runs
-                       weight_rev = transfer(SpawnInfo(run, i), weight_rev)
-                       call update_tot_spawns(PartInd, run, 0.5 * weight_rev)
-                       call update_acc_spawns(PartInd, run, 0.5 * weight_rev)
-                    end do
-                 end if
               endif
 
               if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
