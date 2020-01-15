@@ -403,8 +403,8 @@ module tc_three_body_excitgen
                 ! then we start taking ms = -1
                 msOrb = -1
             endif
-            call create_full_pool(nI, tgt, ms, pool, i)
-            call get_orb_from_pool(nI, tgt, ms, pool, i, pgen_pick)
+            call create_full_pool(nI, tgt, msOrb, pool, i)
+            call get_orb_from_pool(nI, tgt, msOrb, pool, i, pgen_pick)
             ! the remaining ms
             msCur = msCur - msOrb
             ! keep the size of the pool in memory
@@ -415,8 +415,8 @@ module tc_three_body_excitgen
         call construct_class_counts(nI, cc_occ, cc_unocc)        
         ! Now, pick the last one according to symmetry
         tgt_sym = get_tgt_sym(nI, tgt, src)
-        call create_sym_pool(nI, tgt, ms, pool, i, tgt_sym, cc_unocc)
-        call get_orb_from_pool(nI, tgt, ms, pool, i, pgen_pick)
+        call create_sym_pool(nI, tgt, msCur, pool, i, tgt_sym, cc_unocc)
+        call get_orb_from_pool(nI, tgt, msCur, pool, i, pgen_pick)
         pool_sizes(i+1) = size(pool)
 
         call add_permutations_to_pgen(pgen, pgen_pick, pool_sizes, ms, tgt, cc_unocc)
@@ -478,7 +478,7 @@ module tc_three_body_excitgen
                 if(irreps(i) == irreps(mod(i,3)+1)) swap_pool_size = swap_pool_size - 1
                 if(irreps(i) == irreps(mod(i+1,3)+1)) swap_pool_size = swap_pool_size - 1
                 ! The first two could have been picked in any order (same pool_size as above)
-                pgen_pick = pgen_pick + 2.0_dp / (pool_sizes(1)) * 1.0_dp / (pool_sizes(2)) &
+                pgen_pick = pgen_pick + 2.0_dp * pgen / (pool_sizes(1)) * 1.0_dp / (pool_sizes(2)) &
                     * 1.0_dp / (swap_pool_size)
             end do
         end if
@@ -750,7 +750,7 @@ module tc_three_body_excitgen
 
         ! we need to see how many same spin orbs have been picked so far
         do i = 1, nPicked
-            if((spin_ind == G1(tgt(i))%Sym%S) .and. &
+            if((sign(1,ms) == G1(tgt(i))%Ms) .and. &
                 G1(tgt(i))%Sym%S == tgt_sym) pool_size = pool_size - 1
         end do
         
@@ -771,7 +771,7 @@ module tc_three_body_excitgen
 
         if(k /= pool_size) then
             write(iout,*) "Error: wrong number of targets", k, "/=", pool_size
-            call stop_all('create_full_pool','size mismatch')
+            call stop_all('create_sym_pool','size mismatch')
         endif
     end subroutine create_sym_pool
 
