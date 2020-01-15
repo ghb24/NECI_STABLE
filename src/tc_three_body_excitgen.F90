@@ -199,53 +199,54 @@ module tc_three_body_excitgen
 !------------------------------------------------------------------------------------------!
 
     subroutine generate_triple_excit(nI, ilutI, nJ, ilutJ, ExcitMat, tParity, pGen, &
-         HelGen, store)
-      integer, intent(in) :: nI(nel)
-      integer(n_int), intent(in) :: ilutI(0:NIfTot)
-      integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
-      logical, intent(out) :: tParity
-      real(dp), intent(out) :: pGen
-      HElement_t(dp), intent(out) :: HElGen
-      type(excit_gen_store_type), intent(inout), target :: store
-      integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        HelGen, store)
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
+        logical, intent(out) :: tParity
+        real(dp), intent(out) :: pGen
+        HElement_t(dp), intent(out) :: HElGen
+        type(excit_gen_store_type), intent(inout), target :: store
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
 
-      integer :: sym_prod, src(3), tgt(3), elecs(3)
-      integer :: ms
-      unused_var(store)
-      HElGen = 0.0_dp
+        integer :: sym_prod, src(3), tgt(3), elecs(3)
+        integer :: ms
+        unused_var(store)
+        HElGen = 0.0_dp
 
-      ! first, pick three electrons at random
-      call pick_three_elecs(nI, elecs, src, sym_prod, pgen, ms)
+        ! first, pick three electrons at random
+        call pick_three_elecs(nI, elecs, src, sym_prod, pgen, ms)
 
-      ! if three electrons can be picked
-      if(src(3) .ne. 0) then
-         ! get three unoccupied orbitals with the same ms
+        ! if three electrons can be picked
+        if(src(3) .ne. 0) then
+            ! get three unoccupied orbitals with the same ms
 
-         if(t_ueg_3_body)then
-          call pick_three_orbs_ueg(nI, src, tgt, pgen, ms)
-          if(tgt(3).eq.0)then
-           ! the excitation is invalid
-           nJ = 0
-           ilutJ = 0_n_int
-           ExcitMat = 0
-           tParity = .false.
-           return
-          end if
-         else
-          call pick_three_orbs(nI, src, tgt, pgen, ms)
-         end if
+            if(t_ueg_3_body)then
+                call pick_three_orbs_ueg(nI, src, tgt, pgen, ms)
+            else
+                call pick_three_orbs(nI, src, tgt, pgen, ms)
+            end if
+            
+            if(tgt(3).eq.0)then
+                ! the excitation is invalid
+                nJ = 0
+                ilutJ = 0_n_int
+                ExcitMat = 0
+                tParity = .false.
+                return
+            end if
 
-         ! and create a triple excitation
-         call make_triple(nI, nJ, elecs, tgt, ExcitMat, tParity)
+            ! and create a triple excitation
+            call make_triple(nI, nJ, elecs, tgt, ExcitMat, tParity)
 
-         ilutJ = make_ilutJ(ilutI, ExcitMat, 3)
-      else
-         ! else, the excitation is invalid
-         nJ = 0
-         ilutJ = 0_n_int
-         ExcitMat = 0
-         tParity = .false.
-      endif
+            ilutJ = make_ilutJ(ilutI, ExcitMat, 3)
+        else
+            ! else, the excitation is invalid
+            nJ = 0
+            ilutJ = 0_n_int
+            ExcitMat = 0
+            tParity = .false.
+        endif
 
     end subroutine generate_triple_excit
 
@@ -419,6 +420,13 @@ module tc_three_body_excitgen
         call get_orb_from_pool(nI, tgt, msCur, pool, i, pgen_pick)
         pool_sizes(i+1) = size(pool)
 
+        ! There might be no symmetry-allowed picks for the last orbital - in that case
+        ! abort the excitation
+        if(any(tgt==0)) then
+            tgt = 0
+            return
+        endif
+        
         call add_permutations_to_pgen(pgen, pgen_pick, pool_sizes, ms, tgt, cc_unocc)
 
         ! sort the target orbitals for further usage
@@ -676,14 +684,18 @@ module tc_three_body_excitgen
 
         ! pick a random index
         pool_size = size(pool)
-        r = genrand_real2_dSFMT()
-        iOrb = pool(int(r*pool_size) + 1)
+        if(pool_size > 0) then
+            r = genrand_real2_dSFMT()
+            iOrb = pool(int(r*pool_size) + 1)
 
-        ! assign the orbital
-        tgt(nPicked+1) = iOrb
+            ! assign the orbital
+            tgt(nPicked+1) = iOrb
 
-        ! adjust the probability
-        pgen = pgen / pool_size
+            ! adjust the probability
+            pgen = pgen / pool_size
+        else
+            tgt(nPicked+1) = 0
+        endif
     end subroutine get_orb_from_pool
 
     !------------------------------------------------------------------------------------------!
@@ -760,7 +772,7 @@ module tc_three_body_excitgen
 
         do i = 1, nBasis
             ! Check if this has the right spin
-            if(ms > 0 .neqv. is_beta(i) .and. (G1(i)%Sym%S == tgt_sym)) then
+            if((ms > 0 .neqv. is_beta(i)) .and. (G1(i)%Sym%S == tgt_sym)) then
                 ! Check if the orb is both unocc and 
                 if(all(tgt(1:nPicked) /= i) .and. all(nI /= i)) then
                     k = k + 1
