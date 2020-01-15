@@ -140,7 +140,8 @@ module hdf5_popsfile
             nm_sgns = 'sgns', &
             nm_norm_sqr = 'norm_sqr', &
             nm_num_parts = 'num_parts', &
-            nm_gdata = 'fvals'
+            nm_gdata = 'gdata', &
+            nm_gdata_old = 'fvals'
 
     integer(n_int), dimension(:,:), allocatable :: receivebuff
     integer:: receivebuff_tag
@@ -983,6 +984,7 @@ contains
         type(gdata_io_t) :: gdata_read_handler
         integer :: gdata_size, tmp_fvals_size, tmp_apvals_size
         logical :: t_read_gdata
+        logical :: t_exist_gdata
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -1121,7 +1123,14 @@ contains
         
         t_read_gdata = gdata_read_handler%t_io()
         if(t_read_gdata) then
-           call h5dopen_f(grp_id, nm_gdata, ds_gdata, err)
+           call h5lexists_f(grp_id, nm_gdata, t_exist_gdata, err)
+           if(t_exist_gdata) then
+               call h5dopen_f(grp_id, nm_gdata, ds_gdata, err)
+           else
+               !This is for backword-compatibility.
+               !gdata group had another earlier name.
+               call h5dopen_f(grp_id, nm_gdata_old, ds_gdata, err)
+           endif
         endif
 
 
@@ -1131,8 +1140,15 @@ contains
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
                                   [int(tmp_lenof_sign, hsize_t), all_count])
         if(t_read_gdata) then
-           call check_dataset_params(ds_gdata, nm_gdata, 8_hsize_t, H5T_FLOAT_F, &
-                [int(gdata_size, hsize_t), all_count])
+           if(t_exist_gdata)then
+             call check_dataset_params(ds_gdata, nm_gdata, 8_hsize_t, H5T_FLOAT_F, &
+                  [int(gdata_size, hsize_t), all_count])
+           else
+               !This is for backword-compatibility.
+               !gdata group had another earlier name.
+             call check_dataset_params(ds_gdata, nm_gdata_old, 8_hsize_t, H5T_FLOAT_F, &
+                  [int(gdata_size, hsize_t), all_count])
+           endif
         endif
 
         !limit the buffer size per MPI task to 50MB or MaxSpawned entries
