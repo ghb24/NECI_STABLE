@@ -1093,6 +1093,7 @@ contains
         ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
         ! Input: ndets - number of determinants
         !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
+        !        initial - optionally: the first determinant to consider
         implicit none
         integer, intent(in) :: ndets
         ! use a 2-d array for compatibility - the caller does not need to know that the first
@@ -1152,38 +1153,21 @@ contains
 
     !------------------------------------------------------------------------------------------!
     
-    subroutine write_max_ratio_as_int(ms_vals, ndets, max_ex)
+    subroutine write_max_ratio_as_int(ms_vals, pos)
         use hdf5, only: hsize_t
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
       use DetBitOps, only: FindBitExcitLevel        
         ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
-        ! Input: ndets - number of determinants
+        ! Input: pos - position to get the data from
         !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
         implicit none
-        integer, intent(in) :: ndets
-        ! use a 2-d array for compatibility - the caller does not need to know that the first
+        integer, intent(in) :: pos
+        ! use a 1-d array for compatibility - the caller does not need to know that the
         ! dimension is of size 1
-        integer(hsize_t), intent(out) :: ms_vals(:,:)
-        integer, intent(in), optional :: max_ex
-        integer(hsize_t) :: int_val
-        integer :: j, counter, ExcitLevel
-        real(dp) :: CurrentSign(lenof_sign)
+        integer(hsize_t), intent(out) :: ms_vals(:)
 
-        ! dummy value to specify the target type
-        counter = 0
-        do j = 1, ndets
-            if(present(max_ex))then
-                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-                if(ExcitLevel>max_ex) cycle
-                call extract_sign(CurrentDets(:,j),CurrentSign)
-                if(IsUnoccDet(CurrentSign)) cycle
-                counter = counter + 1
-            else
-                counter = j
-            end if
-            ms_vals(1,j) = transfer(global_determinant_data(pos_max_ratio,j), ms_vals(1,j))
-        end do
+        ms_vals(1) = transfer(global_determinant_data(pos_max_ratio,pos), ms_vals(1))
 
     end subroutine write_max_ratio_as_int
     

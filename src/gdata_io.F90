@@ -10,7 +10,7 @@ module gdata_io
     use util_mod, only: operator(.div.)
 #ifdef USE_HDF_
     use global_det_data, only: writeFValsAsInt, write_max_ratio_as_int, &
-        readFValsAsInt, set_max_ratio_hdf5Int
+        readFValsAsInt, set_max_ratio_hdf5Int, writeAPValsAsInt, readAPValsAsInt
     use hdf5, only: hsize_t
 #endif
     implicit none

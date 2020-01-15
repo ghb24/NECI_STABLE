@@ -805,7 +805,7 @@ contains
         printed_tot_parts = 0
 
         call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, &
-            tScaleBlooms, fvals_size, max_ratio_size)
+            tScaleBlooms, tAccumPops, fvals_size, max_ratio_size, lenof_sign + 1)
         gdata_size = gdata_write_handler%entry_size()        
         if(gdata_size > 0) allocate(gdata_buf(gdata_size, TotWalkers))
 
@@ -1088,7 +1088,7 @@ contains
         ! size of the ms data read in
         tmp_fvals_size = 2*tmp_inum_runs
 
-        tm_apvals_size = tmp_lenof_sign+1
+        tmp_apvals_size = tmp_lenof_sign+1
 
         ! Only active the accumlation of populations if the popsfile has 
         ! apvals and and accum-pops is specified with a proper iteration
@@ -1563,7 +1563,7 @@ contains
               ! However, when reading accumlated populations (APVals), we want
               ! to add even unoccupied sites who has accumlated values
               call extract_sign(SpawnedParts2(: ,j), sgn)
-              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. 
+              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
                   tAccumPopsActive) then
 
                  ! Add this site to the main list
