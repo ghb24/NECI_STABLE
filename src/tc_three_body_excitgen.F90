@@ -2,7 +2,7 @@
 module tc_three_body_excitgen
   use constants
   use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_ueg_3_body,&
-                        tContact, t_exclude_3_body_excits
+                        tContact, t_exclude_3_body_excits, symmetry
   use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
@@ -17,6 +17,8 @@ module tc_three_body_excitgen
        createSingleExcit, createDoubExcit, construct_class_counts,      &
        gen_rand_excit
   use procedure_pointers, only: generate_two_body_excitation
+  use sym_general_mod, only: ClassCountInd
+  use sym_mod, only: symprod, symconj
 
   implicit none
   contains
@@ -230,7 +232,7 @@ module tc_three_body_excitgen
            return
           end if
          else
-          call pick_three_orbs(nI, tgt, pgen, ms)
+          call pick_three_orbs(nI, src, tgt, pgen, ms)
          end if
 
          ! and create a triple excitation
@@ -375,33 +377,116 @@ module tc_three_body_excitgen
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine pick_three_orbs(nI, tgt, pgen, ms)
-      ! picks three random unoccupied orbitals, given the occupied orbitals
-      integer, intent(in) :: nI(nel), ms
-      integer, intent(out) :: tgt(3)
-      real(dp), intent(inout) :: pgen
+    subroutine pick_three_orbs(nI, src, tgt, pgen, ms)
+        ! picks three random unoccupied orbitals, given the occupied orbitals
+        integer, intent(in) :: nI(nel), ms, src(3)
+        integer, intent(out) :: tgt(3)
+        real(dp), intent(inout) :: pgen
 
-      integer :: i, msCur, msOrb
+        integer :: i, msCur, msOrb
+        integer :: cc_occ(ScratchSize), cc_unocc(ScratchSize), tgt_sym
+        ! pool to draw each orbital from
+        integer, allocatable :: pool(:)
+        ! size of the pools
+        integer :: pool_sizes(3)
+        real(dp) :: pgen_pick
 
-      msCur = ms
-      do i = 0, 2
-         ! get the ms of this orb
-         ! we take ms = 1 until the total leftover ms is negative
-         if(msCur > 0) then
-            msOrb = 1
-         else
-         ! then we start taking ms = -1
-            msOrb = -1
-         endif
-         call get_rand_orb(nI,tgt,msOrb,i, pgen)
-         ! the remaining ms
-         msCur = msCur - msOrb
-      end do
+        msCur = ms
+        pgen_pick = pgen
+        ! First, pick two arbitrary orbitals
+        do i = 0, 1
+            ! get the ms of this orb
+            ! we take ms = 1 until the total leftover ms is negative
+            if(msCur > 0) then
+                msOrb = 1
+            else
+                ! then we start taking ms = -1
+                msOrb = -1
+            endif
+            call create_full_pool(nI, tgt, ms, pool, i)
+            call get_orb_from_pool(nI, tgt, ms, pool, i, pgen_pick)
+            ! the remaining ms
+            msCur = msCur - msOrb
+            ! keep the size of the pool in memory
+            pool_sizes(i+1) = size(pool)
+        end do
 
-      ! adjust the probability by taking permutations into account
-      pgen = pgen * 2 * abs(ms)
+        ! Get the number of orbitals per symmetry/occupation
+        call construct_class_counts(nI, cc_occ, cc_unocc)        
+        ! Now, pick the last one according to symmetry
+        tgt_sym = get_tgt_sym(nI, tgt, src)
+        call create_sym_pool(nI, tgt, ms, pool, i, tgt_sym, cc_unocc)
+        call get_orb_from_pool(nI, tgt, ms, pool, i, pgen_pick)
+        pool_sizes(i+1) = size(pool)
 
+        call add_permutations_to_pgen(pgen, pgen_pick, pool_sizes, ms, tgt, cc_unocc)
+
+        ! sort the target orbitals for further usage
+        tgt = sort_unique(tgt)
     end subroutine pick_three_orbs
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine add_permutations_to_pgen(pgen, pgen_pick, pool_sizes, ms, tgt, cc_unocc)
+        real(dp), intent(inout) :: pgen
+        real(dp), intent(inout) :: pgen_pick
+        integer, intent(in) :: pool_sizes(3), ms, tgt(3), cc_unocc(ScratchSize)
+        
+        integer :: swap_pool_size, spin_ind, cc_ind, i    
+        integer :: irreps(3)
+        
+        do i = 1, 3
+            irreps(i) = G1(tgt(i))%Sym%S
+        end do
+        ! adjust the probability by taking permutations into account
+        ! these depend on the spin
+        if(abs(ms)==1) then
+            if(ms > 0) then
+                ! We can only swap the first two electrons => factor of two
+                pgen_pick = pgen_pick * 2
+            else
+                ! If both betas come from the same irrep, pgen is just doubled
+                if(irreps(2) == irreps(3)) then
+                    pgen_pick = pgen_pick * 2
+                else
+                    ! Else, we have to look at how many orbs can be chosen from the other irrep
+                    ! Get the irrep of the second chosen orb (first beta)
+                    cc_ind = ClassCountInd(2, irreps(2), 0)
+                    swap_pool_size = cc_unocc(cc_ind)
+                    ! We can swap the last two electrons => add the pgen for the other way around
+                    ! pool_sizes(2) is also the pool size for the other beta orbtial                
+                    pgen_pick = pgen_pick + pgen * 1.0_dp / (pool_sizes(1)) * 1.0_dp / (pool_sizes(2)) &
+                        * 1.0_dp / (swap_pool_size)
+                endif
+            endif
+        else
+            ! The first two could have been picked in any order
+            pgen_pick = pgen_pick * 2
+            ! get the spin index. Convention: 1 == alpha, 2 == beta
+            if(ms > 0) then
+                spin_ind = 1
+            else
+                spin_ind = 2
+            endif
+
+            ! Either the first or the second might have been chosen last as well
+            do i = 1, 2
+                ! The first might have been the last orb
+                cc_ind = ClassCountInd(spin_ind, irreps(i), 0)
+                swap_pool_size = cc_unocc(cc_ind)
+                ! Check if the first irrep appears multiple times (shrinks pool)
+                if(irreps(i) == irreps(mod(i,3)+1)) swap_pool_size = swap_pool_size - 1
+                if(irreps(i) == irreps(mod(i+1,3)+1)) swap_pool_size = swap_pool_size - 1
+                ! The first two could have been picked in any order (same pool_size as above)
+                pgen_pick = pgen_pick + 2.0_dp / (pool_sizes(1)) * 1.0_dp / (pool_sizes(2)) &
+                    * 1.0_dp / (swap_pool_size)
+            end do
+        end if
+        pgen = pgen_pick
+        
+    end subroutine add_permutations_to_pgen
+ 
+    !------------------------------------------------------------------------------------------!
 
     subroutine pick_three_orbs_ueg(nI, src,  tgt, pgen, ms)
       use SymExcitDataMod, only: kPointToBasisFn
@@ -569,7 +654,6 @@ module tc_three_body_excitgen
 
           invalidOrbs = sort_unique(invalidOrbs)
 
-
           do i = 1, (nPicked+nel)
              ! check if the orb is already targeted
              ! assumes tgt is sorted
@@ -579,6 +663,137 @@ module tc_three_body_excitgen
           end do
         end subroutine skipPicked
     end subroutine get_rand_orb
+
+    !------------------------------------------------------------------------------------------!
+    
+    subroutine get_orb_from_pool(nI, tgt, ms, pool, nPicked, pgen)
+        integer, intent(inout) :: tgt(3)
+        integer, intent(in) :: ms, pool(:), nI(nel), nPicked
+        real(dp), intent(inout) :: pgen
+
+        integer :: iOrb, i, pool_size
+        real(dp) :: r
+
+        ! pick a random index
+        pool_size = size(pool)
+        r = genrand_real2_dSFMT()
+        iOrb = pool(int(r*pool_size) + 1)
+
+        ! assign the orbital
+        tgt(nPicked+1) = iOrb
+
+        ! adjust the probability
+        pgen = pgen / pool_size
+    end subroutine get_orb_from_pool
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine create_full_pool(nI, tgt, ms, pool, nPicked)
+        integer, intent(inout) :: tgt(3)
+        integer, intent(in) :: ms, nI(nel), nPicked
+        integer, allocatable, intent(out) :: pool(:)
+
+        integer :: i, pool_size, k
+
+        ! get the number of possible orbitals
+        if(ms > 0) then
+            pool_size = nUnoccAlpha
+        else
+            pool_size = nUnoccBeta
+        end if
+
+        ! we need to see how many same spin orbs have been picked so far
+        do i = 1, nPicked
+            if((ms > 0) .neqv. is_beta(tgt(i))) pool_size = pool_size - 1
+        end do
+        
+        allocate(pool(pool_size))
+
+        k = 0
+
+        do i = 1, nBasis
+            ! Check if this has the right spin
+            if(ms > 0 .neqv. is_beta(i)) then
+                ! Check if the orb is both unocc and 
+                if(all(tgt(1:nPicked) /= i) .and. all(nI /= i)) then
+                    k = k + 1
+                    pool(k) = i
+                endif
+            end if
+        end do
+
+        if(k /= pool_size) then
+            write(iout,*) "Error: wrong number of targets", k, "/=", pool_size
+            call stop_all('create_full_pool','size mismatch')
+        endif
+    end subroutine create_full_pool
+
+    !------------------------------------------------------------------------------------------!
+
+    subroutine create_sym_pool(nI, tgt, ms, pool, nPicked, tgt_sym, cc_unocc)
+        integer, intent(inout) :: tgt(3)
+        integer, intent(in) :: ms, nI(nel), nPicked
+        integer, allocatable, intent(out) :: pool(:)
+        integer, intent(in) :: tgt_sym
+        integer, intent(in) :: cc_unocc(ScratchSize)
+
+        integer :: i, pool_size, k, cc_ind, spin_ind
+
+        if(ms > 0) then
+            spin_ind = 1
+        else
+            spin_ind = 2
+        endif
+        ! get the number of possible orbitals
+        cc_ind = ClassCountInd(spin_ind, tgt_sym, 0)
+        pool_size = cc_unocc(cc_ind)
+
+        ! we need to see how many same spin orbs have been picked so far
+        do i = 1, nPicked
+            if((spin_ind == G1(tgt(i))%Sym%S) .and. &
+                G1(tgt(i))%Sym%S == tgt_sym) pool_size = pool_size - 1
+        end do
+        
+        allocate(pool(pool_size))
+
+        k = 0
+
+        do i = 1, nBasis
+            ! Check if this has the right spin
+            if(ms > 0 .neqv. is_beta(i) .and. (G1(i)%Sym%S == tgt_sym)) then
+                ! Check if the orb is both unocc and 
+                if(all(tgt(1:nPicked) /= i) .and. all(nI /= i)) then
+                    k = k + 1
+                    pool(k) = i
+                endif
+            end if
+        end do
+
+        if(k /= pool_size) then
+            write(iout,*) "Error: wrong number of targets", k, "/=", pool_size
+            call stop_all('create_full_pool','size mismatch')
+        endif
+    end subroutine create_sym_pool
+
+    !------------------------------------------------------------------------------------------!
+
+    !> Pick a third orbital with symmetry constraint
+    function get_tgt_sym(nI, tgt, src) result(sym)
+        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: tgt(3)
+        integer, intent(in) :: src(3)
+        integer :: sym
+
+        type(symmetry) :: s_tmp
+
+        ! Get the symmetry of the target orb
+        s_tmp = symprod(G1(src(1))%Sym, G1(src(2))%Sym)
+        s_tmp = symprod(G1(src(3))%Sym, s_tmp)
+        s_tmp = symprod(symconj(G1(tgt(1))%Sym), s_tmp)
+        s_tmp = symprod(symconj(G1(tgt(2))%Sym), s_tmp)
+        s_tmp = symconj(s_tmp)
+        sym = s_tmp%S
+    end function get_tgt_sym
 
 !------------------------------------------------------------------------------------------!
 

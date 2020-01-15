@@ -8,6 +8,7 @@ module LMat_class
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
     use constants
+    use IntegralsData, only: nFrozen, ntFrozen
     use shared_rhash, only: shared_rhash_t
     use mpi
     use util_mod, only: get_free_unit, operator(.div.)
@@ -478,7 +479,8 @@ contains
         call this%alloc(nInts)
         call reader%loop_file(this)
         call this%htable%setup_offsets()
-        call reader%loop_file(this)
+        ! The core energy has already been updated, no need to do so again
+        call reader%loop_file(this, t_add_ecore = .false.)
         call this%htable%finalize_setup()
         call reader%close()
 #else        
@@ -645,9 +647,9 @@ contains
                     ! do not count this one again
                     exit
                 endif
-                ! the last check has a different form: everything that is bigger than 0.1 counts here
-                if(abs(this%get_elem(i)) > 0.1) histogram(0) = histogram(0) + 1
             end do
+            ! the last check has a different form: everything that is bigger than 0.1 counts here
+            if(abs(this%get_elem(i)) > 0.1) histogram(0) = histogram(0) + 1
         end do
 
         ratios(:) = real(histogram(:)) / real(this%lMat_size())
@@ -723,9 +725,10 @@ contains
     !> Apply the read_op_hdf5 of an lMat to the data in the currently opened file
     !! The file will be read chunkwise and the read_op_hdf5 operation applied per chunk
     !> @param[in] lMat  the lMat object to read the data to
-    subroutine loop_file(this, lMat)
+    subroutine loop_file(this, lMat, t_add_ecore)
         class(lMat_hdf5_read_t), intent(inout) :: this
         class(lMat_t), intent(inout) :: lMat
+        logical, intent(in), optional :: t_add_ecore
 
         real(dp) :: rVal
         logical :: running, any_running
@@ -767,6 +770,8 @@ contains
 
             ! Do something with the read-in values
             ! This has to be threadsafe !!!
+            ! Freeze the orbitals locally and only pass on the remaining for read_op
+            call freeze_orbs_block(indices, entries, t_add_ecore)
             call lMat%read_op_hdf5(indices, entries)
 
             ! the read_op is allowed to deallocate if memory has to be made available
@@ -802,4 +807,74 @@ contains
 
     end subroutine close
 #endif
+
+    !------------------------------------------------------------------------------------------!    
+
+    !> Freeze a number of core and/or virtual orbitals, adding the core orbitals
+    !! matrix elements to the core energy
+    subroutine freeze_orbs_block(indices, entries, t_add_ecore)
+        integer(int64), allocatable, intent(inout) :: indices(:,:), entries(:,:)
+
+        logical, optional, intent(in) :: t_add_ecore
+
+        integer :: i, block_size, lead_size, entry_size, new_block_size, counter
+        integer(int64), allocatable :: tmp(:,:)
+
+        integer(int64) :: int_zero
+        real(dp) :: val
+
+        int_zero = transfer(0.0_dp, int_zero)
+
+        if(nfrozen > 0 .or. ntfrozen > 0) then
+            block_size = size(indices, dim=2)
+
+            counter = 0
+            do i = 1, block_size
+                if(any(indices(:,i) <= nfrozen)) then
+                    ! Frozen core orbital contained - remove from read
+                    entries(1,i) = int_zero
+                    counter = counter + 1
+                endif
+                ! Frozen virtual orbital contained - remove from read
+                if(any(indices(:,i) > numBasisIndices(nBasis))) then
+                    entries(1,i) = int_zero          
+                    counter = counter + 1
+                endif
+            end do
+
+            entry_size = size(entries,dim=1)
+            lead_size = size(indices, dim=1) + entry_size
+            new_block_size = block_size - counter
+            allocate(tmp(lead_size, new_block_size))
+
+            counter = 0
+            do i = 1, block_size
+                if(entries(1,i) /= int_zero) then
+                    counter = counter + 1
+                    ! Copy the non-zero entries to tmp
+                    tmp(1:entry_size,counter) = entries(1:entry_size,i)
+                    ! Adjust their indices to the frozen orbs
+                    tmp(entry_size+1:lead_size,i) = indices(:,i) - nfrozen
+                end if
+            end do
+
+            deallocate(entries)
+            deallocate(indices)
+            allocate(entries(entry_size, new_block_size))
+            allocate(indices(lead_size - entry_size, new_block_size))
+
+            entries(:,:) = tmp(1:entry_size,:)
+            indices(:,:) = tmp(entry_size+1:lead_size,:)
+
+            deallocate(tmp)
+        end if
+    end subroutine freeze_orbs_block
+
+    subroutine add_ecore(indices, val)
+        integer, intent(in) :: indices
+        real(dp), intent(in) :: val
+
+        
+    end subroutine add_ecore
+    
 end module LMat_class
