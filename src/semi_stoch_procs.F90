@@ -34,6 +34,7 @@ module semi_stoch_procs
     use adi_data, only: tSignedRepAv
     use global_det_data, only: readFVals, readAPVals
     use LoggingData, only: tAccumPopsActive
+    use gdata_io, only: gdata_io_t
 
     implicit none
 
@@ -985,8 +986,8 @@ contains
         logical :: tSuccess
         integer :: ierr
         character(*), parameter :: this_routine = 'add_core_states_currentdet'
-        real(dp), allocatable :: fvals(:,:)
-        real(dp), allocatable :: apvals(:,:)
+        real(dp), allocatable :: gdata_buf(:,:)
+        type(gdata_io_t) :: reorder_handler
 
         nwalkers = int(TotWalkers,sizeof_int)
         ! Test that SpawnedParts is going to be big enough
@@ -1003,18 +1004,16 @@ contains
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
 
+        call reorder_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms, tAccumPopsActive, &
+            2*inum_runs, 1, lenof_sign+1)
         ! we need to reorder the adaptive shift data, too
-        if(tAutoAdaptiveShift) then
-           ! the maximally required buffer size is the current size of the
-           ! determinant list plus the size of the semi-stochastic space (in case
-           ! all core-dets are new)
-           allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)
-           if(ierr.ne.0) call stop_all(this_routine, &
-                "Failed to allocate buffer for adaptive shift data")
-           allocate(apvals(lenof_sign+1,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)
-           if(ierr.ne.0) call stop_all(this_routine, &
-                "Failed to allocate buffer for accumulated population data")
-        endif
+        ! the maximally required buffer size is the current size of the
+        ! determinant list plus the size of the semi-stochastic space (in case
+        ! all core-dets are new)
+        allocate(gdata_buf(reorder_handler%entry_size(),(nwalkers+determ_sizes(iProcIndex))),&
+            stat = ierr)
+        if(ierr.ne.0) call stop_all(this_routine, &
+            "Failed to allocate buffer for global det data")
 
         ! First find which CurrentDet states are in the core space.
         ! The warning above refers to this bit of code: If a core determinant is not in the
@@ -1043,14 +1042,13 @@ contains
                 ! Copy the amplitude of the state across to SpawnedParts.
                 call extract_sign(CurrentDets(:,PartInd), walker_sign)
                 call encode_sign(SpawnedParts(:,i), walker_sign)
-                if(tAutoAdaptiveShift) call cache_fvals(i,PartInd)
-                if(tAccumPopsActive) call cache_apvals(i,PartInd)
+                ! Cache the accumulated global det data
+                call reorder_handler%write_gdata(gdata_buf, 1, PartInd, i)
             else
                 ! This will be a new state added to CurrentDets.
                 nwalkers = nwalkers + 1
                 ! no auto-adaptive shift data available
-                if(tAutoAdaptiveShift) fvals(:,i) = 0.0_dp
-                if(tAccumPopsActive) apvals(:,i) = 0.0_dp
+                gdata_buf(:,i) = 0.0_dp
             end if
 
         end do
@@ -1077,18 +1075,16 @@ contains
                 end if
 
                 SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
-                if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
-                if(tAccumPopsActive) call cache_apvals(i_non_core,i)
+                call reorder_handler%write_gdata(gdata_buf, 1, i, i_non_core)
             end if
         end do
         ! Now copy all the core states in SpawnedParts into CurrentDets.
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
             CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
-            ! also re-order the adaptive shift data if auto-adapive shift is used
         end do
-        if(tAutoAdaptiveShift) call readFVals(fvals, nwalkers)
-        if(tAccumPopsActive) call readAPVals(apvals, nwalkers)
+        ! Re-assign the reordered global det data cached in gdata_buf
+        call reorder_handler%read_gdata(gdata_buf, nwalkers)
 
         call clear_hash_table(HashIndex)
 
@@ -1119,33 +1115,6 @@ contains
         end do
 
         TotWalkers = int(nwalkers, int64)
-
-        contains
-
-          subroutine cache_fvals(i,j)
-            use global_det_data, only: get_acc_spawns, get_tot_spawns
-            implicit none
-            integer, intent(in) :: i,j
-            integer :: run
-
-            do run = 1, inum_runs
-               fvals(run,i) = get_acc_spawns(j,run)
-               fvals(run+inum_runs,i) = get_tot_spawns(j,run)
-            end do
-          end subroutine cache_fvals
-
-          subroutine cache_apvals(i,j)
-            use global_det_data, only: get_pops_sum, get_pops_iter
-            implicit none
-            integer, intent(in) :: i,j
-            integer :: k
-
-            do k = 1, lenof_sign
-               apvals(k,i) = get_pops_sum(j,k)
-            end do
-            apvals(lenof_sign+1,i) = get_pops_iter(j)
-
-          end subroutine cache_apvals
     end subroutine add_core_states_currentdet_hash
 
     subroutine return_most_populated_states(n_keep,&

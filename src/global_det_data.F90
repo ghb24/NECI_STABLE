@@ -572,20 +572,23 @@ contains
       endif
     end subroutine writeFValsAsInt
 
-    subroutine writeFVals(fvals, ndets)
+    subroutine writeFVals(fvals, ndets, initial)
       implicit none
       real(dp), intent(inout) :: fvals(:,:)
-      integer, intent(in) :: ndets      
-      integer :: j, k
+      integer, intent(in) :: ndets
+      integer, intent(in), optional :: initial
+      integer :: j, k, start
+
+      def_default(start, initial, 1)
 
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-      do j = 1, int(nDets)
+      do j = 1, nDets
          do k = 1, inum_runs
-            fvals(k,j) = get_acc_spawns(j,k)
+            fvals(k,j) = get_acc_spawns(j + start - 1,k)
          end do
          do k = 1, inum_runs
-            fvals(k+inum_runs,j) = get_tot_spawns(j,k)
+            fvals(k+inum_runs,j) = get_tot_spawns(j + start - 1,k)
          end do
       end do
     end subroutine writeFVals
@@ -786,19 +789,22 @@ contains
       end do
     end subroutine readAPVals
 
-    subroutine writeAPVals(apvals, ndets)
+    subroutine writeAPVals(apvals, ndets, initial)
       implicit none
       real(dp), intent(inout) :: apvals(:,:)
-      integer, intent(in) :: ndets      
-      integer :: j, k
+      integer, intent(in) :: ndets
+      integer, intent(in), optional :: initial
+      integer :: j, k, start
+
+      def_default(start, initial, 1)
 
       ! write the pops sum/iter per determinant in a contiguous array
       ! apvals(:,j) = (sum, iter) for determinant j (lenof_sign+1 in size)
-      do j = 1, int(nDets)
+      do j = 1, nDets
          do k = 1, lenof_sign
-            apvals(k,j) = get_pops_sum(j,k)
+            apvals(k,j) = get_pops_sum(j + start - 1,k)
          end do
-        apvals(lenof_sign+1,j) = get_pops_iter(j)
+        apvals(lenof_sign+1,j) = get_pops_iter(j + start - 1)
       end do
     end subroutine writeAPVals
   !------------------------------------------------------------------------------------------!
@@ -1083,7 +1089,7 @@ contains
   
     !------------------------------------------------------------------------------------------!
     
-    subroutine write_max_ratio(ms_vals, ndets)
+    subroutine write_max_ratio(ms_vals, ndets, initial)
         ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
         ! Input: ndets - number of determinants
         !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
@@ -1092,11 +1098,14 @@ contains
         ! use a 2-d array for compatibility - the caller does not need to know that the first
         ! dimension is of size 1
         real(dp), intent(out) :: ms_vals(:,:)
+        integer, intent(in), optional :: initial
 
-        integer :: j
+        integer :: j, start
+
+        def_default(start, initial, 1)
 
         do j = 1, ndets
-            ms_vals(1,j) = global_determinant_data(pos_max_ratio,j)
+            ms_vals(1,j) = global_determinant_data(pos_max_ratio,j + start -1)
         end do
 
     end subroutine write_max_ratio

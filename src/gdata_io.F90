@@ -1,3 +1,4 @@
+#include "macros.h"
 module gdata_io
     ! This module manages if and how much global determinant data is read/write from/to
     ! the popsfile. 
@@ -163,25 +164,36 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
-    subroutine write_gdata(this, gdata_buf, ndets)
+    subroutine write_gdata(this, gdata_buf, ndets, initial, offset_)
         ! Write this calculations gdata to a buffer
         ! Input: gdata_buf - on return, contains the gdata of the first ndets determinants
         !                    has to have a first dimension of this%entry_size()
         !        ndets - number of determinants to write
+        !        initial - index of the first determinant to write (passed on as optional)
+        !        offset_ - offset in the gdata_buf to start writing (defaults to 1)
         class(gdata_io_t), intent(inout) :: this
         real(dp), intent(out) :: gdata_buf(:,:)
         integer, intent(in) :: ndets
+        integer, intent(in), optional :: initial
+        integer, intent(in), optional :: offset_
 
+        integer :: offset
+
+        def_default(offset, offset_, 1)
+        
         ! sanity check
         if(this%t_io()) then
             if(this%entry_size() <= size(gdata_buf, dim=1)) then
                 ! write the global det data to the buffer
                 if(tAutoAdaptiveShift) call writeFVals(&
-                    gdata_buf(this%fvals_start:this%fvals_end,:), ndets)
+                    gdata_buf(this%fvals_start:this%fvals_end,offset:(offset+ndets-1)), &
+                    ndets, initial)
                 if(tScaleBlooms) call write_max_ratio(&
-                    gdata_buf(this%max_ratio_start:this%max_ratio_end,:), ndets)
+                    gdata_buf(this%max_ratio_start:this%max_ratio_end,offset:(offset+ndets-1)),&
+                    ndets, initial)
                 if(tAccumPopsActive) call writeAPVals(&
-                    gdata_buf(this%apvals_start:this%apvals_end,:), ndets)
+                    gdata_buf(this%apvals_start:this%apvals_end,offset:(offset+ndets-1)), &
+                    ndets, initial)
             else
                 write(iout,*) "WARNING: Dimension mismatch in write_gdata, writing 0"
                 gdata_buf = 0.0_dp
