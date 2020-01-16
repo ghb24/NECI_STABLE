@@ -806,7 +806,7 @@ contains
         printed_tot_parts = 0
 
         call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, &
-            tScaleBlooms, tAccumPops, fvals_size, max_ratio_size, lenof_sign + 1)
+            tScaleBlooms, tAccumPopsActive, fvals_size, max_ratio_size, lenof_sign + 1)
         gdata_size = gdata_write_handler%entry_size()        
         if(gdata_size > 0) allocate(gdata_buf(gdata_size, TotWalkers))
 
