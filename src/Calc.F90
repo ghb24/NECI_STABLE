@@ -2605,9 +2605,6 @@ contains
                 call stop_all(t_r,'Deprecated option')
 
             case("JUMP-SHIFT")
-#ifdef CMPLX_
-                call stop_all(this_routine,"JUMP-SHIFT: Cannot set shift equal to a complex projected energy")
-#endif
                 ! When variable shift is enabled, jump the shift to the value
                 ! predicted by the projected energy!
                 ! --> Reduce the waiting time while the number of particles is

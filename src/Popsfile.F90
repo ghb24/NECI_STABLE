@@ -975,6 +975,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: TempSign(lenof_sign)
         character(len=*), parameter :: this_routine = "InitFCIMC_pops"
         type(gdata_io_t) :: gdata_read_handler
+        HElement_t(dp):: InstE(inum_runs)
 
         if (iReadWalkersRoot == 0) then
             ! ReadBatch is the number of walkers to read in from the
@@ -1138,14 +1139,13 @@ r_loop: do while(.not.tStoreDet)
             end do
         end if
 
-#ifndef CMPLX_
         ! If necessary, recalculate the instantaneous projected energy, and
         ! then update the shift to that value.
         if (tPopsJumpShift .and. .not. tWalkContGrow) then
-            call calc_proje(DiagSft)
+            call calc_proje(InstE)
+            DiagSft = real(InstE, dp)
             write(6,*) 'Calculated instantaneous projected energy', DiagSft
         end if
-#endif
 
     end subroutine InitFCIMC_pops
 
