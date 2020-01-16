@@ -166,7 +166,7 @@ module fcimc_initialisation
 
     use tau_search, only: init_tau_search, max_death_cpt
 
-    use fcimc_helper, only: CalcParentFlag, update_run_reference
+    use fcimc_helper, only: CalcParentFlag, update_run_reference, Set_AS_TrialOffset
 
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
@@ -1792,11 +1792,7 @@ contains
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
             if(tAS_TrialOffset)then
-                do run=1, inum_runs
-                    if(trial_energies(run)-Hii<ShiftOffset) &
-                        ShiftOffset = trial_energies(run)-Hii
-                enddo
-                write(6,*) "The adaptive shift is offset by the correlation energy of trail-wavefunction: ", ShiftOffset
+                call Set_AS_TrialOffset()
             endif
         else if (tStartTrialLater) then
             ! If we are going to turn on the use of a trial wave function

@@ -168,7 +168,9 @@ contains
           AAS_DenCut = 0.5
           AAS_Const = 0.0
           tAS_TrialOffset = .false.
+          tAS_Offset = .false.
           ShiftOffset = 0.0_dp
+          FullShiftOffset = 0.0_dp
           tInitsRDMRef = .false.
           tInitsRDM = .false.
           tApplyLC = .true.
@@ -1918,6 +1920,10 @@ contains
             case("AS-TRIAL-OFFSET")
                 ! Use the trial energy as an offset for the adaptive shift (instead of reference)
                 tAS_TrialOffset = .true.
+            case("AS-OFFSET")
+                ! Use the supplied energy as an offset for the adaptive shift (instead of reference)
+                tAS_Offset = .true.
+                call getf(FullShiftOffset)
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")

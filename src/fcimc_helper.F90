@@ -52,7 +52,7 @@ module fcimc_helper
                         tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
                         tPrecond, &
                         tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, &
-                        allowedSpawnSign
+                        allowedSpawnSign, tAS_Offset, FullShiftOffset
     use adi_data, only: tSignedRepAv
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
@@ -2542,6 +2542,23 @@ contains
         proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
 
 
+    end subroutine
+
+    !> Set the offset of the adaptive shift equal to the ground state energy
+    !> of the trial space.
+    subroutine Set_AS_TrialOffset()
+
+
+        integer :: run
+
+        FullShiftOffset = trial_energies(1)
+        !Find the lowest trial energy
+        do run=2, inum_runs
+            if(trial_energies(run)<FullShiftOffset) &
+                FullShiftOffset = trial_energies(run)
+        enddo
+        tAS_Offset = .true.
+        write(6,*) "The adaptive shift is offset by the correlation energy of trial-wavefunction: ", FullShiftOffset-Hii
     end subroutine
 
 end module

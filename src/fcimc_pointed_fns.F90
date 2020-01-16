@@ -17,7 +17,8 @@ module fcimc_pointed_fns
                         tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
-                        tPrecond, AAS_Const, EAS_Scale, ShiftOffset
+                        tPrecond, AAS_Const, EAS_Scale, ShiftOffset, FullShiftOffset, &
+                        tAS_Offset
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -605,6 +606,11 @@ module fcimc_pointed_fns
             else
                  ! rescale the shift
                 if(tAdaptiveShift) then
+                    if(tAS_Offset)then
+                        ShiftOffset = FullShiftOffset - Hii
+                    else
+                        ShiftOffset = 0.0_dp
+                    endif
                     shift = ShiftOffset + (DiagSft(i)-ShiftOffset) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign,i))
                 else
                     shift = DiagSft(i)
