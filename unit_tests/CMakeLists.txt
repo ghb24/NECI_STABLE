@@ -22,7 +22,6 @@ add_subdirectory( fruit_src )
 # And start adding tests
 add_subdirectory( det_bit_ops )
 
-# finally do some unit-testing also with my newly added features
 # finally get unit testing integrated in software projects
 add_subdirectory( molecular_tc)
 
@@ -43,3 +42,5 @@ add_subdirectory( lattice_models_utils )
 add_subdirectory( pcpp_excitgen)
 
 add_subdirectory( gdata_io )
+
+add_subdirectory( test_loop )

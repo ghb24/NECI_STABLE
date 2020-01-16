@@ -54,7 +54,8 @@ module fcimc_initialisation
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift,&
-                        tExpAdaptiveShift, tSpinProject
+                        tExpAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
+                        tSpinProject
     use spin_project, only: init_yama_store, clean_yama_store
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
@@ -1792,6 +1793,13 @@ contains
             else
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
+            if(tAS_TrialOffset)then
+                do run=1, inum_runs
+                    if(trial_energies(run)-Hii<ShiftOffset) &
+                        ShiftOffset = trial_energies(run)-Hii
+                enddo
+                write(6,*) "The adaptive shift is offset by the correlation energy of trail-wavefunction: ", ShiftOffset
+            endif
         else if (tStartTrialLater) then
             ! If we are going to turn on the use of a trial wave function
             ! later in the calculation, then zero the trial estimate arrays

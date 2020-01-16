@@ -9,7 +9,7 @@ module tau_search
                           t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
                           t_uniform_excits, t_new_real_space_hubbard, &
                           t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
-                          t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body
+                          t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body, t_pchb_excitgen
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global, &
@@ -154,6 +154,9 @@ contains
             ! for the 2-body transcorrelated k-space hubbard we also have
             ! possible parallel excitations now. and to make the tau-search
             ! working we need to set this to true ofc:
+            consider_par_bias = .true.
+        else if(t_pchb_excitgen) then
+            ! The default pchb excitgen also uses parallel biases
             consider_par_bias = .true.
         else
             consider_par_bias = .false.

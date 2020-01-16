@@ -36,17 +36,17 @@ module fcimc_helper
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
                            initsPerExLvl
-    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, tReplicaCoherentInits, &
-                        InitiatorWalkNo, tAvReps, &
+    use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
+                        InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tEN2, tEN2Started, &
-                        NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
+                        NMCyc, iSampleRDMIters, ErrThresh, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
                         t_back_spawn_flex, tau, DiagSft, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
-                        initMaxSenior, tSeniorityInits, tLogAverageSpawns, &
+                        tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, &
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2,&
                         tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
@@ -1067,10 +1067,6 @@ contains
         ! initiator flag according to SI or a static initiator space
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
 
-        if(tSeniorityInits) then
-           staticInit = staticInit .or. (count_open_orbs(ilut) <= initMaxSenior)
-        endif
-
         if (tInitiatorSpace) then
             staticInit = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic)
             if (.not. staticInit) then
@@ -1080,20 +1076,6 @@ contains
                 end if
             end if
         end if
-
-        ! check if there are sign conflicts across the replicas
-        if(any(sgn*(sgn_av_pop(sgn)) < 0)) then
-           ! one initial check: if the replicas dont agree on the sign
-           ! dont make this an initiator under any circumstances
-           if(tReplicaCoherentInits .and. .not. &
-                ! maybe except for corepsace determinants
-                test_flag(ilut, flag_deterministic)) then
-              ! log this, if we remove an initiator here
-              if(is_init) NoAddedInitiators = NoAddedInitiators - 1_int64
-              initiator = .false.
-              return
-           endif
-        endif
 
         ! By default the particles status will stay the same
         initiator = is_init

@@ -12,7 +12,7 @@ module LMat_mod
     use sort_mod
     use hash, only: add_hash_table_entry, clear_hash_table
     use ParallelHelper, only: iProcIndex_intra
-    use tc_three_body_data, only: lMatEps, tSparseLMat, tLMatCalc, tSymBrokenLMat
+    use tc_three_body_data, only: lMatEps, tSparseLMat, tLMatCalc, tSymBrokenLMat, tHDF5LMat
     use UMatCache, only: numBasisIndices  
     use LMat_indexing, only: lMatIndSym, lMatIndSymBroken, oldLMatInd, strideInner, strideOuter, &
         lMatIndSpin
@@ -135,7 +135,7 @@ contains
 
     subroutine readLMat()
         use SystemData, only: nel
-
+        character(255) :: tcdump_name
         ! we need at least three electrons to make use of the six-index integrals
         ! => for less electrons, this can be skipped
         if(nel<=2) return
@@ -146,7 +146,12 @@ contains
             call readLMatFactors()
         else
             ! now, read lmat from file
-            call lMat%read("TCDUMP","tcdump.h5")
+            if(tHDF5LMat) then
+                tcdump_name = "tcdump.h5"
+            else
+                tcdump_name = "TCDUMP"
+            endif
+            call lMat%read(trim(tcdump_name))
         end if
     end subroutine readLMat
 

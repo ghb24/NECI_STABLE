@@ -585,7 +585,8 @@ system: do
                   t12FoldSym = .true.
                   tNoSinglesPossible = .true.
                case default
-                  t_mol_3_body = .false.
+                   t_mol_3_body = .true.
+                   tGenMatHEl = .false.
                end select
             endif
             if(t_mol_3_body) max_ex_level = 3

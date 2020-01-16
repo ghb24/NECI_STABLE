@@ -92,7 +92,7 @@ contains
 
     !> pseudo-constructor for alias tables
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
-    !!              want to use for sampling    
+    !!              want to use for sampling
     subroutine setupTable(this, arr)
         implicit none
         class(aliasTable_t) :: this
@@ -117,7 +117,7 @@ contains
 
     !> Set the bias and alias values for each value in range
     !> @param[in] arr - array containing the (not necessarily normalized) probabilities we
-    !>              want to use for sampling    
+    !>              want to use for sampling
     subroutine initTable(this,arr)
         implicit none
         class(aliasTable_t) :: this
@@ -205,7 +205,7 @@ contains
     end subroutine initTable
     !------------------------------------------------------------------------------------------!
 
-    !> clear the memory used by the alias table    
+    !> clear the memory used by the alias table
     subroutine tableDestructor(this)
         implicit none
         class(aliasTable_t) :: this
@@ -220,7 +220,7 @@ contains
 
     !> Draw a random number from an alias table created with the corresponding probabilities
     !> @return ind  random number between 1 and the size of the array used to create the
-    !!               aliasTable object    
+    !!               aliasTable object
     function getRand(this) result(ind)
         implicit none
         class(aliasTable_t) :: this
@@ -252,7 +252,7 @@ contains
 
     !> allocate the resources of this and load the probability distribution from arr into this
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
-    !!              want to use for sampling    
+    !!              want to use for sampling
     subroutine setupSampler(this, arr)
         implicit none
         class(aliasSampler_t) :: this
@@ -283,7 +283,7 @@ contains
     !> load the probability distribution from arr into this
     !! we only use this in the sampler array, but fortran has no friend classes, so its public
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
-    !!              want to use for sampling    
+    !!              want to use for sampling
     subroutine initSampler(this, arr)
         implicit none
         class(aliasSampler_t) :: this
@@ -307,7 +307,7 @@ contains
 
     !> load the probability distribution from arr into this%probs
     !> @param[in] arr  array containing the (not necessarily normalized) probabilities we
-    !!              want to use for sampling    
+    !!              want to use for sampling
     subroutine initProbs(this, arr)
         implicit none
         class(aliasSampler_t) :: this
@@ -336,7 +336,7 @@ contains
 
     !> draw a random element from 1:size(this%probs) with the probabilities listed in prob
     !> @param[in] tgt  on return, this is a random number in the sampling range of this
-    !> @param[out] prob  on return, the probability of picking tgt    
+    !> @param[out] prob  on return, the probability of picking tgt
     subroutine sample(this, tgt, prob)
         implicit none
         class(aliasSampler_t), intent(in) :: this
@@ -359,7 +359,7 @@ contains
 
     !> Returns the probability to draw tgt from this sampler
     !> @param[in] tgt  the number for which we request the probability of sampling
-    !> @param[out] prob  the probability of drawing tgt with the sample routine    
+    !> @param[out] prob  the probability of drawing tgt with the sample routine
     pure function getProb(this, tgt) result(prob)
         implicit none
         class(aliasSampler_t), intent(in) :: this
@@ -421,7 +421,7 @@ contains
 
     !> Initialise one sampler of an array
     !> @param[in] iEntry  index of the entry to initialize
-    !> @param[in] arr  data to be loaded by that entry    
+    !> @param[in] arr  data to be loaded by that entry
     subroutine setupEntry(this, iEntry, arr)
         implicit none
         class(aliasSamplerArray_t) :: this
@@ -440,12 +440,14 @@ contains
 
         ! free the collective resources
         call this%allAliasTable%shared_dealloc()
-        call this%allProbs%shared_dealloc()    
+        call this%allProbs%shared_dealloc()
         call this%allBiasTable%shared_dealloc()
 
         this%allBiasTable%ptr => null()
         this%allProbs%ptr => null()
         this%allAliasTable%ptr => null()
+
+        if(allocated(this%samplerArray)) deallocate(this%samplerArray)
     end subroutine samplerArrayDestructor
 
     !------------------------------------------------------------------------------------------!
@@ -455,7 +457,7 @@ contains
     !> draw a random element from 1:entrySize with the probabilities listed in this entry's prob
     !> @param[in] iEntry  index of the sampler to use
     !> @param[out] tgt  on return, this is a random number in the sampling range of entrySize
-    !> @param[out] prob  on return, the probability of picking tgt    
+    !> @param[out] prob  on return, the probability of picking tgt
     subroutine aSample(this, iEntry, tgt, prob)
         implicit none
         class(aliasSamplerArray_t), intent(in) :: this
@@ -469,7 +471,7 @@ contains
     !> Returns the probability to draw tgt from the sampler with index iEntry
     !> @param[in] iEntry  index of the sampler to use
     !> @param[in] tgt  the number for which we request the probability of sampling
-    !> @return prob  the probability of drawing tgt with the sample routine    
+    !> @return prob  the probability of drawing tgt with the sample routine
     pure function aGetProb(this, iEntry, tgt) result(prob)
         implicit none
         class(aliasSamplerArray_t), intent(in) :: this
