@@ -10,7 +10,7 @@ module ueg_excit_gens
     use get_excit, only: make_double
     use bit_rep_data, only: NIfTot
     use excitation_types, only: DoubleExc_t
-    use sltcnd_mod, only: sltcnd_excit
+    use sltcnd_mod, only: sltcnd_excit, sltcnd_2_kernel
     use UMatCache, only: gtID
     use constants
     use util_mod
@@ -160,9 +160,8 @@ contains
 
                         ! We don't need to worry about which a,b is which, as
                         ! we don't care about the overall sign.
-                        elem = abs(sltcnd_excit(nI_placeholder, &
-                            DoubleExc_t(src1=src(1), tgt1=src(2), src2=orba, tgt2=orbb), &
-                            .true.))
+                        elem = abs(sltcnd_2_kernel(&
+                            DoubleExc_t(src1=src(1), tgt1=src(2), src2=orba, tgt2=orbb)))
                     end if
                 end if
             end if
