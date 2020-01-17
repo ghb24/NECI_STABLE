@@ -19,7 +19,7 @@ MODULE PopsfileMod
     use procedure_pointers, only: scaleFunction
     use load_balance_calcnodes, only: DetermineDetNode, RandomOrbIndex
     use hash, only: FindWalkerHash, clear_hash_table, &
-                    fill_in_hash_table
+                    fill_in_hash_table, add_hash_table_entry
     use Determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
@@ -32,15 +32,16 @@ MODULE PopsfileMod
                        tSplitPops, tZeroProjE, tRDMonFly, tExplicitAllRDM, &
                        binarypops_min_weight, tHDF5PopsRead, tHDF5PopsWrite, &
                        t_print_frq_histograms, tPopAutoAdaptiveShift, &
-                       tPopsInstProjE, tPopScaleBlooms
+                       tPopScaleBlooms, tPopAccumPops, tAccumPops, tAccumPopsActive, &
+                       iAccumPopsCounter, PopAccumPopsCounter, iAccumPopsIter
     use sort_mod
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
         gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
     use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
-        store_decoding, max_ratio_size, fvals_size
+        store_decoding, max_ratio_size, fvals_size, apvals_size
     use tc_three_body_data, only: pTriples, tReadPTriples
-    use fcimc_helper, only: update_run_reference, calc_inst_proje, TestInitiator
+    use fcimc_helper, only: update_run_reference, TestInitiator, calc_proje
     use replica_data, only: set_initial_global_data
     use load_balance, only: pops_init_balance_blocks, get_diagonal_matel
     use load_balance_calcnodes, only: tLoadBalanceBlocks, balance_blocks
@@ -276,6 +277,7 @@ contains
            call clr_flag(Dets(:,i), flag_determ_parent)
            call clr_flag(Dets(:,i), flag_trial)
            call clr_flag(Dets(:,i), flag_connected)
+           call clr_flag(Dets(:,i), flag_removed)
 
            ! store the determinant
            if(tStoredDets) then
@@ -283,7 +285,6 @@ contains
               call store_decoding(int(i),TempnI)
            end if
         end do
-
 
         call halt_timer(read_timer)
         call set_timer(process_timer)
@@ -972,7 +973,9 @@ r_loop: do while(.not.tStoreDet)
         character(255) :: identifier
         integer(int64) :: l
         real(dp) :: TempSign(lenof_sign)
+        character(len=*), parameter :: this_routine = "InitFCIMC_pops"
         type(gdata_io_t) :: gdata_read_handler
+        HElement_t(dp):: InstE(inum_runs)
 
         if (iReadWalkersRoot == 0) then
             ! ReadBatch is the number of walkers to read in from the
@@ -992,9 +995,22 @@ r_loop: do while(.not.tStoreDet)
             if (allocated(perturbs)) apply_pert = .true.
         end if
 
+        ! Only active the accumlation of populations if the popsfile has 
+        ! apvals and accum-pops is specified with a proper iteration
+        tAccumPopsActive = .false.
+        if(tAccumPops .and. tPopAccumPops)then
+            if(iAccumPopsIter<=PreviousCycles)then
+                tAccumPopsActive = .true.
+                iAccumPopsCounter = PopAccumPopsCounter
+                write(6,*) "Accumulated populations are found. Accumulation will continue."
+            else
+                write(6,*) "Accumulated populations are found, but will be discarded."
+                write(6,*) "Accumulation will restart at iteration: ", iAccumPopsIter
+            endif
+        endif
         ! decide which global det data is read
         call gdata_read_handler%init_gdata_io(tPopAutoAdaptiveShift, tPopScaleBlooms, &
-            fvals_size, max_ratio_size)
+            tPopAccumPops, fvals_size, max_ratio_size, apvals_size)
 
          if(present(source_name)) then
             identifier = source_name
@@ -1126,9 +1142,9 @@ r_loop: do while(.not.tStoreDet)
         ! If necessary, recalculate the instantaneous projected energy, and
         ! then update the shift to that value.
         if (tPopsJumpShift .and. .not. tWalkContGrow) then
-            call calc_inst_proje()
-            write(6,*) 'Calculated instantaneous projected energy', proje_iter
-            DiagSft = real(proje_iter, dp)
+            call calc_proje(InstE)
+            DiagSft = real(InstE, dp)
+            write(6,*) 'Calculated instantaneous projected energy', DiagSft
         end if
 
     end subroutine InitFCIMC_pops
@@ -1450,6 +1466,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopTotImagTime, PopSft2, PopParBias
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
         logical :: PopPreviousHistTau
+        integer :: PopAccumPopsCounter
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
 #ifdef __REALTIME
         ! need dummy read-in variable, since we start from a converged real
@@ -1469,7 +1486,8 @@ r_loop: do while(.not.tStoreDet)
                     PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2, &
                     PopTotImagTime, Popinum_runs, PopParBias, PopMultiSft, &
                     PopMultiSumNoatHF, PopMultiSumENum, PopBalanceBlocks, &
-                    PopPreviousHistTau, tPopAutoAdaptiveShift, tPopScaleBlooms
+                    PopPreviousHistTau, tPopAutoAdaptiveShift, tPopScaleBlooms, &
+                    tPopAccumPops, PopAccumPopsCounter
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.4) call stop_all("ReadPopsfileHeadv4","Wrong popsfile version for this routine.")
@@ -1487,6 +1505,7 @@ r_loop: do while(.not.tStoreDet)
         PopPreviousHistTau = .false.
         tPopAutoAdaptiveShift = .false.
         tPopScaleBlooms = .false.
+        tPopAccumPops = .false.
         if(iProcIndex.eq.root) then
             read(iunithead,POPSHEAD)
         endif
@@ -1550,6 +1569,7 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopPreviousHistTau)
         call MPIBCast(tPopAutoAdaptiveShift)
         call MPIBCast(tPopScaleBlooms)
+        call MPIBCast(tPopAccumPops)
 
         tPop64Bit=Pop64Bit
         tPopHPHF=PopHPHF
@@ -1810,11 +1830,6 @@ r_loop: do while(.not.tStoreDet)
             ! And stop timing
             call halt_timer(write_timer)
 
-            if(tPopsInstProjE) then
-                call calc_inst_proje()
-                write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
-            end if
-
             return
         end if
 
@@ -1863,7 +1878,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! set the module variables for global det data i/o
         call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms, &
-            fvals_size, max_ratio_size)
+            tAccumPopsActive, fvals_size, max_ratio_size, apvals_size)
 
         if (iProcIndex == root) then
 
@@ -2097,11 +2112,6 @@ r_loop: do while(.not.tStoreDet)
         AllSumENum = 0
         AllTotWalkers = 0
 
-        if(tPopsInstProjE) then
-            call calc_inst_proje()
-            write(6,*) 'Instantaneous projected energy of popsfile:', proje_iter
-        end if
-
     end subroutine WriteToPopsfileParOneArr
 
     subroutine write_popsfile_header (iunit, num_walkers, WalkersonNodes)
@@ -2205,6 +2215,11 @@ r_loop: do while(.not.tStoreDet)
         ! are the maximum spawn amplitued available?
         if(tScaleBlooms) then
             write(iunit,*) "tPopScaleBlooms=", tScaleBlooms
+        endif
+        ! are accumlated populations available?
+        if(tAccumPopsActive) then
+            write(iunit,*) "tPopAccumPops=", tAccumPopsActive
+            write(iunit,*) "PopAccumPopsCounter=", iAccumPopsCounter
         endif
 
         ! Store the random hash in the header to allow later processing

@@ -74,11 +74,13 @@ module hdf5_popsfile
     use hdf5_util
     use util_mod
     use CalcData, only: tAutoAdaptiveShift, tScaleBlooms
-    use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms
-    use global_det_data, only: writeFFuncAsInt, max_ratio_size, fvals_size
+    use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms, tAccumPops, tAccumPopsActive,&
+                           iAccumPopsIter, iAccumPopsCounter, tReduceHDF5Pops,&
+                           HDF5PopsMin, iHDF5PopsMinEx, tPopAccumPops
+    use global_det_data, only: max_ratio_size, fvals_size, apvals_size
 #ifdef USE_HDF_
     use hdf5
-    use gdata_io, only: gdata_io_t, clone_signs, resize_attribute    
+    use gdata_io, only: gdata_io_t, clone_signs, resize_attribute
 #endif
     implicit none
     private
@@ -100,6 +102,8 @@ module hdf5_popsfile
             nm_tot_imag = 'tot_imag_time', &
             nm_shift = 'shift', &
             nm_tAuto = 'tAutoAdaptiveShift', &
+            nm_tAP = 'tAccumPops', &
+            nm_accum_counter = 'iAccumPopsCounter', &
             nm_sc_blooms = 'tScaleBlooms', &
             nm_tau_grp = 'tau_search', &
             nm_gam_sing = 'gamma_sing', &
@@ -136,7 +140,8 @@ module hdf5_popsfile
             nm_sgns = 'sgns', &
             nm_norm_sqr = 'norm_sqr', &
             nm_num_parts = 'num_parts', &
-            nm_gdata = 'fvals'
+            nm_gdata = 'gdata', &
+            nm_gdata_old = 'fvals'
 
     integer(n_int), dimension(:,:), allocatable :: receivebuff
     integer:: receivebuff_tag
@@ -147,10 +152,11 @@ module hdf5_popsfile
 contains
 
 
-    subroutine write_popsfile_hdf5(MaxEx)
+    subroutine write_popsfile_hdf5(MaxEx, IterSuffix)
 
         use CalcData, only: iPopsFileNoWrite
         use LoggingData, only: tIncrementPops
+        use FciMCData, only: Iter, PreviousCycles
 
         ! TODO:
         ! 1) Deal with multiple filenames
@@ -159,14 +165,16 @@ contains
         ! 4) Should we in some way make incrementpops default?
 
         integer, intent(in), optional :: MaxEx
+        logical, intent(in), optional :: IterSuffix
         character(*), parameter :: t_r = 'write_popsfile_hdf5'
 #ifdef USE_HDF_
         integer(hid_t) :: plist_id, file_id
         integer(hdf_err) :: err
         integer :: mpi_err
         character(255) :: filename
-        character(30) :: stem
+        character(64) :: stem
         character(4) :: MaxExStr
+        character(32) :: IterStr
 
         ! Get a unique filename for this popsfile. This needs to be done on
         ! the head node to avoid collisions.
@@ -177,6 +185,10 @@ contains
             else
                 stem = 'popsfile'
             end if
+            if(present(IterSuffix) .and. IterSuffix)then
+                write (IterStr,'(I0)') (Iter+PreviousCycles)
+                stem = trim(stem)//'_'//IterStr
+            endif
             call get_unique_filename(trim(stem), &
                                      tIncrementPops, .true., iPopsFileNoWrite, &
                                      filename, ext='.h5')
@@ -186,7 +198,7 @@ contains
 
         write(6,*)
         if(present(MaxEx))then
-            write(6,*) "============== Writing Truncated HDF5 popsfile =============="
+            write(6,*) "========= Writing Truncated HDF5 popsfile ========="
         else
             write(6,*) "============== Writing HDF5 popsfile =============="
         end if
@@ -743,9 +755,10 @@ contains
         use iso_c_hack
         use bit_rep_data, only: NIfD, NIfTot, NOffSgn, extract_sign
         use FciMCData, only: AllTotWalkers, CurrentDets, MaxWalkersPart, &
-                             TotWalkers, iLutHF
+                             TotWalkers, iLutHF,Iter, PreviousCycles
         use CalcData, only: tUseRealCoeffs
-        use DetBitOps, only: FindBitExcitLevel
+        use DetBitOps, only: FindBitExcitLevel, tAccumEmptyDet
+        use global_det_data, only: writeFValsAsInt, writeAPValsAsInt
 
         ! Output the wavefunction information to the relevant groups in the
         ! wavefunction.
@@ -784,39 +797,56 @@ contains
         integer :: gdata_size
 
 
-        if(present(MaxEx))then
-            ! We want to print only dets up to a certine excitation level
-            ! Let us find out which ones they are and copy them
-            allocate(TmpVecDets(0:NIfTot, TotWalkers))
-            PrintedDets => TmpVecDets
-            printed_count = 0
-            printed_norm_sqr = 0
-            printed_tot_parts = 0
-            do i = 1, int(TotWalkers)
-                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
-                if(ExcitLevel<=MaxEx)then
-                    call extract_sign(CurrentDets(:,i),CurrentSign)
-                    if(IsUnoccDet(CurrentSign)) cycle
-                    printed_count = printed_count + 1
-                    PrintedDets(:,printed_count) = CurrentDets(:,i)
-                    ! Fill in stats
-                    printed_tot_parts = printed_tot_parts + abs(CurrentSign)
-#if defined(CMPLX_)
-                    do run = 1, inum_runs
-                       printed_norm_sqr(run) = printed_norm_sqr(run) + &
-                            sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
-                    enddo
+        ! We do not want to print all dets. At least empty dets should be skipped
+        ! Let us find out which ones to be printed and copy them
+        allocate(TmpVecDets(0:NIfTot, TotWalkers))
+        PrintedDets => TmpVecDets
+        printed_count = 0
+        printed_norm_sqr = 0
+        printed_tot_parts = 0
+
+        call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, &
+            tScaleBlooms, tAccumPopsActive, fvals_size, max_ratio_size, lenof_sign + 1)
+        gdata_size = gdata_write_handler%entry_size()        
+        if(gdata_size > 0) allocate(gdata_buf(gdata_size, TotWalkers))
+
+        do i = 1, int(TotWalkers,sizeof_int)
+            call extract_sign(CurrentDets(:,i),CurrentSign)
+            ! Skip empty determinants (unless we are accumulating its population)
+            if(IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
+
+            ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,i))
+
+            ! If we are printing truncated popsfiles, skip over large excitations
+            if(present(MaxEx) .and. ExcitLevel>MaxEx) cycle
+
+            ! If we are reducing the size of popsfiles, skip dets with low population and high excitations
+            if(tReduceHDF5Pops)then
+                if(all(abs(CurrentSign) <= HDF5PopsMin) .and. ExcitLevel>iHDF5PopsMinEx) cycle
+            endif
+
+            printed_count = printed_count + 1
+
+            !Fill in det
+            PrintedDets(:,printed_count) = CurrentDets(:,i)
+
+            !Fill in global data
+            if(gdata_size > 0) then
+                ! get the statistics of THIS processor
+                call gdata_write_handler%write_gdata_hdf5(gdata_buf(:, printed_count), i)
+            endif
+
+            ! Fill in stats
+            printed_tot_parts = printed_tot_parts + abs(CurrentSign)
+#ifdef CMPLX_
+            do run = 1, inum_runs
+               printed_norm_sqr(run) = printed_norm_sqr(run) + &
+                    sum(CurrentSign(min_part_type(run):max_part_type(run))**2)
+            enddo
 #else
-                    printed_norm_sqr = printed_norm_sqr + CurrentSign**2
+            printed_norm_sqr = printed_norm_sqr + CurrentSign**2
 #endif
-                end if
-            end do
-        else
-            PrintedDets => CurrentDets
-            printed_count = TotWalkers
-            printed_norm_sqr = norm_psi_squared
-            printed_tot_parts = TotParts
-        endif
+        end do
 
         ! TODO: Add a (slower) fallback routine for weird cases, odd HDF libs
 
@@ -849,6 +879,13 @@ contains
         call write_log_scalar(wfn_grp_id, nm_tauto, tAutoAdaptiveShift)
         call write_log_scalar(wfn_grp_id, nm_sc_blooms, tScaleBlooms)
 
+        ! denote if accum-pos will be written
+        call write_log_scalar(wfn_grp_id, nm_tAP, tAccumPopsActive)
+        if(tAccumPopsActive) then
+           !Write the number of iterations, during which the populations have
+           !been accumulated
+            call write_int64_scalar(wfn_grp_id, nm_accum_counter, iAccumPopsCounter)
+        endif
 
         ! Accumulated values only valid on head node. collate_iter_data
         ! has not yet run.
@@ -882,15 +919,9 @@ contains
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
         )
 
-        ! if auto-adaptive shift was used, also write the gathered information on
-        ! accepted/total spawns
-        call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, &
-            tScaleBlooms, fvals_size, max_ratio_size)
-        gdata_size = gdata_write_handler%entry_size()        
+        deallocate(TmpVecDets)
+
         if(gdata_size > 0) then
-           allocate(gdata_buf(gdata_size,printed_count))
-           ! get the statistics of THIS processor
-           call gdata_write_handler%write_gdata_hdf5(gdata_buf, int(TotWalkers), MaxEx)
            call write_2d_multi_arr_chunk_buff(&
                 wfn_grp_id, nm_gdata, H5T_NATIVE_REAL_8, gdata_buf, &
                 [int(gdata_size, hsize_t), int(printed_count, hsize_t)], & ! dims
@@ -903,10 +934,6 @@ contains
 
         ! And we are done
         call h5gclose_f(wfn_grp_id, err)
-
-        if(present(MaxEx))then
-            deallocate(TmpVecDets)
-        endif
 
     end subroutine write_walkers
 
@@ -935,7 +962,7 @@ contains
         character(*), parameter :: t_r = 'read_walkers'
 
         integer :: proc, nreceived
-        integer(hid_t) :: grp_id
+        integer(hid_t) :: grp_id, calc_grp_id
         integer(hdf_err) :: err
         integer(hid_t) :: ds_sgns, ds_ilut, ds_gdata
         integer(int64) :: nread_walkers
@@ -955,8 +982,9 @@ contains
         integer :: temp_ilut_tag, temp_sgns_tag, rest
         integer(int32) :: read_lenof_sign
         type(gdata_io_t) :: gdata_read_handler
-        integer :: gdata_size, tmp_fvals_size
+        integer :: gdata_size, tmp_fvals_size, tmp_apvals_size
         logical :: t_read_gdata
+        logical :: t_exist_gdata
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -1003,6 +1031,10 @@ contains
             default = .false._int32, required=.false.)
         call read_log_scalar(grp_id, nm_sc_blooms, tPopScaleBlooms, &
             default = .false._int32, required=.false.)
+
+        ! Same goes for accum-pops and the corresponding values
+        call read_log_scalar(grp_id, nm_tAP, tPopAccumPops, &
+             default = .false._int32, required=.false.)
 
         ! these variables are for consistency-checks
         allocate(pops_norm_sqr(tmp_lenof_sign), stat = ierr)
@@ -1057,16 +1089,50 @@ contains
         print *, "Max ratio size", max_ratio_size
         ! size of the ms data read in
         tmp_fvals_size = 2*tmp_inum_runs
+
+        tmp_apvals_size = tmp_lenof_sign+1
+
+        ! Only active the accumlation of populations if the popsfile has 
+        ! apvals and and accum-pops is specified with a proper iteration
+        tAccumPopsActive = .false.
+        if(tAccumPops .and. tPopAccumPops)then
+            ! Read previous iteration data.
+            ! It is read again in read_calc_data, but we need it now
+            call h5gopen_f(parent, nm_calc_grp, calc_grp_id, err)
+            call read_int64_scalar(calc_grp_id, nm_iters, PreviousCycles, &
+                                   default=0_int64, required=.false.)
+            call h5gclose_f(calc_grp_id, err)
+
+            if(iAccumPopsIter<=PreviousCycles)then
+                tAccumPopsActive = .true.
+                call read_int64_scalar(grp_id, nm_accum_counter, iAccumPopsCounter, &
+                                               default=0_int64, required=.false.)
+                write(6,*) "Accumulated populations are found. Accumulation will continue."
+            else
+                write(6,*) "Accumulated populations are found, but will be discarded."
+                write(6,*) "Accumulation will restart at iteration: ", iAccumPopsIter
+            endif
+        endif
+
         ! create an io handler for the data that is actually in the file
         ! (can have different lenof_sign and options than the one we will be using)
         call gdata_read_handler%init_gdata_io(&
-            tPopAutoAdaptiveShift, tPopScaleBlooms, tmp_fvals_size, max_ratio_size)
+            tPopAutoAdaptiveShift, tPopScaleBlooms, tPopAccumPops, &
+            tmp_fvals_size, max_ratio_size, tmp_apvals_size)
         gdata_size = gdata_read_handler%entry_size()
         
         t_read_gdata = gdata_read_handler%t_io()
         if(t_read_gdata) then
-           call h5dopen_f(grp_id, nm_gdata, ds_gdata, err)
+           call h5lexists_f(grp_id, nm_gdata, t_exist_gdata, err)
+           if(t_exist_gdata) then
+               call h5dopen_f(grp_id, nm_gdata, ds_gdata, err)
+           else
+               !This is for backword-compatibility.
+               !gdata group had another earlier name.
+               call h5dopen_f(grp_id, nm_gdata_old, ds_gdata, err)
+           endif
         endif
+
 
         ! Check that these datasets look like we expect them to.
         call check_dataset_params(ds_ilut, nm_ilut, 8_hsize_t, H5T_INTEGER_F, &
@@ -1074,8 +1140,15 @@ contains
         call check_dataset_params(ds_sgns, nm_sgns, 8_hsize_t, H5T_FLOAT_F, &
                                   [int(tmp_lenof_sign, hsize_t), all_count])
         if(t_read_gdata) then
-           call check_dataset_params(ds_gdata, nm_gdata, 8_hsize_t, H5T_FLOAT_F, &
-                [int(gdata_size, hsize_t), all_count])
+           if(t_exist_gdata)then
+             call check_dataset_params(ds_gdata, nm_gdata, 8_hsize_t, H5T_FLOAT_F, &
+                  [int(gdata_size, hsize_t), all_count])
+           else
+               !This is for backword-compatibility.
+               !gdata group had another earlier name.
+             call check_dataset_params(ds_gdata, nm_gdata_old, 8_hsize_t, H5T_FLOAT_F, &
+                  [int(gdata_size, hsize_t), all_count])
+           endif
         endif
 
         !limit the buffer size per MPI task to 50MB or MaxSpawned entries
@@ -1138,7 +1211,8 @@ contains
                deallocate(gdata_buf)
                allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)
                call gdata_read_handler%init_gdata_io(&
-                   tPopAutoAdaptiveShift, tPopScaleBlooms, tmp_fvals_size, max_ratio_size)
+                   tPopAutoAdaptiveShift, tPopScaleBlooms, tPopAccumPops, &
+                   tmp_fvals_size, max_ratio_size, tmp_apvals_size)
             end if
 
             call read_walker_block_buff(ds_ilut, ds_sgns, ds_gdata, block_start, &
@@ -1150,7 +1224,8 @@ contains
                ! resize the fvals in the same manner
                if(t_read_gdata) then
                    call gdata_read_handler%clone_gdata(&
-                       gdata_buf, tmp_fvals_size, fvals_size, this_block_size)
+                       gdata_buf, tmp_fvals_size, fvals_size, tmp_apvals_size, &
+                       apvals_size, this_block_size)
                endif
             endif
 
@@ -1242,6 +1317,7 @@ contains
                 [0_hsize_t, block_start], &
                 [0_hsize_t, 0_hsize_t])
         endif
+
 #else
         call stop_all("read_walker_block", "32-64bit conversion not yet implemented")
 #endif
@@ -1463,6 +1539,7 @@ contains
         integer(n_int), intent(inout) :: dets(:, :)
         integer(hsize_t), intent(in) :: gdata_write(:,:)
         integer, intent(in) :: nreceived
+
         integer(int64), intent(inout) :: CurrWalkers
         real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
         type(gdata_io_t), intent(in) :: gdata_read_handler
@@ -1477,8 +1554,11 @@ contains
 
               ! Check that the site is occupied, and passes the relevant
               ! thresholds before adding it to the system.
+              ! However, when reading accumlated populations (APVals), we want
+              ! to add even unoccupied sites who has accumlated values
               call extract_sign(receivebuff(: ,j), sgn)
-              if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
+              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
+                  tAccumPopsActive) then
 
                  ! Add this site to the main list
                  CurrWalkers = CurrWalkers + 1
@@ -1496,8 +1576,11 @@ contains
 
               ! Check that the site is occupied, and passes the relevant
               ! thresholds before adding it to the system.
+              ! However, when reading accumlated populations (APVals), we want
+              ! to add even unoccupied sites who has accumlated values
               call extract_sign(SpawnedParts2(: ,j), sgn)
-              if (any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) then
+              if ((any(abs(sgn) >= iWeightPopRead) .and. .not. IsUnoccDet(sgn)) .or. &
+                  tAccumPopsActive) then
 
                  ! Add this site to the main list
                  CurrWalkers = CurrWalkers + 1
