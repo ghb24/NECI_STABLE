@@ -134,11 +134,8 @@ contains
         integer, intent(in) :: src(2)
         real(dp), intent(out) :: cum_arr(nbasis), cum_sum
 
-        integer :: nI_placeholder(nEl)
         integer :: ispn, orba, orbb
         real(dp) :: elem, testE
-
-        nI_placeholder(:) = 0
 
         ispn = get_ispn(src)
 
