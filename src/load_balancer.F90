@@ -6,14 +6,15 @@ module load_balance
                         tContTimeFCIMC, t_prone_walkers, &
                         tContTimeFull, tTrialWavefunction, &
                         tPairedReplicas, tau, tSeniorInitiators, &
-                        t_activate_decay, tAutoAdaptiveShift
+                        t_activate_decay, tAutoAdaptiveShift, tMoveGlobalDetData
     use global_det_data, only: global_determinant_data, &
+                               global_determinant_data_tmp, &
                                set_det_diagH, set_spawn_rate, &
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH, store_decoding, &
                                reset_all_tot_spawns, reset_all_acc_spawns
     use bit_rep_data, only: flag_initiator, NIfDBO, &
-                            flag_connected, flag_trial, flag_prone
+                            flag_connected, flag_trial, flag_prone, flag_removed
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut, clr_flag
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
@@ -25,9 +26,9 @@ module load_balance
     use searching, only: hash_search_trial, bin_search_trial
     use determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement
-    use LoggingData, only: tOutputLoadDistribution
+    use LoggingData, only: tOutputLoadDistribution, tAccumPopsActive
     use cont_time_rates, only: spawn_rate_full
-    use DetBitOps, only: DetBitEq
+    use DetBitOps, only: DetBitEq, tAccumEmptyDet
     use sparse_arrays, only: con_ht, trial_ht, trial_hashtable
     use trial_ht_procs, only: buffer_trial_ht_entries, add_trial_ht_entries
     use load_balance_calcnodes
@@ -116,7 +117,7 @@ contains
         mapping_test = 0
         do j = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:,j), sgn)
-            if (IsUnoccDet(sgn)) cycle
+            if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) cycle
 
             ! Use ceiling as part-integer particles involve the same
             ! computational cost...
@@ -183,11 +184,20 @@ contains
         ! Count the number of particles inside each of the blocks
         block_parts = 0
         HolesInList = 0
+        if(tAccumPopsActive)then
+            FreeSlot(1:iEndFreeSlot)=0
+            iStartFreeSlot=1
+            iEndFreeSlot=0
+        endif
         do j = 1, int(TotWalkers, sizeof_int)
 
             call extract_sign(CurrentDets(:,j), sgn)
-            if (IsUnoccDet(sgn)) then
+            if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) then
                 HolesInList = HolesInList + 1
+                if(tAccumPopsActive)then
+                    iEndFreeSlot = iEndFreeSlot + 1
+                    FreeSlot(iEndFreeSlot) = j
+                endif
                 cycle
             end if
 
@@ -328,6 +338,7 @@ contains
         integer, parameter :: mpi_tag_con = 223459
         integer, parameter :: mpi_tag_ntrialsend = 223460
         integer, parameter :: mpi_tag_trial = 223461
+        integer, parameter :: mpi_tag_glob = 223462
 
         src_proc = LoadBalanceMapping(block)
 
@@ -347,13 +358,16 @@ contains
 
                 ! Skip unoccupied sites (non-contiguous)
                 call extract_sign(CurrentDets(:,j), sgn)
-                if (IsUnoccDet(sgn)) cycle
+                if (IsUnoccDet(sgn) .and. .not. tAccumEmptyDet(CurrentDets(:,j))) cycle
 
                 call decode_bit_det(det, CurrentDets(:,j))
                 det_block = get_det_block(nel, det, 0)
                 if (det_block == block) then
                     nsend = nsend + 1
                     SpawnedParts(0:NIfTot,nsend) = CurrentDets(:,j)
+                    if(tMoveGlobalDetData) then
+                        global_determinant_data_tmp(:,nsend) = global_determinant_data(:,j)
+                    endif
 
                     ! Remove the det from the main list.
                     call nullify_ilut(CurrentDets(:,j))
@@ -366,6 +380,11 @@ contains
             call MPISend(nsend, 1, tgt_proc, mpi_tag_nsend, ierr)
             call MPISend(SpawnedParts(0:NIfTot, 1:nsend), nelem, tgt_proc, &
                          mpi_tag_dets, ierr)
+            if(tMoveGlobalDetData) then
+                nelem = nsend * SIZE(global_determinant_data_tmp, 1)
+                call MPISend(global_determinant_data_tmp(:, 1:nsend), nelem, &
+                             tgt_proc, mpi_tag_glob, ierr)
+            endif
 
             ! we only communicate the trial hashtable
             if(tTrialWavefunction .and. tTrialHash) then
@@ -399,6 +418,11 @@ contains
             call MPIRecv(nsend, 1, src_proc, mpi_tag_nsend, ierr)
             nelem = nsend * (1 + NIfTot)
             call MPIRecv(SpawnedParts(0:NIfTot, 1:nsend), nelem, src_proc, mpi_tag_dets, ierr)
+            if(tMoveGlobalDetData) then
+                nelem = nsend * SIZE(global_determinant_data_tmp, 1)
+                call MPIRecv(global_determinant_data_tmp(:, 1:nsend), nelem, &
+                             src_proc, mpi_tag_glob, ierr)
+            endif
 
             do j = 1, nsend
                 call decode_bit_det(det, SpawnedParts(:,j))
@@ -413,6 +437,10 @@ contains
                 HDiag = get_diagonal_matel(det, SpawnedParts(:,j))
                 call AddNewHashDet(TotWalkersTmp, SpawnedParts(:, j), &
                                    hash_val, det, HDiag, PartInd, err)
+
+                if(tMoveGlobalDetData) then
+                    global_determinant_data(:,PartInd) = global_determinant_data_tmp(:,j)
+                endif
                 TotWalkers = TotWalkersTmp
             end do
 
@@ -560,6 +588,9 @@ contains
             call set_spawn_rate(DetPosition, spawn_rate_full(nJ, ilutCurr))
         end if
 
+        !In case we are filling a hole, clear the removed flag
+        call set_flag(CurrentDets(:,DetPosition), flag_removed, .false.)
+
         ! Add the new determinant to the hash table.
 
         call add_hash_table_entry(HashIndex, DetPosition, DetHash)
@@ -570,11 +601,15 @@ contains
       implicit none
       type(ll_node), pointer, intent(inout) :: HashIndex(:)
       integer, intent(in) :: nJ(nel), partInd
+
       ! remove a determinant from the hashtable
       call remove_hash_table_entry(HashIndex, nJ, PartInd)
       ! Add to "freeslot" list so it can be filled in.
       iEndFreeSlot = iEndFreeSlot + 1
       FreeSlot(iEndFreeSlot) = PartInd
+      ! Mark it as removed
+      call set_flag(CurrentDets(:, PartInd), flag_removed, .true.)
+
     end subroutine RemoveHashDet
 
     function get_diagonal_matel(nI, ilut) result(diagH)
@@ -634,7 +669,7 @@ contains
                 if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                    AnnihilatedDet = AnnihilatedDet + 1
+                    if(.not. tAccumEmptyDet(CurrentDets(:,i))) AnnihilatedDet = AnnihilatedDet + 1
                 else
 
                    ! count the number of walkers that are single-spawns at the threshold
@@ -662,7 +697,7 @@ contains
                                    CurrentSign(j) = 0.0_dp
                                    call nullify_ilut_part(CurrentDets(:,i), j)
                                    call decode_bit_det(nI, CurrentDets(:,i))
-                                   if (IsUnoccDet(CurrentSign)) then
+                                   if (IsUnoccDet(CurrentSign) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) then
                                       call RemoveHashDet(HashIndex, nI, i)
                                       ! also update both the number of annihilated dets
                                       AnnihilatedDet = AnnihilatedDet + 1
