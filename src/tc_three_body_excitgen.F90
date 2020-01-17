@@ -2,7 +2,7 @@
 module tc_three_body_excitgen
   use constants
   use SystemData, only: nel, nOccAlpha, nOccBeta, nBasis, G1, t_ueg_3_body,&
-                        tContact, t_exclude_3_body_excits, symmetry
+                        tContact, t_exclude_3_body_excits, symmetry, tNoSymGenRandExcits
   use lattice_mod, only: sort_unique
   use bit_rep_data, only: NIfTot
   use k_space_hubbard, only: make_triple
@@ -223,8 +223,11 @@ module tc_three_body_excitgen
 
             if(t_ueg_3_body)then
                 call pick_three_orbs_ueg(nI, src, tgt, pgen, ms)
+            else if(tNoSymGenRandExcits) then
+                ! picking three orbs regardless of symmetry is easier
+                call pick_three_orbs_nosym(nI, tgt, pgen, ms)
             else
-                call pick_three_orbs(nI, src, tgt, pgen, ms)
+                call pick_three_orbs_sym(nI, src, tgt, pgen, ms)
             end if
             
             if(tgt(3).eq.0)then
@@ -376,9 +379,41 @@ module tc_three_body_excitgen
         end subroutine skipElec
     end subroutine get_missing_elec
 
-!------------------------------------------------------------------------------------------!
+    !------------------------------------------------------------------------------------------!
+    
+    !> picks three random unoccupied orbitals, given the occupied orbitals, ignoring symmetry
+    !! This is a more efficient version of pick_three_orbs_sym for the case that point-group symmetry
+    !! is not used
+    subroutine pick_three_orbs_nosym(nI, tgt, pgen, ms)
+        integer, intent(in) :: nI(nel), ms
+        integer, intent(out) :: tgt(3)
+        real(dp), intent(inout) :: pgen
 
-    subroutine pick_three_orbs(nI, src, tgt, pgen, ms)
+        integer :: i, msCur, msOrb
+
+        msCur = ms
+        do i = 0, 2
+            ! get the ms of this orb
+            ! we take ms = 1 until the total leftover ms is negative
+            if(msCur > 0) then
+                msOrb = 1
+            else
+                ! then we start taking ms = -1
+                msOrb = -1
+            endif
+            call get_rand_orb(nI,tgt,msOrb,i, pgen)
+            ! the remaining ms
+            msCur = msCur - msOrb
+        end do
+
+        ! adjust the probability by taking permutations into account
+        pgen = pgen * 2 * abs(ms)
+
+    end subroutine pick_three_orbs_nosym
+
+    !------------------------------------------------------------------------------------------! 
+
+    subroutine pick_three_orbs_sym(nI, src, tgt, pgen, ms)
         ! picks three random unoccupied orbitals, given the occupied orbitals
         integer, intent(in) :: nI(nel), ms, src(3)
         integer, intent(out) :: tgt(3)
@@ -431,7 +466,7 @@ module tc_three_body_excitgen
 
         ! sort the target orbitals for further usage
         tgt = sort_unique(tgt)
-    end subroutine pick_three_orbs
+    end subroutine pick_three_orbs_sym
 
     !------------------------------------------------------------------------------------------!
 
