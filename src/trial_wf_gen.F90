@@ -283,6 +283,11 @@ contains
             get_total_time(Trial_Init_Time)
         call neci_flush(6)
 
+
+        if(tAS_TrialOffset)then
+            call set_AS_TrialOffset(nexcit_keep, replica_pairs)
+        endif
+
     end subroutine init_trial_wf
 
 
@@ -967,5 +972,32 @@ contains
          call clr_flag(CurrentDets(:,i),flag_trial)
       enddo
     end subroutine reset_trial_space
+
+
+    !> Set the offset of the adaptive shift equal to the eigen energy(s)
+    !> of the trial space.
+    !> @param[in] nexcit_keep  number of wave functions/energies kept during trial-wf initialization
+    !> @param[in] replica_pairs  whether replicas are assumed to be paired during trial-wf initialization
+    subroutine Set_AS_TrialOffset(nexcit_keep, replica_pairs)
+        use FciMCData, only: trial_energies
+        integer, intent(in) :: nexcit_keep
+        logical, intent(in) :: replica_pairs 
+        integer :: i
+
+        if(replica_pairs)then
+            ASSERT(nexcit_keep == inum_runs .div. 2)
+            do i = 1, nexcit_keep
+                ShiftOffset(2*i-1) = trial_energies(i)
+                ShiftOffset(2*i) = trial_energies(i)
+            enddo
+        else
+            ASSERT(nexit_keep == inum_runs)
+            ShiftOffset(1:inum_runs) = trial_energies(1:inum_runs)
+        endif
+
+        tAS_Offset = .true.
+        write(6,*) "The adaptive shift is offset by the eigen energy(s) of this trial-space."
+
+    end subroutine
 
 end module trial_wf_gen

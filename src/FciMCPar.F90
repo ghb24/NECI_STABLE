@@ -25,8 +25,7 @@ module FciMCParMod
                         tLogAverageSpawns, tActivateLAS, &
                         tEn2Rigorous, tDeathBeforeComms, tSetInitFlagsBeforeDeath, &
                         tDetermProjApproxHamil, tActivateLAS, tLogAverageSpawns, &
-                        tCoreAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
-                        tScaleBlooms, max_allowed_spawn
+                        tCoreAdaptiveShift, tScaleBlooms, max_allowed_spawn
     use adi_data, only: tReadRefs, tDelayGetRefs, allDoubsInitsDelay, &
                         tDelayAllDoubsInits, tReferenceChanged, &
                         SIUpdateInterval, tSuppressSIOutput, nRefUpdateInterval, &
@@ -422,9 +421,6 @@ module FciMCParMod
                     else
                         call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
                     end if
-                    if(tAS_TrialOffset)then
-                        call Set_AS_TrialOffset()
-                    endif
                 end if
             end if
 

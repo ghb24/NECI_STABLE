@@ -169,8 +169,6 @@ contains
           AAS_Const = 0.0
           tAS_TrialOffset = .false.
           tAS_Offset = .false.
-          ShiftOffset = 0.0_dp
-          FullShiftOffset = 0.0_dp
           tInitsRDMRef = .false.
           tInitsRDM = .false.
           tApplyLC = .true.
@@ -498,7 +496,7 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
-          real(dp) :: InputDiagSftSingle
+          real(dp) :: InputDiagSftSingle, ShiftOffsetTmp
           integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
 
           ! Allocate and set this default here, because we don't have inum_runs
@@ -1928,8 +1926,19 @@ contains
                 tAS_TrialOffset = .true.
             case("AS-OFFSET")
                 ! Use the supplied energy as an offset for the adaptive shift (instead of reference)
+                ! Provide either a single offset to be used for all replicas, or specify the
+                ! offset for each replica sperately
                 tAS_Offset = .true.
-                call getf(FullShiftOffset)
+                if (nitems == 2) then
+                    call getf(ShiftOffsetTmp)
+                    ShiftOffset = ShiftOffsetTmp
+                else
+                    if (inum_runs /= nitems-1) call stop_all(t_r, "The number of shift offsets is not equal to &
+                                                                  &the number of replicas being used.")
+                    do i = 1, inum_runs
+                        call getf(ShiftOffset(i))
+                    end do
+                end if
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")

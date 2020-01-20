@@ -54,8 +54,7 @@ module fcimc_initialisation
                         tReplicaEstimates, tDeathBeforeComms, pSinglesIn, pParallelIn, &
                         tSetInitFlagsBeforeDeath, tSetInitialRunRef, tEN2Init, &
                         tInitiatorSpace, i_space_in, tLinearAdaptiveShift,&
-                        tExpAdaptiveShift, tAS_TrialOffset, ShiftOffset, &
-                        tSpinProject
+                        tExpAdaptiveShift, tSpinProject
     use spin_project, only: init_yama_store, clean_yama_store
     use adi_data, only: tReferenceChanged, tAdiActive, &
          nExChecks, nExCheckFails, nRefUpdateInterval, SIUpdateInterval
@@ -166,7 +165,7 @@ module fcimc_initialisation
 
     use tau_search, only: init_tau_search, max_death_cpt
 
-    use fcimc_helper, only: CalcParentFlag, update_run_reference, Set_AS_TrialOffset
+    use fcimc_helper, only: CalcParentFlag, update_run_reference
 
     use cont_time_rates, only: spawn_rate_full, oversample_factors, &
                                secondary_gen_store, ostag
@@ -1791,9 +1790,6 @@ contains
             else
                 call init_trial_wf(trial_space_in, ntrial_ex_calc, inum_runs, .false.)
             end if
-            if(tAS_TrialOffset)then
-                call Set_AS_TrialOffset()
-            endif
         else if (tStartTrialLater) then
             ! If we are going to turn on the use of a trial wave function
             ! later in the calculation, then zero the trial estimate arrays

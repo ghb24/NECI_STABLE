@@ -17,8 +17,7 @@ module fcimc_pointed_fns
                         tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
-                        tPrecond, AAS_Const, EAS_Scale, ShiftOffset, FullShiftOffset, &
-                        tAS_Offset
+                        tPrecond, AAS_Const, EAS_Scale, ShiftOffset, tAS_Offset
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
@@ -597,6 +596,7 @@ module fcimc_pointed_fns
         real(dp) :: rat(1)
 #endif
         real(dp) :: shift
+        real(dp) :: relShiftOffset ! ShiftOffset relative to Hii
 
 
         do i=1, inum_runs
@@ -604,14 +604,16 @@ module fcimc_pointed_fns
                 !If we are fixing the population of reference det, skip death/birth
                 fac(i)=0.0
             else
-                 ! rescale the shift
-                if(tAdaptiveShift) then
+                 ! rescale the shift. It is better to wait till the shift starts varying
+                if(tAdaptiveShift .and. .not. tSinglePartPhase(i)) then
                     if(tAS_Offset)then
-                        ShiftOffset = FullShiftOffset - Hii
+                        !Since DiagSft is relative to Hii, ShiftOffset should also be adjusted
+                        relShiftOffset = ShiftOffset(i) - Hii
                     else
-                        ShiftOffset = 0.0_dp
+                        !Each replica's shift should be scaled using its own reference
+                        relShiftOffset = proje_ref_energy_offsets(i) ! i.e. E(Ref(i)) - Hii
                     endif
-                    shift = ShiftOffset + (DiagSft(i)-ShiftOffset) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign,i))
+                    shift = relShiftOffset + (DiagSft(i)-relShiftOffset) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign,i))
                 else
                     shift = DiagSft(i)
                 end if
