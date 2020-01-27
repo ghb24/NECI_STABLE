@@ -117,19 +117,13 @@ program test_molecular_tc
       nI = (/1,2,4,11,13,14/)
       pTriples = 1.0
 
-      ! exact values for pgenXB for (6,7) ms=0
-      call assert_equals(pgen0B,0.25_dp)
-      call assert_equals(pgen1B,1.0/216.0_dp)
-      call assert_equals(pgen2B,1.0/216.0_dp)
-      call assert_equals(pgen3B,0.25_dp)
-
       do i = 1, nTest
          ilut = 0_n_int
          ilutJ = 0_n_int
          call gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
               tParity, pgen, helgen, store)
 
-         call assert_true(abs(pgen-calc_pgen_triple(ExcitMat)) < eps)
+         call assert_true(abs(pgen-calc_pgen_triple(nI,ExcitMat)) < eps)
       end do
     end subroutine run_excitgen_test
 
