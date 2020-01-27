@@ -11,7 +11,7 @@ module tc_three_body_excitgen
   use CalcData, only: p_doubles_input
   use dSFMT_interface, only: genrand_real2_dSFMT
   use lattice_models_utils, only: make_ilutJ
-  use util_mod, only: choose
+  use util_mod, only: choose, intswap
   use excit_gens_int_weighted, only: pick_biased_elecs, pick_oppspin_elecs
   use GenRandSymExcitNUMod, only: calc_pgen_symrandexcit2, ScratchSize, &
        createSingleExcit, createDoubExcit, construct_class_counts,      &
@@ -19,8 +19,12 @@ module tc_three_body_excitgen
   use procedure_pointers, only: generate_two_body_excitation
   use sym_general_mod, only: ClassCountInd
   use sym_mod, only: symprod, symconj
-
+  
   implicit none
+  ! Factors accounting for permutation of electrons
+  real(dp), parameter :: same_spin_perm = 6.0_dp
+  real(dp), parameter :: opp_spin_perm = 4.0_dp
+  
   contains
 
     subroutine gen_excit_mol_tc(nI, ilut, nJ, ilutJ, exFlag, ic, ExcitMat, &
@@ -72,43 +76,133 @@ module tc_three_body_excitgen
          ! and take into account the bias for triples
       else if(ic == 3) then
          ! else, use the local routine
-         pgen = calc_pgen_triple(ex)
+         pgen = calc_pgen_triple(nI, ex)
       endif
 
     end function calc_pgen_mol_tc
 
 !------------------------------------------------------------------------------------------!
 
-    function calc_pgen_triple(ex) result(pgen)
-      ! get the probability to get excitation `ex` from a determinant `nI`
-      integer, intent(in) :: ex(2,3)
-      real(dp) :: pgen
-      integer :: ms, i
-      character(*), parameter :: t_r = "calc_pgen_triple"
+    function calc_pgen_triple(nI, ex) result(pgen)
+        ! get the probability to get excitation `ex` from a determinant `nI`
+        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: ex(2,3)
+        real(dp) :: pgen
+        integer :: ms, i, tgt_spin
+        character(*), parameter :: t_r = "calc_pgen_triple"
 
-      ! get the spin
-      ms = 0
-      ! sum up the spin of the single orbitals
-      do i = 1, 3
-         ms = ms + G1(ex(2,i))%ms
-      end do
+        ! get the spin
+        ms = 0
+        ! sum up the spin of the single orbitals
+        do i = 1, 3
+            ms = ms + G1(ex(2,i))%ms
+        end do
 
-      ! start with pTriples
-      pgen = pTriples
-      ! then, add the spin bias
-      if(ms == -3) then
-         pgen = pgen * p0A * pgen3B
-      else if(ms == -1) then
-         pgen = pgen * p2B * pgen2B
-      else if(ms == 1) then
-         pgen = pgen * pgen1B * (1 - p2B - p0A - p0B)
-      else if(ms == 3) then
-         pgen = pgen * p0B * pgen0B
-      else
-         call stop_all(t_r, "Invalid spin")
-      endif
+        ! start with pTriples
+        pgen = pTriples
+        ! then, add the spin bias and electron picking probs
+        if(ms == -3) then
+            pgen = pgen * p0A * pgen3B
+        else if(ms == -1) then
+            pgen = pgen * p2B * pgen2B
+        else if(ms == 1) then
+            pgen = pgen * (1 - p2B - p0A - p0B) * pgen1B
+        else if(ms == 3) then
+            pgen = pgen * p0B * pgen0B
+        else
+            call stop_all(t_r, "Invalid spin")
+        endif
 
+        ! Add the probability of picking these three target orbitals
+        if(tNoSymGenRandExcits) then
+            call calc_pgen_triple_target_nosym(ms, pgen)
+        else
+            call calc_pgen_triple_target_sym(nI, ex, ms, pgen)
+        endif
     end function calc_pgen_triple
+
+    !------------------------------------------------------------------------------------------!
+
+    !> Calculates the probability of picking three orbitals with total spin ms without symmetry
+    !> @param[in] ms  total spin of the picked orbitals
+    !> @param[inout] pgen  on call, the probability of picking the electrons, on return, the total
+    !! probability
+    pure subroutine calc_pgen_triple_target_nosym(ms, pgen)
+        integer, intent(in) :: ms
+        real(dp), intent(inout) :: pgen
+
+        if(ms == -3) then
+            pgen = pgen * same_spin_perm &
+                / (nUnoccBeta * (nUnoccBeta - 1) * (nUnoccBeta - 2))
+        else if(ms == -1) then
+            pgen = pgen * opp_spin_perm &
+                / (nUnoccBeta * (nUnoccBeta - 1) * nUnoccAlpha)
+        else if(ms == 1) then
+            pgen = pgen * opp_spin_perm &
+                / (nUnoccBeta * nUnoccAlpha * (nUnoccAlpha - 1))
+        else
+            pgen = pgen * same_spin_perm &
+                / (nUnoccAlpha * (nUnoccAlpha - 1) * (nUnoccAlpha - 2))            
+        endif
+    end subroutine calc_pgen_triple_target_nosym
+
+    !------------------------------------------------------------------------------------------!
+
+    !> Calculates the probability of picking three orbitals with total spin ms with symmetry
+    !> @param[in] nI  determinant the excitation was made from
+    !> @param[in] ex  the excitation matrix (2x3 array)
+    !> @param[in] ms  total spin of the picked orbitals
+    !> @param[inout] pgen  on call, the probability of picking the electrons, on return, the total
+    !! probability    
+    subroutine calc_pgen_triple_target_sym(nI, ex, ms, pgen)
+        integer, intent(in) :: nI(nel)
+        integer, value :: ex(2,3)
+        integer, intent(in) :: ms
+        real(dp), intent(inout) :: pgen
+
+        ! Temporary: Store the probability of picking the canonical order
+        real(dp) :: pgen_pick
+        integer :: pool_sizes(3), tgt_spin
+        integer :: cc_unocc(ScratchSize), cc_occ(ScratchSize), cc_ind        
+
+        ! get the number of available orbs per symmetry sector
+        call construct_class_counts(nI, cc_occ, cc_unocc)
+
+        ! Now, get the prob for picking these three target orbitals
+
+        ! The first two are chosen uniformly, and have the majority spin
+        if(ms > 0) then
+            pool_sizes(1:2) = nUnoccAlpha
+            ! tgt_spin is the spin of the third, assign it to majority spin
+            tgt_spin = 1
+        else
+            pool_sizes(1:2) = nUnoccBeta
+            tgt_spin = 2
+        end if
+
+        if(abs(ms) /= 3) then
+            ! Now, we have to be careful: The pick-algorithm has a convention on the order
+            ! Alpha/Beta are picked, but this order is not preserved => Sort
+
+            ! The convention is: the first two orbitals have the same spin
+            if(G1(ex(2,1))%MS /= G1(ex(2,2))%MS) call intswap(ex(2,2), ex(2,3))
+            ! Also, the third electron has minority spin now, so swap tgt_spin
+            ! (map 1 -> 2 and 2 -> 1
+            tgt_spin = 3 - tgt_spin
+        endif
+        ! Get the index of the symmetry class of the third (symmetry-restricted) orb
+        cc_ind = ClassCountInd(tgt_spin, G1(ex(2,3))%Sym%S, 0)
+        ! And the from that number of available orbs
+        pool_sizes(3) = cc_unocc(cc_ind)
+        
+        ! The pool for the second is one smaller, because the first one is not available anymore
+        pool_sizes(2) = pool_sizes(2) - 1
+        pgen_pick = pgen / product(pool_sizes)
+
+        ! now, account for permutations
+        call add_permutations_to_pgen(pgen, pgen_pick, pool_sizes, ms, ex(2,:), cc_unocc)
+        
+    end subroutine calc_pgen_triple_target_sym
 
 !------------------------------------------------------------------------------------------!
 
@@ -123,24 +217,23 @@ module tc_three_body_excitgen
 !------------------------------------------------------------------------------------------!
 
     subroutine precompute_pgen()
+
       ! set the number of unoccupied alpha/beta
       nUnoccAlpha = nBasis/2 - nOccAlpha
       nUnoccBeta = nBasis/2 - nOccBeta
 
       ! the number of valid triple excitations is just given by the binomial coefficients
-      pgen3B = nOccBeta * (nOccBeta - 1) * (nOccBeta - 2) * nUnoccBeta * (nUnoccBeta - 1) &
-           * (nUnoccBeta - 2)
-      pgen3B = scaleInvert(36.0_dp, pgen3B)
+      pgen3B = nOccBeta * (nOccBeta - 1) * (nOccBeta - 2)
+      pgen3B = scaleInvert(same_spin_perm, pgen3B)
 
-      pgen2B = nOccBeta * (nOccBeta - 1) * nOccAlpha * nUnoccBeta * (nUnoccBeta - 1) * nUnoccAlpha
-      pgen2B = scaleInvert(4.0_dp, pgen2B)
+      pgen2B = nOccBeta * (nOccBeta - 1) * nOccAlpha
+      pgen2B = scaleInvert(opp_spin_perm, pgen2B)
 
-      pgen1B = nOccBeta * nOccAlpha * (nOccAlpha - 1) * nUnoccBeta * nUnoccAlpha * (nUnoccAlpha - 1)
-      pgen1B = scaleInvert(4.0_dp, pgen1B)
+      pgen1B = nOccBeta * nOccAlpha * (nOccAlpha - 1)
+      pgen1B = scaleInvert(opp_spin_perm, pgen1B)
 
-      pgen0B = nOccAlpha * (nOccAlpha - 1) * (nOccAlpha - 2) * nUnoccAlpha * (nUnoccAlpha - 1) &
-           * (nUnoccAlpha - 2)
-      pgen0B = scaleInvert(36.0_dp, pgen0B)
+      pgen0B = nOccAlpha * (nOccAlpha - 1) * (nOccAlpha - 2) 
+      pgen0B = scaleInvert(same_spin_perm, pgen0B)
 
       contains
         pure function scaleInvert(scl, p) result(sp)
@@ -433,6 +526,7 @@ module tc_three_body_excitgen
         do i = 0, 1
             ! get the ms of this orb
             ! we take ms = 1 until the total leftover ms is negative
+            ! This ensures the first two electrons have the same spin
             if(msCur > 0) then
                 msOrb = 1
             else
@@ -440,7 +534,7 @@ module tc_three_body_excitgen
                 msOrb = -1
             endif
             call create_full_pool(nI, tgt, msOrb, pool, i)
-            call get_orb_from_pool(nI, tgt, msOrb, pool, i, pgen_pick)
+            call get_orb_from_pool(nI, tgt, pool, i, pgen_pick)
             ! the remaining ms
             msCur = msCur - msOrb
             ! keep the size of the pool in memory
@@ -452,7 +546,7 @@ module tc_three_body_excitgen
         ! Now, pick the last one according to symmetry
         tgt_sym = get_tgt_sym(nI, tgt, src)
         call create_sym_pool(nI, tgt, msCur, pool, i, tgt_sym, cc_unocc)
-        call get_orb_from_pool(nI, tgt, msCur, pool, i, pgen_pick)
+        call get_orb_from_pool(nI, tgt, pool, i, pgen_pick)
         pool_sizes(i+1) = size(pool)
 
         ! There might be no symmetry-allowed picks for the last orbital - in that case
@@ -484,24 +578,8 @@ module tc_three_body_excitgen
         ! adjust the probability by taking permutations into account
         ! these depend on the spin
         if(abs(ms)==1) then
-            if(ms > 0) then
-                ! We can only swap the first two electrons => factor of two
-                pgen_pick = pgen_pick * 2
-            else
-                ! If both betas come from the same irrep, pgen is just doubled
-                if(irreps(2) == irreps(3)) then
-                    pgen_pick = pgen_pick * 2
-                else
-                    ! Else, we have to look at how many orbs can be chosen from the other irrep
-                    ! Get the irrep of the second chosen orb (first beta)
-                    cc_ind = ClassCountInd(2, irreps(2), 0)
-                    swap_pool_size = cc_unocc(cc_ind)
-                    ! We can swap the last two electrons => add the pgen for the other way around
-                    ! pool_sizes(2) is also the pool size for the other beta orbtial                
-                    pgen_pick = pgen_pick + pgen * 1.0_dp / (pool_sizes(1)) * 1.0_dp / (pool_sizes(2)) &
-                        * 1.0_dp / (swap_pool_size)
-                endif
-            endif
+            ! We can only swap the first two electrons => factor of two
+            pgen_pick = pgen_pick * 2
         else
             ! The first two could have been picked in any order
             pgen_pick = pgen_pick * 2
@@ -708,10 +786,15 @@ module tc_three_body_excitgen
     end subroutine get_rand_orb
 
     !------------------------------------------------------------------------------------------!
-    
-    subroutine get_orb_from_pool(nI, tgt, ms, pool, nPicked, pgen)
+
+    !> Randomly pick an orbital from a pre-arranged pool of possible orbitals
+    !> @param[inout] tgt  array of size 3, contains the target orbitals
+    !> @param[in] pool  array containing the available orbitals to pick from
+    !> @param[in] nPicked  number of already picked orbitals
+    !> @param[inout] pgen  probabaility of choosing this orbital
+    subroutine get_orb_from_pool(nI, tgt, pool, nPicked, pgen)
         integer, intent(inout) :: tgt(3)
-        integer, intent(in) :: ms, pool(:), nI(nel), nPicked
+        integer, intent(in) :: pool(:), nI(nel), nPicked
         real(dp), intent(inout) :: pgen
 
         integer :: iOrb, i, pool_size
@@ -777,6 +860,14 @@ module tc_three_body_excitgen
 
     !------------------------------------------------------------------------------------------!
 
+    !> create a pool of unoccupied orbitals with a given symmetry
+    !> @param[in] nI  determinant to excite from
+    !> @param[in] tgt  array of size 3, contains the already picked target orbitals
+    !> @param[in] ms  spin of the pool. ms>0 is alpha, ms<0 beta
+    !> @param[out] pool  on return, a list of the available orbitals to excite to
+    !> @param[in] nPicked  number of already picked target orbitals
+    !> @param[in] tgt_sym  symmetry of the pool
+    !> @param[in] cc_unocc  array containing the number of unoccupied orbitals per irrep
     subroutine create_sym_pool(nI, tgt, ms, pool, nPicked, tgt_sym, cc_unocc)
         integer, intent(inout) :: tgt(3)
         integer, intent(in) :: ms, nI(nel), nPicked
@@ -825,6 +916,10 @@ module tc_three_body_excitgen
     !------------------------------------------------------------------------------------------!
 
     !> Pick a third orbital with symmetry constraint
+    !> @param[in] nI  determinant the electrons are picked from
+    !> @param[in] tgt  array of size 3, the first two entries are two orbitals to excite to
+    !> @param[in] src  array of size 3, the three orbitals excited from
+    !> @return sym  symmetry of the last orbital to excite to
     function get_tgt_sym(nI, tgt, src) result(sym)
         integer, intent(in) :: nI(nel)
         integer, intent(in) :: tgt(3)
