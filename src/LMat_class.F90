@@ -479,7 +479,7 @@ contains
         call reader%loop_file(this)
         call this%htable%setup_offsets()
         ! The core energy has already been updated, no need to do so again
-        call reader%loop_file(this, t_add_ecore = .false.)
+        call reader%loop_file(this)
         call this%htable%finalize_setup()
         call reader%close()
 #else        
@@ -724,10 +724,9 @@ contains
     !> Apply the read_op_hdf5 of an lMat to the data in the currently opened file
     !! The file will be read chunkwise and the read_op_hdf5 operation applied per chunk
     !> @param[in] lMat  the lMat object to read the data to
-    subroutine loop_file(this, lMat, t_add_ecore)
+    subroutine loop_file(this, lMat)
         class(lMat_hdf5_read_t), intent(inout) :: this
         class(lMat_t), intent(inout) :: lMat
-        logical, intent(in), optional :: t_add_ecore
 
         real(dp) :: rVal
         logical :: running, any_running

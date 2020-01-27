@@ -156,15 +156,17 @@ module tc_three_body_excitgen
     !! probability    
     subroutine calc_pgen_triple_target_sym(nI, ex, ms, pgen)
         integer, intent(in) :: nI(nel)
-        integer, value :: ex(2,3)
+        integer, intent(in) :: ex(2,3)
         integer, intent(in) :: ms
         real(dp), intent(inout) :: pgen
 
         ! Temporary: Store the probability of picking the canonical order
         real(dp) :: pgen_pick
-        integer :: pool_sizes(3), tgt_spin
+        integer :: pool_sizes(3), tgt_spin, tmp_ex(2,3)
         integer :: cc_unocc(ScratchSize), cc_occ(ScratchSize), cc_ind        
 
+        ! manually mimick pass-by-value
+        tmp_ex = ex
         ! get the number of available orbs per symmetry sector
         call construct_class_counts(nI, cc_occ, cc_unocc)
 
@@ -185,13 +187,13 @@ module tc_three_body_excitgen
             ! Alpha/Beta are picked, but this order is not preserved => Sort
 
             ! The convention is: the first two orbitals have the same spin
-            if(G1(ex(2,1))%MS /= G1(ex(2,2))%MS) call intswap(ex(2,2), ex(2,3))
+            if(G1(tmp_ex(2,1))%MS /= G1(tmp_ex(2,2))%MS) call intswap(tmp_ex(2,2), tmp_ex(2,3))
             ! Also, the third electron has minority spin now, so swap tgt_spin
             ! (map 1 -> 2 and 2 -> 1
             tgt_spin = 3 - tgt_spin
         endif
         ! Get the index of the symmetry class of the third (symmetry-restricted) orb
-        cc_ind = ClassCountInd(tgt_spin, G1(ex(2,3))%Sym%S, 0)
+        cc_ind = ClassCountInd(tgt_spin, G1(tmp_ex(2,3))%Sym%S, 0)
         ! And the from that number of available orbs
         pool_sizes(3) = cc_unocc(cc_ind)
         
@@ -200,7 +202,7 @@ module tc_three_body_excitgen
         pgen_pick = pgen / product(pool_sizes)
 
         ! now, account for permutations
-        call add_permutations_to_pgen(pgen, pgen_pick, pool_sizes, ms, ex(2,:), cc_unocc)
+        call add_permutations_to_pgen(pgen, pgen_pick, pool_sizes, ms, tmp_ex(2,:), cc_unocc)
         
     end subroutine calc_pgen_triple_target_sym
 
