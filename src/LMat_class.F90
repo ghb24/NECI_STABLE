@@ -478,6 +478,7 @@ contains
         call this%alloc(nInts)
         call reader%loop_file(this)
         call this%htable%setup_offsets()
+        ! The core energy has already been updated, no need to do so again
         call reader%loop_file(this)
         call this%htable%finalize_setup()
         call reader%close()
@@ -645,9 +646,9 @@ contains
                     ! do not count this one again
                     exit
                 endif
-                ! the last check has a different form: everything that is bigger than 0.1 counts here
-                if(abs(this%get_elem(i)) > 0.1) histogram(0) = histogram(0) + 1
             end do
+            ! the last check has a different form: everything that is bigger than 0.1 counts here
+            if(abs(this%get_elem(i)) > 0.1) histogram(0) = histogram(0) + 1
         end do
 
         ratios(:) = real(histogram(:)) / real(this%lMat_size())
@@ -802,4 +803,5 @@ contains
 
     end subroutine close
 #endif
+
 end module LMat_class
