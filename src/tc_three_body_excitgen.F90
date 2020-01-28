@@ -536,7 +536,7 @@ module tc_three_body_excitgen
                 msOrb = -1
             endif
             call create_full_pool(nI, tgt, msOrb, pool, i)
-            call get_orb_from_pool(nI, tgt, pool, i, pgen_pick)
+            call get_orb_from_pool(tgt, pool, i, pgen_pick)
             ! the remaining ms
             msCur = msCur - msOrb
             ! keep the size of the pool in memory
@@ -546,9 +546,9 @@ module tc_three_body_excitgen
         ! Get the number of orbitals per symmetry/occupation
         call construct_class_counts(nI, cc_occ, cc_unocc)        
         ! Now, pick the last one according to symmetry
-        tgt_sym = get_tgt_sym(nI, tgt, src)
+        tgt_sym = get_tgt_sym(tgt, src)
         call create_sym_pool(nI, tgt, msCur, pool, i, tgt_sym, cc_unocc)
-        call get_orb_from_pool(nI, tgt, pool, i, pgen_pick)
+        call get_orb_from_pool(tgt, pool, i, pgen_pick)
         pool_sizes(i+1) = size(pool)
 
         ! There might be no symmetry-allowed picks for the last orbital - in that case
@@ -575,7 +575,7 @@ module tc_three_body_excitgen
         integer :: irreps(3)
         
         do i = 1, 3
-            irreps(i) = G1(tgt(i))%Sym%S
+            irreps(i) = int(G1(tgt(i))%Sym%S)
         end do
         ! adjust the probability by taking permutations into account
         ! these depend on the spin
@@ -794,9 +794,9 @@ module tc_three_body_excitgen
     !> @param[in] pool  array containing the available orbitals to pick from
     !> @param[in] nPicked  number of already picked orbitals
     !> @param[inout] pgen  probabaility of choosing this orbital
-    subroutine get_orb_from_pool(nI, tgt, pool, nPicked, pgen)
+    subroutine get_orb_from_pool(tgt, pool, nPicked, pgen)
         integer, intent(inout) :: tgt(3)
-        integer, intent(in) :: pool(:), nI(nel), nPicked
+        integer, intent(in) :: pool(:), nPicked
         real(dp), intent(inout) :: pgen
 
         integer :: iOrb, i, pool_size
@@ -917,13 +917,11 @@ module tc_three_body_excitgen
 
     !------------------------------------------------------------------------------------------!
 
-    !> Pick a third orbital with symmetry constraint
-    !> @param[in] nI  determinant the electrons are picked from
+    !> Determine the symmetry of the third orbital
     !> @param[in] tgt  array of size 3, the first two entries are two orbitals to excite to
     !> @param[in] src  array of size 3, the three orbitals excited from
     !> @return sym  symmetry of the last orbital to excite to
-    function get_tgt_sym(nI, tgt, src) result(sym)
-        integer, intent(in) :: nI(nel)
+    function get_tgt_sym(tgt, src) result(sym)
         integer, intent(in) :: tgt(3)
         integer, intent(in) :: src(3)
         integer :: sym
@@ -936,7 +934,7 @@ module tc_three_body_excitgen
         s_tmp = symprod(symconj(G1(tgt(1))%Sym), s_tmp)
         s_tmp = symprod(symconj(G1(tgt(2))%Sym), s_tmp)
         s_tmp = symconj(s_tmp)
-        sym = s_tmp%S
+        sym = int(s_tmp%S)
     end function get_tgt_sym
 
 !------------------------------------------------------------------------------------------!
