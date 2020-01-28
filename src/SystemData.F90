@@ -330,8 +330,9 @@ character(20) :: lattice_type
 integer :: length_x = 1, length_y = 1, length_z = 1
 ! flag for the pre-computed power-pitzer excitaion generator
 logical :: t_pcpp_excitgen = .false.
-! flag for the pre-computed heat-bath excitation generator
+! flags for the pre-computed heat-bath excitation generator
 logical :: t_pchb_excitgen = .false.
+logical :: t_pchb_weighted_singles = .false.
 
 ! also implement a next-nearest neighbor Hubbard model implementation:
 ! for k-space hubbard, this only affects the diagonal part!
