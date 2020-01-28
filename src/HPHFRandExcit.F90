@@ -901,7 +901,7 @@ MODULE HPHFRandExcitMod
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
             else if (t_pchb_excitgen) then
-                pgen = calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2)
+                pgen = calc_pgen_pchb(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

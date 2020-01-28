@@ -437,7 +437,22 @@ contains
 
     end function
 
+    !> Wrapper function to create a weighted single excitation
+    subroutine weighted_single_excit_wrapper(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
+        implicit none
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tpar
+        real(dp), intent(out) :: pGen
+        type(excit_gen_store_type), intent(inout), target :: store
 
+        unused_var(store)
+        ! Call the 4ind-weighted single excitation generation
+        call gen_single_4ind_ex(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
+    end subroutine weighted_single_excit_wrapper
+    
     subroutine gen_single_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen)
 
         integer, intent(in) :: nI(nel)
