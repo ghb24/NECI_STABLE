@@ -451,6 +451,7 @@ contains
         unused_var(store)
         ! Call the 4ind-weighted single excitation generation
         call gen_single_4ind_ex(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
+        pgen = pgen * pSingles
     end subroutine weighted_single_excit_wrapper
     
     subroutine gen_single_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen)
