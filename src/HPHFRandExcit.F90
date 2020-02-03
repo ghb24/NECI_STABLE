@@ -24,9 +24,8 @@ MODULE HPHFRandExcitMod
 
     use dSFMT_interface, only : genrand_real2_dSFMT
 
-    use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &
-                                    ScratchSize, CalcPGenLattice
-
+    use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &    
+        ScratchSize, CalcPGenLattice, construct_class_counts
     use tc_three_body_excitgen, only: calc_pgen_mol_tc, gen_excit_mol_tc
 
     use excit_gens_int_weighted, only: gen_excit_4ind_weighted, &
@@ -370,6 +369,13 @@ MODULE HPHFRandExcitMod
 !                    CALL GetExcitation(nI,nJ2,NEl,Ex2,tSign)
                     CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
+                ! As we are passing store%ClassCountOcc/Unocc, we have to make sure they are
+                ! set
+                if(.not. store%tFilled) then
+                    CALL construct_class_counts(nI, store%ClassCountOcc, &
+                        store%ClassCountUnocc)
+                    store%tFilled = .true.
+                endif
 
                 CALL CalcNonUniPGen(nI, ilutnI, Ex2, ExcitLevel, &
                                     store%ClassCountOcc, &
