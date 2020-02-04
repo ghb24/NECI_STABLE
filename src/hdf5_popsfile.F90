@@ -554,10 +554,6 @@ contains
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
 
-        ! Read out the random orbital mapping index
-        call read_int64_1d_dataset(grp_id, nm_random_hash, RandomOrbIndex, &
-                                   required=.true.)
-
         ! Previous iteration data.
         call read_int64_scalar(grp_id, nm_iters, PreviousCycles, &
                                default=0_int64, exists=exists)
