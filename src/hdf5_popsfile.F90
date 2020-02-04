@@ -1082,7 +1082,6 @@ contains
         call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
 
-        print *, "Max ratio size", max_ratio_size
         ! size of the ms data read in
         tmp_fvals_size = 2*tmp_inum_runs
 

@@ -289,8 +289,6 @@ contains
 
         ! if all weights are 0, throw an error
         if(sum(arr) < eps) then
-            write(iout,*) &
-                "Warning: trying to initialize sampler with empty probability distribution"
             ! if we reach this point, probs is uninitialized -> null it
             this%probs%ptr => null()
             return
