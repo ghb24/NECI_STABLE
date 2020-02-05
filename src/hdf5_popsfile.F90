@@ -396,9 +396,6 @@ contains
         ! Firstly create the group for storing calculation-related data
         call h5gcreate_f(parent, nm_calc_grp, calc_grp, err)
 
-        ! Write out the random orbital mapping index
-        call write_int64_1d_dataset(calc_grp, nm_random_hash, RandomOrbIndex)
-
         call MPIBcast(PreviousCycles)
         call write_int64_scalar(calc_grp, nm_iters, iter + PreviousCycles)
         call write_dp_scalar(calc_grp, nm_tot_imag, TotImagTime)
