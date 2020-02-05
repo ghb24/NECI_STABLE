@@ -396,9 +396,6 @@ contains
         ! Firstly create the group for storing calculation-related data
         call h5gcreate_f(parent, nm_calc_grp, calc_grp, err)
 
-        ! Write out the random orbital mapping index
-        call write_int64_1d_dataset(calc_grp, nm_random_hash, RandomOrbIndex)
-
         call MPIBcast(PreviousCycles)
         call write_int64_scalar(calc_grp, nm_iters, iter + PreviousCycles)
         call write_dp_scalar(calc_grp, nm_tot_imag, TotImagTime)
@@ -553,10 +550,6 @@ contains
         logical :: exists, t_resize
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
-
-        ! Read out the random orbital mapping index
-        call read_int64_1d_dataset(grp_id, nm_random_hash, RandomOrbIndex, &
-                                   required=.true.)
 
         ! Previous iteration data.
         call read_int64_scalar(grp_id, nm_iters, PreviousCycles, &
@@ -1086,7 +1079,6 @@ contains
         call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
 
-        print *, "Max ratio size", max_ratio_size
         ! size of the ms data read in
         tmp_fvals_size = 2*tmp_inum_runs
 
