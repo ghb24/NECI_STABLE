@@ -1,0 +1,3 @@
+[submodule "External/fypp"]
+	path = External/fypp
+	url = https://github.com/aradi/fypp.git

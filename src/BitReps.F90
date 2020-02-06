@@ -6,18 +6,19 @@ module bit_reps
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
                         tStartTrialLater, tPreCond, tReplicaEstimates, tStoredDets
-
     use csf_data, only: csf_yama_bit, csf_test_bit
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
     use DetBitOps, only: count_open_orbs, CountBits
+    use DetBitOps, only: ilut_lt, ilut_gt
     use bit_rep_data
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
                                tBuildSpinSepLists, &
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
     use sym_general_mod, only: ClassCountInd
+    use util_mod, only: binary_search_custom
+    use sort_mod, only: sort
     use global_det_data, only: get_determinant
-    use util_mod, only: unused
     implicit none
 
     ! Structure of a bit representation:
@@ -174,12 +175,12 @@ contains
         ! The signs array
         NOffSgn = NOffY + NIfY
         NIfSgn = lenof_sign
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         write(6,*) 'Calculation supports multiple parallel runs'
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
         WRITE(6,*) "Double run in use."
 #endif
-#if defined(__CMPLX)
+#if defined(CMPLX_)
         WRITE(6,*) "Complex walkers in use."
 #endif
         write(6,*) 'Number of simultaneous walker distributions: ',inum_runs
@@ -188,7 +189,7 @@ contains
         ! The number of integers used for sorting / other bit manipulations
         NIfDBO = NIfD + NIfY
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         if (lenof_sign_max /= 20) then
             call stop_all(this_routine, "Invalid build configuration. Update &
                          &flags to account for new lenof_sign_max, then &
@@ -303,14 +304,13 @@ contains
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: run
         HElement_t(dp) :: sgn
-#ifdef __CMPLX
+
+        ! Strange bug in compiler
+        unused_var(run)
+#ifdef CMPLX_
         sgn = cmplx(extract_part_sign(ilut, min_part_type(run)), extract_part_sign(ilut, max_part_type(run)))
 #else
         sgn = extract_part_sign(ilut, min_part_type(run))
-#endif
-#ifdef __WARNING_WORKAROUND
-        ! Strange bug in compiler
-        call unused(run)
 #endif
     end function
 
@@ -347,25 +347,21 @@ contains
     pure function get_initiator_flag(sgn_index) result (flag)
         integer, intent(in) :: sgn_index
         integer :: flag
+        ! Strange bug in compiler
+        unused_var(sgn_index)
         ! map 1->1, 2->1, 3->3, 4->3, 5->5, 6->5 for complex,
         ! as the initiator flag is stored in the "real" bit
         ! of each run
         flag = flag_initiator(min_part_type(part_type_to_run(sgn_index)))
-#ifdef __WARNING_WORKAROUND
-        ! Strange bug in compiler
-        call unused(sgn_index)
-#endif
     end function get_initiator_flag
 
     pure function get_initiator_flag_by_run(run) result (flag)
         integer, intent(in) :: run
         integer :: flag
+        ! Strange bug in compiler
+        unused_var(run)
         ! map 1->1, 2->3, 3->5, 4->7 for complex
         flag = flag_initiator(min_part_type(run))
-#ifdef __WARNING_WORKAROUND
-        ! Strange bug in compiler
-        call unused(run)
-#endif
     end function get_initiator_flag_by_run
 
     pure function any_run_is_initiator(ilut) result (t)
@@ -435,10 +431,10 @@ contains
 
         ASSERT(run<=inum_runs)
         call encode_part_sign(ilut, real_sgn, min_part_type(run))
-#ifdef __CMPLX
+#ifdef CMPLX_
         call encode_part_sign(ilut, imag_sgn, max_part_type(run))
-#elif defined(__WARNING_WORKAROUND)
-        call unused(imag_sgn)
+#else
+        unused_var(imag_sgn)
 #endif
     end subroutine encode_run_sign
 
@@ -566,7 +562,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         logical :: zero
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'bit_parent_zero'
 #endif
 
@@ -580,7 +576,7 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
         integer(n_int), intent(out) :: parent_ilut(0:NIfDBO)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'extract_parent'
 #endif
 
@@ -595,7 +591,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:NIfBCast)
         integer(n_int), intent(in) :: ilut_parent(0:NIfTot)
         real(dp), intent(in) :: RDMBiasFacCurr
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'encode_parent'
 #endif
 
@@ -613,7 +609,7 @@ contains
     subroutine zero_parent(ilut)
 
         integer(n_int), intent(inout) :: ilut(0:nIfBCast)
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(*), parameter :: this_routine = 'zero_parent'
 #endif
 
@@ -789,9 +785,11 @@ contains
     end subroutine
 
     pure function getExcitationType(ExMat, IC) result(exTypeFlag)
-        integer, intent(in) :: ExMat(2,2), IC
+        integer, intent(in) :: ExMat(2,ic), IC
         integer :: exTypeFlag
 
+        ! i need to initialize to something..
+        exTypeFlag = -1
         if (IC==1) then
             if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
                 exTypeFlag = 3
@@ -843,6 +841,9 @@ contains
                     return
                 endif
             endif
+        else if (ic == 3) then
+            ! todo! need to consider more maybe!
+            exTypeFlag = 6
         endif
 
     end function
@@ -1105,7 +1106,8 @@ contains
         endif
     end subroutine decode_bit_det_bitwise
 
-    subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, ndets_out)
+    subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
+         ndets_out)
 
         ! WARNING 1: This routine assumes that both list_1 and list_2 contain no
         ! repeated iluts, even if one of the repeated iluts has zero amplitude.
@@ -1114,10 +1116,6 @@ contains
         ! then sorted_lists should be input as .false., and the lists will then
         ! be sorted. This routine will not work if unsorted lists are passed in
         ! and sorted_list is input as .true.
-
-        use DetBitOps, only: ilut_lt, ilut_gt
-        use sort_mod, only: sort
-        use util_mod, only: binary_search_custom
 
         integer, intent(in) :: ndets_1
         integer, intent(in) :: ndets_2

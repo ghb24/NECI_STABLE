@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module Parallel_Calc
 
 != Algorithms for calculations in parallel.
@@ -31,7 +33,8 @@ subroutine ParMP2(nI)
 
    use constants, only: dp
    use System, only: AreSameSpatialOrb
-   use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry
+   use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry, & 
+                         t_3_body_excits
    use CalcData, only: NWHTAY
    use Integrals_neci, only: GetUMatEl2
    use UMatCache, only: GTID
@@ -154,6 +157,7 @@ subroutine ParMP2(nI)
 
          ! Alternatively, calculate the energy of the excited determinant
          ! in reference to that of the reference determinant (i.e. setting dE1=0).
+         ASSERT(.not. t_3_body_excits)
          Excit(1,1)=2
          call GetExcitation(nI,nJ,nEl,Excit,tSign)
 
@@ -526,7 +530,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    dEx=exp(-dBeta*(dEp-dE1))
    dw=abs(dD)**2*dEx
    dEt=dE1*abs(dD)**2*dEx
-#ifdef __CMPLX
+#ifdef CMPLX_
    dEt=dEt+dU*dD*conjg(dD2)*dEx
 #else
    dEt=dEt+dU*dD*(dD2)*dEx
@@ -541,7 +545,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
 !      dD=dD*dU
 !  Instead we just swap dD2 and dD around
    dTmp=dD
-#ifdef __CMPLX
+#ifdef CMPLX_
    dD=conjg(dD2)
    dD2=-conjg(dTmp)
 #else
@@ -552,7 +556,7 @@ subroutine Get2vWeightEnergy(dE1,dE2,dU,dBeta,dw,dEt)
    dw=dw+(abs(dD)**2*dEx)
 !   write(6,*) dEm,dD,dD2,dw,dEx
    dEt=dEt+(dE1*abs(dD)**2*dEx)
-#ifdef __CMPLX
+#ifdef CMPLX_
    dEt=dEt+dU*dD*conjg(dD2)*dEx
 #else
    dEt=dEt+dU*dD*(dD2)*dEx

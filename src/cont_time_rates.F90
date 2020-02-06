@@ -152,7 +152,7 @@ contains
 
         real(dp) :: probs(2), pgen, old, new_fac
         real(dp) :: rate_diag, rate_offdiag, pdiag, r, pneeded, pkeep
-        integer :: ex(2,2), i, j
+        integer :: ex(2,maxExcit), i, j
         logical :: tParity
         HElement_t(dp) :: helgen
 

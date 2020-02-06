@@ -17,7 +17,7 @@ module rdm_finalising
 
     implicit none
 
-    real(dp) :: RDM_energy
+    real(dp), public, protected :: RDM_energy
 
 contains
 
@@ -140,6 +140,10 @@ contains
             call MPIBCast(RDM_energy)
             write(6,*) 'RDM_energy at rdm_finalising.F90 ', RDM_energy
         end if
+
+        ! this is allocated in find_nat_orb_occ_numbers and used later in
+        ! brokensymno, ugh. Have to deallocate it somewhere though
+        if(allocated(FourIndInts)) deallocate(FourIndInts)
 
         call halt_timer(FinaliseRDMs_Time)
 

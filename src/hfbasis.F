@@ -74,7 +74,7 @@ C..Symmetries not needed by UMatInd
       SUBROUTINE SETUPHFBASIS(NBASISMAX,G1,NBASIS,HFE,ARR,BRR)
          use SystemData, only: Symmetry,BasisFN
          use constants, only: dp
-         use sym_mod
+         use sym_mod, only: GENMOLPSYMTABLE, GENMOLPSYMREPS, TotSymRep
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -82,7 +82,7 @@ C..Symmetries not needed by UMatInd
          real(dp) HFE(NBASIS)
          INTEGER BRR(NBASIS),ORBORDER(8,2)
          INTEGER I
-#ifdef __CMPLX
+#ifdef CMPLX_
          call stop_all('SETUPHFBASIS',
      &                 'HF not implemented for complex orbitals.')
 #endif
@@ -138,7 +138,7 @@ C.. Generic spatial symmetry
          WRITE(6,*) 'CALCULATING HF UMAT'
        call stop_all(this_routine,
      &    "HF UMAT calc broken through U/TMAT reindexing. Please fix")
-#ifdef __CMPLX
+#ifdef CMPLX_
          call stop_all('CALCHFUMAT',
      &                 'HF not implemented for complex orbitals.')
 #endif
@@ -534,7 +534,7 @@ C.. Sum over occupied orbitals for our spin
                   DO K=1,NELS(ISPN)
 C.. eigenvector N is in FMAT(i,N,ISPN), where i is the component of the
 C.. vector
-#ifdef __CMPLX
+#ifdef CMPLX_
                      IF(LTRANS) THEN
                         TOT=TOT+CONJG(FMAT(K,I,ISPN))*FMAT(K,J,ISPN)
                      ELSE
@@ -614,7 +614,7 @@ C.. Now sum in the alpha and beta block of u matrix
                      ENDDO
                   ENDDO
                   FMAT(I,J,ISPN)=TOT
-#ifdef __CMPLX
+#ifdef CMPLX_
                   FMAT(J,I,ISPN)=CONJG(TOT)
 #endif
                ENDDO
@@ -803,14 +803,16 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
 
 
       SUBROUTINE GENFDET(FDET)
-
+          use constants
           ! Generate an initial determinant of specified spin.
           use SystemData, only: BasisFN, tMolpro, brr, g1, nbasis, lms,
      &                          nel, tGiovannisBrokenInit, SymRestrict,
      &                          tSymSet, nBasisMax, tHub
+          use SystemData, only: t_k_space_hubbard
           use util_mod, only: int_fmt
           use sort_mod
           use sym_mod, only: checkMomentumInvalidity, MomPbcSym
+          use lattice_mod, only: lat
           implicit none
 
           integer, intent(out) :: fdet(nel)
@@ -867,10 +869,20 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
                 nel = nel + 1
                 nspins(is) = nspins(is) + 1
                 fdet(nel) = brr(ireal)
-                totK = totK + G1(brr(ireal))%k
+                if (t_k_space_hubbard) then
+                    totK = lat%add_k_vec(totK, G1(brr(ireal))%k)
+                else
+                    totK = totK + G1(brr(ireal))%k
+                end if
                 totSpin = totSpin + G1(brr(ireal))%Ms
 !                print *, "Contribution", brr(ireal), G1(brr(ireal))%k
-                if(tHub) call MomPbcSym(totK,nBasisMax)
+                if(tHub) then
+                    if (t_k_space_hubbard) then
+!                         totk = lat%map_k_vec(totK)
+                    else
+                        call MomPbcSym(totK,nBasisMax)
+                    end if
+                end if
              endif
           enddo
           else
@@ -892,7 +904,7 @@ C            CALL LOWDIN_ORTH(FMAT(1,1,ISPN),NSBASIS,R1,R2,WORK)
           ENDDO
           endif
           call sort (fDet(1:nel))
-#ifdef __DEBUG
+#ifdef DEBUG_
           print *, "Total momentum", totK
           print *, "Requested momentum",  SymRestrict%k
           print *, "Total spin", totSpin, "Requested spin", lms
@@ -1807,7 +1819,7 @@ C.. TOT now contains dE/dcij, so we store this
          INTEGER I,J,K,A,B,C,F,JSPN,KSPN,JJ
          INTEGER IDA,IDB,IDC,IDF
          real(dp) TOT,TOT1,TOT2,TOT1B
-#ifdef __CMPLX
+#ifdef CMPLX_
          call stop_all('CALCDEDCIJ2',
      &                 'HF not implemented for complex orbitals.')
 #endif

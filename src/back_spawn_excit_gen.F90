@@ -2,7 +2,7 @@
 
 module back_spawn_excit_gen
 
-    use constants, only: dp, n_int, EPS, bits_n_int
+    use constants, only: dp, n_int, EPS, bits_n_int, maxExcit
     use SystemData, only: nel, G1, nbasis, tHPHF, NMAXX, NMAXY, NMAXZ, &
                           tOrbECutoff, OrbECutoff, nOccBeta, nOccAlpha, ElecPairs, &
                           tHPHF
@@ -24,16 +24,18 @@ module back_spawn_excit_gen
     use back_spawn, only: check_electron_location, pick_virtual_electrons_double, &
                           pick_occupied_orbital_single, pick_virtual_electron_single, &
                           pick_occupied_orbital, pick_second_occupied_orbital, &
-                          get_ispn, is_in_ref, pick_occupied_orbital_ueg, &
+                          is_in_ref, pick_occupied_orbital_ueg, &
                           pick_virtual_electrons_double_hubbard, pick_occupied_orbital_hubbard, &
-                          is_allowed_ueg_k_vector, get_orb_from_kpoints, make_ilutJ
+                          is_allowed_ueg_k_vector
     use get_excit, only: make_single, make_double
     use Determinants, only: write_det, get_helement
     use ueg_excit_gens, only: gen_double_ueg, create_ab_list_ueg, pick_uniform_elecs, &
                               calc_pgen_ueg
-    use util_mod, only: binary_search_first_ge, unused
+    use util_mod, only: binary_search_first_ge
 
-#ifdef __DEBUG
+    use lattice_models_utils, only: make_ilutJ, get_orb_from_kpoints, get_ispn
+
+#ifdef DEBUG_
     use SystemData, only: tNoFailAb
 #endif
 
@@ -45,7 +47,7 @@ contains
             ExcitMat, tParity, pgen, HelGen, store, part_type)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -56,7 +58,7 @@ contains
 
         integer :: iUnused
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         real(dp) :: pgen2
         HElement_t(dp) :: temp_hel
 #endif
@@ -75,7 +77,7 @@ contains
             call gen_double_back_spawn_ueg_new(nI, ilutI, part_type, nJ, ilutJ, tParity, &
                 ExcitMat, pgen)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_back_spawn_ueg_new(nI, ilutI, ExcitMat, ic, part_type)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -107,7 +109,7 @@ contains
 
             call gen_double_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, pgen)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_ueg(ilutI, ExcitMat, ic)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -140,7 +142,7 @@ contains
     subroutine gen_double_back_spawn_ueg_new(nI, ilutI, part_type, nJ, ilutJ, tPar, ex, pgen)
         integer, intent(in) :: nI(nel), part_type
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen
@@ -305,7 +307,7 @@ contains
             ExcitMat, tParity, pgen, HelGen, store, part_type)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -315,7 +317,7 @@ contains
         character(*), parameter :: this_routine = "gen_excit_back_spawn_hubbard"
 
         integer :: iUnused
-#ifdef __DEBUG
+#ifdef DEBUG_
         real(dp) :: pgen2
         HElement_t(dp) :: temp_hel
 #endif
@@ -342,7 +344,7 @@ contains
             call gen_double_back_spawn_hubbard(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, &
                 pgen)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_back_spawn_hubbard(nI, ilutI, ExcitMat, ic, part_type)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -374,7 +376,7 @@ contains
 
             if (.not. IsNullDet(nJ)) ilutJ = make_ilutJ(ilutI, ExcitMat, ic)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 call CalcPGenLattice(ExcitMat, pgen2)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -408,7 +410,7 @@ contains
                 pgen, part_type)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -650,7 +652,7 @@ contains
         ! generator! check if we hit all the relevant parts in the code though
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -660,7 +662,7 @@ contains
         character(*), parameter :: this_routine = "gen_excit_back_spawn_ueg"
 
         integer :: iUnused
-#ifdef __DEBUG
+#ifdef DEBUG_
         real(dp) :: pgen2
         HElement_t(dp) :: temp_hel
 #endif
@@ -685,7 +687,7 @@ contains
             call gen_double_back_spawn_ueg(nI, ilutI, nJ, ilutJ, tParity, ExcitMat, &
                 pgen)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_back_spawn_ueg(ilutI, ExcitMat, ic, part_type)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -717,7 +719,7 @@ contains
 
             if (.not. IsNullDet(nJ)) ilutJ = make_ilutJ(ilutI, ExcitMat, ic)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 call CalcPGenLattice(ExcitMat, pgen2)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -752,7 +754,7 @@ contains
                 pgen, part_type)
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -888,7 +890,7 @@ contains
             ExcitMat, tParity, pgen, HelGen, store, part_type)
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ic, ExcitMat(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -897,13 +899,11 @@ contains
         integer, intent(in), optional :: part_type
         character(*), parameter :: this_routine = "gen_excit_back_spawn"
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         HElement_t(dp) :: temp_hel
         real(dp) :: pgen2
 #endif
-#ifdef __WARNING_WORKAROUND
-        call unused(exFlag); call unused(store%nel_alpha)
-#endif
+        unused_var(exFlag); unused_var(store)
 
         HElGen = 0.0_dp
         ! check the non-initiator criteria beforehand
@@ -931,7 +931,7 @@ contains
 
             end if
 
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                 pgen2 = calc_pgen_back_spawn(nI, ilutI, ExcitMat, ic, part_type)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -977,7 +977,7 @@ contains
                 pgen = pgen * pDoubles
 
             end if
-#ifdef __DEBUG
+#ifdef DEBUG_
             if (.not. IsNullDet(nJ)) then
                  pgen2 = calc_pgen_4ind_weighted2(nI, ilutI, ExcitMat, ic)
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
@@ -1013,7 +1013,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:niftot)
         integer, intent(in) :: part_type
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tPar
         real(dp), intent(out) :: pgen
@@ -1093,7 +1093,7 @@ contains
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
         integer, intent(in) :: part_type
-        integer, intent(out) :: nJ(nel), ex(2,2)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         logical, intent(out) :: tpar
         real(dp), intent(out) :: pgen

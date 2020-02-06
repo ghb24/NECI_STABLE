@@ -52,7 +52,7 @@ set( SRC_FILES
     fcoul.F
     frsblk.F
     ftlm_neci.F90
-    gasci.F90
+	gdata_io.F90
     gen_coul.F
     gen_coul_ueg.F90
     global_det_data.F90
@@ -61,7 +61,7 @@ set( SRC_FILES
     gndts.F90
     gndwork.F90
     hash.F90
-	hamiltonian_linalg.F90
+    hamiltonian_linalg.F90
     hdf5_popsfile.F90
     hdiag.F
     hdiag_from_excit.F90
@@ -71,7 +71,6 @@ set( SRC_FILES
     hilbert_space_size.F90
     hist_data.F90
     hist.F90
-    HPHFIntegrals.F90
     HPHFRandExcit.F90
     hubbard.F
     init_coul2D.F
@@ -91,12 +90,17 @@ set( SRC_FILES
     lanczos_wrapper.F90
     legacy_data.F90
     lineup.F
+    LMat_calc.F90
+	LMat_class.F90
+    LMat_indexing.F90
+    LMat_mod.F90
     load_balance_calcnodes.F90
     load_balancer.F90
     LoggingData.F90
     Logging.F90
     Makefile
     matmul.F
+    modifiedHub.F90
     molcas_interface.F90
     MolproPlugin.F90
     PluginGuest.cpp
@@ -141,8 +145,7 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
-    sltcnd.F90
-    new_sltcnd.F90
+	shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
@@ -168,18 +171,27 @@ set( SRC_FILES
     SystemData.F90
     System_neci.F90
     tau_search.F90
-    tc_precomputed_excitgen.F90
+    tc_three_body_data.F90
+    tc_three_body_excitgen.F90
     trial_wf_gen.F90
     trial_ht_procs.F90
     UMatCache.F90
+    tc_precomputed_excitgen.F90
     unit_test_helper_excitgen.F90
     vasp_init.F90
     vasp_interface.F90
     vasp_neci_interface_stub.F90
     double_occ.F90
     tau_search_hist.F90
+    real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
+    lattice_mod.F90
+    tJ_model.F90
+    k_space_hubbard.F90
+    unit_test_helpers.F90
+    lattice_models_utils.F90
+    analyse_wf_symmetry.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90
@@ -201,6 +213,14 @@ set( SRC_FILES
     lib/fortran_strings.f90
 )
 
+set( FYPP_SRC_FILES
+    HPHFIntegrals.fpp
+    sltcnd.fpp
+    excitation_types.fpp
+    gasci.fpp
+	shared_array.fpp
+)
+
 set( TEMPLATED_SRC_FILES
 
     BinSearch.F90.template
@@ -213,7 +233,6 @@ set( TEMPLATED_SRC_FILES
     lib/util_mod_cpts.F90.template
     lib/util_mod_numerical.F90.template
     lib/util_mod_epsilon_close.F90.template
-    lib/util_mod_unused.F90.template
 )
 
 
@@ -261,6 +280,7 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
         OUTPUT_NAME ${_config}
         SOURCES ${SRC_FILES}
         TEMPLATED_SOURCES ${TEMPLATED_SRC_FILES}
+        FYPP_SOURCES ${FYPP_SRC_FILES}
         LINKER_LANGUAGE Fortran
 
         PRIVATE_INCLUDES
@@ -288,5 +308,3 @@ foreach(_config ${${PROJECT_NAME}_CONFIGURATIONS})
     )
 
 endforeach()
-
-add_subdirectory( test_loop )

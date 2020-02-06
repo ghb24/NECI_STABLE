@@ -3,7 +3,7 @@
 # set( Tailored_Warnings "-warn nounused -warn all")
 
 set( ${PROJECT_NAME}_Fortran_FLAGS_DEBUG "-g -O0 -check all,noarg_temp_created -traceback -fpe0 -init=arrays,snan" )
-set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3 -xHost" )
+set( ${PROJECT_NAME}_Fortran_FLAGS_RELEASE "-O3 -xHost -align array64byte" )
 set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-ipo" )
 
 # Warning flags ...
@@ -13,7 +13,7 @@ set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-ipo" )
 set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-warn all -warn nointerfaces,nounused,notruncated_source -diag-disable=remark" )
 
 # Treat errors as warnings
-set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-warn error")
+set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-warn\;error")
 
 # Linker flags
 

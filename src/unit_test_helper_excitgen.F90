@@ -10,7 +10,7 @@ module unit_test_helper_excitgen
   use sort_mod
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit, MPIEnd
-  use UMatCache, only: GetUMatSize, tTransGTID
+  use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
   use OneEInts, only: Tmat2D
   use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
   use bit_reps, only: encode_sign, decode_bit_det
@@ -61,7 +61,7 @@ contains
     integer, intent(out) :: numEx, nFound
     logical, intent(in) :: t_calc_pgen
     integer :: nI(nel), nJ(nel)
-    integer :: i, ex(2,2), exflag
+    integer :: i, ex(2,maxExcit), exflag
     integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
     real(dp) :: pgen
     logical :: tPar, tAllExFound, tFound
@@ -175,7 +175,6 @@ contains
           nFound = nFound + 1
           write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
                abs(matel)/(pgenArr(1)*matelN)
-
           ! compare the stored pgen to the directly computed one
           if(t_calc_pgen) then
              if(i > nSingles) then
@@ -237,7 +236,7 @@ contains
 
     call MPIInit(.false.)
 
-    call dSFMT_init(8)
+    call dSFMT_init(25)
 
     call SetCalcDefaults()
     call SetSysDefaults()
@@ -256,6 +255,10 @@ contains
     call shared_allocate_mpi(umat_win, umat, (/umatsize/))
 
     call readfciint(UMat,umat_win,nBasis,ecore,.false.)
+
+    ! init the umat2d storage
+    call setupUMat2d_dense(nBasis)
+
     call SysInit()
     ! required: set up the spin info
 
@@ -314,7 +317,7 @@ contains
        do j = 1, i
           do k = i, nBasisBase
              do l = 1, k
-                matel = sqrt(umatRand(i,k)*umatRand(j,l))
+                matel = sqrt(umatRand(i,j)*umatRand(k,l))
                 if(matel > eps) write(iunit, *) matel,i,j,k,l
              end do
           end do

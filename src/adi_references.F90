@@ -13,8 +13,8 @@ use bit_reps, only: decode_bit_det
 use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
 use sort_mod, only: sort
 use constants
+use SystemData, only: nel, t_3_body_excits
 use util_mod, only: operator(.isclose.)
-use SystemData, only: nel
 
 implicit none
 
@@ -97,7 +97,8 @@ contains
       if(maxNRefs>0) then
          ! Get the nRefs most populated determinants
          refs_found = 0
-         call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found)
+         call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found, &
+              CurrentDets, TotWalkers)
          ! Communicate the refs_found info
          mpi_refs_found = int(refs_found,MPIArg)
          call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
@@ -177,6 +178,7 @@ contains
 
     subroutine generate_ref_space()
       use LoggingData, only: ref_filename, tWriteRefs
+      use FciMCData, only: CurrentDets, TotWalkers
       implicit none
       integer :: refs_found, all_refs_found
       integer(n_int) :: ref_buf(0:NIfTot,maxNRefs), si_buf(0:NIfTot,maxNRefs)
@@ -521,7 +523,7 @@ contains
       logical :: is_coherent
       integer :: nJRef(nel)
       real(dp) :: signRef(lenof_sign)
-#ifdef __CMPLX
+#ifdef CMPLX_
       complex(dp) :: tmp
 #endif
       HElement_t(dp) :: h_el
@@ -544,7 +546,7 @@ contains
 
       ! If the new ilut has sign 0, there is no need to do any check on this run
       if(mag_of_run(ilut_sign,run) > eps) then
-#ifdef __CMPLX
+#ifdef CMPLX_
          ! The complex coherence check is more effortive, so only do it in complex builds
          ! Get the relative phase of the signs
          tmp = cmplx(signRef(min_part_type(run)),signRef(max_part_type(run)),dp) / &
@@ -612,7 +614,7 @@ contains
 
     tmp  = 0.0_dp
     do run = 1, inum_runs
-#ifdef __CMPLX
+#ifdef CMPLX_
        tmp = tmp + h_el * cmplx(signsRef(min_part_type(run),i),&
             signsRef(max_part_type(run),i),dp)
 #else
@@ -687,7 +689,11 @@ contains
     integer :: iRef, nI(nel), exLevel
     real(dp) :: unsignedCache
     HElement_t(dp) :: signedCache
+#ifdef DEBUG_
+    character(*), parameter :: this_routine = "get_sign_op_run"
+#endif
     integer :: connections
+    ASSERT(.not. t_3_body_excits)
 
     call initialize_c_caches(signedCache, unsignedCache, connections)
     ! Sum up all Hij cj for all superinitiators j
@@ -943,6 +949,7 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
+
     subroutine reset_coherence_counter()
       use adi_data, only: nCoherentDoubles
       implicit none
@@ -980,8 +987,6 @@ contains
       call resize_ilutRefAdi(nRefs - 1)
 
     end subroutine remove_superinitiator
-
-!------------------------------------------------------------------------------------------!
 
     subroutine clean_adi()
       implicit none

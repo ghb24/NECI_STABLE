@@ -16,7 +16,7 @@ MODULE ISKRandExcit
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &
                          FindBitExcitLevel, TestClosedShellDet
     use FciMCData, only: pDoubles, excit_gen_store_type
-    use constants, only: dp,n_int,bits_n_int
+    use constants, only: dp,n_int,bits_n_int, maxExcit
     use HElem
     use bit_reps, only: NIfD, NIfDBO, NIfTot
     use SymExcitDataMod, only: SpinOrbSymLabel,SymTableLabels,SymInvLabel, &
@@ -33,7 +33,7 @@ MODULE ISKRandExcit
         integer, intent(in) :: exFlag
         integer, intent(out) :: nJ(nel)
         integer(kind=n_int), intent(out) :: iLutnJ(0:niftot)
-        integer, intent(out) :: IC, ExcitMat(2,2)
+        integer, intent(out) :: IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity ! Not used
         type(excit_gen_store_type), intent(inout), target :: store
         real(dp), intent(out) :: pGen
@@ -41,7 +41,7 @@ MODULE ISKRandExcit
         character(*), parameter :: this_routine='gen_ISK_excit'
         logical :: tSignOrig,tSwapped,tSame_ISK,tCrossConnected,tSignCross
         integer(n_int) :: iLutnJSym(0:NIfTot)
-        integer :: nJSym(NEl),CrossIC,CrossEx(2,2)
+        integer :: nJSym(NEl),CrossIC,CrossEx(2,maxExcit)
         real(dp) :: pGen2
 
         !First, generate a random excitation from the determinant which is given in the argument
@@ -356,7 +356,7 @@ MODULE ISKRandExcit
         INTEGER , ALLOCATABLE :: ExcitGen(:)
         real(dp) , ALLOCATABLE :: Weights(:),AllWeights(:)
         INTEGER :: iMaxExcit,nStore(6),nExcitMemLen(1),j,k,l, iunit
-        integer :: icunused, exunused(2,2)
+        integer :: icunused, exunused_var(2,maxExcit)
         logical :: tParityunused, tTmp
         type(excit_gen_store_type) :: store
         character(*), parameter :: this_routine = 'TestGenRandISKExcit'
@@ -588,7 +588,7 @@ MODULE ISKRandExcit
 !            tTmp = tGenMatHEl
 !            tGenMatHel = .false.
             call gen_ISK_excit (nI, iLutnI, nJ, iLutnJ, 3, icunused, &
-                                 exunused, tparityunused, pGen, HEl, store)
+                                 exunused_var, tparityunused, pGen, HEl, store)
 !            tGenMatHel = tTmp
 !            CALL GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
 

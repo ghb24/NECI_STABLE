@@ -43,8 +43,9 @@ contains
 
                  TotParts(lenof_sign), AllTotParts(lenof_sign), &
                  TotPartsOld(lenof_sign), AllTotPartsOld(lenof_sign), &
+                 AllTotPartsLastOutput(lenof_sign), &
                  ! n.b. AllHFCyc is in inum_runs, with different type
-                 HFCyc(lenof_sign), &
+                 HFCyc(lenof_sign), HFOut(lenof_sign), &
                  proje_denominator_cyc(lenof_sign), &
                  proje_denominator_sum(lenof_sign), &
                  InitialPartVec(lenof_sign), &
@@ -77,26 +78,28 @@ contains
                  NoBorn(inum_runs), AllNoBorn(inum_runs), &
                  NoDied(inum_runs), AllNoDied(inum_runs), &
                  Annihilated(inum_runs), AllAnnihilated(inum_runs), &
-                 Acceptances(inum_runs), &
+                 Acceptances(inum_runs), AllAcceptances(inum_runs), &
                  SpawnFromSing(inum_runs), AllSpawnFromSing(inum_runs), &
                  iRefProc(inum_runs), proje_ref_energy_offsets(inum_runs), &
                  iHighestPop(inum_runs), &
                  replica_overlaps_real(inum_runs, inum_runs), &
                  all_norms(inum_runs), &
                  all_overlaps(inum_runs, inum_runs), &
-#ifdef __CMPLX
+#ifdef CMPLX_
                  replica_overlaps_imag(inum_runs, inum_runs), &
 #endif
                  tSpinCoupProjE(inum_runs), &
 
                  NoatDoubs(inum_runs), AllNoatDoubs(inum_runs), &
-                 AccRat(inum_runs), &
+                 AccRat(inum_runs), AllHFOut(inum_runs), &
                  AllHFCyc(inum_runs), OldAllHFCyc(inum_runs), &
                  ENumCyc(inum_runs), AllENumCyc(inum_runs), &
+                 ENumOut(inum_runs), AllENumOut(inum_runs), &
                  ENumCycAbs(inum_runs), AllENumCycAbs(inum_runs), &
                  ProjECyc(inum_runs), &
                  AllGrowRate(inum_runs), &
-                 SumWalkersCyc(inum_runs), AllSumWalkersCyc(Inum_runs), &
+                 SumWalkersCyc(inum_runs), AllSumWalkersCyc(inum_runs), &
+                 SumWalkersOut(inum_runs), AllSumWalkersOut(inum_runs), &
                  OldAllAvWalkersCyc(inum_runs), &
                  proj_e_for_precond(lenof_sign), &
 
@@ -154,6 +157,9 @@ contains
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
 
+        ! real-time FCIQMC: keep track of first and second Runge-Kutta step 
+        ! seperately, think of which stats i need for it!
+        ! maybe move that to real-time init module..
         ! KPFCIQMC
         allocate(TotPartsInit(lenof_sign), &
                  AllTotPartsInit(lenof_sign), &
@@ -177,14 +183,14 @@ contains
                    replica_overlaps_real, &
                    all_norms, &
                    all_overlaps, &
-#ifdef __CMPLX
+#ifdef CMPLX_
                    replica_overlaps_imag, &
 #endif
                    tSpinCoupProjE, &
 
                    TotParts, AllTotParts, &
-                   TotPartsOld, AllTotPartsOld, &
-                   HFCyc, &
+                   TotPartsOld, AllTotPartsOld, AllTotPartsLastOutput, &
+                   HFCyc, HFOut, &
                    proje_denominator_cyc, proje_denominator_sum, &
                    InitialPartVec, &
 
@@ -207,18 +213,20 @@ contains
                    NoBorn, AllNoBorn, &
                    NoDied, AllNoDied, &
                    Annihilated, AllAnnihilated, &
-                   Acceptances, &
+                   Acceptances, AllAcceptances, &
                    SpawnFromSing, AllSpawnFromSing, &
                    AllGrowRateAbort, &
 
                    NoatDoubs, AllNoatDoubs, &
                    AccRat, &
-                   AllHFCyc, OldAllHFCyc, &
+                   AllHFCyc, OldAllHFCyc, AllHFOut, &
                    ENumCyc, AllENumCyc, ENumCycAbs, AllENumCycAbs, &
+                   ENumOut, AllENumOut, &
                    InitsENumCyc, AllInitsEnumCyc, &
                    ProjECyc, &
                    AllGrowRate, &
                    SumWalkersCyc, AllSumWalkersCyc, &
+                   SumWalkersOut, AllSumWalkersOut, &
                    OldAllAvWalkersCyc, &
                    proj_e_for_precond, &
 
@@ -259,7 +267,9 @@ contains
                    AllTotPartsInit, &
                    tSinglePartPhaseKPInit)
 
+                   ! real-time fciqmc
         if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
+
 
         call clean_iter_data(iter_data_fciqmc)
 
@@ -345,12 +355,12 @@ contains
         call MPISumAll(NoatHF, AllNoatHF)
         OldAllNoatHF = AllNoatHF
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         do run = 1, inum_runs
             OldAllAvWalkersCyc(run) = sum(AllTotParts(min_part_type(run):max_part_type(run)))
         enddo
 #else
-#ifdef __CMPLX
+#ifdef CMPLX_
         OldAllAvWalkersCyc = sum(AllTotParts)
 #else
         OldAllAvWalkersCyc = AllTotParts

@@ -25,7 +25,6 @@ real(dp) :: DMatEpsilon !  The cutoff for density matrix elements
 Logical :: tPostFreezeHF ! Do we do HF after freezing
 logical :: tDumpFCIDUMP !Do we write out an FCIDUMP file (after freezing)
 
-
 !  From NECI.F
 ! UMAT stores 4-index, 2-electron integrals.  Lookup is via the UMATIND function
 ! (in the UMatCache module).

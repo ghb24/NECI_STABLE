@@ -81,7 +81,7 @@ contains
         write(6,'("Generating the trial space...")'); call neci_flush(6)
 
         if (qmc_trial_wf) then
-#ifdef __CMPLX
+#ifdef CMPLX_
             call stop_all(t_r, "QMC trial state initiation not supported for complex wavefunctions.")
 #else
             call calc_trial_states_qmc(trial_in, nexcit_keep, CurrentDets, HashIndex, replica_pairs, &
@@ -111,6 +111,7 @@ contains
             else
                 trial_wfs = temp_wfs
                 trial_energies = temp_energies
+                root_print "energy eigenvalue(s): ", trial_energies(1:nexcit_keep)
             end if
             deallocate(temp_wfs, stat=ierr)
             if (ierr /= 0) call stop_all(t_r, "Error deallocating temp_wfs.")
@@ -130,7 +131,7 @@ contains
         call assign_elements_on_procs(tot_trial_space_size, min_elem, max_elem, num_elem)
 
         ! set the size of the entries in con_ht
-#ifdef __CMPLX
+#ifdef CMPLX_
         NConEntry = NIfDBO + 2*nexcit_keep
 #else
         NConEntry = NIfDBO + nexcit_keep
@@ -246,7 +247,9 @@ contains
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
+        write(6,*)"before generate_connected_space_vector"
         call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
+        write(6,*)"after generate_connected_space_vector"
 
         call MPIBarrier(ierr)
 
@@ -273,14 +276,11 @@ contains
         call halt_timer(Trial_Init_Time)
 
         if (.not. qmc_trial_wf) then
-            write(6,'("Energy eigenvalue(s) of the trial space:")', advance='no')
-            do i = 1, nexcit_keep
-                write(6,'(2X,g19.12e3)', advance='no') trial_energies(i)
-            end do
+            root_print "Energy eigenvalue(s) of the trial space:", trial_energies(1:nexcit_keep)
         end if
-        write(6,'(/,"Trial wavefunction initialisation complete.")')
-        write(6,'("Total time (seconds) taken for trial wavefunction initialisation:",f9.3,/)') &
-                   get_total_time(Trial_Init_Time)
+        root_print "Trial wavefunction initialisation complete."
+        root_print "Total time (seconds) taken for trial wavefunction initialisation:",&
+            get_total_time(Trial_Init_Time)
         call neci_flush(6)
 
     end subroutine init_trial_wf
@@ -311,7 +311,7 @@ contains
         real(dp) :: fciqmc_amps_real(size(energies_kept)), all_fciqmc_amps(lenof_sign)
         real(dp) :: overlaps_real(size(energies_kept), size(trial_amps,1))
         real(dp) :: all_overlaps_real(size(energies_kept), size(trial_amps,1))
-#ifdef __CMPLX
+#ifdef CMPLX_
         real(dp) :: overlaps_imag(size(energies_kept), size(trial_amps,1))
         real(dp) :: all_overlaps_imag(size(energies_kept), size(trial_amps,1))
         real(dp) :: fciqmc_amps_imag(size(energies_kept))
@@ -320,7 +320,7 @@ contains
 
         overlaps_real = 0.0_dp
         all_overlaps_real = 0.0_dp
-#ifdef __CMPLX
+#ifdef CMPLX_
         overlaps_imag = 0.0_dp
         all_overlaps_imag = 0.0_dp
 #endif
@@ -337,17 +337,19 @@ contains
             call hash_table_lookup(nI, trial_dets(:,idet), NIfDBO, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
             if (tDetFound) then
                 call extract_sign(ilut_list(:,det_ind), all_fciqmc_amps)
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i=1, inum_runs
                 fciqmc_amps_real(i) = all_fciqmc_amps(min_part_type(i))
                 fciqmc_amps_imag(i) = all_fciqmc_amps(max_part_type(i))
             enddo
 #else
                 if (replica_pairs) then
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                     do i = 1, lenof_sign .div. 2
                         ! When using pairs of replicas, average their amplitudes.
                         fciqmc_amps_real(i) = sum(all_fciqmc_amps(2*i-1:2*i))/2.0_dp
                     end do
+#endif
                 else
                     fciqmc_amps_real = all_fciqmc_amps
                 end if
@@ -355,7 +357,7 @@ contains
                 ! Add in the outer product between fciqmc_amps and the trial
                 ! state amplitudes.
                 do itrial = 1, size(trial_amps,1)
-#ifdef __CMPLX
+#ifdef CMPLX_
                     ! (a+ib)(c+id) = ac-bd +i(ad+bc)
                     overlaps_real(:,itrial) = overlaps_real(:,itrial) &
                         + real(trial_amps(itrial,idet))*fciqmc_amps_real - aimag(trial_amps(itrial, idet))*fciqmc_amps_imag
@@ -369,32 +371,72 @@ contains
         end do
 
         call MPISumAll(overlaps_real, all_overlaps_real)
-#ifdef __CMPLX
+#ifdef CMPLX_
         call MPISumAll(overlaps_imag, all_overlaps_imag)
 #endif
 
         ! Now, find the best trial state for each FCIQMC replica:
-#ifdef __CMPLX
-        do ireplica = 1, inum_runs
-            best_trial = maxloc(abs(all_overlaps_real(ireplica,:)**2+all_overlaps_imag(ireplica,:)**2))
-            trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-            energies_kept(ireplica) = energies(best_trial(1))
-        end do
+        if (t_choose_trial_state) then
+
+#ifdef CMPLX_
+            do ireplica = 1, inum_runs
+                trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
+            end do
 #else
-        if (replica_pairs) then
-            do ireplica = 1, lenof_sign .div. 2
-                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
-                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-                energies_kept(ireplica) = energies(best_trial(1))
-            end do
-        else
-            do ireplica = 1, lenof_sign
-                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
-                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
-                energies_kept(ireplica) = energies(best_trial(1))
-            end do
-        end if
+            if (replica_pairs) then
+                do ireplica = 1, lenof_sign .div. 2
+                    trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                    energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
+
+                    root_print "trial state: ", trial_excit_choice(ireplica), &
+                        " chosen for replica: ", ireplica, &
+                        " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
+                end do
+            else
+                do ireplica = 1, lenof_sign
+                    trials_kept(ireplica,:) = trial_amps(trial_excit_choice(ireplica),:)
+                    energies_kept(ireplica) = energies(trial_excit_choice(ireplica))
+
+                    root_print "trial state: ", trial_excit_choice(ireplica), &
+                        " chosen for replica: ", ireplica, &
+                        " chosen by input, with energy: ", energies(trial_excit_choice(ireplica))
+
+                end do
+            end if
 #endif
+        else
+#ifdef CMPLX_
+            do ireplica = 1, inum_runs
+                best_trial = maxloc(abs(all_overlaps_real(ireplica,:)**2+all_overlaps_imag(ireplica,:)**2))
+                trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                energies_kept(ireplica) = energies(best_trial(1))
+            end do
+#else
+            if (replica_pairs) then
+                do ireplica = 1, lenof_sign .div. 2
+                    best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
+                    trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                    energies_kept(ireplica) = energies(best_trial(1))
+#ifdef DEBUG_
+                    root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
+                        " based on overlap, with energy: ", energies(best_trial(1))
+#endif
+                end do
+            else
+                do ireplica = 1, lenof_sign
+                    best_trial = maxloc(abs(all_overlaps_real(ireplica,:)))
+                    trials_kept(ireplica,:) = trial_amps(best_trial(1),:)
+                    energies_kept(ireplica) = energies(best_trial(1))
+
+                    root_print "trial state: ", best_trial, " kept for replica ", ireplica, &
+                        " based on overlap, with energy: ", energies(best_trial(1))
+
+                end do
+            end if
+#endif
+        end if
+
 
     end subroutine assign_trial_states
 
@@ -490,6 +532,8 @@ contains
 
         con_vecs = 0.0_dp
 
+        ! do i need to change this here for the non-hermitian transcorrelated
+        ! hamiltonians?
         do i = 1, size(con_vecs,2)
             call decode_bit_det(nI, con_space(0:NIfTot, i))
             do j = 1, size(trial_vecs,2)
@@ -747,7 +791,7 @@ contains
 
         integer :: i, nclash, hash_val, mode, ierr
         integer :: nI(nel)
-#ifdef __CMPLX
+#ifdef CMPLX_
         integer(n_int) :: temp(2*nexcit)
 #else
         integer(n_int) :: temp(nexcit)

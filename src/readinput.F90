@@ -159,6 +159,7 @@ MODULE ReadInput_neci
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
                 call kp_fciqmc_read_inp(kp)
+        
             case("END")
                 exit
             case default
@@ -201,7 +202,7 @@ MODULE ReadInput_neci
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
-                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates
+                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates, tSpinProject
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -221,7 +222,7 @@ MODULE ReadInput_neci
         use input_neci
         use constants
         use global_utilities
-        use spin_project, only: tSpinProject, spin_proj_nopen_max
+        use spin_project, only: spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
@@ -464,14 +465,14 @@ MODULE ReadInput_neci
             call stop_all(t_r, 'HPHF functions cannot work with UHF')
         end if
 
-#if __PROG_NUMRUNS
+#if PROG_NUMRUNS_
         if (tKP_FCIQMC .and. .not. tMultiReplicas) then
 
             write(6,*) 'Using KPFCIQMC without explicitly specifying the &
                        &number of replica simulations'
             write(6,*) 'Defaulting to using 2 replicas'
             tMultiReplicas = .true.
-#ifdef __CMPLX
+#ifdef CMPLX_
             lenof_sign = 4
 #else
             lenof_sign = 2
@@ -486,7 +487,7 @@ MODULE ReadInput_neci
         end if
 #endif
 
-#if __PROG_NUMRUNS
+#if PROG_NUMRUNS_
         if (tRDMonFly) then
             write(6,*) 'RDM on fly'
 
@@ -565,7 +566,7 @@ MODULE ReadInput_neci
             end if
         end if
 
-#ifndef __USE_HDF
+#ifndef USE_HDF_
         if (tHDF5PopsRead .or. tHDF5PopsWrite) then
             call stop_all(t_r, 'Support for HDF5 files disabled at compile time')
         end if

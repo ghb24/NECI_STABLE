@@ -7,6 +7,7 @@ module davidson_semistoch
 
     use constants
     use FciMCData, only: core_ham_diag, DavidsonTag
+    use SystemData, only: t_non_hermitian
     use MemoryManager, only: TagIntType
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather, MPISumAll
@@ -322,37 +323,80 @@ module davidson_semistoch
         integer :: lwork, info
         real(dp), allocatable, dimension(:) :: work
         real(dp) :: eigenvalue_list(basis_index)
+        ! these are not stack-allocated since they are not always used
+        real(dp), allocatable :: eigenvalue_list_imag(:)
+        real(dp), allocatable :: left_eigenvectors(:,:)
+        real(dp), allocatable :: right_eigenvectors(:,:)
+        integer :: minInd, tmp(1)
 
-        ! Scrap space for the diagonaliser.
-        lwork = max(1,3*basis_index-1)
-        allocate(work(lwork))
+        if(t_non_hermitian) then
 
-        ! This routine diagonalises a symmetric matrix, A.
-        ! V tells the routine to calculate eigenvalues *and* eigenvectors.
-        ! U tells the routine to get the upper half of A (it is symmetric).
-        ! basis_index is the number of rows and columns in A.
-        ! A = projected_hamil_work. This matrix stores the eigenvectors in its columns on output.
-        ! basis_index is the leading dimension of A.
-        ! eigenvalue_list stores the eigenvalues on output.
-        ! work is scrap space.
-        ! lwork is the length of the work array.
-        ! info = 0 on output is diagonalisation is successful.
-        call dsyev(&
-            'V', &
-            'U', &
-            basis_index, &
-            this%projected_hamil_work(1:basis_index,1:basis_index), &
-            basis_index, &
-            eigenvalue_list, &
-            work, &
-            lwork, &
-            info &
-        )
+           lwork = max(1,4*basis_index)
+           allocate(work(lwork))
+           allocate(eigenvalue_list_imag(basis_index))
+           ! we are only interested in the right eigenvectors, so left are not referenced
+           allocate(left_eigenvectors(1,basis_index))
+           allocate(right_eigenvectors(basis_index,basis_index))
+           ! call the general lapack routine
+           call dgeev(&
+                'N',&
+                'V',&
+                basis_index,&
+                this%projected_hamil_work(1:basis_index,1:basis_index),&
+                basis_index,&
+                eigenvalue_list,&
+                eigenvalue_list_imag,&
+                left_eigenvectors,&
+                1,&
+                right_eigenvectors,&
+                basis_index,&
+                work,&
+                lwork,&
+                info&
+                )
 
-        this%davidson_eigenvalue = eigenvalue_list(1)
-        ! The first column stores the ground state.
-        this%eigenvector_proj(1:basis_index) = this%projected_hamil_work(1:basis_index,1)
+           ! the eigenvalues do not come out sorted the way we would like, so get the
+           ! target's index
+           minInd = sum(minloc(eigenvalue_list))
 
+           ! store the davidson vector
+           this%davidson_eigenvalue = eigenvalue_list(minInd)
+           this%eigenvector_proj(1:basis_index) = right_eigenvectors(1:basis_index,minInd)
+
+           deallocate(left_eigenvectors)
+           deallocate(eigenvalue_list_imag)
+           deallocate(right_eigenvectors)
+        else
+           ! Scrap space for the diagonaliser.
+           lwork = max(1,3*basis_index-1)
+           allocate(work(lwork))
+
+           ! This routine diagonalises a symmetric matrix, A.
+           ! V tells the routine to calculate eigenvalues *and* eigenvectors.
+           ! U tells the routine to get the upper half of A (it is symmetric).
+           ! basis_index is the number of rows and columns in A.
+           ! A = projected_hamil_work. This matrix stores the eigenvectors in its columns on output.
+           ! basis_index is the leading dimension of A.
+           ! eigenvalue_list stores the eigenvalues on output.
+           ! work is scrap space.
+           ! lwork is the length of the work array.
+           ! info = 0 on output is diagonalisation is successful.
+           call dsyev(&
+                'V', &
+                'U', &
+                basis_index, &
+                this%projected_hamil_work(1:basis_index,1:basis_index), &
+                basis_index, &
+                eigenvalue_list, &
+                work, &
+                lwork, &
+                info &
+                )
+
+           this%davidson_eigenvalue = eigenvalue_list(1)
+           ! The first column stores the ground state.
+           this%eigenvector_proj(1:basis_index) = this%projected_hamil_work(1:basis_index,1)
+        endif
         deallocate(work)
 
         ! eigenvector_proj stores the eigenstate in the basis of vectors stored in the array

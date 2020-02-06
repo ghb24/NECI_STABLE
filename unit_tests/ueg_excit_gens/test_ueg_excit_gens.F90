@@ -1,8 +1,7 @@
-
+#include "macros.h"
 program test_ueg_excit_gens
 
     use ueg_excit_gens
-    use util_mod, only: unused
     use fruit
 
     implicit none
@@ -69,7 +68,6 @@ contains
         use bit_rep_data, only: NIfTot
         use constants, only: n_int, dp
         use procedure_pointers, only: get_umat_el
-        use sltcnd_mod, only: sltcnd_2
 
         integer(n_int), ALLOCATABLE :: ilut(:)
         integer :: src(2), ex(2,2)
@@ -223,12 +221,7 @@ contains
 
         hel = 1.0_dp
 
-#ifdef __WARNING_WORKAROUND
-        call unused(i)
-        call unused(j)
-        call unused(k)
-        call unused(l)
-#endif
+        unused_var(i); unused_var(j); unused_var(k); unused_var(l)
     end function get_umat_test
 
 end program test_ueg_excit_gens

@@ -30,22 +30,26 @@ module fruit_util
   integer, parameter :: sp = selected_real_kind(6,37)
   integer, parameter :: dp = selected_real_kind(15,307)
   integer, parameter :: qp = selected_real_kind(33,4931)
-  integer, parameter :: int32 = selected_int_kind(8)
-  integer, parameter :: int64 = selected_int_kind(15)
+  integer, parameter, public :: int32 = selected_int_kind(8)
+  integer, parameter, public :: int64 = selected_int_kind(15)
   
   public :: equals, to_s, strip, sp, dp
   
   interface equals
      module procedure equalEpsilon
      module procedure floatEqual
-     module procedure integerEqual
+     module procedure integer32Equal
+     module procedure integer64Equal
+     module procedure integer32_64_equal
+     module procedure integer64_32_equal
      module procedure doublePrecisionEqual
      module procedure stringEqual
      module procedure logicalEqual
   end interface
 
   interface to_s
-     module procedure to_s_int_
+     module procedure to_s_int32_
+     module procedure to_s_int64_
      module procedure to_s_real_
      module procedure to_s_logical_
      module procedure to_s_double_
@@ -62,14 +66,23 @@ module fruit_util
   end interface
 contains
 
-  function to_s_int_ (value)
+  function to_s_int32_ (value)
     implicit none
-    character(len=500):: to_s_int_
-    integer, intent(in) :: value
+    character(len=500):: to_s_int32_
+    integer(int32), intent(in) :: value
     character(len=500) :: result
     write (result, *) value
-    to_s_int_ = adjustl(trim(result))
-  end function to_s_int_
+    to_s_int32_ = adjustl(trim(result))
+  end function to_s_int32_
+
+  function to_s_int64_ (value)
+    implicit none
+    character(len=500):: to_s_int64_
+    integer(int64), intent(in) :: value
+    character(len=500) :: result
+    write (result, *) value
+    to_s_int64_ = adjustl(trim(result))
+  end function to_s_int64_
 
   function to_s_real_ (value)
     implicit none
@@ -227,8 +240,8 @@ contains
     end if
   end function doublePrecisionEqual
 
-  function integerEqual (number1, number2 ) result (resultValue)
-    integer , intent (in) :: number1, number2
+  function integer32Equal (number1, number2 ) result (resultValue)
+    integer(int32) , intent (in) :: number1, number2
     logical :: resultValue 
 
     resultValue = .false.
@@ -238,7 +251,48 @@ contains
     else 
        resultValue = .false.
     end if
-  end function integerEqual
+  end function integer32Equal
+
+  function integer64Equal (number1, number2 ) result (resultValue)
+    integer(int64) , intent (in) :: number1, number2
+    logical :: resultValue 
+
+    resultValue = .false.
+
+    if ( number1 .eq. number2 ) then
+       resultValue = .true.
+    else 
+       resultValue = .false.
+    end if
+  end function integer64Equal
+
+  function integer32_64_equal(number1, number2) result(resultValue) 
+      integer(int32), intent(in) :: number1 
+      integer(int64), intent(in) :: number2 
+      logical :: resultValue 
+
+      resultValue = .false. 
+
+      if (number1 .eq. int(number2, int32)) then 
+          resultValue = .true. 
+      else 
+          resultValue = .false. 
+      end if
+  end function integer32_64_equal
+
+  function integer64_32_equal(number1, number2) result(resultValue) 
+      integer(int64), intent(in) :: number1 
+      integer(int32), intent(in) :: number2 
+      logical :: resultValue 
+
+      resultValue = .false. 
+
+      if (number1 .eq. int(number2, int64)) then 
+          resultValue = .true. 
+      else
+          resultValue = .false. 
+      end if
+  end function integer64_32_equal
 
   function stringEqual (str1, str2 ) result (resultValue)
     character(*) , intent (in) :: str1, str2
@@ -386,7 +440,10 @@ module fruit
     module procedure assert_eq_string_
     module procedure assert_eq_1d_string_
     module procedure assert_eq_2d_string_
-    module procedure assert_eq_int_
+    module procedure assert_eq_int32_
+    module procedure assert_eq_int64_
+    module procedure assert_eq_int32_to_int64_
+    module procedure assert_eq_int64_to_int32_
     module procedure assert_eq_1d_int_
     module procedure assert_eq_2d_int_
     module procedure assert_eq_real_
@@ -418,7 +475,10 @@ module fruit
     module procedure assert_eq_string_
     module procedure assert_eq_1d_string_
     module procedure assert_eq_2d_string_
-    module procedure assert_eq_int_
+    module procedure assert_eq_int32_
+    module procedure assert_eq_int64_
+    module procedure assert_eq_int32_to_int64_
+    module procedure assert_eq_int64_to_int32_
     module procedure assert_eq_1d_int_
     module procedure assert_eq_2d_int_
     module procedure assert_eq_real_
@@ -1491,9 +1551,9 @@ contains
   end subroutine assert_eq_2d_string_
 
   !------ 0d_int ------
-  subroutine assert_eq_int_(var1, var2, message)
+  subroutine assert_eq_int32_(var1, var2, message)
 
-    integer, intent (in) :: var1, var2
+    integer(int32), intent (in) :: var1, var2
     
     character(len = *), intent (in), optional :: message
 
@@ -1505,8 +1565,61 @@ contains
         endif
 
     call add_success
-  end subroutine assert_eq_int_
+  end subroutine assert_eq_int32_
 
+  !------ 0d_int64 ------
+  subroutine assert_eq_int64_(var1, var2, message)
+
+    integer(int64), intent (in) :: var1, var2
+    
+    character(len = *), intent (in), optional :: message
+
+        if (var1 /= var2) then
+          call failed_assert_action(&
+          & to_s(var1), &
+          & to_s(var2), message, if_is = .true.)
+          return
+        endif
+
+    call add_success
+  end subroutine assert_eq_int64_
+
+  !------ 0d_int_32_to_64 ------
+  subroutine assert_eq_int32_to_int64_(var1, var2, message)
+
+    integer(int32), intent (in) :: var1 
+    integer(int64), intent (in) :: var2
+    
+    character(len = *), intent (in), optional :: message
+
+        if (var1 /= var2) then
+          call failed_assert_action(&
+          & to_s(var1), &
+          & to_s(var2), message, if_is = .true.)
+          return
+        endif
+
+    call add_success
+  end subroutine assert_eq_int32_to_int64_
+
+  !------ 0d_int64_to_int32------
+  subroutine assert_eq_int64_to_int32_(var1, var2, message)
+
+    integer(int64), intent (in) :: var1 
+    integer(int32), intent (in) :: var2
+    
+    character(len = *), intent (in), optional :: message
+
+        if (var1 /= var2) then
+          call failed_assert_action(&
+          & to_s(var1), &
+          & to_s(var2), message, if_is = .true.)
+          return
+        endif
+
+    call add_success
+  end subroutine assert_eq_int64_to_int32_
+  
   !------ 1d_int ------
   subroutine assert_eq_1d_int_(var1, var2, n, message)
     integer, intent (in) :: n

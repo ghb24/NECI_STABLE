@@ -4,6 +4,7 @@ program test_pcpp_excitgen
   use pcpp_excitgen
   use unit_test_helper_excitgen
   use procedure_pointers, only: generate_excitation
+  use FciMCData, only: projEDet
   implicit none
 
   call init_fruit()
@@ -19,7 +20,7 @@ contains
     implicit none
     real(dp) :: pTot, pNull
     integer :: numEx, nFound
-    integer, parameter :: nSamples = 100000
+    integer, parameter :: nSamples = 200000
 
     ! set the excitation we want to test
     generate_excitation => gen_rand_excit_pcpp
@@ -27,6 +28,7 @@ contains
     call init_excitgen_test()
 
     ! prepare the pcpp excitation generator: get the precomputed weights
+
     call set_ref()
     call init_pcpp_excitgen()
 
@@ -40,7 +42,6 @@ contains
     ! so the threshold is rather loose
     ! for in-depth insight, study the output and consider the ratio of pGen and the number of occurences per excitation (should fluctuate around 1)
     call assert_true(abs(1.0-pTot)<0.01)
-
 
     call free_ref()
     call finalize_excitgen_test()

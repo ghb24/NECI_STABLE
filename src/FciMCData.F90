@@ -15,7 +15,7 @@ MODULE FciMCData
 
       ! Type for creating linked lists for the linear scaling algorithm.
       type ll_node
-          integer :: ind
+          integer :: ind = 0
           type(ll_node), pointer :: next => null()
       end type ll_node
 
@@ -80,7 +80,6 @@ MODULE FciMCData
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
 
-
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
 
@@ -95,10 +94,6 @@ MODULE FciMCData
     real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
-    integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
-
-    real(dp) :: avSigns, AllAvSigns
-
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
 
@@ -108,7 +103,12 @@ MODULE FciMCData
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
 
+    integer :: doubleSpawns = 0
+    integer :: allDoubleSpawns
+
       logical :: tHFInitiator, tPrintHighPop, tcurr_initiator
+      logical :: tfirst_cycle ! control flag for the iter_utilities for comparing with data
+      ! from previous iterations
 
       integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
@@ -184,8 +184,8 @@ MODULE FciMCData
       real(dp) :: AvSign           !This is the average sign of the particles on each node
       real(dp) :: AvSignHFD        !This is the average sign of the particles at HF or Double excitations on each node
 
-      ! The sum of all walkers over an update cycle on each processor
-      real(dp), allocatable :: SumWalkersCyc(:)
+      ! The sum of all walkers over an update/output cycle on each processor
+      real(dp), allocatable :: SumWalkersCyc(:), SumWalkersOut(:)
       ! The number annihilated per processor
       real(dp), allocatable :: Annihilated(:)
       ! The (instantaneous) number of particles on the Reference det
@@ -194,9 +194,9 @@ MODULE FciMCData
       ! L_{0,1,2} norms of weights per excitation level (i.e., extension of
       ! NoatHF / NoatDoubs, which are L1 norms at two excitation levels).
       real(dp), allocatable :: EXLEVEL_WNorm(:,:,:)
-      ! Number of accepted spawns (separately on each node)
-      real(dp), allocatable :: Acceptances(:)
-      ! Acceptance ratio (on each node) over the update cycle
+      ! Number of accepted spawns (separately on each node / summed)
+      real(dp), allocatable :: Acceptances(:), AllAcceptances(:)
+      ! Acceptance ratio (global) over the output cycle
       real(dp), allocatable :: AccRat(:)
       ! This is just for the head node, so that it can store the number of
       ! previous cycles when reading from POPSFILE
@@ -205,16 +205,21 @@ MODULE FciMCData
       ! These will output the number of particles in the last update cycle
       ! which have been spawned by a single excitation.
       real(dp), allocatable :: SpawnFromSing (:), AllSpawnFromSing(:)
-      REAL(dp), allocatable :: HFCyc(:)
+      REAL(dp), allocatable :: HFCyc(:), HFOut(:)
       !This is the number of HF*sign particles on a given processor over the course of the update cycle
-      HElement_t(dp), allocatable :: AllHFCyc(:)
-      !This is the sum of HF*sign particles over all processors over the course of the update cycle
-      HElement_t(dp), allocatable :: OldAllHFCyc(:)
+      ! (respectively output cycle)
+      HElement_t(dp), allocatable :: AllHFCyc(:), AllHFOut(:)
+      !This is the sum of HF*sign particles over all processors over the course of the update/output cycle
+      HElement_t(dp), allocatable :: OldAllHFCyc(:) 
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t(dp), allocatable :: ENumCyc(:), InitsENumCyc(:)
-      !This is the sum of doubles*sign*Hij on a given processor over the course of the update c
+      !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
+      HElement_t(dp), allocatable :: ENumOut(:)
+      ! This is the same sum over the course of one output cycle
       HElement_t(dp), allocatable :: AllENumCyc(:), AllInitsENumCyc(:)
-      !This is the sum of double*sign*Hij over all processors over the course of the update cyc
+      !This is the sum of double*sign*Hij over all processors over the course of the update cycle
+      HElement_t(dp), allocatable :: AllENumOut(:)
+      !This is the same sum over the course of one output cycle
       HElement_t(dp), allocatable :: ENumCycAbs(:)
       !This is the sum of abs(doubles*sign*Hij) on a given processor "" "" ""
       HElement_t(dp), allocatable :: AllENumCycAbs(:)
@@ -222,17 +227,19 @@ MODULE FciMCData
 
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
-
-      real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
-      integer :: bloom_count(0:2), all_bloom_count(0:2)
+      
+      ! [W.D.12.12.2017]
+      ! for triples allow bigger bloom counts! 
+      real(dp) :: bloom_sizes(0:3), bloom_max(0:3)
+      integer :: bloom_count(0:3), all_bloom_count(0:3)
 
       ! Global, accumulated, values calculated on the root processor from
       ! the above per-node values
       real(dp), allocatable :: AllGrowRate(:)
       integer(int64) :: AllTotWalkers, AllTotWalkersOld
-      real(dp), allocatable :: AllTotParts(:), AllTotPartsOld(:)
+      real(dp), allocatable :: AllTotParts(:), AllTotPartsOld(:), AllTotPartsLastOutput(:)
       real(dp), allocatable :: AllSumNoatHF(:)
-      real(dp), allocatable :: AllSumWalkersCyc(:)
+      real(dp), allocatable :: AllSumWalkersCyc(:), AllSumWalkersOut(:)
       real(dp), allocatable :: OldAllAvWalkersCyc(:)
       real(dp), allocatable :: AllAnnihilated(:)
       real(dp), allocatable :: AllNoAtDoubs(:)
@@ -257,6 +264,7 @@ MODULE FciMCData
       ! phase where the shift is fixed and particle numbers are growing
       logical, allocatable :: tSinglePartPhase(:)
 
+
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
       LOGICAL :: TDebug                           !Debugging flag
@@ -279,6 +287,7 @@ MODULE FciMCData
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            SemiStoch_Hamil_Time, SemiStoch_Davidson_Time, &
+                           SemiStoch_nonhermit_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
                            subspace_spin_time, sign_correction_time, &
@@ -305,6 +314,7 @@ MODULE FciMCData
       real(dp) :: pDoubles, pSingles, pParallel
       real(dp) :: pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
       integer :: nSingles, nDoubles
+      
       ! The number of determinants connected to the Hartree-Fock determinant.
       integer :: HFConn
 
@@ -338,7 +348,7 @@ MODULE FciMCData
       integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.
+      LOGICAL :: tGenMatHEl=.true.
 
       ! Number of update cycles that the shift has been allowed to vary
       integer, allocatable :: VaryShiftCycles(:)
@@ -616,7 +626,7 @@ MODULE FciMCData
       type(perturbation), allocatable :: pops_pert(:)
 
       real(dp), allocatable :: replica_overlaps_real(:,:)
-#ifdef __CMPLX
+#ifdef CMPLX_
       real(dp), allocatable :: replica_overlaps_imag(:,:)
 #endif
       real(dp), allocatable :: all_norms(:), all_overlaps(:,:)

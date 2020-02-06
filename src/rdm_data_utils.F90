@@ -439,7 +439,7 @@ contains
         integer, intent(out) :: ij, kl, i, j, k, l ! spin or spatial orbitals
 
         kl = int(mod(ijkl - 1, int(nbasis, int_rdm)**2)) + 1
-        ij = (int(ijkl) - kl) / (nbasis**2) + 1
+        ij = int((ijkl - int(kl, int_rdm)) / int(nbasis, int_rdm)**2) + 1
 
         j = mod(ij-1, nbasis) + 1
         i = (ij - j)/nbasis + 1
@@ -1057,7 +1057,7 @@ contains
                            &when there are no slots remaining.")'); call neci_flush(6)
             end if
 
-            en_pert%dets(:, en_pert%ndets) = ilut(0:NIfDBO)
+            en_pert%dets(0:NIfDBO, en_pert%ndets) = ilut(0:NIfDBO)
             call encode_sign_EN(en_pert%sign_length, en_pert%dets(:, en_pert%ndets), contrib_sign)
 
             call add_hash_table_entry(en_pert%hash_table, en_pert%ndets, hash_val)
