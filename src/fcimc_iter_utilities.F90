@@ -607,7 +607,7 @@ contains
         low = upp + 1; upp = low + sizes(23) - 1; all_bloom_count(0:max_ex_level) = nint(recv_arr(low:upp));
         low = upp + 1; upp = low + sizes(24) - 1; AllNoAtHf = recv_arr(low:upp);
         low = upp + 1; upp = low + sizes(25) - 1; AllSumWalkersCyc = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(26) - 1; nspawned_tot = nint(recv_arr(low), int64);
         ! double occ:
         low = upp + 1; upp = low + sizes(27) - 1; all_inst_double_occ = recv_arr(low);
         if(tTruncInitiator) then
@@ -628,12 +628,13 @@ contains
         ! initiators per excitation level
         low = upp + 1; upp = low + sizes(35) - 1; AllInitsPerExLvl = nint(recv_arr(low:upp));
         ! excitation number trackers
-        low = upp + 1; upp = low + sizes(36) - 1; allNInvalidExcits = nint(recv_arr(low));
-        low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = nint(recv_arr(low));
+        low = upp + 1; upp = low + sizes(36) - 1; allNInvalidExcits = nint(recv_arr(low), int64);
+        low = upp + 1; upp = low + sizes(37) - 1; allNValidExcits = nint(recv_arr(low), int64);
         ! en_pert space size
         if (tEN2) then
            low = upp + 1; upp = low + sizes(38) - 1; en_pert_main%ndets_all = nint(recv_arr(low));
         endif
+        ! Output variables
         if(t_output) then
            low = upp + 1; upp = low + sizes(39) - 1; RealAllHFOut = recv_arr(low:upp)
            low = upp + 1; upp = low + sizes(40) - 1; AllAcceptances = recv_arr(low:upp)

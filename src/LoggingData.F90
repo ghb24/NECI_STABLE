@@ -34,7 +34,8 @@ module LoggingData
     ! Logical(4) datatypes for compilation with builds of openmpi that don't
     ! have support for logical(8). Gah.
     logical :: tExplicitAllRDM, tChangeVarsRDM
-    logical :: tPopAutoAdaptiveShift, tPopScaleBlooms
+    logical :: tPopAutoAdaptiveShift, tPopScaleBlooms, tPopAccumPops
+    integer :: PopAccumPopsCounter !The number of accumlated populations stored in popsfile
     LOGICAL tSaveBlocking !Do not overwrite blocking files
     INTEGER iWriteBlockingEvery !How often to write out blocking files
     INTEGER IterStartBlocking,HFPopStartBlocking,NoDumpTruncs
@@ -111,15 +112,45 @@ module LoggingData
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
+    ! Avoid writing a determinant to HDF5-popsfiles when its population
+    ! is below or equal iHDF5PopsMin and its excitation is above iHDF5PopsMinEx
+    logical :: tReduceHDF5Pops
+    real(dp) :: HDF5PopsMin
+    integer :: iHDF5PopsMinEx
+
     ! Whether to write another HDF5 popsfile with dets restricted to a maximum
     ! exitation level
     logical :: tHDF5TruncPopsWrite
     ! The maximum excitation level of dets writen to truncated HDF5 popsfile
     integer :: iHDF5TruncPopsEx
+    ! Number of iterations for the periodic writing of truncated popsfiles
+    integer :: iHDF5TruncPopsIter
 
-    ! Whether to calculate and print the instanenous project energy of
-    ! wavefunction printed to popsfile
-    logical :: tPopsInstProjE
+
+    ! Whether to calculate and print the projected energy of
+    ! popsfile wavefunction - instantaneous and accumulated (if available)
+    logical :: tPopsProjE
+
+    ! Whether to accumulate the population of determinants and write them
+    ! to the popsfile
+    logical :: tAccumPops
+    logical :: tAccumPopsActive
+
+    ! When to start accumlating the population
+    integer :: iAccumPopsIter
+
+    ! Maximum excitation level of empty dets to keep during accumlation
+    integer :: iAccumPopsMaxEx
+
+    ! Number of iterations the empty dets are kept during accumlation
+    integer :: iAccumPopsExpireIters
+
+    ! How full should be the CurrentDets before starting to remove accumulated
+    ! empty dets
+    real(dp) :: AccumPopsExpirePercent
+
+    ! How many iterations have been accumulated sofar
+    integer :: iAccumPopsCounter
 
     logical :: tOldRDMs = .false.
 

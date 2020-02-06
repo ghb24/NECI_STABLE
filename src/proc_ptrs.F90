@@ -29,7 +29,24 @@ module procedure_pointers
             type(excit_gen_store_type), intent(inout), target :: store
             integer, intent(in), optional :: part_type
 
-        end subroutine
+        end subroutine generate_excitation_t
+
+        subroutine generate_single_excit_t(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
+            use SystemData, only: nel
+            use bit_rep_data, only: NIfTot
+            use FciMCData, only: excit_gen_store_type
+            use constants
+            implicit none
+            
+            integer, intent(in) :: nI(nel)
+            integer(n_int), intent(in) :: ilutI(0:NIfTot)
+            integer, intent(out) :: nJ(nel), ex(2,maxExcit)
+            integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+            logical, intent(out) :: tpar
+            real(dp), intent(out) :: pGen
+            type(excit_gen_store_type), intent(inout), target :: store
+
+        end subroutine generate_single_excit_t
 
 
         !
@@ -251,6 +268,7 @@ module procedure_pointers
     ! And here are the stored procedure pointers (for use in FCIQMC)
     procedure(generate_excitation_t), pointer :: generate_excitation
     procedure(generate_excitation_t), pointer :: generate_two_body_excitation
+    procedure(generate_single_excit_t), pointer :: generate_single_excit
     procedure(attempt_create_t), pointer :: attempt_create
     procedure(get_spawn_helement_t), pointer :: get_spawn_helement
     procedure(get_spawn_helement_t), pointer :: get_conn_helement

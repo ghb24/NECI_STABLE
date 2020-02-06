@@ -261,8 +261,6 @@ contains
         integer(int64) :: arrSize
         ! if all weights are 0, throw an error
         if(sum(arr) < eps) then
-            write(iout,*) &
-                "Warning: trying to initialize sampler with empty probability distribution"
             ! probs defaults to null(), so it is not associated at this point (i.e. in a well-defined state)
             return
         endif
@@ -291,8 +289,6 @@ contains
 
         ! if all weights are 0, throw an error
         if(sum(arr) < eps) then
-            write(iout,*) &
-                "Warning: trying to initialize sampler with empty probability distribution"
             ! if we reach this point, probs is uninitialized -> null it
             this%probs%ptr => null()
             return

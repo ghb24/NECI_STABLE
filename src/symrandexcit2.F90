@@ -1248,6 +1248,34 @@ MODULE GenRandSymExcitNUMod
 !
     END SUBROUTINE CheckIfSingleExcits
 
+    !> Wrapper function for creating a uniform single excitation
+    subroutine uniform_single_excit_wrapper(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
+        implicit none
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tpar
+        real(dp), intent(out) :: pGen
+        type(excit_gen_store_type), intent(inout), target :: store
+
+        ! First, count the number of available orbitals per irrep
+        if(.not.store%tFilled) then
+            call construct_class_counts(nI, store%ClassCountOcc, &
+                store%ClassCountUnocc)
+            store%tFilled = .true.
+        endif
+        pDoubNew = 1.0-pSingles
+        ! Then, chose uniformly from them
+        call createSingleExcit(nI,nJ,store%ClassCountOcc,store%classCountUnocc,ilutI,&
+            ex,tPar,pGen)
+
+        ! set the output ilut
+        ilutJ = ilutI
+        clr_orb(ilutJ, ex(1,1))
+        set_orb(ilutJ, ex(2,1))
+
+    end subroutine uniform_single_excit_wrapper
 
     SUBROUTINE CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb

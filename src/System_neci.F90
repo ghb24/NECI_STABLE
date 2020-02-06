@@ -200,6 +200,8 @@ MODULE System
       t_exclude_3_body_excits = .false.
       t_pcpp_excitgen = .false.
       t_pchb_excitgen = .false.
+      ! use weighted singles for the pchb excitgen?
+      t_pchb_weighted_singles = .false.      
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! GAS options
@@ -1399,6 +1401,11 @@ system: do
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
             enddo
+
+        case("PCHB-WEIGHTED-SINGLES")
+            ! Enable using weighted single excitations with the pchb excitation generator
+            t_pchb_weighted_singles = .true.
+            
         case("SPAWNLISTDETS")
 !This option will mean that a file called SpawnOnlyDets will be read in,
 ! and only these determinants will be allowed to be spawned at.

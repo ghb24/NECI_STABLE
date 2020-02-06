@@ -175,10 +175,6 @@ logical :: tStoredDets
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
 
-! are determinants with low number of open orbs always inits?
-logical :: tSeniorityInits
-integer :: initMaxSenior
-
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,NShiftEquilSteps
@@ -555,5 +551,13 @@ logical :: tSetInitialRunRef
 ! pops-core-approx option to take over, even in the default case
 ! where it has been decided that it is efficient and appropriate.
 logical :: tForceFullPops
+
+! Whether global_determinant_data should be moved alongside determinants
+! during load balancing
+logical :: tMoveGlobalDetData
+
+! Whether we should allow non-initiators to spawn to empty dets if these
+! already exist in CurrentDets.
+logical :: tAllowSpawnEmpty
 
 end module CalcData

@@ -42,7 +42,10 @@ module FciMCParMod
                            tFValEnergyHist, tFValPopHist, &
                            FvalEnergyHist_EnergyBins, FvalEnergyHist_FValBins, &
                            FvalPopHist_PopBins, FvalPopHist_FValBins, &
-                           tHDF5TruncPopsWrite, iHDF5TruncPopsEx                               
+                           tHDF5TruncPopsWrite, iHDF5TruncPopsEx, tAccumPops, &
+                           tAccumPopsActive, iAccumPopsIter, iAccumPopsExpireIters, &
+                           tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
+                           AccumPopsExpirePercent
     use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
                             spin_proj_iter_count, generate_excit_spin_proj, &
                             get_spawn_helement_spin_proj, iter_data_spin_proj,&
@@ -82,7 +85,9 @@ module FciMCParMod
                                reset_shift_int, update_shift_int, &
                                update_tau_int, set_spawn_pop, &
                                get_tot_spawns, get_acc_spawns, &
+                               update_pops_sum_all, get_pops_iter, &
                                replica_est_len, get_max_ratio, update_max_ratio
+    use DetBitOps, only: tAccumEmptyDet
     use RotateOrbsMod, only: RotateOrbs
     use NatOrbsMod, only: PrintOrbOccs
     use ftlm_neci, only: perform_ftlm
@@ -158,6 +163,15 @@ module FciMCParMod
 
         real(dp):: lt_imb
         integer:: rest, err, allErr
+
+        real(dp) :: CurrentSign(lenof_sign)
+        integer :: j
+        integer :: pops_iter, nJ(nel)
+
+        HElement_t(dp):: InstE(inum_runs)
+        HElement_t(dp):: AccumE(inum_runs)
+        integer :: ExcitLevel
+
         logical :: t_comm_done
         integer :: run
 
@@ -451,6 +465,45 @@ module FciMCParMod
                 get_spawn_helement => gs_tmp
                 attempt_die => ad_tmp
             endif
+
+            if(tAccumPops .and. iter+PreviousCycles>=iAccumPopsIter) then
+                if(.not. tAccumPopsActive) then
+                    tAccumPopsActive = .true.
+                    write(6,*) "Starting to accumulate populations ..."
+                endif
+
+                call update_pops_sum_all(TotWalkers, iter + PreviousCycles)
+                iAccumPopsCounter = iAccumPopsCounter+1
+
+                ! The currentdets is almost full, we should start removing
+                ! dets which have been empty long enough
+                if(iAccumPopsExpireIters>0 .and. TotWalkers>AccumPopsExpirePercent * real(MaxWalkersPart,dp))then
+                    do j=1, int(TotWalkers,sizeof_int)
+                        ! The loop is over empty dets only
+                        call extract_sign(CurrentDets(:,j),CurrentSign)
+                        if(.not. IsUnoccDet(CurrentSign)) cycle
+
+                        ! Keep semi-stochastic dets
+                        if(check_determ_flag(CurrentDets(:,j))) cycle
+
+                        ! Keep up to double excitations
+                        ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
+                        if(ExcitLevel<=2) cycle
+
+                        ! Check if the det has already been removed
+                        if(test_flag(CurrentDets(:,j), flag_removed)) cycle
+
+                        ! Now if it has been empty for a long time, remove it
+                        pops_iter = INT(get_pops_iter(j))
+                        if(iter+PreviousCycles-pops_iter>iAccumPopsExpireIters)then
+                            call decode_bit_det(nJ, CurrentDets(:,j))
+                            call RemoveHashDet(HashIndex, nJ, j)
+                        endif
+                    enddo
+                endif
+            endif
+
+
             ! if the iteration failed, stop the calculation now
             if(err.ne.0) exit
 
@@ -637,6 +690,9 @@ module FciMCParMod
             ENDIF
 !            IF(TAutoCorr) CALL WriteHistogrammedDets()
 
+            if(TPopsFile .and. tHDF5TruncPopsWrite .and. iHDF5TruncPopsIter>0 .and. (mod(Iter, iHDF5TruncPopsIter) .eq. 0))then
+                call write_popsfile_hdf5(iHDF5TruncPopsEx, .true.)
+            endif
             IF(tHistSpawn.and.(mod(Iter,iWriteHistEvery).eq.0).and.(.not.tRDMonFly)) THEN
                 CALL WriteHistogram()
             ENDIF
@@ -765,10 +821,25 @@ module FciMCParMod
             CALL WriteToPopsfileParOneArr(CurrentDets,TotWalkers)
 
             if(tHDF5TruncPopsWrite)then
-                call write_popsfile_hdf5(iHDF5TruncPopsEx)
-                call calc_inst_proje()
-                write(6,*) 'Instantaneous projected energy of truncated popsfile:', proje_iter
+                ! If we have already written a file in the last iteration,
+                ! we should not write it again
+                if(iHDF5TruncPopsIter==0 .or. (mod(Iter, iHDF5TruncPopsIter) /= 0)) then
+                    call write_popsfile_hdf5(iHDF5TruncPopsEx)
+                else
+                    write(6,*)
+                    write(6,*) "============== Writing Truncated HDF5 popsfile =============="
+                    write(6,*) "Unnecessary duplication of truncated popsfile is avoided."
+                    write(6,*) "It has already been written in the last iteration."
+                endif
             endif
+
+            if(tPopsProjE) then
+                call calc_proje(InstE, AccumE)
+                write(6,*)
+                write(6,*) 'Instantaneous projected energy of popsfile:', InstE+Hii
+                if(tAccumPopsActive) &
+                    write(6,*) 'Accumulated projected energy of popsfile:', AccumE+Hii
+            end if
         ENDIF
 
 
@@ -1173,7 +1244,8 @@ module FciMCParMod
                         ! kill all walkers on the determinant
                         call nullify_ilut(CurrentDets(:,j))
                         ! and remove it from the hashtable
-                        call RemoveHashDet(HashIndex, DetCurr, j)
+                        if(.not. tAccumEmptyDet(CurrentDets(:,j))) &
+                            call RemoveHashDet(HashIndex, DetCurr, j)
                         cycle
                      endif
                   endif
@@ -1233,11 +1305,15 @@ module FciMCParMod
             ! As the main list (which is storing a hash table) no longer needs
             ! to be contiguous, we need to skip sites that are empty.
             if(IsUnoccDet(SignCurr)) then
+
+               if(tAccumEmptyDet(CurrentDets(:,j))) cycle
+
                !It has been removed from the hash table already
-               !Add to the "freeslot" list
+               !Just add to the "freeslot" list
                iEndFreeSlot=iEndFreeSlot+1
                FreeSlot(iEndFreeSlot)=j
                cycle
+
             endif
 
             ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
@@ -1587,6 +1663,7 @@ module FciMCParMod
             call rescale_spawns(MaxIndex, proj_e_for_precond, iter_data)
             call halt_timer(rescale_time)
         end if
+
 
         ! If we haven't performed the death step yet, then do it now.
         if (.not. tDeathBeforeComms) then

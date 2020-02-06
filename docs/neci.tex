@@ -683,6 +683,11 @@ the \texttt{endsys} keyword.
   \codeitem{lattice-excitgen}
   Generates uniform excitations using momentum conservation. Requires the
   \texttt{kpoints} keyword.
+  \codeitem{pchb-weighted-singles}
+  Use a weighted single excitation generator for the pchb excitation
+  generator. By default, singles are created uniformly, the weighted
+  generation is much more expensive, but can help if single matrix elements
+  are large.
 \end{description}
 
   \subsubsection{Hubbard model and UEG options}

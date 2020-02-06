@@ -9,15 +9,15 @@ module AnnihilationMod
                           tEN2Started, tEN2Truncated, tInitCoherentRule, t_truncate_spawns, &
                           n_truncate_spawns, t_prone_walkers, t_truncate_unocc, &
                           tLogAverageSpawns, tAutoAdaptiveShift, tSkipRef, &
-                          tAAS_MatEle, tAAS_MatEle2, tNonInitsForRDMs, &
-                          tNonVariationalRDMs, &
-                          tPreCond, tReplicaEstimates, tSimpleInit, tAllConnsPureInit
+                          tNonInitsForRDMs, &
+                          tNonVariationalRDMs, tPreCond, tReplicaEstimates, &
+                          tSimpleInit, tAllConnsPureInit, tAllowSpawnEmpty
     use DetCalcData, only: Det, FCIDetIndex
     use Parallel_neci
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
-                         ilut_gt, DetBitZero, count_open_orbs
+                         ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
     use sort_mod
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
@@ -35,7 +35,8 @@ module AnnihilationMod
     use searching
     use hash
     use global_det_data, only: det_diagH, store_spawn, &
-                               update_tot_spawns, update_acc_spawns, get_tot_spawns, get_acc_spawns
+                               update_tot_spawns, update_acc_spawns, &
+                               get_tot_spawns, get_acc_spawns
     use procedure_pointers, only: scaleFunction
     use hphf_integrals, only: hphf_diag_helement
     use rdm_data, only: rdm_estimates, en_pert_main, rdm_inits_defs, two_rdm_inits_spawn, &
@@ -985,7 +986,7 @@ module AnnihilationMod
                        ! This determinant is actually *unoccupied* for the
                        ! run we're considering. We need to
                        ! decide whether to abort it or not.
-                       if (tTruncInitiator) then
+                       if (tTruncInitiator .and. .not. tAllowSpawnEmpty) then
                           if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
                                .not. tDetermState) then
                              ! Walkers came from outside initiator space.
@@ -1044,21 +1045,20 @@ module AnnihilationMod
                     end if
                  end do ! over all components of the sign
 
-                 ! Transfer new sign across.
-                 call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
-                 call encode_sign(SpawnedParts(:,i), null_part)
+                ! Transfer new sign across.
+                call encode_sign(CurrentDets(:,PartInd), SpawnedSign+CurrentSign)
+                call encode_sign(SpawnedParts(:,i), null_part)
 
-                 if (.not. tDetermState) then
-                    call extract_sign (CurrentDets(:,PartInd), SignTemp)
-                    if (IsUnoccDet(SignTemp)) then
-                       ! All walkers in this main list have been annihilated
-                       ! away. Remove it from the hash index array so that
-                       ! no others find it (it is impossible to have another
-                       ! spawned walker yet to find this determinant).
-                        call RemoveHashDet(HashIndex, nJ, PartInd)
-                    end if
-                 end if
-
+                if (.not. tDetermState) then
+                   call extract_sign (CurrentDets(:,PartInd), SignTemp)
+                   if (IsUnoccDet(SignTemp)) then
+                      ! All walkers in this main list have been annihilated
+                      ! away. Remove it from the hash index array so that
+                      ! no others find it (it is impossible to have another
+                      ! spawned walker yet to find this determinant).
+                      if(.not. tAccumEmptyDet(CurrentDets(:,PartInd))) call RemoveHashDet(HashIndex, nJ, PartInd)
+                   end if
+                endif
               endif
 
               if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then

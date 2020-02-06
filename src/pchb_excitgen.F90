@@ -1,20 +1,22 @@
 #include "macros.h"
 module pchb_excitgen
   use constants
-  use SystemData, only: nel, nBasis, G1, tStoreSpinOrbs, AB_elec_pairs, par_elec_pairs
+  use SystemData, only: nel, nBasis, G1, tStoreSpinOrbs, AB_elec_pairs, par_elec_pairs, &
+      t_pchb_weighted_singles
   use bit_rep_data, only: NIfTot
   use dSFMT_interface, only: genrand_real2_dSFMT
   use get_excit, only: make_double, exciteIlut
-  use excit_gens_int_weighted, only: pick_biased_elecs
+  use excit_gens_int_weighted, only: pick_biased_elecs, weighted_single_excit_wrapper, &
+      pgen_single_4ind
   use FciMCData, only: pSingles, excit_gen_store_type, nInvalidExcits, nValidExcits, &
        projEDet, pParallel, pDoubles
   use excitation_types, only: DoubleExc_t
   use sltcnd_mod, only: sltcnd_excit
+  use procedure_pointers, only: generate_single_excit
   use UMatCache, only: gtID, numBasisIndices
   use aliasSampling, only: aliasSamplerArray_t
   use util_mod, only: fuseIndex, linearIndex, intswap, getSpinIndex, near_zero
-  use GenRandSymExcitNUMod, only: construct_class_counts, createSingleExcit, &
-       calc_pgen_symrandexcit2
+  use GenRandSymExcitNUMod, only: uniform_single_excit_wrapper, calc_pgen_symrandexcit2
   use SymExcitDataMod, only: pDoubNew, scratchSize
   use sym_general_mod, only: IsSymAllowedExcitMat
   implicit none
@@ -50,21 +52,9 @@ module pchb_excitgen
       helgen = 0.0_dp
 
       if(genrand_real2_dSFMT() < pSingles) then
-         ic = 1
-         ! default to uniform singles
-         if(.not.store%tFilled) then
-            call construct_class_counts(nI, store%ClassCountOcc, &
-                 store%ClassCountUnocc)
-            store%tFilled = .true.
-         endif
-         pDoubNew = 1.0-pSingles
-         call createSingleExcit(nI,nJ,store%ClassCountOcc,store%classCountUnocc,ilutI,&
-              ex,tPar,pGen)
-
-         ! set the output ilut
-         ilutJ = ilutI
-         clr_orb(ilutJ, ex(1,1))
-         set_orb(ilutJ, ex(2,1))
+          ic = 1
+         ! defaults to uniform singles, but can be set to other excitgens
+          call generate_single_excit(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
       else
          ic = 2
          ! use precomputed weights to generate doubles
@@ -78,7 +68,7 @@ module pchb_excitgen
          endif
       end if
 
-    end subroutine gen_rand_excit_pchb
+  end subroutine gen_rand_excit_pchb
 
     !------------------------------------------------------------------------------------------!
 
@@ -90,7 +80,7 @@ module pchb_excitgen
     !> @param[out] nJ  on return, excited determinant
     !> @param[out] excitMat  on return, excitation matrix nI -> nJ
     !> @param[out] tParity  on return, the parity of the excitation nI -> nJ
-    !> @param[out] pGen  on return, the probability of generating the excitation nI -> nJ    
+    !> @param[out] pGen  on return, the probability of generating the excitation nI -> nJ
     subroutine generate_double_pchb(nI,ilutI,nJ,ilutJ,ex,tpar,pgen)
       integer, intent(in) :: nI(nel)
       integer(n_int), intent(in) :: ilutI(0:NIfTot)
@@ -179,19 +169,24 @@ module pchb_excitgen
     !> @param[in] ic  excitation level
     !> @param[in] ClassCount2  symmetry information of the determinant
     !> @param[in] ClassCountUnocc2  symmetry information of the virtual orbitals
-    !> @return pGen  probability of drawing this excitation with the pchb excitgen    
-    function calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+    !> @return pGen  probability of drawing this excitation with the pchb excitgen
+    function calc_pgen_pchb(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
       implicit none
       integer, intent(in) :: nI(nel)
+      integer(n_int), intent(in) :: ilutI(0:NIfTot)
       integer, intent(in) :: ex(2,2), ic
       integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
       real(dp) :: pgen
 
       if(ic==1) then
-         ! single excitations are the job of the uniform excitgen
-         call calc_pgen_symrandexcit2(nI,ex,ic,ClassCount2, ClassCountUnocc2, pDoubles, pGen)
+          ! single excitations are the job of the uniform excitgen
+          if(t_pchb_weighted_singles) then
+              pgen = pSingles * pgen_single_4ind(nI, ilutI, ex(1,1), ex(2,1))
+          else
+              call calc_pgen_symrandexcit2(nI,ex,ic,ClassCount2, ClassCountUnocc2, pDoubles, pGen)
+          endif
       else if(ic==2) then
-         pGen = pDoubles * calc_double_pgen_pchb(ex)
+         pGen = (1.0 - pSingles) * calc_double_pgen_pchb(ex)
       else
          pgen = 0.0_dp
       endif
@@ -202,7 +197,7 @@ module pchb_excitgen
 
     !> Calculate the probability of drawing a given double excitation ex
     !> @param[in] ex  2x2 excitation matrix
-    !> @return pgen  probability of generating this double with the pchb double excitgen    
+    !> @return pgen  probability of generating this double with the pchb double excitgen
     function calc_double_pgen_pchb(ex) result(pgen)
       implicit none
       integer, intent(in) :: ex(2,2)
@@ -243,7 +238,7 @@ module pchb_excitgen
     !> initialize the pchb excitation generator
     !! this does two things:
     !! 1. setup the lookup table for the mapping ab -> (a,b)
-    !! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>    
+    !! 2. setup the alias table for picking ab given ij with probability ~<ij|H|ab>
     subroutine init_pchb_excitgen()
       implicit none
       integer :: ab, a, b, abMax
@@ -276,6 +271,14 @@ module pchb_excitgen
       write(iout,*) "Finished excitation generator initialization"
       ! this is some bias used internally by CreateSingleExcit - not used here
       pDoubNew = 0.0
+
+      ! Set the single excitation generator
+      if(t_pchb_weighted_singles) then
+          generate_single_excit => weighted_single_excit_wrapper
+      else
+          generate_single_excit => uniform_single_excit_wrapper
+      endif
+
     contains
 
       subroutine setup_pchb_sampler()
@@ -366,7 +369,7 @@ module pchb_excitgen
 
   !------------------------------------------------------------------------------------------!
 
-    !> deallocate the sampler and the mapping ab -> (a,b)    
+    !> deallocate the sampler and the mapping ab -> (a,b)
     subroutine finalize_pchb_excitgen()
       implicit none
       integer :: samplerIndex
