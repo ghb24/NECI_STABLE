@@ -800,7 +800,7 @@ contains
 
         call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, &
             tScaleBlooms, tAccumPopsActive, fvals_size, max_ratio_size, lenof_sign + 1)
-        gdata_size = gdata_write_handler%entry_size()        
+        gdata_size = gdata_write_handler%entry_size()
         if(gdata_size > 0) allocate(gdata_buf(gdata_size, TotWalkers))
 
         do i = 1, int(TotWalkers,sizeof_int)
@@ -977,7 +977,7 @@ contains
         type(gdata_io_t) :: gdata_read_handler
         integer :: gdata_size, tmp_fvals_size, tmp_apvals_size
         logical :: t_read_gdata
-        logical :: t_exist_gdata
+        logical(hdf_log) :: t_exist_gdata
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -1084,7 +1084,7 @@ contains
 
         tmp_apvals_size = tmp_lenof_sign+1
 
-        ! Only active the accumlation of populations if the popsfile has 
+        ! Only active the accumlation of populations if the popsfile has
         ! apvals and and accum-pops is specified with a proper iteration
         tAccumPopsActive = .false.
         if(tAccumPops .and. tPopAccumPops)then
@@ -1112,7 +1112,7 @@ contains
             tPopAutoAdaptiveShift, tPopScaleBlooms, tPopAccumPops, &
             tmp_fvals_size, max_ratio_size, tmp_apvals_size)
         gdata_size = gdata_read_handler%entry_size()
-        
+
         t_read_gdata = gdata_read_handler%t_io()
         if(t_read_gdata) then
            call h5lexists_f(grp_id, nm_gdata, t_exist_gdata, err)
@@ -1535,7 +1535,7 @@ contains
         integer(int64), intent(inout) :: CurrWalkers
         real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
         type(gdata_io_t), intent(in) :: gdata_read_handler
-        
+
         integer(int64) :: j
         real(dp) :: sgn(lenof_sign)
 
@@ -1582,7 +1582,7 @@ contains
                  norm = norm + sgn**2
                  parts = parts + abs(sgn)
 
-                 call gdata_read_handler%read_gdata_hdf5(gdata_write(:,j), int(CurrWalkers)) 
+                 call gdata_read_handler%read_gdata_hdf5(gdata_write(:,j), int(CurrWalkers))
               end if
            end do
 
