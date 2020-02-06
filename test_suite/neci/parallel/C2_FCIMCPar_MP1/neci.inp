@@ -12,6 +12,7 @@ methods
 method vertex fcimc
 endmethods
 nmcyc 4000
+seed -7
 diagshift 0.0
 totalwalkers 20000
 tau 0.00075

@@ -250,7 +250,8 @@ contains
           tMP2Standalone=.FALSE.
           TMODMPTHEORY=.FALSE.
           G_VMC_PI = 0.95_dp
-          G_VMC_SEED = -7
+          ! Default the seed to some essentially random number (time of day)
+          G_VMC_SEED = int(MPI_WTIME())
           G_VMC_FAC = 16.0_dp
           TUPOWER=.false.
           G_VMC_EXCITWEIGHT(:)=0.0_dp
