@@ -26,7 +26,7 @@ contains
         integer, intent(in) :: i, j, k, l
         real(dp) :: integral
 
-        integral = real(sltcnd_2_kernel(DoubleExc_t(i, l, j , k)), dp)
+        integral = real(sltcnd_2_kernel(DoubleExc_t(j, l, i , k)), dp)
 
     end function two_elec_int
 
