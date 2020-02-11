@@ -33,12 +33,14 @@ module unit_test_helper_excitgen
   integer, parameter :: lmsBase = -1
 
   abstract interface
-     function calc_pgen_t(nI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+     function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
        use constants
        use SymExcitDataMod, only: scratchSize
+       use bit_rep_data, only: NIfTot
        use SystemData, only: nel
        implicit none
        integer, intent(in) :: nI(nel)
+       integer(n_int), intent(in) :: ilutI(0:NIfTot)
        integer, intent(in) :: ex(2,2), ic
        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
 
@@ -186,7 +188,7 @@ contains
              endif
              ex(1,1) = 2
              call getBitExcitation(ilut,allEx(:,i),ex,tPar)
-             pgenCalc = calc_pgen(nI, ex, ic, ClassCountOcc, ClassCountUnocc)
+             pgenCalc = calc_pgen(nI, ilut, ex, ic, ClassCountOcc, ClassCountUnocc)
              if(abs(pgenArr(1)-pgenCalc) > eps) then
                 write(iout,*) "Stored: ", pgenArr(1), "calculated:", pgenCalc
                 write(iout,*) "For excit", nJ

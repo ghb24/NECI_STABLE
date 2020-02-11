@@ -14,6 +14,7 @@ calc
 methods
 method vertex fcimc
 endmethods
+seed -7
 memoryfacspawn 4.0
 memoryfacpart 2.0
 truncinitiator

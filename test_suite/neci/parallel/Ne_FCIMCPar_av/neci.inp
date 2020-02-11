@@ -8,6 +8,7 @@ calc
 methods
 method vertex fcimc 
 endmethods
+seed -7
 nmcyc 2250
 totalwalkers 10000
 startsinglepart

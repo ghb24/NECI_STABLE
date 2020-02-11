@@ -62,7 +62,7 @@ module bit_rep_data
                           flag_trial = 2, &
                           flag_connected = 3, &
                           flag_prone = 4, &
-                          flag_multi_spawn = 5, &
+                          flag_rescale = 5, &
                           flag_deltaB_single = 6, & ! new flags added for GUGA
                           flag_deltaB_double = 7, & ! new flags added for GUGA
                           flag_deltaB_sign = 8, &   ! new flags added for GUGA
@@ -80,12 +80,14 @@ module bit_rep_data
                           flag_static_init(lenof_sign_max) &
                             = (/34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, &
                                 45, 46, 47, 48, 49, 50, 51, 52, 53/), &
-                          num_flags = 54
+                          flag_removed = 54, &
+                          num_flags = 55
 #else
     integer, parameter :: flag_initiator(2) = (/ 13, 14/), &
                           flag_adi_checked = 15, &
                           flag_static_init(2) = (/16, 17/), &
-                          num_flags = 18
+                          flag_removed = 18, &
+                          num_flags = 19
 #endif
 
 contains

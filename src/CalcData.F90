@@ -115,7 +115,6 @@ LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
 logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
-logical :: tSTDInits
 logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
 
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
@@ -153,11 +152,12 @@ logical :: tAAS_MatEle !Use the magnitude of |Hij| in the modifcation factor i.e
 logical :: tAAS_MatEle2 !Use the weight |Hij|/(Hjj-E) in the modifcation factor
 logical :: tAAS_MatEle3 !Same as MatEle2 but use weight of one for accepted moves.
 logical :: tAAS_MatEle4 !Same as MatEle2 but use E_0 in the weight of accepted moves.
-logical :: tAAS_Reverse !Add weights in the opposite direction i.e. to the modification factor of the child
 real(dp) :: AAS_DenCut !Threshold on the denominators of MatEles
 real(dp) :: AAS_Const
 logical :: tExpAdaptiveShift !Make the shift depends on the population exponentialy
 real(dp) :: EAS_Scale !Scale parameter of exponentail adaptive shift
+logical :: tAS_TrialOffset !Whether the adaptive shift scheme should be applied with respect to trial-wf energy not HF energy
+real(dp) :: ShiftOffset ! An offest for the adaptive shift
 ! Giovannis option for using only initiators for the RDMs (off by default)
 logical :: tOutputInitsRDM = .false.
 logical :: tNonInitsForRDMs = .true.
@@ -179,13 +179,6 @@ integer :: trunc_nopen_max
 ! compared to the reference determinant
 logical :: t_trunc_nopen_diff = .false.
 integer :: trunc_nopen_diff = 0
-! are determinants with low number of open orbs always inits?
-logical :: tSeniorityInits
-integer :: initMaxSenior
-! do we keep certain spawns up to a given excitation + seniority level
-logical :: tSpawnSeniorityBased
-integer, allocatable :: maxKeepExLvl(:)
-integer :: numMaxExLvlsSet
 
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
@@ -254,9 +247,6 @@ integer :: lanczos_ritz_overlap_precision
 INTEGER, Allocatable :: MCDet(:)
 INTEGER(TagIntType) :: tagMCDet=0
 real(dp) :: RHOEPS ! calculated from RHOEPSILON
-
-!// set if we include no triple-excitations as the 3rd vertex in 3+ vertex graphs.
-LOGICAL :: lNoTriples
 
 LOGICAL tUseProcsAsNodes  !Set if we treat each processor as its own node.
 INTEGER iLogicalNodeSize  !An alternative to the above, create logical nodes of at most this size.
@@ -368,7 +358,6 @@ integer :: orthogonalise_iter
 logical :: t_test_overlap = .false.
 real(dp) :: overlap_eps = 1.0e-5_dp
 integer :: n_stop_ortho = -1
-logical :: tAVReps, tReplicaCoherentInits
 ! Information on a trial space to create trial excited states with.
 
 type(subspace_in) :: init_trial_in
@@ -498,7 +487,6 @@ real(dp) :: n_truncate_spawns = 2.0_dp
 
 ! flags for global storage
 logical :: tLogAverageSpawns, tActivateLAS
-logical :: tTimedDeaths
 ! threshold value to make something an initiator based on spawn coherence
 real(dp) :: spawnSgnThresh
 integer :: minInitSpawns
@@ -668,4 +656,13 @@ integer :: n_guga_back_spawn_lvl = 0
 
 
 logical :: tLogGreensfunction
+
+! Whether global_determinant_data should be moved alongside determinants
+! during load balancing
+logical :: tMoveGlobalDetData
+
+! Whether we should allow non-initiators to spawn to empty dets if these
+! already exist in CurrentDets.
+logical :: tAllowSpawnEmpty
+
 end module CalcData

@@ -1196,6 +1196,38 @@ module DetBitOps
       end do
     end function spin_flip
 
+    pure function tAccumEmptyDet(ilut) result(tAccum)
+      use FciMCData, only: iLutHF
+      use bit_rep_data, only: test_flag, NIfD, flag_removed
+      use LoggingData, only: tAccumPopsActive, iAccumPopsMaxEx
+
+        ! Whether we should keep a determinant in CurrentDets even if it
+        ! is unoccupied
+
+        integer(kind=n_int), intent(in) :: iLut(0:NIfD)
+        logical :: tAccum
+        integer :: ExcitLevel, pops_iter
+
+
+        tAccum = .false.
+
+        ! If the determinant has already been removed, skip accumlating its
+        ! population
+        if(test_flag(ilut, flag_removed)) return
+
+        if(tAccumPopsActive) then
+
+            ! If we are accumlating populations, we keep all empty dets up to
+            ! excitation level iAccumPopsMaxEx.
+            if(iAccumPopsMaxEx>0) then
+                ExcitLevel = FindBitExcitLevel(iLutHF, ilut)
+                if (ExcitLevel>iAccumPopsMaxEx) return
+            endif
+
+            tAccum = .true.
+        endif
+    end function
+
     pure function FindBitExcitLevel_hphf(ilutnI, iLutnJ) result(ic)
         integer(n_int), intent(in) :: ilutnI(0:nifd), ilutnJ(0:nifd)
         integer :: ic
@@ -1228,6 +1260,7 @@ module DetBitOps
     end function FindBitExcitLevel_hphf
 
 end module
+
 
     pure subroutine GetBitExcitation(iLutnI,iLutnJ,Ex,tSign)
 
@@ -1410,4 +1443,5 @@ end module
         CALL LargestBitSet(iLutExcited,NIfD,Orbs(2))
 
     END SUBROUTINE FindSingleOrbs
+
 

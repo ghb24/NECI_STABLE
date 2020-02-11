@@ -5,10 +5,10 @@ MODULE System
     use SystemData
 
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
-                        pSinglesIn, tInitializeCSF, S2Init, &
-                        occCASorbs, virtCASorbs, tPairedReplicas, &
-                        tDynamicAvMcEx
-    use FciMCData, only: tGenMatHEl
+                        occCASorbs, virtCASorbs, tPairedReplicas, tInitializeCSF, &
+                        S2Init, tDynamicAvMcEx
+
+    use FciMCData, only: tGenMatHEl, t_initialized_roi
 
     use sort_mod
 
@@ -221,6 +221,8 @@ MODULE System
       t_exclude_3_body_excits = .false.
       t_pcpp_excitgen = .false.
       t_pchb_excitgen = .false.
+      ! use weighted singles for the pchb excitgen?
+      t_pchb_weighted_singles = .false.
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! by default, excitation generation already creates matrix elements
@@ -236,6 +238,7 @@ MODULE System
       TUnitary=.false.
       Tperiodicinmom=.false.
       t12FoldSym = .false.
+      t_initialized_roi = .false.
 
 #ifdef PROG_NUMRUNS_
       inum_runs = 1
@@ -707,7 +710,8 @@ system: do
                   t12FoldSym = .true.
                   tNoSinglesPossible = .true.
                case default
-                  t_mol_3_body = .false.
+                   t_mol_3_body = .true.
+                   tGenMatHEl = .false.
                end select
             endif
             if(t_mol_3_body) max_ex_level = 3
@@ -1669,6 +1673,11 @@ system: do
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
             enddo
+
+        case("PCHB-WEIGHTED-SINGLES")
+            ! Enable using weighted single excitations with the pchb excitation generator
+            t_pchb_weighted_singles = .true.
+
         case("SPAWNLISTDETS")
 !This option will mean that a file called SpawnOnlyDets will be read in,
 ! and only these determinants will be allowed to be spawned at.
@@ -1781,8 +1790,6 @@ system: do
       if(NEL.eq.0)                                                    &
    &     call report("Number of electrons cannot be zero.",.true.)
 
-      ! use a better suited default for real-space lattice models for the excitation bias
-      if(tReal) pSinglesIn = 0.9
 
       if (.not. tUEG2) then
           if(THUB.OR.TUEG.OR..NOT.(TREADINT.OR.TCPMD.or.tVASP)) then

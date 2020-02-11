@@ -35,7 +35,7 @@ module back_spawn_excit_gen
 
     use lattice_models_utils, only: make_ilutJ, get_orb_from_kpoints, get_ispn
 
-    use sym_general_mod, only: get_paired_cc_ind
+    use excit_gens_int_weighted, only: get_paired_cc_ind
 
 #ifdef DEBUG_
     use SystemData, only: tNoFailAb

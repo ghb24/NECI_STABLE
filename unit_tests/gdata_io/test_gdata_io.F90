@@ -44,7 +44,7 @@ contains
 #endif
 #endif
         ! set all flags referred to in global_det_data initialization
-        tSeniorInitiators = .true.
+        tSeniorInitiators = .false.
         tAutoAdaptiveShift = .true.
         tRDMonFly = .false.
         tExplicitAllRDM = .false.
@@ -56,6 +56,7 @@ contains
         tPairedReplicas = .true.
         tReplicaEstimates = .false.
         MaxWalkersPart = ndets
+        tAccumPops = .true.
         ! initialise the global det data array that we will read/write to
         call init_global_det_data(1,1)
 
@@ -68,19 +69,35 @@ contains
         type(gdata_io_t) :: test_handler
 
         ! test the different options' sizes
-        call test_handler%init_gdata_io(.true.,.true., fvals_size, max_ratio_size)
+        call test_handler%init_gdata_io(.true.,.true., .true., fvals_size, max_ratio_size, apvals_size)
+        call assert_true(test_handler%entry_size() == max_ratio_size + fvals_size + apvals_size)
+        call assert_true(test_handler%t_io())
+
+        call test_handler%init_gdata_io(.false.,.true., .true., fvals_size, max_ratio_size, apvals_size)
+        call assert_true(test_handler%entry_size() == max_ratio_size + apvals_size)
+        call assert_true(test_handler%t_io())
+
+        call test_handler%init_gdata_io(.true.,.false., .true., fvals_size, max_ratio_size, apvals_size)
+        call assert_true(test_handler%entry_size() == fvals_size + apvals_size)
+        call assert_true(test_handler%t_io())
+
+        call test_handler%init_gdata_io(.false.,.false., .true., fvals_size, max_ratio_size, apvals_size)
+        call assert_true(test_handler%entry_size() == apvals_size)
+        call assert_true(test_handler%t_io())
+
+        call test_handler%init_gdata_io(.true., .true., .false., fvals_size, max_ratio_size, apvals_size)
         call assert_true(test_handler%entry_size() == max_ratio_size + fvals_size)
         call assert_true(test_handler%t_io())
 
-        call test_handler%init_gdata_io(.false.,.true., fvals_size, max_ratio_size)
+        call test_handler%init_gdata_io(.false.,.true., .false., fvals_size, max_ratio_size, apvals_size)
         call assert_true(test_handler%entry_size() == max_ratio_size)
         call assert_true(test_handler%t_io())
 
-        call test_handler%init_gdata_io(.true.,.false., fvals_size, max_ratio_size)
+        call test_handler%init_gdata_io(.true.,.false., .false., fvals_size, max_ratio_size, apvals_size)
         call assert_true(test_handler%entry_size() == fvals_size)
         call assert_true(test_handler%t_io())
 
-        call test_handler%init_gdata_io(.false.,.false., fvals_size, max_ratio_size)
+        call test_handler%init_gdata_io(.false.,.false., .false., fvals_size, max_ratio_size, apvals_size)
         call assert_true(test_handler%entry_size() == 0)
         call assert_true(.not. test_handler%t_io())
     end subroutine test_sizes
@@ -92,7 +109,7 @@ contains
         type(gdata_io_t) :: test_handler
         real(dp), allocatable :: gdata_buf(:,:)     
 
-        call test_handler%init_gdata_io(.true., .true., fvals_size, max_ratio_size)
+        call test_handler%init_gdata_io(.true., .true., .false., fvals_size, max_ratio_size, apvals_size)
         allocate(gdata_buf(test_handler%entry_size(),ndets))        
         gdata_buf(1:inum_runs,:) = acc_val
         gdata_buf(inum_runs+1:2*inum_runs,:) = tot_val
@@ -116,7 +133,7 @@ contains
 
         call set_global_det_data()
 
-        call test_handler%init_gdata_io(.true., .true., fvals_size, max_ratio_size)
+        call test_handler%init_gdata_io(.true., .true., .false., fvals_size, max_ratio_size, apvals_size)
 
         allocate(gdata_buf(test_handler%entry_size(),ndets))
         ! zero the buffer        
@@ -140,7 +157,7 @@ contains
         integer(hsize_t), allocatable :: gdata_buf(:,:)
         
         call set_global_det_data()
-        call test_handler%init_gdata_io(.true., .true., fvals_size, max_ratio_size)
+        call test_handler%init_gdata_io(.true., .true., .false., fvals_size, max_ratio_size, apvals_size)
 
         allocate(gdata_buf(test_handler%entry_size(),ndets))
         gdata_buf = 0_hsize_t

@@ -76,7 +76,9 @@ module guga_excitations
     use SymExcitDataMod, only: SpinOrbSymLabel, OrbClassCount, SymLabelCounts2, &
                                SymLabelList2, KPointToBasisFn, sym_label_list_spat
 
-    use sym_general_mod, only: ClassCountInd, get_paired_cc_ind
+    use sym_general_mod, only: ClassCountInd
+
+    use excit_gens_int_weighted,  only: get_paired_cc_ind
 
     use umatcache, only: gtID
 

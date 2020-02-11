@@ -67,6 +67,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
         end subroutine
     end interface
 
+
     def_default(iCacheFlag_, iCacheFlag, 0)
     def_default(tCPMD_, tCPMD, .false.)
     def_default(tVASP_, tVASP, .false.)
@@ -74,6 +75,7 @@ Subroutine NECICore(iCacheFlag, tCPMD, tVASP, tMolpro_local, call_as_lib, &
     def_default(called_as_lib, call_as_lib, .false.)
     def_default(FCIDUMP_name, int_name, 'FCIDUMP')
     def_default(filename, filename_in, '')
+
 
 #ifdef SX
     call stop_all(this_routine, 'The NEC compiler does not produce a working &

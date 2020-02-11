@@ -16,11 +16,11 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, &
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
-                        t_consider_par_bias, t_hist_tau_search_option, &
-                        tTruncInitiator, tSkipRef, t_truncate_unocc, &
-                        tAdaptiveShift, EAS_Scale, tPrecond, LAS_Sigma, &
-                        LAS_F1, LAS_F2, AAS_Thresh, AAS_Expo, AAS_Cut, &
-                        AAS_Const
+                        t_hist_tau_search_option, &
+                        tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
+                        tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
+                        AAS_Thresh, AAS_Expo, AAS_Cut, &
+                        tPrecond, AAS_Const, EAS_Scale, ShiftOffset
 
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
@@ -716,7 +716,7 @@ module fcimc_pointed_fns
             else
                  ! rescale the shift
                 if(tAdaptiveShift) then
-                    shift = DiagSft(i) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign,i))
+                    shift = ShiftOffset + (DiagSft(i)-ShiftOffset) * shiftFactorFunction(DetPosition, i, mag_of_run(RealwSign,i))
                 else
                     shift = DiagSft(i)
                 end if

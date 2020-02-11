@@ -1,21 +1,23 @@
+#include "macros.h"
 module gdata_io
     ! This module manages if and how much global determinant data is read/write from/to
     ! the popsfile. 
-    use LoggingData, only: tPopAutoAdaptiveShift, tPopScaleBlooms
-    use global_det_data, only: writeFFunc, write_max_ratio, set_all_max_ratios, &
-        set_tot_acc_spawns
+    use LoggingData, only: tAccumPopsActive
+    use global_det_data, only: writeFVals, readFVals, write_max_ratio, &
+        set_all_max_ratios, writeAPVals, readAPVals
     use constants
     use CalcData, only: tAutoAdaptiveShift, tScaleBlooms
     use util_mod, only: operator(.div.)
 #ifdef USE_HDF_
-    use global_det_data, only: writEFFuncAsInt, write_max_ratio_as_int, &
-        set_tot_acc_spawns_hdf5Int, set_max_ratio_hdf5Int
+    use global_det_data, only: writeFValsAsInt, write_max_ratio_as_int, &
+        readFValsAsInt, set_max_ratio_hdf5Int, writeAPValsAsInt, readAPValsAsInt
     use hdf5, only: hsize_t
 #endif
     implicit none
 
     private
     public :: gdata_io_t, resize_attribute
+
 #ifdef USE_HDF_
     public :: clone_signs
 #endif
@@ -33,6 +35,7 @@ module gdata_io
         ! ranges to read/write the data to in the buffer
         integer :: fvals_start, fvals_end
         integer :: max_ratio_start, max_ratio_end
+        integer :: apvals_start, apvals_end
     contains
         ! initialization routine
         procedure :: init_gdata_io
@@ -52,33 +55,52 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
-    subroutine init_gdata_io(this, t_aas, t_ms, fvals_size, max_ratio_size)
+    subroutine init_gdata_io(this, t_aas, t_ms, t_ap, fvals_size_in, max_ratio_size_in, apvals_size_in)
         ! Initialize a gdata_io_t object. This sets the read/write ranges for buffers
         ! and the size of required buffers
         ! Input: t_aas - Is auto adaptive shift data read/written (acc. rates)?
         !        t_ms - Is scale bloom data read/written (hij/pgen ratios)?
+        !        t_ap - Is accumplated populations data read/written?
         !        fvals_size - Size of the aas data (only referenced when t_aas is true)
         !        max_ratio_size - size of the ms data (only referenced when t_ms is true)
+        !        apvals_size - size of the accumlated populations data (only referenced when t_apvals is true)
         class(gdata_io_t) :: this
-        logical, intent(in) :: t_aas, t_ms
-        integer, intent(in) :: fvals_size, max_ratio_size
+        logical, intent(in) :: t_aas, t_ms, t_ap
+        integer, intent(in) :: fvals_size_in, max_ratio_size_in, apvals_size_in
+        integer :: fvals_size, max_ratio_size, apvals_size
+
         ! how much data is to be read?        
         this%gdata_size = 0
-        ! set the ranges for reading to the gdata buffer
-        this%fvals_start = 1
-        this%fvals_end = 0
-        this%max_ratio_start = 1
-        this%max_ratio_end = 0
-        if(t_aas) then
-            this%gdata_size = this%gdata_size + fvals_size
-            ! increase the start for all following data
-            this%fvals_end = this%fvals_start + fvals_size - 1
-            this%max_ratio_start = this%fvals_end + 1
+
+        if(.not. t_aas) then
+            fvals_size = 0
+        else
+            fvals_size = fvals_size_in
         endif
-        if(t_ms) then
-            this%gdata_size = this%gdata_size + max_ratio_size
-            this%max_ratio_end = this%max_ratio_start + max_ratio_size - 1
-        endif        
+        if(.not. t_ms) then
+            max_ratio_size = 0
+        else
+            max_ratio_size = max_ratio_size_in
+        endif
+        if(.not. t_ap) then
+            apvals_size = 0
+        else
+            apvals_size = apvals_size_in
+        endif
+
+        ! set the range of each section 
+        this%fvals_start = 1
+        this%fvals_end = this%fvals_start + fvals_size - 1
+        this%gdata_size = this%gdata_size + fvals_size
+
+        this%max_ratio_start = this%fvals_start + fvals_size
+        this%max_ratio_end = this%max_ratio_start + max_ratio_size - 1
+        this%gdata_size = this%gdata_size + max_ratio_size
+
+        this%apvals_start = this%max_ratio_end + max_ratio_size
+        this%apvals_end = this%apvals_start + apvals_size - 1
+        this%gdata_size = this%gdata_size + apvals_size
+
     end subroutine init_gdata_io
 
     !------------------------------------------------------------------------------------------!    
@@ -121,7 +143,7 @@ contains
             if(this%entry_size() <= size(gdata_buf, dim=1)) then
                 if(tAutoAdaptiveShift) then
                     ! set the global det data for auto adaptive shift
-                    call set_tot_acc_spawns(&
+                    call readFVals(&
                         gdata_buf(this%fvals_start:this%fvals_end,:), ndets, initial)
                 endif
                 if(tScaleBlooms) then
@@ -129,6 +151,11 @@ contains
                     call set_all_max_ratios(&
                         gdata_buf(this%max_ratio_start:this%max_ratio_end,:), ndets, initial)
                 end if
+                if(tAccumPopsActive) then
+                    ! set the global det data for accumlated population
+                    call readAPVals(&
+                        gdata_buf(this%apvals_start:this%apvals_end,:), ndets, initial)
+                endif
             else
                 write(iout,*) "WARNING: Dimension mismatch in read_gdata, ignoring all read data"
             endif
@@ -137,23 +164,36 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
-    subroutine write_gdata(this, gdata_buf, ndets)
+    subroutine write_gdata(this, gdata_buf, ndets, initial, offset_)
         ! Write this calculations gdata to a buffer
         ! Input: gdata_buf - on return, contains the gdata of the first ndets determinants
         !                    has to have a first dimension of this%entry_size()
         !        ndets - number of determinants to write
+        !        initial - index of the first determinant to write (passed on as optional)
+        !        offset_ - offset in the gdata_buf to start writing (defaults to 1)
         class(gdata_io_t), intent(inout) :: this
         real(dp), intent(out) :: gdata_buf(:,:)
         integer, intent(in) :: ndets
+        integer, intent(in), optional :: initial
+        integer, intent(in), optional :: offset_
 
+        integer :: offset
+
+        def_default(offset, offset_, 1)
+        
         ! sanity check
         if(this%t_io()) then
             if(this%entry_size() <= size(gdata_buf, dim=1)) then
                 ! write the global det data to the buffer
-                if(tAutoAdaptiveShift) call writeFFunc(&
-                    gdata_buf(this%fvals_start:this%fvals_end,:), ndets)
+                if(tAutoAdaptiveShift) call writeFVals(&
+                    gdata_buf(this%fvals_start:this%fvals_end,offset:(offset+ndets-1)), &
+                    ndets, initial)
                 if(tScaleBlooms) call write_max_ratio(&
-                    gdata_buf(this%max_ratio_start:this%max_ratio_end,:), ndets)
+                    gdata_buf(this%max_ratio_start:this%max_ratio_end,offset:(offset+ndets-1)),&
+                    ndets, initial)
+                if(tAccumPopsActive) call writeAPVals(&
+                    gdata_buf(this%apvals_start:this%apvals_end,offset:(offset+ndets-1)), &
+                    ndets, initial)
             else
                 write(iout,*) "WARNING: Dimension mismatch in write_gdata, writing 0"
                 gdata_buf = 0.0_dp
@@ -169,7 +209,7 @@ contains
     subroutine read_gdata_hdf5(this, gdata_buf, pos)
         ! Read the gdata of a single determinant from an hdf5 file
         ! Input: gdata_buf - gdata for the determinant at pos, has to be of size this%entry_size
-        !        pos - position to write to
+        !        pos - position to put read data into 
         class(gdata_io_t), intent(in) :: this
         integer(hsize_t), intent(in) :: gdata_buf(:)
         integer, intent(in) :: pos
@@ -179,13 +219,16 @@ contains
         if(this%t_io()) then
             if(this%entry_size() <= size(gdata_buf)) then
                 if(tAutoAdaptiveShift) then
-                    call set_tot_acc_spawns_hdf5Int(gdata_buf(this%fvals_start:this%fvals_end), pos)
+                    call readFValsAsInt(gdata_buf(this%fvals_start:this%fvals_end), pos)
                 endif
                 if(tScaleBlooms) then
                     ! set the global det data for bloom scaling
                     call set_max_ratio_hdf5Int(&
                         gdata_buf(this%max_ratio_start:this%max_ratio_end), pos)
                 end if
+                if(tAccumPopsActive) then
+                    call readAPValsAsInt(gdata_buf(this%apvals_start:this%apvals_end), pos)
+                endif
             else
                 if(t_warn) then
                     write(iout,*) "WARNING: Dimension mismatch in read_gdata_hdf5, ignoring read data"
@@ -197,34 +240,35 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine write_gdata_hdf5(this, gdata_buf, ndets, max_ex)
-        ! Write the gdata of this calculation to a buffer usable in hdf5 popsfiles
-        ! Input: gdata_buf - on return, contains the gdata of this calculation, first dimension
-        !                    has to be this%entry_size()
-        !        ndets - number of determinants whose data to write
-        !        max_ex - optionally, ignore determinants with excit level above max_ex
+    subroutine write_gdata_hdf5(this, gdata_buf, pos)
+        ! Write the gdata of a single determinant to a buffer usable in hdf5 popsfiles
+        ! Input: gdata_buf - gdata for the determinant at pos, has to be of size this%entry_size
+        !        pos - position to get the written data from
         class(gdata_io_t), intent(in) :: this
-        integer(hsize_t), intent(out) :: gdata_buf(:,:)
-        integer, intent(in) :: ndets
-        integer, intent(in), optional :: max_ex
+        integer(hsize_t), intent(out) :: gdata_buf(:)
+        integer, intent(in) :: pos
 
-        logical :: t_aas, t_sb
+        logical :: t_aas, t_sb, t_ap
 
         ! if these are above 0, the option has been set and memory is reserved
-        t_aas = this%fvals_end > 0
-        t_sb = this%max_ratio_end > 0
+        t_aas = this%fvals_end - this%fvals_start + 1> 0
+        t_sb = this%max_ratio_end - this%max_ratio_start + 1> 0
+        t_ap = this%apvals_end - this%apvals_start + 1> 0
 
         if(this%entry_size() <= size(gdata_buf, dim=1)) then
             if(t_aas) then
                 ! write the fvals to the buffer at the respective position
-                call writeFFuncAsInt(gdata_buf(this%fvals_start:this%fvals_end,:), ndets, &
-                    max_ex)
+                call writeFValsAsInt(gdata_buf(this%fvals_start:this%fvals_end), pos)
             endif
 
             if(t_sb) then
                 ! write the ratios to the buffer at the respective position
-                call write_max_ratio_as_int(gdata_buf(this%max_ratio_start:this%max_ratio_end,:), &
-                    ndets, max_ex)
+                call write_max_ratio_as_int(gdata_buf(this%max_ratio_start:this%max_ratio_end), pos)
+            endif
+
+            if(t_ap) then
+                ! write the apvals to the buffer at the respective position
+                call writeAPValsAsInt(gdata_buf(this%apvals_start:this%apvals_end), pos)
             endif
         else
             write(iout,*) "WARNING: Dimension mismatch in write_gdata_hdf5, writing 0"
@@ -236,7 +280,8 @@ contains
     ! Generic HDF functionality
     !------------------------------------------------------------------------------------------!    
     
-    subroutine clone_gdata(this, gdata_buf, tmp_fvals_size, fvals_size, nsigns)
+    subroutine clone_gdata(this, gdata_buf, tmp_fvals_size, fvals_size, tmp_apvals_size, & 
+                           apvals_size, nsigns)
         ! expand the global det data:
         ! clone the fvals from tmp_fvals_size to fvals_size, leaving the rest of
         ! the data as it is
@@ -247,66 +292,92 @@ contains
         !        nsigns - number of determinants affected
         class(gdata_io_t), intent(inout) :: this
         integer(hsize_t), allocatable, intent(inout) :: gdata_buf(:,:)
-        integer, intent(in) :: tmp_fvals_size, fvals_size
+        integer, intent(in) :: tmp_fvals_size, fvals_size, tmp_apvals_size, apvals_size
         integer(int64), intent(in) :: nsigns
 
         integer(hsize_t), allocatable :: tmp_fvals_acc(:,:), tmp_fvals_tot(:,:), tmp_mr(:,:)
-        integer :: max_ratio_size, gdata_size, tmp_gdata_size
-        logical :: t_aas, t_sb
-        integer :: tmp_tot_start, tot_start, tmp_acc_size, acc_size
+        integer(hsize_t), allocatable :: tmp_apvals_sum(:,:), tmp_apvals_iter(:,:)
+        integer :: max_ratio_size, gdata_size
+        logical :: t_aas, t_sb, t_ap
+        integer :: tmp_tot_start, tot_start, tmp_acc_size, acc_size 
+        integer :: tmp_iter_start, iter_start, tmp_sum_size, sum_size 
 
-        ! is there any aas data? If not, nothing to be done
-        t_aas = this%fvals_end > 0
-        ! this is the size of the rest of the data
+        ! if size of data is above 0, the option has been set and memory is reserved
+        t_aas = this%fvals_end - this%fvals_start + 1> 0
         max_ratio_size = this%max_ratio_end - this%max_ratio_start + 1
-        ! is there any max ratio data?
-        t_sb = max_ratio_size > 0
+        t_sb = max_ratio_size> 0
+        t_ap = this%apvals_end - this%apvals_start + 1> 0
+
         
-        if(t_aas) then
+        ! Only the sizes fvals and apvals depend on lenof_sign
+        if(t_aas .or. t_ap) then
             ! can only resize buffers with correct size
             if(this%entry_size() == size(gdata_buf, dim=1)) then
-                ! copy the fvals to a temporary - one for tot. and one for acc. spawns
-                ! each half the total size
-                ! we do this to clone each of them independently
-                tmp_acc_size = tmp_fvals_size .div. 2
-                tmp_tot_start = this%fvals_start + tmp_acc_size                
-                allocate(tmp_fvals_acc(tmp_acc_size, nsigns))
-                allocate(tmp_fvals_tot(tmp_acc_size, nsigns))
-                tmp_fvals_acc(:,:) = gdata_buf(this%fvals_start:tmp_tot_start - 1,:)
-                tmp_fvals_tot(:,:) = gdata_buf(tmp_tot_start:this%fvals_end,:)
+                if(t_aas) then
+                    ! copy the fvals to a temporary - one for tot. and one for acc. spawns
+                    ! each half the total size
+                    ! we do this to clone each of them independently
+                    tmp_acc_size = tmp_fvals_size .div. 2
+                    tmp_tot_start = this%fvals_start + tmp_acc_size                
+                    allocate(tmp_fvals_acc(tmp_acc_size, nsigns))
+                    allocate(tmp_fvals_tot(tmp_acc_size, nsigns))
+                    tmp_fvals_acc(:,:) = gdata_buf(this%fvals_start:tmp_tot_start - 1,:)
+                    tmp_fvals_tot(:,:) = gdata_buf(tmp_tot_start:this%fvals_end,:)
 
-                acc_size = fvals_size .div. 2
-                ! clone the content of the temporary - clone the first
-                ! and second half seperately
-                call clone_signs(tmp_fvals_acc, tmp_acc_size, acc_size, nsigns)
-                ! tot and acc have to have the same size
-                call clone_signs(tmp_fvals_tot, tmp_acc_size, acc_size, nsigns)
-
-                ! resize the full buffer to fit the cloned data -> deallocate and then allocate
-                tmp_gdata_size = this%entry_size()
-                ! if there is data remaining, copy it along
+                    acc_size = fvals_size .div. 2
+                    ! clone the content of the temporary - clone the first
+                    ! and second half seperately
+                    call clone_signs(tmp_fvals_acc, tmp_acc_size, acc_size, nsigns)
+                    ! tot and acc have to have the same size
+                    call clone_signs(tmp_fvals_tot, tmp_acc_size, acc_size, nsigns)
+                endif
                 if(t_sb) then
-                    allocate(tmp_mr(tmp_gdata_size - tmp_fvals_size, nsigns))
+                    allocate(tmp_mr(max_ratio_size, nsigns))
                     tmp_mr(:,:) = gdata_buf(this%max_ratio_start:this%max_ratio_end,:)
+                endif
+                if(t_ap) then
+                    ! copy the apvals (pops sum and pops iter) to a temporary - 
+                    ! only the size of pops sum dependes on lenof_sign
+                    tmp_sum_size = tmp_apvals_size - 1
+                    tmp_iter_start = this%apvals_start + tmp_sum_size
+                    allocate(tmp_apvals_sum(tmp_sum_size, nsigns))
+                    allocate(tmp_apvals_iter(1, nsigns))
+                    tmp_apvals_sum(:,:) = gdata_buf(this%apvals_start:tmp_iter_start - 1,:)
+                    tmp_apvals_iter(:,:) = gdata_buf(tmp_iter_start:this%apvals_end,:)
+
+                    sum_size = apvals_size -1
+                    ! clone the content of the temporary pops sum
+                    call clone_signs(tmp_apvals_sum, tmp_sum_size, sum_size, nsigns)
                 endif
                 deallocate(gdata_buf)
                 ! adjust the gdata offsets of this io handler
-                call this%init_gdata_io(t_aas, t_sb, fvals_size, max_ratio_size)
+                call this%init_gdata_io(t_aas, t_sb, t_ap, fvals_size, max_ratio_size, apvals_size)
 
                 ! resize the buffer - with the new gdata_size
                 gdata_size = this%entry_size()            
                 allocate(gdata_buf(gdata_size,nsigns))
 
-                tot_start = this%fvals_start + acc_size
-                ! fill in the resized data                
-                gdata_buf(this%fvals_start:tot_start-1,:) = tmp_fvals_acc(:,:)
-                gdata_buf(tot_start:this%fvals_end,:) = tmp_fvals_tot(:,:)
+                if(t_aas)then
+                    tot_start = this%fvals_start + acc_size
+                    ! fill in the resized data                
+                    gdata_buf(this%fvals_start:tot_start-1,:) = tmp_fvals_acc(:,:)
+                    gdata_buf(tot_start:this%fvals_end,:) = tmp_fvals_tot(:,:)
+                    deallocate(tmp_fvals_tot)
+                    deallocate(tmp_fvals_acc)
+                endif
                 if(t_sb) then
                     gdata_buf(this%max_ratio_start:this%max_ratio_end,:) = tmp_mr(:,:)
                     deallocate(tmp_mr)
                 end if
-                deallocate(tmp_fvals_tot)
-                deallocate(tmp_fvals_acc)
+                if(t_ap)then
+                    iter_start = this%apvals_start + sum_size
+                    ! fill in the resized data                
+                    gdata_buf(this%apvals_start:iter_start-1,:) = tmp_apvals_sum(:,:)
+                    gdata_buf(iter_start:this%apvals_end,:) = tmp_apvals_iter(:,:)
+                    deallocate(tmp_apvals_sum)
+                    deallocate(tmp_apvals_iter)
+
+                endif
             else
                 write(iout,*) "WARNING: Dimension mismatch in clone_gdata. No data read"
             endif

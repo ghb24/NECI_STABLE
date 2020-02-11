@@ -3,20 +3,21 @@
 module global_det_data
     use SystemData, only: nel
     use CalcData, only: tContTimeFCIMC, tContTimeFull, tStoredDets, tActivateLAS, &
-        tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, tReplicaEstimates, &
-        tScaleBlooms
-    use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs
+                        tSeniorInitiators, tAutoAdaptiveShift, tPairedReplicas, &
+                        tReplicaEstimates, tMoveGlobalDetData, tScaleBlooms
+    use LoggingData, only: tRDMonFly, tExplicitAllRDM, tTransitionRDMs, tAccumPops
     use FciMCData, only: MaxWalkersPart
     use constants
     use util_mod
     implicit none
 
     ! This is the tag for allocation/deallocation.
-    private :: glob_tag, glob_det_tag
+    private :: glob_tag, glob_det_tag, glob_tmp_tag
     ! This is the data used to find the elements inside the storage array.
     private :: pos_hel, len_hel
     integer :: glob_tag = 0
     integer :: glob_det_tag = 0
+    integer :: glob_tmp_tag = 0
 
     ! The diagonal matrix element is always stored. As it is a real value it
     ! always has a length of 1 (never cplx). Therefore, encode these values
@@ -38,6 +39,12 @@ module global_det_data
     integer :: pos_tot_spawns, pos_acc_spawns
     ! total size of acc + tot spawns
     integer :: fvals_size
+
+    ! Accumlated sum of population and the last iteration it was increased
+    integer :: len_pops_sum, len_pops_iter
+    integer :: pos_pops_sum, pos_pops_iter
+    !total size of pops sum and iter
+    integer :: apvals_size
 
     ! Average sign and first occupation of iteration.
     private :: pos_av_sgn, len_av_sgn, pos_iter_occ, len_iter_occ
@@ -71,6 +78,7 @@ module global_det_data
     ! And somewhere to store the actual data.
     real(dp), pointer :: global_determinant_data(:,:) => null()
     integer, pointer :: global_determinants(:,:) => null()
+    real(dp), pointer :: global_determinant_data_tmp(:,:) => null()
 
     ! Routines for setting the properties of both standard and transition
     ! RDMs in a combined manner.
@@ -149,6 +157,7 @@ contains
         ! len_hel = 1
 
         len_spawn_pop = lenof_sign
+
         if(tSeniorInitiators)then
             len_tau_int = inum_runs
             len_shift_int = inum_runs
@@ -166,6 +175,14 @@ contains
         end if
         fvals_size = len_tot_spawns + len_acc_spawns
 
+        if(tAccumPops)then
+            len_pops_sum = lenof_sign
+            len_pops_iter = 1
+        else
+            len_pops_sum = 0
+            len_pops_iter = 0
+        end if
+        apvals_size = len_pops_sum + len_pops_iter
 
         ! If we are using calculating RDMs stochastically, need to include the
         ! average sign and the iteration on which it became occupied.
@@ -225,7 +242,9 @@ contains
         pos_shift_int = pos_tau_int+len_tau_int
         pos_tot_spawns = pos_shift_int+len_shift_int
         pos_acc_spawns = pos_tot_spawns+len_tot_spawns
-        pos_av_sgn = pos_acc_spawns + len_acc_spawns
+        pos_pops_sum = pos_acc_spawns+len_acc_spawns
+        pos_pops_iter = pos_pops_sum+len_pops_sum
+        pos_av_sgn = pos_pops_iter + len_pops_iter
         pos_av_sgn_transition = pos_av_sgn + len_av_sgn
         pos_iter_occ = pos_av_sgn_transition + len_av_sgn_transition
         pos_iter_occ_transition = pos_iter_occ + len_iter_occ
@@ -234,8 +253,10 @@ contains
         pos_neg_spawns = pos_pos_spawns + len_pos_spawns
         pos_max_ratio = pos_neg_spawns + len_neg_spawns
 
-        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + len_tot_spawns + len_acc_spawns + &
-             len_av_sgn_tot + len_iter_occ_tot + len_pos_spawns + len_neg_spawns + len_max_ratio
+        tot_len = len_hel + len_spawn_pop + len_tau_int + len_shift_int + &
+                  len_tot_spawns + len_acc_spawns + len_pops_sum + &
+                  len_pops_iter + len_av_sgn_tot + len_iter_occ_tot + &
+                  len_pos_spawns + len_neg_spawns + len_max_ratio
 
         if (tPairedReplicas) then
             replica_est_len = lenof_sign .div. 2
@@ -264,6 +285,11 @@ contains
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
         log_alloc(global_determinant_data, glob_tag, ierr)
 
+        if(tMoveGlobalDetData)then
+            allocate(global_determinant_data_tmp(tot_len, MaxWalkersPart), stat=ierr)
+            log_alloc(global_determinant_data_tmp, glob_tmp_tag, ierr)
+        endif
+
         if(tStoredDets) then
            allocate(global_determinants(len_det_orbs, MaxWalkersPart), stat=ierr)
            log_alloc(global_determinants, glob_det_tag, ierr)
@@ -278,6 +304,7 @@ contains
         ! As an added safety feature
         global_determinant_data = 0.0_dp
         if(tStoredDets) global_determinants = 0
+        if(tMoveGlobalDetData) global_determinant_data_tmp = 0.0_dp
 
     end subroutine
 
@@ -300,6 +327,13 @@ contains
             log_dealloc(glob_tag)
             glob_tag = 0
             nullify(global_determinant_data)
+        end if
+
+        if (associated(global_determinant_data_tmp)) then
+            deallocate(global_determinant_data_tmp)
+            log_dealloc(glob_tmp_tag)
+            glob_tmp_tag = 0
+            nullify(global_determinant_data_tmp)
         end if
 
     end subroutine
@@ -469,7 +503,7 @@ contains
 
     end function
 
-    subroutine set_tot_acc_spawns(fvals, ndets, initial)
+    subroutine readFVals(fvals, ndets, initial)
       implicit none
       real(dp), intent(in) :: fvals(2*inum_runs, ndets)
       integer, intent(in) :: ndets
@@ -490,90 +524,73 @@ contains
                  fvals(inum_runs+run,j)
         end do
       end do
-    end subroutine set_tot_acc_spawns
+    end subroutine readFVals
 
-#ifdef USE_HDF_
-    ! nasty bit of code to cope with hdf5 I/O which is using integer(hsize_t)
-    subroutine set_tot_acc_spawns_hdf5Int(fvals, j)
-      use hdf5
+    subroutine readFValsAsInt(fvals, j)
       implicit none
-      integer(hsize_t), intent(in) :: fvals(:)
+      integer(n_int), intent(in) :: fvals(:)
       integer, intent(in) :: j
-
       integer :: run
       real(dp) :: realVal = 0.0_dp
 
+      ! Read the acc. and tot. spawns from a contiguous integer array of size (2*inum_runs)
+      ! This is useful for HDF5 subroutines which currently only accept integer arrays
+
       ! Check the input's size
-      if(size(fvals, dim=1) >= (2*inum_runs)) then
+      if(size(fvals) >= (2*inum_runs)) then
           do run = 1, inum_runs
-              global_determinant_data(pos_acc_spawns+run-1,j) = transfer(fvals(run),realVal)
-              global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+inum_runs),realVal)
+             global_determinant_data(pos_acc_spawns+run-1,j) = transfer(fvals(run),realVal)
+             global_determinant_data(pos_tot_spawns+run-1,j) = transfer(fvals(run+inum_runs),realVal)
           end do
       else
-          print *, "WARNING: Dimension mismatch in set_tot_acc_spawns_hdf5Int. Ignoring read data"
+          print *, "WARNING: Dimension mismatch in readFValsAsInt. Ignoring read data"
       endif
+    end subroutine readFValsAsInt
 
-    end subroutine set_tot_acc_spawns_hdf5Int
-#endif
 
-    subroutine writeFFuncAsInt(fvals, ndets, max_ex)
-      use FciMCData, only: CurrentDets, iLutHF
-      use bit_rep_data, only: extract_sign
-      use DetBitOps, only: FindBitExcitLevel
+    subroutine writeFValsAsInt(fvals, j)
       implicit none
-      integer(n_int), intent(inout) :: fvals(:,:)
-      integer, intent(in) :: ndets
-      integer, intent(in), optional :: max_ex
-      integer :: j, k
-      integer :: ExcitLevel, counter
-      real(dp) :: CurrentSign(lenof_sign)
+      integer(n_int), intent(inout) :: fvals(:)
+      integer, intent(in) :: j
+      integer :: k
 
-      ! write the acc. and tot. spawns per determinant in a contiguous array
-      ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
+      ! Write the acc. and tot. spawns in a contiguous integer array of size (2*inum_runs)
+      ! This is useful for HDF5 subroutines which currently only accept integer arrays
 
-      if(size(fvals,dim=1) >= 2*inum_runs) then
-          counter = 0
-          do j = 1, ndets
-              if(present(max_ex))then
-                  ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-                  if(ExcitLevel>max_ex) cycle
-                  call extract_sign(CurrentDets(:,j),CurrentSign)
-                  if(IsUnoccDet(CurrentSign)) cycle
-                  counter = counter + 1
-              else
-                  counter = j
-              end if
-              ! For hdf5 storage, we store the acc/tot spawns next to each other,
-              ! this allows for easy re-sizing when changing the number of replicas
-              do k = 1, inum_runs
-                  fvals(k,counter) = transfer(get_acc_spawns(j,k), fvals(k,counter))
-                  fvals(k+inum_runs,counter) = transfer(get_tot_spawns(j,k), fvals(k,counter))
-              end do
-          end do
+      if(size(fvals) >= 2*inum_runs) then
+        do k = 1, inum_runs
+           fvals(k) = transfer(get_acc_spawns(j,k), fvals(k))
+        end do
+        do k = 1, inum_runs
+           fvals(k+inum_runs) = transfer(get_tot_spawns(j,k), fvals(k))
+        end do
       else
           ! the buffer has unsuitable size, print a warning
-          print *, "WARNING: Dimension mismatch in writeFFuncAsInt. Writing 0"
+          print *, "WARNING: Dimension mismatch in writeFValsAsInt. Writing 0"
           fvals = 0
       endif
-    end subroutine writeFFuncAsInt
+    end subroutine writeFValsAsInt
 
-    subroutine writeFFunc(fvals, ndets)
+    subroutine writeFVals(fvals, ndets, initial)
       implicit none
       real(dp), intent(inout) :: fvals(:,:)
       integer, intent(in) :: ndets
-      integer :: j, k
+      integer, intent(in), optional :: initial
+      integer :: j, k, start
+
+      def_default(start, initial, 1)
 
       ! write the acc. and tot. spawns per determinant in a contiguous array
       ! fvals(:,j) = (acc, tot) for determinant j (2*inum_runs in size)
-      do j = 1, int(nDets)
+      do j = 1, nDets
          do k = 1, inum_runs
-            fvals(k,j) = get_acc_spawns(j,k)
+            fvals(k,j) = get_acc_spawns(j + start - 1,k)
          end do
          do k = 1, inum_runs
-            fvals(k+inum_runs,j) = get_tot_spawns(j,k)
+            fvals(k+inum_runs,j) = get_tot_spawns(j + start - 1,k)
          end do
       end do
-    end subroutine writeFFunc
+    end subroutine writeFVals
 
   !------------------------------------------------------------------------------------------!
 
@@ -611,6 +628,185 @@ contains
 
     end function
 
+  !------------------------------------------------------------------------------------------!
+
+    subroutine reset_pops_sum(j)
+
+        integer, intent(in) :: j
+
+        global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = 0.0_dp
+        global_determinant_data(pos_pops_iter, j) = 0.0_dp
+
+    end subroutine
+
+    subroutine set_pops_iter(j, iter)
+
+        integer, intent(in) :: j, iter
+
+        ! Although iteration is an integer, we store it here as double.
+        ! Double can represent integers up to 2^52 without lose in precesion, so it is fine.
+        global_determinant_data(pos_pops_iter, j) = DBLE(iter)
+
+    end subroutine
+
+
+    subroutine reset_pops_sum_all(ndets)
+
+        integer(int64), intent(in) :: ndets
+        integer :: j
+
+        do j=1,int(ndets)
+            global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = 0.0_dp
+            global_determinant_data(pos_pops_iter, j) = 0.0_dp
+        end do
+
+    end subroutine
+
+
+    subroutine update_pops_sum_all(ndets, iter)
+        use FciMCData, only: CurrentDets
+        use bit_rep_data, only: extract_sign
+        integer(int64), intent(in) :: ndets
+        integer, intent(in) :: iter
+        real(dp) :: CurrentSign(lenof_sign)
+        integer :: j
+
+        do j=1,int(ndets)
+             call extract_sign(CurrentDets(:,j),CurrentSign)
+             if(IsUnoccDet(CurrentSign)) cycle
+
+            global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = &
+              global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) + &
+              CurrentSign(:)
+
+            global_determinant_data(pos_pops_iter, j) = DBLE(iter)
+        end do
+    end subroutine
+
+    subroutine update_pops_sum(j, CurrentSign, iter)
+
+        integer, intent(in) :: j
+        real(dp), intent(in) :: CurrentSign(lenof_sign)
+        integer, intent(in) :: iter
+
+        if(IsUnoccDet(CurrentSign)) return
+        global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) = &
+          global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j) + &
+          CurrentSign(:)
+        global_determinant_data(pos_pops_iter, j) = DBLE(iter)
+    end subroutine
+
+    pure function get_pops_sum(j, part) result(AccSign)
+
+        integer, intent(in) :: j, part
+        real(dp) :: AccSign
+
+        AccSign = global_determinant_data(pos_pops_sum+part-1, j)
+    end function
+
+    pure function get_pops_sum_full(j) result(AccSign)
+
+        integer, intent(in) :: j
+        real(dp) :: AccSign(lenof_sign)
+
+        AccSign(:) = global_determinant_data(pos_pops_sum:pos_pops_sum+len_pops_sum-1, j)
+    end function
+
+    pure function get_pops_iter(j) result(iter)
+
+        integer, intent(in) :: j
+        real(dp) :: iter
+
+        iter = global_determinant_data(pos_pops_iter, j)
+
+    end function
+
+    subroutine writeAPValsAsInt(apvals, j)
+      implicit none
+      integer(n_int), intent(inout) :: apvals(:)
+      integer, intent(in) ::j
+      integer :: k
+
+      ! Write the accumlated population values (pops_sum and pop_iter)
+      ! in a contiguous integer array of size (lenof_sing+1).
+      ! This is useful for HDF5 subroutines which currently only accept integer arrays
+
+      if(size(apvals,dim=1) >= lenof_sign+1) then
+           do k = 1, lenof_sign
+               apvals(k) = transfer(get_pops_sum(j,k), apvals(k))
+           end do
+           apvals(lenof_sign+1) = transfer(get_pops_iter(j), apvals(k))
+      else
+          ! the buffer has unsuitable size, print a warning
+          print *, "WARNING: Dimension mismatch in writeAPValsAsInt. Writing 0"
+          apvals = 0
+      endif
+
+    end subroutine writeAPValsAsInt
+
+    subroutine readAPValsAsInt(apvals, j)
+      implicit none
+      integer(n_int), intent(in) :: apvals(:)
+      integer, intent(in) :: j
+
+      integer :: k
+      real(dp) :: realVal = 0.0_dp
+
+      ! Read the accumlated population values (pops_sum and pop_iter)
+      ! in a contiguous integer array of size (lenof_sing+1).
+      ! This is useful for HDF5 subroutines which currently only accept integer arrays
+
+      if(size(apvals,dim=1) >= lenof_sign+1) then
+          do k = 1, lenof_sign
+             global_determinant_data(pos_pops_sum+k-1,j) = transfer(apvals(k),realVal)
+          end do
+          global_determinant_data(pos_pops_iter,j) = transfer(apvals(lenof_sign+1),realVal)
+      else
+          print *, "WARNING: Dimension mismatch in readAPValsAsInt. Ignoring read data"
+      endif
+
+    end subroutine readAPValsAsInt
+
+    subroutine readAPVals(apvals, ndets, initial)
+      implicit none
+      integer, intent(in) :: ndets
+      real(dp), intent(in) :: apvals(lenof_sign+1, ndets)
+      integer, intent(in), optional :: initial
+
+      integer :: j, k, start
+
+      ! set all values of pops sum/iter using the read-in values from apvals
+      ! this is used in popsfile read-in to get the values from the previous calculation
+
+      def_default(start,initial,1)
+
+      do j = 1, ndets
+          do k = 1, lenof_sign
+             global_determinant_data(pos_pops_sum+k-1,j) = apvals(k,j)
+          end do
+          global_determinant_data(pos_pops_iter,j) = apvals(lenof_sign+1,j)
+      end do
+    end subroutine readAPVals
+
+    subroutine writeAPVals(apvals, ndets, initial)
+      implicit none
+      real(dp), intent(inout) :: apvals(:,:)
+      integer, intent(in) :: ndets
+      integer, intent(in), optional :: initial
+      integer :: j, k, start
+
+      def_default(start, initial, 1)
+
+      ! write the pops sum/iter per determinant in a contiguous array
+      ! apvals(:,j) = (sum, iter) for determinant j (lenof_sign+1 in size)
+      do j = 1, nDets
+         do k = 1, lenof_sign
+            apvals(k,j) = get_pops_sum(j + start - 1,k)
+         end do
+        apvals(lenof_sign+1,j) = get_pops_iter(j + start - 1)
+      end do
+    end subroutine writeAPVals
+  !------------------------------------------------------------------------------------------!
     subroutine set_av_sgn_tot_sgl (j, part, av_sgn)
 
         integer, intent(in) :: j, part
@@ -892,20 +1088,24 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine write_max_ratio(ms_vals, ndets)
+    subroutine write_max_ratio(ms_vals, ndets, initial)
         ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
         ! Input: ndets - number of determinants
         !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
+        !        initial - optionally: the first determinant to consider
         implicit none
         integer, intent(in) :: ndets
         ! use a 2-d array for compatibility - the caller does not need to know that the first
         ! dimension is of size 1
         real(dp), intent(out) :: ms_vals(:,:)
+        integer, intent(in), optional :: initial
 
-        integer :: j
+        integer :: j, start
+
+        def_default(start, initial, 1)
 
         do j = 1, ndets
-            ms_vals(1,j) = global_determinant_data(pos_max_ratio,j)
+            ms_vals(1,j) = global_determinant_data(pos_max_ratio,j + start -1)
         end do
 
     end subroutine write_max_ratio
@@ -952,38 +1152,21 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    subroutine write_max_ratio_as_int(ms_vals, ndets, max_ex)
+    subroutine write_max_ratio_as_int(ms_vals, pos)
         use hdf5, only: hsize_t
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
       use DetBitOps, only: FindBitExcitLevel
         ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
-        ! Input: ndets - number of determinants
+        ! Input: pos - position to get the data from
         !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
         implicit none
-        integer, intent(in) :: ndets
-        ! use a 2-d array for compatibility - the caller does not need to know that the first
+        integer, intent(in) :: pos
+        ! use a 1-d array for compatibility - the caller does not need to know that the
         ! dimension is of size 1
-        integer(hsize_t), intent(out) :: ms_vals(:,:)
-        integer, intent(in), optional :: max_ex
-        integer(hsize_t) :: int_val
-        integer :: j, counter, ExcitLevel
-        real(dp) :: CurrentSign(lenof_sign)
+        integer(hsize_t), intent(out) :: ms_vals(:)
 
-        ! dummy value to specify the target type
-        counter = 0
-        do j = 1, ndets
-            if(present(max_ex))then
-                ExcitLevel = FindBitExcitLevel(iLutHF, CurrentDets(:,j))
-                if(ExcitLevel>max_ex) cycle
-                call extract_sign(CurrentDets(:,j),CurrentSign)
-                if(IsUnoccDet(CurrentSign)) cycle
-                counter = counter + 1
-            else
-                counter = j
-            end if
-            ms_vals(1,j) = transfer(global_determinant_data(pos_max_ratio,j), ms_vals(1,j))
-        end do
+        ms_vals(1) = transfer(global_determinant_data(pos_max_ratio,pos), ms_vals(1))
 
     end subroutine write_max_ratio_as_int
 
