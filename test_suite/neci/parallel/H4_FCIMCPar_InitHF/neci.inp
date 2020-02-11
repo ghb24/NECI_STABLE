@@ -10,6 +10,7 @@ calc
 methods
 method vertex fcimc 
 endmethods
+seed -7
 nmcyc 10000
 diagshift 0.0
 initwalkers 500000

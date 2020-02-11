@@ -9,6 +9,7 @@ calc
 methods
 method vertex fcimc 
 endmethods
+seed -7
 nmcyc 3700
 totalwalkers 20000
 tau 0.001 search

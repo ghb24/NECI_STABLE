@@ -22,6 +22,7 @@ orthogonalise-replicas
 methods
 method vertex fcimc
 endmethods
+seed -7
 memoryfacpart 20.0
 memoryfacspawn 20.0
 totalwalkers 100000

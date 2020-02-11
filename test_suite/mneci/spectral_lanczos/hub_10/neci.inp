@@ -17,6 +17,7 @@ calc
 methods
 method vertex spectral-lanczos
 endmethods
+seed -7
 omega-spectral 0.01
 num-omega-spectral 1500
 num-lanc-vecs-spectral 40

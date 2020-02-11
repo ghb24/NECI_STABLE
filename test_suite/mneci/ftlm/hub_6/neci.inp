@@ -14,6 +14,7 @@ calc
 methods
 method vertex ftlm
 endmethods
+seed -7
 beta-ftlm 0.1
 num-init-vecs-ftlm 20
 num-lanc-vecs-ftlm 40

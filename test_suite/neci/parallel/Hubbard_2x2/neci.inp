@@ -15,7 +15,7 @@ calc
 methods
 method vertex fcimc
 endmethods
-
+seed -7
 nmcyc 5000
 max-tau 0.01
 truncinitiator
