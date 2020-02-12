@@ -9,6 +9,7 @@ calc
 methods
 method vertex fcimc 
 endmethods
+seed -7
 nmcyc 3000
 initwalkers 20000
 fixed-n0 1500

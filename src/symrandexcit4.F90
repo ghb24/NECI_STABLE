@@ -17,7 +17,7 @@ module excit_gens_int_weighted
                                pDoubNew, ScratchSize, SpinOrbSymLabel, &
                                SymInvLabel
     use sym_general_mod, only: ClassCountInd, ClassCountInv, class_count_ms, &
-                               class_count_ml, get_paired_cc_ind
+                               class_count_ml
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, pParallel
     use dSFMT_interface, only: genrand_real2_dSFMT
     use Determinants, only: get_helement, write_det
@@ -385,6 +385,79 @@ contains
         end if
 
     end function
+
+    function get_paired_cc_ind (cc_ind, sym_product, sum_ml, iSpn) &
+            result(cc_ret)
+
+        ! Get the paired Class Count index, given a sym product and iSpn
+        ! n.b. Ignoring momentum
+        !
+        ! Returns index == -1 if no pair exists
+
+        integer, intent(in) :: cc_ind, sym_product, iSpn, sum_ml
+        integer :: cc_ret
+        integer :: sym_i, sym_j, spn_i, spn_j, mom_i, mom_j
+        character(*), parameter :: this_routine = 'get_paired_cc_ind'
+
+        ! Get the relevant details about the class count index
+        call ClassCountInv (cc_ind, sym_i, spn_i, mom_i)
+
+        ! Get the paired symmetry
+        !sym_j = ieor(sym_i, sym_product)
+        sym_j = RandExcitSymLabelProd (SymInvLabel(sym_i), sym_product)
+
+        ! Consider the paired symmetries permitted
+        spn_j = spn_i
+        if (iSpn == 2) & ! i.e. if alpha/beta
+            spn_j = 3 - spn_i
+
+        ! If we are restricted to alpha/alpha and beta/beta, and the
+        ! specified Class Count index doesn't match, then reject this pair
+        ! by returning -1
+        if ((spn_i == 1 .and. iSpn == 1) .or. &
+            (spn_i == 2 .and. iSpn == 3)) then
+            cc_ret = -1
+            return
+        end if
+
+        ! The sum of the momentum terms must equal sum_ml. If there isn't a
+        ! paired orbital that gives the relevant momentum, then fail.
+        mom_j = sum_ml - mom_i
+        if (abs(mom_j) > iMaxLz) then
+            cc_ret = -1
+            return
+        end if
+
+        ! Get the new index
+        cc_ret = ClassCountInd (spn_j, sym_j, mom_j)
+
+#ifdef DEBUG_
+        if (cc_ret /= -1) then
+            if (class_count_ml(cc_ind) /= mom_i) &
+                call stop_all(this_routine, 'wrong_mom_i')
+            if (class_count_ml(cc_ret) /= mom_j) &
+                call stop_all(this_routine, 'wrong_mom_j')
+        end if
+#endif
+
+    end function
+
+    !> Wrapper function to create a weighted single excitation
+    subroutine weighted_single_excit_wrapper(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
+        implicit none
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tpar
+        real(dp), intent(out) :: pGen
+        type(excit_gen_store_type), intent(inout), target :: store
+
+        unused_var(store)
+        ! Call the 4ind-weighted single excitation generation
+        call gen_single_4ind_ex(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
+        pgen = pgen * pSingles
+    end subroutine weighted_single_excit_wrapper
 
     subroutine gen_single_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen)
 

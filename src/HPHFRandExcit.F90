@@ -24,9 +24,8 @@ MODULE HPHFRandExcitMod
 
     use dSFMT_interface, only : genrand_real2_dSFMT
 
-    use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &
-                                    ScratchSize, CalcPGenLattice
-
+    use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &    
+        ScratchSize, CalcPGenLattice, construct_class_counts
     use tc_three_body_excitgen, only: calc_pgen_mol_tc, gen_excit_mol_tc
 
     use excit_gens_int_weighted, only: gen_excit_4ind_weighted, &
@@ -366,6 +365,13 @@ MODULE HPHFRandExcitMod
                 ELSE
                     CALL GetBitExcitation(iLutnI,iLutnJ2,Ex2,tSign)
                 ENDIF
+                ! As we are passing store%ClassCountOcc/Unocc, we have to make sure they are
+                ! set
+                if(.not. store%tFilled) then
+                    CALL construct_class_counts(nI, store%ClassCountOcc, &
+                        store%ClassCountUnocc)
+                    store%tFilled = .true.
+                endif
 
                 CALL CalcNonUniPGen(nI, ilutnI, Ex2, ExcitLevel, &
                                     store%ClassCountOcc, &
@@ -867,7 +873,7 @@ MODULE HPHFRandExcitMod
                     pgen = calc_pgen_k_space_hubbard(nI, ilutI, ex, ic)
                 end if
             else if (t_pchb_excitgen) then
-                pgen = calc_pgen_pchb(nI, ex, ic, ClassCount2, ClassCountUnocc2)
+                pgen = calc_pgen_pchb(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2)
             else
                 ! Here we assume that the normal excitation generators in
                 ! symrandexcit2.F90 are being used.

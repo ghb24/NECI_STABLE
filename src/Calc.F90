@@ -181,6 +181,8 @@ contains
           tAAS_MatEle4 = .false.
           AAS_DenCut = 0.5
           AAS_Const = 0.0
+          tAS_TrialOffset = .false.
+          ShiftOffset = 0.0_dp
           tInitsRDMRef = .false.
           tInitsRDM = .false.
           tApplyLC = .true.
@@ -262,7 +264,8 @@ contains
           tMP2Standalone=.FALSE.
           TMODMPTHEORY=.FALSE.
           G_VMC_PI = 0.95_dp
-          G_VMC_SEED = -7
+          ! Default the seed to some essentially random number (time of day)
+          G_VMC_SEED = int(MPI_WTIME())
           G_VMC_FAC = 16.0_dp
           TUPOWER=.false.
           G_VMC_EXCITWEIGHT(:)=0.0_dp
@@ -297,7 +300,6 @@ contains
           tDefineDet=.false.
           tTruncInitiator=.false.
           tAddtoInitiator=.false.
-          tSTDInits = .false.
           tActivateLAS = .false.
           tLogAverageSpawns = .false.
           spawnSgnThresh = 3.0_dp
@@ -315,7 +317,6 @@ contains
           tNeedsVirts=.true.! Set if we need virtual orbitals  (usually set).  Will be unset
           !(by Calc readinput) if I_VMAX=1 and TENERGY is false
           tZeroRef = .false.
-          lNoTriples=.false.
           tReadPopsChangeRef = .false.
           tReadPopsRestart = .false.
           iLogicalNodeSize = 0 !Meaning use the physical node size
@@ -348,15 +349,6 @@ contains
 
           ! Truncation based on number of unpaired electrons
           tTruncNOpen = .false.
-
-          ! initiators based on number of open orbs
-          tSeniorityInits = .false.
-          initMaxSenior = 0
-
-          ! keep spawns up to a given seniority + excitation level
-          tSpawnSeniorityBased = .false.
-          numMaxExLvlsSet = 0
-          allocate(maxKeepExLvl(0))
 
           ! trunaction for spawns/based on spawns
           t_truncate_unocc = .false.
@@ -497,7 +489,8 @@ contains
           tNonInitsForRDMs = .true.
           tOutputInitsRDM = .false.
           tNonVariationalRDMs = .false.
-
+          tMoveGlobalDetData = .false.
+          tAllowSpawnEmpty = .false.
           ! scaling of spawns
           tScaleBlooms = .false.
           max_allowed_spawn = MaxWalkerBloom
@@ -532,7 +525,6 @@ contains
           logical :: tExitNow
           integer :: ras_size_1, ras_size_2, ras_size_3, ras_min_1, ras_max_3
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
-          integer :: maxKeepNOpenBuf, maxKeepExLvlBuf
           real(dp) :: InputDiagSftSingle
           integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
 
@@ -1153,8 +1145,6 @@ contains
                 TInitStar=.true.
             case("NOSAMEEXCIT")
                 TNoSameExcit=.true.
-            case("NOTRIPLES")
-                lNoTriples=.true.
             case("ONEEXCITCONN")
 !This means that determinants can only be attached to each other if they differ by one excitation level from HF
                 TOneExcitConn=.true.
@@ -2033,6 +2023,11 @@ contains
                 if (item.lt.nitems) then
                     call getf(AAS_Cut)
                 end if
+
+                ! Ratios of rejected spawns are stored in global det data, so we need
+                ! to preserve them when the dets change processors during load balancing
+                tMoveGlobalDetData = .true.
+
             case("AAS-MATELE")
                 tAAS_MatEle = .true.
                 !When using the MatEle, the default value of 10 becomes meaningless
@@ -2058,6 +2053,9 @@ contains
                 if(AAS_Const<0.0)then
                     call stop_all(t_r, 'AAS-CONST should be greater than or equal zero.')
                 end if
+            case("AS-TRIAL-OFFSET")
+                ! Use the trial energy as an offset for the adaptive shift (instead of reference)
+                tAS_TrialOffset = .true.
              case("INITS-PROJE")
                 ! deprecated
              case("INITS-GAMMA0")
@@ -3523,6 +3521,9 @@ contains
 
             case("DEATH-BEFORE-COMMS")
                 tDeathBeforeComms = .true.
+
+            case("ALLOW-SPAWN-EMPTY")
+                tAllowSpawnEmpty = .true.
 
             case default
                 call report("Keyword "                                &

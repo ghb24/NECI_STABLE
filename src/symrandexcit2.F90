@@ -34,7 +34,7 @@ MODULE GenRandSymExcitNUMod
                           tUEG2, kvec, tAllSymSectors, NMAXX, NMAXY, NMAXZ, &
                           tOrbECutoff, OrbECutoff, tGUGA, t_pcpp_excitgen
     use CalcData, only: tSpinProject
-    use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
+    use FciMCData, only: pDoubles, psingles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -1247,6 +1247,34 @@ MODULE GenRandSymExcitNUMod
 !
     END SUBROUTINE CheckIfSingleExcits
 
+    !> Wrapper function for creating a uniform single excitation
+    subroutine uniform_single_excit_wrapper(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
+        implicit none
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tpar
+        real(dp), intent(out) :: pGen
+        type(excit_gen_store_type), intent(inout), target :: store
+
+        ! First, count the number of available orbitals per irrep
+        if(.not.store%tFilled) then
+            call construct_class_counts(nI, store%ClassCountOcc, &
+                store%ClassCountUnocc)
+            store%tFilled = .true.
+        endif
+        pDoubNew = 1.0-pSingles
+        ! Then, chose uniformly from them
+        call createSingleExcit(nI,nJ,store%ClassCountOcc,store%classCountUnocc,ilutI,&
+            ex,tPar,pGen)
+
+        ! set the output ilut
+        ilutJ = ilutI
+        clr_orb(ilutJ, ex(1,1))
+        set_orb(ilutJ, ex(2,1))
+
+    end subroutine uniform_single_excit_wrapper
 
     SUBROUTINE CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
@@ -3380,6 +3408,9 @@ SUBROUTINE SpinOrbSymSetup()
 !SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
 
     Allocate(SymLabelList2(nBasis))
+
+    if (allocated(sym_label_list_spat)) deallocate(sym_label_list_spat)
+
     allocate(sym_label_list_spat(nBasis))
     Allocate(SymLabelCounts2(2,ScratchSize))
     SymLabelList2(:)=0          !Indices:   spin-orbital number

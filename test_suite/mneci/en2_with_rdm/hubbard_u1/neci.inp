@@ -15,6 +15,7 @@ calc
 methods
 method vertex fcimc
 endmethods
+seed -7
 totalwalkers 400
 startsinglepart 4
 shiftdamp 0.5

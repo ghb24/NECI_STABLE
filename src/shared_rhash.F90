@@ -70,7 +70,7 @@ contains
         integer(int64) :: hval
 
 ! TODO: Implement an actual hash function
-        hval = mod(int(index)-1,this%hval_range)+1
+        hval = mod(index-1,this%hval_range)+1_int64
     end function hash_func
 
     !------------------------------------------------------------------------------------------!

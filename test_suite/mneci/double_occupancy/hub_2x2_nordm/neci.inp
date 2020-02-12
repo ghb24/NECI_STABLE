@@ -17,7 +17,7 @@ method vertex fcimc
 endmethods
 
 definedet 1 4 5 8
-
+seed -7
 allrealcoeff
 
 nmcyc 14000

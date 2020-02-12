@@ -189,7 +189,7 @@ contains
                    replica_overlaps_imag, &
 #endif
                    tSpinCoupProjE, &
-
+                   TotPartsStorage, TotPartsLastAlpha, &
                    TotParts, AllTotParts, &
                    TotPartsOld, AllTotPartsOld, AllTotPartsLastOutput, &
                    HFCyc, HFOut, &

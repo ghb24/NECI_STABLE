@@ -8,7 +8,7 @@ MODULE Logging
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
-                        tPairedReplicas, tReplicaEstimates, iSampleRDMIters
+                        tPairedReplicas, tReplicaEstimates, iSampleRDMIters, tMoveGlobalDetData
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -186,9 +186,20 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
-      tPopsInstProjE = .false.
+      tReduceHDF5Pops = .false.
+      HDF5PopsMin = 1.0_dp
+      iHDF5PopsMinEx = 4
+      tPopsProjE = .false.
       tHDF5TruncPopsWrite = .false.
       iHDF5TruncPopsEx = 0
+      iHDF5TruncPopsIter = 0
+      tAccumPops = .false.
+      tAccumPopsActive = .false.
+      iAccumPopsIter = 0
+      iAccumPopsMaxEx = 2
+      iAccumPopsExpireIters = 0
+      AccumPopsExpirePercent = 0.9_dp
+      iAccumPopsCounter = 0
       tWriteRefs = .false.
       maxInitExLvlWrite = 8
 #ifdef PROG_NUMRUNS_
@@ -196,10 +207,12 @@ MODULE Logging
 #else
       tFCIMCStats2 = .false.
 #endif
-      t_hist_fvals = .true.
-      enGrid = 100
-      arGrid = 100
-      tHistLMat = .false.
+      tFvalEnergyHist = .false.
+      FvalEnergyHist_EnergyBins = 100
+      FvalEnergyHist_FValBins = 10
+      tFvalPopHist = .false.
+      FvalPopHist_PopBins = 100
+      FvalPopHist_FValBins = 10
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -428,11 +441,6 @@ MODULE Logging
 
          case("HIST-INTEGRALS")
             tHistLMat = .true.
-
-         case("ACC-RATE-POINTS")
-            ! number of grid points for 2d-histogramming the acc rate used for adaptive shift
-            if(item < nitems) call readi(arGrid)
-            if(item < nitems) call readi(enGrid)
 
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
@@ -985,6 +993,28 @@ MODULE Logging
             tHDF5PopsRead = .true.
             tHDF5PopsWrite = .true.
 
+        case("REDUCE-HDF5-POPS")
+
+            ! Avoid writing a determinant to HDF5-popsfiles when its population
+            ! is below or equal iHDF5PopsMin and its excitation is above iHDF5PopsMinEx
+            ! Default values are 1.0 and 4, respectively.
+
+            tReduceHDF5Pops = .true.
+
+            if (item < nitems) then
+                call readf(HDF5PopsMin)
+                if(HDF5PopsMin<0.0_dp) then
+                    call stop_all(t_r,'Minimum population should be greater than or equal zero')
+                end if
+            end if
+
+            if (item < nitems) then
+                call readi(iHDF5PopsMinEx)
+                if(iHDF5PopsMinEx<2) then
+                    call stop_all(t_r,'Excitation of minimum population should be greater than one')
+                end if
+            end if
+
         case("HDF5-POPS-READ")
             ! Use the new HDF5 popsfile format just for reading
             tHDF5PopsRead = .true.
@@ -993,19 +1023,83 @@ MODULE Logging
             ! Use the new HDF5 popsfile format just for writing
             tHDF5PopsWrite = .true.
 
-        case("POPS-INST-PROJE")
-            ! Whether to calculate and print the instanenous project energy of
-            ! wavefunction printed to popsfile
-            tPopsInstProjE = .true.
+        case("POPS-PROJE")
+            ! Calculate and print the projected energy of
+            ! popsfile wavefunction - instantaneous and accumulated (if available)
+            tPopsProjE = .true.
 
         case("HDF5-TRUNC-POPS-WRITE")
-            ! Whether to write another HDF5 popsfile with dets restricted to a maximum
-            ! exitation level
+            ! Write another HDF5 popsfile with dets restricted to a maximum
+            ! exitation level and/or minimum population
             tHDF5TruncPopsWrite = .true.
             call readi(iHDF5TruncPopsEx)
             if(iHDF5TruncPopsEx<2) then
-                call stop_all(t_r,'Maximum excitation level should greater than 1')
+                call stop_all(t_r,'Maximum excitation level should be greater than 1')
             end if
+
+            ! Number of iterations for the periodic writing of truncated popsfiles.
+            ! The default value of zero indicates no periodic writing but
+            ! only once at the end.
+            if (item < nitems) then
+                call readi(iHDF5TruncPopsIter)
+
+                if(iHDF5TruncPopsEx<0) then
+                    call stop_all(t_r,'Number of iterations should be greater than or equal zero')
+                end if
+            end if
+
+
+        case("ACCUM-POPS")
+            ! Accumulate the population of determinants and write them
+            ! to the popsfile
+            tAccumPops = .true.
+            ! When to start accumulating the populations
+            call readi(iAccumPopsIter)
+
+            ! Normally, when dets become empty, they are removed from CurrentDets
+            ! and any associated info (global_det_data) is lost. Therefore,
+            ! when accumlating populations is active, (some) empty dets are kept alive.
+
+            if (item < nitems) then
+                ! This parameter represents the maximum excitation level to consider
+                ! when keeping empty dets alive.
+                ! We keep up to double excitations indefinitely anyway.
+                ! Therefore, this should be greater than or equal two.
+                ! Default value: 2
+                call readi(iAccumPopsMaxEx)
+                if(iAccumPopsMaxEx<2) then
+                    call stop_all(t_r,'iAccumPopsMaxEx should be greater than or equal two')
+                end if
+            endif
+
+            if (item < nitems) then
+                ! This parameter represents the maximum number of iterations,
+                ! empty dets are kept before being removed. The removal happens
+                ! when CurrentDets is almost full (see iAccumPopsExpirePercent).
+                ! A value of zero means keeping accumulated empty dets indefinitely.
+                ! Default value: 0
+                call readi(iAccumPopsExpireIters)
+                if(iAccumPopsExpireIters<0) then
+                    call stop_all(t_r,'iAccumPopsExpireIters should be greater than or equal zero')
+                end if
+            end if
+
+            if (item < nitems) then
+                ! This parameter represents how full CurrentDets should be before
+                ! removing accumulated empty dets according to the above criteria.
+                ! Default value: 0.9
+                call readf(AccumPopsExpirePercent)
+                if(AccumPopsExpirePercent<0.0_dp .or. AccumPopsExpirePercent>1.0) then
+                    call stop_all(t_r,'iAccumPopsExpirePercent should be between zero and one.')
+                end if
+            end if
+
+            ! Accumlated populations are stored in global det data, so we need
+            ! to preserve them when the dets change processors during load balancing
+            tMoveGlobalDetData = .true.
+
+            ! Print popsfile projected energy at the end
+            tPopsProjE = .true.
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
@@ -1192,10 +1286,19 @@ MODULE Logging
             ! varying excitation levels from the Hartree--Fock.
             tHistExcitToFrom = .true.
 
-!         case("PRINT-FREQUENCY-HISTOGRAMS")
-!             ! option to print out the histograms used in the tau-search!
-!             ! note: but for now they are always printed by default
-!             t_print_frq_histograms = .true.
+        case("FVAL-ENERGY-HIST")
+            ! When using auto-adaptive shift, print a histogram of the shift factors over
+            ! the energy
+            tFValEnergyHist = .true.
+            if(item < nitems) call readi(FValEnergyHist_EnergyBins)
+            if(item < nitems) call readi(FValEnergyHist_FvalBins)
+
+        case("FVAL-POP-HIST")
+            ! When using auto-adaptive shift, print a histogram of the shift factors over
+            ! the population            
+            tFValPopHist = .true.
+            if(item < nitems) call readi(FValPopHist_PopBins)
+            if(item < nitems) call readi(FValPopHist_FvalBins)
 
         case("ENDLOG")
             exit logging

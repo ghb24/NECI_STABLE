@@ -8,6 +8,7 @@ calc
 methods
 method vertex fcimc
 endmethods
+seed -7
 memoryfacspawn 5.0
 memoryfacpart 2.0
 totalwalkers 10000

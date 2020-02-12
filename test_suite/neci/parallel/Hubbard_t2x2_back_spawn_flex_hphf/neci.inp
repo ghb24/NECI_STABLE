@@ -19,7 +19,7 @@ calc
 methods
 method vertex fcimc
 endmethods
-
+seed -7
 back-spawn-flex
 nmcyc 12000
 max-tau 0.01
