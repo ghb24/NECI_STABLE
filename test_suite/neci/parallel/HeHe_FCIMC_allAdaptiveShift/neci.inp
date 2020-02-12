@@ -9,7 +9,8 @@ calc
 methods
 method vertex fcimc
 endmethods
-nmcyc 40000 
+seed -7
+nmcyc 40000
 initwalkers 100
 tau 0.002
 startsinglepart
