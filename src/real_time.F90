@@ -994,7 +994,7 @@ contains
         tau_imag = tau_imag/2.0
 
         call first_real_time_spawn(err)
-        if(catch_error(err)) return
+        if(catch_error()) return
 
         tau_real = tau_real_tmp
         tau_imag = tau_imag_tmp
@@ -1037,7 +1037,7 @@ if(iProcIndex == root .and. .false.) then
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
         call second_real_time_spawn(err)
-        if(catch_error(err)) return
+        if(catch_error()) return
 
         ! 3)
         ! reload stored temp_det_list y(n) into CurrentDets
@@ -1082,7 +1082,7 @@ if(iProcIndex == root .and. .false.) then
         ! Annihilation is done after loop over walkers
         call communicate_and_merge_spawns(MaxIndex, second_spawn_iter_data, .false.)
         call DirectAnnihilation (TotWalkersNew, MaxIndex, second_spawn_iter_data, err)
-        if(catch_error(err)) return
+        if(catch_error()) return
 
 #ifdef DEBUG_
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
@@ -1097,11 +1097,13 @@ if(iProcIndex == root .and. .false.) then
         call update_iter_data(second_spawn_iter_data)
 
     contains
-        function catch_error(err) result(all_err)
-            integer, intent(in) :: err
+        function catch_error() result(throw)
+            logical :: throw
             integer :: all_err
 
-            call MPISum(err, all_err)
+            call MPISumAll(err, all_err)
+            err = all_err
+            throw = all_err /= 0
         end function catch_error
         
     end subroutine perform_real_time_iteration
