@@ -12,7 +12,7 @@ module real_time_procs
                               temp_det_list, temp_det_pointer,  temp_iendfreeslot, &
                               temp_det_hash, temp_totWalkers, pert_norm, allGfs, &
                               valid_diag_spawns, DiagParts, n_diag_spawned, tOverpopulate, &
-                              NoDied_1, NoBorn_1, SumWalkersCyc_1, gf_count, tVerletSweep, &
+                              gf_count, tVerletSweep, t_real_time_fciqmc, &
                               t_rotated_time, tau_imag, tau_real, gs_energy, TotPartsLastAlpha, &
                               shift_damping, normsize, tStabilizerShift, dyn_norm_psi, &
                               TotPartsPeak, numCycShiftExcess, shiftLimit, t_kspace_operators, &
@@ -600,8 +600,6 @@ contains
                 iter_data%ndied(i) = iter_data%ndied(i) + &
                     abs(min(abs(RealwSign(i)),abs(ndie(i))))
 
-                NoDied_1(part_type_to_run(i)) = NoDied_1(part_type_to_run(i)) &
-                     + abs(min(abs(ndie(i)),abs(RealwSign(i))))
                 ! if ndie is bigger than the original occupation i am actually
                 ! spawning 'anti-particles' which i have to count as born
                 ! and reduce the ndied number.. or not?
@@ -611,16 +609,10 @@ contains
                 iter_data%nborn(i) = iter_data%nborn(i) + &
                     max(abs(ndie(i)) - abs(RealwSign(i)), 0.0_dp)
 
-                ! not sure if i even need this quantity..
-                NoBorn_1(part_type_to_run(i)) = NoBorn_1(part_type_to_run(i)) + &
-                     max(abs(ndie(i)) - abs(RealwSign(i)), 0.0_dp)
             else
                 ! if they have opposite sign, as in the original algorithm
                 ! reduce the number of ndied by that amount
                 iter_data%ndied(i) = iter_data%ndied(i) - abs(ndie(i))
-
-                NoDied_1(part_type_to_run(i)) = NoDied_1(part_type_to_run(i)) &
-                     - abs(ndie(i))
 
             end if
         end do
@@ -699,9 +691,10 @@ contains
         real(dp) :: walkerweight, pSpawn, nSpawn, MatEl, p_spawn_rdmfac, &
              sepSign, fac_unused
         integer :: extracreate, tgt_cpt, component, iUnused
-        integer :: TargetExcitLevel
+        integer :: TargetExcitLevel, tmp_ex(2,ic)
         logical :: tRealSpawning
-        HElement_t(dp) :: rh, rh_used
+        real(dp) :: rh_imag
+        HElement_t(dp) :: rh, rh_used       
 
         unused_var(precond_fac)
         unused_var(AvSignCurr)
@@ -718,7 +711,9 @@ contains
         ! element is calculated at the time of the excitation generation,
         ! and returned in HElGen. In this case, get_spawn_helement simply
         ! returns HElGen, rather than recomputing the matrix element.
-        rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
+        tmp_ex(1,:) = ex(2,:)
+        tmp_ex(2,:) = ex(1,:)
+        rh = get_spawn_helement (nJ, DetCurr, iLutnJ, ilutCurr, ic, tmp_ex, &
                                  tParity, HElGen)
 
         tRealSpawning = .false.
@@ -807,12 +802,6 @@ contains
 
         else
 
-            ! We actually want to calculate Hji - take the complex conjugate,
-            ! rather than swap around DetCurr and nJ.
-#ifdef REALTIME_
-            rh_used = conjg(rh)
-#endif
-
             ! have to loop over the tgt_cpt similar to the complex impl
             ! if the Hamiltonian has real and imaginary components do it
             ! similarily to complex implementation with H <-> J switched
@@ -826,17 +815,22 @@ contains
                 walkerweight = sign(1.0_dp,RealwSign(part_type))
                 if (mod(part_type,2) == 0 .and. component == 1) &
                      sepSign = (-1.0_dp)
-#ifdef REALTIME_
-                ! part_type is given as input, for that part_type, the real part of
-                ! the HElement is used if rotation occurs and the imaginary part if not
-                if (mod(component,2) == mod(part_type,2)) then
-                   ! spawn part_type -> part_type
-                    MatEl = - real(aimag(rh_used),dp)*tau_real - real(rh_used,dp)*tau_imag
-                else
-                   ! spawn part_type -> rotate_part(part_type)
-                    MatEl = real(rh_used,dp)*tau_real - real(aimag(rh_used),dp)*tau_imag
-                end if
+                if(t_real_time_fciqmc) then
+#ifdef CMPLX_
+                    rh_imag = real(aimag(rh_used),dp)
+#else
+                    rh_imag = 0.0_dp
 #endif
+                    ! part_type is given as input, for that part_type, the real part of
+                    ! the HElement is used if rotation occurs and the imaginary part if not
+                    if (mod(component,2) == mod(part_type,2)) then
+                        ! spawn part_type -> part_type
+                        MatEl = - rh_imag*tau_real - real(rh_used,dp)*tau_imag
+                    else
+                        ! spawn part_type -> rotate_part(part_type)
+                        MatEl = real(rh_used,dp)*tau_real - rh_imag*tau_imag
+                    end if
+                endif
                 nSpawn = - sepSign * MatEl * walkerweight / prob
 
                 ! n.b. if we ever end up with |walkerweight| /= 1, then this
@@ -941,7 +935,7 @@ contains
 
         ! save the WalkVecDets variable, i think thats the only necessary
         ! variable, the pointers don't count
-        temp_det_list = WalkVecDets
+        temp_det_list(:,1:TotWalkers) = WalkVecDets(:,1:TotWalkers)
 
         ! for now also store the pointer, but thats not needed i guess
         temp_det_pointer => temp_det_list
@@ -974,7 +968,7 @@ contains
         character(*), parameter :: this_routine = "reload_current_dets"
 
         ! copy the list
-        WalkVecDets = temp_det_list
+        WalkVecDets(:,1:temp_totWalkers) = temp_det_list(:,1:temp_totWalkers)
 
         ! and point to it
         CurrentDets => WalkVecDets

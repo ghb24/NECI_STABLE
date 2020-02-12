@@ -17,11 +17,11 @@ module real_time
                                get_corespace_from_buf
     use real_time_data, only: gf_type,  tVerletSweep, &
                               pert_norm, second_spawn_iter_data, runge_kutta_step,&
-                              current_overlap, SumWalkersCyc_1, DiagParts, stepsAlpha, &
+                              current_overlap, DiagParts, stepsAlpha, &
                               elapsedRealTime, elapsedImagTime, TotPartsPeak, tVerletScheme, &
                               tau_real, tau_imag, t_rotated_time, temp_iendfreeslot, &
                               temp_freeslot, overlap_real, overlap_imag, dyn_norm_psi, &
-                              NoatHF_1, shift_damping, tDynamicCoreSpace, dyn_norm_red, &
+                              shift_damping, tDynamicCoreSpace, dyn_norm_red, &
                               normsize, gf_count, tRealTimePopsfile, tStabilizerShift, &
                               tLimitShift, tDynamicAlpha, dpsi_cache, dpsi_size, tGZero, &
                               tDynamicDamping, stabilizerThresh, popSnapshot, spawnBufSize, &
@@ -65,10 +65,12 @@ module real_time
     use bit_rep_data, only:  nOffFlag, niftot, extract_sign
     use bit_reps, only: set_flag, flag_deterministic, flag_determ_parent, test_flag
     use fcimc_iter_utils, only: update_iter_data, collate_iter_data, iter_diagnostics, &
-                                population_check, update_shift, calculate_new_shift_wrapper
+        population_check, update_shift, calculate_new_shift_wrapper, &
+        iteration_output_wrapper
     use soft_exit, only: ChangeVars, tSoftExitFound
     use fcimc_initialisation, only: CalcApproxpDoubles
-    use LoggingData, only: tPopsFile, write_end_core_size, tWriteCoreEnd
+    use LoggingData, only: tPopsFile, write_end_core_size, tWriteCoreEnd, StepsPrint, &
+        tCoupleCycleOutput
     use PopsFileMod, only: WriteToPopsfileParOneArr
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, &
          CalcHashTableStats
@@ -231,13 +233,13 @@ contains
         implicit none
 
         character(*), parameter :: this_routine = "perform_real_time_fciqmc"
-        integer :: j, i, iterRK, err
+        integer :: j, i, iterRK, err, all_err
         real(dp) :: s_start, s_end, tstart(2), tend(2)
         real(dp) :: totalTime
         complex(dp), allocatable :: overlap_buf(:)
         complex(dp), allocatable :: norm_buf(:)
         character (255) :: rtPOPSFILE_name
-
+        logical :: t_comm_done
         rtPOPSFILE_name = 'TIME_EVOLVED_POP'
 
         write(iout,*) " ========================================================== "
@@ -292,6 +294,7 @@ contains
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
 
+            t_comm_done = .false.
             ! the timing stuff has to be done a bit differently in the
             ! real-time fciqmc, since there are 2 spawing and annihilation
             ! steps involved...
@@ -306,6 +309,14 @@ contains
 
             ! if the trajectory is logged, print alpha and tau here
             if(tLogTrajectory) call logTimeCurve()
+
+            if(StepsPrint > 0 .and. .not. tCoupleCycleOutput) then
+                if(mod(iter, StepsPrint) == 0) then
+                    call iteration_output_wrapper(iter_data_fciqmc, TotParts, tPairedReplicas)
+                    ! mark that the communication has been done
+                    t_comm_done = .true.
+                endif
+            endif
 
             ! update the overlap each time
             ! rmneci_setup: computation of instantaneous projected norm is shifted to here
@@ -333,8 +344,8 @@ contains
                   overlap_real(j) = real(overlap_buf(j))
                   overlap_imag(j) = aimag(overlap_buf(j))
                end do
-               call update_real_time_iteration()
-            endif
+               call update_real_time_iteration(.not. t_comm_done)
+           endif
 
             if(mod(iter,stepsAlpha)==0 .and. (tDynamicAlpha .or. tDynamicDamping)) then
                call adjust_decay_channels()
@@ -362,7 +373,12 @@ contains
                call perform_real_time_iteration(err)
             endif
             ! exit the calculation if something failed
-            if(err.ne.0) exit
+            call MPISum(err, all_err)
+            if(all_err.ne.0) then
+                ! Print an error message, then exit
+                write(iout, *) "Error occured during real-time iteration"
+                exit
+            endif
             ! check if somthing happpened to stop the iteration or something
             call check_real_time_iteration()
 
@@ -440,13 +456,14 @@ contains
 
     end subroutine perform_real_time_fciqmc
 
-    subroutine update_real_time_iteration()
+    subroutine update_real_time_iteration(t_comm)
         ! routine to update certain global variables each loop iteration in
         ! the real-time fciqmc
         ! from the 2 distince spawn/death/cloning info stored in the
         ! two iter_data vars, i have to combine the general updated
         ! statistics for the actual time step
-      implicit none
+        implicit none
+        logical :: t_comm
         character(*), parameter :: this_routine = "update_real_time_iteration"
         integer :: run
 
@@ -481,7 +498,9 @@ contains
         if(tReadTrajectory) call get_current_alpha_from_cache
 
         call calculate_new_shift_wrapper(second_spawn_iter_data, totParts, &
-             tPairedReplicas)
+            tPairedReplicas, t_comm_req = t_comm)
+        if(tCoupleCycleOutput) call iteration_output_wrapper(iter_data_fciqmc, TotParts, &
+                    tPairedReplicas, t_comm_req = .false.)
 
         if(tStabilizerShift) then
            if(iProcIndex == Root) then
@@ -708,7 +727,7 @@ contains
                         ! unbias if the number of spawns was truncated
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                              nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                             ex_level_to_ref, ireplica, unused_sign, unused_avEx, unused_rdm_real, unused_fac)
+                             ex_level_to_ref, ireplica, unused_sign, AvMCExcits, unused_rdm_real, 1.0_dp)
                         child_sign = prefactor*child_sign
                      else
                         child_sign = 0.0_dp
@@ -878,8 +897,8 @@ contains
 
                         child_sign = attempt_create (nI_parent, CurrentDets(:,idet), parent_sign, &
                                             nI_child, ilut_child, prob, HElGen, ic, ex, tParity, &
-                                            ex_level_to_ref, ireplica, unused_sign, unused_avEx, &
-                                            unused_rdm_real, unused_fac)
+                                            ex_level_to_ref, ireplica, unused_sign, AvMCExcits, &
+                                            unused_rdm_real, 1.0_dp)
                         child_sign = child_sign*prefactor
                     else
                         child_sign = 0.0_dp
@@ -935,10 +954,6 @@ contains
         ! have to call end_iter_stats to get correct acceptance rate
 !         call end_iter_stats(TotWalkersNew)
         ! but end iter stats for me is only uses to get SumWalkersCyc ..
-        do run = 1, inum_runs
-           SumWalkersCyc_1(run) = SumWalkersCyc_1(run) + &
-                sum(TotParts(min_part_type(run):max_part_type(run)))
-        enddo
 
         ! the number TotWalkersNew changes below in annihilation routine
         ! Annihilation is done after loop over walkers
@@ -957,10 +972,6 @@ contains
         integer :: TotWalkersNew, run, MaxIndex
         real(dp) :: tmp_sign(lenof_sign), tau_real_tmp, tau_imag_tmp
         logical :: both, rkone, rktwo
-        rkone = .true.
-        rktwo = .true.
-        both = .false.
-        if(rkone .and. rktwo) both = .true.
         ! 0)
         ! do all the necessary preperation(resetting pointers etc.)
         ! concerning the statistics: i could use the "normal" iter_data
@@ -971,22 +982,23 @@ contains
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets:
-if(rkone) then
+
    if(iProcIndex == root .and. .false.) then
       print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
    endif
 
-if(both) then
+
         tau_real_tmp = tau_real
         tau_imag_tmp = tau_imag
         tau_real = tau_real/2.0
         tau_imag = tau_imag/2.0
-endif
+
         call first_real_time_spawn(err)
-if(both) then
+        if(catch_error(err)) return
+
         tau_real = tau_real_tmp
         tau_imag = tau_imag_tmp
-endif
+
 
 if(iProcIndex == root .and. .false.) then
         print *, "ValidSpawnedList", ValidSpawnedList
@@ -1004,8 +1016,7 @@ if(iProcIndex == root .and. .false.) then
         ! spawning..
 
         call update_iter_data(iter_data_fciqmc)
-endif
-if(rktwo) then
+
         ! 2)
         ! reset the spawned list and do a second spawning step to create
         ! the spawend list k2
@@ -1025,16 +1036,15 @@ if(rktwo) then
         ! information into the spawned k2 list..
         ! quick solution would be to loop again over reloaded y(n)
         ! and do a death step for wach walker
-         call second_real_time_spawn(err)
+        call second_real_time_spawn(err)
+        if(catch_error(err)) return
 
         ! 3)
         ! reload stored temp_det_list y(n) into CurrentDets
         ! have to figure out how to effectively save the previous hash_table
         ! or maybe just use two with different types of update functions..
 
-if(both) then
         call reload_current_dets()
-endif
 
         ! 4)
         ! for the death_step for now: loop once again over the walker list
@@ -1072,16 +1082,12 @@ endif
         ! Annihilation is done after loop over walkers
         call communicate_and_merge_spawns(MaxIndex, second_spawn_iter_data, .false.)
         call DirectAnnihilation (TotWalkersNew, MaxIndex, second_spawn_iter_data, err)
+        if(catch_error(err)) return
 
 #ifdef DEBUG_
         call check_update_growth(second_spawn_iter_data,"Error in second RK step")
 #endif
 
-
-        ! for debugging comfort: if the second step is to be used on its own
-        if(.not. both) then
-           NoatHF = NoatHF_1
-        endif
 
         TotWalkers = int(TotWalkersNew, sizeof_int)
 
@@ -1089,10 +1095,15 @@ endif
         ! them outside this function
 
         call update_iter_data(second_spawn_iter_data)
-else
-   SumWalkersCyc = SumWalkersCyc_1
-endif
 
+    contains
+        function catch_error(err) result(all_err)
+            integer, intent(in) :: err
+            integer :: all_err
+
+            call MPISum(err, all_err)
+        end function catch_error
+        
     end subroutine perform_real_time_iteration
 
     subroutine perform_verlet_iteration(err)

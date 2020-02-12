@@ -37,17 +37,7 @@ module fcimc_iter_utils
     use real_time_procs, only: normalize_gf_overlap
     use real_time_data, only: current_overlap, overlap_real, overlap_imag, &
          t_real_time_fciqmc
-#ifdef REALTIME_
-    use real_time_data, only: SpawnFromSing_1, AllSpawnFromSing_1, &
-        NoBorn_1, NoDied_1, AllNoBorn_1, AllNoDied_1, NoAtDoubs_1, AllNoAtDoubs_1, &
-        Annihilated_1, AllAnnihilated_1, AllNoAddedInitiators_1, AllNoInitDets_1, &
-        AllNoNonInitDets_1, AllInitRemoved_1, bloom_count_1, bloom_sizes_1, &
-        AllNoAborted_1, AllNoInitWalk_1, AllNoNonInitWalk_1, AllNoRemoved_1, &
-        all_bloom_count_1, NoAddedInitiators_1, SumWalkersCyc_1, &
-        nspawned_1, nspawned_tot_1, second_spawn_iter_data, TotParts_1, &
-        AllTotParts_1, AllTotPartsOld_1, allPopSnapshot, &
-        AllSumWalkersCyc_1,  popSnapshot
-#endif
+    use real_time_data, only: allPopSnapshot, popSnapshot
     use double_occ_mod, only: inst_double_occ, all_inst_double_occ, sum_double_occ, &
                               sum_norm_psi_squared, all_inst_spatial_doub_occ, &
                               rezero_double_occ_stats, rezero_spin_diff, &
@@ -416,13 +406,8 @@ contains
         real(dp), intent(out) :: tot_parts_new_all(lenof_sign)
 
         ! RT_M_Merge: Added real-time statistics for the newer communication scheme
-#if defined REALTIME_
         integer, parameter :: real_arr_size = 2000
         integer, parameter :: hel_arr_size = 200
-#else
-        integer, parameter :: real_arr_size = 1000
-        integer, parameter :: hel_arr_size = 100
-#endif
         ! RT_M_Merge: Doubled all array sizes since there are now two
         ! copies of most of the variables (necessary?)
 
@@ -527,28 +512,12 @@ contains
            sizes(41) = size(SumWalkersOut)
        endif
 
-#ifdef REALTIME_
-        sizes(42) = size(Annihilated_1)
-        sizes(43) = size(NoAddedInitiators_1)
-        sizes(44) = size(NoInitDets_1)
-        sizes(45) = size(NoNonInitDets_1)
-        sizes(46) = size(InitRemoved_1)
-        sizes(47) = size(NoAborted_1)
-        sizes(48) = size(NoRemoved_1)
-        sizes(49) = size(NoNonInitWalk_1)
-        sizes(50) = size(NoInitWalk_1)
-        sizes(51) = size(bloom_count)
-        sizes(52) = size(SumWalkersCyc_1)
-        sizes(53) = 1 ! nspawned_1
-        sizes(54) = size(TotParts_1)
-        sizes(55) = size(SpawnFromSing_1)
-        sizes(56) = size(iter_data_fciqmc%update_growth)
-        sizes(57) = size(popSnapShot)
-
-        NoArrs = 41
-#else
-        NoArrs = 57
-#endif
+       if(t_real_time_fciqmc) then
+           sizes(42) = size(popSnapShot)
+           NoArrs = 42
+       else
+           NoArrs = 41
+       endif
 
         send_arr = 0.0_dp
 
@@ -619,26 +588,10 @@ contains
            low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = HFOut
            low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = Acceptances
            low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = SumWalkersOut
+           if(t_real_time_fciqmc) then
+               low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = popSnapShot;
+           endif
         endif
-
-#ifdef REALTIME_
-        low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = Annihilated_1;
-        low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = NoAddedInitiators_1;
-        low = upp + 1; upp = low + sizes(44) - 1; send_arr(low:upp) = NoInitDets_1;
-        low = upp + 1; upp = low + sizes(45) - 1; send_arr(low:upp) = NoNonInitDets_1;
-        low = upp + 1; upp = low + sizes(46) - 1; send_arr(low:upp) = InitRemoved_1;
-        low = upp + 1; upp = low + sizes(47) - 1; send_arr(low:upp) = NoAborted_1;
-        low = upp + 1; upp = low + sizes(48) - 1; send_arr(low:upp) = NoRemoved_1;
-        low = upp + 1; upp = low + sizes(49) - 1; send_arr(low:upp) = NoNonInitWalk_1;
-        low = upp + 1; upp = low + sizes(50) - 1; send_arr(low:upp) = NoInitWalk_1;
-        low = upp + 1; upp = low + sizes(51) - 1; send_arr(low:upp) = bloom_count_1;
-        low = upp + 1; upp = low + sizes(52) - 1; send_arr(low:upp) = SumWalkersCyc_1;
-        low = upp + 1; upp = low + sizes(53) - 1; send_arr(low:upp) = nspawned_1;
-        low = upp + 1; upp = low + sizes(54) - 1; send_arr(low:upp) = TotParts_1;
-        low = upp + 1; upp = low + sizes(55) - 1; send_arr(low:upp) = SpawnFromSing_1;
-        low = upp + 1; upp = low + sizes(56) - 1; send_arr(low:upp) = iter_data_fciqmc%update_growth;
-        low = upp + 1; upp = low + sizes(57) - 1; send_arr(low:upp) = popSnapShot;
-#endif
 
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -708,25 +661,10 @@ contains
            low = upp + 1; upp = low + sizes(39) - 1; RealAllHFOut = recv_arr(low:upp)
            low = upp + 1; upp = low + sizes(40) - 1; AllAcceptances = recv_arr(low:upp)
            low = upp + 1; upp = low + sizes(41) - 1; AllSumWalkersOut = recv_arr(low:upp)
-        endif
-
-#ifdef REALTIME_
-        low = upp + 1; upp = low + sizes(42) - 1; AllAnnihilated_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(43) - 1; AllNoAddedInitiators_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(44) - 1; AllNoInitDets_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(45) - 1; AllNoNonInitDets_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(46) - 1; AllInitRemoved_1 = nint(recv_arr(low:upp), int64);
-        low = upp + 1; upp = low + sizes(47) - 1; AllNoAborted_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(48) - 1; AllNoRemoved_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(49) - 1; AllNoNonInitWalk_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(50) - 1; AllNoInitWalk_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(52) - 1; AllSumWalkersCyc_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(54) - 1; AllTotParts_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(55) - 1; AllSpawnFromSing_1 = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(56) - 1; iter_data_fciqmc%update_growth_tot = recv_arr(low:upp);
-        low = upp + 1; upp = low + sizes(57) - 1; allPopSnapShot = recv_arr(low:upp);
-#endif
-
+           if(t_real_time_fciqmc) then
+               low = upp + 1; upp = low + sizes(57) - 1; allPopSnapShot = recv_arr(low:upp);
+           endif
+       endif
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -1350,12 +1288,8 @@ contains
         ! also reset the real-time specific quantities:
         ! and maybe have to call this routine twice to rezero also the
         ! inputted iter_data for both RK steps..
-#ifdef REALTIME_
-        AllTotPartsOld_1 = AllTotParts_1
         iter_data_fciqmc%update_growth = 0.0_dp
         iter_data_fciqmc%update_iters = 0
-        ! do i need old det numner and aborted number?
-#endif
 
         ! and the norm
         old_norm_psi = norm_psi
