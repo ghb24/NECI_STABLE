@@ -373,7 +373,7 @@ contains
                call perform_real_time_iteration(err)
             endif
             ! exit the calculation if something failed
-            call MPISum(err, all_err)
+            call MPISumAll(err, all_err)
             if(all_err.ne.0) then
                 ! Print an error message, then exit
                 write(iout, *) "Error occured during real-time iteration"

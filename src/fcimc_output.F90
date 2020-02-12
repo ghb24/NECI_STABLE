@@ -761,8 +761,6 @@ contains
                 call stats_out(state,.false., TotImagTime, 'Im. time')
             endif
 
-            call stats_out(state,.true., TotImagTime, 'Im. time')
-
             ! Put the conditional columns at the end, so that the column
             ! numbers of the data are as stable as reasonably possible (for
             ! people who want to use gnuplot/not analyse column headers too
