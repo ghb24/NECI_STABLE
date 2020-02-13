@@ -550,64 +550,28 @@ contains
 
         ! index of the target orb
         nOrb = int(r * nEmpty) + 1
-        call skipOrb(nOrb, GAS_spin_orbs(0:NIfD, srcGASInd, ms))
-        nOrb = GAS_spin_orb_list(nOrb, srcGASInd, ms)
-        tgt = nOrb
+
+        tgt = GAS_spin_orb_list(map_to_unoccupied(nOrb, srcGASInd, ms), srcGASInd, ms)
 
     contains
 
-!         !> Return the i-th unoccupied orbital in the iGAS space with spin ms.
-!         function map_to_unoccupied(i, iGAS, ms) result(new_orb_idx)
-!             integer, intent(in) :: i, iGAS, ms
-!             integer :: new_orb_idx
-!
-!             new_orb_idx = i
-!             do j = 1, nEl
-!                 if (GAS_table(nI(j)) == srcGASInd .and. get_spin(nI(j)) == ms) then
-!                     ! if yes, we skip this orbital, increase nOrb by 1
-!                     new_orb_idx = new_orb_idx + 1
-!                 end if
-!             end do
-!
-!
-!         end function
+        !> Return the i-th unoccupied orbital in the iGAS space with spin ms.
+        function map_to_unoccupied(i, iGAS, ms) result(new_orb_idx)
+            integer, intent(in) :: i, iGAS, ms
+            integer :: new_orb_idx
 
-        subroutine skipOrb(nOrb, gasIlut)
-            ! convert an unoccupied active space orbital index to an
-            ! active space orbital index (i.e. correct for occ. orbs)
-            integer, intent(inout) :: nOrb
-            integer(n_int), intent(in) :: gasIlut(0:NIfD)
             integer :: j, globalOrbIndex
 
-            do j = 1, nel
-                globalOrbIndex = GAS_spin_orb_list(nOrb, srcGASInd, ms)
+            new_orb_idx = i
+            do j = 1, nEl
+                globalOrbIndex = GAS_spin_orb_list(new_orb_idx, iGAS, ms)
                 if (nI(j) > globalOrbIndex) return
-                ! check if an occ. orb is in the target active space
-                if (validTarget(nI(j), gasIlut)) then
+                if (GAS_table(nI(j)) == iGAS .and. get_spin(nI(j)) == ms) then
                     ! if yes, we skip this orbital, increase nOrb by 1
-                    nOrb = nOrb + 1
+                    new_orb_idx = new_orb_idx + 1
                 end if
             end do
-        end subroutine skipOrb
-
-        function validTarget(orb, gasIlut) result(valid)
-            ! check if an orbital is a valid target for an excitation within an active space
-            integer, intent(in) :: orb
-            integer(n_int), intent(in) :: gasIlut(0:NIfD)
-            logical :: valid
-
-            ! Is the orbital in the same GAS space with same spin?
-            valid = GAS_table(orb) == srcGASInd .and. get_spin(orb) == ms
-#ifdef DEBUG_
-            block
-                logical :: valid_bit
-                valid_bit = btest(gasIlut((orb - 1) / bits_n_int), mod(orb - 1, bits_n_int))
-                if (valid_bit .NEQV. valid) then
-                    call stop_all('validTarget', 'strange asdf')
-                end if
-            end block
-#endif
-        end function validTarget
+        end function
     end function pick_hole_from_active_space
 
 end module gasci
