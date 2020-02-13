@@ -522,19 +522,19 @@ contains
 
 !----------------------------------------------------------------------------!
 
-    function pick_hole_from_active_space(ilutI, nI, srcGASInd, ms, r, pgen) result(tgt)
+    function pick_hole_from_active_space(ilutI, nI, iGAS, ms, r, pgen) result(tgt)
         ! pick a hole of ilutI with spin ms from the active space with index srcGASInd
         ! the random number is to be supplied as r
         integer(n_int), intent(in) :: ilutI(0:NIfD)
         integer, intent(in) :: nI(nel)
-        integer, intent(in) :: ms, srcGASInd
+        integer, intent(in) :: ms, iGAS
         real(dp), intent(in) :: r
         real(dp), intent(out) :: pgen
         integer :: tgt
         integer :: nEmpty, nOrb
 
         ! this sum only converts an array of size 1 to a scalar
-        nEmpty = GAS_size(srcGASInd) - sum(popCnt(iand(ilutI(0:NIfD), GAS_spin_orbs(0:NIfD, srcGASInd, ms))))
+        nEmpty = GAS_size(iGAS) - sum(popCnt(iand(ilutI(0:NIfD), GAS_spin_orbs(0:NIfD, iGAS, ms))))
 
         ! if there are no empyty orbitals in this gas (can happen when allowing for
         ! spin-exchange), the excitation is invalid
@@ -551,7 +551,7 @@ contains
         ! index of the target orb
         nOrb = int(r * nEmpty) + 1
 
-        tgt = GAS_spin_orb_list(map_to_unoccupied(nOrb, srcGASInd, ms), srcGASInd, ms)
+        tgt = GAS_spin_orb_list(map_to_unoccupied(nOrb, iGAS, ms), iGAS, ms)
 
     contains
 
@@ -560,14 +560,13 @@ contains
             integer, intent(in) :: i, iGAS, ms
             integer :: new_orb_idx
 
-            integer :: j, globalOrbIndex
+            integer :: j
 
             new_orb_idx = i
             do j = 1, nEl
-                globalOrbIndex = GAS_spin_orb_list(new_orb_idx, iGAS, ms)
-                if (nI(j) > globalOrbIndex) return
+                if (nI(j) > GAS_spin_orb_list(new_orb_idx, iGAS, ms)) return
                 if (GAS_table(nI(j)) == iGAS .and. get_spin(nI(j)) == ms) then
-                    ! if yes, we skip this orbital, increase nOrb by 1
+                    ! if yes, we skip this orbital, increase by 1
                     new_orb_idx = new_orb_idx + 1
                 end if
             end do
