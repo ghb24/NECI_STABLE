@@ -420,29 +420,6 @@ contains
                             call readi (IterRDMonFly_new)
                         elseif (i == frequency_cutoff) then
                             call readf(frq_ratio_cutoff)
-
-                        elseif (i == prepare_real_time) then
-                            ! after equilibration start the preparation of
-                            ! snapshots of the stochastic goundstate by
-                            ! printing out a set amount of popsfiles
-                            ! use the already provided incremented popsfile
-                            ! output
-                            tPopsFile = .true.
-                            tPrintPopsDefault = .false.
-                            tIncrementPops = .true.
-#ifdef REALTIME_
-                            t_prepare_real_time = .true.
-#endif
-                            if (item < nitems) then
-#ifdef REALTIME_
-                                call readi(n_real_time_copies)
-#endif
-                                call readi(iWritePopsEvery)
-                            else
-                                iWritePopsEvery = 1
-                            end if
-
-
                         elseif (i == time) then
                             call readf (MaxTimeExit)
                         endif

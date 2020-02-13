@@ -175,34 +175,11 @@ module real_time_data
     ! and limit the number of spawns per determinant
     integer :: n_diag_spawned, nspawnMax
 
-    ! also need a var. to keep track of the number of spawned dets in
-    ! the first RK steo
-    integer :: nspawned_1, nspawned_tot_1
-
     ! keep stats track of the two runge kutta steps seperately -> need new
     ! global variables!
-    real(dp), allocatable :: NoAborted_1(:), AllNoAborted_1(:), AllNoAbortedOld_1(:), &
-                NoRemoved_1(:), AllNoRemoved_1(:), AllNoRemovedOld_1(:), &
-                NoBorn_1(:), AllNoBorn_1(:), NoDied_1(:), AllNoDied_1(:), &
-                Annihilated_1(:), AllAnnihilated_1(:), Acceptances_1(:), &
-                SpawnFromSing_1(:), AllSpawnFromSing_1(:), NoatDoubs_1(:), &
-                AllNoatDoubs_1(:),  NoInitWalk_1(:), &
-                NoNonInitWalk_1(:), NoatHF_1(:), AllNoInitWalk_1(:), &
-                AllNoNonInitWalk_1(:), SumWalkersCyc_1(:), AllTotParts_1(:), &
-                AllTotPartsOld_1(:), TotParts_1(:), AllNoatHF_1(:), AllSumWalkersCyc_1(:), &
-                TotPartsStorage(:), TotPartsLastAlpha(:)
-
-    integer(int64), allocatable :: NoAddedInitiators_1(:),InitRemoved_1(:), &
-                NoInitDets_1(:), NoNonInitDets_1(:), AllNoAddedInitiators_1(:), &
-                AllNoInitDets_1(:),AllNoNonInitDets_1(:), AllInitRemoved_1(:), &
-                AllGrowRateAbort_1(:)
-
-    integer(int64) :: TotWalkers_1, AllTotWalkers_1, AllTotWalkersOld_1
+    real(dp), allocatable :: TotPartsStorage(:), TotPartsLastAlpha(:)
 
     integer(TagIntType) :: DiagVecTag = 0
-    ! also keept track of blooms seperately
-    integer :: bloom_count_1(0:2), all_bloom_count_1(0:2)
-    real(dp) :: bloom_sizes_1(0:2), bloom_max_1(0:2)
 
     ! use a global integer to specifiy the current runge-kutta step (1 or 2)
     ! to keep stats correclty

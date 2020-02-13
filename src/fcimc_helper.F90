@@ -91,10 +91,8 @@ module fcimc_helper
     use guga_matrixElements, only: calc_off_diag_guga_ref_list
     use guga_bitrepops, only: write_det_guga, calc_csf_info
 
-    use real_time_data, only: t_complex_ints, acceptances_1, runge_kutta_step, tVerletSweep,&
-                        NoInitDets_1, NoNonInitDets_1, NoInitWalk_1, NoNonInitWalk_1, &
-                        InitRemoved_1, NoAborted_1, NoRemoved_1, NoatHF_1, NoatDoubs_1, &
-                        NoatHF_1, NoatDoubs_1, t_rotated_time, Annihilated_1, t_real_time_fciqmc
+    use real_time_data, only: t_complex_ints, runge_kutta_step, tVerletSweep,&
+        t_rotated_time, t_real_time_fciqmc
 
     use back_spawn, only: setup_virtual_mask
 
@@ -351,16 +349,6 @@ contains
                do i = 1, lenof_sign
                   if (sgn_prod(i) < 0.0_dp) then
                      iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-#ifdef REALTIME_
-                     run = part_type_to_run(i)
-                     if(runge_kutta_step == 1) then
-                        Annihilated_1(run) = Annihilated_1(run) + &
-                             2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-                     else if(runge_kutta_step == 2) then
-                        Annihilated(run) = Annihilated(run) + &
-                             2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-                     endif
-#endif
                   end if
                end do
             endif
@@ -414,23 +402,23 @@ contains
            ! If the parent was an initiator then set the initiator flag for the
            ! child, to allow it to survive.
 
-#ifdef REALTIME_
-           ! for real-time testing purpose: if the spawn is already populated, also
-           ! set the initiator flag to prevent abort due to the RK reset
-           if(tTruncInitiator .and. runge_kutta_step == 2) then
-              ! check whether the target is already in CurrentDets
-              call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
-                   CurrentDets, ind, hash_val_cd, tSuccess)
-              if(tSuccess) then
-                 call extract_sign(CurrentDets(:,ind), sgn_prod)
-                 ! check whether the target is populated in this run
-                 if(.not. is_run_unnocc(sgn_prod,part_type_to_run(part_type))) then
-                    call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
-                         get_initiator_flag(part_type))
-                 endif
-              endif
-           endif
-#endif
+            if(t_real_time_fciqmc) then
+                ! for real-time  purpose: if the spawn is already populated, also
+                ! set the initiator flag to prevent abort due to the RK reset
+                if(tTruncInitiator .and. runge_kutta_step == 2) then
+                    ! check whether the target is already in CurrentDets
+                    call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
+                        CurrentDets, ind, hash_val_cd, tSuccess)
+                    if(tSuccess) then
+                        call extract_sign(CurrentDets(:,ind), sgn_prod)
+                        ! check whether the target is populated in this run
+                        if(.not. is_run_unnocc(sgn_prod,part_type_to_run(part_type))) then
+                            call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                                get_initiator_flag(part_type))
+                        endif
+                    endif
+                endif
+            endif
 
            if (tTruncInitiator) then
                if (test_flag(ilut_parent, get_initiator_flag(part_type))) then
@@ -457,16 +445,10 @@ contains
         ! real-time scheme
         run = part_type_to_run(part_type)
 
-#ifdef REALTIME_
-        if (runge_kutta_step == 1) then
-           acceptances_1(run) = acceptances_1(run) + sum(abs(child_sign))
-        else
-           acceptances(run) = acceptances(run) + sum(abs(child_sign))
-        end if
-#else
-        acceptances(run) = &
-             acceptances(run) + maxval(abs(child_sign))
-#endif
+        if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+            acceptances(run) = &
+                acceptances(run) + maxval(abs(child_sign))
+        endif
 
       end subroutine create_particle_with_hash_table
 
@@ -703,22 +685,14 @@ contains
             ! second RK step, if i want to keep track of the statistics
             ! seperately: in the first loop i analyze the the wavefunction
             ! from on step behind.. so store it in the "normal" noathf var
-#ifdef REALTIME_
-            if (runge_kutta_step == 1) then
-                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+
+            if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
                 HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+                HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
+                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
                 if (iter > NEquilSteps) &
-                     SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
-            else
-                NoatHF_1(1:lenof_sign) = NoatHF_1(1:lenof_sign) + RealwSign
-            end if
-#else
-            HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
-            HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
-            NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
-            if (iter > NEquilSteps) &
-                SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
-#endif
+                    SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+            endif
 
         elseif (ExcitLevel_local == 2 .or. &
                 (ExcitLevel_local == 1 .and. tNoBrillouin)) then
@@ -735,22 +709,16 @@ contains
             ! rmneci_setup: Added multirun functionality for real-time
 
             if (ExcitLevel_local == 2) then
-               do run = 1, inum_runs
-#if defined(REALTIME_)
-
-                  if (runge_kutta_step == 1) then
-                     NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign))
-                  else
-                     NoatDoubs_1(run) = NoatDoubs_1(run) + sum(abs(RealwSign))
-                  endif
-
-#elif defined(CMPLX_) && !defined(REALTIME_)
-                  NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign &
-                       (min_part_type(run):max_part_type(run))))
+                do run = 1, inum_runs
+                    if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+#if defined(CMPLX_)
+                        NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign &
+                            (min_part_type(run):max_part_type(run))))
 #else
-                NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
+                        NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
 #endif
-            enddo
+                    endif
+                enddo
             end if
             ! Obtain off-diagonal element
             if (tHPHF) then
@@ -1412,21 +1380,6 @@ contains
         NoatHF = 0.0_dp
         NoatDoubs = 0.0_dp
         if (tLogEXLEVELStats) EXLEVEL_WNorm = 0.0_dp
-
-        ! for the real-time fciqmc also rezero the info on the intermediate
-        ! RK step
-#ifdef REALTIME_
-        NoInitDets_1 = 0
-        NoNonInitDets_1 = 0
-        NoInitWalk_1 = 0.0_dp
-        NoNonInitWalk_1 = 0.0_dp
-        InitRemoved_1 = 0
-
-        NoAborted_1 = 0.0_dp
-        NoRemoved_1 = 0.0_dp
-        NoatHF_1 = 0.0_dp
-        NoatDoubs_1 = 0.0_dp
-#endif
 
         iter_data%nborn = 0.0_dp
         iter_data%ndied = 0.0_dp

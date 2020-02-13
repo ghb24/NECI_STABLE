@@ -25,6 +25,8 @@ module real_time_read_input_module
 
         ! set the flag that this is a real time calculation
         t_real_time_fciqmc = .true.
+        ! usually only real-valued FCIDUMPs
+        t_complex_ints = .false.
 
         ! and set default values for the real-time calculation
         call set_real_time_defaults()

@@ -363,30 +363,18 @@ contains
             do j = 1, nSpatOrbs
                 do l = 1, nSpatOrbs
                     do k = 1, nSpatOrbs
-#ifdef REALTIME_
-                        write(iunit, *) (1.0_dp), i, j, k, l
-#else
                         write(iunit, *) h_cast(1.0_dp), i, j, k, l
-#endif
                     end do
                 end do
             end do
         end do
         do i = 1, nSpatOrbs
             do j = i, nSpatOrbs
-#ifdef REALTIME_
-                write(iunit,*) (1.0_dp), i, j, 0, 0
-#else
                 write(iunit,*) h_cast(1.0_dp), i, j, 0, 0
-#endif
             end do
         end do
 
-#ifdef REALTIME_
-        write(iunit,*) (0.0_dp), 0, 0, 0, 0
-#else
         write(iunit,*) h_cast(0.0_dp), 0, 0, 0, 0
-#endif
 
         close(iunit)
 

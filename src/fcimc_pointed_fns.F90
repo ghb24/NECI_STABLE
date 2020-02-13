@@ -54,10 +54,7 @@ module fcimc_pointed_fns
     use guga_excitations, only: print_excitInfo, global_excitInfo
 #endif
 
-#ifdef REALTIME_
-    use real_time_data, only: NoBorn_1, SpawnFromSing_1, bloom_count_1, &
-                              bloom_sizes_1, runge_kutta_step
-#endif
+    use real_time_data, only: runge_kutta_step, t_real_time_fciqmc
 
     use tau_search_hist, only: fill_frequency_histogram_4ind, &
                                fill_frequency_histogram_sd, &
@@ -615,49 +612,30 @@ module fcimc_pointed_fns
         ! For rmneci, the __REALTIME case will have to be adapted to inum_runs>1
 
         ! rmneci_setup: Added multirun support for real-time case
-#if defined(REALTIME_)
-        do run = 1, inum_runs
-           if (runge_kutta_step == 1) then
-              NoBorn_1(run) = NoBorn_1(run) + sum(abs(child))
-              if (ic == 1) SpawnFromSing_1(run) = SpawnFromSing_1(run) + sum(abs(child))
 
-              if (sum(abs(child)) > InitiatorWalkNo) then
-                 bloom_count_1(ic) = bloom_count_1(ic) + 1
-                 bloom_sizes_1(ic) = max(real(sum(abs(child)),dp), bloom_sizes_1(ic))
-              end if
+        if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+#if defined( CMPLX_)
+            do run = 1, inum_runs
+                NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+                if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
 
-           else if (runge_kutta_step == 2) then
-              NoBorn(run) = NoBorn(run) + sum(abs(child))
-              if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child))
-
-              ! Count particle blooms, and their sources
-              if (sum(abs(child)) > InitiatorWalkNo) then
-                 bloom_count(ic) = bloom_count(ic) + 1
-                 bloom_sizes(ic) = max(real(sum(abs(child)), dp), bloom_sizes(ic))
-              end if
-           end if
-        enddo
-#elif defined( CMPLX_) && !defined(REALTIME_)
-        do run = 1, inum_runs
-            NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
-            if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+                ! Count particle blooms, and their sources
+                if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
+                    bloom_count(ic) = bloom_count(ic) + 1
+                    bloom_sizes(ic) = max(real( sum(abs(child(min_part_type(run):max_part_type(run)))),dp), bloom_sizes(ic))
+                end if
+            enddo
+#else
+            NoBorn = NoBorn + abs(child)
+            if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
 
             ! Count particle blooms, and their sources
-            if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
+            if (abs(child(part_type)) > InitiatorWalkNo) then
                 bloom_count(ic) = bloom_count(ic) + 1
-                bloom_sizes(ic) = max(real( sum(abs(child(min_part_type(run):max_part_type(run)))),dp), bloom_sizes(ic))
+                bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
             end if
-        enddo
-#else
-        NoBorn = NoBorn + abs(child)
-        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
-
-        ! Count particle blooms, and their sources
-        if (abs(child(part_type)) > InitiatorWalkNo) then
-            bloom_count(ic) = bloom_count(ic) + 1
-            bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
-        end if
 #endif
+        endif
         if (.not. tPrecond) iter_data%nborn = iter_data%nborn + abs(child)
 
         ! Histogram the excitation levels as required

@@ -36,8 +36,8 @@ module AnnihilationMod
     use searching
     use hash
 
-    use real_time_data, only: NoAborted_1, Annihilated_1, runge_kutta_step, &
-                              nspawned_1, t_real_time_fciqmc
+    use real_time_data, only: runge_kutta_step, &
+                              t_real_time_fciqmc
 
     use global_det_data, only: det_diagH, store_spawn, &
                                update_tot_spawns, update_acc_spawns, &
@@ -555,18 +555,11 @@ module AnnihilationMod
         if (.not. tPrecond) then
             if (sgn_prod < 0.0_dp) then
                 run = part_type_to_run(part_type)
-#ifdef REALTIME_
-            if (runge_kutta_step == 1) then
-                Annihilated_1(run) = Annihilated_1(run) + &
-                    2*min(abs(cum_sgn), abs(new_sgn))
-            else if (runge_kutta_step == 2) then
-                Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
-            end if
-#else
-            Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
-            iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
-                    + 2 * min(abs(cum_sgn), abs(new_sgn))
-#endif
+                if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                    Annihilated(run) = Annihilated(run) + 2*min(abs(cum_sgn), abs(new_sgn))
+                    iter_data%nannihil(part_type) = iter_data%nannihil(part_type)&
+                        + 2 * min(abs(cum_sgn), abs(new_sgn))
+                endif
             end if
         end if
 
@@ -929,6 +922,8 @@ module AnnihilationMod
         logical :: abort(lenof_sign)
         logical :: tTruncSpawn, t_truncate_this_det
 
+        ! 0 means success
+        err = 0
         ! Only node roots to do this.
         if (.not. bNodeRoot) return
 
@@ -1027,15 +1022,9 @@ module AnnihilationMod
                                 .not. tDetermState) then
                                 ! Walkers came from outside initiator space.
                                 ! have to also keep track which RK step
-#ifdef REALTIME_
-                                if (runge_kutta_step == 1) then
-                                    NoAborted_1(j) = NoAborted_1(j) + abs(SpawnedSign(j))
-                                else if (runge_kutta_step == 2) then
-                                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
-                                end if
-#else
-                                NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
-#endif
+                               if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                                   NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                               endif
                                 iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
                                 call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
                                 SpawnedSign(j) = 0.0_dp
@@ -1062,20 +1051,12 @@ module AnnihilationMod
                         ! in the real-time fciqmc i have to keep track of
                         ! the runge-kutta-step
 
-#ifdef REALTIME_
-                       if (runge_kutta_step == 1) then
-                          Annihilated_1(run) = Annihilated_1(run) + &
-                               2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
-                       else if (runge_kutta_step == 2) then
-                          Annihilated(run) = Annihilated(run) + &
-                               2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
-                       end if
-#else
-                       Annihilated(run) = Annihilated(run) + &
-                            2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
-#endif
-                       iter_data%nannihil(j) = iter_data%nannihil(j) + &
-                            2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
+                     if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                         Annihilated(run) = Annihilated(run) + &
+                             2*(min(abs(CurrentSign(j)),abs(SpawnedSign(j))))
+                     endif
+                     iter_data%nannihil(j) = iter_data%nannihil(j) + &
+                         2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
 
                        if (tHistSpawn) then
                           ! We want to histogram where the particle

@@ -66,9 +66,8 @@ module fcimc_output
 
     use tau_search, only: comm_frequency_histogram, comm_frequency_histogram_spec
 
-    use real_time_data, only: AllNoBorn_1, AllNoAborted_1, AllAnnihilated_1, &
-                              AllNoDied_1, AllTotWalkers_1, nspawned_tot_1,  gf_count, &
-                              AllTotParts_1, normsize, snapShotOrbs, &
+    use real_time_data, only:  gf_count, &
+                              normsize, snapShotOrbs, &
                               current_overlap, t_real_time_fciqmc, elapsedRealTime, &
                               elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
                               dyn_norm_red, real_time_info, allPopSnapshot, numSnapshotOrbs
@@ -692,49 +691,49 @@ contains
             state%cols_mc = 0
             state%mc_out = tMCOutput
 
-#ifdef REALTIME_
-            l1_norm = 0.0
-            do run = 1, inum_runs
-               l1_norm = l1_norm + abs(cmplx(AllTotParts(min_part_type(run)), &
-                    AllTotParts(max_part_type(run))))
-            end do
-#endif
+            if(t_real_time_fciqmc) then
+                l1_norm = 0.0
+                do run = 1, inum_runs
+                    l1_norm = l1_norm + abs(cmplx(AllTotParts(min_part_type(run)), &
+                        AllTotParts(max_part_type(run))))
+                end do
+            endif
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
                ! note that due to the averaging, the printed value is not necessarily
                ! an integer
                 call stats_out(state,.true., sum(abs(AllTotParts))/inum_runs, &
                      'Tot. parts real')
-#ifdef REALTIME_
-                call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
-                call stats_out(state,.false., l1_norm/inum_runs ,'L1 Norm')
-#else
-                call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
-#endif
+                if(t_real_time_fciqmc) then
+                    call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
+                    call stats_out(state,.false., l1_norm/inum_runs ,'L1 Norm')
+                else
+                    call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
+                endif
             end if
 
             if(.not. t_real_time_fciqmc) then
 #ifdef CMPLX_
                 call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
                 call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
-#ifndef CMPLX_
+#else
                 call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
-#endif
 #endif
             end if
             call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
-#ifdef REALTIME_
-            call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
-#endif
+
+            if(t_real_time_fciqmc) &
+                call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
+
             call stats_out(state,.false., sum(AllNoBorn), 'No. born')
             call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
-#ifdef REALTIME_
-            call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
-            call stats_out(state,.false., real_time_info%damping, 'eta')
-            call stats_out(state,.false., IterTime, 'Iter. time')
-#else
-            call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
-#endif
+            if(t_real_time_fciqmc) then
+                call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
+                call stats_out(state,.false., real_time_info%damping, 'eta')
+                call stats_out(state,.false., IterTime, 'Iter. time')
+            else
+                call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+            endif
 
             call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
             call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
@@ -749,19 +748,18 @@ contains
             call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.true., nspawned_tot, 'Dets spawned')
             call stats_out(state,.false., Hii, 'reference energy')
-#ifdef REALTIME_
-            call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
-#else
-            call stats_out(state,.true., IterTime, 'Iter. time')
-#endif
-#ifdef REALTIME_
-            call stats_out(state, .true., elapsedRealTime, 'Re. time')
-            call stats_out(state, .true., elapsedImagTime, 'Im. time')
-#else
-            call stats_out(state,.false., TotImagTime, 'Im. time')
-#endif
 
-            call stats_out(state,.true., TotImagTime, 'Im. time')
+            if(t_real_time_fciqmc) then
+                call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
+            else
+                call stats_out(state,.true., IterTime, 'Iter. time')
+            endif
+            if(t_real_time_fciqmc) then
+                call stats_out(state, .true., elapsedRealTime, 'Re. time')
+                call stats_out(state, .true., elapsedImagTime, 'Im. time')
+            else
+                call stats_out(state,.false., TotImagTime, 'Im. time')
+            endif
 
             ! Put the conditional columns at the end, so that the column
             ! numbers of the data are as stable as reasonably possible (for
@@ -788,14 +786,14 @@ contains
                            trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
                    enddo
                 enddo
-#ifdef REALTIME_
-                do p = 1, numSnapshotOrbs
-                   ! if any orbitals are monitored, output their population
-                   write(tmpc, '(i5)') snapShotOrbs(p)
-                   call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
-                        // trim(adjustl(tmpc)))
-                end do
-#endif
+                if(t_real_time_fciqmc) then
+                    do p = 1, numSnapshotOrbs
+                        ! if any orbitals are monitored, output their population
+                        write(tmpc, '(i5)') snapShotOrbs(p)
+                        call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
+                            // trim(adjustl(tmpc)))
+                    end do
+                endif
             endif
 
             ! if we truncate walkers, print out the total truncated weight here

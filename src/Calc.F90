@@ -66,7 +66,8 @@ MODULE Calc
 
     use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
 
-    use real_time_data, only: allGfs, gf_count, gf_type
+    use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
+    use real_time, only: perform_real_time_fciqmc
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -3880,6 +3881,8 @@ contains
                  else
                      call perform_kp_fciqmc(kp)
                  end if
+             else if(t_real_time_fciqmc) then
+                 call perform_real_time_fciqmc()
               ENDIF
           endif
           IF(TMONTE.and..not.tMP2Standalone) THEN

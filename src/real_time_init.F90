@@ -9,16 +9,11 @@ module real_time_init
                               temp_det_pointer, temp_det_hash, temp_freeslot, tOverpopulate, &
                               pert_norm, second_spawn_iter_data, DiagParts, stepsAlpha, &
                               DiagVec, normsize, valid_diag_spawns, tStabilizerShift, &
-                              NoatHF_1, Annihilated_1, Acceptances_1, NoBorn_1, spawnBuf, &
-                              SpawnFromSing_1, NoDied_1, NoAborted_1, NoRemoved_1, &
-                              NoAddedInitiators_1, NoInitDets_1, NoNonInitDets_1, &
-                              NoInitWalk_1, NoNonInitWalk_1, InitRemoved_1, tDynamicAlpha, &
-                              AllNoatHF_1, AllNoatHF_1,  AllGrowRateAbort_1, TotParts_1, &
-                              AllNoBorn_1, AllSpawnFromSing_1, AllNoDied_1, gf_count, &
-                              AllAnnihilated_1, AllNoAborted_1, AllNoRemoved_1, allPopSnapshot, &
-                              AllNoAddedInitiators_1, AllNoInitDets_1, AllNoNonInitDets_1, &
-                              AllNoInitWalk_1, AllNoNonInitWalk_1, AllInitRemoved_1, &
-                              AllNoatDoubs_1, AllSumWalkersCyc_1, current_overlap, &
+                              spawnBuf, &
+                              tDynamicAlpha, &
+                              gf_count, &
+                              allPopSnapshot, &
+                              current_overlap, &
                               TotPartsStorage,  t_rotated_time, TotPartsPeak, asymptoticShift, &
                               tau_imag, tau_real, elapsedRealTime, elapsedImagTime, tNewOverlap, &
                               TotWalkers_orig, dyn_norm_psi, gs_energy, shift_damping, &
@@ -32,8 +27,7 @@ module real_time_init
                               tLogTrajectory, tReadTrajectory, alphaCache, tauCache, trajFile, &
                               tGenerateCoreSpace, tGZero, wn_threshold, corespace_log_interval, &
                               alphaLog, alphaLogSize, alphaLogPos, tStaticShift, DiagVecTag, &
-                              tOnlyPositiveShift, tHFOverlap, bloom_count_1, sumwalkerscyc_1, &
-                              nspawned_1
+                              tOnlyPositiveShift, tHFOverlap
     use real_time_procs, only: create_perturbed_ground, setup_temp_det_list, &
                                calc_norm, clean_overlap_states, openTauContourFile
     use verlet_aux, only: backup_initial_state, setup_delta_psi
@@ -273,43 +267,6 @@ contains
                 sum(TotParts(min_part_type(run):max_part_type(run)))
         enddo
 
-        ! also initialize all the relevant first RK step quantities..
-        NoatHF_1 = 0.0_dp
-        Annihilated_1 = 0.0_dp
-        nspawned_1 = 0.0_dp
-        Acceptances_1 = 0.0_dp
-        NoBorn_1 = 0.0_dp
-        SpawnFromSing_1 = 0
-        NoDied_1 = 0.0_dp
-        NoAborted_1 = 0.0_dp
-        NoRemoved_1 = 0.0_dp
-        NoAddedInitiators_1 = 0
-        NoInitDets_1 = 0
-        NoNonInitDets_1 = 0
-        NoInitWalk_1 = 0.0_dp
-        NoNonInitWalk_1 = 0.0_dp
-        InitRemoved_1 = 0
-        TotParts_1 = 0.0_dp
-        bloom_count_1 = 0
-        sumwalkerscyc_1 = 0.0_dp
-        ! also the global variables
-        AllNoatHF_1 = 0.0_dp
-        AllNoatDoubs_1 = 0.0_dp
-        AllGrowRateAbort_1 = 0
-        AllNoBorn_1 = 0.0_dp
-        AllSpawnFromSing_1 = 0
-        AllNoDied_1 = 0.0_dp
-        AllAnnihilated_1 = 0.0_dp
-        AllNoAborted_1 = 0.0_dp
-        AllNoRemoved_1 = 0.0_dp
-        AllNoAddedInitiators_1 = 0
-        AllNoInitDets_1 = 0
-        AllNoNonInitDets_1 = 0
-        AllNoInitWalk_1 = 0.0_dp
-        AllNoNonInitWalk_1 = 0.0_dp
-        AllInitRemoved_1 = 0
-        AllSumWalkersCyc_1 = 0.0_dp
-
         tVerletSweep = .false.
         if(tVerletScheme) then
            call setup_delta_psi()
@@ -483,8 +440,8 @@ contains
         ! overwrite tfcimc flag to not enter the regular fcimc routine
         tFCIMC = .false.
 
-        ! usually only real-valued FCIDUMPs
-        t_complex_ints = .false.
+        ! Default to complex ints, this is then turned off when running real-time
+        t_complex_ints = .true.
 
         ! probably should zero the projected energy, since its a total
         ! different system

@@ -1019,6 +1019,7 @@ contains
         AllInitsENumCyc(:) = 0.0_dp
         AllNoatHF(:)=0.0_dp
         AllNoatDoubs(:)=0.0_dp
+        NoAtDoubs = 0.0_dp
         if (tLogEXLEVELStats) AllEXLEVEL_WNorm(:,:,:)=0.0_dp
         AllSumNoatHF(:)=0.0_dp
         AllGrowRate(:)=0.0_dp

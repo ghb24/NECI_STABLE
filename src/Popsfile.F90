@@ -1286,126 +1286,125 @@ r_loop: do while(.not.tStoreDet)
             write(6,*) "Old popsfile detected."
             write(6,*) "Therefore automatic blocking will only start from current run"
             iBlockingIter = PreviousCycles
-         else
-#ifdef REALTIME_
+        else
 
-            ! if reading from a real-time popsfile, also read in tau
-            ! this works because the real-time popsfile is read last
-            if(.not. tSpecifiedTau) then
-               if(.not. tRealTimePopsfile) then
-                  tau = read_tau
-            endif
-
-            ! also use the adjusted pSingle etc. if provided
-            if (read_psingles /= 0.0_dp) then
-               pSingles = read_psingles
-               pDoubles = 1.0_dp - pSingles
-               write(iout,*) " use pSingles and pDoubles provided by POPSFILE!"
-               write(iout,*)" pSingles set to: ", pSingles
-               write(iout,*) " pDoubles set to: ", pDoubles
-            end if
-            tReadPTriples = .false.
-            if(abs(read_ptriples) > eps) then
-               pTriples = read_ptriples
-               tReadPTriples = .true.
-               write(iout,*) "Using pTriples provided by POPSFILE"
-            end if
-
-            ! also do that for pParallel
-            if (read_pparallel /= 0.0_dp) then
-               write(iout,*) " use pParallel provided by POPSFILE: ", read_pparallel
-               pParallel = read_pparallel
-            end if
-#else
-
-            !Using popsfile v.4, where tau is written out and read in
-
-            ! [Werner Dobrautz 4.4.2017:]
-            ! Are we sure we want to stop searching if we are in the
-            ! variable shift mode? TODO
-            if ((tSearchTau .or. t_hist_tau_search) .or. t_previous_hist_tau &
-                .or. t_read_probs) then
-                if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
-                    tSearchTau=.false.
+            if(t_real_time_fciqmc) then
+                ! if reading from a real-time popsfile, also read in tau
+                ! this works because the real-time popsfile is read last
+                if(.not. tSpecifiedTau) then
+                    tau = read_tau
                 endif
-                Tau=read_tau
-                write(6,"(A)") "Using timestep specified in POPSFILE!"
-                if (tSearchTau .or. t_hist_tau_search) then
-                    write(6,"(A)") "But continuing to dynamically adjust to optimise this"
-                end if
-                write(iout,"(A,F12.8)") " read-in time-step: ", tau
 
-                ! If we have been searching for tau, we may have been searching
-                ! for psingles (it is done at the same time).
+                ! also use the adjusted pSingle etc. if provided
+                if (read_psingles /= 0.0_dp) then
+                    pSingles = read_psingles
+                    pDoubles = 1.0_dp - pSingles
+                    write(iout,*) " use pSingles and pDoubles provided by POPSFILE!"
+                    write(iout,*)" pSingles set to: ", pSingles
+                    write(iout,*) " pDoubles set to: ", pDoubles
+                end if
+                tReadPTriples = .false.
+                if(abs(read_ptriples) > eps) then
+                    pTriples = read_ptriples
+                    tReadPTriples = .true.
+                    write(iout,*) "Using pTriples provided by POPSFILE"
+                end if
+
+                ! also do that for pParallel
+                if (read_pparallel /= 0.0_dp) then
+                    write(iout,*) " use pParallel provided by POPSFILE: ", read_pparallel
+                    pParallel = read_pparallel
+                end if
+            else
+
+                !Using popsfile v.4, where tau is written out and read in
+
+                ! [Werner Dobrautz 4.4.2017:]
+                ! Are we sure we want to stop searching if we are in the
+                ! variable shift mode? TODO
+                if ((tSearchTau .or. t_hist_tau_search) .or. t_previous_hist_tau &
+                    .or. t_read_probs) then
+                    if((.not.tSinglePartPhase(1)).or.(.not.tSinglePartPhase(inum_runs))) then
+                        tSearchTau=.false.
+                    endif
+                    Tau=read_tau
+                    write(6,"(A)") "Using timestep specified in POPSFILE!"
+                    if (tSearchTau .or. t_hist_tau_search) then
+                        write(6,"(A)") "But continuing to dynamically adjust to optimise this"
+                    end if
+                    write(iout,"(A,F12.8)") " read-in time-step: ", tau
+
+                    ! If we have been searching for tau, we may have been searching
+                    ! for psingles (it is done at the same time).
+                    if (abs(read_psingles) > 1.0e-12_dp) then
+                        if (tCSF) then ! .or. tSpinProjDets) then
+                            call stop_all(this_routine, "pSingles storage not yet &
+                                &implemented for CSFs")
+                        end if
+                        pSingles = read_psingles
+                        if (.not. tReltvy) &
+                            pDoubles = 1.0_dp - pSingles
+
+                        write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                        write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                        write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+
+                    end if
+
+                    if (abs(read_pparallel) > 1.0e-12_dp) then
+                        pParallel = read_pparallel
+                        write(iout,"(A)") "Using pParallel from POPSFILE: "
+                        write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                    end if
+
+                else if (t_keep_tau_fixed) then
+                    write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
+                    write(6,*) "Timestep is tau=", tau
+                    tau = read_tau
+
+                    if (abs(read_psingles) > 1.0e-12_dp) then
+                        pSingles = read_psingles
+                        if (.not. tReltvy) then
+                            pDoubles = 1.0_dp - pSingles
+                        end if
+                        write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
+                        write(iout,"(A,F12.8)") " pSingles: ", pSingles
+                        write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
+
+                    end if
+
+                    if (abs(read_pparallel) > 1.0e-12_dp) then
+                        pParallel = read_pparallel
+                        write(iout,"(A)") "Using pParallel from POPSFILE: "
+                        write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                    end if
+                else
+                    !Tau specified. if it is different, write this here.
+                    if(abs(read_tau-Tau).gt.1.0e-5_dp) then
+                        call warning_neci(this_routine,"Timestep specified in input file is different to that in the popsfile.")
+
+                        write(6,"(A,F12.8)") "Old timestep: ",read_tau
+                        write(6,"(A,F12.8)") "New timestep: ",tau
+
+                    endif
+                endif
                 if (abs(read_psingles) > 1.0e-12_dp) then
                     if (tCSF) then ! .or. tSpinProjDets) then
                         call stop_all(this_routine, "pSingles storage not yet &
-                                      &implemented for CSFs")
+                            &implemented for CSFs")
                     end if
                     pSingles = read_psingles
                     if (.not. tReltvy) &
-                    pDoubles = 1.0_dp - pSingles
-
-                    write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
-                    write(iout,"(A,F12.8)") " pSingles: ", pSingles
-                    write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
-
+                        pDoubles = 1.0_dp - pSingles
+                    write(6,*) "Using read-in pSingles=", pSingles
+                    write(6,*) "Using read-in pDoubles=", pDoubles
                 end if
-
-                if (abs(read_pparallel) > 1.0e-12_dp) then
-                    pParallel = read_pparallel
-                    write(iout,"(A)") "Using pParallel from POPSFILE: "
-                    write(iout,"(A,F12.8)") " pParallel: ", pParallel
+                tReadPTriples = .false.
+                if(abs(read_pTriples) > eps) then
+                    pTriples = read_pTriples
+                    tReadPTriples = .true.
                 end if
-
-            else if (t_keep_tau_fixed) then
-               write(6,"(A)") "Using timestep specified in POPSFILE, without continuing to dynammically adjust it!"
-               write(6,*) "Timestep is tau=", tau
-               tau = read_tau
-
-               if (abs(read_psingles) > 1.0e-12_dp) then
-                  pSingles = read_psingles
-                  if (.not. tReltvy) then
-                     pDoubles = 1.0_dp - pSingles
-                  end if
-                  write(iout,"(A)") "Using pSingles and pDoubles from POPSFILE: "
-                  write(iout,"(A,F12.8)") " pSingles: ", pSingles
-                  write(iout,"(A,F12.8)") " pDoubles: ", pDoubles
-
-               end if
-
-               if (abs(read_pparallel) > 1.0e-12_dp) then
-                  pParallel = read_pparallel
-                  write(iout,"(A)") "Using pParallel from POPSFILE: "
-                  write(iout,"(A,F12.8)") " pParallel: ", pParallel
-               end if
-            else
-               !Tau specified. if it is different, write this here.
-               if(abs(read_tau-Tau).gt.1.0e-5_dp) then
-                  call warning_neci(this_routine,"Timestep specified in input file is different to that in the popsfile.")
-
-                  write(6,"(A,F12.8)") "Old timestep: ",read_tau
-                  write(6,"(A,F12.8)") "New timestep: ",tau
-
-               endif
             endif
-            if (abs(read_psingles) > 1.0e-12_dp) then
-               if (tCSF) then ! .or. tSpinProjDets) then
-                  call stop_all(this_routine, "pSingles storage not yet &
-                       &implemented for CSFs")
-               end if
-               pSingles = read_psingles
-               if (.not. tReltvy) &
-                    pDoubles = 1.0_dp - pSingles
-               write(6,*) "Using read-in pSingles=", pSingles
-               write(6,*) "Using read-in pDoubles=", pDoubles
-            end if
-            tReadPTriples = .false.
-            if(abs(read_pTriples) > eps) then
-               pTriples = read_pTriples
-               tReadPTriples = .true.
-            end if
-#endif
             iBlockingIter = PopBlockingIter
         endif
 
@@ -1499,13 +1498,9 @@ r_loop: do while(.not.tStoreDet)
         logical :: PopPreviousHistTau
         integer :: PopAccumPopsCounter
         character(*), parameter :: t_r = 'ReadPopsHeadv4'
-#ifdef REALTIME_
         ! need dummy read-in variable, since we start from a converged real
         ! calculation usually! atleast thats the default for now!
-        real(dp) :: PopSumENum
-#else
         HElement_t(dp) :: PopSumENum
-#endif
 
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
                     PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
