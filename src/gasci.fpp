@@ -5,6 +5,7 @@
 module gasci
     use SystemData, only: tNConservingGAS, tSpinConservingGAS, nBasis, nel
     use constants
+    use fortran_strings, only: str
     use util_mod, only: get_free_unit, binary_search_first_ge, &
         operator(.div.)
     use sort_mod, only : sort
@@ -35,7 +36,7 @@ module gasci
     integer :: nGAS
 
     integer, parameter :: idx_alpha = 1, idx_beta = 2
-#ifdef __INT64
+#ifdef INT64_
     ! oddBits is the 2-base number: 101010101010....
     ! This corresponds to beta orbitals if interpreted as bitmask
     integer(n_int), parameter :: oddBits = 6148914691236517205_n_int
@@ -555,6 +556,22 @@ contains
 
     contains
 
+!         !> Return the i-th unoccupied orbital in the iGAS space with spin ms.
+!         function map_to_unoccupied(i, iGAS, ms) result(new_orb_idx)
+!             integer, intent(in) :: i, iGAS, ms
+!             integer :: new_orb_idx
+!
+!             new_orb_idx = i
+!             do j = 1, nEl
+!                 if (GAS_table(nI(j)) == srcGASInd .and. get_spin(nI(j)) == ms) then
+!                     ! if yes, we skip this orbital, increase nOrb by 1
+!                     new_orb_idx = new_orb_idx + 1
+!                 end if
+!             end do
+!
+!
+!         end function
+
         subroutine skipOrb(nOrb, gasIlut)
             ! convert an unoccupied active space orbital index to an
             ! active space orbital index (i.e. correct for occ. orbs)
@@ -566,9 +583,10 @@ contains
                 globalOrbIndex = GAS_spin_orb_list(nOrb, srcGASInd, ms)
                 if (nI(j) > globalOrbIndex) return
                 ! check if an occ. orb is in the target active space
-                if (validTarget(nI(j), gasIlut)) &
+                if (validTarget(nI(j), gasIlut)) then
                     ! if yes, we skip this orbital, increase nOrb by 1
                     nOrb = nOrb + 1
+                end if
             end do
         end subroutine skipOrb
 
@@ -576,11 +594,19 @@ contains
             ! check if an orbital is a valid target for an excitation within an active space
             integer, intent(in) :: orb
             integer(n_int), intent(in) :: gasIlut(0:NIfD)
-
             logical :: valid
 
-            ! is the orbital in the acitve space?
-            valid = btest(gasIlut((orb - 1) / bits_n_int), mod(orb - 1, bits_n_int))
+            ! Is the orbital in the same GAS space with same spin?
+            valid = GAS_table(orb) == srcGASInd .and. get_spin(orb) == ms
+#ifdef DEBUG_
+            block
+                logical :: valid_bit
+                valid_bit = btest(gasIlut((orb - 1) / bits_n_int), mod(orb - 1, bits_n_int))
+                if (valid_bit .NEQV. valid) then
+                    call stop_all('validTarget', 'strange asdf')
+                end if
+            end block
+#endif
         end function validTarget
     end function pick_hole_from_active_space
 
