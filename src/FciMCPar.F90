@@ -68,7 +68,8 @@ module FciMCParMod
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
-    use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet
+    use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet, &
+        need_load_balancing
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag, &
          all_runs_are_initiator
     use exact_diag, only: perform_exact_diag_all_symmetry
@@ -129,6 +130,8 @@ module FciMCParMod
     !array for timings of the main compute loop
     real(dp),dimension(100) :: lt_arr
 
+    integer, parameter :: lb_measure_cycle = 100
+
     contains
 
     subroutine FciMCPar(energy_final_output)
@@ -161,7 +164,7 @@ module FciMCParMod
         logical :: tStartedFromCoreGround
         real(dp),dimension(100) :: lt_sum, lt_max
 
-        real(dp):: lt_imb
+        real(dp):: lt_imb, lt_imb_cycle
         integer:: rest, err, allErr
 
         real(dp) :: CurrentSign(lenof_sign)
@@ -329,6 +332,7 @@ module FciMCParMod
         lt_sum=0.
         ! For calculations with only few iterations
         lt_arr=0.
+        lt_imb_cycle = 0.
 
         do while (.true.)
 !Main iteration loop...
@@ -513,9 +517,19 @@ module FciMCParMod
             endif
 
             ! Add some load balancing magic!
-            if (tLoadBalanceBlocks .and. mod(iter, 1000) == 0 .and. &
+            if (tLoadBalanceBlocks .and. mod(iter, lb_measure_cycle) == 1 .and. &
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
-                call adjust_load_balance(iter_data_fciqmc)
+                ! Use the ratio of time lost due to load imbalance as an estimtor
+                ! whether load balancing should be used
+                if(iter > lb_measure_cycle) then
+                    lt_imb_cycle = lt_imb_cycle / sum(lt_sum)
+                else
+                    lt_imb_cycle = 0.0
+                end if
+                write(iout,*) "Load imbalance measure is now", lt_imb_cycle                
+                if(need_load_balancing(lt_imb_cycle)) then
+                    call adjust_load_balance(iter_data_fciqmc)
+                endif
             end if
 
             if(SIUpdateInterval > 0) then
@@ -765,10 +779,11 @@ module FciMCParMod
 
             ! Compute the time lost due to load imbalance - aggregation done for 100 iterations
             ! at a time to avoid unnecessary synchronisation points
-            if (mod(Iter,100).eq.0) then
-               call MPIReduce(lt_arr,MPI_SUM,lt_sum)
-               call MPIReduce(lt_arr,MPI_MAX,lt_max)
-               lt_imb=lt_imb+sum(lt_max-lt_sum/nProcessors)
+            if (mod(Iter,lb_measure_cycle).eq.0) then
+               call MPIAllReduce(lt_arr,MPI_SUM,lt_sum)
+               call MPIAllReduce(lt_arr,MPI_MAX,lt_max)
+               lt_imb_cycle = sum(lt_max-lt_sum/nProcessors)
+               lt_imb=lt_imb+lt_imb_cycle
             end if
 
             Iter=Iter+1
@@ -786,7 +801,7 @@ module FciMCParMod
         write(iout,*) 'Total loop-time: ', stop_time - start_time
 
         !add load imbalance from remaining iterations (if any)
-        rest=mod(Iter-1,100)
+        rest=mod(Iter-1,lb_measure_cycle)
         if (rest.gt.0) then
            call MPIReduce(lt_arr,MPI_SUM,lt_sum)
            call MPIReduce(lt_arr,MPI_MAX,lt_max)
