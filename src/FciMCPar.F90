@@ -526,7 +526,6 @@ module FciMCParMod
                 else
                     lt_imb_cycle = 0.0
                 end if
-                write(iout,*) "Load imbalance measure is now", lt_imb_cycle                
                 if(need_load_balancing(lt_imb_cycle)) then
                     call adjust_load_balance(iter_data_fciqmc)
                 endif
