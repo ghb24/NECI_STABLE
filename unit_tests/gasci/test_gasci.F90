@@ -9,7 +9,7 @@ program test_gasci
   use Integrals_neci, only: IntInit, get_umat_el_normal
   use procedure_pointers, only: get_umat_el
   use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
-       tReadInt
+       tReadInt, tSpinConservingGAS
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit
   use UMatCache, only: GetUMatSize, tTransGTID
