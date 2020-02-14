@@ -175,7 +175,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2, 2)
+        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -402,10 +402,17 @@ contains
 
         select case(ic)
         case(1)
-            exc = SingleExc_t(src1)
+            allocate(SingleExc_t :: exc)
         case(2)
+            allocate(DoubleExc_t :: exc)
+        end select
+        select type(exc)
+        type is(SingleExc_t)
+            exc = SingleExc_t(src1)
+        type is(DoubleExc_t)
             exc = DoubleExc_t(src1, tgt1, src2)
         end select
+
 
         ! build the cumulative list of matrix elements <src|H|tgt>
         previous = 0.0_dp
