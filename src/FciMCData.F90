@@ -682,4 +682,7 @@ MODULE FciMCData
       !Where is the reverse spawn weight stored inside SpawnInfo
       integer, parameter :: SpawnWeightRev = 6
 
+      ! Guard flag to monitor if the random orbital mapping indices have been initialized
+      logical :: t_initialized_roi = .false.
+
 end module FciMCData

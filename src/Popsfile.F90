@@ -37,7 +37,8 @@ MODULE PopsfileMod
     use sort_mod
     use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
         gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2, max_death_cpt
-    use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
+    use FciMcData, only : pSingles, pDoubles, pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2, &
+        t_initialized_roi
     use global_det_data, only: global_determinant_data, init_global_det_data, set_det_diagH, &
         store_decoding, max_ratio_size, fvals_size, apvals_size
     use tc_three_body_data, only: pTriples, tReadPTriples
@@ -139,6 +140,11 @@ contains
         read_pparallel = 0.0_dp
         read_tau = 0.0_dp
         PopDiagSft = 0.0_dp
+
+        ! For the following operations, the mapping of determinants to processors
+        ! has to be initialized
+        if(.not. t_initialized_roi) call stop_all(this_routine, &
+            "Random orbital mapping indices un-initialized at popsfile read")
 
         if (tHDF5PopsRead) then
 

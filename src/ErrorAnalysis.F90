@@ -105,7 +105,7 @@ module errors
             'PLOT_num',tPrintIntermediateBlocking,2)
         call automatic_reblocking_analysis(shift_data,2,corrlength_shift,   &
             'PLOT_shift',tPrintIntermediateBlocking,3)
-        if(lenof_sign.eq.2) then
+        if(lenof_sign == 2 .and. inum_runs == 1) then
             call automatic_reblocking_analysis(imnumerator_data,2,  &
                 corrlength_imnum,'PLOT_imnum',tPrintIntermediateBlocking,4)
         endif
@@ -170,7 +170,7 @@ module errors
             endif
             deallocate(temp)
 
-            if(lenof_sign.eq.2) then
+            if(lenof_sign == 2 .and. inum_runs == 1) then
                 allocate(temp(size(imnumerator_data)),stat=ierr)
                 if(ierr.ne.0) call stop_all(t_r,'Alloc error')
                 temp = imnumerator_data
@@ -196,7 +196,7 @@ module errors
             ! If complex, the equilibration time for projected energy is the longest of all three quantities
             if(.not.tNoProjEValue) then
                 relaxation_time_proje=max(equil_time_denom*corrlength_denom,equil_time_num*corrlength_num)
-                if(lenof_sign.eq.2) then
+                if(lenof_sign == 2 .and. inum_runs == 1) then
                     relaxation_time_proje=max(relaxation_time_proje,equil_time_imnum*corrlength_imnum)
                 endif
                 write(6,"(A,I8,A)") "Relaxation time for projected energy estimated to be ", relaxation_time_proje, &
@@ -217,11 +217,11 @@ module errors
         if(.not.tNoProjEValue) then
             call resize(pophf_data,relaxation_time_proje)
             call resize(numerator_data,relaxation_time_proje)
-            if(lenof_sign.eq.2) call resize(imnumerator_data,relaxation_time_proje)
+            if(lenof_sign == 2 .and. inum_runs == 1) call resize(imnumerator_data,relaxation_time_proje)
 
             !Now find all block lengths, and write them to file, so that blocklengths can be checked.
             !Call routine here to write out a file (Blocks_proje) with the projected energy mean and error for all block sizes.
-            if(lenof_sign.eq.2) then
+            if(lenof_sign == 2 .and. inum_runs == 1) then
                 call print_proje_blocks(pophf_data,numerator_data,2,'Blocks_proje_re')
                 call print_proje_blocks(pophf_data,imnumerator_data,2,'Blocks_proje_im')
             else
@@ -231,7 +231,7 @@ module errors
             !Now perform automatic reblocking again, to get expected blocklength
             call automatic_reblocking_analysis(pophf_data,2,corrlength_denom,'Blocks_denom',.true.,1)
             call automatic_reblocking_analysis(numerator_data,2,corrlength_num,'Blocks_num',.true.,2)
-            if(lenof_sign.eq.2) then
+            if(lenof_sign == 2 .and. inum_runs == 1) then
                 call automatic_reblocking_analysis(imnumerator_data,2,corrlength_imnum,'Blocks_imnum',.true.,4)
             endif
         endif
@@ -244,7 +244,7 @@ module errors
         ! STEP 5) Now gathers together the properly reblocked data and find statistics
         if(.not.tNoProjEValue) then
             final_corrlength_proj = max(corrlength_num,corrlength_denom)
-            if(lenof_sign.eq.2) then
+            if(lenof_sign == 2 .and. inum_runs == 1) then
                 final_corrlength_proj = max(final_corrlength_proj,corrlength_imnum)
             endif
             if(Errordebug.gt.0) write(6,"(A,I10)") "Final projected energy correlation length",final_corrlength_proj
@@ -254,7 +254,7 @@ module errors
             call analyze_data(numerator_data,mean_num,error_num,eie_num)
             write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_denominator:", mean_denom, " +/- ", error_denom, &
                 " Relative error: ", abs(error_denom/mean_denom)
-            if(lenof_sign.eq.2) then
+            if(lenof_sign == 2 .and. inum_runs == 1) then
                 call reblock_data(imnumerator_data,final_corrlength_proj)
                 call analyze_data(imnumerator_data,mean_imnum,error_imnum,eie_imnum)
                 write(6,"(A,F22.10,A,G20.8,A,G22.10)") "ProjE_numerator (Re):", mean_num, " +/- ", error_num, &
@@ -284,7 +284,7 @@ module errors
         if(.not.tNoProjEValue) then
             covariance_re=calc_covariance(pophf_data,numerator_data)
             correction_re=2.0_dp*covariance_re/((size(pophf_data))*mean_denom*mean_num)
-            if(lenof_sign.eq.2) then
+            if(lenof_sign == 2 .and. inum_runs == 1) then
                 covariance_im=calc_covariance(pophf_data,imnumerator_data)
                 correction_im=2.0_dp*covariance_im/((size(pophf_data))*mean_denom*mean_imnum)
             endif
@@ -312,7 +312,7 @@ module errors
         endif
 
         deallocate(pophf_data,numerator_data,shift_data)
-        if(lenof_sign.eq.2) deallocate(imnumerator_data)
+        if(lenof_sign == 2 .and. inum_runs == 1) deallocate(imnumerator_data)
 
     end subroutine error_analysis
 
@@ -521,7 +521,7 @@ module errors
             if(readline.ne.'#') then
                 !Valid data on line
 
-                if(lenof_sign.eq.2) then
+                if(lenof_sign == 2 .and. inum_runs == 1) then
                     !complex fcimcstats
                     read(iunit, *, iostat=eof) &
                         iters, &                !1.
@@ -632,7 +632,7 @@ module errors
 
         !Allocate arrays
         allocate(numerator_data(validdata),stat=ierr)
-        if(lenof_sign.eq.2) then
+        if(lenof_sign == 2 .and. inum_runs == 1) then
             allocate(imnumerator_data(validdata),stat=ierr)
         endif
         allocate(pophf_data(validdata),stat=ierr)
@@ -657,7 +657,7 @@ module errors
             if(readline.ne.'#') then
                 !Valid data on line
 
-                if(lenof_sign.eq.2) then
+                if(lenof_sign == 2 .and. inum_runs == 1) then
                     ! complex fcimcstats
                     read(iunit, *, iostat=eof) &
                         iters, &                !1.
@@ -744,7 +744,7 @@ module errors
                         endif
                     endif
                     numerator_data(i) = renum
-                    if(lenof_sign.eq.2) then
+                    if(lenof_sign == 2 .and. inum_runs == 1) then
                         imnumerator_data(i) = imnum
                     endif
                     pophf_data(i) = denom
@@ -1178,7 +1178,7 @@ module errors
             write (iout,'('' Projected correlation energy'',T52,F19.12)') mean_ProjE_re
             write (iout,'('' Estimated error in Projected correlation energy'',T52,F19.12)') ProjE_Err_re
         endif
-        if(lenof_sign.eq.2) then
+        if(lenof_sign == 2 .and. inum_runs == 1) then
             write (iout,'('' Projected imaginary energy'',T52,F19.12)') mean_ProjE_im
             write (iout,'('' Estimated error in Projected imaginary energy'',T52,F19.12)') ProjE_Err_im
         endif

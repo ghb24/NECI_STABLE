@@ -19,7 +19,7 @@ stepsshift 10
 proje-changeref 1.2
 truncinitiator
 addtoinitiator 3
-
+seed -7
 readpops
 walkcontgrow
 semi-stochastic

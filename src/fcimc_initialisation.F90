@@ -793,6 +793,8 @@ contains
         CALL MPIBCast(RandomOrbIndex,nBasis)
         call MPIBCast(RandomHash2,nBasis)
 
+        t_initialized_roi = .true.
+
         call init_load_balance()
 
         IF(tHPHF) THEN

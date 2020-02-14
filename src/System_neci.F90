@@ -5,7 +5,7 @@ MODULE System
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
                         occCASorbs, virtCASorbs, tPairedReplicas, tInitializeCSF, &
                         S2Init, tDynamicAvMcEx
-    use FciMCData, only: tGenMatHEl
+    use FciMCData, only: tGenMatHEl, t_initialized_roi
     use sort_mod
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
     use constants
@@ -222,6 +222,7 @@ MODULE System
       TUnitary=.false.
       Tperiodicinmom=.false.
       t12FoldSym = .false.
+      t_initialized_roi = .false.
 
       inum_runs = 1
 #ifdef CMPLX_
