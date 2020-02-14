@@ -168,6 +168,7 @@ set( SRC_FILES
     symrandexcit_csf.F90
     symrandexcit.F
     symrandexcit_ueg.F90
+    gasci.F90
     SystemData.F90
     System_neci.F90
     tau_search.F90
@@ -217,7 +218,6 @@ set( FYPP_SRC_FILES
     HPHFIntegrals.fpp
     sltcnd.fpp
     excitation_types.fpp
-    gasci.fpp
 	shared_array.fpp
 )
 

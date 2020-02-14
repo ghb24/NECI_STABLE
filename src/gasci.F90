@@ -1,13 +1,8 @@
 #include "macros.h"
-#:include "macros.fpph"
-#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
-
 module gasci
     use SystemData, only: tNConservingGAS, tSpinConservingGAS, nBasis, nel
     use constants
-    use fortran_strings, only: str
-    use util_mod, only: get_free_unit, binary_search_first_ge, &
-        operator(.div.)
+    use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.)
     use sort_mod, only : sort
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -15,23 +10,12 @@ module gasci
     use get_excit, only: make_double, make_single
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
-    use excitation_types, only: SingleExc_t, DoubleExc_t, UNKNOWN
-    use sltcnd_mod, only: sltcnd_excit
+    use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t
+    use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     implicit none
 
     private
-    public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS, &
-        tSpinConservingGAS
-
-    interface get_cumulative_list
-        module procedure s_get_cumulative_list, d_get_cumulative_list
-    end interface
-
-    interface pick_weighted_hole
-    #:for excitation_t in ExcitationTypes
-        module procedure pick_weighted_hole_${excitation_t}$
-    #:endfor
-    end interface
+    public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS
 
     integer :: nGAS
 
@@ -191,7 +175,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:NIfTot)
-        integer, intent(out) :: nJ(nel), ic, ex(2, maxExcit)
+        integer, intent(out) :: nJ(nel), ic, ex(2, 2)
         integer(n_int), intent(out) :: ilutJ(0:NifTot)
         real(dp), intent(out) :: pGen
         logical, intent(out) :: tParity
@@ -200,8 +184,6 @@ contains
         integer, intent(in), optional :: part_type
 
         real(dp) :: r
-
-        @:unused_var(exFlag, store, part_type)
 
         ! exFlag and part_type are not used but part of interface for
         ! procedure pointers.
@@ -245,7 +227,7 @@ contains
         ! from the same active space, get a hole
         spin_idx = get_spin(src)
         tgt = pick_weighted_hole( &
-            nI, SingleExc_t(src), spin_idx, GAS_table(src), pgen)
+            nI, src, 0, 0, 1, spin_idx, GAS_table(src), pgen)
 
         if (tgt == 0) then
             nJ(1) = 0
@@ -272,7 +254,7 @@ contains
 
         integer :: elecs(2), src(2), sym_product, ispn, sum_ml, tgt(2)
         integer :: srcGAS(2)
-        integer :: spin_idx, nJBase(nel)
+        integer :: ms, nJBase(nel)
         real(dp) :: r, pgen_pick1, pgen_pick2
         logical :: tExchange
         ! assuming that there are possible excitations within each active space,
@@ -292,35 +274,32 @@ contains
         ! get the spin of the target orbital
         if (tExchange) then
             if (r > 0.5_dp) then
-                spin_idx = 1
+                ms = 1
                 r = 2 * (r - 0.5_dp)
             else
-                spin_idx = 2
+                ms = 2
                 r = 2 * (0.5_dp - r)
             end if
             pgen = pgen * 0.5_dp
         else
-            spin_idx = get_spin(src(1))
+            ms = get_spin(src(1))
         end if
         tgt = 0
         ! the first hole is chosen randomly from the first active space
-        tgt(1) = pick_hole_from_active_space(&
-                ilutI, nI, srcGAS(1), spin_idx, r, pgen_pick1)
+        tgt(1) = pick_hole_from_active_space(ilutI, nI, srcGAS(1), ms, r, pgen_pick1)
         if (tgt(1) == 0) then
             call zeroResult()
             return
         end if
 
         if (tExchange) then
-            ! we picked the first spin randomly,
-            ! now the second elec has the opposite spin
-            spin_idx = 3 - spin_idx
+            ! we picked the first spin randomly, now the second elec has the opposite spin
+            ms = 3 - ms
         else
-            spin_idx = get_spin(src(2))
+            ms = get_spin(src(2))
         end if
         ! the second hole is chosen in a weighted fashion
-        tgt(2) = pick_weighted_hole(&
-            nI, DoubleExc_t(src(1), src(2), tgt(1)), spin_idx, srcGAS(2), pgen_pick1)
+        tgt(2) = pick_weighted_hole(nI, src(1), src(2), tgt(1), 2, ms, srcGAS(2), pgen_pick1)
         if (any(tgt == 0) .or. tgt(1) == tgt(2)) then
             call zeroResult()
             return
@@ -377,13 +356,13 @@ contains
         nOrbs = GAS_size(GAS_table(tgt2))
         gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(tgt2), get_spin(tgt2))
 
-        cSum = get_cumulative_list(gasList, nI, DoubleExc_t(src1, tgt1, src2))
+        cSum = get_cumulative_list(gasList, nI, src1, src2, tgt1, 2)
         ! we know gasList contains tgt2, so we can look up its index with binary search
         gasInd2 = binary_search_first_ge(gasList, tgt2)
         if (gasInd2 == 1) then
-            pgenVal = cSum(1)
+            pgenVal = cSum(1) / cSum(nOrbs)
         else
-            pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1))
+            pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1)) / cSum(nOrbs)
         end if
 
     end function get_pgen_pick_weighted_hole
@@ -410,94 +389,81 @@ contains
 
 !----------------------------------------------------------------------------!
 
-    function s_get_cumulative_list(&
-            Orb_list, occ_Orb_list, exc) result(cSum)
-        integer, intent(in) :: Orb_list(:), occ_Orb_list(nel)
-        type(SingleExc_t), intent(in) :: exc
-        real(dp) :: cSum(size(Orb_list))
+    function get_cumulative_list(GAS_list, nI, src1, src2, tgt1, ic) result(cSum)
+        integer, intent(in) :: GAS_list(:), nI(nel), ic, src1, src2, tgt1
+        real(dp) :: cSum(size(GAS_list))
 
-        type(SingleExc_t) :: trial_exc
-        real(dp) :: previous
-        integer :: i, tgt
-        character(*), parameter :: this_routine = "s_get_cumulative_list"
+        integer :: ex(2, 2), i, nOrbs
 
-        trial_exc = exc
-        ASSERT(trial_exc%val(2) == UNKNOWN)
+        nOrbs = size(GAS_list)
+        ex(1, 1) = src1
+        if (ic == 2) then
+            ex(1, 2) = src2
+            ex(2, 1) = tgt1
+        else
+            ex(1, 2) = 0
+            ex(2, 1) = 0
+        end if
+        ! build the cumulative list of matrix elements <src|H|tgt>
+        call addToCumulative(1, 0.0_dp)
+        do i = 2, nOrbs
+            call addToCumulative(i, cSum(i - 1))
+        end do
 
-        previous = 0.0_dp
-        do i = 1, size(Orb_list)
-            tgt = Orb_list(i)
-            if (all(occ_Orb_list /= tgt)) then
-                trial_exc%val(2) = tgt
-                cSum(i) = &
-                    previous + abs(sltcnd_excit(occ_Orb_list, trial_exc, .false.))
+    contains
+
+        subroutine addToCumulative(i, previous)
+            integer, intent(in) :: i
+            real(dp), intent(in) :: previous
+
+            class(excitation_t), allocatable :: exc
+
+            if (.not. (ex(2, 1) == GAS_list(i) .or. any(nI == GAS_list(i)))) then
+                ex(2, ic) = GAS_list(i)
+
+                select case(ic)
+                case(1)
+                    allocate(SingleExc_t :: exc)
+                case(2)
+                    allocate(DoubleExc_t :: exc)
+                end select
+
+                select type(exc)
+                type is (SingleExc_t)
+                    exc = SingleExc_t(ex(:, 1))
+                type is (DoubleExc_t)
+                    exc = DoubleExc_t(ex(:, :))
+                end select
+                cSum(i) = abs(dyn_sltcnd_excit(nI, exc, .false.)) + previous
             else
                 cSum(i) = previous
             end if
-            previous = cSum(i)
-        end do
-
-        cSum(:) = cSum(:) / cSum(size(cSum))
-    end function
-
-    function d_get_cumulative_list(&
-            Orb_list, occ_Orb_list, exc) result(cSum)
-        implicit none
-        integer, intent(in) :: Orb_list(:), occ_Orb_list(nel)
-        type(DoubleExc_t), intent(in) :: exc
-        real(dp) :: cSum(size(Orb_list))
-
-        type(DoubleExc_t) :: trial_exc
-        real(dp) :: previous
-        integer :: i, tgt
-        character(*), parameter :: this_routine = "d_get_cumulative_list"
-
-        trial_exc = exc
-        ASSERT(trial_exc%val(2, 2) == UNKNOWN)
-
-        previous = 0.0_dp
-        do i = 1, size(Orb_list)
-            tgt = Orb_list(i)
-            if (all(occ_Orb_list /= tgt) .and. trial_exc%val(1, 2) /= tgt) then
-                trial_exc%val(2, 2) = tgt
-                cSum(i) = &
-                    previous + abs(sltcnd_excit(occ_Orb_list, trial_exc, .false.))
-            else
-                cSum(i) = previous
-            end if
-            previous = cSum(i)
-        end do
-
-        cSum(:) = cSum(:) / cSum(size(cSum))
-    end function
-
+        end subroutine addToCumulative
+    end function get_cumulative_list
 
 !----------------------------------------------------------------------------!
 
-#:for excitation_t in ExcitationTypes
-    function pick_weighted_hole_${excitation_t}$(&
-            & nI, exc, spin_idx, iGAS, pgen) result(tgt)
+    function pick_weighted_hole(&
+            & nI, src1, src2, tgt1, ic, spin_idx, iGAS, pgen) result(tgt)
         ! pick a hole of nI with spin ms from the active space with index
         ! srcGASInd the random number is to be supplied as r
         ! nI is the source determinant, nJBase the one from which we obtain
         ! the ket of the matrix element by single excitation
-        integer, intent(in) :: nI(nel), spin_idx, iGAS
-        type(${excitation_t}$), intent(in) :: exc
+        integer, intent(in) :: nI(nel)
+        integer, intent(in) :: src1, src2, tgt1, ic, spin_idx, iGAS
         real(dp), intent(inout) :: pgen
 
-        integer :: tgt
-
-        integer :: nOrbs, GAS_list(GAS_size(iGAS))
+        integer :: tgt, nOrbs, GAS_list(GAS_size(iGAS))
         real(dp) :: r, cSum(GAS_size(iGAS))
 
         ! initialize auxiliary variables
         nOrbs = GAS_size(iGAS)
         GAS_list = GAS_spin_orb_list(1:nOrbs, iGAS, spin_idx)
         ! build the cumulative list of matrix elements <src|H|tgt>
-        cSum = get_cumulative_list(GAS_list, nI, exc)
+        cSum = get_cumulative_list(GAS_list, nI, src1, src2, tgt1, ic)
 
         ! now, pick with the weight from the cumulative list
-        r = genrand_real2_dSFMT()
+        r = genrand_real2_dSFMT() * cSum(nOrbs)
 
         ! there might not be such an excitation
         if (cSum(nOrbs) > 0) then
@@ -506,9 +472,9 @@ contains
 
             ! adjust pgen with the probability for picking tgt from the cumulative list
             if (tgt == 1) then
-                pgen = pgen * cSum(1)
+                pgen = pgen * cSum(1) / cSum(nOrbs)
             else
-                pgen = pgen * (cSum(tgt) - cSum(tgt - 1))
+                pgen = pgen * (cSum(tgt) - cSum(tgt - 1)) / cSum(nOrbs)
             end if
 
             ! convert to global orbital index
@@ -517,24 +483,23 @@ contains
             tgt = 0
         end if
 
-    end function pick_weighted_hole_${excitation_t}$
-#:endfor
+    end function pick_weighted_hole
 
 !----------------------------------------------------------------------------!
 
-    function pick_hole_from_active_space(ilutI, nI, iGAS, ms, r, pgen) result(tgt)
+    function pick_hole_from_active_space(ilutI, nI, srcGASInd, ms, r, pgen) result(tgt)
         ! pick a hole of ilutI with spin ms from the active space with index srcGASInd
         ! the random number is to be supplied as r
         integer(n_int), intent(in) :: ilutI(0:NIfD)
         integer, intent(in) :: nI(nel)
-        integer, intent(in) :: ms, iGAS
+        integer, intent(in) :: ms, srcGASInd
         real(dp), intent(in) :: r
         real(dp), intent(out) :: pgen
         integer :: tgt
         integer :: nEmpty, nOrb
 
         ! this sum only converts an array of size 1 to a scalar
-        nEmpty = GAS_size(iGAS) - sum(popCnt(iand(ilutI(0:NIfD), GAS_spin_orbs(0:NIfD, iGAS, ms))))
+        nEmpty = GAS_size(srcGASInd) - sum(popCnt(iand(ilutI(0:NIfD), GAS_spin_orbs(0:NIfD, srcGASInd, ms))))
 
         ! if there are no empyty orbitals in this gas (can happen when allowing for
         ! spin-exchange), the excitation is invalid
@@ -550,27 +515,39 @@ contains
 
         ! index of the target orb
         nOrb = int(r * nEmpty) + 1
-
-        tgt = GAS_spin_orb_list(map_to_unoccupied(nOrb, iGAS, ms), iGAS, ms)
+        call skipOrb(nOrb, GAS_spin_orbs(0:NIfD, srcGASInd, ms))
+        nOrb = GAS_spin_orb_list(nOrb, srcGASInd, ms)
+        tgt = nOrb
 
     contains
 
-        !> Return the i-th unoccupied orbital in the iGAS space with spin ms.
-        function map_to_unoccupied(i, iGAS, ms) result(new_orb_idx)
-            integer, intent(in) :: i, iGAS, ms
-            integer :: new_orb_idx
+        subroutine skipOrb(nOrb, gasIlut)
+            ! convert an unoccupied active space orbital index to an
+            ! active space orbital index (i.e. correct for occ. orbs)
+            integer, intent(inout) :: nOrb
+            integer(n_int), intent(in) :: gasIlut(0:NIfD)
+            integer :: j, globalOrbIndex
 
-            integer :: j
-
-            new_orb_idx = i
-            do j = 1, nEl
-                if (nI(j) > GAS_spin_orb_list(new_orb_idx, iGAS, ms)) return
-                if (GAS_table(nI(j)) == iGAS .and. get_spin(nI(j)) == ms) then
-                    ! if yes, we skip this orbital, increase by 1
-                    new_orb_idx = new_orb_idx + 1
-                end if
+            do j = 1, nel
+                globalOrbIndex = GAS_spin_orb_list(nOrb, srcGASInd, ms)
+                if (nI(j) > globalOrbIndex) return
+                ! check if an occ. orb is in the target active space
+                if (validTarget(nI(j), gasIlut)) &
+                    ! if yes, we skip this orbital, increase nOrb by 1
+                    nOrb = nOrb + 1
             end do
-        end function
+        end subroutine skipOrb
+
+        function validTarget(orb, gasIlut) result(valid)
+            ! check if an orbital is a valid target for an excitation within an active space
+            integer, intent(in) :: orb
+            integer(n_int), intent(in) :: gasIlut(0:NIfD)
+
+            logical :: valid
+
+            ! is the orbital in the acitve space?
+            valid = btest(gasIlut((orb - 1) / bits_n_int), mod(orb - 1, bits_n_int))
+        end function validTarget
     end function pick_hole_from_active_space
 
 end module gasci
