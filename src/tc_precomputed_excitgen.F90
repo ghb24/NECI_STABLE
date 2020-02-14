@@ -524,17 +524,6 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
-    pure subroutine set_ex(ex,i,j,a,b)
-      implicit none
-      integer, intent(out) :: ex(2,2)
-      integer, intent(in) :: i,j,a,b
-
-      ex(1,1) = i
-      ex(1,2) = j
-      ex(2,1) = a
-      ex(2,2) = b
-    end subroutine set_ex
-
   end subroutine init_pcpp_doubles_excitgen
 
   !------------------------------------------------------------------------------------------!
