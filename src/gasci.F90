@@ -360,9 +360,9 @@ contains
         ! we know gasList contains tgt2, so we can look up its index with binary search
         gasInd2 = binary_search_first_ge(gasList, tgt2)
         if (gasInd2 == 1) then
-            pgenVal = cSum(1) / cSum(nOrbs)
+            pgenVal = cSum(1)
         else
-            pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1)) / cSum(nOrbs)
+            pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1))
         end if
 
     end function get_pgen_pick_weighted_hole
@@ -413,6 +413,8 @@ contains
             cSum(i) = get_mat_element(i) + previous
             previous = cSum(i)
         end do
+
+        if (cSum(nOrbs) /= 0) cSum(:) = cSum(:) / cSum(nOrbs)
 
     contains
 
@@ -471,9 +473,9 @@ contains
 
             ! adjust pgen with the probability for picking tgt from the cumulative list
             if (tgt == 1) then
-                pgen = pgen * cSum(1) / cSum(nOrbs)
+                pgen = pgen * cSum(1)
             else
-                pgen = pgen * (cSum(tgt) - cSum(tgt - 1)) / cSum(nOrbs)
+                pgen = pgen * (cSum(tgt) - cSum(tgt - 1))
             end if
 
             ! convert to global orbital index
