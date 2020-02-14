@@ -382,7 +382,7 @@ contains
             if (.not. near_zero(ARR_RE_OR_CPLX(AllSumNoAtHF,run))) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
 
-            ! Keep track of where the particles are
+
             if (iProcIndex == iRefProc(run)) then
                 do i = min_part_type(run), max_part_type(run)
                     SumNoatHF(i) = AllSumNoatHF(i)
