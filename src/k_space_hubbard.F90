@@ -2370,7 +2370,6 @@ contains
             hel = hel_sing + hel_doub + hel_one + hel_three
 
         else
-            print *, "here?"
             hel = sltcnd_0(nI)
         end if
 
