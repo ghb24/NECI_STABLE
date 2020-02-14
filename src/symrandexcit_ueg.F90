@@ -158,7 +158,7 @@ contains
                         ! We don't need to worry about which a,b is which, as
                         ! we don't care about the overall sign.
                         elem = abs(sltcnd_2_kernel(&
-                            DoubleExc_t(src1=src(1), tgt1=src(2), src2=orba, tgt2=orbb)))
+                            DoubleExc_t(src1=src(1), src2=src(2), tgt1=orba, tgt2=orbb)))
                     end if
                 end if
             end if
