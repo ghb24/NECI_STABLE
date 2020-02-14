@@ -668,7 +668,7 @@ contains
 
     function attempt_create_realtime(DetCurr, iLutCurr, RealwSign, nJ, iLutnJ,&
             prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, AvSignCurr,&
-            RDMBiasFacCurr, precond_fac) result(child)
+            AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
 
         ! create a specific attempt_create function for the real-time fciqmc
         ! to avoid preprocessor flag jungle..
@@ -683,7 +683,8 @@ contains
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
-        real(dp) , intent(out) :: RDMBiasFacCurr
+        real(dp), intent(in) :: AvExPerWalker
+        real(dp) , intent(out) :: RDMBiasFacCurr        
         real(dp), intent(in) :: precond_fac
         HElement_t(dp) , intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
@@ -694,7 +695,7 @@ contains
         integer :: TargetExcitLevel, tmp_ex(2,ic)
         logical :: tRealSpawning
         real(dp) :: rh_imag
-        HElement_t(dp) :: rh, rh_used       
+        HElement_t(dp) :: rh_used       
 
         unused_var(precond_fac)
         unused_var(AvSignCurr)
@@ -705,7 +706,7 @@ contains
         ! If each walker does not have exactly one spawning attempt
         ! (if AvMCExcits /= 1.0_dp) then the probability of an excitation
         ! having been chosen, prob, must be altered accordingly.
-        prob = prob * AvMCExcits
+        prob = prob * AvExPerWalker
 
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation,
@@ -713,7 +714,7 @@ contains
         ! returns HElGen, rather than recomputing the matrix element.
         tmp_ex(1,:) = ex(2,:)
         tmp_ex(2,:) = ex(1,:)
-        rh = get_spawn_helement (nJ, DetCurr, iLutnJ, ilutCurr, ic, tmp_ex, &
+        rh_used = get_spawn_helement (nJ, DetCurr, iLutnJ, ilutCurr, ic, tmp_ex, &
                                  tParity, HElGen)
 
         tRealSpawning = .false.
@@ -751,7 +752,7 @@ contains
             ! real to complex walkers and v.v.
             tgt_cpt = rotate_part(part_type)
             walkerweight = sign(1.0_dp,RealwSign(part_type))
-            MatEl = real(rh,dp)
+            MatEl = real(rh_used,dp)
 
             ! spawn from real-parent to imaginary child: no sign change
             ! from imaginary to real -> sign change
