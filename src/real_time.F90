@@ -276,20 +276,18 @@ contains
         allocate(norm_buf(normsize), stat = i)
 
         call update_gf_overlap()
-        if(iProcIndex == root) then
-           print *, "test on overlap at t = 0: "
-           if(.not. tRealTimePopsfile) then
-              if (gf_type == -1) then
-                 print *, " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
-                      overlap_pert(1)%ann_orbs(1), pops_pert(1)%ann_orbs(1)
-              else if (gf_type == 1) then
-                 print *, " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
-                      overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
-              end if
-           endif
-              print *, "Current GF:", gf_overlap(1,1)/pert_norm(1,1), pert_norm(1,1), normsize
-              print *, "Normalization", pert_norm(1,1), dyn_norm_red(1,1)
+        write(iout, *) "test on overlap at t = 0: "
+        if(.not. tRealTimePopsfile) then
+            if (gf_type == -1) then
+                write(iout, *) " for lesser GF  <y(0)| a^+_i a_j |y(0) >; i,j: ", &
+                    overlap_pert(1)%ann_orbs(1), pops_pert(1)%ann_orbs(1)
+            else if (gf_type == 1) then
+                write(iout, *) " for greater GF <y(0)| a_i a^+_j |y(0)> ; i,j: ", &
+                    overlap_pert(1)%crtn_orbs(1), pops_pert(1)%crtn_orbs(1)
+            end if
         endif
+        write(iout, *) "Current GF:", gf_overlap(1,1)/pert_norm(1,1), pert_norm(1,1), normsize
+        write(iout, *) "Normalization", pert_norm(1,1), dyn_norm_red(1,1)
 
         ! enter the main real-time fciqmc loop here
         fciqmc_loop: do while (.true.)
@@ -437,7 +435,11 @@ contains
            ! is not meaningful in real-time anyway
            DiagSft = real_time_info%time_angle
            call WriteToPopsfileParOneArr(CurrentDets,TotWalkers,rtPOPSFILE_name)
-        endif
+       endif
+
+       ! For testing purpose, report the value of the green's function at the end
+       if(gf_count > 0) &
+           write(iout, *) "Final real part of Green function", overlap_real(1)
 
         ! We finish writing any extra output files like the tauContour and
         ! the CORESPACE file
@@ -982,11 +984,6 @@ contains
         ! 1)
         ! do a "normal" spawning step and combination to y(n) + k1/2
         ! into CurrentDets:
-
-   if(iProcIndex == root .and. .false.) then
-      print *, "TotParts and totDets before first spawn: ", TotParts, TotWalkers
-   endif
-
 
         tau_real_tmp = tau_real
         tau_imag_tmp = tau_imag

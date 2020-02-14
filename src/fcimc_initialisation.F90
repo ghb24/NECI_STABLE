@@ -2048,7 +2048,9 @@ contains
         endif
 
         ! How many children should we spawn given an excitation?
-        if (tTruncCas .or. tTruncSpace .or. &
+        if(t_real_time_fciqmc) then
+            attempt_create => attempt_create_realtime
+        else if (tTruncCas .or. tTruncSpace .or. &
             tPartFreezeCore .or. tPartFreezeVirt .or. tFixLz .or. &
             (tUEG .and. .not. tLatticeGens) .or. tTruncNOpen .or. t_trunc_nopen_diff) then
             if (tHPHF .or. tCSF .or. tSemiStochastic) then

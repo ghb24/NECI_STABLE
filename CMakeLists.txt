@@ -88,8 +88,6 @@ set(${PROJECT_NAME}_dneci_DEFINITIONS HElement_t=real DOUBLERUN_)
 set(${PROJECT_NAME}_mneci_DEFINITIONS HElement_t=real PROG_NUMRUNS_)
 set(${PROJECT_NAME}_kdneci_DEFINITIONS HElement_t=complex CMPLX_ DOUBLERUN_)
 set(${PROJECT_NAME}_kmneci_DEFINITIONS HElement_t=complex CMPLX_ PROG_NUMRUNS_)
-# RT_M_Merge: Added rneci target in the newer version
-set(${PROJECT_NAME}_rneci_DEFINITIONS HElement_t=complex CMPLX_ REALTIME_ PROG_NUMRUNS_)
 
 set(${PROJECT_NAME}_neci_WARNERR TRUE)
 set(${PROJECT_NAME}_dneci_WARNERR TRUE)

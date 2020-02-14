@@ -1079,6 +1079,7 @@ r_loop: do while(.not.tStoreDet)
                                   CurrentDets, MaxWalkersPart, pops_nnodes, pops_walkers, PopNIfSgn, &
                                   PopNel, PopBalanceBlocks, gdata_read_handler, tCalcExtraInfo=.false., &
                                   filename_stem = identifier)
+            if(t_real_time_fciqmc) TotWalkers_orig = TotWalkers
         end if
 
         if(abs(ScaleWalkers - 1) > 1.0e-12_dp) then
