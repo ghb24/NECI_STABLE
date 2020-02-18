@@ -1,8 +1,11 @@
 #include "macros.h"
+#:include "macros.fpph"
+
 module gasci
     use SystemData, only: tNConservingGAS, tSpinConservingGAS, nBasis, nel
     use constants
-    use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.)
+    use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
+        near_zero
     use sort_mod, only : sort
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -185,10 +188,10 @@ contains
 
         real(dp) :: r
 
-        ! exFlag and part_type are not used but part of interface for
-        ! procedure pointers.
+        @:unused_var(exFlag, part_type, store)
+#ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
-
+#endif
         ! single or double excitation?
         r = genrand_real2_dSFMT()
         if (r < pDoubles) then
