@@ -325,7 +325,7 @@ contains
             nJBase = nI
             nJBase(elecs(1)) = tgt(2)
             pgen_pick2 = get_pgen_pick_weighted_hole(&
-                                nI, src(1), src(2), tgt(2), tgt(1)) &
+                                nI, DoubleExc_t(src(1), tgt(1), src(2), tgt(2))) &
                          * get_pgen_pick_hole_from_active_space(&
                                 ilutI, srcGAS(2), get_spin(tgt(2)))
             pgen = pgen * (pgen_pick1 + pgen_pick2)
@@ -358,27 +358,32 @@ contains
 
 !----------------------------------------------------------------------------!
 
-    function get_pgen_pick_weighted_hole(nI, src1, src2, tgt1, tgt2) result(pgenVal)
+    function get_pgen_pick_weighted_hole(nI, exc) result(pgenVal)
         integer, intent(in) :: nI(nel)
-        integer, intent(in) :: src1, src2, tgt1, tgt2
+        type(DoubleExc_t), intent(in) :: exc
 
         real(dp) :: pgenVal
-        real(dp) :: cSum(GAS_size(GAS_table(tgt2)))
-        integer :: gasList(GAS_size(GAS_table(tgt2))), nOrbs
-        integer :: gasInd2
 
-        nOrbs = GAS_size(GAS_table(tgt2))
-        gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(tgt2), get_spin(tgt2))
+        associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
+                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
+        block
+            real(dp) :: cSum(GAS_size(GAS_table(tgt2)))
+            integer :: gasList(GAS_size(GAS_table(tgt2))), nOrbs
+            integer :: gasInd2
 
-        cSum = get_cumulative_list(gasList, nI, DoubleExc_t(src1, tgt1, src2))
-        ! we know gasList contains tgt2, so we can look up its index with binary search
-        gasInd2 = binary_search_first_ge(gasList, tgt2)
-        if (gasInd2 == 1) then
-            pgenVal = cSum(1)
-        else
-            pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1))
-        end if
+            nOrbs = GAS_size(GAS_table(tgt2))
+            gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(tgt2), get_spin(tgt2))
 
+            cSum = get_cumulative_list(gasList, nI, DoubleExc_t(src1, tgt1, src2))
+            ! we know gasList contains tgt2, so we can look up its index with binary search
+            gasInd2 = binary_search_first_ge(gasList, tgt2)
+            if (gasInd2 == 1) then
+                pgenVal = cSum(1)
+            else
+                pgenVal = (cSum(gasInd2) - cSum(gasInd2 - 1))
+            end if
+        end block
+        end associate
     end function get_pgen_pick_weighted_hole
 
 !----------------------------------------------------------------------------!
@@ -436,11 +441,13 @@ contains
         type(SingleExc_t), intent(in) :: exc
         real(dp) :: res
 
-        if (all(nI /= exc%val(2))) then
-            res = abs(sltcnd_excit(nI, exc, .false.))
-        else
-            res = 0.0_dp
-        end if
+        associate (tgt => exc%val(2))
+            if (all(nI /= tgt)) then
+                res = abs(sltcnd_excit(nI, exc, .false.))
+            else
+                res = 0.0_dp
+            end if
+        end associate
     end function get_mat_element_SingleExc_t
 
     function get_mat_element_DoubleExc_t(nI, exc) result(res)
@@ -448,11 +455,14 @@ contains
         type(DoubleExc_t), intent(in) :: exc
         real(dp) :: res
 
-        if (exc%val(2, 1) /= exc%val(2, 2) .and. all(exc%val(2, 2) /= nI)) then
-            res = abs(sltcnd_excit(nI, exc, .false.))
-        else
-            res = 0.0_dp
-        end if
+        associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
+                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
+            if (tgt1 /= tgt2 .and. all(tgt2 /= nI)) then
+                res = abs(sltcnd_excit(nI, exc, .false.))
+            else
+                res = 0.0_dp
+            end if
+        end associate
 
     end function get_mat_element_DoubleExc_t
 
