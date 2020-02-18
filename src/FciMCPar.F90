@@ -524,7 +524,7 @@ module FciMCParMod
 
             ! Add some load balancing magic!
             if (tLoadBalanceBlocks .and. (tScheduledLoadBalance .or. &
-                mod(iter, lb_measure_cycle) == 1) .and. &
+                (mod(iter, lb_measure_cycle) == 1 .and. loadBalanceInterval == 0)) .and. &
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
                 ! Use the ratio of time lost due to load imbalance as an estimtor
                 ! whether load balancing should be used
