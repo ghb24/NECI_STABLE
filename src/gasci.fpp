@@ -1,6 +1,8 @@
 #include "macros.h"
 #:include "macros.fpph"
 
+#:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
+
 module gasci
     use SystemData, only: tNConservingGAS, tSpinConservingGAS, nBasis, nel
     use constants
@@ -13,15 +15,24 @@ module gasci
     use get_excit, only: make_double, make_single
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
-    use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t
+    use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
+        last_tgt_unknown, set_last_tgt
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     implicit none
 
     private
     public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS
 
-    integer :: nGAS
 
+    #:for function_name in ['get_cumulative_list', 'get_mat_element']
+    interface ${function_name}$
+        #:for excitation_t in ExcitationTypes
+            module procedure ${function_name}$_${excitation_t}$
+        #:endfor
+    end interface
+    #:endfor
+
+    integer :: nGAS
     integer, parameter :: idx_alpha = 1, idx_beta = 2
 #ifdef INT64_
     ! oddBits is the 2-base number: 101010101010....
@@ -359,7 +370,7 @@ contains
         nOrbs = GAS_size(GAS_table(tgt2))
         gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(tgt2), get_spin(tgt2))
 
-        cSum = get_cumulative_list(gasList, nI, src1, src2, tgt1, 2)
+        cSum = get_cumulative_list(gasList, nI, DoubleExc_t(src1, tgt1, src2))
         ! we know gasList contains tgt2, so we can look up its index with binary search
         gasInd2 = binary_search_first_ge(gasList, tgt2)
         if (gasInd2 == 1) then
@@ -392,65 +403,58 @@ contains
 
 !----------------------------------------------------------------------------!
 
-    function get_cumulative_list(GAS_list, nI, src1, src2, tgt1, ic) result(cSum)
-        integer, intent(in) :: GAS_list(:), nI(nel), ic, src1, src2, tgt1
-        real(dp) :: cSum(size(GAS_list))
+    #:for excitation_t in ExcitationTypes
+        function get_cumulative_list_${excitation_t}$(GAS_list, nI, incomplete_exc) result(cSum)
+            integer, intent(in) :: GAS_list(:), nI(nel)
+            type(${excitation_t}$), intent(in) :: incomplete_exc
+            real(dp) :: cSum(size(GAS_list))
 
-        real(dp) :: previous
-        integer :: i, nOrbs
+            real(dp) :: previous
+            type(${excitation_t}$) :: exc
+            integer :: i, nOrbs
 
-        class(Excitation_t), allocatable :: exc
+            nOrbs = size(GAS_list)
 
-        nOrbs = size(GAS_list)
+            exc = incomplete_exc
+            ASSERT(last_tgt_unknown(exc))
 
-        select case(ic)
-        case(1)
-            allocate(SingleExc_t :: exc)
-        case(2)
-            allocate(DoubleExc_t :: exc)
-        end select
-        select type(exc)
-        type is(SingleExc_t)
-            exc = SingleExc_t(src1)
-        type is(DoubleExc_t)
-            exc = DoubleExc_t(src1, tgt1, src2)
-        end select
+            ! build the cumulative list of matrix elements <src|H|tgt>
+            previous = 0.0_dp
+            do i = 1, nOrbs
+                call set_last_tgt(exc, GAS_list(i))
+                cSum(i) = get_mat_element(nI, exc) + previous
+                previous = cSum(i)
+            end do
 
+            ! Normalize to 1.
+            if (.not. near_zero(cSum(nOrbs))) cSum(:) = cSum(:) / cSum(nOrbs)
+        end function get_cumulative_list_${excitation_t}$
+    #:endfor
 
-        ! build the cumulative list of matrix elements <src|H|tgt>
-        previous = 0.0_dp
-        do i = 1, nOrbs
-            cSum(i) = get_mat_element(i) + previous
-            previous = cSum(i)
-        end do
+    function get_mat_element_SingleExc_t(nI, exc) result(res)
+        integer, intent(in) :: nI(nEl)
+        type(SingleExc_t), intent(in) :: exc
+        real(dp) :: res
 
-        if (.not. near_zero(cSum(nOrbs))) cSum(:) = cSum(:) / cSum(nOrbs)
+        if (all(nI /= exc%val(2))) then
+            res = abs(sltcnd_excit(nI, exc, .false.))
+        else
+            res = 0.0_dp
+        end if
+    end function get_mat_element_SingleExc_t
 
-    contains
+    function get_mat_element_DoubleExc_t(nI, exc) result(res)
+        integer, intent(in) :: nI(nEl)
+        type(DoubleExc_t), intent(in) :: exc
+        real(dp) :: res
 
-        function get_mat_element(i) result(res)
-            integer, intent(in) :: i
-            real(dp) :: res
+        if (exc%val(2, 1) /= exc%val(2, 2) .and. all(exc%val(2, 2) /= nI)) then
+            res = abs(sltcnd_excit(nI, exc, .false.))
+        else
+            res = 0.0_dp
+        end if
 
-            select type(exc)
-            type is (SingleExc_t)
-                if (all(nI /= GAS_list(i))) then
-                    exc%val(2) = GAS_list(i)
-                    res = abs(sltcnd_excit(nI, exc, .false.))
-                else
-                    res = 0.0_dp
-                end if
-            type is (DoubleExc_t)
-                if (tgt1 /= GAS_list(i) .and. all(nI /= GAS_list(i))) then
-                    exc%val(2, 2) = GAS_list(i)
-                    res = abs(sltcnd_excit(nI, exc, .false.))
-                else
-                    res = 0.0_dp
-                end if
-            end select
-
-        end function get_mat_element
-    end function get_cumulative_list
+    end function get_mat_element_DoubleExc_t
 
 !----------------------------------------------------------------------------!
 
@@ -471,7 +475,13 @@ contains
         nOrbs = GAS_size(iGAS)
         GAS_list = GAS_spin_orb_list(1:nOrbs, iGAS, spin_idx)
         ! build the cumulative list of matrix elements <src|H|tgt>
-        cSum = get_cumulative_list(GAS_list, nI, src1, src2, tgt1, ic)
+!         cSum = get_cumulative_list(GAS_list, nI, src1, src2, tgt1, ic)
+        select case (ic)
+        case(1)
+            cSum = get_cumulative_list(GAS_list, nI, SingleExc_t(src1))
+        case(2)
+            cSum = get_cumulative_list(GAS_list, nI, DoubleExc_t(src1, tgt1, src2))
+        end select
 
         ! now, pick with the weight from the cumulative list
         r = genrand_real2_dSFMT() * cSum(nOrbs)

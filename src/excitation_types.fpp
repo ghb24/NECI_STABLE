@@ -28,7 +28,7 @@ module excitation_types
     implicit none
     private
     public :: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
-        FurtherExc_t, UNKNOWN, defined, &
+        FurtherExc_t, UNKNOWN, defined, last_tgt_unknown, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation
 
 
@@ -116,6 +116,37 @@ module excitation_types
     interface defined
     #:for excitation_t in non_trivial_excitations
         module procedure defined_${excitation_t}$
+    #:endfor
+    end interface
+
+!>  @brief
+!>     Return true if all sources are known and all targets
+!>     except the last are known.
+!>
+!>  @author Oskar Weser
+!>
+!>  @details
+!>
+!>  @param[in] exc, A non_trivial_excitation.
+    interface last_tgt_unknown
+    #:for excitation_t in non_trivial_excitations
+        module procedure last_tgt_unknown_${excitation_t}$
+    #:endfor
+    end interface
+
+
+!>  @brief
+!>     Set the last target of a non trivial excitation.
+!>
+!>  @author Oskar Weser
+!>
+!>  @details
+!>
+!>  @param[in] exc, A non_trivial_excitation.
+!>  @param[in] tgt, Index of target.
+    interface set_last_tgt
+    #:for excitation_t in non_trivial_excitations
+        module procedure set_last_tgt_${excitation_t}$
     #:endfor
     end interface
 
@@ -270,4 +301,31 @@ contains
             call GetBitExcitation(iLutI, iLutJ, exc%val, tParity)
         end select
     end subroutine get_bit_excitation
+
+    pure subroutine set_last_tgt_SingleExc_t(exc, tgt)
+        type(SingleExc_t), intent(inout) :: exc
+        integer, intent(in) :: tgt
+        exc%val(2) = tgt
+    end subroutine set_last_tgt_SingleExc_t
+
+    #:for excitation_t in ['DoubleExc_t', 'TripleExc_t']
+        pure subroutine set_last_tgt_${excitation_t}$(exc, tgt)
+            type(${excitation_t}$), intent(inout) :: exc
+            integer, intent(in) :: tgt
+            exc%val(2, size(exc%val, 2)) = tgt
+        end subroutine set_last_tgt_${excitation_t}$
+    #:endfor
+
+
+    #:for excitation_t in non_trivial_excitations
+        pure function last_tgt_unknown_${excitation_t}$(exc) result(res)
+            type(${excitation_t}$), intent(in) :: exc
+            logical :: res
+            integer :: flattened(size(exc%val))
+            flattened(:) = pack(exc%val, .true.)
+            res = (all(flattened(: size(flattened) - 1) /= UNKNOWN) &
+                   .and.  flattened(size(flattened)) == UNKNOWN)
+        end function last_tgt_unknown_${excitation_t}$
+    #:endfor
+
 end module
