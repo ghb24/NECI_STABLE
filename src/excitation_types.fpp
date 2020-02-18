@@ -223,6 +223,7 @@ contains
             allocate(TripleExc_t :: exc)
         case (4:)
             allocate(FurtherExc_t :: exc)
+        case default
 #ifdef DEBUG_
         call stop_all(this_routine, 'invalid IC < 0 passed.')
 #endif
