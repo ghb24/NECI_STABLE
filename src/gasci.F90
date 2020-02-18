@@ -421,7 +421,7 @@ contains
             previous = cSum(i)
         end do
 
-        if (cSum(nOrbs) /= 0) cSum(:) = cSum(:) / cSum(nOrbs)
+        if (.not. near_zero(cSum(nOrbs))) cSum(:) = cSum(:) / cSum(nOrbs)
 
     contains
 
