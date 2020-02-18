@@ -69,7 +69,7 @@ module FciMCParMod
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
     use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet, &
-        need_load_balancing
+        need_load_balancing, loadBalanceInterval
     use bit_reps, only: set_flag, clr_flag, add_ilut_lists, get_initiator_flag, &
          all_runs_are_initiator
     use exact_diag, only: perform_exact_diag_all_symmetry
@@ -175,7 +175,7 @@ module FciMCParMod
         HElement_t(dp):: AccumE(inum_runs)
         integer :: ExcitLevel
 
-        logical :: t_comm_done
+        logical :: t_comm_done, tScheduledLoadBalance
         integer :: run
 
         ! Procedure pointer temporaries
@@ -516,8 +516,15 @@ module FciMCParMod
                 IterTime = real(IterTime + (s_end - s_start), kind=sp)
             endif
 
+            if(loadBalanceInterval > 0) then
+                tScheduledLoadBalance = mod(iter, loadBalanceInterval) == 0
+            else
+                tScheduledLoadBalance = .false.
+            end if
+
             ! Add some load balancing magic!
-            if (tLoadBalanceBlocks .and. mod(iter, lb_measure_cycle) == 1 .and. &
+            if (tLoadBalanceBlocks .and. (tScheduledLoadBalance .or. &
+                mod(iter, lb_measure_cycle) == 1) .and. &
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
                 ! Use the ratio of time lost due to load imbalance as an estimtor
                 ! whether load balancing should be used
@@ -526,7 +533,7 @@ module FciMCParMod
                 else
                     lt_imb_cycle = 0.0
                 end if
-                if(need_load_balancing(lt_imb_cycle)) then
+                if(need_load_balancing(lt_imb_cycle) .or. tScheduledLoadBalance) then
                     call adjust_load_balance(iter_data_fciqmc)
                 endif
             end if

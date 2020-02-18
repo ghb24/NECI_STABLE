@@ -19,7 +19,7 @@ endmethods
 definedet 1 4 5 8 9 12 13 16
 seed -7
 allrealcoeff
-
+load-balance-interval 1000
 tau 0.001
 truncinitiator
 addtoinitiator 3
