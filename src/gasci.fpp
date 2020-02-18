@@ -24,7 +24,7 @@ module gasci
     public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS
 
 
-    #:for function_name in ['get_cumulative_list', 'get_mat_element']
+    #:for function_name in ['get_cumulative_list', 'get_mat_element', 'pick_weighted_hole']
     interface ${function_name}$
         #:for excitation_t in ExcitationTypes
             module procedure ${function_name}$_${excitation_t}$
@@ -241,7 +241,7 @@ contains
         ! from the same active space, get a hole
         spin_idx = get_spin(src)
         tgt = pick_weighted_hole( &
-            nI, src, 0, 0, 1, spin_idx, GAS_table(src), pgen)
+            nI, SingleExc_t(src), spin_idx, GAS_table(src), pgen)
 
         if (tgt == 0) then
             nJ(1) = 0
@@ -313,7 +313,7 @@ contains
             ms = get_spin(src(2))
         end if
         ! the second hole is chosen in a weighted fashion
-        tgt(2) = pick_weighted_hole(nI, src(1), src(2), tgt(1), 2, ms, srcGAS(2), pgen_pick1)
+        tgt(2) = pick_weighted_hole(nI, DoubleExc_t(src(1), tgt(1), src(2)), ms, srcGAS(2), pgen_pick1)
         if (any(tgt == 0) .or. tgt(1) == tgt(2)) then
             call zeroResult()
             return
@@ -413,6 +413,7 @@ contains
             integer, intent(in) :: GAS_list(:), nI(nel)
             type(${excitation_t}$), intent(in) :: incomplete_exc
             real(dp) :: cSum(size(GAS_list))
+            character(*), parameter :: this_routine = 'get_cumulative_list_${excitation_t}$'
 
             real(dp) :: previous
             type(${excitation_t}$) :: exc
@@ -467,54 +468,52 @@ contains
     end function get_mat_element_DoubleExc_t
 
 !----------------------------------------------------------------------------!
+    #:for excitation_t in ExcitationTypes
+        function pick_weighted_hole_${excitation_t}$(nI, exc, spin_idx, iGAS, pgen) result(tgt)
+            ! pick a hole of nI with spin ms from the active space with index
+            ! srcGASInd the random number is to be supplied as r
+            ! nI is the source determinant, nJBase the one from which we obtain
+            ! the ket of the matrix element by single excitation
+            integer, intent(in) :: nI(nel)
+            type(${excitation_t}$), intent(in) :: exc
+            integer, intent(in) :: spin_idx, iGAS
+            real(dp), intent(inout) :: pgen
+            character(*), parameter :: this_routine = 'pick_weighted_hole_${excitation_t}$'
 
-    function pick_weighted_hole(&
-            & nI, src1, src2, tgt1, ic, spin_idx, iGAS, pgen) result(tgt)
-        ! pick a hole of nI with spin ms from the active space with index
-        ! srcGASInd the random number is to be supplied as r
-        ! nI is the source determinant, nJBase the one from which we obtain
-        ! the ket of the matrix element by single excitation
-        integer, intent(in) :: nI(nel)
-        integer, intent(in) :: src1, src2, tgt1, ic, spin_idx, iGAS
-        real(dp), intent(inout) :: pgen
+            integer :: tgt, nOrbs, GAS_list(GAS_size(iGAS))
+            real(dp) :: r, cSum(GAS_size(iGAS))
 
-        integer :: tgt, nOrbs, GAS_list(GAS_size(iGAS))
-        real(dp) :: r, cSum(GAS_size(iGAS))
+            ASSERT(last_tgt_unknown(exc))
 
-        ! initialize auxiliary variables
-        nOrbs = GAS_size(iGAS)
-        GAS_list = GAS_spin_orb_list(1:nOrbs, iGAS, spin_idx)
-        ! build the cumulative list of matrix elements <src|H|tgt>
-!         cSum = get_cumulative_list(GAS_list, nI, src1, src2, tgt1, ic)
-        select case (ic)
-        case(1)
-            cSum = get_cumulative_list(GAS_list, nI, SingleExc_t(src1))
-        case(2)
-            cSum = get_cumulative_list(GAS_list, nI, DoubleExc_t(src1, tgt1, src2))
-        end select
+            ! initialize auxiliary variables
+            nOrbs = GAS_size(iGAS)
+            GAS_list = GAS_spin_orb_list(1:nOrbs, iGAS, spin_idx)
+            ! build the cumulative list of matrix elements <src|H|tgt>
+            cSum = get_cumulative_list(GAS_list, nI, exc)
 
-        ! now, pick with the weight from the cumulative list
-        r = genrand_real2_dSFMT() * cSum(nOrbs)
+            ! now, pick with the weight from the cumulative list
+            r = genrand_real2_dSFMT() * cSum(nOrbs)
 
-        ! there might not be such an excitation
-        if (cSum(nOrbs) > 0) then
-            ! find the index of the target orbital in the gasList
-            tgt = binary_search_first_ge(cSum, r)
+            ! there might not be such an excitation
+            if (cSum(nOrbs) > 0) then
+                ! find the index of the target orbital in the gasList
+                tgt = binary_search_first_ge(cSum, r)
 
-            ! adjust pgen with the probability for picking tgt from the cumulative list
-            if (tgt == 1) then
-                pgen = pgen * cSum(1)
+                ! adjust pgen with the probability for picking tgt from the cumulative list
+                if (tgt == 1) then
+                    pgen = pgen * cSum(1)
+                else
+                    pgen = pgen * (cSum(tgt) - cSum(tgt - 1))
+                end if
+
+                ! convert to global orbital index
+                tgt = GAS_list(tgt)
             else
-                pgen = pgen * (cSum(tgt) - cSum(tgt - 1))
+                tgt = 0
             end if
 
-            ! convert to global orbital index
-            tgt = GAS_list(tgt)
-        else
-            tgt = 0
-        end if
-
-    end function pick_weighted_hole
+        end function pick_weighted_hole_${excitation_t}$
+    #:endfor
 
 !----------------------------------------------------------------------------!
 
