@@ -63,7 +63,7 @@ contains
 
     ! Calculate the acceptance ratio
     if (tContTimeFCIMC .and. .not. tContTimeFull) then
-       if(.not. near_zero(real(cont_spawn_attempts))) then 
+       if(.not. near_zero(real(cont_spawn_attempts))) then
           AccRat = real(cont_spawn_success) / real(cont_spawn_attempts)
        else
           AccRat = 0.0_dp
@@ -131,7 +131,7 @@ contains
         endif
         call MPIBCast(tRestart)
         if(tRestart) then
-            ! a restart not wanted in the real-time fciqmc.. 
+            ! a restart not wanted in the real-time fciqmc..
 !Initialise variables for calculation on each node
             CALL DeallocFCIMCMemPar()
             IF(iProcIndex.eq.Root) THEN
@@ -379,7 +379,7 @@ contains
     end subroutine population_check
 
     subroutine communicate_estimates(iter_data, tot_parts_new, tot_parts_new_all, t_output)
-      
+
         ! This routine sums all estimators and stats over all processes.
 
         ! We want this to be done in as few MPI calls as possible. Therefore, all
@@ -424,8 +424,8 @@ contains
 
         integer(int64) :: TotWalkersTemp
         ! [W.D.12.12.2017]
-        ! allow for triples now: 
-        ! Todo: make that more flexible in the future! 
+        ! allow for triples now:
+        ! Todo: make that more flexible in the future!
         real(dp) :: bloom_sz_tmp(0:3)
         real(dp) :: RealAllHFCyc(max(lenof_sign,inum_runs))
         real(dp) :: RealAllHFOut(max(lenof_sign,inum_runs))
@@ -440,7 +440,7 @@ contains
 
         ! The trial wavefunction is communicated before output and only if the option is on
         t_comm_trial = t_output .and. tTrialWavefunction
-        
+
         sizes = 0
 
         ! low will represent the lower bound of an array slice.
@@ -484,9 +484,9 @@ contains
         sizes(30) = 1
         ! Perturbation correction
         sizes(31) = 1
-        ! communicate the instant spin diff.. although i am not sure if this 
+        ! communicate the instant spin diff.. although i am not sure if this
         ! gets too big..
-        if (t_spin_measurements) then 
+        if (t_spin_measurements) then
             sizes(32) = nBasis/2
             sizes(33) = nBasis/2
         end if
@@ -506,7 +506,7 @@ contains
            sizes(41) = size(SumWalkersOut)
        endif
        NoArrs = 41
-        
+
         if (sum(sizes(1:NoArrs)) > real_arr_size) call stop_all(t_r, &
              "No space left in arrays for communication of estimates. Please increase &
              & the size of the send_arr and recv_arr arrays in the source code.")
@@ -564,12 +564,12 @@ contains
         ! en pert space size
         if (tEN2) then
            low = upp + 1; upp = low + sizes(38) - 1; send_arr(low:upp) = en_pert_main%ndets;
-        endif        
+        endif
 
         if(t_output) then
            low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = HFOut
            low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = Acceptances
-           low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = SumWalkersOut           
+           low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = SumWalkersOut
         endif
         ! Perform the communication.
         call MPISumAll (send_arr(1:upp), recv_arr(1:upp))
@@ -638,8 +638,8 @@ contains
         if(t_output) then
            low = upp + 1; upp = low + sizes(39) - 1; RealAllHFOut = recv_arr(low:upp)
            low = upp + 1; upp = low + sizes(40) - 1; AllAcceptances = recv_arr(low:upp)
-           low = upp + 1; upp = low + sizes(41) - 1; AllSumWalkersOut = recv_arr(low:upp)           
-        endif        
+           low = upp + 1; upp = low + sizes(41) - 1; AllSumWalkersOut = recv_arr(low:upp)
+        endif
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -681,7 +681,7 @@ contains
         low = upp + 1; upp = low + sizes(12) - 1; send_arr_helem(low:upp) = InitsENumCyc;
         if(t_output) then
            low = upp + 1; upp = low + sizes(13) - 1; send_arr_helem(low:upp) = ENumOut;
-        endif        
+        endif
 
         call MPISumAll (send_arr_helem(1:upp), recv_arr_helem(1:upp))
 
@@ -798,7 +798,7 @@ contains
            endif
         end if
 #endif
-    
+
       end subroutine collate_iter_data
 
       function relative_trial_numerator(tt_numerator, tt_denom, replica_pairs) &
@@ -998,8 +998,8 @@ contains
                            ! If enabled, jump the shift to the value preducted by the
                            ! projected energy!
                            if (tJumpShift) then
-                              if (tJumpShift .and. & 
-                                   (.not. (isnan(real(proje_iter(run),dp))) .or. & 
+                              if (tJumpShift .and. &
+                                   (.not. (isnan(real(proje_iter(run),dp))) .or. &
                                    .not. (is_inf(real(proje_iter(run),dp))))) then
                                  DiagSft(run) = real(proje_iter(run),dp)
                                  defer_update(run) = .true.
@@ -1211,11 +1211,11 @@ contains
         Acceptances = 0.0_dp
         NoBorn = 0.0_dp
         NoDied = 0.0_dp
-        Annihilated = 0.0_dp        
+        Annihilated = 0.0_dp
         max_cyc_spawn = 0.0_dp
         trial_numerator = 0.0_dp
         trial_denom = 0.0_dp
-        
+
         ! These are dedicated output variables
         ENumOut = 0.0_dp
         HFOut = 0.0_dp
@@ -1239,7 +1239,7 @@ contains
         real(dp), dimension(lenof_sign), intent(in) :: tot_parts_new_all
 
         ! Zero all of the variables which accumulate for each iteration.
-        SumWalkersCyc(:)=0.0_dp        
+        SumWalkersCyc(:)=0.0_dp
         SpawnFromSing = 0.0_dp
         ENumCyc = 0.0_dp
         InitsENumCyc = 0.0_dp
@@ -1247,8 +1247,8 @@ contains
         HFCyc = 0.0_dp
         cyc_proje_denominator=0.0_dp
 
-        ! also reset the real-time specific quantities: 
-        ! and maybe have to call this routine twice to rezero also the 
+        ! also reset the real-time specific quantities:
+        ! and maybe have to call this routine twice to rezero also the
         ! inputted iter_data for both RK steps..
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
@@ -1295,7 +1295,7 @@ contains
         logical, intent(in), optional :: t_comm_req
         logical :: t_do_comm
 
-        ! The comm can be switched off 
+        ! The comm can be switched off
         if(present(t_comm_req)) then
             t_do_comm = t_comm_req
         else
@@ -1328,7 +1328,7 @@ contains
                     call WriteFCIMCStats ()
                 end if
                 ! reset accumulated output variables
-                call rezero_output_stats()          
+                call rezero_output_stats()
             end subroutine write_to_stats
         end subroutine iteration_output_wrapper
 
@@ -1374,7 +1374,7 @@ contains
     subroutine update_iter_data(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        
+
 !        write(6,*) '===================================='
 !        write(6,*) 'Nborn', iter_data%nborn, NoBorn
 !        write(6,*) 'Ndied', iter_data%ndied, NoDied

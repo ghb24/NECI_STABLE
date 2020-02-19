@@ -3,13 +3,14 @@
       use global_utilities
       use constants, only: dp, n_int, eps
       Use Determinants, only: get_helement
-      use SystemData , only : BasisFN, t_lattice_model
+      use SystemData , only : BasisFN, tNConservingGAS, t_lattice_model
       use CalcData , only : TStar
       use bit_rep_data, only: NIfTot
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_diag_helement
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
+      use gasci, only: isValidExcit
       use lattice_mod, only: get_helement_lattice
       use util_mod, only: near_zero
       IMPLICIT NONE
@@ -74,13 +75,13 @@ C..   Now we need to match up any two determinants
                 totsum = hphf_off_diag_helement(NMRKS(:,KI),
      &                            NMRKS(:,KJ), ilutI, ilutJ)
               end if
-            else if (t_lattice_model) then 
+            else if (t_lattice_model) then
               if (KI == KJ) then
                 totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ),ic)
               else
                 totsum=get_helement_lattice(NMRKS(:,KI),NMRKS(:,KJ))
               end if
-            else 
+            else
               if (KI == KJ) then
                 totsum = get_helement(NMRKS(:,KI), NMRKS(:,KJ), 0)
               else
@@ -90,6 +91,9 @@ C..   Now we need to match up any two determinants
             end if
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
+            if(tNConservingGAS) then
+               if(.not. isValidExcit(ilutI,ilutJ)) totsum = 0.0_dp
+            endif
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
             IF(.not. near_zero(TOTSUM) .OR. KI == KJ) THEN
                GC=GC+1

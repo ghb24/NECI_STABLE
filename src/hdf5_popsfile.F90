@@ -239,7 +239,6 @@ contains
         call h5garbage_collect_f(err)
 
         call MPIBarrier(mpi_err)
-
         write(6,*) "popsfile write successful"
 
 #else
@@ -1198,7 +1197,6 @@ contains
             ! if we resized the sign, we need to go back to the original buffer size now
             if(tmp_lenof_sign /= lenof_sign) then
                deallocate(temp_sgns)
-
                allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
                deallocate(gdata_buf)
                allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)

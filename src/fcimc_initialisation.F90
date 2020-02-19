@@ -19,7 +19,7 @@ module fcimc_initialisation
                           nClosedOrbs, irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen
+                          t_pchb_excitgen, tNConservingGAS
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
@@ -175,7 +175,8 @@ module fcimc_initialisation
 
     use get_excit, only: make_double
 
-    use sltcnd_mod, only: sltcnd_0
+    use excitation_types, only: NoExc_t
+    use sltcnd_mod, only: sltcnd_excit
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
          ThisRDMIter
     use rdm_data, only: nrdms_transition_input
@@ -207,6 +208,7 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
+    use gasci, only: generate_nGAS_excitation, clearGAS
 
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
 
@@ -1896,11 +1898,15 @@ contains
     subroutine init_fcimc_fn_pointers()
       character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
         ! Select the excitation generator.
-        if(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
-           if (t_uniform_excits) then
-            generate_excitation => gen_excit_uniform_k_space_hub_transcorr
-           else
-            generate_excitation => gen_excit_k_space_hub_transcorr
+        if (tHPHF) then
+            generate_excitation => gen_hphf_excit
+        elseif(tNConservingGAS) then
+            generate_excitation => generate_nGAS_excitation
+        elseif(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
+            if (t_uniform_excits) then
+                generate_excitation => gen_excit_uniform_k_space_hub_transcorr
+            else
+                generate_excitation => gen_excit_k_space_hub_transcorr
            endif
         elseif (tHPHF) then
          generate_excitation => gen_hphf_excit
@@ -2245,6 +2251,8 @@ contains
 
         ! Cleanup adi caches
         call clean_adi()
+
+        call clearGAS()
 
         ! Cleanup excitation generator
         if(t_pcpp_excitgen) call finalize_pcpp_excitgen()
@@ -4266,7 +4274,8 @@ contains
                     label_idx = SymLabelCounts2(1, cc_idx)
                     norb = OrbClassCount(cc_idx)
 
-                    ! nb. sltcnd_0 does not depend on the ordering of the det,
+                    ! nb. No excitation is performed,
+                    !     so it does not depend on the ordering of the det,
                     !     so we don't need to do any sorting here.
                     energies(i) = 9999999.9_dp
                     do j = 1, norb
@@ -4275,7 +4284,7 @@ contains
                             (.not. any(orb2 == found_orbs))) then
                             det = HFDet
                             det(i) = orb2
-                            hdiag = real(sltcnd_0(det), dp)
+                            hdiag = real(sltcnd_excit(det, NoExc_t()), dp)
                             if (hdiag < energies(i)) then
                                 energies(i) = hdiag
                                 orbs(i) = orb2

@@ -146,6 +146,8 @@ C        WRITE(6,*) 'LSCR2:',LSCR2
 C ====================================================================
       INDEX(1:N)=0
       NHPSI=0
+      ICYCLE=0
+      NCONV=0
       IF(PRINTOUT) THEN
           WRITE(6,10000) ICYCLE,NCONV,B2MAX,B2MIN,NHPSI
       ENDIF
