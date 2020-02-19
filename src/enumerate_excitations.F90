@@ -422,9 +422,7 @@ contains
             ! implementation is really akward..
             if (tGUGA) then
                 ! in GUGA don't do the tSinglesOnly option
-                if (tSinglesOnly) then
-                    call stop_all(this_routine, "dont use tSinglesOnly with GUGA!")
-                end if
+                ASSERT(.not. tSinglesOnly)
 
                 ! only STORE the excitations if the proper flag is set,
                 ! otherwise only, increase the counter for the connected space

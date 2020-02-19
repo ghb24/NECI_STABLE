@@ -362,8 +362,6 @@ contains
           tSemiStochastic = .false.
           tCSFCore = .false.
 
-          tGUGACore = .false.
-
           tDynamicCoreSpace = .false.
           tIntervalSet = .false.
           tStaticCore = .true.
@@ -1552,12 +1550,6 @@ contains
                 tCSFCore = .true.
                 tCSF = .true.
                 LMS = STOT
-
-            case ("GUGA-CORE DOUBLES")
-                tGUGACore = .true.
-                ! convention! if we input GUGA core, we specifiy tDoubles
-                ! implicitly! Since we only ever will implement this (for now)
-                ss_space_in%tDoubles = .true.
 
             case("ALL-CONN-CORE")
                 ss_space_in%tAllConnCore = .true.
@@ -3845,6 +3837,10 @@ contains
              if (t_non_hermitian) then
                 call stop_all(this_routine, &
                      "perform_davidson not adapted for non-hermitian Hamiltonians!")
+             end if
+             if (tGUGA) then
+                call stop_all(this_routine, &
+                     "perform_davidson not adapted for GUGA yet")
              end if
              call perform_davidson(davidsonCalc, direct_ci_type, .true.)
              call davidson_direct_ci_end(davidsonCalc)

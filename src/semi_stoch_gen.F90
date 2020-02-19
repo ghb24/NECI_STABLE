@@ -306,17 +306,17 @@ contains
                                     core_in%tApproxSpace, core_in%nApproxSpace, &
                                     SpawnedParts(0:niftot,1:space_size), space_size)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
-        if (.not. tCSFCore) then
+        if (.not. (tCSFCore .or. tGUGACore)) then
            if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
            if(core_in%tTriples) call generate_trip_determinants(SpawnedParts, space_size, &
                 core_in%tHFConn)
-            if (core_in%tCAS) call generate_cas(core_in%occ_cas, core_in%virt_cas, SpawnedParts, space_size)
-            if (core_in%tRAS) call generate_ras(core_in%ras, SpawnedParts, space_size)
-            if (core_in%tOptimised) call generate_optimised_space(core_in%opt_data, core_in%tLimitSpace, &
+           if (core_in%tCAS) call generate_cas(core_in%occ_cas, core_in%virt_cas, SpawnedParts, space_size)
+           if (core_in%tRAS) call generate_ras(core_in%ras, SpawnedParts, space_size)
+           if (core_in%tOptimised) call generate_optimised_space(core_in%opt_data, core_in%tLimitSpace, &
                                                              SpawnedParts, space_size, core_in%max_size)
-            if (core_in%tMP1) call generate_using_mp1_criterion(core_in%mp1_ndets, SpawnedParts, space_size)
-            if (core_in%tFCI) then
-                if (tAllSymSectors) then
+           if (core_in%tMP1) call generate_using_mp1_criterion(core_in%mp1_ndets, SpawnedParts, space_size)
+           if (core_in%tFCI) then
+               if (tAllSymSectors) then
                     call gndts_all_sym_this_proc(SpawnedParts, .false., space_size)
                 else
                     call generate_fci_core(SpawnedParts, space_size)

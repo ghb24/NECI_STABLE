@@ -598,7 +598,7 @@ contains
         integer :: i, j, ierr
         integer :: nI(nel), nJ(nel)
         HElement_t(dp) :: H_ij
-        character (len=*), parameter :: t_r = "generate_connected_space_vector"
+        character (len=*), parameter :: this_routine = "generate_connected_space_vector"
         type(ExcitationInformation_t) :: excitInfo
         con_vecs = 0.0_dp
 
@@ -629,10 +629,8 @@ contains
                     if (tHPHF) then
                         H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
-                        if (t_non_hermitian) then
-                            call stop_all(t_r, "GUGA not adapted for non-hermiticity yet!")
-                        end if
-                        call calc_guga_matrix_element(trial_space(:,j), con_space(:,i), &
+                        ASSERT(.not. t_non_hermitian)
+                        call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
                             excitInfo, H_ij, .true., 1)
                     else
                         H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
