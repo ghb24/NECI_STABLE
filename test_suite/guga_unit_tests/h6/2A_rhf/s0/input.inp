@@ -1,5 +1,5 @@
 Title
- 
+
 System read
 electrons  6
 nonuniformrandexcits mol_guga_weighted
@@ -10,20 +10,19 @@ molpromimic
 guga-testsuite 1000000
 (system-replicas 3
 endsys
- 
+
 calc
- 
+
 methods
 method vertex fcimc
 endmethods
- 
-frequency-analysis
+
 new-tau-search 0.999
 truncate-spawns 2
 
 (targetgrowrate 0.01 1000
 (orthogonalise-replicas
-(replica-single-det-start 
+(replica-single-det-start
 
 guga-mateles
 
@@ -49,7 +48,7 @@ maxwalkerbloom 1
 memoryfacspawn 20.0
 time 10000
 endcalc
- 
+
 logging
 (printonerdm
 popsfile -1
