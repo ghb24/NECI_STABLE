@@ -192,9 +192,9 @@ MODULE ReadInput_neci
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
-                              tGen_4ind_lin_exact, tGen_4ind_2, &
-                              tComplexOrbs_RealInts, tLatticeGens, tGUGA, &
-                              tgen_guga_weighted, tHistSpinDist
+                              tGUGA, tgen_guga_weighted, &
+                              tGen_4ind_lin_exact, tGen_4ind_2, tNConservingGAS, &
+                              tComplexOrbs_RealInts, tLatticeGens, tHistSpinDist
 
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
@@ -210,7 +210,7 @@ MODULE ReadInput_neci
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates, tSpinProject
         use Calc, only : RDMsamplingiters_in_inp
-        Use Determinants, only: SpecDet, tagSpecDet
+        Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
                                  tNoDoubs
@@ -249,7 +249,7 @@ MODULE ReadInput_neci
             call stop_all(t_r,"CALCVARIATIONALENERGY requires HISTSPAWN option")
         endif
         if(tCalcVariationalEnergy.and..not.tEnergy) then
-            call stop_all(t_r,"CALCVARIATIONALENERGY requires initial FCI calculation")
+           call stop_all(t_r,"CALCVARIATIONALENERGY requires initial FCI calculation")
         endif
 
         nWalkerHashes=nint(HashLengthFrac*InitWalkers)
@@ -601,10 +601,14 @@ MODULE ReadInput_neci
         end if
 
         if (tLatticeGens) then
-            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
-                call stop_all(t_r, "Invalid excitation options")
-            end if
+           if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
+              call stop_all(t_r, "Invalid excitation options")
+           end if
         end if
+
+        if(.not. tDefineDet .and. tNConservingGAS) then
+           call stop_all(t_r, "Running n-GAS requires a user-defined reference via definedet")
+        endif
 
     end subroutine checkinput
 

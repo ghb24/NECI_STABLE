@@ -48,7 +48,9 @@ module k_space_hubbard
 
     use OneEInts, only: GetTMatEl, tmat2d
 
-    use sltcnd_mod, only: sltcnd_0, initSltCndPtr
+    use sltcnd_mod, only: initSltCndPtr, sltcnd_excit
+
+    use excitation_types, only: NoExc_t
 
     use sym_mod, only: RoundSym, AddElecSym, SetupSym, lChkSym, mompbcsym, &
                        TotSymRep, GenMolpSymTable, SymProd, gensymstatepairs
@@ -2370,7 +2372,7 @@ contains
             hel = hel_sing + hel_doub + hel_one + hel_three
 
         else
-            hel = sltcnd_0(nI)
+            hel = sltcnd_excit(nI, NoExc_t())
         end if
 
     end function get_diag_helement_k_sp_hub

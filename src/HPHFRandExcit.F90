@@ -24,7 +24,7 @@ MODULE HPHFRandExcitMod
 
     use dSFMT_interface, only : genrand_real2_dSFMT
 
-    use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &    
+    use GenRandSymExcitNUMod, only: gen_rand_excit, calc_pgen_symrandexcit2, &
         ScratchSize, CalcPGenLattice, construct_class_counts
     use tc_three_body_excitgen, only: calc_pgen_mol_tc, gen_excit_mol_tc
 
@@ -42,7 +42,7 @@ MODULE HPHFRandExcitMod
 
     use constants, only: dp,n_int, EPS, maxExcit
 
-    use sltcnd_mod, only: sltcnd_excit
+    use sltcnd_mod, only: dyn_sltcnd_excit_old
 
     use bit_reps, only: NIfD, NIfDBO, NIfTot
 
@@ -320,7 +320,7 @@ MODULE HPHFRandExcitMod
                                     "no closed shell to closed shell possible in real-space lattice models!")
                             end if
                         else
-                            HEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
+                            HEl = dyn_sltcnd_excit_old (nJ, IC, temp_ex, tSignOrig)
                         end if
                     endif
                 ELSE
@@ -334,7 +334,7 @@ MODULE HPHFRandExcitMod
                         if (t_lattice_model) then
                             Matel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
+                            MatEl = dyn_sltcnd_excit_old (nJ, IC, temp_ex, tSignOrig)
                         end if
                         HEl=MatEl*SQRT(2.0_dp)
                     endif
@@ -394,7 +394,7 @@ MODULE HPHFRandExcitMod
                                     ASSERT(.not. t_heisenberg_model)
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
                                 else
-                                    MatEl = sltcnd_excit (nJ, IC, temp_ex, tSign)
+                                    MatEl = dyn_sltcnd_excit_old (nJ, IC, temp_ex, tSign)
                                 end if
                             else
                                 temp_ex(1,:) = ExcitMat(2,:)
@@ -403,7 +403,7 @@ MODULE HPHFRandExcitMod
                                     ASSERT(.not. t_heisenberg_model)
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                                 else
-                                    MatEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
+                                    MatEl = dyn_sltcnd_excit_old (nJ, IC, temp_ex, tSignOrig)
                                 end if
                             end if
                             HEl=MatEl*SQRT(2.0_dp)
@@ -417,7 +417,7 @@ MODULE HPHFRandExcitMod
                             if (t_lattice_model) then
                                 MatEl = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign)
                             else
-                                MatEl = sltcnd_excit (nJ, ExcitLevel, temp_ex, tSign)
+                                MatEl = dyn_sltcnd_excit_old (nJ, ExcitLevel, temp_ex, tSign)
                             end if
                         else
                             temp_ex(1,:) = ExcitMat(2,:)
@@ -425,7 +425,7 @@ MODULE HPHFRandExcitMod
                             if (t_lattice_model) then
                                 MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                             else
-                                MatEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
+                                MatEl = dyn_sltcnd_excit_old (nJ, IC, temp_ex, tSignOrig)
                             end if
 
                         end if
@@ -450,7 +450,7 @@ MODULE HPHFRandExcitMod
                                     ! with the excitation
                                     MatEl2 = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
                                 else
-                                    MatEl2 = sltcnd_excit (nJ2, IC, temp_ex, tSignOrig)
+                                    MatEl2 = dyn_sltcnd_excit_old (nJ2, IC, temp_ex, tSignOrig)
                                end if
                             ELSE
 !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
@@ -463,7 +463,7 @@ MODULE HPHFRandExcitMod
                                     ! are associated with nI -> nJ2
                                     MatEl2 = get_helement_lattice(nJ2, ExcitLevel, temp_ex, tSign)
                                 else
-                                    MatEl2 = sltcnd_excit (nJ2,  ExcitLevel, temp_ex, tSign)
+                                    MatEl2 = dyn_sltcnd_excit_old (nJ2,  ExcitLevel, temp_ex, tSign)
                                 end if
                             ENDIF
 
@@ -523,13 +523,13 @@ MODULE HPHFRandExcitMod
                         if (t_lattice_model) then
                             MatEl = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit(nJ2,  IC, temp_ex, tSignOrig)
+                            MatEl = dyn_sltcnd_excit_old(nJ2,  IC, temp_ex, tSignOrig)
                         endif
                     ELSE
                         if (t_lattice_model) then
                             MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit (nJ, IC, temp_ex, tSignOrig)
+                            MatEl = dyn_sltcnd_excit_old (nJ, IC, temp_ex, tSignOrig)
                         end if
                     ENDIF
 
@@ -887,5 +887,3 @@ MODULE HPHFRandExcitMod
 
 
 END MODULE HPHFRandExcitMod
-
-

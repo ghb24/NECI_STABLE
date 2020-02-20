@@ -317,7 +317,7 @@ contains
 
 !--- Indexing utilities
 
-   function fuseIndex_int32(q,p) result(ind)
+   pure function fuseIndex_int32(q,p) result(ind)
      ! fuse p,q into one symmetric index
      ! the resulting index is not contigious in p or q
      ! Input: p,q - 2d-array indices

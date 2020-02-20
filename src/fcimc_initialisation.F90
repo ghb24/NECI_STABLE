@@ -17,11 +17,13 @@ module fcimc_initialisation
                           t_lattice_model, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, t_3_body_excits, breathingCont, &
                           momIndexTable, t_trans_corr_2body, t_non_hermitian, &
-                          tgen_guga_crude, nOccOrbs, nClosedOrbs, &
-                          t_pcpp_excitgen, t_pchb_excitgen, &
-                          t_uniform_excits, t_mol_3_body,t_ueg_3_body,&
-                          tTrcorrExgen, tNoSinglesPossible
-
+                          tgen_guga_crude, &
+                          t_uniform_excits, t_mol_3_body,t_ueg_transcorr,t_ueg_3_body,tLatticeGens, &
+                          irrepOrbOffset, nIrreps, &
+                          tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
+                          nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
+                          t_pchb_excitgen, tNConservingGAS
+    use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
     use dSFMT_interface, only: dSFMT_init
@@ -188,7 +190,8 @@ module fcimc_initialisation
 
     use get_excit, only: make_double
 
-    use sltcnd_mod, only: sltcnd_0
+    use excitation_types, only: NoExc_t
+    use sltcnd_mod, only: sltcnd_excit
     use rdm_data, only: nrdms_transition_input, rdmCorrectionFactor, InstRDMCorrectionFactor, &
          ThisRDMIter
     use rdm_data, only: nrdms_transition_input
@@ -236,6 +239,7 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
+    use gasci, only: generate_nGAS_excitation, clearGAS
 
     use cepa_shifts, only: t_cepa_shift, init_cepa_shifts
 
@@ -1963,11 +1967,15 @@ contains
         character(*), parameter :: t_r = 'init_fcimc_fn_pointers'
 
         ! Select the excitation generator.
-        if(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
-           if (t_uniform_excits) then
-            generate_excitation => gen_excit_uniform_k_space_hub_transcorr
-           else
-            generate_excitation => gen_excit_k_space_hub_transcorr
+        if (tHPHF) then
+            generate_excitation => gen_hphf_excit
+        elseif(tNConservingGAS) then
+            generate_excitation => generate_nGAS_excitation
+        elseif(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
+            if (t_uniform_excits) then
+                generate_excitation => gen_excit_uniform_k_space_hub_transcorr
+            else
+                generate_excitation => gen_excit_k_space_hub_transcorr
            endif
         elseif (tHPHF) then
          generate_excitation => gen_hphf_excit
@@ -2305,6 +2313,8 @@ contains
 
         ! Cleanup adi caches
         call clean_adi()
+
+        call clearGAS()
 
         ! Cleanup excitation generator
         if(t_pcpp_excitgen) call finalize_pcpp_excitgen()
@@ -4422,7 +4432,7 @@ contains
                                 (.not. any(orb2 == found_orbs))) then
                                 det = HFDet
                                 det(i) = orb2
-                                hdiag = real(sltcnd_0(det), dp)
+                                hdiag = real(sltcnd_excit(det, NoExc_t()), dp)
                                 if (hdiag < energies(i)) then
                                     energies(i) = hdiag
                                     orbs(i) = orb2

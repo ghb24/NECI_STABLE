@@ -42,8 +42,9 @@ MODULE GenRandSymExcitNUMod
                        SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod
-    use DetBitOps, only: FindExcitBitDet, EncodeBitDet
-    use sltcnd_mod, only: sltcnd_1
+    use DetBitOps, only: FindExcitBitDet, EncodeBitDet, detbiteq
+    use excitation_types, only: SingleExc_t
+    use sltcnd_mod, only: sltcnd_excit
     use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_reps, only: NIfTot, nifdbo
     use sym_mod, only: mompbcsym, GetLz
@@ -1864,7 +1865,7 @@ MODULE GenRandSymExcitNUMod
 
 !Now we want to find the information about this excitation
             ExcitMat(2,1)=OrbA
-            rh = sltcnd_1 (nI, ExcitMat, .false.)
+            rh = sltcnd_excit(nI, SingleExc_t(ExcitMat(:, 1)), .false.)
 
             SpawnProb(VecInd)=abs(REAL(rh,dp))
             SpawnOrb(VecInd)=OrbA

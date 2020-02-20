@@ -1194,22 +1194,23 @@ module AnnihilationMod
                        if(err.ne.0) return
                     end if
                  end if
-              else
-                 ! Running the full, non-initiator scheme.
-                 ! Determinant in newly spawned list is not found in
-                 ! CurrentDets. If coeff <1, apply removal criterion.
-                 call extract_sign (SpawnedParts(:,i), SpawnedSign)
+                else
+                    ! Running the full, non-initiator scheme.
+                    ! Determinant in newly spawned list is not found in
+                    ! CurrentDets. If coeff <1, apply removal criterion.
+                    call extract_sign (SpawnedParts(:,i), SpawnedSign)
 
-                 ! no chance to kill the spawn by initiator criterium
-                 ! so get the diagH immediately
-                 call getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
-                 ! If using an EN2 perturbation to correct a truncated
-                 ! calculation, then this spawn may need to be truncated
-                 ! away now. Check this here:
-                 tTruncSpawn = .false.
-                 if (tEN2Truncated) then
-                    tTruncSpawn = .not. CheckAllowedTruncSpawn(0, nJ, SpawnedParts(:,i), 0)
-                 end if
+                    ! no chance to kill the spawn by initiator criterium
+                    ! so get the diagH immediately
+                    call getEScale(nJ, i, diagH, scFVal, ScaledOccupiedThresh)
+
+                    ! If using an EN2 perturbation to correct a truncated
+                    ! calculation, then this spawn may need to be truncated
+                    ! away now. Check this here:
+                    tTruncSpawn = .false.
+                    if (tEN2Truncated) then
+                        tTruncSpawn = .not. CheckAllowedTruncSpawn(0, nJ, SpawnedParts(:,i), 0)
+                    end if
 
                  if (tTruncSpawn) then
                     ! Needs to be truncated away, and a contribution

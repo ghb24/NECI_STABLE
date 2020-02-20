@@ -12,10 +12,10 @@ MODULE Determinants
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
-    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_compat, &
-                          sltcnd_knowIC, sltcnd_0, SumFock , CalcFockOrbEnergy
 
-    use procedure_pointers, only: sltcnd_2
+    use excitation_types, only: excitation_t, DoubleExc_t, get_excitation
+    use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
+                          sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
     use global_utilities
     use sort_mod
     use DetBitOps, only: EncodeBitDet, count_open_orbs, spatial_bit_det
@@ -606,7 +606,7 @@ contains
 
             ex(1,:) = nJ(4:5)
             ex(2,:) = nJ(6:7)
-            hel = sltcnd_2 (nI, ex, .false.)
+            hel = sltcnd_excit(nI, DoubleExc_t(ex), .false.)
         endif
 
         if (present(iLutJ)) then
@@ -686,7 +686,7 @@ contains
                          &used if we know the number of excitations and the &
                          &excitation matrix")
 
-        hel = sltcnd_excit (nI, IC, ExcitMat, tParity)
+        hel = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tParity)
 
         if (IC == 0) then
             hel = hel + (ECore)
@@ -716,15 +716,9 @@ contains
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel
         HElement_t(dp) , intent(in) :: HElGen    !Not used - here for compatibility with other interfaces.
-
-        ! Eliminate compiler warnings
-        integer(n_int) :: iUnused; integer :: iUnused2; HElement_t(dp) :: hUnused
         character(*), parameter :: this_routine = "get_helement_det_only"
 
-        unused_var(ilutJ)
-        unused_var(ilutI)
-        unused_var(nJ)
-        unused_var(helgen)
+        unused_var(ilutJ); unused_var(ilutI); unused_var(nJ); unused_var(hElgen);
 
         ! GUGA implementation:
         if (tGUGA) then
@@ -736,14 +730,13 @@ contains
             return
         end if
 
-
         ! switch to lattice matrix element:
         if (t_lattice_model) then
             hel = get_helement_lattice(nI,ic, ex, tParity)
             return
         end if
 
-        hel = sltcnd_excit (nI, IC, ex, tParity)
+        hel = dyn_sltcnd_excit_old(nI, IC, ex, tParity)
 
         if (IC == 0) then
             hel = hel + ECore

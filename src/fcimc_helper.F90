@@ -2721,20 +2721,10 @@ contains
                 hoffdiag = 0.0_dp
                 if (exlevel == 0) then
 
-#ifdef CMPLX_
-                    HFInst(min_part_type(run)) = HFInst(min_part_type(run)) + real(sgn_run)
-                    HFInst(max_part_type(run)) = HFInst(max_part_type(run)) + aimag(sgn_run)
-#else
                     HFInst(run) = HFInst(run) + sgn_run
-#endif
-                    if(tCalcAccumE) then
-#ifdef CMPLX_
-                    HFAccum(min_part_type(run)) = HFAccum(min_part_type(run)) + real(accum_sgn_run)
-                    HFAccum(max_part_type(run)) = HFAccum(max_part_type(run)) + aimag(accum_sgn_run)
-#else
-                    HFAccum(run) = HFAccum(run) + accum_sgn_run
-#endif
 
+                    if(tCalcAccumE) then
+                        HFAccum(run) = HFAccum(run) + accum_sgn_run
                     endif
 
                 else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then

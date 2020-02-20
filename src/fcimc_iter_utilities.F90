@@ -132,7 +132,8 @@ contains
         endif
         call MPIBCast(tRestart)
         if(tRestart) then
-!Initialise variables for calculation on each node
+            ! a restart not wanted in the real-time fciqmc..
+            !Initialise variables for calculation on each node
             CALL DeallocFCIMCMemPar()
             IF(iProcIndex.eq.Root) THEN
                 CLOSE(fcimcstats_unit)
@@ -430,7 +431,10 @@ contains
         integer :: low, upp, run
 
         integer(int64) :: TotWalkersTemp
-        real(dp) :: bloom_sz_tmp(0:2)
+        ! [W.D.12.12.2017]
+        ! allow for triples now:
+        ! Todo: make that more flexible in the future!
+        real(dp) :: bloom_sz_tmp(0:3)
         real(dp) :: RealAllHFCyc(max(lenof_sign,inum_runs))
         real(dp) :: RealAllHFOut(max(lenof_sign,inum_runs))
         real(dp) :: all_norm_semistoch_squared(inum_runs)
@@ -665,7 +669,7 @@ contains
            if(t_real_time_fciqmc) then
                low = upp + 1; upp = low + sizes(57) - 1; allPopSnapShot = recv_arr(low:upp);
            endif
-       endif
+        endif
         ! Communicate HElement_t variables:
 
         low = 0; upp = 0;
@@ -1269,6 +1273,9 @@ contains
         HFCyc = 0.0_dp
         cyc_proje_denominator=0.0_dp
 
+        ! also reset the real-time specific quantities:
+        ! and maybe have to call this routine twice to rezero also the
+        ! inputted iter_data for both RK steps..
         ! Reset TotWalkersOld so that it is the number of walkers now
         TotWalkersOld = TotWalkers
         TotPartsOld = TotParts

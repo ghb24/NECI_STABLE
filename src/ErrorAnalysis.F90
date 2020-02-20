@@ -968,6 +968,9 @@ module errors
             endif
             j=j+1
         enddo
+        if (abs(tmp(new_length)) < 1.0e-10_dp) then
+            write(6, *) 'WARNING: ', t_r, "Whole length of new vector not properly used"
+        end if
         deallocate(this)
         allocate(this(new_length))
         this=0.0_dp

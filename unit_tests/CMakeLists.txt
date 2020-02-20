@@ -37,6 +37,8 @@ add_subdirectory( ueg_excit_gens )
 
 add_subdirectory( tJ_model )
 
+add_subdirectory( gasci )
+
 add_subdirectory( k_space_hubbard )
 
 add_subdirectory( lattice_models_utils )

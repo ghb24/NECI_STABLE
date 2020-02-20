@@ -1,5 +1,5 @@
 #include "macros.h"
-#:include "macros.fpp"
+#:include "macros.fpph"
 
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int, maxExcit
@@ -10,8 +10,9 @@ module hphf_integrals
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs
-    use sltcnd_mod, only: sltcnd, sltcnd_knowIC, sltcnd_excit
-    use bit_reps, only: NIfTot, NIfDBO, decode_bit_det
+    use excitation_types, only: NoExc_t, DoubleExc_t
+    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
+    use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
     use lattice_mod, only: get_helement_lattice
     implicit none
 
@@ -142,7 +143,7 @@ module hphf_integrals
                         ! orginal call below!
                         MatEl2 = get_helement_lattice(nI2, ExcitLevel, Ex, tSign)
                     else
-                        MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+                        MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
                     end if
 
                     if(tOddS_HPHF) then
@@ -234,7 +235,7 @@ module hphf_integrals
                     Ex(1,1)=ExcitLevel
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
-                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+                    MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
 
                     if(tOddS_HPHF) then
                         if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1))&
@@ -300,7 +301,7 @@ module hphf_integrals
         Ex(1,1) = ExcitLevel
         call GetBitExcitation(iLutnI2, iLutnJ, Ex, tSign)
 
-        MatEl2 = sltcnd_excit(nI2, ExcitLevel, Ex, tSign)
+        MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
 
         if (tOddS_HPHF) then
             if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1)) &
@@ -343,7 +344,7 @@ module hphf_integrals
         if (t_lattice_model) then
             hel = get_helement_lattice(nI,nI)
         else
-            hel = sltcnd_excit (nI, 0)
+            hel = sltcnd_excit(nI, NoExc_t())
         end if
 
         if (.not. TestClosedShellDet(iLutnI)) then

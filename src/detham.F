@@ -3,7 +3,8 @@
       use global_utilities
       use constants, only: dp, n_int, eps
       Use Determinants, only: get_helement
-      use SystemData , only : BasisFN, t_lattice_model, tGUGA
+      use SystemData , only : BasisFN, tNConservingGAS, t_lattice_model
+      use SystemData, only: tGUGA
       use CalcData , only : TStar
       use bit_rep_data, only: NIfTot
       use SystemData, only: tHPHF
@@ -15,6 +16,7 @@
       use guga_data, only: ExcitationInformation_t
       use guga_bitrepops, only: init_csf_information
 
+      use gasci, only: isValidExcit
       use lattice_mod, only: get_helement_lattice
 
       use util_mod, only: near_zero
@@ -113,6 +115,9 @@ C..   Now we need to match up any two determinants
             end if
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
+            if(tNConservingGAS) then
+               if(.not. isValidExcit(ilutI,ilutJ)) totsum = 0.0_dp
+            endif
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
             IF(.not. near_zero(TOTSUM) .OR. KI == KJ) THEN
                GC=GC+1

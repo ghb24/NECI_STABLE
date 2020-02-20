@@ -1,10 +1,9 @@
 #include "macros.h"
 MODULE DetCalc
         use constants, only: dp,n_int
-
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
-                              t_non_hermitian
-
+             tNConservingGAS, t_non_hermitian
+        use gasci, only: loadGAS
         use sort_mod
 
         use DetCalcData
@@ -345,6 +344,8 @@ CONTAINS
          ENDIF
       ENDIF
 
+      if(tNConservingGAS) call loadGAS()
+
 !      TMC=TCALCHMAT.AND.(.NOT.TENERGY)
 
     End Subroutine DetCalcInit
@@ -442,7 +443,9 @@ CONTAINS
          ICMAX=1
 !Falsify tMC
          TMC=.FALSE.
+         allocate(HAMIL(0), LAB(0))
          CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
+         deallocate(HAMIL, LAB)
          WRITE(6,*) ' FINISHED COUNTING '
          WRITE(6,*) "Allocating memory for hamiltonian: ",GC*2
          CALL neci_flush(6)

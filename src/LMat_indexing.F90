@@ -9,8 +9,8 @@ module lMat_indexing
 
   contains
 
-!------------------------------------------------------------------------------------------!    
-!  Index functions for the six-index addressing      
+!------------------------------------------------------------------------------------------!
+!  Index functions for the six-index addressing
 !------------------------------------------------------------------------------------------!
 
     pure function lMatIndSym(a,b,c,i,j,k) result(index)
@@ -20,12 +20,12 @@ module lMat_indexing
       ! Input: a,b,c - orbital indices of electrons
       !        i,j,k - orbital indices of holes
       ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry
-      integer(int64), value :: a,b,c ! occupied orb indices
-      integer(int64), value :: i,j,k ! unoccupied orb
+      integer(int64), value, intent(in) :: a,b,c ! occupied orb indices
+      integer(int64), value, intent(in) :: i,j,k ! unoccupied orb
       integer(int64) :: index
 
       integer(int64) :: ai,bj,ck
-      
+
       ai = fuseIndex(a,i)
       bj = fuseIndex(b,j)
       ck = fuseIndex(c,k)
@@ -38,16 +38,16 @@ module lMat_indexing
       index = ai + bj*(bj-1)/2 + ck*(ck-1)*(ck+1)/6
     end function lMatIndSym
 
-!------------------------------------------------------------------------------------------!    
-    
+!------------------------------------------------------------------------------------------!
+
     pure function oldLMatInd(aI,bI,cI,iI,jI,kI) result(index)
       ! Indexing function with a 12-fold symmetry: symmetric with respect to
       ! permuting (a,i), (b,j) and (c,k) and with exchange (a,b,c)<->(i,j,k)
       ! Input: a,b,c - orbital indices of electrons
       !        i,j,k - orbital indices of holes
-      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry      
-      integer(int64), value :: aI,bI,cI ! occupied orb indices
-      integer(int64), value :: iI,jI,kI ! unoccupied orb
+      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry
+      integer(int64), value, intent(in) :: aI,bI,cI ! occupied orb indices
+      integer(int64), value, intent(in) :: iI,jI,kI ! unoccupied orb
       integer(int64) :: index
       integer(int64) :: a,b,c,i,j,k
 
@@ -74,14 +74,14 @@ module lMat_indexing
 
       ! indexing function: there are three ordered indices (ap,bp,cp)
       ! and three larger indices (ip,jp,kp)
-      ! the last larger index kp, it is the contigous index, then follow (jp,cp) 
+      ! the last larger index kp, it is the contigous index, then follow (jp,cp)
       ! then (ip,bp) and then the smallest index ap
       index = k + nBI*(j-1) + nBI**2*(i-1) + nBI**3*(a-1) + nbI**3*(b-1)*b/2+&
            nBI**3*(c+1)*(c-1)*c/6
 
       contains
 
-        ! sorts the indices a,b and i,j with respect to the 
+        ! sorts the indices a,b and i,j with respect to the
         ! ordering selected in iPermute
         pure subroutine sort2Els(r,s,p,q)
           integer(int64), intent(inout) :: r,s,p,q
@@ -91,7 +91,7 @@ module lMat_indexing
              call intswap(p,q)
           end if
         end subroutine sort2Els
-      
+
     end function oldLMatInd
 
 !------------------------------------------------------------------------------------------!
@@ -102,9 +102,9 @@ module lMat_indexing
       ! A 6-fold symmetry remains: swapping of a<->i, b<->j and c<->k
       ! Input: a,b,c - orbital indices of electrons
       !        i,j,k - orbital indices of holes
-      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry      
-      integer(int64), value :: a,b,c ! occupied orb indices
-      integer(int64), value :: i,j,k ! unoccupied orb
+      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry
+      integer(int64), value, intent(in) :: a,b,c ! occupied orb indices
+      integer(int64), value, intent(in) :: i,j,k ! unoccupied orb
       integer(int64) :: index
 
       integer(int64) :: ai,bj,ck
@@ -114,7 +114,7 @@ module lMat_indexing
       ck = fuseIndex(c,k)
 
       index = ai + strideInner*bj + strideOuter * ck
-      
+
     end function lMatIndSymBroken
 
 !------------------------------------------------------------------------------------------!
@@ -125,9 +125,9 @@ module lMat_indexing
       ! symmetry
       ! Input: a,b,c - orbital indices of electrons
       !        i,j,k - orbital indices of holes
-      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry           
-      integer(int64), value :: i,j,k
-      integer(int64), value :: a,b,c
+      ! Output: index - contiguous index I(a,b,c,i,j,k) with the aforementioned symmetry
+      integer(int64), value, intent(in) :: i,j,k
+      integer(int64), value, intent(in) :: a,b,c
       integer(int64) :: index
       integer(int64) :: ai, bj, ck
 
@@ -137,5 +137,5 @@ module lMat_indexing
 
       index = ai + strideInner * fuseIndex(bj,ck)
     end function lMatIndSpin
-    
+
 end module lMat_indexing

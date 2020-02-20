@@ -318,6 +318,10 @@ logical :: t_test_excit_gen = .false.
 ! to directly compare it with the determinental implementation, even if
 ! this might decrease the efficiency of the guga implmenetation
 logical :: t_guga_noreorder = .false.
+
+! Are we restricting excitations
+logical :: tNConservingGAS, tSpinConservingGAS
+
 ! twisted boundary implementation for the hubbard model:
 ! use keyword twisted-bc [real, real] in System Block of input
 ! twist value is in values of periodicity (2*pi/L) for cubic and (pi/L) for

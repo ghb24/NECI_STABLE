@@ -10,6 +10,7 @@ module pcpp_excitgen
   use dSFMT_interface , only : genrand_real2_dSFMT
   use Integrals_neci, only: get_umat_el
   use UMatCache, only: gtID
+  use excitation_types, only: SingleExc_t, DoubleExc_t
   use sltcnd_mod, only: sltcnd_excit
   use util_mod, only: binary_search_first_ge, getSpinIndex, intswap
   use get_excit, only: make_double, make_single
@@ -403,7 +404,6 @@ contains
       integer :: i
       integer :: a,b,j
       real(dp) :: w(nel)
-      integer :: ex(2,2)
       logical :: tPar
       integer :: iEl, jEl
 
@@ -417,8 +417,8 @@ contains
                   if(.not.any(a == (/i,j/))) then
                      do b = 1, nBasis
                         if(.not.any(b == (/a,i,j/))) then
-                           call set_ex(ex,i,j,a,b)
-                           w(iEl) = w(iEl) + abs(sltcnd_excit(refDet,2,ex,tPar))
+                           w(iEl) = &
+        w(iEl) + abs(sltcnd_excit(refDet, DoubleExc_t(i, a, j, b), tPar))
                         endif
                      end do
                   end if
@@ -436,7 +436,7 @@ contains
     subroutine setup_elec_two_sampler()
       implicit none
       real(dp) :: w(nel)
-      integer :: ex(2,2)
+      type(DoubleExc_t) :: ex
       logical :: tPar
       integer :: aerr
       integer :: i,j,a,b
@@ -452,8 +452,8 @@ contains
                   if(.not.any(a == (/i,j/))) then
                      do b = 1, nBasis
                         if(.not.any(b == (/i,j,a/))) then
-                           call set_ex(ex,i,j,a,b)
-                           w(jEl) = w(jEl) + abs(sltcnd_excit(refDet,2,ex,tPar))
+                           w(jEl) = &
+            w(jEl) + abs(sltcnd_excit(refDet, DoubleExc_t(i, a, j, b), tPar))
                         end if
                      end do
                   end if
@@ -523,17 +523,6 @@ contains
     end subroutine setup_hole_two_sampler
 
     !------------------------------------------------------------------------------------------!
-
-    pure subroutine set_ex(ex,i,j,a,b)
-      implicit none
-      integer, intent(out) :: ex(2,2)
-      integer, intent(in) :: i,j,a,b
-
-      ex(1,1) = i
-      ex(1,2) = j
-      ex(2,1) = a
-      ex(2,2) = b
-    end subroutine set_ex
 
   end subroutine init_pcpp_doubles_excitgen
 
@@ -627,7 +616,8 @@ contains
       integer, intent(in) :: src, tgt
       real(dp) :: prob
       integer :: b, j
-      integer :: ex(2,2), nI(nel)
+      integer :: nI(nel)
+      type(SingleExc_t) :: ex
       logical :: tPar
 
       prob = 0
@@ -639,12 +629,10 @@ contains
                do j = 1, nel
                   ! get the excited determinant D_j^b used for the matrix element
                   if(symAllowed(refDet(j),b)) then
-                     call make_single(refDet(:), nI, j, b, ex, tPar)
+                     call make_single(refDet(:), nI, j, b, ex%val, tPar)
                      ! this is a symbolic excitation, we do NOT require src to be occupied
                      ! we just use the formula for excitation matrix elements
-                     ex(1,1) = src
-                     ex(2,1) = tgt
-                     prob = prob + abs(sltcnd_excit(nI,1,ex,tPar))
+                     prob = prob + abs(sltcnd_excit(nI, SingleExc_t(src, tgt), tPar))
                   endif
                end do
             endif
