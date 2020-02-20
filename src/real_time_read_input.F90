@@ -28,6 +28,10 @@ module real_time_read_input_module
         ! usually only real-valued FCIDUMPs
         t_complex_ints = .false.
 
+#ifndef CMPLX_
+        call stop_all(this_routine, "Real-time calculations require kneci or kmneci")
+#endif
+
         ! and set default values for the real-time calculation
         call set_real_time_defaults()
 

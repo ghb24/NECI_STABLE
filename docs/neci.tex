@@ -1352,6 +1352,76 @@ the \texttt{endsys} keyword.
     first line provides the orbital labels for the first term in the sum, the
     second line for the second term, etc...
 
+    \subsubsection{REALTIME Block}
+    The REALTIME block enables the calculation of the real-time evolution of a
+    given state and is only required for real-time calculations. Real-time
+    evolution strictly requires \texttt{kneci} or \texttt{kmneci} and using
+    \texttt{kmneci} is strongly recommended. This block is started with the
+    \texttt{realtime} keyword and terminatd with the \texttt{endrealtime}
+    keyword.
+
+    \begin{description}
+      \codeitem{realtime}
+      Starts the realtime block. This automatically enables \texttt{readpops},
+      and reads from a file named \texttt{<popsfilename>.0}.
+      \codeitem{endrealtime}
+      Terminates the REALTIME block.
+      \codeitem{single $i$ $a$}
+      Applies a single excitation operator exciting from orbital $i$ to
+      orbital $a$ to the initial state before starting the calculation.
+      \codeitem{lesser $i$ $j$}
+      Calculates the one-particle Green's function $<c_i^\dagger(t)
+      c_j>$. Requires using one electron less than in the popsfile.
+      \codeitem{greater $i$ $j$}
+      Calculates the one-particle Green's function $<c_i(t)
+      c_j^\dagger>$. Requires using one electron more than in the popsfile.
+      \codeitem{start-hf}
+      Do not read in a popsfile but start from a single determinant.
+      \codeitem{rotate-time $\alpha$}
+      Calculates the evolution along a trajectory $e^{i\alpha}t$ instead of
+      pure real-time trajectory.
+      \codeitem{dynamic-rotation $\eta$}
+      Determine a time-dependent $\alpha$ on the fly for
+      \texttt{rotate-time}. $\eta$ is optional and a damping parameter,
+      defaults to 0.05. $\alpha$ is then chosen such that the walker number
+      remains constant.
+      \codeitem{rotation-threshold $N$}
+      Grow the population to $N$ walkers before starting to adjust $\alpha$.
+      \codeitem{stepsalpha $n$}
+      The number of timesteps between two updates of the $\alpha$ parameter
+      when using \texttt{dynamic-rotation}.
+      \codeitem{log-trajectory}
+      Output the time trajectory to a separate file. This is useful if the
+      same calculation shall be reproduced.
+      \codeitem{read-trajectory}
+      Read the time trajectory from disk, using a file created by NECI with
+      the \texttt{log-trajectory} keyword.
+      \codeitem{live-trajectory}
+      Read the time trajectory from disk, using a file which is currently
+      being created by NECI with the \texttt{log-trajectory} keyword. Can be
+      used to create additional data for the same trajectory while the
+      original calculation is still running.
+      \codeitem{noshift}
+      Do not apply a shift during the real-time evolution. Strongly
+      recommended.
+      \codeitem{stabilize-walkers $S$}
+      Use the shift to stabilize the walker number if it drops below 80\% of
+      the peak value. $S$ Is optional and is an asymptotic value used to fix
+      the shift.
+      \codeitem{energy-benchmark $E$}
+      Set the energy origin to $E$ by applying a global, constant shift to the
+      Hamiltonian. Can be chosen arbitrarily, but a reasonable selection can
+      greatly help efficiency.
+      \codeitem{rt-pops}
+      A second popsfile is supplied containing a time evolved state created with the
+      \texttt{realtime} keyword whose time
+      evolution is to be continued. In this case, the original popsfile is
+      still required for calculating properties, so two popsfiles will be
+      read in.
+    \end{description}
+
+    
+
     \subsection{LOGGING Block}
     The LOGGING block specifies the output of the calculation and which
     status information of the calculation shall be collected. This block is
