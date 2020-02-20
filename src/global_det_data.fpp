@@ -1,4 +1,5 @@
 #include "macros.h"
+#:include "macros.fpph"
 
 module global_det_data
 
@@ -149,7 +150,7 @@ contains
 
         integer :: tot_len
         integer :: ierr
-        character(*), parameter :: t_r = 'init_global_det_data'
+        character(*), parameter :: this_routine = 'init_global_det_data'
 
         ! The position and size of diagonal matrix elements in the array.
         ! This is set as a module wide parameter, rather than as runtime, as
@@ -166,7 +167,7 @@ contains
             len_tau_int = 0
             len_shift_int = 0
         end if
-        
+
         if(tAutoAdaptiveShift)then
             len_tot_spawns = inum_runs
             len_acc_spawns = inum_runs
@@ -284,16 +285,16 @@ contains
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
-        log_alloc(global_determinant_data, glob_tag, ierr)
+        @:log_alloc(global_determinant_data, glob_tag, ierr)
 
         if(tMoveGlobalDetData)then
             allocate(global_determinant_data_tmp(tot_len, MaxWalkersPart), stat=ierr)
-            log_alloc(global_determinant_data_tmp, glob_tmp_tag, ierr)
+            @:log_alloc(global_determinant_data_tmp, glob_tmp_tag, ierr)
         endif
 
         if(tStoredDets) then
            allocate(global_determinants(len_det_orbs, MaxWalkersPart), stat=ierr)
-           log_alloc(global_determinants, glob_det_tag, ierr)
+           @:log_alloc(global_determinants, glob_det_tag, ierr)
         endif
 
         write(6,'(a,f14.6,a)') &
@@ -1057,7 +1058,7 @@ contains
       integer, intent(in) :: j
       real(dp) :: maxSpawn
 
-      maxSpawn = global_determinant_data(pos_max_ratio,j)      
+      maxSpawn = global_determinant_data(pos_max_ratio,j)
     end function get_max_ratio
 
     !------------------------------------------------------------------------------------------!
@@ -1067,28 +1068,28 @@ contains
         ! Input: j - index of the determinant
         !        spawn - walkers to spawn in this attempt
         implicit none
-        real(dp), intent(in) :: spawn        
+        real(dp), intent(in) :: spawn
         integer, intent(in) :: j
-        
+
         if(abs(spawn) > get_max_ratio(j)) &
             call set_max_ratio(abs(spawn), j)
     end subroutine update_max_ratio
 
-    !------------------------------------------------------------------------------------------!    
+    !------------------------------------------------------------------------------------------!
 
     subroutine set_max_ratio(val, j)
         ! Set the maximum ratio Hij/pgen for the determinant j to val
         ! Input: j - index of the determinant
         !        val - new maximum Hij/pgen ratio
         implicit none
-        real(dp), intent(in) :: val        
+        real(dp), intent(in) :: val
         integer, intent(in) :: j
 
         global_determinant_data(pos_max_ratio,j) = val
     end subroutine set_max_ratio
-  
+
     !------------------------------------------------------------------------------------------!
-    
+
     subroutine write_max_ratio(ms_vals, ndets, initial)
         ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
         ! Input: ndets - number of determinants
@@ -1119,7 +1120,7 @@ contains
         !        ndets - number of values to be read in
         !        initial - index of the first entry to fill (everything before will be unchanged
         implicit none
-        real(dp), intent(in) :: ms_vals(:,:)      
+        real(dp), intent(in) :: ms_vals(:,:)
         integer, intent(in) :: ndets
         integer, intent(in), optional :: initial
 
@@ -1133,14 +1134,14 @@ contains
 
     end subroutine set_all_max_ratios
 
-    !------------------------------------------------------------------------------------------!    
+    !------------------------------------------------------------------------------------------!
 
 #ifdef USE_HDF_
     subroutine set_max_ratio_hdf5Int(val, j)
         use hdf5, only: hsize_t
         ! Set the maximum ratio Hij/pgen for the determinant j to val
         ! Input: j - index of the determinant
-        !        val - new maximum Hij/pgen ratio, bitwise re-interpreted as hsize_t int        
+        !        val - new maximum Hij/pgen ratio, bitwise re-interpreted as hsize_t int
         implicit none
         integer(hsize_t), intent(in) :: val(:)
         integer, intent(in) :: j
@@ -1152,12 +1153,12 @@ contains
     end subroutine set_max_ratio_hdf5Int
 
     !------------------------------------------------------------------------------------------!
-    
+
     subroutine write_max_ratio_as_int(ms_vals, pos)
         use hdf5, only: hsize_t
       use FciMCData, only: CurrentDets, iLutHF
       use bit_rep_data, only: extract_sign
-      use DetBitOps, only: FindBitExcitLevel        
+      use DetBitOps, only: FindBitExcitLevel
         ! Write the values of the maximum ratios Hij/pgen for all determinants to ms_vals
         ! Input: pos - position to get the data from
         !        ms_vals - On return, contains the maximum Hij/pgen ratios for all determinants
@@ -1170,8 +1171,8 @@ contains
         ms_vals(1) = transfer(global_determinant_data(pos_max_ratio,pos), ms_vals(1))
 
     end subroutine write_max_ratio_as_int
-    
-#endif    
+
+#endif
 
     !------------------------------------------------------------------------------------------!
     !    Global storage for storing nI for each occupied determinant to save time for

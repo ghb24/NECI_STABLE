@@ -1,4 +1,5 @@
 #include "macros.h"
+#:include "macros.fpph"
 
 module hist
 
@@ -1067,11 +1068,11 @@ contains
     subroutine init_hist_excit_tofrom()
 
         integer :: ierr
-        character(*), parameter :: t_r = 'init_hist_excit_tofrom'
+        character(*), parameter :: this_routine = 'init_hist_excit_tofrom'
 
         ! Initialise storage for these excitaitons
         allocate(hist_excit_tofrom(0:nel, 0:nel), stat=ierr)
-        log_alloc(hist_excit_tofrom, tag_hist_excit, ierr)
+        @:log_alloc(hist_excit_tofrom, tag_hist_excit, ierr)
 
         ! Zero everything
         hist_excit_tofrom = 0

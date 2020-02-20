@@ -54,7 +54,6 @@ set( SRC_FILES
 	gdata_io.F90
     gen_coul.F
     gen_coul_ueg.F90
-    global_det_data.F90
     global_utilities.F90
     gndts_blk.F
     gndts.F90
@@ -69,7 +68,6 @@ set( SRC_FILES
     HFCalc.F90
     hilbert_space_size.F90
     hist_data.F90
-    hist.F90
     HPHFRandExcit.F90
     hubbard.F
     init_coul2D.F
@@ -94,7 +92,6 @@ set( SRC_FILES
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
-    load_balancer.F90
     LoggingData.F90
     Logging.F90
     Makefile
@@ -124,7 +121,6 @@ set( SRC_FILES
     rdm_explicit.F90
     rdm_filling.F90
     rdm_finalising.F90
-    rdm_general.F90
     rdm_integral_fns.F90
     rdm_nat_orbs.F90
     rdm_reading.F90
@@ -219,6 +215,10 @@ set( FYPP_SRC_FILES
     gasci.fpp
     excitation_types.fpp
 	shared_array.fpp
+    load_balancer.fpp
+    global_det_data.fpp
+    rdm_general.fpp
+    hist.fpp
 )
 
 set( TEMPLATED_SRC_FILES
