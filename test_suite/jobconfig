@@ -117,6 +117,9 @@ tolerance = (2e-9, None, '1_rdm_diag_sum'),(5e-10, None, 'energy_rdm_1'),(1e-5,N
 
 [kneci/Se2_mag_semi_pops/]
 program = kneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
 tolerance = (2e-9, None, 'final_energy_1')
 
 [mneci/kpfciqmc/fci_all_sym/]
