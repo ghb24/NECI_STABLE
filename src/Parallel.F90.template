@@ -507,7 +507,7 @@ contains
             write(6,*) 'Opp', itype
             write(6,*) 'ierr', ierr
             call mpi_error_class(ierr, errorclass, jerr)
-            call mpi_error_string(errorclass,string, length, jerr)
+            call mpi_error_string(errorclass,string, length, jerr)            
             call stop_all (t_r, string)
         end if
 #else
@@ -1638,13 +1638,13 @@ contains
                 write(6,*) "outfile=", NodeFile
 #endif
                 close(6, status="keep")
-! #ifdef DEBUG_
+#ifdef DEBUG_
                 open(6, file=NodeFile, recl=8192)
                 write(6,*) "Processor ", iProcIndex+1, '/', nProcessors, &
                            ' on local output.'
-! #else
-!                 open(6, file="/dev/null", recl=8192)
-! #endif
+#else
+                open(6, file="/dev/null", recl=8192)
+#endif
             endif
 
             call GetProcElectrons (iProcIndex, iProcMinE, iProcMaxE)
