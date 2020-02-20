@@ -127,7 +127,7 @@ contains
         ! i can calculate the C_i^2 at the beginning already since it is
         ! always the same and i guess i have atleast on contribution atleast
         ! for each occupied orbital
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
         ! i do not want to deal with complex runs for now..
         call stop_all(this_routine, &
@@ -272,7 +272,7 @@ contains
             ! x = which integer?
             ! y = which position in integer?
             if (btest(alpha(x),y)) then
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
@@ -289,7 +289,7 @@ contains
             end if
 
             if (btest(beta(x),y)) then
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
@@ -323,7 +323,7 @@ contains
             spin_orb = nI(i)
             spat_orb = gtid(spin_orb)
             if (is_alpha(spin_orb)) then
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
@@ -339,7 +339,7 @@ contains
 #endif
             end if
             if (is_beta(spin_orb)) then
-#if defined __PROG_NUMRUNS || defined __DOUBLERUN
+#if defined PROG_NUMRUNS_ || defined DOUBLERUN_
 #ifdef CMPLX_
             call stop_all(this_routine, &
                 "complex double occupancy measurement not yet implemented!")
@@ -469,7 +469,7 @@ contains
         integer :: i
         character(12) :: num
 
-        unused_var(iter_data)        
+        unused_var(iter_data)
         def_default(state%init,initial,.false.)
 
         if (iProcIndex == root .and. .not. inited) then

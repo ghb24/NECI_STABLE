@@ -1828,7 +1828,7 @@ contains
                  end if
 
             case("FIXED-N0")
-#ifdef __CMPL
+#ifdef CMPLX_
                 call stop_all(t_r, 'FIXED-N0 currently not implemented for complex')
 #endif
                 tFixedN0 = .true.
@@ -1840,7 +1840,7 @@ contains
                 tReadPopsChangeRef = .false.
                 tChangeProjEDet = .false.
             case("TRIAL-SHIFT")
-#ifdef __CMPL
+#ifdef CMPLX_
                 call stop_all(t_r, 'TRIAL-SHIFT currently not implemented for complex')
 #endif
                 if (item.lt.nitems) then

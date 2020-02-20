@@ -28,6 +28,7 @@ contains
     call init_excitgen_test()
 
     ! prepare the pcpp excitation generator: get the precomputed weights
+
     call set_ref()
     call init_pcpp_excitgen()
 

@@ -399,7 +399,7 @@ contains
             write(6,*) ValidSpawnedList
             write(6,*) InitialSpawnedSlots
             if(MaxSpawned / nProcessors < 0.1_dp * TotWalkers) write(6,*) &
-                "Memory available for spawns is too low, number of processes might be too high for the given walker number"            
+                "Memory available for spawns is too low, number of processes might be too high for the given walker number"
 #else
             print *, "Attempting to spawn particle onto processor: ", proc
             print *, "No memory slots available for this spawn, terminating calculation"
@@ -409,10 +409,10 @@ contains
 
             ! give a note on the counter-intuitive scaling behaviour
             if(MaxSpawned / nProcessors < 0.1_dp * TotWalkers) print *, &
-                "Memory available for spawns is too low, number of processes might be too high for the given walker number"    
+                "Memory available for spawns is too low, number of processes might be too high for the given walker number"
 #endif
         end if
-        
+
     end function checkValidSpawnedList
 
     ! This routine sums in the energy contribution from a given walker and
@@ -649,7 +649,7 @@ contains
 
         ! Sum in energy contribution
         do run=1, inum_runs
-           
+
            if (iter > NEquilSteps) &
                 SumENum(run) = SumENum(run) + enum_contrib()
 
@@ -706,7 +706,7 @@ contains
 
            dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
          end function enum_contrib
-        
+
     end subroutine SumEContrib
 
 
@@ -904,7 +904,7 @@ contains
         subroutine add_sign_on_run(var)
           implicit none
           real(dp), intent(inout) :: var(lenof_sign)
-          
+
 #ifdef CMPLX_
           var(min_part_type(run)) = var(min_part_type(run)) + real(sgn_run)
           var(max_part_type(run)) = var(max_part_type(run)) + aimag(sgn_run)
@@ -919,7 +919,7 @@ contains
 
           dE = (hoffdiag * sgn_run) / dProbFin
         end function enum_contrib
-        
+
     end subroutine SumEContrib_different_refs
 
     subroutine CalcParentFlag_normal(j, parent_flags)
@@ -1420,7 +1420,7 @@ contains
            enddo
 #else
            var = var + TotParts
-#endif           
+#endif
          end subroutine add_part_number
 
     end subroutine end_iter_stats
@@ -1691,7 +1691,7 @@ contains
 
 
       end function CheckAllowedTruncSpawn
-      
+
 !Routine which takes a set of determinants and returns the ground state energy
     subroutine LanczosFindGroundE(Dets,DetLen,GroundE,ProjGroundE,tInit)
         use DetCalcData, only : NKRY,NBLK,B2L,nCycle
@@ -2571,20 +2571,10 @@ contains
                 hoffdiag = 0.0_dp
                 if (exlevel == 0) then
 
-#ifdef CMPLX_
-                    HFInst(min_part_type(run)) = HFInst(min_part_type(run)) + real(sgn_run)
-                    HFInst(max_part_type(run)) = HFInst(max_part_type(run)) + aimag(sgn_run)
-#else
                     HFInst(run) = HFInst(run) + sgn_run
-#endif
-                    if(tCalcAccumE) then
-#ifdef CMPLX_
-                    HFAccum(min_part_type(run)) = HFAccum(min_part_type(run)) + real(accum_sgn_run)
-                    HFAccum(max_part_type(run)) = HFAccum(max_part_type(run)) + aimag(accum_sgn_run)
-#else
-                    HFAccum(run) = HFAccum(run) + accum_sgn_run
-#endif
 
+                    if(tCalcAccumE) then
+                        HFAccum(run) = HFAccum(run) + accum_sgn_run
                     endif
 
                 else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then

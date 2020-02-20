@@ -25,7 +25,8 @@ module excit_gens_int_weighted
     use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtid, UMat2d
     use OneEInts, only: GetTMATEl
-    use sltcnd_mod, only: sltcnd_1
+    use excitation_types, only: SingleExc_t
+    use sltcnd_mod, only: sltcnd_excit
     use GenRandSymExcitNUMod, only: PickElecPair, gen_rand_excit, &
                                     init_excit_gen_store, &
                                     construct_class_counts, &
@@ -538,7 +539,7 @@ contains
             orb = SymLabelList2(label_index + i - 1)
             if (IsNotOcc(ilutI, orb)) then
                ex(2) = orb
-               hel = sltcnd_1(nI,ex,.false.)
+               hel = sltcnd_excit(nI, SingleExc_t(ex), .false.)
                cpt = abs_l1(hel)
 
                 if (t_matele_cutoff) then
@@ -606,7 +607,7 @@ contains
                 ! This is based on an extract from sltcnd_1.
                 ! set the excitation we consider
                 ex(2) = orb
-                hel = sltcnd_1(nI,ex,.false.)
+                hel = sltcnd_excit(nI, SingleExc_t(ex), .false.)
             end if
 
             ! And store the values for later searching

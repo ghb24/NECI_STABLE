@@ -204,6 +204,11 @@ MODULE System
       t_pchb_weighted_singles = .false.      
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
+      ! GAS options
+      tSpinConservingGAS = .false.
+      tNConservingGAS = .false.
+
+#ifdef PROG_NUMRUNS_
       ! by default, excitation generation already creates matrix elements
       tGenMatHEl = .true.
       tInfSumTCCalc= .false.
@@ -219,7 +224,6 @@ MODULE System
       t12FoldSym = .false.
       t_initialized_roi = .false.
 
-#ifdef PROG_NUMRUNS_
       inum_runs = 1
 #ifdef CMPLX_
       lenof_sign = 2
@@ -1501,6 +1505,14 @@ system: do
 
             ! Looks nice, but it currently breaks lots of other stuff!
             tGiovannisBrokenInit = .true.
+
+         case("SPIN-CONSERVING-GAS")
+            tNConservingGAS = .true.
+            tSpinConservingGAS = .true.
+
+         case("PART-CONSERVING-GAS")
+            tNConservingGAS = .true.
+            tSpinConservingGAS = .false.
 
         case("ENDSYS")
             exit system

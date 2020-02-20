@@ -40,9 +40,9 @@
 #define paired_replica(ind) (ind+2*mod(ind,2)-1)
 
 ! The spin where 1=alpha, 2=beta
-#define get_spin(orb) (1+iand(orb,1))
+#define get_spin(orb) (1+mod(orb,2))
 ! The spin where 1=alpha, -1=beta
-#define get_spin_pn(orb) (1-2*iand(orb,1))
+#define get_spin_pn(orb) (1-2*mod(orb,2))
 
 ! Is the specified orbital part of a doubly occupied pair?
 #define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
@@ -209,7 +209,7 @@ endif
 
 ! Cast a real value to HElement_t
 #ifdef CMPLX_
-#define h_cast(val) cmplx(val,0.0_dp)
+#define h_cast(val) cmplx(val,0.0_dp,kind=dp)
 #else
 #define h_cast(val) val
 #endif

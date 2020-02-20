@@ -42,7 +42,7 @@ MODULE HPHFRandExcitMod
 
     use constants, only: dp,n_int, EPS, maxExcit
 
-    use sltcnd_mod, only: sltcnd_excit
+    use sltcnd_mod, only: dyn_sltcnd_excit_old
 
     use bit_reps, only: NIfD, NIfDBO, NIfTot
 
@@ -247,17 +247,17 @@ MODULE HPHFRandExcitMod
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
 
         else if (t_heisenberg_model) then
-            call gen_excit_heisenberg_model(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+            call gen_excit_heisenberg_model(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
 
         else if (t_k_space_hubbard) then
-            ! for Kais unifrom excitation generator i have to make it compatible 
+            ! for Kais unifrom excitation generator i have to make it compatible
             ! with HPHF
-            if (t_uniform_excits) then 
-                call gen_excit_uniform_k_space_hub(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+            if (t_uniform_excits) then
+                call gen_excit_uniform_k_space_hub(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
-            else 
-                call gen_excit_k_space_hub(nI, ilutnI, nJ, ilutnJ, exFlag, ic, & 
+            else
+                call gen_excit_k_space_hub(nI, ilutnI, nJ, ilutnJ, exFlag, ic, &
                                       ExcitMat, tSignOrig, pgen, Hel, store, part_type)
             end if
 
@@ -300,27 +300,27 @@ MODULE HPHFRandExcitMod
                     if(tOddS_HPHF) then
                         call stop_all("gen_hphf_excit","Should not be at closed shell det with Odd S")
                     else
-                        ! [W.D. 30.10.2017] 
-                        ! have to change here to use the real-space hubbard 
-                        ! routines.. thats why this whole HPHF should be 
+                        ! [W.D. 30.10.2017]
+                        ! have to change here to use the real-space hubbard
+                        ! routines.. thats why this whole HPHF should be
                         ! reworked.
                         ! [W.D. 13.11.2017]
-                        ! somehow i reintroduced a bug in the HPHF + hubbard 
+                        ! somehow i reintroduced a bug in the HPHF + hubbard
                         ! implementation with "fixes" in here -> check that!
-                        if (t_lattice_model) then 
-                            if (t_k_space_hubbard .or. & 
-                                (t_new_real_space_hubbard .and. t_trans_corr_hop)) then 
+                        if (t_lattice_model) then
+                            if (t_k_space_hubbard .or. &
+                                (t_new_real_space_hubbard .and. t_trans_corr_hop)) then
                                 temp_ex(1,:) = ExcitMat(2,:)
-                                temp_ex(2,:) = ExcitMat(1,:) 
+                                temp_ex(2,:) = ExcitMat(1,:)
                                 hel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                             else
 
-                                call Stop_All(this_routine, & 
+                                call Stop_All(this_routine, &
                                     "no closed shell to closed shell possible in real-space lattice models!")
                                 ! except for hopping transcorrelatd real-space hubbard!
                             end if
-                        else 
-                            HEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                        else
+                            HEl = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tSignOrig)
                         end if
                     endif
                 ELSE
@@ -329,12 +329,12 @@ MODULE HPHFRandExcitMod
                         !Odd S States cannot have CS components
                         HEl=0.0_dp
                     else
-                        if (t_lattice_model) then 
+                        if (t_lattice_model) then
                             temp_ex(1,:) = ExcitMat(2,:)
-                            temp_ex(2,:) = ExcitMat(1,:) 
+                            temp_ex(2,:) = ExcitMat(1,:)
                             Matel = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                            MatEl = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tSignOrig)
                         end if
                         HEl=MatEl*SQRT(2.0_dp)
                     endif
@@ -391,37 +391,37 @@ MODULE HPHFRandExcitMod
                             !Cannot have CS components
                             HEl=0.0_dp
                         else
-                            if (t_lattice_model) then 
-                                ! do i take the correct nJs here.. 
+                            if (t_lattice_model) then
+                                ! do i take the correct nJs here..
                                 ! not possible in the heisenberg model
                                 ASSERT(.not. t_heisenberg_model)
                                 ! only hopping can lead to that!
                                 !todo: fix here for k-space hubbard!
-!                                 ASSERT(ic == 1) 
+!                                 ASSERT(ic == 1)
 !                                 ASSERT(ExcitLevel == 1)
-                                ! here we want by definition the matrix 
-                                ! element and the sign between nI and the 
-                                ! to-be stored nJ 
-                                if (tSwapped) then 
-                                    ! if nJ and nJ2 were swapped 
-                                    ! ex2 and tSign is associated with the 
-                                    ! excitation nI -> nJ 
+                                ! here we want by definition the matrix
+                                ! element and the sign between nI and the
+                                ! to-be stored nJ
+                                if (tSwapped) then
+                                    ! if nJ and nJ2 were swapped
+                                    ! ex2 and tSign is associated with the
+                                    ! excitation nI -> nJ
                                     temp_ex(1,:) = ex2(2,:)
-                                    temp_ex(2,:) = ex2(1,:) 
+                                    temp_ex(2,:) = ex2(1,:)
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSign)
-                                else 
-                                    ! if they are not swapped the original 
-                                    ! ExcitMat and tSignOrig are associated 
-                                    ! with nI -> nJ 
+                                else
+                                    ! if they are not swapped the original
+                                    ! ExcitMat and tSignOrig are associated
+                                    ! with nI -> nJ
                                     temp_ex(1,:) = ExcitMat(2,:)
-                                    temp_ex(2,:) = ExcitMat(1,:) 
+                                    temp_ex(2,:) = ExcitMat(1,:)
                                     MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                                 end if
                             else
                                 IF(tSwapped) THEN
-                                    MatEl = sltcnd_excit (nI, IC, Ex2, tSign)
+                                    MatEl = dyn_sltcnd_excit_old(nI, IC, Ex2, tSign)
                                 ELSE
-                                    MatEl = sltcnd_excit (nI, IC, ExcitMat, &
+                                    MatEl = dyn_sltcnd_excit_old(nI, IC, ExcitMat, &
                                                           tSignOrig)
                                 ENDIF
                             endif
@@ -430,22 +430,22 @@ MODULE HPHFRandExcitMod
                     ELSE     !Open shell -> Open shell
 
 !First find nI -> nJ. If nJ has swapped, then this will be different.
-                        if (t_lattice_model) then 
-                            if (tSwapped) then 
+                        if (t_lattice_model) then
+                            if (tSwapped) then
                                 temp_ex(1,:) = ex2(2,:)
                                 temp_ex(2,:) = ex2(1,:)
                                 MatEl = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign)
-                            else 
+                            else
                                 temp_ex(1,:) = ExcitMat(2,:)
                                 temp_ex(2,:) = ExcitMat(1,:)
                                 MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                             end if
                         else
                             IF(tSwapped) THEN
-                                MatEl = sltcnd_excit (nI, ExcitLevel, Ex2, &
+                                MatEl = dyn_sltcnd_excit_old (nI, ExcitLevel, Ex2, &
                                                       tSign)
                             ELSE
-                                MatEl = sltcnd_excit (nI, IC, ExcitMat, &
+                                MatEl = dyn_sltcnd_excit_old (nI, IC, ExcitMat, &
                                                       tSignOrig)
                             ENDIF
                         end if
@@ -461,28 +461,28 @@ MODULE HPHFRandExcitMod
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSignOrig=.not.tSignOrig
  !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 if (t_lattice_model) then
-                                    ! here i want to get nI -> nJ2 
-                                    ! when it was swapped the original 
-                                    ! ExcitMat and tSignOrig are associated 
+                                    ! here i want to get nI -> nJ2
+                                    ! when it was swapped the original
+                                    ! ExcitMat and tSignOrig are associated
                                     ! with the excitation
                                     temp_ex(1,:) = ExcitMat(2,:)
                                     temp_ex(2,:) = ExcitMat(1,:)
                                     MatEl2 = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
-                                else 
-                                    MatEl2 = sltcnd_excit (nI, IC, ExcitMat, &
+                                else
+                                    MatEl2 = dyn_sltcnd_excit_old(nI, IC, ExcitMat, &
                                                        tSignOrig)
                                end if
                             ELSE
 !I.e. J odd and I even or vice versa, but since these can only be at max quads, then they can only have 1/2 open orbs
                                 IF((OpenOrbsJ+OpenOrbsI).eq.3) tSign=.not.tSign
                                 if (t_lattice_model) then
-                                    ! if they were not swapped Ex2 and tSign 
-                                    ! are associated with nI -> nJ2 
+                                    ! if they were not swapped Ex2 and tSign
+                                    ! are associated with nI -> nJ2
                                     temp_ex(1,:) = ex2(2,:)
                                     temp_ex(2,:) = ex2(1,:)
                                     MatEl2 = get_helement_lattice(nJ2, ExcitLevel, temp_ex, tSign)
                                 else
-                                    MatEl2 = sltcnd_excit (nI,  ExcitLevel, &
+                                    MatEl2 = dyn_sltcnd_excit_old(nI,  ExcitLevel, &
                                                        Ex2, tSign)
                                 end if
                             ENDIF
@@ -543,20 +543,20 @@ MODULE HPHFRandExcitMod
                                 tSignOrig=.not.tSignOrig
                             ENDIF
                         ENDIF
-                        if (t_lattice_model) then 
+                        if (t_lattice_model) then
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:)
                             MatEl = get_helement_lattice(nJ2, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit(nI,  IC, ExcitMat, tSignOrig)
+                            MatEl = dyn_sltcnd_excit_old(nI,  IC, ExcitMat, tSignOrig)
                         endif
                     ELSE
-                        if (t_lattice_model) then 
+                        if (t_lattice_model) then
                             temp_ex(1,:) = ExcitMat(2,:)
                             temp_ex(2,:) = ExcitMat(1,:)
                             MatEl = get_helement_lattice(nJ, ic, temp_ex, tSignOrig)
                         else
-                            MatEl = sltcnd_excit (nI, IC, ExcitMat, tSignOrig)
+                            MatEl = dyn_sltcnd_excit_old(nI, IC, ExcitMat, tSignOrig)
                         end if
                     ENDIF
 
@@ -574,7 +574,7 @@ MODULE HPHFRandExcitMod
         ! We return Hij, but the requested matrix element is Hji = Hij* -> conjugate
         ! (only required with complex matrix elements)
         HEl = conjg(HEl)
-#endif        
+#endif
 
     end subroutine
 
@@ -840,9 +840,9 @@ MODULE HPHFRandExcitMod
         end if
 
         ! does it help to avoid recalculating for the reference?
-        ! do i need to  check if it is actually a non-initiator? 
-        ! i guess i do.. or i go the unnecessary way of checking again in 
-        ! the called back-spawn functions 
+        ! do i need to  check if it is actually a non-initiator?
+        ! i guess i do.. or i go the unnecessary way of checking again in
+        ! the called back-spawn functions
         if(t_mol_3_body.or.t_ueg_3_body) then
            pgen = calc_pgen_mol_tc(nI, ex, ic, ClassCount2, ClassCountUnocc2, pDoub)
         else if ((t_back_spawn .or. t_back_spawn_flex) .and. &
@@ -876,31 +876,31 @@ MODULE HPHFRandExcitMod
                                                 ClassCountUnocc2)
             else if (tGen_4ind_reverse) then
                 pgen = calc_pgen_4ind_reverse (nI, ilutI, ex, ic)
-            else if (t_new_real_space_hubbard) then 
-                if (t_trans_corr_hop) then 
-                    if (t_uniform_excits) then 
+            else if (t_new_real_space_hubbard) then
+                if (t_trans_corr_hop) then
+                    if (t_uniform_excits) then
                         pgen = calc_pgen_rs_hubbard_transcorr_uniform(ex, ic)
-                    else 
+                    else
                         pgen = calc_pgen_rs_hubbard_transcorr(nI, ilutI, ex, ic)
                     end if
-                else if (t_spin_dependent_transcorr) then 
+                else if (t_spin_dependent_transcorr) then
                     pgen = calc_pgen_rs_hubbard_spin_dependent_transcorr(nI,ilutI,ex,ic)
                 else
                     pgen = calc_pgen_rs_hubbard(ilutI, ex, ic)
                 end if
 
-            else if (t_tJ_model) then 
-                pgen = calc_pgen_tJ_model(ilutI, ex, ic) 
+            else if (t_tJ_model) then
+                pgen = calc_pgen_tJ_model(ilutI, ex, ic)
 
-            else if (t_heisenberg_model) then 
-                pgen = calc_pgen_heisenberg_model(ilutI, ex, ic) 
+            else if (t_heisenberg_model) then
+                pgen = calc_pgen_heisenberg_model(ilutI, ex, ic)
 
-            else if (t_k_space_hubbard) then 
+            else if (t_k_space_hubbard) then
                 ! change with Kais uniform excitgen implementation
-                if (t_uniform_excits) then 
+                if (t_uniform_excits) then
                     if (ic == 2) then
                         call CalcPGenLattice(ex, pgen)
-                    else 
+                    else
                         pgen = 0.0_dp
                     end if
                 else
@@ -921,5 +921,3 @@ MODULE HPHFRandExcitMod
 
 
 END MODULE HPHFRandExcitMod
-
-

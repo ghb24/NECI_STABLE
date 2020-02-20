@@ -59,7 +59,7 @@ contains
         end if
 
         ! Magic! Avoids conditional tests.
-        tParity = .not. btest(elec - i, 0)
+        tParity = mod(elec - i, 2) == 0
 
 #ifdef DEBUG_
         ! This is a useful (but O[N]) check to test the generated determinant.

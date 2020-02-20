@@ -32,6 +32,7 @@ add_subdirectory( back_spawn_excit_gen )
 
 add_subdirectory( ueg_excit_gens )
 
+add_subdirectory( gasci )
 #add_subdirectory( tJ_model )
 
 #add_subdirectory( k_space_hubbard )

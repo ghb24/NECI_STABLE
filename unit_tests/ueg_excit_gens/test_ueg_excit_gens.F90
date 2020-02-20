@@ -68,7 +68,6 @@ contains
         use bit_rep_data, only: NIfTot
         use constants, only: n_int, dp
         use procedure_pointers, only: get_umat_el
-        use sltcnd_mod, only: sltcnd_2
 
         integer(n_int), ALLOCATABLE :: ilut(:)
         integer :: src(2), ex(2,2)
