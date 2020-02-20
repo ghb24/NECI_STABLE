@@ -43,7 +43,6 @@ set( SRC_FILES
     fast_determ_hamil.F90
     FciMCData.F90
     fcimc_helper.F90
-    fcimc_initialisation.F90
     fcimc_iter_utilities.F90
     FciMCLogging.F90
     fcimc_output.F90
@@ -214,6 +213,7 @@ set( SRC_FILES
 )
 
 set( FYPP_SRC_FILES
+    fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp
     gasci.fpp
