@@ -1,0 +1,41 @@
+title
+
+system hubbard real-space
+
+lattice square 2 2
+electrons 4
+b -1
+u 12
+twisted-bc 0.1 0.2
+guga 0
+nonuniformrandexcits ueg_guga
+endsys
+
+calc
+
+methods
+method vertex fcimc
+endmethods
+
+seed -7
+
+definedet 1 4 5 8
+
+allrealcoeff
+tau 0.01
+
+nmcyc 5000
+
+truncinitiator
+addtoinitiator 2
+totalwalkers 100
+shiftdamp 0.1
+stepsshift 10
+
+endcalc
+
+logging
+popsfile -1
+endlog
+
+end

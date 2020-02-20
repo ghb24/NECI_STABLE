@@ -1,0 +1,790 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Feb 17 2020 at 16:29:17
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     1c710fcb1f487c8822f0d3363158e32ad95530d8
+ Working directory: 
+     /home/dobrautz/src/neci/test_suite/mneci/guga/formamide_old_init
+ Running on: pcal008
+ Started running on 20/02/2020 at 10:54:44
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read noorder
+symignoreenergies
+freeformat
+electrons 18
+sym 0 0 0 0
+nonuniformrandexcits mol_guga_weighted
+guga 0
+nobrillouintheorem
+system-replicas 2
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+memoryfacpart 5.0
+memoryfacspawn 10.0
+memoryfachash 1.0
+nmcyc 100
+seed 8761
+startsinglepart 2000
+totalwalkers 5000
+shiftdamp 0.05
+diagshift 0.0
+truncinitiator
+addtoinitiator 3
+maxwalkerbloom 3
+allrealcoeff
+realspawncutoff 0.0
+stepsshift 1
+load-balance-blocks off
+tau 0.0005 search
+en2-initiator
+endcalc
+
+integral
+freeze 0 0
+endint
+
+logging
+paired-replicas
+replica-estimates
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    18
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+  NUMBER OF SPIN ORBITALS IN BASIS :   108
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   2
+  Generating abelian symmetry table with  1 generators
+  Number of symmetry classes: 2
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -7.827392534       -7.827392534
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -7.827392534       -7.827392534
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0       -6.935613641       -6.935613641
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0       -6.935613641       -6.935613641
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0       -6.421256198       -6.421256198
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0       -6.421256198       -6.421256198
+      7      7      0      0      0     -1 ( 0, 0, 0) 0   0       -6.633332701       -6.633332701
+      8      8      0      0      0      1 ( 0, 0, 0) 0   0       -6.633332701       -6.633332701
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0       -8.000664356       -8.000664356
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0       -8.000664356       -8.000664356
+     11     11      0      0      0     -1 ( 0, 0, 0) 0   0       -8.461852653       -8.461852653
+     12     12      0      0      0      1 ( 0, 0, 0) 0   0       -8.461852653       -8.461852653
+     13     13      0      0      0     -1 ( 0, 0, 1) 1   0       -7.403936212       -7.403936212
+     14     14      0      0      0      1 ( 0, 0, 1) 1   0       -7.403936212       -7.403936212
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0       -7.480740959       -7.480740959
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0       -7.480740959       -7.480740959
+     17     17      0      0      0     -1 ( 0, 0, 1) 1   0       -6.833999117       -6.833999117
+     18     18      0      0      0      1 ( 0, 0, 1) 1   0       -6.833999117       -6.833999117
+     19     19      0      0      0     -1 ( 0, 0, 0) 0   0       -3.451248543       -3.451248543
+     20     20      0      0      0      1 ( 0, 0, 0) 0   0       -3.451248543       -3.451248543
+     21     21      0      0      0     -1 ( 0, 0, 1) 1   0       -7.169740949       -7.169740949
+     22     22      0      0      0      1 ( 0, 0, 1) 1   0       -7.169740949       -7.169740949
+     23     23      0      0      0     -1 ( 0, 0, 0) 0   0       -3.556050515       -3.556050515
+     24     24      0      0      0      1 ( 0, 0, 0) 0   0       -3.556050515       -3.556050515
+     25     25      0      0      0     -1 ( 0, 0, 0) 0   0       -3.934192995       -3.934192995
+     26     26      0      0      0      1 ( 0, 0, 0) 0   0       -3.934192995       -3.934192995
+     27     27      0      0      0     -1 ( 0, 0, 0) 0   0       -5.122015130       -5.122015130
+     28     28      0      0      0      1 ( 0, 0, 0) 0   0       -5.122015130       -5.122015130
+     29     29      0      0      0     -1 ( 0, 0, 0) 0   0       -5.418851273       -5.418851273
+     30     30      0      0      0      1 ( 0, 0, 0) 0   0       -5.418851273       -5.418851273
+     31     31      0      0      0     -1 ( 0, 0, 0) 0   0       -5.449338136       -5.449338136
+     32     32      0      0      0      1 ( 0, 0, 0) 0   0       -5.449338136       -5.449338136
+     33     33      0      0      0     -1 ( 0, 0, 1) 1   0       -4.217224172       -4.217224172
+     34     34      0      0      0      1 ( 0, 0, 1) 1   0       -4.217224172       -4.217224172
+     35     35      0      0      0     -1 ( 0, 0, 0) 0   0       -5.460203106       -5.460203106
+     36     36      0      0      0      1 ( 0, 0, 0) 0   0       -5.460203106       -5.460203106
+     37     37      0      0      0     -1 ( 0, 0, 0) 0   0       -5.050880315       -5.050880315
+     38     38      0      0      0      1 ( 0, 0, 0) 0   0       -5.050880315       -5.050880315
+     39     39      0      0      0     -1 ( 0, 0, 0) 0   0       -7.399843425       -7.399843425
+     40     40      0      0      0      1 ( 0, 0, 0) 0   0       -7.399843425       -7.399843425
+     41     41      0      0      0     -1 ( 0, 0, 0) 0   0       -5.547843497       -5.547843497
+     42     42      0      0      0      1 ( 0, 0, 0) 0   0       -5.547843497       -5.547843497
+     43     43      0      0      0     -1 ( 0, 0, 0) 0   0       -5.693705131       -5.693705131
+     44     44      0      0      0      1 ( 0, 0, 0) 0   0       -5.693705131       -5.693705131
+     45     45      0      0      0     -1 ( 0, 0, 1) 1   0       -5.381266444       -5.381266444
+     46     46      0      0      0      1 ( 0, 0, 1) 1   0       -5.381266444       -5.381266444
+     47     47      0      0      0     -1 ( 0, 0, 0) 0   0       -6.934687553       -6.934687553
+     48     48      0      0      0      1 ( 0, 0, 0) 0   0       -6.934687553       -6.934687553
+     49     49      0      0      0     -1 ( 0, 0, 0) 0   0       -4.129560560       -4.129560560
+     50     50      0      0      0      1 ( 0, 0, 0) 0   0       -4.129560560       -4.129560560
+     51     51      0      0      0     -1 ( 0, 0, 1) 1   0       -5.343301914       -5.343301914
+     52     52      0      0      0      1 ( 0, 0, 1) 1   0       -5.343301914       -5.343301914
+     53     53      0      0      0     -1 ( 0, 0, 1) 1   0       -4.994659376       -4.994659376
+     54     54      0      0      0      1 ( 0, 0, 1) 1   0       -4.994659376       -4.994659376
+     55     55      0      0      0     -1 ( 0, 0, 0) 0   0       -5.770190675       -5.770190675
+     56     56      0      0      0      1 ( 0, 0, 0) 0   0       -5.770190675       -5.770190675
+     57     57      0      0      0     -1 ( 0, 0, 1) 1   0       -5.401740394       -5.401740394
+     58     58      0      0      0      1 ( 0, 0, 1) 1   0       -5.401740394       -5.401740394
+     59     59      0      0      0     -1 ( 0, 0, 0) 0   0       -3.592491990       -3.592491990
+     60     60      0      0      0      1 ( 0, 0, 0) 0   0       -3.592491990       -3.592491990
+     61     61      0      0      0     -1 ( 0, 0, 1) 1   0       -4.567771440       -4.567771440
+     62     62      0      0      0      1 ( 0, 0, 1) 1   0       -4.567771440       -4.567771440
+     63     63      0      0      0     -1 ( 0, 0, 0) 0   0       -3.530552846       -3.530552846
+     64     64      0      0      0      1 ( 0, 0, 0) 0   0       -3.530552846       -3.530552846
+     65     65      0      0      0     -1 ( 0, 0, 0) 0   0       -5.214905185       -5.214905185
+     66     66      0      0      0      1 ( 0, 0, 0) 0   0       -5.214905185       -5.214905185
+     67     67      0      0      0     -1 ( 0, 0, 0) 0   0       -4.353323925       -4.353323925
+     68     68      0      0      0      1 ( 0, 0, 0) 0   0       -4.353323925       -4.353323925
+     69     69      0      0      0     -1 ( 0, 0, 0) 0   0       -3.073070675       -3.073070675
+     70     70      0      0      0      1 ( 0, 0, 0) 0   0       -3.073070675       -3.073070675
+     71     71      0      0      0     -1 ( 0, 0, 1) 1   0       -3.372755745       -3.372755745
+     72     72      0      0      0      1 ( 0, 0, 1) 1   0       -3.372755745       -3.372755745
+     73     73      0      0      0     -1 ( 0, 0, 1) 1   0       -3.522934486       -3.522934486
+     74     74      0      0      0      1 ( 0, 0, 1) 1   0       -3.522934486       -3.522934486
+     75     75      0      0      0     -1 ( 0, 0, 0) 0   0       -2.958017267       -2.958017267
+     76     76      0      0      0      1 ( 0, 0, 0) 0   0       -2.958017267       -2.958017267
+     77     77      0      0      0     -1 ( 0, 0, 0) 0   0       -4.175060425       -4.175060425
+     78     78      0      0      0      1 ( 0, 0, 0) 0   0       -4.175060425       -4.175060425
+     79     79      0      0      0     -1 ( 0, 0, 0) 0   0       -4.189718284       -4.189718284
+     80     80      0      0      0      1 ( 0, 0, 0) 0   0       -4.189718284       -4.189718284
+     81     81      0      0      0     -1 ( 0, 0, 0) 0   0       -3.462147265       -3.462147265
+     82     82      0      0      0      1 ( 0, 0, 0) 0   0       -3.462147265       -3.462147265
+     83     83      0      0      0     -1 ( 0, 0, 0) 0   0       -2.506521884       -2.506521884
+     84     84      0      0      0      1 ( 0, 0, 0) 0   0       -2.506521884       -2.506521884
+     85     85      0      0      0     -1 ( 0, 0, 1) 1   0       -5.242922567       -5.242922567
+     86     86      0      0      0      1 ( 0, 0, 1) 1   0       -5.242922567       -5.242922567
+     87     87      0      0      0     -1 ( 0, 0, 1) 1   0       -3.434649477       -3.434649477
+     88     88      0      0      0      1 ( 0, 0, 1) 1   0       -3.434649477       -3.434649477
+     89     89      0      0      0     -1 ( 0, 0, 0) 0   0       -3.506906346       -3.506906346
+     90     90      0      0      0      1 ( 0, 0, 0) 0   0       -3.506906346       -3.506906346
+     91     91      0      0      0     -1 ( 0, 0, 0) 0   0       -2.475683136       -2.475683136
+     92     92      0      0      0      1 ( 0, 0, 0) 0   0       -2.475683136       -2.475683136
+     93     93      0      0      0     -1 ( 0, 0, 0) 0   0       -4.456775807       -4.456775807
+     94     94      0      0      0      1 ( 0, 0, 0) 0   0       -4.456775807       -4.456775807
+     95     95      0      0      0     -1 ( 0, 0, 0) 0   0       -4.788245232       -4.788245232
+     96     96      0      0      0      1 ( 0, 0, 0) 0   0       -4.788245232       -4.788245232
+     97     97      0      0      0     -1 ( 0, 0, 1) 1   0       -4.795205364       -4.795205364
+     98     98      0      0      0      1 ( 0, 0, 1) 1   0       -4.795205364       -4.795205364
+     99     99      0      0      0     -1 ( 0, 0, 0) 0   0       -3.789234016       -3.789234016
+    100    100      0      0      0      1 ( 0, 0, 0) 0   0       -3.789234016       -3.789234016
+    101    101      0      0      0     -1 ( 0, 0, 0) 0   0       -3.734529455       -3.734529455
+    102    102      0      0      0      1 ( 0, 0, 0) 0   0       -3.734529455       -3.734529455
+    103    103      0      0      0     -1 ( 0, 0, 1) 1   0       -4.991045540       -4.991045540
+    104    104      0      0      0      1 ( 0, 0, 1) 1   0       -4.991045540       -4.991045540
+    105    105      0      0      0     -1 ( 0, 0, 0) 0   0       -5.241545509       -5.241545509
+    106    106      0      0      0      1 ( 0, 0, 0) 0   0       -5.241545509       -5.241545509
+    107    107      0      0      0     -1 ( 0, 0, 0) 0   0       -5.208442293       -5.208442293
+    108    108      0      0      0      1 ( 0, 0, 0) 0   0       -5.208442293       -5.208442293
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     0
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already impleme
+ nted
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                1103355
+Memory required for integral storage:      8.417930603     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (  36  22|  10   7):   6.354664688456000E-009
+Ignoring integral (chem. notation) (  37  13|  31  30):  -8.586826758723000E-009
+Ignoring integral (chem. notation) (  37  35|  23   1):   6.758117080739000E-009
+Ignoring integral (chem. notation) (  41  26|  36  28):   5.900313499190000E-009
+Ignoring integral (chem. notation) (  41  28|  19   2):  -5.770459334523000E-009
+Ignoring integral (chem. notation) (  42  37|  37  20):  -2.717622454114000E-011
+Ignoring integral (chem. notation) (  43  17|   2   1):   2.146301557499000E-009
+Ignoring integral (chem. notation) (  45   2|  20   6):  -6.143770988645000E-009
+Ignoring integral (chem. notation) (  45  30|  21  19):  -8.178743169236000E-011
+Ignoring integral (chem. notation) (  46  18|  41  14):   2.812199568551000E-009
+Ignoring integral (chem. notation) (  46  29|  27  25):   1.341522531217000E-009
+Ignoring integral (chem. notation) (  47   1|  21  13):  -5.167580793071000E-010
+Ignoring integral (chem. notation) (  47   2|  14   6):   9.799735496074001E-009
+Ignoring integral (chem. notation) (  47   9|  43   4):   1.610854175472000E-009
+Ignoring integral (chem. notation) (  47  20|  21  12):   8.159973480132000E-009
+Ignoring integral (chem. notation) (  47  33|  10   4):  -4.696799758608000E-009
+Ignoring integral (chem. notation) (  48  20|  45   2):   5.247229100524000E-009
+Ignoring integral (chem. notation) (  48  25|  22   1):   7.562185336806000E-009
+Ignoring integral (chem. notation) (  48  27|  15   7):  -8.704388877267999E-009
+Ignoring integral (chem. notation) (  48  27|  29   8):  -3.480161543361000E-009
+Ignoring integral (chem. notation) (  49  10|  39  36):   4.146533202597000E-009
+Ignoring integral (chem. notation) (  49  27|  10   3):   4.993879034454000E-009
+Ignoring integral (chem. notation) (  49  48|  32   9):  -1.726594734365000E-010
+Ignoring integral (chem. notation) (  49  48|  42  36):   5.929940330423000E-009
+Ignoring integral (chem. notation) (  50   1|  13   5):   5.623066620066000E-009
+Ignoring integral (chem. notation) (  50  32|  48   3):   2.217470995011000E-009
+Ignoring integral (chem. notation) (  50  34|  30   1):   4.252633359063000E-009
+Ignoring integral (chem. notation) (  51  13|  45  45):  -4.980368803996000E-009
+Ignoring integral (chem. notation) (  51  20|  48  16):  -9.412322009611000E-009
+Ignoring integral (chem. notation) (  52   2|  38  17):  -1.403047811565000E-009
+Ignoring integral (chem. notation) (  53   5|  10   8):  -5.179565418297000E-009
+Ignoring integral (chem. notation) (  53  15|  51   4):   5.824928845427000E-009
+Ignoring integral (chem. notation) (  53  30|  10   8):  -5.277743738541000E-010
+Ignoring integral (chem. notation) (  53  34|  48  47):   3.455085197176000E-009
+Ignoring integral (chem. notation) (  53  52|  44  10):   7.992809954224000E-009
+Ignoring integral (chem. notation) (  54  16|  10   3):  -3.432068502292000E-009
+Ignoring integral (chem. notation) (  54  17|  53  44):  -3.457250969252000E-009
+Ignoring integral (chem. notation) (  54  24|  38  18):   6.680433966010000E-009
+ Number of removed two-index integrals:                     38
+ Number of non-zero integrals:                 576817
+ ECORE=  -96.1331635882720     
+ Setting normal GetUMatEl routine
+N_neg: 9 ; N_pos: 9 ; S: 0 ; nEl:18
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   17,   18)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:  -228.130740330522     
+ Setting normal GetUMatEl routine
+ Calculation supports multiple parallel runs
+ Number of simultaneous walker distributions:            2
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      5
+Setting integer bit-length of determinants as bit-strings to:     64
+For GUGA calculation set up a integer list of length:      5
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     0
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already impleme
+ nted
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           3  Symmetry PAIRS
+           2  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -168.943012692670     
+ <D0|T|D0>=  -131.997576742250     
+  !! NOTE: running a GUGA simulation, so following info makes no sense!
+  but is kept for now to not break remaining code!
+ FDet has     9 alpha electrons, and     9 beta electrons.
+               36  alpha-alpha occupied electron pairs
+               36  beta-beta occupied electron pairs
+               81  alpha-beta occupied electron pairs
+              990 alpha-alpha (vacant) hole pairs
+              990 beta-beta (vacant) hole pairs
+             2025 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   17,   18) E =   -168.943012693
+(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   17,   18) E =   -168.943012693
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:         8761
+Reference Energy set to:      -168.9430126927
+Highest energy determinant is (approximately):     -116.746701558863    
+Corresponding to a correlation energy of:      52.1963111338066    
+This means tau should be no more than about         0.019158442010135
+ Highest energy determinant is:           91          92          93          94
+          95          96          97          98          99         100
+         101         102         103         104         105         106
+         107         108
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+ 123429 double excitations, and     500 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.995965
+ pSingles set to:       0.004035
+Initial Diagonal Shift:         0.0000000000
+ Connectivity of HF determinant is:       123929
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         436906
+ Determinant related persistent storage requires:       9.999985 Mb / processor
+Spawning vectors allowing for a total of        50000 particles to be spawned in any one iteration per core.
+ Memory requirement    1.90734863281250      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:            2500
+Length of hash-table as a fraction of targetwalkers:              1.00000
+Reference processor is:        0
+Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   17,   18)
+Initial number of particles set to       2000 and shift will be held at     0.000 until particle number gets to            5000
+ Initial memory (without excitgens + temp arrays) consists of :      20.481339 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ Using initial time-step:   5.000000000000000E-004
+Will dynamically update timestep to limit spawning probability to   3.00000
+## 1. Iter.             2. Tot. parts real                       3. Tot. ref                              4. Proj. E (cyc)                         5. Shift. (cyc)                          11. Tot. Proj. E                         12. Dets occ.        13. Dets spawned     15. Iter. time                           41. EN2 Dets.       
+##               0   2000.00000000        2000.00000000        0.00000000000        0.00000000000       -168.943012693                     1                0   0.00000000000                    0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                 1   2073.10489161        2000.00000000        0.00000000000        0.00000000000       -168.943012693                   144             4000  0.182120800018E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                 2   2138.85969303        2000.00000000      -0.104411265632E-002   0.00000000000       -168.944056805                   265             4139  0.182390213013E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                 3   2208.76671067        2000.00000000      -0.197262887849E-002   0.00000000000       -168.944985322                   393             4260  0.184080600739E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+ Updating time-step. New time-step =   2.301239827839766E-003 in: update_tau
+ Updating singles/doubles bias. pSingles =   2.725745000135619E-002
+  pDoubles =   0.972742549998644     
+                 4   2281.46617509        2000.00000000      -0.288319511184E-002   0.00000000000       -168.945895888                   522             4396  0.190329551697E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.72 particles created.        2 blooms occurred.
+ Updating time-step. New time-step =   2.102462430764725E-003 in: update_tau
+ Updating singles/doubles bias. pSingles =   2.490299528671708E-002
+  pDoubles =   0.975097004713283     
+                 5   2604.95132519        2000.00000000      -0.383685241284E-002   0.00000000000       -168.946849545                  1019             4512  0.206660032272E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       5.54 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   8.412845705544455E-004 in: update_tau
+ Updating singles/doubles bias. pSingles =   1.987230384129977E-002
+  pDoubles =   0.980127696158700     
+                 6   2926.51578597        2000.00000000      -0.770722664107E-002   0.00000000000       -168.950719919                  1490             5128  0.232429504395E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                 7   3045.99909190        2000.00000000      -0.117066292663E-001   0.00000000000       -168.954719322                  1653             5702  0.254240036011E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                 8   3185.29500300        2000.23724627      -0.132473774209E-001   0.00000000000       -168.956260070                  1836             5904  0.261440277100E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+ Updating time-step. New time-step =   8.348834067904996E-004 in: update_tau
+ Updating singles/doubles bias. pSingles =   2.732989680363829E-002
+  pDoubles =   0.972670103196362     
+                 9   3318.27567978        2000.23724627      -0.149971562884E-001   0.00000000000       -168.958009849                  2013             6169  0.273100137711E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                10   3432.77489946        2000.23724627      -0.164913444266E-001   0.00000000000       -168.959504037                  2155             6440  0.248910188675E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+ Updating time-step. New time-step =   8.316752351379369E-004 in: update_tau
+ Updating singles/doubles bias. pSingles =   3.106753564876258E-002
+  pDoubles =   0.968932464351237     
+                11   3565.37553393        2000.23724627      -0.179489098626E-001   0.00000000000       -168.960961603                  2313             6633  0.291099548340E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                12   3696.54564353        2000.23724627      -0.194747342809E-001   0.00000000000       -168.962487427                  2474             6870  0.308049917221E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                13   3821.14182404        2000.23724627      -0.209733595811E-001   0.00000000000       -168.963986052                  2618             7095  0.314539670944E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                14   3947.62454005        2000.23724627      -0.224600620233E-001   0.00000000000       -168.965472755                  2768             7311  0.324110984802E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                15   4078.27471543        2000.23724627      -0.239864620091E-001   0.00000000000       -168.966999155                  2910             7605  0.349040031433E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                16   4218.60228568        2000.85166150      -0.257432915582E-001   0.00000000000       -168.968755984                  3075             7817  0.366100072861E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       4.83 particles created.        1 blooms occurred.
+ Updating time-step. New time-step =   8.161749806521755E-004 in: update_tau
+ Updating singles/doubles bias. pSingles =   4.912590644354667E-002
+  pDoubles =   0.950874093556453     
+                17   4355.68407273        2000.85166150      -0.273736555715E-001   0.00000000000       -168.970386348                  3238             8093  0.357758998871E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                18   4497.45813584        2000.85166150      -0.287534724731E-001   0.00000000000       -168.971766165                  3411             8329  0.371519327164E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       3.04 particles created.        1 blooms occurred.
+ Updating singles/doubles bias. pSingles =   4.968927412212395E-002
+  pDoubles =   0.950310725877876     
+                19   4635.92342456        2000.85166150      -0.304433618506E-001   0.00000000000       -168.973456055                  3579             8582  0.382339954376E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                20   4774.27595250        2000.85166150      -0.320221371837E-001   0.00000000000       -168.975034830                  3753             8852  0.392069816589E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                21   4915.88755786        2000.85166150      -0.333433735661E-001   0.00000000000       -168.976356066                  3938             9092  0.400700569153E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Exiting the single particle growth phase on iteration:            22 - Shift can now change for population1
+Exiting the single particle growth phase on iteration:            22 - Shift can now change for population2
+                22   5060.05634790        2000.85166150      -0.347024665855E-001 -0.333433480556E-001  -168.977715159                  4104             9375  0.410709381104E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                23   5206.76967278        2000.85166150      -0.363127072088E-001  -1.80457566543       -168.979325400                  4279             9590  0.417759418488E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                24   5343.78198206        2000.79724253      -0.378695966051E-001  -3.55621646818       -168.980882289                  4440             9874  0.428789854050E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                25   5471.77425130        1997.85209068      -0.394112148789E-001  -5.14655284554       -168.982423908                  4607            10146  0.440980195999E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                26   5591.75479797        1992.05674596      -0.407218775408E-001  -6.59904723744       -168.983734570                  4770            10423  0.448859930038E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                27   5718.59938906        1983.69408303      -0.420083369670E-001  -7.92838518606       -168.985021030                  4970            10638  0.455639362335E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+Bloom of more than n_add on double excit: A max of       5.74 particles created.        1 blooms occurred.
+                28   5835.88225919        1973.01633416      -0.431727613567E-001  -9.30275064393       -168.986185454                  5130            10802  0.468029975891E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                29   5936.53594720        1960.41054982      -0.446770987881E-001  -10.5459377714       -168.987689791                  5293            11053  0.475980043411E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                30   6052.00423768        1945.64417144      -0.458017771322E-001  -11.5947021019       -168.988814470                  5481            11166  0.481680631638E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       4.57 particles created.        1 blooms occurred.
+                31   6138.46555870        1928.90771880      -0.473048175705E-001  -12.7763320880       -168.990317510                  5613            11418  0.490210056305E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                32   6207.65959181        1910.66518221      -0.485806971626E-001  -13.6461393749       -168.991593390                  5734            11573  0.497109889984E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       4.33 particles created.        1 blooms occurred.
+                33   6291.80773378        1890.75354371      -0.500435648901E-001  -14.3319078553       -168.993056258                  5892            11716  0.502989292145E-001               0
+Bloom of more than n_add on double excit: A max of       3.89 particles created.        1 blooms occurred.
+                34   6363.16000988        1869.70792707      -0.513956326722E-001  -15.1585302795       -168.994408325                  6027            11833  0.508410930634E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                35   6429.02505764        1848.07302814      -0.529357784485E-001  -15.8494082915       -168.995948471                  6163            11958  0.515208244324E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                36   6493.61101246        1825.22271677      -0.542650187288E-001  -16.4814551456       -168.997277711                  6310            12136  0.520927906036E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                37   6556.33483021        1801.62649148      -0.557025968701E-001  -17.0938881723       -168.998715290                  6442            12195  0.524170398712E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                38   6614.38249307        1777.40627781      -0.570400426418E-001  -17.6831928061       -169.000052735                  6548            12289  0.530290603638E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                39   6668.42203125        1752.74583535      -0.588241726361E-001  -18.2246129315       -169.001836865                  6665            12424  0.499849319458E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.07 particles created.        1 blooms occurred.
+                40   6703.19405707        1727.46475188      -0.604730203661E-001  -18.7228191448       -169.003485713                  6768            12515  0.534780025482E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       4.54 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       3.45 particles created.        1 blooms occurred.
+                41   6738.61622482        1701.78499457      -0.618011831213E-001  -19.0414745795       -169.004813876                  6861            12556  0.539810657501E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+Bloom of more than n_add on double excit: A max of       3.60 particles created.        1 blooms occurred.
+                42   6795.46124549        1675.79565200      -0.633088532442E-001  -19.3650356870       -169.006321546                  7002            12628  0.542969703674E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                43   6835.85481278        1650.05726592      -0.646863154838E-001  -19.8802965927       -169.007699008                  7121            12732  0.543880462646E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                44   6852.07789528        1623.99340869      -0.660369809522E-001  -20.2444431693       -169.009049674                  7196            12849  0.546510219574E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                45   6878.26859934        1597.65852426      -0.672704629432E-001  -20.3899294586       -169.010283156                  7281            12794  0.548670291901E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                46   6915.58587628        1571.27558591      -0.686322223026E-001  -20.6238281752       -169.011644915                  7405            12833  0.549180507660E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                47   6932.51912368        1545.14172154      -0.698775603398E-001  -20.9557413911       -169.012890253                  7489            12898  0.553660392761E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.49 particles created.        1 blooms occurred.
+                48   6933.60022166        1519.14771268      -0.712738782039E-001  -21.1058627600       -169.014286571                  7553            12869  0.553090572357E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                49   6943.82135334        1493.17950923      -0.728423007798E-001  -21.1153718810       -169.015854993                  7615            12927  0.556988716125E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+Bloom of more than n_add on double excit: A max of       3.21 particles created.        1 blooms occurred.
+                50   6955.29259117        1467.47211451      -0.744378305767E-001  -21.2057002357       -169.017450523                  7704            12944  0.552899837494E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.49 particles created.        1 blooms occurred.
+                51   6955.87014399        1442.53805821      -0.755318425765E-001  -21.3069012014       -169.018544535                  7755            13007  0.560879707336E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.16 particles created.        1 blooms occurred.
+                52   6958.31689893        1417.58539752      -0.768220612272E-001  -21.3120061224       -169.019834754                  7802            12914  0.554211139679E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                53   6977.64852834        1392.94742226      -0.782431186576E-001  -21.3334601807       -169.021255811                  7892            12889  0.552909374237E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                54   6988.51216694        1368.73181908      -0.800366834835E-001  -21.5036497333       -169.023049376                  7976            13037  0.559809207916E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                55   6993.02607261        1344.91339407      -0.812679425196E-001  -21.5990080545       -169.024280635                  8027            13060  0.560789108276E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                56   6992.83710925        1322.05644418      -0.825910547966E-001  -21.6383778151       -169.025603747                  8088            13014  0.559740066528E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                57   6997.66846904        1298.76407611      -0.841201953872E-001  -21.6369346014       -169.027132888                  8147            13003  0.566470623016E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                58   6993.73068262        1276.40343707      -0.854929233079E-001  -21.6792497184       -169.028505616                  8200            13036  0.557608604431E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       4.39 particles created.        1 blooms occurred.
+                59   6994.90497355        1253.87609782      -0.868658078282E-001  -21.6446635797       -169.029878500                  8246            12968  0.557110309601E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                60   6999.16199939        1231.70320285      -0.882609871661E-001  -21.6550118236       -169.031273680                  8307            12984  0.556728839874E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       3.29 particles created.        1 blooms occurred.
+                61   6979.11407693        1209.95722332      -0.899074046305E-001  -21.6923519117       -169.032920097                  8333            12975  0.556070804596E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                62   6971.78809300        1188.58520158      -0.911636463904E-001  -21.5165241997       -169.034176339                  8379            12979  0.557270050049E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                63   6963.81857361        1168.08754649      -0.922562553356E-001  -21.4520877794       -169.035268948                  8428            12928  0.553681850433E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                64   6959.17182765        1147.58747048      -0.934023356992E-001  -21.3819947037       -169.036415028                  8469            12920  0.556120872498E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                65   6940.80795603        1127.50741812      -0.946227107147E-001  -21.3408077590       -169.037635403                  8500            12925  0.553789138794E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                66   6926.44186605        1107.84330117      -0.960236115968E-001  -21.1785956690       -169.039036304                  8541            12896  0.555579662323E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       3.75 particles created.        1 blooms occurred.
+                67   6931.81518521        1088.59669937      -0.972192890397E-001  -21.0520100553       -169.040231982                  8607            12779  0.549666881561E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.30 particles created.        1 blooms occurred.
+                68   6931.17749396        1069.79142142      -0.987985891350E-001  -21.0994530770       -169.041811282                  8672            12802  0.554656982422E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                69   6915.71397555        1051.42186259      -0.999950761815E-001  -21.0932269403       -169.043007769                  8693            12857  0.555787086487E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                70   6895.27369227        1033.32698501      -0.101159354327       -20.9553607100       -169.044172047                  8707            12822  0.551810264587E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.39 particles created.        1 blooms occurred.
+                71   6858.06665507        1015.54833566      -0.102488784840       -20.7740592305       -169.045501478                  8697            12785  0.548901557922E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                72   6826.12025455        998.189302661      -0.103517673721       -20.4421092334       -169.046530366                  8699            12688  0.546679496765E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                73   6777.77256249        981.274670682      -0.104707459700       -20.1556714204       -169.047720152                  8664            12605  0.545387268066E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                74   6749.22864152        964.912245056      -0.105913075099       -19.7208687795       -169.048925768                  8662            12556  0.541872978210E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.42 particles created.        1 blooms occurred.
+                75   6718.07120260        949.048022968      -0.107008428373       -19.4614130782       -169.050021121                  8658            12481  0.540919303894E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                76   6712.97750735        933.781571476      -0.108098219112       -19.1787023394       -169.051110912                  8692            12371  0.537652969360E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.87 particles created.        2 blooms occurred.
+                77   6688.14350871        918.958024084      -0.109237346534       -19.1317626363       -169.052250039                  8699            12480  0.540819168091E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+Bloom of more than n_add on single excit: A max of       3.84 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       5.62 particles created.        3 blooms occurred.
+                78   6665.06689022        904.582072411      -0.110301734781       -18.9041011080       -169.053314427                  8692            12383  0.534310340881E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       3.01 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       3.74 particles created.        1 blooms occurred.
+                79   6631.66374461        890.757863256      -0.111946524575       -18.6916690851       -169.054959217                  8666            12265  0.535449981689E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+Bloom of more than n_add on single excit: A max of       3.30 particles created.        1 blooms occurred.
+                80   6614.32390866        877.022223323      -0.113183220836       -18.3842852934       -169.056195914                  8675            12250  0.533990859985E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.01 particles created.        1 blooms occurred.
+                81   6588.97527633        863.834173335      -0.114702630230       -18.2231199816       -169.057715323                  8669            12171  0.525240898132E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.28 particles created.        1 blooms occurred.
+                82   6560.62540698        850.880005850      -0.115607140397       -17.9874122446       -169.058619833                  8645            12169  0.524711608887E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+Bloom of more than n_add on double excit: A max of       3.28 particles created.        1 blooms occurred.
+                83   6525.95355603        838.231770752      -0.117180457141       -17.7221242566       -169.060193150                  8621            12095  0.525197982788E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                84   6499.46936056        826.301105251      -0.118018708497       -17.3959784044       -169.061031401                  8615            12063  0.525269508362E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                85   6481.00530173        814.355744746      -0.119304799275       -17.1454128059       -169.062317492                  8615            11993  0.519900321960E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       5.20 particles created.        2 blooms occurred.
+                86   6472.42930169        802.799576932      -0.120315454042       -16.9717270203       -169.063328147                  8636            11909  0.517311096191E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                87   6457.31142178        791.571423940      -0.121828970506       -16.8896923743       -169.064841663                  8641            11901  0.519819259644E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.93 particles created.        1 blooms occurred.
+                88   6426.85480133        780.612638500      -0.122841605912       -16.7454150157       -169.065854299                  8628            11920  0.519270896912E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                89   6406.27920391        769.857847666      -0.123850793066       -16.4562651022       -169.066863486                  8620            11857  0.514450073242E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.01 particles created.        1 blooms occurred.
+                90   6381.21557605        759.341917445      -0.125318409308       -16.2610678337       -169.068331102                  8603            11782  0.514330863953E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       3.14 particles created.        1 blooms occurred.
+                91   6365.09511928        749.148900346      -0.126513437026       -16.0213071754       -169.069526130                  8604            11755  0.515193939209E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       3.40 particles created.        1 blooms occurred.
+                92   6349.54634727        739.212132856      -0.127376524507       -15.8670402883       -169.070389217                  8613            11728  0.513238906860E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       4.51 particles created.        1 blooms occurred.
+                93   6325.86838163        729.551819280      -0.128728506716       -15.7175933639       -169.071741199                  8604            11633  0.513920783997E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                94   6307.05773022        720.109606065      -0.129793665288       -15.4888766140       -169.072806358                  8589            11654  0.510349273682E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on double excit: A max of       4.34 particles created.        2 blooms occurred.
+                95   6298.57815699        711.042424890      -0.131263389393       -15.3062110455       -169.074276082                  8600            11717  0.509600639343E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+Bloom of more than n_add on single excit: A max of       3.41 particles created.        1 blooms occurred.
+Bloom of more than n_add on double excit: A max of       3.70 particles created.        1 blooms occurred.
+                96   6277.45945232        702.059119524      -0.132447861180       -15.2238191251       -169.075460554                  8590            11636  0.506329536438E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+                97   6254.67553361        693.293950470      -0.133298671659       -15.0188548124       -169.076311364                  8570            11568  0.506138801575E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                98   6259.74255366        684.684835069      -0.134419719573       -14.7965006378       -169.077432412                  8601            11550  0.504002571106E-001               0
+WARNING: The projected energy from the last iteration was zero. Setting to -0.1.
+                99   6244.79532532        676.602190364      -0.135579635361       -14.8464620391       -169.078592328                  8597            11475  0.501432418823E-001               0
+WARNING: The reference determinant was not spawned to in the last iteration.
+WARNING: The reference determinant was not spawned to in the last iteration.
+               100   6223.86817421        668.593239016      -0.136665020638       -14.7003564031       -169.079677713                  8576            11491  0.501332283020E-001               0
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:    4.76938515901566     
+ Time lost due to load imbalance:   0.534396409988403     
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ 
+Current reference: 
+(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10,   11,   12,   13,   14,   15,   16,   17,   18)
+ Number of superinitiators           1
+ 
+Input DEFINEDET line (includes frozen orbs):
+definedet    1-18
+ 
+Most occupied         15 determinants as excitations from reference: 
+ 
+Excitation ExcitLevel  Seniority Walkers(1) Walkers(2)    Amplitude Init?(1) Init?(2) Proc
+111111111111111111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000    0    0    661.4420        659.5511      0.99264  Y  Y      0
+110011111111111111000000000011000000000000000000000000000000000000000000000000000000000000000000000000000000    2    0   -7.640596       -12.52133      0.01515  Y  Y      0
+111111111111101011000100000000000000000000000000000000010000000000000000000000000000000000000000000000000000    2    4    11.11827        8.877083      0.01503  Y  Y      0
+111111111110101111000100000000000000000100000000000000000000000000000000000000000000000000000000000000000000    2    4    10.99629        8.929173      0.01497  Y  Y      0
+111111111100111111000000000000000000001100000000000000000000000000000000000000000000000000000000000000000000    2    0   -7.707555       -11.75580      0.01463  Y  Y      0
+111100111111111111000000000000000000000011000000000000000000000000000000000000000000000000000000000000000000    2    0   -8.026759       -11.00420      0.01430  Y  Y      0
+111111110011111111000000000000000000000000000011000000000000000000000000000000000000000000000000000000000000    2    0   -7.403320       -11.46827      0.01418  Y  Y      1
+101111111111110111000000001000000000000000000000000000010000000000000000000000000000000000000000000000000000    2    4   -8.837449       -8.263960      0.01285  Y  Y      1
+111111111110111011000000000000000000000100000000000000010000000000000000000000000000000000000000000000000000    2    4   -7.466113       -9.553071      0.01279  Y  Y      0
+111111111111101011000000000000000000000000000000000000000000000000000000000000000000000000000001010000000000    2    4    9.362427        7.266448      0.01250  Y  Y      0
+111111111110011111001000000000000000000100000000000000000000000000000000000000000000000000000000000000000000    2    4    7.692508        8.865716      0.01244  Y  Y      1
+111111101111111110000000000000000000010000000000000001000000000000000000000000000000000000000000000000000000    2    4    7.944621        8.279947      0.01219  Y  Y      0
+111111111111110011000000000000000000000000000000000000110000000000000000000000000000000000000000000000000000    2    0   -7.654057       -7.973399      0.01174  Y  Y      1
+111100111111111111000000110000000000000000000000000000000000000000000000000000000000000000000000000000000000    2    0   -5.329305       -8.974361      0.01075  Y  Y      1
+111111111111001111001100000000000000000000000000000000000000000000000000000000000000000000000000000000000000    2    0   -6.786816       -6.581911      0.01005  Y  Y      1
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process    4435.5000000000
+ Min number of determinants/process               4362
+ Max number of determinants/process               4509
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:           22
+ No FCIMCStats file found for error analysis
+ Current reference energy                            -168.943012692670
+ Projected correlation energy                          -0.059196602977
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy        -169.00220930
+
+ THE FOLLOWING IS FOR TEST SUITE USE ONLY!
+
+ REPLICA ESTIMATES FOR STATE 1:
+ Variational energy from replica_estimates: -1.6906238783352E+02
+ Energy squared from replica_estimates:  2.8584542918692E+04
+ EN2 estimate from replica_estimates:  0.0000000000000E+00
+ Preconditioned energy from replica_estimates: -1.7295492289808E+02
+
+
+
+ Final energy estimate for state 1:     -169.00220929565    
+ Final energy estimate for state 2:     -169.00341942894    
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :      39.8
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkVecDets       InitFCIMCPar       DeallocFciMCMemPar   16.7MB
+ arr               init_global_det_datclean_global_det_da  10.0MB
+ UMat              IntInit            IntCleanup            8.4MB
+ arr               InitFCIMCPar       DeallocFciMCMemPar    2.3MB
+ arr               InitFCIMCPar       DeallocFciMCMemPar    2.3MB
+ TMAT2D            SetupTMAT          DestroyTMat          91.1KB
+ UMat2D            SetupUMat2d_dense  DESTROYUMATCACHE     22.8KB
+ G1                SysInit            NECICore              5.9KB
+ Arr               SysInit            NECICore              1.7KB
+ SymReps           GENMOLPSYMREPS     EndSym                 864B
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ WalkerTime                                 100      4.27
+ NECICUBE                                     1      0.55
+ SysInit                                      1      0.51
+ AnnMainTime                                100      0.13
+ PreCondEnergyTime                          100      0.11
+ Compress Sort interface                    100      0.10
+ DeathTime                                  100      0.07
+ SortTime                                   100      0.02
+ Compression interface                      100      0.02
+ StatsCommsTime                             100      0.01
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   5.80
+
+ Global wall clock time          5.88
+ ================================================================
+ Calculation ended 20/02/2020 at 10:54:50
+ ================================================================

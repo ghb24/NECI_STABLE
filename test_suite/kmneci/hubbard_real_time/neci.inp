@@ -5,8 +5,8 @@ electrons 4
 B -1
 U 1
 lattice square 2 2
-guga 0
-nonuniformrandexcits ueg_guga
+lattice-excitgen
+system-replicas 3
 
 endsys
 
@@ -15,13 +15,12 @@ methods
 method vertex fcimc
 endmethods
 seed -7
-nmcyc 10000
+nmcyc 100
 memoryfacpart 8
 memoryfacspawn 5
 totalwalkers 5000
 shiftdamp 0.03
 stepsshift 1
-startsinglepart 100
 tau 0.01
 max-tau 0.001
 truncinitiator
@@ -30,6 +29,13 @@ allrealcoeff
 realspawncutoff 1
 proje-changeref 1.2
 endcalc
+
+realtime
+start-hf
+energy-benchmark -8
+rotate-time 0.2
+stabilize-walkers
+endrealtime
 
 logging
 popsfile -1

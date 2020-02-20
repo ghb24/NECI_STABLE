@@ -1,0 +1,48 @@
+# POPSFILE VERSION 4
+&POPSHEAD Pop64Bit=T
+PopHPHF=F,PopLz=F,PopLensign= 1,PopNEl=  4,
+PopTotwalk=             26
+ PopSft=  1.529662951720034E-003
+ PopSumNoatHF=   3865709.74932383     
+ PopSumENum=  -10145.6371586688     
+PopCyc=             400,PopNIfD= 0,PopNIfY= 0,PopNIfSgn= 1,
+PopNIfFlag= 1,PopNIfTot= 2,PopTau=    0.010000000000,
+PopiBlockingIter=               1
+PopPSingles=    0.117647058824,PopPParallel=    0.500000000000
+,PopPDoubles=    0.882352941176,PopPTriples=    0.000000000000
+,PopPSing_spindiff1=    0.000000000000,PopPDoub_spindiff1=    0.000000000000
+,PopPDoub_spindiff2=    0.000000000000
+PopTotImagTime=    4.000000000000
+PopGammaSing= 0.00000000000    ,PopGammaDoub= 0.00000000000    ,PopGammaOpp= 0.00000000000    ,PopGammaPar= 0.00000000000    ,PopMaxDeathCpt= 10.4432564266    
+,PopGammaSing_spindiff1= 0.00000000000    ,PopGammaDoub_spindiff1= 0.00000000000    ,PopGammaDoub_spindiff2= 0.00000000000    
+PopNNodes=     1
+PopWalkersOnNodes=              26,
+ tPopAutoAdaptiveShift= F
+PopRandomHash=        14677,       18899,       10688,        6998,       11424,       17266,       17284,       15705,        7598,        9661,       17327,        8472,        1341,       10943,       18104,       13217,       10495,       19947,       18903,        8342,
+ &END
+                      15                 9515.46896911                    8193
+                     204                 -235.07899218                    8193
+                     531                    4.57509762                    8193
+                     540                    9.95330771                    8193
+                     561                   -0.66715541                    8193
+                     612                   -3.97949535                    8193
+                  524355                    7.60010994                    8193
+                  524364                    6.13487279                    8193
+                  786435                 -140.87710315                    8193
+                     525                   -4.02466658                    8192
+                     225                    8.12118340                    8192
+                      45                  -16.23907886                    8192
+                  786564                   -2.89022140                    8192
+                     135                   20.51732786                    8192
+                  524820                   -1.00000000                       0
+                     180                   -8.26878068                    8192
+                   12420                    1.00000000                       0
+                      51                    2.78293925                       0
+                  524484                    2.84523039                       0
+                  196740                    1.00000000                       0
+                  786945                    1.00000000                       0
+                     705                    1.29158202                       0
+                  524295                    1.10345501                       0
+                     645                   -1.00000000                    8192
+                  524400                    1.00000000                    8192
+                  786465                    1.40228086                       0

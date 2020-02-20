@@ -1,0 +1,42 @@
+title
+
+system read
+nonuniformrandexcits mol_guga_weighted
+electrons 10
+guga 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+seed -7
+memoryfacspawn 10.0
+memoryfacpart 5.0
+totalwalkers 5000
+tau 0.001
+startsinglepart
+shiftdamp 0.02
+stepsshift 10
+diagshift 1.0
+nmcyc 200
+truncinitiator
+addtoinitiator 3
+allrealcoeff
+realspawncutoff 0.01
+superinitiators 30
+superinitiator-population-threshold 10
+min-si-connections 2
+readpops
+load-balance-blocks off
+endcalc
+
+integral
+freeze 2,0
+endint
+
+logging
+popsfile -1
+binarypops
+endlog
+end

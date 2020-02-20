@@ -1,16 +1,43 @@
 # Job config.
 
-[kneci/*/]
+[kneci/C*/]
 program = kneci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
-[kmneci/*/]
+[kneci/Se_2_mag_semi_trial_pops/]
+program = kneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[kneci/guga/*/*/]
+program = kneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+
+[kmneci/guga/*/*/]
 program = kmneci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
+
+[kmneci/hubb*/]
+program = kmneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[kmneci/Se2_*/]
+program = kmneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+
 
 [mneci/*/*/]
 program = mneci
@@ -33,6 +60,13 @@ program = neci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
+
+[neci/guga/*/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 
 [neci/parallel/*/]
 program = neci
@@ -126,17 +160,42 @@ min_nprocs = 2
 max_nprocs = 2
 tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 
-[hdf5/neci/*/]
+[hdf5/neci/C2_*/]
 program = neci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
-[hdf5/mneci/*/]
+[hdf5/neci/FeM*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[hdf5/neci/Ne_*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[hdf5/neci/guga/*/*/]
+program = neci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+[hdf5/mneci/C2_*/]
 program = mneci
 nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
+
+[hdf5/mneci/guga/*/*/]
+program = mneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
 
 [hdf5/tc/*/]
 program = neci

@@ -1,0 +1,30 @@
+title
+
+system read
+nonuniformrandexcits mol_guga_weighted
+electrons 4
+guga 2
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+seed -7
+definedet 1 2 3 29
+nmcyc 30000
+initwalkers 50
+tau 0.002
+startsinglepart
+shiftdamp 0.01
+stepsshift 75
+load-balance-blocks off
+truncinitiator
+addtoinitiator 3
+exp-adaptive-shift 2
+endcalc
+
+logging
+popsfile -1
+endlog
+end
