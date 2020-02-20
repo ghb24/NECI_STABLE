@@ -2,6 +2,7 @@ module test_loop_helpers
     use mpi
     use util_mod, only: get_free_unit
     implicit none
+#include "macros.h"
 #include "NECICore.h"
     private
     public :: test_loop_factory, FciDumpWriter_t, InputWriter_t, Writer_t
@@ -89,7 +90,7 @@ module test_loop_testcases
         test_loop_factory, InputWriter_t, FciDumpWriter_t
     implicit none
     private
-    public :: test_loop_4ind_wghtd_2, test_loop_pchb
+    public :: test_loop_4ind_wghtd_2, test_loop_pchb, test_loop_guga
 
 contains
 
@@ -99,15 +100,24 @@ contains
     ! for inspiration.
     ! For the time being I stay with YAGNI because I don't know for sure
     ! if we need more tests.
-    subroutine create_input(unit_id, exc_generator)
+    subroutine create_input(unit_id, exc_generator, flag_guga)
         integer, intent(in) :: unit_id
         character(*), intent(in) :: exc_generator
+        logical, intent(in), optional :: flag_guga
+
+        logical :: flag_guga_
+
+        def_default(flag_guga_,flag_guga,.false.)
+
         write(unit_id, '(A)') 'Title'
 
         write(unit_id, '(A)') 'System read'
         write(unit_id, '(A)') '    electrons  2'
         write(unit_id, '(A)') '    nonuniformrandexcits '//exc_generator
         write(unit_id, '(A)') '    nobrillouintheorem'
+        if (flag_guga_) then
+            write(unit_id, '(A)') '    guga 0'
+        end if
         write(unit_id, '(A)') '    freeformat'
         write(unit_id, '(A)') 'endsys'
 
@@ -198,13 +208,28 @@ contains
             call create_input(unit_id, exc_generator='4ind-weighted-2')
         end subroutine
     end subroutine test_loop_4ind_wghtd_2
+
+    subroutine test_loop_guga()
+        call test_loop_factory(&
+            InputWriter_t(create_input_guga, 'NECI_input'), &
+            FciDumpWriter_t(write_He_fcidump, 'FCIDUMP'))
+
+        contains
+
+            subroutine create_input_guga(unit_id)
+                integer, intent(in) :: unit_id
+                call create_input(unit_id, exc_generator = 'mol_guga_weighted', &
+                                  flag_guga = .true.)
+            end subroutine create_input_guga
+    end subroutine test_loop_guga
 end module test_loop_testcases
 
 program test_loop_program
 
     use mpi
     use fruit
-    use test_loop_testcases, only: test_loop_4ind_wghtd_2, test_loop_pchb
+    use test_loop_testcases, only: test_loop_4ind_wghtd_2, test_loop_pchb, &
+                                   test_loop_guga
 
     implicit none
     integer :: failed_count, err
@@ -226,7 +251,8 @@ program test_loop_program
 contains
 
     subroutine test_loop_driver()
-        call run_test_case(test_loop_4ind_wghtd_2, "test_loop")
-        call run_test_case(test_loop_pchb, "test_loop_pchb")
+         call run_test_case(test_loop_4ind_wghtd_2, "test_loop")
+         call run_test_case(test_loop_pchb, "test_loop_pchb")
+         call run_test_case(test_loop_guga, "test_loop_guga")
     end subroutine test_loop_driver
 end program test_loop_program
