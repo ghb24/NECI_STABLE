@@ -14,6 +14,7 @@ seed -7
 definedet 1 2 3 29
 nmcyc 25000
 initwalkers 100
+load-balance-interval 1000
 tau 0.002
 startsinglepart
 shiftdamp 0.01

@@ -12,6 +12,7 @@ methods
 method vertex fcimc
 endmethods
 seed -7
+load-balance-interval 1000
 memoryfacspawn 5.0
 memoryfacpart 2.0
 totalwalkers 10000

@@ -15,6 +15,7 @@ methods
 method vertex fcimc
 endmethods
 seed -7
+load-balance-interval 1000
 definedet 1 2 3 5
 nmcyc 1000
 memoryfacpart 8
