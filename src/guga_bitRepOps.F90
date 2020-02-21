@@ -2587,7 +2587,7 @@ contains
         ! the inverse function of the routine above, to give the combined
         ! rdm index of two explicit ones
         integer, intent(in) :: i, a
-        integer(int_rdm) :: rdm_ind
+        integer :: rdm_ind
         character(*), parameter :: this_routine = "contract_1_rdm_ind"
 
         rdm_ind = nSpatOrbs * (i - 1) + a
@@ -2598,7 +2598,7 @@ contains
         ! since I only ever have spatial orbitals in the GUGA-RDM make
         ! the definition of the RDM-index combination differently
         integer, intent(in) :: i,j,k,l
-        integer(int_rdm) :: ijkl
+        integer :: ijkl
         character(*), parameter :: this_routine = "contract_2_rdm_ind"
 
         integer :: ij, kl
@@ -2606,7 +2606,7 @@ contains
         ij = (i - 1) * nSpatOrbs + j
         kl = (k - 1) * nSpatOrbs + l
 
-        ijkl = (ij - 1) * (int(nSpatOrbs, int_rdm)**2) + kl
+        ijkl = (ij - 1) * (nSpatOrbs**2) + kl
 
     end function contract_2_rdm_ind
 

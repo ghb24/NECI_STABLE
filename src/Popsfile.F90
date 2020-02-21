@@ -1297,7 +1297,7 @@ r_loop: do while(.not.tStoreDet)
                 endif
 
                 ! also use the adjusted pSingle etc. if provided
-                if (read_psingles /= 0.0_dp) then
+                if (.not. near_zero(read_psingles)) then
                     pSingles = read_psingles
                     pDoubles = 1.0_dp - pSingles
                     write(iout,*) " use pSingles and pDoubles provided by POPSFILE!"
@@ -1305,14 +1305,14 @@ r_loop: do while(.not.tStoreDet)
                     write(iout,*) " pDoubles set to: ", pDoubles
                 end if
                 tReadPTriples = .false.
-                if(abs(read_ptriples) > eps) then
+                if(.not. near_zero(read_ptriples)) then
                     pTriples = read_ptriples
                     tReadPTriples = .true.
                     write(iout,*) "Using pTriples provided by POPSFILE"
                 end if
 
                 ! also do that for pParallel
-                if (read_pparallel /= 0.0_dp) then
+                if (.not. near_zero(read_pparallel)) then
                     write(iout,*) " use pParallel provided by POPSFILE: ", read_pparallel
                     pParallel = read_pparallel
                 end if
