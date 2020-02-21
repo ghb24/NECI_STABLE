@@ -19,6 +19,7 @@ module load_balance_calcnodes
     integer(TagIntType) :: lb_tag
     integer :: balance_blocks
     logical :: tLoadBalanceBlocks
+    integer :: loadBalanceInterval = 0
 
 contains
 

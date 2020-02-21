@@ -28,6 +28,7 @@ TRUNCINITIATOR
 ADDTOINITIATOR        2
 allrealcoeff
 startsinglepart 10
+load-balance-interval 1000
 ENDCALC
 
 LOGGING

@@ -32,6 +32,7 @@ calc
     time 200
     startsinglepart 10
 	definedet 1-6
+	load-balance-interval 1000
 endcalc
  
 logging

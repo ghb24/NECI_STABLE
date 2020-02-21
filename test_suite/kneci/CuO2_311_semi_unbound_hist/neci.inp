@@ -13,6 +13,7 @@ methods
 method vertex fcimc
 endmethods
 seed -7
+load-balance-interval 1000
 totalwalkers 20000
 startsinglepart 10
 shiftdamp 0.05

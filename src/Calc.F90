@@ -43,7 +43,7 @@ MODULE Calc
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
          minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
-    use load_balance, only: tLoadBalanceBlocks
+    use load_balance, only: tLoadBalanceBlocks, loadBalanceInterval
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
@@ -412,6 +412,7 @@ contains
           cont_time_max_overspawn = 4.0
 
           tLoadBalanceBlocks = .true.
+          loadBalanceInterval = 0
           tPopsJumpShift = .false.
           calc_seq_no = 1
 
@@ -3064,6 +3065,11 @@ contains
                                     &now enabled by default.")')
                     end if
                 end if
+
+            case("LOAD-BALANCE-INTERVAL")
+                ! Do the load-balancing in a periodic fashion instead of based on
+                ! current load imbalance
+                call readi(loadBalanceInterval )
 
             case("POPS-JUMP-SHIFT")
                 ! Use the same logic as JUMP-SHIFT, but reset the shift value

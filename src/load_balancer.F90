@@ -812,6 +812,34 @@ contains
       norm_psi_squared = norm_psi_squared + CurrentSign**2
       if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + CurrentSign**2
 #endif
-    end subroutine addNormContribution
+  end subroutine addNormContribution
+
+!------------------------------------------------------------------------------------------!
+
+  !> Gauge if a load balancing step shall be taken given the current load-imbalance
+  !! measure lt_imb
+  !> @param[in] lt_imb  current load imbalance measure: Time lost due to load imbalance
+  !!                    during the last 100 iterations divided by the total time taken for these
+  !> @result t_lb  true if a load balancing step is justified
+  function need_load_balancing(lt_imb) result(t_lb)
+      real(dp), intent(in) :: lt_imb
+      logical :: t_lb
+      
+      real(dp), save :: last_imb = 0.0_dp
+      logical, save :: last_t_lb = .false.
+
+      ! In the cycle immediately after a load balancing step, we do not load balance
+      ! again, but instead log the imbalance measure for comparison
+      if(last_t_lb) then
+          last_imb = lt_imb
+          t_lb = .false.
+          last_t_lb = .false.
+      else
+          ! Load balance if the measure is sufficiently high (both absolute and relative
+          ! to what we had after the last load balancing)
+          t_lb = lt_imb > max(0.1_dp, 2*last_imb)
+          last_t_lb = t_lb
+      end if
+  end function need_load_balancing
 
 end module

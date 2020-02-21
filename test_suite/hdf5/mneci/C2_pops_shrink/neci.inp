@@ -21,6 +21,7 @@ stepsshift 1
 auto-adaptive-shift
 scale-spawns
 readpops
+load-balance-interval 1000
 endcalc
 
 logging

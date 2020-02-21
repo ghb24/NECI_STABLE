@@ -75,12 +75,10 @@ module FciMCParMod
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
-
-
-    use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet
-
     use bit_reps, only: set_flag, clr_flag, any_run_is_initiator, &
                         all_runs_are_initiator
+    use load_balance, only: tLoadBalanceBlocks, adjust_load_balance, RemoveHashDet, &
+        need_load_balancing, loadBalanceInterval
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
     use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
@@ -163,6 +161,8 @@ module FciMCParMod
     !array for timings of the main compute loop
     real(dp),dimension(100) :: lt_arr
 
+    integer, parameter :: lb_measure_cycle = 100
+
     contains
 
     subroutine FciMCPar(energy_final_output)
@@ -195,7 +195,7 @@ module FciMCParMod
         logical :: tStartedFromCoreGround
         real(dp),dimension(100) :: lt_sum, lt_max
 
-        real(dp):: lt_imb
+        real(dp):: lt_imb, lt_imb_cycle
         integer:: rest, err, allErr
 
         real(dp) :: CurrentSign(lenof_sign)
@@ -206,7 +206,7 @@ module FciMCParMod
         HElement_t(dp):: AccumE(inum_runs)
         integer :: ExcitLevel
 
-        logical :: t_comm_done
+        logical :: t_comm_done, tScheduledLoadBalance
         integer :: run
 
         ! Procedure pointer temporaries
@@ -384,6 +384,7 @@ module FciMCParMod
         lt_sum=0.
         ! For calculations with only few iterations
         lt_arr=0.
+        lt_imb_cycle = 0.
 
         do while (.true.)
 !Main iteration loop...
@@ -580,10 +581,26 @@ module FciMCParMod
                 IterTime = real(IterTime + (s_end - s_start), kind=sp)
             endif
 
+            if(loadBalanceInterval > 0) then
+                tScheduledLoadBalance = mod(iter, loadBalanceInterval) == 0
+            else
+                tScheduledLoadBalance = .false.
+            end if
+
             ! Add some load balancing magic!
-            if (tLoadBalanceBlocks .and. mod(iter, 1000) == 0 .and. &
+            if (tLoadBalanceBlocks .and. (tScheduledLoadBalance .or. &
+                (mod(iter, lb_measure_cycle) == 1 .and. loadBalanceInterval == 0)) .and. &
                 .not. tSemiStochastic .and. .not. tFillingStochRDMOnFly) then
-                call adjust_load_balance(iter_data_fciqmc)
+                ! Use the ratio of time lost due to load imbalance as an estimtor
+                ! whether load balancing should be used
+                if(iter > lb_measure_cycle) then
+                    lt_imb_cycle = lt_imb_cycle / sum(lt_sum)
+                else
+                    lt_imb_cycle = 0.0
+                end if
+                if(need_load_balancing(lt_imb_cycle) .or. tScheduledLoadBalance) then
+                    call adjust_load_balance(iter_data_fciqmc)
+                endif
             end if
 
             if(SIUpdateInterval > 0) then
@@ -854,10 +871,11 @@ module FciMCParMod
 
             ! Compute the time lost due to load imbalance - aggregation done for 100 iterations
             ! at a time to avoid unnecessary synchronisation points
-            if (mod(Iter,100).eq.0) then
-               call MPIReduce(lt_arr,MPI_SUM,lt_sum)
-               call MPIReduce(lt_arr,MPI_MAX,lt_max)
-               lt_imb=lt_imb+sum(lt_max-lt_sum/nProcessors)
+            if (mod(Iter,lb_measure_cycle).eq.0) then
+               call MPIAllReduce(lt_arr,MPI_SUM,lt_sum)
+               call MPIAllReduce(lt_arr,MPI_MAX,lt_max)
+               lt_imb_cycle = sum(lt_max-lt_sum/nProcessors)
+               lt_imb=lt_imb+lt_imb_cycle
             end if
 
             Iter=Iter+1
@@ -875,7 +893,7 @@ module FciMCParMod
         write(iout,*) 'Total loop-time: ', stop_time - start_time
 
         !add load imbalance from remaining iterations (if any)
-        rest=mod(Iter-1,100)
+        rest=mod(Iter-1,lb_measure_cycle)
         if (rest.gt.0) then
            call MPIReduce(lt_arr,MPI_SUM,lt_sum)
            call MPIReduce(lt_arr,MPI_MAX,lt_max)

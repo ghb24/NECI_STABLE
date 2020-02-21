@@ -17,7 +17,7 @@ method vertex fcimc
 endmethods
 seed -7
 definedet 1 4 5 8 9 12 13 16
-
+load-balance-interval 1000
 allrealcoeff
 
 tau 0.001
