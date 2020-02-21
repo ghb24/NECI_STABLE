@@ -304,7 +304,7 @@ contains
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, &
                                     core_in%tApproxSpace, core_in%nApproxSpace, &
-                                    SpawnedParts(0:niftot,1:space_size), space_size)
+                                    SpawnedParts, space_size)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. (tCSFCore .or. tGUGACore)) then
            if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
@@ -492,7 +492,7 @@ contains
         if (.not. (proc == iProcIndex)) return
 
         space_size = space_size + 1
-        ilut_list(:, space_size) = 0_n_int
+        ilut_list(0:, space_size) = 0_n_int
         ilut_list(0:NIfTot, space_size) = ilut(0:NIfTot)
 
     end subroutine add_state_to_space

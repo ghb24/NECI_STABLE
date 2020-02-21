@@ -123,7 +123,7 @@ contains
 
         write(unit_id, '(A)') 'calc'
 
-        write(unit_id, '(A)') '    totalwalkers 1000'
+        write(unit_id, '(A)') '    totalwalkers 100'
         write(unit_id, '(A)') '    (readpops'
         write(unit_id, '(A)') '    (walkcontgrow'
         write(unit_id, '(A)') '    semi-stochastic 10'
@@ -134,7 +134,7 @@ contains
 
         write(unit_id, '(A)') '    diagshift .00'
         write(unit_id, '(A)') '    shiftdamp .02'
-        write(unit_id, '(A)') '    nmcyc 50000'
+        write(unit_id, '(A)') '    nmcyc 10000'
         write(unit_id, '(A)') '    stepsshift 10'
         write(unit_id, '(A)') '    proje-changeref 1.20'
         write(unit_id, '(A)') '    truncinitiator'
@@ -148,15 +148,19 @@ contains
         write(unit_id, '(A)') '    memoryfacpart 5.00'
         write(unit_id, '(A)') '    time 200'
         write(unit_id, '(A)') '    startsinglepart 10'
-        write(unit_id, '(A)') '    pops-core 10000'
-        write(unit_id, '(A)') '    rdmsamplingiters 30'
+        write(unit_id, '(A)') '    pops-core 10'
+        if (.not. flag_guga_) then
+            write(unit_id, '(A)') '    rdmsamplingiters 30'
+        end if
         write(unit_id, '(A)') 'endcalc'
 
         write(unit_id, '(A)') 'logging'
         write(unit_id, '(A)') '    highlypopwrite 50'
-        write(unit_id, '(A)') '    print-spin-resolved-RDMs'
-        write(unit_id, '(A)') '    printonerdm'
-        write(unit_id, '(A)') '    calcrdmonfly 3 10 10'
+        if (.not. flag_guga_) then
+            write(unit_id, '(A)') '    print-spin-resolved-RDMs'
+            write(unit_id, '(A)') '    printonerdm'
+            write(unit_id, '(A)') '    calcrdmonfly 3 10 10'
+        end if
         write(unit_id, '(A)') 'endlog'
         write(unit_id, '(A)') 'end'
     end subroutine create_input
