@@ -27,6 +27,7 @@ realspawncutoff 1.
 AVGROWTHRATE
 startsinglepart 40
 definedet 1 2 3 4 5 6 7 8 9 10
+load-balance-interval 1000
 ENDCALC
 
 integral
