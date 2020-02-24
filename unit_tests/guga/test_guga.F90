@@ -71,6 +71,7 @@ contains
     subroutine guga_test_driver
 
         call init_guga_testsuite()
+        call run_test_case(test_coupling_coeffs, "test_coupling_coeffs")
 
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
@@ -273,10 +274,13 @@ contains
 
     subroutine test_guga_matrixElements
 
-        print *, " testing routines of module: guga_matrixElements:"
+        print *, " =============================================================="
+        print *, "  ===== testing routines of module: guga_matrixElements: ===== "
+        print *, " =============================================================="
 
         call run_test_case(check_calcDiagExchange_nI, "check_calcDiagExchange_nI")
         call run_test_case(check_calcDiagMatEleGUGA_nI, "check_calcDiagMatEleGUGA_nI")
+        call run_test_case(test_coupling_coeffs, "test_coupling_coeffs")
 
         print *, " guga_matrixElements tests passed!"
 
@@ -523,6 +527,71 @@ contains
 
     end subroutine test_identify_excitation_and_matrix_element
 
+
+    subroutine test_coupling_coeffs
+
+        integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        type(ExcitationInformation_t) :: excitInfo
+        HElement_t(dp) :: mat_ele
+        integer(int_rdm) :: rdm_ind
+        real(dp) :: rdm_mat
+        integer :: i, j
+        character(*), parameter :: this_routine = "test_coupling_coeffs"
+
+        print *, " =============================================================="
+        print *, " ====== testing the coupling coefficient calculation =========="
+        print *, " =============================================================="
+
+        nel = 1
+        call EncodeBitDet_guga([1], ilutI)
+        call EncodeBitDet_guga([3], ilutJ)
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+
+        ! Single excitations:
+        call assert_equals(h_cast(1.0_dp), mat_ele)
+        call assert_equals(1.0_dp, rdm_mat)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(5_int_rdm, rdm_ind)
+        call assert_equals(2,i)
+        call assert_equals(1,j)
+
+        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+
+        call assert_equals(h_cast(1.0_dp), mat_ele)
+        call assert_equals(1.0_dp, rdm_mat)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(2_int_rdm, rdm_ind)
+        call assert_equals(1,i)
+        call assert_equals(2,j)
+
+        nel = 2
+        call EncodeBitDet_guga([1,2], ilutI)
+        call EncodeBitDet_guga([1,4], ilutJ)
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(sqrt(2.0_dp), mat_ele)
+        call assert_equals(sqrt(2.0_dp), rdm_mat)
+        call assert_equals(5_int_rdm, rdm_ind)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(2,i)
+        call assert_equals(1,j)
+
+        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(sqrt(2.0_dp), mat_ele)
+        call assert_equals(sqrt(2.0_dp), rdm_mat)
+        call assert_equals(2_int_rdm, rdm_ind)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(1,i)
+        call assert_equals(2,j)
+
+        call stop_all(this_routine, "here")
+
+    end subroutine test_coupling_coeffs
 
     subroutine run_test_excit_gen_guga(nel_in, nbasis_in, stot_in)
         integer, intent(in) :: nel_in, nbasis_in, stot_in

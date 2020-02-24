@@ -22,7 +22,7 @@ module guga_excitations
                           is_init_guga, t_heisenberg_model, t_tJ_model, t_mixed_hubbard
 
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
-                         EPS, bni_, bn2_, iout, int64, inum_runs, maxExcit
+                         EPS, bni_, bn2_, iout, int64, inum_runs, maxExcit, int_rdm
 
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
                         extract_part_sign, nifguga, nifd
@@ -248,8 +248,8 @@ contains
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_hamil
         integer, intent(in) :: calc_type
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_guga_matrix_element"
 
         integer :: temp_b(nSpatOrbs), i
@@ -584,8 +584,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_single_excitation_ex"
 
         integer :: st, en, i, j, iOrb, gen, db, step1, step2
@@ -744,8 +744,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_single_overlap_mixed_ex"
 
         real(dp) :: bVal, temp_mat, guga_mat
@@ -868,8 +868,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_normal_alike_double_ex"
 
         integer :: start1, start2, ende1, ende2, i, gen, db, step1, step2
@@ -879,6 +879,16 @@ contains
 
         def_default(t_calc_full_, t_calc_full, .true.)
 
+
+        mat_ele = h_cast(0.0_dp)
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
+                                         excitInfo%k, excitInfo%l)
+            rdm_mat = 0.0_dp
+        end if
 
         start1 = excitInfo%fullStart
         start2 = excitInfo%secondStart
@@ -899,10 +909,7 @@ contains
 
             guga_mat = guga_mat * getSingleMatrixElement(step2,step1,db,gen,bVal)
 
-            if (abs(guga_mat) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(guga_mat)) return
 
         end do
 
@@ -923,10 +930,7 @@ contains
             temp_x0 = temp_x0 * temp_mat0
             temp_x1 = temp_x1 * temp_mat1
 
-            if (abs(temp_x0) < EPS .and. abs(temp_x1) < EPS) then
-                mat_ele = h_cast(0.0_dp)
-                return
-            end if
+            if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
         end do
 
         ! do the second single overlap part
@@ -945,10 +949,7 @@ contains
             temp_x0 = temp_x0 * temp_mat0
             temp_x1 = temp_x1 * temp_mat0
 
-            if (abs(temp_x0) < EPS .and. abs(temp_x1) < EPS) then
-                mat_ele = 0.0_dp
-                return
-            end if
+            if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
 
         end do
 
@@ -977,12 +978,8 @@ contains
             mat_ele = h_cast(temp_x0 + excitInfo%order * excitInfo%order1 * temp_x1)
         end if
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            call stop_all(this_routine, "TODO")
-        end if
-
+        if (present(rdm_mat)) rdm_mat = temp_x0 &
+                                + excitInfo%order * excitInfo%order1 * temp_x1
 
     end subroutine calc_normal_alike_double_ex
 
@@ -995,8 +992,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_normal_double_ex"
 
         integer :: start1, start2, ende1, ende2, step1, step2, db, gen1, gen2, &
@@ -1209,8 +1206,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_fullstop_alike_ex"
 
         real(dp) :: bVal, temp_mat, nOpen, guga_mat
@@ -1314,8 +1311,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_fullstart_alike_ex"
 
         integer :: start, ende, semi, gen, i, step1, step2, db
@@ -1402,8 +1399,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_fullstart_fullstop_alike_ex"
 
         real(dp) :: nOpen
@@ -1447,8 +1444,8 @@ contains
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_fullstop_mixed_ex"
 
         integer :: st, se, en, i, step1, step2, db, firstgen
@@ -1616,8 +1613,8 @@ contains
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_fullstart_mixed_ex"
 
         integer :: st, en, se, gen, step1, step2, db, i
@@ -1760,8 +1757,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer, intent(out), allocatable, optional :: rdm_ind(:,:)
-        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
+        integer(int_rdm), intent(out), optional :: rdm_ind
+        real(dp), intent(out), optional :: rdm_mat
         character(*), parameter :: this_routine = "calc_fullstart_fullstop_mixed_ex"
 
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
@@ -1802,12 +1799,10 @@ contains
 
         if (t_hamil_) then
             mat_ele =  calcMixedContribution(tmp_I, tmp_J, excitInfo%fullstart, excitInfo%fullEnd)
-        else
-            if (present(rdm_mat)) then
-                rdm_mat = calc_mixed_coupling_coeff(tmp_I, tmp_J, excitInfo)
-            else
-                call stop_all(this_routine, "no hamil and no RDM?!")
-            end if
+        end if
+
+        if (present(rdm_mat)) then
+            rdm_mat = calc_mixed_coupling_coeff(tmp_I, tmp_J, excitInfo)
         end if
 
         current_stepvector = temp_curr_step
@@ -1830,7 +1825,6 @@ contains
 
         ! set default
         tmp_mat = 0.0_dp
-
 
         st = excitInfo%fullStart
         en = excitInfo%fullEnd
