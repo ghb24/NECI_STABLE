@@ -101,7 +101,7 @@
 
 \begin{document}
 
-\author{Simon Smart, Nick Blunt, Kai Guther and George Booth}
+\author{Simon Smart, Nick Blunt, Kai Guther, Oskar Weser, Werner Dobrautz and George Booth}
 \title{Unravelling the mysteries of NECI}
 \subtitle{The $n$-Electron Configuration Interaction solver}
 \maketitle
@@ -589,6 +589,10 @@ the \texttt{endsys} keyword.
     Read in the integrals from a FCIDUMP file, used for ab-initio calculations.
     \codeitem{hubbard}
     Uses the Hubbard model Hamiltonian.
+    \begin{description}
+	\codeitem{k-space} In the momentum-space basis (beneficial for low $U/t$)
+	\codeitem{real-space} In the real-space basis (beneficial for large $U/t$)
+    \end{description}
     \codeitem{ueg}
     Uses the Hamiltonian of the uniform electron gas in a box.
   \end{description}
@@ -604,6 +608,11 @@ the \texttt{endsys} keyword.
   respect to global spin-flip. $s=0$ indicates anti-symmetric combinations,
   $s=1$ symmetric combinations. This is useful to exclude unwanted spin
   configurations. For example, no triplet states can occur for \texttt{hphf 0}.
+  \codeitem{guga $S$}
+  Activates the spin-adapted implementation of FCIQMC using CSFs (more precisely Gel'fand-Tsetlin states) and the graphical Unitary Group Approach (GUGA). The total spin $S$ must be specified in multiples of $\hbar/2$. 
+  So $S = 0$ is a singlet, $S = 1$ a doublet $S = 2$ a Triplet and so on.
+  This keyword MUST be combined with certain \texttt{nonuniformrandexcits} input as described below! Also it is not allowed to use this keyword with the 
+  \texttt{spin-restrict} or \texttt{HPHF} keyword. And the number of electrons must allow the chosen spin (even number for Singlet,Triplet,etc. and odd for Doublet,Quartet,...). Additionally the choice of a reference determinant via the \texttt{definedet} keyword of the \texttt{CALC} input block (described below) is necessary in most cases, as the automatic reference state setup is not always working in a CSF-based implementation. 
   \codeitem{sym $k_x$ $k_y$ $k_z$ $s$}
   Specifies the symmetry of the target state. The first three arguments set
   the momentum $(k_x,k_y,k_z)$ and are only used for Hubbard and ueg-type
@@ -679,6 +688,11 @@ the \texttt{endsys} keyword.
     The pre-computed power-pitzer excitation generator \footnote{V. Neufeld,
       A. Thom, J. Chem. Theory Comput.2019151127-140}. Has low memory cost and
     scales only mildly with system size, and can thus be used for large systems.
+    \codeitem{mol-guga-weighted}
+    Excitation generator for molecular systems used in the spin-adapted GUGA Approach. The specification of this excitation generator when using GUGA in ab initio systems is necessary!
+    \codeitem{ueg-guga}
+    Excitation generator choice when using GUGA in the UEG or k-space/real-space Hubbard model calculations. It is mandatory to specify this keyword in this case!
+    
   \end{description}
   \codeitem{lattice-excitgen}
   Generates uniform excitations using momentum conservation. Requires the
@@ -874,7 +888,8 @@ the \texttt{endsys} keyword.
     option. The three arguments $c$, $nbins$ and $bound$ are
     optional. $0<c<1$ is the fraction of the histogram used for determining
     the new timestep, $nbins$ the number of bins in the histogram and $bound$
-    is the maximum value of $\frac{H_{ij}}{p(i|j)}$ to be stored.
+    is the maximum value of $\frac{H_{ij}}{p(i|j)}$ to be stored.\\
+    For spin-adapted GUGA calculations this option is \emph{highly} recommended! Otherwise the time-step can become quite small in these simulations. 
     \codeitem{\textcolor{oblue}{max-tau $\tau_\text{max}$}}
     Sets the maximal value of the time-step to $\tau_\text{max}$. Defaults to
     $1$.
@@ -904,7 +919,17 @@ the \texttt{endsys} keyword.
     Sets the reference determinant of the calculation to $det$. If no other
     initialisation is specified, this will also be the initial
     wave function. The format can either be a comma-separated list of spin
-    orbitals, a range of spin orbitals (like 12-24) or a combination of both.
+    orbitals, a range of spin orbitals (like 12-24) or a combination of both. \\
+    For spin-adapted calculations using the \texttt{GUGA} keyword defining a starting reference CSF manually is \emph{highly} encouraged, as the 
+  	automatic way often fails. It works in similar ways as for SDs, however 
+  	odd numbered singly occupied orbitals indicate a positive spin coupled orbital in GUGA CSFs and even numbered singly occupied orbitals negatively spin coupled. So one needs to be careful to not define a unphysical CSF with an negative intermediate total spin $S_i < 0$. E.g. a CSF like: \\
+  	\texttt{definedet  1 2 4 5}\\
+  	would cause the calculation to crash, as the first singly occupied orbital (4) would cause the total spin to be negative $S_i < 0$. When defining the starting CSF one also needs to ensure that the defined CSFs satisfies the 
+  	total number of electrons and total $S$ defined in the \texttt{System} block of the input with the keywords \texttt{nel} and \texttt{guga}.
+  	As an example a triplet (\texttt{guga 2}) CSF with 4 electrons (\texttt{nel 4}) would be \\
+  	\texttt{definedet 1 2 3 5}\\
+  	with the first spatial orbital doubly occupied and 2 open-shell orbitals (positively spin coupled, hence odd numbers).
+    
     \codeitem{readPops}
     Read in the wave function from a file and use the read-in wave function
     for initialisation. In addition to the wave function, also the time-step
