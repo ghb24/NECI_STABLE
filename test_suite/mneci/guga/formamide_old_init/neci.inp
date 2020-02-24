@@ -20,7 +20,6 @@ memoryfacspawn 10.0
 memoryfachash 1.0
 nmcyc 100
 seed 8761
-load-balance-interval 1000
 startsinglepart 2000
 totalwalkers 5000
 shiftdamp 0.05

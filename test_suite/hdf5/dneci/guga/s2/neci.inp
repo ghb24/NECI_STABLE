@@ -16,7 +16,8 @@ method vertex fcimc
 endmethods
 seed -7
 totalwalkers    400
-load-balance-blocks off
+load-balance-blocks on
+load-balance-interval 1000
 nmcyc 500
 diagshift 0.00
 shiftdamp 0.02
