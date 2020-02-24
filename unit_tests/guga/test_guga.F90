@@ -573,7 +573,7 @@ contains
 
         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(sqrt(2.0_dp), mat_ele)
+        call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat)
         call assert_equals(5_int_rdm, rdm_ind)
         call extract_1_rdm_ind(rdm_ind, i, j)
@@ -582,7 +582,7 @@ contains
 
         call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(sqrt(2.0_dp), mat_ele)
+        call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat)
         call assert_equals(2_int_rdm, rdm_ind)
         call extract_1_rdm_ind(rdm_ind, i, j)
