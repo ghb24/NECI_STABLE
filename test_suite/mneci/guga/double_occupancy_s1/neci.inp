@@ -16,7 +16,7 @@ calc
 methods
 method vertex fcimc
 endmethods
-
+load-balance-interval 1000
 definedet 1 4 5 7
 seed -7
 allrealcoeff

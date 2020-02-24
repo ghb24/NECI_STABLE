@@ -694,8 +694,7 @@ contains
             if(t_real_time_fciqmc) then
                 l1_norm = 0.0
                 do run = 1, inum_runs
-                    l1_norm = l1_norm + abs(cmplx(AllTotParts(min_part_type(run)), &
-                        AllTotParts(max_part_type(run))))
+                    l1_norm = l1_norm + mag_of_run(AllTotParts, run)
                 end do
             endif
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')

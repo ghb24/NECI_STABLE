@@ -22,6 +22,7 @@ load-balance-blocks off
 truncinitiator
 addtoinitiator 3
 exp-adaptive-shift 2
+load-balance-interval 1000
 endcalc
 
 logging

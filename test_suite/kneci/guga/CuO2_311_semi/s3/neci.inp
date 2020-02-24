@@ -33,6 +33,7 @@ memoryfacspawn 25.0
 memoryfacpart 5.0
 time 1200.0
 nmcyc 2200
+load-balance-interval 1000
 endcalc
 
 integral

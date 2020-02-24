@@ -1802,7 +1802,7 @@ contains
         end if
 
         if (present(rdm_mat)) then
-            rdm_mat = calc_mixed_coupling_coeff(tmp_I, tmp_J, excitInfo)
+            rdm_mat = calc_mixed_coupling_coeff(tmp_J, excitInfo)
         end if
 
         current_stepvector = temp_curr_step
@@ -1811,11 +1811,11 @@ contains
 
     end subroutine calc_fullstart_fullstop_mixed_ex
 
-    function calc_mixed_coupling_coeff(ilutI, ilutJ, excitInfo) result(rdm_mat)
+    function calc_mixed_coupling_coeff(ilutJ, excitInfo) result(rdm_mat)
         ! function which purely calculates the couplind coefficient for
         ! a fullstart into fullstop mixed excitation for a specific
         ! set of orbital indices
-        integer(n_int), intent(in) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        integer(n_int), intent(in) :: ilutJ(0:nifguga)
         type(excitationInformation_t), intent(in) :: excitInfo
         real(dp) :: rdm_mat
         character(*), parameter :: this_routine = "calc_mixed_coupling_coeff"

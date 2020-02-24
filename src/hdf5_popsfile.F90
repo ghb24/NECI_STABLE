@@ -245,6 +245,7 @@ contains
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
         unused_var(MaxEx)
+        unused_var(IterSuffix)
 #endif
 
     end subroutine write_popsfile_hdf5

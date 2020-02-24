@@ -2195,7 +2195,7 @@ contains
 
         ! encode the combined RDM-ind in the deltaB position for
         ! communication purposes
-        excits(nifguga,:) = contract_1_rdm_ind(i,j)
+        excits(nifguga,:) = int(contract_1_rdm_ind(i,j), n_int)
 
     end subroutine calc_all_excits_guga_rdm_singles
 

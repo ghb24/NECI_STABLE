@@ -11,6 +11,7 @@ methods
 method vertex fcimc
 endmethods
 seed -7
+load-balance-interval 1000
 nmcyc 1000
 totalwalkers 1000
 startsinglepart
