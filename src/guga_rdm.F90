@@ -29,7 +29,8 @@ module guga_rdm
                                 calcFullStartR2L, calcFullStartFullStopAlike, &
                                 calcFullStartFullStopMixed, &
                                 calcRemainingSwitches_excitInfo_double
-    use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations
+    use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
+                         excit_type
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -618,15 +619,19 @@ contains
 
         select case (excitInfo%typ)
 
-        case (16, 17)
+        case (excit_type%fullstop_L_to_R, &
+              excit_type%fullstop_R_to_L  )
+
             call fill_mixed_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
                 mat_ele, excitInfo)
 
-        case (20, 21)
+        case (excit_type%fullstart_L_to_R, &
+              excit_type%fullstart_R_to_L  )
+
             call fill_mixed_start(spawn, ilutI, ilutJ, sign_i, sign_j, &
                 mat_ele, excitInfo)
 
-        case (23)
+        case (excit_type%fullstart_stop_mixed)
             call fill_mixed_start_end(spawn, ilutI, ilutJ, sign_i, sign_j, &
                 mat_ele, excitInfo)
 
@@ -656,10 +661,10 @@ contains
         st = excitInfo%fullStart
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
-        if (excitInfo%typ == 16) then
+        if (excitInfo%typ == excit_type%fullstop_L_to_R) then
             elecInd = st
             holeInd = se
-        else if (excitInfo%typ == 17) then
+        else if (excitInfo%typ == excit_type%fullstop_R_to_L) then
             elecInd = se
             holeInd = st
         else
@@ -847,10 +852,10 @@ contains
         en = excitInfo%fullEnd
         ! depending on the type of excitaiton, calculation of orbital pgens
         ! change
-        if (excitInfo%typ == 20) then
+        if (excitInfo%typ == excit_type%fullstart_L_to_R) then
             elecInd = en
             holeInd = se
-        else if (excitInfo%typ == 21) then
+        else if (excitInfo%typ == excit_type%fullstart_R_to_L) then
             elecInd = se
             holeInd = en
         else
@@ -1934,7 +1939,7 @@ contains
         ! and also the the full-starts are maybe correct already..
         ! so it was just the full-start into full-stop mixed!
         if (.not. t_direct_exchange) then
-            if (.not.compFlag .and. .not. excitInfo%typ == 23) then
+            if (.not.compFlag .and. .not. excitInfo%typ == excit_type%fullstart_stop_mixed) then
                 allocate(excits(0,0), stat = ierr)
                 return
             end if
@@ -1948,7 +1953,11 @@ contains
         if (t_mimic_stochastic) then
             select case(excitInfo%typ)
 
-            case(1,2,4,5)
+            case(excit_type%raising,                 &
+                 excit_type%lowering,                &
+                 excit_type%single_overlap_lowering, &
+                 excit_type%single_overlap_raising   )
+
                 ! in the case of mimicking stochasitic
                 ! excitation generation, we should abort here for
                 ! these type of excitations!
@@ -1960,12 +1969,12 @@ contains
         end if
 
         select case(excitInfo%typ)
-        case(0)
+        case(excit_type%single)
             ! shouldnt be here.. onyl single excits and full weight gens
             allocate(excits(0,0), stat = ierr)
             return
 
-        case(1) ! weight + lowering gen.
+        case(excit_type%raising) ! weight + raising gen.
             ! can be treated almost like a single excitation
             ! essentially the same, except if d(w) == 3 in the excitaton regime
 
@@ -1974,19 +1983,19 @@ contains
 
             exlevel = 1
 
-        case(2) ! weight + raising gen
+        case(excit_type%lowering) ! weight + lowering gen
             call calcDoubleExcitation_withWeight(ilut, excitInfo, excits,&
                 n_excits, posSwitches, negSwitches)
 
             exlevel = 1
 
-        case(3) ! non overlap
+        case(excit_type%non_overlap) ! non overlap
             call calcNonOverlapDouble(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case(4) ! single overlap two lowering
+        case(excit_type%single_overlap_lowering) ! single overlap two lowering
             ! how can i efficiently adress that?
             ! can i write that efficiently in one function or do i need more?
             ! probably need more... i already determined
@@ -1995,61 +2004,61 @@ contains
 
             exlevel = 1
 
-        case(5) ! single overlap raising
+        case(excit_type%single_overlap_raising) ! single overlap raising
             call calcSingleOverlapRaising(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 1
 
-        case (6) ! single overlap lowering into raising
+        case (excit_type%single_overlap_L_to_R) ! single overlap lowering into raising
             call calcSingleOverlapMixed(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (7) ! single overlap raising into lowering
+        case (excit_type%single_overlap_R_to_L) ! single overlap raising into lowering
             call calcSingleOverlapMixed(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (8) ! normal double overlap two lowering
+        case (excit_type%double_lowering) ! normal double overlap two lowering
             call calcDoubleLowering(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (9) ! normal double overlap two raising
+        case (excit_type%double_raising) ! normal double overlap two raising
             call calcDoubleRaising(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (10) ! lowering into raising into lowering
+        case (excit_type%double_L_to_R_to_L) ! lowering into raising into lowering
             call calcDoubleRaising(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (11) ! raising into lowering into raising
+        case (excit_type%double_R_to_L_to_R) ! raising into lowering into raising
             call calcDoubleLowering(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (12) ! lowering into raising double
+        case (excit_type%double_L_to_R) ! lowering into raising double
             call calcDoubleL2R(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (13) ! raising into lowering double
+        case (excit_type%double_R_to_L) ! raising into lowering double
             call calcDoubleR2L(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (14) ! full stop 2 lowering
+        case (excit_type%fullstop_lowering) ! full stop 2 lowering
             ! can i write a function for both alike generator combinations
             ! i think i can
             call calcFullstopLowering(ilut, excitInfo, excits, n_excits, &
@@ -2057,13 +2066,13 @@ contains
 
             exlevel = 2
 
-        case (15) ! full stop 2 raising
+        case (excit_type%fullstop_raising) ! full stop 2 raising
             call calcFullstopRaising(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (16) ! full stop lowering into raising
+        case (excit_type%fullstop_L_to_R) ! full stop lowering into raising
             call calcFullStopL2R(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches, t_mimic_stochastic)
 
@@ -2082,46 +2091,46 @@ contains
             ! to mimick stochastic exctiations generation
             exlevel = 2
 
-        case (17) ! full stop raising into lowering
+        case (excit_type%fullstop_R_to_L) ! full stop raising into lowering
             call calcFullStopR2L(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches, t_mimic_stochastic)
 
             ! same as for 16
             exlevel = 2
 
-        case (18) ! full start 2 lowering
+        case (excit_type%fullstart_lowering) ! full start 2 lowering
             call calcFullStartLowering(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (19) ! full start 2 raising
+        case (excit_type%fullstart_raising) ! full start 2 raising
             call calcFulLStartRaising(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 
             exlevel = 2
 
-        case (20) ! full start lowering into raising
+        case (excit_type%fullstart_L_to_R) ! full start lowering into raising
             call calcFullStartL2R(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches, t_mimic_stochastic)
 
             ! same as for 16
             exlevel = 2
 
-        case (21) ! full start raising into lowering
+        case (excit_type%fullstart_R_to_L) ! full start raising into lowering
             call calcFullStartR2L(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches, t_mimic_stochastic)
 
             ! same as for 16
             exlevel = 2
 
-        case (22) ! full start into full stop alike
+        case (excit_type%fullstart_stop_alike) ! full start into full stop alike
             call calcFullStartFullStopAlike(ilut, excitInfo, excits)
             n_excits = 1
 
             exlevel = 2
 
-        case (23) ! full start into full stop mixed
+        case (excit_type%fullstart_stop_mixed) ! full start into full stop mixed
             call calcFullStartFullStopMixed(ilut, excitInfo, excits, n_excits, &
                 posSwitches, negSwitches)
 

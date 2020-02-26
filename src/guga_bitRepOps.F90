@@ -10,7 +10,7 @@ module guga_bitRepOps
     use SystemData, only: nEl, Stot, nSpatOrbs, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, nbasis
-    use guga_data, only: ExcitationInformation_t
+    use guga_data, only: ExcitationInformation_t, excit_type
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -1287,7 +1287,7 @@ contains
         if (present(typ)) then
             excitInfo%typ = typ
         else
-            excitInfo%typ = 0
+            excitInfo%typ = excit_type%single
         end if
 
         if (i == j) then

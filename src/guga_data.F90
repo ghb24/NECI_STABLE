@@ -45,8 +45,8 @@ module guga_data
         non_overlap             =  3, & ! 3 ... non overlap
         single_overlap_lowering =  4, & ! 4 ... single overlap 2 lowering
         single_overlap_raising  =  5, & ! 5 ... single overlap 2 raising
-        single_overlap_R_to_L   =  6, & ! 6 ... single overlap lowering into raising
-        single_overlap_L_to_R   =  7, & ! 7 ... single overlap raising into lowering
+        single_overlap_L_to_R   =  6, & ! 6 ... single overlap lowering into raising
+        single_overlap_R_to_L   =  7, & ! 7 ... single overlap raising into lowering
         double_lowering         =  8, & ! 8 ... normal double two lowering
         double_raising          =  9, & ! 9 ... normal double two raising
         double_L_to_R_to_L      = 10, & ! 10 .. lowering into raising into lowering
@@ -66,7 +66,7 @@ module guga_data
 
     end type ExcitationTypeValues_t
 
-    type(ExcitationTypeValues_t) :: excit_type
+    type(ExcitationTypeValues_t), parameter :: excit_type = ExcitationTypeValues_t()
 
     type :: ExcitationInformation_t
 
