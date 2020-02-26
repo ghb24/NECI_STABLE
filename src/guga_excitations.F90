@@ -7259,9 +7259,6 @@ contains
         ! try the new reusing of the weights object..
         weights = weights%ptr
 
-        ! gfortran compiler fix
-        if (excitInfo%typ == 0) print *, ""
-
         call calcRaisingSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
 
@@ -7893,9 +7890,6 @@ contains
 
         ! do the specific semi-start
         weights = weights%ptr
-
-        ! dirty fix of the gfortran compiler issues:
-        if (excitInfo%typ == 0) print *, ""
 
         call calcLoweringSemiStartStochastic(ilut, excitInfo, weights, negSwitches, &
             posSwitches, t, branch_pgen)
@@ -10030,9 +10024,6 @@ contains
             return
         end if
 
-        ! same fix as in fullstop
-        if (excitInfo%typ == 0) print *, extract_matrix_element(t, 2)
-
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             call calc_mixed_start_contr_approx(t, excitInfo, integral)
             pgen = branch_pgen
@@ -10705,9 +10696,6 @@ contains
         else
             call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
         end if
-
-        ! same fix as in full-stops
-        if (excitInfo%typ == 0) print *, extract_matrix_element(t,2)
 
         ! and finally update the matrix element with all contributions
         call update_matrix_element(t, (get_umat_el(st,se,en,st) + &
