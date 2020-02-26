@@ -872,9 +872,8 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_normal_alike_double_ex"
 
-        integer :: start1, start2, ende1, ende2, i, gen, db, step1, step2
-        real(dp) :: temp_x0, temp_x1, bVal, temp_mat0, temp_mat1, &
-                     order1, order2, guga_mat
+        integer :: i, db, step1, step2, gen
+        real(dp) :: temp_x0, temp_x1, bVal, temp_mat0, temp_mat1, guga_mat
         logical :: t_calc_full_
 
         def_default(t_calc_full_, t_calc_full, .true.)
@@ -885,7 +884,8 @@ contains
         associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                   ll => excitInfo%l, start1 => excitInfo%fullStart, &
                   start2 => excitInfo%secondStart, ende1 => excitInfo%firstEnd, &
-                  ende2 => excitInfo%fullEnd, gen => exitInfo%firstGen)
+                  ende2 => excitInfo%fullEnd, &
+                  order => excitInfo%order, order1 => excitInfo%order1)
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
@@ -900,6 +900,7 @@ contains
             rdm_ind(4) = contract_2_rdm_ind(kk, jj, ii, ll)
         end if
 
+        gen = excitInfo%firstgen
         guga_mat = 1.0_dp
         ! to the single part:
         do i = start1, start2 - 1
@@ -961,7 +962,7 @@ contains
                 ! since i need to know the x0 and x1 matrix element contributions
                 mat_ele = (temp_x0 * (get_umat_el(ende1,ende2,start1,start2) + &
                     get_umat_el(ende2,ende1,start2,start1) + get_umat_el(ende2,ende1,start1,start2) + &
-                    get_umat_el(ende1,ende2,start2,start1)) + excitInfo%order * excitInfo%order1 * &
+                    get_umat_el(ende1,ende2,start2,start1)) + order * order1 * &
                     temp_x1 * ( &
                     get_umat_el(ende1,ende2,start1,start2) + get_umat_el(ende2,ende1,start2,start1) - &
                     get_umat_el(ende2,ende1,start1,start2) - get_umat_el(ende1,ende2,start2,start1)))/2.0_dp
@@ -970,20 +971,20 @@ contains
 
                 mat_ele = (temp_x0 * (get_umat_el(start1,start2,ende1,ende2) + &
                     get_umat_el(start2,start1,ende2,ende1) + get_umat_el(start1,start2,ende2,ende1) + &
-                    get_umat_el(start2,start1,ende1,ende2)) + excitInfo%order * excitInfo%order1 * &
+                    get_umat_el(start2,start1,ende1,ende2)) + order * order1 * &
                     temp_x1 * ( &
                     get_umat_el(start1,start2,ende1,ende2) + get_umat_el(start2,start1,ende2,ende1) - &
                     get_umat_el(start1,start2,ende2,ende1) - get_umat_el(start2,start1,ende1,ende2)))/2.0_dp
 
             end if
         else
-            mat_ele = h_cast(temp_x0 + excitInfo%order * excitInfo%order1 * temp_x1)
+            mat_ele = h_cast(temp_x0 + order * order1 * temp_x1)
         end if
 
         if (present(rdm_mat)) then
             ! now I have to think about the corresponding index combinations
             ! and involved signs.. damn..
-            rdm_mat = temp_x0 + excitInfo%order * excitInfo%order1 * temp_x1
+            rdm_mat = temp_x0 + order * order1 * temp_x1
 
         end if
 
@@ -1020,7 +1021,7 @@ contains
                   ende2 => excitInfo%fullEnd, gen1 => excitInfo%gen1, &
                   gen2 => excitInfo%gen2, firstgen => excitInfo%firstgen, &
                   lastgen => excitInfo%lastgen, order => excitInfo%order, &
-                  order1 => excitInfo%order1)
+                  order1 => excitInfo%order1, typ => excitInfo%typ)
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
@@ -1030,7 +1031,7 @@ contains
 
             ! this does get tricky now with the rdm inds and mats..
 
-            rmd_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
             rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
             rdm_ind(3) = contract_2_rdm_ind(ii, ll, kk, jj)
             rdm_ind(4) = contract_2_rdm_ind(kk, jj, ii, ll)
@@ -1117,7 +1118,7 @@ contains
         ! routine with a if statement at the end here..
 
         if (present(rdm_mat)) then
-            select case(excitInfo%typ)
+            select case(typ)
             case(8,9)
                 ! in both the orbital picker and also excitation identifier
                 ! the order quantities are setup to be 1.0..
@@ -1131,10 +1132,10 @@ contains
                 ! ordering I should assert that here
 #ifdef DEBUG_
                 if (typ == 9) then
-                    ASSERT(i < j)
-                    ASSERT(k < l)
-                    ASSERT(i > k)
-                    ASSERT(j > l)
+                    ASSERT(ii < jj)
+                    ASSERT(kk < ll)
+                    ASSERT(ii > kk)
+                    ASSERT(jj > ll)
                 end if
 #endif
                 ! the first two should have the 'original' sign
@@ -1151,7 +1152,7 @@ contains
             end select
         end if
 
-        select case (excitInfo%typ)
+        select case (typ)
         case (8)
             ! double lowering
             ! wait a minute.. i have to do that at the end apparently..
@@ -1229,6 +1230,8 @@ contains
             ! combine the "normal" double RR/LL also in here, since the rest
             ! of the routine is totally the same!
         end select
+
+        end associate
 
 
     end subroutine calc_normal_double_ex
