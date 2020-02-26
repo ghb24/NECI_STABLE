@@ -71,6 +71,8 @@ contains
     subroutine guga_test_driver
 
         call init_guga_testsuite()
+        call run_test_case(test_contract_extract_1_rdm, "test_contract_extract_1_rdm")
+        call run_test_case(test_contract_extract_2_rdm, "test_contract_extract_2_rdm")
         call run_test_case(test_coupling_coeffs, "test_coupling_coeffs")
 
         call test_guga_bitRepOps
@@ -172,6 +174,8 @@ contains
         call run_test_case(test_calcStepVector, "test_calcStepVector")
         call run_test_case(test_getSpatialOccupation, "test_getSpatialOccupation")
         call run_test_case(test_calcOcc_vector_ilut, "test_calcOcc_vector_ilut")
+        call run_test_case(test_contract_extract_1_rdm, "test_contract_extract_1_rdm")
+        call run_test_case(test_contract_extract_2_rdm, "test_contract_extract_2_rdm")
 
         print *, "guga_bitRepOps tests passed!"
 
@@ -295,6 +299,85 @@ contains
         print *, "guga_data tests passed!"
 
     end subroutine test_guga_data
+
+    subroutine test_contract_extract_2_rdm
+        integer(int_rdm) :: ijkl
+        integer :: i,j,k,l
+        integer(int_rdm) :: ij, kl
+        character(*), parameter :: this_routine = "test_contract_extract_2_rdm"
+
+        print *, "testing: contract and extract 2 rdm index: "
+
+        ijkl = contract_2_rdm_ind(1,1,1,1)
+        call assert_equals(1_int_rdm, ijkl)
+        call extract_2_rdm_ind(ijkl, i = i, j = j, k = k, l = l, ij_out = ij, kl_out = kl)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(1, l)
+        call assert_equals(1_int_rdm, ij)
+        call assert_equals(1_int_rdm, kl)
+
+        ijkl = contract_2_rdm_ind(1,2,3,4)
+!         call assert_equals(1_int_rdm, ijkl)
+        call extract_2_rdm_ind(ijkl, i = i, j = j, k = k, l = l, ij_out = ij, kl_out = kl)
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+        call assert_equals(3, k)
+        call assert_equals(4, l)
+        call assert_equals(2_int_rdm, ij)
+        call assert_equals(12_int_rdm, kl)
+
+        ijkl = contract_2_rdm_ind(i = 1, j = 1, k = 2, l = 2)
+!         call assert_equals(1_int_rdm, ijkl)
+        call extract_2_rdm_ind(ijkl, i = i, j = j, k = k, l = l, ij_out = ij, kl_out = kl)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(2, k)
+        call assert_equals(2, l)
+        call assert_equals(1_int_rdm, ij)
+        call assert_equals(6_int_rdm, kl)
+
+        print *, ""
+
+    end subroutine test_contract_extract_2_rdm
+
+    subroutine test_contract_extract_1_rdm
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j
+        character(*), parameter :: this_routine = "test_contract_extract_1_rdm"
+
+        print *, " testing: contract and extract 1 rdm index"
+
+
+        rdm_ind = contract_1_rdm_ind(1,1)
+        call assert_equals(1_int_rdm, rdm_ind)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+
+        rdm_ind = contract_1_rdm_ind(1,2)
+        call assert_equals(2_int_rdm, rdm_ind)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+
+        rdm_ind = contract_1_rdm_ind(2,1)
+        call assert_equals(5_int_rdm, rdm_ind)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(2, i)
+        call assert_equals(1, j)
+
+        rdm_ind = contract_1_rdm_ind(2,2)
+        call assert_equals(6_int_rdm, rdm_ind)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(2, i)
+        call assert_equals(2, j)
+
+
+        print *, ""
+
+    end subroutine test_contract_extract_1_rdm
 
     subroutine test_excitationIdentifier
         integer :: i, j, k, l
@@ -535,7 +618,7 @@ contains
         HElement_t(dp) :: mat_ele
         integer(int_rdm) :: rdm_ind
         real(dp) :: rdm_mat
-        integer :: i, j
+        integer :: i, j, k, l
         character(*), parameter :: this_routine = "test_coupling_coeffs"
 
         print *, " =============================================================="
@@ -588,6 +671,100 @@ contains
         call extract_1_rdm_ind(rdm_ind, i, j)
         call assert_equals(1,i)
         call assert_equals(2,j)
+
+        call EncodeBitDet_guga([1,6], ilutJ)
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
+        call assert_equals(sqrt(2.0_dp), rdm_mat)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(3,i)
+        call assert_equals(1,j)
+
+        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
+        call assert_equals(sqrt(2.0_dp), rdm_mat)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(1,i)
+        call assert_equals(3,j)
+
+        nel = 3
+        call EncodeBitDet_guga([1,3,4], ilutI)
+        call EncodeBitDet_guga([3,4,5], ilutJ)
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(h_cast(-1.0_dp), mat_ele)
+        call assert_equals(-1.0_dp, rdm_mat)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(3,i)
+        call assert_equals(1,j)
+
+        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(h_cast(-1.0_dp), mat_ele)
+        call assert_equals(-1.0_dp, rdm_mat)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(1,i)
+        call assert_equals(3,j)
+
+        call EncodeBitDet_guga([1,3,5], ilutI)
+        call EncodeBitDet_guga([3,5,7], ilutJ)
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(h_cast(1.0_dp), mat_ele)
+        call assert_equals(1.0_dp, rdm_mat)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(4,i)
+        call assert_equals(1,j)
+
+        call calc_guga_matrix_element(ilutj, iluti, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(h_cast(1.0_dp), mat_ele)
+        call assert_equals(1.0_dp, rdm_mat)
+        call extract_1_rdm_ind(rdm_ind, i, j)
+        call assert_equals(4,j)
+        call assert_equals(1,i)
+
+        nel = 2
+        call EncodeBitDet_guga([1,2], ilutI)
+        call EncodeBitDet_guga([3,4], ilutJ)
+
+        call calc_guga_matrix_element(iluti, ilutj, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(h_cast(2.0_dp), mat_ele)
+        call assert_equals(2.0_dp, rdm_mat)
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(2,i)
+        call assert_equals(1,j)
+        call assert_equals(2,k)
+        call assert_equals(1,l)
+
+        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(h_cast(2.0_dp), mat_ele)
+        call assert_equals(2.0_dp, rdm_mat)
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(1,i)
+        call assert_equals(2,j)
+        call assert_equals(1,k)
+        call assert_equals(2,l)
+
+        call EncodeBitDet_guga([3,6], ilutJ)
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+        call assert_equals(h_cast(2.0_dp), mat_ele)
+        call assert_equals(2.0_dp, rdm_mat)
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(1,i)
+        call assert_equals(2,j)
+        call assert_equals(1,k)
+        call assert_equals(2,l)
+
 
         call stop_all(this_routine, "here")
 

@@ -151,11 +151,6 @@ module guga_excitations
         module procedure calc_pgen_guga_crude_exmat
     end interface calc_pgen_guga_crude
 
-    interface assign_excitInfo_values
-        module procedure assign_excitInfo_values_single
-        module procedure assign_excitInfo_values_double
-    end interface assign_excitInfo_values
-
     interface excitationIdentifier
         module procedure excitationIdentifier_single
         module procedure excitationIdentifier_double
@@ -248,8 +243,8 @@ contains
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in) :: t_hamil
         integer, intent(in) :: calc_type
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_guga_matrix_element"
 
         integer :: temp_b(nSpatOrbs), i
@@ -584,8 +579,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_single_excitation_ex"
 
         integer :: st, en, i, j, iOrb, gen, db, step1, step2
@@ -607,6 +602,8 @@ contains
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
+            allocate(rdm_ind(1), source = 0_int_rdm)
+            allocate(rdm_mat(1), source = 0.0_dp)
             rdm_ind = contract_1_rdm_ind(excitInfo%i, excitInfo%j)
             rdm_mat = 0.0_dp
         end if
@@ -744,13 +741,13 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_single_overlap_mixed_ex"
 
         real(dp) :: bVal, temp_mat, guga_mat
         HElement_t(dp) :: umat
-        integer :: i, st, ss, en, gen, db, gen2, step1, step2
+        integer :: i, db, gen2, step1, step2
         logical :: t_calc_full_
 
         ! in the case of rdm calculation, i know that this type of exitation
@@ -762,27 +759,33 @@ contains
         ! set some defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
 
+        associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
+                  ll => excitInfo%l, st => excitInfo%fullStart, &
+                  ss => excitInfo%secondStart, en => excitInfo%fullEnd, &
+                  gen => excitInfo%firstGen, fe => excitInfo%firstEnd, &
+                  typ => excitInfo%typ)
+
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
-                                         excitInfo%k, excitInfo%l)
-            rdm_mat = 0.0_dp
+            ! i am not sure yet if I will use symmetries in the RDM
+            ! calculation (some are also left out in the SD based implo..
+            ! so for now sample both combinations
+            allocate(rdm_ind(2), source = 0_int_rdm)
+            allocate(rdm_mat(2), source = 0.0_dp)
+            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
 
         if (any(abs(temp_delta_b) > 1)) return
 
         if (t_calc_full_) then
-            if (excitInfo%typ == 6) then
-                umat = (get_umat_el(excitInfo%firstEnd, excitInfo%secondStart, &
-                    excitInfo%fullStart, excitInfo%fullEnd) + &
-                    get_umat_el(excitInfo%secondStart,excitInfo%firstEnd, &
-                    excitInfo%fullEnd,excitInfo%fullStart))/2.0_dp
-            else if (excitInfo%typ == 7) then
-                umat = (get_umat_el(excitInfo%fullStart, excitInfo%fullEnd, &
-                    excitInfo%firstEnd, excitInfo%secondStart) + &
-                    get_umat_el(excitInfo%fullEnd,excitInfo%fullStart,&
-                    excitInfo%secondStart,excitInfo%firstEnd))/2.0_dp
+            if (typ == 6) then
+                umat = (get_umat_el(fe, ss, st, en) + &
+                        get_umat_el(ss, fe, en, st)) / 2.0_dp
+            else if (typ == 7) then
+                umat = (get_umat_el(st, en, fe, ss) + &
+                        get_umat_el(en, st, ss, fe)) / 2.0_dp
             else
                 call stop_all(this_routine, "shouldnt be here!")
             end if
@@ -795,12 +798,6 @@ contains
         if (t_calc_full .and. near_zero(umat)) return
 
         guga_mat = 1.0_dp
-
-        st = excitInfo%fullstart
-        ss = excitInfo%secondstart
-        en = excitInfo%fullend
-
-        gen = excitInfo%firstgen
 
         ! i have to do the start specifically, due to the access of the
         ! single matrix elements
@@ -851,8 +848,11 @@ contains
 
         end do
 
+        end associate
+
         mat_ele = guga_mat * umat
 
+        ! both coupling coeffs are the same
         if (present(rdm_mat)) rdm_mat = guga_mat
 
     end subroutine calc_single_overlap_mixed_ex
@@ -868,8 +868,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_calc_full
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_normal_alike_double_ex"
 
         integer :: start1, start2, ende1, ende2, i, gen, db, step1, step2
@@ -882,21 +882,23 @@ contains
 
         mat_ele = h_cast(0.0_dp)
 
+        associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
+                  ll => excitInfo%l, start1 => excitInfo%fullStart, &
+                  start2 => excitInfo%secondStart, ende1 => excitInfo%firstEnd, &
+                  ende2 => excitInfo%fullEnd, gen => exitInfo%firstGen)
+
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
-                                         excitInfo%k, excitInfo%l)
-            rdm_mat = 0.0_dp
+            allocate(rdm_ind(4), source = 0_int_rdm)
+            allocate(rdm_mat(4), source = 0.0_dp)
+
+            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
+            ! and this is also a valid combination in this case:
+            rdm_ind(3) = contract_2_rdm_ind(ii, ll, kk, jj)
+            rdm_ind(4) = contract_2_rdm_ind(kk, jj, ii, ll)
         end if
-
-        start1 = excitInfo%fullStart
-        start2 = excitInfo%secondStart
-        ende1 = excitInfo%firstEnd
-        ende2 = excitInfo%fullEnd
-
-        gen = excitInfo%firstGen
-        ! the generators are alike in this routine
 
         guga_mat = 1.0_dp
         ! to the single part:
@@ -978,8 +980,14 @@ contains
             mat_ele = h_cast(temp_x0 + excitInfo%order * excitInfo%order1 * temp_x1)
         end if
 
-        if (present(rdm_mat)) rdm_mat = temp_x0 &
-                                + excitInfo%order * excitInfo%order1 * temp_x1
+        if (present(rdm_mat)) then
+            ! now I have to think about the corresponding index combinations
+            ! and involved signs.. damn..
+            rdm_mat = temp_x0 + excitInfo%order * excitInfo%order1 * temp_x1
+
+        end if
+
+        end associate
 
     end subroutine calc_normal_alike_double_ex
 
@@ -992,12 +1000,11 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_normal_double_ex"
 
-        integer :: start1, start2, ende1, ende2, step1, step2, db, gen1, gen2, &
-                   i, firstgen, lastgen
+        integer :: step1, step2, db, i
         real(dp) :: temp_x0, temp_x1, temp_mat0, temp_mat1, bVal, guga_mat
         HElement_t(dp) :: integral
         logical :: t_hamil_
@@ -1007,30 +1014,35 @@ contains
         ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
 
+        associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
+                  ll => excitInfo%l, start1 => excitInfo%fullStart, &
+                  start2 => excitInfo%secondStart, ende1 => excitInfo%firstEnd, &
+                  ende2 => excitInfo%fullEnd, gen1 => excitInfo%gen1, &
+                  gen2 => excitInfo%gen2, firstgen => excitInfo%firstgen, &
+                  lastgen => excitInfo%lastgen, order => excitInfo%order, &
+                  order1 => excitInfo%order1)
+
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
-                                         excitInfo%k, excitInfo%l)
+            allocate(rdm_ind(4), source = 0_int_rdm)
+            allocate(rdm_mat(4), source = 0.0_dp)
+
+            ! this does get tricky now with the rdm inds and mats..
+
+            rmd_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
+            rdm_ind(3) = contract_2_rdm_ind(ii, ll, kk, jj)
+            rdm_ind(4) = contract_2_rdm_ind(kk, jj, ii, ll)
+
             rdm_mat = 0.0_dp
         end if
-
-        ! the information if a switch happenend is stored in excitInfo!
-        start1 = excitInfo%fullStart
-        start2 = excitInfo%secondStart
-        ende1 = excitInfo%firstEnd
-        ende2 = excitInfo%fullEnd
 
         ! i have to check if the deltaB value is in its correct bounds for
         ! the specific parts of the excitations
         if (any(abs(temp_delta_b(start1:start2-1)) > 1) .or. &
             any(abs(temp_delta_b(start2:ende1-1)) > 2) .or. &
             any(abs(temp_delta_b(ende1:ende2)) > 1)) return
-
-        gen1 = excitInfo%gen1
-        gen2 = excitInfo%gen2
-        firstgen = excitInfo%firstgen
-        lastgen = excitInfo%lastgen
 
         ! depending on which type of excitation the non-overlap has a specific
         ! tbd generator! i should deal with that in the starting if statement
@@ -1107,7 +1119,28 @@ contains
         if (present(rdm_mat)) then
             select case(excitInfo%typ)
             case(8,9)
-                rdm_mat = temp_x0 * excitInfo%order * excitInfo%order1 * temp_x1
+                ! in both the orbital picker and also excitation identifier
+                ! the order quantities are setup to be 1.0..
+                ! i hope I did everything right there.. then this would
+                ! mean here
+                ASSERT(order  .isclose. 1.0_dp)
+                ASSERT(order1 .isclose. 1.0_dp)
+                ! and now I have to fill in the correct combinations of
+                ! signs here..
+                ! to check that everything is correctly set to the default
+                ! ordering I should assert that here
+#ifdef DEBUG_
+                if (typ == 9) then
+                    ASSERT(i < j)
+                    ASSERT(k < l)
+                    ASSERT(i > k)
+                    ASSERT(j > l)
+                end if
+#endif
+                ! the first two should have the 'original' sign
+                ! and the last two the opposite
+                rdm_mat(1:2) = temp_x0 + temp_x1
+                rdm_mat(3:4) = temp_x0 - temp_x1
 
             case(10,11,12,13)
                 if (excitInfo%spin_change) then
@@ -1206,8 +1239,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstop_alike_ex"
 
         real(dp) :: bVal, temp_mat, nOpen, guga_mat
@@ -1311,8 +1344,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_alike_ex"
 
         integer :: start, ende, semi, gen, i, step1, step2, db
@@ -1399,8 +1432,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_fullstop_alike_ex"
 
         real(dp) :: nOpen
@@ -1444,8 +1477,8 @@ contains
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstop_mixed_ex"
 
         integer :: st, se, en, i, step1, step2, db, firstgen
@@ -1613,8 +1646,8 @@ contains
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_mixed_ex"
 
         integer :: st, en, se, gen, step1, step2, db, i
@@ -1757,8 +1790,8 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         HElement_t(dp), intent(out) :: mat_ele
         logical, intent(in), optional :: t_hamil
-        integer(int_rdm), intent(out), optional :: rdm_ind
-        real(dp), intent(out), optional :: rdm_mat
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_fullstop_mixed_ex"
 
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
@@ -22400,7 +22433,7 @@ contains
                         ! around..
                         contrib = 2.0_dp
                         ! _RR_(ab) > ^RR(i) > ^R(j)
-                        excitInfo = assign_excitInfo_values(19,1,1,1,1,1,&
+                        excitInfo = assign_excitInfo_values_double(19,1,1,1,1,1,&
                             orb_a,n_id(1),orb_a,n_id(2),orb_a,orb_a,n_id(1),n_id(2),&
                             0,2,1.0_dp,1.0_dp)
                     end if
@@ -22412,7 +22445,7 @@ contains
 
                         if (orb_b > n_id(2)) then
                             ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
-                            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                 orb_a,n_id(2),orb_b,n_id(1),orb_a,n_id(1),n_id(2),orb_b,&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22422,13 +22455,13 @@ contains
                             st = min(orb_a,orb_b)
                             en = max(orb_a,orb_b)
                             ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
-                            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,&
                                 en,n_id(2),st,n_id(1),st,en,n_id(1),n_id(2),&
                                 0,4,1.0_dp,1.0_dp)
                         else
                             ! b is between i and j
                             ! _R(a) > _LR(i) > ^LR(b) > ^R(j)
-                            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                 orb_a,n_id(2),orb_b,n_id(1),orb_a,n_id(1),orb_b,n_id(2), &
                                 0,4,1.0_dp,1.0_dp)
                         end if
@@ -22457,7 +22490,7 @@ contains
 
             contrib = 1.0_dp
 
-            excitInfo = assign_excitInfo_values(23,-1,1,1,1,1,&
+            excitInfo = assign_excitInfo_values_double(23,-1,1,1,1,1,&
                 n_id(1),n_id(2),n_id(2),n_id(1),n_id(1),n_id(1),n_id(2),n_id(2),&
                 0,2,1.0_dp,1.0_dp)
 
@@ -22499,7 +22532,7 @@ contains
                     if (current_stepvector(orb_a) == 0 .and. tSwitch) then
                         contrib = 2.0_dp
                         ! _L(i) > ^LR_(ab) > ^R(j)
-                        excitInfo = assign_excitInfo_values(6,-1,1,-1,-1,1,&
+                        excitInfo = assign_excitInfo_values_double(6,-1,1,-1,-1,1,&
                             orb_a,n_id(1),orb_a,n_id(2),n_id(1),orb_a,orb_a,n_id(2),&
                             0,2,1.0_dp,1.0_dp,1)
                     end if
@@ -22511,13 +22544,13 @@ contains
 
                         if (orb_b < n_id(1)) then
                             ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
-                            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                 orb_b,n_id(2),orb_a,n_id(1),orb_b,n_id(1),orb_a,n_id(2),&
                                 0,4,1.0_dp,1.0_dp)
 
                         else if (orb_b > n_id(2)) then
                             ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
-                            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                 orb_b,n_id(1),orb_a,n_id(2),n_id(1),orb_a,n_id(2),orb_b,&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22525,7 +22558,7 @@ contains
                             st = min(orb_a,orb_b)
                             en = max(orb_a,orb_b)
                             ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
-                            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,&
+                            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,&
                                 en,n_id(1),st,n_id(2),n_id(1),st,en,n_id(2),&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22555,7 +22588,7 @@ contains
             contrib = 1.0_dp
 
 
-            excitInfo = assign_excitInfo_values(23,-1,1,1,1,1,&
+            excitInfo = assign_excitInfo_values_double(23,-1,1,1,1,1,&
                 n_id(1),n_id(2),n_id(2),n_id(1),n_id(1),n_id(1),n_id(2),n_id(2),&
                 0,2,1.0_dp,1.0_dp)
 
@@ -22596,7 +22629,7 @@ contains
                     if (current_stepvector(orb_a) == 0 .and. tSwitch) then
                         contrib = 2.0_dp
                         ! _L(i) > _LL(j) > ^LL^(ab)
-                        excitInfo = assign_excitInfo_values(14,-1,-1,-1,-1,-1,&
+                        excitInfo = assign_excitInfo_values_double(14,-1,-1,-1,-1,-1,&
                             orb_a,n_id(1),orb_b,n_id(2),n_id(1),n_id(2),orb_a,orb_a,&
                             0,2,1.0_dp,1.0_dp)
                     end if
@@ -22608,7 +22641,7 @@ contains
                         ! check type of excitation
                         if (orb_b < n_id(1)) then
                             ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
-                            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                 orb_b,n_id(2),orb_a,n_id(1),orb_b,n_id(1),n_id(2),orb_a, &
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22616,12 +22649,12 @@ contains
                             st = min(orb_a,orb_b)
                             en = max(orb_a,orb_b)
                             ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
-                            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                                 st,n_id(1),en,n_id(2),n_id(1),n_id(2),st,en,&
                                 0,4,1.0_dp,1.0_dp)
                         else
                             ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
-                            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                 orb_a,n_id(1),orb_b,n_id(2),n_id(1),orb_b,n_id(2),orb_a,&
                                 0,4,1.0_dp,1.0_dp)
                         end if
@@ -22691,7 +22724,7 @@ contains
                     if (current_stepvector(orb_a) == 0) then
                         contrib = 2.0_dp
                         ! _RR_(ab) > ^RR(i) > ^R(j)
-                        excitInfo = assign_excitInfo_values(19,1,1,1,1,1,&
+                        excitInfo = assign_excitInfo_values_double(19,1,1,1,1,1,&
                             orb_a,n_id(1),orb_a,n_id(2),orb_a,orb_a,n_id(1),n_id(2),&
                             0,2,1.0_dp,1.0_dp)
 
@@ -22704,7 +22737,7 @@ contains
 
                         if (orb_b > n_id(2)) then
                             ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
-                            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                 orb_a,n_id(2),orb_b,n_id(1),orb_a,n_id(1),n_id(2),orb_b,&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22714,13 +22747,13 @@ contains
                                 st = min(orb_a,orb_b)
                                 en = max(orb_a,orb_b)
                                 ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
-                                excitInfo = assign_excitInfo_values(9,1,1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,&
                                     en,n_id(2),st,n_id(1),st,en,n_id(1),n_id(2),&
                                     0,4,1.0_dp,1.0_dp)
                         else
                             ! b is between i and j
                             ! _R(a) > _LR(i) > ^LR(b) > ^R(j)
-                            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                 orb_a,n_id(2),orb_b,n_id(1),orb_a,n_id(1),orb_b,n_id(2), &
                                 0,4,1.0_dp,1.0_dp)
                         end if
@@ -22759,7 +22792,7 @@ contains
                     if (current_stepvector(orb_a) == 0) then
                         contrib = 2.0_dp
                         ! _L(i) > ^LR_(ab) > ^R(j)
-                        excitInfo = assign_excitInfo_values(6,-1,1,-1,-1,1,&
+                        excitInfo = assign_excitInfo_values_double(6,-1,1,-1,-1,1,&
                             orb_a,n_id(1),orb_a,n_id(2),n_id(1),orb_a,orb_a,n_id(2),&
                             0,2,1.0_dp,1.0_dp,1)
 
@@ -22772,13 +22805,13 @@ contains
 
                         if (orb_b < n_id(1)) then
                             ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
-                            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                 orb_b,n_id(2),orb_a,n_id(1),orb_b,n_id(1),orb_a,n_id(2),&
                                 0,4,1.0_dp,1.0_dp)
 
                         else if (orb_b > n_id(2)) then
                             ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
-                            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                 orb_b,n_id(1),orb_a,n_id(2),n_id(1),orb_a,n_id(2),orb_b,&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22786,7 +22819,7 @@ contains
                                 st = min(orb_a,orb_b)
                                 en = max(orb_a,orb_b)
                                 ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
-                                excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,&
+                                excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,&
                                     en,n_id(1),st,n_id(2),n_id(1),st,en,n_id(2),&
                                     0,4,1.0_dp,1.0_dp)
 
@@ -22829,7 +22862,7 @@ contains
                     if (current_stepvector(orb_a) == 0) then
                         contrib = 2.0_dp
                         ! _L(i) > _LL(j) > ^LL^(ab)
-                        excitInfo = assign_excitInfo_values(14,-1,-1,-1,-1,-1,&
+                        excitInfo = assign_excitInfo_values_double(14,-1,-1,-1,-1,-1,&
                             orb_a,n_id(1),orb_b,n_id(2),n_id(1),n_id(2),orb_a,orb_a,&
                             0,2,1.0_dp,1.0_dp)
                     end if
@@ -22841,7 +22874,7 @@ contains
                         ! check type of excitation
                         if (orb_b < n_id(1)) then
                             ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
-                            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                 orb_b,n_id(2),orb_a,n_id(1),orb_b,n_id(1),n_id(2),orb_a, &
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22849,12 +22882,12 @@ contains
                                 st = min(orb_a,orb_b)
                                 en = max(orb_a,orb_b)
                                 ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
-                                excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                                     st,n_id(1),en,n_id(2),n_id(1),n_id(2),st,en,&
                                     0,4,1.0_dp,1.0_dp)
                         else
                             ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
-                            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                 orb_a,n_id(1),orb_b,n_id(2),n_id(1),orb_b,n_id(2),orb_a,&
                                 0,4,1.0_dp,1.0_dp)
                         end if
@@ -22947,7 +22980,7 @@ contains
                     if (current_stepvector(a) == 0) then
                         !todo: remove this possibility then!
                         ! _RR_(ab) > ^RR^(ij)
-                        excitInfo = assign_excitInfo_values(22,1,1,1,1,1,&
+                        excitInfo = assign_excitInfo_values_double(22,1,1,1,1,1,&
                             a,i,a,i,a,a,i,i,0,2,1.0_dp,1.0_dp)
 
                         ! use uniform, since all the integrals are equal
@@ -22991,7 +23024,7 @@ contains
                             ! then have to determine the order of orbitals
                             if (b > i) then
                                 ! _R(a) > ^RL_(ij) > ^L(b)
-                                excitInfo = assign_excitInfo_values(7,-1,1,1,1,-1,&
+                                excitInfo = assign_excitInfo_values_double(7,-1,1,1,1,-1,&
                                     b,i,a,i,a,i,i,b,&
                                     0,2,1.0_dp,1.0_dp,1)
 
@@ -23000,7 +23033,7 @@ contains
                                 ! if both have the same stepvalue i need to check
                                 ! if there is a switch possible i guess..
                                 ! _R(min) > _RR(max) > ^RR^(ij)
-                                excitInfo = assign_excitInfo_values(15,1,1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(15,1,1,1,1,1,&
                                     st,i,en,i,st,en,i,i,0,2,1.0_dp,1.0_dp)
                             end if
                         end if
@@ -23047,7 +23080,7 @@ contains
                     ! even possible, if really not -> remove it
                     if (current_stepvector(a) == 0) then
                         ! _LL_(ij) > ^LL^(ab)
-                        excitInfo = assign_excitInfo_values(22,-1,-1,-1,-1,-1,&
+                        excitInfo = assign_excitInfo_values_double(22,-1,-1,-1,-1,-1,&
                             a,i,a,i,i,i,a,a,0,2,1.0_dp,1.0_dp)
 
                         ! same convention as above since only one entry
@@ -23078,14 +23111,14 @@ contains
                             ! now we know a is bigger than (i)
                             if (b < i) then
                                 ! _R(b) > ^RL_(ij) > ^L(a)
-                                excitInfo = assign_excitInfo_values(7,-1,1,1,1,-1,&
+                                excitInfo = assign_excitInfo_values_double(7,-1,1,1,1,-1,&
                                     a,i,b,i,b,i,i,a,&
                                     0,2,1.0_dp,1.0_dp,1)
 
                             else
                                 ! only extrema count
                                 ! _LL_(ij) > ^LL(min) > ^L(max)
-                                excitInfo = assign_excitInfo_values(18,-1,-1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(18,-1,-1,-1,-1,-1,&
                                     st,i,en,i,i,i,st,en,0,2,1.0_dp,1.0_dp)
                             end if
                         end if
@@ -23249,28 +23282,28 @@ contains
             if (a == b) then
                  if (a > i) then
                      !_LL_(ij) > ^LL^(ab)
-                     excitInfo = assign_excitInfo_values(22,-1,-1,-1,-1,-1, &
+                     excitInfo = assign_excitInfo_values_double(22,-1,-1,-1,-1,-1, &
                          b,i,b,i,i,i,b,b,0,2,1.0_dp,1.0_dp)
 
                  else
                      ! _RR_(ab) > ^RR^(ij)
-                     excitInfo = assign_excitInfo_values(22,1,1,1,1,1,&
+                     excitInfo = assign_excitInfo_values_double(22,1,1,1,1,1,&
                          a,i,a,i,a,a,i,i,0,2,1.0_dp,1.0_dp)
                  end if
              else
                  if (a > i .and. b > i) then
                      ! _LL_(ij) > ^LL(min(a,b)) -> ^L(max(a,b))
-                     excitInfo = assign_excitInfo_values(18,-1,-1,-1,-1,-1,&
+                     excitInfo = assign_excitInfo_values_double(18,-1,-1,-1,-1,-1,&
                          en,i,st,i,i,i,st,en,0,2,1.0_dp,1.0_dp,2)
 
                  else if (a < i .and. b < i) then
                      ! _R(min(a,b)) > _RR(max(a,b) > ^RR^(ij)
-                     excitInfo = assign_excitInfo_values(15,1,1,1,1,1,&
+                     excitInfo = assign_excitInfo_values_double(15,1,1,1,1,1,&
                          st,i,en,i,st,en,i,i,0,2,1.0_dp,1.0_dp,2)
 
                  else
                      ! _R(min(a,b)) > ^RL_(i) > ^L(max(a,b))
-                     excitInfo = assign_excitInfo_values(7,1,-1,1,1,-1,&
+                     excitInfo = assign_excitInfo_values_double(7,1,-1,1,1,-1,&
                          st,i,en,i,st,i,i,en,0,2,1.0_dp,1.0_dp,1)
 
                  end if
@@ -23328,17 +23361,17 @@ contains
 
                          if (a > j) then
                             ! _L(i) -> _LL(j) > ^LL^(ab)
-                            excitInfo = assign_excitInfo_values(14,-1,-1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(14,-1,-1,-1,-1,-1,&
                                 a,i,a,j,i,j,a,a,0,2,1.0_dp,1.0_dp,2)
 
                         else if (a < i) then
                             ! _RR_(ab) > ^RR(i) > ^R(j)
-                            excitInfo = assign_excitInfo_values(19,1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(19,1,1,1,1,1,&
                                 a,i,a,j,a,a,i,j,0,2,1.0_dp,1.0_dp,2)
 
                         else
                             ! _L(i) > ^LR_(ab) > ^R(j)
-                            excitInfo = assign_excitInfo_values(6,-1,1,-1,-1,1,&
+                            excitInfo = assign_excitInfo_values_double(6,-1,1,-1,-1,1,&
                                 a,i,a,j,i,a,a,j,0,2,1.0_dp,1.0_dp,1)
 
                         end if
@@ -23349,32 +23382,32 @@ contains
                         if (en > j) then
                             if (st > j) then
                                 ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
-                                excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                                     st,i,en,j,i,j,st,en,0,4,1.0_dp,1.0_dp)
                             else if (st < i) then
                                 ! _R(min) > _LR(i) > ^RL(j) > ^L(max)
-                                excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                                excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                     st,j,en,i,st,i,j,en,0,4,1.0_dp,1.0_dp)
                             else
                                 ! _L(i) > _RL(min) > ^RL(j) > ^L(max)
-                                excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                     en,i,st,j,i,st,j,en,0,4,1.0_dp,1.0_dp)
 
                             end if
                         else if (en < i) then
                             ! this implies that st < en < I !
                             ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
-                            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,&
                                 st,j,en,i,st,en,i,j,0,4,1.0_dp,1.0_dp)
 
                         else
                             if (st < i) then
                                 ! _R(min) > _LR(i) > ^LR(max) > ^R(j)
-                                excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                     st,j,i,en,st,i,en,j,0,4,1.0_dp,1.0_dp)
                             else
                                 ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
-                                excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,&
+                                excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,&
                                     i,en,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
                             end if
                         end if
@@ -23410,12 +23443,12 @@ contains
                         ! a singly occupied orbital!
                         if (b < i) then
                             ! _R(b) > _LR(i) > ^RL^(ja)
-                            excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(17,-1,1,1,1,1,&
                                 b,j,j,i,b,i,j,j,0,4,1.0_dp,1.0_dp)
 
                         else
                             ! _L(i) > _RL(b) > ^RL^(ja)
-                            excitInfo = assign_excitInfo_values(16,-1,1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(16,-1,1,-1,-1,-1,&
                                 j,i,b,j,i,b,j,j,0,4,1.0_dp,1.0_dp)
 
                         end if
@@ -23443,14 +23476,14 @@ contains
 
                                  if (a == b) then
                                      ! _L(i) > _LL(j) > ^LL^(ab)
-                                     excitInfo = assign_excitInfo_values(14,-1,-1,-1,-1,-1,&
+                                     excitInfo = assign_excitInfo_values_double(14,-1,-1,-1,-1,-1,&
                                          a,i,a,j,i,j,a,a,0,4,1.0_dp,1.0_dp)
 
                                  else
                                      st = min(a,b)
                                      en = max(a,b)
                                      ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
-                                     excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+                                     excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                                          st,i,en,j,i,j,st,en,0,4,1.0_dp,1.0_dp)
 
                                  end if
@@ -23461,12 +23494,12 @@ contains
                                      a, int_switch(2), cum_switch(2))
                                  if (b < i) then
                                      ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
-                                     excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                                     excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                          b,j,a,i,b,i,j,a,0,4,1.0_dp,1.0_dp)
 
                                  else
                                      ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
-                                     excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                                     excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                          a,i,b,j,i,b,j,a,0,4,1.0_dp,1.0_dp)
 
                                  end if
@@ -23488,12 +23521,12 @@ contains
 
                                  if (a < i) then
                                      ! _R(a) > _LR(i) > ^RL^(jb)
-                                     excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
+                                     excitInfo = assign_excitInfo_values_double(17,-1,1,1,1,1,&
                                          a,j,j,i,a,i,j,j,0,2,1.0_dp,1.0_dp)
 
                                  else
                                      ! _L(i) > _RL(a) > ^RL^(jb)
-                                     excitInfo = assign_excitInfo_values(16,-1,1,-1,-1,-1,&
+                                     excitInfo = assign_excitInfo_values_double(16,-1,1,-1,-1,-1,&
                                          j,i,a,j,i,a,j,j,0,2,1.0_dp,1.0_dp)
 
                                  end if
@@ -23505,12 +23538,12 @@ contains
                                          b, a, int_switch(2), cum_switch(2), j)
                                      if (a < i) then
                                          ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
-                                         excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                                         excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                              a,j,b,i,a,i,j,b,0,4,1.0_dp,1.0_dp)
 
                                      else
                                          ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
-                                         excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                                         excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                              b,i,a,j,i,a,j,b,0,4,1.0_dp,1.0_dp)
 
                                      end if
@@ -23522,11 +23555,11 @@ contains
                                      if (a == b) then
                                          if (a < i) then
                                              ! _RR_(ab) > ^RR(i) > ^R(j)
-                                             excitInfo = assign_excitInfo_values(19,1,1,1,1,1,&
+                                             excitInfo = assign_excitInfo_values_double(19,1,1,1,1,1,&
                                                  a,i,a,j,a,a,i,j,0,2,1.0_dp,1.0_dp)
                                          else
                                              ! _L(i) > ^LR_(ab) > ^R(j)
-                                             excitInfo = assign_excitInfo_values(6,-1,1,-1,-1,1,&
+                                             excitInfo = assign_excitInfo_values_double(6,-1,1,-1,-1,1,&
                                                  a,i,a,j,i,a,a,j,0,2,1.0_dp,1.0_dp,1)
                                          end if
                                      else
@@ -23536,18 +23569,18 @@ contains
 
                                          if (en < i) then
                                              ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
-                                             excitInfo = assign_excitInfo_values(9,1,1,1,1,1,&
+                                             excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,&
                                                  st,i,en,j,st,en,i,j,0,4,1.0_dp,1.0_dp)
 
                                          else
                                              if (st < i) then
                                                  ! _R(min) > _LR(i) > ^LR(max) > ^R(j)
-                                                 excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                                                 excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                                      st,j,en,i,st,i,en,j,0,4,1.0_dp,1.0_dp)
 
                                              else
                                                  ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
-                                                 excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,&
+                                                 excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,&
                                                      en,i,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
                                              end if
                                          end if
@@ -23582,12 +23615,12 @@ contains
                          ! orbital a and b can only be non -occupied orbitals!
                          if (b > j) then
                              ! _RL_(ia) > ^RL(j) > ^L(b)
-                             excitInfo = assign_excitInfo_values(21,-1,1,-1,-1,-1,&
+                             excitInfo = assign_excitInfo_values_double(21,-1,1,-1,-1,-1,&
                                  b,i,i,j,i,i,j,b,0,2,1.0_dp,1.0_dp)
 
                          else
                              ! _RL_(ia) > ^LR(b) > ^R(j)
-                             excitInfo = assign_excitInfo_values(20,-1,1,1,1,1,&
+                             excitInfo = assign_excitInfo_values_double(20,-1,1,1,1,1,&
                                  b,i,i,j,i,i,b,j,0,2,1.0_dp,1.0_dp)
                          end if
 
@@ -23610,14 +23643,14 @@ contains
 
                                  if (a == b) then
                                      ! _RR_(ab) > ^RR(i) > ^R(j)
-                                     excitInfo = assign_excitInfo_values(19,1,1,1,1,1,&
+                                     excitInfo = assign_excitInfo_values_double(19,1,1,1,1,1,&
                                          a,i,a,j,a,a,i,j,0,2,1.0_dp,1.0_dp)
                                  else
                                      st = min(a,b)
                                      en = max(a,b)
 
                                      ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
-                                     excitInfo = assign_excitInfo_values(9,1,1,1,1,1,&
+                                     excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,&
                                          en,i,st,j,st,en,i,j,0,4,1.0_dp,1.0_dp)
                                  end if
                              else
@@ -23627,12 +23660,12 @@ contains
 
                                  if (b > j) then
                                      ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
-                                     excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                                     excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                          a,j,b,i,a,i,j,b,0,4,1.0_dp,1.0_dp)
 
                                  else
                                      ! _R(a) > _LR(i)> ^LR(b) > ^R(j)
-                                     excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                                     excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                          a,j,b,i,a,i,b,j,0,4,1.0_dp,1.0_dp)
 
                                  end if
@@ -23654,12 +23687,12 @@ contains
 
                                  if (a > j) then
                                      ! _RL_(ib) > ^RL(j) > ^L(a)
-                                     excitInfo = assign_excitInfo_values(21,-1,1,-1,-1,-1,&
+                                     excitInfo = assign_excitInfo_values_double(21,-1,1,-1,-1,-1,&
                                          i,j,a,i,i,i,j,a,0,2,1.0_dp,1.0_dp)
 
                                  else
                                      ! _RL_(ib) > ^LR(a) > ^R(j)
-                                     excitInfo = assign_excitInfo_values(20,-1,1,1,1,1,&
+                                     excitInfo = assign_excitInfo_values_double(20,-1,1,1,1,1,&
                                          i,j,a,i,i,i,a,j,0,2,1.0_dp,1.0_dp)
 
                                  end if
@@ -23672,12 +23705,12 @@ contains
 
                                     if (a > j) then
                                         ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
-                                        excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                                        excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                             b,j,a,i,b,i,j,a,0,4,1.0_dp,1.0_dp)
 
                                     else
                                         ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
-                                        excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                                        excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                             b,j,a,i,b,i,a,j,0,4,1.0_dp,1.0_dp)
 
                                     end if
@@ -23690,12 +23723,12 @@ contains
                                     if (a == b) then
                                         if (a > j) then
                                             ! _L(i) > _LL(j) > ^LL^(ab)
-                                            excitInfo = assign_excitInfo_values(14,-1,-1,-1,-1,-1,&
+                                            excitInfo = assign_excitInfo_values_double(14,-1,-1,-1,-1,-1,&
                                                 a,i,a,j,i,j,a,a,0,2,1.0_dp,1.0_dp)
 
                                         else
                                             ! _L(i) > ^LR_(ab) > ^R(j)
-                                            excitInfo = assign_excitInfo_values(6,-1,1,-1,-1,1,&
+                                            excitInfo = assign_excitInfo_values_double(6,-1,1,-1,-1,1,&
                                                 a,i,a,j,i,a,a,j,0,2,1.0_dp,1.0_dp,1)
 
                                         end if
@@ -23707,18 +23740,18 @@ contains
 
                                         if (st > j) then
                                             ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
-                                            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+                                            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                                                 st,i,en,j,i,j,st,en,0,4,1.0_dp,1.0_dp)
 
                                         else
                                             if (en > j) then
                                                 ! _L(i) > _RL(min) > ^RL(j) > ^L(max)
-                                                excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                                                excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                                     en,i,st,j,i,st,j,en,0,4,1.0_dp,1.0_dp)
 
                                             else
                                                 ! _L(i) > _RL(min) ^LR(max) > ^R(j)
-                                                excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,&
+                                                excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,&
                                                     en,i,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
 
                                             end if
@@ -23765,7 +23798,7 @@ contains
                                 a,int_switch(2),cum_switch(2), i, .true.)
 
                             ! _RL_(ib) > ^RL^(ja)
-                            excitInfo = assign_excitInfo_values(23,-1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(23,-1,1,1,1,1,&
                                 i,j,j,i,i,i,j,j,0,2,1.0_dp,1.0_dp)
 
                         else
@@ -23777,7 +23810,7 @@ contains
                                 ! why am i never here??
 
                                 ! _R(b) > _LR(i) > ^RL^(ja)
-                                excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(17,-1,1,1,1,1,&
                                     b,j,j,i,b,i,j,j,0,2,1.0_dp,1.0_dp)
 
                             else
@@ -23786,7 +23819,7 @@ contains
                                     a,int_switch(2),cum_switch(2))
 
                                 ! _L(i) > _RL(b) > ^RL^(ja)
-                                excitInfo = assign_excitInfo_values(16,-1,1,-1,-1,1,&
+                                excitInfo = assign_excitInfo_values_double(16,-1,1,-1,-1,1,&
                                     j,i,b,j,i,b,j,j,0,2,1.0_dp,1.0_dp)
 
                             end if
@@ -23825,7 +23858,7 @@ contains
                                 a,int_switch(2),cum_switch(2), -j, .true.)
 
                             ! _RL_(ia) > ^RL^(jb)
-                            excitInfo = assign_excitInfo_values(23,-1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(23,-1,1,1,1,1,&
                                 j,i,i,j,i,i,j,j,0,2,1.0_dp,1.0_dp)
                         else
                             if (b  > j) then
@@ -23834,7 +23867,7 @@ contains
                                     a,int_switch(2),cum_switch(2), j)
 
                                 ! _RL_(ia) > ^RL(j) > ^L(b)
-                                excitInfo = assign_excitInfo_values(21,-1,1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(21,-1,1,-1,-1,-1,&
                                     i,j,b,i,i,i,j,b,0,2,1.0_dp,1.0_dp)
 
                             else
@@ -23843,7 +23876,7 @@ contains
                                     a,int_switch(2),cum_switch(2))
 
                                 ! _RL_(ia) > ^LR(b) > ^R(j)
-                                excitInfo = assign_excitInfo_values(20,-1,1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(20,-1,1,1,1,1,&
                                     i,j,b,i,i,i,b,j,0,2,1.0_dp,1.0_dp)
 
                             end if
@@ -23884,7 +23917,7 @@ contains
                                     a,int_switch(2),cum_switch(2),i,.true.)
 
                                 ! _RL_(ib) > ^RL(j) > ^L(a)
-                                excitInfo = assign_excitInfo_values(21,-1,1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(21,-1,1,-1,-1,-1,&
                                     i,j,a,i,i,i,j,a,0,2,1.0_dp,1.0_dp)
 
                             else
@@ -23894,7 +23927,7 @@ contains
                                         b,a,int_switch(2),cum_switch(2),i)
 
                                     ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
-                                    excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                                    excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                         b,j,a,i,b,i,j,a,0,4,1.0_dp,1.0_dp)
 
                                 else if (b > j) then
@@ -23908,7 +23941,7 @@ contains
 
                                         ! and its a:
                                         ! _L(i) -> _LL(j) > ^LL^(a,b)
-                                        excitInfo = assign_excitInfo_values(14,-1,-1,-1,-1,-1,&
+                                        excitInfo = assign_excitInfo_values_double(14,-1,-1,-1,-1,-1,&
                                             a,i,a,j,i,j,a,a,0,2,1.0_dp,1.0_dp,2)
 
                                     else
@@ -23922,7 +23955,7 @@ contains
                                         en = max(a,b)
 
                                         ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
-                                        excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+                                        excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                                             st,i,en,j,i,j,st,en,0,4,1.0_dp,1.0_dp)
                                     end if
 
@@ -23932,7 +23965,7 @@ contains
                                         b,a,int_switch(2),cum_switch(2))
 
                                     ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
-                                    excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                                    excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                         a,i,b,j,i,b,j,a,0,4,1.0_dp,1.0_dp)
 
                                 end if
@@ -23975,7 +24008,7 @@ contains
                                     a,int_switch(2),cum_switch(2),-j,.true.)
 
                                 ! _R(a) > _LR(i) > ^RL^(jb)
-                                excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(17,-1,1,1,1,1,&
                                     a,j,j,i,a,i,j,j,0,2,1.0_dp,1.0_dp)
 
                             else
@@ -23984,7 +24017,7 @@ contains
                                     call pgen_select_orb_guga_mol(occ_orbs,&
                                         b,a,int_switch(2),cum_switch(2),j)
                                     ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
-                                    excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+                                    excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                                         a,j,b,i,a,i,j,b,0,4,1.0_dp,1.0_dp)
 
                                 else if (b < i) then
@@ -23995,7 +24028,7 @@ contains
                                         cum_switch(2) = cum_sum(2)
 
                                         ! _RR_(ab) > ^RR(i) > ^R(j)
-                                        excitInfo = assign_excitInfo_values(19,1,1,1,1,1,&
+                                        excitInfo = assign_excitInfo_values_double(19,1,1,1,1,1,&
                                             a,i,a,j,a,a,i,j,0,2,1.0_dp,1.0_dp,2)
                                     else
 
@@ -24008,7 +24041,7 @@ contains
                                         en = max(a,b)
 
                                         ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
-                                        excitInfo = assign_excitInfo_values(9,1,1,1,1,1,&
+                                        excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,&
                                             en,j,st,i,st,en,i,j,0,4,1.0_dp,1.0_dp)
                                     end if
 
@@ -24018,7 +24051,7 @@ contains
                                         b,a,int_switch(2),cum_switch(2))
 
                                     ! _R(a) > _LR(i) > ^LR(b) > ^R(j)
-                                    excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                                    excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                         a,j,b,i,a,i,b,j,0,4,1.0_dp,1.0_dp)
 
                                 end if
@@ -24038,7 +24071,7 @@ contains
                                     b,a,int_switch(2),cum_switch(2),i)
 
                                 ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
-                                excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                                     b,j,a,i,b,i,a,j,0,4,1.0_dp,1.0_dp)
 
                             else if (b > j) then
@@ -24047,7 +24080,7 @@ contains
                                     b,a,int_switch(2),cum_switch(2),j)
 
                                 ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
-                                excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                                     b,i,a,j,i,a,j,b,0,4,1.0_dp,1.0_dp)
 
                             else
@@ -24059,7 +24092,7 @@ contains
                                         b,a,int_switch(2),cum_switch(2))
 
                                     ! _L(i) > ^LR_(ab) > ^R(j)
-                                    excitInfo = assign_excitInfo_values(6,-1,1,-1,-1,1,&
+                                    excitInfo = assign_excitInfo_values_double(6,-1,1,-1,-1,1,&
                                         a,i,a,j,i,a,a,j,0,2,1.0_dp,1.0_dp,1)
 
                                 else if (b == i) then
@@ -24068,7 +24101,7 @@ contains
                                         b,a,int_switch(2),cum_switch(2),i,.true.)
 
                                     ! _RL_(ib) > ^LR(a) > ^R(j)
-                                    excitInfo = assign_excitInfo_values(20,-1,1,1,1,1,&
+                                    excitInfo = assign_excitInfo_values_double(20,-1,1,1,1,1,&
                                         i,j,a,i,i,i,a,j,0,2,1.0_dp,1.0_dp)
 
                                 else if (b == j) then
@@ -24077,7 +24110,7 @@ contains
                                         b,a,int_switch(2),cum_switch(2),-j,.true.)
 
                                     ! _L(i) > _RL(a) > ^RL^(jb)
-                                    excitInfo = assign_excitInfo_values(16,-1,1,-1,-1,1,&
+                                    excitInfo = assign_excitInfo_values_double(16,-1,1,-1,-1,1,&
                                         j,i,a,j,i,a,j,j,0,2,1.0_dp,1.0_dp)
 
                                 else
@@ -24090,7 +24123,7 @@ contains
                                     en = max(a,b)
 
                                     ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
-                                    excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,&
+                                    excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,&
                                         en,i,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
                                 end if
                             end if
@@ -24954,12 +24987,12 @@ contains
 
                 if (j > i) then
                     ! _RR_(i) -> ^RR^(j)
-                    excitInfo = assign_excitInfo_values(22,1,1,1,1,1,i,j,i,j,&
+                    excitInfo = assign_excitInfo_values_double(22,1,1,1,1,1,i,j,i,j,&
                         i,i,j,j,0,2,1.0_dp,1.0_dp)
 
                 else
                     ! _LL_(j) -> ^LL^(i)
-                    excitInfo = assign_excitInfo_values(22,-1,-1,-1,-1,-1,&
+                    excitInfo = assign_excitInfo_values_double(22,-1,-1,-1,-1,-1,&
                         i,j,i,j,j,j,i,i,0,2,1.0_dp,1.0_dp)
 
                 end if
@@ -24980,12 +25013,12 @@ contains
 
                 if (i > j) then
                     ! _RR_(j) > ^RR^(i)
-                    excitInfo = assign_excitInfo_values(22,1,1,1,1,1,&
+                    excitInfo = assign_excitInfo_values_double(22,1,1,1,1,1,&
                         j,i,j,i,j,j,i,i,0,2,1.0_dp,1.0_dp)
 
                 else
                     ! _LL_(i) > ^LL^(j)
-                    excitInfo = assign_excitInfo_values(22,-1,-1,-1,-1,-1,&
+                    excitInfo = assign_excitInfo_values_double(22,-1,-1,-1,-1,-1,&
                         j,i,j,i,i,i,j,j,0,2,1.0_dp,1.0_dp)
 
                 end if
@@ -25015,12 +25048,12 @@ contains
 
                 if (j > i) then
                     ! _LR_(i) > ^LR^(j)
-                    excitInfo = assign_excitInfo_values(23,-1,1,1,1,1,&
+                    excitInfo = assign_excitInfo_values_double(23,-1,1,1,1,1,&
                         i,j,j,i,i,i,j,j,0,2,1.0_dp,2.0_dp)
 
                 else
                     ! _LR_(j) -> ^LR^(i)
-                    excitInfo = assign_excitInfo_values(23,-1,1,1,1,1,&
+                    excitInfo = assign_excitInfo_values_double(23,-1,1,1,1,1,&
                         i,j,j,i,j,j,i,i,0,2,1.0_dp,2.0_dp)
 
                 end if
@@ -25082,34 +25115,34 @@ contains
                 ! in the excitation creation routines
                 if (i < j .and. j < k) then
                     ! _RR_(i) -> ^RR(j) -> ^R(k)
-                    excitInfo = assign_excitInfo_values(19, 1, 1, 1, 1, 1, &
+                    excitInfo = assign_excitInfo_values_double(19, 1, 1, 1, 1, 1, &
                         i,k,i,j,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                 else if (j < k .and. k < i) then
                     ! L_(j) -> L_L(k) -> ^LL^(i)
-                    excitInfo = assign_excitInfo_values(14,-1,-1,-1,-1,-1, &
+                    excitInfo = assign_excitInfo_values_double(14,-1,-1,-1,-1,-1, &
                         i,j,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (j < i .and. i < k) then
                     ! L_(j) -> ^LR_(i) -> ^R(k)
-                    excitInfo = assign_excitInfo_values(6,-1,1,-1,-1,1,&
+                    excitInfo = assign_excitInfo_values_double(6,-1,1,-1,-1,1,&
                         i,j,i,k,j,i,i,k,0,2,1.0_dp,1.0_dp,1)
 
                 else if (i < k .and. k < j) then
                     ! _RR_(i) > ^RR(k) > ^R(j)
                     ! same excitation except sign in x1.. but cover that sign
                     ! in the matrix element calculation
-                    excitInfo = assign_excitInfo_values(19,1,1,1,1,1,&
+                    excitInfo = assign_excitInfo_values_double(19,1,1,1,1,1,&
                         i,k,i,j,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < j .and. j < i) then
                     ! _L(k) > _LL(j) > ^LL^(i)
-                    excitInfo = assign_excitInfo_values(14,-1,-1,-1,-1,-1, &
+                    excitInfo = assign_excitInfo_values_double(14,-1,-1,-1,-1,-1, &
                         i,j,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < i .and. i < j) then
                     ! _L(k) > ^LR(i) > ^R(j)
-                    excitInfo = assign_excitInfo_values(6,1,-1,-1,-1,1,&
+                    excitInfo = assign_excitInfo_values_double(6,1,-1,-1,-1,1,&
                         i,j,i,k,k,i,i,j,0,2,1.0_dp,1.0_dp,1)
 
                 end if
@@ -25139,32 +25172,32 @@ contains
 
                 if ( i < j .and. j < k ) then
                     ! _LL_(i) ^LL(j) ^L(k)
-                    excitInfo = assign_excitInfo_values(18,-1,-1,-1,-1,-1,&
+                    excitInfo = assign_excitInfo_values_double(18,-1,-1,-1,-1,-1,&
                         j,i,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                 else if (j < k .and. k < i) then
                     ! _R(j) _RR(k) ^RR^(i)
-                    excitInfo = assign_excitInfo_values(15,1,1,1,1,1,&
+                    excitInfo = assign_excitInfo_values_double(15,1,1,1,1,1,&
                         k,i,j,i,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (j < i .and. i < k) then
                     ! _R(j) ^RL_(i) ^L(k)
-                    excitInfo = assign_excitInfo_values(7,1,-1,1,1,-1,&
+                    excitInfo = assign_excitInfo_values_double(7,1,-1,1,1,-1,&
                         j,i,k,i,j,i,i,k,0,2,1.0_dp,1.0_dp,1)
 
                 else if (i < k .and. k < j) then
                     ! _LL_(i) > ^LL(k) > ^L(j)
-                    excitInfo = assign_excitInfo_values(18,-1,-1,-1,-1,-1,&
+                    excitInfo = assign_excitInfo_values_double(18,-1,-1,-1,-1,-1,&
                         j,i,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < j .and. j < i) then
                     ! _R(k) > _RR(j) > ^RR^(i)
-                    excitInfo = assign_excitInfo_values(15,1,1,1,1,1,&
+                    excitInfo = assign_excitInfo_values_double(15,1,1,1,1,1,&
                         k,i,j,i,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < i .and. i < j) then
                     ! _R(k) > ^RL(i) > ^L(j)
-                    excitInfo = assign_excitInfo_values(7,-1,1,1,1,-1,&
+                    excitInfo = assign_excitInfo_values_double(7,-1,1,1,1,-1,&
                         j,i,k,i,k,i,i,j,0,2,1.0_dp,1.0_dp,1)
 
                 end if
@@ -25237,22 +25270,22 @@ contains
 
                     if (i < j .and. j < k) then
                         ! _LR_(i) ^LR(j) ^R(k)
-                        excitInfo = assign_excitInfo_values(20,-1,1,1,1,1,&
+                        excitInfo = assign_excitInfo_values_double(20,-1,1,1,1,1,&
                             j,i,i,k,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( i < k .and. k < j) then
                         ! _LR_(i) ^RL(k) ^L(j)
-                        excitInfo = assign_excitInfo_values(21,-1,1,-1,-1,-1,&
+                        excitInfo = assign_excitInfo_values_double(21,-1,1,-1,-1,-1,&
                             j,i,i,k,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( j < k .and. k < i) then
                         ! _R(j) _LR(k) ^RL^(i)
-                        excitInfo = assign_excitInfo_values(17,1,-1,1,1,1,&
+                        excitInfo = assign_excitInfo_values_double(17,1,-1,1,1,1,&
                             j,i,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( k < j .and. j < i) then
                         ! _L(k) _RL(j) ^RL^(i)
-                        excitInfo = assign_excitInfo_values(16,1,-1,-1,-1,-1,&
+                        excitInfo = assign_excitInfo_values_double(16,1,-1,-1,-1,-1,&
                             j,i,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( j < i .and. i < k) then
@@ -25312,23 +25345,23 @@ contains
                     ! e_{ij,ki}
                     if (i < j .and. j < k) then
                         ! _LR_(i) ^RL(j) ^L(k)
-                        excitInfo = assign_excitInfo_values(21,1,-1,-1,-1,-1,&
+                        excitInfo = assign_excitInfo_values_double(21,1,-1,-1,-1,-1,&
                             i,j,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( i < k .and. k < j) then
                         ! _LR_(i) ^LR(k) ^R(j)
-                        excitInfo = assign_excitInfo_values(20,1,-1,1,1,1,&
+                        excitInfo = assign_excitInfo_values_double(20,1,-1,1,1,1,&
                             i,j,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
 
                     else if ( j < k .and. k < i) then
                         ! _L(j) _RL(k) ^RL^(i)
-                        excitInfo = assign_excitInfo_values(16,-1,1,-1,-1,-1,&
+                        excitInfo = assign_excitInfo_values_double(16,-1,1,-1,-1,-1,&
                             i,j,k,i,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( k < j .and. j < i) then
                         ! _R(k) _LR(j) ^RL^(i)
-                        excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
+                        excitInfo = assign_excitInfo_values_double(17,-1,1,1,1,1,&
                             i,j,k,i,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( j < i .and. i < k) then
@@ -25387,28 +25420,28 @@ contains
                         ! e_{ij,ki}
                         if (i < j .and. j < k) then
                             ! _RL_(i) > ^RL(j) > ^L(k)
-                            excitInfo = assign_excitInfo_values(21,1,-1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(21,1,-1,-1,-1,-1,&
                                 i,j,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp)
 
                         else if (i < j .and. k < j) then
                             ! _RL_(i) > ^LR(k) > ^R(j)
-                            excitInfo = assign_excitInfo_values(20,1,-1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(20,1,-1,1,1,1,&
                                 i,j,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp)
 
                         else if (j < k .and. k < i) then
                             ! _L(j) > _RL(k) > ^RL^(i)
-                            excitInfo = assign_excitInfo_values(16,-1,1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(16,-1,1,-1,-1,-1,&
                                 i,j,k,i,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp)
 
                         else if (k < j .and. j < i) then
                             ! _R(k) > _LR(j) > ^RL^(i)
-                            excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(17,-1,1,1,1,1,&
                                 i,j,k,i,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp)
@@ -25435,28 +25468,28 @@ contains
                         ! e_{ji,ik}
                         if (i < j .and. j < k) then
                             ! _RL(i) > ^LR(j) < ^R(k)
-                            excitInfo = assign_excitInfo_values(20,-1,1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(20,-1,1,1,1,1,&
                                 j,i,i,k,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp)
 
                         else if (i < k .and. k < j) then
                             ! _RL_(i) > ^RL(k) > ^L(j)
-                            excitInfo = assign_excitInfo_values(21,-1,1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(21,-1,1,-1,-1,-1,&
                                 j,i,i,k,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp)
 
                         else if (j < k .and. k < i) then
                             ! _R(j) > _LR(k) > ^RL^(i)
-                            excitInfo = assign_excitInfo_values(17,1,-1,1,1,1,&
+                            excitInfo = assign_excitInfo_values_double(17,1,-1,1,1,1,&
                                 j,i,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
 
                         else if (k < j .and. j < i) then
                             ! _L(k) > _RL(j) > ^RL^(i)
-                            excitInfo = assign_excitInfo_values(16,1,-1,-1,-1,-1,&
+                            excitInfo = assign_excitInfo_values_double(16,1,-1,-1,-1,-1,&
                                 j,i,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
@@ -25491,7 +25524,7 @@ contains
                             ! e_{ij,ki}:
                            if (i < j .and. j < k) then
                                 ! _RL_(i) > ^RL(j) > ^L(k)
-                                excitInfo = assign_excitInfo_values(21,1,-1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(21,1,-1,-1,-1,-1,&
                                     i,j,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                                 ! here i could not have taken orbitals < i
@@ -25501,14 +25534,14 @@ contains
 
                             else if (i < j .and. k < j) then
                                 ! _RL_(i) > ^LR(k) > ^R(j)
-                                excitInfo = assign_excitInfo_values(20,1,-1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(20,1,-1,1,1,1,&
                                     i,j,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
 
                             else if (j < k .and. k < i) then
                                 ! _L(j) > _RL(k) > ^RL^(i)
-                                excitInfo = assign_excitInfo_values(16,-1,1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(16,-1,1,-1,-1,-1,&
                                     i,j,k,i,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                                 ! here i could have only take orbitals < i:
@@ -25518,7 +25551,7 @@ contains
 
                             else if (k < j .and. j < i) then
                                 ! _R(k) > _LR(j) > ^RL^(i)
-                                excitInfo = assign_excitInfo_values(17,-1,1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(17,-1,1,1,1,1,&
                                     i,j,k,i,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(i - 1, dp)
@@ -25546,28 +25579,28 @@ contains
                             ! e_{ji,ik}
                             if (i < j .and. j < k) then
                                 ! _RL_(i) > ^LR(j) < ^R(k)
-                                excitInfo = assign_excitInfo_values(20,-1,1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(20,-1,1,1,1,1,&
                                     j,i,i,k,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(i - 1, dp)
 
                             else if (i < k .and. k < j) then
                                 ! _RL_(i) > ^RL(k) > ^L(j)
-                                excitInfo = assign_excitInfo_values(21,-1,1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(21,-1,1,-1,-1,-1,&
                                     j,i,i,k,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(i - 1, dp)
 
                             else if (j < k .and. k < i) then
                                 ! _R(j) > _LR(k) > ^RL^(i)
-                                excitInfo = assign_excitInfo_values(17,1,-1,1,1,1,&
+                                excitInfo = assign_excitInfo_values_double(17,1,-1,1,1,1,&
                                     j,i,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
 
                             else if (k < j .and. j < i) then
                                 ! _L(k) > _RL(j) > ^RL^(i)
-                                excitInfo = assign_excitInfo_values(16,1,-1,-1,-1,-1,&
+                                excitInfo = assign_excitInfo_values_double(16,1,-1,-1,-1,-1,&
                                     j,i,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
@@ -27061,10 +27094,10 @@ contains
             ! determine excitation type:
             if (j > i) then
                 ! E_ij is always assumed to start with so -> raising
-                excitInfo = assign_excitInfo_values(1, i, j, i, j, 1)
+                excitInfo = assign_excitInfo_values_single(1, i, j, i, j, 1)
 
             else
-                excitInfo = assign_excitInfo_values(-1, i, j, j, i, 2)
+                excitInfo = assign_excitInfo_values_single(-1, i, j, j, i, 2)
 
             end if
 
@@ -27088,11 +27121,11 @@ contains
             ! and determine excitation type
             if (j > i) then
                 ! lowering now
-                excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
+                excitInfo = assign_excitInfo_values_single(-1,j,i,i,j,2)
 
            else
                 ! raising generator
-                excitInfo = assign_excitInfo_values(1,j,i,j,i,1)
+                excitInfo = assign_excitInfo_values_single(1,j,i,j,i,1)
 
             end if
 
@@ -27120,11 +27153,11 @@ contains
             case (0)
                 if (j > i) then
                     ! lowering generator
-                    excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
+                    excitInfo = assign_excitInfo_values_single(-1,j,i,i,j,2)
 
                else
                     ! raising
-                    excitInfo = assign_excitInfo_values(1,j,i,j,i,1)
+                    excitInfo = assign_excitInfo_values_single(1,j,i,j,i,1)
 
                 end if
 
@@ -27145,10 +27178,10 @@ contains
 
                 else
                     if (i < j) then
-                        excitInfo = assign_excitInfo_values(1,i,j,i,j,1)
+                        excitInfo = assign_excitInfo_values_single(1,i,j,i,j,1)
 
                     else
-                        excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
+                        excitInfo = assign_excitInfo_values_single(-1,i,j,j,i,2)
                     end if
                 end if
 
@@ -27160,11 +27193,11 @@ contains
                 ! if its a 2 or 3 everything is fine
                 if (j > i) then
                     ! R
-                    excitInfo = assign_excitInfo_values(1,i,j,i,j,1)
+                    excitInfo = assign_excitInfo_values_single(1,i,j,i,j,1)
 
                 else
                     ! L
-                    excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
+                    excitInfo = assign_excitInfo_values_single(-1,i,j,j,i,2)
 
                 end if
                 if (current_stepvector(j) == 3) then
@@ -27190,11 +27223,11 @@ contains
             case (0)
                 if (j > i) then
                     ! lowering generator
-                    excitInfo = assign_excitInfo_values(-1,j,i,i,j,2)
+                    excitInfo = assign_excitInfo_values_single(-1,j,i,i,j,2)
 
                 else
                     ! raising
-                    excitInfo = assign_excitInfo_values(1,j,i,j,i,1)
+                    excitInfo = assign_excitInfo_values_single(1,j,i,j,i,1)
 
                 end if
 
@@ -27214,9 +27247,9 @@ contains
                     return
                 else
                     if (i < j) then
-                        excitInfo = assign_excitInfo_values(1,i,j,i,j,1)
+                        excitInfo = assign_excitInfo_values_single(1,i,j,i,j,1)
                     else
-                        excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
+                        excitInfo = assign_excitInfo_values_single(-1,i,j,j,i,2)
                     end if
                 end if
 
@@ -27227,11 +27260,11 @@ contains
                 ! if its a 1 or 3 everything is fine
                 if (j > i) then
                     ! R
-                    excitInfo = assign_excitInfo_values(1,i,j,i,j,1)
+                    excitInfo = assign_excitInfo_values_single(1,i,j,i,j,1)
 
                 else
                     ! L
-                    excitInfo = assign_excitInfo_values(-1,i,j,j,i,2)
+                    excitInfo = assign_excitInfo_values_single(-1,i,j,j,i,2)
 
                 end if
 
@@ -28168,13 +28201,13 @@ contains
         ! e_{ik,jl]
         if (i < j .and. j < k .and. k < l) then
             ! _R(i) > RR_*(j) > ^RR*(k) > ^R(l)
-            excitInfo = assign_excitInfo_values(9, 1, 1, 1, 1, 1, i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(9, 1, 1, 1, 1, 1, i,k,j,l,&
                 i,j,k,l,0,4,-1.0_dp, -1.0_dp)
 
 !
         else if (i < j .and. j < l .and. l < k) then
             ! _R(i) > RR_*(j) > RR^(l) > ^R(k)
-            excitInfo = assign_excitInfo_values(9, 1, 1, 1, 1, 1, i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(9, 1, 1, 1, 1, 1, i,k,j,l,&
                 i,j,l,k,0,4,-1.0_dp,1.0_dp)
 
 
@@ -28183,7 +28216,7 @@ contains
             ! non-overlap version, so switch to other valid:
             ! e_{il,jk}:
             ! _R(i) > _LR(k) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,&
                 i,l,j,k,i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
@@ -28191,37 +28224,37 @@ contains
             ! non-overlap version, so switch to other valid gen:
             ! e_{il,jk}:
             ! _R(i) > _LR(k) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,&
                 i,l,j,k,i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
             ! _R(i) > _LR(l) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,&
                 i,k,j,l,i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
             ! _R(i) > _LR(l) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,&
                 i,k,j,l,i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
             ! _R(j) > _RR(i) > ^RR*(k) > ^R(l)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,&
                 i,k,j,l,j,i,k,l,0,4,1.0_dp,-1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
             ! _R(j) > _RR(i) > ^RR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,&
                 i,k,j,l,j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
             ! _R(j) > _LR(k) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                 i,k,j,l,j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
             ! _R(j) > _LR(k) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                 i,k,j,l,j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
@@ -28229,7 +28262,7 @@ contains
             ! non-overlap version, so switch to other valid gen:
             ! e_{il,jk}:
             ! _R(j) > _LR(l) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,&
                 i,l,j,k,j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
@@ -28237,7 +28270,7 @@ contains
             ! non-overlap version so switch to other valid gen:
             ! e_{il,jk}:
             ! _R(j) > _LR(l) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,&
                 i,l,j,k,j,l,k,i,0,4,1.0_dp,1.0_dp)
 
 
@@ -28245,68 +28278,68 @@ contains
             ! _L(k) > ^L(i) > _R(j) > ^R(l)
             ! non-overlap -> e_{il,jk}:
             ! _L(k) > _RL(i) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,&
                 i,l,j,k,k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
             ! _L(k) > ^L(i) > _L(j) > ^L(l)
             ! non-overlap -> e_{il,jk}
             ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,&
                 i,l,j,k,k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
             ! _L(k) > _RL(j) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,&
                 i,k,j,l,k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
             ! _L(k) > _RL(j) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                 i,k,j,l,k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
             ! _L(k) > LL_(l) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                 i,k,j,l,k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
             ! _L(k) > LL_(l) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                 i,k,j,l,k,l,j,i,0,4,1.0_dp,-1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
             ! _L(l) > _RL(i) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,&
                 i,k,j,l,l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
             ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,&
                 i,k,j,l,l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
             ! _L(l) > ^L(j) > _R(i) > ^R(k)
             ! non-overlap -> e_{il,jk}
             ! _L(l) > _RL(j) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,&
                 i,l,j,k,l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
             ! _L(l) > ^L(j) > _L(k) > ^L(i)
             ! non-overlap -> e_{il,jk}
             ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,&
                 i,l,j,k,l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
             ! _L(l) > _LL*(k) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                 i,k,j,l,l,k,i,j,0,4,-1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
             ! _L(l) > _LL*(k) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,&
                 i,k,j,l,l,k,j,i,0,4,-1.0_dp,-1.0_dp)
 
         else
@@ -28326,25 +28359,25 @@ contains
         if (i < j .and. j < k .and. k < l) then
             ! i < j < k < l
             ! _R_(i) > _LR(j) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values(11, 1, -1, 1, 1, 1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(11, 1, -1, 1, 1, 1, i,l,k,j,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
             ! i < j < l < k
             ! _R(i) > _LR(j) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values(13, 1, -1, 1, 1, -1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(13, 1, -1, 1, 1, -1, i,l,k,j,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
             ! i < k < j < l
             ! _R(i) > RR_*(k) > RR^(j) > ^R(l)
-            excitInfo = assign_excitInfo_values(9, 1, 1, 1, 1, 1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(9, 1, 1, 1, 1, 1, i,l,k,j,&
                 i,k,j,l,0,4,-1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
             ! i < k < l < j
             ! _R(i) > RR_*(k) > ^RR*(l) > ^R(j)
-            excitInfo = assign_excitInfo_values(9, 1, 1, 1, 1, 1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(9, 1, 1, 1, 1, 1, i,l,k,j,&
                 i,k,l,j,0,4,-1.0_dp,-1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
@@ -28352,128 +28385,128 @@ contains
             ! non-overlap one -> switch to other valid generator:
             ! e_{ij,kl}:
             ! _R(i) > _LR(l) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values(13, 1, -1, 1, 1, -1, i,j,k,l,&
+            excitInfo = assign_excitInfo_values_double(13, 1, -1, 1, 1, -1, i,j,k,l,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
             ! i < l < k < j
             ! non-overlap! -> e_{ij,kl}:
             ! _R(i) > _LR(l) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values(11, 1, -1, 1, 1, 1, i,j,k,l,&
+            excitInfo = assign_excitInfo_values_double(11, 1, -1, 1, 1, 1, i,j,k,l,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
             ! j < i < k < l
             ! _L(j) > _RL(i) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values(12, 1, -1, -1, -1, 1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(12, 1, -1, -1, -1, 1, i,l,k,j,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
             ! j < i < l < k
             ! _L(j) > _RL(i) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values(10, 1, -1, -1, -1, -1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(10, 1, -1, -1, -1, -1, i,l,k,j,&
                 j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
             ! j < k < i < l
             ! non-overlap -> e_{ij,kl}
             ! _L(j) > _RL(k) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values(12, -1, 1, -1, -1, 1, i,j,k,l,&
+            excitInfo = assign_excitInfo_values_double(12, -1, 1, -1, -1, 1, i,j,k,l,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
             ! j < k < l < i
             ! non-overlap -> e_{ij,kl}
             ! _L(j) > _RL(k) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values(10, -1, 1, -1, -1, -1, i,j,k,l,&
+            excitInfo = assign_excitInfo_values_double(10, -1, 1, -1, -1, -1, i,j,k,l,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
             ! j < l < i < k
             ! _L(j) > _LL*(l) > ^LL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values(8, -1, -1, -1, -1, -1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(8, -1, -1, -1, -1, -1, i,l,k,j,&
                 j,l,i,k,0,4,-1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
             ! j < l < k < i
             ! _L(j) > _LL*(l) > LL^*(k) > ^L(i)
-            excitInfo = assign_excitInfo_values(8, -1, -1, -1, -1, -1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(8, -1, -1, -1, -1, -1, i,l,k,j,&
                 j,l,k,i,0,4,-1.0_dp,-1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
             ! k < i < j < l
             ! _R(k) > _RR(i) > RR^(j) > ^R(l)
-            excitInfo = assign_excitInfo_values(9, 1, 1, 1, 1, 1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(9, 1, 1, 1, 1, 1, i,l,k,j,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
             ! k < i < l < j
             ! _R(k) > _RR(i) > ^RR*(l) > ^R(j)
-            excitInfo = assign_excitInfo_values(9, 1, 1, 1, 1, 1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(9, 1, 1, 1, 1, 1, i,l,k,j,&
                 k,i,l,j,0,4,1.0_dp,-1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
             ! k < j < i < l
             ! non-overlap -> e_{ij,kl}
             ! _R(k) > _LR(j) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values(11, -1, 1, 1, 1, 1, i,j,k,l,&
+            excitInfo = assign_excitInfo_values_double(11, -1, 1, 1, 1, 1, i,j,k,l,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
             ! k < j < l < i
             ! non-overlap -> e_{ij,kl}
             ! _R(k) > _LR(j) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values(13, -1, 1, 1, 1, -1, i,j,k,l,&
+            excitInfo = assign_excitInfo_values_double(13, -1, 1, 1, 1, -1, i,j,k,l,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
             ! k < l < i < j
             ! _R(k) > _LR(l) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values(11, -1, 1, 1, 1, 1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(11, -1, 1, 1, 1, 1, i,l,k,j,&
                 k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
             ! k < l < j < i
             ! _R(k) > _LR(l) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values(13, -1, 1, 1, 1, -1, i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(13, -1, 1, 1, 1, -1, i,l,k,j,&
                 k,l,j,i,0,4,1.0_dp, 1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
             ! l < i < j < k
             ! non-overlap -> e_{ij,kl}
             ! _L(l) > _RL(i) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values(10, 1, -1, -1, -1, -1, i,j,k,l,&
+            excitInfo = assign_excitInfo_values_double(10, 1, -1, -1, -1, -1, i,j,k,l,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
             ! l < i < k < j
             ! non-overlap -> e_{ij,kl}
             ! _L(l) > _RL(i) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values(12, 1, -1, -1, -1, 1, i,j,k,l,&
+            excitInfo = assign_excitInfo_values_double(12, 1, -1, -1, -1, 1, i,j,k,l,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
             ! l < j < i < k
             ! _L(l) > LL_(j) > ^LL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values(8, -1,-1,-1,-1,-1,i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(8, -1,-1,-1,-1,-1,i,l,k,j,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
             ! l < j < k < i
             ! _L(l) > LL_(j) > LL^*(k) > ^L(i)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,i,l,k,j,&
                 l,j,k,i,0,4,1.0_dp,-1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
             ! l < k < i < j
             ! _L(l) > _RL(k) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values(12, -1, 1,-1,-1,1,i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(12, -1, 1,-1,-1,1,i,l,k,j,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
             ! l < k < j < i
             ! _L(l) > _RL(k) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values(10, -1, 1, -1, -1, -1,i,l,k,j,&
+            excitInfo = assign_excitInfo_values_double(10, -1, 1, -1, -1, -1,i,l,k,j,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -28493,153 +28526,153 @@ contains
         if (i < j .and. j < k .and. k < l) then
             ! i < j < k < l
             ! _R(i) > _LR(j) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,i,k,l,j,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
             ! i < j < l < k
             ! _R(i) > _LR(j) ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,i,k,l,j,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
             ! i < k < j < l
             ! non-overlap -> e_{ij,lk}
             ! _R(i) > _LR(k) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,i,j,l,k,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,i,j,l,k,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
             ! i < k < l < j
             ! non-overlap -> e_{ij,lk}
             ! _R(i) > _LR(k) > ^L(l) > ^R(j)
-            excitInfo = assign_excitInfo_values(11, 1,-1,1,1,1,i,j,l,k,&
+            excitInfo = assign_excitInfo_values_double(11, 1,-1,1,1,1,i,j,l,k,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
             ! i < l < j < k
             ! _R(i) > RR_*(l) > RR^(j) > ^R(k)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,i,k,l,j,&
                 i,l,j,k,0,4,-1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
             ! i < l < k < j
             ! _R(i) > RR_*(l) > ^RR*(k) > ^R(j)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,i,k,l,j,&
                 i,l,k,j,0,4,-1.0_dp,-1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
             ! j < i < k < l
             ! _L(j) > _RL(i) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,i,k,l,j,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
             ! j < k < i < l
             ! _L(j) > _RL(i) > ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,i,k,l,j,&
                 j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
             ! j < k < i < l
             ! _L(j) > _LL*(k) > ^LL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,i,k,l,j,&
                 j,k,i,l,0,4,-1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
             ! j < l < i < k
             ! _L(j) > _LL*(k) > LL^*(k) > ^L(i)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,i,k,l,j,&
                 j,k,l,i,0,4,-1.0_dp,-1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
             ! j < l < i < k
             ! non-overlap -> e_{ij,lk}
             ! _L(j) > _RL(l) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,i,j,l,k,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,i,j,l,k,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
             ! j < l < k < i
             ! non-overlap > e_{ij,lk}
             ! _L(j) > _RL(l) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,i,j,l,k,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,i,j,l,k,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
             ! k < i < j < l
             ! non-overlap -> e_{ij,lk}
             ! _L(k) > _RL(i) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,i,j,l,k,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,i,j,l,k,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
             ! k < i < l < j
             ! non-overlap > e_{ij,lk}
             ! _L(k) > _RL(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,i,j,l,k,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,i,j,l,k,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
             ! k < j < i < l
             ! _L(k) > LL_(j) > ^LL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,i,j,k,l,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,i,j,k,l,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
             ! k < j < l < i
             ! _L(k) > LL_(j) > LL^*(l) > ^L(i)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,i,k,l,j,&
                 k,j,l,i,0,4,1.0_dp,-1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
             ! k < l < i < j
             ! _L(k) > _RL(l) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,i,k,l,j,&
                 k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
             ! k < l < j < i
             ! _L(k) > _RL(l) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,i,k,l,j,&
                 k,l,j,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
             ! l < i < j < k
             ! _R(l) > _RR(i) > RR^(j) > ^R(k)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,i,k,l,j,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
             ! l < i < k < j
             ! _R(l) > _RR(i) > ^RR*(k) > ^R(j)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,i,k,l,j,&
                 l,i,k,j,0,4,1.0_dp,-1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
             ! l < j < i < k
             ! non-overlap > e_{ij,lk}
             ! _R(l) > _LR(j) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values(11, -1, 1,1,1,1,i,j,l,k,&
+            excitInfo = assign_excitInfo_values_double(11, -1, 1,1,1,1,i,j,l,k,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
             ! l < j < k < i
             ! non-overlap > e_{ij,lk}
             ! _R(l) > _LR(j) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,i,j,l,k,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,i,j,l,k,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
             ! l < k < i < j
             ! _R(l) > _LR(k) > ^LR(i) > ^R(j)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,i,k,l,j,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
             ! l < k < j < i
             ! _R(l) > _LR(k) > ^RL(j) > ^L(i)
-            excitInfo = assign_excitInfo_values(13, -1,1,1,1,-1,i,k,l,j,&
+            excitInfo = assign_excitInfo_values_double(13, -1,1,1,1,-1,i,k,l,j,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -28660,25 +28693,25 @@ contains
         if (i < j .and. j < k .and. k < l) then
             ! i < j < k < l
             ! R_{i} > RR_*(j) > RR^(k) > ^R(l)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,i,l,j,k,&
                 i,j,k,l,0,4,-1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
             ! i < j < l < k
             ! _R(i) > RR_*(j) > ^RR*(l) > ^R(k)
-            excitInfo = assign_excitInfo_values(9, 1,1,1,1,1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(9, 1,1,1,1,1,i,l,j,k,&
                 i,j,l,k,0,4,-1.0_dp,-1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
             ! i < k < j < l
             ! _R(i) > _LR(k) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values(11, 1, -1, 1, 1, 1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(11, 1, -1, 1, 1, 1,i,l,j,k,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
             ! i < k < l < j
             ! _R(i) > _LR(k) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values(13, 1, -1,1,1,-1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(13, 1, -1,1,1,-1,i,l,j,k,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
@@ -28686,128 +28719,128 @@ contains
             ! _R(i) > ^R(l) _R(j) > ^R(k)
             ! non-overlap -> e_{ik,jl}
             ! _R(i) > _LR(l) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values(11, 1, -1,1,1,1,i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(11, 1, -1,1,1,1,i,k,j,l,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
             ! i < l < k < j
             ! non-overlap -> e_{ik,jl}
             ! _R(i) > _LR(l) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values(13, 1, -1, 1, 1,-1,i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(13, 1, -1, 1, 1,-1,i,k,j,l,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
             ! j < i < k < l
             ! _R(j) > _RR(i) > RR^(k) > ^R(l)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,i,l,j,k,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
             ! j < k < i < l
             ! _R(j) > _RR(i) > ^RR*(l) > ^R(k)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,i,l,j,k,&
                 j,i,l,k,0,4,1.0_dp,-1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
             ! j < k < i < l
             ! non-overlap -> e_{ik,jl}
             ! _R(j) > _LR(k) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,i,k,j,l,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
             ! j < l < i < k
             ! non-overlap > e_{ik,jl}
             ! _R(j) > _LR(k) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,i,k,j,l,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
             ! j < l < i < k
             ! _R(j) > _LR(l) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,i,l,j,k,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
             ! j < l < k < i
             ! _R(j) > _LR(l) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,i,l,j,k,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
             ! k < i < j < l
             ! _L(k) > _RL(i) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,i,l,j,k,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
             ! k < i < l < j
             ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,i,l,j,k,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
             ! k < j < i < l
             ! non-overlap > e_{ik,jl}
             ! _L(k) > _RL(j) > ^LR(i) > ^R(l)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,i,k,j,l,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
             ! k < j < l < i
             ! non-overlap > e_{ik,jl}
             ! _L(k) > _RL(j) > ^RL(l) > ^L(i)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,i,k,j,l,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
             ! k < l < i < j
             ! _L(k) > _LL*(l) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,i,l,j,k,&
                 k,l,i,j,0,4,-1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
             ! k < l < j < i
             ! _L(k) > _LL*(l) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,i,l,j,k,&
                 k,l,j,i,0,4,-1.0_dp,-1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
             ! l < i < j < k
             ! non-overlap > e_{ik,jl}
             ! _L(l) > _RL(i) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,i,k,j,l,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
             ! l < i < k < j
             ! non-overlap > e_{ik,jl}
             ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,i,k,j,l,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,i,k,j,l,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
             ! l < j < i < k
             ! _L(l) > _RL(j) > ^LR(i) > ^R(k)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,i,l,j,k,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
             ! l < j < k < i
             ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,i,l,j,k,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
             ! l < k < i < j
             ! _L(l) > LL_(k) > ^LL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,i,l,j,k,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
             ! l < k < j < i
             ! _L(l) > LL_(k) > LL^*(j) > ^L(i)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,i,l,j,k,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,i,l,j,k,&
                 l,k,j,i,0,4,1.0_dp,-1.0_dp)
 
         else
@@ -28827,153 +28860,153 @@ contains
         if (i < j .and. j < k .and. k < l) then
             ! i < j < k < l
             ! _L(i) > LL_(j) > ^LL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,k,i,l,j,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
             ! i < j < l < k
             ! _L(i) > LL_(j) > LL^*(l) > ^L(k)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,k,i,l,j,&
                 i,j,l,k,0,4,1.0_dp,-1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
             ! i < k < j < l
             ! non-overlap > e_{li,kj}
             ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,l,i,k,j,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
             ! i < k < l < j
             ! non-overlap > e_{li,kj}
             ! _L(i) > ^RL(k) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,l,i,k,j,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
             ! i < l < j < k
             ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,k,i,l,j,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
             ! i < l < k < j
             ! _L(i) > ^RL(l) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,k,i,l,j,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
             ! j < i < k < l
             ! _L(j) > _LL*(i) > ^LL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,k,i,l,j,&
                 j,i,k,l,0,4,-1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
             ! j < k < i < l
             ! _L(j) > _LL*(i) > LL^*(l) > ^L(k)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,k,i,l,j,&
                 j,i,l,k,0,4,-1.0_dp,-1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
             ! j < k < i < l
             ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,k,i,l,j,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
             ! j < l < i < k
             ! _L(j) > ^RL(k) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,k,i,l,j,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
             ! j < l < i < k
             ! non-overlap > e_{li,kj}
             ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,l,i,k,j,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
             ! j < l < k < i
             ! non-overlap > e_{li,kj}
             ! _L(l) > _RL(l) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,l,i,k,j,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
             ! k < i < j < l
             ! non-overlap > e_{li,kj}
             ! _R(k) > _LR(i) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,l,i,k,j,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
             ! k < i < l < j
             ! non-overlap > e_{li,kj}
             ! _R(k) > _LR(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,l,i,k,j,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
             ! k < j < i < l
             ! _R(k) > _LR(j) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,k,i,l,j,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
             ! k < j < l < i
             ! _R(k) > _LR(j) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,k,i,l,j,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
             ! k < l < i < j
             ! _R(k) > RR_*(l) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,k,i,l,j,&
                 k,l,i,j,0,4,-1.0_dp,-1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
             ! k < l < j < i
             ! _R(k) > RR_*(l) > RR^(j) > ^R(i)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,k,i,l,j,&
                 k,l,j,i,0,4,-1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
             ! l < i < j < k
             ! _R(l) > _LR(i) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,k,i,l,j,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
             ! l < i < k < j
             ! _R(l) > _LR(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,k,i,l,j,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
             ! l < j < i < k
             ! non-overlap > e_{li,kj}
             ! _R(l) > _LR(j) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,l,i,k,j,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
             ! l < j < k < i
             ! non-overlap > e_{li,kj}
             ! _R(l) > ^_LR(j) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,l,i,k,j,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
             ! l < k < i < j
             ! _R(l) > _RR(k) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,k,i,l,j,&
                 l,k,i,j,0,4,1.0_dp,-1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
             ! l < k < j < i
             ! _R(l) > _RR(k) > RR^(j) > ^R(i)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,k,i,l,j,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -28993,153 +29026,153 @@ contains
         if (i < j .and. j < k .and. k < l) then
             ! i < j < k < l
             ! _L(i) > _RL(j) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,k,i,j,l,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
             ! i < j < l < k
             ! _L(i) > _RL(j) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,k,i,j,l,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
             ! i < k < j < l
             ! non-overlap > e_{ji,kl}
             ! _L(i) > _RL(k) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,j,i,k,l,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,j,i,k,l,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
             ! i < k < l < j
             ! non-overlap > e_{ji,kl}
             ! _L(i) > _RL(k) > ^RL(l) > ^L(l)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,j,i,k,l,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,j,i,k,l,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
             ! i < l < j < k
             ! _L(i) > LL_(l) > LL^*(j) > ^L(k)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,k,i,j,l,&
                 i,l,j,k,0,4,1.0_dp,-1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
             ! i < l < k < j
             ! _L(i) > LL_(l) > ^LL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,k,i,j,l,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
             ! j < i < k < l
             ! _R(j) > _LR(i) > ^LR(k) > ^R(l)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,k,i,j,l,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
             ! j < k < i < l
             ! _R(j) > _LR(i) > ^RL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,k,i,j,l,&
                 j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
             ! j < k < i < l
             ! _R(j) > _RR(k) > ^RR*(i) > ^R(l)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,k,i,j,l,&
                 j,k,i,l,0,4,1.0_dp,-1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
             ! j < l < i < k
             ! _R(j) > _RR(k) > RR^(l) > ^R(i)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,k,i,j,l,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
             ! j < l < i < k
             ! non-overlap > e_{ji,kl}
             ! _R(j) > _LR(l) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,j,i,k,l,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,j,i,k,l,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
             ! j < l < k < i
             ! non-overlap > e_{ji,kl}
             ! _R(j) > _LR(l) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,j,i,k,l,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,j,i,k,l,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
             ! k < i < j < l
             ! non-overlap > e_{ji,kl}
             ! _R(k) > _LR(i) > ^LR(j) > ^R(l)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,j,i,k,l,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,j,i,k,l,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
             ! k < i < l < j
             ! non-overlap > e_{ji,kl}
             ! _R(k) > _LR(i) > ^RL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,j,i,k,l,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,j,i,k,l,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
             ! k < j < i < l
             ! _R(k) > RR_*(j) > ^RR*(i) > ^R(l)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,k,i,j,l,&
                 k,j,i,l,0,4,-1.0_dp,-1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
             ! k < j < l < i
             ! _R(k) > RR_*(j) > RR^(l) > ^R(i)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,k,i,j,l,&
                 k,j,l,i,0,4,-1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
             ! k < l < i < j
             ! _R(k) > _LR(l) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,k,i,j,l,&
                 k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
             ! k < l < j < i
             ! _R(k) > _LR(l) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,k,i,j,l,&
                 k,l,j,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
             ! l < i < j < k
             ! _L(l) > _LL*(i) > LL^*(j) > ^L(k)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,k,i,j,l,&
                 l,i,j,k,0,4,-1.0_dp,-1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
             ! l < i < k < j
             ! _L(l) > _LL*(i) > ^LL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,k,i,j,l,&
                 l,i,k,j,0,4,-1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
             ! l < j < i < k
             ! npn-overlap > e_{ji,kl}
             ! _L(l) > _RL(j) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,k,i,j,l,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
             ! l < j < k < i
             ! non-overlap > e_{ji,kl}
             ! _L(l) > _RL(k) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,j,i,k,l,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,j,i,k,l,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
             ! l < k < i < j
             ! _L(l) > _RL(k) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,k,i,j,l,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
             ! l < k < j < i
             ! _L(l) > _RL(k) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,k,i,j,l,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,k,i,j,l,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -29160,153 +29193,153 @@ contains
         if (i < j .and. j < k .and. k < l) then
             ! i < j < k < l
             ! _L(i) > _RL(j) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,l,i,j,k,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
             ! i < j < l < k
             ! _L(i) > _RL(j) > ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,l,i,j,k,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
             ! i < k < j < l
             ! _L(i) > LL_(k) > LL^*(j) > ^L(l)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,l,i,j,k,&
                 i,k,j,l,0,4,1.0_dp,-1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
             ! i < k < l < j
             ! _L(i) > LL_(k) > ^LL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,l,i,j,k,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
             ! i < l < j < k
             ! non-overlap > e_{ji_lk}
             ! _L(i) > _RL(l) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,j,i,l,k,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,j,i,l,k,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
             ! i < l < k < j
             ! non-overlap > e_{ji,lk}
             ! _L(i) > _RL(l) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,j,i,l,k,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,j,i,l,k,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
             ! j < i < k < l
             ! _R(j) > _LR(i) > ^RL(k) > ^L(l)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,l,i,j,k,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
             ! j < k < i < l
             ! _R(j) > _LR(i) > ^LR(l) > ^R(k)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,l,i,j,k,&
                 j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
             ! j < k < i < l
             ! non-overlap > e_{ji,lk}
             ! _R(j) > _LR(k) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,j,i,l,k,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,j,i,l,k,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
             ! j < l < i < k
             ! non-overlap > e_{ji,lk}
             ! _R(j) > _LR(k) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,j,i,l,k,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,j,i,l,k,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
             ! j < l < i < k
             ! _R(j) > _RR(l) > ^RR*(i) > ^R(k)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,l,i,j,k,&
                 j,l,i,k,0,4,1.0_dp,-1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
             ! j < l < k < i
             ! _R(j) > _RR(l) > RR^(k) > ^R(i)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,l,i,j,k,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
             ! k < i < j < l
             ! _L(k) > _LL*(i) > LL^*(j) > ^L(l)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,l,i,j,k,&
                 k,i,j,l,0,4,-1.0_dp,-1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
             ! k < i < l < j
             ! _L(k) > _LL*(i) > ^LL(l) > ^L(j)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,l,i,j,k,&
                 k,i,l,j,0,4,-1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
             ! k < j < i < l
             ! non-overlap > e_{ji,lk}
             ! _L(k) > _RL(j) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,j,i,l,k,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,j,i,l,k,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
             ! k < j < l < i
             ! non-overlap > e_{ji,lk}
             ! _L(k) > _RL(j) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,j,i,l,k,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,j,i,l,k,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
             ! k < l < i < j
             ! _L(k) > _RL(l) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,l,i,j,k,&
                 k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
             ! k < l < j < i
             ! _L(k) > _RL(l) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,l,i,j,k,&
                 k,l,j,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
             ! l < i < j < k
             ! non-overlap > e_{ji,lk}
             ! _R(l) > _LR(i) > ^LR(j) > ^R(k)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,j,i,l,k,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,j,i,l,k,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
             ! l < i < k < j
             ! non-overlap > e_{ji,lk}
             ! _R(l) > _LR(i) > ^RL(k) > ^L(j)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,j,i,l,k,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,j,i,l,k,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
             ! l < j < i < k
             ! _R(l) > RR_*(j) > ^RR*(i) > ^R(k)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,l,i,j,k,&
                 l,j,i,k,0,4,-1.0_dp,-1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
             ! l < j < k < i
             ! _R(l) > RR_*(j) > RR^(k) > ^R(i)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,l,i,j,k,&
                 l,j,k,i,0,4,-1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
             ! l < k < i < j
             ! _R(l) > _LR(k) > ^RL(i) > ^L(j)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,l,i,j,k,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
             ! l < k < j < i
             ! _R(l) > _LR(k) > ^LR(j) > ^R(i)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,l,i,j,k,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,l,i,j,k,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -29326,153 +29359,153 @@ contains
         if (i < j .and. j < k .and. k < l) then
             ! i < j < k < l
             ! _L(i) > LL_(j) > LL^*(k) > ^L(l)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,l,i,k,j,&
                 i,j,k,l,0,4,1.0_dp,-1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
             ! i < j < l < k
             ! _L(i) > LL_(j) > ^LL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,l,i,k,j,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
             ! i < k < j < l
             ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,l,i,k,j,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
             ! i < k < l < j
             ! _L(i) > _RL(k) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,l,i,k,j,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
             ! i < l < j < k
             ! non-overlap > e_{ki,lj}
             ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values(10,-1,1,-1,-1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(10,-1,1,-1,-1,-1,k,i,l,j,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
             ! i < l < k < j
             ! non-overlap > e_{ki,lj}
             ! _L(i) > _RL(l) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values(12,-1,1,-1,-1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(12,-1,1,-1,-1,1,k,i,l,j,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
             ! j < i < k < l
             ! _L(j) > _LL*(i) > LL^*(k) > ^L(l)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,l,i,k,j,&
                 j,i,k,l,0,4,-1.0_dp,-1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
             ! j < k < i < l
             ! _L(j) > _LL*(i) > ^LL(l) > ^L(k)
-            excitInfo = assign_excitInfo_values(8,-1,-1,-1,-1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(8,-1,-1,-1,-1,-1,l,i,k,j,&
                 j,i,l,k,0,4,-1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
             ! j < k < i < l
             ! non-overlap > e_{ki,lj}
             ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,k,i,l,j,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
             ! j < l < i < k
             ! non-overlap > e_{ki,lj}
             ! _L(j) > _RL(k) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,k,i,l,j,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
             ! j < l < i < k
             ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values(10,1,-1,-1,-1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(10,1,-1,-1,-1,-1,l,i,k,j,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
             ! j < l < k < i
             ! _L(j) > _RL(l) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values(12,1,-1,-1,-1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(12,1,-1,-1,-1,1,l,i,k,j,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
             ! k < i < j < l
             ! _R(k) > _LR(i) > ^RL(j) > ^L(l)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,l,i,k,j,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
             ! k < i < l < j
             ! _R(k) > _LR(i) > ^LR(l) > ^R(j)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,l,i,k,j,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
             ! k < j < i < l
             ! non-overlap > e_{ki,lj}
             ! _R(k) > _LR(j) > ^RL(i) > ^L(l)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,k,i,l,j,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
             ! k < j < l < i
             ! non-overlap > e_{ki,lj}
             ! _R(k) > _LR(j) > ^LR(l) > ^R(i)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,k,i,l,j,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
             ! k < l < i < j
             ! _R(k) > _RR(l) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,l,i,k,j,&
                 k,l,i,j,0,4,1.0_dp,-1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
             ! k < l < j < i
             ! _R(k) > _RR(l) > RR^(j) > ^R(i)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,l,i,k,j,&
                 k,l,j,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
             ! l < i < j < k
             ! non-overlap > e_{ki,lj}
             ! _R(l) > _LR(i) > ^RL(j) > ^L(k)
-            excitInfo = assign_excitInfo_values(13,-1,1,1,1,-1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(13,-1,1,1,1,-1,k,i,l,j,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
             ! l < i < k < j
             ! non-overlap > e_{ki,lj}
             ! _R(l) > _LR(i) > ^LR(k) > ^R(j)
-            excitInfo = assign_excitInfo_values(11,-1,1,1,1,1,k,i,l,j,&
+            excitInfo = assign_excitInfo_values_double(11,-1,1,1,1,1,k,i,l,j,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
             ! l < j < i < k
             ! _R(l) > _LR(j) > ^RL(i) > ^L(k)
-            excitInfo = assign_excitInfo_values(13,1,-1,1,1,-1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(13,1,-1,1,1,-1,l,i,k,j,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
             ! l < j < k < i
             ! _R(l) > _LR(j) > ^LR(k) > ^R(i)
-            excitInfo = assign_excitInfo_values(11,1,-1,1,1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(11,1,-1,1,1,1,l,i,k,j,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
             ! l < k < i < j
             ! _R(l) > RR_*(k) > ^RR*(i) > ^R(j)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,l,i,k,j,&
                 l,k,i,j,0,4,-1.0_dp,-1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
             ! l < k < j < i
             ! _R(l) > RR_*(k) > RR^*(j) > ^R(i)
-            excitInfo = assign_excitInfo_values(9,1,1,1,1,1,l,i,k,j,&
+            excitInfo = assign_excitInfo_values_double(9,1,1,1,1,1,l,i,k,j,&
                 l,k,j,i,0,4,-1.0_dp,1.0_dp)
 
         else

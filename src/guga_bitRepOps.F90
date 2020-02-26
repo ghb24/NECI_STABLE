@@ -2603,32 +2603,30 @@ contains
 
         integer :: ij, kl
 
-        ij = (i - 1) * nSpatOrbs + j
-        kl = (k - 1) * nSpatOrbs + l
+
+        ij = contract_1_rdm_ind(i, j)
+        kl = contract_1_rdm_ind(k, l)
 
         ijkl = (ij - 1) * (nSpatOrbs**2) + kl
 
     end function contract_2_rdm_ind
 
-    subroutine extract_2_rdm_ind(ijkl, i, j, k, l, ij_out, kl_out)
+    subroutine extract_2_rdm_ind(ijkl, j, l, i, k, ij_out, kl_out)
         ! the inverse routine of the function above.
         ! it is actually practical to have ij and kl also available at
         ! times, since it can identify diagonal entries of the two-RDM
         integer(int_rdm), intent(in) :: ijkl
         integer, intent(out) :: i,j,k,l
-        integer, intent(out), optional :: ij_out, kl_out
+        integer(int_rdm), intent(out), optional :: ij_out, kl_out
         character(*), parameter :: this_routine = "extract_2_rdm_ind"
 
-        integer :: ij, kl
+        integer(int_rdm) :: ij, kl
 
-        kl = int(mod(ijkl - 1, int(nSpatOrbs, int_rdm)**2) + 1)
-        ij = int((ijkl - kl)/(nSpatOrbs ** 2) + 1)
+        kl = mod(ijkl - 1, int(nSpatOrbs, int_rdm)**2) + 1
+        ij = (ijkl - kl)/(nSpatOrbs ** 2) + 1
 
-        j = mod(ij - 1, nSpatOrbs) + 1
-        i = (ij - j) / nSpatOrbs + 1
-
-        l = mod(kl - 1, nSpatOrbs) + 1
-        k = (kl - l) / nSpatOrbs + 1
+        call extract_1_rdm_ind(ij, i, j)
+        call extract_1_rdm_ind(kl, k, l)
 
         if (present(ij_out)) ij_out = ij
         if (present(kl_out)) kl_out = kl
