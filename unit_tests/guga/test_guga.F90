@@ -610,166 +610,166 @@ contains
 
     end subroutine test_identify_excitation_and_matrix_element
 
-
-    subroutine test_coupling_coeffs
-
-        integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
-        type(ExcitationInformation_t) :: excitInfo
-        HElement_t(dp) :: mat_ele
-        integer(int_rdm) :: rdm_ind
-        real(dp) :: rdm_mat
-        integer :: i, j, k, l
-        character(*), parameter :: this_routine = "test_coupling_coeffs"
-
-        print *, " =============================================================="
-        print *, " ====== testing the coupling coefficient calculation =========="
-        print *, " =============================================================="
-
-        nel = 1
-        call EncodeBitDet_guga([1], ilutI)
-        call EncodeBitDet_guga([3], ilutJ)
-
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-
-        ! Single excitations:
-        call assert_equals(h_cast(1.0_dp), mat_ele)
-        call assert_equals(1.0_dp, rdm_mat)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(5_int_rdm, rdm_ind)
-        call assert_equals(2,i)
-        call assert_equals(1,j)
-
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-
-        call assert_equals(h_cast(1.0_dp), mat_ele)
-        call assert_equals(1.0_dp, rdm_mat)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(2_int_rdm, rdm_ind)
-        call assert_equals(1,i)
-        call assert_equals(2,j)
-
-        nel = 2
-        call EncodeBitDet_guga([1,2], ilutI)
-        call EncodeBitDet_guga([1,4], ilutJ)
-
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
-        call assert_equals(sqrt(2.0_dp), rdm_mat)
-        call assert_equals(5_int_rdm, rdm_ind)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(2,i)
-        call assert_equals(1,j)
-
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
-        call assert_equals(sqrt(2.0_dp), rdm_mat)
-        call assert_equals(2_int_rdm, rdm_ind)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(1,i)
-        call assert_equals(2,j)
-
-        call EncodeBitDet_guga([1,6], ilutJ)
-
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
-        call assert_equals(sqrt(2.0_dp), rdm_mat)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(3,i)
-        call assert_equals(1,j)
-
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
-        call assert_equals(sqrt(2.0_dp), rdm_mat)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(1,i)
-        call assert_equals(3,j)
-
-        nel = 3
-        call EncodeBitDet_guga([1,3,4], ilutI)
-        call EncodeBitDet_guga([3,4,5], ilutJ)
-
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(-1.0_dp), mat_ele)
-        call assert_equals(-1.0_dp, rdm_mat)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(3,i)
-        call assert_equals(1,j)
-
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(-1.0_dp), mat_ele)
-        call assert_equals(-1.0_dp, rdm_mat)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(1,i)
-        call assert_equals(3,j)
-
-        call EncodeBitDet_guga([1,3,5], ilutI)
-        call EncodeBitDet_guga([3,5,7], ilutJ)
-
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(1.0_dp), mat_ele)
-        call assert_equals(1.0_dp, rdm_mat)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(4,i)
-        call assert_equals(1,j)
-
-        call calc_guga_matrix_element(ilutj, iluti, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(1.0_dp), mat_ele)
-        call assert_equals(1.0_dp, rdm_mat)
-        call extract_1_rdm_ind(rdm_ind, i, j)
-        call assert_equals(4,j)
-        call assert_equals(1,i)
-
-        nel = 2
-        call EncodeBitDet_guga([1,2], ilutI)
-        call EncodeBitDet_guga([3,4], ilutJ)
-
-        call calc_guga_matrix_element(iluti, ilutj, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(2.0_dp), mat_ele)
-        call assert_equals(2.0_dp, rdm_mat)
-        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
-        call assert_equals(2,i)
-        call assert_equals(1,j)
-        call assert_equals(2,k)
-        call assert_equals(1,l)
-
-        call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(2.0_dp), mat_ele)
-        call assert_equals(2.0_dp, rdm_mat)
-        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
-        call assert_equals(1,i)
-        call assert_equals(2,j)
-        call assert_equals(1,k)
-        call assert_equals(2,l)
-
-        call EncodeBitDet_guga([3,6], ilutJ)
-
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
-        call assert_equals(h_cast(2.0_dp), mat_ele)
-        call assert_equals(2.0_dp, rdm_mat)
-        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
-        call assert_equals(1,i)
-        call assert_equals(2,j)
-        call assert_equals(1,k)
-        call assert_equals(2,l)
-
-
-        call stop_all(this_routine, "here")
-
-    end subroutine test_coupling_coeffs
-
+!
+!     subroutine test_coupling_coeffs
+!
+!         integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+!         type(ExcitationInformation_t) :: excitInfo
+!         HElement_t(dp) :: mat_ele
+!         integer(int_rdm), allocatable :: rdm_ind(:)
+!         real(dp), allocatable :: rdm_mat(:)
+!         integer :: i, j, k, l
+!         character(*), parameter :: this_routine = "test_coupling_coeffs"
+!
+!         print *, " =============================================================="
+!         print *, " ====== testing the coupling coefficient calculation =========="
+!         print *, " =============================================================="
+!
+!         nel = 1
+!         call EncodeBitDet_guga([1], ilutI)
+!         call EncodeBitDet_guga([3], ilutJ)
+!
+!         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!
+!         ! Single excitations:
+!         call assert_equals(h_cast(1.0_dp), mat_ele)
+!         call assert_equals(1.0_dp, rdm_mat)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(5_int_rdm, rdm_ind)
+!         call assert_equals(2,i)
+!         call assert_equals(1,j)
+!
+!         call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!
+!         call assert_equals(h_cast(1.0_dp), mat_ele)
+!         call assert_equals(1.0_dp, rdm_mat)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(2_int_rdm, rdm_ind)
+!         call assert_equals(1,i)
+!         call assert_equals(2,j)
+!
+!         nel = 2
+!         call EncodeBitDet_guga([1,2], ilutI)
+!         call EncodeBitDet_guga([1,4], ilutJ)
+!
+!         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
+!         call assert_equals(sqrt(2.0_dp), rdm_mat)
+!         call assert_equals(5_int_rdm, rdm_ind)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(2,i)
+!         call assert_equals(1,j)
+!
+!         call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
+!         call assert_equals(sqrt(2.0_dp), rdm_mat)
+!         call assert_equals(2_int_rdm, rdm_ind)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(1,i)
+!         call assert_equals(2,j)
+!
+!         call EncodeBitDet_guga([1,6], ilutJ)
+!
+!         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
+!         call assert_equals(sqrt(2.0_dp), rdm_mat)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(3,i)
+!         call assert_equals(1,j)
+!
+!         call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
+!         call assert_equals(sqrt(2.0_dp), rdm_mat)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(1,i)
+!         call assert_equals(3,j)
+!
+!         nel = 3
+!         call EncodeBitDet_guga([1,3,4], ilutI)
+!         call EncodeBitDet_guga([3,4,5], ilutJ)
+!
+!         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(-1.0_dp), mat_ele)
+!         call assert_equals(-1.0_dp, rdm_mat)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(3,i)
+!         call assert_equals(1,j)
+!
+!         call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(-1.0_dp), mat_ele)
+!         call assert_equals(-1.0_dp, rdm_mat)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(1,i)
+!         call assert_equals(3,j)
+!
+!         call EncodeBitDet_guga([1,3,5], ilutI)
+!         call EncodeBitDet_guga([3,5,7], ilutJ)
+!
+!         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(1.0_dp), mat_ele)
+!         call assert_equals(1.0_dp, rdm_mat)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(4,i)
+!         call assert_equals(1,j)
+!
+!         call calc_guga_matrix_element(ilutj, iluti, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(1.0_dp), mat_ele)
+!         call assert_equals(1.0_dp, rdm_mat)
+!         call extract_1_rdm_ind(rdm_ind, i, j)
+!         call assert_equals(4,j)
+!         call assert_equals(1,i)
+!
+!         nel = 2
+!         call EncodeBitDet_guga([1,2], ilutI)
+!         call EncodeBitDet_guga([3,4], ilutJ)
+!
+!         call calc_guga_matrix_element(iluti, ilutj, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(2.0_dp), mat_ele)
+!         call assert_equals(2.0_dp, rdm_mat)
+!         call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+!         call assert_equals(2,i)
+!         call assert_equals(1,j)
+!         call assert_equals(2,k)
+!         call assert_equals(1,l)
+!
+!         call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(2.0_dp), mat_ele)
+!         call assert_equals(2.0_dp, rdm_mat)
+!         call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+!         call assert_equals(1,i)
+!         call assert_equals(2,j)
+!         call assert_equals(1,k)
+!         call assert_equals(2,l)
+!
+!         call EncodeBitDet_guga([3,6], ilutJ)
+!
+!         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+!             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
+!         call assert_equals(h_cast(2.0_dp), mat_ele)
+!         call assert_equals(2.0_dp, rdm_mat)
+!         call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+!         call assert_equals(1,i)
+!         call assert_equals(2,j)
+!         call assert_equals(1,k)
+!         call assert_equals(2,l)
+!
+!
+!         call stop_all(this_routine, "here")
+!
+!     end subroutine test_coupling_coeffs
+!
     subroutine run_test_excit_gen_guga(nel_in, nbasis_in, stot_in)
         integer, intent(in) :: nel_in, nbasis_in, stot_in
 
