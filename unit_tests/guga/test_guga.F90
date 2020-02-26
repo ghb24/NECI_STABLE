@@ -71,9 +71,9 @@ contains
     subroutine guga_test_driver
 
         call init_guga_testsuite()
-        call run_test_case(test_contract_extract_1_rdm, "test_contract_extract_1_rdm")
-        call run_test_case(test_contract_extract_2_rdm, "test_contract_extract_2_rdm")
-        call run_test_case(test_coupling_coeffs, "test_coupling_coeffs")
+!         call run_test_case(test_contract_extract_1_rdm, "test_contract_extract_1_rdm")
+!         call run_test_case(test_contract_extract_2_rdm, "test_contract_extract_2_rdm")
+!         call run_test_case(test_coupling_coeffs, "test_coupling_coeffs")
 
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
@@ -284,7 +284,7 @@ contains
 
         call run_test_case(check_calcDiagExchange_nI, "check_calcDiagExchange_nI")
         call run_test_case(check_calcDiagMatEleGUGA_nI, "check_calcDiagMatEleGUGA_nI")
-        call run_test_case(test_coupling_coeffs, "test_coupling_coeffs")
+!         call run_test_case(test_coupling_coeffs, "test_coupling_coeffs")
 
         print *, " guga_matrixElements tests passed!"
 
