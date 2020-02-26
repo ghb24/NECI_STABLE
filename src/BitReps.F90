@@ -830,48 +830,53 @@ contains
             endif
 
         elseif (IC==2) then
-            if (is_beta(ExMat(1,1)) .and. is_beta(ExMat(1,2))) then
-                ! elec orbs are both beta
-                if (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
-                    ! virt orbs are both beta
-                    exTypeFlag = 2
-                    return
-                elseif (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
-                    ! virt orbs are both alpha
-                    exTypeFlag = 5
-                    return
-                else
-                    ! one of the spins changes
-                    exTypeFlag = 4
-                    return
-                endif
-            elseif (is_alpha(ExMat(1,1)) .and. is_alpha(ExMat(1,2))) then
-                ! elec orbs are both alpha
-                if (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
-                    ! virt orbs are both alpha
-                    exTypeFlag = 2
-                    return
-                elseif (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
-                    ! virt orbs are both beta
-                    exTypeFlag = 5
-                    return
-                else
-                    ! one of the spins changes
-                    exTypeFlag = 4
-                    return
-                endif
+            if (tGUGA) then
+                ! in GUGA avoid the further checks down below
+                exTypeFlag = 2
             else
-                ! elec orb spins are different
-                if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(2,2))) then
-                    ! virt orbs are of opposite spin
-                    exTypeFlag = 2
-                    return
+                if (is_beta(ExMat(1,1)) .and. is_beta(ExMat(1,2))) then
+                    ! elec orbs are both beta
+                    if (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
+                        ! virt orbs are both beta
+                        exTypeFlag = 2
+                        return
+                    elseif (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
+                        ! virt orbs are both alpha
+                        exTypeFlag = 5
+                        return
+                    else
+                        ! one of the spins changes
+                        exTypeFlag = 4
+                        return
+                    endif
+                elseif (is_alpha(ExMat(1,1)) .and. is_alpha(ExMat(1,2))) then
+                    ! elec orbs are both alpha
+                    if (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
+                        ! virt orbs are both alpha
+                        exTypeFlag = 2
+                        return
+                    elseif (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
+                        ! virt orbs are both beta
+                        exTypeFlag = 5
+                        return
+                    else
+                        ! one of the spins changes
+                        exTypeFlag = 4
+                        return
+                    endif
                 else
-                    ! virt orbs are of the same spin
-                    exTypeFlag = 4
-                    return
+                    ! elec orb spins are different
+                    if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(2,2))) then
+                        ! virt orbs are of opposite spin
+                        exTypeFlag = 2
+                        return
+                    else
+                        ! virt orbs are of the same spin
+                        exTypeFlag = 4
+                        return
+                    endif
                 endif
-            endif
+            end if
         else if (ic == 3) then
             ! todo! need to consider more maybe!
             exTypeFlag = 6
