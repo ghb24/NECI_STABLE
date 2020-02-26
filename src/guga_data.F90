@@ -18,7 +18,7 @@ module guga_data
               funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
-              excit_type
+              excit_type, gen_type
 
     ! ========================== type defs ===================================
 
@@ -32,37 +32,47 @@ module guga_data
         real(dp) :: zero = 0.0_dp
     end type WeightData_t
 
+    type :: GeneratorType_Values_t
+        integer :: &
+            raising     = 1,  &
+            lowering    = -1, &
+            weight =    0
+    end type GeneratorType_Values_t
+
+    type(GeneratorType_Values_t), parameter :: gen_type = GeneratorType_Values_t()
+
     ! define a type structure to store excitation information between two
     ! CSFs needed in the matrix element calculation between them
     ! this may also be used/needed for the excitation generation
     type :: ExcitationTypeValues_t
         ! save type of excitation encoded as integer: all different possibs:
         integer :: &
-        invalid                 = -1, & ! -1... indicate invalid excitation
-        single                  =  0, & ! 0 ... all kind of single excitations which dont need much care
-        raising                 =  1, & ! 1 ... weight raising
-        lowering                =  2, & ! 2 ... weight lowering
-        non_overlap             =  3, & ! 3 ... non overlap
-        single_overlap_lowering =  4, & ! 4 ... single overlap 2 lowering
-        single_overlap_raising  =  5, & ! 5 ... single overlap 2 raising
-        single_overlap_L_to_R   =  6, & ! 6 ... single overlap lowering into raising
-        single_overlap_R_to_L   =  7, & ! 7 ... single overlap raising into lowering
-        double_lowering         =  8, & ! 8 ... normal double two lowering
-        double_raising          =  9, & ! 9 ... normal double two raising
-        double_L_to_R_to_L      = 10, & ! 10 .. lowering into raising into lowering
-        double_R_to_L_to_R      = 11, & ! 11 .. raising into lowering into raising
-        double_L_to_R           = 12, & ! 12 .. lowering into raising double
-        double_R_to_L           = 13, & ! 13 .. raising into lowering double
-        fullstop_lowering       = 14, & ! 14 .. full stop 2 lowering
-        fullstop_raising        = 15, & ! 15 .. full stop 2 raising
-        fullstop_L_to_R         = 16, & ! 16 .. full stop lowering into raising
-        fullstop_R_to_L         = 17, & ! 17 .. full stop raising into lowering
-        fullstart_lowering      = 18, & ! 18 .. full start 2 lowering
-        fullstart_raising       = 19, & ! 19 .. full start 2 raising
-        fullstart_L_to_R        = 20, & ! 20 .. full start lowering into raising
-        fullstart_R_to_L        = 21, & ! 21 .. full start raising into lowering
-        fullstart_stop_alike    = 22, & ! 22 .. full start into full stop alike
-        fullstart_stop_mixed    = 23    ! 23 .. full start into full stop mixed
+            weight                  = -2, & ! i also need a pure weight identifier
+            invalid                 = -1, & ! -1... indicate invalid excitation
+            single                  =  0, & ! 0 ... all kind of single excitations which dont need much care
+            raising                 =  1, & ! 1 ... weight raising
+            lowering                =  2, & ! 2 ... weight lowering
+            non_overlap             =  3, & ! 3 ... non overlap
+            single_overlap_lowering =  4, & ! 4 ... single overlap 2 lowering
+            single_overlap_raising  =  5, & ! 5 ... single overlap 2 raising
+            single_overlap_L_to_R   =  6, & ! 6 ... single overlap lowering into raising
+            single_overlap_R_to_L   =  7, & ! 7 ... single overlap raising into lowering
+            double_lowering         =  8, & ! 8 ... normal double two lowering
+            double_raising          =  9, & ! 9 ... normal double two raising
+            double_L_to_R_to_L      = 10, & ! 10 .. lowering into raising into lowering
+            double_R_to_L_to_R      = 11, & ! 11 .. raising into lowering into raising
+            double_L_to_R           = 12, & ! 12 .. lowering into raising double
+            double_R_to_L           = 13, & ! 13 .. raising into lowering double
+            fullstop_lowering       = 14, & ! 14 .. full stop 2 lowering
+            fullstop_raising        = 15, & ! 15 .. full stop 2 raising
+            fullstop_L_to_R         = 16, & ! 16 .. full stop lowering into raising
+            fullstop_R_to_L         = 17, & ! 17 .. full stop raising into lowering
+            fullstart_lowering      = 18, & ! 18 .. full start 2 lowering
+            fullstart_raising       = 19, & ! 19 .. full start 2 raising
+            fullstart_L_to_R        = 20, & ! 20 .. full start lowering into raising
+            fullstart_R_to_L        = 21, & ! 21 .. full start raising into lowering
+            fullstart_stop_alike    = 22, & ! 22 .. full start into full stop alike
+            fullstart_stop_mixed    = 23    ! 23 .. full start into full stop mixed
 
     end type ExcitationTypeValues_t
 
