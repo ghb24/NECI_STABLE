@@ -37,6 +37,13 @@ module guga_tausearch
     use util_mod, only: operator(.isclose.)
 
     implicit none
+
+    private
+
+    public :: find_max_tau_doubs_guga, init_tau_search_guga_nosym, &
+              log_spawn_magnitude_guga_nosym, update_tau_guga_nosym, &
+              init_hist_tau_search_guga_nosym, update_hist_tau_guga_nosym
+
     integer :: cnt_sing, cnt_four, cnt_two_same, cnt_two_mixed, cnt_three_same, &
         cnt_three_mixed
 

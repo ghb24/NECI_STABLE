@@ -64,6 +64,10 @@ module guga_init
     ! variable declaration
     implicit none
 
+    private
+
+    public :: checkInputGUGA, init_guga
+
 contains
 
     subroutine init_guga_orbital_pickers()

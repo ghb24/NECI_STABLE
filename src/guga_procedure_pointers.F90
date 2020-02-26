@@ -2,8 +2,16 @@ module guga_procedure_pointers
 
     implicit none
 
+    private
+    public :: general_weight_dummy, general_weight_zero, pickorbitals_single, &
+              pickorbitals_double, calc_orbital_pgen_contr, calc_mixed_contr, &
+              calc_mixed_start_r2l_contr, calc_mixed_end_l2r_contr, &
+              calc_mixed_start_l2r_contr, calc_mixed_end_r2l_contr, &
+              pick_first_orbital, orb_pgen_contrib_type_3, orb_pgen_contrib_type_2, &
+              calc_off_diag_guga_ref
+
     abstract interface
-        subroutine pickOrbitals_t(ilut, nI, excitInfo, pgen)
+        subroutine PickOrbitals_t(ilut, nI, excitInfo, pgen)
             use constants, only: dp, n_int
             use bit_reps, only: nifguga
             use guga_data, only: ExcitationInformation_t
@@ -13,7 +21,7 @@ module guga_procedure_pointers
             integer, intent(in) :: nI(nel)
             type(ExcitationInformation_t), intent(out) :: excitInfo
             real(dp), intent(out) :: pgen
-        end subroutine pickOrbitals_t
+        end subroutine PickOrbitals_t
 
         subroutine calc_orbital_pgen_contr_t(ilut, occ_orbs, above_cpt, below_cpt)
             use constants, only: dp, n_int
@@ -51,22 +59,22 @@ module guga_procedure_pointers
         ! maybe scrap all the below and only to one general one.
         ! for minus and plus functions:
         function general_weight_dummy(nSwitches, bVal, dat) result(weight)
-            use guga_data, only: weight_data
+            use guga_data, only: WeightData_t
             use constants, only: dp
             implicit none
             real(dp), intent(in) :: nSwitches, bval
-            type(weight_data), intent(in) :: dat
+            type(WeightData_t), intent(in) :: dat
             real(dp) :: weight
         end function general_weight_dummy
 
         ! for zero function:
         function general_weight_zero(negSwitches, posSwitches, bVal, dat) &
                 result(weight)
-            use guga_data, only: weight_data
+            use guga_data, only: WeightData_t
             use constants, only: dp
             implicit none
             real(dp), intent(in) :: negSwitches, posSwitches, bVal
-            type(weight_data), intent(in) :: dat
+            type(WeightData_t), intent(in) :: dat
             real(dp) :: weight
         end function general_weight_zero
 
@@ -92,8 +100,8 @@ module guga_procedure_pointers
         end function calc_off_diag_guga_t
     end interface
 
-    procedure(pickOrbitals_t), pointer :: pickOrbitals_single
-    procedure(pickOrbitals_t), pointer :: pickOrbitals_double
+    procedure(PickOrbitals_t), pointer :: pickOrbitals_single
+    procedure(PickOrbitals_t), pointer :: pickOrbitals_double
     procedure(calc_orbital_pgen_contr_t), pointer :: calc_orbital_pgen_contr
     procedure(calc_mixed_contr_t), pointer :: calc_mixed_contr
     procedure(calc_mixed_start_contr_t), pointer :: calc_mixed_start_l2r_contr

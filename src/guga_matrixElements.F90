@@ -17,6 +17,10 @@ module guga_matrixElements
     ! variable declarations:
     implicit none
 
+    private
+    public :: calcDiagMatEleGuga_nI, calcdiagmateleguga_ilut, calc_off_diag_guga_ref_list, &
+              calcDiagExchangeGUGA_nI
+
 contains
 
     function calc_off_diag_guga_ref_list(ilut, run, exlevel) result(hel)

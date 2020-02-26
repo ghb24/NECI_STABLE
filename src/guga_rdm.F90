@@ -33,7 +33,7 @@ module guga_rdm
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
-    use guga_types, only: weight_obj
+    use guga_types, only: WeightObj_t
     use guga_bitRepOps, only: update_matrix_element, setDeltaB, extract_matrix_element
     use guga_bitRepOps, only: isProperCSF_ilut, isDouble, init_csf_information
     use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
@@ -59,6 +59,11 @@ module guga_rdm
     use util_mod, only: operator(.div.)
 
     implicit none
+
+    private
+    public :: calc_rdm_energy_guga, t_test_sym_fill, gen_exc_djs_guga, &
+              send_proc_ex_djs, t_test_diagonal, t_more_sym, &
+              t_mimic_stochastic, t_direct_exchange
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
@@ -2142,7 +2147,7 @@ contains
         character(*), parameter :: this_routine = "calc_all_excits_guga_rdm_singles"
 
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer :: st, iEx, iOrb, ierr
         integer(n_int), pointer :: tempExcits(:,:)

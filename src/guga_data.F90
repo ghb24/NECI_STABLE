@@ -11,60 +11,66 @@ module guga_data
 
     implicit none
 
+    private
+    public :: ExcitationInformation_t, projE_replica, WeightData_t, &
+              getSingleMatrixElement, getDoubleMatrixElement, getMixedFullStop, &
+              orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, funA_m1_1_overR2, &
+              funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &
+              tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
+              tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
+              excit_type
+
     ! ========================== type defs ===================================
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations
-    type :: weight_data
+    type :: WeightData_t
         real(dp) :: F = 0.0_dp
         real(dp) :: G = 0.0_dp
         real(dp) :: minus = 0.0_dp
         real(dp) :: plus = 0.0_dp
         real(dp) :: zero = 0.0_dp
-    end type weight_data
-
-    ! define type structs for the probabilistic weights
-    type :: branchWeight
-        logical :: initialized = .false.
-        real(dp) :: plusWeight = 0.0_dp
-        real(dp) :: minusWeight = 0.0_dp
-        real(dp) :: zeroWeight = 0.0_dp, &
-                F = 0.0_dp, G = 0.0_dp, L = 0.0_dp
-        procedure(dummyFunction), pointer, nopass :: minus => null(), plus => null(), &
-                                                     zero => null()
-    end type branchWeight
+    end type WeightData_t
 
     ! define a type structure to store excitation information between two
     ! CSFs needed in the matrix element calculation between them
     ! this may also be used/needed for the excitation generation
-    type :: ExcitationInformation_t
-        integer :: typ = -1
+    type :: ExcitationTypeValues_t
         ! save type of excitation encoded as integer: all different possibs:
-        ! 0 ... all kind of excitations which dont need much care
-        ! 1 ... weight raising
-        ! 2 ... weight lowering
-        ! 3 ... non overlap
-        ! 4 ... single overlap 2 lowering
-        ! 5 ... single overlap 2 raising
-        ! 6 ... single overlap lowering into raising
-        ! 7 ... single overlap raising into lowering
-        ! 8 ... normal double two lowering
-        ! 9 ... normal double two raising
-        ! 10 .. lowering into raising into lowering
-        ! 11 .. raising into lowering into raising
-        ! 12 .. lowering into raising double
-        ! 13 .. raising into lowering double
-        ! 14 .. full stop 2 lowering
-        ! 15 .. full stop 2 raising
-        ! 16 .. full stop lowering into raising
-        ! 17 .. full stop raising into lowering
-        ! 18 .. full start 2 lowering
-        ! 19 .. full start 2 raising
-        ! 20 .. full start lowering into raising
-        ! 21 .. full start raising into lowering
-        ! 22 .. full start into full stop alike
-        ! 23 .. full start into full stop mixed
+        integer :: &
+        invalid                 = -1, & ! -1... indicate invalid excitation
+        single                  =  0, & ! 0 ... all kind of single excitations which dont need much care
+        raising                 =  1, & ! 1 ... weight raising
+        lowering                =  2, & ! 2 ... weight lowering
+        non_overlap             =  3, & ! 3 ... non overlap
+        single_overlap_lowering =  4, & ! 4 ... single overlap 2 lowering
+        single_overlap_raising  =  5, & ! 5 ... single overlap 2 raising
+        single_overlap_R_to_L   =  6, & ! 6 ... single overlap lowering into raising
+        single_overlap_L_to_R   =  7, & ! 7 ... single overlap raising into lowering
+        double_lowering         =  8, & ! 8 ... normal double two lowering
+        double_raising          =  9, & ! 9 ... normal double two raising
+        double_L_to_R_to_L      = 10, & ! 10 .. lowering into raising into lowering
+        double_R_to_L_to_R      = 11, & ! 11 .. raising into lowering into raising
+        double_L_to_R           = 12, & ! 12 .. lowering into raising double
+        double_R_to_L           = 13, & ! 13 .. raising into lowering double
+        fullstop_lowering       = 14, & ! 14 .. full stop 2 lowering
+        fullstop_raising        = 15, & ! 15 .. full stop 2 raising
+        fullstop_L_to_R         = 16, & ! 16 .. full stop lowering into raising
+        fullstop_R_to_L         = 17, & ! 17 .. full stop raising into lowering
+        fullstart_lowering      = 18, & ! 18 .. full start 2 lowering
+        fullstart_raising       = 19, & ! 19 .. full start 2 raising
+        fullstart_L_to_R        = 20, & ! 20 .. full start lowering into raising
+        fullstart_R_to_L        = 21, & ! 21 .. full start raising into lowering
+        fullstart_stop_alike    = 22, & ! 22 .. full start into full stop alike
+        fullstart_stop_mixed    = 23    ! 23 .. full start into full stop mixed
 
+    end type ExcitationTypeValues_t
+
+    type(ExcitationTypeValues_t) :: excit_type
+
+    type :: ExcitationInformation_t
+
+        integer :: typ = -1
         ! need the involved indices of the excitation: list of integers
         ! for now the convention is, that they are given in an ordered form
         ! and is not related to the involved generators E_{ij} (E_{kl})
@@ -85,10 +91,6 @@ module guga_data
         ! misuse secondstart firstend -> as weight as it is not used in the typ
         ! of excitations where weights is needed
 
-        ! also need the overlap and nonOverlapRange of the excitations for
-        ! efficiently identifying and calculatint excitations for a given CSF
-        ! and indices i,j,k,l
-!         integer, allocatable :: overlapRange(:), nonOverlapRange(:)
         ! update:
         ! dont need overlaprange, and nonoverlaprange anywhere, just need to
         ! indicate if its a non-overlap, single overlap or proper double!
@@ -185,15 +187,15 @@ module guga_data
 
     end interface
 
-    type :: procedurePtrArray
+    type :: ProcedurePtrArray_t
         procedure(dummyFunction), pointer, nopass :: ptr => null()
         ! why the nopass flag is needed see:
         ! https://software.intel.com/en-us/forums/topic/508530
-    end type procedurePtrArray
+    end type ProcedurePtrArray_t
 
-    type :: procPtrArrTwo
+    type :: ProcPtrArrTwo_t
         procedure(dummySubroutine), pointer, nopass :: ptr => null()
-    end type procPtrArrTwo
+    end type ProcPtrArrTwo_t
 
     ! all procedure pointers in an array have to use the same interface!
     ! no generic or differing ones for each element are allowed! -> this
@@ -203,7 +205,7 @@ module guga_data
 
     ! create an array of procedure pointers to all necessary functions for
     ! single excitation matrix element calculation
-    type(procedurePtrArray) :: singleMatElesGUGA(15)
+    type(ProcedurePtrArray_t) :: singleMatElesGUGA(15)
 
 
     ! define an array to give the correct indices to access matrix element
@@ -221,16 +223,10 @@ module guga_data
         2, 2, 2, -1, 2, 9, -1, 6, 2, 15, 3, 8, -1, 5, 7, 3  & ! DeltaB = +1 & R
         /), (/ 4, 4, 4 /))
 
-    ! access matrix element terms just by
-    !singleMatElesGUGA(indArrOne(d',d,dB,G,b))
-
-    ! do the same for double-excitation matrix elements
-!     type(procedurePtrArray) :: doubleMatElesGUGA(60)
-
     ! use two different arrays of procedure pointers for the x=0 and x=1
     ! double excitation matrix element
     ! x1 elements:
-    type(procedurePtrArray) :: doubleMatEleX1GUGA(45)
+    type(ProcedurePtrArray_t) :: doubleMatEleX1GUGA(45)
     ! and make access index-matrix:
     ! probably an error here: element 45-> links to non-existent function
     ! funB(b,3,2) and may be in the wrong position too..
@@ -254,7 +250,7 @@ module guga_data
         /), (/4, 4, 15/))
 
     ! x0 elemets:
-    type(procedurePtrArray) :: doubleMatEleX0GUGA(17)
+    type(ProcedurePtrArray_t) :: doubleMatEleX0GUGA(17)
 
     ! build index matrix
     ! could make  some matrix elements indpendent of deltaB value, by filling
@@ -292,7 +288,7 @@ module guga_data
     ! intermediate matrix elements
     ! although procedure pointer arrays too much for this case.. as it is
     ! pretty special
-    type(procPtrArrTwo) :: mixedGenFullStopMatEle(5)
+    type(ProcPtrArrTwo_t) :: mixedGenFullStopMatEle(5)
 
     ! find good indexing converting function to efficiently access those
     ! functions. As only some combinations are needed, but the restriction on
@@ -317,7 +313,7 @@ module guga_data
     ! stepvector combinations correspond to a b-dependent function and the
     ! rest are just constants... think ybout that efficiency and ask simon it
     ! this is too costly..
-    type(procedurePtrArray) :: doubleContribution(7)
+    type(ProcedurePtrArray_t) :: doubleContribution(7)
 
 
     ! write similar matrix indication table
@@ -344,7 +340,7 @@ module guga_data
     ! adapt that to multiple neci runs.. hope that works as intended..
     ! probably have to use it as a type, to store lists or different lists
     ! in it, and also be able to (de)allocate them individually
-    type projE_type
+    type ProjE_t
         integer(n_int), allocatable :: projE_ilut_list(:,:)
         HElement_t(dp), allocatable :: projE_hel_list(:)
         ! also store the excitation level in the projected list, since otherwise
@@ -352,33 +348,18 @@ module guga_data
         integer, allocatable :: exlevel(:)
         ! also store the number of entries to correctly binary search
         integer :: num_entries
-    end type projE_type
+    end type ProjE_t
 
-    type(projE_type), allocatable :: projE_replica(:)
+    type(ProjE_t), allocatable :: projE_replica(:)
 
     ! also make a global integer list of orbital indices, so i do not have to
     ! remake them in every random orbital picker!
     integer, allocatable :: orbitalIndex(:)
 
-    ! also define a global variable nBasis/2 = nSpatOrbs, since otherwise
-    ! integer division nBAsis/2 is done to often!
-    ! but store that in SystemData module
-!     integer :: nSpatOrbs
-
-    ! in the end to make logic in excitation generation more efficient
-    ! do create an allocatable integer array which stores the current
-    ! stepvector for a CSF and do a select case() abfrage
-!     integer, allocatable :: current_stepvector(:)
-
     ! use a global flag to indicate a switch to a new determinant in the
     ! main routine to avoid recalculating b vector occupation and
     ! stepvector
     logical :: tNewDet
-
-    ! define a new flag to specify if we really want to run the full test
-    ! suite -> You have to ensure that H = 1 is used otherwise it crashes!
-    ! for now, still define that in SystemData, like the other guga stuff.
-!      logical :: t_full_guga_tests
 
 contains
 

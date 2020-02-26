@@ -33,10 +33,11 @@ module guga_excitations
 
     use guga_data, only: ExcitationInformation_t, getSingleMatrixElement, &
                     getDoubleMatrixElement, getMixedFullStop, &
-                    weight_data, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
+                    WeightData_t, orbitalIndex, funA_0_2overR2, minFunA_2_0_overR2, &
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_replica, &
-                    tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list
+                    tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list, &
+                    excit_type
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
@@ -55,8 +56,6 @@ module guga_excitations
     use OneEInts, only: GetTMatEl
 
     use procedure_pointers, only: get_umat_el
-
-    use guga_data, only: branchWeight
 
     use dSFMT_interface, only: genrand_real2_dSFMT
 
@@ -91,7 +90,7 @@ module guga_excitations
 
     use timing_neci, only: timer, set_timer, halt_timer, get_total_time
 
-    use guga_types, only: weight_obj
+    use guga_types, only: WeightObj_t
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
 
@@ -104,6 +103,59 @@ module guga_excitations
 
     ! variables
     implicit none
+
+    private
+    public :: calc_guga_matrix_element, global_excitinfo, print_excitinfo, &
+              generate_excitation_guga, generate_excitation_guga_crude, &
+              assign_excitinfo_values_double, assign_excitinfo_values_single, &
+              actHamiltonian, calc_off_diag_guga_gen, calcdoubleexcitation_withweight, &
+              calcnonoverlapdouble, calcsingleoverlaplowering, calcsingleoverlapraising, &
+              calcsingleoverlapmixed, calcdoublelowering, calcdoubleraising, &
+              calcdoublel2r, calcdoubler2l, calcfullstoplowering, calcfullstopraising, &
+              calcfullstopl2r, calcfullstopr2l, calcfullstartlowering, &
+              calcfullstartraising, calcfullstartl2r, calcfullstartr2l, &
+              calcfullstartfullstopalike, calcfullstartfullstopmixed, &
+              calcremainingswitches_excitinfo_double, checkcompatibility, &
+              createsinglestart, singleupdate, singleend, init_singleweight, &
+              calcremainingswitches_excitinfo_single, excitationIdentifier, &
+              create_proje_list, calc_pgen_mol_guga, detham_guga, &
+              pickorbs_sym_uniform_ueg_single, pickorbs_sym_uniform_ueg_double, &
+              pickorbs_sym_uniform_mol_single, pickorbs_sym_uniform_mol_double, &
+              pickorbitals_nosym_single, pickorbitals_nosym_double, &
+              calc_orbital_pgen_contr_ueg, calc_orbital_pgen_contr_mol, &
+              calc_mixed_contr_sym, calc_mixed_contr_nosym, &
+              calc_mixed_start_l2r_contr_nosym, calc_mixed_start_r2l_contr_nosym, &
+              calc_mixed_start_contr_sym, calc_mixed_x2x_ueg, &
+              calc_mixed_end_l2r_contr_nosym, calc_mixed_end_r2l_contr_nosym, &
+              calc_mixed_end_contr_sym, pick_first_orbital_nosym_guga_diff, &
+              pick_first_orbital_nosym_guga_uniform, orb_pgen_contrib_type_2_diff, &
+              orb_pgen_contrib_type_3_diff, orb_pgen_contrib_type_2_uniform, &
+              orb_pgen_contrib_type_3_uniform, temp_step_i, temp_step_j, &
+              temp_delta_b, temp_occ_i, temp_b_real_i, calc_off_diag_guga_ref_direct, &
+              pickorbs_real_hubbard_single, pickorbs_real_hubbard_double, &
+              excitationIdentifier_single, excitationIdentifier_double, &
+              init_doubleWeight, init_semiStartWeight, init_fullStartWeight, &
+              calcMixedContribution, deallocate_projE_list, calcoverlaprange, &
+              calcremainingswitches_single, calcallexcitations_single, &
+              calcremainingswitches_double, calcallexcitations_double, &
+              createstochasticexcitation_single, createstochasticstart_single, &
+              pickrandomorb_scalar, pickrandomorb_forced, pickrandomorb_vector, &
+              pickrandomorb_restricted, singlestochasticupdate, &
+              singlestochasticend, createstochasticexcitation_double, &
+              calcfullstartfullstopmixedstochastic, mixedfullstartstochastic, &
+              doubleupdatestochastic, calcfullstartraisingstochastic, &
+              calcfullstartloweringstochastic, calcfullstopraisingstochastic, &
+              calcfullstoploweringstochastic, calcsingleoverlapmixedstochastic, &
+              mixedfullstopstochastic, calcloweringsemistartstochastic, &
+              calcraisingsemistartstochastic, calcloweringsemistopstochastic, &
+              calcraisingsemistopstochastic, calcfullstartl2r_stochastic, &
+              calcfullstartr2l_stochastic, calcfullstopl2r_stochastic, &
+              calcfullstopr2l_stochastic, calcdoubleloweringstochastic, &
+              calcdoubleraisingstochastic, calcdoublel2r2l_stochastic, &
+              calcdoubler2l2r_stochastic, calcdoublel2r_stochastic, &
+              calcdoubler2l_stochastic, test_excit_gen_guga, calcallexcitations
+
+
     ! use a "global" bVector variable here so that a b vector only has to be
     ! initialized once, for a given CSF when calculating all or only one
     ! excitations from it
@@ -132,17 +184,17 @@ module guga_excitations
         function branch_weight_function(weight, bVal, negSwitches, posSwitches) &
                 result(prob)
             use constants, only: dp
-            use guga_types, only: weight_obj
+            use guga_types, only: WeightObj_t
             implicit none
-            type(weight_obj), intent(in) :: weight
+            type(WeightObj_t), intent(in) :: weight
             real(dp), intent(in) :: bval, negSwitches, posSwitches
             real(dp) :: prob
         end function branch_weight_function
     end interface
 
-    type :: branch_weight_arr
+    type :: BranchWeightArr_t
         procedure(branch_weight_function), pointer, nopass :: ptr => null()
-    end type branch_weight_arr
+    end type BranchWeightArr_t
 
 
 
@@ -201,7 +253,7 @@ contains
 
             if (excitInfo%valid) then
 
-                if (excitInfo%typ == 0) then
+                if (excitInfo%typ == excit_type%single) then
                     ! singles:
                     exlevel = 1
 
@@ -340,17 +392,18 @@ contains
         if (tHub .or. t_new_hubbard) then
             if (treal .or. t_new_real_space_hubbard) then
                 ! only singles in the real-space hubbard!
-                if (excitInfo%typ /= 0) return
+                if (excitInfo%typ /= excit_type%single) return
             else
                 ! only double excitations in the momentum-space hubbard!
-                if (excitInfo%typ == 0) return
+                if (excitInfo%typ == excit_type%single) return
             end if
         endif
 
         ! make the adjustment for the Heisenberg model
-        if (t_heisenberg_model .and. excitInfo%typ /= 23) return
+        if (t_heisenberg_model .and. excitInfo%typ /= excit_type%fullstart_stop_mixed) return
 
-        if (t_tJ_model .and. (.not. (excitInfo%typ == 0 .or. excitInfo%typ == 23))) &
+        if (t_tJ_model .and. (.not. (excitInfo%typ == excit_type%single &
+                .or. excitInfo%typ == excit_type%fullstart_stop_mixed))) &
             return
 
         ! depending on the type of usage i have to init some csf information
@@ -2016,7 +2069,7 @@ contains
 
 
     function plus_start_single(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2030,7 +2083,7 @@ contains
     end function plus_start_single
 
     function minus_start_single(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2044,7 +2097,7 @@ contains
     end function minus_start_single
 
     function minus_staying_single(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2058,7 +2111,7 @@ contains
     end function minus_staying_single
 
     function plus_staying_single(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2072,7 +2125,7 @@ contains
     end function plus_staying_single
 
     function plus_switching_single(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2086,7 +2139,7 @@ contains
     end function plus_switching_single
 
     function minus_switching_single(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2100,7 +2153,7 @@ contains
     end function minus_switching_single
 
     function minus_start_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2114,7 +2167,7 @@ contains
     end function minus_start_double
 
     function plus_start_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2128,7 +2181,7 @@ contains
     end function plus_start_double
 
     function zero_plus_start_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2142,7 +2195,7 @@ contains
     end function zero_plus_start_double
 
     function zero_minus_start_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2156,7 +2209,7 @@ contains
     end function zero_minus_start_double
 
     function zero_plus_staying_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2170,7 +2223,7 @@ contains
     end function zero_plus_staying_double
 
     function zero_minus_staying_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2184,7 +2237,7 @@ contains
     end function zero_minus_staying_double
 
     function zero_plus_switching_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2198,7 +2251,7 @@ contains
     end function zero_plus_switching_double
 
     function zero_minus_switching_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2212,7 +2265,7 @@ contains
     end function zero_minus_switching_double
 
     function minus_staying_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2226,7 +2279,7 @@ contains
     end function minus_staying_double
 
     function plus_staying_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2240,7 +2293,7 @@ contains
     end function plus_staying_double
 
     function minus_switching_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2254,7 +2307,7 @@ contains
     end function minus_switching_double
 
     function plus_switching_double(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2268,7 +2321,7 @@ contains
     end function plus_switching_double
 
     function probability_one(weights, bVal, negSwitches, posSwitches) result (prob)
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
         real(dp) :: prob
 
@@ -2822,7 +2875,7 @@ contains
         real(dp) :: branch_pgen, orb_pgen
         HElement_t(dp) :: mat_ele
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer :: ex(2,2), elecs(2), orbs(2)
 
         if (present(excitInfo_in)) then
@@ -4772,7 +4825,7 @@ contains
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
         real(dp) :: orb_pgen, branch_pgen
         HElement_t(dp) :: mat_ele
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
@@ -5255,10 +5308,10 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartFullStopMixedStochastic"
 
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) ::  branch_pgen, temp_pgen
         HElement_t(dp) :: integral
         integer :: iOrb
@@ -5518,7 +5571,7 @@ contains
                     zeroWeight, minusWeight, plusWeight, branch_weight, tempWeight, &
                     cum_arr(nSpatOrbs), cum_sum, inter, tempWeight_1, &
                     above_cpt, below_cpt
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         logical :: above_flag, below_flag
         HElement_t(dp) :: temp_int
         type(ExcitationInformation_t) :: tmp_excitInfo
@@ -5928,7 +5981,7 @@ contains
         integer :: first, last, i, j, k, deltaB(nSpatOrbs)
         real(dp) ::  posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     zeroWeight, minusWeight, plusWeight, probWeight, tempWeight
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         ! also need the pgen contributions from all other index combinations
         ! shich could lead to this excitation
@@ -6196,11 +6249,11 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleR2L_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: temp_pgen
         HElement_t(dp) :: integral
 
@@ -6372,11 +6425,11 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleL2R_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: temp_pgen
         HElement_t(dp) :: integral
 
@@ -6521,11 +6574,11 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleL2R2L_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: temp_pgen
         HElement_t(dp) :: integral
 
@@ -6696,11 +6749,11 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleRaisingStochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: temp_pgen
         HElement_t(dp) :: integral
 
@@ -6833,11 +6886,11 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleR2L2R_stochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1, switch
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: temp_pgen
         HElement_t(dp) :: integral
 
@@ -6985,14 +7038,14 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleLoweringStochastic"
 
         integer :: iOrb, start2, ende1, ende2, start1
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: temp_pgen
         HElement_t(dp) :: integral
-        type(weight_obj), pointer :: weights_ptr
+        type(WeightObj_t), pointer :: weights_ptr
 
         ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         ASSERT(.not.isZero(ilut,excitInfo%secondStart))
@@ -7128,10 +7181,10 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStopL2R_stochastic"
 
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer :: st, se, e, i, j, step, sw, step2
         real(dp) ::  topCont, tempWeight, tempWeight_1, deltaB(nSpatOrbs), &
             minusWeight, plusWeight, zeroWeight, switchWeight, branch_pgen, &
@@ -7275,10 +7328,10 @@ contains
         st = excitInfo%fullStart
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
-        if (excitInfo%typ == 16) then
+        if (excitInfo%typ == excit_type%fullstop_L_to_R) then
             elecInd = st
             holeInd = se
-        else if (excitInfo%typ == 17) then
+        else if (excitInfo%typ == excit_type%fullstop_R_to_L) then
             elecInd = se
             holeInd = st
         else
@@ -7378,7 +7431,7 @@ contains
         real(dp) :: topCont, tempWeight, tempWeight_1,  &
                     posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), minusWeight, &
                     plusWeight, probWeight, zeroWeight
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         procedure(calc_pgen_general), pointer :: calc_pgen_yix
 
         unused_var(branch_pgen)
@@ -7767,10 +7820,10 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStopR2L_stochastic"
 
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer :: st, se, en, i, j, step, sw, step2
         real(dp) ::  topCont, &
             tempWeight, tempWeight_1, deltaB(nSpatOrbs), minusWeight, &
@@ -7892,7 +7945,7 @@ contains
     subroutine setup_weight_funcs(t, st, se, weight_funcs)
         integer(n_int), intent(in) :: t(0:nifguga)
         integer, intent(in) :: st, se
-        type(branch_weight_arr), intent(out) :: weight_funcs(nSpatOrbs)
+        type(BranchWeightArr_t), intent(out) :: weight_funcs(nSpatOrbs)
         character(*), parameter :: this_routine = "setup_weight_funcs"
 
         integer :: i, step, delta_b(nSpatOrbs), exc_stepvector
@@ -8010,17 +8063,17 @@ contains
                     posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     tmp_pos(nSpatOrbs), tmp_neg(nSpatOrbs)
         logical :: above_flag
-        type(branch_weight_arr) :: weight_funcs(nSpatOrbs)
-        type(weight_obj) :: weights
+        type(BranchWeightArr_t) :: weight_funcs(nSpatOrbs)
+        type(WeightObj_t) :: weights
 
         ! do as much stuff as possible beforehand
         st = excitInfo%fullStart
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
-        if (excitInfo%typ == 16) then
+        if (excitInfo%typ == excit_type%fullstop_L_to_R) then
             elecInd = st
             holeInd = se
-        else if (excitInfo%typ == 17) then
+        else if (excitInfo%typ == excit_type%fullstop_R_to_L) then
             elecInd = se
             holeInd = st
         else
@@ -8407,7 +8460,7 @@ contains
         real(dp) :: topCont, tempWeight, tempWeight_1, &
                     posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), minusWeight, &
                     plusWeight, probWeight, zeroWeight
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         procedure(calc_pgen_general), pointer :: calc_pgen_yix
 
         unused_var(branch_pgen)
@@ -8789,7 +8842,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: s
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
@@ -9152,7 +9205,7 @@ contains
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
@@ -9325,7 +9378,7 @@ contains
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
@@ -9495,7 +9548,7 @@ contains
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
@@ -9643,7 +9696,7 @@ contains
 
         ! if its a mixed full-start raising into lowering -> check i a
         ! switch happened in the double overlap region
-        if (excitInfo%typ == 21) then
+        if (excitInfo%typ == excit_type%fullstart_R_to_L) then
             ! this is indicated by a non-zero x0-matrix element
             if (abs(extract_matrix_element(t,1)*tempWeight_0) > EPS) then
                 probWeight = 0.0_dp
@@ -9672,7 +9725,7 @@ contains
             posSwitches, t, probWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
         integer(n_int), intent(inout) :: t(0:nifguga)
         real(dp), intent(inout) :: probWeight
@@ -9818,7 +9871,7 @@ contains
 
         ! for mixed fullstart check if no switch happened in the double
         ! overlap region, indicated by a non-zero-x0 matrix element
-        if (excitInfo%typ == 20) then
+        if (excitInfo%typ == excit_type%fullStart_L_to_R) then
             if (abs(extract_matrix_element(t,1)*tempWeight_0) > EPS) then
                 probWeight = 0.0_dp
                 t = 0
@@ -9845,11 +9898,11 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartR2L_stochastic"
 
         integer :: i, st, en, se, gen, j, step, sw, step2
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: botCont, tempWeight, tempWeight_1, &
                     zeroWeight, orbitalProb, origWeight, startProb, &
                     startWeight, switchWeight, branch_pgen, temp_pgen, temp
@@ -10079,7 +10132,7 @@ contains
         character(*), parameter :: this_routine = "calc_mixed_start_r2l_contr_nosym"
 
         integer :: se, en, st, i, j, step, sw, step2
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: origWeight, negSwitches(nSpatOrbs), posSwitches(nSpatOrbs), &
                     switchWeight, startProb, botCont, tempWeight, orbitalProb, &
                     zeroWeight, startWeight, tempWeight_1
@@ -10485,11 +10538,11 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartL2R_stochastic"
 
         integer :: i, st, en, se, gen, j, step, sw, step2
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: botCont, tempWeight, tempWeight_1, &
                     zeroWeight, orbitalProb, origWeight, startProb, startWeight, &
                     switchWeight, branch_pgen, temp_pgen
@@ -10912,7 +10965,7 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), mat_ele, &
             new_pgen, zero_weight, switch_weight, stay_mat, start_mat, bot_cont, &
             orb_pgen, start_weight, stay_weight
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         logical :: below_flag
 
         ! whats different here?? what do i have to consider? and how to optimize?
@@ -11480,7 +11533,7 @@ contains
         character(*), parameter :: this_routine = "calc_mixed_start_l2r_contr_nosym"
 
         integer :: se, en, st, i, j, step, sw, step2
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: origWeight, negSwitches(nSpatOrbs), posSwitches(nSpatOrbs), &
                     switchWeight, startProb, botCont, tempWeight, orbitalProb, &
                     zeroWeight, startWeight, tempWeight_1
@@ -11926,7 +11979,7 @@ contains
         ! db = -1 below!
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: probWeight
@@ -12067,10 +12120,10 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcSingleOverlapMixedStochastic"
 
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: tempWeight, bVal, temp_pgen
         HElement_t(dp) :: umat
         integer :: iOrb, deltaB, iEx
@@ -12192,12 +12245,12 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullstopRaisingStochastic"
 
         real(dp) :: nOpen, tempWeight, bVal, temp_pgen
         HElement_t(dp) :: umat
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer :: iOrb, deltaB
 
         ASSERT(isThree(ilut,excitInfo%fullEnd))
@@ -12334,12 +12387,12 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullstopLoweringStochastic"
 
         real(dp) :: nOpen, tempWeight, bVal, temp_pgen
         HElement_t(dp) :: umat
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer :: iOrb, deltaB
 
         ASSERT(isZero(ilut,excitInfo%fullEnd))
@@ -12480,13 +12533,13 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartLoweringStochastic"
 
         real(dp) :: tempWeight, minusWeight, plusWeight, nOpen, bVal, temp_pgen
         HElement_t(dp) :: umat
         integer :: start, ende, semi, gen, iOrb, deltaB
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         ASSERT(isThree(ilut,excitInfo%fullStart))
         ASSERT(isProperCSF_ilut(ilut))
@@ -12648,13 +12701,13 @@ contains
         integer(n_int), intent(out) :: t(0:nifguga)
         real(dp), intent(out) :: branch_pgen
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in), optional :: opt_weight
+        type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartRaisingStochastic"
 
         real(dp) :: tempWeight, minusWeight, plusWeight, nOpen, bVal, temp_pgen
         HElement_t(dp) :: umat
         integer :: start, ende, semi, gen, iOrb, deltaB
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
 
         ASSERT(isZero(ilut,excitInfo%fullStart))
@@ -12834,7 +12887,7 @@ contains
                      branch_pgen, orb_pgen, temp_pgen
         HElement_t(dp) :: integral, mat_ele
 
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer :: iO, st, en, step, ierr, i, j, gen, deltaB, step2
         integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
 
@@ -13322,7 +13375,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: s
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out) :: t(0:nifguga) ! to use macros, have to use short names..
         real(dp), intent(out) :: probWeight
@@ -13522,7 +13575,7 @@ contains
         ! except that at a 0/3 start we have to do it stochastically ...
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         integer(n_int), intent(out) :: t(0:nifguga) ! to use macros, have to use short names..
         real(dp), intent(out) :: probWeight
@@ -13718,7 +13771,7 @@ contains
     function init_singleWeight(ilut, sOrb) result(singleWeight)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb
-        type(weight_obj) :: singleWeight
+        type(WeightObj_t) :: singleWeight
         character(*), parameter :: this_routine = "init_singleWeight"
 
         ASSERT(isProperCSF_ilut(ilut))
@@ -13736,7 +13789,7 @@ contains
 
     function getMinus_single(nSwitches, bVal, single) result(minusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: single
+        type(WeightData_t), intent(in) :: single
         real(dp) :: minusWeight
         character(*), parameter :: this_routine = "getMinus_single"
         ASSERT(nSwitches >= 0.0_dp)
@@ -13758,7 +13811,7 @@ contains
 
     function getPlus_single(nSwitches, bVal, single) result(plusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: single
+        type(WeightData_t), intent(in) :: single
         real(dp) :: plusWeight
         character(*), parameter :: this_routine = "getPlus_single"
         ASSERT(nSwitches >= 0.0_dp)
@@ -13778,7 +13831,7 @@ contains
         ! obj has the same structure as the semi-start weight, reuse them!
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb
-        type(weight_obj) :: forced_double
+        type(WeightObj_t) :: forced_double
         character(*), parameter :: this_routine = "init_forced_end_exchange_weight"
 
         ASSERT(isProperCSF_ilut(ilut))
@@ -13799,7 +13852,7 @@ contains
         ! obj has the same structure as the semi-start weight, reuse them!
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb
-        type(weight_obj) :: doubleWeight
+        type(WeightObj_t) :: doubleWeight
         character(*), parameter :: this_routine = "init_doubleWeight"
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -13817,7 +13870,7 @@ contains
 
     function getMinus_double(nSwitches, bVal, double) result(minusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: double
+        type(WeightData_t), intent(in) :: double
         real(dp) :: minusWeight
         character(*), parameter :: this_routine = "getMinus_double"
         ASSERT(nSwitches >= 0.0_dp)
@@ -13829,7 +13882,7 @@ contains
 
     function getPlus_double(nSwitches, bVal, double) result(plusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: double
+        type(WeightData_t), intent(in) :: double
         real(dp) :: plusWeight
         character(*), parameter :: this_routine = "getPlus_double"
         ASSERT(nSwitches >= 0.0_dp)
@@ -13851,7 +13904,7 @@ contains
     function get_forced_zero_double(negSwitches, posSwitches, bVal, double) &
             result(zeroWeight)
         real(dp), intent(in) :: posSwitches, negSwitches, bVal
-        type(weight_data), intent(in) :: double
+        type(WeightData_t), intent(in) :: double
         real(dp) :: zeroWeight
         character(*), parameter :: this_routine = "get_forced_zero_double"
 
@@ -13867,7 +13920,7 @@ contains
     function getZero_double(negSwitches, posSwitches, bVal, double) &
             result(zeroWeight)
         real(dp), intent(in) :: posSwitches, negSwitches, bVal
-        type(weight_data), intent(in) :: double
+        type(WeightData_t), intent(in) :: double
         real(dp) :: zeroWeight
         character(*), parameter :: this_routine = "getZero_double"
         ASSERT(negSwitches >= 0.0_dp)
@@ -13889,10 +13942,10 @@ contains
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches
         real(dp), intent(in) :: bVal
-        type(weight_obj) :: fullStart
+        type(WeightObj_t) :: fullStart
         character(*), parameter :: this_routine = "init_fullStartWeight"
 
-        type(weight_obj), target, save :: single
+        type(WeightObj_t), target, save :: single
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
         ASSERT(pOrb > 0 .and. pOrb <= nSpatOrbs)
@@ -13922,7 +13975,7 @@ contains
 
     function getMinus_fullStart(nSwitches, bVal, fullStart) result(minusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: fullStart
+        type(WeightData_t), intent(in) :: fullStart
         real(dp) :: minusWeight
         character(*), parameter :: this_routine = "getMinus_fullStart"
 
@@ -13951,7 +14004,7 @@ contains
 
     function getPlus_fullStart(nSwitches, bVal, fullStart) result(plusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: fullStart
+        type(WeightData_t), intent(in) :: fullStart
         real(dp) :: plusWeight
         character(*), parameter :: this_routine = "getPlus_fullStart"
 
@@ -13973,7 +14026,7 @@ contains
     function getZero_fullStart(negSwitches, posSwitches, bVal, fullStart) &
             result(zeroWeight)
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
-        type(weight_data), intent(in) :: fullStart
+        type(WeightData_t), intent(in) :: fullStart
         real(dp) :: zeroWeight
         character(*), parameter :: this_routine = "getZero_fullStart"
 
@@ -13993,10 +14046,10 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
-        type(weight_obj) :: forced_semistart
+        type(WeightObj_t) :: forced_semistart
         character(*), parameter :: this_routine = "init_forced_end_semistart_weight"
 
-        type(weight_obj), target, save :: double
+        type(WeightObj_t), target, save :: double
 
         forced_semistart%dat%F = endFx(sorb)
         forced_semistart%dat%G = endGx(sorb)
@@ -14022,10 +14075,10 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
-        type(weight_obj) :: semiStart
+        type(WeightObj_t) :: semiStart
         character(*), parameter :: this_routine = "init_semiStartWeight"
 
-        type(weight_obj), target, save :: double
+        type(WeightObj_t), target, save :: double
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -14053,7 +14106,7 @@ contains
 
     function getMinus_semiStart(nSwitches, bVal, semiStart) result(minusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: semiStart
+        type(WeightData_t), intent(in) :: semiStart
         real(dp) :: minusWeight
         character(*), parameter :: this_routine = "getMinus_semiStart"
 
@@ -14071,7 +14124,7 @@ contains
 
     function getPlus_semiStart(nSwitches, bVal, semiStart) result(plusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: semiStart
+        type(WeightData_t), intent(in) :: semiStart
         real(dp) :: plusWeight
         character(*), parameter :: this_routine = "getPlus_semiStart"
 
@@ -14096,10 +14149,10 @@ contains
         integer, intent(in) :: sOrb, pOrb, oOrb
         real(dp), intent(in) :: negSwitches1, negSwitches2, posSwitches1, &
                                 posSwitches2, bVal1, bVal2
-        type(weight_obj) :: fullDouble
+        type(WeightObj_t) :: fullDouble
         character(*), parameter :: this_routine = "init_fullDoubleWeight"
 
-        type(weight_obj), target, save :: fullStart
+        type(WeightObj_t), target, save :: fullStart
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -14135,10 +14188,10 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
-        type(weight_obj) :: singleRaising
+        type(WeightObj_t) :: singleRaising
         character(*), parameter :: this_routine = "init_singleOverlapRaising"
 
-        type (weight_obj) :: single
+        type (WeightObj_t) :: single
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -14165,7 +14218,7 @@ contains
 
     function getMinus_overlapRaising(nSwitches, bVal, dat) result(minusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: dat
+        type(WeightData_t), intent(in) :: dat
         real(dp) :: minusWeight
         character(*), parameter :: this_routine = "getMinus_overlapRaising"
 
@@ -14190,7 +14243,7 @@ contains
 
     function getPlus_overlapRaising(nSwitches, bVal, dat) result(plusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: dat
+        type(WeightData_t), intent(in) :: dat
         real(dp) :: plusWeight
         character(*), parameter :: this_routine = "getPlus_overlapRaising"
 
@@ -14214,10 +14267,10 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sOrb, pOrb
         real(dp), intent(in) :: negSwitches, posSwitches, bVal
-        type(weight_obj) :: singleLowering
+        type(WeightObj_t) :: singleLowering
         character(*), parameter :: this_routine = "init_singleOverlapLowering"
 
-        type (weight_obj), target, save :: single
+        type (WeightObj_t), target, save :: single
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(sOrb > 0 .and. sOrb <= nSpatOrbs)
@@ -14243,7 +14296,7 @@ contains
 
     function getMinus_overlapLowering(nSwitches, bVal, dat) result(minusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: dat
+        type(WeightData_t), intent(in) :: dat
         real(dp) :: minusWeight
         character(*), parameter :: this_routine = "getMinus_overlapLowering"
 
@@ -14271,7 +14324,7 @@ contains
 
     function getPlus_overlapLowering(nSwitches, bVal, dat) result(plusWeight)
         real(dp), intent(in) :: nSwitches, bVal
-        type(weight_data), intent(in) :: dat
+        type(WeightData_t), intent(in) :: dat
         real(dp) :: plusWeight
         character(*), parameter :: this_routine = "getPlus_overlapLowering"
 
@@ -14517,7 +14570,7 @@ contains
 
         HElement_t(dp) :: tmat
         integer :: ierr, iOrb
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
 
 
@@ -14579,7 +14632,7 @@ contains
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs), &
                     tempWeight, plusWeight, minusWeight
         HElement_t(dp) :: tmat
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
         ASSERT(j > 0 .and. j <= nSpatOrbs)
@@ -14622,7 +14675,7 @@ contains
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
 
         ! change it here to also use the functions involving
-        ! the weight_obj objects.. to efficiently determine
+        ! the WeightObj_t objects.. to efficiently determine
         ! if excitations have to aborted
         ! and to make the whole code more general
         weights = init_singleWeight(ilut, excitInfo%fullEnd)
@@ -14711,7 +14764,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(in) :: sO
         type(ExcitationInformation_t), intent(in) :: excitInfo
-        type(weight_obj), intent(in) :: weights
+        type(WeightObj_t), intent(in) :: weights
         integer(n_int), intent(inout) :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         real(dp), intent(in) :: negSwitches(nSpatOrbs), posSwitches(nSpatOrbs)
@@ -15228,7 +15281,7 @@ contains
         integer, intent(in) :: sOrb
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj) :: weightObj
+        type(WeightObj_t) :: weightObj
         integer(n_int), intent(inout) :: tempExcits(:,:)
         integer, intent(inout) :: nExcits
         character(*), parameter :: this_routine = "singleUpdate"
@@ -15707,7 +15760,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         type(ExcitationInformation_t), intent(in) :: excitInfo
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        type(weight_obj), intent(in) :: weightObj
+        type(WeightObj_t), intent(in) :: weightObj
         integer(n_int), intent(out), pointer :: tempExcits(:,:)
         integer, intent(out) :: nExcits
         character(*), parameter :: this_routine = "createSingleStart"
@@ -16161,7 +16214,7 @@ contains
         character(*), parameter :: this_routine = "calcDoubleR2L"
 
         integer :: iOrb, start1, start2, ende1, ende2
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
         integer(n_int), pointer :: tempExcits(:,:)
         !todo asserts
@@ -16249,7 +16302,7 @@ contains
         character(*), parameter :: this_routine = "calcDoubleL2R"
 
         integer :: iOrb, start1, start2, ende1, ende2
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
         integer(n_int), pointer :: tempExcits(:,:)
         !todo asserts
@@ -16338,7 +16391,7 @@ contains
         character(*), parameter :: this_routine = "calcDoubleRaising"
 
         integer :: iOrb, start2, ende1, ende2
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
         integer(n_int), pointer :: tempExcits(:,:)
         !todo asserts
@@ -16440,7 +16493,7 @@ contains
         character(*), parameter :: this_routine = "calcDoubleLowering"
 
         integer :: iOrb, start2, ende1, ende2
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: plusWeight, minusWeight, zeroWeight
         integer(n_int), pointer :: tempExcits(:,:)
         !todo asserts
@@ -16578,7 +16631,7 @@ contains
 
         integer(n_int), pointer :: tempExcits(:,:)
         real(dp) :: plusWeight, minusWeight, zeroWeight
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer :: iOrb
 
         ! if 3 at full start or full end, this is then a diagonal element
@@ -16648,7 +16701,7 @@ contains
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen, start2
         real(dp) :: tempWeight
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: minusWeight, plusWeight, zeroWeight
         integer(n_int), pointer :: tempExcits(:,:)
         logical :: t_no_singles
@@ -16747,7 +16800,7 @@ contains
 
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
         real(dp) :: tempWeight, minusWeight, plusWeight, zeroWeight
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
         logical :: t_no_singles
 
@@ -18066,7 +18119,7 @@ contains
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
         integer(n_int) :: t(0:nifguga)
         real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
 
 
@@ -18254,7 +18307,7 @@ contains
         integer :: nMax, ierr, iOrb, start, ende, semi, gen
         integer(n_int) :: t(0:nifguga)
         real(dp) :: tempWeight, minusWeight, plusWeight, bVal, nOpen
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
 
         ASSERT(isThree(ilut,excitInfo%fullStart))
@@ -18433,7 +18486,7 @@ contains
         character(*), parameter :: this_routine = "calcFullStopR2L"
 
         ! not sure if single or double weight is necessary here...
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, st, se, en, ierr
@@ -18557,7 +18610,7 @@ contains
         character(*), parameter :: this_routine = "calcFullStopL2R"
 
         ! not sure if single or double weight is necessary here...
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, st, se, en, ierr
@@ -19809,7 +19862,7 @@ contains
         character(*), parameter :: this_routine = "calcFullstopLowering"
 
         ! not sure if single or double weight is necessary here...
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, ierr
@@ -19974,7 +20027,7 @@ contains
         character(*), parameter :: this_routine = "calcFullstopRaising"
 
         ! not sure if single or double weight is necessary here...
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer(n_int), pointer :: tempExcits(:,:)
         integer(n_int) :: t(0:nifguga)
         integer :: iOrb, iEx, deltaB, cnt, ierr
@@ -20134,7 +20187,7 @@ contains
         integer(n_int), pointer :: tempExcits(:,:)
         integer(n_int) ::  t(0:nifguga)
         integer :: i, iEx, deltaB, ss
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(excitInfo%typ==4)
@@ -20228,7 +20281,7 @@ contains
         integer(n_int), pointer :: tempExcits(:,:)
         integer(n_int) :: t(0:nifguga)
         integer :: i, iEx, deltaB, se, en
-        type(weight_obj) :: weightObj
+        type(WeightObj_t) :: weightObj
         real(dp) :: plusWeight, minusWeight
 
         ASSERT(isProperCSF_ilut(ilut))
@@ -20393,7 +20446,7 @@ contains
         real(dp), intent(in) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
         character(*), parameter :: this_routine = "calcSingleOverlapMixed"
 
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         integer :: iOrb, iEx, deltaB
         integer(n_int) :: t(0:nifguga)
         integer(n_int), pointer :: tempExcits(:,:)
@@ -20613,13 +20666,13 @@ contains
         real(dp), intent(out), optional :: posSwitches(nSpatOrbs), &
                                            negSwitches(nSpatOrbs)
 
-        type(weight_obj), intent(out), optional :: opt_weight
+        type(WeightObj_t), intent(out), optional :: opt_weight
         character(*), parameter :: this_routine = "checkCompatibility"
 
         real(dp) :: pw, mw, zw
         logical :: fl0, flS, fl2
         integer ::  we, st, ss, fe, en, i,j,k,lO
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         ! also include probabilistic weights
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, &

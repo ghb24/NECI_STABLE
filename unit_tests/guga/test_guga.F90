@@ -17,6 +17,7 @@ program test_guga
     use guga_excitations
     use guga_matrixElements
     use guga_data
+    use guga_types
     use guga_init
     use guga_procedure_pointers
     use constants
@@ -27,7 +28,8 @@ program test_guga
     use dsfmt_interface, only: dsfmt_init
     use genrandsymexcitnumod, only: testgenrandsymexcitnu
     use symrandexcit3, only: test_sym_excit3
-    use util_mod, only: operator(.isclose.), near_zero, operator(.div.)
+    use util_mod, only: operator(.isclose.), near_zero, operator(.div.), &
+                        binary_search
     use Integrals_neci, only: get_umat_el_normal
     use procedure_pointers, only: get_umat_el
     use read_fci, only: initfromfcid, fcidump_name, readfciint
@@ -40,6 +42,7 @@ program test_guga
     use IntegralsData, only: umat_win, umat
     use DetCalc, only: DetCalcInit
     use unit_test_helper_excitgen, only: generate_uniform_integrals
+    use CalcData, only: t_guga_mat_eles
 
     implicit none
 
@@ -1271,7 +1274,7 @@ contains
         integer(n_int), pointer :: ex(:,:)
         integer :: num
         real(dp) :: posSwitch(4), negSwitch(4)
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
 
@@ -5139,7 +5142,7 @@ contains
         character(*), parameter :: this_routine = "test_calcRaisingSemiStopStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: negSwitch(4),posSwitch(4),pgen
 
         ! encode det
@@ -5227,7 +5230,7 @@ contains
         character(*), parameter :: this_routine = "test_calcLoweringSemiStopStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: negSwitch(4),posSwitch(4),pgen
 
         ! encode det
@@ -5313,7 +5316,7 @@ contains
         character(*), parameter :: this_routine = "test_calcRaisingSemiStartStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: negSwitch(4),posSwitch(4),pgen
 
         ! encode det
@@ -5369,7 +5372,7 @@ contains
         character(*), parameter :: this_routine = "test_calcLoweringSemiStartStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: negSwitch(4),posSwitch(4),pgen
 
         ! encode det
@@ -5658,7 +5661,7 @@ contains
         character(*), parameter :: this_routine = "test_mixedFullStopStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
         call EncodeBitDet_guga([1,4,5,8],ilut)
@@ -5702,7 +5705,7 @@ contains
         character(*), parameter :: this_routine = "test_doubleUpdateStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
         ! 1212
@@ -5966,7 +5969,7 @@ contains
         character(*), parameter :: this_routine = "test_singleStochasticEnd"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
         ! 3300
@@ -6010,7 +6013,7 @@ contains
         character(*), parameter :: this_routine = "test_singleStochasticUpdate"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), pgen
 
         ! 3300
@@ -6132,7 +6135,7 @@ contains
         character(*), parameter :: this_routine = "test_mixedFullStartStochastic"
         integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), prob
 
         ! 1230
@@ -6195,7 +6198,7 @@ contains
         character(*), parameter :: this_routine = "test_createStochasticStart_single"
         integer(n_int) :: ilut(0:nifguga)
         type(ExcitationInformation_t) :: excitInfo
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
         real(dp) :: posSwitch(4), negSwitch(4), probWeight
         integer(n_int) :: ex(0:nifguga)
 
@@ -7429,7 +7432,7 @@ contains
         real(dp) :: posSwitch(nBasis/2), negSwitch(nBasis/2)
         integer(n_int), pointer :: excits(:,:), tmpEx(:,:)
         integer :: num
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         print *, "testing: singleEnd(ilut, exInfo, tmpEx, nEx, excits)"
         ! test a [1,2,0,3] E_1,4 raising start:
@@ -7478,7 +7481,7 @@ contains
         real(dp) :: posSwitch(nBasis/2), negSwitch(nBasis/2)
         integer(n_int), pointer :: excits(:,:)
         integer :: num
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         print *, "testing: singleUpdate(ilut,orb,exInfo,posSwitch,negSwitch,excits,num)"
         ! test a [1,2,0,3] E_1,4 raising start:
@@ -7526,7 +7529,7 @@ contains
         real(dp) :: posSwitch(nBasis/2), negSwitch(nBasis/2)
         integer(n_int), pointer :: excits(:,:)
         integer :: num
-        type(weight_obj) :: weights
+        type(WeightObj_t) :: weights
 
         print *, "testing: createSingleStart(ilut, excitInfo, posSwitch, negSwitch, excits, nExcits)"
 

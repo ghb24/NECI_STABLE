@@ -10,6 +10,7 @@ module guga_write_H_matrix
     use guga_bitRepOps, onlY: write_det_guga
     use bit_reps, only: nifguga
     implicit none
+
     private
     public :: write_H_mat
 
