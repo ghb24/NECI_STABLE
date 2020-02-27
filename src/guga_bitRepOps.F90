@@ -10,7 +10,7 @@ module guga_bitRepOps
     use SystemData, only: nEl, Stot, nSpatOrbs, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, nbasis
-    use guga_data, only: ExcitationInformation_t, excit_type
+    use guga_data, only: ExcitationInformation_t, excit_type, gen_type
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -550,8 +550,8 @@ contains
                             ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l)
                             excitInfo = assign_excitInfo_values_exact(&
                                 excit_type%double_raising, &
-                                1,1,&
-                                1,1,1,j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
+                                j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else if (isThree(ilutI,j)) then
                             ! have to check where the electron goes
@@ -559,15 +559,15 @@ contains
                                 ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_R_to_L_to_R, &
-                                    1, -1, &
-                                    1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R, gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
+                                    i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else if (isThree(ilutI,k)) then
                                 ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_R_to_L, &
-                                    1, -1, &
-                                    1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R, gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
+                                    i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! n(k) = 1
@@ -575,15 +575,15 @@ contains
                                     ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L, &
-                                        1,-1,&
-                                        1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
+                                        i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L_to_R, &
-                                        1,-1,&
-                                        1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
+                                        i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 end if
                             end if
@@ -595,15 +595,15 @@ contains
                                     ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L_to_R, &
-                                        1,-1,&
-                                        1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
+                                        i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else if (isThree(ilutI,k)) then
                                     ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L, &
-                                        1,-1,&
-                                        1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
+                                        i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! n(k) = 1
@@ -611,15 +611,15 @@ contains
                                         ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_R_to_L, &
-                                            1,-1,&
-                                            1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
+                                            i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_R_to_L_to_R, &
-                                            1,-1,&
-                                            1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
+                                            i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -627,8 +627,8 @@ contains
                                 ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_raising, &
-                                    1,1,&
-                                    1,1,1,j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
+                                    j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
                             end if
                         end if
                     else if (isThree(ilutI,i)) then
@@ -639,15 +639,17 @@ contains
                                 ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_L_to_R, &
-                                    1,-1,&
-                                    -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R,gen_type%L,&
+                                    gen_type%L,gen_type%L,gen_type%R,&
+                                    j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else if (isThree(ilutI,k)) then
                                 ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_L_to_R_to_L, &
-                                    1,-1,&
-                                    -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R,gen_type%L,&
+                                    gen_type%L,gen_type%L,gen_type%L,&
+                                    j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! n(k) = 1
@@ -655,15 +657,17 @@ contains
                                     ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_L_to_R_to_L, &
-                                        1,-1,&
-                                        -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,&
+                                        gen_type%L,gen_type%L,gen_type%L,&
+                                        j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_L_to_R, &
-                                        1,-1,&
-                                        -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,&
+                                        gen_type%L,gen_type%L,gen_type%R,&
+                                        j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 end if
                             end if
@@ -671,8 +675,9 @@ contains
                             ! _L(i) -> _LL(j) -> ^LL(k) -> ^L(l)
                             excitInfo = assign_excitInfo_values_exact(&
                                 excit_type%double_lowering, &
-                                -1,-1,&
-                                -1,-1,-1,k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                gen_type%L,gen_type%L,&
+                                gen_type%L,gen_type%L,gen_type%L,&
+                                k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else
                             ! n(j) = 1
@@ -680,8 +685,9 @@ contains
                                 ! _L(i) -> _LL(j) -> ^LL(k) -> ^L(l)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_lowering, &
-                                    -1,-1,&
-                                    -1,-1,-1,k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%L,gen_type%L,&
+                                    gen_type%L,gen_type%L,gen_type%L,&
+                                    k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! _L(i) -> _RL(j) -> ...
@@ -689,15 +695,17 @@ contains
                                     ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_L_to_R, &
-                                        1,-1,&
-                                        -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,&
+                                        gen_type%L,gen_type%L,gen_type%R,&
+                                        j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else if (isThree(ilutI,k)) then
                                     ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_L_to_R_to_L, &
-                                        1,-1,&
-                                        -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,&
+                                        gen_type%L,gen_type%L,gen_type%L,&
+                                        j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! n(k) = 1
@@ -705,15 +713,17 @@ contains
                                         ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_L_to_R_to_L, &
-                                            1,-1,&
-                                            -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%L,gen_type%L,gen_type%L,&
+                                            j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_L_to_R, &
-                                            1,-1,&
-                                            -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%L,gen_type%L,gen_type%R,&
+                                            j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -729,15 +739,17 @@ contains
                                     ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_L_to_R, &
-                                        1,-1,&
-                                        -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,&
+                                        gen_type%L,gen_type%L,gen_type%R,&
+                                        j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else if (isThree(ilutI,k)) then
                                     ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_L_to_R_to_L, &
-                                        1,-1,&
-                                        -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,&
+                                        gen_type%L,gen_type%L,gen_type%L,&
+                                        j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! n(k) = 1
@@ -745,15 +757,17 @@ contains
                                         ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_L_to_R_to_L, &
-                                            1,-1,&
-                                            -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%L,gen_type%L,gen_type%L,&
+                                            j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_L_to_R, &
-                                            1,-1,&
-                                            -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%L,gen_type%L,gen_type%R,&
+                                            j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -761,8 +775,9 @@ contains
                                 ! _L(i) -> _LL(j) -> ^LL(k) -> ^L(l)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_lowering, &
-                                    -1,-1,&
-                                    -1,-1,-1,k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%L,gen_type%L,&
+                                    gen_type%L,gen_type%L,gen_type%L,&
+                                    k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! n(j) = 1
@@ -770,8 +785,9 @@ contains
                                     ! _L(i) -> _LL(j) -> ^LL(k) -> ^L(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_lowering, &
-                                        -1,-1,&
-                                        -1,-1,-1,k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%L,gen_type%L,&
+                                        gen_type%L,gen_type%L,gen_type%L,&
+                                        k,i,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! _L(i) -> _RL(j) -> ...
@@ -779,15 +795,17 @@ contains
                                         ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_L_to_R, &
-                                            1,-1,&
-                                            -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%L,gen_type%L,gen_type%R,&
+                                            j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else if (isThree(ilutI,k)) then
                                         ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_L_to_R_to_L, &
-                                            1,-1,&
-                                            -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%L,gen_type%L,gen_type%L,&
+                                            j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! n(k) = 1
@@ -795,15 +813,17 @@ contains
                                             ! _L(i) -> _RL(j) -> ^RL(k) -> ^L(l)
                                             excitInfo = assign_excitInfo_values_exact(&
                                                 excit_type%double_L_to_R_to_L, &
-                                                1,-1,&
-                                                -1,-1,-1,j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                                gen_type%R,gen_type%L,&
+                                                gen_type%L,gen_type%L,gen_type%L,&
+                                                j,k,l,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                         else
                                             ! _L(i) -> _RL(j) -> ^LR(k) -> ^R(l)
                                             excitInfo = assign_excitInfo_values_exact(&
                                                 excit_type%double_L_to_R, &
-                                                1,-1,&
-                                                -1,-1,1,j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                                gen_type%R,gen_type%L,&
+                                                gen_type%L,gen_type%L,gen_type%R,&
+                                                j,l,k,i,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                         end if
                                     end if
@@ -815,8 +835,9 @@ contains
                                 ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%double_raising, &
-                                    1,1,&
-                                    1,1,1,j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R,gen_type%R,&
+                                    gen_type%R,gen_type%R,gen_type%R,&
+                                    j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else if (isThree(ilutI,j)) then
                                 ! have to check where the electron goes
@@ -824,15 +845,17 @@ contains
                                     ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L_to_R, &
-                                        1,-1,&
-                                        1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,&
+                                        gen_type%R,gen_type%R,gen_type%R,&
+                                        i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else if (isThree(ilutI,k)) then
                                     ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_R_to_L, &
-                                        1,-1,&
-                                        1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%L,&
+                                        gen_type%R,gen_type%R,gen_type%L,&
+                                        i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                 else
                                     ! n(k) = 1
@@ -840,15 +863,17 @@ contains
                                         ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_R_to_L, &
-                                            1,-1,&
-                                            1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%R,gen_type%R,gen_type%L,&
+                                            i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_R_to_L_to_R, &
-                                            1,-1,&
-                                            1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%R,gen_type%R,gen_type%R,&
+                                            i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -860,15 +885,17 @@ contains
                                         ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_R_to_L_to_R, &
-                                            1,-1,&
-                                            1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%R,gen_type%R,gen_type%R,&
+                                            i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else if (isThree(ilutI,k)) then
                                         ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%double_R_to_L, &
-                                            1,-1,&
-                                            1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%L,&
+                                            gen_type%R,gen_type%R,gen_type%L,&
+                                            i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! n(k) = 1
@@ -876,15 +903,17 @@ contains
                                             ! _R(i) -> _LR(j) -> ^RL(k) -> ^L(l)
                                             excitInfo = assign_excitInfo_values_exact(&
                                                 excit_type%double_R_to_L, &
-                                                1,-1,&
-                                                1,1,-1,i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                                gen_type%R,gen_type%L,&
+                                                gen_type%R,gen_type%R,gen_type%L,&
+                                                i,k,l,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                         else
                                             ! _R(i) -> _LR(j) -> ^LR(k) -> ^R(l)
                                             excitInfo = assign_excitInfo_values_exact(&
                                                 excit_type%double_R_to_L_to_R, &
-                                                1,-1,&
-                                                1,1,1,i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                                gen_type%R,gen_type%L,&
+                                                gen_type%R,gen_type%R,gen_type%R,&
+                                                i,l,k,j,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                         end if
                                     end if
@@ -892,8 +921,9 @@ contains
                                     ! _R(i) -> _RR(j) -> ^RR(k) -> ^R(l)
                                     excitInfo = assign_excitInfo_values_exact(&
                                         excit_type%double_raising, &
-                                        1,1,&
-                                        1,1,1,j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                        gen_type%R,gen_type%R,&
+                                        gen_type%R,gen_type%R,gen_type%R,&
+                                        j,l,i,k,i,j,k,l,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
                                 end if
                             end if
                         end if
@@ -999,15 +1029,17 @@ contains
                                         ! _RR_(i) -> ^RR(j) -> ^R(k)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%fullstart_raising, &
-                                            1,1,&
-                                            1,1,1,i,j,i,k,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%R,&
+                                            gen_type%R,gen_type%R,gen_type%R,&
+                                            i,j,i,k,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _LL_(i) -> ^LL(j) -> ^L(k)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%fullstart_lowering, &
-                                            -1,-1,&
-                                            -1,-1,-1,k,i,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%L,gen_type%L,&
+                                            gen_type%L,gen_type%L,gen_type%L,&
+                                            k,i,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -1055,15 +1087,17 @@ contains
                                         ! _L(i) -> _LL(j) -> ^LL^(k)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%fullstop_lowering, &
-                                            -1,-1,&
-                                            -1,-1,-1,k,i,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%L,gen_type%L,&
+                                            gen_type%L,gen_type%L,gen_type%L,&
+                                            k,i,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     else
                                         ! _R(i) -> _RR(j) -> ^RR^(k)
                                         excitInfo = assign_excitInfo_values_exact(&
                                             excit_type%fullstop_raising, &
-                                            1,1,&
-                                            1,1,1,i,k,j,k,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                            gen_type%R,gen_type%R,&
+                                            gen_type%R,gen_type%R,gen_type%R,&
+                                            i,k,j,k,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                                     end if
                                 end if
@@ -1081,15 +1115,17 @@ contains
                                 ! _L(i) > ^LR_(j) -> ^R(k)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%single_overlap_L_to_R, &
-                                    1,-1,&
-                                    -1,-1,1,j,k,j,i,i,j,j,k,0,4,1.0_dp,1.0_dp,1,spin_change_flag)
+                                    gen_type%R,gen_type%L,&
+                                    gen_type%L,gen_type%L,gen_type%R,&
+                                    j,k,j,i,i,j,j,k,0,4,1.0_dp,1.0_dp,1,spin_change_flag)
 
                             else
                                 ! _R(i) -> ^RL_(j) -> ^L(k)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%single_overlap_R_to_L, &
-                                    1,-1,&
-                                    1,1,-1,i,j,k,j,i,j,j,k,0,4,1.0_dp,1.0_dp,1,spin_change_flag)
+                                    gen_type%R,gen_type%L,&
+                                    gen_type%R,gen_type%R,gen_type%L,&
+                                    i,j,k,j,i,j,j,k,0,4,1.0_dp,1.0_dp,1,spin_change_flag)
 
                             end if
                         end if
@@ -1134,30 +1170,34 @@ contains
                             ! _RL_(i) -> ^LR(j) -> ^R(k)
                             excitInfo = assign_excitInfo_values_exact(&
                                 excit_type%fullstart_L_to_R, &
-                                1,-1,&
-                                1,1,1,i,k,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                gen_type%R,gen_type%L,&
+                                gen_type%R,gen_type%R,gen_type%R,&
+                                i,k,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else if (isThree(ilutI,j)) then
                             ! _RL_(i) -> ^RL(j) -> ^L(k)
                             excitInfo = assign_excitInfo_values_exact(&
                                 excit_type%fullstart_R_to_L, &
-                                1,-1,&
-                                1,1,-1,i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                gen_type%R,gen_type%L,&
+                                gen_type%R,gen_type%R,gen_type%L,&
+                                i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else
                             if (isZero(ilutJ,j)) then
                                 ! _RL_(i) -> ^RL(j) -> ^L(k)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%fullstart_R_to_L, &
-                                    1,-1,&
-                                    1,1,-1,i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R,gen_type%L,&
+                                    gen_type%R,gen_type%R,gen_type%L,&
+                                    i,j,k,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! _RL_(i) -> ^LR(j) -> ^R(k)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%fullstart_L_to_R, &
-                                    1,-1,&
-                                    1,1,1,i,k,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R,gen_type%L,&
+                                    gen_type%R,gen_type%R,gen_type%R,&
+                                    i,k,j,i,i,i,j,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             end if
                         end if
@@ -1173,30 +1213,34 @@ contains
                             ! _R(i) -> _LR(j) -> ^RL^(k)
                             excitInfo = assign_excitInfo_values_exact(&
                                 excit_type%fullstop_R_to_L, &
-                                1,-1,&
-                                1,1,1,i,k,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                gen_type%R,gen_type%L,&
+                                gen_type%R,gen_type%R,gen_type%R,&
+                                i,k,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else if (isThree(ilutI,i)) then
                             ! _L(i) -> _RL(j) -> ^RL^(k)
                             excitInfo = assign_excitInfo_values_exact(&
                                 excit_type%fullstop_L_to_R, &
-                                1,-1,&
-                                -1,-1,1,j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                gen_type%R,gen_type%L,&
+                                gen_type%L,gen_type%L,gen_type%R,&
+                                j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else
                             if (isZero(ilutJ,i)) then
                                 ! _L(i) -> _RL(j) -> ^RL^(k)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%fullstop_L_to_R, &
-                                    1,-1,&
-                                    -1,-1,1,j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R,gen_type%L,&
+                                    gen_type%L,gen_type%L,gen_type%R,&
+                                    j,k,k,i,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             else
                                 ! _R(i) -> _LR(j) -> ^RL^(k)
                                 excitInfo = assign_excitInfo_values_exact(&
                                     excit_type%fullstop_R_to_L, &
-                                    1,-1,&
-                                    1,1,1,i,k,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                    gen_type%R,gen_type%L,&
+                                    gen_type%R,gen_type%R,gen_type%R,&
+                                    i,k,k,j,i,j,k,k,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                             end if
                         end if
@@ -1229,12 +1273,12 @@ contains
                             ! a electron..
                             ! -> so it is a raising generator
                             ! _R(i) -> ^R(j)
-                            excitInfo = assign_excitInfo_values_single_ex(1,i,j,i,j,0)
+                            excitInfo = assign_excitInfo_values_single_ex(gen_type%R,i,j,i,j,0)
 
                         else if (isThree(ilutI,i)) then
                             ! i know (i) is a electron ->
                             ! _L(i) -> ^L(j)
-                            excitInfo = assign_excitInfo_values_single_ex(-1,j,i,i,j,0)
+                            excitInfo = assign_excitInfo_values_single_ex(gen_type%L,j,i,i,j,0)
 
                         else
                             ! i know n(i) = 1
@@ -1242,12 +1286,12 @@ contains
                             if (isZero(ilutJ,i)) then
                                 ! (i) was an electron
                                 ! _L(i) -> ^L(j)
-                                excitInfo = assign_excitInfo_values_single_ex(-1,j,i,i,j,0)
+                                excitInfo = assign_excitInfo_values_single_ex(gen_type%L,j,i,i,j,0)
 
                             else
                                 ! (i) was a hole
                                 ! _R(i) -> ^R(j)
-                                excitInfo = assign_excitInfo_values_single_ex(1,i,j,i,j,0)
+                                excitInfo = assign_excitInfo_values_single_ex(gen_type%R,i,j,i,j,0)
 
                             end if
                         end if
@@ -1305,15 +1349,17 @@ contains
                             ! _RR_(i) -> ^RR^(j)
                             excitInfo = assign_excitInfo_values_exact(&
                                 excit_type%fullstart_stop_alike, &
-                                1,1,&
-                                1,1,1,i,j,i,j,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                gen_type%R,gen_type%R,&
+                                gen_type%R,gen_type%R,gen_type%R,&
+                                i,j,i,j,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         else
                             ! _LL_(i) -> ^LL^(j)
                             excitInfo = assign_excitInfo_values_exact(&
                                 excit_type%fullstart_stop_alike, &
-                                -1,-1,&
-                                -1,-1,-1,j,i,j,i,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
+                                gen_type%L,gen_type%L,&
+                                gen_type%L,gen_type%L,gen_type%L,&
+                                j,i,j,i,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
                         end if
                     end if
@@ -1336,7 +1382,7 @@ contains
                     ! _RL_(i) -> ^RL^(j)
                     excitInfo = assign_excitInfo_values_exact(&
                         excit_type%fullstart_stop_mixed, &
-                        1,-1,1,1,1,&
+                        gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
                         i,j,j,i,i,i,j,j,0,4,1.0_dp,1.0_dp,2,spin_change_flag)
 
 

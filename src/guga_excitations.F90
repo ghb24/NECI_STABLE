@@ -1614,7 +1614,7 @@ contains
             db = temp_delta_b(i-1)
             bVal = temp_b_real_i(i)
 
-            call getDoubleMatrixElement(step2,step1,db,1,-1,bVal, &
+            call getDoubleMatrixElement(step2,step1,db,gen_type%R,gen_type%L,bVal, &
                 1.0_dp, temp_mat0, temp_mat1)
 
             temp_x0 = temp_x0 * temp_mat0
@@ -1750,7 +1750,7 @@ contains
         db = -1
         bVal = temp_b_real_i(st)
 
-        call getDoubleMatrixElement(step2,step1,-1,-1,+1,bVal,1.0_dp, &
+        call getDoubleMatrixElement(step2,step1,-1,gen_type%L,gen_type%R,bVal,1.0_dp, &
             temp_x0, temp_x1)
 
         if (near_zero(temp_x0) .and. near_zero(temp_x1)) return
@@ -1764,7 +1764,7 @@ contains
             db = temp_delta_b(i-1)
             bVal = temp_b_real_i(i)
 
-            call getDoubleMatrixElement(step2,step1,db,-1,+1,bVal, 1.0_dp, &
+            call getDoubleMatrixElement(step2,step1,db,gen_type%L,gen_type%R,bVal, 1.0_dp, &
                 temp_mat0, temp_mat1)
 
             temp_x0 = temp_x0 * temp_mat0
@@ -1931,7 +1931,7 @@ contains
 
 
         ! starting element
-        call getDoubleMatrixElement(step_j, step_i, -1, -1, +1, &
+        call getDoubleMatrixElement(step_j, step_i, -1, gen_type%L, gen_type%R, &
             currentB_ilut(st), 1.0_dp, x1_element = tmp_mat)
 
         if (near_zero(tmp_mat)) return
@@ -1940,7 +1940,7 @@ contains
 
             step_i = current_stepvector(i)
             step_j = getStepvalue(ilutJ, i)
-            call getDoubleMatrixElement(step_j, step_i, deltaB_vec(i-1),-1,+1,&
+            call getDoubleMatrixElement(step_j, step_i, deltaB_vec(i-1),gen_type%L,gen_type%R,&
                 currentB_ilut(i), 1.0_dp, x1_element = tempWeight)
 
             tmp_mat = tempWeight * tmp_mat
@@ -2559,7 +2559,7 @@ contains
 
                 if (diff < 1.0e-10_dp) diff = 0.0_dp
 
-                if (diff > EPS) then
+                if (.not. near_zero(diff)) then
                     print *, "different matrix elements for CSFs: "
                     call write_det_guga(6,ilut)
                     call write_det_guga(6,excitations(:,i))
@@ -2623,7 +2623,7 @@ contains
 
                 if (diff < 1.0e-10_dp) diff = 0.0_dp
 
-                if (diff > EPS) then
+                if (.not. near_zero(diff)) then
                     print *, "different matrix elements for CSFs: "
                     call write_det_guga(6,ilut)
                     call write_det_guga(6,excitations(:,i))
@@ -2701,7 +2701,7 @@ contains
             write(6,*) count(.not.generated_list), '/', size(generated_list), &
                        'not generated'
 
-            if (pDoubles < EPS) then
+            if (near_zero(pDoubles)) then
                 print *, "expected ratio: ", 1.0_dp - real(count(.not.generated_list),dp)/ &
                     real(size(generated_list), dp)
             end if
@@ -2728,7 +2728,7 @@ contains
 
         ! also check matrix elements if psingles and pdouble are > 0
         do i = 1, nExcit
-            if (abs(extract_h_element(excitations(:,i)) - matEle_list(i)) > EPS) then
+            if (.not. near_zero(abs(extract_h_element(excitations(:,i)) - matEle_list(i)))) then
                 print *, "incorrect matrix element! for excitation: "
                 call write_det_guga(6, excitations(:,i),.false.)
                 print *, "stoch. <H>: ", matEle_list(i)
@@ -2839,7 +2839,7 @@ contains
         end if
 
         ! check if excitation generation was successful
-        if (pgen < EPS) then
+        if (near_zero(pgen)) then
             ! indicate NullDet to skip spawn step
             nJ(1) = 0
             HElGen = h_cast(0.0_dp)
@@ -2915,7 +2915,7 @@ contains
             return
         end if
 
-        if (branch_pgen < EPS) then
+        if (near_zero(branch_pgen)) then
             exc = 0_n_int
             pgen = 0.0_dp
             return
@@ -2943,7 +2943,7 @@ contains
         call convert_ilut_toNECI(exc, ilutJ)
         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, .true., 2)
 
-        if (abs(mat_ele) < EPS) then
+        if (near_zero(mat_ele)) then
             exc = 0_n_int
             pgen = 0.0_dp
             return
@@ -3691,7 +3691,7 @@ contains
                 ! here we now it is a lowering generator with d_j = 1 or 2
                 ! with restrictions however
                 ! here a d_j = 2 is theoretically possible
-                ASSERT(gen == -1)
+                ASSERT(gen == gen_type%L)
                 ASSERT(end_d /= 3)
                 if (end_d == 0) then
                     if (all(b(st:en-1) > 0)) then
@@ -3751,7 +3751,7 @@ contains
 
             else if (start_d == 0) then
                 ! here we know it is a raising generator
-                ASSERT(gen == 1)
+                ASSERT(gen == gen_type%R)
                 ASSERT(end_d /= 0)
                 if (end_d == 3) then
                     if (all(b(st:en-1) > 0)) then
@@ -3806,13 +3806,13 @@ contains
                 if (all(b(st:en-1) > 0) .and. end_d /= 1) then
                     ! only in this case it is possible
                     if (end_d == 2) then
-                        if (gen == 1) then
+                        if (gen == gen_type%R) then
                             ! make 1 > 3 and 2 > 0
                             set_three(exc,st)
 
                             set_zero(exc,en)
 
-                        else if (gen == -1) then
+                        else if (gen == gen_type%L) then
                             ! make 1 > 0 and 2 > 3
                             set_zero(exc,st)
 
@@ -3821,7 +3821,7 @@ contains
                         end if
 
                     else if (end_d == 3) then
-                        ASSERT(gen == 1)
+                        ASSERT(gen == gen_type%R)
                         ! make 1 > 3 and 3 > 1
                         set_three(exc,st)
 
@@ -3829,7 +3829,7 @@ contains
                         set_one(exc,en)
 
                     else if (end_d == 0) then
-                        ASSERT(gen == -1)
+                        ASSERT(gen == gen_type%L)
                         ! make 1 > 0 and 0 > 1
                         set_zero(exc,st)
 
@@ -3845,14 +3845,14 @@ contains
             else if (start_d == 2) then
                 ! here I do not have a b restriction or?
                 if (end_d == 0) then
-                    ASSERT(gen == -1)
+                    ASSERT(gen == gen_type%L)
                     ! make 2 > 0 and 0 > 2
                     set_zero(exc,st)
 
                     set_two(exc,en)
 
                 else if (end_d == 3) then
-                    ASSERT(gen == 1)
+                    ASSERT(gen == gen_type%R)
                     ! make 2 > 3 and 3 > 2
                     set_three(exc,st)
 
@@ -3860,13 +3860,13 @@ contains
                     set_two(exc,en)
 
                 else if (end_d == 1) then
-                    if (gen == 1) then
+                    if (gen == gen_type%R) then
                         ! make 2 > 3 and 1 > 0
                         set_three(exc,st)
 
                         set_zero(exc,en)
 
-                    else if (gen == -1) then
+                    else if (gen == gen_type%L) then
                         ! make 2 > 0 and 1 > 3
                         set_zero(exc,st)
 
@@ -3895,7 +3895,7 @@ contains
         call convert_ilut_toNECI(exc, ilutJ)
         call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, .true., 2)
 
-        if (abs(mat_ele) < EPS) then
+        if (near_zero(mat_ele)) then
             exc = 0_n_int
             pgen = 0.0_dp
             return
@@ -4263,9 +4263,9 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ! also check if calculated b vector really fits to ilut
         ASSERT(all(currentB_ilut .isclose. calcB_vector_ilut(ilut(0:nifd))))
-        if (excitInfo%currentGen == 1) then
+        if (excitInfo%currentGen == gen_type%R) then
             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
-        else if (excitInfo%currentGen == -1) then
+        else if (excitInfo%currentGen == gen_type%L) then
             ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         end if
 #endif
@@ -4757,7 +4757,7 @@ contains
         ! matrix elements with the exact calculation..
         ! since something is going obviously wrong..
 #ifdef DEBUG_
-        if (.not. pgen < EPS) then
+        if (.not. near_zero(pgen)) then
             call convert_ilut_toNECI(excitation, ilutJ, HElgen)
             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, tmp_mat, &
                 .true., 2)
@@ -4795,7 +4795,7 @@ contains
 
 
         ! check if excitation generation was successful
-        if (pgen < EPS) then
+        if (near_zero(pgen)) then
             ! indicate NullDet to skip spawn step
             nJ(1) = 0
             HElGen = h_cast(0.0_dp)
@@ -4918,7 +4918,7 @@ contains
 
             call create_crude_double(ilut, excitation, branch_pgen, excitInfo)
 
-            if (branch_pgen < EPS) then
+            if (near_zero(branch_pgen)) then
                 excitation = 0
                 pgen = 0.0_dp
                 return
@@ -4930,7 +4930,7 @@ contains
             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
                 .true., 2)
 
-            if (abs(mat_ele) < EPS) then
+            if (near_zero(mat_ele)) then
                 excitation = 0
                 pgen = 0.0_dp
 
@@ -5171,7 +5171,7 @@ contains
             ! exact version
 
             ! check matrix element before calculating anything
-            if (abs(get_umat_el(excitInfo%i,excitInfo%i,excitInfo%j,excitInfo%j)) < EPS) then
+            if (near_zero(get_umat_el(excitInfo%i,excitInfo%i,excitInfo%j,excitInfo%j))) then
                 excitation = 0_n_int
                 pgen = 0.0_dp
                 return
@@ -5281,7 +5281,7 @@ contains
         end if
 
         ! check if for some reason the matrix element of the excitation is 0
-        if (abs(extract_h_element(excitation)) < EPS) then
+        if (near_zero(extract_h_element(excitation))) then
             pgen = 0.0_dp
             excitation = 0
 
@@ -5377,7 +5377,7 @@ contains
         ! should i do that in the mixedFullStartStochastic routine
 
         ! do that x1 matrix element in the routine and only check probWeight here
-        if (branch_pgen < EPS) then
+        if (near_zero(branch_pgen)) then
             t = 0_n_int
             return
         end if
@@ -5389,7 +5389,7 @@ contains
                 posSwitches, t, branch_pgen)
 
             ! zero x1 - elements can also happen in the double update
-            if (abs(extract_matrix_element(t, 2)) < EPS .or. branch_pgen < EPS) then
+            if (near_zero(extract_matrix_element(t, 2)) .or. near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -5399,7 +5399,7 @@ contains
 
         ! check if there was a change in the stepvector in the double
         ! overlap region
-        if (abs(extract_matrix_element(t,1)) > EPS) then
+        if (.not. near_zero(extract_matrix_element(t,1))) then
             t = 0_n_int
             return
         end if
@@ -5420,7 +5420,7 @@ contains
             call calc_mixed_contr(ilut, t, excitInfo, pgen, integral)
         end if
 
-        if (abs(integral) < EPS) then
+        if (near_zero(integral)) then
             t = 0_n_int
             pgen = 0.0_dp
             return
@@ -5537,7 +5537,7 @@ contains
             cum_sum = current_cum_list(nSpatOrbs)
         end if
 
-        if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
+        if (near_zero(cum_sum) .or. near_zero(ab_sum) .or. near_zero(ba_sum)) then
             cpt_a = 0.0_dp
             cpt_b = 0.0_dp
         else
@@ -5625,7 +5625,7 @@ contains
 
             step1 = current_stepvector(i)
             step2 = getStepvalue(t,i)
-            call getDoubleMatrixElement(step2,step1,deltaB(i-1),-1,1,&
+            call getDoubleMatrixElement(step2,step1,deltaB(i-1),gen_type%L,gen_type%R,&
                 currentB_ilut(i),1.0_dp,x1_element = tempWeight)
 
             inter = inter * tempWeight
@@ -5702,9 +5702,9 @@ contains
                     below_flag = .true.
                 end if
 
-                if (above_cpt < EPS) cycle
+                if (near_zero(above_cpt)) cycle
 
-                if (below_cpt < EPS) cycle
+                if (near_zero(below_cpt)) cycle
 
                 ! calculate the branch probability
 
@@ -5713,7 +5713,7 @@ contains
                 if (t_heisenberg_model .or. t_tJ_model) then
                     ! in the heisenberg and t-J i never pick combinations,
                     ! with 0 matrix element..
-                    if (abs(temp_int) < EPS) cycle
+                    if (near_zero(temp_int)) cycle
                 end if
 
                 zeroWeight = weights%proc%zero(negSwitches(i), &
@@ -5741,7 +5741,7 @@ contains
                 ! get the starting matrix element
                 step1 = current_stepvector(i)
                 step2 = getStepvalue(t,i)
-                call getDoubleMatrixElement(step2,step1,-1,-1,+1,&
+                call getDoubleMatrixElement(step2,step1,-1,gen_type%L,gen_type%R,&
                     currentB_ilut(i),1.0_dp,x1_element = tempWeight)
 
                 ! loop over excitation range
@@ -5753,7 +5753,7 @@ contains
 
                     step1 = current_stepvector(k)
                     ! only 0 branch here
-                    call getDoubleMatrixElement(step1,step1,0,-1,+1,&
+                    call getDoubleMatrixElement(step1,step1,0,gen_type%L,gen_type%R,&
                         currentB_ilut(k),1.0_dp,x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
@@ -5788,7 +5788,7 @@ contains
 
                     if (step1 == 1) then
                         ! i know that step2 = 2
-                        call getDoubleMatrixElement(2,1,0,-1,+1,&
+                        call getDoubleMatrixElement(2,1,0,gen_type%L,gen_type%R,&
                             currentB_ilut(first),1.0_dp,x1_element = tempWeight_1)
 
                         plusWeight = weights%proc%plus(posSwitches(first), &
@@ -5799,7 +5799,7 @@ contains
 
                     else
                         ! i know that step2 = 1
-                        call getDoubleMatrixElement(1,2,0,-1,+1,currentB_ilut(first),&
+                        call getDoubleMatrixElement(1,2,0,gen_type%L,gen_type%R,currentB_ilut(first),&
                             1.0_dp, x1_element = tempWeight_1)
 
                         minusWeight = weights%proc%minus(negSwitches(first), &
@@ -5892,7 +5892,7 @@ contains
 
                     if (current_stepvector(last) == 1) then
                         ! then i know step2 = 2 & dB = -2!
-                        call getDoubleMatrixElement(2,1, -2,-1,+1,&
+                        call getDoubleMatrixElement(2,1, -2,gen_type%L,gen_type%R,&
                             currentB_ilut(last),1.0_dp,x1_element = tempWeight_1)
 
                         zeroWeight = weights%proc%zero(negSwitches(last), &
@@ -5906,7 +5906,7 @@ contains
 
                     else
                         ! i know step2 == 1 and dB = +2
-                        call getDoubleMatrixElement(1,2, +2, -1, +1,&
+                        call getDoubleMatrixElement(1,2, +2, gen_type%L, gen_type%R,&
                             currentB_ilut(last),1.0_dp,x1_element = tempWeight_1)
 
                         zeroWeight = weights%proc%zero(negSwitches(last), &
@@ -5930,7 +5930,7 @@ contains
 
                     step1 = current_stepvector(k)
                     ! only 0 branch here
-                    call getDoubleMatrixElement(step1,step1,0,-1,+1,&
+                    call getDoubleMatrixElement(step1,step1,0,gen_type%L,gen_type%R,&
                         currentB_ilut(k),1.0_dp,x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
@@ -6079,13 +6079,13 @@ contains
                             probWeight = probWeight * calcStayingProb(&
                                 zeroWeight,plusWeight,currentB_ilut(k))
 
-                            call getDoubleMatrixElement(1,1,0,-1,1, &
+                            call getDoubleMatrixElement(1,1,0,gen_type%L,gen_type%R, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         else
                             probWeight = probWeight*(1.0_dp-calcStayingProb(&
                                 zeroWeight,plusWeight,currentB_ilut(k)))
 
-                            call getDoubleMatrixElement(2,1,0,-1,1, &
+                            call getDoubleMatrixElement(2,1,0,gen_type%L,gen_type%R, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         end if
 
@@ -6100,12 +6100,12 @@ contains
                         if (isTwo(t,k)) then
                             probWeight = probWeight*calcStayingProb(&
                                 zeroWeight,minusWeight,currentB_ilut(k))
-                            call getDoubleMatrixElement(2,2,0,-1,1, &
+                            call getDoubleMatrixElement(2,2,0,gen_type%L,gen_type%R, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         else
                             probWeight = probWeight*(1.0_dp-calcStayingProb(&
                                 zeroWeight,minusWeight,currentB_ilut(k)))
-                            call getDoubleMatrixElement(1,2,0,-1,1, &
+                            call getDoubleMatrixElement(1,2,0,gen_type%L,gen_type%R, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         end if
 
@@ -6121,12 +6121,12 @@ contains
                         if (isOne(t,k)) then
                             probWeight = probWeight * calcStayingProb(minusWeight, &
                                 zeroWeight, currentB_ilut(k))
-                            call getDoubleMatrixElement(1,1,-2,-1,1, &
+                            call getDoubleMatrixElement(1,1,-2,gen_type%L,gen_type%R, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         else
                             probWeight = probWeight*(1.0_dp-calcStayingProb(&
                                 minusWeight, zeroWeight, currentB_ilut(k)))
-                            call getDoubleMatrixElement(2,1,-2,-1,1, &
+                            call getDoubleMatrixElement(2,1,-2,gen_type%L,gen_type%R, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         end if
 
@@ -6142,18 +6142,18 @@ contains
                         if (isTwo(t,k)) then
                             probWeight = probWeight * calcStayingProb(plusWeight, &
                                 zeroWeight, currentB_ilut(k))
-                            call getDoubleMatrixElement(2,2,2,-1,1, &
+                            call getDoubleMatrixElement(2,2,2,gen_type%L,gen_type%R, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         else
                             probWeight = probWeight*(1.0_dp-calcStayingProb(&
                                 plusWeight,zeroWeight,currentB_ilut(k)))
-                            call getDoubleMatrixElement(1,2,2,-1,1, &
+                            call getDoubleMatrixElement(1,2,2,gen_type%L,gen_type%R, &
                                 currentB_ilut(k),1.0_dp,x1_element = tempWeight)
                         end if
 
                     end select
 
-                    if (abs(tempWeight) < EPS) then
+                    if (near_zero(tempWeight)) then
                         probWeight = 0.0_dp
                     end if
                 end do
@@ -6205,7 +6205,7 @@ contains
 
             step1 = current_stepvector(i)
             step2 = getStepvalue(t,i)
-            call getDoubleMatrixElement(step2,step1,bVector(i-1),-1,1,&
+            call getDoubleMatrixElement(step2,step1,bVector(i-1),gen_type%L,gen_type%R,&
                 currentB_ilut(i),1.0_dp,x1_element = tempWeight)
 
             inter = inter * tempWeight
@@ -6221,12 +6221,12 @@ contains
 
                 temp_int = (get_umat_el(i,j,j,i) + get_umat_el(j,i,i,j))/2.0_dp
 
-                if (abs(temp_int) < EPS) cycle
+                if (near_zero(temp_int)) cycle
 
                 ! get the starting matrix element
                 step1 = current_stepvector(i)
                 step2 = getStepvalue(t,i)
-                call getDoubleMatrixElement(step2,step1,-1,-1,+1,&
+                call getDoubleMatrixElement(step2,step1,-1,gen_type%L,gen_type%R,&
                     currentB_ilut(i),1.0_dp,x1_element = tempWeight)
 
                 ! then calc. the product:
@@ -6236,7 +6236,7 @@ contains
                     step1 = current_stepvector(k)
                     step2 = getStepvalue(t,k)
                     ! only 0 branch here
-                    call getDoubleMatrixElement(step2,step1,0,-1,+1,&
+                    call getDoubleMatrixElement(step2,step1,0,gen_type%L,gen_type%R,&
                         currentB_ilut(k),1.0_dp,x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
@@ -6248,7 +6248,7 @@ contains
 
                     step1 = current_stepvector(k)
                     step2 = getStepvalue(t,k)
-                    call getDoubleMatrixElement(step2,step1, bVector(k-1),-1,+1,&
+                    call getDoubleMatrixElement(step2,step1, bVector(k-1),gen_type%L,gen_type%R,&
                         currentB_ilut(k),1.0_dp,x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
@@ -6306,7 +6306,7 @@ contains
             negSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
+        if (near_zero(branch_pgen)) then
             t = 0_n_int
             return
         end if
@@ -6317,7 +6317,7 @@ contains
 
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (branch_pgen < EPS) then
+            if (near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -6332,7 +6332,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
+        if (near_zero(branch_pgen)) then
             t = 0_n_int
             return
         end if
@@ -6341,7 +6341,7 @@ contains
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
             ! check validity
-            if (branch_pgen < EPS) then
+            if (near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -6355,7 +6355,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
+        if (near_zero(branch_pgen)) then
             t = 0_n_int
             return
         end if
@@ -6368,7 +6368,7 @@ contains
 
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (branch_pgen < EPS) then
+            if (near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -6411,7 +6411,7 @@ contains
             integral = extract_matrix_element(t,2) * (get_umat_el(start1,ende2,ende1,start2) + &
                 get_umat_el(ende2,start1,start2,ende1))/2.0_dp
 
-            if (abs(integral) < EPS) then
+            if (near_zero(integral)) then
                 branch_pgen = 0.0_dp
                 t = 0
             else
@@ -6434,7 +6434,7 @@ contains
                 extract_matrix_element(t,2))*(get_umat_el(start1,ende2,ende1,start2) + &
                 get_umat_el(ende2,start1,start2,ende1)))/2.0_dp
 
-            if (abs(integral) < EPS) then
+            if (near_zero(integral)) then
                 branch_pgen = 0.0_dp
                 t = 0_n_int
             else
@@ -6482,7 +6482,7 @@ contains
             negSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
+        if (near_zero(branch_pgen)) then
             t = 0_n_int
             return
         end if
@@ -6493,7 +6493,7 @@ contains
             branch_pgen = branch_pgen * temp_pgen
 
             ! check validity
-            if (branch_pgen < EPS) then
+            if (near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -6508,7 +6508,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
+        if (near_zero(branch_pgen)) then
             t = 0_n_int
             return
         end if
@@ -6517,7 +6517,7 @@ contains
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
             ! check validity
-            if (branch_pgen < EPS) then
+            if (near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -6531,7 +6531,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
+        if (near_zero(branch_pgen)) then
             t = 0_n_int
             return
         end if
@@ -6543,7 +6543,7 @@ contains
                 negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (branch_pgen < EPS) then
+            if (near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -6570,7 +6570,7 @@ contains
             integral = extract_matrix_element(t,2)*(get_umat_el(ende1,start2,start1,ende2) + &
                 get_umat_el(start2,ende1,ende2,start1))/2.0_dp
 
-            if (abs(integral) < EPS) then
+            if (near_zero(integral)) then
                 branch_pgen = 0.0_dp
                 t = 0
             else
@@ -6583,7 +6583,7 @@ contains
                 extract_matrix_element(t,2)) * (get_umat_el(ende1,start2,start1,ende2) + &
                 get_umat_el(start2,ende1,ende2,start1)))/2.0_dp
 
-            if (abs(integral) < EPS) then
+            if (near_zero(integral)) then
                 branch_pgen = 0.0_dp
                 t = 0_n_int
             else
@@ -6634,7 +6634,9 @@ contains
             negSwitches, t, branch_pgen)
 
 
-        ! check validity
+        ! check validity (defined in macros.h)
+        check_abort_excit(branch_pgen, t)
+
         if (branch_pgen < EPS) then
             t = 0_n_int
             return
@@ -7413,7 +7415,7 @@ contains
 
                     step = current_stepvector(i)
 
-                    call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(i),&
+                    call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(i),&
                         1.0_dp,x1_element = stay_mat)
 
                     call getMixedFullStop(step,step,0,currentB_ilut(i), &
@@ -7526,7 +7528,7 @@ contains
                     ! calc product
                     do j = e + 1, i - 1
                         step = current_stepvector(j)
-                        call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(j),&
+                        call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(j),&
                             1.0_dp,x1_element = tempWeight_1)
 
                         tempWeight = tempWeight * tempWeight_1
@@ -7690,12 +7692,12 @@ contains
                     if (isOne(t, j)) then
                         probWeight = probWeight*calcStayingProb(zeroWeight, &
                             plusWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(1, 1, 0, -1, 1, &
+                        call getDoubleMatrixElement(1, 1, 0, gen_type%L, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     else
                         probWeight = probWeight*(1.0_dp - calcStayingProb(&
                             zeroWeight, plusWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(2, 1, 0, -1, 1, &
+                        call getDoubleMatrixElement(2, 1, 0, gen_type%L, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     end if
                 case (2)
@@ -7705,12 +7707,12 @@ contains
                     if (isTwo(t,j)) then
                         probWeight = probWeight*calcStayingProb(zeroWeight, &
                             minusWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(2, 2, 0, -1, 1, &
+                        call getDoubleMatrixElement(2, 2, 0, gen_type%L, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     else
                         probWeight = probWeight*(1.0_dp - calcStayingProb(&
                             zeroWeight,minusWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(1, 2, 0, -1, 1, &
+                        call getDoubleMatrixElement(1, 2, 0, gen_type%L, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     end if
                 case (-1)
@@ -7720,12 +7722,12 @@ contains
                     if (isOne(t, j)) then
                         probWeight = probWeight*calcStayingProb(minusWeight, &
                             zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(1, 1, -2, -1, 1, &
+                        call getDoubleMatrixElement(1, 1, -2, gen_type%L, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     else
                         probWeight = probWeight*(1.0_dp - calcStayingProb(&
                             minusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(2, 1, -2, -1, 1, &
+                        call getDoubleMatrixElement(2, 1, -2, gen_type%L, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     end if
                 case (4)
@@ -7735,12 +7737,12 @@ contains
                     if (isTwo(t, j)) then
                         probWeight = probWeight * calcStayingProb(plusWeight, &
                             zeroWeight, currentB_ilut(j))
-                        call getDoubleMatrixElement(2, 2, 2, -1, 1, &
+                        call getDoubleMatrixElement(2, 2, 2, gen_type%L, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     else
                         probWeight = probWeight * (1.0_dp -calcStayingProb( &
                             plusWeight, zeroWeight, currentB_ilut(j)))
-                        call getDoubleMatrixElement(1, 2, 2, -1, 1, &
+                        call getDoubleMatrixElement(1, 2, 2, gen_type%L, 1, &
                             currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                     end if
                 end select
@@ -7787,7 +7789,7 @@ contains
                 step = current_stepvector(i)
 
                 ! update inverse product
-                call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight = tempWeight/tempWeight_1
@@ -7806,7 +7808,7 @@ contains
             select case (current_stepvector(sw))
             case (1)
                 ! then a -2 branch arrived!
-                call getDoubleMatrixElement(2,1,-2,-1,1,currentB_ilut(sw), &
+                call getDoubleMatrixElement(2,1,-2,gen_type%L,gen_type%R,currentB_ilut(sw), &
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight = tempWeight/tempWeight_1
@@ -7816,7 +7818,7 @@ contains
             case (2)
                 ! +2 branch arrived!
 
-                call getDoubleMatrixElement(1,2,2,-1,1,currentB_ilut(sw), &
+                call getDoubleMatrixElement(1,2,2,gen_type%L,gen_type%R,currentB_ilut(sw), &
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight = tempWeight/tempWeight_1
@@ -8174,7 +8176,7 @@ contains
                     ! figure out!
                     step = current_stepvector(i)
 
-                    call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(i),&
+                    call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(i),&
                         1.0_dp,x1_element = stay_mat)
 
                     call getMixedFullStop(step,step,0,currentB_ilut(i), &
@@ -8307,7 +8309,7 @@ contains
 
                 step = current_stepvector(i)
                 ! update inverse product
-                call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = stay_mat)
 
                 call getMixedFullStop(step,step,0,currentB_ilut(i), x1_element = end_mat)
@@ -8388,7 +8390,7 @@ contains
 
                 if (step == 1) then
                     ! then a -2 branch arrived!
-                    call getDoubleMatrixElement(2,1,-2,-1,1,currentB_ilut(sw), &
+                    call getDoubleMatrixElement(2,1,-2,gen_type%L,gen_type%R,currentB_ilut(sw), &
                         1.0_dp, x1_element = stay_mat)
 
                     call getMixedFullStop(2,1,-2,currentB_ilut(sw),x1_element = end_mat)
@@ -8400,7 +8402,7 @@ contains
                 else
                     ! +2 branch arrived!
 
-                    call getDoubleMatrixElement(1,2,2,-1,1,currentB_ilut(sw), &
+                    call getDoubleMatrixElement(1,2,2,gen_type%L,gen_type%R,currentB_ilut(sw), &
                         1.0_dp, x1_element = stay_mat)
 
                     call getMixedFullStop(1,2,2,currentB_ilut(sw), x1_element = end_mat)
@@ -8544,7 +8546,7 @@ contains
                 ! calc product
                 do j = en + 1, i - 1
                     step = current_stepvector(j)
-                    call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(j),&
+                    call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(j),&
                         1.0_dp,x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
@@ -8706,13 +8708,13 @@ contains
                             probWeight = probWeight*calcStayingProb(zeroWeight, &
                                 plusWeight, currentB_ilut(j))
 
-                            call getDoubleMatrixElement(1, 1, 0, -1, 1, &
+                            call getDoubleMatrixElement(1, 1, 0, gen_type%L, 1, &
                                 currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                         else
                             probWeight = probWeight*(1.0_dp - calcStayingProb(&
                                 zeroWeight, plusWeight, currentB_ilut(j)))
 
-                            call getDoubleMatrixElement(2, 1, 0, -1, 1, &
+                            call getDoubleMatrixElement(2, 1, 0, gen_type%L, 1, &
                                 currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                         end if
                     case (2)
@@ -8723,13 +8725,13 @@ contains
                             probWeight = probWeight*calcStayingProb(zeroWeight, &
                                 minusWeight, currentB_ilut(j))
 
-                            call getDoubleMatrixElement(2, 2, 0, -1, 1, &
+                            call getDoubleMatrixElement(2, 2, 0, gen_type%L, 1, &
                                 currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
                         else
                             probWeight = probWeight*(1.0_dp - calcStayingProb(&
                                 zeroWeight,minusWeight, currentB_ilut(j)))
 
-                            call getDoubleMatrixElement(1, 2, 0, -1, 1, &
+                            call getDoubleMatrixElement(1, 2, 0, gen_type%L, 1, &
                                 currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
                         end if
                     case (-1)
@@ -8739,12 +8741,12 @@ contains
                         if (isOne(t, j)) then
                             probWeight = probWeight*calcStayingProb(minusWeight, &
                                 zeroWeight, currentB_ilut(j))
-                            call getDoubleMatrixElement(1, 1, -2, -1, 1, &
+                            call getDoubleMatrixElement(1, 1, -2, gen_type%L, 1, &
                                 currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                         else
                             probWeight = probWeight*(1.0_dp - calcStayingProb(&
                                 minusWeight, zeroWeight, currentB_ilut(j)))
-                            call getDoubleMatrixElement(2, 1, -2, -1, 1, &
+                            call getDoubleMatrixElement(2, 1, -2, gen_type%L, 1, &
                                 currentB_ilut(j), 1.0_dp, x1_element = tempWeight_1)
                         end if
                     case(4)
@@ -8754,12 +8756,12 @@ contains
                         if (isTwo(t, j)) then
                             probWeight = probWeight * calcStayingProb(plusWeight, &
                                 zeroWeight, currentB_ilut(j))
-                            call getDoubleMatrixElement(2, 2, 2, -1, 1, &
+                            call getDoubleMatrixElement(2, 2, 2, gen_type%L, 1, &
                                 currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
                         else
                             probWeight = probWeight * (1.0_dp -calcStayingProb( &
                                 plusWeight, zeroWeight, currentB_ilut(j)))
-                            call getDoubleMatrixElement(1, 2, 2, -1, 1, &
+                            call getDoubleMatrixElement(1, 2, 2, gen_type%L, 1, &
                                 currentB_ilut(j),1.0_dp,  x1_element = tempWeight_1)
                         end if
                 end select
@@ -8803,7 +8805,7 @@ contains
                 step = current_stepvector(i)
 
                 ! update inverse product
-                call getDoubleMatrixElement(step,step,0,-1,1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight = tempWeight/tempWeight_1
@@ -8822,7 +8824,7 @@ contains
             select case (current_stepvector(sw))
             case (1)
                 ! then a -2 branch arrived!
-                call getDoubleMatrixElement(2,1,-2,-1,1,currentB_ilut(sw), &
+                call getDoubleMatrixElement(2,1,-2,gen_type%L,gen_type%R,currentB_ilut(sw), &
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight = tempWeight/tempWeight_1
@@ -8832,7 +8834,7 @@ contains
             case (2)
                 ! +2 branch arrived!
 
-                call getDoubleMatrixElement(1,2,2,-1,1,currentB_ilut(sw), &
+                call getDoubleMatrixElement(1,2,2,gen_type%L,gen_type%R,currentB_ilut(sw), &
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight = tempWeight/tempWeight_1
@@ -10113,10 +10115,10 @@ contains
 
                 ! get both start and staying matrix elements -> and update
                 ! matrix element contributions on the fly to avoid second loop!
-                call getDoubleMatrixElement(step,step,-1,1,-1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,-1,gen_type%R,gen_type%L,currentB_ilut(i),&
                     1.0_dp, x1_element = start_mat)
 
-                call getDoubleMatrixElement(step,step,0,1,-1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%R,gen_type%L,currentB_ilut(i),&
                     1.0_dp, x1_element = stay_mat)
 
 
@@ -10279,7 +10281,7 @@ contains
                 ! first get the fullstart elements
                 step = current_stepvector(i)
 
-                call getDoubleMatrixElement(step,step,-1,1,-1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,-1,gen_type%R,gen_type%L,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight)
 
                 ! for every open orbitals also add up pgen contributions
@@ -10304,7 +10306,7 @@ contains
                 do j = i + 1, st-1
                     step = current_stepvector(j)
                     ! its always the 0 branch!
-                    call getDoubleMatrixElement(step, step,0,1,-1,currentB_ilut(j),&
+                    call getDoubleMatrixElement(step, step,0,gen_type%R,gen_type%L,currentB_ilut(j),&
                         1.0_dp,x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
@@ -10366,7 +10368,7 @@ contains
 
             step = current_stepvector(st)
 
-            call getDoubleMatrixElement(step,step,-1,-1,1,currentB_ilut(st),&
+            call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,currentB_ilut(st),&
                 1.0_dp, x1_element = tempWeight)
 
             tempWeight = 1.0_dp/tempWeight
@@ -10381,13 +10383,13 @@ contains
                 step = current_stepvector(i)
 
                 ! update inverse product
-                call getDoubleMatrixElement(step,step,0,-1,+1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight = tempWeight/tempWeight_1
 
                 ! and also get starting contribution
-                call getDoubleMatrixElement(step,step,-1,-1,+1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight_1 = tempWeight * tempWeight_1
@@ -10430,13 +10432,13 @@ contains
             step2 = getStepvalue(t,sw)
 
             ! update inverse product
-            call getDoubleMatrixElement(step2,step,0,-1,+1,currentB_ilut(sw),&
+            call getDoubleMatrixElement(step2,step,0,gen_type%L,gen_type%R,currentB_ilut(sw),&
                 1.0_dp, x1_element = tempWeight_1)
 
             tempWeight = tempWeight/tempWeight_1
 
             ! and also get starting contribution
-            call getDoubleMatrixElement(step2,step,-1,-1,+1,currentB_ilut(sw),&
+            call getDoubleMatrixElement(step2,step,-1,gen_type%L,gen_type%R,currentB_ilut(sw),&
                 1.0_dp, x1_element = tempWeight_1)
 
             tempWeight_1 = tempWeight * tempWeight_1
@@ -11118,10 +11120,10 @@ contains
 
                 ! get both start and staying matrix elements -> and update
                 ! matrix element contributions on the fly to avoid second loop!
-                call getDoubleMatrixElement(step,step,-1,1,-1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,-1,gen_type%R,gen_type%L,currentB_ilut(i),&
                     1.0_dp, x1_element = start_mat)
 
-                call getDoubleMatrixElement(step,step,0,1,-1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%R,gen_type%L,currentB_ilut(i),&
                     1.0_dp, x1_element = stay_mat)
 
                 ! check if orb_pgen is non-zero
@@ -11200,7 +11202,7 @@ contains
 
         ! calculate the necarry values needed to formulate everything in terms
         ! of the already calculated quantities:
-        call getDoubleMatrixElement(step,step,-1,-1,1,currentB_ilut(st),&
+        call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,currentB_ilut(st),&
             1.0_dp, x1_element = mat_ele)
 
         ! and calc. x1^-1
@@ -11225,7 +11227,7 @@ contains
                 step = current_stepvector(i)
 
                 ! update inverse product
-                call getDoubleMatrixElement(step,step,0,-1,+1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = stay_mat)
 
                 mat_ele = mat_ele / stay_mat
@@ -11237,7 +11239,7 @@ contains
                 if (orb_pgen < EPS) cycle
 
                 ! and also get starting contribution
-                call getDoubleMatrixElement(step,step,-1,-1,+1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = start_mat)
 
                 ! because the rest of the matrix element is still the same in
@@ -11302,20 +11304,20 @@ contains
                         switch_weight = weights%proc%plus(posSwitches(sw), &
                             currentB_ilut(sw), weights%dat)
 
-                        call getDoubleMatrixElement(2,1,0,-1,+1,currentB_ilut(sw),&
+                        call getDoubleMatrixElement(2,1,0,gen_type%L,gen_type%R,currentB_ilut(sw),&
                             1.0_dp, x1_element = stay_mat)
 
-                        call getDoubleMatrixElement(2,1,-1,-1,+1,currentB_ilut(sw),&
+                        call getDoubleMatrixElement(2,1,-1,gen_type%L,gen_type%R,currentB_ilut(sw),&
                             1.0_dp, x1_element = start_mat)
 
                     else
                         switch_weight = weights%proc%minus(negSwitches(sw), &
                             currentB_ilut(sw), weights%dat)
 
-                        call getDoubleMatrixElement(1,2,0,-1,+1,currentB_ilut(sw),&
+                        call getDoubleMatrixElement(1,2,0,gen_type%L,gen_type%R,currentB_ilut(sw),&
                             1.0_dp, x1_element = stay_mat)
 
-                        call getDoubleMatrixElement(1,2,-1,-1,+1,currentB_ilut(sw),&
+                        call getDoubleMatrixElement(1,2,-1,gen_type%L,gen_type%R,currentB_ilut(sw),&
                             1.0_dp, x1_element = start_mat)
 
                     end if
@@ -11691,7 +11693,7 @@ contains
                 ! first get the fullstart elements
                 step = current_stepvector(i)
 
-                call getDoubleMatrixElement(step,step,-1,1,-1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,-1,gen_type%R,gen_type%L,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight)
 
                 ! for every open orbitals also add up pgen contributions
@@ -11719,7 +11721,7 @@ contains
                 do j = i + 1, st-1
                     step = current_stepvector(j)
                     ! its always the 0 branch!
-                    call getDoubleMatrixElement(step, step,0,1,-1,currentB_ilut(j),&
+                    call getDoubleMatrixElement(step, step,0,gen_type%R,gen_type%L,currentB_ilut(j),&
                         1.0_dp,x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
@@ -11780,7 +11782,7 @@ contains
 
             step = current_stepvector(st)
 
-            call getDoubleMatrixElement(step,step,-1,-1,1,currentB_ilut(st),&
+            call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,currentB_ilut(st),&
                 1.0_dp, x1_element = tempWeight)
 
             tempWeight = 1.0_dp/tempWeight
@@ -11800,13 +11802,13 @@ contains
                 step = current_stepvector(i)
 
                 ! update inverse product
-                call getDoubleMatrixElement(step,step,0,-1,+1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight = tempWeight/tempWeight_1
 
                 ! and also get starting contribution
-                call getDoubleMatrixElement(step,step,-1,-1,+1,currentB_ilut(i),&
+                call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight_1 = tempWeight * tempWeight_1
@@ -11855,13 +11857,13 @@ contains
             step2 = getStepvalue(t,sw)
 
             ! update inverse product
-            call getDoubleMatrixElement(step2,step,0,-1,+1,currentB_ilut(sw),&
+            call getDoubleMatrixElement(step2,step,0,gen_type%L,gen_type%R,currentB_ilut(sw),&
                 1.0_dp, x1_element = tempWeight_1)
 
             tempWeight = tempWeight/tempWeight_1
 
             ! and also get starting contribution
-            call getDoubleMatrixElement(step2,step,-1,-1,+1,currentB_ilut(sw),&
+            call getDoubleMatrixElement(step2,step,-1,gen_type%L,gen_type%R,currentB_ilut(sw),&
                 1.0_dp, x1_element = tempWeight_1)
 
             tempWeight_1 = tempWeight * tempWeight_1
@@ -11947,7 +11949,7 @@ contains
             clr_one(t, st)
             set_two(t, st)
 
-            call getDoubleMatrixElement(2, 1, -1, -1, +1, &
+            call getDoubleMatrixElement(2, 1, -1, gen_type%L, gen_type%R, &
                 bVal, 1.0_dp, x1_element = tempWeight_1)
 
             ! x0 matrix element:
@@ -11960,7 +11962,7 @@ contains
             clr_two(t, st)
             set_one(t, st)
 
-            call getDoubleMatrixElement(1, 2, -1, -1, +1, &
+            call getDoubleMatrixElement(1, 2, -1, gen_type%L, gen_type%R, &
                 bVal, 1.0_dp, x1_element = tempWeight_1)
 
             tempWeight = 0.0_dp
@@ -12028,11 +12030,10 @@ contains
         ! excitation yields non-zero matrix element
         select case (current_stepvector(st))
         case (1)
-!         if (isOne(ilut,st)) then
             if (currentB_int(st) < 2) then
                 ! only 0-branch start possible, which always has weight > 0
                 ! no change in stepvector, so just calc matrix element
-                call getDoubleMatrixElement(1, 1, -1, -1, +1, &
+                call getDoubleMatrixElement(1, 1, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp, tempWeight, tempWeight_1)
 
                 call setDeltaB(0,t)
@@ -12050,7 +12051,7 @@ contains
                 if (genrand_real2_dSFMT() < probWeight) then
                     ! choose 0 branch
 
-                    call getDoubleMatrixElement(1, 1, -1, -1, +1, &
+                    call getDoubleMatrixElement(1, 1, -1, gen_type%L, gen_type%R, &
                         bVal, 1.0_dp, tempWeight, tempWeight_1)
 
                     call setDeltaB(0, t)
@@ -12061,7 +12062,7 @@ contains
                     clr_orb(t, 2*st - 1)
                     set_orb(t, 2*st)
 
-                    call getDoubleMatrixElement(2, 1, -1, -1, +1, &
+                    call getDoubleMatrixElement(2, 1, -1, gen_type%L, gen_type%R, &
                         bVal, 1.0_dp, x1_element = tempWeight_1)
 
                     tempWeight = 0.0_dp
@@ -12074,7 +12075,6 @@ contains
             end if
 
         case (2)
-!         else if (isTwo(ilut,st)) then
             ! here always both branches are possible
             minusWeight = weights%proc%minus(negSwitches(st), &
                 bVal, weights%dat)
@@ -12085,7 +12085,7 @@ contains
 
             if (genrand_real2_dSFMT() < probWeight) then
                 ! choose 0 branch
-                call getDoubleMatrixElement(2, 2, -1, -1, +1, &
+                call getDoubleMatrixElement(2, 2, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp,  tempWeight, tempWeight_1)
 
                 call setDeltaB(0,t)
@@ -12096,7 +12096,7 @@ contains
                 set_orb(t, 2*st - 1)
                 clr_orb(t, 2*st)
 
-                call getDoubleMatrixElement(1, 2, -1, -1, +1, &
+                call getDoubleMatrixElement(1, 2, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp, x1_element = tempWeight_1)
 
                 tempWeight = 0.0_dp
@@ -12106,7 +12106,6 @@ contains
                 probWeight = 1.0_dp - probWeight
 
             end if
-!         end if
 #ifdef DEBUG_
         case default
             call stop_all(this_routine, "wrong stepvalue!")
@@ -12209,7 +12208,7 @@ contains
 
         deltaB = getDeltaB(t)
 
-        if (excitInfo%firstGen == -1) then
+        if (excitInfo%firstGen == gen_type%L) then
             ! lowering gen ends here
             ASSERT(isZero(ilut,iOrb))
 
@@ -12478,7 +12477,7 @@ contains
             ! change 1 -> 0
             clr_orb(t, 2*iOrb - 1)
 
-            call getDoubleMatrixElement(0, 1, deltaB, -1, -1, &
+            call getDoubleMatrixElement(0, 1, deltaB, gen_type%L, gen_type%L, &
                 bVal, excitInfo%order, tempWeight)
 
             call setDeltaB(0, t)
@@ -12489,7 +12488,7 @@ contains
             ! change 2 -> 0
             clr_orb(t, 2*iOrb)
 
-            call getDoubleMatrixElement(0, 2, deltaB, -1, -1, &
+            call getDoubleMatrixElement(0, 2, deltaB, gen_type%L, gen_type%L, &
                 bVal, 1.0_dp, tempWeight)
 
             call setDeltaB(0,t)
@@ -12503,14 +12502,14 @@ contains
                 ! change 3->2
                 clr_orb(t, 2*iOrb - 1)
 
-                call getDoubleMatrixElement(2, 3, deltaB, -1, -1, &
+                call getDoubleMatrixElement(2, 3, deltaB, gen_type%L, gen_type%L, &
                     bVal, 1.0_dp, tempWeight)
 
             else
                 ! change 3->1
                 clr_orb(t, 2*iOrb)
 
-                call getDoubleMatrixElement(1, 3, deltaB, -1, -1, &
+                call getDoubleMatrixElement(1, 3, deltaB, gen_type%L, gen_type%L, &
                     bVal, 1.0_dp, tempWeight)
 
             end if
@@ -12629,7 +12628,7 @@ contains
                     set_orb(t, 2*semi - 1)
 
                     ! order does not matter since only x0 matrix element
-                    call getDoubleMatrixElement(1,0,deltaB,-1,-1,bVal, &
+                    call getDoubleMatrixElement(1,0,deltaB,gen_type%L,gen_type%L,bVal, &
                         1.0_dp,tempWeight)
 
                     call setDeltaB(-1,t)
@@ -12639,7 +12638,7 @@ contains
                     ! then do 0->2: +1 branch(change from already set 1
                     set_orb(t,2*semi)
 
-                    call getDoubleMatrixElement(2,0,deltaB,-1,-1,bVal, &
+                    call getDoubleMatrixElement(2,0,deltaB,gen_type%L,gen_type%L,bVal, &
                         1.0_dp, tempWeight)
 
                     call setDeltaB(1,t)
@@ -12651,7 +12650,7 @@ contains
                 set_orb(t, 2*semi-1)
 
                 ! order does not matter since only x0 matrix element
-                call getDoubleMatrixElement(1,0,deltaB,-1,-1,bVal,&
+                call getDoubleMatrixElement(1,0,deltaB,gen_type%L,gen_type%L,bVal,&
                     1.0_dp,tempWeight)
 
                 call setDeltaB(-1,t)
@@ -12668,7 +12667,7 @@ contains
                 call setDeltaB(1, t)
                 ! still get the matrix elements here to deal with this
                 ! generally
-                call getDoubleMatrixElement(3, 1, 0, -1, -1, bVal, &
+                call getDoubleMatrixElement(3, 1, 0, gen_type%L, gen_type%L, bVal, &
                     1.0_dp, tempWeight)
 
                 branch_pgen = 1.0_dp
@@ -12680,7 +12679,7 @@ contains
 
                 call setDeltaB(-1,t)
 
-                call getDoubleMatrixElement(3, 2, 0, -1, -1, bVal, &
+                call getDoubleMatrixElement(3, 2, 0, gen_type%L, gen_type%L, bVal, &
                     1.0_dp, tempWeight)
 
 
@@ -12804,7 +12803,7 @@ contains
                     clr_orb(t, 2*semi)
 
                     ! order does not matter since only x0 matrix element
-                    call getDoubleMatrixElement(1,3,deltaB,1,1,bVal,&
+                    call getDoubleMatrixElement(1,3,deltaB,gen_type%R,gen_type%R,bVal,&
                         1.0_dp,tempWeight)
 
                     call setDeltaB(-1,t)
@@ -12814,7 +12813,7 @@ contains
                     ! then do 3->2: +1 branch(change from already set 1
                     clr_orb(t,2*semi - 1)
 
-                    call getDoubleMatrixElement(2,3,deltaB,1,1,bVal, &
+                    call getDoubleMatrixElement(2,3,deltaB,gen_type%R,gen_type%R,bVal, &
                         1.0_dp, tempWeight)
 
                     call setDeltaB(1,t)
@@ -12826,7 +12825,7 @@ contains
                 clr_orb(t, 2*semi)
 
                 ! order does not matter since only x0 matrix element
-                call getDoubleMatrixElement(1,3,deltaB,1,1,bVal,&
+                call getDoubleMatrixElement(1,3,deltaB,gen_type%R,gen_type%R,bVal,&
                     1.0_dp,tempWeight)
 
                 call setDeltaB(-1,t)
@@ -13115,11 +13114,11 @@ contains
         case (0)
             ! this implicates a raising st:
             if (isOne(exc,st)) then
-                call getDoubleMatrixElement(1,0,0,-1,1, currentB_ilut(st),&
+                call getDoubleMatrixElement(1,0,0,gen_type%L,gen_type%R, currentB_ilut(st),&
                     1.0_dp,x1_element = botCont)
 
             else
-                call getDoubleMatrixElement(2,0,0,-1,1,currentB_ilut(st),&
+                call getDoubleMatrixElement(2,0,0,gen_type%L,gen_type%R,currentB_ilut(st),&
                     1.0_dp, x1_element = botCont)
             end if
 
@@ -13197,7 +13196,7 @@ contains
             if (current_stepvector(iO) == 3 .or. currentB_int(iO) == 0) cycle
 
             step = current_stepvector(iO)
-            call getDoubleMatrixElement(step,step,-1,-1,+1,currentB_ilut(iO), &
+            call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,currentB_ilut(iO), &
                 1.0_dp,x1_element = prod)
 
             ! and then do the remaining:
@@ -13205,7 +13204,7 @@ contains
                 ! need the stepvalue entries to correctly access the mixed
                 ! generator matrix elements
                 step = current_stepvector(jO)
-                call getDoubleMatrixElement(step, step, 0, -1, +1,&
+                call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R,&
                     currentB_ilut(jO), 1.0_dp, x1_element = tempWeight)
 
                 prod = prod * tempWeight
@@ -13257,7 +13256,7 @@ contains
             do jO = en + 1, iO - 1
                 ! do stuff
                 step = current_stepvector(jO)
-                call getDoubleMatrixElement(step,step,0,-1,+1,currentB_ilut(jO),&
+                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(jO),&
                     1.0_dp,x1_element = tempWeight)
 
                 prod = prod * tempWeight
@@ -13339,7 +13338,7 @@ contains
 
             ASSERT(deltaB == -1)
 
-            if (gen == 1) then
+            if (gen == gen_type%R) then
                 clr_orb(t, 2*ende - 1)
 
                 tempWeight = getSingleMatrixElement(0, 1, deltaB, gen, bVal)
@@ -13362,7 +13361,7 @@ contains
             end if
             ASSERT(deltaB == 1)
 
-            if (gen == 1) then
+            if (gen == gen_type%R) then
                 ! for raising: 2 -> 0: clear alpha bit
                 clr_orb(t, 2*ende)
 
@@ -13610,9 +13609,9 @@ contains
         ASSERT(isProperCSF_ilut(ilut))
         ! also check if calculated b vector really fits to ilut
         ASSERT(all(currentB_ilut .isclose. calcB_vector_ilut(ilut(0:nifd))))
-        if (excitInfo%currentGen == 1) then
+        if (excitInfo%currentGen == gen_type%R) then
             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
-        else if (excitInfo%currentGen == -1) then
+        else if (excitInfo%currentGen == gen_type%L) then
             ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         end if
         ! also have checked if atleast on branch way can lead to an excitaiton
@@ -13628,7 +13627,7 @@ contains
         select case (current_stepvector(st))
         case (1)
             ! set corresponding orbital to 0 or 3 depending on generator type
-            if (gen == 1) then ! raising gen case
+            if (gen == gen_type%R) then ! raising gen case
                 ! set the alpha orbital also to 1 to make d=1 -> d'=3
                 set_orb(t, 2*st)
 
@@ -13654,7 +13653,7 @@ contains
             probWeight = 1.0_dp
 
         case (2)
-            if (gen == 1) then
+            if (gen == gen_type%R) then
                 set_orb(t, 2*st - 1)
 
                 ! matrix elements
@@ -13705,7 +13704,7 @@ contains
 
             if (genrand_real2_dSFMT() < probWeight) then
                 ! do the -1 branch
-                if (gen == 1) then
+                if (gen == gen_type%R) then
                     ASSERT(isZero(ilut,st))
                     ! set beta bit
                     set_orb(t, 2*st - 1)
@@ -13727,7 +13726,7 @@ contains
 
             else
                 ! do the +1 branch
-                if (gen == 1) then
+                if (gen == gen_type%R) then
                     ASSERT(isZero(ilut,st))
                     ! set alpha bit
                     set_orb(t, 2*st)
@@ -14007,14 +14006,6 @@ contains
         minusWeight = fullStart%F * fullStart%minus + nSwitches / max(1.0_dp,bval) &
             * (fullStart%G * fullStart%minus + fullStart%F * fullStart%plus) &
             + (max(nSwitches-1,0.0_dp) * fullStart%G * fullStart%plus / (max(1.0_dp,bval)**2))
-
-!         if (bVal < EPS) then
-!             minusWeight = fullStart%F * fullStart%minus + nSwitches * &
-!                 (fullStart%G * fullStart%plus + fullStart%F * fullStart%minus)
-!         else
-!             minusWeight = fullStart%F * fullStart%minus + nSwitches/bVal * &
-!                 (fullStart%G * fullStart%plus + fullStart%F * fullStart%minus)
-!         end if
 
         ASSERT(minusWeight >= 0.0_dp)
 
@@ -15353,12 +15344,7 @@ contains
         ! have to do some sort of abort_excitations funciton here too
         ASSERT(plusWeight + minusWeight > EPS)
 
-!         if (plusWeight + minusWeight < EPS) then
-!             call abort_excitation()
-!         end if
-
         if (current_stepvector(sOrb) == 1) then
-!         if (isOne(ilut, sOrb)) then
             ! if its a deltaB = -1 this is a switch possib, indepentent
             ! of the b-vector..
             ! have to loop over already created excitations
@@ -15574,9 +15560,9 @@ contains
 #ifdef DEBUG_
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
-        if (excitInfo%currentGen == 1) then
+        if (excitInfo%currentGen == gen_type%R) then
             ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
-        else if (excitInfo%currentGen == -1) then
+        else if (excitInfo%currentGen == gen_type%L) then
             ASSERT(.not.isThree(ilut,excitInfo%fullEnd))
         end if
 #endif
@@ -15656,7 +15642,7 @@ contains
 
             ! have to check generator type in this case, as both are possible
             ! and should do that outside of the loop as always the same...
-            if (gen == 1) then
+            if (gen == gen_type%R) then
                 do iEx = 1, nExcits
                     deltaB = getDeltaB(tempExcits(:,cnt))
                     if (deltaB == 1) then
@@ -15703,7 +15689,7 @@ contains
         case (2)
             cnt = 1
 
-            if (gen == 1) then
+            if (gen == gen_type%R) then
                 do iEx = 1, nExcits
                     deltaB = getDeltaB(tempExcits(:,cnt))
                     if (deltaB == -1) then
@@ -15794,9 +15780,9 @@ contains
         ASSERT(excitInfo%currentGen /= 0)
         ASSERT(isProperCSF_ilut(ilut))
         ! also check if calculated b vector really fits to ilut
-        if (excitInfo%currentGen == 1) then
+        if (excitInfo%currentGen == gen_type%R) then
             ASSERT(.not.isThree(ilut,excitInfo%fullStart))
-        else if (excitInfo%currentGen == -1) then
+        else if (excitInfo%currentGen == gen_type%L) then
             ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         end if
         ! also have checked if atleast on branch way can lead to an excitaiton
@@ -15804,7 +15790,6 @@ contains
 
         ! for more oversight
         st = excitInfo%fullStart
-!         ende = excitInfo%fullEnd
         gen = excitInfo%currentGen
         bVal = currentB_ilut(st)
 
@@ -15824,20 +15809,17 @@ contains
         ! for now just scratch it up in an inefficient way.. optimize later
         ! copy ilut into first row(or column?) of tempExcits
         tempExcits(:,1) = ilut
-!         call encode_det(tempExcits(0:niftot,1), ilut(0:nifdbo))
 
         ! i think determinants get initiated with zero matrix element, but not
         ! sure ... anyway set matrix element to 1
-!         call encode_part_sign(tempExcits(0:niftot,1), 1.0_dp, 1)
 
         ! maybe need temporary ilut storage
         t = ilut
         nExcits = 0
         select case (current_stepvector(st))
         case (1)
-!         if (isOne(ilut, st)) then
             ! set corresponding orbital to 0 or 3 depending on generator type
-            if (gen == 1) then ! raising gen case
+            if (gen == gen_type%R) then ! raising gen case
                 ! set the alpha orbital also to 1 to make d=1 -> d'=3
                 set_orb(t, 2*st)
 
@@ -15866,8 +15848,7 @@ contains
             tempExcits(:, nExcits) = t
 
         case (2)
-!         else if (isTwo(ilut, st)) then
-            if (gen == 1) then
+            if (gen == gen_type%R) then
                 set_orb(t, 2*st - 1)
 
                 ! matrix elements
@@ -15886,7 +15867,6 @@ contains
             tempExcits(:, nExcits) = t
 
         case (0,3)
-!         else ! 0/3 case -> have to check probWeights an bValue
             ! if the deltaB = -1 weights is > 0 this one always works
             ! write weight calculation function! is a overkill here,
             ! but makes it easier to use afterwards with stochastic excitaions
@@ -15901,12 +15881,9 @@ contains
             ! still have to do some abort excitation routine if both weights
             ! are 0
             ASSERT(minusWeight + plusWeight > EPS)
-!             if (minusWeight + plusWeight <EPS) then
-!                 call abort_excitation()
-!             end if
 
             if (minusWeight > 0.0_dp) then
-                if (gen == 1) then
+                if (gen == gen_type%R) then
                     ! set beta bit
                     set_orb(t, 2*st - 1)
 
@@ -15929,7 +15906,6 @@ contains
             end if
 
             ! if plusWeight and the bValue allows it also a deltaB=+1 branch
-!             if (plusWeight > 0.0_dp .and. bVal > 0.0_dp) then
             ! dont need bVal check anymore, since already implemented in
             ! weight calc.
             if (plusWeight > 0.0_dp) then
@@ -15937,7 +15913,7 @@ contains
                 ! reset t
                 t = ilut
 
-                if (gen == 1) then
+                if (gen == gen_type%R) then
                     ! set alpha bit
                     set_orb(t, 2*st)
 
@@ -17992,7 +17968,7 @@ contains
                 ! first do 1->1
                 call setDeltaB(0,t)
 
-                call getDoubleMatrixElement(1, 1, -1, -1, +1, &
+                call getDoubleMatrixElement(1, 1, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp, tempWeight, tempWeight_1)
 
                 call encode_matrix_element(t,tempWeight,1)
@@ -18007,7 +17983,7 @@ contains
 
                 call setDeltaB(2,t)
 
-                call getDoubleMatrixElement(2, 1, -1, -1, +1, &
+                call getDoubleMatrixElement(2, 1, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp, x1_element=tempWeight_1)
 
                 call encode_matrix_element(t,0.0_dp,1)
@@ -18021,7 +17997,7 @@ contains
                 ! only 0 branch possible
                 call setDeltaB(0,t)
 
-                call getDoubleMatrixElement(1, 1, -1, -1, +1, &
+                call getDoubleMatrixElement(1, 1, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp, tempWeight, tempWeight_1)
 
                 call encode_matrix_element(t,tempWeight,1)
@@ -18039,7 +18015,7 @@ contains
 
                 call setDeltaB(2,t)
 
-                call getDoubleMatrixElement(2, 1, -1, -1, +1, &
+                call getDoubleMatrixElement(2, 1, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp, x1_element=tempWeight_1)
 
                 call encode_matrix_element(t,0.0_dp,1)
@@ -18064,7 +18040,7 @@ contains
                 ! only 0 branch possible
                 call setDeltaB(0,t)
 
-                call getDoubleMatrixElement(2, 2, -1, -1, +1, &
+                call getDoubleMatrixElement(2, 2, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp, tempWeight, tempWeight_1)
 
                 call encode_matrix_element(t,tempWeight,1)
@@ -18078,7 +18054,7 @@ contains
                 ! both branches possible, ! do 0 first
                 call setDeltaB(0,t)
 
-                call getDoubleMatrixElement(2, 2, -1, -1, +1, &
+                call getDoubleMatrixElement(2, 2, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp,tempWeight, tempWeight_1)
 
                 call encode_matrix_element(t,tempWeight,1)
@@ -18092,7 +18068,7 @@ contains
 
                 call setDeltaB(-2,t)
 
-                call getDoubleMatrixElement(1, 2, -1, -1, +1, &
+                call getDoubleMatrixElement(1, 2, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp, x1_element = tempWeight_1)
 
                 call encode_matrix_element(t, 0.0_dp, 1)
@@ -18111,7 +18087,7 @@ contains
 
                 call setDeltaB(-2,t)
 
-                call getDoubleMatrixElement(1, 2, -1, -1, +1, &
+                call getDoubleMatrixElement(1, 2, -1, gen_type%L, gen_type%R, &
                     bVal, 1.0_dp, x1_element = tempWeight_1)
 
                 call encode_matrix_element(t, 0.0_dp, 1)
@@ -18244,7 +18220,7 @@ contains
                 ! then do 3->2: +1 branch
                 clr_orb(t, 2*semi-1)
 
-                call getDoubleMatrixElement(2,3,0,1,1,bVal, 1.0_dp, tempWeight)
+                call getDoubleMatrixElement(2,3,0,gen_type%R,gen_type%R,bVal, 1.0_dp, tempWeight)
 
                 call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
@@ -18267,7 +18243,7 @@ contains
             ! 1 -> 0
             clr_orb(t, 2*semi-1)
 
-            call getDoubleMatrixElement(0,1,0,1,1,bVal,1.0_dp,tempWeight)
+            call getDoubleMatrixElement(0,1,0,gen_type%R,gen_type%R,bVal,1.0_dp,tempWeight)
 
             call setDeltaB(1, t)
 
@@ -18286,7 +18262,7 @@ contains
             ! 2 -> 0
             clr_orb(t, 2*semi)
 
-            call getDoubleMatrixElement(0,2,0,1,1,bVal,1.0_dp,tempWeight)
+            call getDoubleMatrixElement(0,2,0,gen_type%R,gen_type%R,bVal,1.0_dp,tempWeight)
 
             call setDeltaB(-1,t)
 
@@ -18389,7 +18365,7 @@ contains
                 ! do 0->1 first -1 branch first
                 set_orb(t, 2*semi-1)
 
-                call getDoubleMatrixElement(1,0,0,-1,-1,bVal,  1.0_dp,tempWeight)
+                call getDoubleMatrixElement(1,0,0,gen_type%L,gen_type%L,bVal,  1.0_dp,tempWeight)
 
                 call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
@@ -18401,7 +18377,7 @@ contains
                 clr_orb(t,2*semi - 1)
                 set_orb(t, 2*semi)
 
-                call getDoubleMatrixElement(2,0,0,-1,-1,bVal,  1.0_dp, tempWeight)
+                call getDoubleMatrixElement(2,0,0,gen_type%L,gen_type%L,bVal,  1.0_dp, tempWeight)
 
                 call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
@@ -18417,7 +18393,7 @@ contains
                 ! do 0->1 first -1 branch first
                 set_orb(t, 2*semi-1)
 
-                call getDoubleMatrixElement(1,0,0,-1,-1,bVal,  1.0_dp,tempWeight)
+                call getDoubleMatrixElement(1,0,0,gen_type%L,gen_type%L,bVal,  1.0_dp,tempWeight)
 
                 call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
@@ -18432,7 +18408,7 @@ contains
                 ! then do 0->2: +1 branch
                 set_orb(t, 2*semi)
 
-                call getDoubleMatrixElement(2,0,0,-1,-1,bVal,  1.0_dp, tempWeight)
+                call getDoubleMatrixElement(2,0,0,gen_type%L,gen_type%L,bVal,  1.0_dp, tempWeight)
 
                 call encode_matrix_element(t, Root2*tempWeight*((-1.0_dp)**nOpen), 1)
 
@@ -19925,7 +19901,7 @@ contains
                 ! change 1 -> 0
                 clr_orb(t, 2*iOrb - 1)
 
-                call getDoubleMatrixElement(0, 1, -1, -1, -1, &
+                call getDoubleMatrixElement(0, 1, -1, gen_type%L, gen_type%L, &
                 bVal, excitInfo%order, tempWeight)
 
                 call update_matrix_element(t, tempWeight, 1)
@@ -19946,7 +19922,7 @@ contains
                 ! change 2 -> 0
                 clr_orb(t, 2*iOrb)
 
-                call getDoubleMatrixElement(0, 2, +1, -1, -1, &
+                call getDoubleMatrixElement(0, 2, +1, gen_type%L, gen_type%L, &
                     bVal, 1.0_dp, tempWeight)
 
                 call update_matrix_element(t, tempWeight, 1)
@@ -19976,14 +19952,14 @@ contains
                     ! change 3->2
                     clr_orb(t, 2*iOrb - 1)
 
-                    call getDoubleMatrixElement(2, 3, deltaB, -1, -1, &
+                    call getDoubleMatrixElement(2, 3, deltaB, gen_type%L, gen_type%L, &
                         bVal, 1.0_dp, tempWeight)
 
                 else
                     ! change 3->1
                     clr_orb(t, 2*iOrb)
 
-                    call getDoubleMatrixElement(1, 3, deltaB, -1, -1, &
+                    call getDoubleMatrixElement(1, 3, deltaB, gen_type%L, gen_type%L, &
                         bVal, 1.0_dp, tempWeight)
 
                 end if
@@ -20109,7 +20085,7 @@ contains
                 ! change 2 -> 3
                 set_orb(t, 2*iOrb - 1)
 
-                call getDoubleMatrixElement(3,2,+1,1,1,bVal, &
+                call getDoubleMatrixElement(3,2,+1,gen_type%R,gen_type%R,bVal, &
                     1.0_dp, tempWeight)
 
                 call update_matrix_element(t, tempWeight, 1)
@@ -20139,14 +20115,14 @@ contains
                     ! change 0->2
                     set_orb(t, 2*iOrb)
 
-                    call getDoubleMatrixElement(2,0,deltaB,1,1,bVal,&
+                    call getDoubleMatrixElement(2,0,deltaB,gen_type%R,gen_type%R,bVal,&
                         1.0_dp, tempWeight)
 
                 else
                     ! change 0->1
                     set_orb(t, 2*iOrb - 1)
 
-                    call getDoubleMatrixElement(1,0,deltaB,1,1,&
+                    call getDoubleMatrixElement(1,0,deltaB,gen_type%R,gen_type%R,&
                         bVal, 1.0_dp, tempWeight)
 
                 end if
@@ -20214,8 +20190,8 @@ contains
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(excitInfo%typ==excit_type%single_overlap_lowering)
-        ASSERT(excitInfo%firstGen==-1)
-        ASSERT(excitInfo%lastGen==-1)
+        ASSERT(excitInfo%firstGen==gen_type%L)
+        ASSERT(excitInfo%lastGen==gen_type%L)
 
         excitInfo%currentGen = excitInfo%firstGen
         ! have to make specific single start to correctly adress the weights
@@ -20309,8 +20285,8 @@ contains
 
         ASSERT(isProperCSF_ilut(ilut))
         ASSERT(excitInfo%typ==excit_type%single_overlap_raising)
-        ASSERT(excitInfo%firstGen== 1)
-        ASSERT(excitInfo%lastGen== 1)
+        ASSERT(excitInfo%firstGen== gen_type%R)
+        ASSERT(excitInfo%lastGen== gen_type%R)
 
         se = excitInfo%secondStart
         en = excitInfo%fullEnd
@@ -20494,7 +20470,7 @@ contains
         ! at single overlap site depending on which generator ends or start
         iOrb = excitInfo%secondStart
 
-        if (excitInfo%firstGen == -1) then
+        if (excitInfo%firstGen == gen_type%L) then
             ! lowering ends
             ASSERT(isZero(ilut,iOrb))
 
@@ -21637,11 +21613,11 @@ contains
 
         if (orb_a < orb_i) then
             ! raising generator
-            excitInfo = assign_excitInfo_values_single(1, orb_a, orb_i, orb_a, orb_i)
+            excitInfo = assign_excitInfo_values_single(gen_type%R, orb_a, orb_i, orb_a, orb_i)
 
         else
             ! lowering generator
-            excitInfo = assign_excitInfo_values_single(-1, orb_a, orb_i, orb_i, orb_a)
+            excitInfo = assign_excitInfo_values_single(gen_type%L, orb_a, orb_i, orb_i, orb_a)
 
         end if
 
@@ -21881,7 +21857,7 @@ contains
 
         else
             ! lowering generator
-            excitInfo = assign_excitInfo_values_single(-1, orb_a, orb_i, orb_i, orb_a)
+            excitInfo = assign_excitInfo_values_single(gen_type%L, orb_a, orb_i, orb_i, orb_a)
 
         end if
 
@@ -22514,7 +22490,7 @@ contains
                         ! _RR_(ab) > ^RR(i) > ^R(j)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstart_raising, &
-                            1,1,1,1,1,&
+                            1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                             orb_a,n_id(1),orb_a,n_id(2),orb_a,orb_a,n_id(1),n_id(2),&
                             0,2,1.0_dp,1.0_dp)
                     end if
@@ -22528,7 +22504,7 @@ contains
                             ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_R_to_L_to_R, &
-                                -1,1,1,1,-1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                 orb_a,n_id(2),orb_b,n_id(1),orb_a,n_id(1),n_id(2),orb_b,&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22540,7 +22516,7 @@ contains
                             ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_raising, &
-                                1,1,1,1,1,&
+                                1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 en,n_id(2),st,n_id(1),st,en,n_id(1),n_id(2),&
                                 0,4,1.0_dp,1.0_dp)
                         else
@@ -22548,7 +22524,7 @@ contains
                             ! _R(a) > _LR(i) > ^LR(b) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_R_to_L_to_R, &
-                                -1,1,1,1,1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 orb_a,n_id(2),orb_b,n_id(1),orb_a,n_id(1),orb_b,n_id(2), &
                                 0,4,1.0_dp,1.0_dp)
                         end if
@@ -22579,7 +22555,7 @@ contains
 
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%fullstart_stop_mixed, &
-                -1,1,1,1,1,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                 n_id(1),n_id(2),n_id(2),n_id(1),n_id(1),n_id(1),n_id(2),n_id(2),&
                 0,2,1.0_dp,1.0_dp)
 
@@ -22623,7 +22599,7 @@ contains
                         ! _L(i) > ^LR_(ab) > ^R(j)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%single_overlap_L_to_R, &
-                            -1,1,-1,-1,1,&
+                            gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                             orb_a,n_id(1),orb_a,n_id(2),n_id(1),orb_a,orb_a,n_id(2),&
                             0,2,1.0_dp,1.0_dp,1)
                     end if
@@ -22637,7 +22613,7 @@ contains
                             ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_R_to_L_to_R, &
-                                -1,1,1,1,1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 orb_b,n_id(2),orb_a,n_id(1),orb_b,n_id(1),orb_a,n_id(2),&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22645,7 +22621,7 @@ contains
                             ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_L_to_R_to_L, &
-                                -1,1,-1,-1,-1,&
+                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                 orb_b,n_id(1),orb_a,n_id(2),n_id(1),orb_a,n_id(2),orb_b,&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22655,7 +22631,7 @@ contains
                             ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_L_to_R, &
-                                -1,1,-1,-1,1,&
+                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                 en,n_id(1),st,n_id(2),n_id(1),st,en,n_id(2),&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22687,7 +22663,7 @@ contains
 
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%fullstart_stop_mixed, &
-                -1,1,1,1,1,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                 n_id(1),n_id(2),n_id(2),n_id(1),n_id(1),n_id(1),n_id(2),n_id(2),&
                 0,2,1.0_dp,1.0_dp)
 
@@ -22730,7 +22706,7 @@ contains
                         ! _L(i) > _LL(j) > ^LL^(ab)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstop_lowering, &
-                            -1,-1,-1,-1,-1,&
+                            gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                             orb_a,n_id(1),orb_b,n_id(2),n_id(1),n_id(2),orb_a,orb_a,&
                             0,2,1.0_dp,1.0_dp)
                     end if
@@ -22744,7 +22720,7 @@ contains
                             ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_R_to_L, &
-                                -1,1,1,1,-1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                 orb_b,n_id(2),orb_a,n_id(1),orb_b,n_id(1),n_id(2),orb_a, &
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22754,14 +22730,14 @@ contains
                             ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_lowering, &
-                                -1,-1,-1,-1,-1,&
+                                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                 st,n_id(1),en,n_id(2),n_id(1),n_id(2),st,en,&
                                 0,4,1.0_dp,1.0_dp)
                         else
                             ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_L_to_R_to_L, &
-                                -1,1,-1,-1,-1,&
+                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                 orb_a,n_id(1),orb_b,n_id(2),n_id(1),orb_b,n_id(2),orb_a,&
                                 0,4,1.0_dp,1.0_dp)
                         end if
@@ -22833,7 +22809,7 @@ contains
                         ! _RR_(ab) > ^RR(i) > ^R(j)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstart_raising, &
-                            1,1,1,1,1,&
+                            1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                             orb_a,n_id(1),orb_a,n_id(2),orb_a,orb_a,n_id(1),n_id(2),&
                             0,2,1.0_dp,1.0_dp)
 
@@ -22848,7 +22824,7 @@ contains
                             ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_R_to_L, &
-                                -1,1,1,1,-1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                 orb_a,n_id(2),orb_b,n_id(1),orb_a,n_id(1),n_id(2),orb_b,&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22860,7 +22836,7 @@ contains
                                 ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_raising, &
-                                    1,1,1,1,1,&
+                                    1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                     en,n_id(2),st,n_id(1),st,en,n_id(1),n_id(2),&
                                     0,4,1.0_dp,1.0_dp)
                         else
@@ -22868,7 +22844,7 @@ contains
                             ! _R(a) > _LR(i) > ^LR(b) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_R_to_L_to_R, &
-                                -1,1,1,1,1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 orb_a,n_id(2),orb_b,n_id(1),orb_a,n_id(1),orb_b,n_id(2), &
                                 0,4,1.0_dp,1.0_dp)
                         end if
@@ -22909,7 +22885,7 @@ contains
                         ! _L(i) > ^LR_(ab) > ^R(j)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%single_overlap_L_to_R, &
-                            -1,1,-1,-1,1,&
+                            gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                             orb_a,n_id(1),orb_a,n_id(2),n_id(1),orb_a,orb_a,n_id(2),&
                             0,2,1.0_dp,1.0_dp,1)
 
@@ -22924,7 +22900,7 @@ contains
                             ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_R_to_L_to_R, &
-                                -1,1,1,1,1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 orb_b,n_id(2),orb_a,n_id(1),orb_b,n_id(1),orb_a,n_id(2),&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22932,7 +22908,7 @@ contains
                             ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_L_to_R_to_L, &
-                                -1,1,-1,-1,-1,&
+                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                 orb_b,n_id(1),orb_a,n_id(2),n_id(1),orb_a,n_id(2),orb_b,&
                                 0,4,1.0_dp,1.0_dp)
 
@@ -22942,7 +22918,7 @@ contains
                                 ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_L_to_R, &
-                                    -1,1,-1,-1,1,&
+                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                     en,n_id(1),st,n_id(2),n_id(1),st,en,n_id(2),&
                                     0,4,1.0_dp,1.0_dp)
 
@@ -22987,7 +22963,7 @@ contains
                         ! _L(i) > _LL(j) > ^LL^(ab)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstop_lowering, &
-                            -1,-1,-1,-1,-1,&
+                            gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                             orb_a,n_id(1),orb_b,n_id(2),n_id(1),n_id(2),orb_a,orb_a,&
                             0,2,1.0_dp,1.0_dp)
                     end if
@@ -23001,7 +22977,7 @@ contains
                             ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_R_to_L, &
-                                -1,1,1,1,-1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                 orb_b,n_id(2),orb_a,n_id(1),orb_b,n_id(1),n_id(2),orb_a, &
                                 0,4,1.0_dp,1.0_dp)
 
@@ -23011,14 +22987,14 @@ contains
                                 ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_lowering, &
-                                    -1,-1,-1,-1,-1,&
+                                    gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                     st,n_id(1),en,n_id(2),n_id(1),n_id(2),st,en,&
                                     0,4,1.0_dp,1.0_dp)
                         else
                             ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_L_to_R_to_L, &
-                                -1,1,-1,-1,-1,&
+                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                 orb_a,n_id(1),orb_b,n_id(2),n_id(1),orb_b,n_id(2),orb_a,&
                                 0,4,1.0_dp,1.0_dp)
                         end if
@@ -23113,7 +23089,7 @@ contains
                         ! _RR_(ab) > ^RR^(ij)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstart_stop_alike, &
-                            1,1,1,1,1,&
+                            1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                             a,i,a,i,a,a,i,i,0,2,1.0_dp,1.0_dp)
 
                         ! use uniform, since all the integrals are equal
@@ -23159,7 +23135,7 @@ contains
                                 ! _R(a) > ^RL_(ij) > ^L(b)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%single_overlap_R_to_L, &
-                                    -1,1,1,1,-1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                     b,i,a,i,a,i,i,b,&
                                     0,2,1.0_dp,1.0_dp,1)
 
@@ -23170,7 +23146,7 @@ contains
                                 ! _R(min) > _RR(max) > ^RR^(ij)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstop_raising, &
-                                    1,1,1,1,1,&
+                                    1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                     st,i,en,i,st,en,i,i,0,2,1.0_dp,1.0_dp)
                             end if
                         end if
@@ -23219,7 +23195,7 @@ contains
                         ! _LL_(ij) > ^LL^(ab)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstart_stop_alike, &
-                            -1,-1,-1,-1,-1,&
+                            gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                             a,i,a,i,i,i,a,a,0,2,1.0_dp,1.0_dp)
 
                         ! same convention as above since only one entry
@@ -23252,7 +23228,7 @@ contains
                                 ! _R(b) > ^RL_(ij) > ^L(a)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%single_overlap_R_to_L, &
-                                    -1,1,1,1,-1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                     a,i,b,i,b,i,i,a,&
                                     0,2,1.0_dp,1.0_dp,1)
 
@@ -23261,7 +23237,7 @@ contains
                                 ! _LL_(ij) > ^LL(min) > ^L(max)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstart_lowering, &
-                                    -1,-1,-1,-1,-1,&
+                                    gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                     st,i,en,i,i,i,st,en,0,2,1.0_dp,1.0_dp)
                             end if
                         end if
@@ -23427,14 +23403,14 @@ contains
                      !_LL_(ij) > ^LL^(ab)
                      excitInfo = assign_excitInfo_values_double(&
                          excit_type%fullstart_stop_alike, &
-                         -1,-1,-1,-1,-1, &
+                         gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L, &
                          b,i,b,i,i,i,b,b,0,2,1.0_dp,1.0_dp)
 
                  else
                      ! _RR_(ab) > ^RR^(ij)
                      excitInfo = assign_excitInfo_values_double(&
                          excit_type%fullstart_stop_alike, &
-                         1,1,1,1,1,&
+                         1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                          a,i,a,i,a,a,i,i,0,2,1.0_dp,1.0_dp)
                  end if
              else
@@ -23442,21 +23418,21 @@ contains
                      ! _LL_(ij) > ^LL(min(a,b)) -> ^L(max(a,b))
                      excitInfo = assign_excitInfo_values_double(&
                          excit_type%fullstart_lowering, &
-                         -1,-1,-1,-1,-1,&
+                         gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                          en,i,st,i,i,i,st,en,0,2,1.0_dp,1.0_dp,2)
 
                  else if (a < i .and. b < i) then
                      ! _R(min(a,b)) > _RR(max(a,b) > ^RR^(ij)
                      excitInfo = assign_excitInfo_values_double(&
                          excit_type%fullstop_raising, &
-                         1,1,1,1,1,&
+                         1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                          st,i,en,i,st,en,i,i,0,2,1.0_dp,1.0_dp,2)
 
                  else
                      ! _R(min(a,b)) > ^RL_(i) > ^L(max(a,b))
                      excitInfo = assign_excitInfo_values_double(&
                          excit_type%single_overlap_R_to_L, &
-                         1,-1,1,1,-1,&
+                         1,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
                          st,i,en,i,st,i,i,en,0,2,1.0_dp,1.0_dp,1)
 
                  end if
@@ -23516,21 +23492,21 @@ contains
                             ! _L(i) -> _LL(j) > ^LL^(ab)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstop_lowering, &
-                                -1,-1,-1,-1,-1,&
+                                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                 a,i,a,j,i,j,a,a,0,2,1.0_dp,1.0_dp,2)
 
                         else if (a < i) then
                             ! _RR_(ab) > ^RR(i) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstart_raising, &
-                                1,1,1,1,1,&
+                                1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 a,i,a,j,a,a,i,j,0,2,1.0_dp,1.0_dp,2)
 
                         else
                             ! _L(i) > ^LR_(ab) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%single_overlap_L_to_R, &
-                                -1,1,-1,-1,1,&
+                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                 a,i,a,j,i,a,a,j,0,2,1.0_dp,1.0_dp,1)
 
                         end if
@@ -23543,19 +23519,19 @@ contains
                                 ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_lowering, &
-                                    -1,-1,-1,-1,-1,&
+                                    gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                     st,i,en,j,i,j,st,en,0,4,1.0_dp,1.0_dp)
                             else if (st < i) then
                                 ! _R(min) > _LR(i) > ^RL(j) > ^L(max)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_R_to_L, &
-                                    -1,1,1,1,-1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                     st,j,en,i,st,i,j,en,0,4,1.0_dp,1.0_dp)
                             else
                                 ! _L(i) > _RL(min) > ^RL(j) > ^L(max)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_L_to_R_to_L, &
-                                    -1,1,-1,-1,-1,&
+                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                     en,i,st,j,i,st,j,en,0,4,1.0_dp,1.0_dp)
 
                             end if
@@ -23564,7 +23540,7 @@ contains
                             ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%double_raising, &
-                                1,1,1,1,1,&
+                                1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 st,j,en,i,st,en,i,j,0,4,1.0_dp,1.0_dp)
 
                         else
@@ -23572,13 +23548,13 @@ contains
                                 ! _R(min) > _LR(i) > ^LR(max) > ^R(j)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_R_to_L_to_R, &
-                                    -1,1,1,1,1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                     st,j,i,en,st,i,en,j,0,4,1.0_dp,1.0_dp)
                             else
                                 ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_L_to_R, &
-                                    -1,1,-1,-1,1,&
+                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                     i,en,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
                             end if
                         end if
@@ -23616,14 +23592,14 @@ contains
                             ! _R(b) > _LR(i) > ^RL^(ja)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstop_R_to_L, &
-                                -1,1,1,1,1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 b,j,j,i,b,i,j,j,0,4,1.0_dp,1.0_dp)
 
                         else
                             ! _L(i) > _RL(b) > ^RL^(ja)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstop_L_to_R, &
-                                -1,1,-1,-1,-1,&
+                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                 j,i,b,j,i,b,j,j,0,4,1.0_dp,1.0_dp)
 
                         end if
@@ -23653,7 +23629,7 @@ contains
                                      ! _L(i) > _LL(j) > ^LL^(ab)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%fullstop_lowering, &
-                                         -1,-1,-1,-1,-1,&
+                                         gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                          a,i,a,j,i,j,a,a,0,4,1.0_dp,1.0_dp)
 
                                  else
@@ -23662,7 +23638,7 @@ contains
                                      ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%double_lowering, &
-                                         -1,-1,-1,-1,-1,&
+                                         gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                          st,i,en,j,i,j,st,en,0,4,1.0_dp,1.0_dp)
 
                                  end if
@@ -23675,14 +23651,14 @@ contains
                                      ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%double_R_to_L, &
-                                         -1,1,1,1,-1,&
+                                         gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                          b,j,a,i,b,i,j,a,0,4,1.0_dp,1.0_dp)
 
                                  else
                                      ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%double_L_to_R_to_L, &
-                                         -1,1,-1,-1,-1,&
+                                         gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                          a,i,b,j,i,b,j,a,0,4,1.0_dp,1.0_dp)
 
                                  end if
@@ -23706,14 +23682,14 @@ contains
                                      ! _R(a) > _LR(i) > ^RL^(jb)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%fullstop_R_to_L, &
-                                         -1,1,1,1,1,&
+                                         gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                          a,j,j,i,a,i,j,j,0,2,1.0_dp,1.0_dp)
 
                                  else
                                      ! _L(i) > _RL(a) > ^RL^(jb)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%fullstop_L_to_R, &
-                                         -1,1,-1,-1,-1,&
+                                         gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                          j,i,a,j,i,a,j,j,0,2,1.0_dp,1.0_dp)
 
                                  end if
@@ -23727,14 +23703,14 @@ contains
                                          ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
                                          excitInfo = assign_excitInfo_values_double(&
                                              excit_type%double_R_to_L, &
-                                             -1,1,1,1,-1,&
+                                             gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                              a,j,b,i,a,i,j,b,0,4,1.0_dp,1.0_dp)
 
                                      else
                                          ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
                                          excitInfo = assign_excitInfo_values_double(&
                                              excit_type%double_L_to_R_to_L, &
-                                             -1,1,-1,-1,-1,&
+                                             gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                              b,i,a,j,i,a,j,b,0,4,1.0_dp,1.0_dp)
 
                                      end if
@@ -23748,13 +23724,13 @@ contains
                                              ! _RR_(ab) > ^RR(i) > ^R(j)
                                              excitInfo = assign_excitInfo_values_double(&
                                                  excit_type%fullstart_raising, &
-                                                 1,1,1,1,1,&
+                                                 1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                                  a,i,a,j,a,a,i,j,0,2,1.0_dp,1.0_dp)
                                          else
                                              ! _L(i) > ^LR_(ab) > ^R(j)
                                              excitInfo = assign_excitInfo_values_double(&
                                                  excit_type%single_overlap_L_to_R, &
-                                                 -1,1,-1,-1,1,&
+                                                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                                  a,i,a,j,i,a,a,j,0,2,1.0_dp,1.0_dp,1)
                                          end if
                                      else
@@ -23766,7 +23742,7 @@ contains
                                              ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
                                              excitInfo = assign_excitInfo_values_double(&
                                                  excit_type%double_raising, &
-                                                 1,1,1,1,1,&
+                                                 1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                                  st,i,en,j,st,en,i,j,0,4,1.0_dp,1.0_dp)
 
                                          else
@@ -23774,14 +23750,14 @@ contains
                                                  ! _R(min) > _LR(i) > ^LR(max) > ^R(j)
                                                  excitInfo = assign_excitInfo_values_double(&
                                                      excit_type%double_R_to_L_to_R, &
-                                                     -1,1,1,1,1,&
+                                                     gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                                      st,j,en,i,st,i,en,j,0,4,1.0_dp,1.0_dp)
 
                                              else
                                                  ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
                                                  excitInfo = assign_excitInfo_values_double(&
                                                      excit_type%double_L_to_R, &
-                                                     -1,1,-1,-1,1,&
+                                                     gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                                      en,i,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
                                              end if
                                          end if
@@ -23818,14 +23794,14 @@ contains
                              ! _RL_(ia) > ^RL(j) > ^L(b)
                              excitInfo = assign_excitInfo_values_double(&
                                  excit_type%fullstart_R_to_L, &
-                                 -1,1,-1,-1,-1,&
+                                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                  b,i,i,j,i,i,j,b,0,2,1.0_dp,1.0_dp)
 
                          else
                              ! _RL_(ia) > ^LR(b) > ^R(j)
                              excitInfo = assign_excitInfo_values_double(&
                                  excit_type%fullstart_L_to_R, &
-                                 -1,1,1,1,1,&
+                                 gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                  b,i,i,j,i,i,b,j,0,2,1.0_dp,1.0_dp)
                          end if
 
@@ -23850,7 +23826,7 @@ contains
                                      ! _RR_(ab) > ^RR(i) > ^R(j)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%fullstart_raising, &
-                                         1,1,1,1,1,&
+                                         1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                          a,i,a,j,a,a,i,j,0,2,1.0_dp,1.0_dp)
                                  else
                                      st = min(a,b)
@@ -23859,7 +23835,7 @@ contains
                                      ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%double_raising, &
-                                         1,1,1,1,1,&
+                                         1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                          en,i,st,j,st,en,i,j,0,4,1.0_dp,1.0_dp)
                                  end if
                              else
@@ -23871,14 +23847,14 @@ contains
                                      ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%double_R_to_L, &
-                                         -1,1,1,1,-1,&
+                                         gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                          a,j,b,i,a,i,j,b,0,4,1.0_dp,1.0_dp)
 
                                  else
                                      ! _R(a) > _LR(i)> ^LR(b) > ^R(j)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%double_R_to_L_to_R, &
-                                         -1,1,1,1,1,&
+                                         gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                          a,j,b,i,a,i,b,j,0,4,1.0_dp,1.0_dp)
 
                                  end if
@@ -23902,14 +23878,14 @@ contains
                                      ! _RL_(ib) > ^RL(j) > ^L(a)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%fullstart_R_to_L, &
-                                         -1,1,-1,-1,-1,&
+                                         gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                          i,j,a,i,i,i,j,a,0,2,1.0_dp,1.0_dp)
 
                                  else
                                      ! _RL_(ib) > ^LR(a) > ^R(j)
                                      excitInfo = assign_excitInfo_values_double(&
                                          excit_type%fullstart_L_to_R, &
-                                         -1,1,1,1,1,&
+                                         gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                          i,j,a,i,i,i,a,j,0,2,1.0_dp,1.0_dp)
 
                                  end if
@@ -23924,14 +23900,14 @@ contains
                                         ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
                                         excitInfo = assign_excitInfo_values_double(&
                                             excit_type%double_R_to_L, &
-                                            -1,1,1,1,-1,&
+                                            gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                             b,j,a,i,b,i,j,a,0,4,1.0_dp,1.0_dp)
 
                                     else
                                         ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
                                         excitInfo = assign_excitInfo_values_double(&
                                             excit_type%double_R_to_L_to_R, &
-                                            -1,1,1,1,1,&
+                                            gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                             b,j,a,i,b,i,a,j,0,4,1.0_dp,1.0_dp)
 
                                     end if
@@ -23946,14 +23922,14 @@ contains
                                             ! _L(i) > _LL(j) > ^LL^(ab)
                                             excitInfo = assign_excitInfo_values_double(&
                                                 excit_type%fullstop_lowering, &
-                                                -1,-1,-1,-1,-1,&
+                                                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                                 a,i,a,j,i,j,a,a,0,2,1.0_dp,1.0_dp)
 
                                         else
                                             ! _L(i) > ^LR_(ab) > ^R(j)
                                             excitInfo = assign_excitInfo_values_double(&
                                                 excit_type%single_overlap_L_to_R, &
-                                                -1,1,-1,-1,1,&
+                                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                                 a,i,a,j,i,a,a,j,0,2,1.0_dp,1.0_dp,1)
 
                                         end if
@@ -23967,7 +23943,7 @@ contains
                                             ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
                                             excitInfo = assign_excitInfo_values_double(&
                                                 excit_type%double_lowering, &
-                                                -1,-1,-1,-1,-1,&
+                                                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                                 st,i,en,j,i,j,st,en,0,4,1.0_dp,1.0_dp)
 
                                         else
@@ -23975,14 +23951,14 @@ contains
                                                 ! _L(i) > _RL(min) > ^RL(j) > ^L(max)
                                                 excitInfo = assign_excitInfo_values_double(&
                                                     excit_type%double_L_to_R_to_L, &
-                                                    -1,1,-1,-1,-1,&
+                                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                                     en,i,st,j,i,st,j,en,0,4,1.0_dp,1.0_dp)
 
                                             else
                                                 ! _L(i) > _RL(min) ^LR(max) > ^R(j)
                                                 excitInfo = assign_excitInfo_values_double(&
                                                     excit_type%double_L_to_R, &
-                                                    -1,1,-1,-1,1,&
+                                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                                     en,i,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
 
                                             end if
@@ -24031,7 +24007,7 @@ contains
                             ! _RL_(ib) > ^RL^(ja)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstart_stop_mixed, &
-                                -1,1,1,1,1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 i,j,j,i,i,i,j,j,0,2,1.0_dp,1.0_dp)
 
                         else
@@ -24045,7 +24021,7 @@ contains
                                 ! _R(b) > _LR(i) > ^RL^(ja)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstop_R_to_L, &
-                                    -1,1,1,1,1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                     b,j,j,i,b,i,j,j,0,2,1.0_dp,1.0_dp)
 
                             else
@@ -24056,7 +24032,7 @@ contains
                                 ! _L(i) > _RL(b) > ^RL^(ja)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstop_L_to_R, &
-                                    -1,1,-1,-1,1,&
+                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                     j,i,b,j,i,b,j,j,0,2,1.0_dp,1.0_dp)
 
                             end if
@@ -24097,7 +24073,7 @@ contains
                             ! _RL_(ia) > ^RL^(jb)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstart_stop_mixed, &
-                                -1,1,1,1,1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 j,i,i,j,i,i,j,j,0,2,1.0_dp,1.0_dp)
                         else
                             if (b  > j) then
@@ -24108,7 +24084,7 @@ contains
                                 ! _RL_(ia) > ^RL(j) > ^L(b)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstart_R_to_L, &
-                                    -1,1,-1,-1,-1,&
+                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                     i,j,b,i,i,i,j,b,0,2,1.0_dp,1.0_dp)
 
                             else
@@ -24119,7 +24095,7 @@ contains
                                 ! _RL_(ia) > ^LR(b) > ^R(j)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstart_L_to_R, &
-                                    -1,1,1,1,1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                     i,j,b,i,i,i,b,j,0,2,1.0_dp,1.0_dp)
 
                             end if
@@ -24162,7 +24138,7 @@ contains
                                 ! _RL_(ib) > ^RL(j) > ^L(a)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstart_R_to_L, &
-                                    -1,1,-1,-1,-1,&
+                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                     i,j,a,i,i,i,j,a,0,2,1.0_dp,1.0_dp)
 
                             else
@@ -24174,7 +24150,7 @@ contains
                                     ! _R(b) > _LR(i) > ^RL(j) > ^L(a)
                                     excitInfo = assign_excitInfo_values_double(&
                                         excit_type%double_R_to_L, &
-                                        -1,1,1,1,-1,&
+                                        gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                         b,j,a,i,b,i,j,a,0,4,1.0_dp,1.0_dp)
 
                                 else if (b > j) then
@@ -24190,7 +24166,7 @@ contains
                                         ! _L(i) -> _LL(j) > ^LL^(a,b)
                                         excitInfo = assign_excitInfo_values_double(&
                                             excit_type%fullstop_lowering, &
-                                            -1,-1,-1,-1,-1,&
+                                            gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                             a,i,a,j,i,j,a,a,0,2,1.0_dp,1.0_dp,2)
 
                                     else
@@ -24206,7 +24182,7 @@ contains
                                         ! _L(i) > _LL(j) > ^LL(min) > ^L(max)
                                         excitInfo = assign_excitInfo_values_double(&
                                             excit_type%double_lowering, &
-                                            -1,-1,-1,-1,-1,&
+                                            gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                             st,i,en,j,i,j,st,en,0,4,1.0_dp,1.0_dp)
                                     end if
 
@@ -24218,7 +24194,7 @@ contains
                                     ! _L(i) > _RL(b) > ^RL(j) > ^L(a)
                                     excitInfo = assign_excitInfo_values_double(&
                                         excit_type%double_L_to_R_to_L, &
-                                        -1,1,-1,-1,-1,&
+                                        gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                         a,i,b,j,i,b,j,a,0,4,1.0_dp,1.0_dp)
 
                                 end if
@@ -24263,7 +24239,7 @@ contains
                                 ! _R(a) > _LR(i) > ^RL^(jb)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstop_R_to_L, &
-                                    -1,1,1,1,1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                     a,j,j,i,a,i,j,j,0,2,1.0_dp,1.0_dp)
 
                             else
@@ -24274,7 +24250,7 @@ contains
                                     ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
                                     excitInfo = assign_excitInfo_values_double(&
                                         excit_type%double_R_to_L, &
-                                        -1,1,1,1,-1,&
+                                        gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                         a,j,b,i,a,i,j,b,0,4,1.0_dp,1.0_dp)
 
                                 else if (b < i) then
@@ -24287,7 +24263,7 @@ contains
                                         ! _RR_(ab) > ^RR(i) > ^R(j)
                                         excitInfo = assign_excitInfo_values_double(&
                                             excit_type%fullstart_raising, &
-                                            1,1,1,1,1,&
+                                            1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                             a,i,a,j,a,a,i,j,0,2,1.0_dp,1.0_dp,2)
                                     else
 
@@ -24302,7 +24278,7 @@ contains
                                         ! _R(min) > _RR(max) > ^RR(i) > ^R(j)
                                         excitInfo = assign_excitInfo_values_double(&
                                             excit_type%double_raising, &
-                                            1,1,1,1,1,&
+                                            1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                             en,j,st,i,st,en,i,j,0,4,1.0_dp,1.0_dp)
                                     end if
 
@@ -24314,7 +24290,7 @@ contains
                                     ! _R(a) > _LR(i) > ^LR(b) > ^R(j)
                                     excitInfo = assign_excitInfo_values_double(&
                                         excit_type%double_R_to_L_to_R, &
-                                        -1,1,1,1,1,&
+                                        gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                         a,j,b,i,a,i,b,j,0,4,1.0_dp,1.0_dp)
 
                                 end if
@@ -24336,7 +24312,7 @@ contains
                                 ! _R(b) > _LR(i) > ^LR(a) > ^R(j)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_R_to_L_to_R, &
-                                    -1,1,1,1,1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                     b,j,a,i,b,i,a,j,0,4,1.0_dp,1.0_dp)
 
                             else if (b > j) then
@@ -24347,7 +24323,7 @@ contains
                                 ! _L(i) > _RL(a) > ^RL(j) > ^L(b)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_L_to_R_to_L, &
-                                    -1,1,-1,-1,-1,&
+                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                     b,i,a,j,i,a,j,b,0,4,1.0_dp,1.0_dp)
 
                             else
@@ -24361,7 +24337,7 @@ contains
                                     ! _L(i) > ^LR_(ab) > ^R(j)
                                     excitInfo = assign_excitInfo_values_double(&
                                         excit_type%single_overlap_L_to_R, &
-                                        -1,1,-1,-1,1,&
+                                        gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                         a,i,a,j,i,a,a,j,0,2,1.0_dp,1.0_dp,1)
 
                                 else if (b == i) then
@@ -24372,7 +24348,7 @@ contains
                                     ! _RL_(ib) > ^LR(a) > ^R(j)
                                     excitInfo = assign_excitInfo_values_double(&
                                         excit_type%fullstart_L_to_R, &
-                                        -1,1,1,1,1,&
+                                        gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                         i,j,a,i,i,i,a,j,0,2,1.0_dp,1.0_dp)
 
                                 else if (b == j) then
@@ -24383,7 +24359,7 @@ contains
                                     ! _L(i) > _RL(a) > ^RL^(jb)
                                     excitInfo = assign_excitInfo_values_double(&
                                         excit_type%fullstop_L_to_R, &
-                                        -1,1,-1,-1,1,&
+                                        gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                         j,i,a,j,i,a,j,j,0,2,1.0_dp,1.0_dp)
 
                                 else
@@ -24398,7 +24374,7 @@ contains
                                     ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
                                     excitInfo = assign_excitInfo_values_double(&
                                         excit_type%double_L_to_R, &
-                                        -1,1,-1,-1,1,&
+                                        gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                                         en,i,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
                                 end if
                             end if
@@ -25264,14 +25240,14 @@ contains
                     ! _RR_(i) -> ^RR^(j)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_stop_alike, &
-                        1,1,1,1,1,i,j,i,j,&
+                        1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,j,i,j,&
                         i,i,j,j,0,2,1.0_dp,1.0_dp)
 
                 else
                     ! _LL_(j) -> ^LL^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_stop_alike, &
-                        -1,-1,-1,-1,-1,&
+                        gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                         i,j,i,j,j,j,i,i,0,2,1.0_dp,1.0_dp)
 
                 end if
@@ -25294,14 +25270,14 @@ contains
                     ! _RR_(j) > ^RR^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_stop_alike, &
-                        1,1,1,1,1,&
+                        1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                         j,i,j,i,j,j,i,i,0,2,1.0_dp,1.0_dp)
 
                 else
                     ! _LL_(i) > ^LL^(j)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_stop_alike, &
-                        1,-1,-1,-1,-1,&
+                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                         j,i,j,i,i,i,j,j,0,2,1.0_dp,1.0_dp)
 
                 end if
@@ -25333,14 +25309,14 @@ contains
                     ! _LR_(i) > ^LR^(j)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_stop_mixed, &
-                        -1,1,1,1,1,&
+                        gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                         i,j,j,i,i,i,j,j,0,2,1.0_dp,2.0_dp)
 
                 else
                     ! _LR_(j) -> ^LR^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_stop_mixed, &
-                        1,1,1,1,1,&
+                        1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                         i,j,j,i,j,j,i,i,0,2,1.0_dp,2.0_dp)
 
                 end if
@@ -25411,14 +25387,14 @@ contains
                     ! L_(j) -> L_L(k) -> ^LL^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstop_lowering, &
-                        1,-1,-1,-1,-1, &
+                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L, &
                         i,j,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (j < i .and. i < k) then
                     ! L_(j) -> ^LR_(i) -> ^R(k)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%single_overlap_L_to_R, &
-                        1,1,-1,-1,1,&
+                        1,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                         i,j,i,k,j,i,i,k,0,2,1.0_dp,1.0_dp,1)
 
                 else if (i < k .and. k < j) then
@@ -25427,21 +25403,21 @@ contains
                     ! in the matrix element calculation
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_raising, &
-                        1,1,1,1,1,&
+                        1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                         i,k,i,j,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < j .and. j < i) then
                     ! _L(k) > _LL(j) > ^LL^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstop_lowering, &
-                        1,-1,-1,-1,-1, &
+                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L, &
                         i,j,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < i .and. i < j) then
                     ! _L(k) > ^LR(i) > ^R(j)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%single_overlap_L_to_R, &
-                        1,-1,-1,-1,1,&
+                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%R,&
                         i,j,i,k,k,i,i,j,0,2,1.0_dp,1.0_dp,1)
 
                 end if
@@ -25473,42 +25449,42 @@ contains
                     ! _LL_(i) ^LL(j) ^L(k)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_lowering, &
-                        1,-1,-1,-1,-1,&
+                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                         j,i,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                 else if (j < k .and. k < i) then
                     ! _R(j) _RR(k) ^RR^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstop_raising, &
-                        1,1,1,1,1,&
+                        1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                         k,i,j,i,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (j < i .and. i < k) then
                     ! _R(j) ^RL_(i) ^L(k)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%single_overlap_R_to_L, &
-                        1,-1,1,1,-1,&
+                        1,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
                         j,i,k,i,j,i,i,k,0,2,1.0_dp,1.0_dp,1)
 
                 else if (i < k .and. k < j) then
                     ! _LL_(i) > ^LL(k) > ^L(j)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_lowering, &
-                        1,-1,-1,-1,-1,&
+                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                         j,i,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < j .and. j < i) then
                     ! _R(k) > _RR(j) > ^RR^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstop_raising, &
-                        1,1,1,1,1,&
+                        1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                         k,i,j,i,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < i .and. i < j) then
                     ! _R(k) > ^RL(i) > ^L(j)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%single_overlap_R_to_L, &
-                        1,1,1,1,-1,&
+                        1,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                         j,i,k,i,k,i,i,j,0,2,1.0_dp,1.0_dp,1)
 
                 end if
@@ -25583,28 +25559,28 @@ contains
                         ! _LR_(i) ^LR(j) ^R(k)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstart_L_to_R, &
-                            -1,1,1,1,1,&
+                            gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                             j,i,i,k,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( i < k .and. k < j) then
                         ! _LR_(i) ^RL(k) ^L(j)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstart_R_to_L, &
-                            -1,1,-1,-1,-1,&
+                            gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                             j,i,i,k,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( j < k .and. k < i) then
                         ! _R(j) _LR(k) ^RL^(i)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstop_R_to_L, &
-                            1,-1,1,1,1,&
+                            1,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
                             j,i,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( k < j .and. j < i) then
                         ! _L(k) _RL(j) ^RL^(i)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstop_L_to_R, &
-                            1,-1,-1,-1,-1,&
+                            1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                             j,i,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( j < i .and. i < k) then
@@ -25630,10 +25606,10 @@ contains
                         ! same as above
                         i = 0
                         excitInfo%typ = excit_type%single_overlap_lowering
-                        excitInfo%gen1 = -1
-                        excitInfo%gen2 = -1
-                        excitInfo%firstGen = -1
-                        excitInfo%lastGen = -1
+                        excitInfo%gen1 = gen_type%L
+                        excitInfo%gen2 = gen_type%L
+                        excitInfo%firstGen = gen_type%L
+                        excitInfo%lastGen = gen_type%L
                         excitInfo%fullStart = k
                         excitInfo%secondStart = i
                         excitInfo%firstEnd = i
@@ -25666,14 +25642,14 @@ contains
                         ! _LR_(i) ^RL(j) ^L(k)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstart_R_to_L, &
-                            1,-1,-1,-1,-1,&
+                            1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                             i,j,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( i < k .and. k < j) then
                         ! _LR_(i) ^LR(k) ^R(j)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstart_L_to_R, &
-                            1,-1,1,1,1,&
+                            1,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
                             i,j,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
 
@@ -25681,14 +25657,14 @@ contains
                         ! _L(j) _RL(k) ^RL^(i)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstop_L_to_R, &
-                            -1,1,-1,-1,-1,&
+                            gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                             i,j,k,i,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( k < j .and. j < i) then
                         ! _R(k) _LR(j) ^RL^(i)
                         excitInfo = assign_excitInfo_values_double(&
                             excit_type%fullstop_R_to_L, &
-                            -1,1,1,1,1,&
+                            gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                             i,j,k,i,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                     else if ( j < i .and. i < k) then
@@ -25699,10 +25675,10 @@ contains
                         i = 0
 
                         excitInfo%typ = excit_type%single_overlap_lowering
-                        excitInfo%gen1 = -1
-                        excitInfo%gen2 = -1
-                        excitInfo%firstGen = -1
-                        excitInfo%lastGen = -1
+                        excitInfo%gen1 = gen_type%L
+                        excitInfo%gen2 = gen_type%L
+                        excitInfo%firstGen = gen_type%L
+                        excitInfo%lastGen = gen_type%L
                         excitInfo%fullStart = j
                         excitInfo%secondStart = i
                         excitInfo%firstEnd = i
@@ -25749,7 +25725,7 @@ contains
                             ! _RL_(i) > ^RL(j) > ^L(k)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstart_R_to_L, &
-                                1,-1,-1,-1,-1,&
+                                1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                 i,j,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp)
@@ -25758,7 +25734,7 @@ contains
                             ! _RL_(i) > ^LR(k) > ^R(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstart_L_to_R, &
-                                1,-1,1,1,1,&
+                                1,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
                                 i,j,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 0),dp)
@@ -25767,7 +25743,7 @@ contains
                             ! _L(j) > _RL(k) > ^RL^(i)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstop_L_to_R, &
-                                -1,1,-1,-1,-1,&
+                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                 i,j,k,i,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp)
@@ -25776,7 +25752,7 @@ contains
                             ! _R(k) > _LR(j) > ^RL^(i)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstop_R_to_L, &
-                                -1,1,1,1,1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 i,j,k,i,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 0),dp)
@@ -25805,7 +25781,7 @@ contains
                             ! _RL(i) > ^LR(j) < ^R(k)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstart_L_to_R, &
-                                -1,1,1,1,1,&
+                                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                 j,i,i,k,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp)
@@ -25814,7 +25790,7 @@ contains
                             ! _RL_(i) > ^RL(k) > ^L(j)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstart_R_to_L, &
-                                -1,1,-1,-1,-1,&
+                                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                 j,i,i,k,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(i+1:) /= 2),dp)
@@ -25823,7 +25799,7 @@ contains
                             ! _R(j) > _LR(k) > ^RL^(i)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstop_R_to_L, &
-                                1,-1,1,1,1,&
+                                1,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
                                 j,i,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
@@ -25832,7 +25808,7 @@ contains
                             ! _L(k) > _RL(j) > ^RL^(i)
                             excitInfo = assign_excitInfo_values_double(&
                                 excit_type%fullstop_L_to_R, &
-                                1,-1,-1,-1,-1,&
+                                1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                 j,i,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                             temp_pgen3 = 1.0_dp/real(count(currentOcc_int(:i-1) /= 2),dp)
@@ -25869,7 +25845,7 @@ contains
                                 ! _RL_(i) > ^RL(j) > ^L(k)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstart_R_to_L, &
-                                    1,-1,-1,-1,-1,&
+                                    1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                     i,j,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                                 ! here i could not have taken orbitals < i
@@ -25881,7 +25857,7 @@ contains
                                 ! _RL_(i) > ^LR(k) > ^R(j)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstart_L_to_R, &
-                                    1,-1,1,1,1,&
+                                    1,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
                                     i,j,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
@@ -25890,7 +25866,7 @@ contains
                                 ! _L(j) > _RL(k) > ^RL^(i)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstop_L_to_R, &
-                                    -1,1,-1,-1,-1,&
+                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                     i,j,k,i,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                                 ! here i could have only take orbitals < i:
@@ -25902,7 +25878,7 @@ contains
                                 ! _R(k) > _LR(j) > ^RL^(i)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstop_R_to_L, &
-                                    -1,1,1,1,1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                     i,j,k,i,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(i - 1, dp)
@@ -25932,7 +25908,7 @@ contains
                                 ! _RL_(i) > ^LR(j) < ^R(k)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstart_L_to_R, &
-                                    -1,1,1,1,1,&
+                                    gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                                     j,i,i,k,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(i - 1, dp)
@@ -25941,7 +25917,7 @@ contains
                                 ! _RL_(i) > ^RL(k) > ^L(j)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstart_R_to_L, &
-                                    -1,1,-1,-1,-1,&
+                                    gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                                     j,i,i,k,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(i - 1, dp)
@@ -25950,7 +25926,7 @@ contains
                                 ! _R(j) > _LR(k) > ^RL^(i)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstop_R_to_L, &
-                                    1,-1,1,1,1,&
+                                    1,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
                                     j,i,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
@@ -25959,7 +25935,7 @@ contains
                                 ! _L(k) > _RL(j) > ^RL^(i)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%fullstop_L_to_R, &
-                                    1,-1,-1,-1,-1,&
+                                    1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                                     j,i,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                                 temp_pgen3 = 1.0_dp / real(nSpatOrbs - i, dp)
@@ -26953,11 +26929,6 @@ contains
         nOrbs = real(nSpatOrbs,dp)
 
 
-!         pgen = 4.0_dp/(nOrbs**2) *( 1.0_dp/(nSingle + nDouble) + &
-!                                     1.0_dp/nEmpty + &
-!             2.0_dp/real(nBasis/2-2,dp)*(1.0_dp/(nEmpty-1.0_dp) + &
-!             1.0_dp/(nSingle + nDouble - 1.0_dp)))
-
         ! UDPATE 26.01.2016:
         ! for implementation of non-weighted guga-excitation generator
         ! tau-search i have to change  the previous p(ijkl) = 1/nOrbs factor
@@ -26996,24 +26967,10 @@ contains
 
         real(dp) :: nSingle, nDouble, nOrbs
 
-!         nEmpty = real(count(currentOcc_int == 0),dp)
         nSingle = real(count(currentOcc_int == 1),dp)
         nDouble = real(count(currentOcc_int == 2),dp)
         nOrbs = real(nSpatOrbs,dp)
-!
-!         pgen = 2.0_dp/(nOrbs**2) * (&
-!             1.0_dp/(nOrbs - 2.0_dp)*(1.0_dp/(nSingle+nDouble-1.0_dp) + &
-!                                     1.0_dp/(nOrbs - 3.0_dp)) + &
-!             1.0_dp/(nSingle+nDouble)*(2.0_dp/(nSingle + nDouble - 1.0_dp)) + &
-!             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nSingle + nDouble - 1.0_dp) + &
-!                                     1.0_dp/(nOrbs - 3.0_dp)) + &
-!             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs - 3.0_dp) + &
-!                                     1.0_dp/(nSingle+nDouble-1.0_dp)) + &
-!             1.0_dp/(nOrbs-2.0_dp)*(2.0_dp/(nOrbs-3.0_dp)) + &
-!             1.0_dp/(nOrbs-2.0_dp)*(1.0_dp/(nOrbs-3.0_dp) + &
-!                                     1.0_dp/(nSingle+nDouble-1.0_dp)))
-!
-!
+
         pgen = 4.0_dp / (nOrbs * (nOrbs - 1.0_dp)) * pExcit4 * (&
             1.0_dp/(nOrbs - 2.0_dp)*(2.0_dp/(nSingle + nDouble - 1.0_dp) + &
                                      3.0_dp/(nOrbs - 3.0_dp)) + &
@@ -27436,7 +27393,7 @@ contains
                 excitInfo = assign_excitInfo_values_single(1, i, j, i, j, 1)
 
             else
-                excitInfo = assign_excitInfo_values_single(-1, i, j, j, i, 2)
+                excitInfo = assign_excitInfo_values_single(gen_type%L, i, j, j, i, 2)
 
             end if
 
@@ -27460,7 +27417,7 @@ contains
             ! and determine excitation type
             if (j > i) then
                 ! lowering now
-                excitInfo = assign_excitInfo_values_single(-1,j,i,i,j,2)
+                excitInfo = assign_excitInfo_values_single(gen_type%L,j,i,i,j,2)
 
            else
                 ! raising generator
@@ -27492,7 +27449,7 @@ contains
             case (0)
                 if (j > i) then
                     ! lowering generator
-                    excitInfo = assign_excitInfo_values_single(-1,j,i,i,j,2)
+                    excitInfo = assign_excitInfo_values_single(gen_type%L,j,i,i,j,2)
 
                else
                     ! raising
@@ -27520,7 +27477,7 @@ contains
                         excitInfo = assign_excitInfo_values_single(1,i,j,i,j,1)
 
                     else
-                        excitInfo = assign_excitInfo_values_single(-1,i,j,j,i,2)
+                        excitInfo = assign_excitInfo_values_single(gen_type%L,i,j,j,i,2)
                     end if
                 end if
 
@@ -27536,7 +27493,7 @@ contains
 
                 else
                     ! L
-                    excitInfo = assign_excitInfo_values_single(-1,i,j,j,i,2)
+                    excitInfo = assign_excitInfo_values_single(gen_type%L,i,j,j,i,2)
 
                 end if
                 if (current_stepvector(j) == 3) then
@@ -27562,7 +27519,7 @@ contains
             case (0)
                 if (j > i) then
                     ! lowering generator
-                    excitInfo = assign_excitInfo_values_single(-1,j,i,i,j,2)
+                    excitInfo = assign_excitInfo_values_single(gen_type%L,j,i,i,j,2)
 
                 else
                     ! raising
@@ -27588,7 +27545,7 @@ contains
                     if (i < j) then
                         excitInfo = assign_excitInfo_values_single(1,i,j,i,j,1)
                     else
-                        excitInfo = assign_excitInfo_values_single(-1,i,j,j,i,2)
+                        excitInfo = assign_excitInfo_values_single(gen_type%L,i,j,j,i,2)
                     end if
                 end if
 
@@ -27603,7 +27560,7 @@ contains
 
                 else
                     ! L
-                    excitInfo = assign_excitInfo_values_single(-1,i,j,j,i,2)
+                    excitInfo = assign_excitInfo_values_single(gen_type%L,i,j,j,i,2)
 
                 end if
 
@@ -27670,13 +27627,13 @@ contains
             else if (k < l) then
                 excitInfo = assign_excitInfo_values_double(&
                     excit_type%raising, &
-                    0,1,1,1,1,i,i,k,l,&
+                    0,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,i,k,l,&
                     k,0,0,l,i,2,1.0_dp,0.0_dp,0)
 
             else
                 excitInfo = assign_excitInfo_values_double(&
                     excit_type%lowering, &
-                    0,-1,-1,-1,-1,i,i,k,l,&
+                    0,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,i,k,l,&
                     l,0,0,k,i,2,1.0_dp,0.0_dp,0)
 
             end if
@@ -27692,12 +27649,12 @@ contains
             else if (i < j) then
                 excitInfo = assign_excitInfo_values_double(&
                     excit_type%raising, &
-                    1,0,1,1,1,i,j,k,k,&
+                    1,0,gen_type%R,gen_type%R,gen_type%R,i,j,k,k,&
                     i,0,0,j,k,2,1.0_dp,0.0_dp,0)
             else
                 excitInfo = assign_excitInfo_values_double(&
                     excit_type%lowering, &
-                    -1,0,-1,-1,-1,i,j,k,l,&
+                    gen_type%L,0,gen_type%L,gen_type%L,gen_type%L,i,j,k,l,&
                     j,0,0,i,k,2,1.0_dp,0.0_dp,0)
 
             end if
@@ -27756,16 +27713,16 @@ contains
                     excitInfo%lastGen = excitInfo%gen1
                 end if
 
-                if (excitInfo%firstGen == -1 .and. &
-                    excitInfo%lastGen == -1) then
+                if (excitInfo%firstGen == gen_type%L .and. &
+                    excitInfo%lastGen == gen_type%L) then
                     excitInfo%typ = excit_type%single_overlap_lowering
 
-                else if (excitInfo%firstGen == 1 .and. &
-                    excitInfo%lastGen == 1) then
+                else if (excitInfo%firstGen == gen_type%R .and. &
+                    excitInfo%lastGen == gen_type%R) then
                     excitInfo%typ = excit_type%single_overlap_raising
 
-                else if (excitInfo%firstGen == -1 .and. &
-                    excitInfo%lastGen == 1) then
+                else if (excitInfo%firstGen == gen_type%L .and. &
+                    excitInfo%lastGen == gen_type%R) then
                     excitInfo%typ = excit_type%single_overlap_L_to_R
 
                 else
@@ -27791,22 +27748,22 @@ contains
 
                     if (end1 > end2) then
                         excitInfo%lastGen = excitInfo%gen1
-                        if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == -1) then
+                        if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%L) then
                             excitInfo%typ = excit_type%double_lowering
                             ! here only semi-stop has sign
                             excitInfo%order1 = -1.0_dp
 
 
-                        else if (excitInfo%gen1 == 1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%R .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%double_raising
                             ! in this case there are sign changes only at the
                             ! semi-start
                             excitInfo%order = -1.0_dp
 
 
-                        else if (excitInfo%gen1 == -1 .and. excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%L .and. excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%double_L_to_R_to_L
 
                         else
@@ -27818,20 +27775,20 @@ contains
                     else if (end1 < end2) then
                         excitInfo%lastGen = excitInfo%gen2
 
-                        if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == -1) then
+                        if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%L) then
                             excitInfo%typ = excit_type%double_lowering
                             ! here no semi has a sign
 
-                        else if (excitInfo%gen1 == 1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%R .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%double_raising
                             ! here both semi-start and stop have a sign
                             excitInfo%order = -1.0_dp
                             excitInfo%order1 = -1.0_dp
 
-                        else if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%double_L_to_R
 
                         else
@@ -27842,16 +27799,16 @@ contains
                     else
                         ! set lastGen to gen2 just to make same comparisons
                         excitInfo%lastGen = excitInfo%gen2
-                        if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == -1) then
+                        if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%L) then
                             excitInfo%typ = excit_type%fullstop_lowering
 
-                        else if (excitInfo%gen1 == 1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%R .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%fullstop_raising
 
-                        else if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%fullstop_L_to_R
 
                         else
@@ -27868,20 +27825,20 @@ contains
 
                     if (end1 > end2) then
                         excitInfo%lastGen = excitInfo%gen1
-                        if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == -1) then
+                        if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%L) then
                             excitInfo%typ = excit_type%double_lowering
                             ! here both have a sign
                             excitInfo%order = -1.0_dp
                             excitInfo%order1 = -1.0_dp
 
-                        else if (excitInfo%gen1 == 1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%R .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%double_raising
                             ! here both have "normal" sign
 
-                        else if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%double_R_to_L
 
                         else
@@ -27890,20 +27847,20 @@ contains
                         end if
                     else if (end1 < end2) then
                         excitInfo%lastGen = excitInfo%gen2
-                        if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == -1) then
+                        if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%L) then
                             excitInfo%typ = excit_type%double_lowering
                             ! here only semi-start has a sign
                             excitInfo%order = -1.0_dp
 
-                        else if (excitInfo%gen1 == 1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%R .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%double_raising
                             ! here only semi-stop has sign
                             excitInfo%order1 = -1.0_dp
 
-                        else if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%double_R_to_L_to_R
 
                         else
@@ -27915,16 +27872,16 @@ contains
                     else
                         ! set lastGen to gen1 just to make same comparisons
                         excitInfo%lastGen = excitInfo%gen1
-                        if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == -1) then
+                        if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%L) then
                             excitInfo%typ = excit_type%fullstop_lowering
 
-                        else if (excitInfo%gen1 == 1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%R .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%fullstop_raising
 
-                        else if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%fullstop_R_to_L
 
                         else
@@ -27940,16 +27897,16 @@ contains
                         ! same way
                         excitInfo%firstGen = excitInfo%gen2
 
-                        if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == -1) then
+                        if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%L) then
                             excitInfo%typ = excit_type%fullstart_lowering
 
-                        else if (excitInfo%gen1 == 1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%R .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%fullstart_raising
 
-                        else if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%fullstart_R_to_L
 
                         else
@@ -27960,16 +27917,16 @@ contains
                         excitInfo%lastGen = excitInfo%gen2
                         excitInfo%firstGen = excitInfo%gen1
                         excitInfo%currentGen = excitInfo%gen1
-                        if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == -1) then
+                        if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%L) then
                             excitInfo%typ = excit_type%fullstart_lowering
 
-                        else if (excitInfo%gen1 == 1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%R .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%fullstart_raising
 
-                        else if (excitInfo%gen1 == -1 .and. &
-                            excitInfo%gen2 == 1) then
+                        else if (excitInfo%gen1 == gen_type%L .and. &
+                            excitInfo%gen2 == gen_type%R) then
                             excitInfo%typ = excit_type%fullStart_L_to_R
 
                         else
@@ -28024,7 +27981,7 @@ contains
             excitInfo = assign_excitInfo_values_single(1,i,j,i,j)
 
         else if (i > j) then
-            excitInfo = assign_excitInfo_values_single(-1,i,j,j,i)
+            excitInfo = assign_excitInfo_values_single(gen_type%L,i,j,j,i)
 
         else
             excitInfo = assign_excitInfo_values_single(0,i,i,i,i)
@@ -28556,7 +28513,7 @@ contains
             ! _R(i) > RR_*(j) > ^RR*(k) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1, 1, 1, 1, 1, i,k,j,l,&
+                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i,k,j,l,&
                 i,j,k,l,0,4,-1.0_dp, -1.0_dp)
 
 !
@@ -28564,7 +28521,7 @@ contains
             ! _R(i) > RR_*(j) > RR^(l) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1, 1, 1, 1, 1, i,k,j,l,&
+                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i,k,j,l,&
                 i,j,l,k,0,4,-1.0_dp,1.0_dp)
 
 
@@ -28575,7 +28532,7 @@ contains
             ! _R(i) > _LR(k) > ^LR(j) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
                 i,l,j,k,i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
@@ -28585,49 +28542,49 @@ contains
             ! _R(i) > _LR(k) > ^RL(l) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
                 i,l,j,k,i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
             ! _R(i) > _LR(l) > ^LR(j) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,&
                 i,k,j,l,i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
             ! _R(i) > _LR(l) > ^RL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,&
                 i,k,j,l,i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
             ! _R(j) > _RR(i) > ^RR*(k) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                 i,k,j,l,j,i,k,l,0,4,1.0_dp,-1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
             ! _R(j) > _RR(i) > ^RR(l) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                 i,k,j,l,j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
             ! _R(j) > _LR(k) > ^LR(i) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                 i,k,j,l,j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
             ! _R(j) > _LR(k) > ^RL(l) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                 i,k,j,l,j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
@@ -28637,7 +28594,7 @@ contains
             ! _R(j) > _LR(l) > ^LR(i) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                 i,l,j,k,j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
@@ -28647,7 +28604,7 @@ contains
             ! _R(j) > _LR(l) > ^RL(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                 i,l,j,k,j,l,k,i,0,4,1.0_dp,1.0_dp)
 
 
@@ -28657,7 +28614,7 @@ contains
             ! _L(k) > _RL(i) > ^LR(j) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,&
                 i,l,j,k,k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
@@ -28666,49 +28623,49 @@ contains
             ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                 i,l,j,k,k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
             ! _L(k) > _RL(j) > ^LR(i) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                 i,k,j,l,k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
             ! _L(k) > _RL(j) > ^RL(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                 i,k,j,l,k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
             ! _L(k) > LL_(l) > ^LL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                 i,k,j,l,k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
             ! _L(k) > LL_(l) > LL^*(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                 i,k,j,l,k,l,j,i,0,4,1.0_dp,-1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
             ! _L(l) > _RL(i) > ^LR(j) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,&
                 i,k,j,l,l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
             ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                 i,k,j,l,l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
@@ -28717,7 +28674,7 @@ contains
             ! _L(l) > _RL(j) > ^LR(i) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                 i,l,j,k,l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
@@ -28726,21 +28683,21 @@ contains
             ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                 i,l,j,k,l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
             ! _L(l) > _LL*(k) > ^LL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                 i,k,j,l,l,k,i,j,0,4,-1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
             ! _L(l) > _LL*(k) > LL^*(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                 i,k,j,l,l,k,j,i,0,4,-1.0_dp,-1.0_dp)
 
         else
@@ -28762,7 +28719,7 @@ contains
             ! _R_(i) > _LR(j) > ^LR(k) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1, -1, 1, 1, 1, i,l,k,j,&
+                gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i,l,k,j,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
@@ -28770,7 +28727,7 @@ contains
             ! _R(i) > _LR(j) > ^RL(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1, -1, 1, 1, -1, i,l,k,j,&
+                gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i,l,k,j,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
@@ -28778,7 +28735,7 @@ contains
             ! _R(i) > RR_*(k) > RR^(j) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1, 1, 1, 1, 1, i,l,k,j,&
+                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i,l,k,j,&
                 i,k,j,l,0,4,-1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
@@ -28786,7 +28743,7 @@ contains
             ! _R(i) > RR_*(k) > ^RR*(l) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1, 1, 1, 1, 1, i,l,k,j,&
+                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i,l,k,j,&
                 i,k,l,j,0,4,-1.0_dp,-1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
@@ -28796,7 +28753,7 @@ contains
             ! _R(i) > _LR(l) > ^RL(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1, -1, 1, 1, -1, i,j,k,l,&
+                gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%L, i,j,k,l,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
@@ -28805,7 +28762,7 @@ contains
             ! _R(i) > _LR(l) > ^LR(k) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1, -1, 1, 1, 1, i,j,k,l,&
+                gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R, i,j,k,l,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
@@ -28813,7 +28770,7 @@ contains
             ! _L(j) > _RL(i) > ^LR(k) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1, -1, -1, -1, 1, i,l,k,j,&
+                gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i,l,k,j,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
@@ -28821,7 +28778,7 @@ contains
             ! _L(j) > _RL(i) > ^RL(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1, -1, -1, -1, -1, i,l,k,j,&
+                gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i,l,k,j,&
                 j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
@@ -28830,7 +28787,7 @@ contains
             ! _L(j) > _RL(k) > ^LR(i) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1, 1, -1, -1, 1, i,j,k,l,&
+                gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%R, i,j,k,l,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
@@ -28839,7 +28796,7 @@ contains
             ! _L(j) > _RL(k) > ^RL(l) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1, 1, -1, -1, -1, i,j,k,l,&
+                gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i,j,k,l,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
@@ -28847,7 +28804,7 @@ contains
             ! _L(j) > _LL*(l) > ^LL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1, -1, -1, -1, -1, i,l,k,j,&
+                gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i,l,k,j,&
                 j,l,i,k,0,4,-1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
@@ -28855,7 +28812,7 @@ contains
             ! _L(j) > _LL*(l) > LL^*(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1, -1, -1, -1, -1, i,l,k,j,&
+                gen_type%L, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i,l,k,j,&
                 j,l,k,i,0,4,-1.0_dp,-1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
@@ -28863,7 +28820,7 @@ contains
             ! _R(k) > _RR(i) > RR^(j) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1, 1, 1, 1, 1, i,l,k,j,&
+                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i,l,k,j,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
@@ -28871,7 +28828,7 @@ contains
             ! _R(k) > _RR(i) > ^RR*(l) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1, 1, 1, 1, 1, i,l,k,j,&
+                gen_type%R, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i,l,k,j,&
                 k,i,l,j,0,4,1.0_dp,-1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
@@ -28880,7 +28837,7 @@ contains
             ! _R(k) > _LR(j) > ^LR(i) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1, 1, 1, 1, 1, i,j,k,l,&
+                gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i,j,k,l,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
@@ -28889,7 +28846,7 @@ contains
             ! _R(k) > _LR(j) > ^RL(l) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1, 1, 1, 1, -1, i,j,k,l,&
+                gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i,j,k,l,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
@@ -28897,7 +28854,7 @@ contains
             ! _R(k) > _LR(l) > ^LR(i) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1, 1, 1, 1, 1, i,l,k,j,&
+                gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, i,l,k,j,&
                 k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
@@ -28905,7 +28862,7 @@ contains
             ! _R(k) > _LR(l) > ^RL(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1, 1, 1, 1, -1, i,l,k,j,&
+                gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%L, i,l,k,j,&
                 k,l,j,i,0,4,1.0_dp, 1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
@@ -28914,7 +28871,7 @@ contains
             ! _L(l) > _RL(i) > ^RL(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1, -1, -1, -1, -1, i,j,k,l,&
+                gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i,j,k,l,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
@@ -28923,7 +28880,7 @@ contains
             ! _L(l) > _RL(i) > ^LR(k) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1, -1, -1, -1, 1, i,j,k,l,&
+                gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%R, i,j,k,l,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
@@ -28931,7 +28888,7 @@ contains
             ! _L(l) > LL_(j) > ^LL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,l,k,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,l,k,j,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
@@ -28939,7 +28896,7 @@ contains
             ! _L(l) > LL_(j) > LL^*(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,l,k,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,l,k,j,&
                 l,j,k,i,0,4,1.0_dp,-1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
@@ -28947,7 +28904,7 @@ contains
             ! _L(l) > _RL(k) > ^LR(i) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1, 1,-1,-1,1,i,l,k,j,&
+                gen_type%L, gen_type%R,gen_type%L,gen_type%L,gen_type%R,i,l,k,j,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
@@ -28955,7 +28912,7 @@ contains
             ! _L(l) > _RL(k) > ^RL(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1, 1, -1, -1, -1,i,l,k,j,&
+                gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L,i,l,k,j,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -28977,7 +28934,7 @@ contains
             ! _R(i) > _LR(j) > ^RL(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,i,k,l,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,i,k,l,j,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
@@ -28985,7 +28942,7 @@ contains
             ! _R(i) > _LR(j) ^LR(l) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,i,k,l,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,i,k,l,j,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
@@ -28994,7 +28951,7 @@ contains
             ! _R(i) > _LR(k) > ^RL(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,i,j,l,k,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,i,j,l,k,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
@@ -29003,7 +28960,7 @@ contains
             ! _R(i) > _LR(k) > ^L(l) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,i,j,l,k,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,i,j,l,k,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
@@ -29011,7 +28968,7 @@ contains
             ! _R(i) > RR_*(l) > RR^(j) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,i,k,l,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,k,l,j,&
                 i,l,j,k,0,4,-1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
@@ -29019,7 +28976,7 @@ contains
             ! _R(i) > RR_*(l) > ^RR*(k) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,i,k,l,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,k,l,j,&
                 i,l,k,j,0,4,-1.0_dp,-1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
@@ -29027,7 +28984,7 @@ contains
             ! _L(j) > _RL(i) > ^RL(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,i,k,l,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,k,l,j,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
@@ -29035,7 +28992,7 @@ contains
             ! _L(j) > _RL(i) > ^LR(l) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,i,k,l,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,i,k,l,j,&
                 j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
@@ -29043,7 +29000,7 @@ contains
             ! _L(j) > _LL*(k) > ^LL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,k,l,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,k,l,j,&
                 j,k,i,l,0,4,-1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
@@ -29051,7 +29008,7 @@ contains
             ! _L(j) > _LL*(k) > LL^*(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,k,l,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,k,l,j,&
                 j,k,l,i,0,4,-1.0_dp,-1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
@@ -29060,7 +29017,7 @@ contains
             ! _L(j) > _RL(l) > ^LR(i) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,i,j,l,k,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,i,j,l,k,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
@@ -29069,7 +29026,7 @@ contains
             ! _L(j) > _RL(l) > ^RL(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,i,j,l,k,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,i,j,l,k,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
@@ -29078,7 +29035,7 @@ contains
             ! _L(k) > _RL(i) > ^RL(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,i,j,l,k,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,j,l,k,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
@@ -29087,7 +29044,7 @@ contains
             ! _L(k) > _RL(i) > ^LR(l) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,i,j,l,k,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,i,j,l,k,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
@@ -29095,7 +29052,7 @@ contains
             ! _L(k) > LL_(j) > ^LL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,j,k,l,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,j,k,l,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
@@ -29103,7 +29060,7 @@ contains
             ! _L(k) > LL_(j) > LL^*(l) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,k,l,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,k,l,j,&
                 k,j,l,i,0,4,1.0_dp,-1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
@@ -29111,7 +29068,7 @@ contains
             ! _L(k) > _RL(l) > ^LR(i) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,i,k,l,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,i,k,l,j,&
                 k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
@@ -29119,7 +29076,7 @@ contains
             ! _L(k) > _RL(l) > ^RL(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,i,k,l,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,i,k,l,j,&
                 k,l,j,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
@@ -29127,7 +29084,7 @@ contains
             ! _R(l) > _RR(i) > RR^(j) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,i,k,l,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,k,l,j,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
@@ -29135,7 +29092,7 @@ contains
             ! _R(l) > _RR(i) > ^RR*(k) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,i,k,l,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,k,l,j,&
                 l,i,k,j,0,4,1.0_dp,-1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
@@ -29144,7 +29101,7 @@ contains
             ! _R(l) > _LR(j) > ^LR(i) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1, 1,1,1,1,i,j,l,k,&
+                gen_type%L, gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,j,l,k,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
@@ -29153,7 +29110,7 @@ contains
             ! _R(l) > _LR(j) > ^RL(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,i,j,l,k,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,i,j,l,k,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
@@ -29161,7 +29118,7 @@ contains
             ! _R(l) > _LR(k) > ^LR(i) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,i,k,l,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,k,l,j,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
@@ -29169,7 +29126,7 @@ contains
             ! _R(l) > _LR(k) > ^RL(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,i,k,l,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,i,k,l,j,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -29192,7 +29149,7 @@ contains
             ! R_{i} > RR_*(j) > RR^(k) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,i,l,j,k,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,l,j,k,&
                 i,j,k,l,0,4,-1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
@@ -29200,7 +29157,7 @@ contains
             ! _R(i) > RR_*(j) > ^RR*(l) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,i,l,j,k,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,l,j,k,&
                 i,j,l,k,0,4,-1.0_dp,-1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
@@ -29208,7 +29165,7 @@ contains
             ! _R(i) > _LR(k) > ^LR(j) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1, -1, 1, 1, 1,i,l,j,k,&
+                gen_type%R, gen_type%L, gen_type%R, gen_type%R, gen_type%R,i,l,j,k,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
@@ -29216,7 +29173,7 @@ contains
             ! _R(i) > _LR(k) > ^RL(l) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1, -1,1,1,-1,i,l,j,k,&
+                gen_type%R, gen_type%L,gen_type%R,gen_type%R,gen_type%L,i,l,j,k,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
@@ -29226,7 +29183,7 @@ contains
             ! _R(i) > _LR(l) > ^LR(j) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1, -1,1,1,1,i,k,j,l,&
+                gen_type%R, gen_type%L,gen_type%R,gen_type%R,gen_type%R,i,k,j,l,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
@@ -29235,7 +29192,7 @@ contains
             ! _R(i) > _LR(l) > ^RL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1, -1, 1, 1,-1,i,k,j,l,&
+                gen_type%R, gen_type%L, gen_type%R, gen_type%R,gen_type%L,i,k,j,l,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
@@ -29243,7 +29200,7 @@ contains
             ! _R(j) > _RR(i) > RR^(k) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,i,l,j,k,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,l,j,k,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
@@ -29251,7 +29208,7 @@ contains
             ! _R(j) > _RR(i) > ^RR*(l) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,i,l,j,k,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,l,j,k,&
                 j,i,l,k,0,4,1.0_dp,-1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
@@ -29260,7 +29217,7 @@ contains
             ! _R(j) > _LR(k) > ^LR(i) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,i,k,j,l,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,k,j,l,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
@@ -29269,7 +29226,7 @@ contains
             ! _R(j) > _LR(k) > ^RL(l) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,i,k,j,l,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,i,k,j,l,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
@@ -29277,7 +29234,7 @@ contains
             ! _R(j) > _LR(l) > ^LR(i) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,i,l,j,k,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,i,l,j,k,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
@@ -29285,7 +29242,7 @@ contains
             ! _R(j) > _LR(l) > ^RL(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,i,l,j,k,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,i,l,j,k,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
@@ -29293,7 +29250,7 @@ contains
             ! _L(k) > _RL(i) > ^LR(j) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,i,l,j,k,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,i,l,j,k,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
@@ -29301,7 +29258,7 @@ contains
             ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,i,l,j,k,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,l,j,k,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
@@ -29310,7 +29267,7 @@ contains
             ! _L(k) > _RL(j) > ^LR(i) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,i,k,j,l,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,i,k,j,l,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
@@ -29319,7 +29276,7 @@ contains
             ! _L(k) > _RL(j) > ^RL(l) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,i,k,j,l,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,i,k,j,l,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
@@ -29327,7 +29284,7 @@ contains
             ! _L(k) > _LL*(l) > ^LL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,l,j,k,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,l,j,k,&
                 k,l,i,j,0,4,-1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
@@ -29335,7 +29292,7 @@ contains
             ! _L(k) > _LL*(l) > LL^*(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,l,j,k,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,l,j,k,&
                 k,l,j,i,0,4,-1.0_dp,-1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
@@ -29344,7 +29301,7 @@ contains
             ! _L(l) > _RL(i) > ^LR(j) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,i,k,j,l,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,i,k,j,l,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
@@ -29353,7 +29310,7 @@ contains
             ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,i,k,j,l,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,k,j,l,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
@@ -29361,7 +29318,7 @@ contains
             ! _L(l) > _RL(j) > ^LR(i) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,i,l,j,k,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,i,l,j,k,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
@@ -29369,7 +29326,7 @@ contains
             ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,i,l,j,k,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,i,l,j,k,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
@@ -29377,7 +29334,7 @@ contains
             ! _L(l) > LL_(k) > ^LL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,l,j,k,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,l,j,k,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
@@ -29385,7 +29342,7 @@ contains
             ! _L(l) > LL_(k) > LL^*(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,i,l,j,k,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,l,j,k,&
                 l,k,j,i,0,4,1.0_dp,-1.0_dp)
 
         else
@@ -29407,7 +29364,7 @@ contains
             ! _L(i) > LL_(j) > ^LL(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,k,i,l,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
@@ -29415,7 +29372,7 @@ contains
             ! _L(i) > LL_(j) > LL^*(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,k,i,l,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 i,j,l,k,0,4,1.0_dp,-1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
@@ -29424,7 +29381,7 @@ contains
             ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,l,i,k,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
@@ -29433,7 +29390,7 @@ contains
             ! _L(i) > ^RL(k) > ^LR(l) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,l,i,k,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,l,i,k,j,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
@@ -29441,7 +29398,7 @@ contains
             ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,k,i,l,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
@@ -29449,7 +29406,7 @@ contains
             ! _L(i) > ^RL(l) > ^LR(k) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,k,i,l,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,k,i,l,j,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
@@ -29457,7 +29414,7 @@ contains
             ! _L(j) > _LL*(i) > ^LL(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,k,i,l,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 j,i,k,l,0,4,-1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
@@ -29465,7 +29422,7 @@ contains
             ! _L(j) > _LL*(i) > LL^*(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,k,i,l,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 j,i,l,k,0,4,-1.0_dp,-1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
@@ -29473,7 +29430,7 @@ contains
             ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,k,i,l,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
@@ -29481,7 +29438,7 @@ contains
             ! _L(j) > ^RL(k) > ^LR(l) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,k,i,l,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,k,i,l,j,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
@@ -29490,7 +29447,7 @@ contains
             ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,l,i,k,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
@@ -29499,7 +29456,7 @@ contains
             ! _L(l) > _RL(l) > ^LR(k) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,l,i,k,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,l,i,k,j,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
@@ -29508,7 +29465,7 @@ contains
             ! _R(k) > _LR(i) > ^RL(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,l,i,k,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,l,i,k,j,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
@@ -29517,7 +29474,7 @@ contains
             ! _R(k) > _LR(i) > ^LR(l) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,l,i,k,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,k,j,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
@@ -29525,7 +29482,7 @@ contains
             ! _R(k) > _LR(j) > ^RL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,k,i,l,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,k,i,l,j,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
@@ -29533,7 +29490,7 @@ contains
             ! _R(k) > _LR(j) > ^LR(l) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,k,i,l,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,k,i,l,j,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
@@ -29541,7 +29498,7 @@ contains
             ! _R(k) > RR_*(l) > ^RR*(i) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,k,i,l,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,l,j,&
                 k,l,i,j,0,4,-1.0_dp,-1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
@@ -29549,7 +29506,7 @@ contains
             ! _R(k) > RR_*(l) > RR^(j) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,k,i,l,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,l,j,&
                 k,l,j,i,0,4,-1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
@@ -29557,7 +29514,7 @@ contains
             ! _R(l) > _LR(i) > ^RL(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,k,i,l,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,k,i,l,j,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
@@ -29565,7 +29522,7 @@ contains
             ! _R(l) > _LR(i) > ^LR(l) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,k,i,l,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,l,j,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
@@ -29574,7 +29531,7 @@ contains
             ! _R(l) > _LR(j) > ^RL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,l,i,k,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,l,i,k,j,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
@@ -29583,7 +29540,7 @@ contains
             ! _R(l) > ^_LR(j) > ^LR(k) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,l,i,k,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,l,i,k,j,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
@@ -29591,7 +29548,7 @@ contains
             ! _R(l) > _RR(k) > ^RR*(i) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,k,i,l,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,l,j,&
                 l,k,i,j,0,4,1.0_dp,-1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
@@ -29599,7 +29556,7 @@ contains
             ! _R(l) > _RR(k) > RR^(j) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,k,i,l,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,l,j,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -29621,7 +29578,7 @@ contains
             ! _L(i) > _RL(j) > ^LR(k) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,k,i,j,l,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,k,i,j,l,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
@@ -29629,7 +29586,7 @@ contains
             ! _L(i) > _RL(j) > ^RL(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,k,i,j,l,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
@@ -29638,7 +29595,7 @@ contains
             ! _L(i) > _RL(k) > ^LR(j) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,j,i,k,l,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,j,i,k,l,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
@@ -29647,7 +29604,7 @@ contains
             ! _L(i) > _RL(k) > ^RL(l) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,j,i,k,l,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,j,i,k,l,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
@@ -29655,7 +29612,7 @@ contains
             ! _L(i) > LL_(l) > LL^*(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,k,i,j,l,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 i,l,j,k,0,4,1.0_dp,-1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
@@ -29663,7 +29620,7 @@ contains
             ! _L(i) > LL_(l) > ^LL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,k,i,j,l,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
@@ -29671,7 +29628,7 @@ contains
             ! _R(j) > _LR(i) > ^LR(k) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,k,i,j,l,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,j,l,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
@@ -29679,7 +29636,7 @@ contains
             ! _R(j) > _LR(i) > ^RL(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,k,i,j,l,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,k,i,j,l,&
                 j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
@@ -29687,7 +29644,7 @@ contains
             ! _R(j) > _RR(k) > ^RR*(i) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,k,i,j,l,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,j,l,&
                 j,k,i,l,0,4,1.0_dp,-1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
@@ -29695,7 +29652,7 @@ contains
             ! _R(j) > _RR(k) > RR^(l) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,k,i,j,l,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,j,l,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
@@ -29704,7 +29661,7 @@ contains
             ! _R(j) > _LR(l) > ^RL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,j,i,k,l,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,j,i,k,l,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
@@ -29713,7 +29670,7 @@ contains
             ! _R(j) > _LR(l) > ^LR(k) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,j,i,k,l,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,j,i,k,l,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
@@ -29722,7 +29679,7 @@ contains
             ! _R(k) > _LR(i) > ^LR(j) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,j,i,k,l,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,j,i,k,l,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
@@ -29731,7 +29688,7 @@ contains
             ! _R(k) > _LR(i) > ^RL(l) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,j,i,k,l,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,j,i,k,l,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
@@ -29739,7 +29696,7 @@ contains
             ! _R(k) > RR_*(j) > ^RR*(i) > ^R(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,k,i,j,l,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,j,l,&
                 k,j,i,l,0,4,-1.0_dp,-1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
@@ -29747,7 +29704,7 @@ contains
             ! _R(k) > RR_*(j) > RR^(l) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,k,i,j,l,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,j,l,&
                 k,j,l,i,0,4,-1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
@@ -29755,7 +29712,7 @@ contains
             ! _R(k) > _LR(l) > ^RL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,k,i,j,l,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,k,i,j,l,&
                 k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
@@ -29763,7 +29720,7 @@ contains
             ! _R(k) > _LR(l) > ^LR(j) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,k,i,j,l,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,k,i,j,l,&
                 k,l,j,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
@@ -29771,7 +29728,7 @@ contains
             ! _L(l) > _LL*(i) > LL^*(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,k,i,j,l,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 l,i,j,k,0,4,-1.0_dp,-1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
@@ -29779,7 +29736,7 @@ contains
             ! _L(l) > _LL*(i) > ^LL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,k,i,j,l,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 l,i,k,j,0,4,-1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
@@ -29788,7 +29745,7 @@ contains
             ! _L(l) > _RL(j) > ^RL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,k,i,j,l,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
@@ -29797,7 +29754,7 @@ contains
             ! _L(l) > _RL(k) > ^LR(k) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,j,i,k,l,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,j,i,k,l,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
@@ -29805,7 +29762,7 @@ contains
             ! _L(l) > _RL(k) > ^RL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,k,i,j,l,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
@@ -29813,7 +29770,7 @@ contains
             ! _L(l) > _RL(k) > ^LR(j) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,k,i,j,l,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,k,i,j,l,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -29836,7 +29793,7 @@ contains
             ! _L(i) > _RL(j) > ^RL(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,l,i,j,k,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,l,i,j,k,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
@@ -29844,7 +29801,7 @@ contains
             ! _L(i) > _RL(j) > ^LR(l) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,l,i,j,k,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,l,i,j,k,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
@@ -29852,7 +29809,7 @@ contains
             ! _L(i) > LL_(k) > LL^*(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,l,i,j,k,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,j,k,&
                 i,k,j,l,0,4,1.0_dp,-1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
@@ -29860,7 +29817,7 @@ contains
             ! _L(i) > LL_(k) > ^LL(l) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,l,i,j,k,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,j,k,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
@@ -29869,7 +29826,7 @@ contains
             ! _L(i) > _RL(l) > ^LR(j) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,j,i,l,k,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,j,i,l,k,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
@@ -29878,7 +29835,7 @@ contains
             ! _L(i) > _RL(l) > ^RL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,j,i,l,k,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,j,i,l,k,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
@@ -29886,7 +29843,7 @@ contains
             ! _R(j) > _LR(i) > ^RL(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,l,i,j,k,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,l,i,j,k,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
@@ -29894,7 +29851,7 @@ contains
             ! _R(j) > _LR(i) > ^LR(l) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,l,i,j,k,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,j,k,&
                 j,i,l,k,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
@@ -29903,7 +29860,7 @@ contains
             ! _R(j) > _LR(k) > ^RL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,j,i,l,k,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,j,i,l,k,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
@@ -29912,7 +29869,7 @@ contains
             ! _R(j) > _LR(k) > ^LR(l) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,j,i,l,k,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,j,i,l,k,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
@@ -29920,7 +29877,7 @@ contains
             ! _R(j) > _RR(l) > ^RR*(i) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,l,i,j,k,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,j,k,&
                 j,l,i,k,0,4,1.0_dp,-1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
@@ -29928,7 +29885,7 @@ contains
             ! _R(j) > _RR(l) > RR^(k) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,l,i,j,k,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,j,k,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
@@ -29936,7 +29893,7 @@ contains
             ! _L(k) > _LL*(i) > LL^*(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,l,i,j,k,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,j,k,&
                 k,i,j,l,0,4,-1.0_dp,-1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
@@ -29944,7 +29901,7 @@ contains
             ! _L(k) > _LL*(i) > ^LL(l) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,l,i,j,k,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,j,k,&
                 k,i,l,j,0,4,-1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
@@ -29953,7 +29910,7 @@ contains
             ! _L(k) > _RL(j) > ^RL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,j,i,l,k,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,j,i,l,k,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
@@ -29962,7 +29919,7 @@ contains
             ! _L(k) > _RL(j) > ^LR(l) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,j,i,l,k,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,j,i,l,k,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
@@ -29970,7 +29927,7 @@ contains
             ! _L(k) > _RL(l) > ^RL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,l,i,j,k,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,j,k,&
                 k,l,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
@@ -29978,7 +29935,7 @@ contains
             ! _L(k) > _RL(l) > ^LR(j) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,l,i,j,k,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,l,i,j,k,&
                 k,l,j,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
@@ -29987,7 +29944,7 @@ contains
             ! _R(l) > _LR(i) > ^LR(j) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,j,i,l,k,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,j,i,l,k,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
@@ -29996,7 +29953,7 @@ contains
             ! _R(l) > _LR(i) > ^RL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,j,i,l,k,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,j,i,l,k,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
@@ -30004,7 +29961,7 @@ contains
             ! _R(l) > RR_*(j) > ^RR*(i) > ^R(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,l,i,j,k,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,j,k,&
                 l,j,i,k,0,4,-1.0_dp,-1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
@@ -30012,7 +29969,7 @@ contains
             ! _R(l) > RR_*(j) > RR^(k) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,l,i,j,k,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,j,k,&
                 l,j,k,i,0,4,-1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
@@ -30020,7 +29977,7 @@ contains
             ! _R(l) > _LR(k) > ^RL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,l,i,j,k,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,l,i,j,k,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
@@ -30028,7 +29985,7 @@ contains
             ! _R(l) > _LR(k) > ^LR(j) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,l,i,j,k,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,l,i,j,k,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
         else
@@ -30050,7 +30007,7 @@ contains
             ! _L(i) > LL_(j) > LL^*(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,l,i,k,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 i,j,k,l,0,4,1.0_dp,-1.0_dp)
 
         else if (i < j .and. j < l .and. l < k) then
@@ -30058,7 +30015,7 @@ contains
             ! _L(i) > LL_(j) > ^LL(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,l,i,k,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
         else if (i < k .and. k < j .and. j < l) then
@@ -30066,7 +30023,7 @@ contains
             ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,l,i,k,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
         else if ( i < k .and. k < l .and. l < j) then
@@ -30074,7 +30031,7 @@ contains
             ! _L(i) > _RL(k) > ^LR(l) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,l,i,k,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,l,i,k,j,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < j .and. j < k) then
@@ -30083,7 +30040,7 @@ contains
             ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,-1,k,i,l,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
         else if ( i < l .and. l < k .and. k < j) then
@@ -30092,7 +30049,7 @@ contains
             ! _L(i) > _RL(l) > ^LR(k) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                -1,1,-1,-1,1,k,i,l,j,&
+                gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,k,i,l,j,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
         else if ( j < i .and. i < k .and. k < l) then
@@ -30100,7 +30057,7 @@ contains
             ! _L(j) > _LL*(i) > LL^*(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,l,i,k,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 j,i,k,l,0,4,-1.0_dp,-1.0_dp)
 
         else if ( j < i .and. i < l .and. l < k) then
@@ -30108,7 +30065,7 @@ contains
             ! _L(j) > _LL*(i) > ^LL(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_lowering, &
-                -1,-1,-1,-1,-1,l,i,k,j,&
+                gen_type%L,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 j,i,l,k,0,4,-1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < i .and. i < l) then
@@ -30117,7 +30074,7 @@ contains
             ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,k,i,l,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
         else if ( j < k .and. k < l .and. l < i) then
@@ -30126,7 +30083,7 @@ contains
             ! _L(j) > _RL(k) > ^LR(l) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,k,i,l,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,k,i,l,j,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
         else if ( j < l .and. l < i .and. i < k) then
@@ -30134,7 +30091,7 @@ contains
             ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,-1,l,i,k,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (j < l .and. l < k .and. k < i) then
@@ -30142,7 +30099,7 @@ contains
             ! _L(j) > _RL(l) > ^LR(k) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_L_to_R, &
-                1,-1,-1,-1,1,l,i,k,j,&
+                gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%R,l,i,k,j,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < j .and. j < l) then
@@ -30150,7 +30107,7 @@ contains
             ! _R(k) > _LR(i) > ^RL(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,l,i,k,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,l,i,k,j,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < i .and. i < l .and. l < j) then
@@ -30158,7 +30115,7 @@ contains
             ! _R(k) > _LR(i) > ^LR(l) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,l,i,k,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,k,j,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < i .and. i < l) then
@@ -30167,7 +30124,7 @@ contains
             ! _R(k) > _LR(j) > ^RL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,k,i,l,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,k,i,l,j,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
         else if (k < j .and. j < l .and. l < i) then
@@ -30176,7 +30133,7 @@ contains
             ! _R(k) > _LR(j) > ^LR(l) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,k,i,l,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,k,i,l,j,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
         else if (k < l .and. l < i .and. i < j) then
@@ -30184,7 +30141,7 @@ contains
             ! _R(k) > _RR(l) > ^RR*(i) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,l,i,k,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,k,j,&
                 k,l,i,j,0,4,1.0_dp,-1.0_dp)
 
         else if (k < l .and. l < j .and. j < i) then
@@ -30192,7 +30149,7 @@ contains
             ! _R(k) > _RR(l) > RR^(j) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,l,i,k,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,k,j,&
                 k,l,j,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < j .and. j < k) then
@@ -30201,7 +30158,7 @@ contains
             ! _R(l) > _LR(i) > ^RL(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                -1,1,1,1,-1,k,i,l,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,k,i,l,j,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < i .and. i < k .and. k < j) then
@@ -30210,7 +30167,7 @@ contains
             ! _R(l) > _LR(i) > ^LR(k) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                -1,1,1,1,1,k,i,l,j,&
+                gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,k,i,l,j,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < i .and. i < k) then
@@ -30218,7 +30175,7 @@ contains
             ! _R(l) > _LR(j) > ^RL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L, &
-                1,-1,1,1,-1,l,i,k,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%L,l,i,k,j,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
         else if (l < j .and. j < k .and. k < i) then
@@ -30226,7 +30183,7 @@ contains
             ! _R(l) > _LR(j) > ^LR(k) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_R_to_L_to_R, &
-                1,-1,1,1,1,l,i,k,j,&
+                gen_type%R,gen_type%L,gen_type%R,gen_type%R,gen_type%R,l,i,k,j,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
         else if (l < k .and. k < i .and. i < j) then
@@ -30234,7 +30191,7 @@ contains
             ! _R(l) > RR_*(k) > ^RR*(i) > ^R(j)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,l,i,k,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,k,j,&
                 l,k,i,j,0,4,-1.0_dp,-1.0_dp)
 
         else if (l < k .and. k < j .and. j < i) then
@@ -30242,7 +30199,7 @@ contains
             ! _R(l) > RR_*(k) > RR^*(j) > ^R(i)
             excitInfo = assign_excitInfo_values_double(&
                 excit_type%double_raising, &
-                1,1,1,1,1,l,i,k,j,&
+                gen_type%R,gen_type%R,gen_type%R,gen_type%R,gen_type%R,l,i,k,j,&
                 l,k,j,i,0,4,-1.0_dp,1.0_dp)
 
         else

@@ -30,7 +30,7 @@ module guga_rdm
                                 calcFullStartFullStopMixed, &
                                 calcRemainingSwitches_excitInfo_double
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type
+                         excit_type, gen_type
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -723,7 +723,7 @@ contains
                     ! figure out!
                     step = step_i(i)
 
-                    call getDoubleMatrixElement(step,step,0,-1,1,real_b(i),&
+                    call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,real_b(i),&
                         1.0_dp,x1_element = stay_mat)
 
                     call getMixedFullStop(step,step,0,real_b(i), &
@@ -738,10 +738,6 @@ contains
                             top_cont * end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
                         call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
                             top_cont * end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
-!
-!                         integral = integral + end_mat * mat_ele * &
-!                             (get_umat_el(i,holeInd,elecInd,i) +  &
-!                             get_umat_el(holeInd,i,i,elecInd))/2.0_dp
 
                     end if
 
@@ -775,7 +771,7 @@ contains
 
                 step = step_i(i)
                 ! update inverse product
-                call getDoubleMatrixElement(step,step,0,-1,1,real_b(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,real_b(i),&
                     1.0_dp, x1_element = stay_mat)
 
                 call getMixedFullStop(step,step,0,real_b(i), x1_element = end_mat)
@@ -804,7 +800,7 @@ contains
 
             if (step == 1) then
                 ! then a -2 branch arrived!
-                call getDoubleMatrixElement(2,1,-2,-1,1,real_b(sw), &
+                call getDoubleMatrixElement(2,1,-2,gen_type%L,gen_type%R,real_b(sw), &
                     1.0_dp, x1_element = stay_mat)
 
                 call getMixedFullStop(2,1,-2,real_b(sw),x1_element = end_mat)
@@ -812,7 +808,7 @@ contains
             else
                 ! +2 branch arrived!
 
-                call getDoubleMatrixElement(1,2,2,-1,1,real_b(sw), &
+                call getDoubleMatrixElement(1,2,2,gen_type%L,gen_type%R,real_b(sw), &
                     1.0_dp, x1_element = stay_mat)
 
                 call getMixedFullStop(1,2,2,real_b(sw), x1_element = end_mat)
@@ -906,10 +902,10 @@ contains
 
                 ! get both start and staying matrix elements -> and update
                 ! matrix element contributions on the fly to avoid second loop!
-                call getDoubleMatrixElement(step,step,-1,1,-1,real_b(i),&
+                call getDoubleMatrixElement(step,step,-1,gen_type%R,gen_type%L,real_b(i),&
                     1.0_dp, x1_element = start_mat)
 
-                call getDoubleMatrixElement(step,step,0,1,-1,real_b(i),&
+                call getDoubleMatrixElement(step,step,0,gen_type%R,gen_type%L,real_b(i),&
                     1.0_dp, x1_element = stay_mat)
 
                 if (abs(stay_mat) < EPS) below_flag = .true.
@@ -941,7 +937,7 @@ contains
 
         ! calculate the necarry values needed to formulate everything in terms
         ! of the already calculated quantities:
-        call getDoubleMatrixElement(step,step,-1,-1,1,real_b(st),&
+        call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,real_b(st),&
             1.0_dp, x1_element = tmp_mat)
 
         ! and calc. x1^-1
@@ -959,13 +955,13 @@ contains
             step = step_i(i)
 
             ! update inverse product
-            call getDoubleMatrixElement(step,step,0,-1,+1,real_b(i),&
+            call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,real_b(i),&
                 1.0_dp, x1_element = stay_mat)
 
             tmp_mat = tmp_mat / stay_mat
 
             ! and also get starting contribution
-            call getDoubleMatrixElement(step,step,-1,-1,+1,real_b(i),&
+            call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,real_b(i),&
                 1.0_dp, x1_element = start_mat)
 
             ! because the rest of the matrix element is still the same in
@@ -992,18 +988,18 @@ contains
             ! on the switch the original probability is:
             if (step == 1) then
 
-                call getDoubleMatrixElement(2,1,0,-1,+1,real_b(sw),&
+                call getDoubleMatrixElement(2,1,0,gen_type%L,gen_type%R,real_b(sw),&
                     1.0_dp, x1_element = stay_mat)
 
-                call getDoubleMatrixElement(2,1,-1,-1,+1,real_b(sw),&
+                call getDoubleMatrixElement(2,1,-1,gen_type%L,gen_type%R,real_b(sw),&
                     1.0_dp, x1_element = start_mat)
 
             else
 
-                call getDoubleMatrixElement(1,2,0,-1,+1,real_b(sw),&
+                call getDoubleMatrixElement(1,2,0,gen_type%L,gen_type%R,real_b(sw),&
                     1.0_dp, x1_element = stay_mat)
 
-                call getDoubleMatrixElement(1,2,-1,-1,+1,real_b(sw),&
+                call getDoubleMatrixElement(1,2,-1,gen_type%L,gen_type%R,real_b(sw),&
                     1.0_dp, x1_element = start_mat)
 
             end if
@@ -1066,7 +1062,7 @@ contains
 
             step1 = step_i(i)
             step2 = step_j(i)
-            call getDoubleMatrixElement(step2,step1,deltaB(i-1),-1,1,&
+            call getDoubleMatrixElement(step2,step1,deltaB(i-1),gen_type%L,gen_type%R,&
                 real_b(i),1.0_dp,x1_element = tempWeight)
 
             inter = inter * tempWeight
@@ -1102,7 +1098,7 @@ contains
                 ! get the starting matrix element
                 step1 = step_i(i)
                 step2 = step_j(i)
-                call getDoubleMatrixElement(step2,step1,-1,-1,+1,&
+                call getDoubleMatrixElement(step2,step1,-1,gen_type%L,gen_type%R,&
                     real_b(i),1.0_dp,x1_element = tempWeight)
 
                 ! loop over excitation range
@@ -1114,7 +1110,7 @@ contains
 
                     step1 = step_i(k)
                     ! only 0 branch here
-                    call getDoubleMatrixElement(step1,step1,0,-1,+1,&
+                    call getDoubleMatrixElement(step1,step1,0,gen_type%L,gen_type%R,&
                         real_b(k),1.0_dp,x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
@@ -1128,12 +1124,12 @@ contains
 
                     if (step1 == 1) then
                         ! i know that step2 = 2
-                        call getDoubleMatrixElement(2,1,0,-1,+1,&
+                        call getDoubleMatrixElement(2,1,0,gen_type%L,gen_type%R,&
                             real_b(first),1.0_dp,x1_element = tempWeight_1)
 
                     else
                         ! i know that step2 = 1
-                        call getDoubleMatrixElement(1,2,0,-1,+1,real_b(first),&
+                        call getDoubleMatrixElement(1,2,0,gen_type%L,gen_type%R,real_b(first),&
                             1.0_dp, x1_element = tempWeight_1)
 
                     end if
@@ -1149,11 +1145,11 @@ contains
 
                     if (step_i(last) == 1) then
                         ! then i know step2 = 2 & dB = -2!
-                        call getDoubleMatrixElement(2,1, -2,-1,+1,&
+                        call getDoubleMatrixElement(2,1, -2,gen_type%L,gen_type%R,&
                             real_b(last),1.0_dp,x1_element = tempWeight_1)
                     else
                         ! i know step2 == 1 and dB = +2
-                        call getDoubleMatrixElement(1,2, +2, -1, +1,&
+                        call getDoubleMatrixElement(1,2, +2, gen_type%L, gen_type%R,&
                             real_b(last),1.0_dp,x1_element = tempWeight_1)
 
                     end if
@@ -1168,7 +1164,7 @@ contains
 
                     step1 = step_i(k)
                     ! only 0 branch here
-                    call getDoubleMatrixElement(step1,step1,0,-1,+1,&
+                    call getDoubleMatrixElement(step1,step1,0,gen_type%L,gen_type%R,&
                         real_b(k),1.0_dp,x1_element = tempWeight_1)
 
                     tempWeight = tempWeight * tempWeight_1
@@ -1274,16 +1270,16 @@ contains
         case (0)
             ! this implicates a raising st:
             if (isOne(ilutJ,st)) then
-                call getDoubleMatrixElement(1,0,0,-1,1, real(b_i(st),dp), &
+                call getDoubleMatrixElement(1,0,0,gen_type%L,gen_type%R, real(b_i(st),dp), &
                     1.0_dp,x1_element = botCont)
 
             else
-                call getDoubleMatrixElement(2,0,0,-1,1, real(b_i(st),dp), &
+                call getDoubleMatrixElement(2,0,0,gen_type%L,gen_type%R, real(b_i(st),dp), &
                     1.0_dp, x1_element = botCont)
             end if
 
             StartCont = 0.0_dp
-            gen = 1
+            gen = gen_type%R
 
         case (3)
             ! implies lowering st
@@ -1297,7 +1293,7 @@ contains
             end if
 
             StartCont = 1.0_dp
-            gen = -1
+            gen = gen_type%L
 
         case (1)
             botCont = funA_m1_1_overR2(real(b_i(st),dp))
@@ -1306,10 +1302,10 @@ contains
                 botCont = -botCont
 
                 StartCont = 0.0_dp
-                gen = -1
+                gen = gen_type%L
             else
                 StartCont = 1.0_dp
-                gen = 1
+                gen = gen_type%R
             endif
 
 
@@ -1319,10 +1315,10 @@ contains
                 botCont = -botCont
 
                 StartCont = 1.0_dp
-                gen = 1
+                gen = gen_type%R
             else
                 StartCont = 0.0_dp
-                gen = -1
+                gen = gen_type%L
             end if
 
         end select
@@ -1401,7 +1397,7 @@ contains
                 ! otherwise i have to recalc the x1 element
 
                 step = step_i(iO)
-                call getDoubleMatrixElement(step,step,-1,-1,+1,real(b_i(iO), dp), &
+                call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,real(b_i(iO), dp), &
                     1.0_dp,x1_element = prod)
 
                 ! and then do the remaining:
@@ -1409,7 +1405,7 @@ contains
                     ! need the stepvalue entries to correctly access the mixed
                     ! generator matrix elements
                     step = step_i(jO)
-                    call getDoubleMatrixElement(step, step, 0, -1, +1,&
+                    call getDoubleMatrixElement(step, step, 0, gen_type%L, gen_type%R,&
                         real(b_i(jO),dp), 1.0_dp, x1_element = tempWeight)
 
                     prod = prod * tempWeight
@@ -1493,7 +1489,7 @@ contains
 
                     step = step_i(jO)
 
-                    call getDoubleMatrixElement(step,step,0,-1,+1,real(b_i(jO), dp),&
+                    call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,real(b_i(jO), dp),&
                         1.0_dp,x1_element = tempWeight)
 
                     prod = prod * tempWeight

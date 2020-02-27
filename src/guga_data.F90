@@ -33,10 +33,10 @@ module guga_data
     end type WeightData_t
 
     type :: GeneratorType_Values_t
-        integer :: &
-            raising     = 1,  &
-            lowering    = -1, &
-            weight =    0
+        integer ::  &
+            R =  1, &
+            L = -1, &
+            W =  0
     end type GeneratorType_Values_t
 
     type(GeneratorType_Values_t), parameter :: gen_type = GeneratorType_Values_t()
