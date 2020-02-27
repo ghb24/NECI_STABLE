@@ -261,3 +261,5 @@ endif
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
 
 #endif
+
+#define check_abort_excit(pgen,x) if (near_zero(pgen)) then; x = 0_n_int; return; endif

@@ -57,7 +57,7 @@ module guga_rdm
     use OneEInts, only: GetTMatEl
     use procedure_pointers, only: get_umat_el
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), near_zero
 
     implicit none
 
@@ -706,7 +706,7 @@ contains
 
             end select
 
-            if (abs(top_cont) > EPS) then
+            if (.not. near_zero(top_cont) ) then
 
                 above_flag = .false.
                 tmp_mat = 1.0_dp
@@ -730,9 +730,9 @@ contains
                         x1_element = end_mat)
 
                     ! this check should never be true, but just to be sure
-                    if (abs(stay_mat) < EPS) above_flag = .true.
+                    if (near_zero(stay_mat) ) above_flag = .true.
 
-                    if (abs(end_mat) > EPS) then
+                    if (.not. near_zero(end_mat) ) then
 
                         call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
                             top_cont * end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
@@ -779,16 +779,12 @@ contains
                 ! update matrix element
                 tmp_mat = tmp_mat / stay_mat
 
-                if (abs(end_mat) > EPS) then
+                if (.not. near_zero(end_mat) ) then
 
                     call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
                         end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
                     call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
                         end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
-
-!                     integral = integral + end_mat * tmp_mat * &
-!                         (get_umat_el(i, holeInd, elecInd, i) + &
-!                         get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
 
                 end if
 
@@ -884,7 +880,7 @@ contains
             end if
         end if
 
-        if (abs(bot_cont) > EPS) then
+        if (.not. near_zero(bot_cont) ) then
 
             tmp_mat = 1.0_dp
             below_flag = .false.
@@ -908,9 +904,9 @@ contains
                 call getDoubleMatrixElement(step,step,0,gen_type%R,gen_type%L,real_b(i),&
                     1.0_dp, x1_element = stay_mat)
 
-                if (abs(stay_mat) < EPS) below_flag = .true.
+                if (near_zero(stay_mat) ) below_flag = .true.
 
-                if (abs(start_mat) > EPS) then
+                if (.not. near_zero(start_mat) ) then
 
                     call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
                         bot_cont * start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
@@ -966,16 +962,13 @@ contains
 
             ! because the rest of the matrix element is still the same in
             ! both cases...
-            if (abs(start_mat) > EPS) then
+            if (.not. near_zero(start_mat) ) then
 
                 call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
                     start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
                 call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
                     start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
 
-!                 integral = integral + tmp_mat * start_mat * &
-!                     (get_umat_el(holeInd,i,i,elecInd) + &
-!                     get_umat_el(i,holeInd,elecInd,i))/2.0_dp
             end if
 
         end do
@@ -1768,7 +1761,7 @@ contains
 
         j = 1
         do i = 1, n_tot
-            if (abs(extract_matrix_element(tmp_all_excits(:,i),1)) < EPS) cycle
+            if (near_zero(extract_matrix_element(tmp_all_excits(:,i),1)) ) cycle
 
             tmp_all_excits(:,j) = tmp_all_excits(:,i)
 
@@ -1862,7 +1855,7 @@ contains
 
         j = 1
         do i = 1, n_tot
-            if (abs(extract_matrix_element(tmp_all_excits(:,i),1)) < EPS) cycle
+            if (near_zero(extract_matrix_element(tmp_all_excits(:,i),1)) ) cycle
 
             tmp_all_excits(:,j) = tmp_all_excits(:,i)
 
@@ -2183,9 +2176,9 @@ contains
         st = excitInfo%fullStart
         ! check compatibility of chosen indices
 
-        if ((current_stepvector(st) == 1 .and. plusWeight < EPS) .or.&
-            (current_stepvector(st) == 2 .and. minusWeight < EPS).or.&
-            (minusWeight + plusWeight < EPS)) then
+        if ((current_stepvector(st) == 1 .and. near_zero(plusWeight )) .or.&
+            (current_stepvector(st) == 2 .and. near_zero(minusWeight )).or.&
+            near_zero(minusWeight + plusWeight )) then
             allocate(excits(0,0), stat = ierr)
             return
         end if

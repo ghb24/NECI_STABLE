@@ -4919,7 +4919,7 @@ contains
             call create_crude_double(ilut, excitation, branch_pgen, excitInfo)
 
             if (near_zero(branch_pgen)) then
-                excitation = 0
+                excitation = 0_n_int
                 pgen = 0.0_dp
                 return
             end if
@@ -5377,10 +5377,7 @@ contains
         ! should i do that in the mixedFullStartStochastic routine
 
         ! do that x1 matrix element in the routine and only check probWeight here
-        if (near_zero(branch_pgen)) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         temp_pgen = 1.0_dp
 
@@ -6306,10 +6303,7 @@ contains
             negSwitches, t, branch_pgen)
 
         ! check validity
-        if (near_zero(branch_pgen)) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
@@ -6317,10 +6311,7 @@ contains
 
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (near_zero(branch_pgen)) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6332,19 +6323,13 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (near_zero(branch_pgen)) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
             ! check validity
-            if (near_zero(branch_pgen)) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6355,10 +6340,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (near_zero(branch_pgen)) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         excitInfo%currentGen = excitInfo%lastGen
 
@@ -6368,10 +6350,7 @@ contains
 
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (near_zero(branch_pgen)) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6482,10 +6461,7 @@ contains
             negSwitches, t, branch_pgen)
 
         ! check validity
-        if (near_zero(branch_pgen)) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
@@ -6493,10 +6469,7 @@ contains
             branch_pgen = branch_pgen * temp_pgen
 
             ! check validity
-            if (near_zero(branch_pgen)) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6508,19 +6481,13 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (near_zero(branch_pgen)) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
             ! check validity
-            if (near_zero(branch_pgen)) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6531,10 +6498,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (near_zero(branch_pgen)) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         excitInfo%currentGen = excitInfo%lastGen
 
@@ -6543,10 +6507,7 @@ contains
                 negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (near_zero(branch_pgen)) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6637,20 +6598,13 @@ contains
         ! check validity (defined in macros.h)
         check_abort_excit(branch_pgen, t)
 
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
-
         do iOrb = start1 + 1, start2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6662,19 +6616,13 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
             ! check validity
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6685,20 +6633,15 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6732,7 +6675,7 @@ contains
             integral = extract_matrix_element(t,2)*(get_umat_el(ende2,start2,start1,ende1) + &
                 get_umat_el(start2,ende2,ende1,start1))/2.0_dp
 
-            if (abs(integral) < EPS) then
+            if (near_zero(integral)) then
                 branch_pgen = 0.0_dp
                 t = 0_n_int
             else
@@ -6759,7 +6702,7 @@ contains
                 extract_matrix_element(t,2))*(get_umat_el(ende2,start2,start1,ende1)+&
                 get_umat_el(start2,ende2,ende1,start1)))/2.0_dp
 
-            if (abs(integral ) < EPS) then
+            if (near_zero(integral)) then
                 branch_pgen = 0.0_dp
                 t = 0_n_int
             else
@@ -6808,20 +6751,15 @@ contains
             negSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6834,20 +6772,14 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
             ! check validity
 
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6858,20 +6790,15 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6897,7 +6824,7 @@ contains
             get_umat_el(start1,start2,ende1,ende2) + get_umat_el(start2,start1,ende2,ende1) - &
             get_umat_el(start1,start2,ende2,ende1) - get_umat_el(start2,start1,ende1,ende2)))/2.0_dp
 
-        if (abs(integral) < EPS) then
+        if (near_zero(integral)) then
             branch_pgen = 0.0_dp
             t = 0_n_int
         else
@@ -6945,20 +6872,15 @@ contains
             negSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6970,19 +6892,14 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
             call doubleUpdateStochastic(ilut, iOrb, excitInfo, weights, negSwitches, &
                 posSwitches, t, branch_pgen)
             ! check validity
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -6993,10 +6910,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
@@ -7004,10 +6918,7 @@ contains
 
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
 
         end do
 
@@ -7034,7 +6945,7 @@ contains
             integral = extract_matrix_element(t,2) * (get_umat_el(start1,ende1,ende2,start2) + &
                 get_umat_el(ende1,start1,start2,ende2))/2.0_dp
 
-            if (abs(integral) < EPS) then
+            if (near_zero(integral)) then
                 branch_pgen = 0.0_dp
                 t = 0_n_int
             else
@@ -7047,7 +6958,7 @@ contains
                 extract_matrix_element(t,2))*(get_umat_el(start1,ende1,ende2,start2) + &
                 get_umat_el(ende1,start1,start2,ende2)))/2.0_dp
 
-            if (abs(integral)<EPS) then
+            if (near_zero(integral)) then
                 branch_pgen = 0.0_dp
                 t = 0_n_int
             else
@@ -7098,20 +7009,15 @@ contains
             negSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start1 + 1, start2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
-            if (branch_pgen <EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
         end do
 
         ! change weights... maybe need both single and double type weights
@@ -7125,10 +7031,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = start2 + 1, ende1 - 1
             ! branch_pgen gets updated inside update routine
@@ -7136,10 +7039,8 @@ contains
                 posSwitches, t, branch_pgen)
             ! here only need to have probweight, since i cant only check x1 element
             ! check validity
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
         end do
 
         ! then update weights and and to lowering semi-stop
@@ -7150,20 +7051,15 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = ende1 + 1, ende2 - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             ! check validity
             branch_pgen = branch_pgen * temp_pgen
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
         end do
 
         ! and finally to end step
@@ -7191,7 +7087,7 @@ contains
             get_umat_el(ende1,ende2,start1,start2) + get_umat_el(ende2,ende1,start2,start1) - &
             get_umat_el(ende2,ende1,start1,start2) - get_umat_el(ende1,ende2,start2,start1)))/2.0_dp
 
-        if (abs(integral)<EPS) then
+        if (near_zero(integral)) then
             branch_pgen = 0.0_dp
             t = 0_n_int
         else
@@ -7248,20 +7144,15 @@ contains
         pgen = 0.0_dp
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do i = st + 1, se - 1
             call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
         end do
 
         ! do the specific se-st
@@ -7272,10 +7163,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         ! do the specific double update to ensure a switch
         ! although switch can also happen at end only...
@@ -7284,7 +7172,8 @@ contains
         do i = se + 1, e -1
             call doubleUpdateStochastic(ilut, i, excitInfo, &
                 weights, negSwitches, posSwitches, t, branch_pgen)
-            if (abs(extract_matrix_element(t,2))<EPS .or. branch_pgen<EPS) then
+
+            if (near_zero(extract_matrix_element(t,2)) .or. near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -7293,7 +7182,7 @@ contains
         call mixedFullStopStochastic(ilut, excitInfo, t)
 
         ! check if matrix element is non-zero and if a switch happened
-        if (abs(extract_matrix_element(t,1)) > EPS) then
+        if (.not. near_zero(extract_matrix_element(t,1))) then
             t = 0_n_int
             branch_pgen = 0.0_dp
             return
@@ -7307,7 +7196,7 @@ contains
             end if
         end if
 
-        if (abs(extract_matrix_element(t,2)) < EPS) then
+        if (near_zero(extract_matrix_element(t,2))) then
             branch_pgen = 0.0_dp
             t = 0_n_int
             return
@@ -7395,7 +7284,7 @@ contains
 
             end select
 
-            if (abs(top_cont) > EPS) then
+            if (.not. near_zero(top_cont)) then
 
                 above_flag = .false.
                 mat_ele = 1.0_dp
@@ -7422,9 +7311,9 @@ contains
                         x1_element = end_mat)
 
                     ! this check should never be true, but just to be sure
-                    if (abs(stay_mat) < EPS) above_flag = .true.
+                    if (near_zero(stay_mat)) above_flag = .true.
 
-                    if (abs(end_mat) > EPS) then
+                    if (.not. near_zero(end_mat) ) then
                         integral = integral + end_mat * mat_ele * &
                             (get_umat_el(i,holeInd,elecInd,i) +  &
                             get_umat_el(holeInd,i,i,elecInd))/2.0_dp
@@ -7517,7 +7406,7 @@ contains
                 end if
             end if
 
-            if (abs(topCont) > EPS) then
+            if (.not. near_zero(topCont) ) then
 
                 do i = e + 1, nSpatOrbs
                     if (currentOcc_int(i) /= 1) then
@@ -7747,7 +7636,7 @@ contains
                     end if
                 end select
 
-                if (abs(tempWeight_1) < EPS) then
+                if (near_zero(tempWeight_1) ) then
                     probWeight = 0.0_dp
                 end if
                 ! that should be it...
@@ -7759,7 +7648,7 @@ contains
             call getMixedFullStop(step2,step,int(deltaB(i-1)),currentB_ilut(i), &
                 x1_element = tempWeight_1)
 
-            if (abs(tempWeight_1) < EPS) then
+            if (near_zero(tempWeight_1) ) then
                 probWeight = 0.0_dp
             end if
             ! get orbitals prob. also
@@ -7881,20 +7770,16 @@ contains
         ! in case of early exit pgen should be set to 0
         pgen = 0.0_dp
         ! check validity
-        if (branch_pgen <EPS) then
-            t = 0_n_int
-            return
-        end if
+
+        check_abort_excit(branch_pgen, t)
 
         do i = st + 1, se - 1
             call singleStochasticUpdate(ilut, i, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check validity
-            if (branch_pgen <EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
         end do
 
         ! do the specific semi-start
@@ -7904,10 +7789,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen <EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         ! do the specific double update to ensure a switch
         ! although switch can also happen at end only...
@@ -7917,7 +7799,7 @@ contains
             call doubleUpdateStochastic(ilut, i, excitInfo, &
                 weights, negSwitches, posSwitches, t, branch_pgen)
             ! also here there has to be a switch at some point so check x1
-            if (abs(extract_matrix_element(t,2))<EPS .or. branch_pgen<EPS) then
+            if (near_zero(extract_matrix_element(t,2)) .or. near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -7926,7 +7808,7 @@ contains
         call mixedFullStopStochastic(ilut, excitInfo, t)
 
         ! check if matrix element is non-zero and if a switch happened
-        if (abs(extract_matrix_element(t,1)) > EPS) then
+        if (.not. near_zero(extract_matrix_element(t,1)) ) then
             t = 0_n_int
             return
         end if
@@ -7940,7 +7822,7 @@ contains
             end if
         end if
 
-        if (abs(extract_matrix_element(t,2)) < EPS) then
+        if (near_zero(extract_matrix_element(t,2)) ) then
             t = 0_n_int
             return
         end if
@@ -8147,7 +8029,7 @@ contains
 
             end select
 
-            if (abs(top_cont) > EPS) then
+            if (.not. near_zero(top_cont) ) then
 
                 above_flag = .false.
                 mat_ele = 1.0_dp
@@ -8182,7 +8064,7 @@ contains
                     call getMixedFullStop(step,step,0,currentB_ilut(i), &
                         x1_element = end_mat)
 
-                    if (orb_pgen < EPS) then
+                    if (near_zero(orb_pgen)) then
                         ! still have to update the switches before cycling
                         ! update the switches
                         if (current_stepvector(i) == 1) then
@@ -8199,9 +8081,9 @@ contains
                     end if
 
                     ! this check should never be true, but just to be sure
-                    if (abs(stay_mat) < EPS) above_flag = .true.
+                    if (near_zero(stay_mat) ) above_flag = .true.
 
-                    if (abs(end_mat) > EPS) then
+                    if (.not. near_zero(end_mat) ) then
                         integral = integral + end_mat * mat_ele * &
                             (get_umat_el(i,holeInd,elecInd,i) +  &
                             get_umat_el(holeInd,i,i,elecInd))/2.0_dp
@@ -8319,9 +8201,9 @@ contains
 
                 ! dont i still have to atleast update the matrix element
                 ! even if the orbital pgen is 0??
-                if (orb_pgen < EPS) cycle
+                if (near_zero(orb_pgen)) cycle
 
-                if (abs(end_mat) > EPS) then
+                if (.not. near_zero(end_mat) ) then
 
                     integral = integral + end_mat * mat_ele * &
                         (get_umat_el(i, holeInd, elecInd, i) + &
@@ -8384,7 +8266,7 @@ contains
             call calc_orbital_pgen_contrib_end([2*elecInd, 2*sw], holeInd, &
                 orb_pgen)
 
-            if (orb_pgen > EPS) then
+            if (.not. near_zero(orb_pgen)) then
 
                 step = current_stepvector(sw)
 
@@ -8534,7 +8416,7 @@ contains
 #endif
             end if
 
-            if (abs(topCont) > EPS) then
+            if (.not. near_zero(topCont) ) then
 
             do i = en + 1, nSpatOrbs
 
@@ -8766,7 +8648,7 @@ contains
                         end if
                 end select
 
-                if (abs(tempWeight_1) < EPS) then
+                if (near_zero(tempWeight_1) ) then
                     probWeight = 0.0_dp
                 end if
                 ! that should be it...
@@ -8778,7 +8660,7 @@ contains
 
             call getMixedFullStop(step2,step,deltaB(i-1),currentB_ilut(i),x1_element=tempWeight_1)
 
-            if (abs(tempWeight_1) < EPS) then
+            if (near_zero(tempWeight_1) ) then
                 probWeight = 0.0_dp
             end if
 
@@ -8914,7 +8796,7 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(s), &
                     posSwitches(s), bVal, weights%dat)
 
-                if (minusWeight + zeroWeight < EPS) then
+                if (near_zero(minusWeight + zeroWeight )) then
                     probWeight = 0.0_dp
                     t = 0
                     return
@@ -8968,7 +8850,7 @@ contains
                     zeroWeight = weights%proc%zero(negSwitches(s), &
                         posSwitches(s), bVal, weights%dat)
 
-                    if (plusWeight + zeroWeight < EPS) then
+                    if (near_zero(plusWeight + zeroWeight )) then
                         probWeight = 0.0_dp
                         t = 0
                     end if
@@ -9018,13 +8900,13 @@ contains
                 ! have to avoid divison by 0 then
                 ! but in this case only the stayin on 0 branch is valid
                 ! since it should be always > 0 and the -branch has 0 weight
-                if (bVal * zeroWeight + minusWeight < EPS) then
+                if (near_zero(bVal * zeroWeight + minusWeight )) then
                     zeroWeight = 1.0_dp
                 else
                     zeroWeight = calcStayingProb(zeroWeight, minusWeight, bVal)
                 end if
 
-                if (zeroWeight + minusWeight < EPS) then
+                if (near_zero(zeroWeight + minusWeight )) then
                     probWeight = 0.0_dp
                     t = 0
                     return
@@ -9079,7 +8961,7 @@ contains
                      zeroWeight = weights%proc%zero(negSwitches(s), &
                          posSwitches(s), bVal, weights%dat)
 
-                     if (plusWeight + zeroWeight < EPS) then
+                     if (near_zero(plusWeight + zeroWeight )) then
                          probWeight = 0.0_dp
                          t = 0
                          return
@@ -9118,7 +9000,7 @@ contains
         call update_matrix_element(t, tempWeight_1, 2)
 
 
-        if (abs(tempWeight_0)<EPS .and. abs(tempWeight_1)<EPS) then
+        if (near_zero(tempWeight_0) .and. near_zero(tempWeight_1)) then
             probWeight = 0.0_dp
             t = 0
             return
@@ -9284,7 +9166,7 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(se), posSwitches(se), &
                     bVal, weights%dat)
 
-                if (minusWeight + zeroWeight <EPS) then
+                if (near_zero(minusWeight + zeroWeight )) then
                     probWeight = 0.0_dp
                     t = 0
                     return
@@ -9345,7 +9227,7 @@ contains
                     zeroWeight = weights%proc%zero(negSwitches(se), posSwitches(se), &
                         bVal, weights%dat)
 
-                    if (plusWeight + zeroWeight <EPS) then
+                    if (near_zero(plusWeight + zeroWeight )) then
                         probWeight = 0.0_dp
                         t = 0
                         return
@@ -9389,7 +9271,7 @@ contains
         call encode_matrix_element(t, extract_matrix_element(t,1)*tempWeight_1, 2)
         call update_matrix_element(t, tempWeight_0, 1)
 
-        if (abs(tempWeight_0)<EPS .and. abs(tempWeight_1)<EPS) then
+        if (near_zero(tempWeight_0) .and. near_zero(tempWeight_1)) then
             probWeight = 0.0_dp
             t = 0
         end if
@@ -9456,7 +9338,7 @@ contains
                 zeroWeight = weights%proc%zero(negSwitches(se), posSwitches(se), &
                     bVal, weights%dat)
 
-                if (minusWeight + zeroWeight <EPS) then
+                if (near_zero(minusWeight + zeroWeight )) then
                     probWeight = 0.0_dp
                     t = 0
                     return
@@ -9514,7 +9396,7 @@ contains
                     zeroWeight = weights%proc%zero(negSwitches(se), posSwitches(se), &
                         bVal, weights%dat)
 
-                    if (plusWeight + zeroWeight < EPS) then
+                    if (near_zero(plusWeight + zeroWeight )) then
                         probWeight = 0.0_dp
                         t = 0
                         return
@@ -9558,7 +9440,7 @@ contains
         call encode_matrix_element(t, extract_matrix_element(t,1)*tempWeight_1, 2)
         call update_matrix_element(t, tempWeight_0, 1)
 
-        if (abs(tempWeight_0)<EPS .and. abs(tempWeight_1)<EPS) then
+        if (near_zero(tempWeight_0) .and. near_zero(tempWeight_1)) then
             probWeight = 0.0_dp
             t = 0
         end if
@@ -9677,7 +9559,7 @@ contains
                     plusWeight = weights%proc%plus(posSwitches(semi), &
                         bVal, weights%dat)
 
-                    if (minusWeight + plusWeight <EPS) then
+                    if (near_zero(minusWeight + plusWeight )) then
                         probWeight = 0.0_dp
                         t = 0
                         return
@@ -9720,7 +9602,7 @@ contains
         ! switch happened in the double overlap region
         if (excitInfo%typ == excit_type%fullstart_R_to_L) then
             ! this is indicated by a non-zero x0-matrix element
-            if (abs(extract_matrix_element(t,1)*tempWeight_0) > EPS) then
+            if (.not. near_zero(extract_matrix_element(t,1)*tempWeight_0) ) then
                 probWeight = 0.0_dp
                 t = 0
                 return
@@ -9731,8 +9613,8 @@ contains
         ! easier to deal with the contributing integrals if we keep them
         ! seperate until the end!
 
-        if (abs(extract_matrix_element(t,1)*tempWeight_0)<EPS .and. &
-            abs(extract_matrix_element(t,2)*tempWeight_1)<EPS) then
+        if (near_zero(extract_matrix_element(t,1)*tempWeight_0).and. &
+            near_zero(extract_matrix_element(t,2)*tempWeight_1)) then
             probWeight = 0.0_dp
             t = 0_n_int
             return
@@ -9852,7 +9734,7 @@ contains
                     plusWeight = weights%proc%plus(posSwitches(semi), &
                         bVal, weights%dat)
 
-                    if (minusWeight + plusWeight <EPS) then
+                    if (near_zero(minusWeight + plusWeight )) then
                         probWeight = 0.0_dp
                         t = 0
                         return
@@ -9894,15 +9776,15 @@ contains
         ! for mixed fullstart check if no switch happened in the double
         ! overlap region, indicated by a non-zero-x0 matrix element
         if (excitInfo%typ == excit_type%fullStart_L_to_R) then
-            if (abs(extract_matrix_element(t,1)*tempWeight_0) > EPS) then
+            if (.not. near_zero(extract_matrix_element(t,1)*tempWeight_0) ) then
                 probWeight = 0.0_dp
                 t = 0
                 return
             end if
         end if
 
-        if (abs(extract_matrix_element(t,1)*tempWeight_0)<EPS .and. &
-            abs(extract_matrix_element(t,2)*tempWeight_1)<EPS) then
+        if (near_zero(extract_matrix_element(t,1)*tempWeight_0) .and. &
+            near_zero(extract_matrix_element(t,2)*tempWeight_1)) then
             probWeight = 0.0_dp
             t = 0
             return
@@ -9962,10 +9844,7 @@ contains
         pgen = 0.0_dp
 
         ! check validity
-        if (branch_pgen <EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         ! then for the overlap region i need a double update routine, which
         ! somehow garuantees a switch happens at some point, to avoid
@@ -9976,7 +9855,7 @@ contains
                 weights, negSwitches, posSwitches, t, branch_pgen)
 
             ! check validity
-            if (abs(extract_matrix_element(t,2)) < EPS .or. branch_pgen < EPS) then
+            if (near_zero(extract_matrix_element(t,2)) .or. near_zero(branch_pgen )) then
                 t = 0_n_int
                 return
             end if
@@ -9993,10 +9872,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         excitInfo%currentGen = excitInfo%lastGen
 
@@ -10014,10 +9890,8 @@ contains
             end if
 
             ! check validity
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
+
         end do
 
         call singleStochasticEnd(excitInfo, t)
@@ -10028,7 +9902,7 @@ contains
 
         ! update: since i can formulate everything in terms of the already
         ! calculated matrix element i can abort here if it is zero
-        if (abs(extract_matrix_element(t,1)) < EPS) then
+        if (near_zero(extract_matrix_element(t,1)) ) then
             t = 0_n_int
             return
         end if
@@ -10097,7 +9971,7 @@ contains
 
         end if
 
-        if (abs(bot_cont) > EPS) then
+        if (.not. near_zero(bot_cont) ) then
 
             mat_ele = 1.0_dp
             below_flag = .false.
@@ -10122,10 +9996,10 @@ contains
                     1.0_dp, x1_element = stay_mat)
 
 
-                if (abs(stay_mat) < EPS) below_flag = .true.
+                if (near_zero(stay_mat) ) below_flag = .true.
                 ! "normally" matrix element shouldnt be 0 anymore... still check
 
-                if (abs(start_mat) > EPS) then
+                if (.not. near_zero(start_mat) ) then
                     integral = integral + start_mat * mat_ele * (get_umat_el(i,holeInd,elecInd,i) &
                         + get_umat_el(holeInd,i,i,elecInd))/2.0_dp
                 end if
@@ -10269,7 +10143,7 @@ contains
 
             ! the rest all gets modified by botCont.. so if it is zero do not
             ! continue ( do not forget to encode the umat!
-            if (abs(botCont) > EPS) then
+            if (.not. near_zero(botCont) ) then
 
             ! then loop from 1 to start-1
             do i = 1, st - 1
@@ -10339,7 +10213,7 @@ contains
                 integral = integral + tempWeight * (get_umat_el(i,en,se,i) &
                     + get_umat_el(en,i,i,se))/2.0_dp
 
-                if (abs(tempWeight) < EPS) then
+                if (near_zero(tempWeight) ) then
                     startWeight = 0.0_dp
                 end if
                 ! add up all pgen contribs
@@ -10616,10 +10490,7 @@ contains
         ! in case of early exit pgen should be set to 0
         pgen = 0.0_dp
 
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         ! in the mixed fullstart case there has to be a switch at some point
         ! in the double overlap region, or else it would be a single-like
@@ -10633,7 +10504,7 @@ contains
                 weights, negSwitches, posSwitches, t, branch_pgen)
 
             ! to keep it general, i cant only check weights in doubleUpdate
-            if (abs(extract_matrix_element(t,2))<EPS .or. abs(branch_pgen)<EPS) then
+            if (near_zero(extract_matrix_element(t,2)).or. near_zero(branch_pgen)) then
                 t = 0_n_int
                 return
             end if
@@ -10647,10 +10518,7 @@ contains
             posSwitches, t, branch_pgen)
 
         ! check validity
-        if (branch_pgen < EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         excitInfo%currentGen = excitInfo%lastGen
 
@@ -10668,10 +10536,7 @@ contains
             end if
 
             ! check validity
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
         end do
 
         call singleStochasticEnd(excitInfo, t)
@@ -10694,7 +10559,7 @@ contains
 
         ! update: since i can formulate everything in terms of the already
         ! calculated matrix element i can abort here if it is zero
-        if (abs(extract_matrix_element(t,1)) < EPS) then
+        if (near_zero(extract_matrix_element(t,1)) ) then
             t = 0_n_int
             return
         end if
@@ -10934,7 +10799,7 @@ contains
         call calc_guga_matrix_element(ilutI, ilutJ, dummy, mat_ele, &
             .true., 2)
 
-        if (abs(mat_ele) < EPS) then
+        if (near_zero(mat_ele) ) then
             compFlag = .false.
             excitation = 0_n_int
 
@@ -11093,7 +10958,7 @@ contains
 
         ! loop from start backwards so i can abort at a d=1 & b=1 stepvalue
         ! also consider if bot_cont < EPS to avoid unnecarry calculations
-        if (abs(bot_cont) > EPS) then
+        if (.not. near_zero(bot_cont) ) then
 
             mat_ele = 1.0_dp
             below_flag = .false.
@@ -11127,7 +10992,7 @@ contains
                     1.0_dp, x1_element = stay_mat)
 
                 ! check if orb_pgen is non-zero
-                if (orb_pgen < EPS) then
+                if (near_zero(orb_pgen)) then
                     ! still have to update matrix element, even if 0 pgen
                     mat_ele = mat_ele * stay_mat
 
@@ -11137,7 +11002,7 @@ contains
                 ! another check.. although this should not happen
                 ! except the other d = 1 & b = 1 condition is already met
                 ! above, to not continue:
-                if (abs(stay_mat) < EPS) below_flag = .true.
+                if (near_zero(stay_mat) ) below_flag = .true.
 
                 zero_weight = weights%proc%zero(negSwitches(i), &
                     posSwitches(i), currentB_ilut(i), weights%dat)
@@ -11158,7 +11023,7 @@ contains
                 ! if i express everything in terms of already calculated
                 ! quantities!
                 ! "normally" matrix element shouldnt be 0 anymore... still check
-                if (abs(start_mat) > EPS) then
+                if (.not. near_zero(start_mat) ) then
                     integral = integral + start_mat * mat_ele * (get_umat_el(i,holeInd,elecInd,i) &
                         + get_umat_el(holeInd,i,i,elecInd))/2.0_dp
 
@@ -11236,7 +11101,7 @@ contains
                 ! still have to update matrix element in this case..
                 ! so do the cycle only afterwards..
 
-                if (orb_pgen < EPS) cycle
+                if (near_zero(orb_pgen )) cycle
 
                 ! and also get starting contribution
                 call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,currentB_ilut(i),&
@@ -11244,7 +11109,7 @@ contains
 
                 ! because the rest of the matrix element is still the same in
                 ! both cases...
-                if (abs(start_mat) > EPS) then
+                if (.not. near_zero(start_mat) ) then
                     integral = integral + mat_ele * start_mat *(get_umat_el(holeInd,i,i,elecInd) + &
                         get_umat_el(i,holeInd,elecInd,i))/2.0_dp
                 end if
@@ -11292,7 +11157,7 @@ contains
                     orb_pgen)
 
 
-                if (orb_pgen > EPS) then
+                if (.not. near_zero(orb_pgen )) then
 
                     step = current_stepvector(sw)
 
@@ -11434,7 +11299,7 @@ contains
             cum_sum = current_cum_list(nSpatOrbs)
         end if
 
-        if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
+        if (near_zero(cum_sum ) .or. near_zero(ab_sum ) .or. near_zero(ba_sum )) then
             orb_pgen = 0.0_dp
         else
             ! and get hopefully correct final values:
@@ -11526,7 +11391,7 @@ contains
             cum_sum = current_cum_list(nSpatOrbs)
         end if
 
-        if (cum_sum < EPS .or. ab_sum < EPS .or. ba_sum < EPS) then
+        if (near_zero(cum_sum ) .or. near_zero(ab_sum ) .or. near_zero(ba_sum )) then
             orb_pgen = 0.0_dp
         else
             ! and get hopefully correct final values:
@@ -11679,7 +11544,7 @@ contains
 
             ! the rest all gets modified by botCont.. so if it is zero do not
             ! continue ( do not forget to encode the umat!
-            if (abs(botCont) > EPS) then
+            if (.not. near_zero(botCont) ) then
 
             ! then loop from 1 to start-1
             do i = 1, st - 1
@@ -11758,7 +11623,7 @@ contains
                 ! kind of...
                 ! if the matrix element is 0 i should also set the pgen
                 ! to 0
-                if (abs(tempWeight) < EPS) then
+                if (near_zero(tempWeight) ) then
                     startWeight = 0.0_dp
                 end if
                 pgen = pgen + orbitalProb*startWeight*startProb*branch_pgen / origWeight
@@ -11977,7 +11842,7 @@ contains
         call encode_matrix_element(t, tempWeight_1, 2)
         call encode_matrix_element(t, tempWeight, 1)
 
-        if (abs(tempWeight) + abs(tempWeight_1) <EPS) then
+        if (near_zero(abs(tempWeight) + abs(tempWeight_1) )) then
             probWeight = 0.0_dp
             t = 0_n_int
             return
@@ -12118,7 +11983,7 @@ contains
         ! since i only need this routine in excitations, where there has to be
         ! a switch in the double overlap part i could check if it is 0 and then
         ! set probWeight to 0 and return
-        if (abs(tempWeight) + abs(tempWeight_1) <EPS) then
+        if (near_zero(abs(tempWeight) + abs(tempWeight_1) )) then
             probWeight = 0.0_dp
             t = 0
             return
@@ -12168,7 +12033,7 @@ contains
 
         ! todo : correct sum of contributing 2-body integrals and correct
         ! indexing!
-        if (abs(umat) <EPS) then
+        if (near_zero(umat) ) then
             branch_pgen = 0.0_dp
             t = 0_n_int
             return
@@ -12187,20 +12052,15 @@ contains
             negSwitches, t, branch_pgen)
 
         ! check if weights were 0
-        if (branch_pgen <EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
             call singleStochasticUpdate(ilut, iOrb, excitInfo, weights, posSwitches, &
                 negSwitches, t, temp_pgen)
             ! check and update weights
             branch_pgen = branch_pgen * temp_pgen
-            if (branch_pgen <EPS) then
-                t = 0_n_int
-                return
-            end if
+
+            check_abort_excit(branch_pgen, t)
         end do
 
         iOrb = excitInfo%secondStart
@@ -12240,10 +12100,7 @@ contains
             ! check and update weights
             branch_pgen = branch_pgen * temp_pgen
 
-            if (branch_pgen <EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
         end do
 
         call singleStochasticEnd(excitInfo, t)
@@ -12282,7 +12139,7 @@ contains
             excitInfo%fullEnd))/2.0_dp
 
         ! todo: correct sum and indexing..
-        if (abs(umat)<EPS) then
+        if (near_zero(umat)) then
             branch_pgen = 0.0_dp
             t = 0_n_int
             return
@@ -12302,10 +12159,7 @@ contains
             negSwitches, t, branch_pgen)
 
         ! matrix element cannot be zero but both branch weights might have been
-        if (branch_pgen <EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         ! then stochastc single update
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
@@ -12313,10 +12167,7 @@ contains
                 negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! check if branch weights turned 0
-            if (branch_pgen <EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
         end do
 
         ! write it for specific lowering semi-start
@@ -12424,7 +12275,7 @@ contains
             excitInfo%secondStart, excitInfo%fullStart))/2.0_dp
 
         ! todo correct combination of sum terms and correct indexcing
-        if (abs(umat) <EPS) then
+        if (near_zero(umat) ) then
             branch_pgen = 0.0_dp
             t = 0_n_int
             return
@@ -12445,10 +12296,7 @@ contains
             negSwitches, t, branch_pgen)
 
         ! matrix elements cant be 0, but maybe both branch weights were...
-        if (branch_pgen <EPS) then
-            t = 0_n_int
-            return
-        end if
+        check_abort_excit(branch_pgen, t)
 
         ! then stochastc single update
         do iOrb = excitInfo%fullStart + 1, excitInfo%secondStart - 1
@@ -12456,10 +12304,7 @@ contains
                 negSwitches, t, temp_pgen)
             branch_pgen = branch_pgen * temp_pgen
             ! matrix elements cant be 0 but branch weight might be..
-            if (branch_pgen <EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
         end do
 
         ! write it for specific lowering semi-start
@@ -12579,7 +12424,7 @@ contains
             get_umat_el(semi,ende,start,start))/2.0_dp
 
         ! todo! correct combination of umat sum terms.. and correct indexing
-        if (abs(umat) < EPS) then
+        if (near_zero(umat) ) then
             branch_pgen = 0.0_dp
             t = 0_n_int
             return
@@ -12614,7 +12459,7 @@ contains
                 minusWeight = weights%proc%minus(negSwitches(semi), bVal,weights%dat)
                 plusWeight = weights%proc%plus(posSwitches(semi), bVal,weights%dat)
 
-                if (minusWeight + plusWeight < EPS) then
+                if (near_zero(minusWeight + plusWeight )) then
                     branch_pgen = 0.0_dp
                     t = 0_n_int
                     return
@@ -12698,10 +12543,7 @@ contains
                 posSwitches, negSwitches, t, temp_pgen)
             ! matrix element cant be 0 but maybe both branch weights were..
             branch_pgen = branch_pgen * temp_pgen
-            if (branch_pgen < EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
         end do
 
         call singleStochasticEnd(excitInfo, t)
@@ -12755,7 +12597,7 @@ contains
 
         ! better do a excitation abortion here !TODO!! change that to the
         ! correct sum of umats
-        if (abs(umat)<EPS) then
+        if (near_zero(umat)) then
             branch_pgen = 0.0_dp
             t = 0_n_int
             return
@@ -12789,7 +12631,7 @@ contains
 
                 ! if both branches are zero, i have to abort the excitation
                 ! altough that shouldnt happen...
-                if (minusWeight + plusWeight <EPS) then
+                if (near_zero(minusWeight + plusWeight )) then
                     branch_pgen = 0.0_dp
                     t = 0_n_int
                     return
@@ -12879,10 +12721,7 @@ contains
             ! but i could be set to zero, due to both branches having
             ! zero probabilistic weight, which also should not happen, but just
             ! to be sure! this gets indicated by probWeight = 0 and t = 0
-            if (branch_pgen <EPS) then
-                t = 0_n_int
-                return
-            end if
+            check_abort_excit(branch_pgen, t)
         end do
 
         call singleStochasticEnd(excitInfo, t)
@@ -12961,8 +12800,8 @@ contains
 
             call create_crude_single(ilut, exc, branch_pgen, excitInfo)
 
-            if (branch_pgen < EPS) then
-                exc = 0
+            if (near_zero(branch_pgen )) then
+                exc = 0_n_int
                 pgen = 0.0_dp
                 return
             end if
@@ -12973,7 +12812,7 @@ contains
             call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
                 .true., 2)
 
-            if (abs(mat_ele) < EPS) then
+            if (near_zero(mat_ele) ) then
                 exc = 0
                 pgen = 0.0_dp
 
@@ -13012,9 +12851,9 @@ contains
             negSwitches, exc, branch_pgen)
 
         ! can it be zero here? maybe due to matrix element issues...
-        if (branch_pgen <EPS) then
+        if (near_zero(branch_pgen )) then
             pgen = 0.0_dp
-            exc = 0
+            exc = 0_n_int
             return
         end if
 
@@ -13066,7 +12905,7 @@ contains
         call singleStochasticEnd(excitInfo, exc)
 
         ! maybe but a check here if the matrix element anyhow turned out zero
-        if (abs(extract_matrix_element(exc,1))<EPS) then
+        if (near_zero(extract_matrix_element(exc,1))) then
             pgen = 0.0_dp
             exc = 0_n_int
             return
@@ -13089,7 +12928,7 @@ contains
         call encode_matrix_element(exc, 0.0_dp, 2)
         call update_matrix_element(exc, integral, 1)
 
-        if (abs(extract_matrix_element(exc, 1)) < EPS) then
+        if (near_zero(extract_matrix_element(exc, 1)) ) then
             pgen = 0.0_dp
             exc = 0_n_int
         end if
@@ -13380,8 +13219,8 @@ contains
 
 
         ! do excitaiton abortion
-        if (abs(extract_matrix_element(t,1))<EPS .and. &
-            abs(extract_matrix_element(t,2))<EPS) then
+        if (near_zero(extract_matrix_element(t,1)).and. &
+            near_zero(extract_matrix_element(t,2))) then
             t = 0_n_int
         end if
 
@@ -13441,7 +13280,7 @@ contains
             minusWeight = weights%proc%minus(negSwitches(s), bVal, weights%dat)
 
             ! here do a check if not both weights are 0...
-            if (plusWeight + minusWeight <EPS) then
+            if (near_zero(plusWeight + minusWeight )) then
                 probWeight = 0.0_dp
                 t = 0
                 return
@@ -13476,7 +13315,7 @@ contains
                 plusWeight = weights%proc%plus(posSwitches(s), bVal, weights%dat)
                 minusWeight = weights%proc%minus(negSwitches(s), bVal, weights%dat)
                 ! here do a check if not both weights are 0...
-                if (plusWeight + minusWeight <EPS) then
+                if (near_zero(plusWeight + minusWeight )) then
                     probWeight = 0.0_dp
                     t = 0
                     return
@@ -13543,8 +13382,8 @@ contains
                 plusWeight = weights%proc%plus(posSwitches(s), bVal, weights%dat)
                 minusWeight = weights%proc%minus(negSwitches(s), bVal, weights%dat)
 
-                if ((deltaB == -1 .and. minusWeight < EPS) &
-                    .or. (deltaB == 1 .and. plusWeight < EPS)) then
+                if ((deltaB == -1 .and. near_zero(minusWeight )) &
+                    .or. (deltaB == 1 .and. near_zero(plusWeight ))) then
                     t = 0_n_int
                     probWeight = 0.0_dp
                     return
@@ -13692,8 +13531,8 @@ contains
             ! I only have to avoid a completely improper excitation...
             ! if b == 0 and minusWeight == 0 -> no excitation possible todo!
 
-            if ((plusWeight + minusWeight <EPS) .or. &
-                (bVal + minusWeight <EPS)) then
+            if (near_zero(plusWeight + minusWeight ) .or. &
+                near_zero(bVal + minusWeight )) then
                 probWeight = 0.0_dp
                 t = 0
                 return
@@ -13811,7 +13650,7 @@ contains
         character(*), parameter :: this_routine = "getMinus_single"
         ASSERT(nSwitches >= 0.0_dp)
         ! change that, to make it independend if b is zero
-        if (bVal < EPS) then
+        if (near_zero(bVal )) then
             ! make it only depend on f and nSwitches
             ! will be normalized to 1 anyway in the calcStayingProb function
             minusWeight = single%F + nSwitches * single%G
@@ -13832,9 +13671,8 @@ contains
         real(dp) :: plusWeight
         character(*), parameter :: this_routine = "getPlus_single"
         ASSERT(nSwitches >= 0.0_dp)
-!         ASSERT(bVal > 0.0_dp)
 
-        if (bVal < EPS) then
+        if (near_zero(bVal )) then
             plusWeight = 0.0_dp
         else
             plusWeight = single%G + nSwitches * single%F/bVal
@@ -13926,7 +13764,7 @@ contains
         character(*), parameter :: this_routine = "get_forced_zero_double"
 
         ! remove the order(1) branch as we want to switch at the end!
-        if (bVal  < EPS) then
+        if (near_zero(bVal)) then
             zeroWeight = negSwitches * double%G + posSwitches * double%F
         else
             zeroWeight = 1.0_dp/bVal * (negSwitches * double%G + posSwitches * double%F)
@@ -14233,7 +14071,7 @@ contains
 
         ASSERT(nSwitches >= 0.0_dp)
 
-        if (bVal < EPS) then
+        if (near_zero(bVal )) then
             !minusWeight = dat%F*(dat%minus + (1.0_dp - dat%G)*dat%plus) + &
             !    nSwitches*dat%G*(dat%zero*dat%plus + (1.0_dp - dat%F)*dat%minus)
             minusWeight = dat%F*(dat%minus + (1.0_dp - dat%G)*dat%plus) + &
@@ -14258,7 +14096,7 @@ contains
 
         ASSERT(nSwitches >= 0.0_dp)
 
-        if (bVal < EPS) then
+        if (near_zero(bVal )) then
             plusWeight = 0.0_dp
         else
             !plusWeight = dat%G*(dat%zero*dat%plus + (1.0_dp - dat%F)*dat%minus) + &
@@ -14317,7 +14155,7 @@ contains
         ! set the +1 branch to 0 probability
         ! if non-zero, wird die -1 wahrscheinlichkeit dann eh zu eins
         ! normalisiert.
-        if (bVal < EPS) then
+        if (near_zero(bVal )) then
             minusWeight = dat%G * dat%minus + dat%F*(1.0_dp-dat%G)*dat%plus + &
                 nSwitches*(dat%F*dat%plus + dat%G*(1.0_dp-dat%F)*dat%minus)
 
@@ -14340,7 +14178,7 @@ contains
         ASSERT(nSwitches >= 0.0_dp)
 
         ! if b == 0, set the plus weight to zero, to handle that case
-        if (bVal < EPS) then
+        if (near_zero(bVal )) then
             plusWeight = 0.0_dp
         else
 
@@ -14596,7 +14434,7 @@ contains
         ! the necessary quantities are known!
         if (tmatFlag) then
             tmat = getTmatEl(2*excitInfo%i, 2*excitInfo%j)
-            if (abs(tmat)<EPS) then
+            if (near_zero(tmat)) then
                 nExcits = 0
                 allocate(excitations(0,0))
                 return
@@ -14654,7 +14492,7 @@ contains
         ! have index it with spin orbitals: assume non-UHF basis
         tmat = GetTMatEl(2*i, 2*j)
 
-        if (abs(tmat)<EPS) then
+        if (near_zero(tmat)) then
             allocate(excitations(0,0), stat = ierr)
             return
         end if
@@ -14732,9 +14570,9 @@ contains
         st = excitInfo%fullStart
         ! check compatibility of chosen indices
 
-        if ((current_stepvector(st) == 1 .and. plusWeight < EPS) .or.&
-            (current_stepvector(st) == 2 .and. minusWeight < EPS).or.&
-            (minusWeight + plusWeight < EPS)) then
+        if ((current_stepvector(st) == 1 .and. near_zero(plusWeight )) .or.&
+            (current_stepvector(st) == 2 .and. near_zero(minusWeight )).or.&
+            near_zero(minusWeight + plusWeight )) then
             allocate(excitations(0,0), stat = ierr)
             return
         end if
@@ -14851,7 +14689,8 @@ contains
                     end if
                 end do
 
-            else if (plusWeight < EPS .and. minusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
+            else if (near_zero(plusWeight ) .and. (.not. near_zero(minusWeight)) &
+                .and. (.not. near_zero(zeroWeight))) then
                 ! all purely + branches are not possible
                 ! do the on track possibles first
                 do iEx = 1, nExcits
@@ -14891,7 +14730,8 @@ contains
                     end if
                 end do
 
-            else if (minusWeight < EPS .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
+            else if (near_zero(minusWeight) .and. (.not. near_zero(plusWeight)) &
+                .and. (.not. near_zero(zeroWeight))) then
 
                 ! -2 branch not possible.. not sure if i ever come here with
                 ! dB = -2 then.. -> check
@@ -14943,7 +14783,8 @@ contains
                         end if
                     end if
                 end do
-            else if (minusWeight < EPS .and. plusWeight < EPS .and. zeroWeight > 0.0_dp) then
+            else if (near_zero(minusWeight) .and. near_zero(plusWeight) &
+                .and. (.not. near_zero(zeroWeight))) then
                 ! only the 0 branches are possible
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -14974,7 +14815,8 @@ contains
 
                     tempExcits(:,iEx) = t
                 end do
-            else if (plusWeight > 0.0_dp .and. minusWeight > 0.0_dp .and. zeroWeight < EPS) then
+            else if ((.not. near_zero(plusWeight)) .and. (.not. near_zero(minusWeight)) &
+                .and. near_zero(zeroWeight )) then
                 ! the continuing 0-branches are not allowed
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -15002,7 +14844,8 @@ contains
 
                     tempExcits(:,iEx) = t
                 end do
-            else if ( zeroWeight < EPS .and. plusWeight < EPS .and. minusWeight > 0.0_dp) then
+            else if ( near_zero(zeroWeight) .and. near_zero(plusWeight) &
+                .and. (.not. near_zero(minusWeight))) then
                 ! only -2 staying branch is possible... so i should just be here
                 ! with a -2
                 do iEx = 1, nExcits
@@ -15017,7 +14860,8 @@ contains
 
                     tempExcits(:, iEx) = t
                 end do
-            else if (zeroWeight < EPS .and. zeroWeight < EPS .and. plusWeight > 0.0_dp) then
+            else if (near_zero(zeroWeight) .and. near_zero(zeroWeight) &
+                .and. (.not. near_zero(plusWeight))) then
                 ! only the +2 cont. branches are possible
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -15085,7 +14929,8 @@ contains
                         tempExcits(:, nExcits) = s
                     end if
                 end do
-            else if (plusWeight < EPS .and. minusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
+            else if (near_zero(plusWeight) .and. (.not. near_zero(minusWeight)) &
+                .and. (.not. near_zero(zeroWeight))) then
                 ! +2 cont. not possible
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -15141,7 +14986,8 @@ contains
 
                     end if
                 end do
-            else if (minusWeight < EPS .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
+            else if (near_zero(minusWeight) .and. (.not. near_zero(plusWeight)) &
+                .and. (.not. near_zero(zeroWeight))) then
                 ! cont. -2 branches not possible
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -15178,7 +15024,8 @@ contains
 
                     end if
                 end do
-            else if (minusWeight < EPS .and. plusWeight < EPS .and. zeroWeight > 0.0_dp) then
+            else if (near_zero(minusWeight) .and. near_zero(plusWeight) &
+                .and. (.not. near_zero(zeroWeight))) then
                 ! only cont. 0 branch valid
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -15206,7 +15053,8 @@ contains
 
                     tempExcits(:,iEx) = t
                 end do
-            else if (plusWeight > 0.0_dp .and. minusWeight > 0.0_dp .and. zeroWeight < EPS) then
+            else if ((.not. near_zero(plusWeight)) .and. (.not. near_zero(minusWeight)) &
+                .and. near_zero(zeroWeight)) then
                 ! no 0 branch valid
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -15233,7 +15081,8 @@ contains
 
                     tempExcits(:,iEx) = t
                 end do
-            else if (zeroWeight < EPS .and. plusWeight < EPS .and. minusWeight > 0.0_dp) then
+            else if (near_zero(zeroWeight) .and. near_zero(plusWeight) &
+                .and. (.not. near_zero(minusWeight))) then
                 ! only -2 branches valis
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
@@ -15257,7 +15106,8 @@ contains
 
                     tempExcits(:,iEx) = t
                 end do
-            else if (zeroWeight < EPS .and. minusWeight < EPS .and. plusWeight > 0.0_dp) then
+            else if (near_zero(zeroWeight) .and. near_zero(minusWeight) &
+                .and. (.not. near_zero(plusWeight))) then
                 ! only +2 staying branch is possible -> assert that only that
                 ! comes
                 do iEx = 1, nExcits
@@ -15342,7 +15192,7 @@ contains
         minusWeight = weightObj%proc%minus(negSwitches(sOrb), bVal, weightObj%dat)
 
         ! have to do some sort of abort_excitations funciton here too
-        ASSERT(plusWeight + minusWeight > EPS)
+        ASSERT(.not. near_zero(plusWeight + minusWeight ))
 
         if (current_stepvector(sOrb) == 1) then
             ! if its a deltaB = -1 this is a switch possib, indepentent
@@ -15353,7 +15203,7 @@ contains
             ! the same and then do an according update..
             ! is positive weight is 0, negative weight has to be >0
             ! or else we wouldn be here -> no switches just update -1 branches
-            if (plusWeight < EPS) then
+            if (near_zero(plusWeight )) then
                 ! no switches lead to  a nonzero excitation, just update
                 ! matrix element and stay on track
                 do iEx = 1, nExcits
@@ -15370,7 +15220,7 @@ contains
                 end do
             ! when negative weight is 0, positiv weight has to be > 0
             ! so update positive branches and switch negative ones
-            else if (minusWeight < EPS) then
+            else if (near_zero(minusWeight )) then
                 do iEx = 1, nExcits
                     t = tempExcits(:,iEx)
                     deltaB = getDeltaB(t)
@@ -15450,7 +15300,7 @@ contains
             ! inclusion in the weight functions..
 
 
-            if (plusWeight < EPS) then
+            if (near_zero(plusWeight )) then
                 ! update on spot and switch
                 ! in this case all +1 branches HAVE to switch, but leave them
                 ! in same position
@@ -15480,7 +15330,7 @@ contains
                     tempExcits(:,iEx) = t
                 end do
 
-            else if (minusWeight < EPS) then
+            else if (near_zero(minusWeight )) then
                 ! update on spot stay
                 ! in this case staying on branch is possible for +1 and a
                 ! -1 branch would have a zero weight, so just update matrix
@@ -15735,7 +15585,7 @@ contains
         do iEx = 1, nExcits
             ! maybe check here again to not have excitations with zero matrix
             ! elements
-            if (abs(extract_matrix_element(tempExcits(:,iEx),1))<EPS) cycle
+            if (near_zero(extract_matrix_element(tempExcits(:,iEx),1))) cycle
 
             tempExcits(:,cnt) = tempExcits(:,iEx)
 
@@ -15880,7 +15730,7 @@ contains
 
             ! still have to do some abort excitation routine if both weights
             ! are 0
-            ASSERT(minusWeight + plusWeight > EPS)
+            ASSERT(.not. near_zero(minusWeight + plusWeight ))
 
             if (minusWeight > 0.0_dp) then
                 if (gen == gen_type%R) then
@@ -15989,7 +15839,7 @@ contains
         umat = get_umat_el(i,k,j,l)
 
 
-        if (abs(umat) < EPS) then
+        if (near_zero(umat) ) then
             allocate(excitations(0,0), stat = ierr)
             return
         end if
@@ -16956,7 +16806,7 @@ contains
             case (2)
                 ! 2 -> 0 switch
 
-                if (minusWeight < EPS) then
+                if (near_zero(minusWeight )) then
                     nExcits = 0
                     tempExcits = 0
                     return
@@ -17026,9 +16876,9 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .or. plusWeight < EPS) then
+                else if (currentB_int(se) == 0 .or. near_zero(plusWeight )) then
                     ! only -1 branch possibloe
-                    if (minusWeight < EPS) then
+                    if (near_zero(minusWeight )) then
                         nExcits = 0
                         tempExcits = 0
                         return
@@ -17055,9 +16905,9 @@ contains
 
                     end do
 
-                else if (minusWeight < EPS .and. currentB_int(se) > 0) then
+                else if (near_zero(minusWeight ) .and. currentB_int(se) > 0) then
                     ! only +1 branches possible
-                    if (plusWeight < EPS) then
+                    if (near_zero(plusWeight )) then
                         nExcits = 0
                         tempExcits = 0
                         return
@@ -17084,7 +16934,7 @@ contains
 
                     end do
 
-                else if (minusWeight <EPS .and. currentB_int(se) == 0) then
+                else if (near_zero(minusWeight ) .and. currentB_int(se) == 0) then
                     ! in this case no excitaiton is possible due to b value todo
                     call stop_all(this_routine, "implement cancelled excitations")
 
@@ -17122,7 +16972,7 @@ contains
                     ! elements
 
                     if (t_no_singles) then
-                        if (abs(extract_matrix_element(t,1)) > EPS) then
+                        if (.not. near_zero(extract_matrix_element(t,1)) ) then
                             ASSERT(DeltaB == 0)
                             call encode_matrix_element(t, 0.0_dp, 1)
                             call encode_matrix_element(t, 0.0_dp, 2)
@@ -17156,7 +17006,7 @@ contains
                         excitInfo%order1, tempWeight_0, tempWeight_1)
 
                     if (t_no_singles) then
-                        if (abs(extract_matrix_element(t,1)) > EPS) then
+                        if (.not. near_zero(extract_matrix_element(t,1)) ) then
                             ASSERT(DeltaB == 0)
                             call encode_matrix_element(t, 0.0_dp, 1)
                             call encode_matrix_element(t, 0.0_dp, 2)
@@ -17190,7 +17040,7 @@ contains
                         deltaB = getDeltaB(t)
 
                         if (t_no_singles) then
-                            if (abs(extract_matrix_element(t,1)) > EPS) then
+                            if (.not. near_zero(extract_matrix_element(t,1)) ) then
                                 ASSERT(DeltaB == 0)
                                 call encode_matrix_element(t, 0.0_dp, 1)
                                 call encode_matrix_element(t, 0.0_dp, 2)
@@ -17280,7 +17130,7 @@ contains
                         end if
                     end do
 
-                else if (currentB_int(se) == 0 .or. plusWeight < EPS) then
+                else if (currentB_int(se) == 0 .or. near_zero(plusWeight )) then
                     ! only -1 branch when 0 branch arrives... the switch from
                     ! +2 -> +1 branch shouldnt be affected, since i wouldn not
                     ! arrive at semi.stop if 0 weight, and if b value would
@@ -17292,7 +17142,7 @@ contains
 
 
                         if (t_no_singles) then
-                            if (abs(extract_matrix_element(t,1)) > EPS) then
+                            if (.not. near_zero(extract_matrix_element(t,1)) ) then
                                 ASSERT(DeltaB == 0)
                                 call encode_matrix_element(t, 0.0_dp, 1)
                                 call encode_matrix_element(t, 0.0_dp, 2)
@@ -17336,14 +17186,14 @@ contains
 
                     end do
 
-                else if (currentB_int(se) > 0 .and. minusWeight < EPS) then
+                else if (currentB_int(se) > 0 .and. near_zero(minusWeight )) then
                     ! only +1 branch possible afterwards
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
                         deltaB = getDeltaB(t)
 
                         if (t_no_singles) then
-                            if (abs(extract_matrix_element(t,1)) > EPS) then
+                            if (.not. near_zero(extract_matrix_element(t,1)) ) then
                                 ASSERT(DeltaB == 0)
                                 call encode_matrix_element(t, 0.0_dp, 1)
                                 call encode_matrix_element(t, 0.0_dp, 2)
@@ -17386,7 +17236,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .and. plusWeight < EPS) then
+                else if (currentB_int(se) == 0 .and. near_zero(plusWeight )) then
                     ! broken excitation due to b value restriction
                     ! todo how to deal with that ...
                     call stop_all(this_routine, "broken excitation due to b value. todo!")
@@ -17444,7 +17294,7 @@ contains
             select case (current_stepvector(se))
             case (1)
                 ! 1 -> 3 switch
-                if (plusWeight < EPS) then
+                if (near_zero(plusWeight )) then
                     tempExcits = 0
                     nExcits = 0
                     return
@@ -17478,7 +17328,7 @@ contains
 
             case (2)
                 ! 2 -> 3 switch
-                if (minusWeight < EPS) then
+                if (near_zero(minusWeight )) then
                     tempExcits = 0
                     nExcits = 0
                     return
@@ -17548,7 +17398,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .or. plusWeight < EPS) then
+                else if (currentB_int(se) == 0 .or. near_zero(plusWeight )) then
                     ! only -1 branch possible
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
@@ -17571,7 +17421,7 @@ contains
 
                     end do
 
-                else if (minusWeight < EPS .and. currentB_int(se) > 0) then
+                else if (near_zero(minusWeight ) .and. currentB_int(se) > 0) then
                     ! only +1 branches possible
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
@@ -17594,7 +17444,7 @@ contains
 
                     end do
 
-                else if (minusWeight <EPS .and. currentB_int(se) == 0) then
+                else if (near_zero(minusWeight ) .and. currentB_int(se) == 0) then
                     ! in this case no excitaiton is possible due to b value todo
                     call stop_all(this_routine, "implement cancelled excitations")
 
@@ -17619,7 +17469,7 @@ contains
                     deltaB = getDeltaB(t)
 
                     if (t_no_singles) then
-                        if (abs(extract_matrix_element(t,1)) > EPS) then
+                        if (.not. near_zero(extract_matrix_element(t,1)) ) then
                             ASSERT(DeltaB == 0)
                             call encode_matrix_element(t, 0.0_dp, 1)
                             call encode_matrix_element(t, 0.0_dp, 2)
@@ -17660,7 +17510,7 @@ contains
                     deltaB = getDeltaB(t)
 
                     if (t_no_singles) then
-                        if (abs(extract_matrix_element(t,1)) > EPS) then
+                        if (.not. near_zero(extract_matrix_element(t,1)) ) then
                             ASSERT(DeltaB == 0)
                             call encode_matrix_element(t, 0.0_dp, 1)
                             call encode_matrix_element(t, 0.0_dp, 2)
@@ -17702,7 +17552,7 @@ contains
                         deltaB = getDeltaB(t)
 
                         if (t_no_singles) then
-                            if (abs(extract_matrix_element(t,1)) > EPS) then
+                            if (.not. near_zero(extract_matrix_element(t,1)) ) then
                                 ASSERT(DeltaB == 0)
                                 call encode_matrix_element(t, 0.0_dp, 1)
                                 call encode_matrix_element(t, 0.0_dp, 2)
@@ -17793,7 +17643,7 @@ contains
                         end if
                     end do
 
-                else if (currentB_int(se) == 0 .or. plusWeight < EPS) then
+                else if (currentB_int(se) == 0 .or. near_zero(plusWeight )) then
                     ! only -1 branch when 0 branch arrives... the switch from
                     ! +2 -> +1 branch shouldnt be affected, since i wouldn not
                     ! arrive at semi.stop if 0 weight, and if b value would
@@ -17805,7 +17655,7 @@ contains
 
 
                         if (t_no_singles) then
-                            if (abs(extract_matrix_element(t,1)) > EPS) then
+                            if (.not. near_zero(extract_matrix_element(t,1)) ) then
                                 ASSERT(DeltaB == 0)
                                 call encode_matrix_element(t, 0.0_dp, 1)
                                 call encode_matrix_element(t, 0.0_dp, 2)
@@ -17849,14 +17699,14 @@ contains
 
                     end do
 
-                else if (currentB_int(se) > 0 .and. minusWeight <EPS) then
+                else if (currentB_int(se) > 0 .and. near_zero(minusWeight )) then
                     ! only +1 branch possible afterwards
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
                         deltaB = getDeltaB(t)
 
                         if (t_no_singles) then
-                            if (abs(extract_matrix_element(t,1)) > EPS) then
+                            if (.not. near_zero(extract_matrix_element(t,1)) ) then
                                 ASSERT(DeltaB == 0)
                                 call encode_matrix_element(t, 0.0_dp, 1)
                                 call encode_matrix_element(t, 0.0_dp, 2)
@@ -17899,7 +17749,7 @@ contains
 
                     end do
 
-                else if (currentB_int(se) == 0 .and. plusWeight <EPS) then
+                else if (currentB_int(se) == 0 .and. near_zero(plusWeight )) then
                     ! broken excitation due to b value restriction
                     ! todo how to deal with that ...
                     call stop_all(this_routine, "broken excitation due to b value. todo!")
@@ -17993,7 +17843,7 @@ contains
 
                 nExcits = 2
 
-            else if (plusWeight < EPS) then
+            else if (near_zero(plusWeight )) then
                 ! only 0 branch possible
                 call setDeltaB(0,t)
 
@@ -18007,7 +17857,7 @@ contains
 
                 nExcits = 1
 
-            else if (zeroWeight < EPS) then
+            else if (near_zero(zeroWeight )) then
                 ! only the switch to the +2 branch valid
 
                 clr_orb(t, 2*st-1)
@@ -18036,7 +17886,7 @@ contains
             ! minusWeight
             ASSERT(minusWeight + zeroWeight > 0.0_dp)
 
-            if (minusWeight < EPS) then
+            if (near_zero(minusWeight )) then
                 ! only 0 branch possible
                 call setDeltaB(0,t)
 
@@ -18078,7 +17928,7 @@ contains
 
                 nExcits = 2
 
-            else if (zeroWeight < EPS) then
+            else if (near_zero(zeroWeight )) then
                  ! only -2 start possible
 
                 ! then change that to 2->1 start
@@ -18205,7 +18055,7 @@ contains
                 nExcits = 2
 
 
-            else if (plusWeight < EPS) then
+            else if (near_zero(plusWeight )) then
                 ! only -1 branch possible
                 ! do 3->1 first -1 branch first
                 clr_orb(t, 2*semi)
@@ -18215,7 +18065,7 @@ contains
                 tempExcits(:,1) = t
 
                 nExcits = 1
-            else if (minusWeight < EPS) then
+            else if (near_zero(minusWeight )) then
                 ! only +1 branch possible
                 ! then do 3->2: +1 branch
                 clr_orb(t, 2*semi-1)
@@ -18388,7 +18238,7 @@ contains
                 nExcits = 2
 
 
-            else if (plusWeight < EPS) then
+            else if (near_zero(plusWeight )) then
                 ! only -1 branch possible
                 ! do 0->1 first -1 branch first
                 set_orb(t, 2*semi-1)
@@ -18402,7 +18252,7 @@ contains
                 tempExcits(:,1) = t
 
                 nExcits = 1
-            else if (minusWeight < EPS) then
+            else if (near_zero(minusWeight )) then
                 ! only +1 branch possible
 
                 ! then do 0->2: +1 branch
@@ -18565,7 +18415,7 @@ contains
             do iEx = 1, nExcits
                 t = tempExcits(:,iEx)
 
-                if (abs(extract_matrix_element(t,1)) <EPS) cycle
+                if (near_zero(extract_matrix_element(t,1)) ) cycle
 
                 ! also no change in stepvector in this case
                 call update_matrix_element(t, Root2, 1)
@@ -18687,7 +18537,7 @@ contains
             do iEx = 1, nExcits
                 t = tempExcits(:,iEx)
 
-                if (abs(extract_matrix_element(t,1))<EPS) cycle
+                if (near_zero(extract_matrix_element(t,1))) cycle
 
                 ! also no change in stepvector in this case
                 call update_matrix_element(t, Root2, 1)
@@ -18762,7 +18612,7 @@ contains
                     ! check if the x0 is greater than 0, which indicates
                     ! purely delta-b = 0 route.., which should be disregarded
                     ! if we do not want to take singles into account.
-                    if (abs(extract_matrix_element(t,1)) > EPS) then
+                    if (.not. near_zero(extract_matrix_element(t,1)) ) then
                         ! just to be sure this should also mean:
                         ASSERT(DeltaB == 0)
 
@@ -18817,7 +18667,7 @@ contains
                     ! check if the x0 is greater than 0, which indicates
                     ! purely delta-b = 0 route.., which should be disregarded
                     ! if we do not want to take singles into account.
-                    if (abs(extract_matrix_element(t,1)) > EPS) then
+                    if (.not. near_zero(extract_matrix_element(t,1)) ) then
                         ! just to be sure this should also mean:
                         ASSERT(DeltaB == 0)
 
@@ -18877,12 +18727,12 @@ contains
         ! check again if there are maybe zero matrix elements
         cnt = 1
         do iEx = 1, nExcits
-            if (abs(extract_matrix_element(tempExcits(:,iEx),1))<EPS) cycle
+            if (near_zero(extract_matrix_element(tempExcits(:,iEx),1))) cycle
 
             if (t_mixed_hubbard) then
                 ! for mixed hubbard (and maybe other lattice systems,
                 ! i do not want single excitations here (i guess.)
-                if (abs(extract_matrix_element(tempExcits(:,iEx),1)) > EPS) cycle
+                if (.not. near_zero(extract_matrix_element(tempExcits(:,iEx),1)) ) cycle
             end if
 
             tempExcits(:,cnt) = tempExcits(:,iEx)
@@ -19094,7 +18944,8 @@ contains
                 ! is not always > 0 dependending on the semistop and
                 ! fullend values!
                 ! so do it new!
-                if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
+                if ((.not. near_zero(minusWeight)) .and. (.not. near_zero(plusWeight)) &
+                    .and. (.not. near_zero(zeroWeight))) then
                     ! all branches possible
                     ! how to most efficiently do all that...
                     do iEx = 1, nExcits
@@ -19133,7 +18984,8 @@ contains
                         tempExcits(:,nExcits) = t
                     end do
 
-                else if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp .and. zeroWeight < EPS) then
+                else if ((.not. near_zero(minusWeight)) .and. (.not. near_zero(plusWeight))&
+                    .and. near_zero(zeroWeight )) then
                     ! cont. 0 branches not possible
                     ! here a arriving -1 branch can only become a -2 branch
                     ! and a +1 branch a +2 branch
@@ -19167,7 +19019,8 @@ contains
                         tempExcits(:,iEx) = t
                     end do
 
-                else if (minusWeight > 0.0_dp .and. plusWeight < EPS .and. zeroWeight > 0.0_dp) then
+                else if ((.not. near_zero(minusWeight)) .and. near_zero(plusWeight)&
+                    .and. (.not. near_zero(zeroWeight))) then
                     ! cont. + branches not possible
                     ! so for an arriving -1 branch both -2 and 0 branch are
                     ! possible but for a +1 branch only the 0 branch
@@ -19219,7 +19072,8 @@ contains
                         end if
                     end do
 
-                else if (minusWeight > 0.0_dp .and. plusWeight < EPS .and. zeroWeight < EPS) then
+                else if ((.not. near_zero(minusWeight)) .and. near_zero(plusWeight)&
+                    .and. near_zero(zeroWeight)) then
                     ! only - branch possible
                     ! so only a -1 arriving branch can cont. to a -2 branch
                     ! hopefully the weights coming before handle that correctly
@@ -19249,7 +19103,8 @@ contains
                         tempExcits(:,iEx) = t
                     end do
 
-                else if (minusWeight < EPS .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
+                else if (near_zero(minusWeight) .and. (.not. near_zero(plusWeight)) &
+                    .and. (.not. near_zero(zeroWeight))) then
                     ! cont. - branch not possible
                     ! so both options are possible for an incoming +1 branch
                     ! and only the 0 branch for the -1
@@ -19303,7 +19158,8 @@ contains
                     end do
 
 
-                else if (minusWeight < EPS .and. plusWeight > 0.0_dp .and. zeroWeight < EPS) then
+                else if (near_zero(minusWeight) .and. (.not. near_zero(plusWeight)) &
+                    .and. near_zero(zeroWeight)) then
                     ! only + possible
                     ! only an arriving +1 branch can go on.. so check and
                     ! hope there is no -1 branch arriving
@@ -19332,7 +19188,8 @@ contains
                         tempExcits(:,iEx) = t
                     end do
 
-                else if (minusWeight < EPS .and. plusWeight < EPS .and. zeroWeight > 0.0_dp) then
+                else if (near_zero(minusWeight) .and. near_zero(plusWeight) &
+                    .and. (.not. near_zero(zeroWeight))) then
                     ! only 0 branch possible
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
@@ -19570,7 +19427,8 @@ contains
                 ! is not always > 0 dependending on the semistop and
                 ! fullend values!
                 ! so do it new!
-                if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
+                if ((.not. near_zero(minusWeight)) .and. (.not. near_zero(plusWeight)) &
+                    .and. (.not. near_zero(zeroWeight))) then
                     ! all branches possible
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
@@ -19612,7 +19470,8 @@ contains
                         tempExcits(:,nExcits) = t
                     end do
 
-                else if (minusWeight > 0.0_dp .and. plusWeight > 0.0_dp .and. zeroWeight < EPS) then
+                else if ((.not. near_zero(minusWeight)) .and. (.not. near_zero(plusWeight)) &
+                    .and. near_zero(zeroWeight)) then
                     ! cont. 0 branches not possible
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
@@ -19644,7 +19503,8 @@ contains
                         tempExcits(:,iEx) = t
                     end do
 
-                else if (minusWeight > 0.0_dp .and. plusWeight < EPS .and. zeroWeight > 0.0_dp) then
+                else if ((.not. near_zero(minusWeight)) .and. near_zero(plusWeight)&
+                    .and. (.not. near_zero(zeroWeight))) then
                     ! cont. + branches not possible
                     ! +2 excitations not possible
                     ! only branching for -1 branch
@@ -19698,7 +19558,8 @@ contains
                         end if
                     end do
 
-                else if (minusWeight > 0.0_dp .and. plusWeight < EPS .and. zeroWeight < EPS) then
+                else if ((.not. near_zero(minusWeight)) .and. near_zero(plusWeight) &
+                    .and. near_zero(zeroWeight)) then
                     ! only - branch possible
                     ! so ensure no +1 branch arrives...
                     do iEx = 1, nExcits
@@ -19726,7 +19587,8 @@ contains
                         tempExcits(:,iEx) = t
                     end do
 
-                else if (minusWeight < EPS .and. plusWeight > 0.0_dp .and. zeroWeight > 0.0_dp) then
+                else if (near_zero(minusWeight) .and. (.not. near_zero(plusWeight)) &
+                    .and. (.not. near_zero(zeroWeight))) then
                     ! cont. - branch not possible
                     ! -2 excitations not possible
                     ! only branching for +1 branch
@@ -19780,7 +19642,8 @@ contains
                         end if
                     end do
 
-                else if (minusWeight < EPS .and. plusWeight > 0.0_dp .and. zeroWeight < EPS) then
+                else if (near_zero(minusWeight) .and. (.not. near_zero(plusWeight)) &
+                    .and. near_zero(zeroWeight)) then
                     ! only + possible
                     ! so check that no -1 branch arrives
                     do iEx = 1, nExcits
@@ -19808,7 +19671,8 @@ contains
                         tempExcits(:,iEx) = t
                     end do
 
-                else if (minusWeight < EPS .and. plusWeight < EPS .and. zeroWeight > 0.0_dp) then
+                else if (near_zero(minusWeight) .and. near_zero(plusWeight) &
+                    .and. (.not. near_zero(zeroWeight))) then
                     ! only 0 branch possible
                     do iEx = 1, nExcits
                         t = tempExcits(:,iEx)
@@ -19991,7 +19855,7 @@ contains
         do iEx = 1, nExcits
             t = tempExcits(:,iEx)
 
-            if (abs(extract_matrix_element(t, 1))<EPS) cycle
+            if (near_zero(extract_matrix_element(t, 1))) cycle
             ! change 0 -> 3
             set_orb(t, 2*iOrb)
             set_orb(t, 2*iOrb - 1)
@@ -20152,7 +20016,7 @@ contains
         do iEx = 1, nExcits
             t = tempExcits(:,iEx)
 
-            if (abs(extract_matrix_element(t, 1))<EPS) cycle
+            if (near_zero(extract_matrix_element(t, 1))) cycle
 
             ! change 3 -> 0
             clr_orb(t, 2*iOrb)
@@ -20335,7 +20199,7 @@ contains
                 ! jsut to be save to a check like above
                 ! update: to be save change that to check probs
 
-                if (minusWeight <EPS) then
+                if (near_zero(minusWeight )) then
                     ! do only switch
                     t = tempExcits(:,iEx)
                     ! change 1 -> 2
@@ -20371,7 +20235,7 @@ contains
             ! in this case always a switch, and i b allows also a stay
             ! how are the probs here...
 
-            if (plusWeight < EPS) then
+            if (near_zero(plusWeight )) then
                 ! just switch
                  ! only switches in place
                 do iEx = 1, nExcits
@@ -20594,7 +20458,7 @@ contains
 
         j = 1
         do i = 1, nExcits
-            if (abs(extract_matrix_element(tmp_excitations(:,i),1)) < EPS) cycle
+            if (near_zero(extract_matrix_element(tmp_excitations(:,i),1)) ) cycle
 
             tmp_excitations(:,j) = tmp_excitations(:,i)
 
@@ -20703,9 +20567,9 @@ contains
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((pw <EPS .and. mw <EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if ((near_zero(pw) .and. near_zero(mw)) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw))) then
                     flag = .false.
                     return
                 end if
@@ -20725,9 +20589,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
 
 
-                if ((current_stepvector(st) == 1 .and.pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS) .or. &
-                    (pw < EPS .and. mw < EPS)) then
+                if ((current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw)) .or. &
+                    (near_zero(pw + mw))) then
                     flag = .false.
                     return
                 end if
@@ -20753,9 +20617,9 @@ contains
 
 
                 ! first check lower range
-                if ((pw <EPS .and. mw <EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(pw + mw) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw))) then
                     flag = .false.
                     return
                 end if
@@ -20766,9 +20630,9 @@ contains
                 mw = weights%proc%minus(negSwitches(ss), currentB_ilut(ss), weights%dat)
                 pw = weights%proc%plus(posSwitches(ss), currentB_ilut(ss), weights%dat)
 
-                if ((pw <EPS .and. mw <EPS) .or. &
-                    (current_stepvector(ss) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(ss) == 2 .and. mw < EPS)) then
+                if (near_zero(pw + mw) .or. &
+                    (current_stepvector(ss) == 1 .and. near_zero(pw)) .or. &
+                    (current_stepvector(ss) == 2 .and. near_zero(mw))) then
                     flag = .false.
                     return
                 end if
@@ -20792,9 +20656,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st ), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st ), weights%dat)
 
-                if ((pw <EPS .and. mw <EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(pw + mw) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw))) then
                     flag = .false.
                     return
                 end if
@@ -20818,9 +20682,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st ), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st ), weights%dat)
 
-                if ((pw <EPS .and. mw <EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(pw + mw) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw))) then
                     flag = .false.
                     return
                 end if
@@ -20838,9 +20702,9 @@ contains
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((pw <EPS .and. mw <EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(pw + mw) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw))) then
                     flag = .false.
                     return
                 end if
@@ -20858,9 +20722,9 @@ contains
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((pw <EPS .and. mw <EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(pw + mw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -20884,9 +20748,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw <EPS .and. pw <EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw))) then
                     flag = .false.
                     return
                 end if
@@ -20909,9 +20773,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw <EPS .and. pw<EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw)) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw))) then
                     flag = .false.
                     return
                 end if
@@ -20934,9 +20798,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw <EPS.and. pw <EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw) ) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -20958,9 +20822,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -20982,9 +20846,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -21006,9 +20870,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -21027,9 +20891,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st ), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st ), weights%dat)
 
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -21050,9 +20914,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw < EPS.and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -21090,9 +20954,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -21122,9 +20986,9 @@ contains
                 pw = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
                 mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -21155,9 +21019,9 @@ contains
                 mw = weights%proc%minus(negSwitches(fe), currentB_ilut(fe), weights%dat)
 
                 ! only 0 deltab branch valid
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(fe) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(fe) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(fe) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(fe) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -21179,9 +21043,9 @@ contains
                 mw = weights%proc%minus(negSwitches(fe), currentB_ilut(fe), weights%dat)
 
                 ! only 0 deltab branch valid
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(fe) == 1 .and. pw < EPS) .or. &
-                    (current_stepvector(fe) == 2 .and. mw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(fe) == 1 .and. near_zero(pw )) .or. &
+                    (current_stepvector(fe) == 2 .and. near_zero(mw ))) then
                     flag = .false.
                     return
                 end if
@@ -21218,10 +21082,10 @@ contains
                     mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
                 end if
 
-                if ((mw < EPS .and.pw < EPS .and. zw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
-                    (current_stepvector(st) == 3 .and. zw < EPS)) then
+                if (near_zero(mw + pw + zw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(zw + pw) ) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(zw + mw )) .or. &
+                    (current_stepvector(st) == 3 .and. near_zero(zw ))) then
                     flag = .false.
                     return
                 end if
@@ -21252,10 +21116,10 @@ contains
                     mw = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
                 end if
 
-                if ((pw + mw + zw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
-                    (current_stepvector(st) == 3 .and. zw < EPS)) then
+                if (near_zero(pw + mw + zw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(zw + pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(zw + mw )) .or. &
+                    (current_stepvector(st) == 3 .and. near_zero(zw ))) then
                     flag = .false.
                     return
                 end if
@@ -21281,7 +21145,7 @@ contains
 
 
                 ! again only zero weight counts, as no others allowed.
-                if (zw < EPS) flag = .false.
+                if (near_zero(zw)) flag = .false.
 
             ! full start into full stop mixed
             case (excit_type%fullstart_stop_mixed)
@@ -21311,10 +21175,10 @@ contains
                 ! if only the 0 branch is non-zero, and both + and - branch are
                 ! zero, we should abort too, since this means we would produce a
                 ! diagonal contribution..
-                if ((mw < EPS .and. pw < EPS) .or. &
-                    (current_stepvector(st) == 1 .and. zw + pw < EPS) .or. &
-                    (current_stepvector(st) == 2 .and. zw + mw < EPS) .or. &
-                    (current_stepvector(st) == 3 .and. zw < EPS)) then
+                if (near_zero(mw + pw ) .or. &
+                    (current_stepvector(st) == 1 .and. near_zero(zw + pw )) .or. &
+                    (current_stepvector(st) == 2 .and. near_zero(zw + mw )) .or. &
+                    (current_stepvector(st) == 3 .and. near_zero(zw ))) then
                     flag = .false.
                     return
                 end if
@@ -21481,7 +21345,7 @@ contains
             end if
         end if
 
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum )) then
             pgen = 0.0_dp
             return
         end if
@@ -21588,7 +21452,7 @@ contains
         ! get the orbital
         cum_sum = cum_arr(nOrb)
 
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum )) then
             orb_a = 0
             excitInfo%valid = .false.
             return
@@ -21831,7 +21695,7 @@ contains
 
         cum_sum = cum_arr(nSpatOrbs)
 
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum )) then
             orb_a = 0
             excitInfo%valid = .false.
             return
@@ -22322,7 +22186,7 @@ contains
         ! then pick a orbital randomly and consider a <> b contribution
         cum_sum = cum_arr(nSpatOrbs)
 
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum )) then
             excitInfo%valid = .false.
             return
         end if
@@ -22503,7 +22367,7 @@ contains
                         if (orb_b > n_id(2)) then
                             ! _R(a) > _LR(i) > ^RL(j) > ^L(b)
                             excitInfo = assign_excitInfo_values_double(&
-                                excit_type%double_R_to_L_to_R, &
+                                excit_type%double_R_to_L, &
                                 gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                                 orb_a,n_id(2),orb_b,n_id(1),orb_a,n_id(1),n_id(2),orb_b,&
                                 0,4,1.0_dp,1.0_dp)
@@ -23449,7 +23313,7 @@ contains
 
              ! should not happen but assert here that the cummulative
              ! probabilty is not 0
-             ASSERT(cum_switch(2) > EPS)
+             ASSERT(.not. near_zero(cum_switch(2) ))
 
          else
              ! if they are not in a pair there are more possibilites
@@ -24683,7 +24547,7 @@ contains
             end if
         end if
 
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum )) then
             orb_b = 0
             return
         end if
@@ -24731,7 +24595,7 @@ contains
 
         cum_sum = cum_arr(nSpatOrbs)
         ! check if no excitation is possible
-        if (cum_sum < EPS) then
+        if (near_zero(cum_sum )) then
             orb_a = 0
             return
         end if
@@ -25277,7 +25141,7 @@ contains
                     ! _LL_(i) > ^LL^(j)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_stop_alike, &
-                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
+                        -1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                         j,i,j,i,i,i,j,j,0,2,1.0_dp,1.0_dp)
 
                 end if
@@ -25316,7 +25180,7 @@ contains
                     ! _LR_(j) -> ^LR^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_stop_mixed, &
-                        1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
+                        -1,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
                         i,j,j,i,j,j,i,i,0,2,1.0_dp,2.0_dp)
 
                 end if
@@ -25387,14 +25251,14 @@ contains
                     ! L_(j) -> L_L(k) -> ^LL^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstop_lowering, &
-                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L, &
+                        -1,gen_type%L,gen_type%L,gen_type%L,gen_type%L, &
                         i,j,i,k,j,k,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (j < i .and. i < k) then
                     ! L_(j) -> ^LR_(i) -> ^R(k)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%single_overlap_L_to_R, &
-                        1,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
+                        -1,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
                         i,j,i,k,j,i,i,k,0,2,1.0_dp,1.0_dp,1)
 
                 else if (i < k .and. k < j) then
@@ -25410,7 +25274,7 @@ contains
                     ! _L(k) > _LL(j) > ^LL^(i)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstop_lowering, &
-                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L, &
+                        -1,gen_type%L,gen_type%L,gen_type%L,gen_type%L, &
                         i,j,i,k,k,j,i,i,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < i .and. i < j) then
@@ -25449,7 +25313,7 @@ contains
                     ! _LL_(i) ^LL(j) ^L(k)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_lowering, &
-                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
+                        -1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                         j,i,k,i,i,i,j,k,0,2,1.0_dp,1.0_dp,2)
 
                 else if (j < k .and. k < i) then
@@ -25470,7 +25334,7 @@ contains
                     ! _LL_(i) > ^LL(k) > ^L(j)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%fullstart_lowering, &
-                        1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
+                        -1,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                         j,i,k,i,i,i,k,j,0,2,1.0_dp,1.0_dp,2)
 
                 else if (k < j .and. j < i) then
@@ -25484,7 +25348,7 @@ contains
                     ! _R(k) > ^RL(i) > ^L(j)
                     excitInfo = assign_excitInfo_values_double(&
                         excit_type%single_overlap_R_to_L, &
-                        1,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
+                        -1,gen_type%R,gen_type%R,gen_type%R,gen_type%L,&
                         j,i,k,i,k,i,i,j,0,2,1.0_dp,1.0_dp,1)
 
                 end if
@@ -28622,7 +28486,7 @@ contains
             ! non-overlap -> e_{il,jk}
             ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                 i,l,j,k,k,i,l,j,0,4,1.0_dp,1.0_dp)
 
@@ -28636,7 +28500,7 @@ contains
         else if (k < j .and. j < l .and. l < i) then
             ! _L(k) > _RL(j) > ^RL(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                 i,k,j,l,k,j,l,i,0,4,1.0_dp,1.0_dp)
 
@@ -28664,7 +28528,7 @@ contains
         else if (l < i .and. i < k .and. k < j) then
             ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,&
                 i,k,j,l,l,i,k,j,0,4,1.0_dp,1.0_dp)
 
@@ -28682,7 +28546,7 @@ contains
             ! non-overlap -> e_{il,jk}
             ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,&
                 i,l,j,k,l,j,k,i,0,4,1.0_dp,1.0_dp)
 
@@ -28777,7 +28641,7 @@ contains
             ! j < i < l < k
             ! _L(j) > _RL(i) > ^RL(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i,l,k,j,&
                 j,i,l,k,0,4,1.0_dp,1.0_dp)
 
@@ -28795,7 +28659,7 @@ contains
             ! non-overlap -> e_{ij,kl}
             ! _L(j) > _RL(k) > ^RL(l) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L, i,j,k,l,&
                 j,k,l,i,0,4,1.0_dp,1.0_dp)
 
@@ -28870,7 +28734,7 @@ contains
             ! non-overlap -> e_{ij,kl}
             ! _L(l) > _RL(i) > ^RL(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R, gen_type%L, gen_type%L, gen_type%L, gen_type%L, i,j,k,l,&
                 l,i,j,k,0,4,1.0_dp,1.0_dp)
 
@@ -28911,7 +28775,7 @@ contains
             ! l < k < j < i
             ! _L(l) > _RL(k) > ^RL(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L, gen_type%R, gen_type%L, gen_type%L, gen_type%L,i,l,k,j,&
                 l,k,j,i,0,4,1.0_dp,1.0_dp)
 
@@ -28983,7 +28847,7 @@ contains
             ! j < i < k < l
             ! _L(j) > _RL(i) > ^RL(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,k,l,j,&
                 j,i,k,l,0,4,1.0_dp,1.0_dp)
 
@@ -29025,7 +28889,7 @@ contains
             ! non-overlap > e_{ij,lk}
             ! _L(j) > _RL(l) > ^RL(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,i,j,l,k,&
                 j,l,k,i,0,4,1.0_dp,1.0_dp)
 
@@ -29034,7 +28898,7 @@ contains
             ! non-overlap -> e_{ij,lk}
             ! _L(k) > _RL(i) > ^RL(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,j,l,k,&
                 k,i,j,l,0,4,1.0_dp,1.0_dp)
 
@@ -29075,7 +28939,7 @@ contains
             ! k < l < j < i
             ! _L(k) > _RL(l) > ^RL(j) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,i,k,l,j,&
                 k,l,j,i,0,4,1.0_dp,1.0_dp)
 
@@ -29257,7 +29121,7 @@ contains
             ! k < i < l < j
             ! _L(k) > _RL(i) > ^RL(l) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,l,j,k,&
                 k,i,l,j,0,4,1.0_dp,1.0_dp)
 
@@ -29275,7 +29139,7 @@ contains
             ! non-overlap > e_{ik,jl}
             ! _L(k) > _RL(j) > ^RL(l) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,i,k,j,l,&
                 k,j,l,i,0,4,1.0_dp,1.0_dp)
 
@@ -29309,7 +29173,7 @@ contains
             ! non-overlap > e_{ik,jl}
             ! _L(l) > _RL(i) > ^RL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,i,k,j,l,&
                 l,i,k,j,0,4,1.0_dp,1.0_dp)
 
@@ -29325,7 +29189,7 @@ contains
             ! l < j < k < i
             ! _L(l) > _RL(j) > ^RL(k) > ^L(i)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,i,l,j,k,&
                 l,j,k,i,0,4,1.0_dp,1.0_dp)
 
@@ -29380,7 +29244,7 @@ contains
             ! non-overlap > e_{li,kj}
             ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
@@ -29397,7 +29261,7 @@ contains
             ! i < l < j < k
             ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
@@ -29429,7 +29293,7 @@ contains
             ! j < k < i < l
             ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
@@ -29446,7 +29310,7 @@ contains
             ! non-overlap > e_{li,kj}
             ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
@@ -29585,7 +29449,7 @@ contains
             ! i < j < l < k
             ! _L(i) > _RL(j) > ^RL(l) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 i,j,l,k,0,4,1.0_dp,1.0_dp)
 
@@ -29603,7 +29467,7 @@ contains
             ! non-overlap > e_{ji,kl}
             ! _L(i) > _RL(k) > ^RL(l) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,j,i,k,l,&
                 i,k,l,j,0,4,1.0_dp,1.0_dp)
 
@@ -29744,7 +29608,7 @@ contains
             ! npn-overlap > e_{ji,kl}
             ! _L(l) > _RL(j) > ^RL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 l,j,i,k,0,4,1.0_dp,1.0_dp)
 
@@ -29761,7 +29625,7 @@ contains
             ! l < k < i < j
             ! _L(l) > _RL(k) > ^RL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,j,l,&
                 l,k,i,j,0,4,1.0_dp,1.0_dp)
 
@@ -29792,7 +29656,7 @@ contains
             ! i < j < k < l
             ! _L(i) > _RL(j) > ^RL(k) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,l,i,j,k,&
                 i,j,k,l,0,4,1.0_dp,1.0_dp)
 
@@ -29834,7 +29698,7 @@ contains
             ! non-overlap > e_{ji,lk}
             ! _L(i) > _RL(l) > ^RL(k) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,j,i,l,k,&
                 i,l,k,j,0,4,1.0_dp,1.0_dp)
 
@@ -29909,7 +29773,7 @@ contains
             ! non-overlap > e_{ji,lk}
             ! _L(k) > _RL(j) > ^RL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,j,i,l,k,&
                 k,j,i,l,0,4,1.0_dp,1.0_dp)
 
@@ -29926,7 +29790,7 @@ contains
             ! k < l < i < j
             ! _L(k) > _RL(l) > ^RL(i) > ^L(j)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,j,k,&
                 k,l,i,j,0,4,1.0_dp,1.0_dp)
 
@@ -30022,7 +29886,7 @@ contains
             ! i < k < j < l
             ! _L(i) > _RL(k) > ^RL(j) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 i,k,j,l,0,4,1.0_dp,1.0_dp)
 
@@ -30039,7 +29903,7 @@ contains
             ! non-overlap > e_{ki,lj}
             ! _L(i) > _RL(l) > ^RL(j) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 i,l,j,k,0,4,1.0_dp,1.0_dp)
 
@@ -30073,7 +29937,7 @@ contains
             ! non-overlap > e_{ki,lj}
             ! _L(j) > _RL(k) > ^RL(i) > ^L(l)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,k,i,l,j,&
                 j,k,i,l,0,4,1.0_dp,1.0_dp)
 
@@ -30090,7 +29954,7 @@ contains
             ! j < l < i < k
             ! _L(j) > _RL(l) > ^RL(i) > ^L(k)
             excitInfo = assign_excitInfo_values_double(&
-                excit_type%double_L_to_R, &
+                excit_type%double_L_to_R_to_L, &
                 gen_type%R,gen_type%L,gen_type%L,gen_type%L,gen_type%L,l,i,k,j,&
                 j,l,i,k,0,4,1.0_dp,1.0_dp)
 
