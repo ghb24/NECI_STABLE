@@ -4777,7 +4777,11 @@ contains
             call calc_guga_matrix_element(ilutJ, ilutI, excitInfo, tmp_mat1, &
                 .true., 2)
 
+#ifdef CMPLX_
             diff = abs(tmp_mat1 - conjg(tmp_mat))
+#else
+            diff = abs(tmp_mat1 - tmp_mat)
+#endif
             if (diff > 1.0e-10_dp) then
                 print *, "WARNING: differing sign in matrix elements!"
                 call write_det_guga(6, ilutI, .true.)
