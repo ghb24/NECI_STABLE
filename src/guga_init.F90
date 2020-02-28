@@ -16,11 +16,12 @@ module guga_init
                           t_tJ_model
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                        t_guga_mat_eles, t_hist_tau_search, tSpinProject
+                        t_guga_mat_eles, t_hist_tau_search, tSpinProject, &
+                        tReplicaEstimates
 
     use hist_data, only: tHistSpawn
 
-    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc, tReplicaEstimates
+    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
 
     use bit_rep_data, only: tUseFlags
 

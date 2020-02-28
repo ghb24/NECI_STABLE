@@ -24,6 +24,7 @@ module semi_stoch_gen
     use guga_excitations, only: actHamiltonian
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: tGUGACore
+    use util_mod, only: near_zero
 
     implicit none
 
@@ -443,7 +444,7 @@ contains
             ! actHamiltonian routine(i think it only keeps non-zero excitations
             call convert_ilut_toNECI(excitations(:,i), temp_ilut, temp_hel)
 
-            if (only_keep_conn .and. abs(real(temp_hel)) < EPS) cycle
+            if (only_keep_conn .and. near_zero(temp_hel)) cycle
 
             call decode_bit_det(temp_nI, temp_ilut)
 

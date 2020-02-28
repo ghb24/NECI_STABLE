@@ -575,7 +575,13 @@ contains
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
                                     space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
-        if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (space_in%tDoubles) then
+            if (tGUGA) then
+                call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
+            else
+                call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+            end if
+        end if
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
         if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
         if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &

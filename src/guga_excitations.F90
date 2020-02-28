@@ -1960,7 +1960,7 @@ contains
 
     end function calc_mixed_coupling_coeff
 
-    subroutine Detham_guga(ndets, det_list, hamil, ind, n_row, n_elements)
+    subroutine Detham_guga(ndets, det_list, hamil, ind, n_row, n_elements, ic_max)
         ! create a routine which mimicks the functioniality of Detham for
         ! GUGA csfs. to increase the performance in the Lanczos diagonalisation
         ! procedure
@@ -1969,12 +1969,11 @@ contains
         integer, intent(in) :: det_list(nel,ndets)
         HElement_t(dp), intent(out), allocatable :: hamil(:)
         integer, intent(out), allocatable :: ind(:)
-        integer, intent(out) :: n_row(ndets)
-        integer, intent(out) :: n_elements
+        integer, intent(out) :: n_row(ndets), n_elements, ic_max
         character(*), parameter :: this_routine = "Detham_guga"
 
         type(timer), save :: proc_timer
-        integer :: i, j, nExcits, cum_rows, pos
+        integer :: i, j, nExcits, cum_rows, pos, i_max
         integer, allocatable :: temp_ind(:)
         HElement_t(dp), allocatable :: temp_hamil(:)
         HElement_t(dp) :: hel
@@ -2062,6 +2061,11 @@ contains
 
         ind = temp_ind(1:n_elements)
         hamil = temp_hamil(1:n_elements)
+
+        ! use the Lapack! routine idamax, like in detham.F
+!         i_max = maxloc(n_row)
+        ! I also need this output to be conform with the SD based implementation
+        ic_max = n_row(maxloc(n_row,1))
 
         deallocate(temp_ind)
         deallocate(temp_hamil)

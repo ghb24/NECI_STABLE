@@ -39,7 +39,7 @@ contains
         real(dp), intent(out) :: evals(:)
         real(dp), intent(out) :: evecs(:,:)
 
-        integer :: ierr, nkry1, nblock, len_scr, len_iscr, ICMax, LenHamil
+        integer :: ierr, nkry1, nblock, len_scr, len_iscr, ICMax, LenHamil, i
         integer, allocatable :: nRow(:), Lab(:), iscr(:), ind(:)
         real(dp), allocatable :: evecs_space(:,:), Hamil(:), A_Arr(:,:)
         real(dp), allocatable :: V(:), BM(:), T(:), WT(:), scr(:), AM(:)
@@ -62,9 +62,7 @@ contains
         ! hamiltonian in the same way as DetHam for determinants..
         ! only use the "old" version when t_guga_mat_eles is not set!
         if (tGUGA .and. (.not. t_guga_mat_eles)) then
-#ifndef CMPLX_
-            call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil)
-#endif
+            call Detham_guga(ndets, det_list, Hamil, Lab, nRow, LenHamil, ICMax)
         else
             ! just to make sure we pass valid objects
             allocate(Lab(1),stat=ierr)
