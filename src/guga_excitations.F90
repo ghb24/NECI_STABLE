@@ -1088,7 +1088,6 @@ contains
             rdm_ind(3) = contract_2_rdm_ind(ii, ll, kk, jj)
             rdm_ind(4) = contract_2_rdm_ind(kk, jj, ii, ll)
 
-            rdm_mat = 0.0_dp
         end if
 
         ! i have to check if the deltaB value is in its correct bounds for
@@ -1204,7 +1203,7 @@ contains
                 if (excitInfo%spin_change) then
                     rdm_mat = temp_x1
                 else
-                    rdm_mat = temp_x1 - temp_x0
+                    rdm_mat = temp_x0 + temp_x1
                 end if
             end select
         end if
@@ -1216,7 +1215,7 @@ contains
             ! since i need to know the x0 and x1 matrix element contributions
             mat_ele = (temp_x0 * (get_umat_el(ende1,ende2,start1,start2) + &
                 get_umat_el(ende2,ende1,start2,start1) + get_umat_el(ende2,ende1,start1,start2) + &
-                get_umat_el(ende1,ende2,start2,start1)) + excitInfo%order * excitInfo%order1 * &
+                get_umat_el(ende1,ende2,start2,start1)) + order * order1 * &
                 temp_x1 * ( &
                 get_umat_el(ende1,ende2,start1,start2) + get_umat_el(ende2,ende1,start2,start1) - &
                 get_umat_el(ende2,ende1,start1,start2) - get_umat_el(ende1,ende2,start2,start1)))/2.0_dp
@@ -1225,7 +1224,7 @@ contains
             ! double raising
             mat_ele = (temp_x0 * (get_umat_el(start1,start2,ende1,ende2) + &
                 get_umat_el(start2,start1,ende2,ende1) + get_umat_el(start1,start2,ende2,ende1) + &
-                get_umat_el(start2,start1,ende1,ende2)) + excitInfo%order * excitInfo%order1 * &
+                get_umat_el(start2,start1,ende1,ende2)) + order * order1 * &
                 temp_x1 * ( &
                 get_umat_el(start1,start2,ende1,ende2) + get_umat_el(start2,start1,ende2,ende1) - &
                 get_umat_el(start1,start2,ende2,ende1) - get_umat_el(start2,start1,ende1,ende2)))/2.0_dp
@@ -1305,7 +1304,7 @@ contains
 
         real(dp) :: bVal, temp_mat, nOpen, guga_mat
         HElement_t(dp) :: umat
-        integer :: st, se, gen, i, step1, step2, db
+        integer :: i, step1, step2, db
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
@@ -1313,12 +1312,19 @@ contains
         ! set some defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
 
+        associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
+                  ll => excitInfo%l, typ => excitInfo%typ, st => excitInfo%fullStart, &
+                  se => excitInfo%secondStart, gen => excitInfo%gen1, &
+                  en => excitInfo%fullEnd)
+
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
-                                         excitInfo%k, excitInfo%l)
-            rdm_mat = 0.0_dp
+            allocate(rdm_ind(2), source = 0_int_rdm)
+            allocate(rdm_mat(2), source = 0.0_dp)
+
+            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
 
         ! can i exclude every deltaB > 1, since only db = 0 allowed in
@@ -1326,30 +1332,21 @@ contains
         if (any(abs(temp_delta_b) > 1)) return
 
         if (t_hamil_) then
-            if (excitInfo%typ == excit_type%fullstop_lowering) then
+            if (typ == excit_type%fullstop_lowering) then
                 ! LL
-                umat = (get_umat_el(excitInfo%fullEnd, excitInfo%fullEnd, &
-                    excitInfo%fullStart, excitInfo%secondStart) + &
-                    get_umat_el(excitInfo%fullEnd, excitInfo%fullEnd, &
-                    excitInfo%secondStart, excitInfo%fullStart))/2.0_dp
+                umat = (get_umat_el(en, en, st, se) + &
+                    get_umat_el(en, en, se, st)) / 2.0_dp
 
-            else if (excitInfo%typ == excit_type%fullstop_raising) then
+            else if (typ == excit_type%fullstop_raising) then
                 ! RR
-                umat = (get_umat_el(excitInfo%fullStart, excitInfo%secondStart, &
-                    excitInfo%fullEnd, excitInfo%fullEnd) + get_umat_el( &
-                    excitInfo%secondStart,excitInfo%fullStart,excitInfo%fullEnd,&
-                    excitInfo%fullEnd))/2.0_dp
-
+                umat = (get_umat_el(st, se, en, en) + &
+                        get_umat_el(se, st, en, en)) / 2.0_dp
             end if
         else
             umat = h_cast(1.0_dp)
         end if
 
         if (t_hamil_ .and. near_zero(umat)) return
-
-        st = excitInfo%fullstart
-        se = excitInfo%secondstart
-        gen = excitInfo%gen1
 
         guga_mat = 1.0_dp
 
@@ -1388,13 +1385,16 @@ contains
 
         if (near_zero(guga_mat)) return
 
-        nOpen = (-1.0_dp) ** real(count_open_orbs_ij(excitInfo%secondStart+1, &
-            excitInfo%fullEnd-1, ilutJ),dp)
+        nOpen = (-1.0_dp) ** real(count_open_orbs_ij(se + 1, en -1, ilutJ),dp)
 
         ! is this the same for both type of gens?
         mat_ele = guga_mat * nOpen * Root2 * umat
 
+        ! since the x1 element is 0 there is no sign influence from the
+        ! order of generators!
         if (present(rdm_mat)) rdm_mat = guga_mat * nOpen * Root2
+
+        end associate
 
     end subroutine calc_fullstop_alike_ex
 
@@ -1408,7 +1408,7 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_alike_ex"
 
-        integer :: start, ende, semi, gen, i, step1, step2, db
+        integer :: i, step1, step2, db
         real(dp) :: bVal, nOpen, temp_mat, guga_mat
         HElement_t(dp) :: umat
         logical :: t_hamil_
@@ -1418,30 +1418,31 @@ contains
         ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
 
+        associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
+                  ll => excitInfo%l, start => excitInfo%fullstart, &
+                  ende => excitInfo%fullEnd, semi => excitInfo%firstEnd, &
+                  gen => excitInfo%firstGen, typ => excitInfo%typ)
+
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
-                                         excitInfo%k, excitInfo%l)
-            rdm_mat = 0.0_dp
+            allocate(rdm_ind(2), source = 0_int_rdm)
+            allocate(rdm_mat(2), source = 0.0_dp)
+            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
-
-        start = excitInfo%fullStart
-        ende = excitInfo%fullEnd
-        semi = excitInfo%firstEnd
-        gen = excitInfo%firstGen
 
         ! i think i can exclude every deltaB > 1 sinve only dB = 0 branch
         ! allowed for the alike..
         if (any(abs(temp_delta_b) > 1)) return
 
         if (t_hamil_) then
-            if (excitInfo%typ == excit_type%fullstart_lowering) then
+            if (typ == excit_type%fullstart_lowering) then
                 ! LL
                 umat = (get_umat_el(ende,semi,start,start) + &
                     get_umat_el(semi,ende,start,start))/2.0_dp
 
-            else if (excitInfo%typ == excit_type%fullstart_raising) then
+            else if (typ == excit_type%fullstart_raising) then
                 ! RR
                 umat = (get_umat_el(start,start,semi,ende) + &
                     get_umat_el(start,start,ende,semi))/2.0_dp
@@ -1482,7 +1483,10 @@ contains
 
         mat_ele = guga_mat * umat
 
+        ! also no influence on coupling coefficient sign from generator order
         if (present(rdm_mat)) rdm_mat = guga_mat
+
+        end associate
 
     end subroutine calc_fullstart_alike_ex
 
@@ -1496,7 +1500,7 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_fullstop_alike_ex"
 
-        real(dp) :: nOpen
+        real(dp) :: nOpen, guga_mat
         HElement_t(dp) :: umat
         logical :: t_hamil_
 
@@ -1505,27 +1509,35 @@ contains
         ! set defaults for early exit
         mat_ele = h_cast(0.0_dp)
 
+        associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
+                  ll => excitInfo%l, start => excitInfo%fullStart, &
+                  ende => excitInfo%fullEnd)
+
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
-                                         excitInfo%k, excitInfo%l)
-            rdm_mat = 0.0_dp
+            allocate(rdm_ind(1), source = 0_int_rdm)
+            allocate(rdm_mat(1), source = 0.0_dp)
+            ! only one element here, since indices are the same
+            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
         end if
 
         if (t_hamil_) then
-            umat = get_umat_el(excitInfo%i,excitInfo%i,excitInfo%j,excitInfo%j)/2.0_dp
+            umat = get_umat_el(ii,ii,jj,jj) / 2.0_dp
         else
             umat = h_cast(1.0_dp)
         end if
 
         if (t_hamil_ .and. near_zero(umat)) return
 
-        nOpen = real(count_open_orbs_ij(excitInfo%fullStart, excitInfo%fullEnd,ilutJ(0:nifd)),dp)
+        nOpen = real(count_open_orbs_ij(start, ende, ilutJ(0:nifd)),dp)
 
-        mat_ele = 2.0_dp * (-1.0_dp) ** nOpen * umat
+        guga_mat = 2.0_dp ** (-1.0_dp) ** nOpen
+        mat_ele = guga_mat * umat
 
-        if (present(rdm_mat)) rdm_mat = 2.0_dp ** (-1.0_dp) ** nOpen
+        if (present(rdm_mat)) rdm_mat = guga_mat
+
+        end associate
 
     end subroutine calc_fullstart_fullstop_alike_ex
 
@@ -1541,7 +1553,7 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstop_mixed_ex"
 
-        integer :: st, se, en, i, step1, step2, db, firstgen
+        integer :: i, step1, step2, db
         real(dp)  :: bVal, temp_mat0, temp_mat1, temp_x0, temp_x1
         HElement_t(dp) :: integral
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
@@ -1553,10 +1565,10 @@ contains
 
         def_default(t_hamil_, t_hamil, .true.)
 
-        st = excitInfo%fullStart
-        se = excitInfo%secondStart
-        en = excitInfo%fullEnd
-        firstGen = excitInfo%firstgen
+        associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
+                  ll => excitInfo%l, st => excitInfo%fullStart, se => excitInfo%secondStart, &
+                  en => excitInfo%fullEnd, firstGen => excitInfo%firstgen, &
+                  typ => excitInfo%typ)
 
         ! set defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
@@ -1564,9 +1576,15 @@ contains
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
-                                         excitInfo%k, excitInfo%l)
-            rdm_mat = 0.0_dp
+            ! here we still only need 2 rdm contributions, since the
+            ! flipped version corresponds to a single excitation with
+            ! a weight generator, which should be handled in the single
+            ! excitation step already!
+            allocate(rdm_ind(2), source = 0_int_rdm)
+            allocate(rdm_mat(2), source = 0.0_dp)
+
+            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
 
         if (any(abs(temp_delta_b(st:se-1)) > 1) .or. &
@@ -1668,7 +1686,7 @@ contains
         currentB_int = int(temp_b_real_i)
 
         if (t_hamil_) then
-            if (excitInfo%typ == excit_type%fullstop_L_to_R) then
+            if (typ == excit_type%fullstop_L_to_R) then
                 ! L -> R
                 ! what do i have to put in as the branch pgen?? does it have
                 ! an influence on the integral and matrix element calculation?
@@ -1676,15 +1694,15 @@ contains
                     temp_mat0, integral)
 
                 mat_ele = temp_x1 *((get_umat_el(en,se,st,en) + &
-                    get_umat_el(se,en,en,st))/2.0_dp + integral)
+                            get_umat_el(se,en,en,st))/2.0_dp + integral)
 
-            else if (excitInfo%typ == excit_type%fullstop_R_to_L) then
+            else if (typ == excit_type%fullstop_R_to_L) then
                 ! R -> L
                 call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
                     temp_mat0, integral)
 
                 mat_ele = temp_x1 * ((get_umat_el(en,st,se,en) + &
-                    get_umat_el(st,en,en,se))/2.0_dp + integral)
+                            get_umat_el(st,en,en,se))/2.0_dp + integral)
 
             end if
         else
@@ -1696,7 +1714,10 @@ contains
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
 
+        ! also no influence on coupling coefficient from generator order
         if (present(rdm_mat)) rdm_mat = temp_x1
+
+        end associate
 
     end subroutine calc_fullstop_mixed_ex
 
@@ -1710,7 +1731,7 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_fullstart_mixed_ex"
 
-        integer :: st, en, se, gen, step1, step2, db, i
+        integer :: step1, step2, db, i
         real(dp) :: bVal, temp_mat0, temp_mat1, temp_x0, temp_x1
         HElement_t(dp) :: integral
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
@@ -1725,19 +1746,23 @@ contains
         ! set defaults for early exit
         mat_ele = h_cast(0.0_dp)
 
+
+        associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
+                  ll => excitInfo%l, st => excitInfo%fullStart, &
+                  en => excitInfo%fullEnd, se => excitInfo%firstEnd, &
+                  gen => excitInfo%lastGen, typ => excitInfo%typ)
+
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
-                                         excitInfo%k, excitInfo%l)
-            rdm_mat = 0.0_dp
+            ! we only have two elements here, since the switched version
+            ! corresponds to a single excitation + weight, which is dealt
+            ! with in the single excit case
+            allocate(rdm_ind(2), source = 0_int_rdm)
+            allocate(rdm_mat(2), source = 0.0_dp)
+            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
-
-        ! create the fullStart
-        st = excitInfo%fullStart
-        en = excitInfo%fullEnd
-        se = excitInfo%firstEnd
-        gen = excitInfo%lastGen
 
         if (any(abs(temp_delta_b(st:se-1)) > 2) .or. &
             any(abs(temp_delta_b(se:en)) > 1)) return
@@ -1815,7 +1840,7 @@ contains
         currentB_int = int(temp_b_real_i)
 
         if (t_hamil_) then
-            if (excitInfo%typ == excit_type%fullstart_L_to_R) then
+            if (typ == excit_type%fullstart_L_to_R) then
                 ! L -> R
                 call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
                     temp_mat0, integral)
@@ -1823,7 +1848,7 @@ contains
                 mat_ele = guga_mat * ((get_umat_el(st,se,en,st) + &
                     get_umat_el(se,st,st,en))/2.0_dp + integral)
 
-            else if (excitInfo%typ == excit_type%fullstart_R_to_L) then
+            else if (typ == excit_type%fullstart_R_to_L) then
 
                 call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
                     temp_mat0, integral)
@@ -1839,7 +1864,10 @@ contains
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
 
+        ! no influence of generator order on coupling coeff
         if (present(rdm_mat)) rdm_mat = guga_mat
+
+        end associate
 
     end subroutine calc_fullstart_mixed_ex
 
@@ -1865,12 +1893,17 @@ contains
         ! set default for early exits
         mat_ele = h_cast(0.0_dp)
 
+        associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
+                  ll => excitInfo%l, start => excitInfo%fullstart, &
+                  ende => excitInfo%fullEnd)
+
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = contract_2_rdm_ind(excitInfo%i, excitInfo%j, &
-                                         excitInfo%k, excitInfo%l)
-            rdm_mat = 0.0_dp
+            allocate(rdm_ind(2), source = 0_int_rdm)
+            allocate(rdm_mat(2), source = 0.0_dp)
+            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
         ! the most involved one.. but i think i can reuse a lot of the
         ! stochastic stuff here, since i already needed it there..
@@ -1891,16 +1924,19 @@ contains
         currentB_ilut = temp_b_real_i
 
         if (t_hamil_) then
-            mat_ele =  calcMixedContribution(tmp_I, tmp_J, excitInfo%fullstart, excitInfo%fullEnd)
+            mat_ele =  calcMixedContribution(tmp_I, tmp_J, start, ende)
         end if
 
         if (present(rdm_mat)) then
-            rdm_mat = calc_mixed_coupling_coeff(tmp_J, excitInfo)
+            ! no influene on the coupling coeff from order of generators
+            rdm_mat(1:2) = calc_mixed_coupling_coeff(tmp_J, excitInfo)
         end if
 
         current_stepvector = temp_curr_step
         currentOcc_int = temp_curr_occ_int
         currentB_ilut = temp_curr_b
+
+        end associate
 
     end subroutine calc_fullstart_fullstop_mixed_ex
 
