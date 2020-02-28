@@ -1273,12 +1273,12 @@ contains
                             ! a electron..
                             ! -> so it is a raising generator
                             ! _R(i) -> ^R(j)
-                            excitInfo = assign_excitInfo_values_single_ex(gen_type%R,i,j,i,j,0)
+                            excitInfo = assign_excitInfo_values_single_ex(gen_type%R,i,j,i,j)
 
                         else if (isThree(ilutI,i)) then
                             ! i know (i) is a electron ->
                             ! _L(i) -> ^L(j)
-                            excitInfo = assign_excitInfo_values_single_ex(gen_type%L,j,i,i,j,0)
+                            excitInfo = assign_excitInfo_values_single_ex(gen_type%L,j,i,i,j)
 
                         else
                             ! i know n(i) = 1
@@ -1286,12 +1286,12 @@ contains
                             if (isZero(ilutJ,i)) then
                                 ! (i) was an electron
                                 ! _L(i) -> ^L(j)
-                                excitInfo = assign_excitInfo_values_single_ex(gen_type%L,j,i,i,j,0)
+                                excitInfo = assign_excitInfo_values_single_ex(gen_type%L,j,i,i,j)
 
                             else
                                 ! (i) was a hole
                                 ! _R(i) -> ^R(j)
-                                excitInfo = assign_excitInfo_values_single_ex(gen_type%R,i,j,i,j,0)
+                                excitInfo = assign_excitInfo_values_single_ex(gen_type%R,i,j,i,j)
 
                             end if
                         end if

@@ -913,19 +913,12 @@ contains
                     call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
                         bot_cont * start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
 
-!                     integral = integral + start_mat * tmp_mat *  &
-!                         (get_umat_el(i,holeInd,elecInd,i) &
-!                         + get_umat_el(holeInd,i,i,elecInd))/2.0_dp
-
                 end if
 
                 ! also update matrix element on the fly
                 tmp_mat = stay_mat * tmp_mat
 
             end do
-
-            ! and update matrix element finally with bottom contribution
-!             integral = integral * bot_cont
 
         end if
 

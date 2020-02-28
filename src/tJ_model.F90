@@ -55,7 +55,7 @@ module tJ_model
     use guga_excitations, only: calc_guga_matrix_element, generate_excitation_guga, &
                                 assign_excitInfo_values_double, assign_excitInfo_values_single
 
-    use guga_data, only: ExcitationInformation_t
+    use guga_data, only: ExcitationInformation_t, excit_type, gen_type
 
     use guga_bitRepOps, only: count_alpha_orbs_ij, count_beta_orbs_ij
 
@@ -978,9 +978,9 @@ contains
         end if
 
         if (tgt < id) then
-            excitInfo = assign_excitInfo_values_single(1, tgt, id, tgt, id)
+            excitInfo = assign_excitInfo_values_single(gen_type%R, tgt, id, tgt, id)
         else
-            excitInfo = assign_excitInfo_values_single(-1, tgt, id, id, tgt)
+            excitInfo = assign_excitInfo_values_single(gen_type%L, tgt, id, id, tgt)
         end if
 
         orb_pgen = p_elec * p_orb
@@ -1089,7 +1089,8 @@ contains
         start = min(id, tgt)
         ende = max(id, tgt)
 
-        excitInfo =  assign_excitInfo_values_double(23, -1, 1, 1, 1, 1, &
+        excitInfo =  assign_excitInfo_values_double(excit_type%fullstart_stop_mixed, &
+            gen_type%L, gen_type%R, gen_type%R, gen_type%R, gen_type%R, &
             start, ende, ende, start, start, start, ende, ende, 0, 2, 1.0_dp, 1.0_dp)
 
         orb_pgen = p_elec * p_orb
