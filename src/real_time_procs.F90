@@ -1371,7 +1371,7 @@ contains
         character(*), parameter :: this_routine = "create_perturbed_ground"
         integer :: tmp_totwalkers, totwalkers_backup, TotWalkers_orig_max
         integer :: ierr, i, totNOccDets, iProc, nPertRefs
-        integer(n_int), pointer :: perturbed_buf(:,:)
+        integer(n_int), allocatable :: perturbed_buf(:,:)
         logical :: t_use_perturbed_buf
 
         if(tReadPops .and. .not. tNewOverlap) then
@@ -1449,7 +1449,7 @@ contains
 
         if(allocated(overlap_states)) write(iout,*) &
              "Determinants remaining in perturbed ground state:" , overlap_states(1)%nDets
-        deallocate(perturbed_buf,stat=ierr)
+        if(allocated(perturbed_buf)) deallocate(perturbed_buf,stat=ierr)
 
     end subroutine create_perturbed_ground
 
@@ -1457,7 +1457,7 @@ contains
 
     subroutine create_perturbed_ref(perturbed_buf,tmp_totwalkers)
       implicit none
-      integer(n_int), intent(out), pointer :: perturbed_buf(:,:)
+      integer(n_int), intent(out) :: perturbed_buf(:,:)
       integer, intent(out) :: tmp_totwalkers
 
       integer :: nPertRefs
