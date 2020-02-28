@@ -224,9 +224,9 @@ contains
                     log_dealloc(TempSpawnedPartsTag)
                 end if
                 allocate(TempSpawnedParts(0:NIfDBO, TempSpawnedPartsSize), &
-                         stat=ierr)
-                log_alloc(TempSpawnedParts,TempSpawnedPartsTag,ierr)
-                TempSpawnedParts = 0
+                         stat=ierr, source=0_n_int)
+                call LogMemAlloc('TempSpawnedParts', size(TempSpawnedParts), tbs_(TempSpawnedParts), &
+                                  this_routine, TempSpawnedPartsTag, ierr)
                 write(6,"(' Allocating temporary array for walkers spawned &
                            &from a particular Di.')")
                 write(6,"(a,f14.6,a)") " This requires ", &

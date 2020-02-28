@@ -1,4 +1,6 @@
 #include "macros.h"
+#:include "macros.fpph"
+
 module load_balance
 
     use CalcData, only: tUniqueHFNode, tSemiStochastic, &
@@ -55,7 +57,6 @@ contains
 
         integer :: oversample_factor, ierr, i
         character(*), parameter :: this_routine = 'init_load_balance'
-        character(*), parameter :: t_r = this_routine
 
         !
         ! Initialise the mapping of balancing blocks to nodes. By default
@@ -69,7 +70,7 @@ contains
 
         balance_blocks = nNodes * oversample_factor
         allocate(LoadBalanceMapping(balance_blocks), stat=ierr)
-        log_alloc(LoadBalanceMapping, lb_tag, ierr)
+        @:log_alloc(LoadBalanceMapping, lb_tag, ierr)
 
         ! Generate a uniform mapping(by default)
         do i = 1, balance_blocks
