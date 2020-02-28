@@ -20,7 +20,7 @@ module guga_init
 
     use hist_data, only: tHistSpawn
 
-    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
+    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc, tReplicaEstimates
 
     use bit_rep_data, only: tUseFlags
 
@@ -418,6 +418,11 @@ contains
                 "can't use both the old and the new tau search option at the same time!")
         end if
 
+
+        if (tReplicaEstimates) then
+            call stop_all(this_routine, &
+                "'replica-estimates' not yet implemented with GUGA")
+        end if
         ! assert that tUseFlags is set, to be able to encode deltaB values
         ! in the ilut representation for excitation generation
         !if (.not.tUseFlags) then

@@ -41,7 +41,6 @@ endint
 
 logging
 paired-replicas
-replica-estimates
 popsfile -1
 endlog
 end
