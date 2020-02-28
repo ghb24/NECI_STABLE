@@ -16,7 +16,8 @@ module guga_init
                           t_tJ_model
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                        t_guga_mat_eles, t_hist_tau_search, tSpinProject
+                        t_guga_mat_eles, t_hist_tau_search, tSpinProject, &
+                        tReplicaEstimates
 
     use hist_data, only: tHistSpawn
 
@@ -418,6 +419,11 @@ contains
                 "can't use both the old and the new tau search option at the same time!")
         end if
 
+
+        if (tReplicaEstimates) then
+            call stop_all(this_routine, &
+                "'replica-estimates' not yet implemented with GUGA")
+        end if
         ! assert that tUseFlags is set, to be able to encode deltaB values
         ! in the ilut representation for excitation generation
         !if (.not.tUseFlags) then

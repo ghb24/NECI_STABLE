@@ -28,7 +28,7 @@ doubles-init
 semi-stochastic
 doubles-core
 trial-wavefunction 1000
-pops-trial 20
+pops-trial 60
 load-balance-blocks off
 seed 10
 endcalc
