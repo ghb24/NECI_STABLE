@@ -201,12 +201,12 @@ MODULE System
       t_pcpp_excitgen = .false.
       t_pchb_excitgen = .false.
       ! use weighted singles for the pchb excitgen?
-      t_pchb_weighted_singles = .false.      
+      t_pchb_weighted_singles = .false.
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! GAS options
-      tSpinConservingGAS = .false.
-      tNConservingGAS = .false.
+      tGASSpinRecoupling = .false.
+      tGAS = .false.
 
 #ifdef PROG_NUMRUNS_
       ! by default, excitation generation already creates matrix elements
@@ -1406,7 +1406,7 @@ system: do
         case("PCHB-WEIGHTED-SINGLES")
             ! Enable using weighted single excitations with the pchb excitation generator
             t_pchb_weighted_singles = .true.
-            
+
         case("SPAWNLISTDETS")
 !This option will mean that a file called SpawnOnlyDets will be read in,
 ! and only these determinants will be allowed to be spawned at.
@@ -1507,12 +1507,12 @@ system: do
             tGiovannisBrokenInit = .true.
 
          case("SPIN-CONSERVING-GAS")
-            tNConservingGAS = .true.
-            tSpinConservingGAS = .true.
+            tGAS = .true.
+            tGASSpinRecoupling = .true.
 
          case("PART-CONSERVING-GAS")
-            tNConservingGAS = .true.
-            tSpinConservingGAS = .false.
+            tGAS = .true.
+            tGASSpinRecoupling = .false.
 
         case("ENDSYS")
             exit system
@@ -3269,6 +3269,3 @@ SUBROUTINE GetUEGKE(I,J,K,ALAT,tUEGTrueEnergies,tUEGOffset,k_offset,Energy,dUnsc
        Energy=E
     ENDIF
 END SUBROUTINE GetUEGKE
-
-
-

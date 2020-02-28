@@ -159,7 +159,7 @@ MODULE ReadInput_neci
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
                 call kp_fciqmc_read_inp(kp)
-        
+
             case("END")
                 exit
             case default
@@ -188,7 +188,7 @@ MODULE ReadInput_neci
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
-                              tGen_4ind_lin_exact, tGen_4ind_2, tNConservingGAS, &
+                              tGen_4ind_lin_exact, tGen_4ind_2, tGAS, &
                               tComplexOrbs_RealInts, tLatticeGens, tHistSpinDist
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
@@ -592,11 +592,10 @@ MODULE ReadInput_neci
            end if
         end if
 
-        if(.not. tDefineDet .and. tNConservingGAS) then
+        if(.not. tDefineDet .and. tGAS) then
            call stop_all(t_r, "Running n-GAS requires a user-defined reference via definedet")
         endif
 
     end subroutine checkinput
 
 end Module ReadInput_neci
-

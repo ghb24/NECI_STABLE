@@ -249,7 +249,7 @@ logical :: tSymSet = .false.
 logical :: tGiovannisBrokenInit
 
 ! Are we restricting excitations
-logical :: tNConservingGAS, tSpinConservingGAS
+logical :: tGAS, tGASSpinRecoupling
 ! twisted boundary implementation for the hubbard model:
 ! use keyword twisted-bc [real, real] in System Block of input
 ! twist value is in values of periodicity (2*pi/L) for cubic and (pi/L) for

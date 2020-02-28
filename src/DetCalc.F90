@@ -2,8 +2,8 @@
 MODULE DetCalc
         use constants, only: dp,n_int
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
-             tNConservingGAS, t_non_hermitian
-        use gasci, only: loadGAS
+             tGAS, t_non_hermitian
+        use disconnected_gasci, only: loadGAS
         use sort_mod
 
         use DetCalcData
@@ -344,7 +344,7 @@ CONTAINS
          ENDIF
       ENDIF
 
-      if(tNConservingGAS) call loadGAS()
+      if(tGAS) call loadGAS()
 
 !      TMC=TCALCHMAT.AND.(.NOT.TENERGY)
 

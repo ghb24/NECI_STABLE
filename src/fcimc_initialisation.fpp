@@ -20,7 +20,7 @@ module fcimc_initialisation
                           nClosedOrbs, irrepOrbOffset, nIrreps, &
                           tTrcorrExgen, nClosedOrbs, irrepOrbOffset, nIrreps, &
                           nOccOrbs, tNoSinglesPossible, t_pcpp_excitgen, &
-                          t_pchb_excitgen, tNConservingGAS
+                          t_pchb_excitgen, tGAS
     use tc_three_body_data, only: ptriples
     use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
 
@@ -209,7 +209,7 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use gasci, only: generate_nGAS_excitation, clearGAS
+    use disconnected_gasci, only: generate_nGAS_excitation, clearGAS
 
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
 
@@ -1896,7 +1896,7 @@ contains
         ! Select the excitation generator.
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
-        elseif(tNConservingGAS) then
+        elseif(tGAS) then
             generate_excitation => generate_nGAS_excitation
         elseif(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
             if (t_uniform_excits) then

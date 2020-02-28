@@ -1,6 +1,6 @@
 program test_gasci
 
-  use gasci
+  use disconnected_gasci
   use fruit
   use constants
   use read_fci, only: readfciint, initfromfcid, fcidump_name
@@ -9,7 +9,7 @@ program test_gasci
   use Integrals_neci, only: IntInit, get_umat_el_normal
   use procedure_pointers, only: get_umat_el
   use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
-       tReadInt, tSpinConservingGAS
+       tReadInt, tGASSpinRecoupling
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit
   use UMatCache, only: GetUMatSize, tTransGTID
@@ -118,7 +118,7 @@ contains
     end do
 
     tCSF = .false.
-    tSpinConservingGAS = .false.
+    tGASSpinRecoupling = .false.
     call EncodeBitDet(nI,ilut)
 
     exflag = 3
