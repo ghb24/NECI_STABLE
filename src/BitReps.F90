@@ -822,12 +822,16 @@ contains
         ! i need to initialize to something..
         exTypeFlag = -1
         if (IC==1) then
-            if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
-                exTypeFlag = 3
-                return
-            else
+            if (tGUGA) then
                 exTypeFlag = 1
-            endif
+            else
+                if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
+                    exTypeFlag = 3
+                    return
+                else
+                    exTypeFlag = 1
+                endif
+            end if
 
         elseif (IC==2) then
             if (tGUGA) then
