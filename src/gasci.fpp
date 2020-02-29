@@ -21,18 +21,19 @@ module gasci
     implicit none
 
     private
-    public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS, GAS_specification
+    public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS, &
+      GAS_specification, nGAS
 
     !> Speficies the GAS spaces.
     !> It is assumed, that the GAS spaces are contigous.
     !> The indices are:
-    !>  n_orbs_per_GAS(1:nGAS, 1:nSym), n_min(1:nGAS), n_max(1:nGAS)
+    !>  n_orbs_per_GAS(1:nGAS), n_min(1:nGAS), n_max(1:nGAS)
     !> n_orbs_per_GAS(iGAS, iRep) specifies how many orbitals are in
     !> the `iGAS` GAS space in the `iRep` Irrep.
     !> n_min(iGAS) specifies the minimum particle number per GAS space.
     !> n_max(iGAS) specifies the maximum particle number per GAS space.
     type :: GAS_specification_t
-        integer, allocatable :: n_orbs_per_GAS(:, :), n_min(:), n_max(:)
+        integer, allocatable :: n_orbs_per_GAS(:), n_min(:), n_max(:)
     end type
 
     type(GAS_specification_t) :: GAS_specification
