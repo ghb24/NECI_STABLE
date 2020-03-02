@@ -64,7 +64,8 @@ module guga_rdm
     private
     public :: calc_rdm_energy_guga, t_test_sym_fill, gen_exc_djs_guga, &
               send_proc_ex_djs, t_test_diagonal, t_more_sym, &
-              t_mimic_stochastic, t_direct_exchange
+              t_mimic_stochastic, t_direct_exchange, &
+              calc_all_excits_guga_rdm_singles
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..

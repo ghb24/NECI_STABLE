@@ -357,12 +357,12 @@ contains
         ! set defaults for early exits
         mat_ele = h_cast(0.0_dp)
 
+#ifdef DEBUG_
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            rdm_ind = 0
-            rdm_mat = 0.0_dp
         end if
+#endif
 
         ! check diagonal case first
         if (DetBitEQ(ilutI,ilutJ)) then
