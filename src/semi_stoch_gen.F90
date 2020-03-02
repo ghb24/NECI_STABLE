@@ -1131,7 +1131,7 @@ contains
 
         integer, intent(in) :: target_space_size, nApproxSpace
         integer(n_int), intent(in), optional :: opt_source_size
-        integer(n_int), intent(in), optional, pointer :: opt_source(:,:)
+        integer(n_int), intent(in), optional :: opt_source(:,:)
         logical, intent(in) :: tApproxSpace
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
