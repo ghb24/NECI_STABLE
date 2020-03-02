@@ -924,7 +924,7 @@ contains
         real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_normal_alike_double_ex"
 
-        integer :: i, db, step1, step2, gen
+        integer :: i, db, step1, step2!, gen
         real(dp) :: temp_x0, temp_x1, bVal, temp_mat0, temp_mat1, guga_mat
         logical :: t_calc_full_
 
@@ -936,8 +936,9 @@ contains
         associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                   ll => excitInfo%l, start1 => excitInfo%fullStart, &
                   start2 => excitInfo%secondStart, ende1 => excitInfo%firstEnd, &
-                  ende2 => excitInfo%fullEnd, &
-                  order => excitInfo%order, order1 => excitInfo%order1)
+                  ende2 => excitInfo%fullEnd, gen => excitInfo%firstgen, &
+                  order => excitInfo%order, order1 => excitInfo%order1, &
+                  typ => excitInfo%typ)
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
@@ -952,7 +953,7 @@ contains
             rdm_ind(4) = contract_2_rdm_ind(kk, jj, ii, ll)
         end if
 
-        gen = excitInfo%firstgen
+!         gen = excitInfo%firstgen
         guga_mat = 1.0_dp
         ! to the single part:
         do i = start1, start2 - 1
@@ -1009,7 +1010,7 @@ contains
         end do
 
         if (t_calc_full_) then
-            if (excitInfo%typ == excit_type%double_lowering) then
+            if (typ == excit_type%double_lowering) then
                 ! wait a minute.. i have to do that at the end apparently..
                 ! since i need to know the x0 and x1 matrix element contributions
                 mat_ele = (temp_x0 * (get_umat_el(ende1,ende2,start1,start2) + &
@@ -1019,7 +1020,7 @@ contains
                     get_umat_el(ende1,ende2,start1,start2) + get_umat_el(ende2,ende1,start2,start1) - &
                     get_umat_el(ende2,ende1,start1,start2) - get_umat_el(ende1,ende2,start2,start1)))/2.0_dp
 
-            else if (excitInfo%typ == excit_type%double_raising) then
+            else if (typ == excit_type%double_raising) then
 
                 mat_ele = (temp_x0 * (get_umat_el(start1,start2,ende1,ende2) + &
                     get_umat_el(start2,start1,ende2,ende1) + get_umat_el(start1,start2,ende2,ende1) + &
@@ -1532,7 +1533,7 @@ contains
 
         nOpen = real(count_open_orbs_ij(start, ende, ilutJ(0:nifd)),dp)
 
-        guga_mat = 2.0_dp ** (-1.0_dp) ** nOpen
+        guga_mat = 2.0_dp * (-1.0_dp) ** nOpen
         mat_ele = guga_mat * umat
 
         if (present(rdm_mat)) rdm_mat = guga_mat
@@ -1559,15 +1560,20 @@ contains
         integer(n_int) :: tmp_I(0:nifguga), tmp_J(0:nifguga)
 
         integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
-                   temp_curr_b_int(nSpatOrbs)
+                   temp_curr_b_int(nSpatOrbs), st, se, en
         real(dp) :: temp_curr_b(nSpatOrbs), guga_mat
         logical :: t_hamil_
 
         def_default(t_hamil_, t_hamil, .true.)
 
+        ! i can not associate to all stuff of excitInfo, since it will
+        ! get changed later on..
+        st = excitInfo%fullStart
+        se = excitInfo%secondStart
+        en = excitInfo%fullEnd
+
         associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                  ll => excitInfo%l, st => excitInfo%fullStart, se => excitInfo%secondStart, &
-                  en => excitInfo%fullEnd, firstGen => excitInfo%firstgen, &
+                  ll => excitInfo%l, firstGen => excitInfo%firstgen, &
                   typ => excitInfo%typ)
 
         ! set defaults in case of early exit
@@ -1738,7 +1744,7 @@ contains
         logical :: t_hamil_
 
         integer :: temp_curr_step(nSpatOrbs), temp_curr_occ_int(nSpatOrbs), &
-                   temp_curr_b_int(nSpatOrbs)
+                   temp_curr_b_int(nSpatOrbs), st, en, se
         real(dp) :: temp_curr_b(nSpatOrbs), guga_mat
 
         def_default(t_hamil_, t_hamil, .true.)
@@ -1746,11 +1752,14 @@ contains
         ! set defaults for early exit
         mat_ele = h_cast(0.0_dp)
 
+        ! i can not associate to all stuff of excitInfo, since it will
+        ! get changed later on..
+        st = excitInfo%fullStart
+        en = excitInfo%fullEnd
+        se = excitInfo%firstEnd
 
         associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
-                  ll => excitInfo%l, st => excitInfo%fullStart, &
-                  en => excitInfo%fullEnd, se => excitInfo%firstEnd, &
-                  gen => excitInfo%lastGen, typ => excitInfo%typ)
+                  ll => excitInfo%l, gen => excitInfo%lastGen, typ => excitInfo%typ)
 
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
@@ -2005,7 +2014,8 @@ contains
         integer, intent(in) :: det_list(nel,ndets)
         HElement_t(dp), intent(out), allocatable :: hamil(:)
         integer, intent(out), allocatable :: ind(:)
-        integer, intent(out) :: n_row(ndets), n_elements, ic_max
+        integer, intent(out) :: n_row(ndets), n_elements
+        integer, intent(out), optional :: ic_max
         character(*), parameter :: this_routine = "Detham_guga"
 
         type(timer), save :: proc_timer
@@ -4809,7 +4819,10 @@ contains
                 call write_det_guga(6, ilutJ, .true.)
                 print *, "mat eles and diff:", HElGen, tmp_mat, diff
                 print *, " pgen: ", pgen
+                print *, " deduced excit-info: "
                 call print_excitInfo(excitInfo)
+                print *, " global excit-info: "
+                call print_excitInfo(global_excitInfo)
                 call neci_flush(6)
             end if
 
