@@ -214,6 +214,7 @@ set( FYPP_SRC_FILES
     sltcnd.fpp
     disconnected_gasci.fpp
     gasci.fpp
+    orb_idx.fpp
     excitation_types.fpp
 	shared_array.fpp
     load_balancer.fpp

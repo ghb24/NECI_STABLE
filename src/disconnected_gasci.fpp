@@ -487,12 +487,12 @@ contains
             integer :: tgt, nOrbs, GAS_list(GAS_size(iGAS))
             real(dp) :: r, cSum(GAS_size(iGAS))
 
-            ASSERT(last_tgt_unknown(exc))
 
             ! initialize auxiliary variables
             nOrbs = GAS_size(iGAS)
             GAS_list = GAS_spin_orb_list(1:nOrbs, iGAS, spin_idx)
             ! build the cumulative list of matrix elements <src|H|tgt>
+            ASSERT(last_tgt_unknown(exc))
             cSum = get_cumulative_list(GAS_list, nI, exc)
 
             ! now, pick with the weight from the cumulative list

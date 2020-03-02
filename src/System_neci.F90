@@ -17,7 +17,7 @@ MODULE System
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
     use tc_three_body_data, only: LMatEps, tSparseLMat
-    use gasci, only: GAS_specification, nGAS
+    use gasci, only: GAS_specification, is_valid
     use ParallelHelper, only: iprocindex, root
 
     IMPLICIT NONE
@@ -1509,30 +1509,28 @@ system: do
 
         case("SPIN-CONSERVING-GAS")
             tGAS = .true.
-            tGASSpinRecoupling = .true.
+            tGASSpinRecoupling = .false.
 
         case("PART-CONSERVING-GAS")
             tGAS = .true.
-            tGASSpinRecoupling = .false.
+            tGASSpinRecoupling = .true.
 
         case("GAS-CI")
-
-            call geti(nGAS)
-            allocate(GAS_specification%n_orbs_per_GAS(nGAS), &
-                     GAS_specification%n_min(nGAS), &
-                     GAS_specification%n_max(nGAS), source=0)
-            associate(n_orbs => GAS_specification%n_orbs_per_GAS, &
-                      n_min => GAS_specification%n_min, &
-                      n_max => GAS_specification%n_max)
             block
-                integer :: iGAS
+                integer :: nGAS, iGAS
+                call geti(nGAS)
+                allocate(GAS_specification%n_orbs(nGAS), &
+                         GAS_specification%n_min(nGAS), &
+                         GAS_specification%n_max(nGAS), source=0)
                 do iGAS = 1, nGAS
-                    call geti(n_orbs(iGAS))
-                    call geti(n_min(iGAS))
-                    call geti(n_max(iGAS))
+                    call geti(GAS_specification%n_orbs(iGAS))
+                    call geti(GAS_specification%n_min(iGAS))
+                    call geti(GAS_specification%n_max(iGAS))
                 end do
             end block
-            end associate
+
+        case("GAS-NO-SPIN-RECOUPLING")
+            tGASSpinRecoupling = .false.
 
         case("ENDSYS")
             exit system

@@ -188,7 +188,7 @@ MODULE ReadInput_neci
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
-                              tGen_4ind_lin_exact, tGen_4ind_2, tGAS, &
+                              tGen_4ind_lin_exact, tGen_4ind_2, tGAS, tGASSpinRecoupling, &
                               tComplexOrbs_RealInts, tLatticeGens, tHistSpinDist
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
@@ -227,6 +227,7 @@ MODULE ReadInput_neci
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
+        use gasci, only: GAS_specification, is_connected, is_valid
 
         implicit none
 
@@ -592,9 +593,20 @@ MODULE ReadInput_neci
            end if
         end if
 
-        if(.not. tDefineDet .and. tGAS) then
-           call stop_all(t_r, "Running n-GAS requires a user-defined reference via definedet")
-        endif
+
+        if (tGAS) then
+            if(.not. tDefineDet) then
+                call stop_all(t_r, "Running GAS requires a user-defined reference via definedet.")
+            endif
+            if (.not. is_valid(GAS_specification)) then
+                call stop_all(t_r, "GAS specification not valid.")
+            end if
+            if (is_connected(GAS_specification) .and. .not. tGASSpinRecoupling) then
+                call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected spaces.")
+            end if
+        end if
+
+
 
     end subroutine checkinput
 
