@@ -11,7 +11,7 @@ methods
 method vertex fcimc
 endmethods
 seed -7
-nmcyc 3000
+nmcyc 1000
 totalwalkers 1000
 startsinglepart
 shiftdamp 0.03

@@ -98,7 +98,7 @@ contains
          ! Get the nRefs most populated determinants
          refs_found = 0
          call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found, &
-              CurrentDets, TotWalkers)
+              CurrentDets(0:NifTot,:), TotWalkers)
          ! Communicate the refs_found info
          mpi_refs_found = int(refs_found,MPIArg)
          call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
