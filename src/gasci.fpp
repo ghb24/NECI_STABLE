@@ -17,6 +17,7 @@ module gasci
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
         last_tgt_unknown, set_last_tgt
+    use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     implicit none
 
@@ -90,21 +91,26 @@ contains
     end subroutine
 
     !> Could be changed into lookup variable
-    elemental function iGAS_from_spatorb(GAS_spec, orbidx) result(res)
+    pure function iGAS_from_spatorb(GAS_spec, idx) result(res)
         type(GAS_specification_t), intent(in) :: GAS_spec
-        integer, intent(in) :: orbidx
-        integer :: res
+        type(SpatOrbIdx_t), intent(in) :: idx
+        integer :: res(size(idx%val))
 
-        integer :: iGAS
+        res = f(idx%val)
 
-        ! We assume that orbidx <= GAS_specification%n_orbs(nGAS)
-        do iGAS = 1, get_nGAS(GAS_spec)
-            if (orbidx <= GAS_spec%n_orbs(iGAS)) then
-                res = iGAS
-                return
-            end if
-        end do
-        res = -1
+        contains
+        elemental function f(orbidx) result(res)
+            integer, intent(in) :: orbidx
+            integer :: iGAS
+            ! We assume that orbidx <= GAS_specification%n_orbs(nGAS)
+            do iGAS = 1, get_nGAS(GAS_spec)
+                if (orbidx <= GAS_spec%n_orbs(iGAS)) then
+                    res = iGAS
+                    return
+                end if
+            end do
+            res = -1
+        end function
     end function
 
     elemental function iGAS_from_spinorb(GAS_spec, orbidx) result(res)
