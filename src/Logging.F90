@@ -31,8 +31,7 @@ MODULE Logging
                            t_pop_symmetry_states, symmetry_states, &
                            symmetry_weights, symmetry_states_ilut
 
-    use guga_rdm, only: t_test_sym_fill, t_direct_exchange, t_more_sym, &
-                        t_mimic_stochastic
+    use guga_rdm, only: t_direct_exchange, t_mimic_stochastic
 
     use cc_amplitudes, only: t_plot_cc_amplitudes
 
@@ -253,13 +252,6 @@ MODULE Logging
             ! in this case print the frequency histograms to analyze the
             ! matrix element vs. pgen ratios
             t_print_frq_histograms = .true.
-
-        case ("TEST-SYM-FILL")
-            t_test_sym_fill = .true.
-
-        case ("MORE-SYM")
-            t_test_sym_fill = .true.
-            t_more_sym = .true.
 
         case ("DIRECT-EXCHANGE")
             t_direct_exchange = .true.
@@ -1295,7 +1287,7 @@ MODULE Logging
 
         case("FVAL-POP-HIST")
             ! When using auto-adaptive shift, print a histogram of the shift factors over
-            ! the population            
+            ! the population
             tFValPopHist = .true.
             if(item < nitems) call readi(FValPopHist_PopBins)
             if(item < nitems) call readi(FValPopHist_FvalBins)

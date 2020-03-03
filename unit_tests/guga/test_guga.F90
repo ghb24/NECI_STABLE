@@ -77,9 +77,9 @@ contains
 
         call init_guga_testsuite()
 
-        call run_test_case(test_calc_explicit_2_rdm_guga, "test_calc_explicit_2_rdm_guga")
+!         call run_test_case(test_calc_explicit_2_rdm_guga, "test_calc_explicit_2_rdm_guga")
 
-        call stop_all("here", "now")
+!         call stop_all("here", "now")
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
         call test_guga_excitations_exact
@@ -190,14 +190,6 @@ contains
         integer(int_rdm) :: rdm_ind
         integer :: i, j, k, l
         integer(n_int) :: ilut(0:nifguga)
-
-        ! now i have to figure out all this stupid flags i used finally..
-!         t_test_diagonal
-!         t_test_sym_fill
-!         t_direct_exchange
-!         t_more_sym
-!         t_mimic_stochastic
-
 
 
         print *, ""

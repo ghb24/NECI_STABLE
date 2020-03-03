@@ -18,8 +18,6 @@ module rdm_finalising
     use LoggingData, only: tWriteSpinFreeRDM
     use unit_test_helpers, only: print_matrix
 
-    use guga_rdm, only: t_test_sym_fill
-
     implicit none
 
     real(dp), public, protected :: RDM_energy
@@ -249,6 +247,7 @@ contains
             if (.not. tGUGA) then
                 call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
             else
+                call stop_all("calc_1rdms_from_spinfree_2rdms", "use GUGA index functions!")
                 call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
             end if
 
@@ -262,7 +261,7 @@ contains
                     end do
                 end if
 
-                if (tGUGA .and. .not. t_test_sym_fill) then
+                if (tGUGA) then
                     if (p == r) then
                         do irdm = 1, size(one_rdms)
                             one_rdms(irdm)%matrix(ind(q),ind(s)) = &
@@ -281,10 +280,6 @@ contains
             call MPISumAll(one_rdms(irdm)%matrix, temp_rdm)
             ! Copy summed RDM back to the main array, and normalise.
             one_rdms(irdm)%matrix = temp_rdm / (rdm_trace(irdm)*real(nel-1,dp))
-            if (tGUGA .and. t_test_sym_fill) then
-                ! the GUGA rdms have a different normalisation
-                one_rdms(irdm)%matrix = 2.0_dp * one_rdms(irdm)%matrix
-            end if
         end do
 
         deallocate(temp_rdm, stat=ierr)
@@ -1524,18 +1519,10 @@ contains
                 do j = 1, nSpatorbs
 
                     if (abs(one_rdm(ind(i),ind(j))) > EPS) then
-                        if (.not. t_test_sym_fill .and. tNormalise) then
-
-
+                        if (tNormalise) then
                             write(one_rdm_unit, "(2i6, g25.17)") i, j, &
                                 (one_rdm(ind(i),ind(j)) * norm_1rdm)
-
-                        else if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
-
-                            write(one_rdm_unit, "(2i6, g25.17)") i, j, &
-                                (one_rdm(ind(i),ind(j)) * norm_1rdm)
-
-                        else if (.not. tNormalise) then
+                        else
                             write(one_rdm_unit) i, j, one_rdm(ind(i), ind(j))
                         end if
                     end if

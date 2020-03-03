@@ -63,18 +63,16 @@ module guga_rdm
     implicit none
 
     private
-    public :: calc_rdm_energy_guga, t_test_sym_fill, gen_exc_djs_guga, &
-              send_proc_ex_djs, t_test_diagonal, t_more_sym, &
+    public :: calc_rdm_energy_guga, gen_exc_djs_guga, &
+              send_proc_ex_djs, t_test_diagonal, &
               t_mimic_stochastic, t_direct_exchange, &
               calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
               calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
-    logical :: t_test_sym_fill = .false.
     logical :: t_test_diagonal = .false.
     logical :: t_direct_exchange = .false.
-    logical :: t_more_sym = .false.
     logical :: t_mimic_stochastic = .false.
 
 contains
@@ -130,7 +128,12 @@ contains
                 call LogMemDealloc(this_routine, tag_excitations)
             end if
 
-            call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
+
+            if (t_test_diagonal) then
+                call calc_explicit_diag_2_rdm_guga(ilutG, n_doubles, excits)
+            else
+                call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
+            end if
 
             call assign_excits_to_proc_guga(n_doubles, excits, 2)
 
@@ -471,24 +474,6 @@ contains
                             call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, &
                                 sign_i * sign_j * mat_ele, .true.)
                         end if
-
-                        if (t_test_sym_fill) then
-                            ! i only calculate excitations with ab < cd in this case
-                            ! so fill in the missing ones
-                            call add_to_rdm_spawn_t(two_rdm_spawn, b, a, d, c, &
-                                sign_i * sign_j * mat_ele, .true.)
-
-                            if (t_more_sym) then
-                                call  Stop_All(this_routine, &
-                                    "have to correct for the additional symmetry!")
-
-                                call add_to_rdm_spawn_t(two_rdm_spawn, b, a, c, d, &
-                                    sign_i * sign_j * mat_ele, .true.)
-
-                                call add_to_rdm_spawn_t(two_rdm_spawn, c, d,b, a, &
-                                    sign_i * sign_j * mat_ele, .true.)
-                            end if
-                        end if
                     end if
                 end do
             end if
@@ -548,7 +533,7 @@ contains
 
                         if (RDMExcitLevel == 1) then
                             call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
-                                mat_ele, rdm_ind, t_fill_symmetric = t_test_sym_fill)
+                                mat_ele, rdm_ind)
 
                         else if (t_mimic_stochastic .and. RDMExcitLevel == 3) then
                             call fill_sings_2rdm_guga(two_rdm_spawn, ilutI, &
@@ -562,12 +547,10 @@ contains
 
     end subroutine singles_search_guga
 
-    subroutine fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, mat_ele, rdm_ind, &
-            t_fill_symmetric)
+    subroutine fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, mat_ele, rdm_ind)
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         real(dp), intent(in) :: sign_i(:), sign_j(:), mat_ele
         integer(int_rdm), intent(in) :: rdm_ind
-        logical, intent(in) :: t_fill_symmetric
         character(*), parameter :: this_routine = "fill_sings_1rdm_guga"
 
         integer :: i, a, ind_i, ind_a, irdm
@@ -582,10 +565,6 @@ contains
             one_rdms(irdm)%matrix(ind_i, ind_a) = one_rdms(irdm)%matrix(ind_i, ind_a) &
                 + sign_i(irdm) * sign_j(irdm) * mat_ele
 
-            if (t_fill_symmetric) then
-                one_rdms(irdm)%matrix(ind_a, ind_i) = one_rdms(irdm)%matrix(ind_a, ind_i) &
-                    + sign_i(irdm) * sign_j(irdm) * mat_ele
-            end if
         end do
 
     end subroutine fill_sings_1rdm_guga
@@ -1561,6 +1540,70 @@ contains
 
     end subroutine assign_excits_to_proc_guga
 
+    subroutine calc_explicit_diag_2_rdm_guga(ilut, n_tot, excitations)
+        integer(n_int), intent(in) :: ilut(0:nifguga)
+        integer, intent(out) :: n_tot
+        integer(n_int), intent(out), pointer :: excitations(:,:)
+        character(*), parameter :: this_routine = "calc_explicit_diag_2_rdm_guga"
+
+        integer :: i, j, k, l, nMax, ierr, n, n_excits, jl,ik
+        integer(n_int), pointer :: temp_excits(:,:), tmp_all_excits(:,:)
+        integer(int_rdm) :: ijkl
+
+        call init_csf_information(ilut)
+
+        nMax = 6 + 4 * (nSpatOrbs)**3 * (count_open_orbs(ilut) + 1)
+        allocate(tmp_all_excits(0:nifguga,nMax), stat = ierr)
+        call LogMemAlloc('tmp_all_excits',(nifguga+1)*nMax,8,this_routine,tag_tmp_excits)
+
+        n_tot = 0
+
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
+
+                if (i == j) cycle
+
+                call calc_all_excits_guga_rdm_doubles(ilut, j, i, i, j, &
+                    temp_excits, n_excits)
+
+#ifdef DEBUG_
+                do n = 1, n_excits
+                    ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
+                end do
+#endif
+                if (n_excits > 1) then
+                    call add_guga_lists_rdm(n_tot, n_excits-1, &
+                        tmp_all_excits, temp_excits(:,2:))
+                end if
+
+                deallocate(temp_excits)
+            end do
+        end do
+
+        j = 1
+        do i = 1, n_tot
+            if (near_zero(extract_matrix_element(tmp_all_excits(:,i),1)) ) cycle
+
+            tmp_all_excits(:,j) = tmp_all_excits(:,i)
+
+            j = j + 1
+
+        end do
+
+        n_tot = j - 1
+
+        allocate(excitations(0:nifguga,n_tot), stat = ierr)
+        ! hm to log that does not make so much sense.. since it gets called
+        ! more than once and is only a temporary array..
+        call LogMemAlloc('excitations',n_tot,8,this_routine,tag_excitations)
+
+        excitations = tmp_all_excits(:,1:n_tot)
+
+        deallocate(tmp_all_excits)
+        call LogMemDealloc(this_routine, tag_tmp_excits)
+
+    end subroutine calc_explicit_diag_2_rdm_guga
+
     subroutine calc_explicit_2_rdm_guga(ilut, n_tot, excitations)
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer, intent(out) :: n_tot
@@ -1578,181 +1621,56 @@ contains
         call LogMemAlloc('tmp_all_excits',(nifguga+1)*nMax,8,this_routine,tag_tmp_excits)
 
         n_tot = 0
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
+                do k = 1, nSpatOrbs
+                    do l = 1, nSpatOrbs
 
-        if (t_test_diagonal) then
-            do i = 1, nSpatOrbs
-                do j = 1, nSpatOrbs
+                        ! pure diagonal contribution:
+                        if (i == j .and. k == l) cycle
 
-                    if (i == j) cycle
-
-                    call calc_all_excits_guga_rdm_doubles(ilut, j, i, i, j, &
-                        temp_excits, n_excits)
-
-#ifdef DEBUG_
-                    do n = 1, n_excits
-                        ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
-                    end do
-#endif
-                    if (n_excits > 1) then
-                        call add_guga_lists_rdm(n_tot, n_excits-1, &
-                            tmp_all_excits, temp_excits(:,2:))
-                    end if
-
-                    deallocate(temp_excits)
-                end do
-            end do
-
-        else if (.not. t_test_sym_fill) then
-            do i = 1, nSpatOrbs
-                do j = 1, nSpatOrbs
-                    do k = 1, nSpatOrbs
-                        do l = 1, nSpatOrbs
-
-                            ! pure diagonal contribution:
-                            if (i == j .and. k == l) cycle
-
-                            call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
-                                temp_excits, n_excits)
+                        call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
+                            temp_excits, n_excits)
 
 #ifdef DEBUG_
-                            do n = 1, n_excits
-                                if (.not. isProperCSF_ilut(temp_excits(:,n),.true.)) then
-                                    print *, "===="
-                                    call write_det_guga(6, ilut, .true.)
-                                    call write_det_guga(6, temp_excits(:,n),.true.)
-                                    print *, i,j,k,l
-                                end if
-                                ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
-                            end do
+                        do n = 1, n_excits
+                            if (.not. isProperCSF_ilut(temp_excits(:,n),.true.)) then
+                                print *, "===="
+                                call write_det_guga(6, ilut, .true.)
+                                call write_det_guga(6, temp_excits(:,n),.true.)
+                                print *, i,j,k,l
+                            end if
+                            ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
+                        end do
 #endif
-                            if (t_direct_exchange .and. (i == l .and. j == k)) then
-                                ! exclude the diagonal exchange here,
-                                ! as it is already accounted for in the
-                                ! diagonal contribution routine
+                        if (t_direct_exchange .and. (i == l .and. j == k)) then
+                            ! exclude the diagonal exchange here,
+                            ! as it is already accounted for in the
+                            ! diagonal contribution routine
 #ifdef DEBUG_
-                                if (n_excits > 0) then
-                                    if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
-                                        print *, "not equal!"
-                                    end if
-                                end if
-#endif
-
-                                if (n_excits > 1) then
-!                                     if (t_mimic_stochastic) then
-!                                         call add_guga_lists(n_tot, n_excits - 1, &
-!                                             tmp_all_excits, temp_excits(:,2:))
-!                                     else
-                                        call add_guga_lists_rdm(n_tot, n_excits - 1, &
-                                            tmp_all_excits, temp_excits(:,2:))
-!                                     end if
-                                end if
-                            else
-                                if (n_excits > 0) then
-!                                     if (t_mimic_stochastic) then
-!                                         call add_guga_lists(n_tot, n_excits, tmp_all_excits, temp_excits)
-!                                     else
-                                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
-!                                     end if
+                            if (n_excits > 0) then
+                                if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
+                                    print *, "not equal!"
                                 end if
                             end if
-
-                            deallocate(temp_excits)
-
-                        end do
-                    end do
-                end do
-            end do
-        else if (t_more_sym) then
-            do i = 1, nSpatOrbs
-                do j = 1, nSpatOrbs
-                    do k = 1, nSpatOrbs
-                        do l = j, nSpatOrbs
-
-                            if (i == j .and. k == l) cycle
-
-                            call calc_combined_rdm_label(j,l,i,k,ijkl,jl,ik)
-
-                            if (jl > ik) cycle
-
-                            call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
-                                temp_excits, n_excits)
-
-#ifdef DEBUG_
-                            do n = 1, n_excits
-                                ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
-                            end do
 #endif
-                            if (t_direct_exchange .and. (i == l .and. j == k)) then
-#ifdef DEBUG_
-                                if (n_excits > 0) then
-                                    if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
-                                        print *, "not equal!"
-                                    end if
-                                end if
-#endif
-                                if (n_excits > 1) then
-                                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
-                                        tmp_all_excits, temp_excits(:,2:))
-                                end if
-                            else
-                                if (n_excits > 0) then
-                                    call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
-                                end if
+
+                            if (n_excits > 1) then
+                                call add_guga_lists_rdm(n_tot, n_excits - 1, &
+                                    tmp_all_excits, temp_excits(:,2:))
                             end if
-
-                            deallocate(temp_excits)
-
-                        end do
-                    end do
-                end do
-            end do
-
-        else
-            do i = 1, nSpatOrbs
-                do j = 1, nSpatOrbs
-                    do k = 1, nSpatOrbs
-                        do l = 1, nSpatOrbs
-
-                            if (i == j .and. k == l) cycle
-
-                            call calc_combined_rdm_label(j,l,i,k,ijkl,jl,ik)
-
-                            if (jl > ik) cycle
-
-                            call calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, &
-                                temp_excits, n_excits)
-
-#ifdef DEBUG_
-                            do n = 1, n_excits
-                                ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
-                            end do
-#endif
-                            if (t_direct_exchange .and. (i == l .and. j == k)) then
-#ifdef DEBUG_
-                                if (n_excits > 0) then
-                                    if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
-                                        print *, "not equal!"
-                                    end if
-                                end if
-#endif
-                                if (n_excits > 1) then
-
-                                    call add_guga_lists_rdm(n_tot, n_excits - 1, &
-                                        tmp_all_excits, temp_excits(:,2:))
-                                end if
-                            else
-                                if (n_excits > 0) then
-                                    call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
-                                end if
+                        else
+                            if (n_excits > 0) then
+                                call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
                             end if
+                        end if
 
-                            deallocate(temp_excits)
+                        deallocate(temp_excits)
 
-                        end do
                     end do
                 end do
             end do
-        end if
+        end do
 
         j = 1
         do i = 1, n_tot
@@ -2217,17 +2135,11 @@ contains
             ! i have to figure out if the problem is here or somewhere else..
             rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(k,l,i,j)
 
-            if (.not. t_test_sym_fill) then
-                if (i == k) then
-                    rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*j,2*l) / real(nel-1,dp)
-                end if
-                if (j == l) then
-                    rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*k) / real(nel-1,dp)
-                end if
-            else
-                if (j == l) then
-                    rdm_energy_1 = rdm_energy_1 + 2.0_dp * rdm_sign * GetTMatEl(2*i,2*k) / real(nel-1,dp)
-                end if
+            if (i == k) then
+                rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*j,2*l) / real(nel-1,dp)
+            end if
+            if (j == l) then
+                rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*k) / real(nel-1,dp)
             end if
         end do
 
