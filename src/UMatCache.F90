@@ -24,6 +24,7 @@ MODULE UMatCache
     use HElem, only: HElement_t_size
 
     use legacy_data, only: irat
+
     use procedure_pointers, only: get_umat_el
 
       IMPLICIT NONE
@@ -246,7 +247,7 @@ MODULE UMatCache
                  A=(K*(K-1))/2+I
              ENDIF
 
-             !Combine indices J and L, ensuring J>K
+             !Combine indices J and L, ensuring J>L
              IF(J.GT.L) THEN
                  B=(J*(J-1))/2+L
              ELSE
@@ -344,7 +345,6 @@ MODULE UMatCache
       end function UMatConj
 
 
-
       SUBROUTINE GetUMatSize(nBasis,iSize)
         use SystemData, only: tStoreSpinOrbs
       ! Get the prospective size of a UMat (not a UMatCache) for completely
@@ -360,7 +360,7 @@ MODULE UMatCache
       !    iSize: size of UMAT.
          IMPLICIT NONE
          INTEGER nBasis,iSS
-         INTEGER iPairs,nBi,noccup
+         INTEGER iPairs,nBi
          INTEGER(int64), intent(out) :: iSize
          IF(tStoreSpinOrbs) THEN
              iSS=1
@@ -1448,7 +1448,7 @@ MODULE UMatCache
         unused_var(l)
         hel = 0.0_dp
     end function nullUMat
-    
+
 
 END MODULE UMatCache
 ! Still useful to keep CacheUMatEl and GetCachedUMatEl outside of the module for

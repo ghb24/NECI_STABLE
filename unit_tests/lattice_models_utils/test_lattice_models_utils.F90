@@ -1,3 +1,4 @@
+#include "macros.h"
 ! replace _template by whatever one needs
 program test_lattice_models_utils
 
@@ -5,12 +6,14 @@ program test_lattice_models_utils
     use lattice_models_utils
     use constants
     use lattice_mod, only: lat
+    use dsfmt_interface, only: dsfmt_init
 
     implicit none
 
     integer :: failed_count
 
     call init_fruit()
+    call dsfmt_init(0)
     call lattice_models_utils_test_driver()
     call fruit_summary()
     call fruit_finalize()
@@ -36,7 +39,168 @@ contains
         call run_test_case(test_get_ispn, "test_get_ispn")
         call run_test_case(get_orb_from_kpoints_test, "get_orb_from_kpoints_test")
         call run_test_case(make_ilutJ_test, "make_ilutJ_test")
+        call run_test_case(pick_spin_opp_elecs_test, "pick_spin_opp_elecs_test")
+        call run_test_case(pick_from_cum_list_test, "pick_from_cum_list_test")
+        call run_test_case(pick_three_opp_elecs_test, "pick_three_opp_elecs_test")
+        call run_test_case(pick_spin_par_elecs_test, "pick_spin_par_elecs_test")
+        call run_test_case(find_minority_spin_test, "find_minority_spin_test")
     end subroutine lattice_models_utils_test_driver
+
+    subroutine find_minority_spin_test
+
+        print *, ""
+        print *, "testing: find_minority_spin"
+        call assert_equals(1, find_minority_spin([1,2,4]))
+        call assert_equals(3, find_minority_spin([3,2,4]))
+
+        call assert_equals(2, find_minority_spin([1,2,3]))
+        call assert_equals(2, find_minority_spin([3,2,5]))
+
+    end subroutine find_minority_spin_test
+
+    subroutine pick_spin_par_elecs_test
+
+        integer :: elecs(2), ispn
+        real(dp) :: p_elec
+        integer :: nI(6)
+
+        print *, ""
+        print *, "testing: pick_spin_par_elecs"
+        nel = 2
+        nOccBeta = 2
+        nOccAlpha = 0
+        call pick_spin_par_elecs([1,3],elecs,p_elec, ispn)
+        call assert_equals(1.0_dp, p_elec)
+        call assert_equals(1, ispn)
+        call assert_equals(3, sum(elecs))
+
+        nOccAlpha = 2
+        nOccBeta = 0
+        call pick_spin_par_elecs([2,4],elecs,p_elec, ispn)
+        call assert_equals(1.0_dp, p_elec)
+        call assert_equals(3, ispn)
+        call assert_equals(3, sum(elecs))
+
+        nel = 4
+        nOccBeta = 2
+        call pick_spin_par_elecs([1,2,3,4], elecs, p_elec, ispn)
+        call assert_equals(0.5_dp, p_elec)
+        if (ispn == 1) then
+            call assert_equals(4, sum(elecs))
+        else if (ispn == 3) then
+            call assert_equals(6, sum(elecs))
+        end if
+
+        nel = 6
+        nOccBeta = 3
+        nOccAlpha = 3
+
+        call pick_spin_par_elecs([1,2,3,4,5,6], elecs, p_elec)
+        call assert_equals(1.0_dp/6.0_dp, p_elec)
+        nI = [1,2,3,4,5,6]
+        call assert_true(same_spin(nI(elecs(1)),nI(elecs(2))))
+
+        nel = 4
+        nOccBeta = 2
+        nOccAlpha = 2
+    end subroutine pick_spin_par_elecs_test
+
+    subroutine pick_three_opp_elecs_test
+
+        integer :: elecs(3), sum_ms
+        real(dp) :: p_elec
+
+        nel = 3
+        nOccBeta = 2
+        nOccAlpha = 1
+
+        print *, ""
+        print *, "testing: pick_three_opp_elecs"
+        call pick_three_opp_elecs([1,2,3], elecs, p_elec, sum_ms)
+        call assert_equals(1.0_dp, p_elec)
+        call assert_equals(-1, sum_ms)
+        call assert_equals(6, sum(elecs))
+
+        nOccAlpha = 2
+        nOccBeta = 1
+
+        call pick_three_opp_elecs([1,2,4], elecs, p_elec, sum_ms)
+        call assert_equals(1.0_dp, p_elec)
+        call assert_equals(1, sum_ms)
+        call assert_equals(6, sum(elecs))
+
+        nel = 5
+        nOccAlpha = 4
+        call pick_three_opp_elecs([1,2,4,6,8], elecs, p_elec, sum_ms)
+        call assert_equals(1.0_dp/6.0_dp, p_elec)
+        call assert_equals(1, sum_ms)
+        call assert_true(any(elecs == 1))
+
+        nOccBeta = 4
+        nOccAlpha = 1
+        call pick_three_opp_elecs([1,3,5,7,8], elecs, p_elec, sum_ms)
+        call assert_equals(1.0_dp/6.0_dp, p_elec)
+        call assert_equals(-1, sum_ms)
+        call assert_true(any(elecs == 5))
+
+        nel = 5
+        nOccBeta = 3
+        nOccAlpha = 2
+        call pick_three_opp_elecs([1,2,3,4,5], elecs, p_elec, sum_ms)
+        if (sum_ms == 1) then
+            call assert_equals(1.0_dp/10.0_dp, p_elec)
+        else
+            call assert_equals(7.0_dp/60.0_dp, p_elec,1.0e-12)
+        end if
+
+        call pick_three_opp_elecs([1,2,3,4,5], elecs, p_elec, sum_ms)
+        if (sum_ms == 1) then
+            call assert_equals(1.0_dp/10.0_dp, p_elec)
+        else
+            call assert_equals(7.0_dp/60.0_dp, p_elec, 1.0e-12)
+        end if
+
+        nel = 4
+        nOccBeta = 2
+        nOccAlpha = 2
+        call pick_three_opp_elecs([1,2,3,4], elecs, p_elec)
+        call assert_equals(0.25_dp, p_elec)
+
+    end subroutine pick_three_opp_elecs_test
+
+    subroutine pick_spin_opp_elecs_test
+
+        integer, allocatable :: nI(:)
+        integer :: elecs(2)
+        real(dp) :: p_elec
+
+        nel = 2
+        nOccBeta = 1
+        nOccAlpha = 1
+        allocate(nI(nel))
+
+        print *, ""
+        print *, "testing: pick_spin_opp_elecs"
+        nI = [1,2]
+        call pick_spin_opp_elecs(nI, elecs, p_elec)
+
+        call assert_equals(1.0_dp, p_elec)
+        if (elecs(1) == 1) then
+            call assert_equals(2, elecs(2))
+        else if (elecs(1) == 2) then
+            call assert_equals(1, elecs(2))
+        end if
+
+        nel = 4
+        nOccBeta = 2
+        nOccAlpha = 2
+        deallocate(nI); allocate(nI(nel)); nI = [1,2,3,4]
+
+        call pick_spin_opp_elecs(nI, elecs, p_elec)
+        call assert_equals(0.25_dp, p_elec)
+        call assert_true(.not. same_spin(nI(elecs(1)),nI(elecs(2))))
+
+    end subroutine pick_spin_opp_elecs_test
 
     subroutine get_orb_from_kpoints_test
         use SystemData, only: G1, nBasis, nel
@@ -45,6 +209,8 @@ contains
         nbasis = 4
         nel = 2
 
+        if (associated(g1)) deallocate(g1)
+        if (allocated(KPointToBasisFn)) deallocate(KPointToBasisFn)
         allocate(G1(nbasis))
         allocate(KPointToBasisFn(-1:2,-1:2,-1:1,2))
 
@@ -209,7 +375,6 @@ contains
 
         nel = 3
         nbasis = 8
-
         call assert_equals(3, find_elec_in_ni([1,2,3],3))
         call assert_equals(2, find_elec_in_ni([1,2,3],2))
         call assert_equals(1, find_elec_in_ni([1,2,3],1))
@@ -228,6 +393,38 @@ contains
         nbasis = -1
 
     end subroutine find_elec_in_ni_test
+
+
+    subroutine get_orb_from_kpoints_three_test
+
+        use lattice_mod, only: lattice
+        use k_space_hubbard
+        use unit_test_helpers, only: setup_arr_brr
+        use SystemData, only: bhub, nn_bhub
+        print *, ""
+        print *, "testing: get_orb_from_kpoints_three: "
+        nel = 4
+        nbasis = 8
+        bhub = -1.0_dp
+        nn_bhub = 0.0_dp
+        lat => lattice('chain', 4,1,1,.true.,.true.,.true.,'k-space')
+
+        call setup_nbasismax(lat)
+        call setup_arr_brr(lat)
+        call setup_g1(lat)
+        call setup_kPointToBasisFn(lat)
+
+        call assert_equals(3, get_orb_from_kpoints_three([1,2,3],1,2))
+        call assert_equals(5, get_orb_from_kpoints_three([1,2,3],4,5))
+        call assert_equals(5, get_orb_from_kpoints_three([1,3,5],1,3))
+        call assert_equals(2, get_orb_from_kpoints_three([2,4,6],4,6))
+
+        call assert_equals(7, get_orb_from_kpoints_three([1,2,3],7,8))
+
+        call assert_equals(7, get_orb_from_kpoints_three([3,4,5],6,8))
+
+    end subroutine get_orb_from_kpoints_three_test
+
 
     subroutine create_all_open_shell_dets_test
         use bit_rep_data, only: niftot, nifd
@@ -602,5 +799,27 @@ contains
         nbasis = -1
 
     end subroutine create_neel_state_test
+
+    subroutine pick_from_cum_list_test
+
+        integer :: ind
+        real(dp) :: pgen
+        print *, ""
+        print *, "testing: pick_from_cum_list"
+        call pick_from_cum_list([0.0_dp,1.0_dp],1.0_dp, ind, pgen)
+
+        call assert_equals(2, ind)
+        call assert_equals(1.0_dp, pgen)
+
+        call pick_from_cum_list([1.0_dp,1.0_dp],1.0_dp, ind, pgen)
+
+        call assert_equals(1, ind)
+        call assert_equals(1.0_dp, pgen)
+
+        call pick_from_cum_list([1.0_dp,2.0_dp],2.0_dp, ind, pgen)
+        call assert_equals(0.5_dp, pgen)
+
+
+    end subroutine pick_from_cum_list_test
 
 end program test_lattice_models_utils

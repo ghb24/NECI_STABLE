@@ -163,7 +163,7 @@ contains
         ! ok i cant get them running yet.. i could work with if statements..
         ! but thats just an intermediate solution!
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         inum_runs = 2
 #endif
         allocate(projedet(nel,inum_runs))
@@ -210,7 +210,7 @@ contains
         deallocate(mask_virt_ni)
         deallocate(ilutref)
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         inum_runs = -1
 #endif
     end subroutine test_init_back_spawn
@@ -232,7 +232,7 @@ contains
         ! no.. if statements do not work.. since it is on compile-time
         ! checked if inum_runs is a parameter..
         ! ok works now.. i just had to do it in a fresh build_dir.. duh..
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         inum_runs = 2
 #endif
 
@@ -271,7 +271,7 @@ contains
         deallocate(ilutref)
         deallocate(mask_virt_ilut)
 
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
         inum_runs = -1
 #endif
     end subroutine test_setup_virtual_mask

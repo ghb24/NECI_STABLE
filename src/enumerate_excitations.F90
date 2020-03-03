@@ -2,7 +2,7 @@
 
 module enumerate_excitations
 
-    use SystemData, only : tReltvy, t_k_space_hubbard
+    use SystemData, only : tReltvy, t_k_space_hubbard, t_new_real_space_hubbard
 
     use bit_rep_data, only: NIfD, NIfTot
 
@@ -31,9 +31,12 @@ module enumerate_excitations
     use sym_general_mod
 
     use SystemData, only: nel, nBasis, G1, tFixLz, Arr, Brr, tHPHF, tHub, &
-                          tUEG, tKPntSym, tReal, tUseBrillouin, tReltvy
+                          tUEG, tKPntSym, tReal, tUseBrillouin, tGUGA, tReltvy
+    use guga_data, only: tag_excitations
+    use MemoryManager, only: LogMemDealloc
 
-    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard, &
+                                    gen_all_excits_r_space_hubbard
 
     implicit none
 
@@ -342,6 +345,13 @@ contains
         integer, intent(inout) :: connected_space_size
         integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
+        character(*), parameter :: this_routine = "generate_connected_space"
+
+        ! this restriction does not apply anymore:
+!         if (tGUGA .and. tKPntSym) then
+!             call stop_all(this_routine, &
+!                 "k-point symmetry and GUGA + semi-stochastic or trial-wavefunction not yet implemented!")
+!         end if
 
         if (tKPntSym) then
             call generate_connected_space_kpnt(original_space_size, original_space, &
@@ -364,11 +374,20 @@ contains
         ! (regardless of the system being studied), otherwise it will generate all connected
         ! determinants.
 
+        use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
+        use guga_excitations, only: actHamiltonian
+        use bit_reps, only: nifguga
+        use SystemData, only: tGUGA
+        integer :: nexcit, j
+        integer(n_int), pointer :: excitations(:,:)
+        integer(n_int) :: ilutG(0:nifguga)
+
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
         integer(n_int), optional, intent(out) :: connected_space(0:,:)
         logical, intent(in), optional :: tSinglesOnlyOpt
+        character(*), parameter :: this_routine = "generate_connection_normal"
 
         integer(n_int) :: ilutJ(0:NIfTot)
         integer :: nI(nel), nJ(nel)
@@ -376,7 +395,8 @@ contains
         integer, allocatable :: excit_gen(:)
         integer :: nStore(6)
         logical :: tAllExcitFound, tStoreConnSpace, tSinglesOnly, tTempUseBrill
-
+        integer :: n_excits
+        integer(n_int), allocatable :: temp_dets(:,:)
 
         if (present(connected_space)) then
             tStoreConnSpace = .true.
@@ -394,28 +414,75 @@ contains
         ! Over all the states in the original list:
         do i = 1, original_space_size
 
-            call NewParentDet(session)
-
             call decode_bit_det(nI, original_space(0:NIfTot,i))
 
-            call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
-            if (tSinglesOnly) ex_flag = 1
+            ! do the GUGA changes here, I want to do all the excitations from
+            ! the currently looped over original_space(:,i)
+            ! i think i still want to do this this way, since the dets
+            ! implementation is really akward..
+            if (tGUGA) then
+                ! in GUGA don't do the tSinglesOnly option
+                ASSERT(.not. tSinglesOnly)
 
-            do while(.true.)
+                ! only STORE the excitations if the proper flag is set,
+                ! otherwise only, increase the counter for the connected space
+                ! why is this done??
+                call convert_ilut_toGUGA(original_space(:,i), ilutG)
 
-                call generate_connection_normal(nI, original_space(0:NIfTot,i), nJ, ilutJ, ex_flag, excit, &
-                                                 tAllExcitFound, ncon=connected_space_size)
-                if (tAllExcitFound) exit
+                call actHamiltonian(ilutG, excitations, nexcit)
 
-                if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                ! and if store flag is present:
+                if (tStoreConnSpace) then
+                    do j = 1, nexcit
+                        call convert_ilut_toNECI(excitations(:,j), &
+                            connected_space(:, connected_space_size + j))
+                    end do
+                end if
 
-            end do
+                ! update connected_space_size afterwards
+                connected_space_size = connected_space_size + nexcit
 
+                deallocate(excitations)
+                call LogMemDealloc(this_routine, tag_excitations)
+
+            else
+                if (t_new_real_space_hubbard) then
+
+                    call gen_all_excits_r_space_hubbard(nI, n_excits, temp_dets)
+
+                    if (tStoreConnSpace) then
+                        connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) &
+                            = temp_dets(0:nifd,:)
+                    end if
+
+                    connected_space_size = connected_space_size + n_excits
+
+                else
+
+                    call NewParentDet(session)
+
+                    call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
+
+                    if (tSinglesOnly) ex_flag = 1
+
+                    do while(.true.)
+
+                        call generate_connection_normal(nI, original_space(:,i), nJ, ilutJ, ex_flag, excit, &
+                                                         tAllExcitFound, ncon=connected_space_size)
+                        if (tAllExcitFound) exit
+
+                        if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+
+                    end do
+                end if
+
+            end if ! tGUGA
         end do
 
     end subroutine generate_connected_space_normal
 
-    subroutine generate_connection_normal(nI, ilutI, nJ, ilutJ, ex_flag, excit, tAllExcitFound, hel, ncon)
+    subroutine generate_connection_normal(nI, ilutI, nJ, ilutJ, ex_flag, excit,&
+            tAllExcitFound, hel, ncon)
 
         use procedure_pointers, only: get_conn_helement
         use SymExcit4, only : GenExcitations4
@@ -481,6 +548,15 @@ contains
         ! (regardless of the system being studied), otherwise it will generate all connected
         ! determinants.
 
+        use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
+        use guga_excitations, only: actHamiltonian
+        use bit_reps, only: nifguga
+        use SystemData, only: tGUGA
+
+        integer :: nexcit, j
+        integer(n_int) :: ilutG(0:nifguga)
+        integer(n_int), pointer :: excitations(:,:)
+
         integer, intent(in) :: original_space_size
         integer(n_int), intent(in) :: original_space(0:,:)
         integer, intent(inout) :: connected_space_size
@@ -493,7 +569,8 @@ contains
         integer :: nStore(6)
         integer, allocatable :: excit_gen(:)
         logical :: tStoreConnSpace, tSinglesOnly, tTempUseBrill, tAllExcitFound
-        integer :: n_excits 
+        character(*), parameter :: this_routine = "generate_connected_space_kpnt"
+        integer :: n_excits
         integer(n_int), allocatable :: temp_dets(:,:)
 
 
@@ -513,40 +590,71 @@ contains
         ! Over all the states in the original list:
         do i = 1, original_space_size
 
-            call decode_bit_det(nI, original_space(0:NIfTot,i))
+           call decode_bit_det(nI, original_space(0:NIfTot,i))
 
+            if (t_k_space_hubbard) then
 
-            if (t_k_space_hubbard) then 
-
-                ! for every loop we have to save the excitations per 
+                ! for every loop we have to save the excitations per
                 ! do we have to check if the list is unique?? i guess i do
                 call gen_all_excits_k_space_hubbard(nI, n_excits, temp_dets)
-                
-                if (tStoreConnSpace) then 
-                    connected_space(0:nifd,connected_space_size+1:connected_space_size+n_excits) & 
-                        = temp_dets(0:nifd,:)
 
+                if (tStoreConnSpace) then
+                    connected_space(0:nifd,connected_space_size+1:connected_space_size + n_excits) &
+                        = temp_dets(0:nifd,:)
+                end if
+                connected_space_size = connected_space_size + n_excits
+
+            ! GUGA changes:
+            ! my actHamiltonian routine seems to satisfy the k-point symmetry
+            ! so it should be straight forward to implemt it here too
+            else if (tGUGA) then
+                if (tSinglesOnly) call stop_all(this_routine,"don't use tSinglesOnly with GUGA")
+
+                call convert_ilut_toGUGA(original_space(:,i), ilutG)
+
+                call actHamiltonian(ilutG, excitations, nexcit)
+
+                if (tStoreConnSpace) then
+                    do j = 1, nexcit
+                        call convert_ilut_toNECI(excitations(:,j), &
+                            connected_space(:, connected_space_size + j))
+                    end do
                 end if
 
-                connected_space_size = connected_space_size + n_excits
-                
+                connected_space_size = connected_space_size + nexcit
+
+                deallocate(excitations)
+                call LogMemDealloc(this_routine, tag_excitations)
+
             else
 
                 call init_generate_connected_space(nI, ex_flag, tAllExcitFound, excit, excit_gen, nstore, tTempUseBrill)
+
                 if (tSinglesOnly) ex_flag = 1
+
 
                 do while(.true.)
 
-                    call generate_connection_kpnt(nI, original_space(:,i), nJ, ilutJ, ex_flag, tAllExcitFound, &
-                                                   nStore, excit_gen, ncon=connected_space_size)
+                    call generate_connection_kpnt(nI, original_space(:,i), nJ, &
+                        ilutJ, ex_flag, tAllExcitFound, nStore, excit_gen, &
+                        ncon=connected_space_size)
 
-                    if (tAllExcitFound) exit
-
-                    if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                    if (tStoreConnSpace) then
+                        connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+                    end if
 
                 end do
 
+
+                call generate_connection_kpnt(nI, original_space(:,i), nJ, ilutJ, ex_flag, tAllExcitFound, &
+                                               nStore, excit_gen, ncon=connected_space_size)
+
+                if (tAllExcitFound) exit
+
+                if (tStoreConnSpace) connected_space(0:NIfD, connected_space_size) = ilutJ(0:NIfD)
+
                 deallocate(excit_gen)
+
             end if
         end do
 

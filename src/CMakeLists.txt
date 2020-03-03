@@ -186,12 +186,32 @@ set( SRC_FILES
     real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
+    guga_bitRepOps.F90
+    guga_data.F90
+    guga_excitations.F90
+    guga_init.F90
+    guga_write_H_matrix.F90
+    guga_matrixElements.F90
+    guga_procedure_pointers.F90
+    guga_tausearch.F90
+    guga_testsuite.F90
+    guga_types.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
-    unit_test_helpers.F90
     lattice_models_utils.F90
     analyse_wf_symmetry.F90
+    guga_rdm.F90
+    unit_test_helpers.F90
+    real_time_data.F90
+    cc_amplitudes.F90
+    cepa_shifts.F90
+    real_time.F90
+    real_time_aux.F90
+    real_time_init.F90
+    real_time_procs.F90
+    real_time_read_input.F90
+    verlet_aux.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90
@@ -211,6 +231,7 @@ set( SRC_FILES
     lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
+    lib/display_matrices.F90
 )
 
 set( FYPP_SRC_FILES

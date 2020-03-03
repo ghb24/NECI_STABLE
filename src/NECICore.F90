@@ -276,17 +276,19 @@ subroutine NECICalcInit(iCacheFlag)
     !=                                calculation.
 
     use System, only : SysInit
-    use SystemData, only : tRotateOrbs,tFindCINatOrbs,tUEG,t_ueg_transcorr,t_ueg_dump,tContact
+    use SystemData, only : tRotateOrbs,tFindCINatOrbs, tGUGA, tUEG, &
+                         t_ueg_transcorr,t_ueg_dump,tContact
     use Integrals_neci, only : IntInit,IntFreeze,tPostFreezeHF,DumpFCIDUMP
     use IntegralsData, only : tDumpFCIDUMP
     use DetCalc, only : DetCalcInit,DoDetCalc
-    use Determinants, only : DetPreFreezeInit,DetInit
+    use Determinants, only : DetPreFreezeInit,DetInit, DetPreFreezeInit_old
     use Calc, only : CalcInit
     use HFCalc, only: HFDoCalc
     use RotateOrbsMod, only : RotateOrbs
     use replica_data, only: init_replica_arrays
     use gen_coul_ueg_mod, only: GEN_Umat_TC,prep_ueg_dump, GEN_Umat_TC_Contact
 
+    use guga_init, only: init_guga
     implicit none
     integer,intent(in) :: iCacheFlag
 
@@ -300,6 +302,8 @@ subroutine NECICalcInit(iCacheFlag)
 !   Symmetry is a subset of the system
     call SysInit()
 
+    if (tGUGA) call init_guga
+
 !   Initialize the integrals.  This will read in integrals, as well as calculating
 !   some relevant integrals if they are calculated
     call IntInit(iCacheFlag)
@@ -309,7 +313,11 @@ subroutine NECICalcInit(iCacheFlag)
 !   required to read in the relevant orbitals if necessary.
 
 !   This will also call SysPostFreezeInit()
-    call DetPreFreezeInit()
+    if (tGUGA) then
+        call DetPreFreezeInit_old()
+    else
+        call DetPreFreezeInit()
+    end if
 
     !!$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$$
     !! we prepare the contribution of the 2 body transcorrelated operator
@@ -339,6 +347,11 @@ subroutine NECICalcInit(iCacheFlag)
 
     if (.not.tPostFreezeHF) call HFDoCalc()
     call IntFreeze()
+    ! can i initialize the GUGA stuff here? after freezing? or otherwise
+    ! it is incorrectly setup..
+    ! try to init guga here..
+    if (tGUGA) call init_guga
+
     if (tPostFreezeHF) call HFDoCalc()
 
     if(tDumpFCIDUMP) then

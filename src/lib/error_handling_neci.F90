@@ -74,7 +74,6 @@ subroutine stop_all (sub_name, error_msg)
 #ifdef PARALLEL
     call MPIStopAll(error_str)
 #else
-!    stop error_str
     stop
 #endif
 

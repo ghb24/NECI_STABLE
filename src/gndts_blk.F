@@ -167,7 +167,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
          use SystemData, only: BasisFN,BasisFNSize
          use sort_mod
          use sym_mod, only: GETSYM, LCHKSYM
-         use util_mod, only: NECI_ICOPY 
+         use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
          INTEGER LSTE(NEL,NLMAX),NJ(NEL),NELEC,NBF

@@ -66,23 +66,6 @@ contains
         ilutJ(0) = -1
         HElGen = 0.0_dp
 
-
-!        tAllExcitFound = .false.
-!        tij_lt_ab_only = .true.
-!        tSpinRestrict = .true.
-
-!        doubleExcitsFound = -1
-
- !       ExcitMat(1,1)=0
- !       do while(.not. tAllExcitFound)
- !           call GenSingleExcit(nI,iLutI,nJ,1,ExcitMat,tParity,tAllExcitFound,tij_lt_ab_only)
- !           doubleExcitsFound = doubleExcitsFound + 1
- !       enddo
-
-!        write(*,*) "single excits found", doubleExcitsFound
-!        call stop_all(this_routine, "found excits")
-
-
         ASSERT(.not. t_3_body_excits)
 
         ! UEG and Hubbard interjection for now
@@ -98,7 +81,7 @@ contains
         ! and exFlag = 2 gives a double.
 
 
-ASSERT(exFlag<=3.and.exFlag>=1)
+        ASSERT(exFlag<=3.and.exFlag>=1)
         IC = exFlag
         select case(IC)
         case(1)
@@ -135,6 +118,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         endif
 
 
+#ifdef DEBUG_
         if (nJ(1)/=0 .and. excitType.ne.getExcitationType(ExcitMat, IC)) then
             write(iout,*) "NI", ni
             write(iout,*) "NJ", nj
@@ -151,6 +135,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
 
             call stop_all(this_routine, "invalid excitation generated")
         endif
+#endif
 
 ASSERT(nJ(1)==0 .or. excitType == getExcitationType(ExcitMat, IC))
 

@@ -81,7 +81,7 @@ contains
                 if(present(phase)) then
                    call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2,phase(i))
                 else
-                   call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2)        
+                   call apply_perturbation(perturbs(i), ndets_pert_2, dets_in, temp_dets_2)
                 endif
                 call add_ilut_lists(ndets_pert_1, ndets_pert_2, .false., temp_dets_1, temp_dets_2, dets_out, ndets)
                 ! If we still have more perturbations to apply, copy the result
@@ -140,7 +140,10 @@ contains
 
         ! If the perturbation is the identity operator then just return.
         ! rneci_consitency: Possible optimization: Define behaviour in this case as copying
-        if (perturb%nannihilate == 0 .and. perturb%ncreate == 0) return
+        if (perturb%nannihilate == 0 .and. perturb%ncreate == 0) then
+           dets_out = dets_in
+           return
+        end if
 
         nremoved = 0
         ! Reset the spawning slot positions in SpawnedParts.
@@ -175,13 +178,13 @@ contains
                 endif
             end if
         end do
-        
+
         if(allocated(perturb%ann_orbs) .and. allocated(perturb%crtn_orbs))&
              write(6,*) "Transfering from orbital ", perturb%ann_orbs(1), &
              " to ", perturb%crtn_orbs(1)
         ndets = ndets - nremoved
 
-        print *, "Communicating perturbed dets"
+        write(6,*) "Communicating perturbed dets"
         ! Send perturbed determinants to their new processors.
         call SendProcNewParts(ndets, tSingleProc=.false.)
 

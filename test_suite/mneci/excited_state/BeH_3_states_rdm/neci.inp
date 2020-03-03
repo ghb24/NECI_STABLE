@@ -18,7 +18,6 @@ seed -7
 memoryfacspawn 4.0
 memoryfacpart 2.0
 truncinitiator
-keepdoubspawns
 addtoinitiator 3
 walkcontgrow
 diagshift 0.0 0.0 1.0 1.0 1.0 1.0
