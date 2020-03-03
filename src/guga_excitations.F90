@@ -37,7 +37,7 @@ module guga_excitations
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_replica, &
                     tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list, &
-                    excit_type, gen_type
+                    excit_type, gen_type, excit_names
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
@@ -30256,7 +30256,7 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
 
         print *, "Excitation Information: "
-        print *, "Typ: ", excitInfo%typ
+        print *, "Typ: ", excitInfo%typ, trim(excit_names(excitInfo%typ)%str)
         print *, "i,j,k,l:", excitInfo%i, excitInfo%j,excitInfo%k,excitInfo%l
         print *, "fullStart,secondStart,firstEnd,fullEnd:", excitInfo%fullStart, &
             excitInfo%secondStart, excitInfo%firstEnd, excitInfo%fullEnd

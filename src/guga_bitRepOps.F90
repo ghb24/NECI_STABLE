@@ -40,7 +40,7 @@ module guga_bitRepOps
         calc_csf_info, extract_h_element, getexcitation_guga, &
         getspatialoccupation, getExcitationRangeMask, &
         contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
-        extract_2_rdm_ind
+        extract_2_rdm_ind, encode_rdm_ind, extract_rdm_ind
 
 
 
@@ -2747,7 +2747,7 @@ contains
         ! the inverse function of the routine above, to give the combined
         ! rdm index of two explicit ones
         integer, intent(in) :: i, a
-        integer :: rdm_ind
+        integer(int_rdm) :: rdm_ind
         character(*), parameter :: this_routine = "contract_1_rdm_ind"
 
         rdm_ind = nSpatOrbs * (i - 1) + a
@@ -2758,7 +2758,7 @@ contains
         ! since I only ever have spatial orbitals in the GUGA-RDM make
         ! the definition of the RDM-index combination differently
         integer, intent(in) :: i,j,k,l
-        integer :: ijkl
+        integer(int_rdm) :: ijkl
         character(*), parameter :: this_routine = "contract_2_rdm_ind"
 
         integer :: ij, kl
@@ -2792,6 +2792,22 @@ contains
         if (present(kl_out)) kl_out = kl
 
     end subroutine extract_2_rdm_ind
+
+    pure function extract_rdm_ind(ilutG) result(rdm_ind)
+        integer(n_int), intent(in) :: ilutG(0:nifguga)
+        integer(int_rdm) :: rdm_ind
+
+        rdm_ind = ilutG(nIfGUGA)
+
+    end function extract_rdm_ind
+
+    pure subroutine encode_rdm_ind(ilutG, rdm_ind)
+        integer(n_int), intent(inout) :: ilutG(0:nIfGUGA)
+        integer(int_rdm), intent(in) :: rdm_ind
+
+        ilutG(nIfGUGA) = rdm_ind
+
+    end subroutine encode_rdm_ind
 
     subroutine deinit_csf_information
         ! deallocate the currently stored csf information

@@ -38,11 +38,12 @@ module guga_rdm
     use guga_bitRepOps, only: update_matrix_element, setDeltaB, extract_matrix_element
     use guga_bitRepOps, only: isProperCSF_ilut, isDouble, init_csf_information
     use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
-    use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI, getDeltaB
+    use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_bitRepOps, only: calc_csf_info, add_guga_lists
     use guga_bitRepOps, only: findFirstSwitch, findLastSwitch
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind, &
-                              extract_1_rdm_ind, extract_2_rdm_ind
+                              extract_1_rdm_ind, extract_2_rdm_ind, &
+                              encode_rdm_ind, extract_rdm_ind
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_reps, only: nifguga
     use FciMCData, only: projEDet, CurrentDets, TotWalkers
@@ -65,7 +66,8 @@ module guga_rdm
     public :: calc_rdm_energy_guga, t_test_sym_fill, gen_exc_djs_guga, &
               send_proc_ex_djs, t_test_diagonal, t_more_sym, &
               t_mimic_stochastic, t_direct_exchange, &
-              calc_all_excits_guga_rdm_singles
+              calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
+              calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
@@ -456,7 +458,7 @@ contains
                         call extract_bit_rep(CurrentDets(:,PartInd), nJ, sign_j, FlagsDj)
 
                         mat_ele = extract_matrix_element(ilutJ, 1)
-                        rdm_ind = getDeltaB(ilutJ)
+                        rdm_ind = extract_rdm_ind(ilutJ)
 
                         call calc_separate_rdm_labels(rdm_ind, ab, cd, a, b, c, d)
 
@@ -542,11 +544,11 @@ contains
                         call extract_bit_rep(CurrentDets(:,PartInd), nJ, sign_j, FlagsDj)
 
                         mat_ele = extract_matrix_element(Sing_ExcDjs2(:,j), 1)
-                        rdm_ind = getDeltaB(Sing_ExcDjs2(:,j))
+                        rdm_ind = extract_rdm_ind(Sing_ExcDjs2(:,j))
 
                         if (RDMExcitLevel == 1) then
                             call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
-                                mat_ele, rdm_ind, t_test_sym_fill)
+                                mat_ele, rdm_ind, t_fill_symmetric = t_test_sym_fill)
 
                         else if (t_mimic_stochastic .and. RDMExcitLevel == 3) then
                             call fill_sings_2rdm_guga(two_rdm_spawn, ilutI, &
@@ -577,12 +579,11 @@ contains
 
         do irdm = 1, size(one_rdms)
 
-            one_rdms(irdm)%matrix(ind_a, ind_i) = one_rdms(irdm)%matrix(ind_a, ind_i) &
+            one_rdms(irdm)%matrix(ind_i, ind_a) = one_rdms(irdm)%matrix(ind_i, ind_a) &
                 + sign_i(irdm) * sign_j(irdm) * mat_ele
 
             if (t_fill_symmetric) then
-
-                one_rdms(irdm)%matrix(ind_i, ind_a) = one_rdms(irdm)%matrix(ind_i, ind_a) &
+                one_rdms(irdm)%matrix(ind_a, ind_i) = one_rdms(irdm)%matrix(ind_a, ind_i) &
                     + sign_i(irdm) * sign_j(irdm) * mat_ele
             end if
         end do
@@ -1801,51 +1802,27 @@ contains
 
         n_tot = 0
 
-        if (.not. t_test_sym_fill) then
-            do i = 1, nSpatOrbs
-                do j = 1, nSpatOrbs
-                    if (i == j) cycle
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
+                if (i == j) cycle
 
-                    call calc_all_excits_guga_rdm_singles(ilut, i, j, temp_excits, &
-                        n_excits)
-
-#ifdef DEBUG_
-                    do n = 1, n_excits
-                        ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
-                    end do
-#endif
-
-                    if (n_excits > 0) then
-                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
-                    end if
-
-                    deallocate(temp_excits)
-
-                end do
-            end do
-
-        else
-            do i = 1, nSpatOrbs - 1
-                do j = i + 1, nSpatOrbs
-
-                    call calc_all_excits_guga_rdm_singles(ilut, i, j, temp_excits, &
-                        n_excits)
+                call calc_all_excits_guga_rdm_singles(ilut, i, j, temp_excits, &
+                    n_excits)
 
 #ifdef DEBUG_
-                    do n = 1, n_excits
-                        ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
-                    end do
+                do n = 1, n_excits
+                    ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
+                end do
 #endif
 
-                    if (n_excits > 0) then
-                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
-                    end if
+                if (n_excits > 0) then
+                    call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                end if
 
-                    deallocate(temp_excits)
+                deallocate(temp_excits)
 
-                end do
             end do
-        end if
+        end do
 
         j = 1
         do i = 1, n_tot
@@ -1913,7 +1890,6 @@ contains
         ! calulated to check if the probabilistic weights fit... maybe but
         ! that out and reuse.. to not waste any effort.
         call checkCompatibility(ilut, excitInfo, compFlag, posSwitches, negSwitches)
-
 
         ! for mixed type full starts and/or full stops i have to consider
         ! the possible diagonal/single excitations here!
@@ -2125,8 +2101,7 @@ contains
 
         ! indicate the level of excitation IC for the remaining NECI code
         if (n_excits > 0) then
-            call calc_combined_rdm_label(i,j,k,l, ijkl)
-            excits(nifguga,:) = ijkl
+            call encode_rdm_ind(excits, contract_2_rdm_ind(i,j,k,l))
         end if
 
     end subroutine calc_all_excits_guga_rdm_doubles
@@ -2192,7 +2167,9 @@ contains
 
         ! encode the combined RDM-ind in the deltaB position for
         ! communication purposes
-        excits(nifguga,:) = int(contract_1_rdm_ind(i,j), n_int)
+        do iEx = 1, n_excits
+            call encode_rdm_ind(excits(:,iEx), contract_1_rdm_ind(i,j))
+        end do
 
     end subroutine calc_all_excits_guga_rdm_singles
 

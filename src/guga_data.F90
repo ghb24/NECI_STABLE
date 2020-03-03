@@ -18,7 +18,7 @@ module guga_data
               funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
-              excit_type, gen_type
+              excit_type, gen_type, excit_names
 
     ! ========================== type defs ===================================
 
@@ -75,6 +75,39 @@ module guga_data
             fullstart_stop_mixed    = 23    ! 23 .. full start into full stop mixed
 
     end type ExcitationTypeValues_t
+
+    type :: ExcitationTypeNames_t
+        character(30) :: str
+
+    end type ExcitationTypeNames_t
+
+    type(ExcitationTypeNames_t), parameter :: excit_names(-2:23) = [&
+        ExcitationTypeNames_t('Weight'), &
+        ExcitationTypeNames_t('invalid'), &
+        ExcitationTypeNames_t('Single'), &
+        ExcitationTypeNames_t('Weight + Raising'), &
+        ExcitationTypeNames_t('Weight + Lowering'), &
+        ExcitationTypeNames_t('Non Overlap'), &
+        ExcitationTypeNames_t('Single Overlap Lowering'), &
+        ExcitationTypeNames_t('Single Overlap Raising'), &
+        ExcitationTypeNames_t('Single Overlap L to R'), &
+        ExcitationTypeNames_t('Single Overlap R to L'), &
+        ExcitationTypeNames_t('Double Lowering'), &
+        ExcitationTypeNames_t('Double Raising'), &
+        ExcitationTypeNames_t('Double L to R to L'), &
+        ExcitationTypeNames_t('Double R to L to R'), &
+        ExcitationTypeNames_t('Double L to R'), &
+        ExcitationTypeNames_t('Double R to L'), &
+        ExcitationTypeNames_t('Fullstop Lowering'), &
+        ExcitationTypeNames_t('Fullstop Raising'), &
+        ExcitationTypeNames_t('Fullstop L to R'), &
+        ExcitationTypeNames_t('Fullstop R to L'), &
+        ExcitationTypeNames_t('Fullstart Lowering'), &
+        ExcitationTypeNames_t('Fullstart Raising'), &
+        ExcitationTypeNames_t('Fullstart L to R'), &
+        ExcitationTypeNames_t('Fullstart R to L'), &
+        ExcitationTypeNames_t('Fullstart to Fullstop Alike'), &
+        ExcitationTypeNames_t('Fullstart to Fullstop Mixed')]
 
     type(ExcitationTypeValues_t), parameter :: excit_type = ExcitationTypeValues_t()
 
