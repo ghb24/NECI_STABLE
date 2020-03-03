@@ -21,7 +21,8 @@ program test_guga
     use guga_init
     use guga_procedure_pointers
     use guga_rdm, only: calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
-                        calc_all_excits_guga_rdm_doubles, t_mimic_stochastic
+                        calc_all_excits_guga_rdm_doubles, t_mimic_stochastic, &
+                        calc_explicit_diag_2_rdm_guga, calc_explicit_2_rdm_guga
     use constants
     use DetBitOps
     use Determinants
@@ -77,9 +78,9 @@ contains
 
         call init_guga_testsuite()
 
-!         call run_test_case(test_calc_explicit_2_rdm_guga, "test_calc_explicit_2_rdm_guga")
+        call run_test_case(test_calc_explicit_2_rdm_guga, "test_calc_explicit_2_rdm_guga")
 
-!         call stop_all("here", "now")
+        call stop_all("here", "now")
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
         call test_guga_excitations_exact
@@ -174,12 +175,215 @@ contains
 
         call run_test_case(test_calc_all_excits_guga_rdm_doubles, &
             "test_calc_all_excits_guga_rdm_doubles")
+        call run_test_case(test_calc_explicit_diag_2_rdm_guga, &
+            "test_calc_explicit_diag_2_rdm_guga")
         call run_test_case(test_calc_explicit_2_rdm_guga, "test_calc_explicit_2_rdm_guga")
 
         print *, ""
         print *, "explicit RDM routines passed!"
         print *, ""
     end subroutine test_guga_explicit_rdms
+
+    subroutine test_calc_explicit_diag_2_rdm_guga
+
+        integer(n_int) :: ilut(0:nifguga)
+        integer :: n_tot, i, j, k, l, iEx
+        integer(n_int), pointer :: excits(:,:)
+        real(dp) :: rdm_mat
+        integer(int_rdm) :: rdm_ind
+        integer, allocatable :: nJ(:)
+
+        print *, ""
+        print *, "testing: calc_explicit_diag_2_rdm_guga"
+        print *, ""
+
+        nel = 3
+        call EncodeBitDet_guga([1,7,8], ilut)
+
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+        call assert_equals(0, n_tot)
+
+        call EncodeBitDet_guga([1, 4, 5], ilut)
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+        call assert_equals(4, n_tot)
+
+        ! 1 3 - 3 1
+        rdm_ind = extract_rdm_ind(excits(:,1))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(1, l)
+
+        call assert_equals( -sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,1)), dp))
+
+
+        ! 2 3 - 3 2
+        rdm_ind = extract_rdm_ind(excits(:,2))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(2, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(2, l)
+
+        call assert_equals( sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,2)), dp))
+
+        ! 3 1 - 1 3
+        rdm_ind = extract_rdm_ind(excits(:,3))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(3, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+        call assert_equals( -sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,3)), dp))
+
+        ! 3 2 - 2 3
+        rdm_ind = extract_rdm_ind(excits(:,4))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(3, i)
+        call assert_equals(2, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals( sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,4)), dp))
+
+
+
+        call EncodeBitDet_guga([1, 3, 6], ilut)
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+        call assert_equals(4, n_tot)
+
+        ! 1 3 - 3 1
+        rdm_ind = extract_rdm_ind(excits(:,1))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(1, l)
+
+        call assert_equals( -sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,1)), dp),1e-12_dp)
+
+        ! 2 3 - 3 2
+        rdm_ind = extract_rdm_ind(excits(:,2))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(2, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(2, l)
+
+        call assert_equals( sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,2)), dp),1e-12_dp)
+
+        ! 3 1 - 1 3
+        rdm_ind = extract_rdm_ind(excits(:,3))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(3, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+        call assert_equals( -sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,3)), dp),1e-12_dp)
+
+        ! 3 2 - 2 3
+        rdm_ind = extract_rdm_ind(excits(:,4))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(3, i)
+        call assert_equals(2, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals( sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,4)), dp),1e-12_dp)
+
+
+        nel = 4
+        call EncodeBitDet_guga([1, 3, 6, 8], ilut)
+
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+        ! 1 3 - 3 1
+        rdm_ind = extract_rdm_ind(excits(:,1))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(1, l)
+
+        call assert_equals( -sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,1)), dp),1e-12_dp)
+
+        ! 1 4 - 4 1
+        rdm_ind = extract_rdm_ind(excits(:,2))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+
+        call assert_equals( sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,2)), dp),1e-12_dp)
+
+        ! 2 3 - 3 2
+        rdm_ind = extract_rdm_ind(excits(:,3))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(2, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(2, l)
+        call assert_equals( sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,3)), dp),1e-12_dp)
+
+        ! 2 4 - 4 2
+        rdm_ind = extract_rdm_ind(excits(:,4))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(2, i)
+        call assert_equals(4, j)
+        call assert_equals(4, k)
+        call assert_equals(2, l)
+        call assert_equals( -sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,4)), dp),1e-12_dp)
+
+
+        ! 3 1 - 1 3
+        rdm_ind = extract_rdm_ind(excits(:,5))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(3, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+
+        call assert_equals( -sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,5)), dp),1e-12_dp)
+
+        ! 3 2 - 2 3
+        rdm_ind = extract_rdm_ind(excits(:,6))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(3, i)
+        call assert_equals(2, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+
+        call assert_equals( sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,6)), dp),1e-12_dp)
+
+        ! 4 1 - 1 4
+        rdm_ind = extract_rdm_ind(excits(:,7))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(4, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(4, l)
+        call assert_equals( sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,7)), dp),1e-12_dp)
+
+        ! 4 2 - 2 4
+        rdm_ind = extract_rdm_ind(excits(:,8))
+        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
+        call assert_equals(4, i)
+        call assert_equals(2, j)
+        call assert_equals(2, k)
+        call assert_equals(4, l)
+        call assert_equals( -sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,8)), dp), 1e-12_dp)
+
+
+        print *, ""
+        print *, "testing: calc_explicit_diag_2_rdm_guga DONE"
+        print *, ""
+
+        nel = 4
+
+    end subroutine test_calc_explicit_diag_2_rdm_guga
 
     subroutine test_calc_explicit_2_rdm_guga
 
@@ -192,9 +396,18 @@ contains
         integer(n_int) :: ilut(0:nifguga)
 
 
+        nel = 2
+        call EncodeBitDet_guga([5,6], ilut)
+
         print *, ""
         print *, "testing: calc_explicit_2_rdm_guga"
         print *, ""
+
+        call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
+
+
+        call write_guga_list(6, excits)
+        print *, "TODO"
 
         print *, ""
         print *, "testing: calc_explicit_2_rdm_guga DONE"
@@ -376,6 +589,9 @@ contains
         print *, ""
         print *, "testing: calc_all_excits_guga_rdm_doubles DONE"
         print *, ""
+
+        nel = 4
+
     end subroutine test_calc_all_excits_guga_rdm_doubles
 
     subroutine test_calc_explicit_1_rdm_guga
@@ -441,6 +657,7 @@ contains
         print *, "testing: calc_explicit_1_rdm_guga DONE"
         print *, ""
 
+        nel = 4
     end subroutine test_calc_explicit_1_rdm_guga
 
     subroutine test_calc_all_excits_guga_rdm_singles
@@ -535,6 +752,8 @@ contains
             print *, ""
             print *, " calc_all_excits_guga_rdm_singles passed!"
             print *, ""
+
+            nel = 4
 
     end subroutine test_calc_all_excits_guga_rdm_singles
 

@@ -67,7 +67,8 @@ module guga_rdm
               send_proc_ex_djs, t_test_diagonal, &
               t_mimic_stochastic, t_direct_exchange, &
               calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
-              calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga
+              calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga, &
+              calc_explicit_diag_2_rdm_guga
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
@@ -1563,7 +1564,7 @@ contains
 
                 if (i == j) cycle
 
-                call calc_all_excits_guga_rdm_doubles(ilut, j, i, i, j, &
+                call calc_all_excits_guga_rdm_doubles(ilut, i, j, j, i, &
                     temp_excits, n_excits)
 
 #ifdef DEBUG_
@@ -1592,12 +1593,13 @@ contains
 
         n_tot = j - 1
 
-        allocate(excitations(0:nifguga,n_tot), stat = ierr)
+        allocate(excitations(0:nifguga,n_tot), &
+            source = tmp_all_excits(0:nifguga,1:n_tot), stat = ierr)
         ! hm to log that does not make so much sense.. since it gets called
         ! more than once and is only a temporary array..
         call LogMemAlloc('excitations',n_tot,8,this_routine,tag_excitations)
 
-        excitations = tmp_all_excits(:,1:n_tot)
+!         excitations = tmp_all_excits(:,1:n_tot)
 
         deallocate(tmp_all_excits)
         call LogMemDealloc(this_routine, tag_tmp_excits)
@@ -2019,7 +2021,9 @@ contains
 
         ! indicate the level of excitation IC for the remaining NECI code
         if (n_excits > 0) then
-            call encode_rdm_ind(excits, contract_2_rdm_ind(i,j,k,l))
+            do n = 1, n_excits
+                call encode_rdm_ind(excits(:,n), contract_2_rdm_ind(i,j,k,l))
+            end do
         end if
 
     end subroutine calc_all_excits_guga_rdm_doubles
