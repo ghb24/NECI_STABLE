@@ -314,33 +314,42 @@ contains
 
         associate(lower_bound => spaces(1), upper_bound => spaces(2))
 
-        if (present(additional_holes)) then
-            associate(holes => additional_holes%idx)
+            if (present(additional_holes)) then
                 ! Check if all additional_holes are occupied in det_I
-                ASSERT(all([(any(holes(i) == det_I%idx(:)), i=1, size(holes))]))
-            end associate
-            cum_n_particle(:) = cumsum(particles_per_GAS(GAS_spec, det_I) &
-                                       - particles_per_GAS(GAS_spec, additional_holes))
-        else
-            cum_n_particle(:) = cumsum(particles_per_GAS(GAS_spec, det_I))
-        end if
+                do i = 1, size(additional_holes%idx)
+                    ASSERT(any(additional_holes%idx(i) == det_I%idx(:)))
+                end do
+                cum_n_particle(:) = cumsum( &
+                    particles_per_GAS(GAS_spec, det_I) &
+                    - particles_per_GAS(GAS_spec, additional_holes))
+            else
+                cum_n_particle(:) = cumsum(particles_per_GAS(GAS_spec, det_I))
+            end if
 
-        deficit = GAS_spec%n_min(:) - cum_n_particle(:)
-        vacant = GAS_spec%n_max(:) - cum_n_particle(:)
-        if (any(n_particles_ < deficit) .or. all(vacant < n_particles_)) then
-            spaces(:) = 0
-            return
-        end if
+            deficit = GAS_spec%n_min(:) - cum_n_particle(:)
+            vacant = GAS_spec%n_max(:) - cum_n_particle(:)
+            if (any(n_particles_ < deficit) .or. all(vacant < n_particles_)) then
+                spaces(:) = 0
+                return
+            end if
 
-        if (all(deficit <= 0)) then
-            upper_bound = get_nGAS(GAS_spec)
-        else
-            upper_bound = findloc(deficit == n_particles_, value=.true., dim=1)
-        end if
+            ! Find the first index, where a particle has to be created.
+            do iGAS = 1, get_nGAS(GAS_spec)
+                if (deficit(iGAS) == n_particles_) exit
+            end do
+            upper_bound = iGAS
 
-        ! It is possible to create a particle in iGAS >= lower_bound
-        lower_bound = findloc(GAS_spec%n_max(:) <= cum_n_particle(:), value=.true., dim=1, back=.true.) + 1
-        if (lower_bound > upper_bound) spaces(:) = 0
+            ! We assume that at it is possible to create a particle at least in
+            ! the last GAS space.
+            ! Search from behind the first occurence where it is not possible
+            ! anymore to create a particle.
+            ! The lower bound is one GAS index above.
+            do iGAS = get_nGAS(GAS_spec), 1, -1
+                if (vacant(iGAS) <= 0) exit
+            end do
+            lower_bound = iGAS + 1
+
+            if (lower_bound > upper_bound) spaces(:) = 0
         end associate
     end function
 #:endfor
