@@ -1,4 +1,5 @@
 #include "macros.h"
+#:include "macros.fpph"
 
 module global_det_data
     use SystemData, only: nel
@@ -148,7 +149,7 @@ contains
 
         integer :: tot_len
         integer :: ierr
-        character(*), parameter :: t_r = 'init_global_det_data'
+        character(*), parameter :: this_routine = 'init_global_det_data'
 
         ! The position and size of diagonal matrix elements in the array.
         ! This is set as a module wide parameter, rather than as runtime, as
@@ -283,16 +284,16 @@ contains
 
         ! Allocate and log the required memory (globally)
         allocate(global_determinant_data(tot_len, MaxWalkersPart), stat=ierr)
-        log_alloc(global_determinant_data, glob_tag, ierr)
+        @:log_alloc(global_determinant_data, glob_tag, ierr)
 
         if(tMoveGlobalDetData)then
             allocate(global_determinant_data_tmp(tot_len, MaxWalkersPart), stat=ierr)
-            log_alloc(global_determinant_data_tmp, glob_tmp_tag, ierr)
+            @:log_alloc(global_determinant_data_tmp, glob_tmp_tag, ierr)
         endif
 
         if(tStoredDets) then
            allocate(global_determinants(len_det_orbs, MaxWalkersPart), stat=ierr)
-           log_alloc(global_determinants, glob_det_tag, ierr)
+           @:log_alloc(global_determinants, glob_det_tag, ierr)
         endif
 
         write(6,'(a,f14.6,a)') &

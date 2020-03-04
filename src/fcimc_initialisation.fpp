@@ -1,4 +1,5 @@
 #include "macros.h"
+#:include "macros.fpph"
 
 module fcimc_initialisation
 
@@ -1583,22 +1584,17 @@ contains
                     " particles to be spawned in any one iteration per core."
             write(iout,*) "Memory requirement ", NIfBcast*8.0_dp*( &
                  MaxSpawned/1048576.0_dp), "MB"
-            allocate(SpawnVec(0:NIfBCast, MaxSpawned), &
-                     SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
-            if(.not. allocated(SpawnVec2)) call stop_all(this_routine,&
-                 "ERROR IN ALLOCATING SPAWNVEC2")
-            if(ierr .ne. 0) call stop_all(this_routine,"ERRONEOUS STAT IN ALLOCATION")
-            log_alloc(SpawnVec, SpawnVecTag, ierr)
-            log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
+
+            allocate(SpawnVec(0:NIfBCast, MaxSpawned), stat=ierr, source=0_n_int)
+            @:log_alloc(SpawnVec, SpawnVecTag, ierr)
+            allocate(SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr, source=0_n_int)
+            @:log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
             if (use_spawn_hash_table) then
                 nhashes_spawn = ceiling(0.8*MaxSpawned)
                 allocate(spawn_ht(nhashes_spawn), stat=ierr)
                 call init_hash_table(spawn_ht)
             end if
-
-            SpawnVec(:,:)=0
-            SpawnVec2(:,:)=0
 
 !Point at correct spawning arrays
             SpawnedParts=>SpawnVec
@@ -1607,10 +1603,10 @@ contains
             MemoryAlloc=MemoryAlloc+(NIfTot+1)*MaxSpawned*2*size_n_int
 
             if(tAutoAdaptiveShift)then
-                allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), &
-                         SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
-                log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
-                log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
+                allocate(SpawnInfoVec(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
+                @:log_alloc(SpawnInfoVec, SpawnInfoVecTag, ierr)
+                allocate(SpawnInfoVec2(1:SpawnInfoWidth, MaxSpawned), stat=ierr)
+                @:log_alloc(SpawnInfoVec2, SpawnInfoVec2Tag, ierr)
                 SpawnInfoVec(:,:)=0
                 SpawnInfoVec2(:,:)=0
                 SpawnInfo=>SpawnInfoVec
@@ -4498,7 +4494,7 @@ contains
         call clean_cont_time()
 
         allocate(oversample_factors(1:2, LMS:nel), stat=ierr)
-        log_alloc(oversample_factors, ostag, ierr)
+        @:log_alloc(oversample_factors, ostag, ierr)
         oversample_factors = 1.0_dp
 
         ! We need somewhere for our nested excitation generators to call home
