@@ -78,9 +78,6 @@ contains
 
         call init_guga_testsuite()
 
-        call run_test_case(test_calc_explicit_2_rdm_guga, "test_calc_explicit_2_rdm_guga")
-
-        call stop_all("here", "now")
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
         call test_guga_excitations_exact
@@ -403,15 +400,156 @@ contains
         print *, "testing: calc_explicit_2_rdm_guga"
         print *, ""
 
+        t_mimic_stochastic = .false.
         call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
 
+        call assert_equals(15, n_tot)
+        !  1 3 - 1 3
+        rdm_ind = extract_rdm_ind(excits(:,1))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+        call assert_equals(2.0_dp, real(extract_h_element(excits(:,1)), dp), 1e-12_dp)
 
-        call write_guga_list(6, excits)
-        print *, "TODO"
+        ! 1 3 - 2 3
+        rdm_ind = extract_rdm_ind(excits(:,2))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,2)), dp), 1e-12_dp)
+
+        ! 1 3 - 3 3
+        rdm_ind = extract_rdm_ind(excits(:,3))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,3)), dp), 1e-12_dp)
+
+        ! 1 3 - 4 3
+        rdm_ind = extract_rdm_ind(excits(:,4))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(4, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,4)), dp), 1e-12_dp)
+
+        ! 2 3 - 1 3
+        rdm_ind = extract_rdm_ind(excits(:,5))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(2, i)
+        call assert_equals(3, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,5)), dp), 1e-12_dp)
+
+        ! 2 3 - 2 3
+        rdm_ind = extract_rdm_ind(excits(:,6))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(2, i)
+        call assert_equals(3, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals(2.0_dp, real(extract_h_element(excits(:,6)), dp), 1e-12_dp)
+
+        ! 2 3 - 3 3
+        rdm_ind = extract_rdm_ind(excits(:,7))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(2, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,7)), dp), 1e-12_dp)
+
+        ! 2 3 - 4 3
+        rdm_ind = extract_rdm_ind(excits(:,8))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(2, i)
+        call assert_equals(3, j)
+        call assert_equals(4, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,8)), dp), 1e-12_dp)
+
+        ! 3 3 - 1 3
+        rdm_ind = extract_rdm_ind(excits(:,9))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(3, i)
+        call assert_equals(3, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,9)), dp), 1e-12_dp)
+
+        ! 3 3 - 2 3
+        rdm_ind = extract_rdm_ind(excits(:,10))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(3, i)
+        call assert_equals(3, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,10)), dp), 1e-12_dp)
+
+        ! 3 3 - 4 3
+        rdm_ind = extract_rdm_ind(excits(:,11))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(3, i)
+        call assert_equals(3, j)
+        call assert_equals(4, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,11)), dp), 1e-12_dp)
+
+        ! 4 3 - 1 3
+        rdm_ind = extract_rdm_ind(excits(:,12))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(4, i)
+        call assert_equals(3, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,12)), dp), 1e-12_dp)
+
+        ! 4 3 - 2 3
+        rdm_ind = extract_rdm_ind(excits(:,13))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(4, i)
+        call assert_equals(3, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,13)), dp), 1e-12_dp)
+
+        ! 4 3 - 3 3
+        rdm_ind = extract_rdm_ind(excits(:,14))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(4, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(3, l)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,14)), dp), 1e-12_dp)
+
+        ! 4 3 - 4 3
+        rdm_ind = extract_rdm_ind(excits(:,15))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(4, i)
+        call assert_equals(3, j)
+        call assert_equals(4, k)
+        call assert_equals(3, l)
+        call assert_equals(2.0_dp, real(extract_h_element(excits(:,15)), dp), 1e-12_dp)
+
+
+        t_mimic_stochastic = .true.
+        call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
+        call assert_equals(9, n_tot)
 
         print *, ""
         print *, "testing: calc_explicit_2_rdm_guga DONE"
         print *, ""
+
+        t_mimic_stochastic = .false.
+        nel = 4
 
     end subroutine test_calc_explicit_2_rdm_guga
 

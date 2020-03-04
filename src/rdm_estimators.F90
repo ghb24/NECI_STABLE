@@ -689,6 +689,7 @@ contains
         real(dp), intent(in) :: rdm_norm(rdm%sign_length)
         real(dp), intent(out) :: max_error_herm_all(rdm%sign_length)
         real(dp), intent(out) :: sum_error_herm_all(rdm%sign_length)
+        character(*), parameter :: this_routine = "calc_hermitian_errors"
 
         integer(int_rdm) :: ijkl
         integer :: ielem
@@ -723,6 +724,7 @@ contains
             ! If in the lower half of the RDM, reflect to the upper half and
             ! include with a minus sign.
             if (tGUGA) then
+                call stop_all(this_routine, "figure out RDM indices")
                 call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
             else
                 if (ij > kl) then

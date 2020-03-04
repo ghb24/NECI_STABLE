@@ -244,11 +244,11 @@ contains
         do ielem = 1, two_rdms%nelements
             pqrs = two_rdms%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
-            if (.not. tGUGA) then
-                call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
-            else
+            if (tGUGA) then
                 call stop_all("calc_1rdms_from_spinfree_2rdms", "use GUGA index functions!")
                 call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            else
+                call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
             end if
 
             call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
@@ -1133,6 +1133,7 @@ contains
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        character(*), parameter :: this_routine = "print_spinfree_2rdm"
 
         integer(int_rdm) :: pqrs
         integer :: ielem, irdm, iunit, iproc, ierr
@@ -1176,9 +1177,10 @@ contains
                         pqrs = rdm%elements(0,ielem)
                         ! Obtain spin orbital labels.
                         if (.not. tGUGA) then
-                            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
-                        else
+                            call stop_all(this_routine, "figure out RDM indices")
                             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+                        else
+                            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
                         end if
                         call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                         ! Normalise.

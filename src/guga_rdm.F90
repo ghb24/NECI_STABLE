@@ -53,7 +53,7 @@ module guga_rdm
     use CalcData, only: tAdaptiveShift
     use Parallel_neci, only: nProcessors, MPIArg, MPIAlltoAll, MPIAlltoAllv
     use searching, only: BinSearchParts_rdm
-    use rdm_data_utils, only: add_to_rdm_spawn_t, calc_combined_rdm_label, &
+    use rdm_data_utils, only: add_to_rdm_spawn_t, &
                               calc_separate_rdm_labels, extract_sign_rdm
     use OneEInts, only: GetTMatEl
     use procedure_pointers, only: get_umat_el
@@ -464,6 +464,7 @@ contains
                         mat_ele = extract_matrix_element(ilutJ, 1)
                         rdm_ind = extract_rdm_ind(ilutJ)
 
+                        call Stop_All(this_routine, "figure out RDM labels now!")
                         call calc_separate_rdm_labels(rdm_ind, ab, cd, a, b, c, d)
 
                         ! if we mimic stochastic, we have to deal with the
@@ -594,6 +595,7 @@ contains
         if (present(excitInfo_opt)) then
             excitInfo = excitInfo_opt
         else
+            call Stop_All(this_routine, "figure out RDM labels now!")
             call calc_separate_rdm_labels(rdm_ind, ij, kl, i, j, k, l)
 
             excitInfo = excitationIdentifier(i, j, k, l)
@@ -2133,6 +2135,7 @@ contains
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
             ! Decode pqrs label into p, q, r and s labels.
+            call Stop_All(this_routine, "figure out RDM labels now!")
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
             ! D_{ij,kl} corresponds to V_{ki,lj} * e_{ki,lj} i believe..

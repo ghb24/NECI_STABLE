@@ -2771,7 +2771,7 @@ contains
 
     end function contract_2_rdm_ind
 
-    subroutine extract_2_rdm_ind(ijkl, j, l, i, k, ij_out, kl_out)
+    subroutine extract_2_rdm_ind(ijkl, i, j, k, l, ij_out, kl_out)
         ! the inverse routine of the function above.
         ! it is actually practical to have ij and kl also available at
         ! times, since it can identify diagonal entries of the two-RDM
