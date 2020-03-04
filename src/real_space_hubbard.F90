@@ -23,7 +23,7 @@ module real_space_hubbard
                           t_spin_dependent_transcorr, tGUGA, tgen_guga_crude, &
                           tNoBrillouin, tUseBrillouin, &
                           t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, &
-                          pholefocus, t_twisted_bc, twisted_bc
+                          pholefocus, t_twisted_bc, twisted_bc, lnosymmetry
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, &
@@ -138,6 +138,8 @@ contains
         ! just to be save swithc of Brillouins
         tNoBrillouin = .true.
         tUseBrillouin = .false.
+
+        lnosymmetry = .true.
 
         ! first assert all the right input!
         call check_real_space_hubbard_input()

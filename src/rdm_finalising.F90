@@ -246,7 +246,6 @@ contains
             pqrs = two_rdms%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
             if (tGUGA) then
-                call stop_all("calc_1rdms_from_spinfree_2rdms", "figure out indices!")
                 call extract_2_rdm_ind(pqrs, p, q, r, s)
             else
                 call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
@@ -255,18 +254,27 @@ contains
             call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
 
             associate(ind => SymLabelListInv_rot)
-                ! An element of the form \Gamma_{pa,ra}.
-                if (q == s) then
-                    do irdm = 1, size(one_rdms)
-                        one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
-                    end do
-                end if
 
                 if (tGUGA) then
-                    if (p == r) then
+                    if (r == s) then
                         do irdm = 1, size(one_rdms)
-                            one_rdms(irdm)%matrix(ind(q),ind(s)) = &
-                                one_rdms(irdm)%matrix(ind(q),ind(s)) + rdm_sign(irdm)
+                            one_rdms(irdm)%matrix(ind(p),ind(q)) = &
+                                one_rdms(irdm)%matrix(ind(p),ind(q)) + rdm_sign(irdm)
+                        end do
+                    end if
+                    ! if I count both, I do not need the factor 2..
+                    if (p == q) then
+                        do irdm = 1, size(one_rdms)
+                            one_rdms(irdm)%matrix(ind(r),ind(s)) = &
+                                one_rdms(irdm)%matrix(ind(r),ind(s)) + rdm_sign(irdm)
+                        end do
+                    end if
+                else
+                    ! An element of the form \Gamma_{pa,ra}.
+                    if (q == s) then
+                        do irdm = 1, size(one_rdms)
+                            one_rdms(irdm)%matrix(ind(p), ind(r)) = &
+                                one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
                         end do
                     end if
                 end if
@@ -1178,7 +1186,6 @@ contains
                         pqrs = rdm%elements(0,ielem)
                         if (tGUGA) then
                             ! Obtain spatial orbital labels.
-                            call stop_all(this_routine, "figure out RDM indices")
                             call extract_2_rdm_ind(pqrs, p, q, r, s)
                         else
                             ! Obtain spin orbital labels.

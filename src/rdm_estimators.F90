@@ -725,7 +725,7 @@ contains
 
             if (tGUGA) then
                 call extract_2_rdm_ind(ijkl, i, j, k, l, ij_, kl_)
-                call stop_all(this_routine, "figure out RDM indices, symmetries and parity!")
+!                 call stop_all(this_routine, "figure out RDM indices, symmetries and parity!")
                 call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
             else
                 ! Obtain spin orbital labels

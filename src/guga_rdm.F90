@@ -2132,7 +2132,14 @@ contains
                 rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*j) / real(nel-1,dp)
             end if
             ! do I need more contributions here? I guess so..
-            call Stop_All(this_routine, "figure out additional contribs to 1-RDM energy!")
+            ! i think I am missing the 'exchange' contributions..
+!             if (i == l) then
+!                 rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*j,2*k) / real(nel-1,dp)
+!             end if
+!             if (j == k) then
+!                 rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*l) / real(nel-1,dp)
+!             end if
+!             call Stop_All(this_routine, "figure out additional contribs to 1-RDM energy!")
         end do
 
     end subroutine calc_rdm_energy_guga

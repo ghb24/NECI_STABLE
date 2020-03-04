@@ -17,7 +17,8 @@ module rdm_data_utils
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
     use util_mod
     use SystemData, only: tGUGA, nSpatOrbs
-    use guga_bitRepOps, only: contract_2_rdm_ind, contract_1_rdm_ind
+    use guga_bitRepOps, only: contract_2_rdm_ind, contract_1_rdm_ind, &
+                              extract_2_rdm_ind
 
     implicit none
 
@@ -1100,6 +1101,7 @@ contains
         integer(int_rdm) :: ijkl
         integer :: ielem
         integer :: ij, kl, i, j, k, l ! spin orbitals
+        integer(int_rdm) :: ij_, kl_
         real(dp) :: rdm_sign(rdm%sign_length)
 
         rdm_trace = 0.0_dp
@@ -1108,12 +1110,21 @@ contains
         do ielem = 1, rdm%nelements
             ijkl = rdm%elements(0,ielem)
 
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            if (tGUGA) then
+                call extract_2_rdm_ind(ijkl, i, j, k, l)
 
-            ! If this is a diagonal element, add the element to the trace.
-            if (ij == kl) then
-                call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
-                rdm_trace = rdm_trace + rdm_sign
+                if (i == j .and. k == l) then
+                    call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                    rdm_trace = rdm_trace + rdm_sign
+                end if
+            else
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+                ! If this is a diagonal element, add the element to the trace.
+                if (ij == kl) then
+                    call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                    rdm_trace = rdm_trace + rdm_sign
+                end if
             end if
         end do
 
