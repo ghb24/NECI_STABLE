@@ -75,6 +75,8 @@ endif
 #define IFDEBUGEQTHEN(PrintLevel,ThisLevel) if (PrintLevel==ThisLevel) then
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel) then
 #define ENDIFDEBUG endif
+! Use ASSERT in otherwise pure procedures.
+#define DEBUG_IMPURE
 #else
 #define ASSERT(x)
 #define ASSERTROOT(x)
@@ -83,6 +85,7 @@ endif
 #define IFDEBUGEQTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define ENDIFDEBUG endif
+#define DEBUG_IMPURE pure
 #endif
 
 ! define a precompiler setup for the warning workaround

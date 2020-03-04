@@ -13,3 +13,11 @@ if (${ierr}$ /= 0) then
 end if
 $:'call LogMemAlloc("{arr}", size({arr}), tbs_({arr}), this_routine, {tag}, {ierr})'.format(arr=arr, tag=tag, ierr=ierr)
 #:enddef
+
+#:def def_default(Var_, Var, Val)
+if(present(${Var}$)) then
+    ${Var_}$ = ${Var}$
+else
+    ${Var_}$ = ${Val}$
+endif
+#:enddef

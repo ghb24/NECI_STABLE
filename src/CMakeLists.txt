@@ -203,7 +203,6 @@ set( SRC_FILES
     lib/signals_helper.cpp
     lib/soft_exit.F90
     lib/timing.F90
-    lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
 )
@@ -221,6 +220,7 @@ set( FYPP_SRC_FILES
     global_det_data.fpp
     rdm_general.fpp
     hist.fpp
+    lib/util_mod.fpp
 )
 
 set( TEMPLATED_SRC_FILES
