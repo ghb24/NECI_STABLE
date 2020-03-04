@@ -582,7 +582,7 @@ contains
                     ! the last two labels are dominant in the ordering, so use
                     ! these instead, to allow writing out in the correct order.
                     kl_compressed = int(contract_1_rdm_ind(k,l))
-                    proc = (kl_compressed-1)*nProcessors/(nSpatOrbs**2)
+                    proc = (kl_compressed-1)*nProcessors/(nbasis**2/4)
                 end if
 
                 ! Check that there is enough memory for the new spawned RDM entry.
