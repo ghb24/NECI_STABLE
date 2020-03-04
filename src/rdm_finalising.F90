@@ -1435,7 +1435,7 @@ contains
 
         ! Output the hermiticity errors.
         write(6,'(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') max_error_herm
-        write(6,'(1X,"MAX ABS ERROR IN 1-RDM HERMITICITY",F20.13)') sum_error_herm
+        write(6,'(1X,"MAX SUM ERROR IN 1-RDM HERMITICITY",F20.13)') sum_error_herm
 
     end subroutine make_1e_rdm_hermitian
 
@@ -1522,8 +1522,10 @@ contains
                 do j = 1, nSpatorbs
                     if (abs(one_rdm(ind(i),ind(j))) > EPS) then
                         if (tNormalise) then
-                            write(one_rdm_unit, "(2i6, g25.17)") i, j, &
-                                (one_rdm(ind(i),ind(j)) * norm_1rdm)
+                            if (i <= j) then
+                                write(one_rdm_unit, "(2i6, g25.17)") i, j, &
+                                    (one_rdm(ind(i),ind(j)) * norm_1rdm)
+                            end if
                         else
                             write(one_rdm_unit) i, j, one_rdm(ind(i), ind(j))
                         end if
@@ -1570,10 +1572,12 @@ contains
                 do i = 1, nbasis/2
                     do j = 1, nbasis/2
                         if (abs(one_rdm(ind(i),ind(j))) > EPS) then
-                            if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
-                                write(one_rdm_unit_spinfree,"(2I6,G25.17)") i, j, &
-                                    one_rdm(ind(i), ind(j)) * norm_1rdm
-                            else if (.not. tNormalise) then
+                            if (tNormalise) then
+                                if (i <= j .or. is_transition_rdm) then
+                                    write(one_rdm_unit_spinfree,"(2I6,G25.17)") i, j, &
+                                        one_rdm(ind(i), ind(j)) * norm_1rdm
+                                end if
+                            else
                                 write(one_rdm_unit_spinfree) i, j, one_rdm(ind(i), ind(j))
                             end if
                         end if
