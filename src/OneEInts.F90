@@ -11,12 +11,11 @@ module OneEInts
 use constants, only: dp
 use MemoryManager, only: TagIntType, LogMemalloc, LogMemDealloc
 use util_mod, only: get_free_unit
-use SystemData, only: Symmetry, BasisFN, tCPMD, tVASP
+use SystemData, only: tCPMD, tVASP
 use LoggingData, only: iNumPropToEst
 use CPMDData, only: tKP
 use HElem, only: HElement_t_size
 use global_utilities
-use UMatCache, only: nStates
 use SymData
 
 implicit none
@@ -36,6 +35,7 @@ HElement_t(dp), dimension(:), POINTER :: TMATSYM
 ! symmetric representation (and are not necessarily the same).  We could
 ! compress this in a similar fashion at some point.
 HElement_t(dp), dimension(:,:), POINTER :: TMAT2D
+HElement_t(dp), pointer :: spin_free_tmat(:,:)
 
 HElement_t(dp), dimension(:), POINTER :: TMATSYM2
 HElement_t(dp), dimension(:,:), POINTER :: TMAT2D2
@@ -85,6 +85,7 @@ contains
         !   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
         !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
         !   If the element is zero by symmetry, return -1 (TMatSym(-1) is set to 0).
+        use SymData, only: SymClasses,StateSymMap,SymLabelIntsCum
         IMPLICIT NONE
         integer, intent(in) :: i, j
         integer A,B,symI,symJ,Block,ind,K,L
@@ -217,8 +218,6 @@ contains
     end function GetTMatEl
 
     function GetPropIntEl(i,j,iprop) result(integral)
-
-!       use OneEInts, only: OneEPropInts
         integer, intent(in) :: i, j, iprop
         real(dp) :: integral
 
@@ -662,7 +661,6 @@ contains
         ! post-freezing.  Once freezing is done, clear all the pre-freezing
         ! arrays and point them to the post-freezing arrays, so the code
         ! referencing pre-freezing arrays can be used post-freezing.
-!         use sym_mod
         IMPLICIT NONE
         character(*),parameter :: this_routine='SwapTMat'
 

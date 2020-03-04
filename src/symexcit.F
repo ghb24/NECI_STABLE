@@ -260,14 +260,16 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
       Subroutine SymSetupExcits_StoreOccPairs(OrbPairs, nPairs, nPr,
      &    iMinElec1, iMaxElec1,G1,SymProdInd,SymProds,nI,nEl)
          use SystemData, only: Symmetry,BasisFN,SymmetrySize
-         use sym_mod, only: SymProd, BINARYSEARCHSYM, WRITESYM
+         use constants, only: int64
+         use sym_mod, only: symprod, BINARYSEARCHSYM, WRITESYM
          IMPLICIT NONE
          INTEGER nPairs
          INTEGER ORBPAIRS(2,nPairs)
-         INTEGER nPr
+         INTEGER(int64) nPr
          INTEGER iMinElec1, iMaxElec1,nEl,nI(nEl)
          TYPE(Symmetry) SymProds(0:*)
-         INTEGER I,J,K,L
+         INTEGER I,J,K
+         integer(int64) l
          Type(Symmetry) Pr
          INTEGER iSpn
          INTEGER iCC
@@ -283,7 +285,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
                L=L+1
                PR=SYMPROD(G1(NI(I))%Sym,G1(NI(J))%Sym)
 C.. Find the product in the sorted symprod list
-               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),NPR,K)
+               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),int(NPR),K)
                IF(K.EQ.0) THEN
                   WRITE(6,*) "Occupied Symmetry Products"
                   DO L=0,NPR

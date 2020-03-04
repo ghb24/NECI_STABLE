@@ -26,6 +26,7 @@ MODULE ReadInput_neci
         use Parallel_neci,   only : iProcIndex
         use default_sets
         use util_mod, only: get_free_unit
+        use real_time_read_input_module, only: real_time_read_input
 !#ifdef NAGF95
 !    !  USe doesn't get picked up by the make scripts
 !        USe f90_unix_env, ONLY: getarg,iargc
@@ -159,7 +160,10 @@ MODULE ReadInput_neci
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
                 call kp_fciqmc_read_inp(kp)
-        
+
+            case ("REALTIME")
+                call real_time_read_input()
+
             case("END")
                 exit
             case default
@@ -188,8 +192,10 @@ MODULE ReadInput_neci
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
+                              tGUGA, tgen_guga_weighted, &
                               tGen_4ind_lin_exact, tGen_4ind_2, tNConservingGAS, &
                               tComplexOrbs_RealInts, tLatticeGens, tHistSpinDist
+
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -228,6 +234,7 @@ MODULE ReadInput_neci
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
 
+        use guga_init, only: checkInputGUGA
         implicit none
 
         integer :: vv, kk, cc, ierr
@@ -247,6 +254,12 @@ MODULE ReadInput_neci
 
         nWalkerHashes=nint(HashLengthFrac*InitWalkers)
 
+
+        ! ================ GUGA implementation ===============================
+        ! design convention to store as many guga related functionality in
+        ! guga_*.F90 files and just call the routines in the main level modules
+        ! checkInputGUGA() is found in guga_init.F90
+        if (tGUGA) call checkInputGUGA()
 
         ! Turn on histogramming of fcimc wavefunction in order to find density
         ! matrix, or the orbital occupations
@@ -451,7 +464,8 @@ MODULE ReadInput_neci
             write(6,*)
         end if
 
-        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2) then
+        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2 &
+            .or. tgen_guga_weighted) then
 
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.

@@ -103,6 +103,10 @@
 !   DIAGFLYONERDM        Requests to diagonalise the 1-RDM at the end.
 !   REFSHIFT             Change the default use of the shift to now keep HF
 !                        populations constant.
+!   PREPARE_REAL_TIME n m   start the print out of the current walker population
+!                        n times with m cycles between them, which in turn
+!                        will be used to start a subsequent real-time
+!                        calculations with these popsfile as the groundstate
 !   TIME                 Specify a total elapsed-time before the calculation
 !                        performs an automatic soft-exit. If specified as -1,
 !                        we don't stop automatically.
@@ -126,7 +130,8 @@ module soft_exit
                         SinglesBias_value => SinglesBias, tau_value => tau, &
                         nmcyc_value => nmcyc, tTruncNOpen, trunc_nopen_max, &
                         target_grow_rate => TargetGrowRate, tShiftonHFPop, &
-                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift, tSpinProject 
+                        tAllRealCoeff, tRealSpawnCutoff, tJumpShift, &
+                        frq_ratio_cutoff, t_hist_tau_search, tSpinProject
     use DetCalcData, only: ICILevel
     use IntegralsData, only: tPartFreezeCore, NPartFrozen, NHolesFrozen, &
                              NVirtPartFrozen, NelVirtFrozen, tPartFreezeVirt
@@ -192,7 +197,9 @@ contains
                               targetgrowrate = 38, refshift = 39, &
                               calc_rdm = 40, calc_explic_rdm = 41, &
                               fill_rdm_iter = 42, diag_one_rdm = 43, &
-                              time = 44
+                              frequency_cutoff = 44, & !for the histogram integration
+                              prepare_real_time = 45, &
+                              time = 46
         integer, parameter :: last_item = time
         integer, parameter :: max_item_len = 30
         character(max_item_len), parameter :: option_list_molp(last_item) &
@@ -224,6 +231,8 @@ contains
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "changeref                    ", &
+                                   "not_option                   ", &
+                                   "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
                                    "not_option                   ", &
@@ -284,6 +293,8 @@ contains
                                    "calcexplicitrdm              ", &
                                    "fillrdmiter                  ", &
                                    "diagflyonerdm                ", &
+                                   "frequency-cutoff             ", &
+                                   "prepare_real_time            ", &
                                    "time                         "/)
 
         ! Logical(4) datatypes for compilation with builds of openmpi that don't
@@ -407,6 +418,8 @@ contains
                             call readi (RDMEnergyIter)
                         elseif (i == fill_rdm_iter) then
                             call readi (IterRDMonFly_new)
+                        elseif (i == frequency_cutoff) then
+                            call readf(frq_ratio_cutoff)
                         elseif (i == time) then
                             call readf (MaxTimeExit)
                         endif
@@ -538,6 +551,15 @@ contains
                     write(6,*) "Ceasing the searching for tau."
                     tSearchTau = .false.
                 endif
+                ! also use that CHANGEVARS option to stop the new tau-search
+                if (t_hist_tau_search) then
+                    write(6,*) "Ceasing new tau-search!"
+                    t_hist_tau_search = .false.
+                    ! i could also use that option to stop the histogramming
+                    ! of the H_ij/pgen ratios.. since i do not need it anymore
+                    ! then .. but i probably should atleast print it out
+                    ! then.. think about that, or if i should use a new option..
+                end if
             endif
 
             if(opts_selected(targetgrowrate)) then

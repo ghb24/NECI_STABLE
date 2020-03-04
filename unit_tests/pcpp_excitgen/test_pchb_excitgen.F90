@@ -36,7 +36,7 @@ contains
     ! make sure all excits have been found
     call assert_equals(numEx,nFound)
     ! and the total prob is 1.0
-    call assert_true(abs(1.0-pTot) < 0.01)
+    call assert_true(abs(1.0-pTot) < 0.05)
 
     ! free memory
     call free_ref()

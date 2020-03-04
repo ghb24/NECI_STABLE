@@ -111,6 +111,9 @@ module hash
         character(len=*), parameter :: this_routine = "remove_hash_table_entry"
 #endif
 
+        ASSERT(all(nI <= nBasis))
+        ASSERT(all(nI > 0))
+
         found = .false.
 
         ! Find the hash value corresponding to this determinant.
@@ -151,6 +154,9 @@ module hash
 #ifdef DEBUG_
         character(len=*), parameter :: this_routine = "update_hash_table_ind"
 #endif
+
+        ASSERT(all(nI <= nBasis))
+        ASSERT(all(nI > 0))
 
         found = .false.
 
@@ -360,6 +366,9 @@ module hash
         integer :: i, hash_val, nI(nel)
         real(dp) :: real_sign(lenof_sign)
         logical :: tCoreDet
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "fill_in_hash_table"
+#endif
 
         tCoreDet = .false.
 
@@ -375,6 +384,9 @@ module hash
 
             call decode_bit_det(nI, walker_list(:,i))
             ! Find the hash value corresponding to this determinant.
+            ASSERT(all(nI <= nBasis))
+            ASSERT(all(nI > 0))
+
             hash_val = FindWalkerHash(nI, table_length)
 
             call add_hash_table_entry(hash_table, i, hash_val)
@@ -408,6 +420,10 @@ module hash
             if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:,i)))) cycle
             found = .false.
             call decode_bit_det(nI, walker_list(:, i))
+
+            ASSERT(all(nI <= nBasis))
+            ASSERT(all(nI > 0))
+
             hash_val = FindWalkerHash(nI, size(hash_table))
             temp_node => hash_table(hash_val)
             prev => null()

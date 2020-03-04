@@ -9,7 +9,7 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 nmcyc 10000
 diagshift 0.0
@@ -19,7 +19,6 @@ tau 0.0005
 startsinglepart
 seed -8
 truncinitiator
-keepdoubspawns
 addtoinitiator 1
 directannihilation
 shiftdamp 0.10
@@ -36,6 +35,6 @@ endint
 
 logging
 binarypops
-blockingstartiter 500000 
+blockingstartiter 500000
 endlog
 end

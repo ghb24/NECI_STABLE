@@ -1,0 +1,476 @@
+ Number of processors:            2
+ Processor            1 /           2  as head node.
+ Sum:            3
+ Memory Manager initialised with  99999.0 MB
+
+ ================================================================
+ Compiled on Feb 17 2020 at 16:28:38
+ Compiled using configuration:
+     cmake-Intel-par-RELEASE
+ VCS BASE repository version:
+     1c710fcb1f487c8822f0d3363158e32ad95530d8
+ Working directory: 
+     /home/dobrautz/src/neci/test_suite/kneci/guga/CuO2_311_trial/s0
+ Running on: pcal008
+ Started running on 20/02/2020 at 10:42:34
+ ================================================================
+
+ Processing arguments
+ neci.inp                                                                       
+                                                                                
+                                                                                
+                   
+ Reading from file: neci.inp
+ Using the default set of defaults.
+
+****************************************************************
+
+title
+
+system read
+freeformat
+electrons 10
+nonuniformrandexcits mol_guga_weighted
+guga 0
+endsys
+
+calc
+methods
+method vertex fcimc
+endmethods
+totalwalkers 1000
+startsinglepart 10
+shiftdamp 0.05
+stepsshift 10
+proje-changeref 1.2
+truncinitiator
+addtoinitiator 3
+seed -7
+readpops
+walkcontgrow
+semi-stochastic
+pops-core 100
+trial-wavefunction
+pops-trial 10
+allrealcoeff
+realspawncutoff 0.02
+jump-shift
+tau 0.005 search
+max-tau 0.02
+maxwalkerbloom 1
+memoryfacspawn 25.0
+memoryfacpart 5.0
+time 1200.0
+nmcyc 100
+endcalc
+
+integral
+endint
+
+logging
+no-append-stats
+popsfile -1
+endlog
+end
+
+****************************************************************
+
+ Allocating each processor as a separate node.
+ I am the node root for node            0
+======== SYSTEM ==========
+  NUMBER OF ELECTRONS :    10
+  No restriction on the S_z spin-projection of the system, TSPN :  F
+  *** GENERIC SYSTEM ***  
+ Only one irrep found. Turning off symmetry for rest of calculation.
+  NUMBER OF SPIN ORBITALS IN BASIS :    60
+*** CREATING BASIS FNs FROM FCIDUMP ***
+  Maximum number of symmetries:   1
+ Turning Symmetry off
+  Generating abelian symmetry table with  0 generators
+  Number of symmetry classes: 1
+ 
+Ordering Basis (Closed):    0   0   0   0   0   0   0   0
+Ordering Basis (Open  ):    0   0   0   0   0   0   0   0
+HF determinant not yet defined.
+      1      1      0      0      0     -1 ( 0, 0, 0) 0   0       -1.347740468       -1.347740468
+      2      2      0      0      0      1 ( 0, 0, 0) 0   0       -1.347740468       -1.347740468
+      3      3      0      0      0     -1 ( 0, 0, 0) 0   0        0.591942242        0.591942242
+      4      4      0      0      0      1 ( 0, 0, 0) 0   0        0.591942242        0.591942242
+      5      5      0      0      0     -1 ( 0, 0, 0) 0   0        0.591942242        0.591942242
+      6      6      0      0      0      1 ( 0, 0, 0) 0   0        0.591942242        0.591942242
+      7      7      0      0      0     -1 ( 0, 0, 0) 0   0        0.591942242        0.591942242
+      8      8      0      0      0      1 ( 0, 0, 0) 0   0        0.591942242        0.591942242
+      9      9      0      0      0     -1 ( 0, 0, 0) 0   0        0.591942242        0.591942242
+     10     10      0      0      0      1 ( 0, 0, 0) 0   0        0.591942242        0.591942242
+     11     11      0      0      0     -1 ( 0, 0, 0) 0   0        1.880884223        1.880884223
+     12     12      0      0      0      1 ( 0, 0, 0) 0   0        1.880884223        1.880884223
+     13     13      0      0      0     -1 ( 0, 0, 0) 0   0        1.880884223        1.880884223
+     14     14      0      0      0      1 ( 0, 0, 0) 0   0        1.880884223        1.880884223
+     15     15      0      0      0     -1 ( 0, 0, 0) 0   0        1.880884223        1.880884223
+     16     16      0      0      0      1 ( 0, 0, 0) 0   0        1.880884223        1.880884223
+     17     17      0      0      0     -1 ( 0, 0, 0) 0   0        1.880884223        1.880884223
+     18     18      0      0      0      1 ( 0, 0, 0) 0   0        1.880884223        1.880884223
+     19     19      0      0      0     -1 ( 0, 0, 0) 0   0        3.798681414        3.798681414
+     20     20      0      0      0      1 ( 0, 0, 0) 0   0        3.798681414        3.798681414
+     21     21      0      0      0     -1 ( 0, 0, 0) 0   0        7.183493453        7.183493453
+     22     22      0      0      0      1 ( 0, 0, 0) 0   0        7.183493453        7.183493453
+     23     23      0      0      0     -1 ( 0, 0, 0) 0   0        7.193810744        7.193810744
+     24     24      0      0      0      1 ( 0, 0, 0) 0   0        7.193810744        7.193810744
+     25     25      0      0      0     -1 ( 0, 0, 0) 0   0        7.193810744        7.193810744
+     26     26      0      0      0      1 ( 0, 0, 0) 0   0        7.193810744        7.193810744
+     27     27      0      0      0     -1 ( 0, 0, 0) 0   0        7.193810744        7.193810744
+     28     28      0      0      0      1 ( 0, 0, 0) 0   0        7.193810744        7.193810744
+     29     29      0      0      0     -1 ( 0, 0, 0) 0   0        7.193810744        7.193810744
+     30     30      0      0      0      1 ( 0, 0, 0) 0   0        7.193810744        7.193810744
+     31     31      0      0      0     -1 ( 0, 0, 0) 0   0        7.204868763        7.204868763
+     32     32      0      0      0      1 ( 0, 0, 0) 0   0        7.204868763        7.204868763
+     33     33      0      0      0     -1 ( 0, 0, 0) 0   0        7.204868763        7.204868763
+     34     34      0      0      0      1 ( 0, 0, 0) 0   0        7.204868763        7.204868763
+     35     35      0      0      0     -1 ( 0, 0, 0) 0   0        7.204868763        7.204868763
+     36     36      0      0      0      1 ( 0, 0, 0) 0   0        7.204868763        7.204868763
+     37     37      0      0      0     -1 ( 0, 0, 0) 0   0        7.204868763        7.204868763
+     38     38      0      0      0      1 ( 0, 0, 0) 0   0        7.204868763        7.204868763
+     39     39      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     40     40      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     41     41      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     42     42      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     43     43      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     44     44      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     45     45      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     46     46      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     47     47      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     48     48      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     49     49      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     50     50      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     51     51      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     52     52      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     53     53      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     54     54      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     55     55      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     56     56      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     57     57      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     58     58      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     59     59      0      0      0     -1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+     60     60      0      0      0      1 ( 0, 0, 0) 0   0        7.237071572        7.237071572
+ Turning Symmetry off
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     0
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already impleme
+ nted
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+*** READING PRIMITIVE INTEGRALS FROM FCIDUMP ***
+ UMatSize:                 216690
+Memory required for integral storage:      3.306427002     Mb/Shared Memory
+Two-electron integrals with a magnitude over    0.1000000E-07 are screened
+Ignoring integral (chem. notation) (   0   0|   0   0): 
+ (0.000000000000000E+000,0.000000000000000E+000)
+ Number of removed two-index integrals:                      1
+ Number of non-zero integrals:                  71478
+ ECORE=  0.000000000000000E+000
+ Setting normal GetUMatEl routine
+N_neg: 5 ; N_pos: 5 ; S: 0 ; nEl:10
+ Fermi det (D0):(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10)
+ Symmetry:  ( 0, 0, 0) 0
+ Fock operator energy:   2.04005699826400     
+ Setting normal GetUMatEl routine
+ Complex walkers in use.
+ Number of simultaneous walker distributions:            1
+ Number of sign components in bit representation of determinant:            2
+Setting integer length of determinants as bit-strings to:      4
+Setting integer bit-length of determinants as bit-strings to:     64
+For GUGA calculation set up a integer list of length:      4
+  ************ Using the GUGA-CSF implementation **********
+  Restricting the total spin of the system, tGUGA :  T
+  Restricting total spin S in units of h/2 to     0
+  So eg. S = 1 corresponds to one unpaired electron 
+  not quite sure yet how to deal with extensively used m_s quantum number..
+  NOTE: for now, although SPIN-RESTRICT is set off, internally m_s(LMS) 
+  is set to STOT, to make use of reference determinant creations already impleme
+ nted
+  Since NECI always seems to take the beta orbitals first for open shell or 
+  spin restricted systems, associate those to positively coupled +h/2 orbitals 
+  to always ensure a S >= 0 value!
+  *********************************************************
+ SYMMETRY MULTIPLICATION TABLE
+ No Symmetry table found.
+           1  Symmetry PAIRS
+           1  DISTINCT ORBITAL PAIR PRODUCT SYMS
+ Symmetry and spin of orbitals correctly set up for excitation generators.
+ Simply transferring this into a spin orbital representation.
+ Not storing the H matrix.
+ <D0|H|D0>=  -9.52063185423000     
+ <D0|T|D0>=  -21.0813207072600     
+  !! NOTE: running a GUGA simulation, so following info makes no sense!
+  but is kept for now to not break remaining code!
+ FDet has     5 alpha electrons, and     5 beta electrons.
+               10  alpha-alpha occupied electron pairs
+               10  beta-beta occupied electron pairs
+               25  alpha-beta occupied electron pairs
+              300 alpha-alpha (vacant) hole pairs
+              300 beta-beta (vacant) hole pairs
+              625 alpha-beta (vacant) hole pairs
+ 
+ Performing Parallel FCIQMC....
+ 
+ Generated reference determinants:
+(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10) E =     -9.520631854
+Symmetry of reference determinant is:          0
+Symmetry of reference determinant from spin orbital symmetry info is:          0
+*********** INITIATOR METHOD IN USE ***********
+Starting with only the reference determinant in the fixed initiator space.
+Value for seed is:            7
+Reference Energy set to:        -9.5206318542
+Highest energy determinant is (approximately):      60.9188854381998    
+Corresponding to a correlation energy of:      70.4395172924298    
+This means tau should be no more than about         0.014196576558702
+ Highest energy determinant is:           51          52          53          54
+          55          56          57          58          59          60
+Brillouin theorem in use for calculation of projected energy.
+ Calculating approximate pDoubles for use with excitation generator by looking a excitations from reference.
+  21625 double excitations, and     250 single excitations found from reference. This will be used to calculate pDoubles.
+ pDoubles set to:       0.988571
+ pSingles set to:       0.011429
+ Connectivity of HF determinant is:        21875
+ READING
+ POPSFILE                                                                       
+                                                                                
+                                                                                
+                   
+ POPSFILE VERSION            4  detected.
+ READING
+ POPSFILE                                                                       
+                                                                                
+                                                                                
+                   
+ Number of iterations in previous simulation:         2000
+Using timestep specified in POPSFILE!
+But continuing to dynamically adjust to optimise this
+ read-in time-step:   0.00015185
+Using pSingles and pDoubles from POPSFILE: 
+ pSingles:   0.00870995
+ pDoubles:   0.99129005
+Using pParallel from POPSFILE: 
+ pParallel:   0.50000000
+ Using read-in pSingles=  8.709953780000000E-003
+ Using read-in pDoubles=  0.991290046220000     
+Low memory requested for walkers, so increasing memory to 20Mb to avoid memory errors
+Memory allocated for a maximum particle number per node of:         524288
+ Determinant related persistent storage requires:      12.000000 Mb / processor
+Spawning vectors allowing for a total of        12500 particles to be spawned in any one iteration per core.
+ Memory requirement   0.286102294921875      MB
+Storing walkers in hash-table. Algorithm is now formally linear scaling with walker number
+Length of hash-table:             350
+Length of hash-table as a fraction of targetwalkers:              0.70000
+Reference processor is:        0
+Initial reference is: (    1,    2,    3,    4,    5,    6,    7,    8,    9,   10)
+ READING
+ POPSFILE                                                                       
+                                                                                
+                                                                                
+                   
+Reading in a total of            1200 configurations from POPSFILE.
+Reading in a maximum of        12500 determinants at a time from POPSFILE'
+Number of batches required to distribute all determinants in POPSFILE:        1
+ Number of configurations read in to this process:                    611
+ initial number of walker read-in: CurrWalkers:                    611
+Moving load balancing block        83 from processor      0 to      1
+Moving load balancing block        10 from processor      0 to      1
+Moving load balancing block         8 from processor      0 to      1
+Moving load balancing block        20 from processor      0 to      1
+Moving load balancing block        54 from processor      0 to      1
+Moving load balancing block        92 from processor      0 to      1
+Moving load balancing block        95 from processor      0 to      1
+Moving load balancing block        12 from processor      0 to      1
+Moving load balancing block        51 from processor      0 to      1
+Moving load balancing block        55 from processor      0 to      1
+WALKCONTGROW set in input, but simulation already exceeds target number of particles
+Continuing with DIAGSHIFT from POPSFILE
+ diagshift:  -8.28728748327928     
+ Initial memory (without excitgens + temp arrays) consists of :      16.762939 Mb/Processor
+ Only one array of memory to store main particle list allocated...
+ Initial memory allocation sucessful...
+ =============================================
+ Using initial time-step:   1.518451640000000E-004
+Will dynamically update timestep to limit spawning probability to   1.00000
+Moving load balancing block         2 from processor      0 to      1
+Moving load balancing block        56 from processor      0 to      1
+Moving load balancing block        53 from processor      0 to      1
+
+============ Semi-stochastic initialisation ============
+Generating the deterministic space...
+Total size of deterministic space:      100
+Size of deterministic space on this processor:       60
+Generating the Hamiltonian in the deterministic space...
+Total time (seconds) taken for Hamiltonian generation:    0.016
+Semi-stochastic initialisation complete.
+Time (seconds) taken for semi-stochastic initialisation:    0.016
+
+
+=========== Trial wavefunction initialisation ==========
+Generating the trial space...
+  Initialising wavefunctions by the Lanczos algorithm
+  Aborting Lanczos and initialising trial states with direct diagonalisation
+Size of trial space on this processor:        6
+ energy eigenvalue(s):   -9.52063185423000     
+Total size of the trial space:       10
+Calculating the number of states in the connected space...
+  Exact Hamiltonian application done! 
+  Elapsed time:   0.144619941711426     
+  Exact Hamiltonian application done! 
+  Elapsed time:   0.534598827362061     
+  Exact Hamiltonian application done! 
+  Elapsed time:   0.945336818695068     
+  Exact Hamiltonian application done! 
+  Elapsed time:    1.38169288635254     
+  Exact Hamiltonian application done! 
+  Elapsed time:    1.78478598594666     
+Attempting to allocate con_space. Size =        0.217 Mb
+States found on this processor, including repeats:     7112
+Generating and storing the connected space...
+  Exact Hamiltonian application done! 
+  Elapsed time:    1.91986799240112     
+  Exact Hamiltonian application done! 
+  Elapsed time:    2.30581092834473     
+  Exact Hamiltonian application done! 
+  Elapsed time:    2.71710109710693     
+  Exact Hamiltonian application done! 
+  Elapsed time:    3.15432500839233     
+  Exact Hamiltonian application done! 
+  Elapsed time:    3.55552196502686     
+Removing repeated states and sorting by processor...
+Performing MPI communication of connected states...
+Attempting to allocate temp_space. Size =        0.171 Mb
+Attempting to allocate con_space. Size =        0.171 Mb
+Total size of connected space:      11437
+Size of connected space on this processor:       4978
+Generating the vector \sum_j H_{ij} \psi^T_j...
+ Energy eigenvalue(s) of the trial space:  -9.52063185423000     
+ Trial wavefunction initialisation complete.
+ Total time (seconds) taken for trial wavefunction initialisation:
+  0.279344081878662     
+ 
+       Step     Shift      WalkerCng(Re)  WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    Proj.E(Re)   ProjE(Im)     Proj.E.ThisCyc(Re)  Proj.E.ThisCyc(Im)   NoatHF(Re)   NoatHF(Im)   NoatDoubs      AccRat     UniqueDets   NumDetsSpawned   IterTime
+        2000   -8.287287        0.000000        0.000000        848.2582        315.1512       -3.196217       0.2440983E-01    0.000000        0.000000        12.53576        1.000000        0.000000        0.000000            1227           0   0.0000    
+ Updating time-step. New time-step =   2.260656140998809E-004 in: update_tau
+ Updating singles/doubles bias. pSingles =   2.162939615578651E-002
+  pDoubles =   0.978370603844213     
+        2010   -8.372717        4.064171        6.038434        852.3224        321.1897       -3.197823       0.2463834E-01   -3.804801       0.1296837        12.43469       0.9923180        147.4092       0.3660902E-01        1109         779  0.41842E-02
+        2020   -8.689444        27.13957        4.925926        879.4620        326.1156       -3.198972       0.2484295E-01   -3.637153       0.1163663        12.42527       0.9800452        145.0512       0.5395322E-01        1139         854  0.42072E-02
+        2030   -9.013204       -6.188153        2.194601        873.2738        328.3102       -3.199804       0.2492322E-01   -3.518765       0.6497941E-01    12.38480       0.9670912        142.8390       0.5501070E-01        1140         884  0.42911E-02
+        2040   -8.905544       -2.279092        3.736053        870.9947        332.0462       -3.200493       0.2494485E-01   -3.468785       0.4077977E-01    12.16843       0.9338157        142.4212       0.5521228E-01        1143         864  0.42667E-02
+        2050   -9.313290        13.06950        13.71316        884.0642        345.7594       -3.201156       0.2493564E-01   -3.463058       0.2860317E-01    12.08001       0.9510087        140.8633       0.5605544E-01        1172         910  0.43481E-02
+        2060   -9.474899       -7.715474        9.041711        876.3487        354.8011       -3.202009       0.2497082E-01   -3.543300       0.4887222E-01    11.89097       0.9372184        139.2398       0.5562701E-01        1171         867  0.39815E-02
+        2070   -9.735182       -4.011863        5.814071        872.3369        360.6152       -3.202888       0.2523112E-01   -3.554275       0.1398374        11.90519       0.9230303        138.3677       0.5561220E-01        1178         877  0.44326E-02
+        2080   -9.588094       -10.21538        2.442813        862.1215        363.0580       -3.203646       0.2555458E-01   -3.508624       0.1650047        11.74138       0.8599962        140.1837       0.5568855E-01        1170         890  0.44535E-02
+        2090   -9.230735       -15.92041       -3.011497        846.2011        360.0465       -3.204316       0.2583785E-01   -3.477076       0.1483249        11.77433       0.8469607        138.7817       0.5461241E-01        1154         849  0.44463E-02
+        2100   -8.982848        6.962157       -3.093494        853.1632        356.9530       -3.204982       0.2608654E-01   -3.479738       0.1354536        11.58907       0.8347536        139.1600       0.5648802E-01        1163         853  0.44239E-02
+Total iteration number limit reached. Finishing FCIQMC loop...
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ Total loop-time:   0.431610107421875     
+ Time lost due to load imbalance:   1.581597328186035E-002
+ - - - - - - - - - - - - - - - - - - - - - - - -
+ 
+Current reference: 
+(    1,    2,    3,    4,    5,    6,    7,    8,    9,   10)
+ Number of superinitiators           1
+ 
+Input DEFINEDET line (includes frozen orbs):
+definedet    1-10
+ 
+Most occupied         15 determinants as excitations from reference: 
+ 
+ Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   Init?(Re)   Init?(Im)   Proc
+111111111100000000000000000000000000000000000000000000000000    0    0    11.57081       0.8335345      0.31702  Y  Y      0
+111011110100001001000000000000000000000000000000000000000000    2    4    2.393688      -0.3004519E-01  0.06542  Y  Y      0
+111110011110010000000000000000000000000000000000000000000000    2    4    2.237983       0.6366775E-01  0.06118  Y  Y      1
+111011011100100100000000000000000000000000000000000000000000    2    4   -2.073966      -0.7669064      0.06043  Y  Y      0
+111111100110000100000000000000000000000000000000000000000000    2    4    2.203299       0.4465299E-01  0.06022  Y  Y      0
+111110110110000001000000000000000000000000000000000000000000    2    4   -2.145919      -0.6162623E-01  0.05867  Y  Y      1
+111001111100100001000000000000000000000000000000000000000000    2    4    2.053534      -0.6914247E-01  0.05615  Y  Y      1
+110011111110010000000000000000000000000000000000000000000000    2    2   -1.693375      -0.3127817E-01  0.04628  Y  Y      1
+111111110000100001000000000000000000000000000000000000000000    2    2   -1.428281      -0.8214285      0.04503  Y  Y      0
+111110110100100100000000000000000000000000000000000000000000    2    4   -1.417319      -0.7589108      0.04393  Y  Y      1
+111111001100001001000000000000000000000000000000000000000000    2    2   -1.584323      -0.5441390E-01  0.04332  Y  Y      1
+111100111100000010000100000000000000000000000000000000000000    2    2   -1.218277        1.000000      0.04307  N  N      0
+111110011000010010010000000000000000000000000000000000000000    3    6   -1.151972        1.000000      0.04169  N  N      0
+001001111100100100100000000001000000000000000000000000000000    4    6   -1.116022       -1.000000      0.04095  N  N      0
+111001111100001100000000000000000000000000000000000000000000    2    2    1.485490       0.9034750E-01  0.04067  Y  Y      0
+ 
+
+ Load balancing information based on the last iteration:
+ Mean number of determinants/process     624.0000000000
+ Min number of determinants/process                611
+ Max number of determinants/process                637
+
+
+Calculating approximate errorbar for energy estimates...
+
+Attempting automatic reblocking analysis on data from iteration:         1270
+Reading back in FCIMCStats datafile...
+After shift varies, reference population goes to zero
+Blocking will only start after non-zero population, at iteration           2100
+Number of comment lines found in file:            3
+Number of data points found in file:           10
+Number of useable data points:            0
+No valid datapoints found in file. Exiting error analysis.
+ Current reference energy                              -9.520631854230
+ Projected correlation energy                          -3.204982158938
+ No automatic errorbar obtained for projected energy
+ No reliable averaged shift correlation energy could be obtained automatically
+
+ Total projected energy         -12.72561401
+
+
+ Final energy estimate for state 1:     -11.799028041559    
+ 
+ ================================================================
+ Memory usage
+ Maximum memory defined is (MB) :   99999.0
+ Maximum memory used is    (MB) :     557.3
+ 
+ Large memory allocations:
+ 
+ Name              Allocated in       Deallocated in         Size
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ tmp_all_excits    actHamiltonian     actHamiltonian      494.4MB
+ tmp_all_excits    actHamiltonian     actHamiltonian      494.4MB
+ tmp_all_excits    actHamiltonian     actHamiltonian      494.4MB
+ tmp_all_excits    actHamiltonian     actHamiltonian      494.4MB
+ tmp_all_excits    actHamiltonian     actHamiltonian      494.4MB
+ tmp_all_excits    actHamiltonian     actHamiltonian      494.4MB
+ tmp_all_excits    actHamiltonian     actHamiltonian      494.4MB
+ tmp_all_excits    actHamiltonian     actHamiltonian      494.4MB
+ tmp_all_excits    actHamiltonian     actHamiltonian       98.9MB
+ tmp_all_excits    actHamiltonian     actHamiltonian       98.9MB
+ ================================================================
+
+ ================================================================
+ Timing report.
+
+ Timing of most expensive procedures.
+ Procedure                                 Calls       total time
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ actHamiltonian                              10      3.56
+ WalkerTime                                 100      0.41
+ TrialInitTime                                1      0.28
+ NECICUBE                                     1      0.11
+ SysInit                                      1      0.08
+ SemiStochInitTime                            1      0.02
+ SemiStochHamilTime                           1      0.02
+ DeathTime                                  100      0.01
+ AnnMainTime                                100      0.01
+ AnnihilTime                                100      0.01
+ - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+ Total                                   4.48
+
+ Global wall clock time          4.55
+ ================================================================
+ Calculation ended 20/02/2020 at 10:42:38
+ ================================================================

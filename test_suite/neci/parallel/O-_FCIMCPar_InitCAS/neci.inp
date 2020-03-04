@@ -11,7 +11,7 @@ endsys
 
 calc
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 seed -7
 nmcyc 20000
@@ -21,7 +21,6 @@ tau 0.0001
 startsinglepart
 truncatecas 5 7
 truncinitiator
-keepdoubspawns
 addtoinitiator 3
 directannihilation
 shiftdamp 0.10

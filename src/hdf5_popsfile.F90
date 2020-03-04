@@ -210,6 +210,7 @@ contains
         ! Set up a property list to ensure file handling across all nodes.
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
+!         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
         call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
 
         ! TODO: Do sensible file handling here...
@@ -244,6 +245,7 @@ contains
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
         unused_var(MaxEx)
+        unused_var(IterSuffix)
 #endif
 
     end subroutine write_popsfile_hdf5
@@ -283,6 +285,7 @@ contains
         ! Set up a property list to ensure file handling across all nodes.
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
+!         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
         call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
 
         ! Open the popsfile
@@ -414,11 +417,10 @@ contains
 
     subroutine write_tau_opt(parent)
 
-        use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                              enough_sing, enough_doub, enough_opp, &
-                              enough_par, cnt_sing, cnt_doub, cnt_opp, &
-                              cnt_par, max_death_cpt
+        use tau_search, only:  cnt_sing, cnt_doub, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
+        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par, &
+                            enough_sing, enough_doub, enough_opp, enough_par, max_death_cpt
         use tc_three_body_data, only: pTriples
         use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
 
@@ -898,10 +900,6 @@ contains
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
         )
 
-        ! Write out the sign values on each of the processors
-!        if (.not. tUseRealCoeffs) &
-!            call stop_all(t_r, "This could go badly...")
-
         call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
                 PrintedDets, &
@@ -1041,7 +1039,7 @@ contains
 
         if (lenof_sign /= tmp_lenof_sign) then
            ! currently only for real population
-#ifndef __CMLPX
+#ifndef CMPLX_
            ! resize the attributes
            call resize_attribute(pops_norm_sqr, lenof_sign)
            call resize_attribute(pops_num_parts, lenof_sign)

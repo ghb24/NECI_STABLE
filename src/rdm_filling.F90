@@ -8,6 +8,8 @@ module rdm_filling
     use bit_rep_data, only: NIfTot, NIfDBO, test_flag
     use bit_reps, only: get_initiator_flag_by_run
     use constants
+    use SystemData, only: tGUGA
+    use guga_bitRepOps, only: getExcitation_guga
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
          tNonVariationalRDMs
@@ -686,7 +688,12 @@ contains
 
         ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.
         ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.
-        call GetExcitation(nI, nJ, nel, Ex, tParity)
+        if (tGUGA) then
+            call getExcitation_guga(nI, nJ, Ex)
+
+        else
+            call GetExcitation(nI, nJ, nel, Ex, tParity)
+        end if
 
         full_sign = 0.0_dp
         if (tParity) then
@@ -835,11 +842,11 @@ contains
             else
                 ind = SymLabelListInv_rot(gtID(nI(i)))
             end if
-            if (inum_runs==1.and.tExplicitAllRDM) then !for explicit rdm calculations
-                final_contrib = contrib_sign(1)**2 * ScaleContribFac
+            if (size(contrib_sign) == 1) then
+                final_contrib = contrib_sign**2 * RDMIters * ScaleContribFac
             else
                 final_contrib = contrib_sign(1::2) * contrib_sign(2::2) * RDMIters * ScaleContribFac
-            endif
+            end if
             ! in adaptive shift mode, the reference contribution is rescaled
             ! we assume that projEDet is the same on all runs, else there is no point
             if(tAdaptiveShift .and. all(nI == projEDet(:,1)) &

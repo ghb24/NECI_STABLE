@@ -2,7 +2,7 @@
 
 module rdm_general
 
-    use bit_rep_data, only: NIfTot, NIfDBO
+    use bit_rep_data, only: NIfTot, NIfDBO, nifguga
     use constants
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
@@ -10,6 +10,7 @@ module rdm_general
     use FciMCData, only: proje_iter, Hii
     use rdm_data, only: inits_one_rdms, two_rdm_inits_spawn, two_rdm_inits, rdm_inits_defs
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
+    use SystemData, only: tGUGA
     use util_mod, only: near_zero
 
     implicit none
@@ -231,12 +232,22 @@ contains
             ! This array actually contains the excitations in blocks of the
             ! processor they will be sent to. Only needed if the 1-RDM is the
             ! only thing being calculated.
-            allocate(Sing_ExcDjs(0:NIfTot, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
+            if (tGUGA) then
+                ! in the GUGA code it would be better to encode the
+                ! matrix element, and maybe also the RDM index in the
+                ! Sing_ExcDjs array, so we do not have to recalculate it!
+                ! so we need nifguga entries or? one for the matrix element
+                ! and i can use the delta-b storage to encode the RDM ind
+                allocate(Sing_ExcDjs(0:nifguga, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
+                allocate(Sing_ExcDjs2(0:nifguga, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
+            else
+                allocate(Sing_ExcDjs(0:NIfTot, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
+                allocate(Sing_ExcDjs2(0:NIfTot, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
+            end if
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Sing_ExcDjs array.')
             call LogMemAlloc('Sing_ExcDjs', nint(nel*nbasis*MemoryFacPart)*(NIfTot+1),&
                                             size_n_int, t_r, Sing_ExcDjsTag, ierr)
 
-            allocate(Sing_ExcDjs2(0:NIfTot, nint((nel*nbasis)*MemoryFacPart)), stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Sing_ExcDjs2 array.')
             call LogMemAlloc('Sing_ExcDjs2', nint(nel*nbasis*MemoryFacPart)*(NIfTot+1),&
                                             size_n_int, t_r, Sing_ExcDjs2Tag, ierr)
@@ -267,12 +278,17 @@ contains
             if (RDMExcitLevel /= 1) then
                 ! This array actually contains the excitations in blocks of
                 ! the processor they will be sent to.
-                allocate(Doub_ExcDjs(0:NIfTot,nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
+                if (tGUGA) then
+                    allocate(Doub_ExcDjs(0:nifguga,nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
+                    allocate(Doub_ExcDjs2(0:nifguga, nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
+                else
+                    allocate(Doub_ExcDjs(0:NIfTot,nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
+                    allocate(Doub_ExcDjs2(0:NIfTot, nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
+                end if
                 if (ierr /= 0) call stop_all(t_r,'Problem allocating Doub_ExcDjs array.')
                 call LogMemAlloc('Doub_ExcDjs', nint(((nel*nbasis)**2)*MemoryFacPart)&
                                 *(NIfTot+1), size_n_int, t_r, Doub_ExcDjsTag, ierr)
 
-                allocate(Doub_ExcDjs2(0:NIfTot, nint(((nel*nbasis)**2)*MemoryFacPart)), stat=ierr)
                 if (ierr /= 0) call stop_all(t_r, 'Problem allocating Doub_ExcDjs2 array.')
                 call LogMemAlloc('Doub_ExcDjs2',nint(((nel*nbasis)**2)*MemoryFacPart)&
                                 *(NIfTot+1), size_n_int, t_r, Doub_ExcDjs2Tag, ierr)
