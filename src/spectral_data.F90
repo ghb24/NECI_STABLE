@@ -19,6 +19,7 @@ module spectral_data
     real(dp), allocatable :: trans_amps_right(:)
 
     integer :: nomega_spectral
+    logical :: tIWSpec
     real(dp) :: spectral_broadening
     real(dp) :: delta_omega_spectral
     real(dp) :: min_omega_spectral

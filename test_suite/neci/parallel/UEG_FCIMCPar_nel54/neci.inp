@@ -16,11 +16,10 @@ endsys
 calc
 seed -1
 methods
-method vertex fcimc 
+method vertex fcimc
 endmethods
 nmcyc 10000
 truncinitiator
-keepdoubspawns
 addtoinitiator 3
 diagshift 0.1
 totalwalkers 10000

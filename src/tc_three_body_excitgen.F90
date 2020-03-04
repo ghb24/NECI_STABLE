@@ -8,7 +8,6 @@ module tc_three_body_excitgen
   use k_space_hubbard, only: make_triple
   use tc_three_body_data
   use FciMCData, only: excit_gen_store_type, pDoubles, pSingles
-  use CalcData, only: p_doubles_input
   use dSFMT_interface, only: genrand_real2_dSFMT
   use lattice_models_utils, only: make_ilutJ
   use util_mod, only: choose, intswap

@@ -290,4 +290,7 @@ module procedure_pointers
     ! the function used to scale the shift
     procedure(shift_factor_function_t), pointer :: shiftFactorFunction
 
+    ! the function used to scale the shift
+    procedure(scale_function_t), pointer :: shiftScaleFunction
+
 end module

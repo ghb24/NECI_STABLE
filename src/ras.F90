@@ -432,7 +432,7 @@ contains
         integer :: temp, par
         integer :: i, j, num
         logical :: swapped
-        
+
         num = size(nI)
         !Bubble sort
         par = 1

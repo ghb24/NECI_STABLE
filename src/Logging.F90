@@ -16,6 +16,11 @@ MODULE Logging
     use errors, only: Errordebug
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
+
+! RT_M_Merge: There seems to be no conflict here, so use both
+    use real_time_data, only: n_real_time_copies, t_prepare_real_time, &
+                              cnt_real_time_copies
+
     use rdm_data, only: nrdms_transition_input, states_for_transition_rdm, tApplyLC
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
 
@@ -25,6 +30,11 @@ MODULE Logging
                            t_read_symmetry_states, n_symmetry_states, &
                            t_pop_symmetry_states, symmetry_states, &
                            symmetry_weights, symmetry_states_ilut
+
+    use guga_rdm, only: t_test_sym_fill, t_direct_exchange, t_more_sym, &
+                        t_mimic_stochastic
+
+    use cc_amplitudes, only: t_plot_cc_amplitudes
 
     IMPLICIT NONE
 
@@ -38,10 +48,15 @@ MODULE Logging
       use default_sets
       implicit none
 
+      ! real-time implementation changes:
+      n_real_time_copies = 1
+      cnt_real_time_copies = 1
+      t_prepare_real_time = .false.
+
       ! By default, the output is given by the shift cycle
       StepsPrint = 10
       tCoupleCycleOutput = .true.
-      
+
       tDipoles = .false.
       tPrintInitiators = .false.
       tDiagAllSpaceEver = .false.
@@ -234,6 +249,24 @@ MODULE Logging
         call readu(w)
         select case(w)
 
+        case ("PRINT-FREQUENCY-HISTOGRAMS")
+            ! in this case print the frequency histograms to analyze the
+            ! matrix element vs. pgen ratios
+            t_print_frq_histograms = .true.
+
+        case ("TEST-SYM-FILL")
+            t_test_sym_fill = .true.
+
+        case ("MORE-SYM")
+            t_test_sym_fill = .true.
+            t_more_sym = .true.
+
+        case ("DIRECT-EXCHANGE")
+            t_direct_exchange = .true.
+
+        case ("MIMIC-STOCHASTIC")
+            t_mimic_stochastic = .true.
+
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)
             tJustBlocking = .true.
@@ -271,7 +304,7 @@ MODULE Logging
            ! going hand in hand
            tCoupleCycleOutput = .false.
            call geti(StepsPrint)
-           
+
         case("LOGCOMPLEXWALKERS")
             !This means that the complex walker populations are now logged.
             tLogComplexPops=.true.
@@ -1197,6 +1230,9 @@ MODULE Logging
             if (item < nitems) &
                 call readi (instant_s2_multiplier)
 
+        case ("PLOT-CC-AMPLITUDES")
+            t_plot_cc_amplitudes = .true.
+
         case ("INSTANT-S2-INIT")
             ! Calculate an instantaneous value ofr S^2 considering only the
             ! initiators, and output it to the relevant column in the
@@ -1293,6 +1329,12 @@ MODULE Logging
             ! there are _many_ blocks.
             tOutputLoadDistribution = .true.
 
+        case ("PRINT-UMAT")
+            ! output umat also in the momentum space hubbard to be able to
+            ! create a FCIDUMP file to compare GUGA matrix elements with
+            ! DMRG results!
+            t_umat_output = .true.
+
         case("DOUBLE-OCCUPANCY")
             ! new functionality to measure the mean double occupancy
             ! as this is a only diagonal quantitity I decided to detach it
@@ -1311,6 +1353,7 @@ MODULE Logging
                 call geti(equi_iter_double_occ)
             end if
 
+
         case ("PRINT-SPIN-RESOLVED-RDMS")
             ! for giovanni enable the output of the spin-resolved rdms not
             ! only for ROHF calculations
@@ -1328,56 +1371,45 @@ MODULE Logging
             tWriteRefs = .true.
 
         case ("SPIN-MEASUREMENTS")
-            ! combine all the spatially resolved double occupancy and 
-            ! spin-difference measurements into one functionality to 
+            ! combine all the spatially resolved double occupancy and
+            ! spin-difference measurements into one functionality to
             ! have a better overview
             ! this also includes the "standard" double occupancy measurement
             ! although leave the option to only do the old double occ meas.
             t_calc_double_occ = .true.
-            t_calc_double_occ_av = .true. 
+            t_calc_double_occ_av = .true.
             t_spin_measurements = .true.
 
-            if (item < nitems) then 
+            if (item < nitems) then
                 t_calc_double_occ_av = .false.
                 call geti(equi_iter_double_occ)
             end if
 
-!         case ("DOUBLE-OCC-VECTOR")
-!             ! just a quick insert of spatial resolved double occupancy 
-!             ! measurement
-!             t_spatial_double_occ = .true.
-! 
-!         case ("INSTANT-SPIN-DIFF")
-!             t_inst_spin_diff = .true.
-! 
-!         case ("INSTANT-SPATIAL-DOUB-OCC")
-!             t_inst_spat_doub_occ = .true.
-
         case ('SYMMETRY-ANALYSIS')
-            ! investigate the symmetry of the important part of the 
-            ! wavefuntion, by applying point-group symmetry operations on 
-            ! a certain number of determinants and check the sign change to 
-            ! the original wavefunction 
-            ! if we want multiple symmetries on has to specify this keyword 
+            ! investigate the symmetry of the important part of the
+            ! wavefuntion, by applying point-group symmetry operations on
+            ! a certain number of determinants and check the sign change to
+            ! the original wavefunction
+            ! if we want multiple symmetries on has to specify this keyword
             ! multiple times with the according keywords
             t_symmetry_analysis = .true.
 
-            if (item < nitems) then 
+            if (item < nitems) then
                 call readl(w)
 
                 select case(w)
 
                 case('rot','rotation')
-                    t_symmetry_rotation = .true. 
+                    t_symmetry_rotation = .true.
 
-                    if (item < nitems) then 
+                    if (item < nitems) then
                         call getf(symmetry_rotation_angle)
                     else
                         symmetry_rotation_angle = 90.0_dp
                     end if
 
                 case ('mirror')
-                    t_symmetry_mirror = .true. 
+                    t_symmetry_mirror = .true.
 
                     ! available mirror axes are : 'x','y','d' and 'o'
                     if (item < nitems) then
@@ -1389,11 +1421,11 @@ MODULE Logging
                 case ('inverstion')
                     t_symmetry_inversion = .true.
 
-                case default 
+                case default
                    CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
 
                end select
-           else 
+           else
                ! default is 90° rotation:
                t_symmetry_rotation = .true.
                symmetry_rotation_angle = 90.0_dp
@@ -1401,15 +1433,15 @@ MODULE Logging
            end if
 
         case ('SYMMETRY-STATES')
-            ! required input to determine which states to consider. 
-            ! Two options: 
-            if (item < nitems) then 
+            ! required input to determine which states to consider.
+            ! Two options:
+            if (item < nitems) then
                 call readl(w)
                 select case (w)
                 case('input','read')
                     t_read_symmetry_states = .true.
 
-                    if (item < nitems) then 
+                    if (item < nitems) then
                         call geti(n_symmetry_states)
                     else
                         call stop_all(t_r, &
@@ -1421,7 +1453,7 @@ MODULE Logging
 
                     do line = 1, n_symmetry_states
                         call read_line(eof)
-                        do i = 1, nel 
+                        do i = 1, nel
                             call geti(symmetry_states(i, line))
                         end do
                     end do
@@ -1430,7 +1462,7 @@ MODULE Logging
                     ! take the N most populated states
                     t_pop_symmetry_states = .true.
 
-                    if (item < nItems) then 
+                    if (item < nItems) then
                         call geti(n_symmetry_states)
                     else
                         call stop_all(t_r, &
@@ -1443,8 +1475,8 @@ MODULE Logging
                 end select
             else
                 ! default is: take the 6 most populated ones
-                t_pop_symmetry_states = .true. 
-                n_symmetry_states = 6 
+                t_pop_symmetry_states = .true.
+                n_symmetry_states = 6
                 allocate(symmetry_states(nel,n_symmetry_states))
                 symmetry_states = 0
             end if

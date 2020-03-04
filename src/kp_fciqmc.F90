@@ -49,7 +49,7 @@ contains
         use orthogonalise, only: calc_replica_overlaps
 
         type(kp_fciqmc_data), intent(inout) :: kp
-        integer :: iiter, idet, ireplica, ispawn, ierr
+        integer :: iiter, idet, ireplica, ispawn, ierr, err
         integer :: iconfig, irepeat, ivec, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
@@ -298,6 +298,7 @@ contains
                         call set_timer(annihil_time)
 
                         call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
+
                         call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, ierr)
 
                         TotWalkers = int(TotWalkersNew, int64)
@@ -377,7 +378,7 @@ contains
 
         type(kp_fciqmc_data), intent(inout) :: kp
 
-        integer :: iiter, idet, ireplica, ispawn, ierr
+        integer :: iiter, idet, ireplica, ispawn, ierr, err
         integer :: iconfig, irepeat, ireport, nlowdin
         integer :: nspawn, parent_flags, unused_flags
         integer :: ex_level_to_ref, ex_level_to_hf
@@ -653,6 +654,7 @@ contains
                     call set_timer(annihil_time)
 
                     call communicate_and_merge_spawns(MaxIndex, iter_data_fciqmc, .false.)
+
                     call DirectAnnihilation (TotWalkersNew, MaxIndex, iter_data_fciqmc, ierr)
 
                     TotWalkers = int(TotWalkersNew, int64)

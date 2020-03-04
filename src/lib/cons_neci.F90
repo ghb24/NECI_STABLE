@@ -21,6 +21,7 @@ real(dp), parameter ::  PI    = 3.1415926535897932384626433832795028841971693993
 real(dp), parameter ::  PI2   = 9.8696044010893586188344909998761511353136994072408_dp
 real(dp), parameter ::  THIRD = 0.3333333333333333333333333333333333333333333333333_dp
 real(dp), parameter ::  Root2 = 1.4142135623730950488016887242096980785696718753769_dp
+real(dp), parameter ::  OverR2 = 1.0_dp/Root2
 real(dp), parameter :: EPS = 0.0000000000001_dp
 real(dp), parameter :: INFINITY = huge(1.0_dp)
 !real(dp), parameter ::  Root2 = sqrt(2.0_dp)   !Removed since sun comiler didn't like this: bug 3853
@@ -148,6 +149,10 @@ integer, parameter :: int_rdm=int32
 ! bit_size(int(0,n_int)) to return an incorrect value.
 integer(n_int) :: temp3=0
 integer, parameter :: bits_n_int = bit_size(temp3)
+! to avoid too long lines in GUGA macros.h introduce a shorter named bits_n_int
+integer, parameter :: bni_ = bits_n_int
+! also define a bits_n_int/2 to further reduce the character count
+integer, parameter :: bn2_ = bits_n_int/2
 ! Number of bytes in an n_int integer.
 integer, parameter :: size_n_int = bits_n_int/8
 ! Index of last bit in an n_int integer (bits are indexed 0,1,...,bits_n_int-1).
@@ -161,7 +166,7 @@ integer, parameter :: size_int_rdm = bits_int_rdm/8
 ! Index of last bit in an int_rdm integer (bits are indexed 0,1,...,bits_n_int-1).
 integer, parameter :: end_int_rdm = bits_int_rdm - 1
 
-    integer, parameter :: iout = 6 
+    integer, parameter :: iout = 6
 
     ! Internal state storage for the stats_out integration
     ! n.b. This shouldn't be here, but there is nowhere els eto put it

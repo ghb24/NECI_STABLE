@@ -16,6 +16,7 @@ module rdm_data_utils
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
     use util_mod
+    use SystemData, only: tGUGA
 
     implicit none
 
@@ -397,7 +398,7 @@ contains
 
     end subroutine clear_one_rdms
 
-    pure subroutine calc_combined_rdm_label(i, j, k, l, ijkl)
+    pure subroutine calc_combined_rdm_label(i, j, k, l, ijkl, ij_out, kl_out)
 
         ! Combine the four 2-RDM orbital labels into unique integers. i and j
         ! are combined into one number, ij. k and l are combined into one
@@ -420,11 +421,20 @@ contains
 
         integer, intent(in) :: i, j, k, l ! spin or spatial orbitals
         integer(int_rdm), intent(out) :: ijkl
+        integer, intent(out), optional :: ij_out, kl_out
         integer :: ij, kl
 
+        ! maybe I need a change for the GUGA implementation, since
+        ! we only need spatial orbitals here..
+        ! todo
         ij = (i-1)*nbasis + j
         kl = (k-1)*nbasis + l
         ijkl = (ij-1)*(int(nbasis, int_rdm)**2) + kl
+
+        if (present(ij_out) .and. present(kl_out)) then
+            ij_out = ij
+            kl_out = kl
+        end if
 
     end subroutine calc_combined_rdm_label
 
@@ -537,7 +547,11 @@ contains
             if (.not. spinfree) then
                 call calc_combined_rdm_label(i, j, k, l, ijkl)
             else
-                call calc_combined_rdm_label(k, l, j, i, ijkl)
+                if (tGUGA) then
+                    call calc_combined_rdm_label(j, l, i, k, ijkl)
+                else
+                    call calc_combined_rdm_label(k, l, j, i, ijkl)
+                end if
             end if
 
             ! Search to see if this RDM element is already in the RDM array.
@@ -1092,6 +1106,7 @@ contains
         ! Loop over all RDM elements.
         do ielem = 1, rdm%nelements
             ijkl = rdm%elements(0,ielem)
+
             call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
 
             ! If this is a diagonal element, add the element to the trace.

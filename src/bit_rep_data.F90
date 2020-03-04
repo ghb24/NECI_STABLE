@@ -34,6 +34,8 @@ module bit_rep_data
     integer :: nIfSgn   ! Number of integers used for signs
     integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
+    integer :: nIfGUGA ! number of integers needed for the GUGA CSFs and flags
+
     integer :: nIfBCast ! Size of data to use in annihilation broadcast
 
     ! Has the RDM component of the bit representation (For bcast) been inited.
@@ -53,29 +55,39 @@ module bit_rep_data
     ! Flags which we can store
     integer :: flag_counter
 
+    logical :: tuseflags = .true.
+
     integer, parameter :: flag_deterministic = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
                           flag_prone = 4, &
-                          flag_rescale = 5
+                          flag_rescale = 5, &
+                          flag_deltaB_single = 6, & ! new flags added for GUGA
+                          flag_deltaB_double = 7, & ! new flags added for GUGA
+                          flag_deltaB_sign = 8, &   ! new flags added for GUGA
+                          flag_ic0_spawn = 9, &
+                          flag_death_done = 10, &
+                          flag_negative_sign = 11, &
+                          flag_large_matel = 12
+
 
 #ifdef PROG_NUMRUNS_
     integer, parameter :: flag_initiator(lenof_sign_max) &
-                            = (/6, 7, 8, 10, 11, 12, 13, 14, 15, &
-                                16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26/), &
-                          flag_adi_checked = 27, &
+                            = (/ 13, 14, 15, 16, 17, 18, 19, &
+                                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32/), &
+                          flag_adi_checked = 33, &
                           flag_static_init(lenof_sign_max) &
-                            = (/28, 30, 31, 32, 33, 34, 35, 36, 37, 38, 39, 40, 41, &
-                                42, 43, 44, 45, 46, 47, 48/), &
-                          flag_removed = 49,&
-                          num_flags = 50
+                            = (/34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, &
+                                45, 46, 47, 48, 49, 50, 51, 52, 53/), &
+                          flag_removed = 54, &
+                          num_flags = 55
 #else
-    integer, parameter :: flag_initiator(2) = (/ 6, 7/), &
-                          flag_adi_checked = 8, &
-                          flag_static_init(2) = (/9, 10/), &
-                          flag_removed = 11, &
-                          num_flags = 12
+    integer, parameter :: flag_initiator(2) = (/ 13, 14/), &
+                          flag_adi_checked = 15, &
+                          flag_static_init(2) = (/16, 17/), &
+                          flag_removed = 18, &
+                          num_flags = 19
 #endif
 
 contains
@@ -87,7 +99,6 @@ contains
         ! In:  flg  - Integer index of flag to test
         !      ilut - Bit representation of determinant
         ! Ret: bSet - returns .true. if the flag is set, false otherwise
-
 
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer, intent(in) :: flg

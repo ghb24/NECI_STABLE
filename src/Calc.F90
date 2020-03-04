@@ -9,7 +9,8 @@ MODULE Calc
                           par_hole_pairs, hole_pairs, nholes_a, nholes_b, &
                           nholes, UMATEPS, tHub, t_lattice_model, t_tJ_model, &
                           t_new_real_space_hubbard, t_heisenberg_model, &
-                          t_k_space_hubbard, tHPHF, t_non_hermitian
+                          t_k_space_hubbard, tHPHF, t_non_hermitian, &
+                          tGUGA, t_mixed_hubbard, t_olle_hubbard
     use Determinants, only: write_det
     use spin_project, only: spin_proj_interval, &
                             spin_proj_gamma, spin_proj_shift, &
@@ -31,7 +32,9 @@ MODULE Calc
                          tTrialHash, tIncCancelledInitEnergy, MaxTau, &
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
-                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns
+                         sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
+                         tAllAdaptiveShift, cAllAdaptiveShift
+
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
          NoTypeN, tAdiActive, tReadRefs, SIUpdateInterval, &
@@ -40,23 +43,31 @@ MODULE Calc
          tSuppressSIOutput, targetRefPop, targetRefPopTol, tSingleSteps, tVariableNRef, &
          minSIConnect, tWeightedConnections, tSignedRepAv
     use ras_data, only: core_ras, trial_ras
-    use load_balance, only: tLoadBalanceBlocks
+    use load_balance, only: tLoadBalanceBlocks, loadBalanceInterval
     use ftlm_neci
     use spectral_data
     use spectral_lanczos, only: n_lanc_vecs_sl
     use exact_spectrum
     use perturbations, only: init_perturbation_creation, init_perturbation_annihilation
+
     use real_space_hubbard, only: t_start_neel_state, create_neel_state, &
                                   init_get_helement_hubbard
-    use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj
+    use tJ_model, only: init_get_helement_heisenberg, init_get_helement_tj, &
+                        init_get_helement_heisenberg_guga, init_get_helement_tj_guga
     use k_space_hubbard, only: init_get_helement_k_space_hub
     use kp_fciqmc_data_mod, only: overlap_pert, tOverlapPert
-    use lattice_models_utils, only: return_hphf_sym_det
-    use DetBitOps, only: DetBitEq, EncodeBitDet
+    use DetBitOps, only: DetBitEq, EncodeBitDet, return_hphf_sym_det
     use DeterminantData, only: write_det
     use bit_reps, only: decode_bit_det
+    use cepa_shifts, only: t_cepa_shift, cepa_method
+    use cc_amplitudes, only: t_cc_amplitudes, cc_order, cc_delay
+
+    use guga_data, only: tGUGACore
+
     use util_mod, only: near_zero, operator(.isclose.), operator(.div.)
 
+    use real_time_data, only: allGfs, gf_count, gf_type, t_real_time_fciqmc
+    use real_time, only: perform_real_time_fciqmc
     implicit none
 
     logical, public :: RDMsamplingiters_in_inp
@@ -102,6 +113,9 @@ contains
           tSearchTau=.true.
           tSearchTauOption = .true.
           tSearchTauDeath = .false.
+
+          t_hist_tau_search = .false.
+          t_hist_tau_search_option = .false.
 
           t_lanczos_init = .false.
           t_lanczos_store_vecs = .true.
@@ -285,8 +299,6 @@ contains
           TLADDER=.false.
           tDefineDet=.false.
           tTruncInitiator=.false.
-!           tKeepDoubSpawns = .true.
-!           tMultiSpawnThreshold = .false.
           tAddtoInitiator=.false.
           tActivateLAS = .false.
           tLogAverageSpawns = .false.
@@ -349,10 +361,12 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
+
           tDynamicCoreSpace = .false.
           tIntervalSet = .false.
           tStaticCore = .true.
           coreSpaceUpdateCycle = 400
+
           semistoch_shift_iter = 0
           tTrialWavefunction = .false.
           tDynamicTrial = .false.
@@ -367,6 +381,7 @@ contains
           delta_beta_ftlm = 0.1_dp
           n_lanc_vecs_sl = 20
           nomega_spectral = 100
+          tIWSpec = .false.
           delta_omega_spectral = 0.01_dp
           min_omega_spectral = 0.0_dp
           spectral_broadening = 0.05_dp
@@ -376,7 +391,11 @@ contains
           tDetermHFSpawning = .true.
           tOverlapPert = .false.
 
-          pParallel = 0.5_dp
+          if (t_mixed_hubbard .or. t_olle_hubbard) then
+              pParallel = 0.0_dp
+          else
+              pParallel = 0.5_dp
+          end if
 
           MaxTau = 1.0_dp
           pop_change_min = 50
@@ -393,6 +412,7 @@ contains
           cont_time_max_overspawn = 4.0
 
           tLoadBalanceBlocks = .true.
+          loadBalanceInterval = 0
           tPopsJumpShift = .false.
           calc_seq_no = 1
 
@@ -430,6 +450,11 @@ contains
           sFAlpha = 1.0_dp
           sFBeta = 1.0_dp
           sFTag = 0
+
+          ! shift scaling with local population
+          tAllAdaptiveShift = .false.
+          ! First calculations indicate that this is a reasonable value
+          cAllAdaptiveShift = 2
 
           ! Epstein-Nesbet second-order correction logicals.
           tEN2 = .false.
@@ -486,6 +511,8 @@ contains
           use Parallel_neci, only : nProcessors
           use util_mod, only: addToIntArray
           use LoggingData, only: tLogDets
+          use guga_bitRepOps, only: isProperCSF_ni
+
           IMPLICIT NONE
           LOGICAL eof
           CHARACTER (LEN=100) w
@@ -980,6 +1007,15 @@ contains
                     end if
                 end if
 
+                if (tGUGA) then
+                    if (.not. isProperCSF_ni(defdet)) then
+                        write(iout,*) " automatic neel-state creation produced invalid CSF!"
+                        write(iout,*) "created neel-state: "
+                        call write_det(iout, DefDet, .true.)
+                        call stop_all(t_r, " definedet is not a proper CSF or has wrong SPIN!")
+                    end if
+                end if
+
             case("MULTIPLE-INITIAL-REFS")
                 tMultipleInitialRefs = .true.
                 allocate(initial_refs(nel, inum_runs), stat=ierr)
@@ -1188,9 +1224,6 @@ contains
                     end do
                 end if
 
-            case("PDOUBLES")
-                ! for a transcorrelation with triple excitations
-                call getf(p_doubles_input)
             case("TAUFACTOR")
 !For FCIMC, this is the factor by which 1/(HF connectivity) will be multiplied by to give the timestep for the calculation.
                 tSearchTau=.false.  !Tau is set, so don't search for it.
@@ -1220,25 +1253,103 @@ contains
                     tSearchTauOption = .false.
                 end if
 
-            case("MAX-TAU")
-                ! For tau searching, set a maximum value of tau. This places
-                ! a limit to prevent craziness at the start of a calculation
-                call getf(MaxTau)
-
             case("MIN-TAU")
-                ! introduce a minimum value of tau for the automated
-                ! tau-search to limit the lower bound of the automated
-                ! tau-search
+                ! use a minimum tau value or the automated tau-search
+                ! to avoid that a single, worst case excitation kills your
+                ! time-step
                 t_min_tau = .true.
 
                 if (item < nitems) then
                     call getf(min_tau_global)
                 end if
 
-                ! also only use that if the automated tau-search is used
-                ! so enable the automated tau search here
+                ! assume thats only for the tau-search so enable all the
+                ! other quantities
                 tSearchTau = .true.
                 tSearchTauOption = .true.
+
+            case("MAX-TAU")
+                ! For tau searching, set a maximum value of tau. This places
+                ! a limit to prevent craziness at the start of a calculation
+                call getf(MaxTau)
+
+            case ("READ-PROBABILITIES")
+                ! introduce a new flag to read pSingles/pParallel etc. from
+                ! a popsfile even if the tau-search is not turned on, since
+                ! this scenario often shows up in my restarted calculations
+                t_read_probs = .true.
+
+            case ("NO-READ-PROBABILITIES")
+                ! change the default behavior to always read in the
+                ! pSingles etc. quantities! and only turn that off with this
+                ! keyword
+                t_read_probs = .false.
+
+            case ("GUGA-MATELES")
+                ! turn on the new guga-matrix element calculation for stuff
+                ! like the projected energy, semi-stochastic initialization
+                ! and trail-wavefunction creation
+                t_guga_mat_eles = .true.
+
+            case ("NO-GUGA-MATELES")
+                ! changed the default setting to always use the new direct
+                ! way to calculate the guga matrix elements. This keyword
+                ! changes the behavior back to the old way
+                t_guga_mat_eles = .false.
+
+            case('TRUNC-GUGA-PGEN')
+                ! truncate GUGA excitation with a pgen below a chosen
+                ! threshold
+                t_trunc_guga_pgen = .true.
+
+                if (item < nitems) then
+                    call getf(trunc_guga_pgen)
+                end if
+
+            case('TRUNC-GUGA-PGEN-NONINITS')
+                ! truncate GUGA excitation with a pgen below a chosen
+                ! threshold
+                t_trunc_guga_pgen_noninits = .true.
+
+                if (item < nitems) then
+                    call getf(trunc_guga_pgen)
+                end if
+
+
+            case('TRUNC-GUGA-MATEL')
+                ! truncate GUGA excitations with a coupling coefficient below
+                ! a chosen threshold
+                t_trunc_guga_matel = .true.
+
+                if (item < nitems) then
+                    call getf(trunc_guga_matel)
+                end if
+
+
+            case ('GUGA-BACK-SPAWN')
+                ! treat excitiation, which increase the excit-lvl
+                ! by the crude approximation for non-initiators
+                t_guga_back_spawn = .true.
+
+                if (item < nitems) then
+                    ! this integer indicates if we want to
+                    ! -2    only treat double excitations, decreasing the excit-lvl by 2 fully
+                    ! -1    treat single and doubly excits decreasing excit-lvl by 1 or 1 fully
+                    !  0    treat all excitations leaving the excit-lvl unchanged or lowering fully
+                    !  1    also treat singly excits increasing excit-lvl up to 1 full
+
+                    ! default = 0
+                    call geti(n_guga_back_spawn_lvl)
+                end if
+
+                if (item < nitems) then
+                    call readu(w)
+                    select case (w)
+                    case ('TRUNC')
+                        t_guga_back_spawn_trunc = .true.
+                    end select
+                end if
+
 
             case("KEEPTAUFIXED")
                 ! option for a restarted run to keep the tau, read in from the
@@ -1325,6 +1436,7 @@ contains
                 ! implemented a truncation of those. But this might be an
                 ! uncontrolled approximation, so be careful!
                 t_truncate_spawns = .true.
+                tLogNumSpawns = .true.
                 if (item < nitems) then
                     call getf(n_truncate_spawns)
                     if(item < nitems) then
@@ -1384,6 +1496,16 @@ contains
                 end if
                 ! i hope everything is setup already
                 DefDet = create_neel_state()
+
+                if (tGUGA) then
+                    if (.not. isProperCSF_ni(defdet)) then
+                        write(iout,*) " automatic neel-state creation produced invalid CSF!"
+                        write(iout,*) "created neel-state: "
+                        call write_det(iout, DefDet, .true.)
+                        call stop_all(t_r, " automatic neel-state creation produced invalid CSF!")
+                    end if
+                end if
+
                 write(iout,*) "created neel-state: "
                 call write_det(iout, DefDet, .true.)
 
@@ -1429,8 +1551,10 @@ contains
                 tCSFCore = .true.
                 tCSF = .true.
                 LMS = STOT
+
             case("ALL-CONN-CORE")
                 ss_space_in%tAllConnCore = .true.
+
             case("DOUBLES-CORE")
                ss_space_in%tDoubles = .true.
             case("TRIPLES-CORE")
@@ -2304,16 +2428,6 @@ contains
             case("KEEPDOUBSPAWNS")
 !This option is now on permanently by default and cannot be turned off.
 
-! for testing purposes, it can now be turned off, using the following keyword
-!             case("DISCARDDOUBSPAWNS")
-!                tKeepDoubSpawns = .false.
-
-! manually set the number of simultaneous spawns required for keeping a spawn from a
-! non-inititator to an unoccupied determinant
-!             case("MULTISPAWN-THRESHOLD")
-!                tMultiSpawnThreshold = .true.
-!                tKeepDoubSpawns = .false.
-!                call geti(multiSpawnThreshold)
 
             case("ADDTOINITIATOR")
 !This option means that if a determinant outside the initiator space becomes significantly populated -
@@ -2579,6 +2693,12 @@ contains
                 tTruncNOpen = .true.
                 call geti (trunc_nopen_max)
 
+            case("TRUNC-NOPEN-DIFF")
+                ! trunc the seniority based on the difference to the seniority
+                ! of the reference determinant
+                t_trunc_nopen_diff = .true.
+                call geti(trunc_nopen_diff)
+
             case("WEAKINITIATORS")
                 !Additionally allow the children of initiators to spawn freely
                 !This adaptation is applied stochastically with probability weakthresh
@@ -2707,6 +2827,9 @@ contains
                 call getf(delta_omega_spectral)
             case("MIN-OMEGA-SPECTRAL")
                 call getf(min_omega_spectral)
+             case("I-OMEGA-SPECTRAL")
+                ! get the spectrum as a function of 1i*w
+                tIWSpec = .true.
             case("BROADENING_SPECTRAL")
                 call getf(spectral_broadening)
             case("INCLUDE-GROUND-SPECTRAL")
@@ -2943,6 +3066,11 @@ contains
                     end if
                 end if
 
+            case("LOAD-BALANCE-INTERVAL")
+                ! Do the load-balancing in a periodic fashion instead of based on
+                ! current load imbalance
+                call readi(loadBalanceInterval )
+
             case("POPS-JUMP-SHIFT")
                 ! Use the same logic as JUMP-SHIFT, but reset the shift value
                 ! after restarting with a POPSFILE
@@ -3021,6 +3149,136 @@ contains
                 ! to indicate (de-)excitation
                 if (item < nitems) then
                     call geti(occ_virt_level)
+                end if
+
+             case("LOG-GREENSFUNCTION")
+                ! Writes out the Greensfunction. Beware that this disables the
+                ! dynamic shift (the Green's function wouldnt make a lot of sense)
+                tLogGreensfunction = .true.
+                gf_type = 0
+                gf_count = 1
+                allGfs = 0
+
+            case ("LESSER")
+               tLogGreensfunction = .true.
+               alloc_popsfile_dets = .true.
+                ! lesser GF -> photo emission: apply a annihilation operator
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+                ! i probably also can use the overlap-perturbed routines
+                ! from nick
+                ! but since applying <y(0)|a^+_i for all i is way cheaper
+                ! and should be done for all possible and allowed i.
+                ! and creating all those vectors should be done in the init
+                ! step and stored, and then just calc. the overlap each time
+                ! step
+
+                ! store the information of the type of greensfunction
+                gf_type = -1
+                allGfs = 0
+
+                ! probably have to loop over spin-orbitals dont i? yes!
+
+                ! if no specific orbital is specified-> loop over all j!
+                ! but only do that later: input is a SPINORBITAL!
+                if(item < nitems) then
+                   allocate(pops_pert(1))
+                   pops_pert%nannihilate = 1
+                   allocate(pops_pert(1)%ann_orbs(1))
+                   call readi(pops_pert(1)%ann_orbs(1))
+                   call init_perturbation_annihilation(pops_pert(1))
+                else
+                   call stop_all(t_r, "Invalid input for Green's function")
+                endif
+                if (nitems == 3) then
+                   gf_count = 1
+                   !allocate the perturbation object
+
+                   ! and also the lefthand perturbation object for overlap
+                   allocate(overlap_pert(1))
+                   overlap_pert%nannihilate = 1
+                   allocate(overlap_pert(1)%ann_orbs(1))
+
+                   ! read left hand operator first
+                   call readi(overlap_pert(1)%ann_orbs(1))
+                   call init_perturbation_annihilation(overlap_pert(1))
+
+                else
+                   if(nitems == 2) then
+                      allGfs = 1
+                   else
+                      call stop_all(t_r, "Invalid input for Green's function")
+                   endif
+                endif
+             case ("GREATER")
+               tLogGreensfunction = .true.
+                ! greater GF -> photo absorption: apply a creation operator
+                alloc_popsfile_dets = .true.
+                tOverlapPert = .true.
+                tWritePopsNorm = .true.
+
+                ! i probably also can use the overlap-perturbed routines
+                ! from nick
+                ! but since applying <y(0)|a_i for all i is way cheaper
+                ! and should be done for all possible and allowed i.
+                ! and creating all those vectors should be done in the init
+                ! step and stored, and then just calc. the overlap each time
+                ! step
+
+                ! store type of greensfunction
+                gf_type = 1
+                allGfs = 0
+                ! if no specific orbital is specified-> loop over all j!
+                ! but only do that later
+                if(item < nitems) then
+                    allocate(pops_pert(1))
+                    pops_pert%ncreate = 1
+                    allocate(pops_pert(1)%crtn_orbs(1))
+                    call readi(pops_pert(1)%crtn_orbs(1))
+                    call init_perturbation_creation(pops_pert(1))
+                 else
+                    call stop_all(t_r, "Invalid input for Green's function")
+                endif
+                if (nitems == 3) then
+                    ! allocate the perturbation object
+                    allocate(overlap_pert(1))
+                    overlap_pert%ncreate = 1
+                    allocate(overlap_pert(1)%crtn_orbs(1))
+                    call readi(overlap_pert(1)%crtn_orbs(1))
+                    call init_perturbation_creation(overlap_pert(1))
+                else
+                   if(nitems == 2) then
+                      allGfs = 2
+                   else
+                      call stop_all(t_r, "Invalid input for Green's function")
+                endif
+             endif
+
+
+            case ("CEPA-SHIFTS", "CEPA", "CEPA-SHIFT")
+                t_cepa_shift = .true.
+                if (item < nitems) then
+                    call readl(cepa_method)
+                else
+                    cepa_method = '0'
+                end if
+
+            case ("CC-AMPLITUDES")
+                t_cc_amplitudes = .true.
+                if (item < nitems) then
+                    call geti(cc_order)
+                    if (item < nitems) then
+                        call geti(cc_delay)
+                    else
+                        cc_delay = 1000
+                    end if
+                else
+                    ! 2 is the default cc_order
+                    cc_order = 2
+                    ! and also have an default delay of iterations after
+                    ! the variable shift mode is turned on, when we want
+                    ! to do the amplitude sampling
+                    cc_delay = 1000
                 end if
 
               case("DELAY-DEATHS")
@@ -3249,10 +3507,14 @@ contains
 
             case("PSINGLES")
                 call getf(pSinglesIn)
+
             case("PPARALLEL")
                 call getf(pParallelIn)
 
-            case("NO-INIT-REF-CHANGE")
+            case("PDOUBLES")
+                call getf(pDoublesIn)
+
+             case("NO-INIT-REF-CHANGE")
                 tSetInitialRunRef = .false.
 
             case("DEATH-BEFORE-COMMS")
@@ -3391,9 +3653,17 @@ contains
 
             if (t_lattice_model) then
                 if (t_tJ_model) then
-                    call init_get_helement_tj()
+                    if (tGUGA) then
+                        call init_get_helement_tj_guga()
+                    else
+                        call init_get_helement_tj()
+                    end if
                 else if (t_heisenberg_model) then
-                    call init_get_helement_heisenberg()
+                    if (tGUGA) then
+                        call init_get_helement_heisenberg_guga()
+                    else
+                        call init_get_helement_heisenberg()
+                    end if
                 else if (t_new_real_space_hubbard) then
                     call init_get_helement_hubbard()
                 else if (t_k_space_hubbard) then
@@ -3415,6 +3685,18 @@ contains
           ENDIF
 
 ! Find out the number of alpha and beta electrons. For restricted calculations, these should be the same.
+          ! TODO: in GUGA this information is not quite correct, since there
+          ! is no notion of alpha/beta orbitals only positively or negatively
+          ! coupled orbitals, with respect to the total spin quantum number
+          ! but for now, leave it in to not break the remaining code, which
+          ! esp. in the excitation generator depends on those values!
+          ! But change this in future and include a corresponding CalcInitGUGA()
+
+          if (tGUGA) then
+              write(6,*) " !! NOTE: running a GUGA simulation, so following info makes no sense!"
+              write(6,*) " but is kept for now to not break remaining code!"
+          end if
+
           if (tCSF) then
               nOccAlpha = (nel / 2) + LMS
               nOccBeta =  (nel / 2) - LMS
@@ -3562,6 +3844,10 @@ contains
                 call stop_all(this_routine, &
                      "perform_davidson not adapted for non-hermitian Hamiltonians!")
              end if
+             if (tGUGA) then
+                call stop_all(this_routine, &
+                     "perform_davidson not adapted for GUGA yet")
+             end if
              call perform_davidson(davidsonCalc, direct_ci_type, .true.)
              call davidson_direct_ci_end(davidsonCalc)
              call DestroyDavidsonCalc(davidsonCalc)
@@ -3597,6 +3883,8 @@ contains
                  else
                      call perform_kp_fciqmc(kp)
                  end if
+             else if(t_real_time_fciqmc) then
+                 call perform_real_time_fciqmc()
               ENDIF
           endif
           IF(TMONTE.and..not.tMP2Standalone) THEN

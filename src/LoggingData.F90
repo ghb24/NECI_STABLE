@@ -112,6 +112,8 @@ module LoggingData
 
     logical :: tHDF5PopsRead, tHDF5PopsWrite
 
+    ! output umat also in the case of the momentum space hubbard
+    logical :: t_umat_output = .false.
     ! Avoid writing a determinant to HDF5-popsfiles when its population
     ! is below or equal iHDF5PopsMin and its excitation is above iHDF5PopsMinEx
     logical :: tReduceHDF5Pops
@@ -169,6 +171,7 @@ module LoggingData
     ! The name of the integral file for each of the property to be estimated
     character(100), allocatable :: EstPropFile(:)
 
+    ! double occupancy measurements:
     ! like rdms, as it is a bit similar, access the double occupancy
     ! measurement in the logging section!
     logical :: t_calc_double_occ = .false.
@@ -178,11 +181,6 @@ module LoggingData
     integer :: equi_iter_double_occ = 0
     logical :: t_calc_double_occ_av = .false.
 
-    ! I essentially only need a local and a global storage for the 
-    ! the expectation vaulue <n_u n_d> 
-    ! and also some storage for the instantaneous, averaged, summed over 
-    ! stuff etc.. 
-!     real(dp) :: n_double_occ_loc, n_double_occ_all
     ! [Werner Dobrautz 4.4.2017]
     ! changes belonging to the histogram tau-search
     ! for now always print out the histograms at the end, maybe change that
@@ -229,12 +227,14 @@ module LoggingData
 
     ! spatial resolved double occupancy and spin difference measurements
     logical :: t_spin_measurements = .false.
-!     logical :: t_inst_spin_diff = .false.
-!     logical :: t_inst_spat_doub_occ = .false. 
-!     logical :: t_spatial_double_occ = .false.
 
     logical :: t_print_core_info = .false.
 
+    ! for the histogramming of the acceptance rates used in the adaptive shift mode
+    logical :: t_hist_fvals
+    integer :: enGrid, arGrid
+
     ! histogram the matrix elements of the six-index operator
     logical :: tHistLMat
+
 end module LoggingData

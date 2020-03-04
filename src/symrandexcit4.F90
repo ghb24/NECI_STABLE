@@ -7,7 +7,10 @@ module excit_gens_int_weighted
                           AB_elec_pairs, par_elec_pairs, AA_hole_pairs, &
                           par_hole_pairs, AB_hole_pairs, iMaxLz, &
                           tGen_4ind_part_exact, tGen_4ind_lin_exact, &
-                          tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps
+                          tGen_4ind_unbound, t_iiaa, t_ratio, UMatEps, tGUGA, &
+                          tgen_guga_crude, tGen_guga_weighted, tgen_guga_mixed, &
+                          t_mixed_hubbard, t_olle_hubbard
+
     use CalcData, only: matele_cutoff, t_matele_cutoff
     use SymExcit3, only: CountExcitations3, GenExcitations3
     use SymExcitDataMod, only: SymLabelList2, SymLabelCounts2, OrbClassCount, &
@@ -113,6 +116,9 @@ contains
         ex = 0
         call GenExcitations3(nI, ilutI, nJ, flag, ex, par, found_all, &
                              .false.)
+        if (tGUGA) then
+            call stop_all(this_routine, "modify get_helement for GUGA")
+        end if
         do while (.not. found_all)
             excit_count = excit_count + 1
             call EncodeBitDet(nJ, iluts(:, excit_count))
@@ -184,6 +190,7 @@ contains
         unused_var(exFlag); unused_var(part_type)
 
         HElGen = HEl_zero
+
         ! We now use the class counts to do the construction. This is an
         ! O[N] opearation, and gives the number of occupied/unoccupied
         ! spin-orbitals with each given spin/symmetry.
@@ -380,8 +387,6 @@ contains
 
     end function
 
-
-
     function get_paired_cc_ind (cc_ind, sym_product, sum_ml, iSpn) &
             result(cc_ret)
 
@@ -454,7 +459,7 @@ contains
         call gen_single_4ind_ex(nI, ilutI, nJ, ilutJ, ex, tpar, pgen)
         pgen = pgen * pSingles
     end subroutine weighted_single_excit_wrapper
-    
+
     subroutine gen_single_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen)
 
         integer, intent(in) :: nI(nel)
@@ -601,8 +606,6 @@ contains
                 ! For now, we want to assume that we can just use the
                 ! one-electron integrals as an approximation. If this is
                 ! rubbish, then we will need to do more work...
-                !cum_sum = cum_sum &
-                !        + abs_l1(GetTMATEl(src, orb))
 
                 ! This is based on an extract from sltcnd_1.
                 ! set the excitation we consider
@@ -622,17 +625,6 @@ contains
             cumulative_arr(i) = cum_sum
 
         end do
-
-        !  for testing purposes:
-!         if (cum_sum < UMatEps) then
-!             print *, "===================================="
-!             print *, "single excitation: "
-!             print *, "norb: ", norb
-!             print *, "cum_sum: ", cum_sum
-!             print *, " cumulative_arr: ", cumulative_arr
-!             print *, "nI: ", nI
-!             print *, "src: ", src
-!         end if
 
         ! Select a particular orbital to use, or abort.
         ! ok i really think we have to be consistent with this matrix element
@@ -660,9 +652,6 @@ contains
         pgen = cpt_arr(orb_index) / cum_sum
 
     end function
-
-
-
 
     subroutine gen_double_4ind_ex (nI, ilutI, nJ, ilutJ, ex, par, pgen, store)
 
@@ -714,7 +703,6 @@ contains
         cc_j = get_paired_cc_ind (cc_i, sym_product, sum_ml, iSpn)
         pgen = pgen * store%ClassCountUnocc(cc_i) &
                     * store%ClassCountUnocc(cc_j) / cc_tot
-!        pgen = pgen * OrbClassCount(cc_i) * OrbClassCount(cc_j) / cc_tot
 
         ! Select the two orbitals
         orbs(1) = select_orb (ilutI, src, cc_i, -1, int_cpt(1), cum_sum(1))
@@ -1030,37 +1018,43 @@ contains
                 ! Select first orbital linearly
                 contrib = 1.0_dp
             end if
+
+        else if (tgen_guga_crude .or. tgen_guga_mixed) then
+
+            inda = gtID(orba)
+            indb = gtID(orbb)
+
+            if (tGen_guga_weighted) then
+                if (orbb < 0) then
+                    contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
+
+                else
+                    contrib = sqrt(abs(get_umat_el(indi,indj,inda,indb)) +&
+                                   abs(get_umat_el(indi,indj,indb,inda)))
+                end if
+            else
+                if (orbb < 0) then
+
+                    contrib = 1.0_dp
+                else
+                    contrib = sqrt(abs(get_umat_el(indi,indj,inda,indb)) +&
+                                   abs(get_umat_el(indi,indj,indb,inda)))
+
+                end if
+            end if
+
+
         else
             ! Include the contribution of this term sqrt(<ia|ia>)
             inda = gtID(orba)
-!
-!             if (t_iiaa .and. t_ratio) then
-!                 ! ok.. maybe i have to talk to ali about that, what he
-!                 ! meant with this splitting of p(a|ij) = p(j)*p(a|i)
-!                 ! because i am not sure about that ..
-!                 ! althoug i should be carefull if we do not divide by
-!                 ! 0 here..
-!                 ! NOTE: by testing it was seen that the ratio approach causes the
-!                 ! pgens to be much too low and thus the H_ij/pgen ratios to
-!                 ! explode
-!
-!                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda) / &
-!                            max(abs(get_umat_el(indj, inda, indj, inda)), 0.0001_dp))) &
-!                         + sqrt(abs(get_umat_el(indj, inda, indi, inda) / &
-!                            max(abs(get_umat_el(indi, inda, indj, inda)), 0.0001_dp)))
 
-            if (t_iiaa) then
+            if (t_mixed_hubbard .or. t_olle_hubbard) then
+                ! just to be save do it uniformly here..
+                contrib = 1.0_dp
+
+            else if (t_iiaa) then
 
                 contrib = sqrt(abs(get_umat_el(indi, inda, indi, inda)))
-
-!             else if (t_ratio) then
-!                 ! also here i have to check if i actually should take care
-!                 ! of the indj influence..
-!
-!                 contrib = sqrt(abs(UMat2D(max(indi, inda), min(indi, inda))) / &
-!                            max(abs(UMat2D(max(indj, inda), min(indj, inda))), 0.0001_dp)) &
-!                         + sqrt(abs(UMat2D(max(indj, inda), min(indj, inda))) / &
-!                            max(abs(UMat2D(max(indi, inda), min(indi, inda))), 0.0001_dp))
 
             else
 
@@ -1113,6 +1107,30 @@ contains
                 ! Select first orbital linearly.
                 contrib = 1.0_dp
             end if
+        else if (tgen_guga_crude .or. tgen_guga_mixed) then
+
+            inda = gtID(orba)
+            indb = gtID(orbb)
+
+            if (tGen_guga_weighted) then
+                if (orbb < 0) then
+                    contrib = sqrt(abs_l1(UMat2D(max(indi, inda), min(indi, inda))))
+
+                else
+                    contrib = sqrt(abs(get_umat_el(indi,indj,inda,indb)) +&
+                                   abs(get_umat_el(indi,indj,indb,inda)))
+                end if
+            else
+                if (orbb < 0) then
+
+                    contrib = 1.0_dp
+                else
+                    contrib = sqrt(abs(get_umat_el(indi,indj,inda,indb)) +&
+                                   abs(get_umat_el(indi,indj,indb,inda)))
+
+                end if
+            end if
+
         else
             ! Include a contribution of (orb can be a or b):
             ! sqrt((ii|aa) + (jj|aa))
@@ -1284,20 +1302,6 @@ contains
 
             end if
         end if
-
-!         if (cum_sum < 1.0e-4_dp) then
-!             print *, "========================================"
-!             if (t_par) then
-!                 print *, "parallel double excitation: "
-!             else
-!                 print *, "opposite double excitation: "
-!             end if
-!             print *, "norb: ", norb
-!             print *, "cum_sum: ", cum_sum
-!             print *, "cumulative_arr: ", cumulative_arr
-!             print *, "(i,j): ", src
-!             print *, "(a): ", orb_pair
-!         end if
 
         ! Binary search within this list to choose a value.
         r = genrand_real2_dSFMT() * cum_sum
@@ -1877,69 +1881,58 @@ contains
         integer :: flag, ngen, pos, iunit, i, ic
         type(excit_gen_store_type) :: store
         integer(n_int) :: tgt_ilut(0:NifTot)
-        integer(n_int), allocatable :: det_list(:,:)
-        real(dp), allocatable :: contrib_list(:)
+        integer(n_int), pointer :: det_list(:,:)
+        real(dp), allocatable :: contrib_list(:), pgen_list(:)
+        HElement_t(dp), allocatable ::  matEle_list(:)
         logical, allocatable :: generated_list(:)
         logical :: found_all, par
-        real(dp) :: contrib, pgen
+        real(dp) :: contrib, pgen, sum_pgens, sum_helement
         HElement_t(dp) :: helgen, hel
+        character(255) :: filename
 
         ! Decode the determiant
         call decode_bit_det (src_det, ilut)
 
+        ! could just use my new calc_all_excitations
+        call calc_all_excitations(ilut, det_list, nexcit)
+
         ! Initialise
         call init_excit_gen_store (store)
+        store%tFilled = .false.
 
-        ! How many connected determinants are we expecting?
-        call CountExcitations3 (src_det, 3, nsing, ndoub)
-        nexcit = nsing + ndoub
-        allocate(det_list(0:NIfTot, nexcit))
-
-        ! Loop through all of the possible excitations
-        ndet = 0
-        found_all = .false.
-        ex = 0
-        flag = 3
         write(6,'("*****************************************")')
         write(6,'("Enumerating excitations")')
         write(6,'("Starting from: ")', advance='no')
         call write_det (6, src_det, .true.)
         write(6,*) 'Expecting ', nexcit, "excitations"
-        call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
-                              .false.)
-        do while (.not. found_all)
-            ndet = ndet + 1
-            call EncodeBitDet (det, det_list(:,ndet))
-
-            call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
-                                  found_all, .false.)
-        end do
-        if (ndet /= nexcit) &
-            call stop_all(this_routine,"Incorrect number of excitations found")
-
-        ! Sort the dets, so they are easy to find by binary searching
-        call sort(det_list, ilut_lt, ilut_gt)
 
         ! Lists to keep track of things
         allocate(generated_list(nexcit))
         allocate(contrib_list(nexcit))
+        allocate(pgen_list(nexcit))
+        allocate(matEle_list(nexcit))
         generated_list = .false.
-        contrib_list = 0
+        contrib_list = 0.0_dp
+        pgen_list = 0.0_dp
+        matEle_list = 0.0_dp
 
         ! Repeated generation, and summing-in loop
         ngen = 0
-        contrib = 0
+        contrib = 0.0_dp
         do i = 1, iterations
             if (mod(i, 10000) == 0) &
-                write(6,*) i, '/', iterations, ' - ', contrib / real(ndet*i,dp), ndet, pgen
+                write(6,*) i, '/', iterations, ' - ', contrib / (real(nexcit,dp)*i)
 
-            !pSingles = 0.0
-            !pDoubles = 1.0
             call gen_excit_4ind_weighted (src_det, ilut, det, tgt_ilut, 3, &
                                           ic, ex, par, pgen, helgen, store)
             if (det(1) == 0) cycle
 
             call EncodeBitDet (det, tgt_ilut)
+
+            helgen = get_helement(src_det, det, ic, ex, par)
+
+            if (abs(helgen) < 1.0e-6_dp) cycle
+
             pos = binary_search(det_list, tgt_ilut, NIfD+1)
             if (pos < 0) then
                 write(6,*) det
@@ -1954,6 +1947,8 @@ contains
                 ngen = ngen + 1
                 contrib = contrib + 1.0_dp / pgen
                 contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
+                matEle_list(pos) = helgen
+                pgen_list(pos) = pgen
             end if
         end do
 
@@ -1963,12 +1958,12 @@ contains
                    '% abortion rate'
         ! Contribution averages
         write(6, '("Averaged contribution: ", f15.10)') &
-                contrib / real(ndet * iterations,dp)
+                contrib / (real(nexcit,dp) * iterations)
 
         ! Output the determinant specific contributions
         iunit = get_free_unit()
         open(iunit, file="contribs_4ind", status='unknown')
-        do i = 1, ndet
+        do i = 1, nexcit
             call writebitdet(iunit, det_list(:,i), .false.)
             write(iunit, *) contrib_list(i) / real(iterations, dp)
         end do
@@ -1979,7 +1974,7 @@ contains
             write(6,*) count(.not.generated_list), '/', size(generated_list), &
                        'not generated'
             found_all = .true.
-            do i = 1, ndet
+            do i = 1, nexcit
                 if (.not. generated_list(i)) then
                     call decode_bit_det(det, det_list(:,i))
                     hel = get_helement(src_det, det, ilut, det_list(:,i))
@@ -1994,17 +1989,33 @@ contains
                 call stop_all(this_routine, "Determinant not generated")
         end if
         if (any(abs(contrib_list / iterations - 1.0_dp) > 0.01_dp)) then
-            do i = 1, ndet
+            do i = 1, nexcit
                 call writebitdet(6, det_list(:,i), .false.)
                 write(6,*) contrib_list(i) / (iterations - 1.0_dp)
             end do
-            call stop_all(this_routine, "Insufficiently uniform generation")
         end if
+
+        sum_pgens = sum(pgen_list)
+        sum_helement = sum(abs(matEle_list))
+
+        iunit = get_free_unit()
+        call get_unique_filename("pgen_vs_matrixElements",.true.,.true.,1,filename)
+        open(iunit, file=filename,status='unknown')
+        write(iunit,*) "pgens and matrix elements for CSF:"
+        call write_det(6, src_det, .true.)
+        do i = 1, nExcit
+            write(iunit, "(f16.7)", advance = 'no') pgen_list(i) !/sum_pgens
+            write(iunit, "(f16.7)", advance = 'no') matEle_list(i) !/sum_helement
+            write(iunit, "(f16.7)") contrib_list(i) / real(iterations,dp)
+        end do
+        close(iunit)
 
         ! Clean up
         deallocate(det_list)
         deallocate(contrib_list)
         deallocate(generated_list)
+        deallocate(pgen_list)
+        deallocate(matEle_list)
 
     end subroutine
 
@@ -2237,5 +2248,109 @@ contains
              + ((cpt1(2) / cum_sum1) * (cpt2(2) / cum_sum2(2)))
 
     end function
+
+    subroutine calc_all_excitations(ilut, non_zero_list, n_non_zero)
+        ! routine which calculates all the excitations for a given
+        ! determinant.. have to move that to a different file later on..
+        ! does not fit in here!
+        use bit_reps, only: decode_bit_det
+        use GenRandSymExcitNUMod, only: init_excit_gen_store
+        use SymExcit3, only: CountExcitations3, GenExcitations3
+        use Determinants, only: write_det
+        use DetBitOps, only: EncodeBitDet
+        use sort_mod, only: sort
+
+        integer(n_int), intent(in) :: ilut(0:niftot)
+        integer(n_int), intent(out), pointer :: non_zero_list(:,:)
+        integer, intent(out) :: n_non_zero
+        character(*), parameter :: this_routine = "calc_all_excitations"
+
+        integer :: src_det(nel), nsing, ndoub, ndet, ex(2,2), flag, det(nel), &
+                   nexcit, i, cnt
+        type(excit_gen_store_type) :: store
+        logical :: found_all, par
+        HElement_t(dp), allocatable :: hel_list(:)
+        integer(n_int), pointer :: det_list(:,:)
+        logical, allocatable :: t_non_zero(:)
+
+        ! Decode the determiant
+        call decode_bit_det (src_det, ilut)
+
+        ! Initialise
+        call init_excit_gen_store (store)
+
+        ! How many connected determinants are we expecting?
+        call CountExcitations3 (src_det, 3, nsing, ndoub)
+        nexcit = nsing + ndoub
+        allocate(det_list(0:NIfTot, nexcit))
+        allocate(hel_list(nexcit))
+        hel_list = 0.0_dp
+
+        ! Loop through all of the possible excitations
+        ndet = 0
+        found_all = .false.
+        ex = 0
+        flag = 3
+        call GenExcitations3 (src_det, ilut, det, flag, ex, par, found_all, &
+                              .false.)
+
+        if (tGUGA) then
+            call stop_all(this_routine, "modify get_helement for GUGA")
+        end if
+
+        do while (.not. found_all)
+            ndet = ndet + 1
+            call EncodeBitDet (det, det_list(:,ndet))
+
+            hel_list(ndet) = get_helement(src_det, det, ilut, det_list(:,ndet))
+
+            call GenExcitations3 (src_det, ilut, det, flag, ex, par, &
+                                  found_all, .false.)
+
+        end do
+
+        if (ndet /= nexcit) &
+            call stop_all(this_routine,"Incorrect number of excitations found")
+
+        ! now i should loop over the hel_list and check the actual number
+        ! of non-zero excitations
+        allocate(t_non_zero(nexcit))
+        t_non_zero = .false.
+
+        n_non_zero = 0
+
+        do i = 1, ndet
+            if (abs(hel_list(i)) > 1.0e-6) then
+                n_non_zero = n_non_zero + 1
+                t_non_zero(i) = .true.
+            end if
+        end do
+
+        allocate(non_zero_list(0:niftot,n_non_zero))
+
+        cnt = 0
+
+        do i = 1, ndet
+            if (t_non_zero(i)) then
+                cnt = cnt + 1
+                non_zero_list(:,cnt) = det_list(:,i)
+            end if
+        end do
+
+        deallocate(det_list)
+        deallocate(t_non_zero)
+        deallocate(hel_list)
+
+        ! now i have a list of all non-zero excitations..
+
+        ! for now this creates all excitation, independent if the matrix
+        ! element is actually zero..
+        ! so also check matrix element!
+
+        ! Sort the dets, so they are easy to find by binary searching
+        call sort(non_zero_list, ilut_lt, ilut_gt)
+
+    end subroutine calc_all_excitations
+
 
 end module

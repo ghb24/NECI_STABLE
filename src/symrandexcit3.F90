@@ -71,7 +71,7 @@ contains
         ! If exFlag is 3, select singles or doubles randomly, according
         ! to the value in pDoubles. Otherwise exFlag = 1 gives a single,
         ! and exFlag = 2 gives a double.
-ASSERT(exFlag<=3.and.exFlag>=1)
+        ASSERT(exFlag<=3.and.exFlag>=1)
         IC = exFlag
         select case(IC)
         case(1)

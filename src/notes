@@ -1,0 +1,196 @@
+case 2: 
+
+22 fullstart fullstop alike 
+
+23 fullstart fullstop mixed
+
+here i can also decide between mixed and alike.. by forcing 
+single occupanies or empty/double for (i,j) 
+here a list of singly occupied orbitals would also be nice for picking 2 singly occupied orbitals 
+for the mixed case
+
+how does that change the symmetry approach? 
+for the alike its easy.. 
+for the mixed? 
+the excitations is essentially already picked by the two electrons which 
+are in single occupied orbitals.. so i dont have to pick the empty 
+orbitals.. how does this influence the others? 
+I have to avoid to pick these kind of excitations in the others .. 
+and for the recalcing of pgens? i have to have all the electron 
+configurations which allow the reached excitation with the first and last 
+switches.. 
+but! i have to check if the matrix element is also not 0 and what the 
+branch weights are.. 
+but thats possible i guess.. still some figuring out.. 
+and how to avoid it in the other excitations? 
+
+and in this case i could also implement 4ind integral influence, since i 
+know (a,b) through the choice of (i,j) and can weight toward the bigger ones
+
+case 3: 
+n(i) = 0: 
+19 fulltart 2 raising
+14 fullstop 2 lowering
+6 single overlap L2R
+
+n(i) = 2
+18 fullstart 2 lowering 
+15 fullstop 2 raising 
+7 single overlap R2L
+
+n(i) = 1 
+20 fullstart L2R 
+21 fullstart R2L 
+17 fullstop R2L 
+16 fullstop L2R
+
+with the diff flag i force either n(i) = 0,2 or n(i) = 1 
+with with (i,j) (a) is also fixed already to either (i,j) in n(i) = 1 case! 
+
+how can i introduce that? 
+for n(i) = 0,2, actually i only pick electrons first so n(i) = 2 would be 
+forced. 
+for n(i) = 2, i cannot allow (a==b) because that would mean 22-exc above
+but i could pick (a) first normally and the n (b /= a) then i would get 
+excitations: 18, 15, 7 
+how do i get excitations: 19,14,6? 
+
+I do have to allow (i /= j) in this case and then force (a == b) 
+so what? pick (i,j) as usual, if (i == j) force (a /= b) and v.v.
+if (i /= j) force (a == b) 
+
+for n(i) = 1: (i /= j) but, n(j) does not have to be 1 
+if n(j) = 2: (a) can not be (j) 
+so essentially i have to pick (i,j) with atleast one of them not == 2 
+if one is == 2 the other becomes a... hm.. i also have to deal with 
+all the other influences then... puh, thats tough.. 
+
+without the diff flag? 
+
+the case 2 is "easier" i guess.. 
+if alike: pick a doubly occuied site and get (i,j) : make a (a == b) weighted
+cum list and pick a empty orbital. 
+for the mixed case: pick 2 singly occupied sites (i /= j) which already 
+determines (a == i and b == j) too.. so i could make a combined 
+cum-list, but does this help since i have to recalc. pgens anyway..? 
+but i could.. why not? loop over singly occupied (i,a) and (j,b) > (i,a) 
+(i guess i could do that since its the same the for switched anyway and so 
+i would know more info.. and maybe even store this list, so i can reuse it 
+in the recalc. of the pgens if a successfull excitation happened.. 
+
+yes! that sounds plausible.. 
+
+but then for case 3: i have to first exclude type 23 and type 22 excitations
+non-mixed case: 
+if (i == j): 
+	n(i) = 2
+	a /= b is enforced
+	a,b /= i is natural since n(i) = 2
+
+	and i get excitations 18,15,7
+
+if (n(i) == 2): 
+	if (n(j) == 2): 
+		a == b must be enforced 
+		i get excitations 14,19,6
+
+	else: 
+		a can be j.. wait a minute.. this way i reach mixed case.. 
+
+new approach: 
+if (i == j): 
+	n(i) = 2
+	a /= n is enforced
+	a,b /= i is natural since n(i) = 2
+
+	and i get excitations 18,15,7
+
+else: 
+	we know nothing about n(i),n(j) but dont need for the non-mixed case 
+	we must enforce (a == b) 
+	and (a,b) /= (i,j) to not get mixed case 
+	so make cum-list (a == b,a /= i,j | ij) 
+
+	and we get excitations: 14,19,6 
+
+mixed case: 
+i /= j must be enforced and atleast on of n(i),n(j) must be 1 
+can i make a list of these possible combinations? and pick the 2 electrons in one go as normal? hm..
+how to? 
+pick i first: 
+if (n(i) == 2): 
+	n(j) == 1 must be and a == j 
+	i could combine that with the integral weighting? 
+	can i also enforce i < j still? i can always.. does it help? 
+	i would know then that its a fullstop mixed.. 
+	then pick b < a
+	cant be i, due to n(i) = 2 
+
+	how does the recalc of all n(j,a) = 1 above the orginal work? 
+	i also could store the cumulative list for singles above (i) and 
+	use that later 
+	but i would have to recalc: (b < j |ija) for each single above j 
+	doable! 
+	I get excitations: 16,17
+
+if (n(i) == 1): 
+	can i force (a == i)? what would it help?? and would i miss some excitations? especially combined with i < j ?? 
+	
+	if i would pick n(j) = 2 (a) cannot be j, and has to be (i) 
+	if n(j) = 1, (a) can be both (i) or (j) ... which one to choose? 
+	so.. 
+	if (n(j) == 2): 
+		(a == i) forced or? how can i recalculate that? 
+		and pick b > i with cum-sum (b > i | ija) and have to recalc that for all sinlges below i then 
+
+		i get excitations: 20,21
+
+		what about the recalc? have to consider all the single orbs below initial (i) ...
+		hm... 
+		i could atleast store the list for orbital (i) ... but which is random.. or is it? 
+		random out of the number of electrons.. and then restricted depending on the occupation number of (i) 
+
+	else: 
+		(a) can be both (i) and (j) if, (i == a) b > i; if (a == j): b < j: 
+		how to do, and recalc that? and what about picking it the other way around? first b and then a == (i,j) 
+		hm... 
+		thats a more forced way to deal with this kind of stuff, like in the old non-symmetric implementation
+		hm...
+		but thats still doable.. what can i save for the later recalculation of pgens? 
+		here it would be good to have a list of the singly occupied orbitals and pick from this.. 
+
+		anyway this way i would get excitations 16,17,20,21 
+
+
+do i miss: 2 1, works 1 2 works, 1 1: here a has to be able be both i and j 
+
+so this way i would split up the different type of excitations and i would have controlling parameters on the 
+"hard" excitations 
+
+p2 * p2_par for fullstartfullstopmixed
+and 
+p3 * p3_par for the mixed fullstart and fullstops
+
+so i could reduce their influence on the time-step or atleast analyze it.. 
+
+but that would be a pretty big rework again.. and i definetly want to have the diff-flag or otherwise it will be 
+even harder to differentiate between the excitations and ensure not picking a wrong one 
+
+
+
+case 4: 
+this is the easy one or? i "just" pick 2 electrons (i /= j) 
+and ensure (a /= b /= (i,j)) to ensure this case 4 excitations and I am 
+also ensured that no excitation of case 2 or 3 are reached
+
+so the "only" hard cases are case 2 and 3.. especially the mixed ones in 
+these cases.. as always..
+
+how can i deal with those?? 
+without the diff flag? 
+
+think about that too... maybe i atleast want to be able to integrate it like that.. 
+since the functionality is already there.. and maybe its even easier..
+
+ah no scrap that I want to control the "hard" mixed cases too
+
