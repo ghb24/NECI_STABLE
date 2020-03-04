@@ -54,33 +54,46 @@ module gasci
     type(GASSpec_t) :: GAS_specification
 
     !>  @brief
-    !>      Return the GAS spaces, where a particle can be created.
+    !>      Return the GAS spaces, where one particle can be created.
     !>
     !>  @details
     !>  It can be proven, that the spaces where a particle can
     !>  be created are contigous, so a two element integer array
-    !>  spaces == [lower_bound, upper_bound] is returned.
+    !>  [lower_bound, upper_bound] is returned.
     !>  As long as lower_bound <= iGAS <= upper_bound is true,
-    !>  a created particle will lead to a valid Slater-Determinant.
+    !>  the created particle will lead to a valid Slater-Determinant.
     !>
     !>  It is **assumed** that the input determinant is contained in the
     !>  Full CI space and obeys e.g. the Pauli principle.
-    !>  The return value is not defined, if that is not the case!
+    !>  Checks are only performed in DEBUG compilation mode and
+    !>  the return value is undefined, if this is not the case!
     !>
     !>  It is possible to delete additional particles with the
     !>  optional argument `additional_holes` before checking the
     !>  validity of particle creation.
     !>  It is assumed, that they are occupied in det_I!
+    !>  Checks are only performed in DEBUG compilation mode and
+    !>  the return value is undefined, if this is not the case!
     !>
-    !>  If no GAS space is allowed, spaces will be set to zero.
+    !>  If more than one particle should be created, the optional argument
+    !>  n_particles (default 1) should be used.
+    !>  Note, that this function returns possible spaces where the
+    !>  first of the n_particles can be created.
+    !>  After modifying `det_I`, or `additional_holes` the function
+    !>  has to be called again with `n_particles - 1`.
+    !>
+    !>  If no creation is allowed by the GAS constraints,
+    !>  the bounds will be returned as zero.
     !>
     !>  @param[in] GAS_spec, Specification of GAS spaces (GASSpec_t).
     !>  @param[in] det_I, An index of occupied spatial
     !>      or spin orbitals (SpinOrbIdx_t, SpatOrbIdx_t).
-    !>  @param[in] additional_holes, An index of orbitals
+    !>  @param[in] additional_holes, optional, An index of orbitals
     !>      where particles should be deleted.
     !>      It is assumed, that they are occupied in det_I.
     !>      (SpinOrbIdx_t, SpatOrbIdx_t).
+    !>  @param[in] n_particles, optional, The total number of particles
+    !>      that will be created. Defaults to one (integer).
     interface get_possible_spaces
     #:for orb_idx_type in OrbIdxTypes
         module procedure get_possible_spaces_${orb_idx_type}$
@@ -293,8 +306,7 @@ contains
 
 
 #:for orb_idx_type in OrbIdxTypes
-!     DEBUG_IMPURE function get_possible_spaces_${orb_idx_type}$(GAS_spec, det_I, additional_holes) result(spaces)
-    function get_possible_spaces_${orb_idx_type}$(GAS_spec, det_I, additional_holes, n_particles) result(spaces)
+    DEBUG_IMPURE function get_possible_spaces_${orb_idx_type}$(GAS_spec, det_I, additional_holes, n_particles) result(spaces)
         type(GASSpec_t), intent(in) :: GAS_spec
         type(${orb_idx_type}$), intent(in) :: det_I
         type(${orb_idx_type}$), intent(in), optional :: additional_holes
@@ -305,9 +317,12 @@ contains
         !> If no particle can be created, then spaces == 0 .
         integer :: spaces(2), n_particles_, i, iGAS
 
+        integer :: &
         !> Cumulated number of particles per iGAS
-        integer :: cum_n_particle(get_nGAS(GAS_spec)), &
+            cum_n_particle(get_nGAS(GAS_spec)), &
+        !> Cumulated deficit per iGAS
             deficit(get_nGAS(GAS_spec)), &
+        !> Cumulated vacant orbitals per iGAS
             vacant(get_nGAS(GAS_spec))
 
         @:def_default(n_particles_, n_particles, 1)

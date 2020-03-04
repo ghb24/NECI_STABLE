@@ -10,7 +10,8 @@ module test_gasci_mod
     public :: test_igas_from_spatorb, test_igas_from_spinorb, &
         test_contains_det_spinorb, test_contains_det_spatorb, &
         test_particles_per_GAS_spatorb, test_particles_per_GAS_spinorb, &
-        test_is_valid, test_is_connected, test_get_possible_spaces_spinorb
+        test_is_valid, test_is_connected, &
+        test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb
 
 
 
@@ -161,7 +162,58 @@ contains
                                 additional_holes=SpinOrbIdx_t([5, 6]), &
                                 n_particles=2), &
             2)
+    end subroutine
 
+
+    subroutine test_get_possible_spaces_spatorb()
+        type(GASSpec_t) :: GAS_spec
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+
+        call assert_equals( &
+            [0, 0], &
+            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3])), &
+            2)
+
+        call assert_equals( &
+            [1, 1], &
+            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
+                                additional_holes=SpatOrbIdx_t([1])), &
+            2)
+
+        call assert_equals( &
+            [2, 2], &
+            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
+                                additional_holes=SpatOrbIdx_t([3])), &
+            2)
+
+        call assert_equals( &
+            [0, 0], &
+            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
+                                additional_holes=SpatOrbIdx_t([1, 3]), &
+                                n_particles=1), &
+            2)
+
+        call assert_equals( &
+            [1, 2], &
+            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
+                                additional_holes=SpatOrbIdx_t([1, 3]), &
+                                n_particles=2), &
+            2)
+
+
+        call assert_equals( &
+            [1, 1], &
+            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
+                                additional_holes=SpatOrbIdx_t([1, 1]), &
+                                n_particles=2), &
+            2)
+
+        call assert_equals( &
+            [2, 2], &
+            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
+                                additional_holes=SpatOrbIdx_t([3, 3]), &
+                                n_particles=2), &
+            2)
     end subroutine
 
 end module test_gasci_mod
@@ -173,7 +225,8 @@ program test_gasci_program
     use test_gasci_mod, only: test_igas_from_spatorb, test_igas_from_spinorb, &
         test_contains_det_spinorb, test_contains_det_spatorb, &
         test_particles_per_GAS_spatorb, test_particles_per_GAS_spinorb, &
-        test_is_valid, test_is_connected, test_get_possible_spaces_spinorb
+        test_is_valid, test_is_connected, &
+        test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb
 
 
     implicit none
@@ -184,12 +237,6 @@ program test_gasci_program
     call mpi_init(err)
 
     call init_fruit()
-
-!     n = findloc([1, 2, 3, 4] == [1, 0, 3, 5], value=.true., dim=1, back=.true.)
-!     write(*, *) 'n', findloc([1, 2, 3, 4] == [1, 0, 0, 0], value=.true., dim=1, back=.true.) + 1
-!     write(*, *) 'n', findloc([1, 2, 3, 4] == [1, 0, 3, 0], value=.true., dim=1, back=.true.) + 1
-!     write(*, *) 'n', findloc([1, 2, 3, 4] == [0, 0, 3, 0], value=.true., dim=1, back=.true.) + 1
-!     write(*, *) 'n', findloc([1, 2, 3, 4] == [0, 0, 0, 0], value=.true., dim=1, back=.true.) + 1
 
     call test_gasci_driver()
 
@@ -212,6 +259,7 @@ contains
         call run_test_case(test_particles_per_GAS_spinorb, "test_particles_per_GAS_spinorb")
         call run_test_case(test_is_valid, "test_is_valid")
         call run_test_case(test_is_connected, "test_is_connected")
-        call run_test_case(test_get_possible_spaces_spinorb, "test_get_possible_spaces")
+        call run_test_case(test_get_possible_spaces_spinorb, "test_get_possible_spaces_spinorb")
+        call run_test_case(test_get_possible_spaces_spatorb, "test_get_possible_spaces_spatorb")
     end subroutine
 end program test_gasci_program
