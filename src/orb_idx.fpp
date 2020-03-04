@@ -6,9 +6,10 @@ module orb_idx_mod
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t
 
     type, abstract :: OrbIdx_t
-        integer, allocatable :: val(:)
+        integer, allocatable :: idx(:)
     end type
 
+    !> We assume order [beta_1, alpha_1, beta_2, alpha_2, ...]
     type, extends(OrbIdx_t) :: SpinOrbIdx_t
     end type
 
@@ -28,7 +29,7 @@ module orb_idx_mod
     pure function construction_from_array_${orb_idx_type}$(idx) result(res)
         integer, intent(in) :: idx(:)
         type(${orb_idx_type}$) :: res
-        res%val = idx
+        res%idx = idx
     end function
 #:endfor
 end module

@@ -35,6 +35,7 @@ module sltcnd_mod
     use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
         TripleExc_t, FurtherExc_t, &
         UNKNOWN, get_excitation, get_bit_excitation, create_excitation
+    use orb_idx_mod, only: SpinOrbIdx_t
     use DetBitOps, only: count_open_orbs, FindBitExcitLevel
     use csf_data, only: csf_sort_det_block
     use timing_neci
@@ -82,6 +83,8 @@ module sltcnd_mod
     #:for excitation_t in excitations
         module procedure sltcnd_excit_${excitation_t}$
     #:endfor
+        module procedure sltcnd_excit_SpinOrbIdx_t_SingleExc_t
+        module procedure sltcnd_excit_SpinOrbIdx_t_DoubleExc_t
     end interface
 
     abstract interface
@@ -880,9 +883,24 @@ contains
         type(SingleExc_t), intent(in) :: exc
         logical, intent(in) :: tParity
 
-
         sltcnd_excit_SingleExc_t = sltcnd_1(ref, exc, tParity)
     end function
+
+
+!>  @brief
+!>      Evaluate Matrix Element for SingleExc_t.
+!>
+!>  @param[in] ref, The occupied spin orbitals of the reference.
+!>  @param[in] exc, An excitation of type SingleExc_t.
+!>  @param[in] tParity, The parity of the excitation.
+    HElement_t(dp) function sltcnd_excit_SpinOrbIdx_t_SingleExc_t(ref, exc, tParity)
+        type(SpinOrbIdx_t), intent(in) :: ref
+        type(SingleExc_t), intent(in) :: exc
+        logical, intent(in) :: tParity
+
+        sltcnd_excit_SpinOrbIdx_t_SingleExc_t = sltcnd_1(ref%idx, exc, tParity)
+    end function
+
 
 !>  @brief
 !>      Evaluate Matrix Element for DoubleExc_t.
@@ -896,6 +914,21 @@ contains
         logical, intent(in) :: tParity
 
         sltcnd_excit_DoubleExc_t = sltcnd_2(ref, exc, tParity)
+    end function
+
+
+!>  @brief
+!>      Evaluate Matrix Element for DoubleExc_t.
+!>
+!>  @param[in] ref, The occupied spin orbitals of the reference.
+!>  @param[in] exc, An excitation of type DoubleExc_t.
+!>  @param[in] tParity, The parity of the excitation.
+    HElement_t(dp) function sltcnd_excit_SpinOrbIdx_t_DoubleExc_t(ref, exc, tParity)
+        type(SpinOrbIdx_t), intent(in) :: ref
+        type(DoubleExc_t), intent(in) :: exc
+        logical, intent(in) :: tParity
+
+        sltcnd_excit_SpinOrbIdx_t_DoubleExc_t = sltcnd_2(ref%idx, exc, tParity)
     end function
 
 !>  @brief
@@ -921,5 +954,6 @@ contains
 
         sltcnd_excit_FurtherExc_t = h_cast(0.0_dp)
     end function
+
 
 end module
