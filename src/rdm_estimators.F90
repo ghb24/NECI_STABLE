@@ -10,6 +10,7 @@ module rdm_estimators
 
     use SystemData, only: tGUGA
     use guga_rdm, only: calc_rdm_energy_guga
+    use guga_bitRepOps, only: extract_2_rdm_ind
 
     implicit none
 
@@ -253,10 +254,10 @@ contains
         end do
 
         ! The 1- and 2- electron operator contributions to the RDM energy.
-        if (.not. tGUGA) then
-            call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
-        else
+        if (tGUGA) then
             call calc_rdm_energy_guga(rdm, rdm_energy_1, rdm_energy_2)
+        else
+            call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
         end if
 
         call MPISumAll(rdm_energy_1, est%energy_1_num)
@@ -694,6 +695,7 @@ contains
         integer(int_rdm) :: ijkl
         integer :: ielem
         integer :: ij, kl, i, j, k, l ! spin orbitals
+        integer(int_rdm) :: ij_, kl_
         real(dp) :: rdm_sign(rdm%sign_length)
         real(dp) :: max_error_herm(rdm%sign_length), sum_error_herm(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
@@ -717,16 +719,19 @@ contains
             end if
 
             ijkl = rdm%elements(0,ielem)
-            ! Obtain spin orbital labels and the RDM element sign.
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            ! Obtain RDM element sign
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
-            ! If in the lower half of the RDM, reflect to the upper half and
-            ! include with a minus sign.
+
             if (tGUGA) then
-                call stop_all(this_routine, "figure out RDM indices")
+                call extract_2_rdm_ind(ijkl, i, j, k, l, ij_, kl_)
+                call stop_all(this_routine, "figure out RDM indices, symmetries and parity!")
                 call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
             else
+                ! Obtain spin orbital labels
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+                ! If in the lower half of the RDM, reflect to the upper half and
+                ! include with a minus sign.
                 if (ij > kl) then
                     call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false., nearly_full)
                 else if (ij < kl) then
@@ -751,7 +756,6 @@ contains
         ! Find the largest error and sum of errrors on this processor.
         do ielem = 1, rdm_recv%nelements
             call extract_sign_rdm(rdm_recv%elements(:,ielem), rdm_sign)
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
             rdm_sign = abs(rdm_sign)
             max_error_herm = max(max_error_herm, rdm_sign)
             sum_error_herm = sum_error_herm + rdm_sign

@@ -53,8 +53,7 @@ module guga_rdm
     use CalcData, only: tAdaptiveShift
     use Parallel_neci, only: nProcessors, MPIArg, MPIAlltoAll, MPIAlltoAllv
     use searching, only: BinSearchParts_rdm
-    use rdm_data_utils, only: add_to_rdm_spawn_t, &
-                              calc_separate_rdm_labels, extract_sign_rdm
+    use rdm_data_utils, only: add_to_rdm_spawn_t, extract_sign_rdm
     use OneEInts, only: GetTMatEl
     use procedure_pointers, only: get_umat_el
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
@@ -433,7 +432,7 @@ contains
         character(*), parameter :: this_routine = "doubles_search_guga"
 
         integer :: i, NoDets, StartDets, nI(nel), nJ(nel), PartInd, FlagsDj
-        integer :: j, ab, cd, a, b, c, d
+        integer :: j, a, b, c, d
         integer(int_rdm) :: rdm_ind
         integer(n_int) :: ilutJ(0:nifguga), ilutI(0:nifguga)
         real(dp) :: mat_ele, sign_i(lenof_sign), sign_j(lenof_sign)
@@ -464,8 +463,7 @@ contains
                         mat_ele = extract_matrix_element(ilutJ, 1)
                         rdm_ind = extract_rdm_ind(ilutJ)
 
-                        call Stop_All(this_routine, "figure out RDM labels now!")
-                        call calc_separate_rdm_labels(rdm_ind, ab, cd, a, b, c, d)
+                        call extract_2_rdm_ind(rdm_ind, a, b, c, d)
 
                         ! if we mimic stochastic, we have to deal with the
                         ! mixed full-start/stops
@@ -595,8 +593,7 @@ contains
         if (present(excitInfo_opt)) then
             excitInfo = excitInfo_opt
         else
-            call Stop_All(this_routine, "figure out RDM labels now!")
-            call calc_separate_rdm_labels(rdm_ind, ij, kl, i, j, k, l)
+            call extract_2_rdm_ind(rdm_ind, i, j, k, l)
 
             excitInfo = excitationIdentifier(i, j, k, l)
         end if
@@ -635,26 +632,25 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         character(*), parameter :: this_routine = "fill_mixed_end"
 
-        integer :: st, se, en, step, sw, elecInd, holeInd, i, j
+        integer :: step, sw, elecInd, holeInd, i, j
         integer :: step_i(nSpatOrbs), b_i(nSpatOrbs), int_occ(nSpatOrbs)
         real(dp) :: top_cont, tmp_mat, stay_mat, end_mat, real_b(nSpatOrbs)
         real(dp) :: occ_i(nSpatOrbs)
         logical :: above_flag
 
         ! do as much stuff as possible beforehand
-        st = excitInfo%fullStart
-        se = excitInfo%secondStart
-        en = excitInfo%fullEnd
-        if (excitInfo%typ == excit_type%fullstop_L_to_R) then
+        associate(st => excitInfo%fullStart, se => excitInfo%secondStart, &
+                  en => excitInfo%fullEnd, typ => excitInfo%typ)
+
+        if (typ == excit_type%fullstop_L_to_R) then
             elecInd = st
             holeInd = se
-        else if (excitInfo%typ == excit_type%fullstop_R_to_L) then
+        else if (typ == excit_type%fullstop_R_to_L) then
             elecInd = se
             holeInd = st
         else
             call stop_all(this_routine, "should not be here!")
         end if
-
 
         sw = findLastSwitch(ilutI, ilutJ , se, en)
 
@@ -733,7 +729,6 @@ contains
                 end do
 
                 ! have to figure out what to do with this here:!
-!                 integral = integral * top_cont
             end if
         end if
 
@@ -801,11 +796,9 @@ contains
             call add_to_rdm_spawn_t(spawn, sw, elecInd, holeInd, sw, &
                 tmp_mat * sign_i * sign_j * mat_ele, .true.)
 
-!             integral = integral + tmp_mat * (get_umat_el(sw,holeInd,elecInd,sw) + &
-!                 get_umat_el(holeInd,sw,sw,elecInd))/2.0_dp
-
         end if
 
+        end associate
 
     end subroutine fill_mixed_end
 
@@ -817,21 +810,21 @@ contains
         type(ExcitationInformation_t), intent(in) :: excitInfo
         character(*), parameter :: this_routine = "fill_mixed_start"
 
-        integer :: sw, i, st, se, step, en, elecInd, holeInd
+        integer :: sw, i, step, elecInd, holeInd
         integer :: step_i(nSpatOrbs), b_i(nSpatOrbs), int_occ(nSpatOrbs)
         real(dp) :: bot_cont, tmp_mat, stay_mat, start_mat, real_b(nSpatOrbs)
         real(dp) :: occ_i(nSpatOrbs)
         logical :: below_flag
 
-        st = excitInfo%fullStart
-        se = excitInfo%firstEnd
-        en = excitInfo%fullEnd
+        associate(st => excitInfo%fullStart, se => excitInfo%firstEnd, &
+                  en => excitInfo%fullEnd, typ => excitInfo%typ)
+
         ! depending on the type of excitaiton, calculation of orbital pgens
         ! change
-        if (excitInfo%typ == excit_type%fullstart_L_to_R) then
+        if (typ == excit_type%fullstart_L_to_R) then
             elecInd = en
             holeInd = se
-        else if (excitInfo%typ == excit_type%fullstart_R_to_L) then
+        else if (typ == excit_type%fullstart_R_to_L) then
             elecInd = se
             holeInd = en
         else
@@ -986,10 +979,9 @@ contains
             call add_to_rdm_spawn_t(spawn, sw, elecInd, holeInd, sw, &
                 tmp_mat * sign_i * sign_j * mat_ele, .true.)
 
-!             integral = integral + tmp_mat *(get_umat_el(holeInd,sw,sw,elecInd) + &
-!                 get_umat_el(sw,holeInd,elecInd,sw))/2.0_dp
-
         end if
+
+        end associate
 
     end subroutine fill_mixed_start
 
@@ -1153,10 +1145,6 @@ contains
                     tempWeight * tempWeight_1 * inter * sign_i * sign_j, .true.)
                 call add_to_rdm_spawn_t(spawn, j, i, i, j, &
                     tempWeight * tempWeight_1 * inter * sign_i * sign_j, .true.)
-
-
-                ! maybe i have to recalc. here smth..
-!                 temp_int = tempWeight * tempWeight_1 * inter * temp_int
 
                 ! check if i deal with that correctly...
                 if (below_flag) exit
@@ -1355,7 +1343,8 @@ contains
                 occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
             ! exchange contribution:
-            if (step_i(iO) == 3 .or. b_i(iO) == 0) then
+            ! wtf is this b_i == 0 check? that does not make any sense..
+            if (step_i(iO) == 3 .or. (occ_i(iO) == 1 .and. b_i(iO) == 0)) then
                 ! then it is easy:
                 ! just figure out correct indices
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
@@ -1601,8 +1590,6 @@ contains
         ! more than once and is only a temporary array..
         call LogMemAlloc('excitations',n_tot,8,this_routine,tag_excitations)
 
-!         excitations = tmp_all_excits(:,1:n_tot)
-
         deallocate(tmp_all_excits)
         call LogMemDealloc(this_routine, tag_tmp_excits)
 
@@ -1688,12 +1675,12 @@ contains
 
         n_tot = j - 1
 
-        allocate(excitations(0:nifguga,n_tot), stat = ierr)
+        allocate(excitations(0:nifguga,n_tot), &
+            source = tmp_all_excits(0:nifguga, 1:n_tot), stat = ierr)
+
         ! hm to log that does not make so much sense.. since it gets called
         ! more than once and is only a temporary array..
         call LogMemAlloc('excitations',n_tot,8,this_routine,tag_excitations)
-
-        excitations = tmp_all_excits(:,1:n_tot)
 
         deallocate(tmp_all_excits)
         call LogMemDealloc(this_routine, tag_tmp_excits)
@@ -1758,19 +1745,17 @@ contains
 
         n_tot = j - 1
 
-        allocate(excitations(0:nifguga,n_tot), stat = ierr)
+        allocate(excitations(0:nifguga,n_tot), &
+            source = tmp_all_excits(0:nifguga, 1:n_tot), stat = ierr)
         ! hm to log that does not make so much sense.. since it gets called
         ! more than once and is only a temporary array..
         call LogMemAlloc('excitations',n_tot,8,this_routine,tag_excitations)
-
-        excitations = tmp_all_excits(:,1:n_tot)
 
         deallocate(tmp_all_excits)
         call LogMemDealloc(this_routine, tag_tmp_excits)
 
 
     end subroutine calc_explicit_1_rdm_guga
-
 
     subroutine calc_all_excits_guga_rdm_doubles(ilut, i, j, k, l, excits, n_excits)
         integer(n_int), intent(in) :: ilut(0:nifguga)
@@ -2020,7 +2005,6 @@ contains
 
         end select
 
-
         ! indicate the level of excitation IC for the remaining NECI code
         if (n_excits > 0) then
             do n = 1, n_excits
@@ -2040,7 +2024,7 @@ contains
         type(ExcitationInformation_t) :: excitInfo
         type(WeightObj_t) :: weights
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
-        integer :: st, iEx, iOrb, ierr
+        integer :: iEx, iOrb, ierr
         integer(n_int), pointer :: tempExcits(:,:)
         real(dp) :: minusWeight, plusWeight
 
@@ -2051,7 +2035,10 @@ contains
 
         excitInfo = excitationIdentifier(i,j)
 
-        if (excitInfo%gen1 /= 0 ) then
+        associate(gen1 => excitInfo%gen1, en => excitInfo%fullEnd, &
+                  st => excitInfo%fullStart)
+
+        if (gen1 /= 0 ) then
             if (current_stepvector(i) == 3 .or. current_stepvector(j) == 0) then
                 allocate(excits(0,0), stat = ierr)
                 return
@@ -2060,13 +2047,10 @@ contains
 
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitches, negSwitches)
 
-        weights = init_singleWeight(ilut, excitInfo%fullEnd)
-        plusWeight = weights%proc%plus(posSwitches(excitInfo%fullStart), &
-            currentB_ilut(excitInfo%fullStart), weights%dat)
-        minusWeight = weights%proc%minus(negSwitches(excitInfo%fullStart),&
-            currentB_ilut(excitInfo%fullStart), weights%dat)
+        weights = init_singleWeight(ilut, en)
+        plusWeight = weights%proc%plus(posSwitches(st), currentB_ilut(st), weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(st), currentB_ilut(st), weights%dat)
 
-        st = excitInfo%fullStart
         ! check compatibility of chosen indices
 
         if ((current_stepvector(st) == 1 .and. near_zero(plusWeight )) .or.&
@@ -2081,7 +2065,7 @@ contains
         call createSingleStart(ilut, excitInfo, posSwitches, &
             negSwitches, weights, tempExcits, n_excits)
 
-        do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
+        do iOrb = st + 1, en - 1
             call singleUpdate(ilut, iOrb, excitInfo, posSwitches, &
                 negSwitches, weights, tempExcits, n_excits)
         end do
@@ -2094,6 +2078,8 @@ contains
         do iEx = 1, n_excits
             call encode_rdm_ind(excits(:,iEx), contract_1_rdm_ind(i,j))
         end do
+
+        end associate
 
     end subroutine calc_all_excits_guga_rdm_singles
 
@@ -2134,20 +2120,19 @@ contains
             ijkl = rdm%elements(0,ielem)
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
-            ! Decode pqrs label into p, q, r and s labels.
-            call Stop_All(this_routine, "figure out RDM labels now!")
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            call extract_2_rdm_ind(ijkl, i, j, k, l)
 
-            ! D_{ij,kl} corresponds to V_{ki,lj} * e_{ki,lj} i believe..
-            ! i have to figure out if the problem is here or somewhere else..
-            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(k,l,i,j)
+            ! TODO maybe the indices are not correctly accessed here!
+            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(i,j,k,l)
 
-            if (i == k) then
-                rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*j,2*l) / real(nel-1,dp)
+            if (i == j) then
+                rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*k,2*l) / real(nel-1,dp)
             end if
-            if (j == l) then
-                rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*k) / real(nel-1,dp)
+            if (k == l) then
+                rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*j) / real(nel-1,dp)
             end if
+            ! do I need more contributions here? I guess so..
+            call Stop_All(this_routine, "figure out additional contribs to 1-RDM energy!")
         end do
 
     end subroutine calc_rdm_energy_guga

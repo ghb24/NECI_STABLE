@@ -16,7 +16,8 @@ module rdm_data_utils
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
     use util_mod
-    use SystemData, only: tGUGA
+    use SystemData, only: tGUGA, nSpatOrbs
+    use guga_bitRepOps, only: contract_2_rdm_ind, contract_1_rdm_ind
 
     implicit none
 
@@ -534,7 +535,7 @@ contains
         logical, intent(inout), optional :: nearly_full
 
         integer(int_rdm) :: ijkl
-        integer :: ij_compressed, proc, ind, hash_val, slots_left
+        integer :: ij_compressed, proc, ind, hash_val, slots_left, kl_compressed
         real(dp) :: real_sign_old(spawn%rdm_send%sign_length), real_sign_new(spawn%rdm_send%sign_length)
         logical :: tSuccess
         character(*), parameter :: t_r = 'add_to_rdm_spawn_t'
@@ -548,7 +549,7 @@ contains
                 call calc_combined_rdm_label(i, j, k, l, ijkl)
             else
                 if (tGUGA) then
-                    call calc_combined_rdm_label(j, l, i, k, ijkl)
+                    ijkl = contract_2_rdm_ind(i,j,k,l)
                 else
                     call calc_combined_rdm_label(k, l, j, i, ijkl)
                 end if
@@ -580,8 +581,8 @@ contains
                     ! For spin-free case, we halve the number of labels. Also,
                     ! the last two labels are dominant in the ordering, so use
                     ! these instead, to allow writing out in the correct order.
-                    ij_compressed = (nbasis/2)*(k-1) + l
-                    proc = (ij_compressed-1)*nProcessors/(nbasis**2/4)
+                    kl_compressed = int(contract_1_rdm_ind(k,l))
+                    proc = (kl_compressed-1)*nProcessors/(nSpatOrbs**2)
                 end if
 
                 ! Check that there is enough memory for the new spawned RDM entry.

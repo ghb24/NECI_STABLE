@@ -17,6 +17,7 @@ module rdm_finalising
     use SystemData, only: tGUGA, nSpatorbs
     use LoggingData, only: tWriteSpinFreeRDM
     use unit_test_helpers, only: print_matrix
+    use guga_bitRepOps, only: extract_2_rdm_ind
 
     implicit none
 
@@ -87,10 +88,10 @@ contains
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-                if (.not. tGUGA) then
-                    call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
-                else
+                if (tGUGA) then
                     call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_estimates%norm)
+                else
+                    call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
                 end if
                 ! The 1-RDM will have been constructed to be normalised already.
                 norm_1rdm = 1.0_dp
@@ -245,8 +246,8 @@ contains
             pqrs = two_rdms%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
             if (tGUGA) then
-                call stop_all("calc_1rdms_from_spinfree_2rdms", "use GUGA index functions!")
-                call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+                call stop_all("calc_1rdms_from_spinfree_2rdms", "figure out indices!")
+                call extract_2_rdm_ind(pqrs, p, q, r, s)
             else
                 call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
             end if
@@ -1175,12 +1176,13 @@ contains
 
                     do ielem = 1, rdm%nelements
                         pqrs = rdm%elements(0,ielem)
-                        ! Obtain spin orbital labels.
-                        if (.not. tGUGA) then
+                        if (tGUGA) then
+                            ! Obtain spatial orbital labels.
                             call stop_all(this_routine, "figure out RDM indices")
-                            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+                            call extract_2_rdm_ind(pqrs, p, q, r, s)
                         else
-                            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+                            ! Obtain spin orbital labels.
+                            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
                         end if
                         call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                         ! Normalise.
@@ -1516,10 +1518,8 @@ contains
         end if
 
         if (tGUGA) then
-
             do i = 1, nSpatorbs
                 do j = 1, nSpatorbs
-
                     if (abs(one_rdm(ind(i),ind(j))) > EPS) then
                         if (tNormalise) then
                             write(one_rdm_unit, "(2i6, g25.17)") i, j, &

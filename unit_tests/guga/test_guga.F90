@@ -47,6 +47,8 @@ program test_guga
     use unit_test_helper_excitgen, only: generate_uniform_integrals
     use CalcData, only: t_guga_mat_eles
 
+    use rdm_data_utils, only: calc_combined_rdm_label, calc_separate_rdm_labels
+
     implicit none
 
     real(dp), parameter :: tol = 1.0e-10_dp
@@ -176,10 +178,60 @@ contains
             "test_calc_explicit_diag_2_rdm_guga")
         call run_test_case(test_calc_explicit_2_rdm_guga, "test_calc_explicit_2_rdm_guga")
 
+        call test_compare_RDM_indexing
         print *, ""
         print *, "explicit RDM routines passed!"
         print *, ""
     end subroutine test_guga_explicit_rdms
+
+    subroutine test_compare_RDM_indexing
+
+        integer(int_rdm) :: ijkl, abcd, ab, cd
+        integer :: i, j, k, l, a, b, c, d, ij, kl
+
+        print *, ""
+        print *, " compare 'old' SD-based RDM indexing and GUGA convention"
+        print *, ""
+
+        call calc_combined_rdm_label(1,1,1,1, ijkl)
+        abcd = contract_2_rdm_ind(1,1,1,1)
+
+        call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+        call extract_2_rdm_ind(abcd, a, b, c, d, ab, cd)
+
+        call assert_equals(i,a)
+        call assert_equals(j,b)
+        call assert_equals(k,c)
+        call assert_equals(l,d)
+
+        call calc_combined_rdm_label(1,2,3,4, ijkl)
+        abcd = contract_2_rdm_ind(1,2,3,4)
+
+        call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+        call extract_2_rdm_ind(abcd, a, b, c, d, ab, cd)
+
+        call assert_equals(i,a)
+        call assert_equals(j,b)
+        call assert_equals(k,c)
+        call assert_equals(l,d)
+
+
+        call calc_combined_rdm_label(3,2,1,4, ijkl)
+        abcd = contract_2_rdm_ind(3,2,1,4)
+
+        call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+        call extract_2_rdm_ind(abcd, a, b, c, d, ab, cd)
+
+        call assert_equals(i,a)
+        call assert_equals(j,b)
+        call assert_equals(k,c)
+        call assert_equals(l,d)
+
+        print *, ""
+        print *, " compare 'old' SD-based RDM indexing and GUGA convention DONE"
+        print *, ""
+
+    end subroutine test_compare_RDM_indexing
 
     subroutine test_calc_explicit_diag_2_rdm_guga
 
