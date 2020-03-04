@@ -1,4 +1,5 @@
 #include "macros.h"
+#:include "macros.fpph"
 
 module rdm_general
 
@@ -595,15 +596,15 @@ contains
         use util_mod_byte_size
 
         integer :: ierr, nifbcast_old
-        character(len=*), parameter :: t_r = 'realloc_SpawnedParts'
+        character(len=*), parameter :: this_routine = 'realloc_SpawnedParts'
 
         if (bit_rdm_init) &
-            call stop_all(t_r, 'RDM broadcast representation already initialised')
+            call stop_all(this_routine, 'RDM broadcast representation already initialised')
 
         deallocate(SpawnVec)
-        call LogMemDealloc(t_r,SpawnVecTag)
+        call LogMemDealloc(this_routine, SpawnVecTag)
         deallocate(SpawnVec2)
-        call LogMemDealloc(t_r,SpawnVec2Tag)
+        call LogMemDealloc(this_routine, SpawnVec2Tag)
 
         ! Resize the RDM arrays
         NIfBCast_old = NIfBCast
@@ -611,9 +612,10 @@ contains
 
         NIfBCast = NIfBCast + NIfDBO + 3
 
-        allocate(SpawnVec(0:NIfBCast, MaxSpawned), SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
-        log_alloc(SpawnVec, SpawnVecTag, ierr)
-        log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
+        allocate(SpawnVec(0:NIfBCast, MaxSpawned), stat=ierr)
+        @:log_alloc(SpawnVec, SpawnVecTag, ierr)
+        allocate(SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
+        @:log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
         ! Point at correct spawning arrays
         SpawnedParts => SpawnVec

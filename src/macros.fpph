@@ -5,3 +5,11 @@
     #:endfor
 #endif
 #:enddef unused_var
+
+
+#:def log_alloc(arr, tag, ierr)
+if (${ierr}$ /= 0) then
+    call stop_all(this_routine, 'Error in allocation of ${arr}$.')
+end if
+$:'call LogMemAlloc("{arr}", size({arr}), tbs_({arr}), this_routine, {tag}, {ierr})'.format(arr=arr, tag=tag, ierr=ierr)
+#:enddef
