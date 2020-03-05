@@ -72,8 +72,8 @@ module guga_rdm
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
     logical :: t_test_diagonal = .false.
-    logical :: t_direct_exchange = .true.
-    logical :: t_mimic_stochastic = .true.
+    logical :: t_direct_exchange = .false.
+    logical :: t_mimic_stochastic = .false.
 
 contains
 
@@ -184,7 +184,9 @@ contains
                 ! D_{ii,ii} entry, which counts double occupancies
                 ! and i will try for now to reuse the following routine:
                 ! put with the spatial orbital s
-                call add_to_rdm_spawn_t(spawn, s, s, s, s, 2.0_dp * full_sign, .true.)
+                ! but maybe I have to also add the 'switched' indices
+                ! contribution.. which would mean a factor of 2..
+                call add_to_rdm_spawn_t(spawn, s, s, s, s, occ_i * full_sign, .true.)
 
             else
                 occ_i = 1.0_dp
@@ -2123,13 +2125,15 @@ contains
             call extract_2_rdm_ind(ijkl, i, j, k, l)
 
             ! TODO maybe the indices are not correctly accessed here!
-            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(i,j,k,l)
+            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(i,k,j,l)
 
             if (i == j) then
-                rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*k,2*l) / real(nel-1,dp)
+                rdm_energy_1 = rdm_energy_1 + &
+                rdm_sign * GetTMatEl(2*k,2*l) / real(nel-1,dp) / 2.0_dp
             end if
             if (k == l) then
-                rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*j) / real(nel-1,dp)
+                rdm_energy_1 = rdm_energy_1 + &
+                    rdm_sign * GetTMatEl(2*i,2*j) / real(nel-1,dp) / 2.0_dp
             end if
             ! do I need more contributions here? I guess so..
             ! i think I am missing the 'exchange' contributions..

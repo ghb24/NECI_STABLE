@@ -882,7 +882,7 @@ contains
     subroutine add_rdm_1_to_rdm_2(rdm_1, rdm_2, scale_factor)
 
         ! Take the RDM elements in the rdm_1 object, and add them to the rdm_2
-        ! object. The has table for rdm_2 will also be updated. This literally
+        ! object. The hash table for rdm_2 will also be updated. This literally
         ! performs the numerical addition of the two RDM objects.
         use SystemData, only: nel, nBasis
         use hash, only: hash_table_lookup, add_hash_table_entry
@@ -916,7 +916,11 @@ contains
         do ielem = 1, rdm_1%nelements
             ! Decode the compressed RDM labels.
             ijkl = rdm_1%elements(0,ielem)
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            if (tGUGA) then
+                call extract_2_rdm_ind(ijkl, i, j, k, l)
+            else
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            end if
 
             ! Extract the spawned sign.
             call extract_sign_rdm(rdm_1%elements(:,ielem), spawn_sign)

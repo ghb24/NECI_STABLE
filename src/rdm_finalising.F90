@@ -259,14 +259,14 @@ contains
                     if (r == s) then
                         do irdm = 1, size(one_rdms)
                             one_rdms(irdm)%matrix(ind(p),ind(q)) = &
-                                one_rdms(irdm)%matrix(ind(p),ind(q)) + rdm_sign(irdm)
+                                one_rdms(irdm)%matrix(ind(p),ind(q)) + rdm_sign(irdm)/2.0_dp
                         end do
                     end if
                     ! if I count both, I do not need the factor 2..
                     if (p == q) then
                         do irdm = 1, size(one_rdms)
                             one_rdms(irdm)%matrix(ind(r),ind(s)) = &
-                                one_rdms(irdm)%matrix(ind(r),ind(s)) + rdm_sign(irdm)
+                                one_rdms(irdm)%matrix(ind(r),ind(s)) + rdm_sign(irdm) / 2.0_dp
                         end do
                     end if
                 else
@@ -1186,7 +1186,7 @@ contains
                         pqrs = rdm%elements(0,ielem)
                         if (tGUGA) then
                             ! Obtain spatial orbital labels.
-                            call extract_2_rdm_ind(pqrs, p, q, r, s)
+                            call extract_2_rdm_ind(pqrs, p, s, q, r)
                         else
                             ! Obtain spin orbital labels.
                             call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
@@ -1195,7 +1195,7 @@ contains
                         ! Normalise.
                         rdm_sign = rdm_sign/rdm_trace
 
-                        if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
+                        if (abs(rdm_sign(irdm)) > 1.e-1_dp) then
                             write(iunit,"(4I15, F30.20)") p, q, r, s, rdm_sign(irdm)
                         end if
                     end do

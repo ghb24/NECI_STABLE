@@ -244,8 +244,13 @@ contains
         call MPISumAll(rdm_trace, est%trace)
 
         ! RDMs are normalised so that their trace is nel*(nel-1)/2.
-        rdm_norm = rdm_trace*2.0_dp/(nel*(nel-1))
-        est%norm = est%trace*2.0_dp/(nel*(nel-1))
+        if (tGUGA) then
+            rdm_norm = rdm_trace*1.0_dp/(nel*(nel-1))
+            est%norm = est%trace*1.0_dp/(nel*(nel-1))
+        else
+            rdm_norm = rdm_trace*2.0_dp/(nel*(nel-1))
+            est%norm = est%trace*2.0_dp/(nel*(nel-1))
+        end if
 
         ! For the transition RDMs, we want to calculate the norms using the
         ! non-transition RDMs.
