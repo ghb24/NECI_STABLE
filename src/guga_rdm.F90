@@ -2125,7 +2125,7 @@ contains
             call extract_2_rdm_ind(ijkl, i, j, k, l)
 
             ! TODO maybe the indices are not correctly accessed here!
-            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(i,k,j,l)
+            rdm_energy_2 = rdm_energy_2 + rdm_sign * get_umat_el(i,k,j,l) / 2.0_dp
 
             if (i == j) then
                 rdm_energy_1 = rdm_energy_1 + &

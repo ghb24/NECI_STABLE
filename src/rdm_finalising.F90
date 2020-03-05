@@ -1195,7 +1195,7 @@ contains
                         ! Normalise.
                         rdm_sign = rdm_sign/rdm_trace
 
-                        if (abs(rdm_sign(irdm)) > 1.e-1_dp) then
+                        if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
                             write(iunit,"(4I15, F30.20)") p, q, r, s, rdm_sign(irdm)
                         end if
                     end do

@@ -258,6 +258,8 @@ MODULE Logging
 
         case ("MIMIC-STOCHASTIC")
             t_mimic_stochastic = .true.
+            ! if we mimic we HAVE to do direct exchange too!
+            t_direct_exchange = .true.
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)
