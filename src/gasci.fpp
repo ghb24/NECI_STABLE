@@ -432,8 +432,12 @@ contains
                 previous = cSum(i)
             end do
 
-            ! Normalize to 1.
-            if (.not. near_zero(cSum(nOrbs))) cSum(:) = cSum(:) / cSum(nOrbs)
+            ! Normalize
+            if (near_zero(cSum(nOrbs))) then
+                cSum(:) = 0.0_dp
+            else
+                cSum(:) = cSum(:) / cSum(nOrbs)
+            end if
         end function get_cumulative_list_${excitation_t}$
     #:endfor
 
