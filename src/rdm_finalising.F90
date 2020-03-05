@@ -185,7 +185,7 @@ contains
         call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
 
         if (tGUGA) then
-            call print_spinfree_2rdm(rdm_defs, rdm_recv, est%norm)
+            call print_spinfree_2rdm(rdm_defs, rdm, est%norm)
         else
             if (tWriteSpinFreeRDM) &
                 call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
@@ -1140,7 +1140,7 @@ contains
         use util_mod, only: get_free_unit
         implicit none
         type(rdm_definitions_t), intent(in) :: rdm_defs
-        type(rdm_list_t), intent(inout) :: rdm
+        type(rdm_list_t), intent(in) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
         character(*), parameter :: this_routine = "print_spinfree_2rdm"
 
@@ -1152,7 +1152,7 @@ contains
 
         associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
 
-        call sort(rdm%elements(:,1:rdm%nelements))
+!         call sort(rdm%elements(:,1:rdm%nelements))
 
         do iproc = 0, nProcessors-1
             if (iproc == iProcIndex) then

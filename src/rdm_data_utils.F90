@@ -546,14 +546,14 @@ contains
             ! Calculate combined RDM labels. A different ordering is used for
             ! outputting RDMs with and without spin. The following definitions
             ! will aid ordering via a sort operation later.
-            if (.not. spinfree) then
-                call calc_combined_rdm_label(i, j, k, l, ijkl)
-            else
+            if (spinfree) then
                 if (tGUGA) then
                     ijkl = contract_2_rdm_ind(i,j,k,l)
                 else
                     call calc_combined_rdm_label(k, l, j, i, ijkl)
                 end if
+            else
+                call calc_combined_rdm_label(i, j, k, l, ijkl)
             end if
 
             ! Search to see if this RDM element is already in the RDM array.
@@ -570,7 +570,13 @@ contains
                 call encode_sign_rdm(rdm%elements(:,ind), real_sign_new)
             else
                 ! Determine the process label.
-                if (.not. spinfree) then
+                if (spinfree) then
+                    ! For spin-free case, we halve the number of labels. Also,
+                    ! the last two labels are dominant in the ordering, so use
+                    ! these instead, to allow writing out in the correct order.
+                    kl_compressed = int(contract_1_rdm_ind(k,l))
+                    proc = (kl_compressed-1)*nProcessors/(nbasis**2/4)
+                else
                     ! The following maps (p,q), with p<q, to single integers
                     ! with no gaps. It is benefical to have no gaps here, for
                     ! good load balancing. The final integers are ordered so
@@ -578,12 +584,6 @@ contains
                     ij_compressed = nbasis*(i-1) - i*(i-1)/2 + j - i
                     ! Calculate the process for the element.
                     proc = (ij_compressed-1)*nProcessors/spawn%nrows
-                else
-                    ! For spin-free case, we halve the number of labels. Also,
-                    ! the last two labels are dominant in the ordering, so use
-                    ! these instead, to allow writing out in the correct order.
-                    kl_compressed = int(contract_1_rdm_ind(k,l))
-                    proc = (kl_compressed-1)*nProcessors/(nbasis**2/4)
                 end if
 
                 ! Check that there is enough memory for the new spawned RDM entry.
@@ -1113,7 +1113,7 @@ contains
             if (tGUGA) then
                 call extract_2_rdm_ind(ijkl, i, j, k, l)
 
-                if (i == j .and. k == l) then
+                if ((i == j .and. k == l)) then! .or. (i == l .and. j == k)) then
                     call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                     rdm_trace = rdm_trace + rdm_sign
                 end if

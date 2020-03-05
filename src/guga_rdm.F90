@@ -72,8 +72,8 @@ module guga_rdm
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
     logical :: t_test_diagonal = .false.
-    logical :: t_direct_exchange = .false.
-    logical :: t_mimic_stochastic = .false.
+    logical :: t_direct_exchange = .true.
+    logical :: t_mimic_stochastic = .true.
 
 contains
 
