@@ -13,7 +13,8 @@ set( ${PROJECT_NAME}_Fortran_FLAGS_CLUSTER "-ipo" )
 set( ${PROJECT_NAME}_Fortran_WARNING_FLAGS "-warn all -warn nointerfaces,nounused,notruncated_source -diag-disable=remark" )
 
 # Treat errors as warnings
-set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-warn\;error")
+# set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "-warn\;error")
+set( ${PROJECT_NAME}_Fortran_WARN_ERROR_FLAG "")
 
 # Linker flags
 

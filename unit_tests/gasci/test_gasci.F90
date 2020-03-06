@@ -1,17 +1,20 @@
 module test_gasci_mod
     use fruit
-    use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t
+    use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, &
+        size, operator(==), spin => spin_values
     use util_mod, only: cumsum
     use gasci, only: GASSpec_t, get_iGAS, &
         contains_det, get_nGAS, particles_per_GAS, operator(.contains.), &
-        is_valid, is_connected, get_possible_spaces
+        is_valid, is_connected, get_possible_spaces, possible_holes, &
+        split_per_GAS
     implicit none
     private
     public :: test_igas_from_spatorb, test_igas_from_spinorb, &
         test_contains_det_spinorb, test_contains_det_spatorb, &
         test_particles_per_GAS_spatorb, test_particles_per_GAS_spinorb, &
         test_is_valid, test_is_connected, &
-        test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb
+        test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb, &
+        test_possible_holes, test_split_per_GAS
 
 
 
@@ -40,21 +43,36 @@ contains
     subroutine test_particles_per_GAS_spatorb()
         type(GASSpec_t) :: GAS_spec
         GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
-        call assert_equals([2, 2], &
-                           particles_per_GAS(GAS_spec, SpatOrbIdx_t([1, 2, 3, 4])), 2)
-        call assert_equals([1, 3], &
-                           particles_per_GAS(GAS_spec, SpatOrbIdx_t([1, 3, 3, 4])), 2)
 
+        associate(expected => [2, 2], &
+                  calculated => &
+                    particles_per_GAS(split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 2, 3, 4]))))
+            call assert_equals(expected, calculated, size(expected))
+        end associate
+
+        associate(expected => [1, 3], &
+                  calculated => &
+                    particles_per_GAS(split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 3, 3, 4]))))
+            call assert_equals(expected, calculated, size(expected))
+        end associate
     end subroutine
 
 
     subroutine test_particles_per_GAS_spinorb()
         type(GASSpec_t) :: GAS_spec
         GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
-        call assert_equals([2, 2], &
-                           particles_per_GAS(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6])), 2)
-        call assert_equals([1, 3], &
-                           particles_per_GAS(GAS_spec, SpinOrbIdx_t([1, 5, 6, 7])), 2)
+
+        associate(expected => [2, 2], &
+                  calculated => &
+                    particles_per_GAS(split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]))))
+            call assert_equals(expected, calculated, size(expected))
+        end associate
+
+        associate(expected => [1, 3], &
+                  calculated => &
+                    particles_per_GAS(split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 5, 6, 7]))))
+            call assert_equals(expected, calculated, size(expected))
+        end associate
 
     end subroutine
 
@@ -115,51 +133,50 @@ contains
 
     subroutine test_get_possible_spaces_spinorb()
         type(GASSpec_t) :: GAS_spec
+        type(SpinOrbIdx_t), allocatable :: splitted_det_I(:)
         GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        splitted_det_I = split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]))
 
-        call assert_equals( &
-            [0, 0], &
-            get_possible_spaces(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6])), &
-            2)
+
+        call assert_equals(0, size(get_possible_spaces(GAS_spec, splitted_det_I)))
 
         call assert_equals( &
             [1, 1], &
-            get_possible_spaces(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]), &
-                                additional_holes=SpinOrbIdx_t([1])), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpinOrbIdx_t([1])), &
             2)
 
         call assert_equals( &
             [2, 2], &
-            get_possible_spaces(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]), &
-                                additional_holes=SpinOrbIdx_t([5])), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpinOrbIdx_t([5])), &
             2)
 
         call assert_equals( &
-            [0, 0], &
-            get_possible_spaces(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]), &
-                                additional_holes=SpinOrbIdx_t([1, 5]), &
-                                n_particles=1), &
-            2)
+            0, &
+            size(get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpinOrbIdx_t([1, 5]), &
+                                n_particles=1)))
 
         call assert_equals( &
             [1, 2], &
-            get_possible_spaces(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]), &
-                                additional_holes=SpinOrbIdx_t([1, 5]), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpinOrbIdx_t([1, 5]), &
                                 n_particles=2), &
             2)
 
 
         call assert_equals( &
             [1, 1], &
-            get_possible_spaces(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]), &
-                                additional_holes=SpinOrbIdx_t([1, 2]), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpinOrbIdx_t([1, 2]), &
                                 n_particles=2), &
             2)
 
         call assert_equals( &
             [2, 2], &
-            get_possible_spaces(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6]), &
-                                additional_holes=SpinOrbIdx_t([5, 6]), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpinOrbIdx_t([5, 6]), &
                                 n_particles=2), &
             2)
     end subroutine
@@ -167,53 +184,154 @@ contains
 
     subroutine test_get_possible_spaces_spatorb()
         type(GASSpec_t) :: GAS_spec
+        type(SpatOrbIdx_t), allocatable :: splitted_det_I(:)
         GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        splitted_det_I = split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]))
 
-        call assert_equals( &
-            [0, 0], &
-            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3])), &
-            2)
+        call assert_equals(0, size(get_possible_spaces(GAS_spec, splitted_det_I)))
 
         call assert_equals( &
             [1, 1], &
-            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
-                                additional_holes=SpatOrbIdx_t([1])), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpatOrbIdx_t([1])), &
             2)
 
         call assert_equals( &
             [2, 2], &
-            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
-                                additional_holes=SpatOrbIdx_t([3])), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpatOrbIdx_t([3])), &
             2)
 
-        call assert_equals( &
-            [0, 0], &
-            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
-                                additional_holes=SpatOrbIdx_t([1, 3]), &
-                                n_particles=1), &
-            2)
+        call assert_equals(0, &
+            size(get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpatOrbIdx_t([1, 3]), &
+                                n_particles=1)))
 
         call assert_equals( &
             [1, 2], &
-            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
-                                additional_holes=SpatOrbIdx_t([1, 3]), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpatOrbIdx_t([1, 3]), &
                                 n_particles=2), &
             2)
 
 
         call assert_equals( &
             [1, 1], &
-            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
-                                additional_holes=SpatOrbIdx_t([1, 1]), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpatOrbIdx_t([1, 1]), &
                                 n_particles=2), &
             2)
 
         call assert_equals( &
             [2, 2], &
-            get_possible_spaces(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3]), &
-                                additional_holes=SpatOrbIdx_t([3, 3]), &
+            get_possible_spaces(GAS_spec, splitted_det_I, &
+                                add_holes=SpatOrbIdx_t([3, 3]), &
                                 n_particles=2), &
             2)
+    end subroutine
+
+    subroutine test_possible_holes
+        type(GASSpec_t) :: GAS_spec
+        type(SpinOrbIdx_t) :: reference
+        type(SpinOrbIdx_t) :: expected, calculated
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+        reference = SpinOrbIdx_t([1, 2, 5, 6])
+
+        expected = SpinOrbIdx_t([integer::])
+        calculated = possible_holes(GAS_spec, reference)
+        call assert_true(all(expected == calculated))
+
+!         associate(expected => SpinOrbIdx_t([integer::]), &
+!                   calculated => possible_holes(GAS_spec, reference))
+!             write(*, *) 'PEW', 2
+!             call assert_true(all(expected == calculated))
+!         end associate
+
+!         associate(expected => SpinOrbIdx_t([3, 4]), &
+!                   calculated => possible_holes(&
+!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([1])))
+!             call assert_true(all(expected == calculated))
+!         end associate
+!
+!         associate(expected => SpinOrbIdx_t([integer::]), &
+!                   calculated => possible_holes( &
+!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([1, 2])))
+!             call assert_true(all(expected == calculated))
+!         end associate
+!
+!         associate(expected => SpinOrbIdx_t([7, 8]), &
+!                   calculated => possible_holes( &
+!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([5])))
+!             call assert_true(all(expected == calculated))
+!         end associate
+!
+!         associate(expected => SpinOrbIdx_t([7]), &
+!                   calculated => possible_holes( &
+!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([5]), &
+!                         m_s = Spin_t([spin%beta])))
+!             call assert_true(all(expected == calculated))
+!         end associate
+!
+!         associate(expected => SpinOrbIdx_t([8]), &
+!                   calculated => possible_holes( &
+!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([5]), &
+!                         m_s = Spin_t([spin%alpha])))
+!             call assert_true(all(expected == calculated))
+!         end associate
+
+    end subroutine
+
+    subroutine test_split_per_GAS
+        type(GASSpec_t) :: GAS_spec
+        integer :: i
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])
+
+        associate(expected => [SpinOrbIdx_t([1, 2]), SpinOrbIdx_t([5, 6])], &
+                  calculated => split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6])))
+            call assert_true(all(expected(1) == calculated(1)))
+            call assert_true(all(expected(2) == calculated(2)))
+        end associate
+
+        associate(expected => [SpinOrbIdx_t([integer::]), SpinOrbIdx_t([5, 6])], &
+                  calculated => split_per_GAS(GAS_spec, SpinOrbIdx_t([5, 6])))
+            call assert_true(all(expected(1) == calculated(1)))
+            call assert_true(all(expected(2) == calculated(2)))
+        end associate
+
+        associate(expected => [SpinOrbIdx_t([1, 2, 3]), SpinOrbIdx_t([integer::])], &
+                  calculated => split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 2, 3])))
+            call assert_true(all(expected(1) == calculated(1)))
+            call assert_true(all(expected(2) == calculated(2)))
+        end associate
+
+        associate(expected => [SpatOrbIdx_t([1, 1]), SpatOrbIdx_t([3, 3])], &
+                  calculated => split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 1, 3, 3])))
+            call assert_true(all(expected(1) == calculated(1)))
+            call assert_true(all(expected(2) == calculated(2)))
+        end associate
+
+        associate(expected => [SpatOrbIdx_t([integer::]), SpatOrbIdx_t([3, 3])], &
+                  calculated => split_per_GAS(GAS_spec, SpatOrbIdx_t([3, 3])))
+            call assert_true(all(expected(1) == calculated(1)))
+            call assert_true(all(expected(2) == calculated(2)))
+        end associate
+
+        associate(expected => [SpatOrbIdx_t([1, 1, 2]), SpatOrbIdx_t([integer::])], &
+                  calculated => split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 1, 2])))
+            call assert_true(all(expected(1) == calculated(1)))
+            call assert_true(all(expected(2) == calculated(2)))
+        end associate
+
+
+        GAS_spec = GASSpec_t(n_orbs=[2, 4, 6], n_min=[2, 4, 6], n_max=[2, 4, 6])
+        associate(expected => [SpatOrbIdx_t([1, 1, 2]), SpatOrbIdx_t([3]), SpatOrbIdx_t([5, 6])], &
+                  calculated => split_per_GAS(GAS_spec, SpatOrbIdx_t([1, 1, 2, 3, 5, 6])))
+            do i = 1, get_nGAS(GAS_spec)
+                call assert_true(all(expected(i) == calculated(i)))
+            end do
+        end associate
+
+
     end subroutine
 
 end module test_gasci_mod
@@ -226,7 +344,8 @@ program test_gasci_program
         test_contains_det_spinorb, test_contains_det_spatorb, &
         test_particles_per_GAS_spatorb, test_particles_per_GAS_spinorb, &
         test_is_valid, test_is_connected, &
-        test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb
+        test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb, &
+        test_possible_holes, test_split_per_GAS
 
 
     implicit none
@@ -234,7 +353,7 @@ program test_gasci_program
 
     integer :: n
 
-    call mpi_init(err)
+!     call mpi_init(err)
 
     call init_fruit()
 
@@ -246,20 +365,22 @@ program test_gasci_program
 
     if (failed_count /= 0) call stop_all('test_gasci_program', 'failed_tests')
 
-    call mpi_finalize(err)
+!     call mpi_finalize(err)
 
 contains
 
     subroutine test_gasci_driver()
+        call run_test_case(test_is_valid, "test_is_valid")
+        call run_test_case(test_is_connected, "test_is_connected")
         call run_test_case(test_igas_from_spatorb, "test_igas_from_spatorb")
         call run_test_case(test_igas_from_spinorb, "test_igas_from_spinorb")
+        call run_test_case(test_split_per_GAS, "test_split_per_GAS")
         call run_test_case(test_contains_det_spinorb, "test_contains_det_spinorb")
         call run_test_case(test_contains_det_spatorb, "test_contains_det_spatorb")
         call run_test_case(test_particles_per_GAS_spatorb, "test_particles_per_GAS_spatorb")
         call run_test_case(test_particles_per_GAS_spinorb, "test_particles_per_GAS_spinorb")
-        call run_test_case(test_is_valid, "test_is_valid")
-        call run_test_case(test_is_connected, "test_is_connected")
         call run_test_case(test_get_possible_spaces_spinorb, "test_get_possible_spaces_spinorb")
         call run_test_case(test_get_possible_spaces_spatorb, "test_get_possible_spaces_spatorb")
+        call run_test_case(test_possible_holes, "test_possible_holes")
     end subroutine
 end program test_gasci_program
