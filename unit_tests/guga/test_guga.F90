@@ -23,7 +23,7 @@ program test_guga
     use guga_rdm, only: calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
                         calc_all_excits_guga_rdm_doubles, t_mimic_stochastic, &
                         calc_explicit_diag_2_rdm_guga, calc_explicit_2_rdm_guga, &
-                        test_fill_spawn_diag
+                        test_fill_spawn_diag, t_diag_exchange
     use constants
     use DetBitOps
     use Determinants
@@ -82,6 +82,9 @@ contains
 
         call init_guga_testsuite()
 
+!         call run_test_case(compare_fill_diag_and_explicit_diag)
+!         call stop_all("here", "now")
+
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
         call test_guga_excitations_exact
@@ -112,17 +115,17 @@ contains
 
 
 
-
         print *, ""
         print *, "comparing: test_fill_spawn_diag and calc_explicit_diag_2_rdm_guga"
 
         nel = 5
-        nSpatOrbs = 13
+        nSpatOrbs = 8
         allocate(nI(nel)); allocate(nJ(nel))
-        nI = [1,2,3,5,7]
+        nI = [1,2,3,5,8]
         call EncodeBitDet_guga(nI, ilut)
 
         t_mimic_stochastic = .false.
+        t_diag_exchange = .true.
 
         call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
         call write_guga_list(6, excits)
@@ -143,12 +146,11 @@ contains
 
         deallocate(nI); deallocate(nJ)
 
-        call stop_all("here", "now")
 
-        nel = 4
+        nel = 5
         allocate(nI(nel)); allocate(nJ(nel))
 
-        nI = [1,4,5,8]
+        nI = [1,2,3,5,8]
         call EncodeBitDet_guga(nI, ilut)
 
         t_mimic_stochastic = .false.
@@ -179,6 +181,7 @@ contains
 
         deallocate(nI); deallocate(nJ)
 
+        call stop_all("here", "now")
         nel = 4
         allocate(nI(nel)); allocate(nJ(nel))
 

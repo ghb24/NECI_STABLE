@@ -46,7 +46,7 @@ module guga_rdm
                               encode_rdm_ind, extract_rdm_ind
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_reps, only: nifguga
-    use FciMCData, only: projEDet, CurrentDets, TotWalkers
+    use FciMCData, only: projEDet, CurrentDets, TotWalkers, ilutref
     use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag
     use UMatCache, only: gtID
     use RotateOrbsData, only: SymLabelListInv_rot
@@ -64,7 +64,7 @@ module guga_rdm
     private
     public :: calc_rdm_energy_guga, gen_exc_djs_guga, &
               send_proc_ex_djs, &
-              t_mimic_stochastic, &
+              t_mimic_stochastic, t_diag_exchange, &
               calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
               calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga, &
               calc_explicit_diag_2_rdm_guga, test_fill_spawn_diag
@@ -72,6 +72,7 @@ module guga_rdm
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
 
+    logical :: t_diag_exchange = .false.
     logical :: t_mimic_stochastic = .false.
 
 contains
@@ -1664,14 +1665,22 @@ contains
                 end do
 #endif
 
-                if (t_mimic_stochastic) then
-                    if (n_excits > 1) then
-                        call add_guga_lists_rdm(n_tot, n_excits-1, &
-                            tmp_all_excits, temp_excits(:,2:))
+                if (t_diag_exchange) then
+                    if (.not. t_mimic_stochastic) then
+                        if (DetBitEQ(ilut, temp_excits(:,1))) then
+                            call add_guga_lists_rdm(n_tot, 1, tmp_all_excits, temp_excits)
+                        end if
                     end if
                 else
-                    if (n_excits > 0) then
-                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                    if (t_mimic_stochastic) then
+                        if (n_excits > 1) then
+                            call add_guga_lists_rdm(n_tot, n_excits-1, &
+                                tmp_all_excits, temp_excits(:,2:))
+                        end if
+                    else
+                        if (n_excits > 0) then
+                            call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                        end if
                     end if
                 end if
                 deallocate(temp_excits)
