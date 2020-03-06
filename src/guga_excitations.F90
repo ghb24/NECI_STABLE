@@ -16546,22 +16546,21 @@ contains
         ! compatibility check and excitation type determination?
         ! probably yes! -> so assume such an excitation is not coming
 
-        if (current_stepvector(excitInfo%fullStart) == 0 .or. &
-            current_stepvector(excitInfo%fullEnd) == 0) then
+        associate(st => excitInfo%fullStart, en => excitInfo%fullEnd)
+
+        if (current_stepvector(st) == 0 .or. current_stepvector(en) == 0) then
             nExcits = 0
             allocate(excitations(0,0))
             return
         end if
 
-        if (current_stepvector(excitInfo%fullStart) == 3 .or. &
-            current_stepvector(excitInfo%fullEnd) == 3) then
+        if (current_stepvector(st) == 3 .or. current_stepvector(en) == 3) then
             nExcits = 1
             allocate(excitations(0:nifguga,nExcits))
             excitations(:,1) = ilut
             call encode_matrix_element(excitations(:,1), 0.0_dp, 2)
             call encode_matrix_element(excitations(:,1), &
-                -real(currentOcc_int(excitInfo%fullStart) * &
-                      currentOcc_int(excitInfo%fullEnd),dp)/2.0_dp, 1)
+                -real(currentOcc_int(st) * currentOcc_int(en),dp)/2.0_dp, 1)
 
             return
         end if
@@ -16570,13 +16569,11 @@ contains
         ! function specifically for these cases.
 
         ! can i just use already implemented fullStart? i think
-        weights = init_doubleWeight(ilut, excitInfo%fullEnd)
-        plusWeight = weights%proc%plus(posSwitches(excitInfo%fullStart), &
-            currentB_ilut(excitInfo%fullStart),weights%dat)
-        minusWeight = weights%proc%minus(negSwitches(excitInfo%fullStart), &
-            currentB_ilut(excitInfo%fullStart),weights%dat)
-        zeroWeight = weights%proc%zero(negSwitches(excitInfo%fullStart), &
-            posSwitches(excitInfo%fullStart), currentB_ilut(excitInfo%fullStart), weights%dat)
+        weights = init_doubleWeight(ilut, en)
+        plusWeight = weights%proc%plus(posSwitches(st), currentB_ilut(st),weights%dat)
+        minusWeight = weights%proc%minus(negSwitches(st), currentB_ilut(st),weights%dat)
+        zeroWeight = weights%proc%zero(negSwitches(st), posSwitches(st), &
+                                        currentB_ilut(st), weights%dat)
 
 
         ! then call it
@@ -16584,13 +16581,15 @@ contains
             nExcits)
 
         ! and just do double update for the excitation region
-        do iOrb = excitInfo%fullStart + 1, excitInfo%fullEnd - 1
+        do iOrb = st + 1, en - 1
             call doubleUpdate(ilut, iOrb, excitInfo, weights, tempExcits, nExcits, &
                 negSwitches, posSwitches)
         end do
 
         ! and then to already implemented mixed end
         call mixedFullStop(ilut, excitInfo, tempExcits, nExcits, excitations)
+
+        end associate
 
 
     end subroutine calcFullStartFullStopMixed

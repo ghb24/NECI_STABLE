@@ -31,7 +31,7 @@ MODULE Logging
                            t_pop_symmetry_states, symmetry_states, &
                            symmetry_weights, symmetry_states_ilut
 
-    use guga_rdm, only: t_direct_exchange, t_mimic_stochastic
+    use guga_rdm, only: t_mimic_stochastic
 
     use cc_amplitudes, only: t_plot_cc_amplitudes
 
@@ -253,13 +253,9 @@ MODULE Logging
             ! matrix element vs. pgen ratios
             t_print_frq_histograms = .true.
 
-        case ("DIRECT-EXCHANGE")
-            t_direct_exchange = .true.
-
         case ("MIMIC-STOCHASTIC")
             t_mimic_stochastic = .true.
             ! if we mimic we HAVE to do direct exchange too!
-            t_direct_exchange = .true.
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)

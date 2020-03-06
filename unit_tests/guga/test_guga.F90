@@ -22,7 +22,8 @@ program test_guga
     use guga_procedure_pointers
     use guga_rdm, only: calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
                         calc_all_excits_guga_rdm_doubles, t_mimic_stochastic, &
-                        calc_explicit_diag_2_rdm_guga, calc_explicit_2_rdm_guga
+                        calc_explicit_diag_2_rdm_guga, calc_explicit_2_rdm_guga, &
+                        test_fill_spawn_diag
     use constants
     use DetBitOps
     use Determinants
@@ -33,6 +34,7 @@ program test_guga
     use symrandexcit3, only: test_sym_excit3
     use util_mod, only: operator(.isclose.), near_zero, operator(.div.), &
                         binary_search
+    use sort_mod, only: sort
     use Integrals_neci, only: get_umat_el_normal
     use procedure_pointers, only: get_umat_el
     use read_fci, only: initfromfcid, fcidump_name, readfciint
@@ -96,6 +98,484 @@ contains
         !call run_test_excit_gen_guga_S0
 
     end subroutine guga_test_driver
+
+    subroutine compare_fill_diag_and_explicit_diag
+
+        real(dp), allocatable :: mat_list(:)
+        integer(int_rdm), allocatable :: ind_list(:)
+        integer :: n_contribs
+
+        integer(n_int) :: ilut(0:nifguga)
+        integer(n_int), pointer :: excits(:,:), all_excits(:,:)
+        integer :: n_tot, i, n_all, j
+        integer, allocatable :: nI(:), nJ(:)
+
+
+
+
+        print *, ""
+        print *, "comparing: test_fill_spawn_diag and calc_explicit_diag_2_rdm_guga"
+
+        nel = 5
+        nSpatOrbs = 13
+        allocate(nI(nel)); allocate(nJ(nel))
+        nI = [1,2,3,5,7]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+        call write_guga_list(6, excits)
+
+        t_mimic_stochastic = .true.
+        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
+
+        call assert_equals(n_tot, n_contribs)
+        call sort(ind_list, mat_list)
+
+        print *, "mats and ind: "
+        do i = 1, n_contribs
+            call assert_equals(real(extract_h_element(excits(:,i)),dp), &
+                mat_list(i), 1e-12_dp)
+            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+            print *, mat_list(i), ind_list(i)
+        end do
+
+        deallocate(nI); deallocate(nJ)
+
+        call stop_all("here", "now")
+
+        nel = 4
+        allocate(nI(nel)); allocate(nJ(nel))
+
+        nI = [1,4,5,8]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+
+        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
+
+        call write_guga_list(6, all_excits)
+
+        do j = 1, n_all
+
+            t_mimic_stochastic = .false.
+
+            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
+
+            t_mimic_stochastic = .true.
+            call decode_bit_det(nJ, all_excits(:,j))
+            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
+
+            call assert_equals(n_tot, n_contribs)
+            call sort(ind_list, mat_list)
+
+            do i = 1, n_tot
+                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
+                    mat_list(i), 1e-12_dp)
+                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+            end do
+        end do
+
+        deallocate(nI); deallocate(nJ)
+
+        nel = 4
+        allocate(nI(nel)); allocate(nJ(nel))
+
+        nI = [1,3,5,8]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+
+        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
+
+        call write_guga_list(6, all_excits)
+
+        do j = 1, n_all
+
+            t_mimic_stochastic = .false.
+
+            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
+
+            t_mimic_stochastic = .true.
+            call decode_bit_det(nJ, all_excits(:,j))
+            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
+
+            call assert_equals(n_tot, n_contribs)
+            call sort(ind_list, mat_list)
+
+            do i = 1, n_tot
+                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
+                    mat_list(i), 1e-12_dp)
+                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+            end do
+        end do
+
+        deallocate(nI); deallocate(nJ)
+
+        nel = 3
+        allocate(nI(nel)); allocate(nJ(nel))
+        nI = [1,2,3]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+
+        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
+
+        call write_guga_list(6, all_excits)
+
+        do j = 1, n_all
+
+            t_mimic_stochastic = .false.
+
+            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
+
+            t_mimic_stochastic = .true.
+            call decode_bit_det(nJ, all_excits(:,j))
+            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
+
+            call assert_equals(n_tot, n_contribs)
+            call sort(ind_list, mat_list)
+
+            do i = 1, n_tot
+                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
+                    mat_list(i), 1e-12_dp)
+                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+            end do
+        end do
+
+        deallocate(nI); deallocate(nJ)
+
+        nel = 3
+        allocate(nI(nel)); allocate(nJ(nel))
+        nI = [1,3,5]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+
+        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
+
+        call write_guga_list(6, all_excits)
+
+        do j = 1, n_all
+
+            t_mimic_stochastic = .false.
+
+            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
+
+            t_mimic_stochastic = .true.
+            call decode_bit_det(nJ, all_excits(:,j))
+            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
+
+            call assert_equals(n_tot, n_contribs)
+            call sort(ind_list, mat_list)
+
+            do i = 1, n_tot
+                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
+                    mat_list(i), 1e-12_dp)
+                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+            end do
+        end do
+
+        deallocate(nI); deallocate(nJ)
+
+
+        nel = 2
+        allocate(nI(nel)); allocate(nJ(nel))
+        nI = [1,2]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+
+        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
+
+        call write_guga_list(6, all_excits)
+
+        do j = 1, n_all
+
+            t_mimic_stochastic = .false.
+
+            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
+
+            t_mimic_stochastic = .true.
+            call decode_bit_det(nJ, all_excits(:,j))
+            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
+
+            call assert_equals(n_tot, n_contribs)
+            call sort(ind_list, mat_list)
+
+            do i = 1, n_tot
+                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
+                    mat_list(i), 1e-12_dp)
+                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+            end do
+        end do
+
+        deallocate(nI); deallocate(nJ)
+
+        nel = 2
+        allocate(nI(nel)); allocate(nJ(nel))
+        nI = [1,3]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+
+        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
+
+        call write_guga_list(6, all_excits)
+
+        do j = 1, n_all
+
+            t_mimic_stochastic = .false.
+
+            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
+
+            t_mimic_stochastic = .true.
+            call decode_bit_det(nJ, all_excits(:,j))
+            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
+
+            call assert_equals(n_tot, n_contribs)
+            call sort(ind_list, mat_list)
+
+            do i = 1, n_tot
+                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
+                    mat_list(i), 1e-12_dp)
+                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+            end do
+        end do
+
+        deallocate(nI); deallocate(nJ)
+
+        nel = 5
+        allocate(nI(nel)); allocate(nJ(nel))
+        nI = [1,2,3,5,8]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+
+        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
+
+        call write_guga_list(6, all_excits)
+
+        do j = 1, n_all
+
+            t_mimic_stochastic = .false.
+
+            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
+
+            t_mimic_stochastic = .true.
+            call decode_bit_det(nJ, all_excits(:,j))
+            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
+
+            call assert_equals(n_tot, n_contribs)
+            call sort(ind_list, mat_list)
+
+            do i = 1, n_tot
+                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
+                    mat_list(i), 1e-12_dp)
+                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+            end do
+        end do
+
+        deallocate(nI); deallocate(nJ)
+
+        nel = 5
+        allocate(nI(nel)); allocate(nJ(nel))
+        nI = [1,2,3,5,7]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+
+        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
+
+        call write_guga_list(6, all_excits)
+
+        do j = 1, n_all
+
+            t_mimic_stochastic = .false.
+
+            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
+
+            t_mimic_stochastic = .true.
+            call decode_bit_det(nJ, all_excits(:,j))
+            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
+
+            call assert_equals(n_tot, n_contribs)
+            call sort(ind_list, mat_list)
+
+            do i = 1, n_tot
+                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
+                    mat_list(i), 1e-12_dp)
+                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+            end do
+        end do
+
+        deallocate(nI); deallocate(nJ)
+        call stop_all("here", "now")
+
+
+
+        ! automatize!
+
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+
+        t_mimic_stochastic = .true.
+        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
+
+        call sort(ind_list, mat_list)
+
+        call assert_equals(n_tot, n_contribs)
+
+        do i = 1, n_tot
+            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
+            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+        end do
+
+        nI = [1,3,6,8]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+
+        t_mimic_stochastic = .true.
+        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
+
+        call sort(ind_list, mat_list)
+
+        call assert_equals(n_tot, n_contribs)
+
+        do i = 1, n_tot
+            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
+            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+        end do
+
+        nI = [1,3,5,8]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+
+        t_mimic_stochastic = .true.
+        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
+
+        call sort(ind_list, mat_list)
+
+        call assert_equals(n_tot, n_contribs)
+
+        do i = 1, n_tot
+            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
+            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+        end do
+
+        nI = [1,3,5,7]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+
+        t_mimic_stochastic = .true.
+        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
+
+        call sort(ind_list, mat_list)
+
+        call assert_equals(n_tot, n_contribs)
+
+        do i = 1, n_tot
+            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
+            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+        end do
+
+        deallocate(nI)
+
+        nel = 5
+        allocate(nI(nel))
+        nI = [1,2,3,6,8]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+
+        t_mimic_stochastic = .true.
+        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
+
+        call sort(ind_list, mat_list)
+
+        call assert_equals(n_tot, n_contribs)
+
+        do i = 1, n_tot
+            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
+            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+        end do
+
+        nI = [1,2,3,5,8]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+
+        t_mimic_stochastic = .true.
+        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
+
+        call sort(ind_list, mat_list)
+
+        call assert_equals(n_tot, n_contribs)
+
+        do i = 1, n_tot
+            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
+            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+        end do
+
+
+        nI = [1,2,3,5,7]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+
+        t_mimic_stochastic = .true.
+        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
+
+        call sort(ind_list, mat_list)
+
+        call assert_equals(n_tot, n_contribs)
+
+        do i = 1, n_tot
+            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
+            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+        end do
+
+        nI = [1,3,4,5,7]
+        call EncodeBitDet_guga(nI, ilut)
+
+        t_mimic_stochastic = .false.
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+
+
+        t_mimic_stochastic = .true.
+        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
+
+        call sort(ind_list, mat_list)
+
+        call assert_equals(n_tot, n_contribs)
+
+        do i = 1, n_tot
+            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
+            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
+        end do
+
+
+
+        print *, ""
+        print *, "comparing: test_fill_spawn_diag and calc_explicit_diag_2_rdm_guga DONE"
+
+    end subroutine compare_fill_diag_and_explicit_diag
 
     subroutine init_guga_testsuite
 
@@ -174,8 +654,6 @@ contains
 
         call run_test_case(test_calc_all_excits_guga_rdm_doubles, &
             "test_calc_all_excits_guga_rdm_doubles")
-        call run_test_case(test_calc_explicit_diag_2_rdm_guga, &
-            "test_calc_explicit_diag_2_rdm_guga")
         call run_test_case(test_calc_explicit_2_rdm_guga, "test_calc_explicit_2_rdm_guga")
 
         call test_compare_RDM_indexing
@@ -426,6 +904,18 @@ contains
         call assert_equals( -sqrt(3.0_dp)/2.0_dp, real(extract_h_element(excits(:,8)), dp), 1e-12_dp)
 
 
+        nel = 4
+        call EncodeBitDet_guga([1,4,5,8], ilut)
+
+        t_mimic_stochastic = .true.
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+        call write_guga_list(6, excits)
+
+        t_mimic_stochastic = .false.
+        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
+        call write_guga_list(6, excits)
+
+
         print *, ""
         print *, "testing: calc_explicit_diag_2_rdm_guga DONE"
         print *, ""
@@ -441,7 +931,7 @@ contains
         integer, allocatable :: nJ(:)
         real(dp) :: rdm_mat
         integer(int_rdm) :: rdm_ind
-        integer :: i, j, k, l
+        integer :: i, j, k, l, cnt, n
         integer(n_int) :: ilut(0:nifguga)
 
 
@@ -595,6 +1085,47 @@ contains
         t_mimic_stochastic = .true.
         call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
         call assert_equals(9, n_tot)
+
+
+        t_mimic_stochastic = .false.
+        nel = 4
+
+        call EncodeBitDet_guga([1,3,6,8], ilut)
+
+        call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
+
+        print *, "n_tot", n_tot
+        call write_det_guga(6,ilut)
+        call write_guga_list(6,excits)
+
+        cnt = 0
+        do n = 1, n_tot
+            if (DetBitEQ(ilut, excits(:,n))) then
+                rdm_ind = extract_rdm_ind(excits(:,n))
+                call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+                call assert_equals(i, l)
+                call assert_equals(j, k)
+                cnt = cnt + 1
+            end if
+        end do
+
+        call assert_equals(12, cnt)
+
+        t_mimic_stochastic = .true.
+        call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
+
+        cnt = 0
+        do n = 1, n_tot
+            if (DetBitEQ(ilut, excits(:,n)))  cnt = cnt + 1
+        end do
+
+        print *, "cnt: ", cnt
+
+        call assert_equals(0, cnt)
+
+        print *, "n_tot", n_tot
+        call write_det_guga(6,ilut)
+        call write_guga_list(6,excits)
 
         print *, ""
         print *, "testing: calc_explicit_2_rdm_guga DONE"
@@ -775,6 +1306,74 @@ contains
         call assert_equals(0, n_excits)
 
         t_mimic_stochastic = .false.
+
+
+        nel = 4
+        call EncodeBitDet_guga([1,3,6,8], ilut)
+        call init_csf_information(ilut)
+
+        deallocate(nJ)
+        allocate(nJ(nel))
+
+        call calc_all_excits_guga_rdm_doubles(ilut, 1, 4, 4, 1, excits, n_excits)
+
+        call assert_equals(2, n_excits)
+
+        call decode_bit_det(nJ, excits(:,1))
+        call assert_equals([1,3,6,8], nJ, 4)
+        rdm_ind = extract_rdm_ind(excits(:,1))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+
+        call decode_bit_det(nJ, excits(:,2))
+        call assert_equals([1,4,5,8], nJ, 4)
+        rdm_ind = extract_rdm_ind(excits(:,2))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+
+        call calc_all_excits_guga_rdm_doubles(ilut, 4, 1, 1, 4, excits, n_excits)
+
+        call assert_equals(2, n_excits)
+
+        call decode_bit_det(nJ, excits(:,1))
+        call assert_equals([1,3,6,8], nJ, 4)
+        rdm_ind = extract_rdm_ind(excits(:,1))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(4, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(4, l)
+
+
+        call EncodeBitDet_guga([1,4,5,8], ilut)
+        call init_csf_information(ilut)
+
+        call calc_all_excits_guga_rdm_doubles(ilut, 1, 4, 4, 1, excits, n_excits)
+
+        call decode_bit_det(nJ, excits(:,1))
+        call assert_equals([1,4,5,8], nJ, 4)
+        rdm_ind = extract_rdm_ind(excits(:,1))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+
+        call decode_bit_det(nJ, excits(:,2))
+        call assert_equals([1,3,6,8], nJ, 4)
+        rdm_ind = extract_rdm_ind(excits(:,2))
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+
 
         print *, ""
         print *, "testing: calc_all_excits_guga_rdm_doubles DONE"

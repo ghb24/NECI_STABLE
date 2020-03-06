@@ -63,16 +63,15 @@ module guga_rdm
 
     private
     public :: calc_rdm_energy_guga, gen_exc_djs_guga, &
-              send_proc_ex_djs, t_test_diagonal, &
-              t_mimic_stochastic, t_direct_exchange, &
+              send_proc_ex_djs, &
+              t_mimic_stochastic, &
               calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
               calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga, &
-              calc_explicit_diag_2_rdm_guga
+              calc_explicit_diag_2_rdm_guga, test_fill_spawn_diag
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
-    logical :: t_test_diagonal = .false.
-    logical :: t_direct_exchange = .false.
+
     logical :: t_mimic_stochastic = .false.
 
 contains
@@ -115,7 +114,7 @@ contains
         ! now to double excitations if requsted:
         if (RDMExcitLevel /= 1) then
 
-            if (t_mimic_stochastic) then
+            if (t_mimic_stochastic ) then
                 ! if i want to mimic stochastic RDM sampling I also
                 ! have to explicitly create single excitations, but
                 ! store them in the according 2-RDM entries
@@ -129,11 +128,7 @@ contains
             end if
 
 
-            if (t_test_diagonal) then
-                call calc_explicit_diag_2_rdm_guga(ilutG, n_doubles, excits)
-            else
-                call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
-            end if
+            call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
 
             call assign_excits_to_proc_guga(n_doubles, excits, 2)
 
@@ -142,6 +137,95 @@ contains
         end if
 
     end subroutine gen_exc_djs_guga
+
+    subroutine test_fill_spawn_diag(nI, mat_list, ind_list, n_contrib)
+        integer, intent(in) :: nI(nel)
+        real(dp), intent(out), allocatable :: mat_list(:)
+        integer(int_rdm), intent(out), allocatable :: ind_list(:)
+        integer, intent(out) :: n_contrib
+
+        integer :: i, s_orbs(nel), s, j, inc_i, inc_j, p, n
+        real(dp) :: occ_i, occ_j, x0, x1
+        real(dp), allocatable :: tmp_mat(:)
+        integer(int_rdm), allocatable :: tmp_ind(:)
+
+        allocate(tmp_mat(nSpatOrbs**2), source = 0.0_dp)
+        allocate(tmp_ind(nSpatOrbs**2), source = 0_int_rdm)
+
+        n_contrib = 0
+        n = 0
+
+        i = 1
+        s_orbs = gtID(nI)
+
+        do while (i <= nel)
+
+            s = s_orbs(i)
+
+            if (isDouble(nI,i)) then
+                occ_i = 2.0_dp
+                inc_i = 2
+            else
+                occ_i = 1.0_dp
+                inc_i = 1
+            end if
+
+            j = i + inc_i
+
+            do while (j <= nel)
+
+                p = s_orbs(j)
+
+                if (isDouble(nI,j)) then
+                    occ_j = 2.0_dp
+                    inc_j = 2
+                else
+                    occ_j = 1.0_dp
+                    inc_j = 1
+                end if
+
+                ! x0 matrix element is easy
+                x0 = -occ_i * occ_j / 2.0_dp
+
+                if (inc_i == 1 .and. inc_j == 1) then
+                    ! if we have open-shell to open chell
+                    x1 = calcDiagExchangeGUGA_nI(i, j, nI) / 2.0_dp
+
+                    n = n + 1
+                    tmp_mat(n) = x0 - x1
+                    tmp_ind(n) = contract_2_rdm_ind(s, p, p, s)
+
+                    n = n + 1
+                    tmp_mat(n) = x0 - x1
+                    tmp_ind(n) = contract_2_rdm_ind(p, s, s, p)
+
+                else
+
+                    n = n + 1
+                    tmp_mat(n) = x0
+                    tmp_ind(n) = contract_2_rdm_ind(s, p, p, s)
+
+                    n = n + 1
+                    tmp_mat(n) = x0
+                    tmp_ind(n) = contract_2_rdm_ind(p, s, s, p)
+
+                end if
+
+                j = j + inc_j
+            end do
+            i = i + inc_i
+        end do
+
+        n_contrib = n
+        allocate(mat_list(n_contrib), source = tmp_mat(1:n_contrib))
+        allocate(ind_list(n_contrib), source = tmp_ind(1:n_contrib))
+
+        deallocate(tmp_mat)
+        deallocate(tmp_ind)
+
+
+    end subroutine test_fill_spawn_diag
+
 
     subroutine fill_spawn_rdm_diag_guga(spawn, nI, full_sign)
         ! i have to write a routine, which correctly takes into
@@ -155,6 +239,7 @@ contains
         integer :: ssss, spsp, sp, sp2, a,b,c,d
 
         real(dp) :: occ_i, occ_j, x0, x1
+        logical :: t_test
 
         ! i have to figure out what exactly contributes to here..
         ! according to the paper about the two-RDM labels the
@@ -224,7 +309,7 @@ contains
                 ! but for open-shell to open-shell exchange excitations
                 ! I have to calculate the correct x1 matrix element..
 
-                if (t_direct_exchange) then
+                if (t_mimic_stochastic) then
                     ! x0 matrix element is easy
                     x0 = -occ_i * occ_j / 2.0_dp
 
@@ -245,6 +330,7 @@ contains
                         ! and the symmetric version:
                         call add_to_rdm_spawn_t(spawn, p, s, s, p, &
                             x0 * full_sign, .true.)
+
                     end if
                 end if
 
@@ -438,7 +524,9 @@ contains
         integer(int_rdm) :: rdm_ind
         integer(n_int) :: ilutJ(0:nifguga), ilutI(0:nifguga)
         real(dp) :: mat_ele, sign_i(lenof_sign), sign_j(lenof_sign)
-        logical :: tDetFound
+        logical :: tDetFound, t_equal
+
+        t_equal = .false.
 
         do i = 1, nProcessors
 
@@ -453,11 +541,28 @@ contains
 
                 do j = StartDets + 1, (NoDets + StartDets - 1)
 
+                    t_equal = .false.
                     ilutJ = Doub_ExcDjs2(:,j)
+
+                    if ((.not. t_mimic_stochastic) .and.DetBitEQ(ilutI, ilutJ)) then
+                        t_equal = .true.
+                    end if
 
                     call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers, sizeof_int), &
                         PartInd, tDetFound)
 
+                    ! I need to count diagonal terms, which I calculate
+                    ! before annihilation if we mimick the stochastic implementation
+                    if (t_equal .and. .not. tDetFound) then
+
+                        mat_ele = extract_matrix_element(ilutJ,1)
+                        rdm_ind = extract_rdm_ind(ilutJ)
+                        call extract_2_rdm_ind(rdm_ind, a, b, c, d)
+
+                        call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, &
+                            sign_i * sign_i * mat_ele, .true.)
+
+                    end if
                     if (tDetFound) then
 
                         call extract_bit_rep(CurrentDets(:,PartInd), nJ, sign_j, FlagsDj)
@@ -467,15 +572,8 @@ contains
 
                         call extract_2_rdm_ind(rdm_ind, a, b, c, d)
 
-                        ! if we mimic stochastic, we have to deal with the
-                        ! mixed full-start/stops
-                        if (t_mimic_stochastic .and. (a == d .or. b == c)) then
-                            call fill_mixed_2rdm_guga(two_rdm_spawn, ilutI, &
-                                ilutJ, sign_i, sign_j, mat_ele, rdm_ind)
-                        else
-                            call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, &
-                                sign_i * sign_j * mat_ele, .true.)
-                        end if
+                        call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, &
+                            sign_i * sign_j * mat_ele, .true.)
                     end if
                 end do
             end if
@@ -741,63 +839,64 @@ contains
             ! inverse fullstop matrix element
             call getMixedFullStop(step,step,0,real_b(en),x1_element = tmp_mat)
 
-            tmp_mat = 1.0_dp / tmp_mat
+            if (.not. near_zero(tmp_mat)) then
+                tmp_mat = 1.0_dp / tmp_mat
 
-            ! have to change the switches before the first cycle:
-            ! but for cycling backwards, thats not so easy.. need todo
+                ! have to change the switches before the first cycle:
+                ! but for cycling backwards, thats not so easy.. need todo
 
-            do i = en - 1, sw + 1, -1
+                do i = en - 1, sw + 1, -1
 
-                if (int_occ(i) /= 1) cycle
+                    if (int_occ(i) /= 1) cycle
 
-                step = step_i(i)
-                ! update inverse product
-                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,real_b(i),&
-                    1.0_dp, x1_element = stay_mat)
+                    step = step_i(i)
+                    ! update inverse product
+                    call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,real_b(i),&
+                        1.0_dp, x1_element = stay_mat)
 
-                call getMixedFullStop(step,step,0,real_b(i), x1_element = end_mat)
+                    call getMixedFullStop(step,step,0,real_b(i), x1_element = end_mat)
 
-                ! update matrix element
-                tmp_mat = tmp_mat / stay_mat
+                    ! update matrix element
+                    tmp_mat = tmp_mat / stay_mat
 
-                if (.not. near_zero(end_mat) ) then
+                    if (.not. near_zero(end_mat) ) then
 
-                    call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
-                        end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
-                    call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
-                        end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                        call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
+                            end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                        call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
+                            end_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
 
+                    end if
+
+                end do
+
+                ! deal with switch specifically:
+
+                step = step_i(sw)
+
+                if (step == 1) then
+                    ! then a -2 branch arrived!
+                    call getDoubleMatrixElement(2,1,-2,gen_type%L,gen_type%R,real_b(sw), &
+                        1.0_dp, x1_element = stay_mat)
+
+                    call getMixedFullStop(2,1,-2,real_b(sw),x1_element = end_mat)
+
+                else
+                    ! +2 branch arrived!
+
+                    call getDoubleMatrixElement(1,2,2,gen_type%L,gen_type%R,real_b(sw), &
+                        1.0_dp, x1_element = stay_mat)
+
+                    call getMixedFullStop(1,2,2,real_b(sw), x1_element = end_mat)
                 end if
 
-            end do
+                tmp_mat = tmp_mat * end_mat / stay_mat
 
-            ! deal with switch specifically:
-
-            step = step_i(sw)
-
-            if (step == 1) then
-                ! then a -2 branch arrived!
-                call getDoubleMatrixElement(2,1,-2,gen_type%L,gen_type%R,real_b(sw), &
-                    1.0_dp, x1_element = stay_mat)
-
-                call getMixedFullStop(2,1,-2,real_b(sw),x1_element = end_mat)
-
-            else
-                ! +2 branch arrived!
-
-                call getDoubleMatrixElement(1,2,2,gen_type%L,gen_type%R,real_b(sw), &
-                    1.0_dp, x1_element = stay_mat)
-
-                call getMixedFullStop(1,2,2,real_b(sw), x1_element = end_mat)
+                call add_to_rdm_spawn_t(spawn, holeInd, sw, sw, elecInd, &
+                    tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                call add_to_rdm_spawn_t(spawn, sw, elecInd, holeInd, sw, &
+                    tmp_mat * sign_i * sign_j * mat_ele, .true.)
             end if
-
-            tmp_mat = tmp_mat * end_mat / stay_mat
-
-            call add_to_rdm_spawn_t(spawn, holeInd, sw, sw, elecInd, &
-                tmp_mat * sign_i * sign_j * mat_ele, .true.)
-            call add_to_rdm_spawn_t(spawn, sw, elecInd, holeInd, sw, &
-                tmp_mat * sign_i * sign_j * mat_ele, .true.)
-
         end if
 
         end associate
@@ -911,76 +1010,76 @@ contains
         ! and calc. x1^-1
         ! keep tempWweight as the running matrix element which gets updated
         ! every iteration
-        tmp_mat = 1.0_dp / tmp_mat
+        if (.not. near_zero(tmp_mat)) then
+            tmp_mat = 1.0_dp / tmp_mat
 
-        do i = st + 1, sw - 1
-            ! the good thing here is, i do not need to loop a second time,
-            ! since i can recalc. the matrix elements and pgens on-the fly
-            ! here the matrix elements should not be 0 or otherwise the
-            ! excitation wouldnt have happended anyways
-            if (int_occ(i) /= 1) cycle
+            do i = st + 1, sw - 1
+                ! the good thing here is, i do not need to loop a second time,
+                ! since i can recalc. the matrix elements and pgens on-the fly
+                ! here the matrix elements should not be 0 or otherwise the
+                ! excitation wouldnt have happended anyways
+                if (int_occ(i) /= 1) cycle
 
-            step = step_i(i)
+                step = step_i(i)
 
-            ! update inverse product
-            call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,real_b(i),&
-                1.0_dp, x1_element = stay_mat)
-
-            tmp_mat = tmp_mat / stay_mat
-
-            ! and also get starting contribution
-            call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,real_b(i),&
-                1.0_dp, x1_element = start_mat)
-
-            ! because the rest of the matrix element is still the same in
-            ! both cases...
-            if (.not. near_zero(start_mat) ) then
-
-                call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
-                    start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
-                call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
-                    start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
-
-            end if
-
-        end do
-
-        ! handle switch seperately (but only if switch > start)
-        if (sw > st) then
-
-            step = step_i(sw)
-
-            ! on the switch the original probability is:
-            if (step == 1) then
-
-                call getDoubleMatrixElement(2,1,0,gen_type%L,gen_type%R,real_b(sw),&
+                ! update inverse product
+                call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,real_b(i),&
                     1.0_dp, x1_element = stay_mat)
 
-                call getDoubleMatrixElement(2,1,-1,gen_type%L,gen_type%R,real_b(sw),&
+                tmp_mat = tmp_mat / stay_mat
+
+                ! and also get starting contribution
+                call getDoubleMatrixElement(step,step,-1,gen_type%L,gen_type%R,real_b(i),&
                     1.0_dp, x1_element = start_mat)
 
-            else
+                ! because the rest of the matrix element is still the same in
+                ! both cases...
+                if (.not. near_zero(start_mat) ) then
+                    call add_to_rdm_spawn_t(spawn, holeInd, i, i, elecInd, &
+                        start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                    call add_to_rdm_spawn_t(spawn, i, elecInd, holeInd, i, &
+                        start_mat * tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                end if
 
-                call getDoubleMatrixElement(1,2,0,gen_type%L,gen_type%R,real_b(sw),&
-                    1.0_dp, x1_element = stay_mat)
+            end do
 
-                call getDoubleMatrixElement(1,2,-1,gen_type%L,gen_type%R,real_b(sw),&
-                    1.0_dp, x1_element = start_mat)
+            ! handle switch seperately (but only if switch > start)
+            if (sw > st) then
+
+                step = step_i(sw)
+
+                ! on the switch the original probability is:
+                if (step == 1) then
+
+                    call getDoubleMatrixElement(2,1,0,gen_type%L,gen_type%R,real_b(sw),&
+                        1.0_dp, x1_element = stay_mat)
+
+                    call getDoubleMatrixElement(2,1,-1,gen_type%L,gen_type%R,real_b(sw),&
+                        1.0_dp, x1_element = start_mat)
+
+                else
+
+                    call getDoubleMatrixElement(1,2,0,gen_type%L,gen_type%R,real_b(sw),&
+                        1.0_dp, x1_element = stay_mat)
+
+                    call getDoubleMatrixElement(1,2,-1,gen_type%L,gen_type%R,real_b(sw),&
+                        1.0_dp, x1_element = start_mat)
+
+                end if
+
+                ! update inverse product
+                ! and also get starting contribution
+                tmp_mat = tmp_mat * start_mat / stay_mat
+
+                ! because the rest of the matrix element is still the same in
+                ! both cases...
+
+                call add_to_rdm_spawn_t(spawn, holeInd, sw, sw, elecInd, &
+                    tmp_mat * sign_i * sign_j * mat_ele, .true.)
+                call add_to_rdm_spawn_t(spawn, sw, elecInd, holeInd, sw, &
+                    tmp_mat * sign_i * sign_j * mat_ele, .true.)
 
             end if
-
-            ! update inverse product
-            ! and also get starting contribution
-            tmp_mat = tmp_mat * start_mat / stay_mat
-
-            ! because the rest of the matrix element is still the same in
-            ! both cases...
-
-            call add_to_rdm_spawn_t(spawn, holeInd, sw, sw, elecInd, &
-                tmp_mat * sign_i * sign_j * mat_ele, .true.)
-            call add_to_rdm_spawn_t(spawn, sw, elecInd, holeInd, sw, &
-                tmp_mat * sign_i * sign_j * mat_ele, .true.)
-
         end if
 
         end associate
@@ -1559,17 +1658,22 @@ contains
 
                 call calc_all_excits_guga_rdm_doubles(ilut, i, j, j, i, &
                     temp_excits, n_excits)
-
 #ifdef DEBUG_
                 do n = 1, n_excits
                     ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                 end do
 #endif
-                if (n_excits > 1) then
-                    call add_guga_lists_rdm(n_tot, n_excits-1, &
-                        tmp_all_excits, temp_excits(:,2:))
-                end if
 
+                if (t_mimic_stochastic) then
+                    if (n_excits > 1) then
+                        call add_guga_lists_rdm(n_tot, n_excits-1, &
+                            tmp_all_excits, temp_excits(:,2:))
+                    end if
+                else
+                    if (n_excits > 0) then
+                        call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
+                    end if
+                end if
                 deallocate(temp_excits)
             end do
         end do
@@ -1636,7 +1740,7 @@ contains
                             ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                         end do
 #endif
-                        if (t_direct_exchange .and. (i == l .and. j == k)) then
+                        if (t_mimic_stochastic .and. (i == l .and. j == k)) then
                             ! exclude the diagonal exchange here,
                             ! as it is already accounted for in the
                             ! diagonal contribution routine
@@ -1806,7 +1910,7 @@ contains
         ! account..
         ! and also the the full-starts are maybe correct already..
         ! so it was just the full-start into full-stop mixed!
-        if (.not. t_direct_exchange) then
+        if (.not. t_mimic_stochastic) then
             if (.not.compFlag .and. .not. excitInfo%typ == excit_type%fullstart_stop_mixed) then
                 allocate(excits(0,0), stat = ierr)
                 return
@@ -2097,7 +2201,7 @@ contains
         ! here I essentially only need to append the list to the total
         ! list and add the number of new elements to n_dets_tot
 
-        list_tot(:,n_dets_tot+1:n_dets_tot+n_dets) = list
+        list_tot(:,n_dets_tot+1:n_dets_tot+n_dets) = list(:,1:n_dets)
         n_dets_tot = n_dets_tot + n_dets
 
     end subroutine add_guga_lists_rdm
@@ -2135,15 +2239,6 @@ contains
                 rdm_energy_1 = rdm_energy_1 + &
                     rdm_sign * GetTMatEl(2*i,2*j) / real(nel-1,dp) / 2.0_dp
             end if
-            ! do I need more contributions here? I guess so..
-            ! i think I am missing the 'exchange' contributions..
-!             if (i == l) then
-!                 rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*j,2*k) / real(nel-1,dp)
-!             end if
-!             if (j == k) then
-!                 rdm_energy_1 = rdm_energy_1 + rdm_sign * GetTMatEl(2*i,2*l) / real(nel-1,dp)
-!             end if
-!             call Stop_All(this_routine, "figure out additional contribs to 1-RDM energy!")
         end do
 
     end subroutine calc_rdm_energy_guga
