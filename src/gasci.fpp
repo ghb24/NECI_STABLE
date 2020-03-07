@@ -21,7 +21,7 @@ module gasci
         last_tgt_unknown, set_last_tgt
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, size
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
-    implicit none
+    implicit none(type, external)
 
     private
     public :: is_valid, is_connected, GAS_specification, GASSpec_t, &
@@ -178,6 +178,12 @@ module gasci
         #:for orb_idx_type in OrbIdxTypes
             module procedure split_per_GAS_${orb_idx_type}$
         #:endfor
+    end interface
+
+    interface
+        subroutine stop_all(sub_name, error_msg)
+            character(*), intent(in) :: sub_name, error_msg
+        end subroutine
     end interface
 
 contains
@@ -348,8 +354,7 @@ contains
 
 
 #:for orb_idx_type in OrbIdxTypes
-!     DEBUG_IMPURE function get_possible_spaces_${orb_idx_type}$(GAS_spec, splitted_det_I, add_holes, n_particles) result(spaces)
-    function get_possible_spaces_${orb_idx_type}$(GAS_spec, splitted_det_I, add_holes, n_particles) result(spaces)
+    DEBUG_IMPURE function get_possible_spaces_${orb_idx_type}$(GAS_spec, splitted_det_I, add_holes, n_particles) result(spaces)
         type(GASSpec_t), intent(in) :: GAS_spec
         type(${orb_idx_type}$), intent(in) :: splitted_det_I(:)
         type(${orb_idx_type}$), intent(in), optional :: add_holes
@@ -371,21 +376,22 @@ contains
 
         @:def_default(n_particles_, n_particles, 1)
 
-        if (present(add_holes)) then
-            associate(A => particles_per_GAS(splitted_det_I), &
-                      B => particles_per_GAS(split_per_GAS(GAS_spec, add_holes)))
-                cum_n_particle = cumsum(A - B)
+        associate(A => particles_per_GAS(splitted_det_I))
+            if (present(add_holes)) then
+                associate(splitted_holes => split_per_GAS(GAS_spec, add_holes))
+                    associate(B => particles_per_GAS(splitted_holes))
+                        cum_n_particle = cumsum(A - B)
+                    end associate
+                end associate
 ! TODO(Kai, Oskar):
 ! If one uncomments the following statement, the gasci unit test crashes.
 ! I don't understand why. :-(
-!                 cum_n_particle = cumsum(particles_per_GAS(splitted_det_I) &
-!                                         - particles_per_GAS(split_per_GAS(GAS_spec, add_holes)))
-            end associate
-        else
-            associate(A => particles_per_GAS(splitted_det_I))
+                ! cum_n_particle = cumsum(particles_per_GAS(splitted_det_I) &
+                !                         - particles_per_GAS(split_per_GAS(GAS_spec, add_holes)))
+            else
                 cum_n_particle = cumsum(A)
-            end associate
-        end if
+            end if
+        end associate
 
         deficit = GAS_spec%n_min(:) - cum_n_particle(:)
         vacant = GAS_spec%n_max(:) - cum_n_particle(:)
@@ -410,12 +416,11 @@ contains
         end do
         lower_bound = iGAS + 1
 
-        if (lower_bound > upper_bound) then
+        if (lower_bound > upper_bound .or. lower_bound > get_nGAS(GAS_spec)) then
             spaces = [integer::]
         else
             spaces = [lower_bound, upper_bound]
         end if
-
     end function
 #:endfor
 
@@ -481,7 +486,7 @@ contains
         end associate
         ! Get a hole with the same spin projection
         ! while fullfilling GAS-constraints.
-        call pick_weighted_hole_SingleExc_t(GAS_spec, det_I, exc, pgen)
+        ! call pick_weighted_hole_SingleExc_t(GAS_spec, det_I, exc, pgen)
     end subroutine
 
     subroutine gen_exc_DoubleExc_t(GAS_spec, det_I, exc, det_J, par, pgen)
@@ -518,7 +523,7 @@ contains
         end if
 
         block
-            integer :: i, lower_bound, upper_bound, n_holes, idx_occ, idx_possible
+            integer :: i, lower_bound, upper_bound
             type(SpinOrbIdx_t) :: possible_values, occupied
 
             if (spaces(1) == 1) then
@@ -528,8 +533,8 @@ contains
             end if
             upper_bound = GAS_spec%n_orbs(spaces(2))
 
-            associate(splitted_occ => splitted_det_I(spaces(1) : spaces(2)), &
-                      possible_values => SpinOrbIdx_t(SpatOrbIdx_t([(i, i = lower_bound, upper_bound)]), m_s))
+            associate(splitted_occ => splitted_det_I(spaces(1) : spaces(2)))
+                possible_values = SpinOrbIdx_t(SpatOrbIdx_t([(i, i = lower_bound, upper_bound)]), m_s)
                 occupied = SpinOrbIdx_t([(splitted_occ(i)%idx, i = 1, size(splitted_occ))], m_s)
                 holes%idx = if_not_in(possible_values%idx, occupied%idx)
             end associate
@@ -566,102 +571,100 @@ contains
         end function
     end function
 
-    subroutine pick_weighted_hole_SingleExc_t(GAS_spec, det_I, exc, pgen)
-        ! pick a hole of nI with spin ms from the active space with index
-        ! srcGASInd the random number is to be supplied as r
-        ! nI is the source determinant, nJBase the one from which we obtain
-        ! the ket of the matrix element by single excitation
-        type(GASSpec_t) :: GAS_spec
-        type(SpinOrbIdx_t), intent(in) :: det_I
-        type(SingleExc_t), intent(inout) :: exc
-        real(dp), intent(inout) :: pgen
-        character(*), parameter :: this_routine = 'pick_weighted_hole_${excitation_t}$'
-
-        ASSERT(last_tgt_unknown(exc))
-
-!         associate(src => exc%val(1), tgt => exc%val(2))
-!
-!             spaces = get_possible_spaces(&
-!                             GAS_spec, det_I, &
-!                             additional_holes=SpinOrbIdx_t([src]), n_particles=1)
-!             if (size(spaces) == 0) then
-!                 tgt = 0
-!                 return
-!             end if
-!
-!             possible_holes = [(i, i= GAS_spec%n_orbs(spaces(1)), GAS_spec%n_orbs(spaces(2)))]
-!             ! build the cumulative list of matrix elements <src|H|tgt>
-!             cSum = get_cumulative_list(det_I, exc, possible_holes)
-!
-!             ! now, pick with the weight from the cumulative list
-!             r = genrand_real2_dSFMT() * cSum(nOrbs)
-!
-!             ! there might not be such an excitation
-!             if (cSum(nOrbs) > 0) then
-!                 ! find the index of the target orbital in the gasList
-!                 tgt = binary_search_first_ge(cSum, r)
-!
-!                 ! adjust pgen with the probability for picking tgt from the cumulative list
-!                 if (tgt == 1) then
-!                     pgen = pgen * cSum(1)
-!                 else
-!                     pgen = pgen * (cSum(tgt) - cSum(tgt - 1))
-!                 end if
-!
-!                 ! convert to global orbital index
-!                 tgt = GAS_list(tgt)
-!             else
-!                 tgt = 0
-!             end if
-!         end associate
-    end subroutine pick_weighted_hole_SingleExc_t
-
-!
-!
-!     function get_cumulative_list_SingleExc_t(GAS_list, nI, incomplete_exc) result(cSum)
-!         integer, intent(in) :: GAS_list(:), nI(nel)
-!         type(${excitation_t}$), intent(in) :: incomplete_exc
-!         real(dp) :: cSum(size(GAS_list))
-!         character(*), parameter :: this_routine = 'get_cumulative_list_${excitation_t}$'
-!
-!         real(dp) :: previous
-!         type(${excitation_t}$) :: exc
-!         integer :: i, nOrbs
-!
-!         nOrbs = size(GAS_list)
-!
-!         exc = incomplete_exc
-!         ASSERT(last_tgt_unknown(exc))
-!
-!         ! build the cumulative list of matrix elements <src|H|tgt>
-!         previous = 0.0_dp
-!         do i = 1, nOrbs
-!             call set_last_tgt(exc, GAS_list(i))
-!             cSum(i) = get_mat_element(nI, exc) + previous
-!             previous = cSum(i)
-!         end do
-!
-!         ! Normalize
-!         if (near_zero(cSum(nOrbs))) then
-!             cSum(:) = 0.0_dp
-!         else
-!             cSum(:) = cSum(:) / cSum(nOrbs)
-!         end if
-!     end function get_cumulative_list_${excitation_t}$
-!
-!
-!     function get_mat_element_SingleExc_t(det_I, exc) result(res)
-!         type(SpinOrbIdx_t), intent(in) :: det_I
-!         type(SingleExc_t), intent(in) :: exc
-!         real(dp) :: res
-!
-!         associate (tgt => exc%val(2))
-!             if (all(det_I%idx /= tgt)) then
-!                 res = abs(sltcnd_excit(det_I, exc, .false.))
-!             else
-!                 res = 0.0_dp
-!             end if
-!         end associate
-!     end function get_mat_element_SingleExc_t
-
+    ! subroutine pick_weighted_hole_SingleExc_t(GAS_spec, det_I, exc, pgen)
+    !     ! pick a hole of nI with spin ms from the active space with index
+    !     ! srcGASInd the random number is to be supplied as r
+    !     ! nI is the source determinant, nJBase the one from which we obtain
+    !     ! the ket of the matrix element by single excitation
+    !     type(GASSpec_t) :: GAS_spec
+    !     type(SpinOrbIdx_t), intent(in) :: det_I
+    !     type(SingleExc_t), intent(inout) :: exc
+    !     real(dp), intent(inout) :: pgen
+    !     character(*), parameter :: this_routine = 'pick_weighted_hole_${excitation_t}$'
+    !
+    !     real(dp) :: r
+    !     type(SpinOrbIdx_t) :: possible_holes
+    !
+    !     ASSERT(last_tgt_unknown(exc))
+    !
+    !     associate(src => exc%val(1), tgt => exc%val(2))
+    !
+    !         possible_holes = get_possible_holes(&
+    !                 GAS_spec, det_I, add_holes=SpinOrbIdx_t([src]))
+    !         if (size(possible_holes) == 0) then
+    !             tgt = 0
+    !             return
+    !         end if
+    !
+    !         ! build the cumulative list of matrix elements <src|H|tgt>
+    !         cSum = get_cumulative_list(det_I, exc, possible_holes)
+    !
+    !         ! ! now, pick with the weight from the cumulative list
+    !         ! r = genrand_real2_dSFMT() * cSum(nOrbs)
+    !         !
+    !         ! ! there might not be such an excitation
+    !         ! if (cSum(nOrbs) > 0) then
+    !         !     ! find the index of the target orbital in the gasList
+    !         !     tgt = binary_search_first_ge(cSum, r)
+    !         !
+    !         !     ! adjust pgen with the probability for picking tgt from the cumulative list
+    !         !     if (tgt == 1) then
+    !         !         pgen = pgen * cSum(1)
+    !         !     else
+    !         !         pgen = pgen * (cSum(tgt) - cSum(tgt - 1))
+    !         !     end if
+    !         !
+    !         !     ! convert to global orbital index
+    !         !     tgt = GAS_list(tgt)
+    !         ! else
+    !         !     tgt = 0
+    !         ! end if
+    !     end associate
+    ! end subroutine pick_weighted_hole_SingleExc_t
+    !
+    ! function get_cumulative_list_SingleExc_t(GAS_list, nI, incomplete_exc) result(cSum)
+    !     integer, intent(in) :: GAS_list(:), nI(nel)
+    !     type(SingleExc_t), intent(in) :: incomplete_exc
+    !     real(dp) :: cSum(size(GAS_list))
+    !     character(*), parameter :: this_routine = 'get_cumulative_list_${excitation_t}$'
+    !
+    !     real(dp) :: previous
+    !     type(SingleExc_t) :: exc
+    !     integer :: i, nOrbs
+    !
+    !     nOrbs = size(GAS_list)
+    !
+    !     exc = incomplete_exc
+    !     ASSERT(last_tgt_unknown(exc))
+    !
+    !     ! build the cumulative list of matrix elements <src|H|tgt>
+    !     previous = 0.0_dp
+    !     do i = 1, nOrbs
+    !         call set_last_tgt(exc, GAS_list(i))
+    !         cSum(i) = get_mat_element(nI, exc) + previous
+    !         previous = cSum(i)
+    !     end do
+    !
+    !     ! Normalize
+    !     if (near_zero(cSum(nOrbs))) then
+    !         cSum(:) = 0.0_dp
+    !     else
+    !         cSum(:) = cSum(:) / cSum(nOrbs)
+    !     end if
+    ! end function get_cumulative_list_SingleExc_t
+    !
+    ! function get_mat_element_SingleExc_t(det_I, exc) result(res)
+    !     type(SpinOrbIdx_t), intent(in) :: det_I
+    !     type(SingleExc_t), intent(in) :: exc
+    !     real(dp) :: res
+    !
+    !     associate (tgt => exc%val(2))
+    !         if (all(det_I%idx /= tgt)) then
+    !             res = abs(sltcnd_excit(det_I, exc, .false.))
+    !         else
+    !             res = 0.0_dp
+    !         end if
+    !     end associate
+    ! end function get_mat_element_SingleExc_t
+    !
 end module gasci
