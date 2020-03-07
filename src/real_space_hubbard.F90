@@ -23,7 +23,7 @@ module real_space_hubbard
                           t_spin_dependent_transcorr, tGUGA, tgen_guga_crude, &
                           tNoBrillouin, tUseBrillouin, &
                           t_trans_corr_hop, t_uniform_excits, t_hole_focus_excits, &
-                          pholefocus, t_twisted_bc, twisted_bc
+                          pholefocus, t_twisted_bc, twisted_bc, t_anti_periodic
 
     use lattice_mod, only: lattice, determine_optimal_time_step, lat, &
                     get_helement_lattice, get_helement_lattice_ex_mat, &
@@ -758,6 +758,10 @@ contains
         if (tcpmdsymtmat)        call stop_all(this_routine, "tcpmdsymmat")
         if (tOneelecdiag)       call stop_all(this_routine, "tOneelecdiag")
 
+        if (any(t_anti_periodic) .and. t_twisted_bc) &
+            call stop_all(this_routine, "anti-periodic and twisted BCs not compatible!")
+
+
     end subroutine check_real_space_hubbard_input
 
     function get_optimal_correlation_factor() result(corr_factor)
@@ -789,6 +793,7 @@ contains
         integer :: i, ind, iunit, r_i(3), r_j(3), diff(3), j
         HElement_t(dp) :: mat_el
         complex(dp) :: imag
+        real(dp) :: hop
 
         ! depending on the input i either create tmat2d here or is have to
         ! set it up, so it can be used to create the lattice..
@@ -799,17 +804,17 @@ contains
         ! now!
         if (present(lat)) then
 
+            if (t_print_tmat) then
+                iunit = get_free_unit()
+                open(iunit, file = 'TMAT')
+            end if
+
             if (t_twisted_bc) then
                 ! this is the twist implementation with complex hopping
                 ! elements
                 if (associated(tmat2d)) deallocate(tmat2d)
                 allocate(tmat2d(nbasis,nbasis))
                 tmat2d = 0.0_dp
-
-                if (t_print_tmat) then
-                    iunit = get_free_unit()
-                    open(iunit, file = 'TMAT')
-                end if
 
                 do i = 1, lat%get_nsites()
                     ind = lat%get_site_index(i)
@@ -919,6 +924,84 @@ contains
 
                 end do
 
+            else if (any(t_anti_periodic)) then
+                ! implement anti-periodic BCs specifically
+                ! t_anti_periodic is a vector for the x and y flag
+                ! seperately
+                if (associated(tmat2d)) deallocate(tmat2d)
+                allocate(tmat2d(nbasis,nbasis))
+                tmat2d = 0.0_dp
+
+                do i = 1, lat%get_nsites()
+                    ind = lat%get_site_index(i)
+
+                    r_i = lat%get_r_vec(i)
+
+                    associate(next => lat%get_neighbors(i))
+
+                        do j = 1, size(next)
+
+                            r_j = lat%get_r_vec(next(j))
+
+                            diff = r_i - r_j
+
+                            ! x-hopping
+                            if (abs(diff(1)) /= 0) then
+                                if (abs(diff(1)) == 1) then
+                                    ! no hop over boundary
+                                    hop = 1.0_dp
+                                else
+                                    if (t_anti_periodic(1)) then
+                                        hop = -1.0_dp
+                                    else
+                                        hop = 1.0_dp
+                                    end if
+                                end if
+                            end if
+
+                            if (lat%get_ndim() > 1) then
+                                ! y-hopping
+                                if (abs(diff(2)) /= 0) then
+                                    if (abs(diff(2)) == 1) then
+                                        ! no hop over boundary
+                                        hop = 1.0_dp
+                                    else
+                                        if (t_anti_periodic(2)) then
+                                            hop = -1.0_dp
+                                        else
+                                            hop = 1.0_dp
+                                        end if
+                                    end if
+                                end if
+                            end if
+
+                            if (lat%get_ndim() > 2) then
+                                call stop_all(this_routine, &
+                                    "anti-periodic BCs only implemented up to 2D")
+                            end if
+
+                            mat_el = hop * bhub
+
+                            ! beta orbitals:
+                            tmat2d(2*ind - 1, 2*next(j) - 1) = mat_el
+                            ! alpha:
+                            tmat2d(2*ind, 2*next(j)) = mat_el
+
+                            if (t_print_tmat) then
+                                write(iunit,*) 2*i - 1, 2*next(j) - 1, mat_el
+                                write(iunit,*) 2*i, 2*next(j), mat_el
+                            end if
+
+                        end do
+
+                        ASSERT(all(next > 0))
+                        ASSERT(all(next <= nbasis/2))
+                    end associate
+                    ASSERT(lat%get_nsites() == nbasis/2)
+                    ASSERT(ind > 0)
+                    ASSERT(ind <= nbasis/2)
+
+                end do
             else
                 ! what do i need to do?
                 ! loop over the indices in the lattice and get the neighbors
@@ -926,11 +1009,6 @@ contains
                 if (associated(tmat2d)) deallocate(tmat2d)
                 allocate(tmat2d(nbasis,nbasis))
                 tmat2d = 0.0_dp
-
-                if (t_print_tmat) then
-                    iunit = get_free_unit()
-                    open(iunit, file = 'TMAT')
-                end if
 
                 do i = 1, lat%get_nsites()
                     ind = lat%get_site_index(i)
@@ -962,7 +1040,7 @@ contains
             ! and the lattice is set up afterwards!
         end if
 
-        if (t_print_umat) close(iunit)
+        if (t_print_tmat) close(iunit)
 
     end subroutine init_tmat
 
@@ -2210,8 +2288,8 @@ contains
             else if (ic_ret == 1) then
                 ex(1,1) = 1
                 ! exchange for fix with twisted BCs
-                call GetExcitation(nJ, nI, nel, ex, tpar)
-                hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar)
+                call GetExcitation(nI, nJ, nel, ex, tpar)
+                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
 
             else if (ic_ret == 2 .and. t_trans_corr_hop) then
 
@@ -2233,8 +2311,8 @@ contains
                 else if (ic_ret == 1) then
                     ex(1,1) = 1
                     ! exchange for fix with twisted BCs
-                    call GetBitExcitation(ilutJ, ilutI, ex, tpar)
-                    hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar)
+                    call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+                    hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
 
                 else if (ic_ret == 2 .and. t_trans_corr_hop) then
                     ex(1,1) = 2
@@ -2260,8 +2338,8 @@ contains
             else if (ic == 1) then
                 ex(1,1) = 1
                 ! exchange for fix with twisted BCs
-                call GetBitExcitation(ilutJ, ilutI, ex, tpar)
-                hel = get_offdiag_helement_rs_hub(nJ, ex(:,1), tpar)
+                call GetBitExcitation(ilutI, ilutJ, ex, tpar)
+                hel = get_offdiag_helement_rs_hub(nI, ex(:,1), tpar)
 
             else if (ic == 2 .and. t_trans_corr_hop) then
                 ex(1,1) = 2

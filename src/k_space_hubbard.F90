@@ -17,7 +17,8 @@ module k_space_hubbard
                     treal, ttilt, tExch, ElecPairs, MaxABPairs, Symmetry, SymEq, &
                     t_new_real_space_hubbard, SymmetrySize, tNoBrillouin, tUseBrillouin, &
                     excit_cache, t_uniform_excits, brr, uhub, lms, t_mixed_excits, &
-                    tGUGA, tgen_guga_mixed, tgen_guga_crude, t_approx_exchange
+                    tGUGA, tgen_guga_mixed, tgen_guga_crude, t_approx_exchange, &
+                    t_anti_periodic
 
     use lattice_mod, only: get_helement_lattice_ex_mat, get_helement_lattice_general, &
                            determine_optimal_time_step, lattice, sort_unique, lat, &
@@ -540,6 +541,8 @@ contains
 
         if (iProcIndex == root) then
             print *, "checking input for k-space hubbard:"
+            if (any(t_anti_periodic)) &
+                call stop_all(this_routine, "anti-periodic BCs not implemented for k-space Hubbard")
             !todo: find the incompatible input and abort here!
             print *, "input is fine!"
         end if
