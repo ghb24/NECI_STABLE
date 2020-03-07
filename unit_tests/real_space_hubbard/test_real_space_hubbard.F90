@@ -294,7 +294,7 @@ contains
         print *, "hamil:"
         call print_matrix(hamil)
 
-#ifndef __CMPLX
+#ifndef CMPLX_
         call eig(hamil, e_orig, e_vecs)
 
         ! first create the exact similarity transformation
@@ -533,7 +533,7 @@ contains
 
     end function calc_exact_double_occ
 
-#ifndef __CMPLX
+#ifndef CMPLX_
     subroutine exact_transcorrelation(lat, nI, J, U, hilbert_space)
         class(lattice), intent(in) :: lat
         integer, intent(in) :: nI(nel)
@@ -2165,7 +2165,6 @@ contains
         G1([1,3])%ms = -1
         G1([2,4])%ms = 1
 
-        print *, "here?"
         lat => lattice('chain', 2, 1, 1, .false., .false., .false.)
         call init_tmat(lat)
         call init_get_helement_hubbard()
@@ -2253,10 +2252,10 @@ contains
         print *, "and now for transcorrelated hamiltonian with K = 1"
         t_trans_corr = .true.
         trans_corr_param = 1.0
-        call assert_equals(h_cast(1.0 * exp(-1.0_dp)), get_helement([1,2],[1,4]))
-        call assert_equals(h_cast(1.0 * exp(1.0_dp)), get_helement([1,4],[1,2]))
-        call assert_equals(h_cast(-1.0 * exp(-1.0_dp)), get_helement([1,2],[2,3]))
-        call assert_equals(h_cast(-1.0 * exp(1.0_dp)), get_helement([2,3],[1,2]))
+        call assert_equals(h_cast(1.0 * exp(1.0_dp)), get_helement([1,2],[1,4]))
+        call assert_equals(h_cast(1.0 * exp(-1.0_dp)), get_helement([1,4],[1,2]))
+        call assert_equals(h_cast(-1.0 * exp(1.0_dp)), get_helement([1,2],[2,3]))
+        call assert_equals(h_cast(-1.0 * exp(-1.0_dp)), get_helement([2,3],[1,2]))
         call assert_equals(h_cast(0.0_dp), get_helement([2,3],[2,5]))
         call assert_equals(h_cast(1.0_dp), get_helement([2,3],[2,7]))
         call assert_equals(h_cast(0.0_dp), get_helement([2,3],[3,8]))

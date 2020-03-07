@@ -12,6 +12,8 @@ endsys
 
 calc
 
+load-balance-blocks off
+
 methods
 method vertex fcimc
 endmethods
