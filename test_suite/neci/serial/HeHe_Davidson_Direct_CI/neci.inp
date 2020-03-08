@@ -8,6 +8,7 @@ calc
 methods
 davidson 2 0 8 0 4
 endmethods
+seed -7
 endcalc
 
 integral

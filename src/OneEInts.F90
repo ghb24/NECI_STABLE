@@ -9,8 +9,14 @@ module OneEInts
 ! pre-freezing stage.
 
 use constants, only: dp
-use MemoryManager, only: TagIntType
+use MemoryManager, only: TagIntType, LogMemalloc, LogMemDealloc
 use util_mod, only: get_free_unit
+use SystemData, only: tCPMD, tVASP
+use LoggingData, only: iNumPropToEst
+use CPMDData, only: tKP
+use HElem, only: HElement_t_size
+use global_utilities
+use SymData
 
 implicit none
 
@@ -29,6 +35,7 @@ HElement_t(dp), dimension(:), POINTER :: TMATSYM
 ! symmetric representation (and are not necessarily the same).  We could
 ! compress this in a similar fashion at some point.
 HElement_t(dp), dimension(:,:), POINTER :: TMAT2D
+HElement_t(dp), pointer :: spin_free_tmat(:,:)
 
 HElement_t(dp), dimension(:), POINTER :: TMATSYM2
 HElement_t(dp), dimension(:,:), POINTER :: TMAT2D2
@@ -78,7 +85,6 @@ contains
         !   preceeding the block i and j are in.  This is given by SYMLABELINTSCUM(symI-1).
         !        TMatInd=k*(k-1)/2+l + SymLabelIntsCum(symI-1).
         !   If the element is zero by symmetry, return -1 (TMatSym(-1) is set to 0).
-        use SystemData, only: Symmetry, BasisFN
         use SymData, only: SymClasses,StateSymMap,SymLabelIntsCum
         IMPLICIT NONE
         integer, intent(in) :: i, j
@@ -131,8 +137,6 @@ contains
       !    i,j: spin orbitals.
       ! Return the index of the <i|h|j> element in TMatSym2.
       ! See notes for TMatInd. Used post-freezing.
-        use SystemData, only: Symmetry, BasisFN
-        use SymData, only: SymClasses2,StateSymMap,SymLabelIntsCum2
         IMPLICIT NONE
         INTEGER I,J,A,B,symI,symJ,Block,ind,K,L
         A=mod(I,2)
@@ -181,7 +185,7 @@ contains
 
         integer, intent(in) :: i, j
         HElement_t(dp) :: ret
-#ifdef __CMPLX
+#ifdef CMPLX_
         HElement_t(dp) :: t
 #endif
 
@@ -193,7 +197,7 @@ contains
             else
                 ! Work around a bug in gfortran's parser: it doesn't like
                 ! doing conjg(TMatSym).
-#ifdef __CMPLX
+#ifdef CMPLX_
                 t = TMatSym(TmatInd(i,j))
                 ret = conjg(t)
 #else
@@ -214,8 +218,6 @@ contains
     end function GetTMatEl
 
     function GetPropIntEl(i,j,iprop) result(integral)
-
-!       use OneEInts, only: OneEPropInts
         integer, intent(in) :: i, j, iprop
         real(dp) :: integral
 
@@ -233,7 +235,7 @@ contains
         HElement_t(dp) GetNEWTMATEl
 
         if (tCPMDSymTMat) then
-#ifdef __CMPLX
+#ifdef CMPLX_
             if (j.ge.i) then
                 GetNewTMatEl=TMATSYM2(TMatInd(I,J))
             else
@@ -259,9 +261,6 @@ contains
       SUBROUTINE WriteTMat(NBASIS)
         ! In:
         !    nBasis: size of basis (# orbitals).
-        use SystemData, only: Symmetry, BasisFN
-        use SymData, only: SymLabelCounts,SymLabelCountsCum,nSymLabels
-        use SymData, only: SymLabelIntsCum,SymLabelIntsCum2,SymLabelCountsCum2
         IMPLICIT NONE
         INTEGER II,I,J,NBASIS,iunit
 
@@ -332,7 +331,6 @@ contains
 
 !Routine to calculate number of elements allocated for TMAT matrix
       SUBROUTINE CalcTMATSize(nBasis,iSize)
-      use SymData, only: SymLabelCounts,nSymLabels
       INTEGER :: iSize,nBasis,basirrep,i,Nirrep
 
           IF(tCPMDSymTMat) THEN
@@ -361,13 +359,6 @@ contains
         !    iSize: number of elements in TMat/TMatSym.
         ! Initial allocation of TMat2D or TMatSym (if using symmetry-compressed
         ! storage of the <i|h|j> integrals).
-        use CPMDData, only: tKP
-        use SystemData, only: tCPMD, tVASP, Symmetry, BasisFN
-        use SymData, only: SymLabelCounts,SymLabelCountsCum,SymClasses
-        use SymData, only: SymLabelIntsCum,nSymLabels,StateSymMap
-        use SymData, only: tagSymLabelIntsCum,tagStateSymMap,tagSymLabelCountsCum
-        use HElem, only: HElement_t_size
-        use global_utilities
         IMPLICIT NONE
         integer Nirrep,nBasis,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize, iunit
@@ -481,11 +472,6 @@ contains
       END SUBROUTINE SetupTMAT
 
       subroutine SetupPropInts(nBasis)
-
-        use HElem, only: HElement_t_size
-        use LoggingData, only: iNumPropToEst
-        use MemoryManager, only: LogMemalloc
-
         implicit none
         integer, intent(in) :: nBasis
         integer :: ierr,iSize
@@ -504,11 +490,6 @@ contains
       end subroutine SetupPropInts
 
       subroutine SetupPropInts2(nBasisFrz)
-
-        use HElem, only: HElement_t_size
-        use LoggingData, only: iNumPropToEst
-        use MemoryManager, only: LogMemalloc
-
         implicit none
         integer, intent(in) :: nBasisFrz
         integer :: ierr,iSize
@@ -531,13 +512,6 @@ contains
         ! Initial allocation of TMat2D2 or TMatSym2 (if using symmetry-compressed
         ! storage of the <i|h|j> integrals) for post-freezing.
         ! See also notes in SetupTMat.
-        use CPMDData, only: tKP
-        use SystemData, only: tCPMD, tVASP, Symmetry, BasisFN
-        use SymData, only: SymLabelCounts,SymClasses2,SymLabelCountsCum2
-        use SymData, only: SymLabelIntsCum2,nSymLabels,StateSymMap2
-        use SymData, only: tagSymLabelIntsCum2,tagStateSymMap2,tagSymLabelCountsCum2
-        use global_utilities
-        use HElem, only: HElement_t_size
         IMPLICIT NONE
         integer Nirrep,nBasisfrz,iSS,nBi,i,basirrep,t,ierr,iState,nStateIrrep
         integer iSize, iunit
@@ -644,7 +618,6 @@ contains
         ! In:
         !    NewTMat : if true, destroy arrays used in storing "new" (post-freezing) TMat,
         !              else destroy those used for the pre-freezing TMat.
-        use global_utilities
         IMPLICIT NONE
         LOGICAL :: NEWTMAT
         character(len=*), parameter :: thisroutine='DestroyTMat'
@@ -665,8 +638,6 @@ contains
       END SUBROUTINE DestroyTMat
 
       SUBROUTINE DestroyPropInts()
-
-        use MemoryManager, only: LogMemDealloc
         implicit none
         character(*),parameter :: t_r = 'DestroyPropInts'
 
@@ -690,14 +661,6 @@ contains
         ! post-freezing.  Once freezing is done, clear all the pre-freezing
         ! arrays and point them to the post-freezing arrays, so the code
         ! referencing pre-freezing arrays can be used post-freezing.
-        USE UMatCache
-        use SystemData, only: Symmetry, BasisFN
-        use SymData, only: SymLabelCountsCum,SymLabelIntsCum
-        use SymData, only: SymLabelCountsCum2,SymLabelIntsCum2
-        use SymData, only: tagSymLabelCountsCum,tagSymLabelIntsCum
-        use SymData, only: SymClasses2,tagSymClasses2
-        use sym_mod
-        use global_utilities
         IMPLICIT NONE
         character(*),parameter :: this_routine='SwapTMat'
 
@@ -714,8 +677,6 @@ contains
         ! post-freezing.  Once freezing is done, clear all the pre-freezing
         ! arrays and point them to the post-freezing arrays, so the code
         ! referencing pre-freezing arrays can be used post-freezing.
-        use MemoryManager, only: LogMemDealloc, LogMemAlloc
-        use HElem, only: HElement_t_size
         implicit none
         integer, intent(in) :: nBasisFrz,iNum
         integer :: iSize, ierr

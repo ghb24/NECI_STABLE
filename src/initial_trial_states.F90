@@ -5,6 +5,10 @@ module initial_trial_states
     use bit_rep_data
     use constants
     use kp_fciqmc_data_mod
+    use SystemData, only: t_non_hermitian
+#ifndef CMPLX_
+    use unit_test_helpers, only: eig, print_matrix
+#endif
     use util_mod, only: operator(.div.)
 
     implicit none
@@ -20,19 +24,17 @@ contains
         use bit_reps, only: decode_bit_det
         use CalcData, only: subspace_in, t_force_lanczos
         use DetBitOps, only: ilut_lt, ilut_gt
-        use FciMCData, only: ilutHF
+        use FciMCData, only: ilutHF, CurrentDets, TotWalkers
         use lanczos_wrapper, only: frsblk_wrapper
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
         use ParallelHelper, only: root
         use semi_stoch_gen
         use sort_mod, only: sort
-        use SystemData, only: nel, tAllSymSectors
+        use SystemData, only: nel, tAllSymSectors, tGUGA
         use sparse_arrays, only: calculate_sparse_ham_par, sparse_ham
 
         use hamiltonian_linalg, only: sparse_hamil_type, parallel_sparse_hamil_type
-        use lanczos_general, only: LanczosCalcType, DestroyLanczosCalc
-        use lanczos_general, only: perform_lanczos
 
         use lanczos_general, only: LanczosCalcType, perform_lanczos, DestroyLanczosCalc
 
@@ -48,7 +50,7 @@ contains
 
         integer(n_int), allocatable :: ilut_list(:,:)
         integer, allocatable :: det_list(:,:)
-        integer :: i, j, max_elem_ind(1), ierr
+        integer :: i, max_elem_ind(1), ierr
         integer :: temp_reorder(nexcit)
         integer(MPIArg) :: ndets_all_procs, ndets_this_proc_mpi
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
@@ -62,6 +64,11 @@ contains
         ndets_this_proc = 0
         trial_iluts = 0_n_int
 
+        ! do some GUGA checks to abort non-supported trial wavefunctions
+        if (tGUGA .and. (space_in%tCAS .or. space_in%tRAS .or. space_in%tFCI)) then
+            call stop_all(t_r, "non-supported trial space for GUGA!")
+        end if
+
         write(6,*) " Initialising wavefunctions by the Lanczos algorithm"
 
         ! Choose the correct generating routine.
@@ -69,17 +76,23 @@ contains
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
                                     space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
-        if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (space_in%tDoubles) then
+            if (tGUGA) then
+                call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
+            else
+                call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+            end if
+        end if
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
         if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
         if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
                                                          trial_iluts, ndets_this_proc, space_in%max_size)
-        if (space_in%tMP1) call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
+        if (space_in%tMP1)      call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
         if (space_in%tFCI) then
             if (tAllSymSectors) then
-                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
+                                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
             else
-                call generate_fci_core(trial_iluts, ndets_this_proc)
+                                call generate_fci_core(trial_iluts, ndets_this_proc)
             end if
         end if
 
@@ -146,6 +159,11 @@ contains
         endif
 
         ! Perform the Lanczos procedure in parallel.
+        if (t_non_hermitian) then
+            call stop_all(t_r, &
+                "perform_lanczos not implemented for non-hermitian Hamiltonians!")
+        end if
+
         call perform_lanczos(lanczosCalc, det_list, nexcit, parallel_sparse_hamil_type, .true.)
 
         if (iProcIndex == root) then
@@ -221,7 +239,7 @@ contains
         use bit_reps, only: decode_bit_det
         use CalcData, only: subspace_in
         use DetBitOps, only: ilut_lt, ilut_gt
-        use FciMCData, only: ilutHF
+        use FciMCData, only: ilutHF, CurrentDets, TotWalkers
         use Parallel_neci, only: MPIScatterV, MPIGatherV, MPIBCast, MPIArg, iProcIndex
         use Parallel_neci, only: nProcessors
         use ParallelHelper, only: root
@@ -229,6 +247,8 @@ contains
         use sort_mod, only: sort
         use SystemData, only: nel, tAllSymSectors
         use lanczos_wrapper, only: frsblk_wrapper
+        use guga_excitations, only: calc_guga_matrix_element
+        use guga_data, only: ExcitationInformation_t
 
         type(subspace_in) :: space_in
         integer, intent(in) :: nexcit
@@ -247,11 +267,12 @@ contains
         integer(MPIArg) :: sndcnts(0:nProcessors-1), displs(0:nProcessors-1)
         integer(MPIArg) :: rcvcnts
         integer, allocatable :: evec_abs(:)
-        HElement_t(dp), allocatable :: H_tmp(:,:)
+        HElement_t(dp), allocatable :: H_tmp(:,:), evecs_all(:,:)
         HElement_t(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         HElement_t(dp), allocatable :: work(:)
         real(dp), allocatable :: evals_all(:), rwork(:)
         character(len=*), parameter :: t_r = "calc_trial_states_direct"
+        type(ExcitationInformation_t) :: excitInfo
 
         ndets_this_proc = 0
         trial_iluts = 0_n_int
@@ -261,17 +282,23 @@ contains
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
                                     space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
-        if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (space_in%tDoubles) then
+            if (tGUGA) then
+                call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
+            else
+                call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+            end if
+        end if
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
         if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
         if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
                                                          trial_iluts, ndets_this_proc, space_in%max_size)
-        if (space_in%tMP1) call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
+        if (space_in%tMP1)      call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
         if (space_in%tFCI) then
             if (tAllSymSectors) then
-                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
+                                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
             else
-                call generate_fci_core(trial_iluts, ndets_this_proc)
+                                call generate_fci_core(trial_iluts, ndets_this_proc)
             end if
         end if
 
@@ -293,6 +320,7 @@ contains
             space_displs(i) = space_displs(i-1) + space_sizes(i-1)
         end do
 
+
         ! [W.D. 15.5.2017:]
         ! is the sort behaving different, depending on the compiler?
         ! since different references for different compilers..??
@@ -305,15 +333,16 @@ contains
             ! On these other processes ilut_list and evecs_transpose are not
             ! needed, but we need them to be allocated for the MPI wrapper
             ! function to work, so just allocate them to be small.
-            allocate(ilut_list(1,1))
+            allocate(ilut_list(0:niftot,1))
             allocate(evecs_transpose(1,1))
         end if
 
-        call MPIGatherV(trial_iluts(:,1:space_sizes(iProcIndex)), ilut_list, &
+        call MPIGatherV(trial_iluts(0:niftot,1:space_sizes(iProcIndex)), ilut_list(0:NIfTot,:), &
                         space_sizes, space_displs, ierr)
 
         ! Only perform the diagonalisation on the root process.
         if (iProcIndex == root) then
+
             allocate(det_list(nel, ndets_all_procs))
 
             do i = 1, ndets_all_procs
@@ -340,7 +369,7 @@ contains
 
             ! Perform a direct diagonalisation in the trial space.
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             ! First to build the Hamiltonian matrix
             ndets_int=int(ndets_all_procs,sizeof_int)
             allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
@@ -359,6 +388,9 @@ contains
                 if (tHPHF) then
                    H_tmp(i,j) = hphf_off_diag_helement(det_list(:,i),det_list(:,j),ilut_list(:,i), &
                                 ilut_list(:,j))
+                else if (tGUGA) then
+                    call calc_guga_matrix_element(ilut_list(:,i), &
+                            ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 2)
                 else
                    H_tmp(i,j) = get_helement(det_list(:,i),det_list(:,j),ilut_list(:,i),ilut_list(:,j))
                 end if
@@ -373,7 +405,7 @@ contains
             allocate(rwork(3*ndets_all_procs),stat=ierr)
             call zheev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,rwork,info)
             deallocate(rwork)
-! copy H_tmp to evecs, and keep only the first nexcit entries of evalvs_all
+! copy H_tmp to evecs, and keep only the first nexcit entries of evals_all
             do i=1,nexcit
               evals(i)=evals_all(i)
               do j=1,ndets_all_procs
@@ -387,9 +419,58 @@ contains
             deallocate(ilut_list)
 #else
 
-            call frsblk_wrapper(det_list, int(ndets_all_procs, sizeof_int), &
-                nexcit, evals, evecs)
-!             call dsyev('V','L',ndets_int,H_tmp,ndets_int,evals_all,work,3*ndets_int,info)
+            ! should we switch here, if it is not hermitian?
+            if (t_non_hermitian) then
+                ndets_int=int(ndets_all_procs,sizeof_int)
+                allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
+                if (ierr /= 0) call stop_all(t_r, "Error allocating H_tmp array")
+                H_tmp = 0.0_dp
+
+                do i = 1, ndets_all_procs
+                    ! diagonal elements
+                    if (tHPHF) then
+                        H_tmp(i,i) = hphf_diag_helement(det_list(:,i),ilut_list(:,i))
+                    else
+                        H_tmp(i,i) = get_helement(det_list(:,i),det_list(:,i),0)
+                    end if
+                    ! off diagonal elements
+                    ! we have to loop over all the orbitals now
+                    do j = 1, ndets_all_procs
+                        if (i == j) cycle
+                        if (tHPHF) then
+                            H_tmp(j,i) = hphf_off_diag_helement(det_list(:,i), &
+                                det_list(:,j),ilut_list(:,i), ilut_list(:,j))
+                        else if (tGUGA) then
+                            call calc_guga_matrix_element(ilut_list(:,i), &
+                                ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 2)
+                        else
+                            H_tmp(j,i) = get_helement(det_list(:,i), &
+                                det_list(:,j),ilut_list(:,i),ilut_list(:,j))
+                        end if
+                    end do
+                end do
+
+                allocate(evals_all(ndets_all_procs), stat = ierr)
+                evals_all = 0.0_dp
+                allocate(evecs_all(ndets_all_procs,ndets_all_procs), stat = ierr)
+                evecs_all = 0.0_dp
+
+                ! i think i need the left eigenvector for the trial-projection
+                ! if it is non-hermitian..
+                call eig(H_tmp, evals_all, evecs_all,.true.)
+
+                evals = evals_all(1:nexcit)
+                evecs = evecs_all(:,1:nexcit)
+
+                deallocate(H_tmp)
+                deallocate(evecs_all)
+
+
+            else
+                call frsblk_wrapper(det_list, int(ndets_all_procs, sizeof_int), &
+                    nexcit, evals, evecs)
+            end if
+
 #endif
             ! For consistency between compilers, enforce a rule for the sign of
             ! the eigenvector. To do this, make sure that the largest component
@@ -420,7 +501,6 @@ contains
                 call sort(temp_reorder, evecs)
             end if
 
-!             print *, "eigen-values: ", evals
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
             allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)
@@ -454,14 +534,12 @@ contains
     end subroutine calc_trial_states_direct
 
 
-
-
     subroutine calc_trial_states_qmc(space_in, nexcit, qmc_iluts, qmc_ht, paired_replicas, ndets_this_proc, &
                                      trial_iluts, evecs_this_proc, space_sizes, space_displs)
 
         use CalcData, only: subspace_in
         use DetBitOps, only: ilut_lt, ilut_gt
-        use FciMCData, only: ilutHF
+        use FciMCData, only: ilutHF, CurrentDets, TotWalkers
         use Parallel_neci, only: nProcessors
         use semi_stoch_gen
         use sort_mod, only: sort
@@ -497,17 +575,23 @@ contains
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
                                     space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
-        if (space_in%tDoubles) call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+        if (space_in%tDoubles) then
+            if (tGUGA) then
+                call generate_sing_doub_guga(trial_iluts, ndets_this_proc, .false.)
+            else
+                call generate_sing_doub_determinants(trial_iluts, ndets_this_proc, .false.)
+            end if
+        end if
         if (space_in%tCAS) call generate_cas(space_in%occ_cas, space_in%virt_cas, trial_iluts, ndets_this_proc)
         if (space_in%tRAS) call generate_ras(space_in%ras, trial_iluts, ndets_this_proc)
         if (space_in%tOptimised) call generate_optimised_space(space_in%opt_data, space_in%tLimitSpace, &
                                                          trial_iluts, ndets_this_proc, space_in%max_size)
-        if (space_in%tMP1) call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
+        if (space_in%tMP1)      call generate_using_mp1_criterion(space_in%mp1_ndets, trial_iluts, ndets_this_proc)
         if (space_in%tFCI) then
             if (tAllSymSectors) then
-                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
+                                call gndts_all_sym_this_proc(trial_iluts, .true., ndets_this_proc)
             else
-                call generate_fci_core(trial_iluts, ndets_this_proc)
+                                call generate_fci_core(trial_iluts, ndets_this_proc)
             end if
         end if
 
@@ -522,7 +606,7 @@ contains
 
         space_displs(0) = 0_MPIArg
         do i = 1, nProcessors-1
-            space_displs(i) = sum(space_sizes(:i-1))
+            space_displs(i) = space_displs(i-1) + space_sizes(i-1)
         end do
 
         call sort(trial_iluts(:,1:ndets_this_proc), ilut_lt, ilut_gt)

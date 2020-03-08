@@ -55,6 +55,21 @@ class WriteStar:
         return _fortran_suffix(path) or _NECI_template_suffix(path)
 
 
+class CompileFlag:
+    compile_flag = re.compile(r'(\bifdef\b|\bifndef).*?__.*?', re.IGNORECASE)
+
+    def test(self, line):
+        return self.compile_flag.search(line)
+
+    @staticmethod
+    def report(file_path, line_number):
+        return '"Compile Flag with Double Underscore" in {}:{}'.format(file_path, line_number)
+
+    @staticmethod
+    def defined_for(path):
+        return _fortran_suffix(path) or _NECI_template_suffix(path) or _C_suffix(path)
+
+
 def run_tests_per_file(file_path, style_errors):
     errors = defaultdict(list)
     relevant = [x for x in style_errors if x.defined_for(file_path)]
@@ -113,7 +128,7 @@ def _NECI_template_suffix(path):
 
 
 if __name__ == '__main__':
-    STYLE_ERRORS = [TabCharacter(), WriteStar()]
+    STYLE_ERRORS = [TabCharacter(), WriteStar(), CompileFlag()]
     src_dir = parse_args()
     files = get_files(src_dir)
     errors = run_tests(files, STYLE_ERRORS)

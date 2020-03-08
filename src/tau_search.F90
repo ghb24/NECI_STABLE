@@ -5,40 +5,62 @@ module tau_search
     use SystemData, only: AB_elec_pairs, par_elec_pairs, tGen_4ind_weighted, &
                           tHPHF, tCSF, tKpntSym, nel, G1, nbasis, &
                           AB_hole_pairs, par_hole_pairs, tGen_4ind_reverse, &
-                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy
-    use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
-                        InitiatorWalkNo, tWalkContGrow, t_min_tau, min_tau_global
+                          nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, tReltvy, &
+                          t_3_body_excits, t_k_space_hubbard, t_trans_corr_2body, &
+                          t_uniform_excits, t_new_real_space_hubbard, &
+                          tGUGA, t_mixed_hubbard, t_olle_hubbard, &
+                          t_trans_corr, tHub, t_trans_corr_hop, tNoSinglesPossible, &
+                          t_exclude_3_body_excits, t_mol_3_body, t_ueg_3_body, t_pchb_excitgen
+
+    use CalcData
+
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          ProjEDet, ilutRef, MaxTau, tSearchTau, &
-                         tSearchTauOption, tSearchTauDeath, &
+                         tSearchTauOption, tSearchTauDeath, pExcit2, pExcit4, &
+                         pExcit2_same, pExcit3_same, &
                          pSing_spindiff1, pDoub_spindiff1, pDoub_spindiff2
+
     use GenRandSymExcitNUMod, only: construct_class_counts, &
                                     init_excit_gen_store, clean_excit_gen_store
+
+    use tc_three_body_data, only: pTriples
+
     use SymExcit3, only: GenExcitations3
+
     use Determinants, only: get_helement
+
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet, CalcPGenHPHF, &
                                 CalcNonUniPGen
+
     use HPHF_integrals, only: hphf_off_diag_helement_norm
+
     use SymExcitDataMod, only: excit_gen_store_type
+
     use bit_rep_data, only: NIfTot
-    use bit_reps, only: getExcitationType
+
+    use bit_reps, only: getExcitationType, decode_bit_det
+
     use DetBitOps, only: FindBitExcitLevel, TestClosedShellDet, &
                          EncodeBitDet
+
     use sym_general_mod, only: SymAllowedExcit
+
     use Parallel_neci
+
     use constants
+
     use util_mod, only: near_zero, operator(.isclose.)
+
+    use k_space_hubbard, only: calc_pgen_k_space_hubbard_uniform_transcorr, &
+                               calc_pgen_k_space_hubbard_transcorr, &
+                               calc_pgen_k_space_hubbard
+
+    use lattice_mod, only: get_helement_lattice
+
+    use lattice_models_utils, only: gen_all_excits_k_space_hubbard
+
     implicit none
 
-    real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt
-    real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
-    real(dp) :: gamma_sum
-    real(dp) :: max_permitted_spawn
-    integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par
-    integer :: n_opp, n_par
-    logical :: enough_sing, enough_doub, enough_opp, enough_par
-!    logical :: enough_sing_spindiff1, enough_doub_spindiff1, enough_doub_spindiff2
-    logical :: consider_par_bias
 
     ! this is to keep probabilities of generating excitations of allowed classes above zero
     real(dp) :: prob_min_thresh
@@ -47,15 +69,16 @@ module tau_search
 contains
 
     subroutine init_tau_search ()
-
         ! N.B. This must be called BEFORE a popsfile is read in, otherwise
         !      we screw up the gamma values that have been carefully read in.
+        character(*), parameter :: this_routine = "init_tau_search"
 
         ! We want to start off with zero-values
-        gamma_sing = 0
-        gamma_doub = 0
-        gamma_opp = 0
-        gamma_par = 0
+        gamma_sing = 0.0_dp
+        gamma_doub = 0.0_dp
+        gamma_trip = 0.0_dp
+        gamma_opp = 0.0_dp
+        gamma_par = 0.0_dp
         if (tReltvy) then
             gamma_sing_spindiff1 = 0
             gamma_doub_spindiff1 = 0
@@ -76,9 +99,14 @@ contains
         enough_doub = .false.
         enough_opp = .false.
         enough_par = .false.
+        enough_trip = .false.
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. near_zero(tau)) then
+            if (tGUGA) then
+                print *, "Warning: FindMaxTauDoubs misused for GUGA!"
+                print *, "still need a specific implementation for that!"
+            end if
             call FindMaxTauDoubs()
         end if
 
@@ -108,7 +136,6 @@ contains
         ! excitation generators, then there is only one place that this logic
         ! needs to be updated!
         if (tGen_4ind_weighted .or. tGen_4ind_2) then
-            !consider_par_bias = .false.
             consider_par_bias = .true.
             !n_opp = AB_elec_pairs
             !n_par = par_elec_pairs
@@ -116,6 +143,14 @@ contains
             consider_par_bias = .true.
             n_opp = AB_hole_pairs
             n_par = par_hole_pairs
+        else if (t_k_space_hubbard .and. t_trans_corr_2body) then
+            ! for the 2-body transcorrelated k-space hubbard we also have
+            ! possible parallel excitations now. and to make the tau-search
+            ! working we need to set this to true ofc:
+            consider_par_bias = .true.
+        else if(t_pchb_excitgen) then
+            ! The default pchb excitgen also uses parallel biases
+            consider_par_bias = .true.
         else
             consider_par_bias = .false.
         end if
@@ -132,16 +167,26 @@ contains
             pParallel = 0.0_dp
             enough_par = .true.
         end if
+
+        if (t_mixed_hubbard .or. t_olle_hubbard) then
+            pParallel = 0.0_dp
+        end if
+
         prob_min_thresh = 1e-8_dp
 
-    end subroutine
+        t_consider_par_bias = consider_par_bias
+
+    end subroutine init_tau_search
 
     subroutine log_spawn_magnitude (ic, ex, matel, prob)
 
-        integer, intent(in) :: ic, ex(2,2)
+        integer, intent(in) :: ic, ex(2,ic)
         real(dp), intent(in) :: prob, matel
         real(dp) :: tmp_gamma, tmp_prob
         integer, parameter :: cnt_threshold = 50
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "log_spawn_magnitude"
+#endif
 
         select case(getExcitationType(ex, ic))
         case(1)
@@ -149,9 +194,7 @@ contains
             ! Log the details if necessary!
             tmp_prob = prob / pSingles
             tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_sing) &
-                gamma_sing = tmp_gamma
-
+            if (tmp_gamma > gamma_sing)  gamma_sing = tmp_gamma
             ! And keep count!
             if (.not. enough_sing .and. gamma_sing > 0) then
                 cnt_sing = cnt_sing + 1
@@ -178,14 +221,47 @@ contains
 
             ! We are not playing around with the same/opposite spin bias
             ! then we should just treat doubles like the singles
-            tmp_gamma = abs(matel) / tmp_prob
-            if (tmp_gamma > gamma_doub) &
-                gamma_doub = tmp_gamma
-            ! And keep count
-            if (.not. enough_doub .and. tmp_gamma > 0) then
-                cnt_doub = cnt_doub + 1
-                if (cnt_doub > cnt_threshold) enough_doub = .true.
-            endif
+
+            if (consider_par_bias) then
+                if (same_spin(ex(1,1),ex(1,2))) then
+                    tmp_prob = tmp_prob / pParallel
+                    tmp_gamma = abs(matel) / tmp_prob
+                    if (tmp_gamma > gamma_par) then
+                        gamma_par = tmp_gamma
+                    end if
+
+                    ! And keep count
+                    if (.not. enough_par) then
+                        cnt_par = cnt_par + 1
+                        if (cnt_par > cnt_threshold) enough_par = .true.
+                        if (enough_opp .and. enough_par) enough_doub = .true.
+                    end if
+                else
+                    tmp_prob = tmp_prob / (1.0_dp - pParallel)
+                    tmp_gamma = abs(matel) / tmp_prob
+                    if (tmp_gamma > gamma_opp) then
+                        gamma_opp = tmp_gamma
+                    end if
+
+                    ! And keep count
+                    if (.not. enough_opp) then
+                        cnt_opp = cnt_opp + 1
+                        if (cnt_opp > cnt_threshold) enough_opp = .true.
+                        if (enough_opp .and. enough_par) enough_doub = .true.
+                    end if
+                end if
+            else
+                ! We are not playing around with the same/opposite spin bias
+                ! then we should just treat doubles like the singles
+                tmp_gamma = abs(matel) / tmp_prob
+                if (tmp_gamma > gamma_doub) gamma_doub = tmp_gamma
+
+                ! And keep count
+                if (.not. enough_doub .and. tmp_gamma > 0) then
+                    cnt_doub = cnt_doub + 1
+                    if (cnt_doub > cnt_threshold) enough_doub = .true.
+                end if
+            end if
 
         case(4)
             ! We need to unbias the probability for pDoubles
@@ -215,52 +291,29 @@ contains
                 cnt_doub = cnt_doub + 1
                 if (cnt_doub > cnt_threshold) enough_doub = .true.
             endif
-        end select
 
+        case(6)
+            ! also treat triple excitations now.
+            ! NOTE: but for now this is only done in the transcorrelated
+            ! k-space hubbard model, where there are still no single
+            ! excitations -> so reuse the quantities for the the singles
+            ! instead of introducing yet more variables
+           if(.not. t_exclude_3_body_excits) then
+              tmp_prob = prob / pTriples
+              tmp_gamma = abs(matel) / tmp_prob
+           else
+              tmp_gamma = 0.0_dp
+           end if
 
-        ! We need to deal with the doubles
-        if (getExcitationType(ex, ic)==2 .and. consider_par_bias) then
-            ! In this case, distinguish between parallel and oppisite spins
-            if (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2))) then
-                tmp_prob = tmp_prob / pParallel
-                tmp_gamma = abs(matel) / tmp_prob
-                if (tmp_gamma > gamma_par) &
-                    gamma_par = tmp_gamma
+            if (tmp_gamma > gamma_trip) gamma_trip = tmp_gamma
+            ! And keep count!
+            if (.not. enough_trip) then
+                cnt_trip = cnt_trip + 1
+                if (cnt_trip > cnt_threshold) enough_trip = .true.
+            endif
 
-                ! And keep count
-                if (.not. enough_par ) then
-                    cnt_par = cnt_par + 1
-                    if (cnt_par > cnt_threshold) enough_par = .true.
-                        if (enough_opp .and. enough_par) enough_doub = .true.
-                    end if
-                else
-                tmp_prob = tmp_prob / (1.0_dp - pParallel)
-                tmp_gamma = abs(matel) / tmp_prob
-                if (tmp_gamma > gamma_opp) &
-                    gamma_opp = tmp_gamma
-
-                ! And keep count
-                if (.not. enough_opp .and. tmp_gamma > 0) then
-                    cnt_opp = cnt_opp + 1
-                    if (cnt_opp > cnt_threshold) enough_opp = .true.
-                    if (enough_opp .and. enough_par) enough_doub = .true.
-                end if
-            end if
-        else
-        ! We are not playing around with the same/opposite spin bias
-        ! then we should just treat doubles like the singles
-        tmp_gamma = abs(matel) / tmp_prob
-        if (tmp_gamma > gamma_doub) &
-            gamma_doub = tmp_gamma
-
-            ! And keep count
-            if (.not. enough_doub .and. tmp_gamma > 0) then
-                cnt_doub = cnt_doub + 1
-                if (cnt_doub > cnt_threshold) enough_doub = .true.
-            end if
-        end if
-
-    end subroutine
+         end select
+     end subroutine
 
     subroutine log_death_magnitude (mult)
 
@@ -279,7 +332,7 @@ contains
 
         use FcimCData, only: iter
 
-        real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new
+        real(dp) :: psingles_new, tau_new, mpi_tmp, tau_death, pParallel_new, pTriples_new
         real(dp) :: pSing_spindiff1_new, pDoub_spindiff1_new, pDoub_spindiff2_new
         logical :: mpi_ltmp
         character(*), parameter :: this_routine = "update_tau"
@@ -316,9 +369,15 @@ contains
 
             ! Condition met --> no need to do this again next iteration
             tSearchTauDeath = .false.
-            return
+
+            if (.not. t_hist_tau_search) then
+                return
+            end if
 
         end if
+
+        ! default value for pTriples_new
+        pTriples_new = pTriples
 
         ! What needs doing depends on the number of parameters that are being
         ! updated.
@@ -327,12 +386,16 @@ contains
         enough_sing = mpi_ltmp
         call MPIAllLORLogical(enough_doub, mpi_ltmp)
         enough_doub = mpi_ltmp
+        call MPIAllLORLogical(enough_trip, mpi_ltmp)
+        enough_trip = mpi_ltmp
 
-        ! Only considering a direct singles/doubles bias
+        ! Only considering a direct singles/doubles/triples bias
         call MPIAllReduce (gamma_sing, MPI_MAX, mpi_tmp)
         gamma_sing = mpi_tmp
         call MPIAllReduce (gamma_doub, MPI_MAX, mpi_tmp)
         gamma_doub = mpi_tmp
+        call MPIAllReduce (gamma_trip, MPI_MAX, mpi_tmp)
+        gamma_trip = mpi_tmp
         if (tReltvy) then
             call MPIAllReduce (gamma_sing_spindiff1, MPI_MAX, mpi_tmp)
             gamma_sing_spindiff1 = mpi_tmp
@@ -378,6 +441,10 @@ contains
                     endif
                 end if
 
+!               checking for triples
+                if (enough_trip) then
+                    pTriples_new = gamma_trip / (gamma_par + gamma_sing * pparallel_new + gamma_trip)
+                endif
                 ! We only want to update the opposite spins bias here, as we only
                 ! consider it here!
                 if (enough_opp .and. enough_par) then
@@ -392,40 +459,53 @@ contains
             endif
         else
 
+
             ! Get the probabilities and tau that correspond to the stored
             ! values
             if ((tUEG .or. enough_sing) .and. enough_doub) then
-                psingles_new = gamma_sing / gamma_sum
+                psingles_new = max(gamma_sing / gamma_sum, prob_min_thresh)
+                if(enough_trip) pTriples_new = max(gamma_trip / gamma_sum, prob_min_thresh)
                 if (tReltvy) then
                     pSing_spindiff1_new = gamma_sing_spindiff1/gamma_sum
                     pDoub_spindiff1_new = gamma_doub_spindiff1/gamma_sum
                     pDoub_spindiff2_new = gamma_doub_spindiff2/gamma_sum
                 endif
                 tau_new = max_permitted_spawn / gamma_sum
-            else
+            else if (t_new_real_space_hubbard .and. enough_sing .and. &
+                (t_trans_corr_2body .or. t_trans_corr)) then
+                ! for the transcorrelated real-space hubbard we could
+                ! actually also adapt the time-step!!
+                ! but psingles stays 1
                 psingles_new = pSingles
+                tau_new = max_permitted_spawn / gamma_sum
+             else
+                psingles_new = pSingles
+
                 if (tReltvy) then
-                    pSing_spindiff1_new = pSing_spindiff1
-                    pDoub_spindiff1_new = pDoub_spindiff1
-                    pDoub_spindiff2_new = pDoub_spindiff2
+                   pSing_spindiff1_new = pSing_spindiff1
+                   pDoub_spindiff1_new = pDoub_spindiff1
+                   pDoub_spindiff2_new = pDoub_spindiff2
                 endif
-           ! If no single/double spawns occurred, they are also not taken into account
-           ! (else would be undefined)
+                ! If no single/double spawns occurred, they are also not taken into account
+                ! (else would be undefined)
                 if(abs(gamma_doub) > EPS .and. abs(gamma_sing) > EPS) then
                    tau_new = max_permitted_spawn * &
                         min(pSingles / gamma_sing, pDoubles / gamma_doub)
                 else if(abs(gamma_doub) > EPS) then
                    ! If only doubles were counted, take them
                    tau_new = max_permitted_spawn * pDoubles / gamma_doub
-                else if(abs(gamma_sing) > EPS) then
+                else if(abs(gamma_sing) > eps) then
                    ! else, we had to have some singles
                    tau_new = max_permitted_spawn * pSingles / gamma_sing
+                else if(abs(gamma_trip) > eps) then
+                   tau_new = max_permitted_spawn * PTriples / gamma_trip
                 else
+                   ! no spawns
                    tau_new = tau
                 endif
-            end if
+             end if
 
-        end if
+          end if
 
         ! The range of tau is restricted by particle death. It MUST be <=
         ! the value obtained to restrict the maximum death-factor to 1.0.
@@ -449,7 +529,15 @@ contains
         ! If the calculated tau is less than the current tau, we should ALWAYS
         ! update it. Once we have a reasonable sample of excitations, then we
         ! can permit tau to increase if we have started too low.
-        if (tau_new < tau .or. ((tUEG .or. enough_sing) .and. enough_doub))then
+        ! make the right if-statements here!
+        ! remember enough_sing is (mis)used for triples in the
+        ! 2-body transcorrelated k-space hubbard
+        if (tau_new < tau .or. (enough_sing .and. enough_doub) .or. &
+            ((tUEG.and..not.t_ueg_3_body) .or. tHub .or. enough_sing .or. &
+            (t_k_space_hubbard .and. .not. t_trans_corr_2body) .and. enough_doub) .or. &
+            (t_new_real_space_hubbard .and. enough_sing .and. &
+            (t_trans_corr_2body .or. t_trans_corr)) .or. &
+            (t_new_real_space_hubbard .and. t_trans_corr_hop .and. enough_doub)) then
 
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
@@ -462,16 +550,16 @@ contains
                         root_print "new time-step less than min_tau! set to min_tau:", min_tau_global
 
                         tau_new = min_tau_global
+
                     else
-                        root_print "Updating time-step. New time-step = ", tau_new
+                        root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
                     end if
                 else
-                    root_print "Updating time-step. New time-step = ", tau_new
-                end if
+                    root_print "Updating time-step. New time-step = ", tau_new, "in: ", this_routine
 
+                end if
             end if
             tau = tau_new
-
         end if
 
         ! Make sure that we have at least some of both singles and doubles
@@ -487,32 +575,32 @@ contains
                         ", pDoubles(st->s't) = ", pDoub_spindiff1_new, &
                         ", pDoubles(st->s't') = ", pDoub_spindiff2_new
                 else
-                    root_print "Updating singles/doubles bias. pSingles = ", &
-                        psingles_new, ", pDoubles = ", 1.0_dp - psingles_new
+                    root_print "Updating singles/doubles bias. pSingles = ", psingles_new
+                    root_print " pDoubles = ", (1.0_dp - pSingles_new)*(1.0 - pTriples_new)
                 endif
             end if
-            pSingles = max(psingles_new, prob_min_thresh)
-            if (tReltvy) then
-                pSing_spindiff1 = max(pSing_spindiff1_new, prob_min_thresh)
-                pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
-                pDoub_spindiff2 = max(pDoub_spindiff2_new, prob_min_thresh)
-                pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
-                ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
-            else
-                pDoubles = 1.0_dp - pSingles
-            endif
-        end if
 
+              pSingles = pSingles_new
+              if (tReltvy) then
+                 pSing_spindiff1 = max(pSing_spindiff1_new, prob_min_thresh)
+                 pDoub_spindiff1 = max(pDoub_spindiff1_new, prob_min_thresh)
+                 pDoub_spindiff2 = max(pDoub_spindiff2_new, prob_min_thresh)
+                 pDoubles = max(1.0_dp - pSingles - pSing_spindiff1_new - pDoub_spindiff1_new - pDoub_spindiff2_new, prob_min_thresh)
+                 ASSERT(pDoubles-gamma_doub/gamma_sum < prob_min_thresh)
+              else
+                 pDoubles = 1.0_dp - pSingles
+             endif
+         end  if
 
-!        write(*,*) "pSingles", pSingles
-!        write(*,*) "pSing_spindiff1", pSing_spindiff1
-!        write(*,*) "pDoubles", pDoubles
-!        write(*,*) "pDoub_spindiff1", pDoub_spindiff1
-!        write(*,*) "pDoub_spindiff2", pDoub_spindiff2
-!        write(*,*) "sum of probs:", pSingles+pSing_spindiff1+pDoub_spindiff1+pDoubles+pDoub_spindiff2
+       !checking whether we have enouigh triples
+        if(enough_trip) then
+           if(abs(pTriples_new - pTriples) / pTriples > 0.0001_dp) then
+                 root_print "Updating triple-excitation bias. pTriples =", pTriples_new
+                 pTriples = pTriples_new
+           endif
+        endif
 
-    end subroutine
-
+    end subroutine update_tau
 
     subroutine FindMaxTauDoubs()
 
@@ -528,16 +616,26 @@ contains
         type(excit_gen_store_type) :: store, store2
         logical :: tAllExcitFound,tParity,tSameFunc,tSwapped,tSign
         character(len=*), parameter :: t_r="FindMaxTauDoubs"
-        integer :: ex(2,2),ex2(2,2),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
+        character(len=*), parameter :: this_routine ="FindMaxTauDoubs"
+        integer :: ex(2,maxExcit),ex2(2,maxExcit),exflag,iMaxExcit,nStore(6),nExcitMemLen(1)
         integer, allocatable :: Excitgen(:)
         real(dp) :: nAddFac,MagHel,pGen,pGenFac
         HElement_t(dp) :: hel
-        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,2)
+        integer :: ic,nJ(nel),nJ2(nel),ierr,iExcit,ex_saved(2,maxExcit)
         integer(kind=n_int) :: iLutnJ(0:niftot),iLutnJ2(0:niftot)
 
         type(ExcitGenSessionType) :: session
 
+        integer(n_int), allocatable :: det_list(:,:)
+        integer :: n_excits, i, ex_3(2,3)
+
         if(tCSF) call stop_all(t_r,"TauSearching needs fixing to work with CSFs or MI funcs")
+
+        if (tGUGA) then
+            ! in the case of GUGA i need a specialised max-tau-doubs routine
+            print *, "Warning: FindMaxTauDoubs misused for GUGA! "
+            print *, "Still need a specific implememtation for that"
+        end if
 
         if(MaxWalkerBloom .isclose. -1._dp) then
             !No MaxWalkerBloom specified
@@ -553,6 +651,71 @@ contains
         endif
 
         Tau = 1000.0_dp
+
+        ! NOTE: test if the new real-space implementation works with this
+        ! function! maybe i also have to use a specific routine for this !
+        ! since it might be necessary in the transcorrelated approach to
+        ! the real-space hubbard
+
+        ! bypass everything below for the new k-space hubbard implementation
+        if (t_k_space_hubbard) then
+            if (tHPHF) then
+                call Stop_All(this_routine, &
+                    "not yet implemented with HPHF, since gen_all_excits not atapted to it!")
+            end if
+
+            call gen_all_excits_k_space_hubbard(ProjEDet(:,1), n_excits, det_list)
+
+            ! now loop over all of them and determine the worst case H_ij/pgen ratio
+            do i = 1, n_excits
+                call decode_bit_det(nJ, det_list(:,i))
+                ! i have to take the right direction in the case of the
+                ! transcorrelated, due to non-hermiticity..
+                ic = FindBitExcitlevel(det_list(:,i), ilutRef(:,1))
+                ASSERT(ic == 2 .or. ic == 3)
+                if (ic == 2) then
+                    call GetBitExcitation(ilutRef(:,1), det_list(:,i), ex, tParity)
+                else if (ic == 3) then
+                    call GetBitExcitation(ilutRef(:,1), det_list(:,i), ex_3, tParity)
+                end if
+
+                MagHel = abs(get_helement_lattice(nJ, ProjEDet(:,1)))
+                ! and also get the generation probability
+                if (t_trans_corr_2body) then
+                    if (t_uniform_excits) then
+                        ! i have to setup pDoubles and the other quantities
+                        ! before i call this functionality!
+                        pgen = calc_pgen_k_space_hubbard_uniform_transcorr(ex_3, ic)
+                    else
+                        pgen = calc_pgen_k_space_hubbard_transcorr(&
+                            ProjEDet(:,1), ilutRef(:,1), ex_3, ic)
+                    end if
+                else
+                    pgen = calc_pgen_k_space_hubbard(&
+                            ProjEDet(:,1), ilutRef(:,1), ex, ic)
+                end if
+
+                if (MagHel > EPS) then
+                    pGenFac = pgen * nAddFac / MagHel
+
+                    if (tau > pGenFac .and. pGenFac > EPS) then
+                        tau = pGenFac
+                    end if
+                end if
+            end do
+
+            if(tau.gt.0.075_dp) then
+                tau=0.075_dp
+                write(iout,"(A,F8.5,A)") "Small system. Setting initial timestep to be ",Tau," although this &
+                                                &may be inappropriate. Care needed"
+            else
+                write(iout,"(A,F18.10)") "From analysis of reference determinant and connections, &
+                                         &an upper bound for the timestep is: ",Tau
+            endif
+
+            return
+        end if
+
         tAllExcitFound=.false.
         Ex_saved(:,:)=0
         exflag=3
@@ -574,7 +737,6 @@ contains
             IF(ierr.ne.0) CALL Stop_All(t_r,"Problem allocating excitation generator")
             EXCITGEN(:)=0
             CALL GenSymExcitIt2(ProjEDet(:,1),NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
-        !    CALL GetSymExcitCount(EXCITGEN,DetConn)
         endif
 
         do while (.not.tAllExcitFound)
@@ -610,7 +772,6 @@ contains
             if (.not. SymAllowedExcit(ProjEDet(:,1), nJ, ic, ex)) &
                 cycle
 
-            !Find Hij
             if(tHPHF) then
                 if(.not.TestClosedShellDet(iLutnJ)) then
                     CALL ReturnAlphaOpenDet(nJ,nJ2,iLutnJ,iLutnJ2,.true.,.true.,tSwapped)
@@ -618,6 +779,7 @@ contains
                         !Have to recalculate the excitation matrix.
                         ic = FindBitExcitLevel(iLutnJ, iLutRef(:,1), 2)
                         ex(:,:) = 0
+                        ASSERT(.not. t_3_body_excits)
                         if(ic.le.2) then
                             ex(1,1) = ic
                             call GetBitExcitation(iLutRef(:,1),iLutnJ,Ex,tParity)
@@ -653,8 +815,10 @@ contains
             if(tHPHF) then
                 ic = FindBitExcitLevel(iLutnJ, iLutRef(:,1), 2)
                 ex2(:,:) = 0
+                ASSERT(.not. t_3_body_excits)
                 if(ic.le.2) then
                     ex2(1,1) = ic
+
                     call GetBitExcitation(iLutnJ,iLutRef(:,1),Ex2,tSign)
                 endif
                 call CalcPGenHPHF(nJ,iLutnJ,ProjEDet(:,1),iLutRef(:,1),ex2,store2%ClassCountOcc,    &
@@ -688,6 +852,372 @@ contains
         endif
 
     end subroutine FindMaxTauDoubs
+
+
+    subroutine fill_frequency_histogram_nosym_diff(mat_ele, pgen, ic, typ, diff)
+        ! specific frequency fill routine for the nosym guga implementation
+        ! where no differentiating between mixed or same generators is done
+        ! type of excitation is stored in the excitation matrix in the
+        ! GUGA implementation!
+        ! this ist the implememtation considering diff bias
+        real(dp), intent(in) :: mat_ele, pgen
+        integer, intent(in) :: ic, typ, diff
+        character(*), parameter :: this_routine = "fill_frequency_histogram_nosym_diff"
+
+        real(dp) :: ratio
+        integer :: ind, new_n_bins, i, old_n_bins
+        integer, allocatable :: save_bins(:)
+        integer, parameter :: cnt_threshold = 50
+
+        real(dp) :: pBranch2, pBranch3
+
+        ASSERT(pgen > EPS)
+        ASSERT(ic == 1 .or. ic == 2)
+        ASSERT(typ == 2 .or. typ == 3 .or. typ == 4)
+        ASSERT(diff == 0 .or. diff == 1)
+
+        if (mat_ele < EPS) return
+
+        ratio = mat_ele / pgen
+
+        if (ic == 1) then
+            ! single excitation
+            ratio = ratio * pSingles
+
+            if (ratio < max_frequency_bound) then
+
+                if (.not. enough_sing_hist) then
+                    cnt_sing_hist = cnt_sing_hist + 1
+                    if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
+                end if
+
+                ind = int(ratio / frq_step_size) + 1
+
+                frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
+
+            end if
+
+        else
+            ! double excitation -> check type
+            if (typ == 2) then
+                pBranch2 = pDoubles * (1.0_dp - pExcit4) * pExcit2
+                if (diff == 1) then
+
+                    ratio = ratio * pBranch2 * (1.0_dp - pExcit2_same)
+
+                    if (ratio < max_frequency_bound) then
+                        if (.not. enough_two_same) then
+                            cnt_type2_same = cnt_type2_same + 1
+                            if (cnt_type2_same > cnt_threshold) enough_two_same = .true.
+                        end if
+
+                        ind = int(ratio / frq_step_size) + 1
+
+                        frequency_bins_type2(ind) = frequency_bins_type2(ind) + 1
+
+                    end if
+                else if (diff == 0) then
+
+                    ratio = ratio * pBranch2 * pExcit2_same
+
+                    if (ratio < max_frequency_bound) then
+                        if (.not. enough_two_mixed) then
+                            cnt_type2_same = cnt_type2_same + 1
+                            if (cnt_type2_same > cnt_threshold) enough_two_mixed = .true.
+                        end if
+
+                        ind = int(ratio / frq_step_size) + 1
+
+                        frequency_bins_type2_diff(ind) = frequency_bins_type2_diff(ind) + 1
+
+                    end if
+                end if
+
+                if (enough_two_same .and. enough_two_mixed) enough_two = .true.
+
+            else if (typ == 3) then
+
+                pBranch3 = pDoubles * (1.0_dp - pExcit4) * (1.0_dp - pExcit2)
+                if (diff == 1) then
+                    ratio = ratio * pBranch3 * (1.0_dp - pExcit3_same)
+
+                    if (ratio < max_frequency_bound) then
+                        if (.not. enough_three_same) then
+                            cnt_type3_same = cnt_type3_same + 1
+                            if (cnt_type3_same > cnt_threshold) enough_three_same = .true.
+                        end if
+                        ind = int(ratio / frq_step_size) + 1
+
+                        frequency_bins_type3(ind) = frequency_bins_type3(ind) + 1
+
+                    end if
+                else if (diff == 0) then
+                    ratio = ratio * pBranch3 * pExcit3_same
+
+                    if (ratio < max_frequency_bound) then
+                        if (.not. enough_three_mixed) then
+                            cnt_type3_diff = cnt_type3_diff + 1
+                            if (cnt_type3_diff > cnt_threshold) enough_three_mixed = .true.
+                        end if
+                        ind = int(ratio / frq_step_size) + 1
+
+                        frequency_bins_type3_diff(ind) = frequency_bins_type3_diff(ind) + 1
+
+                    end if
+                end if
+
+                if (enough_three_same .and. enough_three_mixed) enough_three = .true.
+
+            else if (typ == 4) then
+                ratio = ratio * pDoubles * pExcit4
+
+                if (ratio < max_frequency_bound) then
+                    if (.not. enough_four) then
+                        cnt_type4 = cnt_type4 + 1
+                        if (cnt_type4 > cnt_threshold) enough_four = .true.
+                    end if
+
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_type4(ind) = frequency_bins_type4(ind) + 1
+
+                end if
+            end if
+            if (enough_two .and. enough_three .and. enough_four) enough_doub_hist = .true.
+
+        end if
+
+    end subroutine fill_frequency_histogram_nosym_diff
+
+
+    subroutine fill_frequency_histogram_nosym_nodiff(mat_ele, pgen, ic, typ)
+        ! specific frequency fill routine for the nosym guga implementation
+        ! where no differentiating between mixed or same generators is done
+        ! type of excitation is stored in the excitation matrix in the
+        ! GUGA implementation!
+        real(dp), intent(in) :: mat_ele, pgen
+        integer, intent(in) :: ic, typ
+        character(*), parameter :: this_routine = "fill_frequency_histogram_nosym_nodiff"
+
+        real(dp) :: ratio
+        integer :: ind, new_n_bins, i, old_n_bins
+        integer, allocatable :: save_bins(:)
+        integer, parameter :: cnt_threshold = 50
+
+        ASSERT(pgen > EPS)
+        ASSERT(ic == 1 .or. ic == 2)
+#ifdef DEBUG_
+        if (ic == 2) then
+            ASSERT(typ == 2 .or. typ == 3 .or. typ == 4)
+        end if
+#endif
+
+        if (mat_ele < EPS) return
+
+        ratio = mat_ele / pgen
+
+        if (ic == 1) then
+            ! single excitation
+            ratio = ratio * pSingles
+
+            if (ratio < max_frequency_bound) then
+                if (.not.enough_sing_hist) then
+                    cnt_sing_hist = cnt_sing_hist + 1
+                    if (cnt_sing_hist > cnt_threshold) enough_sing_hist = .true.
+                end if
+                ind = int(ratio / frq_step_size) + 1
+
+                frequency_bins_singles(ind) = frequency_bins_singles(ind) + 1
+
+            end if
+
+        else
+            ! double excitation -> check type
+            if (typ == 2) then
+                ratio = ratio * pDoubles * (1.0_dp - pExcit4) * pExcit2
+
+                if (ratio < max_frequency_bound) then
+                    if (.not. enough_two) then
+                        cnt_type2_same = cnt_type2_same + 1
+                        if (cnt_type2_same > cnt_threshold) enough_two = .true.
+                    end if
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_type2(ind) = frequency_bins_type2(ind) + 1
+
+                end if
+
+            else if (typ == 3) then
+                ratio = ratio * pDoubles * (1.0_dp - pExcit4) * (1.0_dp - pExcit2)
+
+                if (ratio < max_frequency_bound) then
+                    if (.not. enough_three) then
+                        cnt_type3_same = cnt_type3_same + 1
+                        if (cnt_type3_same > cnt_threshold) enough_three = .true.
+                    end if
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_type3(ind) = frequency_bins_type3(ind) + 1
+
+                end if
+
+            else if (typ == 4) then
+                ratio = ratio * pDoubles * pExcit4
+
+                if (ratio < max_frequency_bound) then
+                    if (.not. enough_four) then
+                        cnt_type4 = cnt_type4 + 1
+                        if (cnt_type4 > cnt_threshold) enough_four = .true.
+                    end if
+                    ind = int(ratio / frq_step_size) + 1
+
+                    frequency_bins_type4(ind) = frequency_bins_type4(ind) + 1
+
+                end if
+            end if
+            if (enough_two .and. enough_three .and. enough_four) enough_doub_hist = .true.
+        end if
+
+    end subroutine fill_frequency_histogram_nosym_nodiff
+
+
+    ! write a general histogram communication routine, which takes
+    ! specific histogram as input
+    subroutine comm_frequency_histogram_spec(spec_size, spec_frequency_bins, &
+                     all_spec_frq_bins)
+        integer, intent(in) :: spec_size
+        integer, intent(in) :: spec_frequency_bins(spec_size)
+!         integer, allocatable, intent(out) :: all_spec_frq_bins(:)
+        integer, intent(out) :: all_spec_frq_bins(n_frequency_bins)
+        character(*), parameter :: this_routine = "comm_frequency_histogram_spec"
+
+        integer :: max_size
+!         integer, allocatable :: temp_bins(:)
+
+        ! with the new scheme i do not need to adjust the lengths since they
+        ! are all the same all the time
+        all_spec_frq_bins = 0
+
+        call MPIAllReduce(spec_frequency_bins, MPI_SUM, all_spec_frq_bins)
+!
+    end subroutine comm_frequency_histogram_spec
+
+    subroutine comm_frequency_histogram(all_frequency_bins)
+        ! routine to communicate the frequency histogram data across all
+        ! processors
+        integer, intent(out) :: all_frequency_bins(n_frequency_bins)
+        character(*), parameter :: this_routine = "comm_frequency_histogram"
+
+        ! do the new implementation! with fixed sizes of the frequency bins
+        all_frequency_bins = 0
+
+        call MPIAllReduce(frequency_bins, MPI_SUM, all_frequency_bins)
+
+    end subroutine comm_frequency_histogram
+
+
+    subroutine integrate_frequency_histogram_spec(spec_frequency_bins, ratio)
+        ! specific histogram integration routine which sums up the inputted
+        ! frequency_bins
+        integer, intent(in) :: spec_frequency_bins(n_frequency_bins)
+        real(dp), intent(out) :: ratio
+        character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
+
+        integer :: all_frequency_bins(n_frequency_bins)
+        integer :: i, threshold
+        integer :: n_elements, cnt
+        real(dp) :: test_ratio, all_test_ratio
+        logical :: mpi_ltmp
+
+        ! test a change to the tau-search by now integrating on each
+        ! processor seperately and communicate the maximas
+        if (t_test_hist_tau) then
+            test_ratio = 0.0_dp
+            n_elements = sum(spec_frequency_bins)
+            if (n_elements == 0) then
+                test_ratio = 0.0_dp
+
+            else if (n_elements < 0) then
+                test_ratio = -1.0_dp
+                ! if any of the frequency_ratios is full i guess i should
+                ! also end the histogramming tau-search or?
+                ! yes i have to communicate that.. or else it gets
+                ! fucked up..
+
+                t_fill_frequency_hists = .false.
+
+            else
+
+                threshold = int(frq_ratio_cutoff * real(n_elements,dp))
+                cnt = 0
+                i = 0
+                do while(cnt < threshold)
+                    i = i + 1
+                    cnt = cnt + spec_frequency_bins(i)
+                end do
+
+                test_ratio = i * frq_step_size
+
+            end if
+
+            ! how do i best deal with the mpi communication.
+            ! i could use a mpialllor on (.not. t_fill_frequency_hists) to
+            ! check if one of them is false on any processor..
+            call MPIAllLORLogical(.not.t_fill_frequency_hists,mpi_ltmp)
+            if (mpi_ltmp) then
+                ! then i know one of the frequency histograms is full.. so
+                ! stop on all nodes!
+                t_fill_frequency_hists = .false.
+                ratio = -1.0_dp
+                return
+            else
+                all_test_ratio = 0.0_dp
+                call MPIAllReduce(test_ratio, MPI_MAX, all_test_ratio)
+
+                ratio = all_test_ratio
+            end if
+
+            return
+        end if
+
+        ! MPI communicate
+        all_frequency_bins = 0
+        call MPIAllReduce(spec_frequency_bins, MPI_SUM, all_frequency_bins)
+
+        n_elements = sum(all_frequency_bins)
+
+        ! have to check if no elements are yet stored into the histogram!
+        if (n_elements == 0) then
+            ratio = 0.0_dp
+            return
+
+        else if (n_elements < 0) then
+            ! i reached an integer overflow.. and should stop histogramming
+            ! this also means i should make an additional flag for only
+            ! the histogramming option without the tau-search to it
+            ! so i can also stop just the histogramming after an int
+            ! overflow in the histograms
+            ! TODO: in this case i also have to decide if i want to print
+            ! it at this moment.. or maybe still at the end of the
+            ! calculation.. but yes, maybe i want to, by default, always
+            ! print them to be able to continue from a certain setting
+            ratio = -1.0_dp
+            t_fill_frequency_hists = .false.
+            return
+        end if
+
+        threshold = int(frq_ratio_cutoff * real(n_elements, dp))
+
+        cnt = 0
+        i = 0
+        do while (cnt < threshold)
+            i = i + 1
+            cnt = cnt + all_frequency_bins(i)
+        end do
+
+        ratio = i * frq_step_size
+
+    end subroutine integrate_frequency_histogram_spec
 
 
 end module

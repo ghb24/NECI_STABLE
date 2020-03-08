@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module unit_test_helper_excitgen
   use constants
   use read_fci, only: readfciint, initfromfcid, fcidump_name
@@ -10,7 +12,7 @@ module unit_test_helper_excitgen
   use sort_mod
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit, MPIEnd
-  use UMatCache, only: GetUMatSize, tTransGTID
+  use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
   use OneEInts, only: Tmat2D
   use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
   use bit_reps, only: encode_sign, decode_bit_det
@@ -31,12 +33,14 @@ module unit_test_helper_excitgen
   integer, parameter :: lmsBase = -1
 
   abstract interface
-     function calc_pgen_t(nI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
+     function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
        use constants
        use SymExcitDataMod, only: scratchSize
+       use bit_rep_data, only: NIfTot
        use SystemData, only: nel
        implicit none
        integer, intent(in) :: nI(nel)
+       integer(n_int), intent(in) :: ilutI(0:NIfTot)
        integer, intent(in) :: ex(2,2), ic
        integer, intent(in) :: ClassCount2(ScratchSize), ClassCountUnocc2(ScratchSize)
 
@@ -61,7 +65,7 @@ contains
     integer, intent(out) :: numEx, nFound
     logical, intent(in) :: t_calc_pgen
     integer :: nI(nel), nJ(nel)
-    integer :: i, ex(2,2), exflag
+    integer :: i, ex(2,maxExcit), exflag
     integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
     real(dp) :: pgen
     logical :: tPar, tAllExFound, tFound
@@ -175,7 +179,6 @@ contains
           nFound = nFound + 1
           write(iout,*) i, pgenArr(1), real(allEx(NIfTot+1,i))/real(sampleSize), &
                abs(matel)/(pgenArr(1)*matelN)
-
           ! compare the stored pgen to the directly computed one
           if(t_calc_pgen) then
              if(i > nSingles) then
@@ -185,7 +188,7 @@ contains
              endif
              ex(1,1) = 2
              call getBitExcitation(ilut,allEx(:,i),ex,tPar)
-             pgenCalc = calc_pgen(nI, ex, ic, ClassCountOcc, ClassCountUnocc)
+             pgenCalc = calc_pgen(nI, ilut, ex, ic, ClassCountOcc, ClassCountUnocc)
              if(abs(pgenArr(1)-pgenCalc) > eps) then
                 write(iout,*) "Stored: ", pgenArr(1), "calculated:", pgenCalc
                 write(iout,*) "For excit", nJ
@@ -237,7 +240,7 @@ contains
 
     call MPIInit(.false.)
 
-    call dSFMT_init(8)
+    call dSFMT_init(25)
 
     call SetCalcDefaults()
     call SetSysDefaults()
@@ -256,6 +259,10 @@ contains
     call shared_allocate_mpi(umat_win, umat, (/umatsize/))
 
     call readfciint(UMat,umat_win,nBasis,ecore,.false.)
+
+    ! init the umat2d storage
+    call setupUMat2d_dense(nBasis)
+
     call SysInit()
     ! required: set up the spin info
 
@@ -314,7 +321,7 @@ contains
        do j = 1, i
           do k = i, nBasisBase
              do l = 1, k
-                matel = sqrt(umatRand(i,k)*umatRand(j,l))
+                matel = sqrt(umatRand(i,j)*umatRand(k,l))
                 if(matel > eps) write(iunit, *) matel,i,j,k,l
              end do
           end do
@@ -332,6 +339,47 @@ contains
     close(iunit)
 
   end subroutine generate_random_integrals
+
+  !------------------------------------------------------------------------------------------!
+    subroutine generate_uniform_integrals
+
+        use SystemData, only: nSpatOrbs, nel, lms
+
+        integer :: i, j, k, l,iunit
+
+        iunit = get_free_unit()
+
+        open(iunit,file="FCIDUMP")
+        write(iunit,*) "&FCI NORB=",nSpatOrbs,",NELEC=",nel,"MS2=",lms,","
+        write(iunit,"(A)",advance="no") "ORBSYM="
+        do i = 1, nSpatOrbs
+           write(iunit,"(A)",advance="no") "1,"
+        end do
+        write(iunit,*)
+        write(iunit,*) "ISYM=1,"
+        write(iunit,*) "&END"
+
+        do i = 1, nSpatOrbs
+            do j = 1, nSpatOrbs
+                do l = 1, nSpatOrbs
+                    do k = 1, nSpatOrbs
+                        write(iunit, *) h_cast(1.0_dp), i, j, k, l
+                    end do
+                end do
+            end do
+        end do
+        do i = 1, nSpatOrbs
+            do j = i, nSpatOrbs
+                write(iunit,*) h_cast(1.0_dp), i, j, 0, 0
+            end do
+        end do
+
+        write(iunit,*) h_cast(0.0_dp), 0, 0, 0, 0
+
+        close(iunit)
+
+    end subroutine generate_uniform_integrals
+
 
   !------------------------------------------------------------------------------------------!
 

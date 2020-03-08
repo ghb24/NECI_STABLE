@@ -54,7 +54,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
 
    call SetupUMatCache(nStatesUsed,NSTATESUSED.NE.NSTATES)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
    HarXCSum=cmplx(0.0_dp,0.0_dp,dp)
 #else
    HarXCSum=0.0_dp
@@ -63,7 +63,7 @@ subroutine VASPInitIntegrals(nOrbUsed,ECore,tOrder)
    open(10,file='TMAT',status='unknown')
    do I=1,nStatesUsed
       ! Subtract out the double counting. Assume closed-shell.
-#ifdef __CMPLX
+#ifdef CMPLX_
       HarXC=cmplx(0.0_dp,0.0_dp,dp)
 #else
       HarXC=0.0_dp
@@ -101,7 +101,7 @@ subroutine VASPBasisInit(ARR,BRR,G1,LEN)
    use vasp_interface, only: nStates,nKP,KPntInd,eigv
    use SymData, only: KPntSym,nSym
    use constants, only: dp
-   use sym_mod
+   use sym_mod, only: ComposeAbelianSym, GenKPtIrreps
    implicit none
    integer :: LEN
    real(dp) :: ARR(LEN,2)

@@ -13,8 +13,8 @@ use bit_reps, only: decode_bit_det
 use DetBitOps, only: FindBitExcitLevel, sign_gt, sign_lt
 use sort_mod, only: sort
 use constants
+use SystemData, only: nel, t_3_body_excits, tGUGA
 use util_mod, only: operator(.isclose.)
-use SystemData, only: nel
 
 implicit none
 
@@ -97,7 +97,8 @@ contains
       if(maxNRefs>0) then
          ! Get the nRefs most populated determinants
          refs_found = 0
-         call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found)
+         call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found, &
+              CurrentDets(0:NifTot,:), TotWalkers)
          ! Communicate the refs_found info
          mpi_refs_found = int(refs_found,MPIArg)
          call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
@@ -177,6 +178,7 @@ contains
 
     subroutine generate_ref_space()
       use LoggingData, only: ref_filename, tWriteRefs
+      use FciMCData, only: CurrentDets, TotWalkers
       implicit none
       integer :: refs_found, all_refs_found
       integer(n_int) :: ref_buf(0:NIfTot,maxNRefs), si_buf(0:NIfTot,maxNRefs)
@@ -514,6 +516,8 @@ contains
       use Determinants, only: get_helement
       use SystemData, only: tHPHF
       use hphf_integrals, only: hphf_off_diag_helement
+    use guga_excitations, only: calc_guga_matrix_element
+    use guga_data, only: ExcitationInformation_t
       implicit none
       integer(n_int), intent(in) :: ilut(0:NIfTot)
       integer, intent(in) :: iRef, run, nI(nel)
@@ -521,9 +525,10 @@ contains
       logical :: is_coherent
       integer :: nJRef(nel)
       real(dp) :: signRef(lenof_sign)
-#ifdef __CMPLX
+#ifdef CMPLX_
       complex(dp) :: tmp
 #endif
+      type(ExcitationInformation_t) :: excitInfo
       HElement_t(dp) :: h_el
 
       is_coherent = .true.
@@ -536,6 +541,8 @@ contains
       ! Then, get the matrix element
       if(tHPHF) then
          h_el = hphf_off_diag_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
+      else if (tGUGA) then
+          call calc_guga_matrix_element(ilut,ilutRefAdi(:,iref), excitInfo, h_el, .true., 2)
       else
          h_el = get_helement(nI,nJRef(:),ilut,ilutRefAdi(:,iRef))
       endif
@@ -544,7 +551,7 @@ contains
 
       ! If the new ilut has sign 0, there is no need to do any check on this run
       if(mag_of_run(ilut_sign,run) > eps) then
-#ifdef __CMPLX
+#ifdef CMPLX_
          ! The complex coherence check is more effortive, so only do it in complex builds
          ! Get the relative phase of the signs
          tmp = cmplx(signRef(min_part_type(run)),signRef(max_part_type(run)),dp) / &
@@ -584,6 +591,8 @@ contains
     use SystemData, only: tHPHF
     use Determinants, only: get_helement
     use hphf_integrals, only: hphf_off_diag_helement
+    use guga_excitations, only: calc_guga_matrix_element
+    use guga_data, only: ExcitationInformation_t
     implicit none
     integer, intent(in) :: nI(nel), i
     integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -594,6 +603,7 @@ contains
     integer :: run
     HElement_t(dp) :: h_el, tmp
     character(*), parameter :: this_routine = "upadte_coherence_check"
+    type(ExcitationInformation_t) :: excitInfo
 
     ! TODO: Only if ilutRefAdi(:,i) is a SI on this run
 
@@ -602,6 +612,8 @@ contains
     ! First, get the matrix element
     if(tHPHF) then
        h_el = hphf_off_diag_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
+    else if (tGUGA) then
+          call calc_guga_matrix_element(ilut,ilutRefAdi(:,i), excitInfo, h_el, .true., 2)
     else
        h_el = get_helement(nI,nIRef(:,i),ilut,ilutRefAdi(:,i))
     endif
@@ -610,9 +622,9 @@ contains
 
     ! Add tmp = Hij cj to the caches
 
-    tmp  = 0.0_dp
+    tmp  = h_cast(0.0_dp)
     do run = 1, inum_runs
-#ifdef __CMPLX
+#ifdef CMPLX_
        tmp = tmp + h_el * cmplx(signsRef(min_part_type(run),i),&
             signsRef(max_part_type(run),i),dp)
 #else
@@ -687,7 +699,11 @@ contains
     integer :: iRef, nI(nel), exLevel
     real(dp) :: unsignedCache
     HElement_t(dp) :: signedCache
+#ifdef DEBUG_
+    character(*), parameter :: this_routine = "get_sign_op_run"
+#endif
     integer :: connections
+    ASSERT(.not. t_3_body_excits)
 
     call initialize_c_caches(signedCache, unsignedCache, connections)
     ! Sum up all Hij cj for all superinitiators j
@@ -942,6 +958,7 @@ contains
     end subroutine enable_adi
 
 !------------------------------------------------------------------------------------------!
+
 
     subroutine reset_coherence_counter()
       use adi_data, only: nCoherentDoubles

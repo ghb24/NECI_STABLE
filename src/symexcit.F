@@ -45,7 +45,8 @@ C.. CLASSES(iCl)%SymLab is the symmetry label (i.e. entry in SymClasses) of this
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymClasses,SymLabels
          use SymData, only: tAbelianFastExcitgen
-         use sym_mod
+         use sym_mod, only: SYMPROD, TotSymRep, SYMCONJ, SYMEQ
+         use sym_mod, only: FindSymLabel
          IMPLICIT NONE
          INTEGER nEl, nI(nEl)
          Type(BasisFN) G1(*)
@@ -144,7 +145,7 @@ C.. We list them and then sort them
          use SystemData, only: Symmetry,SymmetrySize, nel
          use SymData, only: SymClass,SymClasses,SymLabels
          use sort_mod
-         use sym_mod
+         use sym_mod, only: SymProd, symeq
          IMPLICIT NONE
          INTEGER nPr,nPairs,nCl
          TYPE(Symmetry) SymProds(0:*)
@@ -259,14 +260,16 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
       Subroutine SymSetupExcits_StoreOccPairs(OrbPairs, nPairs, nPr,
      &    iMinElec1, iMaxElec1,G1,SymProdInd,SymProds,nI,nEl)
          use SystemData, only: Symmetry,BasisFN,SymmetrySize
-         use sym_mod
+         use constants, only: int64
+         use sym_mod, only: symprod, BINARYSEARCHSYM, WRITESYM
          IMPLICIT NONE
          INTEGER nPairs
          INTEGER ORBPAIRS(2,nPairs)
-         INTEGER nPr
+         INTEGER(int64) nPr
          INTEGER iMinElec1, iMaxElec1,nEl,nI(nEl)
          TYPE(Symmetry) SymProds(0:*)
-         INTEGER I,J,K,L
+         INTEGER I,J,K
+         integer(int64) l
          Type(Symmetry) Pr
          INTEGER iSpn
          INTEGER iCC
@@ -282,7 +285,7 @@ C.. The first free space is at SYMPRODIND(1,ISPN,I)+SYMPRODIND(2,ISPN,I)+1.
                L=L+1
                PR=SYMPROD(G1(NI(I))%Sym,G1(NI(J))%Sym)
 C.. Find the product in the sorted symprod list
-               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),NPR,K)
+               CALL BINARYSEARCHSYM(PR,SYMPRODS(1),int(NPR),K)
                IF(K.EQ.0) THEN
                   WRITE(6,*) "Occupied Symmetry Products"
                   DO L=0,NPR
@@ -319,7 +322,7 @@ C.. global symprods table multiplied by [] give the sym rep.
      &   SymProdInd, SymProds, nAllowPPS,iLUT)
          use SystemData, only: Symmetry,BasisFN
          use SymData, only: SymPairProds,SymStatePairs,nSymPairProds
-         use sym_mod
+         use sym_mod, only: LSYMSYM, SYMPROD, SymConj
          IMPLICIT NONE
          INTEGER nDoub
          INTEGER nExcitTypes
@@ -424,7 +427,8 @@ C     &                     ,L1B,L1A,L2B,L2A
      &            nAllowPPS) ! Calculated not enumerated
          use SymData, only: SymPairProds,nSymPairProds,SymmetrySize
          use SymData, only: Symmetry,SymLabelCounts,SymLabels,SymClass
-         use sym_mod
+         use sym_mod, only: SymConj, SymProd, FindSymLabel
+         use sym_mod, only: BINARYSEARCHSYM
          IMPLICIT NONE
          Type(Symmetry) SymProds(0:*)
          INTEGER nPr,nCl
@@ -561,7 +565,7 @@ C.. SYMPRODIND(2,ISPN,I) contains the number of such elements
      &   ThisClassCount, ClassCount,Classes)
          use SystemData, only: Symmetry
          use SymData, only: SymClass,SymLabelCounts,nSymLabels,SymLabels
-         use sym_mod
+         use sym_mod, only: LSYMSYM, SYMPROD, SymConj
          IMPLICIT NONE
          INTEGER nSing
          INTEGER nCl
@@ -727,7 +731,7 @@ C     &                  (SYMLABELCOUNTS(2,J)-CLASSCOUNT(ISPN,I))
          Use SystemData, only: Symmetry
          use SymData, only: SymClass,SymPairProds,nSymLabels,SymLabels
          use SymData, only: SymLabelCounts
-         use sym_mod
+         use sym_mod, only: SYMPROD, SymConj, LSYMSYM
          IMPLICIT NONE
          INTEGER nExcitTypes
          INTEGER nCl
@@ -787,7 +791,7 @@ C     &                        ")->",SymLabels(2,J)
      &   nAllowPPS,ExcitTypes,nExcitTypes,SymProds,SymProdInd)
          Use SystemData, only: Symmetry
          Use SymData, only: SymPairProds
-         use sym_mod
+         use sym_mod, only: LSYMSYM, SYMPROD, SymConj
          IMPLICIT NONE
          INTEGER nPr
          INTEGER nSymPairProds
@@ -835,6 +839,7 @@ C.. And the doubles
          use SymData, only: SymLabelCounts,SymStatePairs,SymClass
          use SymData, only: SymLabelList,SymPairProds
          use SymData, only: tAbelianFastExcitGen
+         use constants, only: maxExcit
          IMPLICIT NONE
          INTEGER NEXCITTYPES
          INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES)
@@ -844,7 +849,7 @@ C.. And the doubles
          INTEGER IEXCIT
          INTEGER IFROM,ITO,ISPN
          INTEGER IFROMSL,ITOSL
-         INTEGER ExcitMat(2,2)
+         INTEGER ExcitMat(2,maxExcit)
          TYPE(Symmetry) SPP
          LOGICAL L1,L2
          INTEGER ICC1,ICC2,ICC3,ICC4
@@ -1204,6 +1209,7 @@ C     &               NBASIS,NBASISMAX,CURGEN,IFRZ2)
       use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
       use SymData, only: SymLabelCounts,SymStatePairs,SymClass
       use SymData, only: SymLabelList,SymPairProds
+      use constants, only: maxExcit
       IMPLICIT NONE
       INTEGER NEXCITTYPES
       INTEGER NEL,NI(NEL),EXCITTYPES(5,NEXCITTYPES)
@@ -1222,7 +1228,7 @@ C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
       INTEGER ORBPAIRS(2,*)
       INTEGER ILUT(0:*)
       INTEGER SYMPRODIND(2,3,1:*)
-      INTEGER IC,ExcitMat(2,2)
+      INTEGER IC,ExcitMat(2,maxExcit)
       LOGICAL tDebugPrint
       INTEGER iMinElec1, iMaxElec1
       character(*), parameter :: this_routine = 'SYMGENEXCITIT'
@@ -1741,6 +1747,7 @@ C.. a double
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
          use SymData, only: SymLabelCounts,SymStatePairs,SymClass
          use SymData, only: SymLabelList,SymPairProds
+         use constants, only: maxExcit
          IMPLICIT NONE
          INTEGER nEl,nI(nEl)
 
@@ -1754,7 +1761,7 @@ C.. a double
          LOGICAL L1,L2,TParity
 C.. 1,1= 1B, 1,2=1A; 2,1=2B, 2,2=2A.
 
-         INTEGER iC,ExcitMat(2,2)
+         INTEGER iC,ExcitMat(2,maxExcit)
          LOGICAL tDebugPrint
          INTEGER iMaxElec1
 
@@ -2248,9 +2255,10 @@ C.. If both virtuals aren't the samem and neither are in NI, then allow
       Subroutine SymGenExcitIt_MakeDouble(iFrom1,iFrom2,
      &      iTo1,iTo2,nI,nK,nEl,tDebugPrint)
          use SystemData , only : TSTOREASEXCITATIONS
+         use constants, only: maxExcit
          IMPLICIT NONE
          INTEGER iFrom1,iFrom2
-         INTEGER iTo1,iTo2,ExcitMat(2,2)
+         INTEGER iTo1,iTo2,ExcitMat(2,maxExcit)
          INTEGER nEl,nI(nEl),nK(nEl)
          LOGICAL tDebugPrint,TParity
          INTEGER J

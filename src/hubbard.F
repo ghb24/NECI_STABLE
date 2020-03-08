@@ -17,7 +17,7 @@ C ===================================================================
 !            UMAT(UMatInd(I+1,I,I+1,I))=UHUB
 !            UMAT(I,I+1,I,I+1)=UHUB
 !            UMAT(I+1,I,I+1,I)=UHUB
-            WRITE(10,'(4I7,F19.9)') I,I,I,I,UHUB
+            WRITE(10,*) I,I,I,I,UHUB, UMatInd(I,I,I,I)
          ENDDO
          CLOSE(10)
          RETURN
@@ -53,7 +53,6 @@ C..Returned in sum
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
-         TOTSUM=COS(2*PI*(I*AX+J*AY)/LX)+COS(2*PI*(I*AY-J*AX)/LX)
          totsum=cos(2*pi*((I+tb_x)*ax + (j+tb_y)*ay)/lx)
          totsum=totsum+cos(2*pi*((i+tb_x)*ay-(j+tb_y)*ax)/lx)
 
@@ -91,13 +90,14 @@ C..Returned in sum
           TOTSUM = 0.0_dp
           return
       else
-      LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
-      LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
-      LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
-      IF(TTILT) THEN
+
+       LX=NBASISMAX(1,2)-NBASISMAX(1,1)+1
+       LY=NBASISMAX(2,2)-NBASISMAX(2,1)+1
+       LZ=NBASISMAX(3,2)-NBASISMAX(3,1)+1
        AX=NBASISMAX(1,4)
        AY=NBASISMAX(2,4)
 
+       IF(TTILT) THEN
 CCCC.. NBASISMAX goes from -NMAXX+1 to MAXX so LX=2MAXX
          LX=NBASISMAX(1,5)
          LX=(LX*(AX*AX+AY*AY))
@@ -122,7 +122,7 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          use SystemData, only: BasisFN, t_open_bc_x, t_open_bc_y
          USE OneEInts, only: TMat2D,TMATSYM,SetupTMAT
          USE Parallel_neci, only : iProcIndex
-         use sym_mod, only: MOMPBCSYM
+         use sym_mod, only: mompbcsym
          IMPLICIT NONE
          INTEGER NBASIS,nBasisMax(5,*)
          TYPE(BasisFN) G1(nBasis)
@@ -133,13 +133,15 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
          LOGICAL TTILT,TREAL,TPBC
          real(dp) TOTSUM
          character(*), parameter :: this_routine = 'CALCTMATHUB'
-         integer :: temp_k(3)
+         integer temp_k(3)
          IF(iProcIndex.eq.0) OPEN(10,FILE='TMAT',STATUS='UNKNOWN')
          CALL SetupTMAT(NBASIS,2,iSize)
          TOTSUM=0.0_dp
          LX=NBASISMAX(1,2)-NBASISMAX(1,1)
          LY=NBASISMAX(2,2)-NBASISMAX(2,1)
          LZ=NBASISMAX(3,2)-NBASISMAX(3,1)
+         ! here i have to make some changes in the real-space tilted
+         ! case to construct the correct TMAT
          IF(LY.EQ.0) LY=-1
          IF(LZ.EQ.0) LZ=-1
          IF(TREAL) THEN
@@ -148,10 +150,8 @@ C         IF(LZ.GT.1) TOTSUM=TOTSUM+COS(PI*K/(LZ+1))
                   DX=ABS(G1(I)%k(1)-G1(J)%k(1))
                   DY=ABS(G1(I)%k(2)-G1(J)%k(2))
                   DZ=ABS(G1(I)%k(3)-G1(J)%k(3))
-                  ! to implement the real-space tilted, check if
-                  ! resulting basis state is in the extendend BZ
                   temp_k = [DX,DY,DZ]
-                  call MOMPBCSYM(temp_k,nBasisMax)
+                  call mompbcsym(temp_k,NBASISMAX)
                   temp_k = abs(temp_k)
                   TOTSUM=BHUB
                   IF(TPBC) THEN
@@ -317,15 +317,18 @@ C     &         *((NBASISMAX(4,2)-NBASISMAX(4,1))/2+1)
 
 !Generate the Sym table for a Hubbard Lattice
       Subroutine GenHubMomIrrepsSymTable(G1,nBasis,nBasisMax)
+         use constants, only: int64
          use global_utilities
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB
+         use SystemData, only: t_k_space_hubbard
          use SymData, only: nSym,SymConjTab,SymClasses,SymLabels
          use SymData, only: nSymLabels,tAbelian,SymTable
          use SymData, only: tagSymConjTab,tagSymClasses,tagSymLabels
          use SymData, only: tagSymTable
          use sym_mod, only: RoundSym, AddElecSym
          use constants, only: int64
+         use lattice_mod, only: lat
          IMPLICIT NONE
          INTEGER nBasis,nBasisMax(*)
          TYPE(BasisFN) G1(nBasis)
@@ -372,8 +375,12 @@ C.. place the sym label of each state in SymClasses(ISTATE).
                SymClasses(I)=nSyms
             ENDIF
 C.. list the symmetry string of each sym label
-            SymLabels(I)%s=2_int64**(I-1_int64)
-!             SymLabels(I)%s=i
+C.. try the new symmetry encoding here
+            if (t_k_space_hubbard) then
+                SymLabels(I)%s = i
+            else
+                SymLabels(I)%s=2_int64**(I-1_int64)
+            end if
          ENDDO
 C.. Setup the symmetry product table
          if (allocated(SymTable)) then
@@ -391,10 +398,19 @@ C.. Setup the symmetry product table
          call LogMemAlloc('SymConjTable',nSym,4,this_routine,
      &                                                    tagSymConjTab)
          SYMTABLE(1:NSYM,1:NSYM)=Symmetry(0)
+
          DO I=1,nBasis/2
             NQNS%k=-G1(I*2)%k
             CALL RoundSym(NQNS,nBasisMax)
-            J=iFindBasisFn(NQNS,G1,nBasis)
+            if (t_k_space_hubbard) then
+                ! i could actually include the symmetry rounding in the
+                ! get_orb_from_k_vec functionality!
+                ! i was doing this incorrectly.. i want the spin orbital
+                ! j
+                J = lat%get_orb_from_k_vec(NQNS%k,2)
+            else
+                J=iFindBasisFn(NQNS,G1,nBasis)
+            end if
             IF(J.EQ.0) THEN
                WRITE(6,*) "Cannot Find symmetry conjugate to basis fn ",
      &            I*2
@@ -407,7 +423,12 @@ C.. Setup the symmetry product table
                CALL AddElecSym(J*2,G1,nBasisMax,S)
                CALL RoundSym(S,nBasisMax)
                NQNs%k=S%k
-               K=iFindBasisFn(NQNS,G1,nBasis)
+               if (t_k_space_hubbard) then
+                   k = lat%get_orb_from_k_vec(S%k,2)
+               else
+                   K=iFindBasisFn(NQNS,G1,nBasis)
+               end if
+
                IF(K.EQ.0) THEN
                 WRITE(6,*) "Cannot find symmetry product of basis fns ",
      &               I*2, J*2
@@ -444,10 +465,12 @@ C.. Setup the symmetry product table
          character(*), parameter :: this_routine='GenHubSymReps'
 
 C.. now work out which reps are degenerate and label them
+         if (allocated(SymReps)) deallocate(symreps)
          allocate(SymReps(2,nBasis))
          call LogMemAlloc('SymReps',2*nBasis,4,this_routine,tagSymReps)
          J=0
-
+         ! this does not make sense..
+         SYMREPS = 0
          DO I=1,NBASIS
             IF(I.EQ.1) THEN
 C.. we have a new rep
@@ -465,9 +488,7 @@ C.. we have a new rep
             ENDIF
             SYMREPS(1,BRR(I))=J
          ENDDO
-!         DO I=1,NBASIS
-!            WRITE(6,*) SYMREPS(1,I),SYMREPS(2,I)
-!         ENDDO
+
       END
 
       LOGICAL FUNCTION KALLOWED(G,NBASISMAX)
@@ -567,3 +588,42 @@ C.. we have a new rep
          IFINDBASISFN=0
          RETURN
       END FUNCTION IFINDBASISFN
+
+      subroutine write_kspace_umat()
+          ! subroutine to output the umat also in the case of the
+          ! momentum space hubbard model, to be easier able to compare it
+          ! with the DMRG calculations for the GUGA matrix elements!
+          use SystemData, only: G1, nSpatOrbs, nBasisMax, uHub, omega
+          use sym_mod, only: mompbcsym
+          use UMatCache, only: gtid
+          character(*), parameter :: this_routine = "write_kspace_umat"
+
+          integer :: i, j, k, l, k_in(3), k_out(3)
+          open(10, file="UMAT", status="unknown")
+          ! do it really naively and just loop over all the indices and
+          ! check if the momentum consercation is fullfilled!
+          ! actually it is more efficient to loop over the spatial orbitals
+          ! only! and check the momentum for the spin-orbs!
+          do i = 1, nSpatOrbs
+              do j = 1, nSpatOrbs
+                  do k = 1, nSpatOrbs
+                      do l = 1, nSpatOrbs
+                          ! have to figure out which orbitals to compare in
+                          ! the physicist notation!
+                          ! and convert to fake spin-orbtitals
+                          k_in = G1(2*i)%k + G1(2*k)%k
+                          k_out = G1(2*j)%k + G1(2*l)%k
+                          ! apply periodic BC
+                          call mompbcsym(k_in, nBasisMax)
+                          call mompbcsym(k_out, nBasisMax)
+                          if (all(k_in == k_out)) then
+                              write(10, '(4i7, f19.9)') i,j,k,l,
+     &                          uHub/Omega
+                          end if
+                      end do
+                  end do
+              end do
+          end do
+          close(10)
+
+      end subroutine write_kspace_umat

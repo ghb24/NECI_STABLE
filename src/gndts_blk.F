@@ -3,7 +3,8 @@
      &         TPARITY,SymRestrict,IFDET,TGENFDET,NDETTOT,BLOCKSYM
      &         )
          use SystemData, only: BasisFN,BasisFNSize
-         use sym_mod
+         use sym_mod, only: GENNEXTSYM, SETUPSYM, GETSYMDEGEN
+         use sym_mod, only: WRITEALLSYM
          use util_mod, only: NECI_ICOPY
          use constants, only: dp
          IMPLICIT NONE
@@ -81,7 +82,7 @@ C.. we've found an occupied block
      &                     NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX)
          use SystemData, only: BasisFN,BasisFNSize
          use sort_mod
-         use sym_mod
+         use sym_mod, only: getsym, ROUNDSYM, LCHKSYM
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST
@@ -165,7 +166,7 @@ C.. number of determinants available (even if LSTE doesn't hold them all).
      &                     NLIST,NLMAX,NJ,KJ,NELEC,NBF,NBASISMAX)
          use SystemData, only: BasisFN,BasisFNSize
          use sort_mod
-         use sym_mod
+         use sym_mod, only: GETSYM, LCHKSYM
          use util_mod, only: NECI_ICOPY
          IMPLICIT NONE
          INTEGER NEL,NI(NEL), NBASIS, NLMAX,NLIST

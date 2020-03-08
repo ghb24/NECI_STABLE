@@ -15,7 +15,7 @@ MODULE FciMCData
 
       ! Type for creating linked lists for the linear scaling algorithm.
       type ll_node
-          integer :: ind
+          integer :: ind = 0
           type(ll_node), pointer :: next => null()
       end type ll_node
 
@@ -54,9 +54,9 @@ MODULE FciMCData
 
 
       ! The number of walkers spawned onto this process.
-      integer :: nspawned
+      integer(int64) :: nspawned
       ! The number of walkers spawned in total, on all processes.
-      integer :: nspawned_tot
+      integer(int64) :: nspawned_tot
 
       ! In some instances (such as when applying a perturbation operator) it is
       ! useful to store the vector read in from the popsfile in a separate
@@ -80,7 +80,6 @@ MODULE FciMCData
       integer, allocatable :: IterRDM_HF(:)
       real(dp), allocatable :: InstNoatHf(:)
 
-
       INTEGER(KIND=n_int) , ALLOCATABLE :: TempSpawnedParts(:,:)
       INTEGER :: TempSpawnedPartsTag, TempSpawnedPartsInd, TempSpawnedPartsSize
 
@@ -95,20 +94,20 @@ MODULE FciMCData
     real(dp), allocatable :: NoAborted(:), AllNoAborted(:), AllNoAbortedOld(:)
     real(dp), allocatable :: NoRemoved(:), AllNoRemoved(:), AllNoRemovedOld(:)
     integer(int64), allocatable :: NoAddedInitiators(:), NoInitDets(:), NoNonInitDets(:)
-    integer :: NoInitsConflicts, NoSIInitsConflicts, AllNoInitsConflicts, AllNoSIInitsConflicts
-
-    real(dp) :: avSigns, AllAvSigns
-
     real(dp), allocatable :: NoInitWalk(:), NoNonInitWalk(:)
     integer(int64), allocatable :: NoExtraInitDoubs(:), InitRemoved(:)
-
     integer(int64), allocatable :: AllNoAddedInitiators(:), AllNoInitDets(:)
     integer(int64), allocatable :: AllNoNonInitDets(:)
     real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
 
+    integer :: doubleSpawns = 0
+    integer :: allDoubleSpawns
+
       logical :: tHFInitiator, tPrintHighPop, tcurr_initiator
+      logical :: tfirst_cycle ! control flag for the iter_utilities for comparing with data
+      ! from previous iterations
 
       integer, allocatable :: FreeSlot(:)   !List of the free slots in the main list
       integer :: iStartFreeSlot     !=1 at the beginning of an iteration, will increment
@@ -120,7 +119,6 @@ MODULE FciMCData
                                      !the instantaneous shift, including the number of aborted as though they had lived.
 
       real(dp), allocatable :: DiagSftRe(:), DiagSftIm(:)     !For complex walkers - this is just for info - not used for population control.
-
       INTEGER , ALLOCATABLE :: HFDet(:), HFDet_True(:)       !This will store the HF determinant
       INTEGER(TagIntType) :: HFDetTag=0
 
@@ -146,6 +144,11 @@ MODULE FciMCData
       integer :: sfTag
       real(dp) :: sFAlpha, sFBeta
       logical :: tEScaleWalkers
+      ! scaling of shift
+      ! if true, the shift is always scaled with the population on each det
+      logical :: tAllAdaptiveShift = .false.
+      ! control parameter for shift scaling
+      real(dp) :: cAllAdaptiveShift
       ! flag to indicate that the number of spawns shall be tracked
       logical :: tLogNumSpawns
       ! total truncated weight
@@ -210,7 +213,7 @@ MODULE FciMCData
       ! (respectively output cycle)
       HElement_t(dp), allocatable :: AllHFCyc(:), AllHFOut(:)
       !This is the sum of HF*sign particles over all processors over the course of the update/output cycle
-      HElement_t(dp), allocatable :: OldAllHFCyc(:) 
+      HElement_t(dp), allocatable :: OldAllHFCyc(:)
       !This is the old *average* (not sum) of HF*sign over all procs over previous update cycle
       HElement_t(dp), allocatable :: ENumCyc(:), InitsENumCyc(:)
       !This is the sum of doubles*sign*Hij on a given processor over the course of the update cycle
@@ -228,8 +231,10 @@ MODULE FciMCData
       ! The projected energy over the current update cycle.
       HElement_t(dp), allocatable :: ProjECyc(:)
 
-      real(dp) :: bloom_sizes(0:2), bloom_max(0:2)
-      integer :: bloom_count(0:2), all_bloom_count(0:2)
+      ! [W.D.12.12.2017]
+      ! for triples allow bigger bloom counts!
+      real(dp) :: bloom_sizes(0:3), bloom_max(0:3)
+      integer :: bloom_count(0:3), all_bloom_count(0:3)
 
       ! Global, accumulated, values calculated on the root processor from
       ! the above per-node values
@@ -262,6 +267,7 @@ MODULE FciMCData
       ! phase where the shift is fixed and particle numbers are growing
       logical, allocatable :: tSinglePartPhase(:)
 
+
 !      INTEGER :: mpilongintegertype               !This is used to create an MPI derived type to cope with 8 byte integers
 
       LOGICAL :: TDebug                           !Debugging flag
@@ -284,6 +290,7 @@ MODULE FciMCData
                            SemiStoch_Multiply_Time, Trial_Search_Time, &
                            SemiStoch_Init_Time, Trial_Init_Time, &
                            SemiStoch_Hamil_Time, SemiStoch_Davidson_Time, &
+                           SemiStoch_nonhermit_Time, &
                            kp_generate_time, Stats_Comms_Time, &
                            subspace_hamil_time, exact_subspace_h_time, &
                            subspace_spin_time, sign_correction_time, &
@@ -316,7 +323,7 @@ MODULE FciMCData
       ! Bit representation of the HF determinant
       integer(kind=n_int), allocatable :: iLutHF(:), iLutHF_True(:)
 
-      REAL(KIND=sp) :: IterTime
+      REAL(KIND=dp) :: IterTime
 
       REAL(KIND=dp) , ALLOCATABLE :: AttemptHist(:),AllAttemptHist(:),SpawnHist(:),AllSpawnHist(:)
       REAL(KIND=dp) , ALLOCATABLE :: AvAnnihil(:,:),AllAvAnnihil(:,:),InstAnnihil(:,:),AllInstAnnihil(:,:)
@@ -334,6 +341,13 @@ MODULE FciMCData
       INTEGER(TagIntType) :: DoublesDetsTag
       INTEGER :: NoDoubs
 
+      ! this is used for logging the excitation level of the unocc dets when
+      ! delaying the deletion
+      integer, allocatable :: HolesByExLvl(:)
+      integer, allocatable :: AllHolesByExLvl(:)
+      integer :: nUnoccDets, AllNUnoccDets
+      integer :: maxHoleExLvlWrite
+
 !This is used for the direct annihilation, and ValidSpawnedList(i) indicates the next
 !free slot in the processor iProcIndex ( 0 -> nProcessors-1 )
       INTEGER , ALLOCATABLE :: ValidSpawnedList(:)
@@ -343,7 +357,7 @@ MODULE FciMCData
       integer :: WalkersDiffProc, PartsDiffProc
 
       !This is whether to generate matrix elements as generating excitations for the HPHF/MI/ISK options
-      LOGICAL , PARAMETER :: tGenMatHEl=.true.
+      LOGICAL :: tGenMatHEl=.true.
 
       ! Number of update cycles that the shift has been allowed to vary
       integer, allocatable :: VaryShiftCycles(:)
@@ -456,7 +470,7 @@ MODULE FciMCData
       type(excit_gen_store_type) :: fcimc_excit_gen_store
 
       ! auxiliary variables used to determine AvMCExcits on the fly
-      integer :: nInvalidExcits, nValidExcits, allNInvalidExcits, allNValidExcits
+      integer(int64) :: nInvalidExcits, nValidExcits, allNInvalidExcits, allNValidExcits
 
       ! Tau searching variables
       ! tSearchTau specifies if we are searching tau
@@ -478,7 +492,7 @@ MODULE FciMCData
 
       ! This array stores the Hamiltonian matrix, or part of it, when performing a diagonalisation. It is currently
       ! only used for the code for the Davidson method and semi-stochastic method.
-      real(dp), allocatable, dimension(:,:) :: hamiltonian
+      HElement_t(dp), allocatable, dimension(:,:) :: hamiltonian
 
       integer(TagIntType) :: HamTag, DavidsonTag, LanczosTag
 
@@ -621,7 +635,7 @@ MODULE FciMCData
       type(perturbation), allocatable :: pops_pert(:)
 
       real(dp), allocatable :: replica_overlaps_real(:,:)
-#ifdef __CMPLX
+#ifdef CMPLX_
       real(dp), allocatable :: replica_overlaps_imag(:,:)
 #endif
       real(dp), allocatable :: all_norms(:), all_overlaps(:,:)
@@ -657,6 +671,9 @@ MODULE FciMCData
       real(dp), allocatable, dimension(:) :: precond_e_num,     precond_denom
       real(dp), allocatable, dimension(:) :: precond_e_num_all, precond_denom_all
 
+      ! for the automated tau-search with the guga non-weighted excitation
+      ! generator, i need multiple new specific excitation type probabilities
+      real(dp) :: pExcit2, pExcit4, pExcit2_same, pExcit3_same
       !This arrays contain information related to the spawns. Currently only used with auto-adaptive-shift
       INTEGER(KIND=n_int) , ALLOCATABLE , TARGET :: SpawnInfoVec(:,:),SpawnInfoVec2(:,:)
       INTEGER(KIND=n_int) , POINTER :: SpawnInfo(:,:),SpawnInfo2(:,:)
@@ -676,5 +693,8 @@ MODULE FciMCData
       integer, parameter :: SpawnWeightAcc = 5
       !Where is the reverse spawn weight stored inside SpawnInfo
       integer, parameter :: SpawnWeightRev = 6
+
+      ! Guard flag to monitor if the random orbital mapping indices have been initialized
+      logical :: t_initialized_roi = .false.
 
 end module FciMCData

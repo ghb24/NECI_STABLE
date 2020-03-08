@@ -6,19 +6,65 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag
+
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
+
     use CalcData
+
     use constants
+
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
                          SpawnedParts, TotWalkers, CurrentDets, core_space, &
                          MaxSpawned,indices_of_determ_states, ilutRef, determ_last
+
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
+
+    use SystemData, only: nel, tHPHF, tGUGA, t_non_hermitian
+
+    use procedure_pointers, only: shiftScaleFunction
+
+    use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
+
+    use Determinants, only: get_helement
+
     use sparse_arrays, only: sparse_core_ham, approx_ham
+
     use procedure_pointers, only: shiftFactorFunction
-    use SystemData, only: nel
+
     use timing_neci
+
+    use unit_test_helpers, only: eig
+
+    use bit_reps, only: encode_sign
+
+    use hamiltonian_linalg, only: parallel_sparse_hamil_type
+
+    use davidson_neci, only: DavidsonCalcType, perform_davidson, DestroyDavidsonCalc
+
+    use FciMCData, only: core_ham_diag, DavidsonTag
+
+    use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
+
+    use Parallel_neci, only: MPIScatterV
+
+    use ParallelHelper, only: root
+
+    use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
+
+    use sparse_arrays, only: core_ht, SparseCoreHamilTags
+
+    use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
+
+    use unit_test_helpers, only: print_matrix
+
     use adi_data, only: tSignedRepAv
-    use global_det_data, only: set_tot_acc_spawns
+    use global_det_data, only: readFVals, readAPVals
+
+    use LoggingData, only: tAccumPopsActive
+
+    use gdata_io, only: gdata_io_t
+
+    use LoggingData, only: t_print_core_info
 
     implicit none
 
@@ -37,6 +83,7 @@ contains
 
         integer :: i, j, ierr, run, part_type
         real(dp) :: scaledDiagSft(inum_runs)
+
         call MPIBarrier(ierr)
 
         call set_timer(SemiStoch_Comms_Time)
@@ -58,7 +105,7 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     do run = 1, inum_runs
@@ -72,6 +119,7 @@ contains
                 end do
             end do
 #else
+
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
@@ -82,7 +130,7 @@ contains
 
             ! Now add shift*full_determ_vecs to account for the shift, not stored in
             ! sparse_core_ham.
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                ! Only scale the shift for the corespace when the option is set
                if(tCoreAdaptiveShift .and. tAdaptiveShift) then
@@ -211,7 +259,7 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     do run = 1, inum_runs
@@ -292,7 +340,7 @@ contains
 
             partial_determ_vecs = 0.0_dp
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, approx_ham(i)%num_elements
                     do run = 1, inum_runs
@@ -316,7 +364,7 @@ contains
 
             ! Now add shift*full_determ_vecs to account for the shift, not stored in
             ! approx_ham.
-#ifdef __CMPLX
+#ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                 do part_type  = 1, lenof_sign
                     partial_determ_vecs(part_type,i) = partial_determ_vecs(part_type,i) + &
@@ -378,7 +426,6 @@ contains
 
         use FciMCData, only: determ_space_size_int
         use hash, only: FindWalkerHash
-        use sparse_arrays, only: core_ht
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)
@@ -447,8 +494,6 @@ contains
 
     subroutine recalc_core_hamil_diag(old_Hii, new_Hii)
 
-        use FciMCData, only: core_ham_diag
-
         real(dp) :: old_Hii, new_Hii
         real(dp) :: Hii_shift
         integer :: i, j
@@ -476,7 +521,6 @@ contains
     subroutine generate_core_connections()
 
         use DetBitOps, only: FindBitExcitLevel
-        use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
         use Parallel_neci, only: MPIAllGatherV
         use sparse_arrays, only: core_connections
 
@@ -519,6 +563,9 @@ contains
                     ! The positions of the non-zero and non-diagonal elements in this row i.
                     core_connections(i)%positions(counter) = sparse_core_ham(i)%positions(j)
 
+                    ! for the GUGA implementation this has to be changed in the
+                    ! future. but since this routine is only called if we calc.
+                    ! RDMs on the fly, i can postpone that until then.. todo
                     ic = FindBitExcitLevel(SpawnedParts(:,i), temp_store(:, sparse_core_ham(i)%positions(j)))
                     call GetBitExcitation(SpawnedParts(0:NIfD,i), temp_store(0:NIfD, &
                                           sparse_core_ham(i)%positions(j)),Ex,tSign)
@@ -708,11 +755,8 @@ contains
 
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: FindBitExcitLevel
-        use Determinants, only: get_helement
         use FciMCData, only: ilutHF
-        use hphf_integrals, only: hphf_diag_helement
         use sort_mod, only: sort
-        use SystemData, only: tHPHF
 
         integer, intent(in) :: num_states
         integer(n_int), intent(inout) :: ilut_list(0:NIfTot, 1:num_states)
@@ -740,6 +784,9 @@ contains
             num_sing_doub = 0
             block_size = 0
             do i = 1, num_states
+                ! for GUGA this would have to be changed, but apparently this
+                ! function is never called in the rest of the code so
+                ! ignore it for now..
                 excit_level = FindBitExcitLevel(ilut_list(:,i), ilutHF)
                 if (excit_level <= 2) then
                     num_sing_doub = num_sing_doub + 1
@@ -765,7 +812,6 @@ contains
         ! And also output the number of states on each processor in the space.
 
         use load_balance_calcnodes, only: DetermineDetNode
-        use MemoryManager, only: TagIntType, LogMemAlloc, LogMemDealloc
 
         integer, intent(in) :: ilut_list_size
         integer(n_int), intent(inout) :: ilut_list(0:,:)
@@ -819,15 +865,13 @@ contains
 
     subroutine fill_in_diag_helements()
 
-        use Determinants, only: get_helement
         use FciMCData, only: Hii
         use global_det_data, only: set_det_diagH
-        use hphf_integrals, only: hphf_diag_helement
-        use SystemData, only: tHPHF
 
         integer :: i
         integer :: nI(nel)
         real(dp) :: tmpH
+        real(dp) :: sgn(lenof_sign)
 
         do i = 1, int(TotWalkers)
             call decode_bit_det(nI, CurrentDets(:,i))
@@ -846,7 +890,6 @@ contains
     subroutine write_core_space()
 
         use Parallel_neci, only: MPIBarrier
-        use ParallelHelper, only: root
         use util_mod, only: get_free_unit
 
         integer :: i, k, iunit, ierr
@@ -961,9 +1004,10 @@ contains
         ! on output, everything will be fine and ready for the FCIQMC calculation
         ! to start.
 
-        use bit_reps, only: set_flag, extract_sign, encode_sign
+        use bit_reps, only: set_flag, extract_sign
         use FciMCData, only: ll_node, indices_of_determ_states, HashIndex, nWalkerHashes
         use hash, only: clear_hash_table, FindWalkerHash
+        use DetBitOps, only: tAccumEmptyDet
 
         integer :: i, hash_val, PartInd, nwalkers, i_non_core
         integer :: nI(nel)
@@ -972,13 +1016,13 @@ contains
         logical :: tSuccess
         integer :: ierr
         character(*), parameter :: this_routine = 'add_core_states_currentdet'
-        real(dp), allocatable :: fvals(:,:)
+        real(dp), allocatable :: gdata_buf(:,:)
+        type(gdata_io_t) :: reorder_handler
 
         nwalkers = int(TotWalkers,sizeof_int)
-
         ! Test that SpawnedParts is going to be big enough
         if (determ_sizes(iProcIndex) > MaxSpawned) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             write(6,*) 'Spawned parts array will not be big enough for &
                        &Semi-Stochastic initialisation'
             write(6,*) 'Please increase MEMORYFACSPAWN'
@@ -990,15 +1034,16 @@ contains
             call stop_all(this_routine, "Insufficient memory assigned")
         end if
 
+        call reorder_handler%init_gdata_io(tAutoAdaptiveShift, tScaleBlooms, tAccumPopsActive, &
+            2*inum_runs, 1, lenof_sign+1)
         ! we need to reorder the adaptive shift data, too
-        if(tAutoAdaptiveShift) then
-           ! the maximally required buffer size is the current size of the
-           ! determinant list plus the size of the semi-stochastic space (in case
-           ! all core-dets are new)
-           allocate(fvals(2*inum_runs,(nwalkers+determ_sizes(iProcIndex))), stat = ierr)
-           if(ierr.ne.0) call stop_all(this_routine, &
-                "Failed to allocate buffer for adaptive shift data")
-        endif
+        ! the maximally required buffer size is the current size of the
+        ! determinant list plus the size of the semi-stochastic space (in case
+        ! all core-dets are new)
+        allocate(gdata_buf(reorder_handler%entry_size(),(nwalkers+determ_sizes(iProcIndex))),&
+            stat = ierr)
+        if(ierr.ne.0) call stop_all(this_routine, &
+            "Failed to allocate buffer for global det data")
 
         ! First find which CurrentDet states are in the core space.
         ! The warning above refers to this bit of code: If a core determinant is not in the
@@ -1027,12 +1072,13 @@ contains
                 ! Copy the amplitude of the state across to SpawnedParts.
                 call extract_sign(CurrentDets(:,PartInd), walker_sign)
                 call encode_sign(SpawnedParts(:,i), walker_sign)
-                if(tAutoAdaptiveShift) call cache_fvals(i,PartInd)
+                ! Cache the accumulated global det data
+                call reorder_handler%write_gdata(gdata_buf, 1, PartInd, i)
             else
                 ! This will be a new state added to CurrentDets.
                 nwalkers = nwalkers + 1
                 ! no auto-adaptive shift data available
-                if(tAutoAdaptiveShift) fvals(:,i) = 0.0_dp
+                gdata_buf(:,i) = 0.0_dp
             end if
 
         end do
@@ -1046,7 +1092,7 @@ contains
                 ! Add a quick test in, to ensure that we don't overflow the
                 ! spawned parts array...
                 if (i_non_core > MaxSpawned) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                     write(6,*) 'Spawned parts array too small for &
                                &semi-stochastic initialisation'
                     write(6,*) 'Please increase MEMORYFACSPAWN'
@@ -1059,16 +1105,16 @@ contains
                 end if
 
                 SpawnedParts(0:NIfTot,i_non_core) = CurrentDets(:,i)
-                if(tAutoAdaptiveShift) call cache_fvals(i_non_core,i)
+                call reorder_handler%write_gdata(gdata_buf, 1, i, i_non_core)
             end if
         end do
         ! Now copy all the core states in SpawnedParts into CurrentDets.
         ! Note that the amplitude in CurrentDets was copied across, so this is fine.
         do i = 1, nwalkers
             CurrentDets(:,i) = SpawnedParts(0:NIfTot,i)
-            ! also re-order the adaptive shift data if auto-adapive shift is used
         end do
-        if(tAutoAdaptiveShift) call set_tot_acc_spawns(fvals, nwalkers)
+        ! Re-assign the reordered global det data cached in gdata_buf
+        call reorder_handler%read_gdata(gdata_buf, nwalkers)
 
         call clear_hash_table(HashIndex)
 
@@ -1076,8 +1122,8 @@ contains
         do i = 1, nwalkers
             call extract_sign(CurrentDets(:,i), walker_sign)
             ! Don't add the determinant to the hash table if its unoccupied and not
-            ! in the core space.
-            if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic))) cycle
+            ! in the core space and not accumulated.
+            if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic)) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
             call decode_bit_det(nI, CurrentDets(:,i))
             hash_val = FindWalkerHash(nI,nWalkerHashes)
             temp_node => HashIndex(hash_val)
@@ -1099,24 +1145,10 @@ contains
         end do
 
         TotWalkers = int(nwalkers, int64)
-
-        contains
-
-          subroutine cache_fvals(i,j)
-            use global_det_data, only: get_acc_spawns, get_tot_spawns
-            implicit none
-            integer, intent(in) :: i,j
-            integer :: run
-
-            do run = 1, inum_runs
-               fvals(run,i) = get_acc_spawns(j,run)
-               fvals(run+inum_runs,i) = get_tot_spawns(j,run)
-            end do
-          end subroutine cache_fvals
-
     end subroutine add_core_states_currentdet_hash
 
-    subroutine return_most_populated_states(n_keep, largest_walkers, norm)
+    subroutine return_most_populated_states(n_keep,&
+         largest_walkers, opt_source, opt_source_size, norm)
 
         ! Return the most populated states in CurrentDets on *this* processor only.
         ! Also return the norm of these states, if requested.
@@ -1125,12 +1157,34 @@ contains
         use DetBitOps, only: sign_lt, sign_gt
         use sort_mod, only: sort
 
+        integer, intent(in), optional :: opt_source_size
+        integer(n_int), intent(in), optional, pointer :: opt_source(:,:)
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm
         integer :: i, j, smallest_pos, part_type
         real(dp) :: smallest_sign, sign_curr_real
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
+        character(*), parameter :: this_routine = "return_most_populated_states"
+
+        integer(n_int), pointer :: loc_source(:,:)
+        integer(int64) :: source_size
+
+        if (present(opt_source)) then
+            ASSERT(present(opt_source_size))
+
+            source_size = int(opt_source_size, int64)
+            ! ask Kai if I have to allocate
+            allocate(loc_source(0:niftot,1:source_size),&
+                source = opt_source(0:NIfTot, 1:source_size))
+!             loc_source => opt_source
+
+        else
+            source_size = TotWalkers
+            allocate(loc_source(0:niftot,1:source_size), &
+                source = CurrentDets(0:NIfTot,1:source_size))
+!             loc_source => CurrentDets
+        end if
 
         largest_walkers = 0_n_int
         smallest_sign = 0.0_dp
@@ -1138,10 +1192,10 @@ contains
         if (present(norm)) norm = 0.0_dp
 
         ! Run through all walkers on process.
-        do i = 1, int(TotWalkers,sizeof_int)
-            call extract_sign(CurrentDets(:,i), sign_curr)
+        do i = 1, int(source_size,sizeof_int)
+            call extract_sign(loc_source(:,i), sign_curr)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             sign_curr_real = sqrt(sum(abs(sign_curr(1::2)))**2 + sum(abs(sign_curr(2::2)))**2)
 #else
             if(tSignedRepAv) then
@@ -1155,12 +1209,12 @@ contains
             ! Is this determinant more populated than the smallest? First in
             ! the list is always the smallest.
             if (sign_curr_real > smallest_sign) then
-                largest_walkers(:,smallest_pos) = CurrentDets(:,i)
+                largest_walkers(:,smallest_pos) = loc_source(:,i)
 
                 ! Instead of resorting, just find new smallest sign and position.
                 call extract_sign(largest_walkers(:,1),low_sign)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                 smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
 #else
                 smallest_sign = sum(real(abs(low_sign),dp))
@@ -1169,7 +1223,7 @@ contains
                 smallest_pos = 1
                 do j = 2, n_keep
                     call extract_sign(largest_walkers(:,j), low_sign)
-#ifdef __CMPLX
+#ifdef CMPLX_
                     sign_curr_real = sqrt(sum(real(low_sign**2,dp)))
 #else
                     sign_curr_real = sum(real(abs(low_sign),dp))
@@ -1235,15 +1289,16 @@ contains
     end subroutine return_largest_indices
 
     subroutine start_walkers_from_core_ground(tPrintInfo)
-
-        use bit_reps, only: encode_sign
         use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
         use Parallel_neci, only: MPISumAll
+        implicit none
 
         logical, intent(in) :: tPrintInfo
+        integer :: nI(nel)
         integer :: i, counter, ierr
         real(dp) :: eigenvec_pop, eigenvec_pop_tot, pop_sign(lenof_sign)
         character(len=*), parameter :: t_r = "start_walkers_from_core_ground"
+
         type(davidson_ss) :: dc
 
         if (tPrintInfo) then
@@ -1274,19 +1329,293 @@ contains
             dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
         end if
 
+#ifdef DEBUG_
+        write(6,*)'davidson eigenvec'
+        do i = 1, determ_sizes(iProcIndex)
+            print*,  dc%davidson_eigenvector(i)
+        end do
+#endif
+
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
             if (test_flag(CurrentDets(:,i), flag_deterministic)) then
                 counter = counter + 1
                 pop_sign = dc%davidson_eigenvector(counter)
-                call encode_sign(CurrentDets(:,i), pop_sign)
+                call decode_bit_det(nI, CurrentDets(:,i))
+               call encode_sign(CurrentDets(:,i), pop_sign)
             end if
         end do
 
         call destroy_davidson_ss(dc)
 
     end subroutine start_walkers_from_core_ground
+
+    subroutine start_walkers_from_core_ground_full(tPrintInfo)
+
+        use davidson_semistoch, only: davidson_ss, perform_davidson_ss, destroy_davidson_ss
+        use Parallel_neci, only: MPISumAll
+
+        logical, intent(in) :: tPrintInfo
+        integer :: i, counter, ierr
+        real(dp) :: eigenvec_pop, eigenvec_pop_tot, pop_sign(lenof_sign)
+        character(len=*), parameter :: t_r = "start_walkers_from_core_ground_full"
+        real(dp), allocatable :: temp_determ_vec(:)
+        real(dp), allocatable :: e_values(:)
+        HElement_t(dp), allocatable ::  e_vectors(:,:), gs_vector(:)
+        real(dp) :: gs_energy
+
+        if (tPrintInfo) then
+            root_print "Using the deterministic ground state as initial walker configuration."
+        end if
+
+        root_print "Performing full diagonalisation..."
+#ifndef CMPLX_
+        call diagonalize_core_non_hermitian(e_values, e_vectors)
+
+        if (t_choose_trial_state) then
+            root_print " chosen state: ", trial_excit_choice(1), &
+                "with energy: ", e_values(trial_excit_choice(1))
+            gs_vector = e_vectors(:,trial_excit_choice(1))
+        else
+            root_print " ground-state energy: ", e_values(1)
+            gs_vector = e_vectors(:,1)
+        end if
+#else
+        call diagonalize_core(gs_energy, gs_vector)
+#endif
+
+        if (iProcIndex == root) then
+            eigenvec_pop = 0.0_dp
+            do i = 1, determ_space_size
+                eigenvec_pop = eigenvec_pop + abs(gs_vector(i))
+            end do
+            if (tStartSinglePart) then
+                gs_vector = gs_vector * InitialPart / eigenvec_pop
+            else
+                gs_vector = gs_vector * InitWalkers / eigenvec_pop
+            end if
+        end if
+
+        root_print "eigenvector: ", gs_vector
+
+        allocate(temp_determ_vec(determ_sizes(iProcIndex)))
+        ! i hope the order of the components did not get messed up..
+        call MPIScatterV(real(gs_vector,dp), determ_sizes, determ_displs, &
+            temp_determ_vec, determ_sizes(iProcIndex), ierr)
+
+        ! Then copy these amplitudes across to the corresponding states in CurrentDets.
+        counter = 0
+        do i = 1, int(TotWalkers, sizeof_int)
+            if (test_flag(CurrentDets(:,i), flag_deterministic)) then
+                counter = counter + 1
+                pop_sign = temp_determ_vec(counter)
+                call encode_sign(CurrentDets(:,i), pop_sign)
+            end if
+        end do
+
+    end subroutine start_walkers_from_core_ground_full
+
+    subroutine start_walkers_from_core_ground_nonhermit(tPrintInfo)
+        use bit_reps, only: encode_sign
+        implicit none
+
+        logical, intent(in) :: tPrintInfo
+        integer :: i, counter, ierr
+        integer :: nI(nel)
+        real(dp), allocatable :: e_values(:)
+        HElement_t(dp), allocatable :: e_vectors(:,:)
+        real(dp) :: eigenvec_pop, pop_sign(lenof_sign)
+        character(len=*), parameter :: t_r ="start_walkers_from_core_ground_nonhermit"
+
+        if (tPrintInfo) then
+            write(6,'(a69)') "Using the deterministic ground state as initial walker configuration."
+            write(6,'(a53)') "Performing diagonalization of non-Hermitian matrix..."
+            call neci_flush(6)
+        end if
+
+        ! Call the non-Hermitian diagonalizer to find the ground state of the core space.
+         call diagonalize_core_non_hermitian(e_values, e_vectors)
+
+        if (tPrintInfo) then
+            write(6,'("Energies of the deterministic subspace:")')
+            write(6,*) e_values(1:determ_space_size)
+            call neci_flush(6)
+        end if
+
+
+        ! We need to normalise this vector to have the correct 'number of walkers'.
+        eigenvec_pop = 0.0_dp
+        do i = 1, determ_space_size
+            eigenvec_pop = eigenvec_pop + abs(e_vectors(i,1))
+        end do
+
+        if (tStartSinglePart) then
+            e_vectors(:,1) = e_vectors(:,1)*InitialPart/eigenvec_pop
+        else
+            e_vectors(:,1) = e_vectors(:,1)*InitWalkers/eigenvec_pop
+        end if
+
+        write(6,*)'The ground state vector:'
+        write(6,*) e_vectors(:,1)
+        ! Then copy these amplitudes across to the corresponding states in CurrentDets.
+        counter = 0
+        do i=1,iProcIndex
+                counter=counter+determ_sizes(i-1)
+        enddo
+        do i = 1, determ_space_size !int(TotWalkers, sizeof_int)
+            if (test_flag(CurrentDets(:,i), flag_deterministic)) then
+                counter = counter + 1
+                pop_sign = e_vectors(counter,1)
+            call decode_bit_det(nI, CurrentDets(:,i))
+                call encode_sign(CurrentDets(:,i), pop_sign)
+            end if
+        end do
+
+        deallocate (e_values, e_vectors)
+
+    end subroutine start_walkers_from_core_ground_nonhermit
+
+    subroutine diagonalize_core(e_value, e_vector)
+        real(dp), intent(out)  :: e_value
+        HElement_t(dp), intent(out), allocatable :: e_vector(:)
+        type(DavidsonCalcType) :: davidsonCalc
+        integer :: ierr
+        character(*), parameter :: t_r = "diagonalize_core"
+
+        call create_sparse_ham_from_core()
+
+        ! Call the Davidson routine to find the ground state of the core space.
+        call perform_davidson(davidsonCalc, parallel_sparse_hamil_type, .true.)
+
+        e_value = davidsonCalc%davidson_eigenvalue
+        allocate(e_vector(determ_space_size))
+        e_vector = davidsonCalc%davidson_eigenvector
+
+        write(6,'(a30)') "Davidson calculation complete."
+        write(6,'("Deterministic subspace correlation energy:",1X,f15.10)') &
+            e_value
+
+        call neci_flush(6)
+
+        call DestroyDavidsonCalc(davidsonCalc)
+        call LogMemDealloc(t_r, DavidsonTag, ierr)
+        deallocate(hamil_diag, stat=ierr)
+        call LogMemDealloc(t_r, HDiagTag, ierr)
+        call deallocate_sparse_ham(sparse_ham, SparseHamilTags)
+
+    end subroutine diagonalize_core
+
+    subroutine create_sparse_ham_from_core()
+
+        character(*), parameter :: t_r = "create_sparse_ham_from_core"
+        integer :: ierr, i
+
+        ! Create the arrays used by the Davidson routine.
+        ! First, the whole Hamiltonian in sparse form.
+        allocate(sparse_ham(determ_sizes(iProcIndex)))
+        allocate(SparseHamilTags(2, determ_sizes(iProcIndex)))
+        do i = 1, determ_sizes(iProcIndex)
+            call allocate_sparse_ham_row(sparse_ham, i, sparse_core_ham(i)%num_elements, "sparse_ham", SparseHamilTags(:,i))
+            sparse_ham(i)%elements = sparse_core_ham(i)%elements
+            sparse_ham(i)%positions = sparse_core_ham(i)%positions
+            sparse_ham(i)%num_elements = sparse_core_ham(i)%num_elements
+        end do
+
+        ! Next create the diagonal used by Davidson by copying the core one.
+        allocate(hamil_diag(determ_sizes(iProcIndex)),stat=ierr)
+        call LogMemAlloc('hamil_diag', int(determ_sizes(iProcIndex),sizeof_int), 8, t_r, HDiagTag, ierr)
+        hamil_diag = core_ham_diag
+
+    end subroutine create_sparse_ham_from_core
+
+    subroutine diagonalize_core_non_hermitian(e_values, e_vectors)
+        real(dp), allocatable, intent(out) :: e_values(:)
+        HElement_t(dp), allocatable :: e_vectors(:,:)
+        HElement_t(dp), allocatable :: full_H(:,:)
+        integer i, nI(nel),space_size
+
+       root_print "The determinants are"
+
+      do i=1, determ_space_size
+       call decode_bit_det(nI, core_space(:,i))
+       root_print i, nI(1:nel)
+      enddo
+
+        ! if the Hamiltonian is non-hermitian we cannot use the
+        ! standard Lanzcos or Davidson routines. so:
+        ! build the full Hamiltonian
+        call calc_determin_hamil_full(full_H)
+
+        if (t_print_core_info) then
+            root_print "semistochastic basis:"
+            if_root
+                do i = 1, determ_space_size
+                    call decode_bit_det(nI, core_space(:,i))
+                    print *, nI
+                end do
+            end_if_root
+
+            root_print "deterministic hamiltonian:"
+            if_root
+                call print_matrix(full_H)
+            end_if_root
+        end if
+
+        allocate(e_values(size(full_H,1)))
+        allocate(e_vectors(size(full_H,1),size(full_H,1)))
+        e_values = 0.0_dp
+        e_vectors = 0.0_dp
+
+        call eig(full_H, e_values, e_vectors)
+
+        ! maybe we also want to start from a different eigenvector in
+        ! this case? this would be practial for the hubbard problem case..
+        root_print "Full diagonalisation for non-hermitian Hamiltonian completed!"
+
+    end subroutine diagonalize_core_non_hermitian
+
+    subroutine calc_determin_hamil_full(hamil)
+        use guga_data, only: ExcitationInformation_t
+        use guga_excitations, only: calc_guga_matrix_element
+        type(ExcitationInformation_t) :: excitInfo
+
+        HElement_t(dp), allocatable, intent(out) :: hamil(:,:)
+        integer :: i, j, nI(nel), nJ(nel)
+
+        allocate(hamil(determ_space_size,determ_space_size))
+
+        hamil = h_cast(0.0_dp)
+
+        do i = 1, determ_space_size
+            call decode_bit_det(nI, core_space(:,i))
+
+            if (tHPHF) then
+                hamil(i,i) = hphf_diag_helement(nI,core_space(:,i))
+            else
+                hamil(i,i) = get_helement(nI,nI,0)
+            end if
+
+            do j = 1, determ_space_size
+
+                if (i == j) cycle
+
+                call decode_bit_det(nJ, core_space(:,j))
+
+                if (tHPHF) then
+                    hamil(i,j) = hphf_off_diag_helement(nI, nJ, &
+                        core_space(:,i), core_space(:,j))
+                else if (tGUGA) then
+                    call calc_guga_matrix_element(core_space(:,i), core_space(:,j), &
+                        excitInfo, hamil(i,j), .true., 2)
+                else
+                    hamil(i,j) = get_helement(nI, nJ, core_space(:,i), core_space(:,j))
+                end if
+
+            end do
+        end do
+
+    end subroutine calc_determin_hamil_full
 
     subroutine copy_core_dets_to_spawnedparts()
 
@@ -1325,18 +1654,22 @@ contains
         ! GenExcitations3 routine. This will return nI, ex and tParity which can be input into this
         ! routine.
 
-        use Determinants, only: get_helement, GetH0Element3, GetH0Element4
+        use Determinants, only: GetH0Element3, GetH0Element4
         use FciMCData, only: ilutHF, HFDet, Fii
-        use hphf_integrals, only: hphf_off_diag_helement
-        use SystemData, only: tHPHF, tUEG
-
+        use SystemData, only: tUEG
+        use CalcData, only: t_guga_mat_eles
+        use SystemData, only: tGUGA
+        use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+        use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
+        use guga_data, only: ExcitationInformation_t
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: ex(2,2)
+        integer, intent(in) :: ex(2,maxExcit)
         logical, intent(in) :: tParity
         real(dp), intent(out) :: amp, energy_contrib
         integer :: ic
-        real(dp) :: hel, H0tmp, denom
+        HElement_t(dp) :: hel, H0tmp, denom
+        type(ExcitationInformation_t) :: excitInfo
 
         amp = 0.0_dp
         energy_contrib = 0.0_dp
@@ -1352,6 +1685,15 @@ contains
             ! beta orbitals of the same spatial orbital have the same
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
+        else if (tGUGA) then
+            if (t_guga_mat_eles) then
+                ! i am not sure if the ref_stepvector thingies are set up for
+                ! the ilutHF in this case..
+                call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
+                    .true., 2)
+            else
+                hel = calc_off_diag_guga_gen(ilut, ilutHF)
+            end if
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if
@@ -1360,6 +1702,10 @@ contains
             ! This will calculate the MP2 energies without having to use the fock eigenvalues.
             ! This is done via the diagonal determinant hamiltonian energies.
             H0tmp = getH0Element4(nI, HFDet)
+        else if (tGUGA) then
+            ! do i have a routine to calculate the diagonal and double
+            ! contributions for GUGA csfs? yes!
+            H0tmp = calcDiagMatEleGUGA_nI(nI)
         else
             H0tmp = getH0Element3(nI)
         end if
@@ -1438,11 +1784,10 @@ contains
 
         use FciMCData, only: partial_determ_vecs, full_determ_vecs, full_determ_vecs_av
         use FciMCData, only: PDetermTag, FDetermTag, FDetermAvTag, IDetermTag
-        use FciMCData, only: indices_of_determ_states, core_ham_diag, hamiltonian
+        use FciMCData, only: indices_of_determ_states, hamiltonian
         use FciMCData, only: core_space, determ_sizes, determ_displs, HamTag
         use FciMCData, only: CoreSpaceTag
         use MemoryManager, only: LogMemDealloc
-        use sparse_arrays, only: SparseCoreHamilTags, deallocate_sparse_ham, core_ht
         use sparse_arrays, only: core_connections, deallocate_core_hashtable
         use sparse_arrays, only: deallocate_sparse_matrix_int
 

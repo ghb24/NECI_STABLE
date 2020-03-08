@@ -21,6 +21,9 @@ module hamiltonian_linalg
     integer, parameter :: sparse_hamil_type = 2
     integer, parameter :: parallel_sparse_hamil_type = 3
     integer, parameter :: direct_ci_type = 4
+    !Use the determinat with lowest energy as HF, otherwise use the value in hfindex
+    !This is mainly added so that HF determinant in FCI-Davidson can be specified.
+    logical :: tCalcHFIndex = .True.
 
     type HamiltonianCalcType
         integer :: hamil_type
@@ -162,7 +165,8 @@ module hamiltonian_linalg
             allocate(hamil_diag_temp(space_size))
             this%partial_H_ket_disps(0) = 0
             do i = 1, nProcessors-1
-                this%partial_H_ket_disps(i) = sum(this%space_sizes(:i-1))
+                this%partial_H_ket_disps(i) = this%partial_H_ket_disps(i-1) &
+                                            + this%space_sizes(i-1)
             end do
             call MPIGatherV(hamil_diag, hamil_diag_temp, this%space_sizes, this%partial_H_ket_disps, ierr)
 
@@ -178,7 +182,9 @@ module hamiltonian_linalg
             write(6,'(1x,"number of determinants in total:",'//int_fmt(space_size,1)//')') space_size; call neci_flush(6)
         end if
 
-        hfindex = maxloc((-hamil_diag),1)
+        if(tCalcHFIndex)then
+            hfindex = maxloc((-hamil_diag),1)
+        end if
 
         ! the memory required to allocate each of basis_vectors and
         ! multipied_basis_vectors, in mb.
@@ -473,7 +479,6 @@ module hamiltonian_linalg
         complex(dp), intent(out) :: output_vector(:)
         integer :: i, j, ierr
 
-
         ! Use output_vector as temporary space.
         output_vector = input_vector
 
@@ -485,13 +490,13 @@ module hamiltonian_linalg
 
         do i = 1, this%space_sizes(iProcIndex)
             do j = 1, sparse_ham(i)%num_elements
-#ifdef __CMPLX
+#ifdef CMPLX_
                 this%partial_H_ket(i) = this%partial_H_ket(i) + &
                     sparse_ham(i)%elements(j)*output_vector(sparse_ham(i)%positions(j))
 #endif
             end do
         end do
-#ifdef __CMPLX
+#ifdef CMPLX_
         call MPIGatherV(this%partial_H_ket, output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)
 #else
         call MPIGatherV(cmplx(this%partial_H_ket,0.0_dp,dp), output_vector, this%space_sizes, this%partial_H_ket_disps, ierr)

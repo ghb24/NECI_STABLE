@@ -13,6 +13,7 @@ time 0.25
 methods
 method vertex fcimc
 endmethods
+seed -7
 diagshift 0.0
 shiftdamp 0.1
  totalwalkers  2e6

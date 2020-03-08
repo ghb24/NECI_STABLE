@@ -1,3 +1,5 @@
+#include "macros.h"
+
 !This is an O[2*N] operation for doubles or O[N] operation for single excitations.
 !It takes a determinant nI, and a 2x2 matrix indicating the excited 'to' and 'from'
 !orbitals, and finds the determinant nJ, while keeping the final determinant ordered.
@@ -20,182 +22,115 @@
 !The algorithm could be improved for double excitations by only searching through the
 !determinant once, reducing it from an O[2N] to O[N] operation, though would be a little
 !more fiddly...
+! [W.D. 11.12.2017]:
+! never thought to touch this part of the code ever.. but we need triple excitations
+! now too.. so adapt this functionality here.., since this function is
+! unfortunately called in too many parts of the code..
       SUBROUTINE FindExcitDet(ExcitMat,nI,IC,TParity)
          use SystemData , only : NEl
-         IMPLICIT NONE
-         INTEGER :: ExcitMat(2,2),i,j,k,EX2(2,2)!,EX(2,2)
-         INTEGER :: nI(NEl),IC,iPos,TempInd!,NJ(NEL)
-         LOGICAL :: TParity
+         use lattice_mod, only: sort_unique
+         implicit none
+         integer, intent(in) :: ic
+         integer, intent(inout) :: ExcitMat(2,ic)
+         integer, intent(inout) :: nI(nel)
+         logical, intent(out) :: tParity
+#ifdef DEBUG_
+         character(*), parameter :: this_routine = "FindExcitDet"
+#endif
+         integer :: i,j,k, pos_moved
+         integer :: src(ic), sort_orbs(ic), sort_elecs(ic)
 
-!         WRITE(19,*) ExcitMat(:,:),nI
-!         IF((IC.gt.2).or.(IC.lt.0)) THEN
-!             CALL Stop_All("FindExcitDet","Trying to find an excitation"&
-!     &          //" which is more than a double away.")
-!         ELSEIF(IC.eq.0) THEN
-!Excitation is the same determinant - return
-!             RETURN
-!         ENDIF
+         ! adapt this for double excitations now..
+#ifdef DEBUG_
+        if (IC < 0 .or. ic > 3) then
+            call stop_all(this_routine, "wrong ic!")
+        end if
+#endif
 
-!         NJ(:)=NI(:)
-         IF(IC.eq.2) THEN
-!Ensure i<j and a<b
-             IF(nI(ExcitMat(1,1)).gt.nI(ExcitMat(1,2))) THEN
-                 TempInd=ExcitMat(1,1)
-                 ExcitMat(1,1)=ExcitMat(1,2)
-                 ExcitMat(1,2)=TempInd
-             ENDIF
-             IF(ExcitMat(2,1).gt.ExcitMat(2,2)) THEN
-                 TempInd=ExcitMat(2,1)
-                 ExcitMat(2,1)=ExcitMat(2,2)
-                 ExcitMat(2,2)=TempInd
-             ENDIF
-         ENDIF
-         EX2(1:2,1:2)=ExcitMat(1:2,1:2)     !EX2 now contains the ordered original excitmat.
+        if (ic == 3 .or. ic == 2) then
+        !Ensure i<j and a<b
+            ExcitMat(1,:) = sort_unique(ExcitMat(1,:))
+            ExcitMat(2,:) = sort_unique(ExcitMat(2,:))
+        end if
 
-!Return Excitmat with orbitals, rather than indices being specified.
-         IF(IC.eq.1) THEN
-             ExcitMat(1,1)=nI(ExcitMat(1,1))
-         ELSE
-             ExcitMat(1,1)=nI(ExcitMat(1,1))
-             ExcitMat(1,2)=nI(ExcitMat(1,2))
-         ENDIF
+        sort_elecs = ExcitMat(1,:)
 
-         iPos=0 !This keeps track of how far the common orbitals have moved.
+        !Return Excitmat with orbitals, rather than indices being specified.
+        ExcitMat(1,:) = nI(ExcitMat(1,:))
 
-         do k=1,IC
-!This needs to be done twice for double excitations of nI
+        ! this is the same functionality as in make_double.. but much more
+        ! involved here.. so just take the core from make double and others..
+        ! look there for the code!
+        src = nI(sort_elecs)
+        sort_orbs = ExcitMat(2,:)
 
-!             i=1    !Look through the determinant for the orbital to vacate
-!             do while(nI(i).ne.ExcitMat(1,k))
-!                 i=i+1
-!             enddo
-             i=EX2(1,k)
+        ! reshuffle the orbitals..
+        if (ic > 1 ) then
+            ! or check it individually:
+            if (src(2) < sort_orbs(1)) then
+                ! then i hops over j:
+                sort_elecs(2) = sort_elecs(2) - 1
+            end if
+            if (ic == 3) then
+               if (src(3) < sort_orbs(1)) then
+                    ! then i hops over k
+                    ! (note: this also implies that j hops over k, but treat that
+                    ! seperately below, to also cover the case, where this if here
+                    ! is not fullfilled!)
+                    sort_elecs(3) = sort_elecs(3) - 1
+                end if
+                if (src(3) < sort_orbs(2)) then
+                    ! then j hops over k
+                    sort_elecs(3) = sort_elecs(3) - 1
+                end if
+            end if
+        end if
 
-!i is now the index of the excited orbital
-             IF(EX2(2,k).gt.nI(EX2(1,k))) THEN
-!Excited orbital is a higher-indexed orbital than the original
+         pos_moved = 0 !This keeps track of how far the common orbitals have moved.
 
-                 IF(i.eq.NEl) THEN
-!We want to replace the final orbital with one larger than it - there is no more rearranging to do.
-                     nI(i)=EX2(2,k)
-                 ELSE
-                     j=i+1  !Start looking for insertion point at the index one above the now empty index
-                     do while(nI(j).lt.EX2(2,k))
-                         nI(j-1)=nI(j)      !Substitute the orbital into the one below it to maintain ordering
-                         IF(k.eq.1) THEN
-!This is the first substitution. We want to increment the iPos variable unless this is an orbital we are going to remove later!
-                            IF(((j.ne.EX2(1,2)).and.(IC.eq.2)).or.
-     &                              (IC.eq.1)) THEN
-                                iPos=iPos+1
-                            ENDIF
-                         ELSE
-!This is the second substitution. Do not incremenet iPos if it is the one that was substituted in the last case.
-                            IF(nI(j).ne.EX2(2,1)) THEN
-                                iPos=iPos+1        !We have moved an orbital.
-                            ENDIF
-                         ENDIF
-                         IF(j.eq.NEl) THEN
-!We have reached the end of the determinant list. The new orbital must go here.
-                             j=j+1
-                             EXIT
-                         ENDIF
-                         j=j+1
-                     enddo
-                     nI(j-1)=EX2(2,k)  !Finally found the correct place to insert the new orbital
+        do k = 1, ic
+            if (src(k) < sort_orbs(k)) then
+                if (sort_elecs(k) == nel) then
+                    ! this can only happen for k == 3
+                    i = nel + 1
+                    nI(nel) = sort_orbs(k)
+                else
+                    do i = sort_elecs(k) + 1, nel
+                        if (sort_orbs(k) < nI(i)) then
+                            nI(i-1) = sort_orbs(k)
+                            exit
+                        else
+                            nI(i-1) = nI(i)
+                        end if
+                    end do
+                    if (i == nel + 1) then
+                        nI(nel) = sort_orbs(k)
+                    end if
+                end if
+            else
+                if (sort_elecs(k) == 1) then
+                    i = 0
+                    nI(1) = sort_orbs(k)
+                else
+                    do i = sort_elecs(k)-1, 1, -1
+                        if (sort_orbs(k) > nI(i)) then
+                            nI(i+1) = sort_orbs(k)
+                            exit
+                        else
+                            nI(i+1) = nI(i)
+                        end if
+                    end do
+                    if (i == 0) then
+                        nI(1) = sort_orbs(k)
+                    end if
+                end if
+            end if
 
-!Since we have shifted all the orbitals in a certain range in the first insertion, we need to compensate for
-!this by changing the insertion point of the next orbital
-                     IF((EX2(1,2).gt.EX2(1,1)).and.
-     &                    (EX2(1,2).lt.j)) THEN
-                         EX2(1,2)=EX2(1,2)-1
-                     ENDIF
+            pos_moved = pos_moved + sort_elecs(k) - i + 1
 
-                 ENDIF
+        end do
 
-
-!             ELSEIF(ExcitMat(2,k).eq.nI(ExcitMat(1,k))) THEN
-!We are replacing an orbital with the same orbital. We want to do nothing to the determinant
-!                 CYCLE
-             ELSE
-!orbital to occupy is a lower-indexed orbital than the original
-                 IF(i.eq.1) THEN
-!We want to replace the final orbital with one smaller than it - there is no more rearranging to do.
-                     nI(1)=EX2(2,k)
-                 ELSE
-                     j=i-1  !Start looking at the index one below the now empty orbital
-                     do while(nI(j).gt.EX2(2,k))
-                         nI(j+1)=nI(j)
-                         IF(k.eq.1) THEN
-                             IF(((j.ne.EX2(1,2)).and.(IC.eq.2)).or.
-     &                               (IC.eq.1)) THEN
-                                 iPos=iPos+1
-                             ENDIF
-                         ELSE
-                             IF(nI(j).ne.EX2(2,1)) THEN
-                                iPos=iPos+1        !We have moved an orbital.
-                             ENDIF
-                         ENDIF
-                         IF(j.eq.1) THEN
-!We have reached the beginning of the determinant list. The new orbital must go here.
-                             j=j-1
-                             EXIT
-                         ENDIF
-                         j=j-1
-                     enddo
-                     nI(j+1)=EX2(2,k)  !Found the correct place for the newly-occupied orbital to keep order
-
-!Since we have shifted all the orbitals in a certain range in the first insertion, we need to compensate for
-!this by changing the insertion point of the next orbital
-                     IF((EX2(1,2).lt.EX2(1,1)).and.
-     &                   (EX2(1,2).gt.j)) THEN
-                         EX2(1,2)=EX2(1,2)+1
-                     ENDIF
-
-                 ENDIF
-
-             ENDIF
-
-         enddo  !End loop over number of excitations
-
-!         WRITE(19,*) nI(:)
-!         WRITE(6,*) "***",ipos
-!If number of common orbitals moved is even, then parity is positive (false), otherwise, parity is negative (true).
-         TParity=BTEST(iPos,0)
-
-!         EX(:,:)=0
-!         EX(1,1)=IC
-!         CALL GETEXCITATION(NJ,NI,NEL,EX,TSIGN)
-!         IF(TSIGN.ne.TParity) THEN
-!                 WRITE(6,*) IC
-!                 WRITE(6,*) "ORIG: ",NJ(:)
-!                 WRITE(6,*) "NEW: ",NI(:)
-!                 WRITE(6,*) EX(1,:),EX(2,:)
-!                 WRITE(6,*) ExcitMat(1,:),ExcitMat(2,:)
-!                 WRITE(6,*) "TSIGN= ",TSIGN
-!                 WRITE(6,*) "TParity,iPos= ",TParity,ipos
-!             call stop_all(this_routine, 'Parities different')
-!         ENDIF
-!         do j=1,IC
-!             IF(EX(1,j).ne.ExcitMat(1,j)) THEN
-!                 WRITE(6,*) IC
-!                 WRITE(6,*) "ORIG: ",NJ(:)
-!                 WRITE(6,*) "NEW: ",NI(:)
-!                 WRITE(6,*) EX(1,:),EX(2,:)
-!                 WRITE(6,*) ExcitMat(1,:),ExcitMat(2,:)
-!                 call stop_all(this_routine, 'Error 2 Here')
-!             ENDIF
-!         enddo
-!         do j=1,IC
-!             IF(EX(2,j).ne.ExcitMat(2,j)) THEN
-!                 WRITE(6,*) IC
-!                 WRITE(6,*) "ORIG: ",NJ(:)
-!                 WRITE(6,*) "NEW: ",NI(:)
-!                 WRITE(6,*) EX(1,:),EX(2,:)
-!                 WRITE(6,*) ExcitMat(1,:),ExcitMat(2,:)
-!                 call stop_all(this_routine, 'Error 2 Here')
-!             ENDIF
-!         enddo
-
+        tParity = btest(pos_moved, 0)
          RETURN
 
       END SUBROUTINE FindExcitDet

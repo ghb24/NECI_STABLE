@@ -19,7 +19,7 @@ contains
     integer :: numEx, nFound
     ! There can be some excitations with really low matrix elements -> we need a lot
     ! of samples to hit all
-    integer, parameter :: nSamples = 10000000
+    integer, parameter :: nSamples = 1000000
 
     ! set the excitation generator to pchb
     generate_excitation => gen_rand_excit_pchb
@@ -36,7 +36,7 @@ contains
     ! make sure all excits have been found
     call assert_equals(numEx,nFound)
     ! and the total prob is 1.0
-    call assert_true(abs(1.0-pTot) < 0.01)
+    call assert_true(abs(1.0-pTot) < 0.05)
 
     ! free memory
     call free_ref()

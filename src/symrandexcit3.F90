@@ -23,7 +23,7 @@ module symrandexcit3
                                     init_excit_gen_store,clean_excit_gen_store
     use FciMCData, only: pDoubles, iter, excit_gen_store_type
     use bit_reps, only: niftot, decode_bit_det_lists
-    use constants, only: dp, n_int, bits_n_int
+    use constants, only: dp, n_int, bits_n_int, maxExcit
     use sym_general_mod, only: SymAllowedExcit
     use timing_neci
     use Parallel_neci
@@ -40,7 +40,7 @@ contains
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         integer(n_int), intent(out) :: ilutJ(0:niftot)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
@@ -71,7 +71,7 @@ contains
         ! If exFlag is 3, select singles or doubles randomly, according
         ! to the value in pDoubles. Otherwise exFlag = 1 gives a single,
         ! and exFlag = 2 gives a double.
-ASSERT(exFlag<=3.and.exFlag>=1)
+        ASSERT(exFlag<=3.and.exFlag>=1)
         IC = exFlag
         select case(IC)
         case(1)
@@ -362,7 +362,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
                          pair_list, occ_list, virt_list) result(pGen)
 
         integer, intent(in) :: nI(nel)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         integer, intent(in) :: CCOcc(ScratchSize), CCUnocc(ScratchSize)
         integer, intent(out) :: pair_list(ScratchSize)
@@ -417,7 +417,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
         nJ = nI
         call FindExcitDet (ExcitMat, nJ, 1, tParity)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! For debugging purposes only (O[N] operation).
         if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
             call stop_all(this_routine, 'Invalid excitation generated')
@@ -443,7 +443,7 @@ ASSERT(exFlag<=3.and.exFlag>=1)
     use sym_mod, only: mompbcsym, GetLz
     use neci_intfce
     IMPLICIT NONE
-    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
+    INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,maxExcit),kx,ky,kz,ktrial(3)
     real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
     INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
     INTEGER :: iExcit

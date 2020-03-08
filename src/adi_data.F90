@@ -33,7 +33,7 @@ module adi_data
   logical :: tAdiActive, tStrictCoherentDoubles, tWeakCoherentDoubles, tAvCoherentDoubles
   ! Thresholds for xi and populations
   real(dp) :: NoTypeN, coherenceThreshold, SIThreshold
-  logical :: tReadRefs, tSuppressSIOutput
+  logical :: tReadRefs, ProductReferences, tAccessibleDoubles, tAccessibleSingles, tSuppressSIOutput
 
   integer :: nExCheckFails, nExChecks, allNExCheckFails, allNExChecks
 

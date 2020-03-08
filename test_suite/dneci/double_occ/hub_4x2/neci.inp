@@ -1,9 +1,9 @@
 title
 
-system hubbard 
+system hubbard
 nonuniformrandexcits nosymgen
 real
-electrons 8 
+electrons 8
 cell 4 2 1
 b -1
 u 16
@@ -15,9 +15,9 @@ calc
 methods
 method vertex fcimc
 endmethods
-
+seed -7
 definedet 1 4 5 8 9 12 13 16
-
+load-balance-interval 1000
 allrealcoeff
 
 tau 0.001
@@ -28,6 +28,7 @@ shiftdamp 0.1
 stepsshift 10
 
 rdmsamplingiters 100000
+nmcyc 110000
 endcalc
 
 logging
@@ -37,4 +38,4 @@ printonerdm
 popsfile -1
 endlog
 
-end 
+end

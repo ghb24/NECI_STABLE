@@ -6,7 +6,7 @@
         use NECICore_mod, only : NECICore
         implicit none
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         write(6,*) 'STARTING NECI'
 #endif
         ! Indicate not called by CPMD, VASP, Molpro
@@ -23,7 +23,7 @@
 
 #include "NECICore.h"
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         write(6,*) "STARTING NECI"
 #endif
 

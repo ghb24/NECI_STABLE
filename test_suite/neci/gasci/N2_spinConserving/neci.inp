@@ -1,0 +1,42 @@
+Title
+ 
+System read
+    electrons  6
+    nonuniformrandexcits 4ind-weighted-2
+    nobrillouintheorem
+    freeformat
+    spin-conserving-gas
+endsys
+ 
+calc
+    methods
+        method vertex fcimc
+    endmethods
+	seed 44
+    totalwalkers 2000
+    diagshift .00
+    shiftdamp .02
+    nmcyc 5000
+    stepsshift 10
+    proje-changeref 1.20
+    truncinitiator
+    addtoinitiator  3
+    allrealcoeff
+    realspawncutoff .30
+    jump-shift
+    tau 0.01 search
+    max-tau .02
+    maxwalkerbloom 1
+    memoryfacspawn 10.00
+    memoryfacpart 5.00
+    time 200
+    startsinglepart 10
+	definedet 1-6
+	load-balance-interval 1000	
+endcalc
+ 
+logging
+    highlypopwrite 50
+	popsfile -1
+endlog
+end

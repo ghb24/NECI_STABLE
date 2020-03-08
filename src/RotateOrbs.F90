@@ -1793,7 +1793,7 @@ contains
         integer(TagIntType) Temp4indintsTag
         real(dp), allocatable :: Temp4indints(:,:)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all('Transform2ElIntsMemSave', 'Rotating orbitals not implemented for complex orbitals.')
 #endif
 
@@ -4401,7 +4401,7 @@ contains
         integer(TagIntType) :: TMAT2DPartTag
         real(dp) :: NewTMAT
         real(dp), allocatable :: TMAT2DPart(:,:)
-#ifdef __CMPLX
+#ifdef CMPLX_
         call stop_all('RefillUMATandTMAT2D', 'Rotating orbitals not implemented for complex orbitals.')
 #endif
 

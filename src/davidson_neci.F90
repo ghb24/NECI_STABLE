@@ -22,7 +22,8 @@ module davidson_neci
         initHamiltonianCalc, &
         multiply_hamil_and_vector, &
         direct_ci_inp, &
-        direct_ci_out
+        direct_ci_out, &
+        tCalcHFIndex
 
     implicit none
 
@@ -159,7 +160,9 @@ module davidson_neci
         end if
 
         if (iprocindex == root) then
-            hfindex = maxloc((-hamil_diag),1)
+            if(tCalcHFIndex)then
+                hfindex = maxloc((-hamil_diag),1)
+            end if
             ! the memory required to allocate each of basis_vectors and
             ! multipied_basis_vectors, in mb.
             mem_reqd = (max_num_davidson_iters*space_size*8)/1000000
@@ -264,7 +267,6 @@ module davidson_neci
         integer :: lwork, info
         real(dp), allocatable, dimension(:) :: work
         real(dp) :: eigenvalue_list(basis_index)
-
         ! Scrap space for the diagonaliser.
         lwork = max(1,3*basis_index-1)
         allocate(work(lwork))
@@ -280,21 +282,20 @@ module davidson_neci
         ! lwork is the length of the work array.
         ! info = 0 on output is diagonalisation is successful.
         call dsyev(&
-            'V', &
-            'U', &
-            basis_index, &
-            this%super%projected_hamil_work(1:basis_index,1:basis_index), &
-            basis_index, &
-            eigenvalue_list, &
-            work, &
-            lwork, &
-            info &
-        )
+             'V', &
+             'U', &
+             basis_index, &
+             this%super%projected_hamil_work(1:basis_index,1:basis_index), &
+             basis_index, &
+             eigenvalue_list, &
+             work, &
+             lwork, &
+             info &
+             )
 
-        this%davidson_eigenvalue = eigenvalue_list(1)
         ! The first column stores the ground state.
+        this%davidson_eigenvalue = eigenvalue_list(1)
         this%eigenvector_proj(1:basis_index) = this%super%projected_hamil_work(1:basis_index,1)
-
         deallocate(work)
 
         ! eigenvector_proj stores the eigenstate in the basis of vectors stored in the array
@@ -336,7 +337,7 @@ module davidson_neci
         if (iProcIndex == root) then
             ! Multiply the new basis_vector by the hamiltonian and store the result in
             ! multiplied_basis_vectors.
-            call multiply_hamil_and_vector(this%super, real(this%super%basis_vectors(:,basis_index), dp), &
+            call multiply_hamil_and_vector(this%super, real(this%super%basis_vectors(:,basis_index),dp), &
                 this%multiplied_basis_vectors(:,basis_index))
 
             ! Now multiply U^T by (H U) to find projected_hamil. The projected Hamiltonian will

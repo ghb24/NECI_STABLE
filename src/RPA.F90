@@ -3,8 +3,9 @@
 !Module to non-iteratively calculate the RPA energy under the quasi-boson approximation
 module RPA_Mod
     use SystemData, only: nel, nBasis, Arr, Brr, G1, tReltvy
-    use sltcnd_mod, only: sltcnd_2
-    use constants, only: dp, int64, n_int
+    use excitation_types, only: DoubleExc_t
+    use sltcnd_mod, only: sltcnd_excit
+    use constants, only: dp, int64, n_int, maxExcit
     use Determinants, only: get_helement, fDet
     use SymExcit3, only: GenExcitations3
     use SymExcit4, only: GenExcitations4, ExcitGenSessionType
@@ -34,9 +35,9 @@ module RPA_Mod
 
     subroutine RunRPA_QBA(Weight,Energy)
         implicit none
-        integer :: ierr,i,j,m,n,ex(2,2),ex2(2,2),mi_ind,nj_ind
+        integer :: ierr,i,j,m,n,ex(2,maxExcit),ex2(2,maxExcit),mi_ind,nj_ind
         integer :: StabilitySize,lWork,info,i_p,m_p,v,mp_ip_ind,ic
-        integer :: nJ(NEl),exflag,mu,id(2,2),a,i_ind,iunit,ia_ind
+        integer :: nJ(NEl),exflag,mu,id(2,maxExcit),a,i_ind,iunit,ia_ind
         integer(n_int) :: iLutHF(0:NIfTot)
         real(dp), intent(out) :: Weight,Energy
         real(dp) :: Energy_stab,Temp_real,norm,Energy2,H0tmp,Fii
@@ -154,8 +155,8 @@ module RPA_Mod
                             B_mat(mi_ind,nj_ind) = real(hel1,dp)
                         else
                             !Full antisymmetrized integrals
-                            HEl1 = sltcnd_2(ex,.false.)
-                            HEl2 = sltcnd_2(ex2,.false.)
+                            HEl1 = sltcnd_excit(nJ, DoubleExc_t(ex), .false.)
+                            HEl2 = sltcnd_excit(nJ, DoubleExc_t(ex2), .false.)
                             A_mat(mi_ind,nj_ind) = real(HEl1,dp)
                             B_mat(mi_ind,nj_ind) = real(HEl2,dp)
                         endif
@@ -198,7 +199,7 @@ module RPA_Mod
             write(6,"(A)")
             write(6,"(A)") "Calculating RPA from stability matrix..."
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             call stop_all(t_r,"Not coded up for complex integrals. Bug ghb24")
 #endif
 

@@ -6,7 +6,7 @@ MODULE SymExcit3
 
     use SystemData, only: NEl, G1, nBasis, tNoSymGenRandExcits
     use bit_reps, only: NIfTot
-    use constants, only: n_int
+    use constants, only: n_int, maxExcit
     USE GenRandSymExcitNUMod, only: SymLabelList2,SymLabelCounts2,ClassCountInd,ScratchSize
     use SymExcitDataMod, only: SpinOrbSymLabel
     use get_excit, only: make_double
@@ -183,9 +183,7 @@ MODULE SymExcit3
 
 
 
-    ENDSUBROUTINE GenExcitations3
-
-
+      ENDSUBROUTINE GenExcitations3
 
     SUBROUTINE GenSingleExcit(nI,iLut,nJ,exflag,ExcitMat3,tParity,tAllExcitFound,ti_lt_a_only)
 ! Despite being fed four indices, this routine finds single excitations.  Orbi -> Orba. (Orbj and Orbb remain 0).
@@ -504,7 +502,7 @@ MODULE SymExcit3
                     IF(tNoSymGenRandExcits) THEN
                         Syma=0
                     ELSE
-                        Syma=INT(G1(Orba)%Sym%S,4)
+                       Syma=INT(G1(Orba)%Sym%S,4)
                     ENDIF
                     Symb=IEOR(Syma,SymProduct)
 ! Then find the ml of b.
@@ -516,36 +514,22 @@ MODULE SymExcit3
                         Mlb = 0
                     ENDIF
 
-!                    WRITE(6,*) "SymLabelList2:" ,SymLabelList2(1:nBasis)
-!                    write(6,*) "tFirstb: ",tFirstb
 
 ! If this is the first time we've picked an orbital b for these i,j and a, begin at the start of the symmetry block.
 ! Otherwise pick up where we left off last time.
                     IF(tFirstb) THEN
                         SymInd=ClassCountInd(Spinb,Symb,Mlb)
-!                        write(6,*) SymInd
                         OrbbIndex=SymLabelCounts2(1,SymInd)
                     ELSE
 !Update new orbital b index
                         OrbbIndex=OrbbIndex+1
                     ENDIF
-!                    WRITE(6,*) "OrbbIndex: ",OrbbIndex
 
 ! If the new b orbital is still within the limits, check it is unoccupied and move onto the next orbital if it is.
                     IF(OrbbIndex.gt.nBasis) THEN
                         tNewa=.true.
                         tFirsta=.false.
-!                        write(6,*) "Need new a"
-!                    ELSE
-!                        IF(tNoSymGenRandExcits) THEN
-!                            NewSym=0
-!                        ELSE
-!                            NewSym=INT(G1(SymLabelList2(OrbbIndex))%Sym%S,4)
-!                        ENDIF
-!                        SymInd=ClassCountInd(Spinb,NewSym,0)
-!                        write(6,*) "Calculating symind: ",Spinb,NewSym,SymInd
                     ENDIF
-!                    write(6,*) "***",SymInd,tNewa
 
                     IF(.not.tNewa) THEN
                         IF(OrbbIndex.gt.(SymLabelCounts2(1,SymInd)+SymLabelCounts2(2,SymInd)-1)) THEN
@@ -554,8 +538,6 @@ MODULE SymExcit3
                             tFirsta=.false.
                         ELSE
                             Orbb=SymLabelList2(OrbbIndex)
-!                            write(6,"(B64.64)") iLut(0)
-!                            WRITE(6,*) 'chosen orbb',orbb
 ! Checking the orbital b is unoccupied and > a.
                             do while (((BTEST(iLut((Orbb-1)/bits_n_int),MOD((Orbb-1),bits_n_int))).or.(Orbb.le.Orba)) .or. &
                                 (tij_lt_ab_only .and. ( (( ( (Orbb-2) * (Orbb-1) ) / 2 ) + Orba) .lt. Indij )) )

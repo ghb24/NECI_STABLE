@@ -107,9 +107,12 @@ module hash
         integer :: hash_val
         type(ll_node), pointer :: prev, curr
         logical :: found
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(len=*), parameter :: this_routine = "remove_hash_table_entry"
 #endif
+
+        ASSERT(all(nI <= nBasis))
+        ASSERT(all(nI > 0))
 
         found = .false.
 
@@ -148,9 +151,12 @@ module hash
         integer :: hash_val
         type(ll_node), pointer :: prev, curr
         logical :: found
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(len=*), parameter :: this_routine = "update_hash_table_ind"
 #endif
+
+        ASSERT(all(nI <= nBasis))
+        ASSERT(all(nI > 0))
 
         found = .false.
 
@@ -350,6 +356,7 @@ module hash
         ! will not be included in the hash table, unless they are core
         ! determinants.
 
+        use DetBitOps, only: tAccumEmptyDet
         integer, intent(in) :: table_length, list_length
         type(ll_node), pointer, intent(inout) :: hash_table(:)
         integer(n_int), intent(in) :: walker_list(0:,:)
@@ -359,6 +366,9 @@ module hash
         integer :: i, hash_val, nI(nel)
         real(dp) :: real_sign(lenof_sign)
         logical :: tCoreDet
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "fill_in_hash_table"
+#endif
 
         tCoreDet = .false.
 
@@ -369,11 +379,14 @@ module hash
             if (ignore_unocc) then
                 if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
                 call extract_sign(walker_list(:,i), real_sign)
-                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet)) cycle
+                if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:,i)))) cycle
             end if
 
             call decode_bit_det(nI, walker_list(:,i))
             ! Find the hash value corresponding to this determinant.
+            ASSERT(all(nI <= nBasis))
+            ASSERT(all(nI > 0))
+
             hash_val = FindWalkerHash(nI, table_length)
 
             call add_hash_table_entry(hash_table, i, hash_val)
@@ -383,6 +396,7 @@ module hash
 
     subroutine rm_unocc_dets_from_hash_table(hash_table, walker_list, list_length)
 
+        use DetBitOps, only: tAccumEmptyDet
         ! This routine loops through all determinants in walker_list removes
         ! all entries from hash_table for determinants which are both
         ! unoccupied and not core determinants.
@@ -395,7 +409,7 @@ module hash
         real(dp) :: real_sign(lenof_sign)
         logical :: found, tCoreDet
         type(ll_node), pointer :: temp_node, prev
-#ifdef __DEBUG
+#ifdef DEBUG_
         character(len=*), parameter :: this_routine = "rm_unocc_dets_from_hash_table"
 #endif
 
@@ -403,9 +417,13 @@ module hash
             call extract_sign(walker_list(:,i), real_sign)
             tCoreDet = .false.
             if (tSemiStochastic) tCoreDet = test_flag(walker_list(:,i), flag_deterministic)
-            if ((.not. IsUnoccDet(real_sign)) .or. tCoreDet) cycle
+            if (IsUnoccDet(real_sign) .and. (.not. tCoreDet) .and. (.not. tAccumEmptyDet(walker_list(:,i)))) cycle
             found = .false.
             call decode_bit_det(nI, walker_list(:, i))
+
+            ASSERT(all(nI <= nBasis))
+            ASSERT(all(nI > 0))
+
             hash_val = FindWalkerHash(nI, size(hash_table))
             temp_node => hash_table(hash_val)
             prev => null()

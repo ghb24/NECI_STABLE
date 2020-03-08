@@ -1,10 +1,12 @@
-#define log_alloc(arr, tag, ierr) call LogMemAlloc("arr",size(arr),tbs_(arr),t_r,tag,ierr)
+#ifndef MACROS_INCLUDEGUARD_
+#define MACROS_INCLUDEGUARD_
+
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
-#define IsNullDet(nI) (nI(1).eq.0)
+#define IsNullDet(nI) (any((nI) .eq. 0))
 
-! i am too stupid to remember where the src and tgt is in ex(2,2)
+! i am too stupid to remember where the src and tgt is in ex(2,maxExcit)
 #define get_src(ex) ex(1,:)
 #define get_tgt(ex) ex(2,:)
 
@@ -22,22 +24,46 @@
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
+! extract single step vector value of a spatial orbital from ilut
+#define getStepvalue(ilut,sOrb) int(ishft(iand(ilut((sOrb-1)/bn2_),ishft(3_n_int,2*mod((sOrb-1),bn2_))),-2*mod((sOrb-1),bn2_)))
+! also directly implement 0,1,2,3 comparisons
+! also directly implement 0,1,2,3 comparisons
+#define isZero(ilut,sOrb) \
+	(.not.(btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)).or.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1)))
+#define isOne(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)).and.(.not.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1)))
+#define isTwo(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1).and.(.not.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_))))
+#define isThree(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1).and.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)))
+#define isSingle(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1).neqv.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)))
+#define notSingle(ilut,sOrb) (.not.isSingle(ilut,sOrb))
+! could write that with already provided isOcc functions too, but would have to translate between spin and spatial orbs..
+
+! Convert spatial orbital indices to spin orbital indices
+#define spatToSpinBeta(sOrb) 2*(sOrb-1)
+#define spatToSpinAlpha(sOrb) 2*sOrb
 ! Do the two orbitals have the same spin?
 #define same_spin(orb1, orb2) (mod(orb1,2) == mod(orb2,2))
 
 #define get_src(ex) ex(1,:)
 #define get_tgt(ex) ex(2,:)
 
+! this is the same as is beta, but just for clearity:
+#define is_odd(i) btest(i,0)
+#define is_even(i) (.not.is_odd(i))
+
+#define is_inf(x) (abs(x) > INFINITY)
 ! Get the index of the replica that is paired with ind:
 #define paired_replica(ind) (ind+2*mod(ind,2)-1)
 
 ! The spin where 1=alpha, 2=beta
-#define get_spin(orb) (1+iand(orb,1))
+#define get_spin(orb) (1+mod(orb,2))
 ! The spin where 1=alpha, -1=beta
-#define get_spin_pn(orb) (1-2*iand(orb,1))
+#define get_spin_pn(orb) (1-2*mod(orb,2))
 
 ! Is the specified orbital part of a doubly occupied pair?
 #define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
+
+! salso reimplement a get_spatial orbital macro here
+#define get_spatial(orb) (orb - 1)/2 + 1
 
 ! Are the two orbitals specified (may be the same orbital) from the same
 ! spatial orbital?
@@ -49,8 +75,18 @@
 #define set_orb(ilut, orb) ilut(ilut_int(orb))=ibset(ilut(ilut_int(orb)),ilut_off(orb))
 #define clr_orb(ilut, orb) ilut(ilut_int(orb))=ibclr(ilut(ilut_int(orb)),ilut_off(orb))
 
+! define some macros to set guga step-vectors without making mistakes
+#define set_one(ilut, spat) set_orb(ilut, 2*spat - 1)
+#define clr_one(ilut, spat) clr_orb(ilut, 2*spat - 1)
+
+#define set_two(ilut, spat) set_orb(ilut, 2*spat)
+#define clr_two(ilut, spat) clr_orb(ilut, 2*spat)
+
+#define set_zero(ilut, spat) clr_orb(ilut, 2*spat);  clr_orb(ilut, 2*spat-1)
+#define set_three(ilut,spat) set_orb(ilut, 2*spat);  set_orb(ilut, 2*spat-1)
+
 ! Useful for fixing things. Requires this_routine to be defined
-#ifdef __DEBUG
+#ifdef DEBUG_
 #define ASSERT(x) \
 if (.not. (x)) then; \
  call stop_all (this_routine, "Assert fail: "//"x"); \
@@ -76,7 +112,7 @@ endif
 #endif
 
 ! define a precompiler setup for the warning workaround
-#ifdef __WARNING_WORKAROUND
+#ifdef WARNING_WORKAROUND_
 #define unused_var(x) associate(x=>x); end associate
 #else
 #define unused_var(x)
@@ -86,31 +122,35 @@ endif
 #define root_write if (iProcIndex == 0) write
 #define root_print root_write (6, *)
 
+#define if_root if (iProcIndex == 0) then
+#define end_if_root end if
+
 ! Make Re / Cplx builds easier
-#ifdef __CMPLX
-#ifdef __PROG_NUMRUNS
+#ifdef CMPLX_
+#ifdef PROG_NUMRUNS_
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(2*index-1), arr(2*index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) cmplx(arr(1), arr(2), dp)
 #endif
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
-#elif defined(__PROG_NUMRUNS)
+#elif defined(PROG_NUMRUNS_)
 #define ARR_RE_OR_CPLX(arr,index) real(arr(index), dp)
 #else
 #define ARR_RE_OR_CPLX(arr,index) real(arr(1), dp)
 #endif
 
-#ifdef __CMPLX
+#ifdef CMPLX_
 ! 1->1 ,2->1, 3->2 ...
 #define part_type_to_run(pt) (1+((pt)-1)/2)
-#ifdef __PROG_NUMRUNS
+#define rotate_part(pt) ((pt) - 1 + 2*mod((pt),2))
+#ifdef PROG_NUMRUNS_
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))
 #define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
 #define is_run_unnocc(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp <1.0e-12_dp
 #else
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
 #define min_part_type(run) (2*(run)-1)
 #define max_part_type(run) (2*(run))
 #define mag_of_run(signs, run) (signs(2*(run)-1)**2 + signs(2*(run))**2)**5e-1_dp
@@ -125,11 +165,12 @@ endif
 #else
 ! 1->1 ,2->2, 3->3 ...
 #define part_type_to_run(pt) pt
-#ifdef __PROG_NUMRUNS
+#define rotate_part(pt) pt
+#ifdef PROG_NUMRUNS_
 #define min_part_type(run) run
 #define max_part_type(run) run
 #else
-#ifdef __DOUBLERUN
+#ifdef DOUBLERUN_
 #define min_part_type(run) run
 #define max_part_type(run) run
 #else
@@ -143,6 +184,7 @@ endif
 #define av_pop(signs) sum(abs((signs)))/(inum_runs)
 #define sgn_av_pop(signs) sum( (signs) ) /(inum_runs)
 
+#define overlap_index(runA, runB) (runA)+inum_runs*((runB)-1)
 
 ! Define types for C pointers to work between various compilers with
 ! differing levels of brokenness.
@@ -153,7 +195,7 @@ endif
 #else
 #define c_ptr_t integer(int32)
 #endif
-#elif defined(__GFORTRAN__)
+#elif defined(GFORTRAN_)
 #define c_ptr_t type(c_ptr)
 #define loc_neci g_loc
 #else
@@ -165,7 +207,7 @@ endif
 ! gfortran was playing up using a parameter defined to equal C_NULL_PTR
 ! --> use pre-processor defines instead!
 #ifdef CBINDMPI
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
+#if defined(__PATHSCALE__) || defined(ISO_C_HACK_) || defined(__OPEN64__)
 #ifdef POINTER8
 #define MPI_IN_PLACE (0_int64)
 #else
@@ -177,24 +219,24 @@ endif
 #endif
 
 ! To make sure conjugations of both real and complex realisations of HElement_t behave on all compilers:
-#ifdef __CMPLX
+#ifdef CMPLX_
 #define h_conjg(z) conjg(z)
 #else
 #define h_conjg(z) z
 #endif
 
 ! The following is useful for converting from HElement_t to an array of the appropriate length
-#ifdef __CMPLX
+#ifdef CMPLX_
 #define h_to_array(z) (/dble(z), dimag(z)/)
 #else
 #define h_to_array(z) (/ z /)
 #endif
 
 ! Cast a real value to HElement_t
-#ifdef __CMPLX
-#define h_cast(val) cmplx(val,0.0_dp)
+#ifdef CMPLX_
+#define h_cast(val) cmplx(val,0.0_dp,kind=dp)
 #else
-#define h_cast(val) val
+#define h_cast(val) real(val, dp)
 #endif
 
 ! these macros check allocation status before performing heap management
@@ -216,3 +258,7 @@ endif
 
 ! Shortcut for optional variables
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
+
+#endif
+
+#define check_abort_excit(pgen,x) if (near_zero(pgen)) then; x = 0_n_int; return; endif

@@ -8,7 +8,7 @@ contains
          use SystemData , only : tNoSymGenRandExcits,lNoSymmetry,tROHF,tHub,tUEG
          use SystemData , only : tStoreSpinOrbs,tKPntSym,tRotatedOrbsReal,tFixLz,tUHF
          use SystemData , only : tMolpro,tReadFreeFormat,tReltvy, nclosedOrbs, nOccOrbs
-         use SystemData , only : nIrreps
+         use SystemData , only : nIrreps, t_non_hermitian
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
          use Parallel_neci
          use util_mod, only: get_free_unit, near_zero
@@ -95,7 +95,7 @@ contains
              tKPntSym=.false.
          ENDIF
 
-#ifndef __CMPLX
+#ifndef CMPLX_
          if(PropBitLen.ne.0) then
              !We have compiled the code in real, but we are looking at a complex FCIDUMP, potentially
              !even with multiple k-points. However, these orbitals must be real, and ensure that the
@@ -140,8 +140,10 @@ contains
          endif
          if(.not.tDetectSym) then
              write(6,*) "Only one irrep found. Turning off symmetry for rest of calculation."
-             tNoSymGenRandExcits = .true.
-             lNoSymmetry = .true.
+             if(.not.tFixLz.or.tKPntSym) then
+                 tNoSymGenRandExcits = .true.
+                 lNoSymmetry = .true.
+             endif
          endif
 
          IF(NELEC.NE.NEL) THEN
@@ -204,7 +206,7 @@ contains
       SUBROUTINE GETFCIBASIS(NBASISMAX,ARR,BRR,G1,LEN,TBIN)
          use SystemData, only: BasisFN,BasisFNSize,Symmetry,NullBasisFn,tMolpro,tUHF
          use SystemData, only: tCacheFCIDUMPInts,tROHF,tFixLz,iMaxLz,tRotatedOrbsReal
-         use SystemData, only: tReadFreeFormat,SYMMAX,tReltvy, irrepOrbOffset, nIrreps
+         use SystemData, only: tReadFreeFormat,SYMMAX,tReltvy, irrepOrbOffset, nIrreps,t_non_hermitian
          use UMatCache, only: nSlotsInit,CalcNSlotsInit
          use UMatCache, only: GetCacheIndexStates,GTID
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
@@ -231,6 +233,7 @@ contains
          LOGICAL TBIN
          logical :: uhf,tRel
          integer :: orbsPerIrrep(nIrreps)
+         real(dp) :: real_time_Z
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
               ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
 
@@ -412,7 +415,7 @@ contains
                  ! functions and so the integer labels run into each other.
                  ! This means it won't work with more than 999 basis
                  ! functions...
-#ifdef __CMPLX
+#ifdef CMPLX_
 1               READ(iunit,*,END=99) Z,I,J,K,L
 #else
 1               CONTINUE
@@ -601,7 +604,7 @@ contains
          use constants, only: dp,sizeof_int
          use SystemData, only: Symmetry,SymmetrySize,SymmetrySizeB,NEl
          use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB,tMolpro
-         use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF
+         use SystemData, only: UMatEps,tCacheFCIDUMPInts,tUHF, t_non_hermitian
          use SystemData, only: tRIIntegrals,nBasisMax,tROHF,tRotatedOrbsReal
          use SystemData, only: tReadFreeFormat, G1, tFixLz, tReltvy, nIrreps
          USE UMatCache, only: UMatInd,UMatConj,UMAT2D,TUMAT2D,nPairs,CacheFCIDUMP
@@ -612,6 +615,7 @@ contains
          use Parallel_neci
          use shared_memory_mpi
          use SymData, only: nProp, PropBitLen, TwoCycleSymGens
+         use real_time_data, only: t_complex_ints
          use util_mod, only: get_free_unit, near_zero
          IMPLICIT NONE
          integer, intent(in) :: NBASIS
@@ -638,9 +642,9 @@ contains
          integer(int64) :: start_ind, end_ind
          integer(int64), parameter :: chunk_size = 1000000
          integer:: bytecount
+         real(dp) :: real_time_Z
          NAMELIST /FCI/ NORB,NELEC,MS2,ORBSYM,OCC,CLOSED,FROZEN,&
               ISYM,IUHF,UHF,TREL,SYML,SYMLZ,PROPBITLEN,NPROP
-
 
          LWRITE=.FALSE.
          UHF=.FALSE.
@@ -718,11 +722,15 @@ contains
              ! functions and so the integer labels run into each other.
              ! This means it won't work with more than 999 basis
              ! functions...
-
-#ifdef __CMPLX
-101          READ(iunit,*,END=199) Z,I,J,K,L
+#if defined(CMPLX_)
+101            if (t_complex_ints) then
+                READ(iunit,*,END=199) Z,I,J,K,L
+             else
+               read(iunit,*,END=199) real_time_Z,I,J,K,L
+                Z = dcmplx(real_time_Z, 0.0_dp)
+            end if
 #else
-101          CONTINUE
+101           CONTINUE
              !It is possible that the FCIDUMP can be written out in complex notation, but still only
              !have real orbitals. This occurs with solid systems, where all kpoints are at the
              !gamma point or BZ boundary and have been appropriately rotated. In this case, all imaginary
@@ -850,23 +858,25 @@ contains
                     ! Have read in T_ij.  Check it's consistent with T_ji
                     ! (if T_ji has been read in).
                    diff = abs(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)-Z)
-                   IF(.not. near_zero(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)) .and. diff > 1.0e-7_dp) then
+                   IF(.not. near_zero(TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)) .and. diff > 1.0e-7_dp .and. .not. t_non_hermitian) then
                         WRITE(6,*) i,j,Z,TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)
                         CALL Stop_All("ReadFCIInt","Error filling TMAT - different values for same orbitals")
                    ENDIF
 
                    TMAT2D(ISPINS*I-ISPN+1,ISPINS*J-ISPN+1)=Z
-#ifdef __CMPLX
-                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
+                   if(.not. t_non_hermitian) then
+#ifdef CMPLX_
+                      TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=conjg(Z)
 #else
-                   TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
+                      TMAT2D(ISPINS*J-ISPN+1,ISPINS*I-ISPN+1)=Z
 #endif
+                   endif
                 enddo
              ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
 !..  we're reading in (IJ|KL), but we store <..|..> which is <IK|JL>
-#ifdef __CMPLX
+#ifdef CMPLX_
                 Z = UMatConj(I,K,J,L,Z)
 #endif
                 IF(TUMAT2D) THEN
@@ -993,7 +1003,7 @@ contains
       !This is a copy of the routine above, but now for reading in binary files of integrals
       SUBROUTINE READFCIINTBIN(UMAT,ECORE)
          use constants, only: dp,int64,sizeof_int
-         use SystemData, only: Symmetry, BasisFN
+         use SystemData, only: Symmetry, BasisFN, t_non_hermitian
          USE UMatCache , only : UMatInd,UMAT2D,TUMAT2D
          use OneEInts, only: TMatind,TMat2D,TMATSYM
          use util_mod, only: get_free_unit
@@ -1046,8 +1056,10 @@ contains
 !.. These are stored as spinorbitals (with elements between different spins being 0
             TMAT2D(2*I-1,2*J-1)=Z
             TMAT2D(2*I,2*J)=Z
-            TMAT2D(2*J-1,2*I-1)=Z
-            TMAT2D(2*J,2*I)=Z
+            if(.not. t_non_hermitian) then
+               TMAT2D(2*J-1,2*I-1)=Z
+               TMAT2D(2*J,2*I)=Z
+            endif
          ELSE
 !.. 2-e integrals
 !.. UMAT is stored as just spatial orbitals (not spinorbitals)
@@ -1154,7 +1166,7 @@ contains
                   endif
 
                   OneElInts(iSpins*I-ispn+1,iSpins*J-ispn+1)=z
-#ifdef __CMPLX
+#ifdef CMPLX_
                   OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=conjg(z)
 #else
                   OneElInts(iSpins*J-ispn+1,iSpins*I-ispn+1)=z

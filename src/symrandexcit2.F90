@@ -31,8 +31,10 @@ MODULE GenRandSymExcitNUMod
                           tNoSymGenRandExcits, Arr, nMax, tCycleOrbs, &
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin, &
-                          t_pcpp_excitgen
-    use FciMCData, only: pDoubles, iter, excit_gen_store_type, iluthf
+                          tUEG2, kvec, tAllSymSectors, NMAXX, NMAXY, NMAXZ, &
+                          tOrbECutoff, OrbECutoff, tGUGA, t_pcpp_excitgen
+    use CalcData, only: tSpinProject
+    use FciMCData, only: pDoubles, psingles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
     use IntegralsData, only: UMat
     use Determinants, only: get_helement, write_det
@@ -40,17 +42,20 @@ MODULE GenRandSymExcitNUMod
                        SymLabelCounts
     use dSFMT_interface , only : genrand_real2_dSFMT
     use SymExcitDataMod
-    use DetBitOps, only: FindExcitBitDet, EncodeBitDet
-    use sltcnd_mod, only: sltcnd_1
-    use constants, only: dp, n_int, bits_n_int
+    use DetBitOps, only: FindExcitBitDet, EncodeBitDet, detbiteq
+    use excitation_types, only: SingleExc_t
+    use sltcnd_mod, only: sltcnd_excit
+    use constants, only: dp, n_int, bits_n_int, maxExcit
     use bit_reps, only: NIfTot, nifdbo
     use sym_mod, only: mompbcsym, GetLz
-    use detbitops , only : detbiteq
     use timing_neci
     use sym_general_mod
-    use spin_project, only: tSpinProject
     use get_excit, only: make_single, make_double
     use procedure_pointers, only: get_umat_el
+    use back_spawn, only: pick_virtual_electrons_double_hubbard
+    use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location, get_ispn
+    use neci_intfce
+    use bit_rep_data, only: test_flag
     IMPLICIT NONE
 !    INTEGER , SAVE :: Counter=0
 
@@ -68,7 +73,7 @@ MODULE GenRandSymExcitNUMod
 
         integer, intent(in) :: nI(nel), exFlag
         integer(n_int), intent(in) :: iLut(0:niftot)
-        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), IC, ExcitMat(2,maxExcit)
         logical, intent(out) :: tParity
         real(dp), intent(out) :: pgen
         type(excit_gen_store_type), intent(inout), target :: store
@@ -159,7 +164,7 @@ MODULE GenRandSymExcitNUMod
     end subroutine
 
     SUBROUTINE GenRandSymExcitNU(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,pGen)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,maxExcit),exFlag
         INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize)
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
@@ -257,7 +262,7 @@ MODULE GenRandSymExcitNUMod
 
     SUBROUTINE CreateDoubExcit(nI,nJ,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         integer, intent(in) :: nI(nel)
-        integer, intent(out) :: nJ(nel), ExcitMat(2,2)
+        integer, intent(out) :: nJ(nel), ExcitMat(2,maxExcit)
         integer, intent(in) :: ClassCountUnocc2(ScratchSize)
         integer(n_int), intent(in) :: iLut(0:NIfTot)
         real(dp), intent(out) :: pGen
@@ -328,7 +333,7 @@ MODULE GenRandSymExcitNUMod
 !This routine creates the final determinant.
     SUBROUTINE FindNewDet(nI,nJ,Elec1Ind,Elec2Ind,OrbA,OrbB,ExcitMat,tParity)
         integer, intent(in) :: nI(nel), Elec1Ind, Elec2Ind, OrbA, OrbB
-        integer, intent(out) :: ExcitMat(2,2), nJ(nel)
+        integer, intent(out) :: ExcitMat(2,maxExcit), nJ(nel)
         logical, intent(out) :: tParity
 
 !First construct ExcitMat
@@ -348,9 +353,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER, INTENT(IN) :: ForbiddenOrbs,NExcitA,NExcitB,NExcitOtherWay
         real(dp) , INTENT(OUT) :: pGen!,PabGivenij
 
-!        PabGivenij=(1.0_dp/real((NExcitA-ForbiddenOrbs),dp))*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))
-!        pGen=pDoubNew*(1.0_dp/real(ElecPairs,dp))*PabGivenij
-        pGen=pDoubNew*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
+        pGen=pDoubles*((1.0_dp/real(NExcitB,dp))+(1.0_dp/real(NExcitOtherWay,dp)))/(REAL((ElecPairs*(NExcitA-ForbiddenOrbs)),dp))
 
     END SUBROUTINE FindDoubleProb
 
@@ -1245,11 +1248,39 @@ MODULE GenRandSymExcitNUMod
 !
     END SUBROUTINE CheckIfSingleExcits
 
+    !> Wrapper function for creating a uniform single excitation
+    subroutine uniform_single_excit_wrapper(nI, ilutI, nJ, ilutJ, ex, tpar, store, pgen)
+        implicit none
+        integer, intent(in) :: nI(nel)
+        integer(n_int), intent(in) :: ilutI(0:NIfTot)
+        integer, intent(out) :: nJ(nel), ex(2,maxExcit)
+        integer(n_int), intent(out) :: ilutJ(0:NIfTot)
+        logical, intent(out) :: tpar
+        real(dp), intent(out) :: pGen
+        type(excit_gen_store_type), intent(inout), target :: store
+
+        ! First, count the number of available orbitals per irrep
+        if(.not.store%tFilled) then
+            call construct_class_counts(nI, store%ClassCountOcc, &
+                store%ClassCountUnocc)
+            store%tFilled = .true.
+        endif
+        pDoubNew = 1.0-pSingles
+        ! Then, chose uniformly from them
+        call createSingleExcit(nI,nJ,store%ClassCountOcc,store%classCountUnocc,ilutI,&
+            ex,tPar,pGen)
+
+        ! set the output ilut
+        ilutJ = ilutI
+        clr_orb(ilutJ, ex(1,1))
+        set_orb(ilutJ, ex(2,1))
+
+    end subroutine uniform_single_excit_wrapper
 
     SUBROUTINE CreateSingleExcit(nI,nJ,ClassCount2,ClassCountUnocc2,ILUT,ExcitMat,tParity,pGen)
         INTEGER :: ElecsWNoExcits,i,Attempts,nOrbs,z,Orb
         INTEGER :: Eleci,ElecSym,nI(NEl),nJ(NEl),NExcit,iSpn,ChosenUnocc
-        INTEGER :: ExcitMat(2,2)
+        INTEGER :: ExcitMat(2,maxExcit)
         INTEGER :: ClassCount2(ScratchSize)
         INTEGER :: ClassCountUnocc2(ScratchSize),ElecK,SymIndex
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
@@ -1427,7 +1458,7 @@ MODULE GenRandSymExcitNUMod
         ! Construct the new determinant, excitation matrix and parity
         call make_single (nI, nJ, eleci, orb, ExcitMat, tParity)
 
-#ifdef __DEBUG
+#ifdef DEBUG_
         ! These are useful (but O[N]) operations to test the determinant
         ! generated. If there are any problems with then excitations, I
         ! recommend uncommenting these tests to check the results.
@@ -1438,7 +1469,7 @@ MODULE GenRandSymExcitNUMod
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !        pGen=(1.0_dp-pDoubNew)*(1.0_dp/real(NEl,dp))*(1.0_dp/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
-        pGen=(1.0_dp-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
+        pGen=(1-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
 !         print *, "nI: ", nI
 !         print *, "elec: ", nI(eleci)
 !         print *, "orb: ", orb
@@ -1545,7 +1576,7 @@ MODULE GenRandSymExcitNUMod
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
 !Prob of generating a single is 1-pDoub
 !            pGen=(1.0_dp-pDoub)*(1.0_dp/real(NEl,dp))*(1.0_dp/real(NExcitA,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
-            pGen=(1.0_dp-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
+            pGen=(1-pDoub)/(REAL((NExcitA*(NEl-ElecsWNoExcits)),dp))
 
         ELSE
 !Prob of generating a double excitation.
@@ -1656,7 +1687,7 @@ MODULE GenRandSymExcitNUMod
 !Because of this, tau is needed for the timestep of the simulation, and iCreate is returned as the number of children to create
 !on the determinant. If this is zero, then no childred are to be created.
     SUBROUTINE GenRandSymExcitBiased(nI,iLut,nJ,pDoub,IC,ExcitMat,TParity,exFlag,nParts,WSign,tau,iCreate)
-        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,2),exFlag,iCreate,nParts,ElecsWNoExcits
+        INTEGER :: nI(NEl),nJ(NEl),IC,ExcitMat(2,maxExcit),exFlag,iCreate,nParts,ElecsWNoExcits
         REAL(dp) :: WSign
         INTEGER(KIND=n_int) :: ILUT(0:NIfTot)
         LOGICAL :: tParity
@@ -1731,7 +1762,7 @@ MODULE GenRandSymExcitNUMod
         INTEGER :: ElecsWNoExcits,nParts,iCreate,nI(NEl),nJ(NEl)
         REAL(dp) :: WSign
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
-        INTEGER :: ExcitMat(2,2),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
+        INTEGER :: ExcitMat(2,maxExcit),SpawnOrb(nBasis),Eleci,ElecSym,NExcit,VecInd,ispn,EndSymState,j
         real(dp) :: Tau,SpawnProb(nBasis),NormProb,r,rat
         LOGICAL :: tParity
         HElement_t(dp) :: rh
@@ -1834,7 +1865,7 @@ MODULE GenRandSymExcitNUMod
 
 !Now we want to find the information about this excitation
             ExcitMat(2,1)=OrbA
-            rh = sltcnd_1 (nI, ExcitMat, .false.)
+            rh = sltcnd_excit(nI, SingleExc_t(ExcitMat(:, 1)), .false.)
 
             SpawnProb(VecInd)=abs(REAL(rh,dp))
             SpawnOrb(VecInd)=OrbA
@@ -1862,6 +1893,10 @@ MODULE GenRandSymExcitNUMod
             iCreate=iCreate+1
         ENDIF
 
+        if (tGUGA) then
+            call stop_all("CreateSingleExcitBiased", &
+                "modify get_helement for GUGA")
+        end if
         IF(iCreate.gt.0) THEN
 !We want to spawn particles. This only question now is where. Run
 !through the ab pairs again and choose based on the SpawnProb element.
@@ -1908,7 +1943,7 @@ MODULE GenRandSymExcitNUMod
 
 
     SUBROUTINE CreateDoubExcitBiased(nI,nJ,iLut,ExcitMat,tParity,nParts,WSign,Tau,iCreate)
-        INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,2),iCreate,iSpn,OrbA,OrbB,SymProduct
+        INTEGER :: nI(NEl),nJ(NEl),ExcitMat(2,maxExcit),iCreate,iSpn,OrbA,OrbB,SymProduct
         INTEGER(KIND=n_int) :: iLut(0:NIfTot)
         INTEGER :: Elec1Ind,Elec2Ind,nParts,SumMl
         REAL(dp) :: WSign
@@ -1924,6 +1959,11 @@ MODULE GenRandSymExcitNUMod
 !This routine runs through all distinct ab pairs for the chosen ij and stochastically chooses how many particles to create.
 !If spawning wants to occur, then it runs through the list again and chooses a pair, which it returns.
         CALL CalcAllab(nI,iLut,Elec1Ind,Elec2Ind,SymProduct,iSpn,OrbA,OrbB,nParts,iCreate,Tau)
+
+        if (tGUGA) then
+            call stop_all("CreateDoubExcitBiased", &
+                "modify get_helement for GUGA")
+        end if
 
 !We now know that we want to create iCreate particles, from orbitals nI(Elec1/2Ind) -> OrbA + OrbB.
         IF(iCreate.gt.0) THEN
@@ -2107,15 +2147,10 @@ MODULE GenRandSymExcitNUMod
 ! For a given ij pair in the UEG or Hubbard model, this generates ab as a double excitation efficiently.
 ! This takes into account the momentum conservation rule, i.e. that kb=ki+ki-ka(+G).
     SUBROUTINE CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,part_type)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ,tOrbECutoff,OrbECutoff, kvec, TUEG2
-        use sym_mod, only: mompbcsym
-        use bit_rep_data, only: test_flag
-        use CalcData, only: t_back_spawn_flex, occ_virt_level
-        use back_spawn, only: pick_occupied_orbital_hubbard, check_electron_location
 
         INTEGER :: i,nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,iSpn,kb_ms
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
-        INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,2),iSpinIndex,TestEnergyB
+        INTEGER :: ChosenUnocc,Hole1BasisNum,Hole2BasisNum,ki(3),kj(3),ka(3),kb(3),ExcitMat(2,maxExcit),iSpinIndex,TestEnergyB
         LOGICAL :: tAllowedExcit,tParity
         real(dp) :: r,pGen,pAIJ
         integer, intent(in), optional :: part_type
@@ -2133,62 +2168,21 @@ MODULE GenRandSymExcitNUMod
         ! This chooses an a of the correct spin, excluding occupied orbitals
         ! This currently allows b orbitals to be created that are disallowed
         hole2basisnum = 0
-        ! introduce the flex option here too..
-        ! but in the k-space hubbard i cannot garuantee to always reduce or
-        ! keep the IC level the same, but like in the newest flex implementation
-        ! it could be increased by 1, depending on the electrons picked
-        ! t_back_spawn_flex is only implemented for the hubbard lattice model
-        ! not the UEG! -> assert that in the init(already did that!)
-!         if (t_back_spawn_flex .and. .not. test_flag(ilutnI, get_initiator_flag(temp_run))) then
-!             ! this was also wrong: it actually needs nI(elecs)
-!             elecs = [Elec1Ind,Elec2Ind]
-!
-!             loc = check_electron_location(elecs, 2, temp_run)
-!
-!             if ((loc == 2) .or. (loc == 1 .and. occ_virt_level /= -1) .or. &
-!                 (loc == 0 .and. occ_virt_level >= 1 ))then
-!                 ! otherwise i have to pick a "occupied orbital" to ensure to
-!                 ! not increase IC by 2
-!                 ! but in this case there isn't the restriction in which order
-!                 ! the electrons are picked, so i guess i have to write a new
-!                 ! function for the hubbard model too in this case..
-!                 call pick_occupied_orbital_hubbard(nI, ilutni, temp_run, pAIJ, ChosenUnocc)
-!
-!
-!             else
-!                 ! then we can pick any orbitals..
-!                 ! no... i think i made a mistake:
-!                 ! loc = 0 means both electrons are in the virtual
-!                 !
-!                 do
-!                     ChosenUnocc = int(nBasis * genrand_real2_dSFMT()) + 1
-!                     if (IsNotOcc(ilutnI,ChosenUnocc)) exit
-!
-!                 end do
-!
-!                 ! set the p(a|ij) here already. .
-!               ! this was also wrong.. damn..
-!                 pAIJ=1.0_dp/(nBasis-Nel)
-!             end if
-!
-!         else
-!
-            DO
-                r = genrand_real2_dSFMT()
-                ! Choose a
-                IF (iSpn.eq.2) THEN ! alpha/beta combination
-                    ChosenUnocc=INT(nBasis*r)+1
-                ELSE ! alpha/alpha, beta/beta
-                    ChosenUnocc=2*(INT(nBasis/2*r)+1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
-                    & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
-                ENDIF
-                ! Check a isn't occupied
-                IF(.not.(BTEST(iLutnI((ChosenUnocc-1)/bits_n_int),MOD(ChosenUnocc-1,bits_n_int)))) THEN
-                !Orbital not in nI. Accept.
-                    EXIT
-                ENDIF
-            ENDDO
-!         end if
+        DO
+            r = genrand_real2_dSFMT()
+            ! Choose a
+            IF (iSpn.eq.2) THEN ! alpha/beta combination
+                ChosenUnocc=INT(nBasis*r)+1
+            ELSE ! alpha/alpha, beta/beta
+                ChosenUnocc=2*(INT(nBasis/2*r)+1) & ! 2*(a number between 1 and nbasis/2) gives the alpha spin
+                & -(1-(iSpn/3)) ! alpha numbered even, iSpn/3 returns 1 for alpha/alpha, 0 for beta/beta
+            ENDIF
+            ! Check a isn't occupied
+            IF(.not.(BTEST(iLutnI((ChosenUnocc-1)/bits_n_int),MOD(ChosenUnocc-1,bits_n_int)))) THEN
+            !Orbital not in nI. Accept.
+                EXIT
+            ENDIF
+        ENDDO
 
         Hole1BasisNum=ChosenUnocc
         IF((Hole1BasisNum.le.0).or.(Hole1BasisNum.gt.nBasis)) THEN
@@ -2291,18 +2285,6 @@ MODULE GenRandSymExcitNUMod
             ! Re-map back into cell
             CALL MomPbcSym(kb,nBasisMax)
 
-!            ! Which orbital corresponds to kb? -- this can be done via a look-up table (see below).
-!            DO i=1,nBasis
-!                IF(G1(i)%k(1).eq.kb(1).and.G1(i)%k(2).eq.kb(2).and.G1(i)%k(3).eq.kb(3).and.G1(i)%Ms.eq.kb_ms)THEN
-!                    Hole2BasisNum=i
-!                ENDIF
-!            ENDDO
-!            ! Debug to test that this corresponds to a look-up
-!            iSpinIndex=(kb_ms+1)/2+1
-!            write(6,*) Hole2BasisNum,kPointToBasisFn(G1(Hole2BasisNum)%k(1),G1(Hole2BasisNum)%k(2),iSpinIndex)
-!            IF(Hole2BasisNum.ne.kPointToBasisFn(kb(1),kb(2),iSpinIndex))
-!CALL Stop_All("Hubbard excitation generator","Hubbard failed to find kb correctly")
-
             ! This is the look-up table method of finding the kb orbital
             iSpinIndex=(kb_ms+1)/2+1
             ! [W.D.]
@@ -2391,17 +2373,17 @@ MODULE GenRandSymExcitNUMod
 
         IF(tHub) THEN
             ! Debug to test the resultant determinant
-            IF(.not.(IsMomentumAllowed(nJ)))THEN
+            ! i think i also have to check here if kpoint symmetry is turned
+            ! on... or is it generally turned on in the hubbard case??
+            IF(.not.(IsMomentumAllowed(nJ)) .and. tKPntSym)THEN
                 CALL Stop_All("CreateDoubExcitLattice","Incorrect kb generated -- momentum not conserved")
             ENDIF
         ENDIF
 
         !Calculate generation probabilities
         IF (iSpn.eq.2) THEN
-!             if (.not.(t_back_spawn_flex .and. .not. test_flag(iLutnI, get_initiator_flag(temp_run)))) then
-                ! otherwise take the pAIJ set above
-                pAIJ=1.0_dp/(nBasis-Nel)
-!             end if
+            ! otherwise take the pAIJ set above
+            pAIJ=1.0_dp/(nBasis-Nel)
         ELSEIF (iSpn.eq.1) THEN
             pAIJ=1.0_dp/(nBasis/2-nOccBeta)
         ELSE
@@ -2425,14 +2407,10 @@ MODULE GenRandSymExcitNUMod
     !rejected before going back to the main
     ! code.
     SUBROUTINE CreateExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,part_type)
-        Use SystemData , only : NMAXX,NMAXY,NMAXZ, tUEG2, kvec
-        use CalcData, only: t_back_spawn
-        use bit_rep_data, only: test_flag
-        use back_spawn, only: pick_virtual_electrons_double_hubbard
 
         INTEGER :: i,j ! Loop variables
         INTEGER :: Elec1, Elec2
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),iSpn
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,maxExcit),iSpn
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         INTEGER :: ki(3),kj(3),kTrial(3),iElecInExcitRange,iExcludedKFromElec1,iAllowedExcites
         INTEGER :: KaXLowerLimit,KaXUpperLimit,KaXRange,KaYLowerLimit,KaYUpperLimit,KaYRange,KaZLowerLimit,KaZUpperLimit,KaZRange
@@ -2460,48 +2438,28 @@ MODULE GenRandSymExcitNUMod
             temp_part_type = 1
         end if
 
-        ! [W.D]
-        ! are we here in the hubbard model??
-        ! move this functionality now to the back_spawn_excit_gen module
-!         if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(temp_run))) then
-!
-!             call pick_virtual_electrons_double_hubbard(nI, temp_run, elecs, src, ispn,&
-!                                                         pgen_back)
-!
-!             ! check if enogh electrons are in the virtual
-!             if (elecs(1) == 0) then
-!                 nJ(1) = 0
-!                 pgen = 0.0_dp
-!                 return
-!             end if
-!
-!             Elec1Ind = elecs(1)
-!             Elec2Ind = elecs(2)
-!
-!         else
 
+        DO
+            r(1) = genrand_real2_dSFMT()
+            Elec1=INT(r(1)*NEl+1)
             DO
-                r(1) = genrand_real2_dSFMT()
-                Elec1=INT(r(1)*NEl+1)
-                DO
-                    r(2) = genrand_real2_dSFMT()
-                    Elec2=INT(r(2)*NEl+1)
-                    IF(Elec2.ne.Elec1) EXIT
-                ENDDO
-                Elec1Ind=Elec1
-                Elec2Ind=Elec2
-                IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
-                    iSpn=1
-                ELSE
-                    IF((G1(nI(Elec1Ind))%Ms.eq.1).and.(G1(nI(Elec2Ind))%Ms.eq.1)) THEN
-                        iSpn=3
-                    ELSE
-                        iSpn=2
-                    ENDIF
-                ENDIF
-                IF((tHub.and.iSpn.eq.2).or.(tUEG)) EXIT ! alpha/beta pairs are the only pairs generated for the hubbard model
+                r(2) = genrand_real2_dSFMT()
+                Elec2=INT(r(2)*NEl+1)
+                IF(Elec2.ne.Elec1) EXIT
             ENDDO
-!         end if
+            Elec1Ind=Elec1
+            Elec2Ind=Elec2
+            IF((G1(nI(Elec1Ind))%Ms.eq.-1).and.(G1(nI(Elec2Ind))%Ms.eq.-1)) THEN
+                iSpn=1
+            ELSE
+                IF((G1(nI(Elec1Ind))%Ms.eq.1).and.(G1(nI(Elec2Ind))%Ms.eq.1)) THEN
+                    iSpn=3
+                ELSE
+                    iSpn=2
+                ENDIF
+            ENDIF
+            IF((tHub.and.iSpn.eq.2).or.(tUEG)) EXIT ! alpha/beta pairs are the only pairs generated for the hubbard model
+        ENDDO
 
         IF(tNoFailAb)THEN ! pGen is calculated first because there might be no excitations available for this ij pair
 
@@ -2596,6 +2554,7 @@ MODULE GenRandSymExcitNUMod
             IF(iAllowedExcites.eq.0) THEN
             !    WRITE(6,*) "No allowed excitations from this ij pair"
                 nJ(1)=0
+                pGen = 1.0_dp
                 RETURN
             ENDIF
         ENDIF
@@ -2609,11 +2568,11 @@ MODULE GenRandSymExcitNUMod
                 CALL Stop_All("CreateExcitLattice","Failure to generate a valid excitation from an electron pair combination")
             ENDIF
             CALL CreateDoubExcitLattice(nI,iLutnI,nJ,tParity,ExcitMat,pGen,Elec1Ind,Elec2Ind,iSpn,temp_part_type)
-            ! now adapt the pgen in the case of the back-spawning
-!             if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(temp_run))) then
-!                 pgen = pgen * real(nOccBeta*nOccAlpha,dp) * pgen_back
-!             end if
-            IF (.not.tNoFailAb) RETURN
+            IF (.not.tNoFailAb) then
+                ! For an invalid excitation we still need to have a valid value for pGen
+                if(nJ(1) == 0) pGen = 1.0_dp
+                RETURN
+            endif
             IF (nJ(1).ne.0) EXIT ! i.e. if we are using the NoFail algorithm only exit on successful nJ(1)!=0
         ENDDO
 
@@ -2624,20 +2583,11 @@ MODULE GenRandSymExcitNUMod
         pAIJ=1.0_dp/(KaXRange*KaYRange*KaZRange-iElecInExcitRange)
         ! pBIJ is zero for this kind of excitation generator for antiparallel spins
         ! but is equal to pAIJ for parallel spins.
-!         if (t_back_spawn .and. .not. test_flag(ilutnI, get_initiator_flag(temp_run))) then
-!             IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
-!                 ! thats the only case which is covered for now..
-!                 pGen=2.0_dp*pgen_back*pAIJ ! Spins not equal
-!             ELSE
-!                 pGen=2.0_dp*pgen_back*2.0*pAIJ ! Spins equal
-!             ENDIF
-!         else
-            IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
-                pGen=2.0_dp/(NEl*(NEl-1))*pAIJ ! Spins not equal
-            ELSE
-                pGen=2.0_dp/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
-            ENDIF
-!         end if
+        IF(G1(nI(Elec1Ind))%Ms.ne.G1(nI(Elec2Ind))%Ms) THEN
+            pGen=2.0_dp/(NEl*(NEl-1))*pAIJ ! Spins not equal
+        ELSE
+            pGen=2.0_dp/(NEl*(NEl-1))*2.0*pAIJ ! Spins equal
+        ENDIF
 
         IF(pAIJ.le.0.0_dp) CALL Stop_All("CreateExcitLattice","pAIJ is less than 0")
 
@@ -2649,7 +2599,7 @@ MODULE GenRandSymExcitNUMod
     SUBROUTINE CreateExcitLattice2(nI,iLutnI,nJ,tParity,ExcitMat,pGen)
 
         INTEGER :: Elec1, Elec2, Hole1, Hole2,ms_sum
-        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,2),rejections
+        INTEGER :: nI(NEl),nJ(NEl),Elec1Ind,Elec2Ind,ExcitMat(2,maxExcit),rejections
         INTEGER(KIND=n_int) :: iLutnI(0:NIfTot)
         LOGICAL :: tParity
         real(dp) :: r(4),pGen
@@ -2727,7 +2677,6 @@ MODULE GenRandSymExcitNUMod
         character(*), parameter :: this_routine = "CalcPGenLattice"
 
         ASSERT(.not. tNoFailAb)
-!         IF(tNoFailAb) CALL Stop_All("CalcPGenLattice","Cannot use this calculation of pgen with this excitation generator")
 
         ! can i make this easier?
         iSpin = get_ispn(get_src(ex))
@@ -2739,21 +2688,6 @@ MODULE GenRandSymExcitNUMod
             pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
         end if
 
-!         iSpin=G1(Ex(1,1))%Ms
-!         jSpin=G1(Ex(1,2))%Ms
-!         IF (iSpin.eq.-1) THEN ! i is a beta spin
-!             IF (jSpin.eq.-1) THEN ! ij is beta/beta
-!                 pAIJ=1.0_dp/(nBasis/2-nOccBeta)
-!             ELSE !ij is alpha/beta
-!                 pAIJ=1.0_dp/(nBasis-Nel)
-!             ENDIF
-!         ELSE ! i is an alpha spin
-!             IF (jSpin.eq.1) THEN ! ij is alpha/alpha
-!                 pAIJ=1.0_dp/(nBasis/2-nOccAlpha)
-!             ELSE
-!                 pAIJ=1.0_dp/(nBasis-Nel)
-!             ENDIF
-!         ENDIF
         ! Note, p(b|ij)=p(a|ij) for this system
         ! there is a small difference here and in the excitation generator
         ! part. is is only multiplied by 2 if it is a parallel excitation
@@ -2834,7 +2768,9 @@ MODULE GenRandSymExcitNUMod
                                             ! a value to within a reciproval lattice vector.
             IF(ktrial(1).eq.kTotal(1).and.ktrial(2).eq.kTotal(2)) THEN
                 IsMomentumAllowed=.true.
-            ENDIF
+             else
+                print *, "ERRONEOUS MOMENTUM: ", ktrial, ktotal
+             ENDIF
         ENDIF
 
     END FUNCTION IsMomentumAllowed
@@ -2847,10 +2783,8 @@ MODULE GenRandSymExcitNUMod
     !done for both doubles and singles, or one of them.
     SUBROUTINE TestGenRandSymExcitNU(nI,Iterations,pDoub,exFlag)
 
-        use SystemData, only: tUEG2, kvec
-        use neci_intfce
         IMPLICIT NONE
-        INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,2),kx,ky,kz,ktrial(3)
+        INTEGER :: i,Iterations,exFlag,nI(NEl),nJ(NEl),IC,ExcitMat(2,maxExcit),kx,ky,kz,ktrial(3)
         real(dp) :: pDoub,pGen,AverageContrib,AllAverageContrib
         INTEGER(KIND=n_int) :: iLutnJ(0:NIfTot),iLut(0:NIfTot)
         INTEGER :: iExcit
@@ -2875,6 +2809,8 @@ MODULE GenRandSymExcitNUMod
         type(excit_gen_store_type) :: store
         character(*), parameter :: t_r = 'TestGenRandSymExcitNU'
         HElement_t(dp) :: HElGen
+        integer :: ex(2,maxExcit)
+        logical :: tpar
 
         write(6,*) 'In HERE'
         call neci_flush(6)
@@ -2900,7 +2836,6 @@ MODULE GenRandSymExcitNUMod
         IF(ierr.ne.0) CALL Stop_All("SetupExcitGen","Problem allocating excitation generator")
         EXCITGEN(:)=0
         CALL GenSymExcitIt2(nI,NEl,G1,nBasis,.TRUE.,EXCITGEN,nJ,iMaxExcit,nStore,exFlag)
-    !    CALL GetSymExcitCount(EXCITGEN,DetConn)
         excitcount=0
 
     lp2: do while(.true.)
@@ -2908,9 +2843,14 @@ MODULE GenRandSymExcitNUMod
             IF(nJ(1).eq.0) exit lp2
             IF(tUEG.or.tHub) THEN
                 IF (IsMomentumAllowed(nJ)) THEN
-                    excitcount=excitcount+1
-                    CALL EncodeBitDet(nJ,iLutnJ)
-!                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
+                    ex(1,1) = 2
+                    call GetExcitation(nI,nJ,nel,ex,tpar)
+                    ! also test for the spin in the hubbard model!
+                    if (.not. same_spin(ex(1,1),ex(1,2))) then
+                        excitcount=excitcount+1
+                        CALL EncodeBitDet(nJ,iLutnJ)
+                        print *, "nJ: ", nJ
+                    end if
                 ENDIF
             ELSEIF(tFixLz) THEN
 
@@ -2918,18 +2858,15 @@ MODULE GenRandSymExcitNUMod
                 IF(Lz.eq.LzTot) THEN
                     excitcount=excitcount+1
                     CALL EncodeBitDet(nJ,iLutnJ)
-!                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
                 ENDIF
             ELSEIF(tKPntSym) THEN
                 IF(IsMomAllowedDet(nJ)) THEN
                     excitcount=excitcount+1
                     CALL EncodeBitDet(nJ,iLutnJ)
-!                    IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,nJ(:)
                 ENDIF
             ELSE
                 excitcount=excitcount+1
                 CALL EncodeBitDet(nJ,iLutnJ)
-!                IF(iProcIndex.eq.0) WRITE(25,*) excitcount,iExcit,iLutnJ(0)
             ENDIF
         enddo lp2
         tNoBrillouin = brillouin_tmp(1)
@@ -2970,8 +2907,6 @@ MODULE GenRandSymExcitNUMod
         AverageContrib=0.0_dp
         AllAverageContrib=0.0_dp
         ForbiddenIter=0
-    !    pDoub=1.0_dp
-    !    IF(iProcIndex.eq.0) OPEN(9,FILE="AvContrib",STATUS="UNKNOWN")
 
         test_timer%timer_name = 'test_symrandexcit2'
         call set_timer(test_timer)
@@ -2986,10 +2921,11 @@ MODULE GenRandSymExcitNUMod
             call gen_rand_excit (nI, iLut, nJ, iLutnJ, exFlag, IC, ExcitMat, &
                                  tParity, pGen, HElGen, store)
             IF(nJ(1).eq.0) THEN
-    !            ForbiddenIter=ForbiddenIter+1
                 CYCLE
             ENDIF
-            IF(tKPntSym) THEN
+            if (tHub) then
+                test = IsMomentumAllowed(nJ)
+            else IF(tKPntSym) THEN
                 test=IsMomAllowedDet(nJ)
             ENDIF
             ! This is implemented for the old excitation generators, that could only handle momentum conservation under
@@ -3040,14 +2976,6 @@ MODULE GenRandSymExcitNUMod
 
             AverageContrib=AverageContrib+1.0_dp/pGen
 
-    !        CALL EncodeBitDet(nJ,iLutnJ)
-    !        IF(IC.eq.1) THEN
-    !            WRITE(6,*) ExcitMat(1,1),ExcitMat(2,1)
-    !        ELSE
-    !            WRITE(6,*) "Double Created"
-    !            WRITE(6,*) ExcitMat(1,1),ExcitMat(1,2),ExcitMat(2,1),ExcitMat(2,2)
-    !        ENDIF
-
             IF(IC.eq.1) THEN
                 SinglesHist(ExcitMat(1,1),ExcitMat(2,1))=SinglesHist(ExcitMat(1,1),ExcitMat(2,1))+(1.0_dp/pGen)
                 SinglesCount(ExcitMat(1,1), ExcitMat(2,1)) = &
@@ -3073,19 +3001,6 @@ MODULE GenRandSymExcitNUMod
                 DoublesCount(ind1,ind2,ind3,ind4) = &
                 DoublesCount(ind1,ind2,ind3,ind4) + 1
             ENDIF
-            !        IF(mod(i,iWriteEvery).eq.0) THEN
-            !            AllAverageContrib=0.0_dp
-            !#ifdef PARALLEL
-            !            CALL MPI_AllReduce(AverageContrib,AllAverageContrib,1,MPI_DOUBLE_PRECISION,MPI_SUM,MPI_COMM_WORLD,error)
-            !#else
-            !            AllAverageContrib=AverageContrib
-            !#endif
-            !            IF(iProcIndex.eq.0) THEN
-            !                WRITE(9,*) i,AllAverageContrib/(REAL(i,8)*excitcount*nProcessors)
-            !            ENDIF
-            !!            CALL ChangeVars(tDummy,tSoftExitFound,tDummy2)
-            !!            IF(tSoftExitFound) EXIT
-            !        ENDIF
 
             !Check excitation
             if (.not. SymAllowedExcit(nI, nJ, 1, ExcitMat)) &
@@ -3095,8 +3010,6 @@ MODULE GenRandSymExcitNUMod
         iter = iter_tmp
 
         call halt_timer (test_timer)
-
-        !    IF(iProcIndex.eq.0) CLOSE(9)
 
         call MPIBarrier(error)
         call MPIAllReduce (DoublesHist, MPI_SUM, AllDoublesHist)
@@ -3263,17 +3176,19 @@ END MODULE GenRandSymExcitNUMod
 SUBROUTINE SpinOrbSymSetup()
     use SymExcitDataMod, only:  ScratchSize, ScratchSize1, ScratchSize2, &
                                 SymLabelList2, SymLabelCounts2, kTotal, &
-                                OrbClassCount, kPointToBasisFn
+                                OrbClassCount, kPointToBasisFn, sym_label_list_spat
     use SymExcitDataMod, only: SpinOrbSymLabel, SymInvLabel, &
                                SymTableLabels, KPntInvSymOrb
     use GenRandSymExcitNUMod , only : ClassCountInd
     use SymData, only: nSymLabels, SymClasses, SymLabels
     use SystemData , only : NMAXZ,tFixLz,iMaxLz,nBasis,tUEG,tKPntSym,G1,tHub,nBasisMax,NEl
     use SystemData , only : Symmetry,tHPHF,tSpn,tISKFuncs,Arr,tNoSymGenRandExcits, Elecpairs
-    use SystemData , only : MaxABPairs, tUEG2, kvec
+    use SystemData , only : MaxABPairs, tUEG2, kvec, t_k_space_hubbard
     use Determinants, only : FDet
-    use sym_mod, only: mompbcsym,SymProd
+    use umatcache, only: gtID
+    use sym_mod, only: mompbcsym,SymProd, writesym
     use constants, only: dp
+    use lattice_mod, only: lat
 
     IMPLICIT NONE
 
@@ -3311,6 +3226,7 @@ SUBROUTINE SpinOrbSymSetup()
 !    write(6,*) "SymClasses:"
 !    write(6,*) SymClasses(:)
 
+!     if (t_k_space_hubbard) return
     !Create SpinOrbSymLabel array.
     !This array will return a number between 0 and nSymLabels-1.
     !For molecular systems, this IS the character of the irrep
@@ -3321,13 +3237,13 @@ SUBROUTINE SpinOrbSymSetup()
     do i=1,nBasis
         if(tNoSymGenRandExcits.or.tUEG) then
             SpinOrbSymLabel(i)=0
-        elseif(tKPntSym.or.tHUB) then
+        elseif(tKPntSym .or. tHub) then
             SpinOrbSymLabel(i)=SymClasses(((i+1)/2))-1        !This ensures that the symmetry labels go from 0 -> nSymLabels-1
         else
             SpinOrbSymLabel(i)=INT(G1(i)%Sym%S,4)
         endif
     enddo
-#ifdef __DEBUG
+#ifdef DEBUG_
     WRITE(6,*) "SpinOrbSymLabel: "
     do i=1,nBasis
         WRITE(6,*) i,SpinOrbSymLabel(i)
@@ -3342,6 +3258,7 @@ SUBROUTINE SpinOrbSymSetup()
                 SymI=SymLabels(i+1)        !Convert to the other symlabel convention to use SymLabels -
                                         !TODO: I will fix this to make them consistent when working (ghb24)!
                 SymJ=SymLabels(j+1)
+
                 SymProduct=SymProd(SymI,SymJ)
                 !Now, we need to find the label according to this symmetry!
                 !Run through all symmetries to make working (this could be far more efficient, but its only once, so sod it...
@@ -3357,7 +3274,7 @@ SUBROUTINE SpinOrbSymSetup()
                 SymTableLabels(j,i)=Lab-1
             enddo
         enddo
-#ifdef __DEBUG
+#ifdef DEBUG_
         WRITE(6,*) "SymTable:"
         do i=0,nSymLabels-1
             do j=0,nSymLabels-1
@@ -3410,7 +3327,7 @@ SUBROUTINE SpinOrbSymSetup()
             SymInvLabel(i) = i
         endif
     enddo
-#ifdef __DEBUG
+#ifdef DEBUG_
     write(6,*) "SymInvLabel: "
     do i = 0, nSymLabels - 1
         write(6,*) i, SymInvLabel(i)
@@ -3492,6 +3409,10 @@ SUBROUTINE SpinOrbSymSetup()
 !SymLabelList from SymLabelCounts(1,sym) to SymLabelCounts(1,sym)+SymLabelCounts(2,sym)-1
 
     Allocate(SymLabelList2(nBasis))
+
+    if (allocated(sym_label_list_spat)) deallocate(sym_label_list_spat)
+
+    allocate(sym_label_list_spat(nBasis))
     Allocate(SymLabelCounts2(2,ScratchSize))
     SymLabelList2(:)=0          !Indices:   spin-orbital number
     SymLabelCounts2(:,:)=0      !Indices:   index/Number , symmetry(inc. spin)
@@ -3522,6 +3443,8 @@ SUBROUTINE SpinOrbSymSetup()
         SymLabelList2(Temp(SymInd))=j
         Temp(SymInd)=Temp(SymInd)+1
     enddo
+    ! get also only the spatial orbitals
+    sym_label_list_spat = gtID(SymLabelList2)
 
 !    write(6,*) "SymLabelCounts2: ",SymLabelCounts2(1,:)
 !    write(6,*) "SymLabelCounts2: ",SymLabelCounts2(2,:)
@@ -3584,7 +3507,6 @@ SUBROUTINE SpinOrbSymSetup()
 !         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,1,2))
         ALLOCATE(kPointToBasisFn(kminX:kmaxX,kminY:kmaxY,kminz:kmaxz,2))
         kPointToBasisFn=-1 !Init to invalid
-        print *, "kminz, kmaxz: ", kminz, kmaxz
         do i=1,nBasis
             iSpinIndex=(G1(i)%Ms+1)/2+1 ! iSpinIndex equals 1 for a beta spin (ms=-1), and 2 for an alpha spin (ms=1)
             kPointToBasisFn(G1(i)%k(1),G1(i)%k(2),G1(i)%k(3),iSpinIndex)=i
@@ -3658,15 +3580,21 @@ SUBROUTINE SpinOrbSymSetup()
     ENDIF
 
     IF(tUEG.or.tHUB)THEN
-        kTotal(1)=0
-        kTotal(2)=0
-        kTotal(3)=0
+        kTotal =0
         do j=1,NEl
-            kTotal(1)=kTotal(1)+G1(FDet(j))%k(1)
-            kTotal(2)=kTotal(2)+G1(FDet(j))%k(2)
-            kTotal(3)=kTotal(3)+G1(FDet(j))%k(3)
+            if (t_k_space_hubbard) then
+                kTotal = lat%add_k_vec(kTotal, G1(FDet(j))%k)
+            else
+                kTotal = kTotal + G1(FDet(j))%k
+            end if
+            ! just to be sure..
+            ! not necessary anymore with new add_k_vec
+!             if (t_k_space_hubbard) then
+!                 ktotal = lat%map_k_vec(ktotal)
+!             end if
         enddo
-        if (tHub) then
+        if (tHub .and. .not. t_k_space_hubbard) then
+            ! is this turned off correctly?! check:
             ktrial=(/kTotal(1),kTotal(2),0/)
             CALL MomPbcSym(ktrial,nBasisMax)
             kTotal(1)=ktrial(1)

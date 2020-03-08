@@ -14,6 +14,7 @@ pipelines:
   - step:
      size: 2x
      script:
+      - git submodule update --init
       - rm -rf build
       - mkdir build
       - cd build
@@ -31,6 +32,7 @@ pipelines:
     - step:
        size: 2x
        script:
+        - git submodule update --init
         - rm -rf build
         - mkdir build
         - cd build
@@ -52,6 +54,7 @@ pipelines:
   - step:
      size: 2x
      script:
+      - git submodule update --init
       - rm -rf build
       - mkdir build
       - cd build

@@ -8,6 +8,9 @@ module rdm_estimators
     use rdm_data, only: rdm_list_t, rdm_spawn_t
     use rdm_data_utils, only: calc_separate_rdm_labels, extract_sign_rdm, calc_rdm_trace
 
+    use SystemData, only: tGUGA
+    use guga_rdm, only: calc_rdm_energy_guga
+
     implicit none
 
 contains
@@ -168,7 +171,9 @@ contains
 
         do irdm = 1, nrdms_standard
             write(write_unit, '(4x,"Energy numerator",1x,i2)', advance='no') irdm
-            write(write_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') irdm
+            if (.not. tGUGA) then
+                write(write_unit, '(4x,"Spin^2 numerator",1x,i2)', advance='no') irdm
+            end if
             if (tEN2) then
                 write(write_unit, '(7x,"EN2 numerator",1x,i2)', advance='no') irdm
                 write(write_unit, '(3x,"Var+EN2 numerator",1x,i2)', advance='no') irdm
@@ -248,7 +253,12 @@ contains
         end do
 
         ! The 1- and 2- electron operator contributions to the RDM energy.
-        call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
+        if (.not. tGUGA) then
+            call calc_rdm_energy(rdm, rdm_energy_1, rdm_energy_2)
+        else
+            call calc_rdm_energy_guga(rdm, rdm_energy_1, rdm_energy_2)
+        end if
+
         call MPISumAll(rdm_energy_1, est%energy_1_num)
         call MPISumAll(rdm_energy_2, est%energy_2_num)
         ! The *total* energy, including the core contribution.
@@ -256,8 +266,10 @@ contains
 
         ! Estimate of the expectation value of the spin squared operator
         ! (equal to S(S+1) for spin quantum number S).
-        call calc_rdm_spin(rdm, rdm_norm, rdm_spin)
-        call MPISumAll(rdm_spin, est%spin_num)
+        if (.not. tGUGA) then
+            call calc_rdm_spin(rdm, rdm_norm, rdm_spin)
+            call MPISumAll(rdm_spin, est%spin_num)
+        end if
 
         if (tCalcPropEst) then
             ! Estimate of the properties using different property integrals
@@ -710,10 +722,14 @@ contains
 
             ! If in the lower half of the RDM, reflect to the upper half and
             ! include with a minus sign.
-            if (ij > kl) then
-                call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false., nearly_full)
-            else if (ij < kl) then
+            if (tGUGA) then
                 call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
+            else
+                if (ij > kl) then
+                    call add_to_rdm_spawn_t(spawn, k, l, i, j, -rdm_sign, .false., nearly_full)
+                else if (ij < kl) then
+                    call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
+                end if
             end if
         end do
 

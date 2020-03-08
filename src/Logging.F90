@@ -8,7 +8,7 @@ MODULE Logging
     use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
                           hist_spin_dist_iter
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
-                        tPairedReplicas, tReplicaEstimates, iSampleRDMIters
+                        tPairedReplicas, tReplicaEstimates, iSampleRDMIters, tMoveGlobalDetData
     use constants, only: n_int, size_n_int, bits_n_int
     use bit_rep_data, only: NIfTot, NIfD
     use DetBitOps, only: EncodeBitDet
@@ -16,8 +16,25 @@ MODULE Logging
     use errors, only: Errordebug
     use LoggingData
     use spectral_data, only: tPrint_sl_eigenvecs
+
+! RT_M_Merge: There seems to be no conflict here, so use both
+    use real_time_data, only: n_real_time_copies, t_prepare_real_time, &
+                              cnt_real_time_copies
+
     use rdm_data, only: nrdms_transition_input, states_for_transition_rdm, tApplyLC
     use rdm_data, only: rdm_main_size_fac, rdm_spawn_size_fac, rdm_recv_size_fac
+
+    use analyse_wf_symmetry, only: t_symmetry_analysis, t_symmetry_mirror, &
+                           t_symmetry_rotation, symmetry_rotation_angle, &
+                           t_symmetry_inversion, symmertry_mirror_axis, &
+                           t_read_symmetry_states, n_symmetry_states, &
+                           t_pop_symmetry_states, symmetry_states, &
+                           symmetry_weights, symmetry_states_ilut
+
+    use guga_rdm, only: t_test_sym_fill, t_direct_exchange, t_more_sym, &
+                        t_mimic_stochastic
+
+    use cc_amplitudes, only: t_plot_cc_amplitudes
 
     IMPLICIT NONE
 
@@ -31,10 +48,15 @@ MODULE Logging
       use default_sets
       implicit none
 
+      ! real-time implementation changes:
+      n_real_time_copies = 1
+      cnt_real_time_copies = 1
+      t_prepare_real_time = .false.
+
       ! By default, the output is given by the shift cycle
       StepsPrint = 10
       tCoupleCycleOutput = .true.
-      
+
       tDipoles = .false.
       tPrintInitiators = .false.
       tDiagAllSpaceEver = .false.
@@ -164,17 +186,33 @@ MODULE Logging
       tOutputLoadDistribution = .false.
       tHDF5PopsRead = .false.
       tHDF5PopsWrite = .false.
+      tReduceHDF5Pops = .false.
+      HDF5PopsMin = 1.0_dp
+      iHDF5PopsMinEx = 4
+      tPopsProjE = .false.
+      tHDF5TruncPopsWrite = .false.
+      iHDF5TruncPopsEx = 0
+      iHDF5TruncPopsIter = 0
+      tAccumPops = .false.
+      tAccumPopsActive = .false.
+      iAccumPopsIter = 0
+      iAccumPopsMaxEx = 2
+      iAccumPopsExpireIters = 0
+      AccumPopsExpirePercent = 0.9_dp
+      iAccumPopsCounter = 0
       tWriteRefs = .false.
-
       maxInitExLvlWrite = 8
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
       tFCIMCStats2 = .true.
 #else
       tFCIMCStats2 = .false.
 #endif
-      t_hist_fvals = .true.
-      enGrid = 100
-      arGrid = 100
+      tFvalEnergyHist = .false.
+      FvalEnergyHist_EnergyBins = 100
+      FvalEnergyHist_FValBins = 10
+      tFvalPopHist = .false.
+      FvalPopHist_PopBins = 100
+      FvalPopHist_FValBins = 10
 
 ! Feb08 defaults
       IF(Feb08) THEN
@@ -210,6 +248,24 @@ MODULE Logging
         end if
         call readu(w)
         select case(w)
+
+        case ("PRINT-FREQUENCY-HISTOGRAMS")
+            ! in this case print the frequency histograms to analyze the
+            ! matrix element vs. pgen ratios
+            t_print_frq_histograms = .true.
+
+        case ("TEST-SYM-FILL")
+            t_test_sym_fill = .true.
+
+        case ("MORE-SYM")
+            t_test_sym_fill = .true.
+            t_more_sym = .true.
+
+        case ("DIRECT-EXCHANGE")
+            t_direct_exchange = .true.
+
+        case ("MIMIC-STOCHASTIC")
+            t_mimic_stochastic = .true.
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)
@@ -248,7 +304,7 @@ MODULE Logging
            ! going hand in hand
            tCoupleCycleOutput = .false.
            call geti(StepsPrint)
-           
+
         case("LOGCOMPLEXWALKERS")
             !This means that the complex walker populations are now logged.
             tLogComplexPops=.true.
@@ -383,10 +439,8 @@ MODULE Logging
                 i = i+1
             enddo
 
-         case("ACC-RATE-POINTS")
-            ! number of grid points for 2d-histogramming the acc rate used for adaptive shift
-            if(item < nitems) call readi(arGrid)
-            if(item < nitems) call readi(enGrid)
+         case("HIST-INTEGRALS")
+            tHistLMat = .true.
 
         case("ROHISTOGRAMALL")
 !This option goes with the orbital rotation routine.  If this keyword is included, all possible histograms are included.
@@ -531,7 +585,7 @@ MODULE Logging
             tHistInitPops=.true.
             call readi(HistInitPopsIter)
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         case("PAIRED-REPLICAS")
             tPairedReplicas = .true.
             nreplicas = 2
@@ -539,14 +593,14 @@ MODULE Logging
 
         case("UNPAIRED-REPLICAS")
             tUseOnlySingleReplicas = .true.
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
             tPairedReplicas = .false.
             nreplicas = 1
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             call stop_all(t_r, "The unpaired-replicas option cannot be used with the dneci.x executable.")
 #endif
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
         case("REPLICA-ESTIMATES")
             tReplicaEstimates = .true.
             tPairedReplicas = .true.
@@ -565,13 +619,13 @@ MODULE Logging
             call readi(IterRDMonFly)
             call readi(RDMEnergyIter)
 
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
             ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
                 tPairedReplicas = .true.
                 nreplicas = 2
             end if
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             tPairedReplicas = .true.
 #endif
             if (IterRDMOnFly < semistoch_shift_iter) then
@@ -596,13 +650,13 @@ MODULE Logging
             call readi(RDMEnergyIter)
 
             iSampleRDMIters = n_samples * RDMEnergyIter
-#if defined(__PROG_NUMRUNS)
+#if defined(PROG_NUMRUNS_)
           ! With this option, we want to use pairs of replicas.
             if (.not. tUseOnlySingleReplicas) then
                 tPairedReplicas = .true.
                 nreplicas = 2
             end if
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             tPairedReplicas = .true.
 #endif
             if (IterRDMOnFly < semistoch_shift_iter) then
@@ -939,6 +993,28 @@ MODULE Logging
             tHDF5PopsRead = .true.
             tHDF5PopsWrite = .true.
 
+        case("REDUCE-HDF5-POPS")
+
+            ! Avoid writing a determinant to HDF5-popsfiles when its population
+            ! is below or equal iHDF5PopsMin and its excitation is above iHDF5PopsMinEx
+            ! Default values are 1.0 and 4, respectively.
+
+            tReduceHDF5Pops = .true.
+
+            if (item < nitems) then
+                call readf(HDF5PopsMin)
+                if(HDF5PopsMin<0.0_dp) then
+                    call stop_all(t_r,'Minimum population should be greater than or equal zero')
+                end if
+            end if
+
+            if (item < nitems) then
+                call readi(iHDF5PopsMinEx)
+                if(iHDF5PopsMinEx<2) then
+                    call stop_all(t_r,'Excitation of minimum population should be greater than one')
+                end if
+            end if
+
         case("HDF5-POPS-READ")
             ! Use the new HDF5 popsfile format just for reading
             tHDF5PopsRead = .true.
@@ -946,6 +1022,84 @@ MODULE Logging
         case("HDF5-POPS-WRITE")
             ! Use the new HDF5 popsfile format just for writing
             tHDF5PopsWrite = .true.
+
+        case("POPS-PROJE")
+            ! Calculate and print the projected energy of
+            ! popsfile wavefunction - instantaneous and accumulated (if available)
+            tPopsProjE = .true.
+
+        case("HDF5-TRUNC-POPS-WRITE")
+            ! Write another HDF5 popsfile with dets restricted to a maximum
+            ! exitation level and/or minimum population
+            tHDF5TruncPopsWrite = .true.
+            call readi(iHDF5TruncPopsEx)
+            if(iHDF5TruncPopsEx<2) then
+                call stop_all(t_r,'Maximum excitation level should be greater than 1')
+            end if
+
+            ! Number of iterations for the periodic writing of truncated popsfiles.
+            ! The default value of zero indicates no periodic writing but
+            ! only once at the end.
+            if (item < nitems) then
+                call readi(iHDF5TruncPopsIter)
+
+                if(iHDF5TruncPopsEx<0) then
+                    call stop_all(t_r,'Number of iterations should be greater than or equal zero')
+                end if
+            end if
+
+
+        case("ACCUM-POPS")
+            ! Accumulate the population of determinants and write them
+            ! to the popsfile
+            tAccumPops = .true.
+            ! When to start accumulating the populations
+            call readi(iAccumPopsIter)
+
+            ! Normally, when dets become empty, they are removed from CurrentDets
+            ! and any associated info (global_det_data) is lost. Therefore,
+            ! when accumlating populations is active, (some) empty dets are kept alive.
+
+            if (item < nitems) then
+                ! This parameter represents the maximum excitation level to consider
+                ! when keeping empty dets alive.
+                ! We keep up to double excitations indefinitely anyway.
+                ! Therefore, this should be greater than or equal two.
+                ! Default value: 2
+                call readi(iAccumPopsMaxEx)
+                if(iAccumPopsMaxEx<2) then
+                    call stop_all(t_r,'iAccumPopsMaxEx should be greater than or equal two')
+                end if
+            endif
+
+            if (item < nitems) then
+                ! This parameter represents the maximum number of iterations,
+                ! empty dets are kept before being removed. The removal happens
+                ! when CurrentDets is almost full (see iAccumPopsExpirePercent).
+                ! A value of zero means keeping accumulated empty dets indefinitely.
+                ! Default value: 0
+                call readi(iAccumPopsExpireIters)
+                if(iAccumPopsExpireIters<0) then
+                    call stop_all(t_r,'iAccumPopsExpireIters should be greater than or equal zero')
+                end if
+            end if
+
+            if (item < nitems) then
+                ! This parameter represents how full CurrentDets should be before
+                ! removing accumulated empty dets according to the above criteria.
+                ! Default value: 0.9
+                call readf(AccumPopsExpirePercent)
+                if(AccumPopsExpirePercent<0.0_dp .or. AccumPopsExpirePercent>1.0) then
+                    call stop_all(t_r,'iAccumPopsExpirePercent should be between zero and one.')
+                end if
+            end if
+
+            ! Accumlated populations are stored in global det data, so we need
+            ! to preserve them when the dets change processors during load balancing
+            tMoveGlobalDetData = .true.
+
+            ! Print popsfile projected energy at the end
+            tPopsProjE = .true.
 
         case("INCREMENTPOPS")
 ! Don't overwrite existing POPSFILES.
@@ -1076,6 +1230,9 @@ MODULE Logging
             if (item < nitems) &
                 call readi (instant_s2_multiplier)
 
+        case ("PLOT-CC-AMPLITUDES")
+            t_plot_cc_amplitudes = .true.
+
         case ("INSTANT-S2-INIT")
             ! Calculate an instantaneous value ofr S^2 considering only the
             ! initiators, and output it to the relevant column in the
@@ -1106,6 +1263,10 @@ MODULE Logging
             ! Output the semi-stochastic core space to a file.
             tWriteCore = .true.
 
+        case ("PRINT-CORE-INFO")
+            ! print core info, like energy, and maybe also the gs vector
+            t_print_core_info = .true.
+
         case("WRITE-MOST-POP-CORE-END")
             ! At the end of a calculation, find the write_end_core_size most
             ! populated determinants and write them to a CORESPACE file.
@@ -1125,10 +1286,19 @@ MODULE Logging
             ! varying excitation levels from the Hartree--Fock.
             tHistExcitToFrom = .true.
 
-!         case("PRINT-FREQUENCY-HISTOGRAMS")
-!             ! option to print out the histograms used in the tau-search!
-!             ! note: but for now they are always printed by default
-!             t_print_frq_histograms = .true.
+        case("FVAL-ENERGY-HIST")
+            ! When using auto-adaptive shift, print a histogram of the shift factors over
+            ! the energy
+            tFValEnergyHist = .true.
+            if(item < nitems) call readi(FValEnergyHist_EnergyBins)
+            if(item < nitems) call readi(FValEnergyHist_FvalBins)
+
+        case("FVAL-POP-HIST")
+            ! When using auto-adaptive shift, print a histogram of the shift factors over
+            ! the population            
+            tFValPopHist = .true.
+            if(item < nitems) call readi(FValPopHist_PopBins)
+            if(item < nitems) call readi(FValPopHist_FvalBins)
 
         case("ENDLOG")
             exit logging
@@ -1159,6 +1329,12 @@ MODULE Logging
             ! there are _many_ blocks.
             tOutputLoadDistribution = .true.
 
+        case ("PRINT-UMAT")
+            ! output umat also in the momentum space hubbard to be able to
+            ! create a FCIDUMP file to compare GUGA matrix elements with
+            ! DMRG results!
+            t_umat_output = .true.
+
         case("DOUBLE-OCCUPANCY")
             ! new functionality to measure the mean double occupancy
             ! as this is a only diagonal quantitity I decided to detach it
@@ -1177,6 +1353,7 @@ MODULE Logging
                 call geti(equi_iter_double_occ)
             end if
 
+
         case ("PRINT-SPIN-RESOLVED-RDMS")
             ! for giovanni enable the output of the spin-resolved rdms not
             ! only for ROHF calculations
@@ -1192,6 +1369,123 @@ MODULE Logging
          case("WRITE-REFERENCES")
             ! Output the reference dets to a file
             tWriteRefs = .true.
+
+        case ("SPIN-MEASUREMENTS")
+            ! combine all the spatially resolved double occupancy and
+            ! spin-difference measurements into one functionality to
+            ! have a better overview
+            ! this also includes the "standard" double occupancy measurement
+            ! although leave the option to only do the old double occ meas.
+            t_calc_double_occ = .true.
+            t_calc_double_occ_av = .true.
+            t_spin_measurements = .true.
+
+            if (item < nitems) then
+                t_calc_double_occ_av = .false.
+                call geti(equi_iter_double_occ)
+            end if
+
+        case ('SYMMETRY-ANALYSIS')
+            ! investigate the symmetry of the important part of the
+            ! wavefuntion, by applying point-group symmetry operations on
+            ! a certain number of determinants and check the sign change to
+            ! the original wavefunction
+            ! if we want multiple symmetries on has to specify this keyword
+            ! multiple times with the according keywords
+            t_symmetry_analysis = .true.
+
+            if (item < nitems) then
+                call readl(w)
+
+                select case(w)
+
+                case('rot','rotation')
+                    t_symmetry_rotation = .true.
+
+                    if (item < nitems) then
+                        call getf(symmetry_rotation_angle)
+                    else
+                        symmetry_rotation_angle = 90.0_dp
+                    end if
+
+                case ('mirror')
+                    t_symmetry_mirror = .true.
+
+                    ! available mirror axes are : 'x','y','d' and 'o'
+                    if (item < nitems) then
+                        call readl(symmertry_mirror_axis)
+                    else
+                        symmertry_mirror_axis = 'x'
+                    end if
+
+                case ('inverstion')
+                    t_symmetry_inversion = .true.
+
+                case default
+                   CALL report("Logging keyword "//trim(w)//" not recognised",.true.)
+
+               end select
+           else
+               ! default is 90° rotation:
+               t_symmetry_rotation = .true.
+               symmetry_rotation_angle = 90.0_dp
+
+           end if
+
+        case ('SYMMETRY-STATES')
+            ! required input to determine which states to consider.
+            ! Two options:
+            if (item < nitems) then
+                call readl(w)
+                select case (w)
+                case('input','read')
+                    t_read_symmetry_states = .true.
+
+                    if (item < nitems) then
+                        call geti(n_symmetry_states)
+                    else
+                        call stop_all(t_r, &
+                            "symmetry-states input need number of states!")
+                    end if
+
+                    allocate(symmetry_states(nel, n_symmetry_states))
+                    symmetry_states = 0
+
+                    do line = 1, n_symmetry_states
+                        call read_line(eof)
+                        do i = 1, nel
+                            call geti(symmetry_states(i, line))
+                        end do
+                    end do
+
+                case ('pop','most-populated','pops')
+                    ! take the N most populated states
+                    t_pop_symmetry_states = .true.
+
+                    if (item < nItems) then
+                        call geti(n_symmetry_states)
+                    else
+                        call stop_all(t_r, &
+                            "symmetry-states input need number of states!")
+                    end if
+
+                    allocate(symmetry_states(nel,n_symmetry_states))
+                    symmetry_states = 0
+
+                end select
+            else
+                ! default is: take the 6 most populated ones
+                t_pop_symmetry_states = .true.
+                n_symmetry_states = 6
+                allocate(symmetry_states(nel,n_symmetry_states))
+                symmetry_states = 0
+            end if
+
+            allocate(symmetry_weights(n_symmetry_states))
+            symmetry_weights = 0.0_dp
+
+            allocate(symmetry_states_ilut(0:niftot,n_symmetry_states))
+            symmetry_states = 0_n_int
 
         case default
            CALL report("Logging keyword "//trim(w)//" not recognised",.true.)

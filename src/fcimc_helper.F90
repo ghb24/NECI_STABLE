@@ -5,21 +5,29 @@ module fcimc_helper
     use constants
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
-                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF
+                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF, &
+                          tGUGA, ref_stepvector, ref_b_vector_int, ref_occ_vector, &
+                          ref_b_vector_real, t_3_body_excits, t_non_hermitian, &
+                          t_ueg_3_body, t_mol_3_body
+
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
-    use semi_stoch_procs, only: recalc_core_hamil_diag
-    use bit_reps, only: NIfTot, flag_initiator, test_flag, extract_flags, &
+
+    use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
+
+    use bit_reps, only: NIfTot, test_flag, extract_flags, &
                         encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
                         get_initiator_flag, get_initiator_flag_by_run, &
+                        log_spawn, increase_spawn_counter, encode_spawn_hdiag, &
+                        extract_spawn_hdiag, flag_static_init, flag_determ_parent, &
+                        all_runs_are_initiator
 
-                        log_spawn, increase_spawn_counter, all_runs_are_initiator, &
-                        encode_spawn_hdiag, extract_spawn_hdiag, flag_static_init
     use DetBitOps, only: FindBitExcitLevel, FindSpatialBitExcitLevel, &
                          DetBitEQ, count_open_orbs, EncodeBitDet, &
-                         TestClosedShellDet
+                         TestClosedShellDet, tAccumEmptyDet
+
     use Determinants, only: get_helement, write_det
     use FciMCData
     use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
@@ -32,29 +40,35 @@ module fcimc_helper
                            nHistEquilSteps, tCalcFCIMCPsi, StartPrintOrbOcc, &
                            HistInitPopsIter, tHistInitPops, iterRDMOnFly, &
                            FciMCDebug, tLogEXLEVELStats, maxInitExLvlWrite, &
-                           initsPerExLvl
+                           initsPerExLvl, tAccumPopsActive
+
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
                         InitiatorWalkNo, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
                         MaxWalkerBloom, tEN2, tEN2Started, &
-                        NMCyc, iSampleRDMIters, ErrThresh, tSTDInits, &
+                        NMCyc, iSampleRDMIters, ErrThresh, &
                         tOrthogonaliseReplicas, tPairedReplicas, t_back_spawn, &
-                        t_back_spawn_flex, tau, DiagSft, &
+                        t_back_spawn_flex, &
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, &
-                        tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2,&
+                        t_trunc_nopen_diff, trunc_nopen_diff, t_guga_mat_eles,&
+                        tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, &
                         tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
-                        tPrecond, &
-                        tReplicaEstimates, tInitiatorSpace, tPureInitiatorSpace, tSimpleInit, &
-                        allowedSpawnSign
+                        tSimpleInit, &
+                        tPureInitiatorSpace, tPreCond, tReplicaEstimates, &
+                        tInitiatorSpace, allowedSpawnSign
+
     use adi_data, only: tSignedRepAv
+
     use IntegralsData, only: tPartFreezeVirt, tPartFreezeCore, NElVirtFrozen, &
                              nPartFrozen, nVirtPartFrozen, nHolesFrozen
+
     use procedure_pointers, only: attempt_die, extract_bit_rep_avsign, &
          scaleFunction
+
     use DetCalcData, only: FCIDetIndex, ICILevel, det
     use hash, only: remove_hash_table_entry, add_hash_table_entry, hash_table_lookup
     use load_balance_calcnodes, only: DetermineDetNode, tLoadBalanceBlocks
@@ -71,10 +85,20 @@ module fcimc_helper
                                get_spawn_pop, get_tau_int, get_shift_int, &
                                get_neg_spawns, get_pos_spawns
     use searching, only: BinSearchParts2
+
+    use guga_procedure_pointers, only: calc_off_diag_guga_ref
+    use guga_excitations, only: create_projE_list
+    use guga_matrixElements, only: calc_off_diag_guga_ref_list
+    use guga_bitrepops, only: write_det_guga, calc_csf_info
+
+    use real_time_data, only: t_complex_ints, runge_kutta_step, tVerletSweep,&
+        t_rotated_time, t_real_time_fciqmc
+
     use back_spawn, only: setup_virtual_mask
-    use initiator_space_procs, only: is_in_initiator_space
+
     use fortran_strings, only: str
 
+    use initiator_space_procs, only: is_in_initiator_space
 
     implicit none
 
@@ -143,44 +167,16 @@ contains
         !Ensure no cross spawning between runs - run of child same as run of
         !parent
         run = part_type_to_run(part_type)
-#ifdef __DEBUG
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
-#endif
 
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
         proc = DetermineDetNode(nel,nJ,0)    ! (0 -> nNodes-1)
 
-        ! Check that the position described by ValidSpawnedList is acceptable.
-        ! If we have filled up the memory that would be acceptable, then
-        ! kill the calculation hard (i.e. stop_all) with a descriptive
-        ! error message.
-        list_full = .false.
-        if (proc == nNodes - 1) then
-            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
-        else
-            if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
-                list_full=.true.
-        end if
-
-        if (list_full) then
-#ifdef __DEBUG
-            write(6,*) "Attempting to spawn particle onto processor: ", proc
-            write(6,*) "No memory slots available for this spawn."
-            write(6,*) "Please increase MEMORYFACSPAWN"
-#else
-            write(iout,*) "Attempting to spawn particle onto processor: ", proc
-            write(iout,*) "No memory slots available for this spawn."
-            write(iout,*) "Please increase MEMORYFACSPAWN"
-#endif
-            ! give a note on the counter-intuitive scaling behaviour
-            if(MaxSpawned / nProcessors < 0.1_dp * TotWalkers) write(iout,*) &
-                 "Memory available for spawns is too low, number of processes might be too high for the given walker number"
-            ! return with error
-            err = 1
-            return
-        end if
-
+        if(checkValidSpawnedList(proc)) then
+           err = 1
+           return
+        endif
         !We initially encode no flags
         call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), iLutJ, &
                             child, flags)
@@ -242,7 +238,6 @@ contains
         end if
 
         ! store global data - number of spawns
-
         ! Is using the pure initiator space option, then if this spawning
         ! occurs to within the defined initiator space (regardless of
         ! whether or not it is occupied already), then it should never be
@@ -255,8 +250,6 @@ contains
                 end if
             end if
         end if
-
-
         if(tLogNumSpawns) call log_spawn(SpawnedParts(:,ValidSpawnedList(proc) ) )
 
         if (tFillingStochRDMonFly) then
@@ -280,13 +273,15 @@ contains
         ! Sum the number of created children to use in acceptance ratio.
         ! Note that if child is an array, it should only have one non-zero
         ! element which has changed.
+        ! rmneci_setup: clarified dependence of run on part_type
         run = part_type_to_run(part_type)
         acceptances(run) = acceptances(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
 
     end subroutine create_particle
 
 
-    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, part_type, ilut_parent, iter_data, err)
+    subroutine create_particle_with_hash_table (nI_child, ilut_child, child_sign, &
+            part_type, ilut_parent, iter_data, err)
         use hash, only: hash_table_lookup, add_hash_table_entry
         integer, intent(in) :: nI_child(nel), part_type
         integer(n_int), intent(in) :: ilut_child(0:NIfTot), ilut_parent(0:NIfTot)
@@ -294,25 +289,29 @@ contains
         type(fcimc_iter_data), intent(inout) :: iter_data
         integer, intent(out) :: err
 
-        integer :: proc, ind, hash_val, i, run
+        integer :: proc, ind, hash_val_cd, hash_val, i, run
         integer(n_int) :: int_sign(lenof_sign)
         real(dp) :: real_sign_old(lenof_sign), real_sign_new(lenof_sign)
         real(dp) :: sgn_prod(lenof_sign)
-        logical :: list_full, tSuccess
+        logical :: list_full, tSuccess, allowed_child
         integer :: global_position
         integer, parameter :: flags = 0
         character(*), parameter :: this_routine = 'create_particle_with_hash_table'
 
+        !Only one element of child should be non-zero except for real-time evolution
+        if(.not. (t_rotated_time .or. tVerletSweep)) then
+           ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
+        endif
+
         err = 0
         ! Only one element of child should be non-zero
-        ASSERT((sum(abs(child_sign))-maxval(abs(child_sign)))<1.0e-12_dp)
-
         if (tSimpleInit) then
             call stop_all(this_routine, "Cannot use a hash table to the spawned list when using the &
                                         &simple-initiator option.")
         end if
 
-        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
+        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
+            SpawnedParts, ind, hash_val, tSuccess)
 
         if (tSuccess) then
             ! If the spawned child is already in the spawning array.
@@ -322,19 +321,46 @@ contains
             ! If the new child has an opposite sign to that of walkers already
             ! on the site, then annihilation occurs. The stats for this need
             ! accumulating.
-            if (.not. tPrecond) then
-                sgn_prod = real_sign_old * child_sign
-                do i = 1, lenof_sign
-                    if (sgn_prod(i) < 0.0_dp) then
-                        iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
-                    end if
-                end do
-            end if
+            ! in the second real-time spawn loop, i can spawn also to
+            ! determinants, which are actually diagonal particles
+            ! hence i have to update the diag_spawn flag if i annihilate all
+            ! particles eg. and maybe also update the ndied and nborn
+            ! quantities, as this then is not done in the Annihilation if
+            ! no info about the diagonal particles remain ...
+
+            ! but to know if its a death or a cloning event i have to know
+            ! the original sign in the stored y(n) array... but i dont
+            ! wanna do a lookup in this original list..
+            ! hm: an idea, maybe in the end create a new SpawnedPartsDiag
+            ! array to store the "spawning" from the diagonal step which
+            ! where annhilations in the DirectAnnihilation routine gets
+            ! treated as deaths/births.. -> yes! thats a good idea!
+            ! also there i would be sure to not find the determinants if
+            ! i loop over them, since it essentially is only a copy of the
+            ! worked on y(n) + k1/2 list
+            ! and it would be nicer to seperate those 2 steps as they are
+            ! essentially smth different...
+
+            ! UPDATE! decided to store the diagonal particles in the 2nd
+            ! RK loop in a seperate DiagParts array -> so no need to
+            ! distinguish here, as only "proper" spawns are treated here!
+            if(.not. tPrecond) then
+               sgn_prod = real_sign_old * child_sign
+               do i = 1, lenof_sign
+                  if (sgn_prod(i) < 0.0_dp) then
+                     iter_data%nannihil(i) = iter_data%nannihil(i) + 2*min( abs(real_sign_old(i)), abs(child_sign(i)) )
+                  end if
+               end do
+            endif
 
             ! Find the total new sign.
             real_sign_new = real_sign_old + child_sign
             ! Encode the new sign.
             call encode_sign(SpawnedParts(:,ind), real_sign_new)
+
+            ! this is not correctly considered for the real-time or complex
+            ! code .. probably nobody thought about using this in the __cmplx
+            ! implementation..
 
             ! Set the initiator flags appropriately.
             ! If this determinant (on this replica) has already been spawned to
@@ -344,17 +370,19 @@ contains
             ! coherent spawning rule off, mainly for testing purposes).
             if (tTruncInitiator) then
                 if (tInitCoherentRule) then
-                    if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                    if (abs(real_sign_old(part_type)) > 1.e-12_dp .or. &
+                        test_flag(ilut_parent, get_initiator_flag(part_type))) then
                         call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
+                    end if
                 else
-                    if (test_flag(ilut_parent, get_initiator_flag(part_type))) &
+                    if (test_flag(ilut_parent, get_initiator_flag(part_type))) then
                         call set_flag(SpawnedParts(:,ind), get_initiator_flag(part_type))
+                    endif
                 end if
             end if
 
-
-            ! log the spawn
-            global_position = ind
+           ! log the spawn
+           global_position = ind
         else
             ! Determine which processor the particle should end up on in the
             ! DirectAnnihilation algorithm.
@@ -364,54 +392,103 @@ contains
             ! If we have filled up the memory that would be acceptable, then
             ! kill the calculation hard (i.e. stop_all) with a descriptive
             ! error message.
-            list_full = .false.
-            if (proc == nNodes - 1) then
-                if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
-            else
-                if (ValidSpawnedList(proc) > InitialSpawnedSlots(proc+1)) &
-                    list_full=.true.
-            end if
-
-            if (list_full) then
-#ifdef __DEBUG
-                write(6,*) "Attempting to spawn particle onto processor: ", proc
-                write(6,*) "No memory slots available for this spawn."
-                write(6,*) "Please increase MEMORYFACSPAWN"
-#else
-                write(iout,*) "Attempting to spawn particle onto processor: ", proc
-                write(iout,*) "No memory slots available for this spawn."
-                write(iout,*) "Please increase MEMORYFACSPAWN"
-#endif
-                err = 1
-                return
-            end if
+            if(checkValidSpawnedList(proc)) then
+               err = 1
+               return
+            endif
 
             call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
-            ! If the parent was an initiator then set the initiator flag for the
-            ! child, to allow it to survive.
-            if (tTruncInitiator) then
-               if (test_flag(ilut_parent, get_initiator_flag(part_type))) &
-                    call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type))
-             end if
 
-             ! where to store the global data
-             global_position = ValidSpawnedList(proc)
+           ! If the parent was an initiator then set the initiator flag for the
+           ! child, to allow it to survive.
 
-            call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
+            if(t_real_time_fciqmc) then
+                ! for real-time  purpose: if the spawn is already populated, also
+                ! set the initiator flag to prevent abort due to the RK reset
+                if(tTruncInitiator .and. runge_kutta_step == 2) then
+                    ! check whether the target is already in CurrentDets
+                    call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
+                        CurrentDets, ind, hash_val_cd, tSuccess)
+                    if(tSuccess) then
+                        call extract_sign(CurrentDets(:,ind), sgn_prod)
+                        ! check whether the target is populated in this run
+                        if(.not. is_run_unnocc(sgn_prod,part_type_to_run(part_type))) then
+                            call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                                get_initiator_flag(part_type))
+                        endif
+                    endif
+                endif
+            endif
 
-            ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
+           if (tTruncInitiator) then
+               if (test_flag(ilut_parent, get_initiator_flag(part_type))) then
+                   call set_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                   get_initiator_flag(part_type))
+               end if
+           end if
+
+           ! where to store the global data
+           global_position = ValidSpawnedList(proc)
+
+           call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
+           ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
         end if
 
         ! store global data
         if(tLogNumSpawns) call increase_spawn_counter(SpawnedParts(:,global_position))
 
         ! Sum the number of created children to use in acceptance ratio.
-        ! Note that if child is an array, it should only have one non-zero
-        ! element which has changed.
-        acceptances(part_type_to_run(part_type)) = &
-            acceptances(part_type_to_run(part_type)) + maxval(abs(child_sign))
+        ! in the rt-fciqmc i have to track the stats of the 2 RK steps
+        ! seperately
+        ! RT_M_Merge: Merge
+        ! rmneci_setup: introduced multirun support, fixed issue in non
+        ! real-time scheme
+        run = part_type_to_run(part_type)
 
-    end subroutine create_particle_with_hash_table
+        if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+            acceptances(run) = &
+                acceptances(run) + maxval(abs(child_sign))
+        endif
+
+      end subroutine create_particle_with_hash_table
+
+    function checkValidSpawnedList(proc) result(list_full)
+        ! Check that the position described by ValidSpawnedList is acceptable.
+        ! If we have filled up the memory that would be acceptable, then
+        ! end the calculation, i.e. throw an error
+        implicit none
+        logical :: list_full
+        integer, intent(in) :: proc
+        list_full = .false.
+        if (proc == nNodes - 1) then
+            if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
+        else
+            if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
+                list_full=.true.
+        end if
+        if (list_full) then
+#ifdef DEBUG_
+            write(6,*) "Attempting to spawn particle onto processor: ", proc
+            write(6,*) "No memory slots available for this spawn."
+            write(6,*) "Please increase MEMORYFACSPAWN"
+            write(6,*) ValidSpawnedList
+            write(6,*) InitialSpawnedSlots
+            if(MaxSpawned / nProcessors < 0.1_dp * TotWalkers) write(6,*) &
+                "Memory available for spawns is too low, number of processes might be too high for the given walker number"
+#else
+            print *, "Attempting to spawn particle onto processor: ", proc
+            print *, "No memory slots available for this spawn, terminating calculation"
+            print *, "Please increase MEMORYFACSPAWN"
+            print *, ValidSpawnedList
+            print *, InitialSpawnedSlots
+
+            ! give a note on the counter-intuitive scaling behaviour
+            if(MaxSpawned / nProcessors < 0.1_dp * TotWalkers) print *, &
+                "Memory available for spawns is too low, number of processes might be too high for the given walker number"
+#endif
+        end if
+
+    end function checkValidSpawnedList
 
     ! This routine sums in the energy contribution from a given walker and
     ! updates stats such as mean excit level AJWT added optional argument
@@ -433,11 +510,11 @@ contains
         integer, intent(in), optional :: ind
 
         integer :: i, ExcitLevel_local, ExcitLevelSpinCoup
-        integer :: run
-        HElement_t(dp) :: HOffDiag(inum_runs)
+        integer :: run, tmp_exlevel
+        HElement_t(dp) :: HOffDiag(inum_runs), tmp_off_diag(inum_runs), tmp_diff(inum_runs)
         character(*), parameter :: this_routine = 'SumEContrib'
 
-#ifdef __CMPLX
+#ifdef CMPLX_
         complex(dp) :: CmplxwSign
 #endif
 
@@ -453,7 +530,7 @@ contains
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
-#ifdef __CMPLX
+#ifdef CMPLX_
         CmplxwSign = ARR_RE_OR_CPLX(realwsign, 1)
 
         if (tTrialWavefunction .and. present(ind)) then
@@ -564,15 +641,58 @@ contains
                 ExcitLevel_local = 2
         endif
 
+        ! this is the first important change to make the triples run!!
+        ! consider the matrix elements of triples!
+
         ! Perform normal projection onto reference determinant
+        if (tGUGA) then
+            ! for guga csfs its quite hard to determine the excitation to a
+            ! reference determinant, due to the many possibilities
+            ! of stepvector differences -> just brute force search in the
+            ! reference_list all the time for non-zero excitLvl..
+            ! since atleast excitLvl = 0 gets determined correctly
+            if (ExcitLevel_local == 0) then
+                if (iter > NEquilSteps) &
+                    SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+                ! Number at HF * sign over course of update cycle
+                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+            else
+                ! also the NoAtDoubs is probably not correct in guga for now
+                ! so jsut ignore it
+                ! only calc. it to the reference det here
+                ! why is only the overlap to the first replica considered??
+                ! that does not make so much sense or... ?
+                HOffDiag(1:inum_runs) = &
+                    calc_off_diag_guga_ref(ilut, exlevel = ExcitLevel_local)
+
+                ! check if my guga-matrix element calculator works all the
+                ! time.. but i guess it does.. since the energy is the same
+                ! for two runs with and without the key-word on..
+                if (ExcitLevel_local == 2) then
+                    do run = 1, inum_runs
+                        NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
+                    end do
+                end if
+
+            end if
+        else
+
         if (ExcitLevel_local == 0) then
 
-            if (iter > NEquilSteps) &
-                SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
-            NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
-            ! Number at HF * sign over course of update cycle
-            HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
-            HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
+
+            ! for the real-time i have to distinguish between the first and
+            ! second RK step, if i want to keep track of the statistics
+            ! seperately: in the first loop i analyze the the wavefunction
+            ! from on step behind.. so store it in the "normal" noathf var
+
+            if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+                HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
+                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+                if (iter > NEquilSteps) &
+                    SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+            endif
 
         elseif (ExcitLevel_local == 2 .or. &
                 (ExcitLevel_local == 1 .and. tNoBrillouin)) then
@@ -585,34 +705,44 @@ contains
             ! and energy contributions from walkers on singly excited
             ! determinants must also be included in the energy values
             ! along with the doubles
+            ! RT_M_Merge: Adjusted to kmneci
+            ! rmneci_setup: Added multirun functionality for real-time
 
             if (ExcitLevel_local == 2) then
-#ifdef __CMPLX
-            do run = 1, inum_runs
-                NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign(min_part_type(run):max_part_type(run))))
-            enddo
-#else
                 do run = 1, inum_runs
-                    NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
-                end do
+                    if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+#if defined(CMPLX_)
+                        NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign &
+                            (min_part_type(run):max_part_type(run))))
+#else
+                        NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
 #endif
+                    endif
+                enddo
             end if
-
             ! Obtain off-diagonal element
             if (tHPHF) then
                 HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
                                                                 iLutRef(:,1), ilut)
+
             else
                 HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
                                                       ExcitLevel, ilutRef(:,1), ilut)
             endif
 
+        else if (ExcitLevel_local == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
+            ! the new 3-body terms in the transcorrelated momentum space hubbard
+            ! hphf not yet implemented!
+            ASSERT(.not. tHPHF)
+            HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut)
+
         endif ! ExcitLevel_local == 1, 2, 3
+        endif ! GUGA
 
         ! L_{0,1,2} norms of walker weights by excitation level.
         if (tLogEXLEVELStats) then
             do run = 1, inum_runs
-#ifdef __CMPLX
+#ifdef CMPLX_
                 w(0) = real(1 + max_part_type(run) - min_part_type(run), dp)
                 w(1) = sum(abs(RealwSign(min_part_type(run):&
                                          max_part_type(run))))
@@ -628,9 +758,14 @@ contains
             enddo ! run
         endif ! tLogEXLEVELStats
 
+        ! if in the real-time fciqmc: when we are in the 2nd loop
+        ! return here since, the energy got already calculated in the
+        ! first RK step, and doing it on the intermediate step would
+        ! be meaningless
+
         ! Sum in energy contribution
         do run=1, inum_runs
-           
+
            if (iter > NEquilSteps) &
                 SumENum(run) = SumENum(run) + enum_contrib()
 
@@ -687,7 +822,7 @@ contains
 
            dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
          end function enum_contrib
-        
+
     end subroutine SumEContrib
 
 
@@ -734,9 +869,9 @@ contains
                     trial_denom = trial_denom + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
-#ifdef __CMPLX
+#ifdef CMPLX_
                             trial_denom(run-1) = trial_denom(run-1) + current_trial_amps(run/2,ind)* &
                                 cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run/2,ind)* &
@@ -749,7 +884,7 @@ contains
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
-#ifdef __CMPLX
+#ifdef CMPLX_
                         do run=1,inum_runs
                             trial_denom(run) = trial_denom(run) + current_trial_amps(run,ind)* &
                                 cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
@@ -767,7 +902,7 @@ contains
                         trial_numerator = trial_numerator + amps(1)*sgn
                     else
                         if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                             do run = 2, inum_runs, 2
                                 trial_numerator(run-1:run) = trial_numerator(run-1:run) + amps(run/2)*sgn(run-1:run)
                             end do
@@ -787,9 +922,9 @@ contains
                     trial_numerator = trial_numerator + current_trial_amps(1,ind)*sgn
                 else
                     if (tPairedReplicas) then
-#if defined(__PROG_NUMRUNS) || defined(__DOUBLERUN)
+#if defined(PROG_NUMRUNS_) || defined(DOUBLERUN_)
                         do run = 2, inum_runs, 2
-#ifdef __CMPLX
+#ifdef CMPLX_
                             trial_numerator(run-1) = trial_numerator(run-1) + current_trial_amps(run/2,ind)* &
                                 cmplx(sgn(min_part_type(run-1)),sgn(max_part_type(run-1)),dp)
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run/2,ind)* &
@@ -802,7 +937,7 @@ contains
                         call stop_all(this_routine, "INVALID")
 #endif
                     else
-#ifdef __CMPLX
+#ifdef CMPLX_
                         do run=1,inum_runs
                             trial_numerator(run) = trial_numerator(run) + current_trial_amps(run,ind)* &
                                 cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
@@ -821,7 +956,7 @@ contains
         do run = 1, inum_runs
 
             ! We need to use the excitation level relevant for this run
-            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run))
+            exlevel = FindBitExcitLevel(ilut, ilutRef(:, run), t_hphf_ic = .true.)
             if (tSpinCoupProjE(run) .and. exlevel /= 0) then
                 if (exlevel <= 2) then
                     exlevel = 2
@@ -829,13 +964,14 @@ contains
                     exlevel = 2
                 end if
             end if
-#ifdef __CMPLX
+#ifdef CMPLX_
             sgn_run = cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
 #else
             sgn_run = sgn(run)
 #endif
 
             hoffdiag = 0.0_dp
+
             if (exlevel == 0) then
 
                if (iter > nEquilSteps) then
@@ -847,23 +983,30 @@ contains
 
             else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
 
-                ! n.b. Brillouins theorem cannot hold for real-space Hubbard
-                ! model or for rotated orbitals.
-
                 if (exlevel == 2) then
                     NoatDoubs(run) = NoatDoubs(run) + mag_of_run(sgn, run)
                 endif
+
 
                 ! Obtain the off-diagonal elements
                 if (tHPHF) then
                     hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
                                                       iLutRef(:,run), ilut)
+                else if (tGUGA) then
+                    hoffdiag = calc_off_diag_guga_ref(ilut, run, exlevel)
+
                 else
                     hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
                                              ilutRef(:,run), ilut)
                 endif
 
+            else if (exlevel == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body) ) then
+                ASSERT(.not. tHPHF)
+                hoffdiag = get_helement(ProjEDet(:,run), nI, exlevel, &
+                    iLutRef(:,run), ilut)
+
             end if
+
 
             ! Sum in energy contributions
             if (iter > nEquilSteps) &
@@ -879,8 +1022,8 @@ contains
         subroutine add_sign_on_run(var)
           implicit none
           real(dp), intent(inout) :: var(lenof_sign)
-          
-#ifdef __CMPLX
+
+#ifdef CMPLX_
           var(min_part_type(run)) = var(min_part_type(run)) + real(sgn_run)
           var(max_part_type(run)) = var(max_part_type(run)) + aimag(sgn_run)
 #else
@@ -894,7 +1037,7 @@ contains
 
           dE = (hoffdiag * sgn_run) / dProbFin
         end function enum_contrib
-        
+
     end subroutine SumEContrib_different_refs
 
     subroutine CalcParentFlag_normal(j, parent_flags)
@@ -906,7 +1049,7 @@ contains
       ! If we do not supply nI externally, get it now.
       ! This routine mainly exists for compatibility
       call decode_bit_det(nI, CurrentDets(:,j))
-      exLvl = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,j))
+      exLvl = FindBitExcitLevel(ilutRef(:,1), CurrentDets(:,j), t_hphf_ic = .true.)
       call CalcParentFlag_det(j, nI, exLvl, parent_flags)
     end subroutine CalcParentFlag_normal
 
@@ -998,7 +1141,7 @@ contains
         real(dp) :: sgn(lenof_sign)
         logical :: initiator
 
-        exLvl = FindBitExcitLevel(ilut, ilutRef(:,run))
+        exLvl = FindBitExcitLevel(ilut, ilutRef(:,run),t_hphf_ic = .true.)
         call decode_bit_det(nI,ilut)
         call extract_sign(ilut, sgn)
 
@@ -1155,8 +1298,6 @@ contains
         else
            scaledInitiatorWalkNo = InitiatorWalkNo
         endif
-
-
         ! option to use the average population instead of the local one
         ! for purpose of initiator threshold
         if(tGlobalInitFlag) then
@@ -1245,6 +1386,7 @@ contains
         iter_data%nannihil = 0.0_dp
         iter_data%naborted = 0.0_dp
         iter_data%nremoved = 0.0_dp
+
 
         call InitHistMin()
 
@@ -1388,13 +1530,13 @@ contains
          subroutine add_part_number(var)
            real(dp), intent(inout) :: var(inum_runs)
 
-#ifdef __CMPLX
+#ifdef CMPLX_
            do run = 1, inum_runs
               var(run) = var(run) + sum(TotParts(min_part_type(run):max_part_type(run)))
            enddo
 #else
            var = var + TotParts
-#endif           
+#endif
          end subroutine add_part_number
 
     end subroutine end_iter_stats
@@ -1576,6 +1718,9 @@ contains
 
         integer :: NoInFrozenCore, MinVirt, ExcitLevel, i
         integer :: k(3)
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "CheckAllowedTruncSpawn"
+#endif
 
         bAllowed = .true.
 
@@ -1585,9 +1730,15 @@ contains
             ! disallowed if double. If higher, then all excits could
             ! be disallowed. If HPHF, excit could be single or double,
             ! and IC not returned --> Always test.
-            if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
+            ! for 3-body excits we want to make this test more stringent
+            if (t_3_body_excits) then
+                ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel, .true.)
+
+                if (ExcitLevel > ICILevel) bAllowed = .false.
+
+            else if (tHPHF .or. WalkExcitLevel >= ICILevel .or. &
                 (WalkExcitLevel == (ICILevel-1) .and. IC == 2)) then
-                ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel)
+                ExcitLevel = FindBitExcitLevel (iLutHF, ilutnJ, ICILevel, .true.)
                 if (ExcitLevel > ICILevel) &
                     bAllowed = .false.
             endif
@@ -1598,6 +1749,13 @@ contains
             if (count_open_orbs(ilutnJ) > trunc_nopen_max) &
                 bAllowed = .false.
         endif
+
+        if (t_trunc_nopen_diff .and. bAllowed) then
+            ! for now only implement it for single runs!
+            if (abs(count_open_orbs(ilutnJ) - count_open_orbs(ilutRef(:,1))) > trunc_nopen_diff) then
+                bAllowed = .false.
+            end if
+        end if
 
 
         ! If the FCI space is restricted by a predetermined CAS space
@@ -1661,7 +1819,7 @@ contains
         endif
 
 
-    end function CheckAllowedTruncSpawn
+      end function CheckAllowedTruncSpawn
 
 !Routine which takes a set of determinants and returns the ground state energy
     subroutine LanczosFindGroundE(Dets,DetLen,GroundE,ProjGroundE,tInit)
@@ -1789,6 +1947,10 @@ contains
             CALL LogMemAlloc('V2',DetLen*NEVAL,8,t_r,V2Tag,ierr)
             V2=0.0_dp
     !C..Lanczos iterative diagonalising routine
+            if (t_non_hermitian) then
+                call stop_all(t_r, &
+                    "NECI_FRSBLKH not adapted for non-hermitian Hamiltonians!")
+            end if
             CALL NECI_FRSBLKH(DetLen,ICMAX,NEVAL,HAMIL,LAB,CK,CKN,NKRY,NKRY1,NBLOCK,NROW,LSCR,LISCR,A_Arr,W,V,AM,BM,T,WT, &
              &  SCR,ISCR,INDEX,NCYCLE,B2L,.true.,.false.,.false.,.false.)
 
@@ -1821,6 +1983,10 @@ contains
             nBlockStarts(1) = 1
             nBlockStarts(2) = DetLen+1
             nBlocks = 1
+            if (t_non_hermitian) then
+                call stop_all(t_r, &
+                    "HDIAG_neci is not set up for non-hermitian Hamiltonians!")
+            end if
             call HDIAG_neci(DetLen,Hamil,Lab,nRow,CK,W,Work2,Work,nBlockStarts,nBlocks)
             GroundE = W(1)
             deallocate(Work)
@@ -1833,6 +1999,9 @@ contains
         do i=1,DetLen
             ExcitLev = iGetExcitLevel(HFDet,Dets(:,i),NEl)
             if((ExcitLev.eq.1).or.(ExcitLev.eq.2)) then
+                if (tGUGA) then
+                    call stop_all(t_r, "modify for GUGA!")
+                end if
                 HDiagTemp = get_helement(HFDet,Dets(:,i),ExcitLev)
                 Num = Num + (HDiagTemp * CK(i,1))
                 nDoubles = nDoubles + 1
@@ -2142,7 +2311,8 @@ contains
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
                              DetPosition, walkExcitLevel)
 
-        use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot
+        use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot, &
+                                   set_iter_occ_tot, set_av_sgn_tot
         use global_det_data, only: len_av_sgn_tot, len_iter_occ_tot
         use rdm_data, only: one_rdms, two_rdm_spawn, rdm_definitions, &
                     inits_one_rdms, two_rdm_inits_spawn
@@ -2178,7 +2348,7 @@ contains
 
         ! Update death counter
         iter_data%ndied = iter_data%ndied + min(iDie, abs(RealwSign))
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             NoDied(run) = NoDied(run) &
                 + sum(min(iDie(min_part_type(run):max_part_type(run)), abs(RealwSign(min_part_type(run):max_part_type(run)) )))
@@ -2189,7 +2359,7 @@ contains
 
         ! Count any antiparticles
         iter_data%nborn = iter_data%nborn + max(iDie - abs(RealwSign), 0.0_dp)
-#ifdef __CMPLX
+#ifdef CMPLX_
         do run = 1, inum_runs
             NoBorn(run) = NoBorn(run) &
                 + sum(max(iDie(min_part_type(run):max_part_type(run)) &
@@ -2206,7 +2376,7 @@ contains
         if (tTruncInitiator .and. any(abs(CopySign) > 1.0e-12_dp)) then
             do i = 1, lenof_sign
                 if (CopySign(i) > 0.0_dp .neqv. RealwSign(i) > 0.0_dp) then
-                    NoAborted = NoAborted + abs(CopySign(i))
+                    NoAborted(i) = NoAborted(i) + abs(CopySign(i))
                     iter_data%naborted(i) = iter_data%naborted(i) &
                                           + abs(CopySign(i))
                     if (test_flag(ilutCurr, get_initiator_flag(i))) &
@@ -2222,6 +2392,7 @@ contains
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
             call encode_sign (CurrentDets(:, DetPosition), CopySign)
+
         else
             ! All walkers died.
             if (tFillingStochRDMonFly) then
@@ -2235,7 +2406,10 @@ contains
                 ! that the same contribution will not be added in in
                 ! CalcHashTableStats, if this determinant is not overwritten
                 ! before then
-                global_determinant_data(:, DetPosition) = 0.0_dp
+                av_sign = 0.0_dp
+                iter_occ = 0.0_dp
+                call set_av_sgn_tot (DetPosition, av_sign)
+                call set_iter_occ_tot (DetPosition, iter_occ)
             end if
 
             if (tTruncInitiator) then
@@ -2248,7 +2422,7 @@ contains
             end if
 
             ! Remove the determinant from the indexing list
-            call RemoveHashDet(HashIndex, DetCurr, DetPosition)
+            if(.not. tAccumEmptyDet(CurrentDets(:,DetPosition))) call RemoveHashDet(HashIndex, DetCurr, DetPosition)
             ! Encode a null det to be picked up
             call encode_sign(CurrentDets(:,DetPosition), null_part)
         end if
@@ -2289,6 +2463,7 @@ contains
             ! We have reached the iteration where we want to start filling the RDM.
             if (tExplicitAllRDM) then
                 ! Explicitly calculating all connections - expensive...
+                ! TODO: why are explicit RDMs not working with replicas?
                 if (tPairedReplicas) call stop_all('check_start_rdm',"Cannot yet do replica RDM sampling with explicit RDMs. &
                     & e.g Hacky bit in Gen_Hist_ExcDjs to make it compile.")
 
@@ -2324,11 +2499,12 @@ contains
     end subroutine check_start_rdm
 
     subroutine update_run_reference(ilut, run)
-      use adi_references, only: update_first_reference
+        use adi_references, only: update_first_reference
         ! Update the reference used for a particular run to the one specified.
         ! Update the HPHF flipped arrays, and adjust the stored diagonal
         ! energies to account for the change if necessary.
-
+        use SystemData, only: BasisFn, nBasisMax
+        use sym_mod, only: writesym, getsym
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: run
         character(*), parameter :: this_routine = 'update_run_reference'
@@ -2337,6 +2513,7 @@ contains
         real(dp) :: old_hii
         integer :: i, det(nel)
         logical :: tSwapped
+        Type(BasisFn) :: isym
 
         iLutRef(:, run) = 0_n_int
         iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
@@ -2345,6 +2522,25 @@ contains
               &energy reference determinant for run', run, &
               ' on the next update cycle to: '
         call write_det (iout, ProjEDet(:, run), .true.)
+        call GetSym(ProjEDet(:,run),nEl,G1,nBasisMax,isym)
+        write(6,"(A)",advance='no') " Symmetry: "
+        call writeSym(6,isym%sym,.true.)
+
+        ! if in guga run, i also need to recreate the list of connected
+        ! determinnant to the new reference det
+        if (tGUGA) then
+
+            ! also recreate the stepvector, etc. info stuff for the new
+            ! reference determinant
+            ASSERT(allocated(ref_stepvector))
+            call calc_csf_info(ilutRef, ref_stepvector, ref_b_vector_int, &
+                ref_occ_vector)
+
+            ref_b_vector_real = real(ref_b_vector_int,dp)
+
+            if (.not. t_guga_mat_eles)  call create_projE_list(run)
+
+        end if
 
         if(tHPHF) then
             if(.not.Allocated(RefDetFlip)) then
@@ -2461,45 +2657,136 @@ contains
 
       end subroutine update_run_reference
 
-    subroutine calc_inst_proje()
+    subroutine calc_proje(InstE, AccumE)
 
-        ! Calculate an instantaneous value of the projected energy for the
-        ! given walkers distributions
+        use global_det_data, only: get_pops_sum_full
+        ! Calculate the projected energy for the instantaneous and accumlated
+        ! walkers distributions
 
-        integer :: ex_level, det(nel), j, run
-        real(dp), dimension(max(lenof_sign,inum_runs)) :: RealAllHFCyc
-        real(dp) :: sgn(lenof_sign)
+        HElement_t(dp), intent(out):: InstE(inum_runs)
+        HElement_t(dp), intent(out), optional :: AccumE(inum_runs)
 
-        ! Reset the accumulators
-        HFCyc = 0.0_dp
-        ENumCyc = 0.0_dp
+        integer :: exLevel, det(nel), j, run
+        real(dp) :: sgn(lenof_sign), accum_sgn(lenof_sign)
+        HElement_t(dp) :: HOffDiag
+        HElement_t(dp) :: sgn_run, accum_sgn_run
+        HElement_t(dp):: ENumInst(inum_runs), HFInst(inum_runs)
+        HElement_t(dp):: AllENumInst(inum_runs), AllHFInst(inum_runs)
+        HElement_t(dp):: ENumAccum(inum_runs), HFAccum(inum_runs)
+        HElement_t(dp):: AllENumAccum(inum_runs), AllHFAccum(inum_runs)
+        logical :: tCalcAccumE
 
-        ! Main loop
+        tCalcAccumE = tAccumPopsActive .and. present(AccumE)
+        HFInst = 0.0_dp
+        ENumInst = 0.0_dp
+        HFAccum = 0.0_dp
+        ENumAccum = 0.0_dp
+
         do j = 1, int(TotWalkers, sizeof_int)
 
-            ! n.b. non-contiguous list
             call extract_sign(CurrentDets(:,j), sgn)
-            if (IsUnoccDet(sgn)) cycle
 
-            ex_level = FindBitExcitLevel (iLutRef(:,1), CurrentDets(:,j))
+            if (IsUnoccDet(sgn) .and. .not. (tCalcAccumE .and. tAccumEmptyDet(CurrentDets(:,j)))) cycle
 
             call decode_bit_det(det, CurrentDets(:,j))
-            call SumEContrib(det, ex_level, sgn, CurrentDets(:,j), 0.0_dp, &
-                             1.0_dp, tPairedReplicas, j)
+            if(tCalcAccumE) accum_sgn = get_pops_sum_full(j)
+
+            ! This is the normal projected energy calculation, but split over
+            ! multiple runs, rather than done in one go.
+            do run = 1, inum_runs
+
+                ! We need to use the excitation level relevant for this run
+                exlevel = FindBitExcitLevel(CurrentDets(:,j), ilutRef(:, run))
+                if (tSpinCoupProjE(run) .and. exlevel /= 0) then
+                    if (exlevel <= 2) then
+                        exlevel = 2
+                    else if (FindBitExcitLevel(CurrentDets(:,j), ilutRefFlip(:,run)) <= 2) then
+                        exlevel = 2
+                    end if
+                end if
+#ifdef CMPLX_
+                sgn_run = cmplx(sgn(min_part_type(run)),sgn(max_part_type(run)),dp)
+#else
+                sgn_run = sgn(run)
+#endif
+
+                if(tCalcAccumE) then
+#ifdef CMPLX_
+                    accum_sgn_run = cmplx(accum_sgn(min_part_type(run)),accum_sgn(max_part_type(run)),dp)
+#else
+                    accum_sgn_run = accum_sgn(run)
+#endif
+                endif
+
+                hoffdiag = 0.0_dp
+                if (exlevel == 0) then
+
+                    HFInst(run) = HFInst(run) + sgn_run
+
+                    if(tCalcAccumE) then
+                        HFAccum(run) = HFAccum(run) + accum_sgn_run
+                    endif
+
+                else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
+
+                    ! n.b. Brillouins theorem cannot hold for real-space Hubbard
+                    ! model or for rotated orbitals.
+
+                    ! Obtain the off-diagonal elements
+                    if (tHPHF) then
+                        hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), det, &
+                                                          iLutRef(:,run), CurrentDets(:,j))
+                    else
+                        hoffdiag = get_helement (ProjEDet(:,run), det, exlevel, &
+                                                 ilutRef(:,run), CurrentDets(:,j))
+                    endif
+
+                end if
+
+                ENumInst(run) = ENumInst(run) + (hoffdiag * sgn_run)
+                if(tCalcAccumE) &
+                    ENumAccum(run) = ENumAccum(run) + (hoffdiag * accum_sgn_run)
+
+            end do
+
         end do
 
         ! Accumulate values over all processors
-        call MPISum(HFCyc, RealAllHFCyc)
-        call MPISum(ENumCyc, AllENumCyc)
+        call MPISumAll(HFInst, AllHFInst)
+        call MPISumAll(ENumInst, AllENumInst)
 
-        do run = 1, inum_runs
-            AllHFCyc(run) = ARR_RE_OR_CPLX(RealAllHFCyc, run)
-        end do
+        !One could check whether AllHFInt is zero and then set InstE to zero.
+        !But letting the division by zero happen and having NaN is probably
+        !more informative.
+        InstE = AllENumInst / AllHFInst + proje_ref_energy_offsets
 
-        proje_iter = AllENumCyc / AllHFCyc + proje_ref_energy_offsets
+        if(present(AccumE))then
+            if(tAccumPopsActive)then
+                call MPISumAll(HFAccum, AllHFAccum)
+                call MPISumAll(ENumAccum, AllENumAccum)
+                AccumE = AllENumAccum / AllHFAccum + proje_ref_energy_offsets
+            else
+                AccumE = 0.0_dp
+            endif
+        endif
 
-        write(6,*) 'Calculated instantaneous projected energy', proje_iter
 
     end subroutine
 
+    function check_semistoch_flags(ilut_child, nI_child, tCoreDet) result(break)
+        use bit_rep_data, only: flag_determ_parent
+      integer(n_int), intent(inout) :: ilut_child(0:niftot)
+      integer, intent(in) :: nI_child(nel)
+      logical, intent(in) :: tCoreDet
+      logical :: tChildIsDeterm
+      logical :: break
+      break = .false.
+      tChildIsDeterm = is_core_state(ilut_child, nI_child)
+      if(tCoreDet) then
+         if(tChildIsDeterm) break = .true.
+         call set_flag(ilut_child, flag_determ_parent)
+      else
+         if(tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+      endif
+    end function check_semistoch_flags
 end module

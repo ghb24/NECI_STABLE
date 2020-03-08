@@ -4,18 +4,33 @@ module back_spawn
 
     use CalcData, only: t_back_spawn, tTruncInitiator, t_back_spawn_occ_virt, &
                         t_back_spawn_flex, tReadPops, back_spawn_delay
+
     use SystemData, only: nel, nbasis, G1, tGen_4ind_2, tGen_4ind_2_symmetric, &
                           tHub, tUEG, nmaxx, nmaxy, nmaxz, tOrbECutoff, OrbECutoff, &
-                          tUEGNewGenerator
+                          tUEGNewGenerator, t_k_space_hubbard, t_3_body_excits
+
     use constants, only: n_int, dp, bits_n_int, lenof_sign, inum_runs
+
     use bit_rep_data, only: nifd, niftot
+
     use fcimcdata, only: projedet, max_calc_ex_level, ilutref
+
     use dSFMT_interface, only: genrand_real2_dSFMT
+
     use SymExcitDataMod, only: OrbClassCount, SymLabelCounts2, SymLabelList2, &
-                               SpinOrbSymLabel
+                               SpinOrbSymLabel, KPointToBasisFn
+
     use Parallel_neci, only: iprocindex
+
     use DetBitOps, only: EncodeBitDet
-    use SymExcitDataMod, only: KPointToBasisFn
+
+    use lattice_mod, only: lat
+
+    use sym_mod, only: mompbcsym
+
+    use SystemData, only: tHub, nbasismax
+
+    use lattice_models_utils, only: get_orb_from_kpoints, get_ispn
 
     implicit none
 
@@ -202,7 +217,6 @@ contains
             ! inum_runs = 1
             ! so there everything is fine i actually have to change the
             ! unit-tests
-!             if (any(src(1) == projedet(:,part_type_to_run(part_type)))) then
             if (is_in_ref(src(1), part_type)) then
                 ! this means the electron is in the reference determinant
                 ! which means we should pick a hole also in the
@@ -210,7 +224,7 @@ contains
                 ! increase the excitation level
                 loc = 2
             else
-                ! only option 1 and 3 for single excitations!
+                ! only option 0 and 2 for single excitations!
                 loc = 0
             end if
 
@@ -218,7 +232,6 @@ contains
             ! for double excitations we have to check both
             loc = 0
             do i = 1, 2
-!                 if (any(src(i) == projedet(:,part_type_to_run(part_type)))) then
                 if (is_in_ref(src(i), part_type)) then
                     loc = loc + 1
                 end if
@@ -230,6 +243,106 @@ contains
 
     end function check_electron_location
 
+    function check_electron_location_spatial(orbs, ic, part_type) result(loc)
+        ! same function as above, just for spatial orbitals
+        integer, intent(in) :: orbs(2), ic, part_type
+        integer :: loc
+        character(*), parameter :: this_routine = "check_electron_location_spatial"
+
+        integer :: i
+
+        ASSERT(all(orbs >= [0,0]))
+        ASSERT(all(orbs <= [nBasis/2,nBasis/2]))
+
+        if (ic == 1) then
+            if (is_in_ref_spatial(orbs(1), part_type)) then
+                ! this means the electron is in the reference determinant
+                ! which means we should pick a hole also in the
+                ! reference determinant, or otherwise we definetly
+                ! increase the excitation level
+                loc = 2
+            else
+                ! only option 0 and 2 for single excitations!
+                loc = 0
+            end if
+
+        else if (ic == 2) then
+            ! for double excitations we have to check both
+            loc = 0
+            do i = 1, 2
+                if (is_in_ref_spatial(orbs(i), part_type)) then
+                    loc = loc + 1
+                end if
+            end do
+        end if
+
+    end function check_electron_location_spatial
+
+    function check_orbital_location(src, ic, part_type) result(loc)
+        ! same function as above, but checks if a picked orbital is in the
+        ! virtual space of the reference determinant
+        integer, intent(in) :: src(2), ic, part_type
+        integer :: loc
+        character(*), parameter :: this_routine = "check_orbital_location"
+
+        integer :: i
+
+        ! the output:
+        ! 0 ... both holes are in the occupied space of the reference
+        ! 1 ... the holes are mixed in the occupied and virtual space
+        ! 2 ... both holes are in the virtual space of the reference
+
+        if (ic == 1) then
+            if (is_in_virt_mask(src(1), part_type)) then
+                loc = 2
+            else
+                loc = 0
+            end if
+        else if (ic == 2) then
+            loc = 0
+            do i = 1, 2
+                if (is_in_virt_mask(src(i), part_type)) then
+                    loc = loc + 1
+                end if
+            end do
+        end if
+        ASSERT(loc >= 0)
+        ASSERT(loc <= 2)
+
+    end function check_orbital_location
+
+    function check_orbital_location_spatial(orbs, ic, part_type) result(loc)
+        ! same function as above just for spatial orbitals
+        integer, intent(in) :: orbs(2), ic, part_type
+        integer :: loc
+        character(*), parameter :: this_routine = "check_orbital_location_spatial"
+
+        integer :: i
+
+        ! the output:
+        ! 0 ... both holes are in the occupied space of the reference
+        ! 1 ... the holes are mixed in the occupied and virtual space
+        ! 2 ... both holes are in the virtual space of the reference
+
+        if (ic == 1) then
+            if (is_in_virt_mask_spatial(orbs(1), part_type)) then
+                loc = 2
+            else
+                loc = 0
+            end if
+        else if (ic == 2) then
+            loc = 0
+            do i = 1, 2
+                if (is_in_virt_mask_spatial(orbs(i), part_type)) then
+                    loc = loc + 1
+                end if
+            end do
+        end if
+        ASSERT(loc >= 0)
+        ASSERT(loc <= 2)
+
+
+    end function check_orbital_location_spatial
 
     subroutine pick_virtual_electrons_double(nI, part_type, elecs, src, ispn, &
                                                 sum_ml, pgen, calc_pgen)
@@ -265,8 +378,6 @@ contains
 
         do i = 1, nel
             if (is_in_virt_mask(nI(i),part_type)) then
-!             if (any(nI(i) == mask_virt_ni(:,part_type_to_run(part_type)))) then
-                ! the electron is in the virtual of the
                 n_valid = n_valid + 1
                 virt_elecs(j) = i
                 j = j + 1
@@ -285,8 +396,6 @@ contains
             iSpn = -1
             sum_ml = -1
             return
-!             call stop_all(this_routine, &
-!                 "something went wront, did not find 2 valid virtual electrons!")
         end if
 
         ! determine how many valid pairs there are now
@@ -319,10 +428,6 @@ contains
         ! The Ml value is obtained from the orbitals
         sum_ml = sum(G1(src)%Ml)
 
-        ! And the spatial symmetries
-!         sym_prod = RandExcitSymLabelProd(SpinOrbSymLabel(src(1)), &
-!                                          SpinOrbSymLabel(src(2)))
-
     end subroutine pick_virtual_electrons_double
 
 
@@ -354,7 +459,6 @@ contains
         do i = 1, norb
             orb = SymLabelList2(label_index + i - 1)
             if (is_in_ref(orb,part_type) .and. IsNotOcc(ilut,orb)) then
-!             if (any(orb == projedet(:,part_type_to_run(part_type))) .and. IsNotOcc(ilut,orb)) then
 
                 ASSERT(SpinOrbSymLabel(orb) == SpinOrbSymLabel(src))
 
@@ -362,18 +466,6 @@ contains
                 j = j + 1
             end if
         end do
-
-!         do i = 1, nel
-!             if (.not. any(projedet(i,1) == nI)) then
-!                 ! i also have to check spin and symmetry now..
-!                 if (is_beta(src) .eqv. is_beta(projedet(i,1)) .and. &
-!                     SpinOrbSymLabel(src) == SpinOrbSymLabel(projedet(i,1))) then
-!
-!                     occ_orbs(j) = projedet(i,1)
-!                     j = j + 1
-!                 end if
-!             end if
-!         end do
 
         n_valid = j - 1
 
@@ -689,8 +781,6 @@ contains
                 if (IsNotOcc(ilutI, orb_b)) then
                     if (any(orb_b == sym_orbs)) then
                         if (same_spin(orb_a, orb_b) .and. (orb_a /= orb_b)) then
-!                         if ((is_beta(orb_a) .eqv. is_beta(orb_b)) .and. &
-!                             (orb_a /= orb_b)) then
                             occ_orbs(j) = orb_b
                             j = j + 1
                         end if
@@ -775,8 +865,6 @@ contains
             ! what is ispn on return?? argh too many uninitialized vars.
             ispn = 0
             return
-!             call stop_all(this_routine, &
-!                 "something went wront, did not find 2 valid virtual electrons!")
         end if
 
         ! apparently i have to have both ordering of the electrons in
@@ -855,8 +943,6 @@ contains
             elec = 0
             pgen_elec = 0.0_dp
             return
-!             call stop_all(this_routine, &
-!                 "something went wront, did not find valid virtual single electron!")
         end if
 
         ! does this work with an optional logical as input:
@@ -874,22 +960,6 @@ contains
         ASSERT(elec > 0)
 
     end subroutine pick_virtual_electron_single
-
-    function get_ispn(src) result(ispn)
-        ! it is annoying to write this over and over again..
-        integer, intent(in) :: src(2)
-        integer :: ispn
-
-        if (is_beta(src(1)) .eqv. is_beta(src(2))) then
-            if (is_beta(src(1))) then
-                ispn = 1
-            else
-                ispn = 3
-            end if
-        else
-            ispn = 2
-        end if
-    end function get_ispn
 
     logical function is_in_ref(orb, part_type)
         ! write a function if a certain orbital is in the reference
@@ -911,15 +981,32 @@ contains
         temp_ilut = ilutref(:,part_type_to_run(temp_part_type))
         is_in_ref = (IsOcc(temp_ilut, orb))
 
-        ! it would have been nice to use associate, but this is not
-        ! possible, since when the selector is a subarray the bounds are
-        ! always starting from 1:
-        ! or a more efficient way using the correct ilutref..
-!         associate(ilut => ilutref(:,part_type_to_run(temp_run)))
-!             is_in_ref = (IsOcc(ilut, orb))
-!         end associate
-
     end function is_in_ref
+
+    logical function is_in_ref_spatial(orb, part_type)
+        ! the same function as above, but for a spatial orbital orb
+        integer, intent(in) :: orb
+        integer, intent(in), optional :: part_type
+        character(*), parameter :: this_routine = "is_in_ref_spatial"
+
+        integer :: temp_part_type
+        integer(n_int) :: temp_ilut(0:niftot)
+
+        ASSERT(orb >= 0)
+        ASSERT(orb <= nBasis/2)
+
+        if (present(part_type)) then
+            temp_part_type = part_type
+        else
+            temp_part_type = 1
+        end if
+
+        ! there is an inefficient way to check projedet:
+
+        temp_ilut = ilutref(:,part_type_to_run(temp_part_type))
+        is_in_ref_spatial = (IsOcc(temp_ilut, 2 * orb) .or. IsOcc(temp_ilut, 2 * orb - 1))
+
+    end function is_in_ref_spatial
 
     logical function is_in_virt_mask(orb, part_type)
         ! also write a quicker routine which checks if an orbital is in
@@ -939,11 +1026,30 @@ contains
         temp_ilut = mask_virt_ilut(:,part_type_to_run(temp_part_type))
         is_in_virt_mask = (IsOcc(temp_ilut, orb))
 
-!         associate(ilut => mask_virt_ilut(:,part_type_to_run(temp_run)))
-!             is_in_virt_mask = (IsOcc(ilut, orb))
-!         end associate
-
     end function is_in_virt_mask
+
+    logical function is_in_virt_mask_spatial(orb, part_type)
+        ! same function as above just for spatial orbital orb
+        integer, intent(in) :: orb
+        integer, intent(in), optional :: part_type
+        character(*), parameter :: this_routine = "is_in_virt_mask_spatial"
+
+        integer :: temp_part_type
+        integer(n_int) :: temp_ilut(0:niftot)
+
+        ASSERT(orb >= 0)
+        ASSERT(orb <= nBasis/2)
+
+        if (present(part_type)) then
+            temp_part_type = part_type
+        else
+            temp_part_type = 1
+        end if
+
+        temp_ilut = mask_virt_ilut(:,part_type_to_run(temp_part_type))
+        is_in_virt_mask_spatial = (IsOcc(temp_ilut, 2 * orb) .or. IsOcc(temp_ilut, 2 * orb - 1))
+
+    end function is_in_virt_mask_spatial
 
     function is_allowed_ueg_k_vector(orbi, orbj, orba) result(is_allowed)
         integer, intent(in) :: orbi, orbj, orba
@@ -971,95 +1077,6 @@ contains
         end if
 
     end function is_allowed_ueg_k_vector
-
-    function get_orb_from_kpoints(orbi, orbj, orba) result(orbb)
-        use sym_mod, only: mompbcsym
-        use SystemData, only: tHub, nbasismax
-        ! write a cleaner implementation of this multiple used
-        ! functionality.. because kPointToBasisFn to basisfunction
-        ! promises more than it actually odes
-        integer, intent(in) :: orbi, orbj, orba
-        integer :: orbb
-
-        integer :: ki(3), kj(3), ka(3), kb(3), ispn, spnb
-
-        ispn = get_ispn([orbi,orbj])
-
-        ki = G1(orbi)%k
-        kj = G1(orbj)%k
-
-        ! Given A, calculate B in the same way as before
-        ka = G1(orba)%k
-        kb = ki + kj - ka
-        if (iSpn == 1) then
-            spnb = 1
-        elseif (iSpn == 2) then
-            ! w.d: bug found by peter jeszenski and confirmed by simon!
-            ! i do not think this is so much more efficient than an
-            ! additional if-statement which is way more clear!
-            ! messed up alpa and beta spin here..
-            if (is_beta(orba)) then
-                spnb = 2
-            else
-                spnb = 1
-            end if
-        elseif(iSpn == 3) then
-            spnb = 2
-        end if
-
-        ! damn.. for some reason this is different treated in the
-        ! hubbard and UEG case..
-        if (tHub) then
-            call mompbcsym(kb, nbasismax)
-        end if
-
-        orbb = KPointToBasisFn(kb(1), kb(2), kb(3), spnb)
-
-    end function get_orb_from_kpoints
-
-    function make_ilutJ(ilutI, ex, ic) result(ilutJ)
-        ! function similar to make_single and make_double to create the
-        ! accompaning ilut form.
-        integer(n_int), intent(in) :: ilutI(0:niftot)
-        integer, intent(in) :: ex(2,2), ic
-        integer(n_int) :: ilutJ(0:niftot)
-
-        character(*), parameter :: this_routine = "make_ilutJ"
-
-        integer :: ij(2), ab(2)
-
-        ASSERT(ic == 1 .or. ic == 2)
-        ! should this every be called with 0 orbitals.. i guess no..
-        ASSERT(ex(1,1) > 0)
-        ASSERT(ex(2,1) > 0)
-        ASSERT(ex(1,1) <= nbasis)
-        ASSERT(ex(2,1) <= nbasis)
-
-        ilutJ = ilutI
-
-        ij = get_src(ex)
-        ab = get_tgt(ex)
-
-        clr_orb(ilutJ, ij(1))
-        set_orb(ilutJ, ab(1))
-
-        ! single excition done
-
-        if (ic == 2) then
-
-            ASSERT(ex(1,2) > 0)
-            ASSERT(ex(2,2) > 0)
-            ASSERT(ex(1,2) <= nbasis)
-            ASSERT(ex(2,2) <= nbasis)
-
-            clr_orb(ilutJ, ij(2))
-            set_orb(ilutJ, ab(2))
-        end if
-
-    end function make_ilutJ
-
-
-
 
 end module back_spawn
 

@@ -1,0 +1,53 @@
+title
+
+system hubbard
+(tilt 1 1 
+cell 3 4 1 
+real 
+b -1 
+u 16
+nonuniformrandexcits ueg_guga
+electrons 12
+guga 0
+guga-testsuite 
+open-bc xy
+endsys
+
+calc 
+
+guga-mateles
+
+methods 
+method vertex fcimc
+endmethods
+
+frequency-analysis
+new-tau-search 0.999
+truncate-spawns 2
+
+totalwalkers 10000
+
+max-tau 0.001
+allrealcoeff
+
+nmcyc 50000
+(nmcyc 10000
+
+semi-stochastic 100
+pops-core 100
+
+trial-wavefunction 100
+pops-trial 10
+
+definedet 1 4 5 8 9 12 13 16 17 20 21 24
+
+shiftdamp 0.1
+stepsshift 10
+
+endcalc
+
+logging
+popsfile -1
+endlog
+
+end

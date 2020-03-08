@@ -89,7 +89,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -119,7 +119,7 @@ contains
 
         type(CommI), intent(in), optional :: Node
         integer(MPIArg) :: comm
-        integer :: v, ret
+        integer :: v, ret, ierr
 
 #ifdef PARALLEL
 
@@ -153,7 +153,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -185,7 +185,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -223,7 +223,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr
@@ -257,7 +257,7 @@ contains
 
 #ifdef PARALLEL
 #ifdef CBINDMPI
-#ifdef __GFORTRAN__
+#ifdef GFORTRAN_
         type(c_ptr) :: g_loc
 #endif
         c_ptr_t :: vptr

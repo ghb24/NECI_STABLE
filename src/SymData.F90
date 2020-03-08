@@ -177,7 +177,6 @@ module SymData
     !   to take this into account.  Not all excitation generator functions
     !   currently work with this.  USE WITH CARE
 
-
     ! Memory logging tags.
     INTEGER(TagIntType) :: tagKPntSym
     INTEGER(TagIntType) :: tagSymConjTab

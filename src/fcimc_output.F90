@@ -1,7 +1,11 @@
 #include "macros.h"
 module fcimc_output
 
-    use SystemData, only: nel, tHPHF, tFixLz, tMolpro, tMolproMimic, MolproID
+    use SystemData, only: nel, tHPHF, tFixLz, tMolpro, tMolproMimic, MolproID, &
+                          tGen_4ind_weighted, tGen_4ind_2, tGUGA, tGen_sym_guga_mol, &
+                          tGen_nosym_guga, t_consider_diff_bias, tgen_guga_crude, &
+                          t_new_real_space_hubbard, t_no_ref_shift
+
     use LoggingData, only: tLogComplexPops, tMCOutput, tCalcInstantS2, &
                            tCalcInstantS2Init, instant_s2_multiplier_init, &
                            instant_s2_multiplier, tPrintFCIMCPsi, &
@@ -9,33 +13,67 @@ module fcimc_output
                            OffDiagBinRange, tCalcVariationalEnergy, &
                            iHighPopWrite, tLogEXLEVELStats, StepsPrint, &
                            maxInitExLvlWrite, AllInitsPerExLvl
+
     use hist_data, only: Histogram, AllHistogram, InstHist, AllInstHist, &
                          BeforeNormHist, iNoBins, BinRange, HistogramEnergy, &
                          AllHistogramEnergy
+
     use CalcData, only: tTruncInitiator, tTrialWavefunction, tReadPops, &
                         DiagSft, tSpatialOnlyHash, tOrthogonaliseReplicas, &
-                        tPrintReplicaOverlaps, tStartTrialLater, tEN2, &
-                        tGlobalInitFlag, t_truncate_spawns
+                        StepsSft, tPrintReplicaOverlaps, tStartTrialLater, &
+                        frq_step_size, tEN2, &
+                        frequency_bins_singles, frequency_bins_para, &
+                        frequency_bins_anti, frequency_bins_doubles, &
+                        frequency_bins_type2, frequency_bins_type3, &
+                        frequency_bins_type4, frequency_bins_type2_diff, &
+                        frequency_bins_type3_diff, n_frequency_bins, &
+                        tSemiStochastic, t_truncate_spawns, tLogGreensfunction
+
     use DetBitOps, only: FindBitExcitLevel, count_open_orbs, EncodeBitDet, &
                          TestClosedShellDet
+
     use IntegralsData, only: frozen_orb_list, frozen_orb_reverse_map, &
                              nel_pre_freezing
+
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
+
     use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
+
     use semi_stoch_procs, only: return_most_populated_states
+
     use bit_rep_data, only: niftot, nifd, flag_initiator
+
     use hist, only: calc_s_squared_star, calc_s_squared
+
     use fcimc_helper, only: LanczosFindGroundE
+
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: write_det, get_helement
     use adi_data, only: AllCoherentDoubles, AllIncoherentDets, nRefs, &
          ilutRefAdi, tAdiActive, nConnection, AllConnection
+
     use rdm_data, only: en_pert_main
+
     use Parallel_neci
+
     use FciMCData
+
     use constants
+
     use sort_mod
+
     use util_mod
+
+    use tau_search, only: comm_frequency_histogram, comm_frequency_histogram_spec
+
+    use real_time_data, only:  gf_count, &
+                              normsize, snapShotOrbs, &
+                              current_overlap, t_real_time_fciqmc, elapsedRealTime, &
+                              elapsedImagTime, overlap_real, overlap_imag, dyn_norm_psi,&
+                              dyn_norm_red, real_time_info, allPopSnapshot, numSnapshotOrbs
+
+    use tc_three_body_data, only: tLMatCalc, lMatCalcStatsIters, &
+                                  lMatCalcHit,   lMatCalcTot,    lMatCalcHUsed,   lMatCalcHSize
     use fortran_strings, only: str
 
     implicit none
@@ -106,7 +144,7 @@ contains
                 write (EXLEVELStats_unit, '()', advance='yes')
             endif ! tLogEXLEVELStats
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             if(tMCOutput) then
                 write(iout, '(a)') "       Step     Shift      WalkerCng(Re)  &
                        &WalkerCng(Im)    TotWalkers(Re)   TotWalkers(Im)    &
@@ -140,7 +178,7 @@ contains
 
             write(fcimcstats_unit, "()", advance = 'yes')
 
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2, "(a,i4,a,l1,a,l1,a,l1)") &
                   "# FCIMCStats VERSION 2 - REAL : NEl=", nel, &
                   " HPHF=", tHPHF, ' Lz=', tFixLz, &
@@ -167,7 +205,7 @@ contains
 
            write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
-#ifndef __CMPLX
+#ifndef CMPLX_
             if(tMCOutput) then
                 write(iout, "(A)", advance = 'no') "        Step    Shift           &
                       &WalkerCng       GrowRate        TotWalkers      Annihil         &
@@ -215,9 +253,11 @@ contains
     END SUBROUTINE WriteFciMCStatsHeader
 
     subroutine WriteFCIMCStats()
+        use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+
         INTEGER :: i, j, run
         real(dp),dimension(inum_runs) :: FracFromSing
-        real(dp) :: projE(inum_runs)
+        real(dp) :: E_ref_tmp(inum_runs)
 
         ! get the offset for the projected energy (i.e. reference energy)
         call getProjEOffset()
@@ -255,17 +295,29 @@ contains
             else
                 FracFromSing(run)=0.0_dp
             endif
+
+            if(t_no_ref_shift)then
+                if(.not. tguga)then
+                    E_ref_tmp(run) = get_helement (ProjEDet(:,run), ProjEDet(:,run), 0)
+                else
+                    E_ref_tmp(run) = calcDiagMatEleGUGA_nI(ProjEDet(:,run))
+                end if
+            else
+                E_ref_tmp(run) = 0.0_dp
+            end if
+
+
         enddo
 
         if (iProcIndex == root) then
 
-#ifdef __CMPLX
+#ifdef CMPLX_
             write(fcimcstats_unit,"(I12,5G16.7,8G18.9e3,&
                                   &G13.5,I12,G13.5,G17.5,I13,G13.5,8G18.9e3,I13,&
 
                                   &g16.7)",advance='no') &
                 Iter + PreviousCycles, &                !1.
-                DiagSft, &                              !2.
+                DiagSft + E_ref_tmp, &                  !2.
                 AllTotParts(1) - AllTotPartsLastOutput(1), &   !3.
                 AllTotParts(2) - AllTotPartsLastOutput(2), &   !4.
                 AllTotParts(1), &                       !5.
@@ -306,7 +358,7 @@ contains
             if(tMCOutput) then
                 write (iout, "(I12,13G16.7,2I12,G13.5)") &
                     Iter + PreviousCycles, &
-                    DiagSft, &
+                    DiagSft + E_ref_tmp, &
                     AllTotParts(1) - AllTotPartsLastOutput(1), &
                     AllTotParts(2) - AllTotPartsLastOutput(2), &
                     AllTotParts(1), &
@@ -344,12 +396,12 @@ contains
                     Iter + PreviousCycles, DiagSft, DiagSftRe, DiagSftIm, &
                     sum(AllTotParts), AllTotParts(1), AllTotParts(lenof_sign)
             endif
-#elif defined(__DOUBLERUN)
+#elif defined(DOUBLERUN_)
             write(fcimcstats_unit2,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,2g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
-                DiagSft(2), &                              ! 2.
+                DiagSft(2) + E_ref_tmp(2), &                              ! 2.
                 AllTotParts(2) - AllTotPartsLastOutput(2), &      ! 3.
                 AllGrowRate(2), &                          ! 4.
                 AllTotParts(2), &                          ! 5.
@@ -392,13 +444,13 @@ contains
 
                 write(fcimcstats_unit2, "()", advance = 'yes')
 #endif
-#ifndef __CMPLX
+#ifndef CMPLX_
 
             write(fcimcstats_unit,"(i12,7g16.7,5g18.9e3,g13.5,i12,g13.5,g17.5,&
                                    &i13,g13.5,4g18.9e3,1X,2(es18.11,1X),5g18.9e3,&
                                    &i13,4g16.7)",advance = 'no') &
                 Iter + PreviousCycles, &                   ! 1.
-                DiagSft(1), &                              ! 2.
+                DiagSft(1) + E_ref_tmp(1), &                              ! 2.
                 AllTotParts(1) - AllTotPartsLastOutput(1), &      ! 3.
                 AllGrowRate(1), &                          ! 4.
                 AllTotParts(1), &                          ! 5.
@@ -446,7 +498,7 @@ contains
             if(tMCOutput) then
                 write (iout, "(I12,10G16.7)", advance = 'no') &
                     Iter + PreviousCycles, &
-                    DiagSft(1), &
+                    DiagSft(1)+E_ref_tmp(1), &
                     AllTotParts(1) - AllTotPartsLastOutput(1), &
                     AllGrowRate(1), &
                     AllTotParts(1), &
@@ -501,6 +553,15 @@ contains
                 write (EXLEVELStats_unit, '()', advance='yes')
             endif ! tLogEXLEVELStats
 
+            if (tMCOutput .and. tLMatCalc .and. mod(Iter, lMatCalcStatsIters) == 0) then
+                write(iout, *) "============ LMatCalc Caching Stats ==============="
+                write(iout, *) "LMatCalc Cache Fill Ratio: ", &
+                    real(lMatCalcHUsed,dp)/real(lMatCalcHSize,dp)
+                write(iout, *) "LMatCalc Cache Hit Rate  : ", lMatCalcHit/real(lMatCalcTot)
+                lMatCalcHit = 0
+                lMatCalcTot = 0
+                write(iout, *) "==================================================="
+            end if
 
             if(tMCOutput) then
                 call neci_flush(iout)
@@ -523,8 +584,6 @@ contains
         character(30) :: filename
         character(43) :: filename2
         character(12) :: num
-        integer :: i, ierr
-        logical :: exists
 
         ! If we are using Molpro, then append the molpro ID to uniquely
         ! identify the output
@@ -540,34 +599,9 @@ contains
             ! If we are reading from a POPSFILE, then we want to continue an
             ! existing fciqmc_stats file if it exists.
             open(funit, file=filename, status='unknown', position='append')
-
         else
 
-            ! If we are doing a normal calculation, move existing fciqmc_stats
-            ! files so that they are not overwritten, and then create a new one
-            inquire(file=filename, exist=exists)
-            if (exists) then
-
-                ! Loop until we find an available spot to move the existing
-                ! file to.
-                i = 1
-                do while(exists)
-                    write(num, '(i12)') i
-                    filename2 = trim(adjustl(filename)) // "." // &
-                                trim(adjustl(num))
-                    inquire(file=filename2, exist=exists)
-                    if (i > 10000) &
-                        call stop_all(t_r, 'Error finding free fciqmc_stats.*')
-                    i = i + 1
-                end do
-
-                ! Move the file
-                call rename(filename, filename2)
-
-            end if
-
-            ! And finally open the file
-            open(funit, file=filename, status='unknown', iostat=ierr)
+           call open_new_file(funit, filename)
 
         end if
 
@@ -588,15 +622,15 @@ contains
         type(write_state_t), save :: state
         type(write_state_t), save :: state_i
         logical, save :: inited = .false.
-        character(5) :: tmpc, tmpc2
-        integer :: p, q
+        character(5) :: tmpc, tmpc2, tmgf
+        integer :: p, q, iGf, run
         logical :: init
+        real(dp) :: l1_norm
 
 ! Is in the interface to refactor the procedure lateron.
         unused_var(iter_data)
 
         call getProjEOffset()
-
         ! Provide default 'initial' option
         if (present(initial)) then
             state%init = initial
@@ -615,6 +649,32 @@ contains
            inited = .true.
         end if
 
+        ! What is the current value of S2
+        if (tCalcInstantS2) then
+            if (mod(iter / StepsSft, instant_s2_multiplier) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2 = calc_s_squared (.false.)
+                else
+                    curr_S2 = calc_s_squared_star (.false.)
+                end if
+            end if
+        else
+            curr_S2 = -1
+        end if
+
+        ! What is the current value of S2 considering only initiators
+        if (tCalcInstantS2Init) then
+            if (mod(iter / StepsSft, instant_s2_multiplier_init) == 0) then
+                if (tSpatialOnlyhash) then
+                    curr_S2_init = calc_s_squared (.true.)
+                else
+                    curr_S2_init = calc_s_squared_star (.true.)
+                end if
+            end if
+        else
+            curr_S2_init = -1
+        endif
+
         ! ------------------------------------------------
         ! This is where any calculation that needs multiple nodes should go
         ! ------------------------------------------------
@@ -623,7 +683,6 @@ contains
         if (iProcIndex == root) then
 
             ! Only do the actual outputting on the head node.
-
             call write_padding_init(state)
             call write_padding_init(state_i)
 
@@ -631,37 +690,75 @@ contains
             state%cols = 0
             state%cols_mc = 0
             state%mc_out = tMCOutput
+
+            if(t_real_time_fciqmc) then
+                l1_norm = 0.0
+                do run = 1, inum_runs
+                    l1_norm = l1_norm + mag_of_run(AllTotParts, run)
+                end do
+            endif
             call stats_out(state,.true., iter + PreviousCycles, 'Iter.')
             if (.not. tOrthogonaliseReplicas) then
-                call stats_out(state,.true., sum(abs(AllTotParts)), 'Tot. parts')
-                call stats_out(state,.true., sum(abs(AllNoatHF)), 'Tot. ref')
-#ifdef __CMPLX
+               ! note that due to the averaging, the printed value is not necessarily
+               ! an integer
+                call stats_out(state,.true., sum(abs(AllTotParts))/inum_runs, &
+                     'Tot. parts real')
+                if(t_real_time_fciqmc) then
+                    call stats_out(state,.true., real_time_info%time_angle,'Time rot. angle')
+                    call stats_out(state,.false., l1_norm/inum_runs ,'L1 Norm')
+                else
+                    call stats_out(state,.true., sum(abs(AllNoatHF))/inum_runs, 'Tot. ref')
+                endif
+            end if
+
+            if(.not. t_real_time_fciqmc) then
+#ifdef CMPLX_
                 call stats_out(state,.true., real(proje_iter_tot), 'Re Proj. E')
                 call stats_out(state,.true., aimag(proje_iter_tot), 'Im Proj. E')
 #else
                 call stats_out(state,.true., proje_iter_tot, 'Proj. E (cyc)')
 #endif
-                call stats_out(state,.true., sum(DiagSft / inum_runs), 'Shift. (cyc)')
-                call stats_out(state,.false., sum(AllNoBorn), 'No. born')
-                call stats_out(state,.false., sum(AllNoDied), 'No. died')
-                call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
-!!            call stats_out(state,.false., AllGrowRate(1), 'Growth fac.')
-!!            call stats_out(state,.false., AccRat(1), 'Acc. rate')
-#ifdef __CMPLX
-                call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
-                               'Tot. Proj. E')
-                call stats_out(state,.true., aimag(proje_iter_tot) + OutputHii, &
-                               'Tot. Proj. E')
-#else
-                call stats_out(state,.true., proje_iter_tot + OutputHii, &
-                               'Tot. Proj. E')
-#endif
             end if
+            call stats_out(state,.true., sum(DiagSft)/inum_runs, 'Shift. (cyc)')
+
+            if(t_real_time_fciqmc) &
+                call stats_out(state, .true., real(sum(dyn_norm_psi))/normsize, '|psi|^2')
+
+            call stats_out(state,.false., sum(AllNoBorn), 'No. born')
+            call stats_out(state,.false., sum(AllNoInitDets), 'No. Inits')
+            if(t_real_time_fciqmc) then
+                call stats_out(state,.false., TotImagTime, 'Elapsed complex time')
+                call stats_out(state,.false., real_time_info%damping, 'eta')
+                call stats_out(state,.false., IterTime, 'Iter. time')
+            else
+                call stats_out(state,.false., sum(AllAnnihilated), 'No. annihil')
+            endif
+
+            call stats_out(state,.false., sum(AllSumWalkersCyc), 'SumWalkersCyc')
+            call stats_out(state,.false., sum(AllNoAborted), 'No aborted')
+#ifdef CMPLX_
+            call stats_out(state,.true., real(proje_iter_tot) + OutputHii, &
+                           'Tot. Proj. E')
+            call stats_out(state,.false.,allDoubleSpawns,'Double spawns')
+#else
+            call stats_out(state,.true., proje_iter_tot + OutputHii, &
+                           'Tot. Proj. E')
+#endif
             call stats_out(state,.true., AllTotWalkers, 'Dets occ.')
             call stats_out(state,.true., nspawned_tot, 'Dets spawned')
+            call stats_out(state,.false., Hii, 'reference energy')
 
-            call stats_out(state,.true., IterTime, 'Iter. time')
-            call stats_out(state,.false., TotImagTime, 'Im. time')
+            if(t_real_time_fciqmc) then
+                call stats_out(state,.false., real(sum(dyn_norm_red(:,1))/normsize),'GF normalization')
+            else
+                call stats_out(state,.true., IterTime, 'Iter. time')
+            endif
+            if(t_real_time_fciqmc) then
+                call stats_out(state, .true., elapsedRealTime, 'Re. time')
+                call stats_out(state, .true., elapsedImagTime, 'Im. time')
+            else
+                call stats_out(state,.false., TotImagTime, 'Im. time')
+            endif
 
             ! Put the conditional columns at the end, so that the column
             ! numbers of the data are as stable as reasonably possible (for
@@ -669,27 +766,57 @@ contains
             ! frequently).
             ! This also makes column contiguity on resumes as likely as
             ! possible.
+            if(t_real_time_fciqmc .or. tLogGreensfunction) then
+                ! also output the overlaps and norm..
+                do iGf = 1, gf_count
+                   write(tmgf, '(i5)') iGf
+                   call stats_out(state,.true., overlap_real(iGf), 'Re. <y_i(0)|y(t)> (i=' // &
+                        trim(adjustl(tmgf)) // ')' )
+                   call stats_out(state,.true., overlap_imag(iGf), 'Im. <y_i(0)|y(t)> (i=' // &
+                        trim(adjustl(tmgf)) // ')' )
+                enddo
+                do iGf = 1, gf_count
+                   write(tmgf, '(i5)') iGf
+                   do p = 1, normsize
+                      write(tmpc, '(i5)') p
+                      call stats_out(state,.false.,real(current_overlap(p,iGf)), 'Re. <y(0)|y(t)>(rep ' // &
+                           trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //  ')')
+                      call stats_out(state,.false.,aimag(current_overlap(p,iGf)), 'Im. <y(0)|y(t)>(rep ' // &
+                           trim(adjustl(tmpc)) // ' i=' // trim(adjustl(tmgf)) //')')
+                   enddo
+                enddo
+                if(t_real_time_fciqmc) then
+                    do p = 1, numSnapshotOrbs
+                        ! if any orbitals are monitored, output their population
+                        write(tmpc, '(i5)') snapShotOrbs(p)
+                        call stats_out(state,.false.,allPopSnapshot(p),'Population of ' &
+                            // trim(adjustl(tmpc)))
+                    end do
+                endif
+            endif
 
             ! if we truncate walkers, print out the total truncated weight here
             if(t_truncate_spawns) call stats_out(state, .false., AllTruncatedWeight, &
                  'trunc. Weight')
-
             ! If we are running multiple (replica) simulations, then we
             ! want to record the details of each of these
-#ifdef __PROG_NUMRUNS
+#ifdef PROG_NUMRUNS_
+            if(.not. t_real_time_fciqmc) then
             do p = 1, inum_runs
                 write(tmpc, '(i5)') p
                 call stats_out (state, .false., AllTotParts(p), &
-                                'Parts (' // trim(adjustl(tmpc)) // ")")
+                                'Parts (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., AllNoatHF(p), &
-                                'Ref (' // trim(adjustl(tmpc)) // ")")
+                                'Ref (' // trim(adjustl(tmpc)) // ')')
+                call stats_out(state, .false., proje_ref_energy_offsets(p), &
+                                'ref. energy offset('//trim(adjustl(tmpc))// ')')
                 call stats_out (state, .false., DiagSft(p) + Hii, &
-                                'Shift (' // trim(adjustl(tmpc)) // ")")
-#ifdef __CMPLX
+                                'Shift (' // trim(adjustl(tmpc)) // ')')
+#ifdef CMPLX_
                 call stats_out (state, .false., real(proje_iter(p) + OutputHii), &
-                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ")")
+                                'Tot ProjE real (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., aimag(proje_iter(p) + OutputHii), &
-                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ")")
+                                'Tot ProjE imag (' // trim(adjustl(tmpc)) // ')')
 
                 call stats_out (state, .false., real(AllHFOut(p) / StepsPrint), &
                                 'ProjE Denom real (' // trim(adjustl(tmpc)) // ")")
@@ -738,17 +865,20 @@ contains
 
                 call stats_out (state, .false., &
                                 AllNoBorn(p), &
-                                'Born (' // trim(adjustl(tmpc)) // ")")
+                                'Born (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 AllNoDied(p), &
-                                'Died (' // trim(adjustl(tmpc)) // ")")
+                                'Died (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 AllAnnihilated(p), &
-                                'Annihil (' // trim(adjustl(tmpc)) // ")")
+                                'Annihil (' // trim(adjustl(tmpc)) // ')')
                 call stats_out (state, .false., &
                                 AllNoAtDoubs(p), &
-                                'Doubs (' // trim(adjustl(tmpc)) // ")")
+                                'Doubs (' // trim(adjustl(tmpc)) // ')')
             end do
+
+            call stats_out(state,.false.,all_max_cyc_spawn, &
+                 'MaxCycSpawn')
 
             ! Print overlaps between replicas at the end.
             do p = 1, inum_runs
@@ -756,7 +886,7 @@ contains
                 if (tPrintReplicaOverlaps) then
                     do q = p+1, inum_runs
                         write(tmpc2, '(i5)') q
-#ifdef __CMPLX
+#ifdef CMPLX_
                         call stats_out(state, .false.,  replica_overlaps_real(p, q),&
                                        '<psi_' // trim(adjustl(tmpc)) // '|' &
                                        // 'psi_' // trim(adjustl(tmpc2)) &
@@ -768,17 +898,16 @@ contains
 
 #else
                         call stats_out(state, .false.,  replica_overlaps_real(p, q),&
-                                       '<psi_' // trim(adjustl(tmpc)) // '|' &
-                                       // 'psi_' // trim(adjustl(tmpc2)) &
-                                       // '>')
+                             '<psi_' // trim(adjustl(tmpc)) // '|' &
+                             // 'psi_' // trim(adjustl(tmpc2)) &
+                             // '>')
 #endif
 
-                    end do
-                end if
-            end do
-
+                     end do
+                  end if
+               end do
+           end if
 #endif
-
             if (tEN2) call stats_out(state,.true., en_pert_main%ndets_all, 'EN2 Dets.')
 
             if (tTruncInitiator) then
@@ -802,6 +931,7 @@ contains
             write(state%funit, *)
             if (tTruncInitiator) write(state_i%funit, *)
             if (tMCOutput) write(iout, *)
+
             call neci_flush(state%funit)
             if (tTruncInitiator) call neci_flush(state_i%funit)
             call neci_flush(iout)
@@ -838,7 +968,6 @@ contains
     end subroutine write_padding_init
 
     subroutine writeMsWalkerCountsAndCloseUnit()
-!         integer :: i, ms, tempni(1:nel)
         integer :: ms, tempni(1:nel)
         integer(int64) :: i
         real(dp) :: totWalkPopByMsReal(nel+1), totWalkPopByMsImag(nel+1), &
@@ -849,7 +978,7 @@ contains
             call decode_bit_det(TempnI, WalkVecDets(:,i))
             ms = sum(get_spin_pn(Tempni(1:nel)))
             walkPopByMsReal(1+nel/2+ms/2) = walkPopByMsReal(1+nel/2+ms/2)+abs(TempSign(1))
-#ifdef __CMPLX
+#ifdef CMPLX_
             walkPopByMsImag(1+nel/2+ms/2) = walkPopByMsImag(1+nel/2+ms/2)+abs(TempSign(2))
 #endif
             write(mswalkercounts_unit,*) ms, TempSign
@@ -889,7 +1018,7 @@ contains
                 norm1(j)=norm1(j)+AllHistogram(j,i)**2
             enddo
         enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
         norm2=SQRT(sum(norm1))
 #else
         norm1=SQRT(norm1)
@@ -897,7 +1026,7 @@ contains
         WRITE(iout,*) "Total FCIMC Wavefuction normalisation:",norm1
         do i=1,Det
             do j=1,lenof_sign
-#ifdef __CMPLX
+#ifdef CMPLX_
                 AllHistogram(j,i)=AllHistogram(j,i)/norm2
 #else
                 AllHistogram(j,i)=AllHistogram(j,i)/norm1(j)
@@ -926,7 +1055,7 @@ contains
 !write out FCIMC Component weight (normalised), current normalisation, excitation level
                     ExcitLevel = FindBitExcitLevel(iLutHF, FCIDets(:,i), nel)
                     CALL decode_bit_det(nI,FCIDets(0:NIfTot,i))
-#ifdef __CMPLX
+#ifdef CMPLX_
                     WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,sum(norm)
 #else
                     WRITE(iunit,"(I13,G25.16,I6,G20.10)",advance='no') i,AllHistogram(1,i),ExcitLevel,norm(1)
@@ -994,7 +1123,7 @@ contains
                     norm3(j)=norm3(j)+AllAvAnnihil(j,i)**2
                 enddo
             enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
             norm_c=SQRT(sum(norm))
             norm1_c=SQRT(sum(norm1))
             norm2_c=SQRT(sum(norm2))
@@ -1007,13 +1136,13 @@ contains
 #endif
             do i=1,Det
                 do j=1,lenof_sign
-#ifdef __CMPLX
+#ifdef CMPLX_
                     AllHistogram(j,i)=AllHistogram(j,i)/norm_c
                     AllInstHist(j,i)=AllInstHist(j,i)/norm1_c
-                    IF(norm2_c.ne.0.0_dp) THEN
+                    IF(.not. near_zero(norm2_c)) THEN
                         AllInstAnnihil(j,i)=AllInstAnnihil(j,i)/norm2_c
                     ENDIF
-                    IF(norm3_c.ne.0.0_dp) THEN
+                    IF(.not. near_zero(norm3_c)) THEN
                         AllAvAnnihil(j,i)=AllAvAnnihil(j,i)/norm3_c
                     ENDIF
 #else
@@ -1047,8 +1176,8 @@ contains
                     WRITE(io2,"(I13,3G25.16)") IterRead,ShiftRead,AllERead,NumParts
                 enddo
 99              CONTINUE
-#ifdef __CMPLX
-                IF(AllHFOut(1).eq.0.0_dp) THEN
+#ifdef CMPLX_
+                IF(near_zero(AllHFOut(1))) then
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllERead,SUM(AllTotPartsLastOutput)
                 ELSE
                     WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumOut/AllHFOut,SUM(AllTotPartsLastOutput)
@@ -1065,7 +1194,7 @@ contains
 
             ELSE
                 OPEN(io2,FILE=abstr2,STATUS='UNKNOWN')
-#ifdef __CMPLX
+#ifdef CMPLX_
                 WRITE(io2,"(I13,3G25.16)") Iter,DiagSft,AllENumOut/AllHFOut,SUM(AllTotPartsLastOutput)
 #else
                 WRITE(io2,"(I13,3G25.16)") Iter,DiagSft(1),AllENumOut(1)/AllHFOut(1),AllTotPartsLastOutput(1)
@@ -1097,7 +1226,7 @@ contains
                           AllInstAnnihil(1,i), AllAvAnnihil(1,i), norm1, &
                           FinalPop, BeforeNormHist(i)
                 ELSE
-#ifdef __CMPLX
+#ifdef CMPLX_
                     WRITE(io1,"(I13,6G25.16)") i, AllHistogram(1,i), sum(norm), &
                           AllInstHist(1,i), AllInstAnnihil(1,i), &
                           AllAvAnnihil(1,i), sum(norm1)
@@ -1122,9 +1251,6 @@ contains
                 allocate(HOrderedInstHist(1:Det))
                 HOrderedInstHist(:) = AllInstHist(1,:)
                 call sort(ReIndex(1:Det),HOrderedHist(1:Det),HOrderedInstHist(1:Det))
-
-!                write(6,*) ReIndex(1:10)    !Must be in increasing order
-!                write(6,*) HOrderedHist(:)
 
                 call my_hpsi(Det,1,NROW,LAB,HAMIL,HOrderedHist,CKN,.true.)
                 AvVarEnergy = DDOT(Det,HOrderedHist,1,CKN,1)
@@ -1371,20 +1497,21 @@ contains
         integer :: lenEnd, lenStart
         character(len=*), parameter :: t_r='PrintHighPops'
 
+        character(1024) :: header
+        character(22) :: format_string
+        character(11), allocatable :: walker_string(:)
+        character(13), allocatable :: amplitude_string(:)
+        character(9), allocatable :: init_string(:)
+
         !Allocate memory to hold highest iHighPopWrite determinants
         allocate(LargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
         if(ierr.ne.0) call stop_all(t_r,"error allocating here")
 
         ! Return the most populated states in CurrentDets on *this* processor only.
-        call return_most_populated_states(iHighPopWrite, LargestWalkers, norm)
+        call return_most_populated_states(iHighPopWrite, LargestWalkers, norm = norm)
 
         call MpiSum(norm,allnorm)
         if(iProcIndex.eq.Root) norm=sqrt(allnorm)
-
-!        write(iout,*) "Highest weighted dets on this process:"
-!        do i=1,iHighPopWrite
-!            write(iout,*) LargestWalkers(:,i)
-!        enddo
 
         !Now have sorted list of the iHighPopWrite largest weighted determinants on the process
         if(iProcIndex.eq.Root) then
@@ -1406,7 +1533,7 @@ contains
                 call extract_sign (LargestWalkers(:,j), SignCurr)
                 if (any(LargestWalkers(:,j) /= 0)) then
 
-#ifdef __CMPLX
+#ifdef CMPLX_
                     HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                     HighSign = sum(real(abs(SignCurr),dp))
@@ -1448,7 +1575,7 @@ contains
             do i=1,iHighPopWrite
                 !How many non-zero determinants do we actually have?
                 call extract_sign(GlobalLargestWalkers(:,i),SignCurr)
-#ifdef __CMPLX
+#ifdef CMPLX_
                 HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                 HighSign=sum(real(abs(SignCurr),dp))
@@ -1513,6 +1640,7 @@ contains
                     write(iout,"(A)") " Excitation   ExcitLevel   Seniority    Walkers    Amplitude    Init?   Proc"
                 endif
             else
+#ifdef CMPLX_
                 if(tHPHF) then
                     write(iout,"(A)") " Excitation   ExcitLevel Seniority  Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc  Spin-Coup?"
@@ -1520,11 +1648,37 @@ contains
                     write(iout,"(A)") " Excitation   ExcitLevel Seniority   Walkers(Re)   Walkers(Im)  Weight   &
                                         &Init?(Re)   Init?(Im)   Proc"
                 endif
+#else
+                ! output the weight of every replica, and do not only assume
+                ! it is a complex run
+                write(format_string, '(a,i0,a,a,i0,a)') &
+                    '(3a11,', lenof_sign, 'a11,', 'a13,', lenof_sign,'a9,a)'
+                ! Walkers(replica) Amplitude(replica) Init?(replica)
+                allocate(walker_string(lenof_sign))
+!                 allocate(amplitude_string(lenof_sign))
+                allocate(init_string(lenof_sign))
+
+                do i = 1, lenof_sign
+                    write(walker_string(i), '(a,i0,a)') "Walkers(", i, ")"
+!                     write(amplitude_string(i), '(a,i0,a)') "Amplitude(", i, ")"
+                    write(init_string(i), '(a,i0,a)') "Init?(", i, ")"
+                end do
+
+                write(header, format_string) "Excitation ", "ExcitLevel ", "Seniority ", &
+                    walker_string, "Amplitude ", init_string, "Proc "
+
+                if (tHPHF) then
+                    header = trim(header) // " Spin-Coup?"
+                end if
+
+                write(iout, '(a)') trim(header)
+
+#endif
             endif
             do i=1,counter
 !                call WriteBitEx(iout,iLutRef,GlobalLargestWalkers(:,i),.false.)
                 call WriteDetBit(iout,GlobalLargestWalkers(:,i),.false.)
-                Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl)
+                Excitlev=FindBitExcitLevel(iLutRef(:,1),GlobalLargestWalkers(:,i),nEl,.true.)
                 write(iout,"(I5)",advance='no') Excitlev
                 nopen=count_open_orbs(GlobalLargestWalkers(:,i))
                 write(iout,"(I5)",advance='no') nopen
@@ -1532,7 +1686,7 @@ contains
                 do j=1,lenof_sign
                     write(iout,"(G16.7)",advance='no') SignCurr(j)
                 enddo
-#ifdef __CMPLX
+#ifdef CMPLX_
                 HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
 #else
                 HighSign=sum(real(abs(SignCurr),dp))
@@ -1621,41 +1775,46 @@ contains
 
 !------------------------------------------------------------------------------------------!
 
-    subroutine print_fval_hist(enPoints, arPoints)
-      use CalcData, only: tAutoAdaptiveShift
+    !> Print out an already genereated 2d-histogram to disk
+    !! The histogram is written with the two axes as first rows, then the data as a 2d-matrix
+    !> @param[in] filename  name of the file to write to
+    !> @param[in] label1  label of the first axis
+    !> @param[in] label2  label of the second axis
+    !> @param[in] hists  array of integers containing the histogram data for each pair of bins
+    !> @param[in] bins1  bins of the first axis
+    !> @param[in] bins2  bins of the second axis
+    subroutine print_2d_hist(filename, label1, label2, hist, bins1, bins2)
       implicit none
-      integer, intent(in) :: enPoints, arPoints ! number of points in the histogram's axes
-      integer, allocatable :: hist(:,:), allHist(:,:)
-      real(dp), allocatable :: histEnergy(:), histAccRate(:)
+      character(len=*), intent(in) :: filename, label1, label2
+      real(dp), intent(in) :: bins1(:), bins2(:)
+      integer, intent(in) :: hist(:,:)
       integer :: hist_unit
-      integer :: j, i
+      integer :: i, j
       character, parameter :: tab = char(9)
 
-      if(tAutoAdaptiveShift) then
-         ! allocate the buffers
-         allocate(histAccRate(aRPoints))
-         allocate(histEnergy(enPoints))
-         allocate(hist(enPoints,arPoints))
-         allocate(allHist(enPoints, arPoints))
-         ! generate the histogram
-
-         call generate_fval_histogram(hist, histEnergy, histAccRate, enPoints, &
-              aRPoints ,allHist)
-
          if(iProcIndex == root) then
+
             ! output the histogram
             hist_unit = get_free_unit()
-            open(hist_unit, file = 'AccRateHistogram', status = 'unknown')
-            write(hist_unit, *) "# Acc. Rate",tab,tab,"Tot. Occ.",tab,tab,"Occ./Energy"
-            write(hist_unit, '("#",36X)', advance = 'no')
-            do j = 1, enPoints
-               write(hist_unit, '(G17.5)', advance = 'no') histEnergy(j)
+            open(hist_unit, file = filename, status = 'unknown')
+            write(hist_unit,"(A, A)") "# Boundaries of the bins of the first (vertical) dimension - ", label1
+            
+            do j = 1, size(bins1)
+               write(hist_unit, '(G17.5)', advance = 'no') bins1(j)
             end do
             write(hist_unit, '()', advance = 'yes')
-            do i = 1, aRPoints
-               write(hist_unit, '(2G17.5)', advance = 'no') histAccRate(i), sum(allHist(:,i))
-               do j = 1, enPoints
-                  write(hist_unit, '(G17.5)', advance = 'no') allHist(j,i)
+            
+            write(hist_unit, "(A, A)") "# Boundaries of the bins of the second (horizontal) dimension - ", label2
+
+            do j = 1, size(bins2)
+               write(hist_unit, '(G17.5)', advance = 'no') bins2(j)
+            end do
+            write(hist_unit, '()', advance = 'yes')
+
+            write(hist_unit, "(A)") "# Histogram - Note: Values laying exactly on a bounday are binned to the left"
+            do i = 1, size(bins1)-1
+                do j = 1, size(bins2)-1
+                  write(hist_unit, '(G17.5)', advance = 'no') hist(i,j)
                end do
                write(hist_unit, '()', advance = 'yes')
             end do
@@ -1663,98 +1822,222 @@ contains
             close(hist_unit)
          endif
 
+    end subroutine print_2d_hist
+
+    !> Wrapper function to create a 2d-histogram of the shift scale factors over energy
+    !> @param[in] EnergyBinsNum  resolution of the energy axis (number of bins)
+    !> @param[in] FValBinsNum  resolution of the factor axis (number of bins)
+    subroutine print_fval_energy_hist(EnergyBinsNum, FValBinsNum)
+      use CalcData, only: tAutoAdaptiveShift
+      implicit none
+      integer, intent(in) :: EnergyBinsNum, FValBinsNum ! number of points in the histogram's axes
+      integer, allocatable :: hist(:,:), allHist(:,:)
+      real(dp), allocatable :: EnergyBins(:), FValBins(:)
+
+      if(tAutoAdaptiveShift) then
+         ! allocate the buffers
+         allocate(EnergyBins(EnergyBinsNum+1))
+         allocate(FValBins(FValBinsNum+1))
+         allocate(hist(EnergyBinsNum,FValBinsNum))
+         allocate(allHist(EnergyBinsNum, FValBinsNum))
+         ! generate the histogram
+
+         call generate_fval_energy_hist(hist, EnergyBins, FvalBins, EnergyBinsNum, &
+              FvalBinsNum ,allHist)
+
+         call print_2d_hist("FValsEnergyHist", "Energy", "FVal", allHist, EnergyBins, FValBins)
+
          ! deallocate the buffers
          if(allocated(allHist)) deallocate(allHist)
          if(allocated(hist)) deallocate(hist)
-         if(allocated(histEnergy)) deallocate(histEnergy)
-         if(allocated(histAccRate)) deallocate(histAccRate)
+         if(allocated(EnergyBins)) deallocate(EnergyBins)
+         if(allocated(FValBins)) deallocate(FValBins)
       endif
-    end subroutine print_fval_hist
+    end subroutine print_fval_energy_hist
 
+    !> Wrapper function to create a 2d-histogram of the shift scale factors over population
+    !> @param[in] PopBinsNum  resolution of the population axis (number of bins)
+    !> @param[in] FValBinsNum  resolution of the factor axis (number of bins)
+    subroutine print_fval_pop_hist(PopBinsNum, FValBinsNum)
+      use CalcData, only: tAutoAdaptiveShift
+      implicit none
+      integer, intent(in) :: PopBinsNum, FValBinsNum ! number of points in the histogram's axes
+      integer, allocatable :: hist(:,:), allHist(:,:)
+      real(dp), allocatable :: PopBins(:), FValBins(:)
+
+      if(tAutoAdaptiveShift) then
+         ! allocate the buffers
+         allocate(PopBins(PopBinsNum+1))
+         allocate(FValBins(FValBinsNum+1))
+         allocate(hist(PopBinsNum,FValBinsNum))
+         allocate(allHist(PopBinsNum, FValBinsNum))
+         ! generate the histogram
+
+         call generate_fval_pop_hist(hist, PopBins, FvalBins, PopBinsNum, &
+              FvalBinsNum ,allHist)
+
+         call print_2d_hist("FValsPopHist", "Population", "FVal", allHist, PopBins, FValBins)
+
+         ! deallocate the buffers
+         if(allocated(allHist)) deallocate(allHist)
+         if(allocated(hist)) deallocate(hist)
+         if(allocated(PopBins)) deallocate(PopBins)
+         if(allocated(FValBins)) deallocate(FValBins)
+      endif
+    end subroutine print_fval_pop_hist
 !------------------------------------------------------------------------------------------!
 
-    subroutine generate_fval_histogram(hist, histEnergy, histAccRate, &
-         enPoints, accRatePoints, allHist)
-      use global_det_data, only: det_diagH, get_acc_spawns, get_tot_spawns
-      ! count the acceptance ratio per energy and create
-      ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
-      ! entries of hist(:,:) : numer of occurances
-      ! entries of histEnergy(:) : energies of histogram entries (with tolerance, second dimension)
-      ! entries of histAccRate(:) : acc. rates of histogram entries (first dimension)
-      implicit none
-      ! number of energy/acc rate windows in the histogram
-      integer, intent(in) :: enPoints, accRatePoints
-      integer, intent(out) :: hist(enPoints,accRatePoints)
-      integer, intent(out) :: allHist(:,:)
-      real(dp), intent(out) :: histEnergy(enPoints), histAccRate(accRatePoints)
-      integer :: i, run
-      integer :: enInd, arInd
-      real(dp) :: minEn, maxEn, enWindow, arWindow, locMinEn, locMaxEn, totSpawn
-
-      ! get the energy window size (the acc. rate window size is just 1.0/(accRatePoints+1))
-      locMinEn = det_diagH(1)
-      locMaxEn = det_diagH(1)
-      do i = 2, int(TotWalkers)
-         if(det_diagH(i) > locMaxEn) locMaxEn = det_diagH(i)
-         if(det_diagH(i) < locMinEn) locMinEn = det_diagH(i)
-      end do
-      ! communicate the energy window
-      call MPIAllReduce(locMinEn, MPI_MIN, minEn)
-      call MPIAllReduce(locMaxEn, MPI_MAX, maxEn)
-      enWindow = (maxEn - minEn) / real(enPoints,dp)
-
-      if(enWindow > eps) then
-         ! set up the histogram axes
-         arWindow = 1.0_dp / real(accRatePoints,dp)
-         do i = 1, accRatePoints
-            histAccRate(i) = ((i-1)+1.0_dp/2.0_dp)*arWindow
-         end do
-
-         do i = 1, enPoints
-            histEnergy(i) = minEn + (i-1)*enWindow + enWindow/2.0_dp
-         end do
-
-         ! then, fill the histogram itself
-         hist = 0
-         do i = 1, int(TotWalkers)
-            do run = 1, inum_runs
-               totSpawn = get_tot_spawns(i,run)
-               if(abs(totSpawn) > eps) then
-                  enInd = getHistIndex(det_diagH(i), minEn, enPoints, enWindow)
-                  arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
-                       0.0_dp, accRatePoints, arWindow)
-                  hist(enInd, arInd) = hist(enInd, arInd) + 1
-               end if
-            end do
-         end do
-
-         ! communicate the histogram
-         call MPISum(hist, allHist)
-      else
-         write(iout,*) "WARNING: Empty histogram of acceptance rates"
-      endif
-
-    contains
-
-      function getHistIndex(val, minVal, nPoints, windowSize) result(ind)
-        ! for a given energy, get the position in the histogram
+    !> For a given value, get the position in a histogram of given window sizes
+    !> @param[in] val  value to get the position
+    !> @param[in] minVal  smallest value appearing in the histogram
+    !> @param[in] nPoints  number of bins in the histogram
+    !> @param[in] windowSize  size of each bin
+    !> @return ind  index of val in the histogram
+    function getHistIndex(val, minVal, nPoints, windowSize) result(ind)
         implicit none
         real(dp), intent(in) :: val, minVal, windowSize
         integer, intent(in) :: nPoints
         integer :: ind
 
-        if(abs(val - minVal) < eps) then
-           ! val == minval would else yield 0, but it still belongs to index 1
-           ind = 1
-        else if(abs(val - (minVal + nPoints*windowSize)) < eps) then
-           ! val == maxVal would else yield nPoints + 1, but it still belongs to the last index
-           ind = nPoints
+        if(val <= minVal) then
+            ind = 1
+        else if(val > minVal + nPoints*windowSize) then
+            ind = nPoints
         else
-           ind = ceiling((val - minVal) / windowSize)
+            ind = ceiling((val - minVal) / windowSize)
         endif
-      end function getHistIndex
+    end function getHistIndex
+    
+    !> Create the data written out in the histogram of shift factor over energy.
+    !! The generated data can be passed to print_2d_hist. This is a synchronizing routine.
+    !> @param[out] hist  on return, histogram data of this proc only
+    !> @param[out] histEnergy  on return, energy axis of the histogram
+    !> @param[out] histAccRate  on return, shift factor axis of the histogram
+    !> @param[in] enPoints  number of bins on the energy axis
+    !> @param[in] accRatePoints  number of bins on the shift factor axis
+    !> @param[out] allHist  on return, histogram data over all procs
+    subroutine generate_fval_energy_hist(hist, histEnergy, histAccRate, &
+        enPoints, accRatePoints, allHist)
+        use global_det_data, only: det_diagH, get_acc_spawns, get_tot_spawns
+        ! count the acceptance ratio per energy and create
+        ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
+        ! entries of hist(:,:) : numer of occurances
+        ! entries of histEnergy(:) : energies of histogram entries (with tolerance, first dimension)
+        ! entries of histAccRate(:) : acc. rates of histogram entries (second dimension)
+        implicit none
+        ! number of energy/acc rate windows in the histogram
+        integer, intent(in) :: enPoints, accRatePoints
+        integer, intent(out) :: hist(enPoints,accRatePoints)
+        integer, intent(out) :: allHist(:,:)
+        real(dp), intent(out) :: histEnergy(enPoints), histAccRate(accRatePoints)
+        integer :: i, run
+        integer :: enInd, arInd
+        real(dp) :: minEn, maxEn, enWindow, arWindow, locMinEn, locMaxEn, totSpawn
 
-    end subroutine generate_fval_histogram
+        ! get the energy window size (the acc. rate window size is just 1.0/(accRatePoints+1))
+        locMinEn = det_diagH(1)
+        locMaxEn = det_diagH(1)
+        do i = 2, int(TotWalkers)
+            if(det_diagH(i) > locMaxEn) locMaxEn = det_diagH(i)
+            if(det_diagH(i) < locMinEn) locMinEn = det_diagH(i)
+        end do
+        ! communicate the energy window
+        call MPIAllReduce(locMinEn, MPI_MIN, minEn)
+        call MPIAllReduce(locMaxEn, MPI_MAX, maxEn)
+        enWindow = (maxEn - minEn) / real(enPoints,dp)
+
+        if(enWindow > eps) then
+            ! set up the histogram axes
+            arWindow = 1.0_dp / real(accRatePoints,dp)
+            do i = 1, accRatePoints+1
+                histAccRate(i) = (i-1)*arWindow
+            end do
+
+            do i = 1, enPoints+1
+                histEnergy(i) = minEn + (i-1)*enWindow
+            end do
+
+            ! then, fill the histogram itself
+            hist = 0
+            do i = 1, int(TotWalkers)
+                do run = 1, inum_runs
+                    totSpawn = get_tot_spawns(i,run)
+                    if(abs(totSpawn) > eps) then
+                        enInd = getHistIndex(det_diagH(i), minEn, enPoints, enWindow)
+                        arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
+                            0.0_dp, accRatePoints, arWindow)
+                        hist(enInd, arInd) = hist(enInd, arInd) + 1
+                    end if
+                end do
+            end do
+
+            ! communicate the histogram
+            call MPISum(hist, allHist)
+        else
+            write(iout,*) "WARNING: Empty energy histogram of acceptance rates"
+        endif
+    end subroutine generate_fval_energy_hist
+
+    !> Create the data written out in the histogram of shift factor over population.
+    !! The generated data can be passed to print_2d_hist. This is a synchronizing routine.
+    !> @param[out] hist  on return, histogram data of this proc only
+    !> @param[out] histPop  on return, population axis of the histogram
+    !> @param[out] histAccRate  on return, shift factor axis of the histogram
+    !> @param[in] popPoints  number of bins on the population axis
+    !> @param[in] accRatePoints  number of bins on the shift factor axis
+    !> @param[out] allHist  on return, histogram data over all procs
+    subroutine generate_fval_pop_hist(hist, histPop, histAccRate, &
+        popPoints, accRatePoints, allHist)
+        use global_det_data, only: get_acc_spawns, get_tot_spawns
+        ! count the acceptance ratio per energy and create
+        ! a histogram hist(:,:) with axes histEnergy(:), histAccRate(:)
+        ! entries of hist(:,:) : numer of occurances
+        ! entries of histPop(:) : populations of histogram entries (with tolerance, first dimension)
+        ! entries of histAccRate(:) : acc. rates of histogram entries (second dimension)
+        implicit none
+        ! number of energy/acc rate windows in the histogram
+        integer, intent(in) :: popPoints, accRatePoints
+        integer, intent(out) :: hist(popPoints,accRatePoints)
+        integer, intent(out) :: allHist(:,:)
+        real(dp), intent(out) :: histPop(popPoints), histAccRate(accRatePoints)
+        integer :: i, run
+        integer :: popInd, arInd
+        real(dp) :: maxPop, locMaxPop, totSpawn, pop
+        real(dp), dimension(lenof_sign) :: sgn
+
+        ! The bins of the population has width of 1, except the last bin which
+        ! constains all populations larger than popPoints-1
+        hist = 0
+        locMaxPop = 0.0
+        do i = 1, int(TotWalkers)
+            call extract_sign(CurrentDets(:,i), sgn)
+            do run = 1, inum_runs
+                pop = mag_of_run(sgn,run) 
+                if(pop > locMaxPop) locMaxPop = pop
+                totSpawn = get_tot_spawns(i,run)
+                if(abs(totSpawn) > eps) then
+                    popInd = getHistIndex(pop, 0.0_dp, popPoints, 1.0_dp)
+                    arInd = getHistIndex(get_acc_spawns(i,run)/totSpawn, &
+                        0.0_dp, accRatePoints, 1.0_dp/real(accRatePoints,dp))
+                    hist(popInd, arInd) = hist(popInd, arInd) + 1
+                end if
+            end do
+        end do
+
+        call MPIAllReduce(locMaxPop, MPI_MAX, maxPop)
+        do i = 1, popPoints+1
+            histPop(i) = real(i-1)
+        end do
+        if(maxPop>histPop(popPoints+1))  histPop(popPoints+1)= maxPop
+
+        do i = 1, accRatePoints+1
+            histAccRate(i) = (i-1)/real(accRatePoints,dp)
+        end do
+
+        ! communicate the histogram
+        call MPISum(hist, allHist)
+
+    end subroutine generate_fval_pop_hist
 
 !------------------------------------------------------------------------------------------!
 
@@ -1769,7 +2052,7 @@ contains
         ! Too many particles?
         rat = real(TotWalkersNew,dp) / real(MaxWalkersPart,dp)
         if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
             if(tMolpro) then
                 write (iout, '(a)') '*WARNING* - Number of particles/determinants &
                                  &has increased to over 95% of allotted memory. &
@@ -1799,7 +2082,7 @@ contains
                 rat = real(ValidSpawnedList(i) - InitialSpawnedSlots(i),dp) /&
                              real(InitialSpawnedSlots(1), dp)
                 if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                     if(tMolpro) then
                         write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                          &particles has reached over 95% of allotted memory.&
@@ -1826,7 +2109,7 @@ contains
         else
             rat = real(ValidSpawnedList(0), dp) / real(MaxSpawned, dp)
             if (rat > 0.95_dp) then
-#ifdef __DEBUG
+#ifdef DEBUG_
                 if(tMolpro) then
                     write (iout, '(a)') '*WARNING* - Highest processor spawned &
                                      &particles has reached over 95% of allotted memory.&
@@ -1849,9 +2132,505 @@ contains
 #endif
                 call neci_flush(iout)
             endif
-        endif
+         endif
 
     end subroutine end_iteration_print_warn
+
+    subroutine print_frequency_histogram_spec
+        ! this routine is the adapted version to print out the single and
+        ! double(para/anti) histograms and a combined one of all of them
+        integer :: iunit, i, max_size, old_size
+        character(255) :: filename
+        integer :: all_frequency_bins_s(n_frequency_bins)
+        integer :: all_frequency_bins_d(n_frequency_bins)
+        integer :: all_frequency_bins_p(n_frequency_bins)
+        integer :: all_frequency_bins_a(n_frequency_bins)
+        integer :: all_frequency_bins(n_frequency_bins)
+        integer :: all_frequency_bins_2(n_frequency_bins)
+        integer :: all_frequency_bins_2_d(n_frequency_bins)
+        integer :: all_frequency_bins_3(n_frequency_bins)
+        integer :: all_frequency_bins_3_d(n_frequency_bins)
+        integer :: all_frequency_bins_4(n_frequency_bins)
+        real(dp) :: step_size, norm
+!         real(dp), allocatable :: all_frequency_bounds(:)
+        character(*), parameter :: this_routine = "print_frequency_histogram_spec"
+
+        integer(int64) :: sum_all
+
+        ! this is only called in the 4ind weighted or GUGA case so singles
+        ! are always there so do them first
+        ! why does it crash here? and not on my laptop... compiler issue i
+        ! guess.. too much memory requested... lol
+        all_frequency_bins_s = 0
+        call MPIReduce(frequency_bins_singles, MPI_SUM, all_frequency_bins_s)
+
+        if (iProcIndex == 0) then
+            max_size = size(all_frequency_bins_s)
+
+            iunit = get_free_unit()
+            call get_unique_filename("frequency_histogram_singles",.true.,.true.,&
+                1, filename)
+            open(iunit, file = filename, status = "unknown")
+
+            do i = 1, max_size
+                if (all_frequency_bins_s(i) == 0) cycle
+                write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                write(iunit, "(i12)") all_frequency_bins_s(i)
+            end do
+
+            close(iunit)
+
+!             deallocate(all_frequency_bounds)
+
+        end if
+
+!         deallocate(all_frequency_bins)
+
+        ! then dependent if it is guga or 4ind print out remaining
+        if (tGen_4ind_weighted .or. tGen_4ind_2) then
+            ! do para first
+            call comm_frequency_histogram_spec(size(frequency_bins_para), &
+                frequency_bins_para, all_frequency_bins_p)
+
+            if (iProcIndex == 0) then
+                max_size = size(all_frequency_bins_p)
+
+                iunit = get_free_unit()
+                call get_unique_filename("frequency_histogram_para", .true., &
+                    .true., 1, filename)
+                open(iunit, file = filename, status = "unknown")
+
+                do i = 1, max_size
+                    if (all_frequency_bins_p(i) == 0) cycle
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_p(i)
+                end do
+                close(iunit)
+
+!                 deallocate(all_frequency_bounds)
+            end if
+
+            ! then anti
+!             deallocate(all_frequency_bins)
+
+            call comm_frequency_histogram_spec(size(frequency_bins_anti), &
+                frequency_bins_anti, all_frequency_bins_a)
+
+            if (iProcIndex == 0) then
+                max_size = size(all_frequency_bins_a)
+
+                iunit = get_free_unit()
+                call get_unique_filename("frequency_histogram_anti", .true., &
+                    .true., 1, filename)
+                open(iunit, file = filename, status = "unknown")
+
+                do i = 1, max_size
+                    if (all_frequency_bins_a(i) == 0) cycle
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_a(i)
+                end do
+                close(iunit)
+
+!                 deallocate(all_frequency_bounds)
+            end if
+!             deallocate(all_frequency_bins)
+
+            ! i also want to add up all the bins for a final output
+            if (iProcIndex == 0) then
+                max_size = max(size(all_frequency_bins_s), size(all_frequency_bins_p), &
+                    size(all_frequency_bins_a))
+
+!                 allocate(all_frequency_bins(max_size))
+                all_frequency_bins = 0
+                all_frequency_bins(1:size(all_frequency_bins_s)) = all_frequency_bins_s
+
+                all_frequency_bins(1:size(all_frequency_bins_p)) = &
+                    all_frequency_bins(1:size(all_frequency_bins_p)) + &
+                    all_frequency_bins_p
+
+                all_frequency_bins(1:size(all_frequency_bins_a)) = &
+                    all_frequency_bins(1:size(all_frequency_bins_a)) + &
+                    all_frequency_bins_a
+
+                ! and also need the max bounds
+
+                if (.not. any(all_frequency_bins < 0)) then
+                    iunit = get_free_unit()
+                    call get_unique_filename("frequency_histogram", .true., .true., &
+                        1, filename)
+                    open(iunit, file = filename, status = "unknown")
+
+                    do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                        write(iunit, "(i12)") all_frequency_bins(i)
+                    end do
+                    close(iunit)
+                else
+                    write(iout,*) "Integer overflow in all_frequency_bins!"
+                    write(iout,*) "Do no print it!"
+                end if
+
+                ! also print out a normed frequency histogram to better
+                ! compare runs with different length
+                sum_all = sum(all_frequency_bins)
+                if (.not. sum_all < 0) then
+                    ! we have a int overflow..
+                    ! how to deal with that?? hm..
+                    norm = real(sum_all,dp)
+
+                    iunit = get_free_unit()
+                    call get_unique_filename("frequency_histogram_normed", .true., &
+                        .true., 1, filename)
+                    open(iunit, file = filename, status = "unknown")
+
+                    ! and change x and y axis finally
+                    do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                        write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                    end do
+                    close(iunit)
+
+                else
+                    write(iout,*) "Integer overflow in normed frequency histogram!"
+                    write(iout,*) "Do no print it!"
+
+                end if
+!                 deallocate(all_frequency_bins)
+            end if
+
+        else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
+            ! do only doubles for now in the guga case
+
+            call comm_frequency_histogram_spec(size(frequency_bins_doubles), &
+                frequency_bins_doubles, all_frequency_bins_d)
+
+            if (iProcIndex == 0) then
+                max_size = size(all_frequency_bins_d)
+
+                iunit = get_free_unit()
+                call get_unique_filename("frequency_histogram_doubles", .true., &
+                    .true., 1, filename)
+                open(iunit, file = filename, status = "unknown")
+
+                do i = 1, max_size
+                    if (all_frequency_bins_d(i) == 0) cycle
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_d(i)
+                end do
+                close(iunit)
+
+!                 deallocate(all_frequency_bounds)
+
+                ! and also do the add up from singles and doubles
+                max_size = max(size(all_frequency_bins_s), size(all_frequency_bins_d))
+
+!                 allocate(all_frequency_bins(max_size))
+                all_frequency_bins = 0
+
+                all_frequency_bins(1:size(all_frequency_bins_s)) = all_frequency_bins_s
+
+                all_frequency_bins(1:size(all_frequency_bins_d)) = &
+                    all_frequency_bins(1:size(all_frequency_bins_d)) + &
+                    all_frequency_bins_d
+
+                if (.not. any(all_frequency_bins < 0)) then
+
+                    iunit = get_free_unit()
+                    call get_unique_filename("frequency_histogram", .true., .true., &
+                        1, filename)
+                    open(iunit, file = filename, status = "unknown")
+
+                    do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                        write(iunit, "(i12)") all_frequency_bins(i)
+                    end do
+                    close(iunit)
+                else
+                    write(iout,*) "Integer overflow in all_frequency_bins!"
+                    write(iout,*) "Do no print it!"
+                end if
+
+                ! also print out a normed frequency histogram to better
+                ! compare runs with different length
+                sum_all = sum(all_frequency_bins)
+                if (.not. sum_all < 0) then
+
+                    norm = real(sum_all,dp)
+
+                    iunit = get_free_unit()
+                    call get_unique_filename("frequency_histogram_normed", .true., &
+                        .true., 1, filename)
+                    open(iunit, file = filename, status = "unknown")
+
+                    ! and change x and y axis finally
+                    do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                        write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                    end do
+                    close(iunit)
+
+                else
+                    write(iout,*) "Integer overflow in normed frequency histogram!"
+                    write(iout,*) "Do no print it!"
+                end if
+
+!                 deallocate(all_frequency_bins)
+
+            end if
+
+        else if (tGen_nosym_guga) then
+            ! here a lot of stuff has to be printed and also dependent on
+            ! t_consider_diff_bias..
+            ! singles are already printed
+            call comm_frequency_histogram_spec(size(frequency_bins_type2), &
+                frequency_bins_type2, all_frequency_bins_2)
+
+            if (iProcIndex == 0) then
+                max_size = size(all_frequency_bins_2)
+
+                iunit = get_free_unit()
+                call get_unique_filename("frequency_histogram_type2", .true., &
+                    .true., 1, filename)
+                open(iunit, file = filename, status = "unknown")
+
+                do i = 1, max_size
+                    if (all_frequency_bins_2(i) == 0) cycle
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_2(i)
+                end do
+                close(iunit)
+
+!                 deallocate(all_frequency_bounds)
+            end if
+
+            call comm_frequency_histogram_spec(size(frequency_bins_type3), &
+                frequency_bins_type3, all_frequency_bins_3)
+
+            if (iProcIndex == 0) then
+                max_size = size(all_frequency_bins_3)
+
+                iunit = get_free_unit()
+                call get_unique_filename("frequency_histogram_type3", .true., &
+                    .true., 1, filename)
+                open(iunit, file = filename, status = "unknown")
+
+                do i = 1, max_size
+                    if (all_frequency_bins_3(i) == 0) cycle
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_3(i)
+                end do
+                close(iunit)
+            end if
+
+            call comm_frequency_histogram_spec(size(frequency_bins_type4), &
+                frequency_bins_type4, all_frequency_bins_4)
+
+            if (iProcIndex == 0) then
+                max_size = size(all_frequency_bins_4)
+
+                iunit = get_free_unit()
+                call get_unique_filename("frequency_histogram_type4", .true., &
+                    .true., 1, filename)
+                open(iunit, file = filename, status = "unknown")
+
+                do i = 1, max_size
+                    if (all_frequency_bins_4(i) == 0) cycle
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(i12)") all_frequency_bins_4(i)
+                end do
+                close(iunit)
+
+                ! determine the final max size for the summed up histogram
+                max_size = max(size(all_frequency_bins_s), size(all_frequency_bins_2), &
+                    size(all_frequency_bins_3), size(all_frequency_bins_4))
+
+            end if
+
+            if (t_consider_diff_bias) then
+                call comm_frequency_histogram_spec(size(frequency_bins_type2_diff), &
+                    frequency_bins_type2_diff, all_frequency_bins_2_d)
+
+                if (iProcIndex == 0) then
+                    max_size = size(all_frequency_bins_2_d)
+
+                    iunit = get_free_unit()
+                    call get_unique_filename("frequency_histogram_type2_diff", &
+                        .true., .true., 1, filename)
+                    open(iunit, file = filename, status = "unknown")
+
+                    do i = 1, max_size
+                        if (all_frequency_bins_2_d(i) == 0) cycle
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                        write(iunit, "(i12)") all_frequency_bins_2_d(i)
+                    end do
+                    close(iunit)
+
+                end if
+
+                call comm_frequency_histogram_spec(size(frequency_bins_type3_diff), &
+                    frequency_bins_type3_diff, all_frequency_bins_3_d)
+
+                if (iProcIndex == 0) then
+                    max_size = size(all_frequency_bins_3_d)
+
+                    iunit = get_free_unit()
+                    call get_unique_filename("frequency_histogram_type3_diff", &
+                        .true., .true., 1, filename)
+                    open(iunit, file = filename, status = "unknown")
+
+                    do i = 1, max_size
+                        if (all_frequency_bins_3_d(i) == 0) cycle
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                        write(iunit, "(i12)") all_frequency_bins_3_d(i)
+                    end do
+                    close(iunit)
+                end if
+
+                max_size = max(size(all_frequency_bins_s), size(all_frequency_bins_2), &
+                    size(all_frequency_bins_2_d), size(all_frequency_bins_3), &
+                    size(all_frequency_bins_3_d), size(all_frequency_bins_4))
+
+            end if
+
+            if (iProcIndex == 0) then
+!                 allocate(all_frequency_bins(max_size))
+                all_frequency_bins = 0
+
+                all_frequency_bins(1:size(all_frequency_bins_s)) = all_frequency_bins_s
+
+                all_frequency_bins(1:size(all_frequency_bins_2)) = &
+                    all_frequency_bins(1:size(all_frequency_bins_2)) + &
+                    all_frequency_bins_2
+
+                all_frequency_bins(1:size(all_frequency_bins_3)) = &
+                    all_frequency_bins(1:size(all_frequency_bins_3)) + &
+                    all_frequency_bins_3
+
+                all_frequency_bins(1:size(all_frequency_bins_4)) = &
+                    all_frequency_bins(1:size(all_frequency_bins_4)) + &
+                    all_frequency_bins_4
+
+                if (t_consider_diff_bias) then
+
+                    all_frequency_bins(1:size(all_frequency_bins_2_d)) = &
+                        all_frequency_bins(1:size(all_frequency_bins_2_d)) + &
+                        all_frequency_bins_2_d
+
+                    all_frequency_bins(1:size(all_frequency_bins_3_d)) = &
+                        all_frequency_bins(1:size(all_frequency_bins_3_d)) + &
+                        all_frequency_bins_3_d
+
+                end if
+
+                if (.not. any(all_frequency_bins < 0)) then
+                    iunit = get_free_unit()
+                    call get_unique_filename("frequency_histogram", .true., .true., &
+                        1, filename)
+                    open(iunit, file = filename, status = "unknown")
+
+                    do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
+                        write(iunit, "(f16.7)") frq_step_size * i
+                        write(iunit, "(i12)", advance = "no") all_frequency_bins(i)
+                    end do
+                    close(iunit)
+                else
+                    write(iout,*) "Integer overflow in all_frequency_bins"
+                    write(iout,*) "Do not print it!"
+                end if
+
+                ! also print out a normed frequency histogram to better
+                ! compare runs with different length
+                sum_all = sum(all_frequency_bins)
+
+                if (.not. sum_all < 0) then
+                    norm = real(sum_all,dp)
+
+                    iunit = get_free_unit()
+                    call get_unique_filename("frequency_histogram_normed", .true., &
+                        .true., 1, filename)
+                    open(iunit, file = filename, status = "unknown")
+
+                    ! and change x and y axis finally
+                    do i = 1, max_size
+                        if (all_frequency_bins(i) == 0) cycle
+                        write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                        write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                    end do
+                    close(iunit)
+                else
+                    write(iout,*) "Integer overflow in normed frequency histogram!"
+                    write(iout,*) "Do not print it!"
+                end if
+
+!                 deallocate(all_frequency_bins)
+            end if
+        end if
+!
+    end subroutine print_frequency_histogram_spec
+!
+    subroutine print_frequency_histogram
+        ! routine to write a file with the H_ij/pgen ratio frequencies
+        integer :: iunit, i, max_size, old_size
+        character(255) :: filename
+        integer :: all_frequency_bins(n_frequency_bins)
+        real(dp) :: step_size
+        real(dp), allocatable :: all_frequency_bounds(:)
+        real(dp) :: norm
+        integer :: sum_all
+        ! i can test how to deal with the MPI stuff here to get the same
+        ! results as in the single runs
+        ! first i need the maximum length of all processors
+        call comm_frequency_histogram(all_frequency_bins)
+
+        if (iProcIndex == 0) then
+            max_size = size(all_frequency_bins)
+
+            iunit = get_free_unit()
+            call get_unique_filename("frequency_histogram",.true.,.true.,1,filename)
+            open(iunit, file = filename, status = "unknown")
+
+
+            do i = 1, max_size
+                write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                write(iunit, "(i12)") all_frequency_bins(i)
+            end do
+
+            close(iunit)
+
+            ! and print out normed frequency histogram if possible
+            sum_all = sum(all_frequency_bins)
+            if (.not. sum_all < 0) then
+                ! we have a int overflow..
+                ! how to deal with that?? hm..
+                norm = real(sum_all,dp)
+
+                iunit = get_free_unit()
+                call get_unique_filename("frequency_histogram_normed", .true., &
+                    .true., 1, filename)
+                open(iunit, file = filename, status = "unknown")
+
+                ! and change x and y axis finally
+                do i = 1, max_size
+                    write(iunit, "(f16.7)", advance = "no") frq_step_size * i
+                    write(iunit, "(f16.7)") real(all_frequency_bins(i),dp) / norm
+                end do
+                close(iunit)
+
+            else
+                write(iout,*) "Integer overflow in normed frequency histogram!"
+                write(iout,*) "Do no print it!"
+
+            end if
+
+!             deallocate(all_frequency_bounds)
+        end if
+
+    end subroutine print_frequency_histogram
 
     subroutine getProjEOffset()
       ! get the offset of the projected energy versus the total energy,
@@ -1875,3 +2654,4 @@ contains
     end subroutine getProjEOffset
 
 end module
+

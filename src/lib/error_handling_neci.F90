@@ -40,7 +40,7 @@ subroutine stop_all (sub_name, error_msg)
     ! MPI_Abort requires an integer though.
     character(3), parameter :: error_str='999'
 
-#ifdef __DEBUG
+#ifdef DEBUG_
     write (6,'(/a7)') 'ERROR.'
     write (6,'(a27,a)') 'NECI stops in subroutine: ',adjustl(sub_name)
     write (6,'(a9,18X,a)') 'Reason: ',adjustl(error_msg)
@@ -74,7 +74,6 @@ subroutine stop_all (sub_name, error_msg)
 #ifdef PARALLEL
     call MPIStopAll(error_str)
 #else
-!    stop error_str
     stop
 #endif
 
@@ -93,7 +92,7 @@ subroutine warning_neci(sub_name,error_msg)
 implicit none
 character(*), intent(in) :: sub_name,error_msg
 
-#ifdef __DEBUG
+#ifdef DEBUG_
 write (6,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
 write (6,'(a/)') adjustl(error_msg)
 #else

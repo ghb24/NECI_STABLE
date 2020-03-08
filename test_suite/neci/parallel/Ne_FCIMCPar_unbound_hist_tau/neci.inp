@@ -9,7 +9,7 @@ calc
 methods
 method vertex fcimc 
 endmethods
-
+seed -7
 nmcyc 3500
 max-tau 0.02
 hist-tau-search 0.999
