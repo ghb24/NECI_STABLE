@@ -3,7 +3,7 @@ module test_orb_idx_mod
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, size, &
         calc_spin, spin => spin_values, operator(==)
     use excitation_types, only: NoExc_t, SingleExc_t, DoubleExc_t, excite
-    implicit none(type)
+    implicit none
     private
     public :: test_calc_spin, test_conversion, test_excite
 

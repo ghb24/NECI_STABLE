@@ -8,7 +8,7 @@ module test_gasci_mod
         contains_det, get_nGAS, particles_per_GAS, operator(.contains.), &
         is_valid, is_connected, get_possible_spaces, get_possible_holes, &
         split_per_GAS
-    implicit none(type, external)
+    implicit none
     private
     public :: test_igas_from_spatorb, test_igas_from_spinorb, &
         test_contains_det_spinorb, test_contains_det_spatorb, &
@@ -363,6 +363,13 @@ contains
             end do
         end associate
 
+
+        associate(calculated => split_per_GAS(GAS_spec, SpinOrbIdx_t([1, 2, 5, 6, 9, 10])), &
+                  expected => [SpinOrbIdx_t([1, 2]), SpinOrbIdx_t([5, 6]), SpinOrbIdx_t([9, 10])])
+            do i = 1, get_nGAS(GAS_spec)
+                call assert_true(all(expected(i) == calculated(i)))
+            end do
+        end associate
 
     end subroutine
 

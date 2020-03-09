@@ -5,7 +5,7 @@ module orb_idx_mod
     implicit none
     private
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
-        Spin_t, calc_spin, spin_values, operator(==)
+        Spin_t, calc_spin, calc_spin_raw, spin_values, operator(==)
 
     type, abstract :: OrbIdx_t
         integer, allocatable :: idx(:)
@@ -23,10 +23,6 @@ module orb_idx_mod
     type, extends(OrbIdx_t) :: SpatOrbIdx_t
     end type
 
-    interface SpatOrbIdx_t
-        module procedure construction_from_array_SpatOrbIdx_t
-    end interface
-
     type :: SpinValues_t
         integer :: alpha = 1, beta = -1
     end type
@@ -38,7 +34,6 @@ module orb_idx_mod
     end type
 
     interface Spin_t
-        module procedure construction_from_array_Spin_t
         module procedure construction_from_number_Spin_t
     end interface
 
@@ -64,19 +59,13 @@ module orb_idx_mod
 
         if (present(spin)) then
             if (size(spin) == 1) then
-                res%idx = pack(idx, my_get_spin(idx) == spin%m_s(1))
+                res%idx = pack(idx, calc_spin_raw(idx) == spin%m_s(1))
             else
-                res%idx = pack(idx, my_get_spin(idx) == spin%m_s(:))
+                res%idx = pack(idx, calc_spin_raw(idx) == spin%m_s(:))
             end if
         else
             res%idx = idx
         end if
-    end function
-
-    pure function construction_from_array_SpatOrbIdx_t(idx) result(res)
-        integer, intent(in) :: idx(:)
-        type(SpatOrbIdx_t) :: res
-        res%idx = idx
     end function
 
 #:for orb_idx_type in OrbIdxTypes
@@ -95,7 +84,7 @@ module orb_idx_mod
     end function
 #:endfor
 
-    DEBUG_IMPURE function SpinOrbIdx_t_from_SpatOrbIdx_t(spat_orbs, spins) result(res)
+    pure function SpinOrbIdx_t_from_SpatOrbIdx_t(spat_orbs, spins) result(res)
         type(SpatOrbIdx_t), intent(in) :: spat_orbs
         type(Spin_t), intent(in), optional :: spins
         type(SpinOrbIdx_t) :: res
@@ -106,7 +95,6 @@ module orb_idx_mod
             if (size(spins) == 1) then
                 res%idx = f(spat_orbs%idx(:), spins%m_s(1))
             else
-                ASSERT(size(spat_orbs) == size(spins))
                 res%idx = f(spat_orbs%idx(:), spins%m_s(:))
             end if
         else
@@ -126,12 +114,6 @@ module orb_idx_mod
             end function
     end function
 
-    pure function construction_from_array_Spin_t(spins) result(res)
-        integer, intent(in) :: spins(:)
-        type(Spin_t) :: res
-        res%m_s = spins
-    end function
-
     pure function construction_from_number_Spin_t(spin) result(res)
         integer, intent(in) :: spin
         type(Spin_t) :: res
@@ -148,11 +130,11 @@ module orb_idx_mod
         type(SpinOrbIdx_t), intent(in) :: orbs
         type(Spin_t) :: res
         integer :: i
-        res%m_s = my_get_spin(orbs%idx)
+        res%m_s = calc_spin_raw(orbs%idx)
     end function
 
-    integer elemental function my_get_spin(orb_idx)
+    integer elemental function calc_spin_raw(orb_idx)
         integer, intent(in) :: orb_idx
-        my_get_spin = merge(spin_values%alpha, spin_values%beta, mod(orb_idx, 2) == 0)
+        calc_spin_raw = merge(spin_values%alpha, spin_values%beta, mod(orb_idx, 2) == 0)
     end function
 end module

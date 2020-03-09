@@ -353,6 +353,7 @@ contains
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(NoExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
+        @:unused_var(exc)
         res = det_I
     end function
 
@@ -360,6 +361,7 @@ contains
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(SingleExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
+        character(*), parameter :: this_routine = 'excite_SingleExc_t'
 
         associate(src => exc%val(1), tgt => exc%val(2))
             ASSERT(defined(exc))
@@ -375,6 +377,7 @@ contains
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(DoubleExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
+        character(*), parameter :: this_routine = 'excite_DoubleExc_t'
 
         integer :: src(2), tgt(2), i
 
