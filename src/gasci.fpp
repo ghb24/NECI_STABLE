@@ -21,7 +21,7 @@ module gasci
         last_tgt_unknown, set_last_tgt
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, size
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
-    implicit none(type, external)
+    implicit none
 
     private
     public :: is_valid, is_connected, GAS_specification, GASSpec_t, &

@@ -2,7 +2,7 @@
 #:set OrbIdxTypes = ['SpinOrbIdx_t', 'SpatOrbIdx_t']
 
 module orb_idx_mod
-    implicit none(type)
+    implicit none
     private
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
         Spin_t, calc_spin, spin_values, operator(==)
