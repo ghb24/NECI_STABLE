@@ -45,4 +45,4 @@ add_subdirectory( gdata_io )
 
 add_subdirectory( test_loop )
 
-add_subdirectory( orb_idx )
+add_subdirectory( orb_idx_and_exc_types )

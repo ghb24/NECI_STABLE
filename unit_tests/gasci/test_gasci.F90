@@ -2,12 +2,13 @@ module test_gasci_mod
     use fruit
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, &
         size, operator(==), spin => spin_values
+    use excitation_types, only: SingleExc_t, excite
     use util_mod, only: cumsum
     use gasci, only: GASSpec_t, get_iGAS, &
         contains_det, get_nGAS, particles_per_GAS, operator(.contains.), &
-        is_valid, is_connected, get_possible_spaces, possible_holes, &
+        is_valid, is_connected, get_possible_spaces, get_possible_holes, &
         split_per_GAS
-    implicit none
+    implicit none(type, external)
     private
     public :: test_igas_from_spatorb, test_igas_from_spinorb, &
         test_contains_det_spinorb, test_contains_det_spatorb, &
@@ -238,47 +239,78 @@ contains
         reference = SpinOrbIdx_t([1, 2, 5, 6])
 
         expected = SpinOrbIdx_t([integer::])
-        calculated = possible_holes(GAS_spec, reference)
+        calculated = get_possible_holes(GAS_spec, reference)
+        call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
 
-!         associate(expected => SpinOrbIdx_t([integer::]), &
-!                   calculated => possible_holes(GAS_spec, reference))
-!             write(*, *) 'PEW', 2
-!             call assert_true(all(expected == calculated))
-!         end associate
+        expected = SpinOrbIdx_t([3, 4])
+        calculated = get_possible_holes( &
+              GAS_spec, reference, add_holes=SpinOrbIdx_t([1]))
+        call assert_true(all(expected == calculated))
 
-!         associate(expected => SpinOrbIdx_t([3, 4]), &
-!                   calculated => possible_holes(&
-!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([1])))
-!             call assert_true(all(expected == calculated))
-!         end associate
-!
-!         associate(expected => SpinOrbIdx_t([integer::]), &
-!                   calculated => possible_holes( &
-!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([1, 2])))
-!             call assert_true(all(expected == calculated))
-!         end associate
-!
-!         associate(expected => SpinOrbIdx_t([7, 8]), &
-!                   calculated => possible_holes( &
-!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([5])))
-!             call assert_true(all(expected == calculated))
-!         end associate
-!
-!         associate(expected => SpinOrbIdx_t([7]), &
-!                   calculated => possible_holes( &
-!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([5]), &
-!                         m_s = Spin_t([spin%beta])))
-!             call assert_true(all(expected == calculated))
-!         end associate
-!
-!         associate(expected => SpinOrbIdx_t([8]), &
-!                   calculated => possible_holes( &
-!                         GAS_spec, reference, add_holes=SpinOrbIdx_t([5]), &
-!                         m_s = Spin_t([spin%alpha])))
-!             call assert_true(all(expected == calculated))
-!         end associate
+        expected = SpinOrbIdx_t([integer::])
+        calculated = get_possible_holes( &
+              GAS_spec, reference, add_holes=SpinOrbIdx_t([1, 2]))
+        call assert_true(all(expected == calculated))
 
+        expected = SpinOrbIdx_t([7, 8])
+        calculated = get_possible_holes( &
+                        GAS_spec, reference, add_holes=SpinOrbIdx_t([5]))
+        call assert_true(size(expected) == size(calculated))
+        call assert_true(all(expected == calculated))
+
+        expected = SpinOrbIdx_t([7])
+        calculated = get_possible_holes( &
+              GAS_spec, reference, add_holes=SpinOrbIdx_t([5]), &
+              m_s = Spin_t(spin%beta))
+        call assert_true(size(expected) == size(calculated))
+        call assert_true(all(expected == calculated))
+
+        expected = SpinOrbIdx_t([8])
+        calculated = get_possible_holes( &
+              GAS_spec, reference, add_holes=SpinOrbIdx_t([5]), &
+              m_s = Spin_t(spin%alpha))
+        call assert_true(size(expected) == size(calculated))
+        call assert_true(all(expected == calculated))
+
+        GAS_spec = GASSpec_t(n_orbs=[2, 4, 6], n_min=[1, 3, 6], n_max=[3, 5, 6])
+
+        reference = SpinOrbIdx_t([1, 2, 5, 6, 9, 10])
+        expected = SpinOrbIdx_t([3, 4, 7, 8, 11, 12])
+        calculated = get_possible_holes( &
+              GAS_spec, reference, add_holes=SpinOrbIdx_t([5]))
+        call assert_true(size(expected) == size(calculated))
+        call assert_true(all(expected == calculated))
+
+        reference = SpinOrbIdx_t([1, 5, 6, 7, 9, 10])
+        expected = SpinOrbIdx_t([2, 3, 4])
+        calculated = get_possible_holes( &
+              GAS_spec, reference, add_holes=SpinOrbIdx_t([1]))
+        call assert_true(size(expected) == size(calculated))
+        call assert_true(all(expected == calculated))
+
+        reference = SpinOrbIdx_t([1, 5, 6, 7, 9, 10])
+        expected = SpinOrbIdx_t([2, 3, 4, 8, 11, 12])
+        calculated = get_possible_holes( &
+              GAS_spec, reference, add_holes=SpinOrbIdx_t([1, 5]), &
+              n_particles=2)
+        call assert_true(size(expected) == size(calculated))
+        call assert_true(all(expected == calculated))
+
+        expected = SpinOrbIdx_t([2, 3, 4])
+        calculated = get_possible_holes( &
+              GAS_spec, excite(reference, SingleExc_t(5, 11)), &
+              add_holes=SpinOrbIdx_t([1]))
+        call assert_true(size(expected) == size(calculated))
+        call assert_true(all(expected == calculated))
+
+        GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[0, 4], n_max=[0, 4])
+        reference = SpinOrbIdx_t([5, 6, 7, 8])
+        expected = SpinOrbIdx_t([integer::])
+        calculated = get_possible_holes( &
+              GAS_spec, reference, add_holes=SpinOrbIdx_t([5]))
+        call assert_true(size(expected) == size(calculated))
+        call assert_true(all(expected == calculated))
     end subroutine
 
     subroutine test_split_per_GAS
@@ -353,7 +385,7 @@ program test_gasci_program
 
     integer :: n
 
-!     call mpi_init(err)
+    call mpi_init(err)
 
     call init_fruit()
 
@@ -365,7 +397,7 @@ program test_gasci_program
 
     if (failed_count /= 0) call stop_all('test_gasci_program', 'failed_tests')
 
-!     call mpi_finalize(err)
+    call mpi_finalize(err)
 
 contains
 

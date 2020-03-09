@@ -25,11 +25,12 @@ module excitation_types
     use constants, only: dp, n_int
     use bit_rep_data, only: nIfTot
     use SystemData, only: nEl
+    use orb_idx_mod, only: SpinOrbIdx_t
     implicit none
     private
     public :: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
         FurtherExc_t, UNKNOWN, defined, last_tgt_unknown, set_last_tgt, &
-        create_excitation, get_excitation, get_bit_excitation
+        create_excitation, get_excitation, get_bit_excitation, excite
 
 
 !> Arbitrary non occuring (?!) orbital index.
@@ -147,6 +148,25 @@ module excitation_types
     interface set_last_tgt
     #:for excitation_t in non_trivial_excitations
         module procedure set_last_tgt_${excitation_t}$
+    #:endfor
+    end interface
+
+!>  @brief
+!>     Perform the excitation on a given determinant.
+!>
+!>  @author Oskar Weser
+!>
+!>  @details
+!>  It is assumed, that the excitations are non trivial.
+!>  I.e. for single excitations source /= target
+!>  and for double excitations the set of sources and targets has
+!>  to be disjoint.
+!>
+!>  @param[in] det_I, A Slater determinant of SpinOrbIdx_t.
+!>  @param[in] exc, NoExc_t, SingleExc_t, or DoubleExc_t.
+    interface excite
+    #:for excitation_t in ['NoExc_t', 'SingleExc_t', 'DoubleExc_t']
+        module procedure excite_${excitation_t}$
     #:endfor
     end interface
 
@@ -328,5 +348,128 @@ contains
                    .and.  flattened(size(flattened)) == UNKNOWN)
         end function last_tgt_unknown_${excitation_t}$
     #:endfor
+
+    pure function excite_NoExc_t(det_I, exc) result(res)
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        type(NoExc_t), intent(in) :: exc
+        type(SpinOrbIdx_t) :: res
+        res = det_I
+    end function
+
+    DEBUG_IMPURE function excite_SingleExc_t(det_I, exc) result(res)
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        type(SingleExc_t), intent(in) :: exc
+        type(SpinOrbIdx_t) :: res
+
+        associate(src => exc%val(1), tgt => exc%val(2))
+            ASSERT(defined(exc))
+            ASSERT(src /= tgt)
+            ASSERT(any(src == det_I%idx))
+            ASSERT(all(tgt /= det_I%idx))
+            res%idx = insert_delete_sorted(det_I%idx, [src], [tgt])
+        end associate
+    end function
+
+
+    DEBUG_IMPURE function excite_DoubleExc_t(det_I, exc) result(res)
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        type(DoubleExc_t), intent(in) :: exc
+        type(SpinOrbIdx_t) :: res
+
+        integer :: src(2), tgt(2), i
+
+
+        src = exc%val(1, :)
+        tgt = exc%val(2, :)
+        ASSERT(defined(exc))
+        do i = 1, 2
+            ASSERT(all(src(i) /= tgt))
+            ASSERT(any(src(i) == det_I%idx))
+            ASSERT(all(tgt(i) /= det_I%idx))
+        end do
+
+        if (src(1) > src(2)) call swap(src(1), src(2))
+        if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
+
+        res%idx = insert_delete_sorted(det_I%idx, src, tgt)
+
+        contains
+            pure subroutine swap(a, b)
+                integer, intent(inout) :: a, b
+                integer :: tmp
+                tmp = a
+                a = b
+                b = tmp
+            end subroutine
+    end function
+
+    !> Merge C into A and remove values of B.
+    !> Preconditions (not tested!):
+    !>      1. B is a subset of A
+    !>      2. A and C are disjoint
+    !>      3. B and C are disjoint
+    !>      4. B and C have the same size.
+    !>      5. A, B, and C are sorted.
+    pure function insert_delete_sorted(A, B, C) result(D)
+        integer, intent(in) :: A(:), B(:), C(:)
+        integer :: D(size(A))
+
+        integer :: i, j, k, l
+
+        i = 1
+        j = 1
+        k = 1
+        l = 1
+        do while(l <= size(D))
+            ! Only indices from C have to be added to A
+            if (i > size(A)) then
+                D(l) = C(k)
+                k = k + 1
+                l = l + 1
+            ! No more indices from B have to be deleted in A
+            else if (j > size(B)) then
+                if (A(i) < C(k)) then
+                    D(l) = A(i)
+                    i = i + 1
+                    l = l + 1
+                else if (A(i) > C(k)) then
+                    D(l) = C(k)
+                    k = k + 1
+                    l = l + 1
+                end if
+            ! No more indices have to be added from C to A
+            else if (k > size(C)) then
+                if (A(i) /= B(j)) then
+                    D(l) = A(i)
+                    i = i + 1
+                    l = l + 1
+                else
+                    i = i + 1
+                    j = j + 1
+                end if
+            else if (A(i) < C(k)) then
+                if (A(i) /= B(j)) then
+                    D(l) = A(i)
+                    i = i + 1
+                    l = l + 1
+                else
+                    i = i + 1
+                    j = j + 1
+                end if
+            else if (A(i) > C(k)) then
+                if (A(i) /= B(j)) then
+                    D(l) = C(k)
+                    k = k + 1
+                    l = l + 1
+                else
+                    D(l) = C(k)
+                    i = i + 1
+                    j = j + 1
+                    k = k + 1
+                    l = l + 1
+                end if
+            end if
+        end do
+    end function
 
 end module
