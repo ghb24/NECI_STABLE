@@ -1907,7 +1907,7 @@ contains
         ! here I have to assert that mat_ind is 1! otherwise smth went wrong
         ASSERT(mat_type == 1)
         ! also make sure the x1 mat ele was nullified.
-        ASSERT(near_zero(extract_matrix_element(ilut, 2)))
+!         ASSERT(near_zero(extract_matrix_element(ilut, 2)))
 
         mat_int = transfer(real(real(mat_ele),dp), mat_int)
         ilut(nifd + 1) = mat_int
