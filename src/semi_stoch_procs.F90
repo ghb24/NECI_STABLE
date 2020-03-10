@@ -1242,9 +1242,33 @@ contains
 
     end subroutine return_most_populated_states
 
-    subroutine return_proc_share(n_keep, max_len, min_vals, max_vals, lengths, list, n_dets_this_proc)
+    !> Specialized routine that returns the number of determinants that are going into 
+    !! the core-space on this processor. Once the leading determinants have been obtained on each
+    !! processor, this function requires the minimal and maximal populations among these for all
+    !! processors (requires previous MPI_Gather), then the procedure to determine the core-space
+    !! size on this processor is as follows:
+    !! 1) Get the minimum of the maximal populations, then count the number of determinants
+    !!    above this population. This count is then broadcasted to the other procs, and the
+    !!    total number of determinants above the smallest maximum is determined. If it is smaller
+    !!    than the core-space size, these determinants are put into the core-space, else
+    !!    we repeat with the second smallest of the maximal populations, and so on.
+    !! 2) Get the maximum of the minimal populations, then count the number of determinants below
+    !!    this population. This count is then broadcasted to the other procs, and the total number
+    !!    of determinants below the largest minimum is determined. If the number of determinants
+    !!    that are remaining (i.e. larger than the largest minimum and smaller than the smallest
+    !!    maximum) is sufficient to fill up the core-space (in particular, the smallest maximum
+    !!    has to be bigger than the largest minimum), the small determinants are discarded. Else,
+    !!    we repeat this with the second largest minimum, and so on.
+    !! 3) From the remaining determinants, each processor contributes a share that equals to the
+    !!    ratio of the remaining determinants on this proc to the total remaining determinants
+    !> @param[in] n_keep  core-space size
+    !> @param[in] min_vals  minimal population of the canditates per processor
+    !> @param[in] max_vals  maximal population of the canditates per processor
+    !> @param[in] lengths  number of candidates per processor
+    !> @param[in] list  candidates on this processor
+    !> @param[out] n_dets_this_proc  number of core-space determinants on this processor
+    subroutine return_proc_share(n_keep, min_vals, max_vals, lengths, list, n_dets_this_proc)
         use util_mod, only: binary_search_first_ge
-        integer, intent(in) :: max_len
         real(dp), intent(inout) :: max_vals(0:nProcessors-1), min_vals(0:nProcessors-1)
         real(dp), intent(in) :: list(:)
         integer, intent(in) :: n_keep, lengths(0:nProcessors-1)
@@ -1287,31 +1311,10 @@ contains
             ip_ratio = pool_left / real(total_pool,dp)
             ! If any further dets have to be picked, get them from all procs weighted with the pool sizes
             n_dets_this_proc = n_dets_this_proc + int(ip_ratio * dets_left)
-
-            ! And account for rounding offsets - if any dets are still missing, take them from
-            ! procs which still have available slots
-            missing = dets_left - sum(int(dets_left*(lengths - n_max - n_min)/real(total_pool, dp) ) )
-
-            ! Determine how many processors are already full
-            if(.not. is_full(iProcIndex)) then
-                n_full = 0
-                do i = 0, iProcIndex
-                    if(is_full(i)) n_full = n_full + 1
-                end do
-                if(iProcIndex < missing + n_full) &
-                    n_dets_this_proc = n_dets_this_proc + 1
-            endif
         endif
 
         
     contains
-
-        function is_full(proc_ind) result(t_full)
-            integer, intent(in) :: proc_ind
-            logical :: t_full
-
-            t_full = lengths(proc_ind) < max_len
-        end function is_full
 
         subroutine get_pp_ex(ex, n_ex, sum_ex, vals, t_max)
             use Parallel_neci, only: MPIAllGather

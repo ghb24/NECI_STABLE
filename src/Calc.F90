@@ -1617,6 +1617,8 @@ contains
                         ss_space_in%tApproxSpace = .true.
                     end if
                 end if
+                ! The fast pops-core option requires the pops-core-approx option
+                t_fast_pops_core = .false.
             case("POPS-CORE-AUTO")
                 ! this keyword will force intialisation of core space after
                 ! constant shift mode ends.

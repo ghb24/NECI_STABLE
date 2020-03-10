@@ -1238,7 +1238,7 @@ contains
             call MPIAllGather(min_sign, min_vals, ierr)
             call MPIAllGather(max_sign, max_vals, ierr)
 
-            call return_proc_share(n_pops_keep, int(max_size), min_vals, max_vals, lengths, &
+            call return_proc_share(n_pops_keep, min_vals, max_vals, lengths, &
                 amps_this_proc, n_states_this_proc)
         else
 
