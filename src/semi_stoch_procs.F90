@@ -1242,6 +1242,119 @@ contains
 
     end subroutine return_most_populated_states
 
+    subroutine return_proc_share(n_keep, max_len, min_vals, max_vals, lengths, list, n_dets_this_proc)
+        use util_mod, only: binary_search_first_ge
+        integer, intent(in) :: max_len
+        real(dp), intent(inout) :: max_vals(0:nProcessors-1), min_vals(0:nProcessors-1)
+        real(dp), intent(in) :: list(:)
+        integer, intent(in) :: n_keep, lengths(0:nProcessors-1)
+        integer, intent(out) :: n_dets_this_proc
+
+        integer :: sum_max, sum_min
+        real(dp) :: min_max, max_min
+        integer :: dets_left, pool_left
+        real(dp) :: total_pool, ip_ratio
+        integer :: n_max(0:nProcessors-1), n_min(0:nProcessors-1)
+        integer :: missing, n_full, i
+
+        dets_left = -1
+        ! Increase the cutoff until our selection is small enough
+        do while ( dets_left < 0 )
+            call get_pp_ex(min_max, n_max, sum_max, max_vals)
+            ! Number of determinants left when keeping the maximal ones
+            dets_left = n_keep - sum_max
+        end do
+
+        ! Definitely take these determinants
+        n_dets_this_proc = n_max(iProcIndex)
+        
+        max_min = min_max + 1
+        total_pool = -1
+        ! Reduce the cutoff until we are below the min_max
+        do while ( max_min > min_max .or. total_pool < dets_left)
+            call get_pp_ex(max_min, n_min, sum_min, min_vals, t_max = .true.)
+            ! Size of the pool left when not keeping the minimal ones ( has to be at least
+            ! big enough to fill the core-space)
+            total_pool = sum(lengths) - sum_max - sum_min                    
+        end do
+
+        ! If the corespace consists of all chosen determinants, the remaining pool might be 0
+        ! -> no further action, take all determinants
+        if( total_pool > 0) then
+            ! Number of available dets on this proc after removing min/max
+            pool_left = lengths(iProcIndex) - n_max(iProcIndex) - n_min(iProcIndex)
+            ! Ratio of available dets on this proc vs. in totap
+            ip_ratio = pool_left / real(total_pool,dp)
+            ! If any further dets have to be picked, get them from all procs weighted with the pool sizes
+            n_dets_this_proc = n_dets_this_proc + int(ip_ratio * dets_left)
+
+            ! And account for rounding offsets - if any dets are still missing, take them from
+            ! procs which still have available slots
+            missing = dets_left - sum(int(dets_left*(lengths - n_max - n_min)/real(total_pool, dp) ) )
+
+            ! Determine how many processors are already full
+            n_full = 0
+            do i = 0, nProcessors - 1
+                if(is_full(i)) n_full = n_full + 1
+            end do
+            if(iProcIndex < missing + n_full .and. .not. is_full(iProcIndex)) n_dets_this_proc = n_dets_this_proc + 1
+        endif
+
+        
+    contains
+
+        function is_full(proc_ind) result(t_full)
+            integer, intent(in) :: proc_ind
+            logical :: t_full
+
+            t_full = lengths(proc_ind) < max_len
+        end function is_full
+
+        subroutine get_pp_ex(ex, n_ex, sum_ex, vals, t_max)
+            use Parallel_neci, only: MPIAllGather
+            real(dp), intent(out) :: ex
+            integer, intent(out) :: n_ex(0:nProcessors-1), sum_ex
+            real(dp), intent(inout) :: vals(0:nProcessors-1)
+            logical, intent(in), optional :: t_max
+            integer :: ex_ind, n_ex_loc
+            integer :: ierr
+            real(dp) :: pre
+            logical :: t_max_
+
+            def_default(t_max_, t_max, .false.)
+
+            if(t_max_) then
+                pre = -1.0
+            else
+                pre = 1.0
+            endif
+            ! Get the smallest value of the per-proc max
+            ex_ind = minloc(pre*vals, dim = 1) - 1
+            ex = vals(ex_ind)
+            ! Invalidate this value, such that the next call finds the second smallest value and so on
+            vals(ex_ind) = pre*sum(vals)
+
+            ! Now, get the location of the first element above the extremum
+            n_ex_loc = binary_search_first_ge(list, ex)
+            ! If no such element exists, return 0 on this proc
+            if(n_ex_loc < 0) then
+                n_ex_loc = 0
+            else if(t_max_) then
+                ! From the position, get the number of elements below the extremum (for max_min)
+                n_ex_loc = n_ex_loc - 1
+            else
+                ! Or above the extremum (for min_max)
+                n_ex_loc = lengths(iProcIndex) - n_ex_loc + 1
+            endif
+
+            call MPIAllGather(n_ex_loc, n_ex, ierr)
+            ! Check if the maximum pop is already sufficient
+            sum_ex = sum(n_ex)
+
+        end subroutine get_pp_ex
+
+    end subroutine return_proc_share
+
     subroutine return_largest_indices(n_keep, list_size, list, largest_indices)
 
         ! Return the indices of the largest elements in list.

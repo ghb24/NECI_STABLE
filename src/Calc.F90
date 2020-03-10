@@ -361,6 +361,7 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
+          t_fast_pops_core = .true.
 
           tDynamicCoreSpace = .false.
           tIntervalSet = .false.
@@ -1531,6 +1532,10 @@ contains
                 !
                 ! By default this value is 0.7 (see above)
                 call getf(HashLengthFrac)
+
+            case("OLD-POPS-CORE")
+                ! Use the old way of creating a pops-core space
+                t_fast_pops_core = .false.
 
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
