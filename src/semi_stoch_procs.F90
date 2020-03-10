@@ -1293,11 +1293,14 @@ contains
             missing = dets_left - sum(int(dets_left*(lengths - n_max - n_min)/real(total_pool, dp) ) )
 
             ! Determine how many processors are already full
-            n_full = 0
-            do i = 0, nProcessors - 1
-                if(is_full(i)) n_full = n_full + 1
-            end do
-            if(iProcIndex < missing + n_full .and. .not. is_full(iProcIndex)) n_dets_this_proc = n_dets_this_proc + 1
+            if(.not. is_full(iProcIndex)) then
+                n_full = 0
+                do i = 0, iProcIndex
+                    if(is_full(i)) n_full = n_full + 1
+                end do
+                if(iProcIndex < missing + n_full) &
+                    n_dets_this_proc = n_dets_this_proc + 1
+            endif
         endif
 
         
