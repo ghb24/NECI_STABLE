@@ -1159,19 +1159,15 @@ contains
 
                 ! Loop over all RDMs beings sampled.
                 do irdm = 1, rdm_defs%nrdms
-                    if (tGUGA) then
-                        rdm_filename = "2-RDM-GUGA"
+                    if (state_labels(1,irdm) == state_labels(2,irdm)) then
+                       write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//'",".",'&
+                             //int_fmt(state_labels(1,irdm),0)//')') irdm
                     else
-                        if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                           write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//'",".",'&
-                                 //int_fmt(state_labels(1,irdm),0)//')') irdm
-                        else
-                            write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//&
-                                 '",".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                 //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                 state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
-                         end if
-                    end if
+                        write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//&
+                             '",".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                             //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                             state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                     end if
 
                     ! Open the file to be written to.
                     iunit = get_free_unit()
@@ -1488,40 +1484,42 @@ contains
 
         is_transition_rdm = state_labels(1,irdm) /= state_labels(2,irdm)
 
-        if (tWriteSpinFreeRDM) then
+        if (tWriteSpinFreeRDM .or. tGUGA) then
             one_rdm_unit_spinfree = get_free_unit()
-            open(one_rdm_unit_spinfree, file = "spin-free-1-RDM")
+            open(one_rdm_unit_spinfree, file = "spinfree-1-RDM")
         end if
 
-        if (tNormalise) then
-            ! Haven't got the capabilities to produce multiple 1-RDMs yet.
-            write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
-            call neci_flush(6)
-            one_rdm_unit = get_free_unit()
+        if (.not. tGUGA) then
+            if (tNormalise) then
+                ! Haven't got the capabilities to produce multiple 1-RDMs yet.
+                write(6,'(1X,"Writing out the *normalised* 1 electron density matrix to file")')
+                call neci_flush(6)
+                one_rdm_unit = get_free_unit()
 
-            if (is_transition_rdm) then
-                write(filename, '("'//trim(filename_prefix)//'",'&
-                     //int_fmt(state_labels(1,irdm),0)//',"_",'&
-                     //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                     state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                if (is_transition_rdm) then
+                    write(filename, '("'//trim(filename_prefix)//'",'&
+                         //int_fmt(state_labels(1,irdm),0)//',"_",'&
+                         //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                         state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                else
+                    write(filename, '("'//trim(filename_prefix)//'",'&
+                         //int_fmt(state_labels(1,irdm),0)//')') irdm
+                end if
+                open(one_rdm_unit, file=trim(filename), status='unknown')
             else
-                write(filename, '("'//trim(filename_prefix)//'",'&
-                     //int_fmt(state_labels(1,irdm),0)//')') irdm
+                ! Only every write out 1 of these at the moment.
+                write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
+                call neci_flush(6)
+                one_rdm_unit = get_free_unit()
+                if (is_transition_rdm) then
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                                      //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                        state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                else
+                    write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
+                end if
+                open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
             end if
-            open(one_rdm_unit, file=trim(filename), status='unknown')
-        else
-            ! Only every write out 1 of these at the moment.
-            write(6,'(1X,"Writing out the *unnormalised* 1 electron density matrix to file for reading in")')
-            call neci_flush(6)
-            one_rdm_unit = get_free_unit()
-            if (is_transition_rdm) then
-                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                                                  //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                                    state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
-            else
-                write(filename, '("OneRDM_POPS.",'//int_fmt(state_labels(1,irdm),0)//')') irdm
-            end if
-            open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
         end if
 
         if (tGUGA) then
@@ -1530,11 +1528,11 @@ contains
                     if (abs(one_rdm(ind(i),ind(j))) > EPS) then
                         if (tNormalise) then
                             if (i <= j) then
-                                write(one_rdm_unit, "(2i6, g25.17)") i, j, &
+                                write(one_rdm_unit_spinfree, "(2i6, g25.17)") i, j, &
                                     (one_rdm(ind(i),ind(j)) * norm_1rdm)
                             end if
                         else
-                            write(one_rdm_unit) i, j, one_rdm(ind(i), ind(j))
+                            write(one_rdm_unit_spinfree) i, j, one_rdm(ind(i), ind(j))
                         end if
                     end if
                 end do
@@ -1593,9 +1591,9 @@ contains
             end if
         end if ! tGUGA
 
-        close(one_rdm_unit)
+        if (.not. tGUGA) close(one_rdm_unit)
 
-        if (tWriteSpinFreeRDM) close(one_rdm_unit_spinfree)
+        if (tWriteSpinFreeRDM .or. tGUGA) close(one_rdm_unit_spinfree)
 
         end associate
 
