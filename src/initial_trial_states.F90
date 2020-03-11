@@ -457,8 +457,9 @@ contains
 
                 ! i think i need the left eigenvector for the trial-projection
                 ! if it is non-hermitian..
-                call eig(H_tmp, evals_all, evecs_all,.true.)
-
+                ! apparently not.. maybe with the j,i convention above not..
+                ! confusing
+                call eig(H_tmp, evals_all, evecs_all,.false.)
                 evals = evals_all(1:nexcit)
                 evecs = evecs_all(:,1:nexcit)
 

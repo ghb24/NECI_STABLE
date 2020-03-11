@@ -43,7 +43,7 @@ module k_space_hubbard
 
     use dsfmt_interface, only: genrand_real2_dsfmt
 
-    use util_mod, only: binary_search_first_ge, binary_search
+    use util_mod, only: binary_search_first_ge, binary_search, near_zero
 
     use get_excit, only: make_double
 
@@ -483,11 +483,21 @@ contains
             three_body_prefac = real(bhub,dp) * 2.0_dp * (cosh(trans_corr_param_2body) - 1.0_dp) / real(omega**2,dp)
             ! i also have to set some generation probability parameters..
 
-            pDoubles = pDoublesIn
+            if (.not. near_zero(pDoublesIn)) then
+                pDoubles = pDoublesIn
+            else
+                pDoubles = 0.8_dp
+            end if
+
             ! use pSingles for triples!
             ! BE CAREFUL and dont get confused!
             pSingles = 1.0_dp - pDoubles
-            pParallel = pParallelIn
+
+            if (.not. near_zero(pParallelIn)) then
+                pParallel = pParallelIn
+            else
+                pParallel = 0.5_dp
+            end if
 
         end if
 

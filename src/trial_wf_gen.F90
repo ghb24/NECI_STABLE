@@ -627,13 +627,19 @@ contains
                     ! need guga changes here!
                     ! and need
                     if (tHPHF) then
-                        H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                        ! maybe i need a non-hermitian keyword here..
+                        ! since I am not sure if this breaks the kneci
+                        H_ij = hphf_off_diag_helement(nJ, nI, trial_space(:,j), con_space(:,i))
+                        ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
                             excitInfo, H_ij, .true., 1)
                     else
-                        H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
+                        ! maybe i need a non-hermitian keyword here..
+                        ! since I am not sure if this breaks the kneci
+                        H_ij = get_helement(nJ, nI, trial_space(:,j), con_space(:,i))
+                        ! H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     end if
                 end if
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)

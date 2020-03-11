@@ -49,7 +49,7 @@ module real_space_hubbard
     use bit_rep_data, only: NIfTot, nifd, nifguga
 
     use util_mod, only: binary_search_first_ge, choose, swap, get_free_unit, &
-                        binary_search
+                        binary_search, near_zero
 
     use bit_reps, only: decode_bit_det
 
@@ -185,8 +185,13 @@ contains
 
         if (t_trans_corr_hop) then
             ! we have double excitations with the hopping correlation!
-            pSingles = pSinglesIn
-            pDoubles = 1.0_dp - pSingles
+            if (.not. near_zero(pSinglesIn)) then
+                pSingles = pSinglesIn
+                pDoubles = 1.0_dp - pSingles
+            else
+                pSingles = 0.8_dp
+                pDoubles = 1.0_dp - pSingles
+            end if
         else
             ! and i have to point to the new hubbard excitation generator
             pSingles = 1.0_dp
@@ -760,6 +765,10 @@ contains
 
         if (any(t_anti_periodic) .and. t_twisted_bc) &
             call stop_all(this_routine, "anti-periodic and twisted BCs not compatible!")
+
+        if (tHPHF .and. t_uniform_excits .and. t_trans_corr_hop) then
+            call stop_all(this_routine, "HPHF, transcorr and uniform excits is broken")
+        end if
 
 
     end subroutine check_real_space_hubbard_input
@@ -1340,7 +1349,6 @@ contains
         end if
 #endif
 
-
     end subroutine gen_excit_rs_hubbard_transcorr
 
 
@@ -1685,11 +1693,8 @@ contains
                     ex(2,1) = orb
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_single_helem_rs_hub_transcorr(nJ, ex2(:,1), .false.))
+                    ! elem = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
 
-!                     elem = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
-!                     if (abs(temp - elem) > EPS) then
-!                         print *, "singles do differ!"
-!                     end if
 
                 end if
                 cum_sum = cum_sum + elem
@@ -1713,13 +1718,8 @@ contains
                 if (IsNotOcc(ilutI,orb)) then
                     ex(2,1) = orb
                     call swap_excitations(nI, ex, nJ, ex2)
+                    ! elem = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
                     elem = abs(get_single_helem_rs_hub_transcorr(nJ, ex2(:,1), .false.))
-                    ! todo! i am not sure about the order of these matrix
-
-!                     elem = abs(get_single_helem_rs_hub_transcorr(nI, ex(:,1), .false.))
-!                     if (abs(temp - elem) > EPS) then
-!                         print *, "singles do differ!"
-!                     end if
                 end if
 
                 cum_sum = cum_sum + elem
@@ -1845,6 +1845,7 @@ contains
 
                     ex(2,2) = orb_b
                     call swap_excitations(nI, ex, nJ, ex2)
+                    ! elem = abs(get_double_helem_rs_hub_transcorr(ex, .false.))
                     elem = abs(get_double_helem_rs_hub_transcorr(ex2, .false.))
 
 
@@ -1870,6 +1871,7 @@ contains
 
                     ex(2,2) = orb_b
                     call swap_excitations(nI, ex, nJ, ex2)
+                    ! elem = abs(get_double_helem_rs_hub_transcorr(ex, .false.))
                     elem = abs(get_double_helem_rs_hub_transcorr(ex2, .false.))
 
                 end if
@@ -2162,7 +2164,7 @@ contains
                     ! change the order of determinants to reflect
                     ! non-hermiticity correctly
                     ! old implo:
-!                     elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
+                    ! elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
                     ex(2) = neighbors(i)
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_offdiag_helement_rs_hub(nJ,ex2,.false.))
@@ -2183,6 +2185,7 @@ contains
                 elem = 0.0_dp
                 ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
                 if (IsNotOcc(ilutI,neighbors(i))) then
+                    ! elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
                     ex(2) = neighbors(i)
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_offdiag_helement_rs_hub(nJ,ex2,.false.))

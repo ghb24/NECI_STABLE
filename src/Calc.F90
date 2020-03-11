@@ -472,6 +472,7 @@ contains
           tSetInitFlagsBeforeDeath = .false.
 
           pSinglesIn = 0.0_dp
+          pDoublesIn = 0.0_dp
           pParallelIn = 0.0_dp
 
           tSetInitialRunRef = .true.
