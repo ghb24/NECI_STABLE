@@ -1612,13 +1612,13 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
+                t_fast_pops_core = .false.
                 if (ss_space_in%npops * nProcessors > 1000000) then
                     if (.not. tForceFullPops) then
                         ss_space_in%tApproxSpace = .true.
+                        t_fast_pops_core = .true.
                     end if
                 end if
-                ! The fast pops-core option requires the pops-core-approx option
-                t_fast_pops_core = .false.
             case("POPS-CORE-AUTO")
                 ! this keyword will force intialisation of core space after
                 ! constant shift mode ends.
