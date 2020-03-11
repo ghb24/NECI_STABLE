@@ -101,6 +101,8 @@ MODULE FciMCData
     real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
+    integer :: n_core_non_init = 0
+    integer :: all_n_core_non_init = 0
 
     integer :: doubleSpawns = 0
     integer :: allDoubleSpawns

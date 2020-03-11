@@ -94,16 +94,16 @@ contains
 !Print out initial starting configurations
             WRITE(iout,*) ""
             IF(tTruncInitiator) THEN
-               WRITE(initiatorstats_unit,"(A2,A17,15A23)", advance = 'no') &
+               WRITE(initiatorstats_unit,"(A2,A17,16A23)", advance = 'no') &
                     "# ","1.Step","2.TotWalk","3.Annihil","4.Died", &
                     & "5.Born","6.TotUniqDets",&
                     &               "7.InitDets","8.NonInitDets","9.InitWalks","10.NonInitWalks","11.AbortedWalks", &
-                    "12. Removed Dets",  "13. Initiator Proj.E"
-               offset = 13
+                    "12. Removed Dets",  "13. Initiator Proj.E", "14. CoreNonInits"
+               offset = 14
                if(tTrialWavefunction .or. tStartTrialLater) then
                   write(initiatorstats_unit,"(A)", advance = 'no') &
-                  "14. TrialNumerators (inits)   15. TrialDenom (inits)"
-                  offset = 15
+                  "15. TrialNumerators (inits)   16. TrialDenom (inits)"
+                  offset = 16
                end if
                 do k = 1, maxInitExLvlWrite
                    write(tchar_k,*) k+offset
@@ -376,13 +376,13 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7)", &
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7,1I20)", &
                     advance = 'no')&
                    Iter + PreviousCycles, sum(AllTotParts), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   inits_proje_iter(1) + Hii
+                   inits_proje_iter(1) + Hii, all_n_core_non_init
                if(tTrialWavefunction .or. tStartTrialLater) &
                     write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
                     tot_init_trial_numerator(1)/StepsPrint, tot_init_trial_denom(1)/StepsPrint
@@ -523,13 +523,13 @@ contains
                     IterTime
             endif
             if (tTruncInitiator) then
-               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7)", &
+               write(initiatorstats_unit,"(I12,4G16.7,3I20,4G16.7,F16.9,2G16.7,2I20,1G16.7,1I20)", &
                     advance = 'no')&
                    Iter + PreviousCycles, AllTotParts(1), &
                    AllAnnihilated(1), AllNoDied(1), AllNoBorn(1), AllTotWalkers,&
                    AllNoInitDets(1), AllNoNonInitDets(1), AllNoInitWalk(1), &
                    AllNoNonInitWalk(1),AllNoAborted(1), AllNoRemoved(1), &
-                   inits_proje_iter(1) + Hii
+                   inits_proje_iter(1) + Hii, all_n_core_non_init
                if(tTrialWavefunction .or. tStartTrialLater) &
                     write(initiatorstats_unit, "(2G16.7)", advance = 'no') &
                     tot_init_trial_numerator(1)/StepsPrint, tot_init_trial_denom(1)/StepsPrint

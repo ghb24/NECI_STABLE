@@ -101,6 +101,7 @@ contains
 !       Calc defaults
           iSampleRDMIters = -1
           tStartCoreGroundState = .true.
+          t_core_inits = .false.
           HashLengthFrac = 0.7_dp
           nWalkerHashes=0
           tTrialHash=.true.
@@ -1856,7 +1857,9 @@ contains
             !    tTrialInit = .true.
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
-
+            case("CORE-INITS")
+                ! Make all determinants in the core-space initiators
+                t_core_inits = .true.
             case("INITIATOR-SPACE")
                 tTruncInitiator=.true.
                 tInitiatorSpace = .true.

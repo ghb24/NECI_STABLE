@@ -961,7 +961,7 @@ contains
 
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
-                if (tTruncInitiator) then
+                if (tTruncInitiator .and. t_core_inits) then
                     do run = 1, inum_runs
                         call set_flag(CurrentDets(:,PartInd), get_initiator_flag_by_run(run))
                     end do
