@@ -305,7 +305,7 @@ contains
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, &
                                     core_in%tApproxSpace, core_in%nApproxSpace, &
-                                    SpawnedParts, space_size)
+                                    SpawnedParts, space_size, t_opt_fast_core = t_fast_pops_core)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. (tCSFCore .or. tGUGACore)) then
            if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
@@ -1106,7 +1106,7 @@ contains
     end subroutine generate_optimised_space
 
     subroutine generate_space_most_populated(target_space_size, tApproxSpace, &
-            nApproxSpace, ilut_list, space_size, opt_source, opt_source_size)
+            nApproxSpace, ilut_list, space_size, opt_source, opt_source_size, t_opt_fast_core)
 
         ! In: target_space_size - The number of determinants to attempt to keep
         !         from if less determinants are present then use all of them.
@@ -1135,7 +1135,7 @@ contains
         logical, intent(in) :: tApproxSpace
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
-
+        logical, intent(in), optional :: t_opt_fast_core
         real(dp), allocatable, dimension(:) :: amps_this_proc, amps_all_procs
         real(dp) :: real_sign(lenof_sign)
         integer(MPIArg) :: length_this_proc, total_length
@@ -1153,6 +1153,7 @@ contains
         integer(int64) :: source_size
         integer(n_int), pointer :: loc_source(:,:)
         integer(MPIARg) :: max_size
+        logical :: t_use_fast_pops_core
 
         if (present(opt_source)) then
             ASSERT(present(opt_source_size))
@@ -1168,6 +1169,8 @@ contains
                 source = CurrentDets(0:niftot,1:source_size))
 !             loc_source => CurrentDets
         end if
+
+        def_default(t_use_fast_pops_core, t_opt_fast_core, .false.)
 
         n_pops_keep = target_space_size
 
@@ -1230,7 +1233,7 @@ contains
             amps_this_proc(i) = sum(abs(real_sign))
         end do
         
-        if(t_fast_pops_core) then
+        if(t_use_fast_pops_core) then
             min_sign = amps_this_proc(1)
             max_sign = amps_this_proc(ubound(amps_this_proc, dim=1))
 
