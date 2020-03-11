@@ -642,6 +642,10 @@ contains
                         ! H_ij = get_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     end if
                 end if
+                ! workaround for complex matrix elements here:
+#ifdef CMPLX_
+                H_ij = conjg(H_ij)
+#endif
                 con_vecs(:,i) = con_vecs(:,i) + H_ij*trial_vecs(:,j)
             end do
         end do
