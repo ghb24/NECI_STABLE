@@ -3,7 +3,7 @@
 module sym_general_mod
 
     use SystemData, only: tFixLz, tNoSymGenRandExcits, iMaxLz, G1, nel, &
-                          Symmetry, tKpntSym, tReltvy, t_new_real_space_hubbard, & 
+                          Symmetry, tKpntSym, tReltvy, t_new_real_space_hubbard, &
                           t_tJ_model, t_heisenberg_model, nbasis, t_k_space_hubbard, &
                           t_trans_corr_hop
 
@@ -38,7 +38,6 @@ module sym_general_mod
     end interface
 
 contains
-
 
     elemental function ClassCountInd_full_32(Spin, Sym, Mom) result(ind)
 
@@ -248,13 +247,14 @@ contains
 
     end subroutine
 
-    function SymAllowedExcit(nI, nJ, ic, ex) result(bValid)
+    function SymAllowedExcit(nI, nJ, ic, ex, err_msg) result(bValid)
 
         ! Provide a check that the determinant nJ is valid according to the
         ! symmetry specification of the determinant nI. This also checks that
         ! the excitation relating these two determinants (ic, ex) is valid.
 
         integer, intent(in) :: nI(nel), nJ(nel), ic, ex(2, ic)
+        character(50), intent(out), optional :: err_msg
         logical :: bValid
 
         integer :: exLevel, ml1, ml2, i
@@ -267,77 +267,112 @@ contains
 
         ! Default initial value
         bValid = .true.
+        if (present(err_msg)) err_msg = ''
 
         ! Check reported excitation level
         exLevel = iGetExcitLevel(nI, nJ, nel)
-        if (exLevel /= ic) &
+        if (exLevel /= ic) then
             bValid = .false.
+            if (present(err_msg)) err_msg = 'incorrect excitation level'
+        end if
 
         ! Check that determinant is in increasing numerical order
-        if (.not. IsValidDet(nJ, nel)) &
+        if (.not. IsValidDet(nJ, nel)) then
             bValid = .false.
+            if (present(err_msg)) err_msg = 'det not in increasing order'
+        end if
 
         ! Check that both determinants have the same overall symmetry
         sym_prod_i = 0
         sym_prod_j = 0
 
-        if (t_k_space_hubbard) then 
+        if (t_k_space_hubbard) then
             sym_prod1 = G1(nI(1))%Sym
             sym_prod2 = G1(nJ(1))%Sym
-            do i = 2, nel 
+            do i = 2, nel
                 sym_prod1 = SYMPROD(G1(nI(i))%Sym, sym_prod1)
-                sym_prod2 = SYMPROD(G1(nJ(i))%Sym, sym_prod2) 
+                sym_prod2 = SYMPROD(G1(nJ(i))%Sym, sym_prod2)
             end do
 
-            if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
-        else 
+            if (.not. SYMEQ(sym_prod1, sym_prod2)) then
+                bValid = .false.
+                if (present(err_msg)) err_msg = 'momentum not conserved.'
+            end if
+        else
             !todo: maybe i also have to exclude the k-space hubbard case here!
-            if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then 
-                do i = 1, nel
-                    sym_prod_i = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))), sym_prod_i)
-                    sym_prod_j = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))), sym_prod_j)
-                end do
+            if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then
+                if (allocated(SymInvLabel)) then
+                    do i = 1, nel
+                        sym_prod_i = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nI(i))), sym_prod_i)
+                        sym_prod_j = RandExcitSymLabelProd(SymInvLabel(SpinOrbSymLabel(nJ(i))), sym_prod_j)
+                    end do
+                end if
             end if
         end if
 
-        if (sym_prod_i /= sym_prod_j) &
+        if (sym_prod_i /= sym_prod_j) then
             bValid = .false.
+            if (present(err_msg)) err_msg = 'symmetry not conserved'
+        end if
 
-        if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then 
+        if (.not. (t_new_real_space_hubbard .or.t_tJ_model .or. t_heisenberg_model)) then
             ! Check the symmetry properties of the excitation matrix
            if (.not. tNoSymGenRandExcits .and. .not. tKPntSym) then
               bValid = bValid .and. IsSymAllowedExcitMat(ex,ic)
             end if
         end if
-        ! should i do extra tests for heisenberg and tJ? i think so 
-        if (t_new_real_space_hubbard) then 
-            if (t_trans_corr_hop) then 
-                if (.not. (ic == 1 .or. ic == 2)) bValid = .false.
+        ! should i do extra tests for heisenberg and tJ? i think so
+        if (t_new_real_space_hubbard) then
+            if (t_trans_corr_hop) then
+                if (.not. (ic == 1 .or. ic == 2)) then
+                    bValid = .false.
+                end if
             else
-                if (ic /= 1) bValid = .false. 
+                if (ic /= 1) then
+                    bValid = .false.
+                    if (present(err_msg)) err_msg = 'more than single exc. for rs-hubbard'
+                end if
             end if
         end if
 
-        if (t_tJ_model) then 
-            if (nel >= nbasis/2) bValid = .false.
+        if (t_tJ_model) then
+            if (nel >= nbasis/2) then
+                bValid = .false.
+                if (present(err_msg)) err_msg = 'more than half-filling for t-J'
+            end if
 
             call Encodebitdet(nJ, ilut)
             ! check if we have doubly occupied orbitals:
-            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) bValid = .false.
-        end if 
+            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) then
+                bValid = .false.
+                if (present(err_msg)) err_msg = 'double occupancy in tJ model'
+            end if
+        end if
 
-        if (t_heisenberg_model) then 
-            if (ic /= 2) bValid = .false. 
-            call Encodebitdet(nJ, ilut) 
-            if (count_open_orbs(ilut) /= nbasis/2) bValid = .false. 
-            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) bValid = .false.
+        if (t_heisenberg_model) then
+            if (ic /= 2) then
+                bValid = .false.
+                if (present(err_msg)) err_msg = 'other than double exc. for heisenberg'
+            end if
+            call Encodebitdet(nJ, ilut)
+            if (count_open_orbs(ilut) /= nbasis/2) then
+                bValid = .false.
+                if (present(err_msg)) err_msg = 'double occupancy in heisenberg'
+            end if
+            if ((nel - count_open_orbs(ilut(0:nifd)))/2 > 0) then
+                bValid = .false.
+                if (present(err_msg)) err_msg = 'off half-filling for heisenberg'
+            end if
         end if
 
         ! Check that Lz angular momentum projection is preserved if necessary
         if (tFixLz) then
             ml1 = sum(G1(ex(1, 1:ic))%ml)
             ml2 = sum(G1(ex(2, 1:ic))%ml)
-            if (ml1 /= ml2) bValid = .false.
+            if (ml1 /= ml2) then
+                bValid = .false.
+                if (present(err_msg)) err_msg = 'ml not conserved'
+            end if
         end if
 
       end function SymAllowedExcit
@@ -349,12 +384,12 @@ contains
         type(symmetry) :: sym_prod1, sym_prod2
         integer :: ms1, ms2, i
         bValid = .true.
-        
+
         ! Check the symmetry properties of the excitation matrix
         sym_prod1 = G1(ex(1,1))%Sym
         sym_prod2 = G1(ex(2,1))%Sym
         ms1 = G1(ex(1,1))%ms
-        ms2 = G1(ex(2,1))%ms              
+        ms2 = G1(ex(2,1))%ms
         do i = 2, ic
            sym_prod1 = SYMPROD(sym_prod1, G1(ex(1,i))%Sym)
            sym_prod2 = SYMPROD(sym_prod2, G1(ex(2,i))%Sym)
@@ -364,5 +399,5 @@ contains
         if (.not. SYMEQ(sym_prod1, sym_prod2)) bValid = .false.
         if (ms1 /= ms2 .and.(.not.tReltvy)) bValid = .false.
       end function IsSymAllowedExcitMat
-  
+
 end module

@@ -4,8 +4,8 @@ use constants, only: dp,int64,sizeof_int
 use SymExcitDataMod, only: SymTableLabels, SymLabelList2, SymLabelCounts2, &
                            OrbClassCount
 use SystemData, only: tKpntSym, tNoSymGenRandExcits, tHub, t_new_hubbard, &
-                      t_k_space_hubbard, Symmetry, BasisFN, SymmetrySize, & 
-                      tUEG, treal , arr, brr, tSymIgnoreEnergies, & 
+                      t_k_space_hubbard, Symmetry, BasisFN, SymmetrySize, &
+                      tUEG, treal , arr, brr, tSymIgnoreEnergies, &
                       nBasis, G1, tKPntSym, tFixLz, lNoSymmetry, nBasisMax, nel, &
                       NullBasisFn, Tperiodicinmom
 use lattice_mod, only: lat
@@ -206,11 +206,11 @@ contains
 
 !   Now generate a list of sym labels.
          NSYMLABELS=NSYMMAX
-         allocate(SymLabels(nSymLabels))
+         if (.not. allocated(SymLabels)) allocate(SymLabels(nSymLabels))
          call LogMemAlloc('SymLabels',nSymLabels,SymmetrySize,this_routine,tagSymLabels)
-         allocate(SymClasses(nBasis))
+         if (.not. associated(SymClasses)) allocate(SymClasses(nBasis))
          call LogMemAlloc('SymClasses',nBasis,4,this_routine,tagSymClasses)
-         allocate(SymConjTab(nSymlabels))
+         if (.not. allocated(SymConjTab)) allocate(SymConjTab(nSymlabels))
          call LogMemAlloc('SymConjTab',nSymlabels,4,this_routine,tagSymConjTab)
          if (TwoCycleSymGens .or. tUEG) then
              DO I=1,NBASIS,2
@@ -230,6 +230,13 @@ contains
                 ! real.
                 SymConjTab(I) = I
              ENDDO
+#ifdef DEBUG_
+            WRITE(6,*) "Label, Sym, SymConjLabel, SymConj, SymProd"
+            do i=1,nsymlabels
+                WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),&
+                             SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
+            enddo
+#endif
          else if (.not.tHUB .or. treal) then
              ! Hubbard symmetry info set up in GenHubMomIrrepsSymTable.
              ! except for the real-space lattice!
@@ -257,11 +264,13 @@ contains
                      end if
                  end do
              end do
-!             WRITE(6,*) "Label, Sym, SymConjLabel, SymConj, SymProd"
-!             do i=1,nsymlabels
-!                 WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),
-!SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
-!             enddo
+#ifdef DEBUG_
+            WRITE(6,*) "Label, Sym, SymConjLabel, SymConj, SymProd"
+            do i=1,nsymlabels
+                WRITE(6,"(5I12)") i,symlabels(i),SymConjTab(i),symlabels(SymConjTab(i)),&
+                             SYMPROD(symlabels(i),symlabels(SymConjTab(i)))
+            enddo
+#endif
          end if
       END SUBROUTINE GENMOLPSYMTABLE
 
@@ -742,6 +751,10 @@ contains
          INTEGER I,J,NI2(NEL)
          INTEGER NREPS(NEL),NELECS(NEL),SSYM
          LOGICAL iscsf_old,ISC
+!          if (lnosymmetry) then
+!              isym%sym%s = 0
+!              return
+!          end if
          I=1
          NREPS(1:NEL)=0
          CALL SETUPSYM(ISYM)
@@ -1288,7 +1301,7 @@ contains
          IF(ISYM%Ml.NE.JSYM%Ml) LCHKSYM=.FALSE.
 !   if the symmetry product of I and J doesn't contain the totally
 !   symmetric irrep, we set sym to .FALSE.
-! [W.D]: does this still work with my new hubbard implementation? 
+! [W.D]: does this still work with my new hubbard implementation?
         LCHKSYM=LCHKSYM.AND.LSYMSYM(SYMPROD(SymConj(ISYM%SYM),JSYM%SYM))
       RETURN
       END FUNCTION LCHKSYM
@@ -1337,7 +1350,7 @@ contains
          CALL GETUNCSFELEC(IEL,IELEC,SSYM)
         IF(NBASISMAX(1,3).LT.4) THEN
 !   Momentum space
-            if (t_k_space_hubbard) then 
+            if (t_k_space_hubbard) then
                 isym%k = lat%add_k_vec(isym%k, G1(ielec)%k)
             else
                ISYM%k = ISYM%k + G1(IELEC)%k
@@ -1348,7 +1361,7 @@ contains
 !   except Ms
          ELSEIF(NBASISMAX(3,3).EQ.1) THEN
 !   deal with momentum
-            if (t_k_space_hubbard) then 
+            if (t_k_space_hubbard) then
                 isym%k = lat%add_k_vec(isym%k, G1(ielec)%k)
             else
                ISYM%k = ISYM%k + G1(IELEC)%k
@@ -1360,8 +1373,8 @@ contains
 !   (it is +/-CSF_NSBASIS)
          I=ISYM%MS+0
          ISYM%Ms=I+SSYM
-!          if (t_new_hubbard) then 
-             ! with the new lat%add_k_vec i should not need to map! 
+!          if (t_new_hubbard) then
+             ! with the new lat%add_k_vec i should not need to map!
 !              isym%k = lat%map_k_vec(isym%k)
 !          end if
          RETURN
@@ -1372,11 +1385,11 @@ contains
          TYPE(BasisFN) ISYM
          INTEGER nBasisMax(5,*)
          INTEGER I
-         if (t_new_hubbard) then 
-             ! deal differently with the new k-space hubbard 
-             ! use the lattice intrinsic function 
+         if (t_new_hubbard) then
+             ! deal differently with the new k-space hubbard
+             ! use the lattice intrinsic function
              ! also do something in the real-space case!!
-             ! maybe there i have to set k to 0.. 
+             ! maybe there i have to set k to 0..
              isym = lat%round_sym(isym)
              return
          end if
@@ -1460,10 +1473,10 @@ contains
          INTEGER J,LDIM,AX,AY,LENX,LENY,KK2,T1,T2
          real(dp) R1,R2,NORM
          ! [W.D]
-         ! in case of the new k-space hubbard implementation use the 
-         ! built-in k-vec mapping 
-         if (t_k_space_hubbard) then 
-             ! this should actually never be called anymore! 
+         ! in case of the new k-space hubbard implementation use the
+         ! built-in k-vec mapping
+         if (t_k_space_hubbard) then
+             ! this should actually never be called anymore!
              k1 = lat%map_k_vec(k1)
              return
          end if
@@ -1815,7 +1828,7 @@ contains
          TYPE(SYMMETRY) SYM
          LOGICAL LTERM
          INTEGER Abel(3)
-         if (t_k_space_hubbard) then 
+         if (t_k_space_hubbard) then
              write(iunit, "(I4)", advance = 'no') Sym
              return
          end if
@@ -2076,10 +2089,9 @@ contains
       ! this is the momentum from which we want to reach targetK
       bufK = cK + G1(brr(nI))%k
       if(tHub.or.Tperiodicinmom) then
-          if (t_k_space_hubbard) then 
+          if (t_k_space_hubbard) then
               ! add in a way to never leave the first BZ instead of mapping!
               bufK = lat%add_k_vec(cK, G1(brr(nI))%k)
-!               bufk = lat%map_k_vec(bufk)
           else
               call MomPbcSym(bufK,nBasisMax)
           end if

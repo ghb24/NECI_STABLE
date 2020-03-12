@@ -276,7 +276,7 @@ void allocate_shared_systemV (const char * name, void ** ptr,
 	*ptr = shmat (shm_id, NULL, 0);
 	if (*ptr == (void*)-1)
 		stop_all_c (__FUNCTION__, (string("Error mapping shared memory: ")
-		                         + strerror(errno)).c_str());
+		                         + strerror(errno)).c_str());	         
 
 	// Wait until all threads have reached this point, and then remove the
 	// shared memory control object --> Operating system will clean up

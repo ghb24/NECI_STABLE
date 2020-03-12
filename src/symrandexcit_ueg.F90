@@ -9,7 +9,8 @@ module ueg_excit_gens
     use DeterminantData, only: write_det
     use get_excit, only: make_double
     use bit_rep_data, only: NIfTot
-    use sltcnd_mod, only: sltcnd_2_kernel, sltcnd_2
+    use excitation_types, only: DoubleExc_t
+    use sltcnd_mod, only: sltcnd_excit, sltcnd_2_kernel
     use UMatCache, only: gtID
     use constants
     use util_mod
@@ -38,10 +39,10 @@ contains
         integer(n_int), intent(out) :: ilutJ(0:NIfTot)
         integer, intent(in), optional :: part_type
 
-        unused_var(exFlag); unused_var(store); unused_var(part_type);
 #ifdef WARNING_WORKAROUND_
-        HelGen = 0.0_dp
+        HelGen = h_cast(0.0_dp)
 #endif
+        unused_var(exFlag); unused_var(store); unused_var(part_type);
 
         ! W.D:
         ! split this functionality to allow back-spawning to reuse code
@@ -133,10 +134,8 @@ contains
         integer, intent(in) :: src(2)
         real(dp), intent(out) :: cum_arr(nbasis), cum_sum
 
-        integer :: ex(2,2), orba, orbb, ispn
+        integer :: ispn, orba, orbb
         real(dp) :: elem, testE
-
-        ex(1,:) = src
 
         ispn = get_ispn(src)
 
@@ -158,9 +157,8 @@ contains
 
                         ! We don't need to worry about which a,b is which, as
                         ! we don't care about the overall sign.
-                        ex(2, 1) = orba
-                        ex(2, 2) = orbb
-                        elem = abs(sltcnd_2_kernel(ex))
+                        elem = abs(sltcnd_2_kernel(&
+                            DoubleExc_t(src1=src(1), src2=src(2), tgt1=orba, tgt2=orbb)))
                     end if
                 end if
             end if
@@ -206,7 +204,7 @@ contains
                         ! we don't care about the overall sign.
                         ex(2, 1) = orba
                         ex(2, 2) = orbb
-                        elem = abs(sltcnd_2(nI,ex,.false.))
+                        elem = abs(sltcnd_excit(nI, DoubleExc_t(ex), .false.))
 !                       elem = 1.0_dp
                     end if
                 end if

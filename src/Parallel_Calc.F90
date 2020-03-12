@@ -33,8 +33,8 @@ subroutine ParMP2(nI)
 
    use constants, only: dp
    use System, only: AreSameSpatialOrb
-   use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry, & 
-                         t_3_body_excits
+   use SystemData, only: nBasisMax,nEl,Beta,ARR,nBasis,ECore,G1,tCPMD,Symmetry, &
+                         t_3_body_excits, tGUGA
    use CalcData, only: NWHTAY
    use Integrals_neci, only: GetUMatEl2
    use UMatCache, only: GTID
@@ -142,6 +142,9 @@ subroutine ParMP2(nI)
          Excit(1,1)=2
          !call GetExcitation(nI,nJ,nEl,Excit,tSign)
          dE2=GetH0Element3(nJ)
+         if (tGUGA) then
+             call stop_all("ParMP2", "modify for GUGA")
+         end if
          dU(1) = get_helement(nI, nJ, IC)
          !dU(1) = get_helement (nI, nJ, IC, Excit, tSign)
          call getMP2E(dE1,dE2,dU(1),dE)

@@ -14,7 +14,7 @@ calc
 methods
 method vertex fcimc
 endmethods
-
+seed -7
 totalwalkers 200
 nmcyc 8000
 shiftdamp 0.1

@@ -210,43 +210,24 @@ module procedure_pointers
 
         end function
 
-        ! slater-condon rules types
-        function sltcnd_0_t(nI) result(hel)
-          use constants, only: dp
-          use SystemData, only: nel
+        ! generic lMat element routine (3e integrals)
+        function get_lmat_el_t(a,b,c,i,j,k) result(hel)
+          use constants
           implicit none
-          integer, intent(in) :: nI(nel)
-          HElement_t(dp) :: hel
-        end function sltcnd_0_t
 
-        function sltcnd_1_t(nI,ex,tSign) result(hel)
-          use constants, only: dp
-          use SystemData, only: nel
-          implicit none
-          integer, intent(in) :: nI(nel)
-          integer, intent(in) :: ex(2)
-          logical, intent(in) :: tSign
+          integer, value :: a,b,c
+          integer, value :: i,j,k
           HElement_t(dp) :: hel
-        end function sltcnd_1_t
 
-        function sltcnd_2_t(nI, ex,tSign) result(hel)
-          use constants, only: dp
-          use SystemData, only: nel
-          implicit none
-          integer, intent(in) :: nI(nel)
-          integer, intent(in) :: ex(2,2)
-          logical, intent(in) :: tSign
-          HElement_t(dp) :: hel
-        end function sltcnd_2_t
+        end function get_lmat_el_t
 
-        function sltcnd_3_t(ex,tSign) result(hel)
-          use constants, only: dp
-          use SystemData, only: nel
-          implicit none
-          integer, intent(in) :: ex(2,3)
-          logical, intent(in) :: tSign
-          HElement_t(dp) :: hel
-        end function sltcnd_3_t
+!         subroutine generate_all_excits_t(nI, n_excits, det_list)
+!             use SystemData, only: nel
+!             use constants, only: n_int
+!             integer, intent(in) :: nI(nel)
+!             integer, intent(out) :: n_excits
+!             integer(n_int), intent(out), allocatable :: det_list(:,:)
+!         end subroutine generate_all_excits_t
 
         pure function scale_function_t(hdiag) result(Si)
           use constants
@@ -260,8 +241,8 @@ module procedure_pointers
         pure function lMatInd_t(a,b,c,i,j,k) result(index)
           use constants, only: int64
           implicit none
-          integer(int64), value :: a,b,c ! occupied orb indices
-          integer(int64), value :: i,j,k ! unoccupied orb
+          integer(int64), value, intent(in) :: a,b,c ! occupied orb indices
+          integer(int64), value, intent(in) :: i,j,k ! unoccupied orb
           integer(int64) :: index
         end function lMatInd_t
 
@@ -304,14 +285,12 @@ module procedure_pointers
     procedure(get_umat_el_t), pointer :: get_umat_el
     procedure(get_umat_el_t), pointer :: get_umat_el_secondary
 
-    ! slater condon rules
-    procedure(sltcnd_0_t), pointer :: sltcnd_0
-    procedure(sltcnd_1_t), pointer :: sltcnd_1
-    procedure(sltcnd_2_t), pointer :: sltcnd_2
-    procedure(sltcnd_3_t), pointer :: sltcnd_3
     ! the function used to scale the walkers
     procedure(scale_function_t), pointer :: scaleFunction
     ! the function used to scale the shift
     procedure(shift_factor_function_t), pointer :: shiftFactorFunction
+
+    ! the function used to scale the shift
+    procedure(scale_function_t), pointer :: shiftScaleFunction
 
 end module

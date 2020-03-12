@@ -15,7 +15,7 @@ calc
 methods
 method vertex fcimc
 endmethods
-
+seed -7
 nmcyc 5000
 max-tau 0.01
 truncinitiator
@@ -23,7 +23,7 @@ addtoinitiator 3
 totalwalkers 1000
 shiftdamp 0.1
 stepsshift 10
-
+load-balance-interval 1000
 allrealcoeff
 
 endcalc

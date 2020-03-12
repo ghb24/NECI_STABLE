@@ -33,6 +33,7 @@ stepsshift 20
 maxwalkerbloom 3
 truncatecas 8 8
 en2-truncated
+load-balance-interval 1000
 endcalc
 
 integral

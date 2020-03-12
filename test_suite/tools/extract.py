@@ -34,12 +34,14 @@ test_data = [
     ['spec_low','Spectral weight at the lowest', -1, False],
     ['spec_high','Spectral weight at the highest', -1, False],
     ['ft_low','FT energy at lowest', -1, False],
-    ['ft_high','FT energy at highest', -1, False],
+    ['neci_success','NECI Run successful:',-1,False],
+    ['csfoh_success','CSFOH Run succesful:',-1,False],
     ['rep_est_var','Variational energy from replica_estimates', -1, True],
     ['rep_est_e_squ','Energy squared from replica_estimates', -1, True],
     ['rep_est_en2','EN2 estimate from replica_estimates', -1, True],
     ['rep_est_en2_new','EN2 New estimate from replica_estimates', -1, True],
     ['rep_est_precond','Preconditioned energy from replica_estimates', -1, True],
+    ['greens_function','Final real part of Green function',-1,True],
 ]
 
 # The following are strings to be searched for which specify which simulation

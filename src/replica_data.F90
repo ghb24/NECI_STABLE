@@ -10,6 +10,7 @@ module replica_data
     use SystemData, only : NEl
     use IntegralsData, only : NFrozen
     use LoggingData, only : tLogEXLEVELStats
+    use real_time_data, only: TotPartsStorage, TotPartsLastAlpha
     implicit none
 
 contains
@@ -43,6 +44,7 @@ contains
 
                  TotParts(lenof_sign), AllTotParts(lenof_sign), &
                  TotPartsOld(lenof_sign), AllTotPartsOld(lenof_sign), &
+                 TotPartsStorage(lenof_sign), TotPartsLastAlpha(lenof_sign), &
                  AllTotPartsLastOutput(lenof_sign), &
                  ! n.b. AllHFCyc is in inum_runs, with different type
                  HFCyc(lenof_sign), HFOut(lenof_sign), &
@@ -157,7 +159,7 @@ contains
         ! Iteration data
         call allocate_iter_data(iter_data_fciqmc)
 
-        ! real-time FCIQMC: keep track of first and second Runge-Kutta step 
+        ! real-time FCIQMC: keep track of first and second Runge-Kutta step
         ! seperately, think of which stats i need for it!
         ! maybe move that to real-time init module..
         ! KPFCIQMC
@@ -187,7 +189,7 @@ contains
                    replica_overlaps_imag, &
 #endif
                    tSpinCoupProjE, &
-
+                   TotPartsStorage, TotPartsLastAlpha, &
                    TotParts, AllTotParts, &
                    TotPartsOld, AllTotPartsOld, AllTotPartsLastOutput, &
                    HFCyc, HFOut, &
@@ -267,7 +269,6 @@ contains
                    AllTotPartsInit, &
                    tSinglePartPhaseKPInit)
 
-                   ! real-time fciqmc
         if (tLogEXLEVELStats) deallocate(EXLEVEL_WNorm, AllEXLEVEL_WNorm)
 
 
@@ -381,11 +382,13 @@ contains
             if (.not. near_zero(ARR_RE_OR_CPLX(AllSumNoAtHF,run))) &
                 ProjectionE(run) = AllSumENum(run) / ARR_RE_OR_CPLX(AllSumNoatHF,run)
 
-            ! Keep track of where the particles are
+
             if (iProcIndex == iRefProc(run)) then
-                SumNoatHF(run) = AllSumNoatHF(run)
-                SumENum(run) = AllSumENum(run)
-                InstNoatHF(run) = NoatHF(run)
+                do i = min_part_type(run), max_part_type(run)
+                    SumNoatHF(i) = AllSumNoatHF(i)
+                    InstNoatHF(i) = NoatHF(i)
+                end do
+                SumENum(run) = AllSumENum(run)                
             end if
 
         enddo

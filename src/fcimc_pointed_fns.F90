@@ -2,10 +2,12 @@
 
 module fcimc_pointed_fns
 
-    use SystemData, only: nel, tGen_4ind_2, tGen_4ind_weighted, tHub, tUEG, &
-                          tGen_4ind_reverse,  nBasis, t_3_body_excits, &
+    use SystemData, only: nel, tGUGA, tGen_nosym_guga, &
+                          tGen_sym_guga_mol, t_consider_diff_bias, nSpatOrbs, thub, &
+                          tUEG, nBasis, tgen_guga_crude, &
                           t_k_space_hubbard, t_new_real_space_hubbard, &
-                          t_trans_corr_2body, t_trans_corr_hop, tHPHF, nBasis, G1
+                          t_trans_corr_2body, t_trans_corr_hop, &
+                          t_precond_hub, uhub
 
     use LoggingData, only: tHistExcitToFrom, FciMCDebug
 
@@ -14,6 +16,7 @@ module fcimc_pointed_fns
                         tRealCoeffByExcitLevel, InitiatorWalkNo, &
                         t_fill_frequency_hists, t_truncate_spawns, n_truncate_spawns, &
                         t_matele_cutoff, matele_cutoff, tEN2Truncated, &
+                        t_hist_tau_search_option, &
                         tTruncInitiator, tSkipRef, t_truncate_unocc, t_consider_par_bias, &
                         tAdaptiveShift, LAS_Sigma, LAS_F1, LAS_F2, &
                         AAS_Thresh, AAS_Expo, AAS_Cut, &
@@ -21,11 +24,18 @@ module fcimc_pointed_fns
     use DetCalcData, only: FciDetIndex, det
     use procedure_pointers, only: get_spawn_helement, shiftFactorFunction
     use fcimc_helper, only: CheckAllowedTruncSpawn
+
+    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet, count_open_orbs
+
     use load_balance, only: scaleFunction
-    use DetBitOps, only: FindBitExcitLevel, EncodeBitDet
+
     use bit_rep_data, only: NIfTot, test_flag
+
+    use tau_search, only: log_death_magnitude, fill_frequency_histogram_nosym_diff, &
+                          fill_frequency_histogram_nosym_nodiff, log_spawn_magnitude
+
     use bit_reps, only: get_initiator_flag, get_initiator_flag_by_run
-    use tau_search, only: log_death_magnitude, log_spawn_magnitude
+
     use rdm_general, only: calc_rdmbiasfac
     use hist, only: add_hist_excit_tofrom
     use searching, only: BinSearchParts2
@@ -34,12 +44,27 @@ module fcimc_pointed_fns
     use FciMCData
     use constants
 
+    use bit_reps, only: nifguga
+
+    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
+
+#ifdef DEBUG_
+    use guga_bitRepOps, only: convert_ilut_toGUGA, write_det_guga
+    use guga_excitations, only: print_excitInfo, global_excitInfo
+#endif
+
+    use real_time_data, only: runge_kutta_step, t_real_time_fciqmc
+
     use tau_search_hist, only: fill_frequency_histogram_4ind, &
                                fill_frequency_histogram_sd, &
                                fill_frequency_histogram
 
     use excit_gen_5, only: pgen_select_a_orb
+
+    use cepa_shifts, only: t_cepa_shift, cepa_shift
+
     use hphf_integrals, only: hphf_diag_helement
+
     use Determinants, only: get_helement
     use global_det_data, only: get_tot_spawns, get_acc_spawns
 
@@ -120,7 +145,7 @@ module fcimc_pointed_fns
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
-        real(dp), intent(in) :: AvExPerWalker        
+        real(dp), intent(in) :: AvExPerWalker
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
@@ -179,102 +204,107 @@ module fcimc_pointed_fns
         integer :: extracreate, tgt_cpt, component, i, iUnused
         integer :: TargetExcitLevel
         logical :: tRealSpawning
-        HElement_t(dp) :: rh, rh_used
+        HElement_t(dp) :: rh_used, Eii_curr
+#ifdef DEBUG_
+        integer :: nOpen
+        integer(n_int) :: ilutTmpI(0:nifguga), ilutTmpJ(0:nifguga)
+#endif
         logical :: t_par
         real(dp) :: temp_prob, pgen_a, dummy_arr(nBasis), cum_sum
-        integer :: ispn
+        integer :: ispn, n_double
 
         integer :: temp_ex(2,ic)
 
         unused_var(AvSignCurr)
-
         ! Just in case
         child = 0.0_dp
 
-        ! If each walker does not have exactly one spawning attempt
-        ! (if AvExPerWalker /= 1.0_dp) then the probability of an excitation
-        ! having been chosen, prob, must be altered accordingly.
         prob = prob * AvExPerWalker
-
         ! In the case of using HPHF, and when tGenMatHEl is on, the matrix
         ! element is calculated at the time of the excitation generation,
         ! and returned in HElGen. In this case, get_spawn_helement simply
         ! returns HElGen, rather than recomputing the matrix element.
-!         rh = get_spawn_helement (DetCurr, nJ, iLutCurr, iLutnJ, ic, ex, &
-!                                  tParity, HElGen)
 
         temp_ex(1,:) = ex(2,:)
         temp_ex(2,:) = ex(1,:)
 
-        rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
-            tParity, HElGen)
-        
+        ! We actually want to calculate Hji - take the complex conjugate,
+        ! rather than swap around DetCurr and nJ.
+        rh_used = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
+                                 tParity, HElGen)
+
         ! assign the matrix element
-        HElGen = abs(rh)
-        ! [W.D.]
-        ! if the matrix element happens to be zero, i guess i should
-        ! abort as early as possible? so check that here already, or even
-        ! earlier..
-!         if (abs(rh) < EPS) then
-!             child = 0.0_dp
-!             return
-!         end if
-!
-!         if (t_matele_cutoff) then
-!             if (abs(rh) < EPS) then
-!                 child = 0.0_dp
-!             end if
-!         end if
+        HElGen = abs(rh_used)
 
-        !write(6,*) 'p,rh', prob, rh
-
-        ! The following is useful for debugging the contributions of single
-        ! excitations, and double excitations of spin-paired/opposite
-        ! electron pairs to the value of tau.
-!        if (ic == 2) then
-!            if (G1(ex(1,1))%Ms /= G1(ex(1,2))%Ms) then
-!                write(6,*) 'OPP', rh, prob
-!            else
-!                write(6,*) 'SAM', rh, prob
-!            end if
-!        else
-!            write(6,*) 'IC1', rh, prob
-!        end if
-
-        ! fill in the frequency histograms here!
-        ! [Werner Dobrautz 4.4.2017:]
+        ! essentially here i have all the information for my frequency
+        ! analysis of the H_ij/pgen ratio so call the routine here
+        ! but i have to remember to keep it parallel! so dont forget to
+        ! sum up all the contributions from different cores!
+        ! and divide prob by AvMCExcits again to get correct pgen!
         if (t_fill_frequency_hists) then
-
+            ! use specific ones for different types of excitation gens
             if (tHUB .or. tUEG .or. &
                 (t_new_real_space_hubbard .and. .not. t_trans_corr_hop) .or. &
                 (t_k_space_hubbard .and. .not. t_trans_corr_2body)) then
-                call fill_frequency_histogram(abs(rh / precond_fac), prob)
+                call fill_frequency_histogram(abs(rh_used / precond_fac), prob )
+
             else
                 if (t_consider_par_bias) then
-                    ! t_par only has meaning for double excitations
-                    if(ic == 2) then
+                    ! determine if excitation was parallel or anti-parallel
+                    ! ex(1,1) and ex(1,2) are the electrons
+                    if (ic == 2) then
                         t_par = (is_beta(ex(1,1)) .eqv. is_beta(ex(1,2)))
                     else
                         t_par = .false.
-                    endif
+                    end if
 
-                    ! not sure about the AvMCExcits!! TODO
-                    call fill_frequency_histogram_4ind(abs(rh / precond_fac), prob, &
+                    call fill_frequency_histogram_4ind(abs(rh_used / precond_fac), prob , &
                         ic, t_par, ex)
-                else
 
-                    call fill_frequency_histogram_sd(abs(rh / precond_fac), prob, ic)
+                else if (tGen_nosym_guga) then
+                    ! have to also check if diff bias is considered
+                    if (t_consider_diff_bias) then
+                        call fill_frequency_histogram_nosym_diff(abs(rh_used / precond_fac), prob , &
+                            ic, ex(1,1), ex(1,2))
+                    else
+                        call fill_frequency_histogram_nosym_nodiff(abs(rh_used / precond_fac), &
+                            prob , ic, ex(1,1))
+                    end if
+
+!                 else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
+!                     call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob , ic)
+
+                else
+                    ! for any other excitation generator just use one histogram
+                    ! for all the excitations..
+                    call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob, ic )
 
                 end if
             end if
         end if
-        ! Are we doing real spawning?
+
+        ! If each walker does not have exactly one spawning attempt
+        ! (if AvExPerWalker /= 1.0_dp) then the probability of an excitation
+        ! having been chosen, prob, must be altered accordingly.
+        ! the simple preconditioner for hubbard
+
+        ! i am not so sure about hongjuns change here...
+        ! is this for GUGA only?? Ask him
+
+        if(tGUGA .and. t_precond_hub)then
+          Eii_curr = calcDiagMatEleGUGA_nI(nJ)
+        end if
+
 
         tRealSpawning = .false.
         if (tAllRealCoeff) then
             tRealSpawning = .true.
         elseif (tRealCoeffByExcitLevel) then
+            if (tGUGA) call stop_all(this_routine,&
+                "excit level does not work with GUGA here...")
+
             TargetExcitLevel = FindBitExcitLevel (iLutRef(:,1), iLutnJ)
+
             if (TargetExcitLevel <= RealCoeffExcitThresh) &
                 tRealSpawning = .true.
         endif
@@ -290,7 +320,7 @@ module fcimc_pointed_fns
         child = 0.0_dp
         tgt_cpt = part_type
         walkerweight = sign(1.0_dp, RealwSign(part_type))
-        matEl = real(rh, dp)
+        matEl = real(rh_used, dp)
         if (t_matele_cutoff) then
             if (abs(matEl) < matele_cutoff) matel = 0.0_dp
         end if
@@ -320,39 +350,79 @@ module fcimc_pointed_fns
 
             ! Get the correct part of the matrix element
             walkerweight = sign(1.0_dp, RealwSign(part_type))
-            if (mod(component,2) == 1) then
+            if (btest(component,0)) then
                 ! real component
-                MatEl = real(rh, dp)
+                MatEl = real(rh_used, dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
             else
 #ifdef CMPLX_
-                MatEl = real(aimag(rh), dp)
+                MatEl = real(aimag(rh_used), dp)
                 if (t_matele_cutoff) then
                     if (abs(MatEl) < matele_cutoff) MatEl = 0.0_dp
                 end if
                 ! n.b. In this case, spawning is of opposite sign.
-                if(mod(part_type,2) == 0) then
-                   walkerweight = - walkerweight
+                if (.not. btest(part_type,0)) then
+                    ! imaginary parent -> imaginary child
+                    walkerweight = -walkerweight
                 endif
 #endif
             end if
 #endif
 
             nSpawn = - tau * MatEl * walkerweight / prob
-!            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
-!            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
+
+#ifdef DEBUG_
+            ! so.. does a |nSpawn| > 1 in my new tau-search implitly mean
+            ! that the tau is to small for this kind of exciation?
+            ! i guess so yeah.. so do it really brute force to start with
+            if (t_truncate_spawns .and. abs(nSpawn) > n_truncate_spawns) then
+                ! in debug mode i should output some additional information
+                ! to analyze the type of excitations and how many open-orbitals
+                ! etc. are used
+                if (abs(nSpawn) > 10.0_dp) then
+                    if (tGUGA) then
+                        write(iout,*) "=================================================="
+                        call convert_ilut_toGUGA(iLutCurr, ilutTmpI)
+                        call convert_ilut_toGUGA(ilutnj, ilutTmpJ)
+                        write(iout,*) "nSpawn > n_truncate_spawns!", nSpawn
+                        write(iout,*) "limit the number of spawned walkers to: ", n_truncate_spawns
+                        write(iout,*) "for spawn from determinant: "
+                        call write_det_guga(6,ilutTmpI)
+                        write(iout,*) "to: "
+                        call write_det_guga(iout, ilutTmpJ)
+                        nOpen = count_open_orbs(iLutCurr)
+                        write(iout,*) "# of openshell orbitals: ", nOpen, count_open_orbs(ilutnj)
+                        write(iout,*) "open/spatial: ", nOpen/real(nSpatOrbs,dp)
+                        write(iout,*) "(t |H_ij|/pgen) / #open ratio: ", abs(nSpawn) / real(nOpen,dp)
+                        write(iout,*) " H_ij, pgen: ", MatEl, prob
+                        write(iout,*) "=================================================="
+                        ! excitation type would be cool too.. but how do i get it
+                        ! to here?? do i still have global_excitInfo??
+                        call print_excitInfo(global_excitInfo)
+                        call neci_flush(iout)
+                    end if
+                end if
+            end if
+#endif
+
+            if(tGUGA .and. t_precond_hub.and. abs(Eii_curr).gt.10.0_dp)then
+             nSpawn = nSpawn / (1.0_dp + dble(Eii_curr))
+            end if
+
             ! [Werner Dobrautz 4.4.2017:]
             ! apply the spawn truncation, when using histogramming tau-search
             if ((t_truncate_spawns .and. .not. t_truncate_unocc)  .and. abs(nspawn) > &
                  n_truncate_spawns .and. .not. tEScaleWalkers) then
                ! does not work with scaled walkers, as the scaling factor is not
                ! computed here for performance reasons (it was a huge performance bottleneck)
-               ! TODO: add some additional output if this event happens
-               write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
-               truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
-               nSpawn = sign(n_truncate_spawns, nspawn)
+                ! TODO: add some additional output if this event happens
+#ifdef DEBUG_
+                 write(iout,*) "Truncating spawn magnitude from: ", abs(nspawn), " to ", n_truncate_spawns
+#endif
+                truncatedWeight = truncatedWeight + abs(nSpawn) - n_truncate_spawns
+                nSpawn = sign(n_truncate_spawns, nspawn)
 
             end if
 
@@ -425,7 +495,7 @@ module fcimc_pointed_fns
         endif
 
         ! Avoid compiler warnings
-        iUnused = walkExcitLevel        
+        iUnused = walkExcitLevel
     end function
 
     !
@@ -475,6 +545,9 @@ module fcimc_pointed_fns
             call stop_all (this_routine, 'Cannot find determinant nI in list')
 
         childExLevel = FindBitExcitLevel (iLutHF, iLutJ, nel)
+        if (tGUGA) call stop_all(this_routine, &
+            "excit level does not work with GUGA here...")
+
         if (childExLevel == nel) then
             call BinSearchParts2 (iLutJ, FCIDetIndex(childExLevel), Det, &
                                   partIndChild, tSuccess)
@@ -532,28 +605,36 @@ module fcimc_pointed_fns
         endif
 
         ! Count the number of children born
-#ifdef CMPLX_
-        do run = 1, inum_runs
-            NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
-            if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+        ! in the real-time fciqmc, it is probably good to keep track of the
+        ! stats of the 2 distinct RK loops .. use a global variable for the step
+        ! RT_M_Merge: Merge conflict with master due to introduction of kmneci resolved.
+        ! For rmneci, the __REALTIME case will have to be adapted to inum_runs>1
 
+        ! rmneci_setup: Added multirun support for real-time case
 
-           ! Count particle blooms, and their sources
-            if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
-                bloom_count(ic) = bloom_count(ic) + 1
-                bloom_sizes(ic) = max(real( sum(abs(child(min_part_type(run):max_part_type(run)))),dp), bloom_sizes(ic))
-            end if
-        enddo
+        if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+#if defined( CMPLX_)
+            do run = 1, inum_runs
+                NoBorn(run) = NoBorn(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+                if (ic == 1) SpawnFromSing(run) = SpawnFromSing(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+
+                ! Count particle blooms, and their sources
+                if (sum(abs(child(min_part_type(run):max_part_type(run)))) > InitiatorWalkNo) then
+                    bloom_count(ic) = bloom_count(ic) + 1
+                    bloom_sizes(ic) = max(real( sum(abs(child(min_part_type(run):max_part_type(run)))),dp), bloom_sizes(ic))
+                end if
+            enddo
 #else
-        NoBorn = NoBorn + abs(child)
-        if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
+            NoBorn = NoBorn + abs(child)
+            if (ic == 1) SpawnFromSing = SpawnFromSing + abs(child)
 
-        ! Count particle blooms, and their sources
-        if (abs(child(part_type)) > InitiatorWalkNo) then
-            bloom_count(ic) = bloom_count(ic) + 1
-            bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
-        end if
+            ! Count particle blooms, and their sources
+            if (abs(child(part_type)) > InitiatorWalkNo) then
+                bloom_count(ic) = bloom_count(ic) + 1
+                bloom_sizes(ic) = max(real((abs(child(part_type))), dp), bloom_sizes(ic))
+            end if
 #endif
+        endif
         if (.not. tPrecond) iter_data%nborn = iter_data%nborn + abs(child)
 
         ! Histogram the excitation levels as required
@@ -587,6 +668,9 @@ module fcimc_pointed_fns
         integer, intent(in), optional :: DetPosition
         character(*), parameter :: t_r = 'attempt_die_normal'
 
+        integer(kind=n_int) :: iLutnI(0:niftot)
+        integer :: N_double
+
         real(dp) :: probsign, r
         real(dp), dimension(inum_runs) :: fac
         integer :: i, run, iUnused
@@ -598,9 +682,13 @@ module fcimc_pointed_fns
         real(dp) :: shift
         real(dp) :: relShiftOffset ! ShiftOffset relative to Hii
 
-
         do i=1, inum_runs
-            if (tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
+            if (t_cepa_shift) then
+
+                fac(i) = tau * (Kii -  (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
+                call log_death_magnitude(Kii - (DiagSft(i) - cepa_shift(i, WalkExcitLevel)))
+
+            else if (tSkipRef(i) .and. all(DetCurr==projEdet(:,i))) then
                 !If we are fixing the population of reference det, skip death/birth
                 fac(i)=0.0
             else
@@ -619,14 +707,22 @@ module fcimc_pointed_fns
                 end if
 
                 fac(i)=tau*(Kii-shift)
-                ! And for tau searching purposes
-                call log_death_magnitude (Kii - shift)
+
+                if(t_precond_hub.and.Kii.gt.10.0_dp)then
+                   call log_death_magnitude (((Kii - shift)/(1.0_dp+Kii)))
+                else
+                   call log_death_magnitude (Kii - shift)
+               end if
             endif
+
+            if(t_precond_hub.and.Kii.gt.10.0_dp)then
+                 fac(i)=fac(i)/(1.0_dp+Kii)
+            end if
         enddo
 
         if(any(fac > 1.0_dp)) then
             if (any(fac > 2.0_dp)) then
-                if (tSearchTau) then
+                if (tSearchTauOption .or. t_hist_tau_search_option) then
                     ! If we are early in the calculation, and are using tau
                     ! searching, then this is not a big deal. Just let the
                     ! searching deal with it
@@ -699,6 +795,7 @@ module fcimc_pointed_fns
         !      wSign   - The sign of the determinant being considered. If
         !                |wSign| > 1, attempt to die multiple particles at
         !                once (multiply probability of death by |wSign|)
+        !      DetPos  - Position of the spawning determinant
         ! Ret: ndie    - The number of deaths (if +ve), or births (If -ve).
 
         integer, intent(in) :: DetCurr(nel)
@@ -760,6 +857,7 @@ module fcimc_pointed_fns
 
         ! Avoid compiler warnings
         iUnused = DetCurr(1)
+        iUnused = DetPos
 
     end function attempt_die_precond
 
@@ -811,6 +909,7 @@ module fcimc_pointed_fns
     end function negScaleFunction
 
 !------------------------------------------------------------------------------------------!
+
 
     pure function expShiftFactorFunction(pos, run, pop) result(f)
       implicit none

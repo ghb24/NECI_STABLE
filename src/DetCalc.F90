@@ -1,10 +1,9 @@
 #include "macros.h"
 MODULE DetCalc
         use constants, only: dp,n_int
-
         use SystemData, only: BasisFN,BasisFNSize,BasisFNSizeB, tStoreSpinOrbs, &
-                              t_non_hermitian
-
+             tNConservingGAS, t_non_hermitian
+        use gasci, only: loadGAS
         use sort_mod
 
         use DetCalcData
@@ -345,6 +344,8 @@ CONTAINS
          ENDIF
       ENDIF
 
+      if(tNConservingGAS) call loadGAS()
+
 !      TMC=TCALCHMAT.AND.(.NOT.TENERGY)
 
     End Subroutine DetCalcInit
@@ -354,6 +355,7 @@ CONTAINS
       use util_mod, only: get_free_unit
       use Determinants , only : get_helement,FDet, DefDet, tDefineDet
       use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
+      use SystemData, only: t_new_real_space_hubbard
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot, TSPN,LMS
       use IntegralsData, only: FCK,NMAX, UMat
       Use LoggingData, only: iLogging,tLogDets, tCalcVariationalEnergy
@@ -380,6 +382,7 @@ CONTAINS
       use hamiltonian_linalg, only: direct_ci_type, tCalcHFIndex
       use FCIMCData, only: davidson_ras, davidson_classes
       use ras, only: generate_entire_ras_space
+      use real_space_hubbard, only: init_real_space_hubbard
 
       real(dp) , ALLOCATABLE :: TKE(:),A(:,:),V(:),AM(:),BM(:),T(:),WT(:),SCR(:),WH(:),WORK2(:),V2(:,:),FCIGS(:)
       HElement_t(dp), ALLOCATABLE :: WORK(:)
@@ -398,7 +401,7 @@ CONTAINS
       INTEGER J,JR,iGetExcitLevel_2,ExcitLevel, iunit
       INTEGER LSCR,LISCR,MaxIndex
       LOGICAL tMC!,TestClosedShellDet,Found,tSign
-      real(dp) GetHElement, calct, calcmcen, calcdlwdb,norm
+      real(dp) GetHElement, calct, calcmcen, calcdlwdb,norm, temp_hel
       integer:: ic,TempnI(NEl),MomSymDet(NEl),ICSym,ICConnect,PairedUnit,SelfInvUnit
       integer(n_int) :: iLutMomSym(0:NIfTot)
       logical :: tSuccess
@@ -429,6 +432,9 @@ CONTAINS
 
 !C.. now back to the storing H
       IF(TCALCHMAT) THEN
+          if (t_new_real_space_hubbard) then
+              call init_real_space_hubbard()
+          end if
          WRITE(6,*) "Calculating H matrix"
 !C..We need to measure HAMIL and LAB first
          ALLOCATE(NROW(NDET),stat=ierr)
@@ -437,7 +443,9 @@ CONTAINS
          ICMAX=1
 !Falsify tMC
          TMC=.FALSE.
+         allocate(HAMIL(0), LAB(0))
          CALL DETHAM(NDET,NEL,NMRKS,HAMIL,LAB,NROW,.TRUE.,ICMAX,GC,TMC)
+         deallocate(HAMIL, LAB)
          WRITE(6,*) ' FINISHED COUNTING '
          WRITE(6,*) "Allocating memory for hamiltonian: ",GC*2
          CALL neci_flush(6)
@@ -487,14 +495,14 @@ CONTAINS
             ENDDO
             CLOSE(iunit)
          ENDIF
-        WRITE(6,*) '<D0|H|D0>=',real(GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET), dp)
+         temp_hel = real(GETHELEMENT(IFDET,IFDET,HAMIL,LAB,NROW,NDET), dp)
+        WRITE(6,*) '<D0|H|D0>=',temp_hel
         WRITE(6,*) '<D0|T|D0>=',CALCT(NMRKS(1,IFDET),NEL)
         CALL neci_flush(6)
 !CC         CALL HAMHIST(HMIN,HMAX,LENHAMIL,NHISTBOXES)
       ENDIF
 !C.. We've now finished calculating H if we were going to.
 !C.. IF ENERGY CALC (for which we need to have calced H)
-!
       IF(TENERGY) THEN
          IF(NBLK.NE.0) THEN
 !C..Things needed for Friesner-Pollard diagonalisation

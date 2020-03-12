@@ -4,9 +4,11 @@ module tau_search_hist
 
     use SystemData, only: tGen_4ind_weighted, AB_hole_pairs, par_hole_pairs,tHub, &
                           tGen_4ind_reverse, nOccAlpha, nOccBeta, tUEG, tGen_4ind_2, &
-                          UMatEps, nBasis, t_k_space_hubbard, t_trans_corr_2body, &
+                          nBasis, tGen_sym_guga_mol, tGen_nosym_guga, &
+                          tReal, t_k_space_hubbard, t_trans_corr_2body, &
                           t_trans_corr, t_new_real_space_hubbard, t_3_body_excits, &
-                          t_trans_corr_hop, t_mol_3_body, t_exclude_3_body_excits
+                          t_trans_corr_hop, tGUGA, tgen_guga_crude, t_mixed_hubbard, &
+                          t_olle_hubbard, t_mol_3_body, t_exclude_3_body_excits
 
     use CalcData, only: tTruncInitiator, tReadPops, MaxWalkerBloom, tau, &
                         InitiatorWalkNo, tWalkContGrow, &
@@ -15,7 +17,7 @@ module tau_search_hist
                         frq_ratio_cutoff, t_hist_tau_search,  &
                         t_fill_frequency_hists, t_hist_tau_search_option, &
                         t_truncate_spawns, t_mix_ratios, mix_ratio, matele_cutoff, &
-                        t_test_hist_tau, t_consider_par_bias
+                        t_test_hist_tau, t_consider_par_bias, max_death_cpt
 
     use FciMCData, only: tRestart, pSingles, pDoubles, pParallel, &
                          MaxTau, tSearchTau, tSearchTauOption, tSearchTauDeath
@@ -27,7 +29,7 @@ module tau_search_hist
 
     use constants, only: dp, EPS, iout, maxExcit, int64
 
-    use tau_search, only: FindMaxTauDoubs, max_death_cpt
+    use tau_search, only: FindMaxTauDoubs, integrate_frequency_histogram_spec
 
     use MemoryManager, only: LogMemAlloc, LogMemDealloc, TagIntType
 
@@ -39,6 +41,8 @@ module tau_search_hist
                             ija_orbs_sing, all_ija_orbs_sing, &
                             ija_orbs_para, all_ija_orbs, ija_orbs_anti
     use tc_three_body_data, only: pTriples, lMatEps
+
+    use guga_tausearch, only: find_max_tau_doubs_guga
 
     implicit none
     ! variables which i might have to define differently:
@@ -160,7 +164,7 @@ contains
             end if
 
         end if
-!
+
         ! with this stuff i can make the optimal time-step!
         ! but for the real-space hubbard i have to first implement the
         ! better choosing of only neighboring holes!
@@ -176,10 +180,6 @@ contains
         t_hist_tau_search = .false.
         t_fill_frequency_hists = .false.
         t_test_hist_tau = .false.
-
-        ! what should i do with the death prob..
-!         tSearchTauOption = .false.
-!         t_hist_tau_search_option = .false.
 
     end subroutine optimize_hubbard_time_step
 
@@ -226,13 +226,11 @@ contains
             end if
         end if
 
-        if (iProcIndex == root) then
-            ! print out the standard quantities:
-            print *, "Setup of the Histogramming tau-search: "
-            print *, "  Integration cut-off: ", frq_ratio_cutoff
-            print *, "  Number of bins: ", n_frequency_bins
-            print *, "  Max. ratio: ", max_frequency_bound
-        end if
+        ! print out the standard quantities:
+        root_print "Setup of the Histogramming tau-search: "
+        root_print "  Integration cut-off: ", frq_ratio_cutoff
+        root_print "  Number of bins: ", n_frequency_bins
+        root_print "  Max. ratio: ", max_frequency_bound
 
         ! do the initialization of the frequency analysis here..
         ! i think otherwise it is not done on all the nodes..
@@ -240,9 +238,7 @@ contains
         ! determine the global and fixed step-size quantitiy!
         frq_step_size = max_frequency_bound / real(n_frequency_bins, dp)
 
-        if (iProcIndex == root) then
-            print *, "  Bin-width: ", frq_step_size
-        end if
+        root_print "  Bin-width: ", frq_step_size
 
         ! and do the rest of the initialisation:
 
@@ -279,6 +275,10 @@ contains
             consider_par_bias = .false.
             call stop_all(this_routine, &
                 "Do you really need a tau-search for such a small system?")
+            pParallel = 0.0_dp
+        end if
+
+        if (t_mixed_hubbard .or. t_olle_hubbard) then
             pParallel = 0.0_dp
         end if
 
@@ -344,6 +344,25 @@ contains
             call LogMemAlloc('frequency_bins', n_frequency_bins * 3, 4, &
                 this_routine, mem_tag_histograms, ierr)
 
+        else if (tGen_sym_guga_mol .or. &
+            (tgen_guga_crude .and. .not.  &
+            (t_new_real_space_hubbard .or. t_k_space_hubbard))) then
+
+            ! i always use the singles histogram dont I? i think so..
+            allocate(frequency_bins_singles(n_frequency_bins))
+            frequency_bins_singles = 0
+
+            ! for now use only pSingles and pDoubles for GUGA implo
+            allocate(frequency_bins_doubles(n_frequency_bins))
+            frequency_bins_doubles = 0
+
+            ! actually the noysm tau search is in a different module..
+        else if (tGen_nosym_guga) then
+            call stop_all(this_routine, &
+                "should not end up here when nosym_guga, but in guga_tausearch!")
+
+
+
         else
             ! just to be save also use my new flags..
             if (tHub .or. tUEG .or. &
@@ -390,6 +409,10 @@ contains
 
         ! Unless it is already specified, set an initial value for tau
         if (.not. tRestart .and. .not. tReadPops .and. tau < EPS) then
+            if (tGUGA) then
+                root_print "Warning: FindMaxTauDoubs misused for GUGA!"
+                root_print "still need a specific implementation for that!"
+            end if
             call FindMaxTauDoubs()
         end if
 
@@ -506,12 +529,6 @@ contains
             ! here i could implement the summing in the case of Hubbard
             ! and UEG models.. although I could "just" implement the
             ! optimal time-step in the case of Hubbard models!
-
-!             if (tHub) then
-!                 call stop_all(this_routine, &
-!                     "in the case of the Hubbard model there is a optimal time-step &
-!                     &analytically calculatable! So do this!")
-!             end if
             ! for UEG not i guess..
             call integrate_frequency_histogram_spec(frequency_bins, ratio)
 
@@ -575,10 +592,6 @@ contains
                 ratio_triples = 0.0
              endif
 
-            ! change the storage of the ratios so that they are already
-            ! unbiased!
-!             ratio_singles = ratio_singles * pSingles
-
             if (consider_par_bias) then
 
                 ! sum up all 3 ratios: single, parallel and anti-parallel
@@ -611,8 +624,6 @@ contains
                 ! to compare the influences on the time-step:
                 ! change that the ratios are already stored in an unbiased
                 ! way, so no feedback happens!
-!                 ratio_para = ratio_para * pDoubles * pParallel
-!                 ratio_anti = ratio_anti * pDoubles * (1.0_dp - pParallel)
 
                 ! also calculate new time-step through this method and
                 ! check the difference to the old method
@@ -644,11 +655,8 @@ contains
                         psingles_new < (1.0_dp - 1e-5_dp)) then
 
                         if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                            if (iProcIndex == root) then
-                                write(iout,'(a, g20.12, a, g20.12, 2a)') &
-                                    "Updating singles/doubles bias. pSingles = ", &
-                                    psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, " in: ", this_routine
-                            end if
+                            root_print "Updating singles/doubles bias. pSingles = ", psingles_new
+                            root_print " pDoubles = ", 1.0_dp - psingles_new
                         end if
 
                         pSingles = psingles_new
@@ -662,10 +670,7 @@ contains
                         ! true.. so this if statement makes no sense
                         ! and otherwise pParallel_new is the same as before
                         if (abs(pparallel_new-pParallel) / pParallel > 0.0001_dp) then
-                          if (iProcIndex == root) then
-                                write(iout, '(a, g20.12, 2a)') "Updating parallel-spin bias; new pParallel = ", &
-                                    pParallel_new, " in: ", this_routine
-                          end if
+                            root_print "Updating parallel-spin bias; new pParallel = ", pParallel_new
                         end if
                         ! in this new implementation the weighting make pParallel
                         ! smaller and smaller.. so also limit it to some lower bound
@@ -708,7 +713,6 @@ contains
 
                 ! to compare the influences on the time-step:
                 ! change that so it does store the ratio unbiased
-!                 ratio_doubles = ratio_doubles * pDoubles
 
                 if (enough_sing_hist .and. enough_doub_hist) then
 
@@ -729,11 +733,8 @@ contains
                          psingles_new < (1.0_dp - 1e-5_dp)) then
 
                         if (abs(psingles - psingles_new) / psingles > 0.0001_dp) then
-                            if (iProcIndex == root) then
-                                write (iout, '(a, g20.12, a, g20.12, 2a)') &
-                                    "Updating singles/doubles bias. pSingles = ", &
-                                    psingles_new, ", pDoubles = ", 1.0_dp - psingles_new, " in: ", this_routine
-                            end if
+                            root_print "Updating singles/doubles bias. pSingles = ", psingles_new
+                            root_print " pDoubles = ", 1.0_dp - psingles_new
                         end if
 
                        pSingles = psingles_new
@@ -805,18 +806,12 @@ contains
             (.not. t_trans_corr_hop .or. enough_sing_hist)))) then
             ! remove this constriction to just work in the transcorrelated
             ! case and let the user decide!
-!             (t_new_real_space_hubbard .and. enough_doub_hist .and. &
-!             (t_trans_corr_2body .or. t_trans_corr))) then
-
-!         if (tau_new < tau .or. ((tUEG .or. tHub .or. t_k_space_hubbard .or. enough_sing_hist) .and.  &
-!             enough_doub_hist)) then
 
             ! Make the final tau smaller than tau_new by a small amount
             ! so that we don't get spawns exactly equal to the
             ! initiator threshold, but slightly below it instead.
             ! does this make sense in the new implmentation? this way
             ! i will always decrease the time-step even if its not necessary..
-!             tau_new = tau_new * 0.99999_dp
 
             ! also does the restriction on the output make sense? since i am
             ! always changing it anyway... atleast make it smaller..
@@ -828,23 +823,16 @@ contains
                         tau_new = min_tau_global
 
                     else
-                        if (iProcIndex == root) then
-                            write(iout,'(a, g20.12, 2a)') &
-                                "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
-                        end if
+                        root_print "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
                     end if
                 else
-                    if (iProcIndex == root) then
-                        write(iout,'(a, g20.12, 2a)') &
-                            "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
-                    end if
+                    root_print "Updating time-step. New time-step = ", tau_new, " in: ", this_routine
                 end if
             end if
             tau = tau_new
         end if
 
     end subroutine update_tau_hist
-
 
     subroutine fill_frequency_histogram_4ind(mat_ele, pgen, ic, t_parallel, ex)
         ! this is the specific routine to fill up the frequency histograms
@@ -897,8 +885,31 @@ contains
         ! track of the excitations above matele cutoff or?? hm..
         ! and in the rest of the code i have to abort these excitations really!
         ! talk to ali about that!
-!         if (mat_ele < EPS) then
         if (mat_ele < matele_cutoff) then
+#ifdef DEBUG_
+            print *, "zero matele should not be here!"
+            print *, "mat_ele: ", mat_ele
+            print *, "pgen: ", pgen
+            print *, "ic: ", ic
+            print *, "parallel: ", t_parallel
+            print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
+            if (ic == 2) then
+                indi = gtid(ex(1,1))
+                indj = gtid(ex(1,2))
+                inda = gtid(ex(2,1))
+                indb = gtid(ex(2,2))
+                print *, "umat (ij|ab) ", get_umat_el(indi,indj,inda,indb)
+                print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
+                print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
+                    get_umat_el(indi,indj,indb,inda))
+                print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
+                print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
+                print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
+                print *, "(jb|jb): ", abs(get_umat_el(indj,indb,indj,indb))
+            endif
+            print *, "******************"
+
+#endif
             ! but i still should keep track of these events!
             select case (ic)
             case (1)
@@ -988,7 +999,6 @@ contains
                 print *, "Warning: single excitation H_ij/pgen above max_frequency_bound!"
                 print *, " H_ij: ", mat_ele, ", pgen: ", pgen, ", pSingles: ", pSingles
                 print *, "ex-maxtrix: ", get_src(ex), " -> ", get_tgt(ex)
-!                 print *, " excitation-matrix: ", ex
                 print *, " H_ij/pgen: ", ratio, " ; bound: ", max_frequency_bound
                 print *, " Consider increasing the bound!"
 #ifdef DEBUG_
@@ -1000,10 +1010,6 @@ contains
                 print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                 print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                     get_umat_el(indi,indj,indb,inda))
-!                 print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-!                 print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-!                 print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-!                 print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                 print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                 print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                 print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -1039,10 +1045,6 @@ contains
                     print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                     print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                         get_umat_el(indi,indj,indb,inda))
-!                     print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-!                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-!                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-!                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                     print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                     print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -1074,10 +1076,6 @@ contains
                     print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                     print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                         get_umat_el(indi,indj,indb,inda))
-!                     print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-!                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-!                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-!                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                     print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                     print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -1109,10 +1107,6 @@ contains
                     print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                     print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                         get_umat_el(indi,indj,indb,inda))
-!                     print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-!                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-!                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-!                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                     print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                     print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -1145,10 +1139,6 @@ contains
                     print *, "umat (ij|ba) ", get_umat_el(indi,indj,indb,inda)
                     print *, "diff: ", abs(get_umat_el(indi,indj,inda,indb) - &
                         get_umat_el(indi,indj,indb,inda))
-!                     print *, "(ii|aa):", abs_l1(UMat2d(max(indi,inda),min(indi,inda)))
-!                     print *, "(jj|aa):", abs_l1(UMat2d(max(indj,inda),min(indj,inda)))
-!                     print *, "(ii|bb): ",abs_l1(UMat2d(max(indi,indb),min(indi,indb)))
-!                     print *, "(jj|bb): ", abs_l1(UMat2d(max(indj,indb),min(indj,indb)))
                     print *, "(ia|ia): ", abs(get_umat_el(indi,inda,indi,inda))
                     print *, "(ja|ja): ", abs(get_umat_el(indj,inda,indj,inda))
                     print *, "(ib|ib): ", abs(get_umat_el(indi,indb,indi,indb))
@@ -1191,7 +1181,6 @@ contains
         ASSERT( ic == 1 .or. ic == 2 .or. ic == 3)
 
         if (mat_ele < matele_cutoff) then
-
             select case(ic)
             case(1)
                 zero_singles = zero_singles + 1
@@ -1366,116 +1355,6 @@ contains
 
     end subroutine fill_frequency_histogram
 
-
-    subroutine integrate_frequency_histogram_spec(spec_frequency_bins, ratio)
-        ! specific histogram integration routine which sums up the inputted
-        ! frequency_bins
-        integer, intent(in) :: spec_frequency_bins(n_frequency_bins)
-        real(dp), intent(out) :: ratio
-        character(*), parameter :: this_routine = "integrate_frequency_histogram_spec"
-
-        integer :: all_frequency_bins(n_frequency_bins)
-        integer :: i, threshold
-        integer :: n_elements, cnt
-        real(dp) :: test_ratio, all_test_ratio
-        logical :: mpi_ltmp
-
-        ! test a change to the tau-search by now integrating on each
-        ! processor seperately and communicate the maximas
-        if (t_test_hist_tau) then
-            test_ratio = 0.0_dp
-            n_elements = sum(spec_frequency_bins)
-            if (n_elements == 0) then
-                test_ratio = 0.0_dp
-
-            else if (n_elements < 0) then
-                test_ratio = -1.0_dp
-                ! if any of the frequency_ratios is full i guess i should
-                ! also end the histogramming tau-search or?
-                ! yes i have to communicate that.. or else it gets
-                ! fucked up..
-
-                t_fill_frequency_hists = .false.
-
-            else
-
-                threshold = int(frq_ratio_cutoff * real(n_elements,dp))
-                cnt = 0
-                i = 0
-                do while(cnt < threshold)
-                    i = i + 1
-                    cnt = cnt + spec_frequency_bins(i)
-                end do
-
-                test_ratio = i * frq_step_size
-
-            end if
-
-            ! how do i best deal with the mpi communication.
-            ! i could use a mpialllor on (.not. t_fill_frequency_hists) to
-            ! check if one of them is false on any processor..
-            call MPIAllLORLogical(.not.t_fill_frequency_hists,mpi_ltmp)
-            if (mpi_ltmp) then
-                ! then i know one of the frequency histograms is full.. so
-                ! stop on all nodes!
-                t_fill_frequency_hists = .false.
-                ratio = -1.0_dp
-                return
-            else
-!
-!             if (test_ratio < 0.0_dp) then
-!                 ! i have to tell all processes to end the hist-tau-search
-!                 ratio = -1.0_dp
-!                 return
-!             else
-                all_test_ratio = 0.0_dp
-                call MPIAllReduce(test_ratio, MPI_MAX, all_test_ratio)
-
-                ratio = all_test_ratio
-            end if
-
-            return
-        end if
-
-        ! MPI communicate
-        all_frequency_bins = 0
-        call MPIAllReduce(spec_frequency_bins, MPI_SUM, all_frequency_bins)
-
-        n_elements = sum(all_frequency_bins)
-
-        ! have to check if no elements are yet stored into the histogram!
-        if (n_elements == 0) then
-            ratio = 0.0_dp
-            return
-
-        else if (n_elements < 0) then
-            ! i reached an integer overflow.. and should stop histogramming
-            ! this also means i should make an additional flag for only
-            ! the histogramming option without the tau-search to it
-            ! so i can also stop just the histogramming after an int
-            ! overflow in the histograms
-            ! TODO: in this case i also have to decide if i want to print
-            ! it at this moment.. or maybe still at the end of the
-            ! calculation.. but yes, maybe i want to, by default, always
-            ! print them to be able to continue from a certain setting
-            ratio = -1.0_dp
-            t_fill_frequency_hists = .false.
-            return
-        end if
-
-        threshold = int(frq_ratio_cutoff * real(n_elements, dp))
-
-        cnt = 0
-        i = 0
-        do while (cnt < threshold)
-            i = i + 1
-            cnt = cnt + all_frequency_bins(i)
-        end do
-
-        ratio = i * frq_step_size
-
-    end subroutine integrate_frequency_histogram_spec
-
     ! also provide the printing routines here:
     subroutine print_frequency_histograms
         ! try to write one general one and not multiple as in my GUGA branch
@@ -1489,7 +1368,6 @@ contains
         integer :: all_frequency_bins(n_frequency_bins)
         integer :: iunit, i, max_size
         real(dp) :: step_size, norm
-!         integer(int64) :: sum_all
         ! sashas tip: why do i not just use a real as summation?
         real(dp) :: sum_all
         integer :: tmp_int, j, k
@@ -1497,9 +1375,6 @@ contains
         real(dp) :: cnt, threshold
         real(dp) :: max_tmp, min_tmp
         real(dp) :: temp_bins(n_frequency_bins)
-
-        ! why did i do that?
-!         if (thub) return
 
         all_frequency_bins = 0
 
@@ -1528,7 +1403,6 @@ contains
             if (iProcIndex == root) then
 
                 ! also outout the obtained ratio integration here for now!
-!                 sum_all = sum(all_frequency_bins)
                 temp_bins = real(all_frequency_bins,dp)
                 sum_all = sum(temp_bins)
                 threshold = frq_ratio_cutoff * sum_all
@@ -1546,7 +1420,6 @@ contains
                     write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                     write(iunit, "(i12)") all_frequency_bins(i)
                     if (cnt < threshold) then
-!                         cnt = cnt + all_frequency_bins(i)
                         cnt = cnt + temp_bins(i)
                         j = i
                     end if
@@ -1593,7 +1466,6 @@ contains
                 write(iout,*) "minimum H_ij/pgen ratio: ", min_tmp
 
             end if
-
          else
 
             if(iProcIndex == root) all_frequency_bins = 0
@@ -1641,7 +1513,6 @@ contains
 
                 if (iProcIndex == root) then
 
-!                     sum_all = sum(all_frequency_bins_spec)
                     temp_bins = real(all_frequency_bins_spec,dp)
                     sum_all = sum(temp_bins)
 
@@ -1660,7 +1531,6 @@ contains
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
-!                             cnt = cnt + all_frequency_bins_spec(i)
                             cnt = cnt + temp_bins(i)
                             j = i
                         end if
@@ -1722,7 +1592,6 @@ contains
 
                 if (iProcIndex == root) then
 
-!                     sum_all = sum(all_frequency_bins_spec)
                     temp_bins = real(all_frequency_bins_spec,dp)
                     sum_all = sum(temp_bins)
                     threshold = frq_ratio_cutoff * sum_all
@@ -1740,7 +1609,6 @@ contains
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
-!                             cnt = cnt + all_frequency_bins_spec(i)
                             cnt = cnt + temp_bins(i)
                             j = i
                         end if
@@ -1805,7 +1673,6 @@ contains
 
                 if (iProcIndex == root) then
 
-!                     sum_all = sum(all_frequency_bins_spec)
                     temp_bins = real(all_frequency_bins_spec,dp)
                     sum_all = sum(temp_bins)
                     threshold = frq_step_size * sum_all
@@ -1823,7 +1690,6 @@ contains
                         write(iunit, "(f16.7)", advance = 'no') frq_step_size * i
                         write(iunit, "(i12)") all_frequency_bins_spec(i)
                         if (cnt < threshold) then
-!                             cnt = cnt + all_frequency_bins_spec(i)
                             cnt = cnt + temp_bins(i)
                             j = i
                         end if
@@ -1878,7 +1744,6 @@ contains
 
         if (iprocindex == root) then
             ! also print out a normed version for comparison
-!             sum_all = sum(all_frequency_bins)
             temp_bins = real(all_frequency_bins,dp)
             sum_all = sum(temp_bins)
 

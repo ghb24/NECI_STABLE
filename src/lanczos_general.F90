@@ -323,7 +323,7 @@ module lanczos_general
         integer :: sort_ind(N)
 
         lwork = 4*N
-        if (t_calc_eigenvectors) then 
+        if (t_calc_eigenvectors) then
             jobz = 'V'
         else
             jobz = 'N'
@@ -352,13 +352,13 @@ module lanczos_general
 
         if (t_calc_eigenvectors) then
             ! move the eigenvectors out of the working array
-#ifdef CMPLX_            
+#ifdef CMPLX_
             this%T_eigenvectors(1:N,1:this%n_states) = &
                 cmplx(e_vectors(1:N,1:this%n_states),kind=dp)
 #else
             this%T_eigenvectors(1:N,1:this%n_states) = &
                 e_vectors(1:N,1:this%n_states)
-#endif       
+#endif
         endif
 
 

@@ -15,6 +15,7 @@ calc
 methods
 method vertex fcimc
 endmethods
+load-balance-interval 1000
 memoryfacpart 1000.0
 memoryfacspawn 1000.0
 totalwalkers 10000

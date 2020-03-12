@@ -26,6 +26,7 @@ MODULE ReadInput_neci
         use Parallel_neci,   only : iProcIndex
         use default_sets
         use util_mod, only: get_free_unit
+        use real_time_read_input_module, only: real_time_read_input
 !#ifdef NAGF95
 !    !  USe doesn't get picked up by the make scripts
 !        USe f90_unix_env, ONLY: getarg,iargc
@@ -159,7 +160,10 @@ MODULE ReadInput_neci
                 tKP_FCIQMC = .true.
                 tUseProcsAsNodes = .true.
                 call kp_fciqmc_read_inp(kp)
-        
+
+            case ("REALTIME")
+                call real_time_read_input()
+
             case("END")
                 exit
             case default
@@ -188,8 +192,10 @@ MODULE ReadInput_neci
                               tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
-                              tGen_4ind_lin_exact, tGen_4ind_2, &
+                              tGUGA, tgen_guga_weighted, &
+                              tGen_4ind_lin_exact, tGen_4ind_2, tNConservingGAS, &
                               tComplexOrbs_RealInts, tLatticeGens, tHistSpinDist
+
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -204,7 +210,7 @@ MODULE ReadInput_neci
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
                             tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates, tSpinProject
         use Calc, only : RDMsamplingiters_in_inp
-        Use Determinants, only: SpecDet, tagSpecDet
+        Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
                                  tQuadVecMax, tCalcExcitStar, tJustQuads, &
                                  tNoDoubs
@@ -228,6 +234,7 @@ MODULE ReadInput_neci
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
 
+        use guga_init, only: checkInputGUGA
         implicit none
 
         integer :: vv, kk, cc, ierr
@@ -242,11 +249,17 @@ MODULE ReadInput_neci
             call stop_all(t_r,"CALCVARIATIONALENERGY requires HISTSPAWN option")
         endif
         if(tCalcVariationalEnergy.and..not.tEnergy) then
-            call stop_all(t_r,"CALCVARIATIONALENERGY requires initial FCI calculation")
+           call stop_all(t_r,"CALCVARIATIONALENERGY requires initial FCI calculation")
         endif
 
         nWalkerHashes=nint(HashLengthFrac*InitWalkers)
 
+
+        ! ================ GUGA implementation ===============================
+        ! design convention to store as many guga related functionality in
+        ! guga_*.F90 files and just call the routines in the main level modules
+        ! checkInputGUGA() is found in guga_init.F90
+        if (tGUGA) call checkInputGUGA()
 
         ! Turn on histogramming of fcimc wavefunction in order to find density
         ! matrix, or the orbital occupations
@@ -451,7 +464,8 @@ MODULE ReadInput_neci
             write(6,*)
         end if
 
-        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2) then
+        if (tGen_4ind_weighted .or. tGen_4ind_reverse .or. tGen_4ind_2 &
+            .or. tgen_guga_weighted) then
 
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.
@@ -587,10 +601,14 @@ MODULE ReadInput_neci
         end if
 
         if (tLatticeGens) then
-            if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
-                call stop_all(t_r, "Invalid excitation options")
-            end if
+           if (tGen_4ind_2 .or. tGen_4ind_weighted .or. tGen_4ind_reverse) then
+              call stop_all(t_r, "Invalid excitation options")
+           end if
         end if
+
+        if(.not. tDefineDet .and. tNConservingGAS) then
+           call stop_all(t_r, "Running n-GAS requires a user-defined reference via definedet")
+        endif
 
     end subroutine checkinput
 

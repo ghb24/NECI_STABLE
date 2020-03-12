@@ -186,7 +186,6 @@ module DetBitOps
         count_open_orbs = CountBits(alpha, NIfD)
     end function
 
-
     pure function FindBitExcitLevel(iLutnI, iLutnJ, maxExLevel, t_hphf_ic) result(IC)
 
         ! Find the excitation level of one determinant relative to another
@@ -194,8 +193,8 @@ module DetBitOps
         !
         ! In:  iLutnI, iLutnJ    - The bit representations
         !      maxExLevel        - An (optional) maximum ex level to consider
-        !      t_hphf_ic         - An (optional) flag to determine the 
-        !                          minimum excitation level in an HPHF calculation to 
+        !      t_hphf_ic         - An (optional) flag to determine the
+        !                          minimum excitation level in an HPHF calculation to
         !                          both spin-coupled references if present
         ! Ret: FindBitExcitLevel - The number of orbitals i,j differ by
 
@@ -210,10 +209,10 @@ module DetBitOps
 
         if (present(t_hphf_ic)) then
            if(t_hphf_ic .and. tHPHF) then
-              if(.not.(TestClosedShellDet(ilutnI) .and. TestClosedShellDet(iLutnJ)))  then 
-                 ! make sure that we are calculating the correct excitation 
-                 ! level, which should be the minimum of the possible ones in 
-                 ! HPHF mode 
+              if(.not.(TestClosedShellDet(ilutnI) .and. TestClosedShellDet(iLutnJ)))  then
+                 ! make sure that we are calculating the correct excitation
+                 ! level, which should be the minimum of the possible ones in
+                 ! HPHF mode
                  ! if both are closed shell it is fine
                  ic = FindBitExcitLevel_hphf(ilutnI, ilutnJ)
                  return
@@ -278,12 +277,12 @@ module DetBitOps
 
     !WARNING - I think this *may* be buggy - use with caution - ghb24 8/6/10
     ! I fixed a bug (bits_n_int -> bits_n_int-1), but maybe there's more... - NSB 7/10/14
-    ! [W.D.12.12.2017] so lets fix it then! 
-    ! there are now unit tests in the k_space_hubbard unit test suite for this 
-    ! routine. And i will also code up a version, which determines the sign 
-    ! based on the ilut representation! since this should be much faster 
-    ! than the nI based calculation! use Manu's paper! 
-    ! and this can be done way more effective with the new fortran 2008 
+    ! [W.D.12.12.2017] so lets fix it then!
+    ! there are now unit tests in the k_space_hubbard unit test suite for this
+    ! routine. And i will also code up a version, which determines the sign
+    ! based on the ilut representation! since this should be much faster
+    ! than the nI based calculation! use Manu's paper!
+    ! and this can be done way more effective with the new fortran 2008
     ! routines! todo: implement this more efficiently! and write unit tests!
     pure subroutine get_bit_excitmat (ilutI, iLutJ, ex, IC)
 
@@ -406,31 +405,114 @@ module DetBitOps
 
     ! This will return true if iLutI is identical to iLutJ and will return
     ! false otherwise.
-    pure function DetBitEQ(iLutI,iLutJ,nLast) result(res)
-        integer, intent(in), optional :: nLast
+    pure function DetBitEQ(iLutI,iLutJ,nLast,t_hphf_in) result(res)
         integer(kind=n_int), intent(in) :: iLutI(0:), iLutJ(0:)
-        logical :: res
+        integer, intent(in), optional :: nLast
+        logical, intent(in), optional :: t_hphf_in
+        logical :: res, t_hphf
         integer :: i, lnLast
+        integer(n_int) :: ilut_hphf(0:niftot)
 
-        if(iLutI(0).ne.iLutJ(0)) then
-            res=.false.
-            return
+        if (present(t_hphf_in)) then
+            t_hphf = t_hphf_in
         else
+            t_hphf = .false.
+        end if
+
+        if (t_hphf) then
+            ilut_hphf = return_hphf_sym_det(ilutJ)
+
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIfDBO
-            endif
+                lnLast = nIfDBO
+            end if
 
-            do i=1,lnLast
-                if(iLutI(i).ne.iLutJ(i)) then
-                    res=.false.
-                    return
+            if (.not. (all(ilutI(0:lnLast) == ilutJ(0:lnLast)) .or. &
+                       all(ilutI(0:lnLast) == ilut_hphf(0:lnLast)))) then
+
+                res = .false.
+                return
+            end if
+        else
+            if(iLutI(0).ne.iLutJ(0)) then
+                res=.false.
+                return
+            else
+                if (present(nLast)) then
+                    lnLast = nLast
+                else
+                    lnLast = NIfDBO
                 endif
-            enddo
-        endif
+
+                do i=1,lnLast
+                    if(iLutI(i).ne.iLutJ(i)) then
+                        res=.false.
+                        return
+                    endif
+                enddo
+            endif
+        end if
+
         res=.true.
+
     end function DetBitEQ
+!
+    pure function return_hphf_sym_det(ilut_in) result(ilut_out)
+        ! to avoid circular dependencies and due to the strange implementation
+        ! to find the symmetry conjugated determinant of an HPHF pair
+        ! create a new routine to return a open-shell determinant where the
+        ! last single occupied spatial orbital is an alpha spin
+        ! this is the convention in the storage of the hphfs
+        ! this can easily be tested by checking if the bit-encoded determinant
+        ! has an higher integer value!
+        ! different to the original implementation of this routine
+        ! standardyl we only return the determinant which should be stored
+        ! in the CurrentDets. so if ilut_in is already this determinant
+        ! ilut_out will be == ilut_in
+        ! and it also deals with closed-shell dets, where it will just
+        ! return the same determinant
+        integer(n_int), intent(in) :: ilut_in(0:niftot)
+        integer(n_int) :: ilut_out(0:niftot)
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "return_hphf_sym_det"
+#endif
+        INTEGER(n_int) :: iLutAlpha(0:NIfTot),iLutBeta(0:NIfTot)
+        INTEGER :: i
+
+        if (TestClosedShellDet(ilut_in)) then
+            ilut_out = ilut_in
+            return
+        end if
+
+        ilut_out(:)=0_n_int
+        iLutAlpha(:)=0_n_int
+        iLutBeta(:)=0_n_int
+
+        ! this is taken from HPHFRandExcitMod
+        do i=0,NIfDBO
+            !Seperate the alpha and beta bit strings
+            iLutAlpha(i)=IAND(ilut_in(i),MaskAlpha)
+            iLutBeta(i)=IAND(ilut_in(i),MaskBeta)
+
+            !Shift all alpha bits to the left by one.
+            iLutAlpha(i)=ISHFT(iLutAlpha(i),-1)
+            !Shift all beta bits to the right by one.
+            iLutBeta(i)=ISHFT(iLutBeta(i),1)
+            !Combine the bit strings to give the final bit representation.
+            ilut_out(i)=IOR(iLutAlpha(i),iLutBeta(i))
+        end do
+
+        i = DetBitLT(ilut_in, ilut_out)
+
+        ! i == 1 indicated that ilut_in is "less" than the symmetric
+        ! so ilut_out is the to be stored one
+        if (i == -1) then
+            ilut_out = ilut_in
+        end if
+
+    end function return_hphf_sym_det
+
 
     pure function sign_lt (ilutI, ilutJ) result (bLt)
 
@@ -798,7 +880,7 @@ module DetBitOps
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "FindExcitBitDet"
 #endif
-        
+
         iLutnJ = iLutnI
         if (IC == 0) then
             if (.not.tCSF) then
@@ -809,11 +891,11 @@ module DetBitOps
             pos = (excitmat - 1) / bits_n_int
             bit = mod(excitmat - 1, bits_n_int)
 
-            ! [W.D.12.12.2017]: 
-            ! why is this changed back to single excitations for ic=3? 
-            ! has this to do with simons CSFs? i can't really find a reason.. 
-            ! try to change it and then lets see what happens! 
-            ASSERT(ic > 0 .and. ic <= 3) 
+            ! [W.D.12.12.2017]:
+            ! why is this changed back to single excitations for ic=3?
+            ! has this to do with simons CSFs? i can't really find a reason..
+            ! try to change it and then lets see what happens!
+            ASSERT(ic > 0 .and. ic <= 3)
             ic_tmp = ic
 !             if (ic==3) then
 !                 ! single excitation: only one populated column in ExcitMat
@@ -1005,7 +1087,7 @@ module DetBitOps
 
 
     ! [W.D. 12.12.2017]
-    ! why are those routines not used more often?? 
+    ! why are those routines not used more often??
     pure function get_single_parity (ilut, src, tgt) result(par)
 
         ! Find the relative parity of two determinants, where one is ilut
@@ -1148,7 +1230,7 @@ module DetBitOps
 
     pure function FindBitExcitLevel_hphf(ilutnI, iLutnJ) result(ic)
         integer(n_int), intent(in) :: ilutnI(0:nifd), ilutnJ(0:nifd)
-        integer :: ic 
+        integer :: ic
         integer(n_int) :: ilutsI(0:nifd,2), ilutsJ(0:nifd,2), tmp(0:nifd)
         integer :: ic_tmp(4), i, j, k
 

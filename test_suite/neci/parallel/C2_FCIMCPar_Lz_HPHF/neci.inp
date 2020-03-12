@@ -13,6 +13,7 @@ method vertex fcimc
 endmethods
 nmcyc 1000   
 diagshift 0.05
+seed -7
 initwalkers 175000 
 tau 0.0025
 startsinglepart

@@ -43,7 +43,6 @@ set( SRC_FILES
     fast_determ_hamil.F90
     FciMCData.F90
     fcimc_helper.F90
-    fcimc_initialisation.F90
     fcimc_iter_utilities.F90
     FciMCLogging.F90
     fcimc_output.F90
@@ -55,7 +54,6 @@ set( SRC_FILES
 	gdata_io.F90
     gen_coul.F
     gen_coul_ueg.F90
-    global_det_data.F90
     global_utilities.F90
     gndts_blk.F
     gndts.F90
@@ -70,8 +68,6 @@ set( SRC_FILES
     HFCalc.F90
     hilbert_space_size.F90
     hist_data.F90
-    hist.F90
-#     HPHFIntegrals.F90
     HPHFRandExcit.F90
     hubbard.F
     init_coul2D.F
@@ -96,7 +92,6 @@ set( SRC_FILES
     LMat_indexing.F90
     LMat_mod.F90
     load_balance_calcnodes.F90
-    load_balancer.F90
     LoggingData.F90
     Logging.F90
     Makefile
@@ -126,7 +121,6 @@ set( SRC_FILES
     rdm_explicit.F90
     rdm_filling.F90
     rdm_finalising.F90
-    rdm_general.F90
     rdm_integral_fns.F90
     rdm_nat_orbs.F90
     rdm_reading.F90
@@ -147,7 +141,6 @@ set( SRC_FILES
     semi_stoch_gen.F90
     semi_stoch_procs.F90
 	shared_rhash.F90
-    sltcnd.F90
     sparse_arrays.F90
     spectral_data.F90
     spectral_lanczos.F90
@@ -188,12 +181,32 @@ set( SRC_FILES
     real_space_hubbard.F90
     back_spawn.F90
     back_spawn_excit_gen.F90
+    guga_bitRepOps.F90
+    guga_data.F90
+    guga_excitations.F90
+    guga_init.F90
+    guga_write_H_matrix.F90
+    guga_matrixElements.F90
+    guga_procedure_pointers.F90
+    guga_tausearch.F90
+    guga_testsuite.F90
+    guga_types.F90
     lattice_mod.F90
     tJ_model.F90
     k_space_hubbard.F90
-    unit_test_helpers.F90
     lattice_models_utils.F90
     analyse_wf_symmetry.F90
+    guga_rdm.F90
+    unit_test_helpers.F90
+    real_time_data.F90
+    cc_amplitudes.F90
+    cepa_shifts.F90
+    real_time.F90
+    real_time_aux.F90
+    real_time_init.F90
+    real_time_procs.F90
+    real_time_read_input.F90
+    verlet_aux.F90
 
     lib/backtrace.cpp
     lib/cons_neci.F90
@@ -213,11 +226,20 @@ set( SRC_FILES
     lib/util_mod.F90
     lib/util_mod_fmt.F90
     lib/fortran_strings.f90
+    lib/display_matrices.F90
 )
 
 set( FYPP_SRC_FILES
+    fcimc_initialisation.fpp
     HPHFIntegrals.fpp
+    sltcnd.fpp
+    gasci.fpp
+    excitation_types.fpp
 	shared_array.fpp
+    load_balancer.fpp
+    global_det_data.fpp
+    rdm_general.fpp
+    hist.fpp
 )
 
 set( TEMPLATED_SRC_FILES

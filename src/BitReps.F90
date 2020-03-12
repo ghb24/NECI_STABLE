@@ -1,24 +1,37 @@
 #include "macros.h"
 
 module bit_reps
-    use FciMCData, only: CurrentDets, WalkVecDets, MaxWalkersPart, tLogNumSpawns
-    use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level
+    use FciMCData, only: WalkVecDets, MaxWalkersPart, tLogNumSpawns, blank_det
+
+    use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level, &
+                        tGUGA
+
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
                         tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
                         tStartTrialLater, tPreCond, tReplicaEstimates, tStoredDets
     use csf_data, only: csf_yama_bit, csf_test_bit
+
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
+
     use DetBitOps, only: count_open_orbs, CountBits
+
     use DetBitOps, only: ilut_lt, ilut_gt
+
     use bit_rep_data
+
     use SymExcitDataMod, only: excit_gen_store_type, tBuildOccVirtList, &
                                tBuildSpinSepLists, &
                                OrbClassCount, ScratchSize, SymLabelList2, &
                                SymLabelCounts2
+
     use sym_general_mod, only: ClassCountInd
+
     use util_mod, only: binary_search_custom
+
     use sort_mod, only: sort
+
     use global_det_data, only: get_determinant
+
     implicit none
 
     ! Structure of a bit representation:
@@ -40,7 +53,6 @@ module bit_reps
 
     ! Which decoding function do we want to use?
     interface decode_bit_det
-!        module procedure decode_bit_det_bitwise
         module procedure decode_bit_det_chunks
         module procedure decode_bit_det_lists
     end interface
@@ -218,6 +230,25 @@ contains
 
         WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
         WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
+
+        if (tGUGA) then
+            ! set up a nIfGUGA variable to use a similar integer list to
+            ! calculate excitations for a given GUGA CSF
+
+            ! Structure of a bit representation:
+
+            ! | 0-NIfD: Det | x0 | x1 | deltaB |
+            !
+            ! -------
+            ! (NIfD + 1) * 64-bits              Orbital rep.
+            !  1         * 64-bits              x0 matrix element
+            !  1         * 64-bits              x1 matrix element
+            !  1         * 32-bits              deltaB value
+
+            nIfGUGA = nIfD + 3
+            write(6,"(A,I6)") "For GUGA calculation set up a integer list of length: ", nIfGUGA + 1
+
+        end if
 
         ! By default we DO NOT initialise RDM parts of the bit rep now
         bit_rdm_init = .false.
@@ -791,56 +822,65 @@ contains
         ! i need to initialize to something..
         exTypeFlag = -1
         if (IC==1) then
-            if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
-                exTypeFlag = 3
-                return
-            else
+            if (tGUGA) then
                 exTypeFlag = 1
-            endif
+            else
+                if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(1,1))) then
+                    exTypeFlag = 3
+                    return
+                else
+                    exTypeFlag = 1
+                endif
+            end if
 
         elseif (IC==2) then
-            if (is_beta(ExMat(1,1)) .and. is_beta(ExMat(1,2))) then
-                ! elec orbs are both beta
-                if (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
-                    ! virt orbs are both beta
-                    exTypeFlag = 2
-                    return
-                elseif (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
-                    ! virt orbs are both alpha
-                    exTypeFlag = 5
-                    return
-                else
-                    ! one of the spins changes
-                    exTypeFlag = 4
-                    return
-                endif
-            elseif (is_alpha(ExMat(1,1)) .and. is_alpha(ExMat(1,2))) then
-                ! elec orbs are both alpha
-                if (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
-                    ! virt orbs are both alpha
-                    exTypeFlag = 2
-                    return
-                elseif (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
-                    ! virt orbs are both beta
-                    exTypeFlag = 5
-                    return
-                else
-                    ! one of the spins changes
-                    exTypeFlag = 4
-                    return
-                endif
+            if (tGUGA) then
+                ! in GUGA avoid the further checks down below
+                exTypeFlag = 2
             else
-                ! elec orb spins are different
-                if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(2,2))) then
-                    ! virt orbs are of opposite spin
-                    exTypeFlag = 2
-                    return
+                if (is_beta(ExMat(1,1)) .and. is_beta(ExMat(1,2))) then
+                    ! elec orbs are both beta
+                    if (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
+                        ! virt orbs are both beta
+                        exTypeFlag = 2
+                        return
+                    elseif (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
+                        ! virt orbs are both alpha
+                        exTypeFlag = 5
+                        return
+                    else
+                        ! one of the spins changes
+                        exTypeFlag = 4
+                        return
+                    endif
+                elseif (is_alpha(ExMat(1,1)) .and. is_alpha(ExMat(1,2))) then
+                    ! elec orbs are both alpha
+                    if (is_alpha(ExMat(2,1)) .and. is_alpha(ExMat(2,2))) then
+                        ! virt orbs are both alpha
+                        exTypeFlag = 2
+                        return
+                    elseif (is_beta(ExMat(2,1)) .and. is_beta(ExMat(2,2))) then
+                        ! virt orbs are both beta
+                        exTypeFlag = 5
+                        return
+                    else
+                        ! one of the spins changes
+                        exTypeFlag = 4
+                        return
+                    endif
                 else
-                    ! virt orbs are of the same spin
-                    exTypeFlag = 4
-                    return
+                    ! elec orb spins are different
+                    if (is_beta(ExMat(2,1)) .neqv. is_beta(ExMat(2,2))) then
+                        ! virt orbs are of opposite spin
+                        exTypeFlag = 2
+                        return
+                    else
+                        ! virt orbs are of the same spin
+                        exTypeFlag = 4
+                        return
+                    endif
                 endif
-            endif
+            end if
         else if (ic == 3) then
             ! todo! need to consider more maybe!
             exTypeFlag = 6
@@ -934,8 +974,6 @@ contains
         ! This is a routine to take a determinant in bit form and construct
         ! the natural ordered integer form of the det.
         ! If CSFs are enabled, transfer the Yamanouchi symbol as well.
-
-        use FciMCData, only: blank_det
 
         integer(n_int), intent(in) :: ilut(0:NIftot)
         integer, intent(out) :: nI(:)
@@ -1107,7 +1145,7 @@ contains
     end subroutine decode_bit_det_bitwise
 
     subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &
-         ndets_out)
+         ndets_out, prefactor)
 
         ! WARNING 1: This routine assumes that both list_1 and list_2 contain no
         ! repeated iluts, even if one of the repeated iluts has zero amplitude.
@@ -1124,15 +1162,20 @@ contains
         integer(n_int), intent(inout) :: list_2(0:,1:)
         integer(n_int), intent(inout) :: list_out(0:,1:)
         integer, intent(out) :: ndets_out
+        real(dp), intent(in), optional :: prefactor
 
         integer :: i, pos, min_ind
         real(dp) :: sign_1(lenof_sign), sign_2(lenof_sign), sign_out(lenof_sign)
+        real(dp) :: prefactor_
+
+        def_default(prefactor_, prefactor, 1.0_dp)
 
         if (.not. sorted_lists) then
+            write(6,*) lbound(list_1, 1), ubound(list_1, 1), lbound(list_2, 1), ubound(list_2, 1)
+            call neci_flush(6)
             call sort(list_1(:,1:ndets_1), ilut_lt, ilut_gt)
             call sort(list_2(:,1:ndets_2), ilut_lt, ilut_gt)
         end if
-
         ndets_out = 0
         ! Where to start searching from in list 1:
         min_ind = 1
@@ -1142,7 +1185,7 @@ contains
             ! occupies in list 1.
             ! If list_2(:,i) is not in list 1 then -pos will equal the position
             ! that it should go in, to mantain the sorted ordering.
-            pos = binary_search_custom(list_1(:,min_ind:ndets_1), list_2(:,i), NIfTot+1, ilut_gt)
+            pos = binary_search_custom(list_1(:,min_ind:ndets_1), list_2(:,i), niftot, ilut_gt)
 
             if (pos > 0) then
                 ! Move all the states from list 1 before min_ind+pos-1 across
@@ -1153,7 +1196,7 @@ contains
                 ndets_out = ndets_out + 1
                 call extract_sign(list_1(:, min_ind+pos-1), sign_1)
                 call extract_sign(list_2(:,i), sign_2)
-                sign_out = sign_1 + sign_2
+                sign_out = sign_1 + prefactor_*sign_2
                 list_out(:,ndets_out) = list_2(:,i)
                 call encode_sign(list_out(:,ndets_out), sign_out)
 
@@ -1168,6 +1211,8 @@ contains
                 ndets_out = ndets_out - pos
 
                 list_out(:,ndets_out) = list_2(:,i)
+                call extract_sign(list_out(:,ndets_out),sign_2)
+                call encode_sign(list_out(:,ndets_out),sign_2*prefactor_)
 
                 ! Search a smaller section of list_1 next time.
                 min_ind = min_ind - pos - 1
@@ -1175,106 +1220,6 @@ contains
         end do
 
     end subroutine add_ilut_lists
-
-!    subroutine init_excitations()
-!        ! Allocate and initialise data in excit_mask.
-!        use basis, only: bit_lookup, nbasis, basis_length
-!        integer :: ibasis, jbasis, pos, el, ierr
-!
-!        allocate(excit_mask(basis_length, nbasis), stat=ierr)
-!        excit_mask = 0
-!
-!        do ibasis = 1, nbasis
-!            ! Set bits corresponding to all orbitals above ibasis.
-!            ! Sure, there are quicker ways of doing this, but it's a one-off
-!            do jbasis = ibasis+1, nbasis
-!                pos = bit_lookup(1, jbasis)
-!                el = bit_lookup(2, jbasis)
-!                excit_mask(el, ibasis) = ibset(excit_mask(el, ibasis), pos)
-!            end do
-!        end do
-!
-!    end subroutine init_excitations
-!
-!    !This is a JSS routine for calculation a permutation from a double excitation
-!    pure subroutine find_excitation_permutation2(f, excitation)
-!        ! Find the parity of the permutation required to maximally line up
-!        ! a determinant with an excitation of it, as needed for use with the
-!        ! Slater--Condon rules.
-!        !
-!        ! This version is for double excitations of a determinant.
-!        !
-!        ! In:
-!        !    f: bit string representation of the determinant.
-!        !    excitation: excit type specifying how the excited determinant is
-!        !        connected to the determinant described by f.
-!        !        Note that we require the lists of orbitals excited from/into
-!        !        to be ordered.
-!        ! Out:
-!        !    excitation: excit type with the parity of the permutation also
-!        !        specified.
-!
-!        use basis, only: basis_length
-!        use bit_utils, only: count_set_bits
-!
-!        integer(i0), intent(in) :: f(basis_length)
-!        type(excit), intent(inout) :: excitation
-!
-!        integer :: perm
-!        integer(i0) :: ia(basis_length), jb(basis_length)
-!
-!        ! Fast way of getting the parity of the permutation required to align
-!        ! two determinants given one determinant and the connecting excitation.
-!        ! This is hard to generalise to all cases, but we actually only care
-!        ! about single and double excitations.  The idea is quite different from
-!        ! that used in get_excitation (where we also need to find the orbitals
-!        ! involved in the excitation).
-!
-!        ! In the following & represents the bitwise and operation; ^ the
-!        ! bitwise exclusive or
-!        ! operation; xmask is a mask with all bits representing orbitals above
-!        ! x set; f is the string representing the determinant from which we
-!        ! excite and the excitation is defined by (i,j)->(a,b), where i<j and
-!        ! a<b.
-!
-!        ! imask ^ amask returns a bit string with bits corresponding to all
-!        ! orbitals between i and a set, with max(i,a) set and min(i,a) cleared.
-!        ! Thus f & (imask ^ amask) returns a bit string with only bits set for
-!        ! the occupied orbitals which are between i and a (possibly including i)
-!        ! and so the popcount of this gives the number of orbitals between i and
-!        ! a (possibly one larger than the actual answer) number of permutations
-!        ! needed to
-!        ! align i and a in the same 'slot' in the determinant string.  We need
-!        ! to subtract one if i>a to correct for the overcounting.
-!
-!        ! An analagous approach counts the number of permutations required so
-!        ! j and b are coincident.
-!
-!        ! Finally, we need to account for some more overcounting/undercounting.
-!        ! If j is between i and a, then it is counted yet j can either be moved
-!        ! before i (resulting in the actual number of permutations being one
-!        ! less than that counted) or after i (resulting in moving j taking one
-!        ! more permutation than counted).  It doesn't matter which we do, as we
-!        ! are only interested in whether the number of permutations is odd or
-!        ! even.  We similarly need to take into account the case where i is
-!        ! between j and b.
-!
-!        ia =
-!ieor(excit_mask(:,excitation%from_orb(1)),excit_mask(:,excitation%to_orb(1)))
-!        jb =
-!ieor(excit_mask(:,excitation%from_orb(2)),excit_mask(:,excitation%to_orb(2)))
-!
-!        perm = sum(count_set_bits(iand(f,ia))) +
-!sum(count_set_bits(iand(f,jb)))
-!
-!        if (excitation%from_orb(1) > excitation%to_orb(1)) perm = perm - 1
-!        if (excitation%from_orb(1) > excitation%to_orb(2)) perm = perm - 1
-!        if (excitation%from_orb(2) > excitation%to_orb(2) .or. &
-!            excitation%from_orb(2) < excitation%to_orb(1)) perm = perm - 1
-!
-!        excitation%perm = mod(perm,2) == 1
-!
-!    end subroutine find_excitation_permutation2
 
 
 end module bit_reps

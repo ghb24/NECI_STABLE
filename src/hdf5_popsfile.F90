@@ -210,6 +210,7 @@ contains
         ! Set up a property list to ensure file handling across all nodes.
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
+!         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
         call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
 
         ! TODO: Do sensible file handling here...
@@ -239,12 +240,12 @@ contains
         call h5garbage_collect_f(err)
 
         call MPIBarrier(mpi_err)
-
         write(6,*) "popsfile write successful"
 
 #else
         call stop_all(t_r, 'HDF5 support not enabled at compile time')
         unused_var(MaxEx)
+        unused_var(IterSuffix)
 #endif
 
     end subroutine write_popsfile_hdf5
@@ -284,6 +285,7 @@ contains
         ! Set up a property list to ensure file handling across all nodes.
         ! TODO: Check if we should be using a more specific communicator
         call h5pcreate_f(H5P_FILE_ACCESS_F, plist_id, err)
+!         call h5pset_fapl_mpio_f(plist_id, MPI_COMM_WORLD, MPI_INFO_NULl, err)
         call h5pset_fapl_mpio_f(plist_id, CommGlobal, mpiInfoNull, err)
 
         ! Open the popsfile
@@ -396,9 +398,6 @@ contains
         ! Firstly create the group for storing calculation-related data
         call h5gcreate_f(parent, nm_calc_grp, calc_grp, err)
 
-        ! Write out the random orbital mapping index
-        call write_int64_1d_dataset(calc_grp, nm_random_hash, RandomOrbIndex)
-
         call MPIBcast(PreviousCycles)
         call write_int64_scalar(calc_grp, nm_iters, iter + PreviousCycles)
         call write_dp_scalar(calc_grp, nm_tot_imag, TotImagTime)
@@ -418,11 +417,10 @@ contains
 
     subroutine write_tau_opt(parent)
 
-        use tau_search, only: gamma_sing, gamma_doub, gamma_opp, gamma_par, &
-                              enough_sing, enough_doub, enough_opp, &
-                              enough_par, cnt_sing, cnt_doub, cnt_opp, &
-                              cnt_par, max_death_cpt
+        use tau_search, only:  cnt_sing, cnt_doub, cnt_opp, cnt_par
         use FciMCData, only: pSingles, pDoubles, pParallel
+        use CalcData, only: tau, gamma_sing, gamma_doub, gamma_opp, gamma_par, &
+                            enough_sing, enough_doub, enough_opp, enough_par, max_death_cpt
         use tc_three_body_data, only: pTriples
         use CalcData, only: tau, t_hist_tau_search_option, t_previous_hist_tau
 
@@ -553,10 +551,6 @@ contains
         logical :: exists, t_resize
 
         call h5gopen_f(parent, nm_calc_grp, grp_id, err)
-
-        ! Read out the random orbital mapping index
-        call read_int64_1d_dataset(grp_id, nm_random_hash, RandomOrbIndex, &
-                                   required=.true.)
 
         ! Previous iteration data.
         call read_int64_scalar(grp_id, nm_iters, PreviousCycles, &
@@ -807,7 +801,7 @@ contains
 
         call gdata_write_handler%init_gdata_io(tAutoAdaptiveShift, &
             tScaleBlooms, tAccumPopsActive, fvals_size, max_ratio_size, lenof_sign + 1)
-        gdata_size = gdata_write_handler%entry_size()        
+        gdata_size = gdata_write_handler%entry_size()
         if(gdata_size > 0) allocate(gdata_buf(gdata_size, TotWalkers))
 
         do i = 1, int(TotWalkers,sizeof_int)
@@ -906,10 +900,6 @@ contains
                 [0_hsize_t, sum(counts(0:iProcIndex-1))] & ! output offset
         )
 
-        ! Write out the sign values on each of the processors
-!        if (.not. tUseRealCoeffs) &
-!            call stop_all(t_r, "This could go badly...")
-
         call write_2d_multi_arr_chunk_buff( &
                 wfn_grp_id, nm_sgns, H5T_NATIVE_REAL_8, &
                 PrintedDets, &
@@ -984,7 +974,7 @@ contains
         type(gdata_io_t) :: gdata_read_handler
         integer :: gdata_size, tmp_fvals_size, tmp_apvals_size
         logical :: t_read_gdata
-        logical :: t_exist_gdata
+        logical(hdf_log) :: t_exist_gdata
 
         ! TODO:
         ! - Read into a relatively small buffer. Make this such that all the
@@ -1049,7 +1039,7 @@ contains
 
         if (lenof_sign /= tmp_lenof_sign) then
            ! currently only for real population
-#ifndef __CMLPX
+#ifndef CMPLX_
            ! resize the attributes
            call resize_attribute(pops_norm_sqr, lenof_sign)
            call resize_attribute(pops_num_parts, lenof_sign)
@@ -1086,13 +1076,12 @@ contains
         call h5dopen_f(grp_id, nm_ilut, ds_ilut, err)
         call h5dopen_f(grp_id, nm_sgns, ds_sgns, err)
 
-        print *, "Max ratio size", max_ratio_size
         ! size of the ms data read in
         tmp_fvals_size = 2*tmp_inum_runs
 
         tmp_apvals_size = tmp_lenof_sign+1
 
-        ! Only active the accumlation of populations if the popsfile has 
+        ! Only active the accumlation of populations if the popsfile has
         ! apvals and and accum-pops is specified with a proper iteration
         tAccumPopsActive = .false.
         if(tAccumPops .and. tPopAccumPops)then
@@ -1120,7 +1109,7 @@ contains
             tPopAutoAdaptiveShift, tPopScaleBlooms, tPopAccumPops, &
             tmp_fvals_size, max_ratio_size, tmp_apvals_size)
         gdata_size = gdata_read_handler%entry_size()
-        
+
         t_read_gdata = gdata_read_handler%t_io()
         if(t_read_gdata) then
            call h5lexists_f(grp_id, nm_gdata, t_exist_gdata, err)
@@ -1206,7 +1195,6 @@ contains
             ! if we resized the sign, we need to go back to the original buffer size now
             if(tmp_lenof_sign /= lenof_sign) then
                deallocate(temp_sgns)
-
                allocate(temp_sgns(int(tmp_lenof_sign),int(this_block_size)),stat=ierr)
                deallocate(gdata_buf)
                allocate(gdata_buf(int(gdata_size), int(this_block_size)), stat=ierr)
@@ -1543,7 +1531,7 @@ contains
         integer(int64), intent(inout) :: CurrWalkers
         real(dp), intent(inout) :: norm(lenof_sign), parts(lenof_sign)
         type(gdata_io_t), intent(in) :: gdata_read_handler
-        
+
         integer(int64) :: j
         real(dp) :: sgn(lenof_sign)
 
@@ -1590,7 +1578,7 @@ contains
                  norm = norm + sgn**2
                  parts = parts + abs(sgn)
 
-                 call gdata_read_handler%read_gdata_hdf5(gdata_write(:,j), int(CurrWalkers)) 
+                 call gdata_read_handler%read_gdata_hdf5(gdata_write(:,j), int(CurrWalkers))
               end if
            end do
 

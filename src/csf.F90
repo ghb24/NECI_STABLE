@@ -9,13 +9,14 @@ module csf
     use integralsdata, only: umat, fck, nmax
     use constants, only: dp, n_int, lenof_sign
     use dSFMT_interface, only: genrand_real2_dSFMT
-    use sltcnd_mod, only: sltcnd
+    use excitation_types, only: DoubleExc_t
+    use sltcnd_mod, only: sltcnd, sltcnd_excit
     use DetBitOps, only: EncodeBitDet, FindBitExcitLevel, count_open_orbs, &
                          get_bit_open_unique_ind, FindSpatialBitExcitLevel, &
                          DetBitEq
     use CalcData, only: InitiatorWalkNo
     use OneEInts, only: GetTMatEl
-    use procedure_pointers, only: get_umat_el, sltcnd_2
+    use procedure_pointers, only: get_umat_el
     use UMatCache, only: gtID
     use csf_data
     use timing_neci
@@ -42,6 +43,7 @@ contains
         else
             num_csf_dets = ncsf
         endif
+
     end function
 
     function CSFGetHelement (nI, nJ) result(hel_ret)
@@ -486,7 +488,7 @@ contains
                     ex(2,:) = ab_pair(ex(1,:))
 
                     ! We know this is a double spin-orbital excitation.
-                    hel = sltcnd_2 (dets1(:,det), ex, .false.)
+                    hel = sltcnd_excit(dets1(:,det), DoubleExc_t(ex), .false.)
 
                     hel_ret = hel_ret &
                               + hel*(coeffs1(det)*coeffs2(indj))&
@@ -1703,7 +1705,7 @@ contains
                 else
                     call extract_sign (iluts(:,i), sgn)
 #ifdef CMPLX_
-                    c = abs(cmplx(sgn(1), sgn(2)))
+                    c = abs(cmplx(sgn(1), sgn(2), kind=dp))
 #else
                     c = abs(sgn(1))
 #endif

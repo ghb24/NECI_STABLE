@@ -10,6 +10,7 @@ calc
 methods
 method vertex fcimc
 endmethods
+seed -7
 nmcyc 100
 totalwalkers 10000
 memoryfacspawn 10

@@ -1,7 +1,7 @@
 subroutine NECImain(fcidmp, input_name, MemSize, NECIen)
 
-    use constants, only : dp, iout, int64
-    use rdm_finalising, only : RDM_energy
+    use constants, only: dp, iout, int64
+    use rdm_finalising, only: RDM_energy
     implicit none
 #include "NECICore.h"
     character(*), intent(in) :: fcidmp, input_name

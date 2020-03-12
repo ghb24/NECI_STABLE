@@ -1,7 +1,6 @@
 #ifndef MACROS_INCLUDEGUARD_
 #define MACROS_INCLUDEGUARD_
 
-#define log_alloc(arr, tag, ierr) call LogMemAlloc("arr",size(arr),tbs_(arr),t_r,tag,ierr)
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
@@ -25,6 +24,22 @@
 #define get_beta(orb) (ibclr(orb-1,0)+1)
 #define get_alpha(orb) (ibset(orb-1,0)+1)
 
+! extract single step vector value of a spatial orbital from ilut
+#define getStepvalue(ilut,sOrb) int(ishft(iand(ilut((sOrb-1)/bn2_),ishft(3_n_int,2*mod((sOrb-1),bn2_))),-2*mod((sOrb-1),bn2_)))
+! also directly implement 0,1,2,3 comparisons
+! also directly implement 0,1,2,3 comparisons
+#define isZero(ilut,sOrb) \
+	(.not.(btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)).or.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1)))
+#define isOne(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)).and.(.not.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1)))
+#define isTwo(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1).and.(.not.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_))))
+#define isThree(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1).and.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)))
+#define isSingle(ilut,sOrb) (btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)+1).neqv.btest(ilut((sOrb-1).div.bn2_),2*mod(sOrb-1,bn2_)))
+#define notSingle(ilut,sOrb) (.not.isSingle(ilut,sOrb))
+! could write that with already provided isOcc functions too, but would have to translate between spin and spatial orbs..
+
+! Convert spatial orbital indices to spin orbital indices
+#define spatToSpinBeta(sOrb) 2*(sOrb-1)
+#define spatToSpinAlpha(sOrb) 2*sOrb
 ! Do the two orbitals have the same spin?
 #define same_spin(orb1, orb2) (mod(orb1,2) == mod(orb2,2))
 
@@ -40,9 +55,9 @@
 #define paired_replica(ind) (ind+2*mod(ind,2)-1)
 
 ! The spin where 1=alpha, 2=beta
-#define get_spin(orb) (1+iand(orb,1))
+#define get_spin(orb) (1+mod(orb,2))
 ! The spin where 1=alpha, -1=beta
-#define get_spin_pn(orb) (1-2*iand(orb,1))
+#define get_spin_pn(orb) (1-2*mod(orb,2))
 
 ! Is the specified orbital part of a doubly occupied pair?
 #define IsDoub(ilut,orb) (IsOcc(ilut,orb).and.IsOcc(ilut,ab_pair(orb)))
@@ -59,6 +74,16 @@
 #define ilut_off(orb) mod(orb-1,bits_n_int)
 #define set_orb(ilut, orb) ilut(ilut_int(orb))=ibset(ilut(ilut_int(orb)),ilut_off(orb))
 #define clr_orb(ilut, orb) ilut(ilut_int(orb))=ibclr(ilut(ilut_int(orb)),ilut_off(orb))
+
+! define some macros to set guga step-vectors without making mistakes
+#define set_one(ilut, spat) set_orb(ilut, 2*spat - 1)
+#define clr_one(ilut, spat) clr_orb(ilut, 2*spat - 1)
+
+#define set_two(ilut, spat) set_orb(ilut, 2*spat)
+#define clr_two(ilut, spat) clr_orb(ilut, 2*spat)
+
+#define set_zero(ilut, spat) clr_orb(ilut, 2*spat);  clr_orb(ilut, 2*spat-1)
+#define set_three(ilut,spat) set_orb(ilut, 2*spat);  set_orb(ilut, 2*spat-1)
 
 ! Useful for fixing things. Requires this_routine to be defined
 #ifdef DEBUG_
@@ -182,7 +207,7 @@ endif
 ! gfortran was playing up using a parameter defined to equal C_NULL_PTR
 ! --> use pre-processor defines instead!
 #ifdef CBINDMPI
-#if defined(__PATHSCALE__) || defined(__ISO_C_HACK) || defined(__OPEN64__)
+#if defined(__PATHSCALE__) || defined(ISO_C_HACK_) || defined(__OPEN64__)
 #ifdef POINTER8
 #define MPI_IN_PLACE (0_int64)
 #else
@@ -209,9 +234,9 @@ endif
 
 ! Cast a real value to HElement_t
 #ifdef CMPLX_
-#define h_cast(val) cmplx(val,0.0_dp)
+#define h_cast(val) cmplx(val,0.0_dp,kind=dp)
 #else
-#define h_cast(val) val
+#define h_cast(val) real(val, dp)
 #endif
 
 ! these macros check allocation status before performing heap management
@@ -235,3 +260,5 @@ endif
 #define def_default(Var_, Var, Val) if(present(Var))then;Var_=Var;else;Var_=Val;endif
 
 #endif
+
+#define check_abort_excit(pgen,x) if (near_zero(pgen)) then; x = 0_n_int; return; endif

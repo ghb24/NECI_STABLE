@@ -1,6 +1,7 @@
 module rdm_integral_fns
 
     use constants
+    use excitation_types, only: DoubleExc_t
 
     implicit none
 
@@ -23,15 +24,9 @@ contains
         use UMatCache, only: gtID
 
         integer, intent(in) :: i, j, k, l
-        integer :: ex(2,maxExcit)
         real(dp) :: integral
 
-        ex(1,1) = j
-        ex(1,2) = i
-        ex(2,1) = l
-        ex(2,2) = k
-
-        integral = real(sltcnd_2_kernel(ex), dp)
+        integral = real(sltcnd_2_kernel(DoubleExc_t(j, l, i , k)), dp)
 
     end function two_elec_int
 

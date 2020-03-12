@@ -15,6 +15,8 @@ calc
 methods
 method vertex fcimc
 endmethods
+seed -7
+load-balance-interval 1000
 totalwalkers 400
 startsinglepart 4
 shiftdamp 0.5

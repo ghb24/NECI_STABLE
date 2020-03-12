@@ -1,0 +1,48 @@
+title
+
+system read
+
+nonuniformrandexcits mol_guga_weighted
+(nonuniformrandexcits 4ind-weighted-2
+electrons 4
+(nosymmetry
+(guga-tests 100000
+full-guga-tests 1000000
+
+guga 2
+
+endsys
+
+calc
+
+methods
+method vertex fcimc
+endmethods
+
+guga-mateles
+
+(energy
+(lanczos
+frequency-analysis
+hist-tau-search 0.99
+truncate-spawns 2
+max-tau 0.001
+stepsshift 10 
+shiftdamp 0.1
+
+nmcyc 5000
+truncinitiator
+addtoinitiator 3
+totalwalkers 1000
+allrealcoeff
+semi-stochastic 100
+pops-core 5
+trial-wavefunction 100
+pops-trial 5
+endcalc
+
+logging
+popsfile -1
+endlog
+
+end 

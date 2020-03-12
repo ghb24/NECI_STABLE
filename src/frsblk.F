@@ -146,6 +146,8 @@ C        WRITE(6,*) 'LSCR2:',LSCR2
 C ====================================================================
       INDEX(1:N)=0
       NHPSI=0
+      ICYCLE=0
+      NCONV=0
       IF(PRINTOUT) THEN
           WRITE(6,10000) ICYCLE,NCONV,B2MAX,B2MIN,NHPSI
       ENDIF
@@ -314,13 +316,6 @@ C..N = NEVAL
       ELSE
         DO I=1,N
           DO J=1,M
-C            IF(J.EQ.NUN) THEN
-C              IF(I.EQ.1) THEN
-C                A(J,I)=1.0_dp
-C              ELSE
-C               A(J,I)=0.0_dp
-C              ENDIF
-C            ENDIF
             A(J,I)=RAN2(iseed)
           ENDDO
         ENDDO

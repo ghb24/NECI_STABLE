@@ -116,6 +116,7 @@ LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
 logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
 logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
+
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
 LOGICAL :: tWalkContGrow,tAnnihilatebyRange
 logical :: tReadPopsRestart, tReadPopsChangeRef, tInstGrowthRate
@@ -136,7 +137,6 @@ logical :: tTrialShift !Fix the overlap with trial wavefunction by using trial e
 logical :: tSkipRef(1:inum_runs_max) !Skip spawing onto reference det and death/birth on it. One flag for each run.
 logical :: tFixTrial(1:inum_runs_max) !Fix trial overlap by determinstically updating one det. One flag for each run.
 integer :: N0_Target !The target reference population in fixed-N0 mode
-
 real(dp) :: TrialTarget !The target for trial overlap in trial-shift mode
 logical :: tAdaptiveShift !Whether any of the adaptive shift schemes is used
 logical :: tCoreAdaptiveShift = .false. ! Whether the adaptive shift is also applied to the corespace
@@ -178,6 +178,11 @@ logical :: tStoredDets
 logical :: tTruncNOpen
 integer :: trunc_nopen_max
 
+! introduce a new truncation scheme based on the difference of seniority
+! compared to the reference determinant
+logical :: t_trunc_nopen_diff = .false.
+integer :: trunc_nopen_diff = 0
+
 logical :: tMaxBloom    !If this is on, then we only print out a bloom warning if it is the biggest to date.
 
 INTEGER :: NWHTAY(3,10),NPATHS,NoMoveDets,NoMCExcits,NShiftEquilSteps
@@ -199,7 +204,6 @@ logical :: tScaleBlooms = .false.
 real(dp) :: max_allowed_spawn
 
 real(dp) :: SeniorityAge !A threshold on the life time of a determinat (measured in its halftime) to become a senior determinant.
-integer :: multiSpawnThreshold
 
 ! The average number of excitations to be performed from each walker.
 real(dp) :: AvMCExcits
@@ -289,10 +293,10 @@ logical :: tTrialWavefunction
 ! trial wave functions estimates
 integer :: ntrial_ex_calc = 0
 
-! if we want to choose a specific excited states as the trial wf, if we 
-! have a reasonable estimate. this must be done for all replicas if 
-! multiple are used 
-logical :: t_choose_trial_state = .false. 
+! if we want to choose a specific excited states as the trial wf, if we
+! have a reasonable estimate. this must be done for all replicas if
+! multiple are used
+logical :: t_choose_trial_state = .false.
 integer, allocatable :: trial_excit_choice(:)
 
 ! Input type describing which space(s) type to use.
@@ -429,13 +433,9 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! fixed to the values obtained from the POPSFILE
 logical :: t_keep_tau_fixed = .false.
 
-! for the transcorrelated hubbard make it possible to use input-dependent 
-! pDoubles and pParallel values 
-real(dp) :: p_doubles_input = 0.8_dp
-
 logical :: tPopsAlias = .false.
 character(255) :: aliasStem
-! new tau-search using HISTOGRAMS: 
+! new tau-search using HISTOGRAMS:
 logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
 logical :: t_fill_frequency_hists = .false.
 
@@ -449,13 +449,11 @@ logical :: t_previous_hist_tau = .false.
 ! keyword in case the tau-search is not converged enough
 logical :: t_restart_hist_tau = .false.
 
-! use a global variable for this control: 
 logical :: t_consider_par_bias = .false.
 
-! quickly implement a control parameter to test the order of matrix element 
-! calculation in the transcorrelated approach 
+! quickly implement a control parameter to test the order of matrix element
+! calculation in the transcorrelated approach
 logical :: t_test_order = .false.
-! also introduce an integer, to delay the actual changing of the time-step 
 ! for a set amount of iterations
 ! (in the restart case for now!)
 integer :: hist_search_delay = 0
@@ -468,11 +466,6 @@ logical :: t_mix_ratios = .false.
 ! take the new contribution, like it is already done, and if it is
 ! inputted, without an additional argument default it to 0.7_dp
 real(dp) :: mix_ratio = 1.0_dp
-! use default values for bin-width and number of bins and a max ratio:
-integer :: n_frequency_bins = 100000
-real(dp) :: max_frequency_bound = 10000.0_dp
-! also use a sensible default integration cut-off: 99.9%
-real(dp) :: frq_ratio_cutoff = 0.999_dp
 
 logical :: t_test_hist_tau = .false.
 ! real(dp) :: frq_step_size = 0.1_dp
@@ -486,15 +479,13 @@ logical :: t_test_hist_tau = .false.
 ! ! for the rest of the tau-search, reuse the quantities from the "standard"
 ! ! tau search, like enough_sing, etc. although they are not global yet..
 ! ! so maybe define new ones to not get confused
-! integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_para_hist
-!
-! logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
 
 ! and i also need to truncate the spawns maybe:
 logical :: t_truncate_spawns = .false.
-logical :: t_truncate_unocc, t_truncate_multi
+logical :: t_truncate_unocc = .false., t_truncate_multi = .false.
+
 logical :: t_prone_walkers, t_activate_decay
-real(dp) :: n_truncate_spawns = 3.0_dp
+real(dp) :: n_truncate_spawns = 2.0_dp
 
 
 ! flags for global storage
@@ -503,12 +494,6 @@ logical :: tLogAverageSpawns, tActivateLAS
 real(dp) :: spawnSgnThresh
 integer :: minInitSpawns
 
-! integer :: above_max_singles = 0, above_max_para = 0, above_max_anti = 0, &
-!            above_max_doubles = 0
-
-! and make the change to always read the psingles etc. quantity from
-! previous runs:
-logical :: t_read_probs = .true.
 
 ! introduce a cutoff for the matrix elements, to be more consistent with
 ! UMATEPS (let the default be zero, so no matrix elements are ignored!)
@@ -532,8 +517,104 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
 
-! move tSpinProject here to avoid circular dependencies 
+! make variables for automated tau determination, globally available
+! 4ind-weighted variables:
+real(dp) :: gamma_sing, gamma_doub, gamma_opp, gamma_par, max_death_cpt, &
+            max_permitted_spawn
+real(dp) :: gamma_trip
+logical :: enough_sing, enough_doub, enough_opp, enough_par, consider_par_bias
+logical :: enough_trip
+real(dp) :: gamma_sum
+
+real(dp) :: gamma_sing_spindiff1, gamma_doub_spindiff1, gamma_doub_spindiff2
+integer :: cnt_sing, cnt_doub, cnt_opp, cnt_par, cnt_trip
+! guga-specific:
+integer :: cnt_four, cnt_three_same, cnt_three_mixed, cnt_two_same, cnt_two_mixed
+integer :: n_opp, n_par
+integer :: cnt_sing_hist, cnt_doub_hist, cnt_opp_hist, cnt_par_hist
+
+
+! guga non-weighted excitation generator tau-update variables
+real(dp) :: gamma_two_same, gamma_two_mixed, gamma_three_same, gamma_three_mixed, &
+            gamma_four
+logical :: enough_two, enough_two_same, enough_two_mixed, enough_three, &
+           enough_three_same, enough_three_mixed, enough_four
+
+! introducing an new way to adapt the time-step through H_ij/pgen frequency
+! analysis: for this we need to store a histogram of the H_ij/pgens
+! across all processors which are accumulated during a FCIQMC run
+! the bins and boundaries need to be able to be adjusted during run-time
+! to store the number of elements
+integer, allocatable :: frequency_bins(:)!, all_frequency_bins(:)
+! to store the boundaries of bins
+real(dp), allocatable :: frequency_bounds(:)!, all_frequency_bounds(:)
+logical :: t_frequency_analysis = .false. ! flag to initiate the new analysis
+! change how this is approached to avoid MPI communication issues
+! fix the size of the bins to 10M and the bound to 1M and the step-size to
+! 0.1 and ignore all the frequency ratios above that.. and assume these
+! happen really seldomly and would be cut-off anyway with the integration
+! technique..
+integer :: n_frequency_bins = 100000 ! optional input to adjust the number of bins
+real(dp) :: max_frequency_bound = 10000.0_dp
+! and also store data for the MPI communication
+real(dp) :: all_max_bound = 0.0_dp
+integer :: all_n_bins = 0
+! use a global step-size, so no numericall error creeps in ..
+real(dp) :: frq_step_size = 0.1_dp
+
+! for automated tau-search i need more histograms to distinguish between
+! the different types of excitations..
+integer, allocatable :: frequency_bins_singles(:), frequency_bins_para(:), &
+                        frequency_bins_anti(:), frequency_bins_doubles(:)
+real(dp), allocatable :: frequency_bounds_singles(:), frequency_bounds_para(:), &
+                         frequency_bounds_anti(:), frequency_bounds_doubles(:)
+
+! for the nosym guga implementation also use different bins for the mixed
+! and alike types of excitations
+integer, allocatable :: frequency_bins_type2(:), frequency_bins_type2_diff(:), &
+                        frequency_bins_type3(:), frequency_bins_type3_diff(:), &
+                        frequency_bins_type4(:)
+real(dp), allocatable :: frequency_bounds_type2(:), frequency_bounds_type2_diff(:), &
+                         frequency_bounds_type3(:), frequency_bounds_type3_diff(:), &
+                         frequency_bounds_type4(:)
+
+! use also an input dependent ratio cutoff for the time-step adaptation
+real(dp) :: frq_ratio_cutoff = 0.999_dp
+
+! also use an additional flag to turn the new tau-search off but keep some
+! of its functionality anyway..
+
+! do that for the nosym guga now too deliberately! because there seems to be
+! some matrix element or dynamics problem..
+integer :: cnt_type2_same, cnt_type2_diff, cnt_type3_same, cnt_type3_diff, &
+           cnt_type4
+! and also logicals if i have enough of the excitations
+logical :: enough_sing_hist, enough_doub_hist, enough_par_hist, enough_opp_hist
+
+! keep also track of the H_ij/pgen value at the integration threshold to
+! determine what we should do with the spawning events above that ..
+real(dp) :: int_ratio_singles, int_ratio_para, int_ratio_anti, int_ratio_doubles
+
+
+! introduce a new logical to decide if we want to calculate matrix elements
+! by applying the full hamiltonian(the old way) or use the new guga matrix
+! element calculation routines. to compare the influence on the time per
+! iteration
+logical :: t_guga_mat_eles = .true.
+
+! introduce a flag to read the pSingles/pDoubles quantity even though the
+! tau-search may be turned off
+! do i want to change this to the default behavior? and indicate it
+! with "no-read_probs?" to do otherwise? i think so, because why wouldn't
+! i always use that, since we are always using tau-search, and even if
+! we dont use it, the pSingles etc. are stored anyway, and if the are not
+! stored they are 0, and in this case they are not read in anyway!
+logical :: t_read_probs = .false.
+! also need multiple new specific excitation type probabilites, but they are
+! defined in FciMCdata module!
+! move tSpinProject here to avoid circular dependencies
 logical :: tSpinProject
+
 ! Use a Jacobi preconditioner in evolution equation
 logical :: tPreCond
 
@@ -546,7 +627,7 @@ logical :: tPreCond
 logical :: tDeathBeforeComms
 
 ! Allow the user to input the following values for the excitation generator
-real(dp) :: pSinglesIn, pParallelIn
+real(dp) :: pSinglesIn, pParallelIn, pDoublesIn
 
 ! If true then allow set_initial_run_references to be called
 logical :: tSetInitialRunRef
@@ -554,6 +635,30 @@ logical :: tSetInitialRunRef
 ! pops-core-approx option to take over, even in the default case
 ! where it has been decided that it is efficient and appropriate.
 logical :: tForceFullPops
+
+! work on a new approximation for GUGA where I truncate based on the
+! pgens or matrix elements during the excitation generation
+logical :: t_trunc_guga_pgen = .false.
+logical :: t_trunc_guga_matel = .false.
+real(dp) :: trunc_guga_pgen = 1.0e-4_dp
+real(dp) :: trunc_guga_matel = 1.0e-4_dp
+
+! try this truncation also only for noninits
+logical :: t_trunc_guga_pgen_noninits = .false.
+
+! try a back-spawn like idea for the guga approximations
+logical :: t_guga_back_spawn = .false.
+logical :: t_guga_back_spawn_trunc = .false.
+
+! this integer indicates if we want to
+! -2    only treat double excitations, decreasing the excit-lvl by 2 fully
+! -1    treat single and doubly excits decreasing excit-lvl by 1 or 1 fully
+!  0    treat all excitations leaving the excit-lvl unchanged or lowering fully
+!  1    also treat excits increasing excit-lvl up to 1 full
+integer :: n_guga_back_spawn_lvl = 0
+
+
+logical :: tLogGreensfunction
 
 ! Whether global_determinant_data should be moved alongside determinants
 ! during load balancing

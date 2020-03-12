@@ -2,16 +2,15 @@
 module Integrals_neci
 
     use SystemData, only: tStoreSpinOrbs, nBasisMax, iSpinSkip, &
-                          tFixLz, Symmetry, tCacheFCIDUMPInts, &
-                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, LMS, ECore, &
-                          t_new_real_space_hubbard, t_trans_corr_hop, t_mol_3_body, &
-                          tContact, tStoreSpinOrbs, nBI, t12FoldSym
+                          tFixLz, nBasis, G1, Symmetry, tCacheFCIDUMPInts, &
+                          tRIIntegrals, tVASP,tComplexOrbs_RealInts, NEl, LMS,&
+                          ECore, t_new_real_space_hubbard, t_trans_corr_hop, &
+                          t_new_hubbard, t_k_space_hubbard,  t_mol_3_body, &
+                          tContact, t12FoldSym
 
     use UmatCache, only: tUmat2D, UMatInd, UMatConj, umat2d, tTransFIndx, nHits, &
                          nMisses, GetCachedUMatEl, HasKPoints, TransTable, &
-                         nTypes, gen2CPMDInts, tDFInts, numBasisIndices
-
-    use util_mod, only: get_nan
+                         nTypes, gen2CPMDInts, tDFInts
 
     use vasp_neci_interface
 
@@ -41,8 +40,6 @@ module Integrals_neci
     USE OneEInts, only : TMAT2D
 
     use util_mod, only: get_free_unit
-
-    use SymData, only: Symmetry
 
     use sym_mod, only: symProd, symConj, lSymSym, TotSymRep
 
@@ -418,21 +415,21 @@ contains
       USE UMatCache, only : FreezeTransfer, CreateInvBRR, GetUMatSize, SetupUMat2D_df
       Use UMatCache, only: SetupUMatCache
       use SystemData, only : nBasisMax, Alpha,BHub, BRR,nmsh,nEl
-      use SystemData, only : Ecore,G1,iSpinSkip,nBasis,nMax,nMaxZ
-      use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER,tRIIntegrals
-      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tVASP, tPickVirtUniform
-      use SystemData, only: uhub, arr,alat,treal,tCacheFCIDUMPInts, tReltvy
-      use SystemData, only: t_new_real_space_hubbard, t_new_hubbard, t_k_space_hubbard
+      use SystemData, only : G1,iSpinSkip,nBasis,nMax,nMaxZ
+      use SystemData, only: Omega,tAlpha,TBIN,tCPMD,tDFread,THFORDER
+      use SystemData, only: thub,tpbc,treadint,ttilt,TUEG,tPickVirtUniform
+      use SystemData, only: uhub, arr,alat,treal,tReltvy
       use SymExcitDataMod, only: tBuildOccVirtList, tBuildSpinSepLists
       use LoggingData, only:tCalcPropEst, iNumPropToEst, EstPropFile
       use Parallel_neci, only : iProcIndex,MPIBcast
       use MemoryManager, only: TagIntType
       use sym_mod, only: GenSymStatePairs
       use read_fci
-      use LMat_mod, only: readLMat
+      use LoggingData, only: t_umat_output
       use real_space_hubbard, only: init_tmat
       use k_space_hubbard, only: init_tmat_kspace
       use lattice_mod, only: lat
+      use LMat_mod, only: readLMat
       implicit none
       INTEGER iCacheFlag
       complex(dp),ALLOCATABLE :: ZIA(:)
@@ -595,7 +592,6 @@ contains
                      WRITE(6,*) "Not precomputing HUBBARD 2-e integrals"
                      UMatInt = 1_int64
                      call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
-!                      call shared_allocate ("umat", umat, (/1_int64/))
                      !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
                      UMAT(1)=UHUB
@@ -604,16 +600,17 @@ contains
                      call init_hopping_transcorr()
                      call init_umat_rs_hub_transcorr()
                  else
-                  WRITE(6,*) "Generating 2e integrals"
-    !!C.. Generate the 2e integrals (UMAT)
-                  CALL GetUMatSize(nBasis,UMATINT)
-                  call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
-                  !Allocate(UMat(UMatInt), stat=ierr)
-                  LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
-                  UMat = 0.0_dp
-                  WRITE(6,*) "Size of UMat is: ",UMATINT
-                  CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
-                 end if
+                      WRITE(6,*) "Generating 2e integrals"
+        !!C.. Generate the 2e integrals (UMAT)
+                      CALL GetUMatSize(nBasis,UMATINT)
+                      call shared_allocate_mpi (umat_win, umat, (/UMatInt/))
+                      !Allocate(UMat(UMatInt), stat=ierr)
+                      LogAlloc(ierr, 'UMat', int(UMatInt),HElement_t_SizeB, tagUMat)
+                      UMat = 0.0_dp
+                      WRITE(6,*) "Size of UMat is: ",UMATINT
+                      CALL CALCUMATHUBREAL(NBASIS,UHUB,UMAT)
+                  end if
+
                ELSEIF(THUB.AND..NOT.TPBC) THEN
     !!C.. we pre-compute the 2-e integrals
                   WRITE(6,*) "Generating 2e integrals"
@@ -636,6 +633,9 @@ contains
                      !Allocate(UMat(1), stat=ierr)
                      LogAlloc(ierr, 'UMat', 1,HElement_t_SizeB, tagUMat)
                      UMAT(1)=UHUB/OMEGA
+                     ! try to output the UMat anyway. to apply dmrg comparison
+                     if (t_umat_output) call write_kspace_umat()
+
                   ENDIF
     !!C.. The UEG doesn't store coul integrals
                ENDIF
@@ -733,7 +733,7 @@ contains
 
       ! Setup the umatel pointers as well
       call init_getumatel_fn_pointers ()
-      
+
       if(t_mol_3_body) call readLMat()
 
     End Subroutine IntInit
@@ -747,6 +747,7 @@ contains
       use SymData , only : TwoCycleSymGens
       use MemoryManager, only: TagIntType
       use global_utilities
+
       character(25), parameter ::this_routine='IntFreeze'
 !//Locals
       HElement_t(dp), pointer :: UMAT2(:)
@@ -900,7 +901,7 @@ contains
                            OneEPropInts2, OneEPropInts, tOneElecDiag, NewTMatInd, &
                            GetNEWTMATEl, tCPMDSymTMat, SetupTMAT2, SWAPTMAT, &
                            SwapOneEPropInts, SetupPropInts2
-       USE UMatCache, only: FreezeTransfer,UMatCacheData,UMatInd,TUMat2D
+       USE UMatCache, only: FreezeTransfer,UMatCacheData
        Use UMatCache, only: FreezeUMatCache, CreateInvBrr2,FreezeUMat2D, SetupUMatTransTable
        use LoggingData, only:tCalcPropEst, iNumPropToEst
        use UMatCache, only: GTID
@@ -1533,53 +1534,62 @@ contains
 
         use SystemData, only: t_k_space_hubbard
         use k_space_hubbard, only: get_umat_kspace
+        use real_space_hubbard, only: get_umat_el_hub
 
         integer :: iss
 
-        if (nBasisMax(1,3) >= 0) then
-            ! This is a hack. iss is not what it should be. grr.
-            iss = nBasisMax(2,3)
-            if (iss == 0) then
-                ! Store <ij|ij> and <ij|ji> in umat2d.
-                ! n.b. <ij|jk> == <ii|jj>
-                !
-                ! If complex, more difficult:
-                ! <ii|ii> is always real and allowed.
-                ! <ij|ij> is always real and allowed (densities i*i, j*j)
-                ! <ij|ji> is always reald and allowed (codensities i*j, and
-                !                                      j*i = (i*j)*)
-                ! <ii|jj> is not stored in umat2d, and may not be allowed by
-                !         symmetry. It can be complex.
-                ! If orbitals are real, we substitute <ij|ij> for <ii|jj>
+        if (t_new_hubbard) then
+            if (t_k_space_hubbard) then
+                get_umat_el => get_umat_kspace
+            else
+                get_umat_el => get_umat_el_hub
+            end if
+        else
+            if (nBasisMax(1,3) >= 0) then
+                ! This is a hack. iss is not what it should be. grr.
+                iss = nBasisMax(2,3)
+                if (iss == 0) then
+                    ! Store <ij|ij> and <ij|ji> in umat2d.
+                    ! n.b. <ij|jk> == <ii|jj>
+                    !
+                    ! If complex, more difficult:
+                    ! <ii|ii> is always real and allowed.
+                    ! <ij|ij> is always real and allowed (densities i*i, j*j)
+                    ! <ij|ji> is always reald and allowed (codensities i*j, and
+                    !                                      j*i = (i*j)*)
+                    ! <ii|jj> is not stored in umat2d, and may not be allowed by
+                    !         symmetry. It can be complex.
+                    ! If orbitals are real, we substitute <ij|ij> for <ii|jj>
 
-                if (tumat2d) then
-                    ! call umat2d routine
-                    get_umat_el => get_umat_el_tumat2d
+                    if (tumat2d) then
+                        ! call umat2d routine
+                        get_umat_el => get_umat_el_tumat2d
+                    else
+                        ! see if in the cache. This is the fallback if ids are
+                        ! such that umat2d canot be used anyway.
+                        get_umat_el => get_umat_el_cache
+                    endif
+                else if (iss == -1) then
+                    ! Non-stored hubbard integral
+                    if (t_k_space_hubbard) then
+                        get_umat_el => get_umat_kspace
+                    else
+                        get_umat_el => get_hub_umat_el
+                    end if
+
                 else
-                    ! see if in the cache. This is the fallback if ids are
-                    ! such that umat2d cannot be used anyway.
-                    get_umat_el => get_umat_el_cache
+                    write (6, '(" Setting normal GetUMatEl routine")')
+                    get_umat_el => get_umat_el_normal
                 endif
-            else if (iss == -1) then
-                ! Non-stored hubbard integral
-                if (t_k_space_hubbard) then
-                    get_umat_el => get_umat_kspace
+            else if (nBasisMax(1,3) == -1) then
+                ! UEG integral
+                if (tContact) then
+                       get_umat_el => get_contact_umat_el
                 else
-                    get_umat_el => get_hub_umat_el
-                end if
-
-            else
-                write (6, '(" Setting normal GetUMatEl routine")')
-                get_umat_el => get_umat_el_normal
+                       get_umat_el => get_ueg_umat_el
+                endif
             endif
-        else if (nBasisMax(1,3) == -1) then
-            ! UEG integral
-            if (tContact) then
-                   get_umat_el => get_contact_umat_el
-            else
-                   get_umat_el => get_ueg_umat_el
-            endif
-        endif
+        end if
 
         ! Note that this comes AFTER the above tests
         ! --> the tfixlz case is earlier in the list and will therefore be

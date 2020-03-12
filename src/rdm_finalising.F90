@@ -14,6 +14,11 @@ module rdm_finalising
     use util_mod
     use CalcData, only: tAdaptiveShift
     use RotateOrbsMod, only: FourIndInts
+    use SystemData, only: tGUGA, nSpatorbs
+    use LoggingData, only: tWriteSpinFreeRDM
+    use unit_test_helpers, only: print_matrix
+
+    use guga_rdm, only: t_test_sym_fill
 
     implicit none
 
@@ -84,7 +89,11 @@ contains
 
             ! Calculate the 1-RDMs from the 2-RDMS, if required.
             if (RDMExcitLevel == 3 .or. tDiagRDM .or. tPrint1RDM .or. tDumpForcesInfo .or. tDipoles) then
-                call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
+                if (.not. tGUGA) then
+                    call calc_1rdms_from_2rdms(rdm_defs, one_rdms, two_rdms, rdm_estimates%norm, tOpenShell)
+                else
+                    call calc_1rdms_from_spinfree_2rdms(one_rdms, two_rdms, rdm_estimates%norm)
+                end if
                 ! The 1-RDM will have been constructed to be normalised already.
                 norm_1rdm = 1.0_dp
             end if
@@ -158,7 +167,7 @@ contains
         ! simulation usually), and this requires large parallel
         ! communications, as does the printing.
 
-        use LoggingData, only: tWrite_normalised_RDMs, tWriteSpinFreeRDM, tWrite_RDMs_to_read
+        use LoggingData, only: tWrite_normalised_RDMs, tWrite_RDMs_to_read
         use rdm_data, only: rdm_definitions_t, rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
         use rdm_estimators, only: calc_hermitian_errors
 
@@ -176,9 +185,16 @@ contains
 
         call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
 
-        if (tWriteSpinFreeRDM) call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
-        if (tWrite_Normalised_RDMs) call print_rdms_spin_sym_wrapper(rdm_defs, rdm, rdm_recv, rdm_recv_2, &
-                                                                     spawn, est%norm, tOpenShell)
+        if (tGUGA) then
+            call print_spinfree_2rdm(rdm_defs, rdm_recv, est%norm)
+        else
+            if (tWriteSpinFreeRDM) &
+                call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
+
+            if (tWrite_Normalised_RDMs) &
+                call print_rdms_spin_sym_wrapper(rdm_defs, rdm, rdm_recv, rdm_recv_2, &
+                                                 spawn, est%norm, tOpenShell)
+        end if
 
     end subroutine output_2rdm_wrapper
 
@@ -230,7 +246,11 @@ contains
         do ielem = 1, two_rdms%nelements
             pqrs = two_rdms%elements(0,ielem)
             ! Obtain spin orbital labels and the RDM element.
-            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+            if (.not. tGUGA) then
+                call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+            else
+                call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+            end if
 
             call extract_sign_rdm(two_rdms%elements(:,ielem), rdm_sign)
 
@@ -240,6 +260,15 @@ contains
                     do irdm = 1, size(one_rdms)
                         one_rdms(irdm)%matrix(ind(p), ind(r)) = one_rdms(irdm)%matrix(ind(p), ind(r)) + rdm_sign(irdm)
                     end do
+                end if
+
+                if (tGUGA .and. .not. t_test_sym_fill) then
+                    if (p == r) then
+                        do irdm = 1, size(one_rdms)
+                            one_rdms(irdm)%matrix(ind(q),ind(s)) = &
+                                one_rdms(irdm)%matrix(ind(q),ind(s)) + rdm_sign(irdm)
+                        end do
+                    end if
                 end if
             end associate
         end do
@@ -252,6 +281,10 @@ contains
             call MPISumAll(one_rdms(irdm)%matrix, temp_rdm)
             ! Copy summed RDM back to the main array, and normalise.
             one_rdms(irdm)%matrix = temp_rdm / (rdm_trace(irdm)*real(nel-1,dp))
+            if (tGUGA .and. t_test_sym_fill) then
+                ! the GUGA rdms have a different normalisation
+                one_rdms(irdm)%matrix = 2.0_dp * one_rdms(irdm)%matrix
+            end if
         end do
 
         deallocate(temp_rdm, stat=ierr)
@@ -1101,7 +1134,7 @@ contains
         use rdm_data, only: rdm_definitions_t
         use sort_mod, only: sort
         use util_mod, only: get_free_unit
-
+        implicit none
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_list_t), intent(inout) :: rdm
         real(dp), intent(in) :: rdm_trace(rdm%sign_length)
@@ -1121,14 +1154,18 @@ contains
 
                 ! Loop over all RDMs beings sampled.
                 do irdm = 1, rdm_defs%nrdms
-                    if (state_labels(1,irdm) == state_labels(2,irdm)) then
-                       write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//'",".",'&
-                             //int_fmt(state_labels(1,irdm),0)//')') irdm
+                    if (tGUGA) then
+                        rdm_filename = "2-RDM-GUGA"
                     else
-                        write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//&
-                             '",".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
-                             //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
-                             state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                        if (state_labels(1,irdm) == state_labels(2,irdm)) then
+                           write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//'",".",'&
+                                 //int_fmt(state_labels(1,irdm),0)//')') irdm
+                        else
+                            write(rdm_filename, '("spinfree_","'//trim(rdm_defs%output_file_prefix)//&
+                                 '",".",'//int_fmt(state_labels(1,irdm),0)//',"_",'&
+                                 //int_fmt(state_labels(2,irdm),0)//',".",i1)') &
+                                 state_labels(1,irdm), state_labels(2,irdm), repeat_label(irdm)
+                         end if
                     end if
 
                     ! Open the file to be written to.
@@ -1143,7 +1180,11 @@ contains
                     do ielem = 1, rdm%nelements
                         pqrs = rdm%elements(0,ielem)
                         ! Obtain spin orbital labels.
-                        call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+                        if (.not. tGUGA) then
+                            call calc_separate_rdm_labels(pqrs, pq, rs, r, s, q, p)
+                        else
+                            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+                        end if
                         call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                         ! Normalise.
                         rdm_sign = rdm_sign/rdm_trace
@@ -1419,7 +1460,7 @@ contains
         logical, intent(in) :: tNormalise
         logical, intent(in), optional :: tInitsRDM
 
-        integer :: i, j, iSpat, jSpat, one_rdm_unit
+        integer :: i, j, iSpat, jSpat, one_rdm_unit, one_rdm_unit_spinfree
         logical :: is_transition_rdm
         character(20) :: filename
         character(20) :: filename_prefix
@@ -1440,6 +1481,11 @@ contains
                   ind => SymLabelListInv_rot)
 
         is_transition_rdm = state_labels(1,irdm) /= state_labels(2,irdm)
+
+        if (tWriteSpinFreeRDM) then
+            one_rdm_unit_spinfree = get_free_unit()
+            open(one_rdm_unit_spinfree, file = "spin-free-1-RDM")
+        end if
 
         if (tNormalise) then
             ! Haven't got the capabilities to produce multiple 1-RDMs yet.
@@ -1472,7 +1518,31 @@ contains
             open(one_rdm_unit, file=trim(filename), status='unknown', form='unformatted')
         end if
 
-        ! Currently always printing 1-RDM in spin orbitals.
+        if (tGUGA) then
+
+            do i = 1, nSpatorbs
+                do j = 1, nSpatorbs
+
+                    if (abs(one_rdm(ind(i),ind(j))) > EPS) then
+                        if (.not. t_test_sym_fill .and. tNormalise) then
+
+
+                            write(one_rdm_unit, "(2i6, g25.17)") i, j, &
+                                (one_rdm(ind(i),ind(j)) * norm_1rdm)
+
+                        else if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
+
+                            write(one_rdm_unit, "(2i6, g25.17)") i, j, &
+                                (one_rdm(ind(i),ind(j)) * norm_1rdm)
+
+                        else if (.not. tNormalise) then
+                            write(one_rdm_unit) i, j, one_rdm(ind(i), ind(j))
+                        end if
+                    end if
+                end do
+            end do
+        else
+            ! Currently always printing 1-RDM in spin orbitals.
             do i = 1, nbasis
                 do j = 1, nbasis
                     if (tOpenShell) then
@@ -1506,8 +1576,26 @@ contains
                     end if
                 end do
             end do
+            ! if we want spin-free RDMs also print out the spin-free 1-RDM
+            if (tWriteSpinFreeRDM .and. tNormalise) then
+                do i = 1, nbasis/2
+                    do j = 1, nbasis/2
+                        if (abs(one_rdm(ind(i),ind(j))) > EPS) then
+                            if (tNormalise .and. (i <= j .or. is_transition_rdm)) then
+                                write(one_rdm_unit_spinfree,"(2I6,G25.17)") i, j, &
+                                    one_rdm(ind(i), ind(j)) * norm_1rdm
+                            else if (.not. tNormalise) then
+                                write(one_rdm_unit_spinfree) i, j, one_rdm(ind(i), ind(j))
+                            end if
+                        end if
+                    end do
+                end do
+            end if
+        end if ! tGUGA
 
         close(one_rdm_unit)
+
+        if (tWriteSpinFreeRDM) close(one_rdm_unit_spinfree)
 
         end associate
 

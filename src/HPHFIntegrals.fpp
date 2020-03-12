@@ -1,5 +1,5 @@
 #include "macros.h"
-#:include "macros.fpp"
+#:include "macros.fpph"
 
 module hphf_integrals
     use constants, only: dp,n_int,sizeof_int, maxExcit
@@ -10,7 +10,8 @@ module hphf_integrals
     use HPHFRandExcitMod, only: FindDetSpinSym, FindExcitBitDetSym
     use DetBitOps, only: DetBitEQ, FindExcitBitDet, FindBitExcitLevel, &
                          TestClosedShellDet, CalcOpenOrbs
-    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC
+    use excitation_types, only: NoExc_t, DoubleExc_t
+    use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
     use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
     use lattice_mod, only: get_helement_lattice
     implicit none
@@ -140,12 +141,9 @@ module hphf_integrals
                         if (t_3_body_excits) call stop_all("hphf_off_diag", "todo 3 body")
                         ! is this the correct call here? compare to the
                         ! orginal call below!
-!                         temp_ex(1,:) = Ex(2,:)
-!                         temp_ex(2,:) = Ex(1,:)
-!                         MatEl2 = get_helement_lattice(nJ, ExcitLevel, temp_ex, tSign)
                         MatEl2 = get_helement_lattice(nI2, ExcitLevel, Ex, tSign)
                     else
-                        MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+                        MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
                     end if
 
                     if(tOddS_HPHF) then
@@ -237,7 +235,7 @@ module hphf_integrals
                     Ex(1,1)=ExcitLevel
                     call GetBitExcitation(iLutnI2,iLutnJ,Ex,tSign)
 
-                    MatEl2 = sltcnd_excit (nI2, ExcitLevel, Ex, tSign)
+                    MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
 
                     if(tOddS_HPHF) then
                         if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1))&
@@ -303,7 +301,7 @@ module hphf_integrals
         Ex(1,1) = ExcitLevel
         call GetBitExcitation(iLutnI2, iLutnJ, Ex, tSign)
 
-        MatEl2 = sltcnd_excit(nI2, ExcitLevel, Ex, tSign)
+        MatEl2 = dyn_sltcnd_excit_old(nI2, ExcitLevel, Ex, tSign)
 
         if (tOddS_HPHF) then
             if (((mod(OpenOrbsI,2) == 1).and.(mod(OpenOrbsJ,2) == 1)) &
@@ -338,7 +336,6 @@ module hphf_integrals
         integer(kind=n_int), intent(in) :: iLutnI(0:NIfTot)
         HElement_t(dp) :: hel
 
-!        integer :: nI2(nel)
         integer(kind=n_int) :: iLutnI2(0:NIfTot)
         integer :: ExcitLevel, OpenOrbs
         HElement_t(dp) :: MatEl2
@@ -347,7 +344,7 @@ module hphf_integrals
         if (t_lattice_model) then
             hel = get_helement_lattice(nI,nI)
         else
-            hel = sltcnd_excit (nI, 0)
+            hel = sltcnd_excit(nI, NoExc_t())
         end if
 
         if (.not. TestClosedShellDet(iLutnI)) then
@@ -361,13 +358,11 @@ module hphf_integrals
             ExcitLevel = FindBitExcitLevel(iLutnI, iLutnI2, 2)
             if (ExcitLevel.le.2) then
                 call CalcOpenOrbs (iLutnI, OpenOrbs)
-!                call FindDetSpinSym (nI, nI2, nel)
                 if (t_lattice_model) then
                     call decode_bit_det(nJ, iLutnI2)
                     ! here i am really not sure about hermiticity..
                     MatEl2 = get_helement_lattice(nI,nJ)
                     ! do i need a hermitian version of that here?
-!                     MatEl2 = get_helement_lattice(nJ, nI)
                 else
                     MatEl2 = sltcnd (nI,  iLutnI, iLutnI2)
                 end if

@@ -13,7 +13,7 @@ module back_spawn_excit_gen
     use FciMCData, only: pSingles, projedet, pDoubles
     use dSFMT_interface, only: genrand_real2_dSFMT
     use excit_gens_int_weighted, only: gen_single_4ind_ex, select_orb_sing, &
-                                pick_weighted_elecs, get_paired_cc_ind, select_orb, &
+                                pick_weighted_elecs, select_orb, &
                                 pgen_select_orb, pgen_weighted_elecs, pgen_single_4ind
     use excit_gen_5, only: gen_double_4ind_ex2, pick_a_orb, pgen_select_a_orb, &
                         calc_pgen_4ind_weighted2
@@ -34,6 +34,8 @@ module back_spawn_excit_gen
     use util_mod, only: binary_search_first_ge
 
     use lattice_models_utils, only: make_ilutJ, get_orb_from_kpoints, get_ispn
+
+    use excit_gens_int_weighted, only: get_paired_cc_ind
 
 #ifdef DEBUG_
     use SystemData, only: tNoFailAb
@@ -83,7 +85,6 @@ contains
                 if (abs(pgen - pgen2) > 1.0e-6_dp) then
                     if (tHPHF) then
                         print *, "due to circular dependence, no matrix element calc possible!"
-!                         temp_hel = hphf_off_diag_helement(nI,nJ,ilutI,ilutJ)
                         temp_hel = 0.0_dp
                     else
                         temp_hel = get_helement(nI,nJ,ilutI,ilutJ)
@@ -1149,49 +1150,6 @@ contains
 
         end if
 
-!
-!         if (t_back_spawn_temp ) then
-!
-!             ! if we have one of the electrons in the occupied manifold
-!             ! pick atleast one hole also from this manifold to not increase
-!             ! the excitation level!
-!
-!             call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
-!                                         orbs(1))
-!
-!         else if (t_back_spawn_flex ) then
-!             ! now we have to decide on the flex-spawn + occ-virt implo:
-!             if (loc == 1) then
-!                 ! the new option to excite on level
-!                 if (occ_virt_level == -1) then
-!                     orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
-!                 else
-!                     call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
-!                                         orbs(1))
-!                 end if
-!
-!
-!             else if (loc == 2) then
-!                 ! then we always pick an occupied orbital
-!                 call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
-!                                         orbs(1))
-!             else
-!                 ! depending on the occ_virt_level
-!                 if (occ_virt_level < 1) then
-!                     ! just pick normal:
-!                     orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
-!                 else
-!                     ! otherwise if it is 1 or 2, we want to pick the (a) also
-!                     ! from the occupied manifold
-!
-!                     call pick_occupied_orbital(nI, src, ispn, int_cpt(1), cum_sum(1), &
-!                                         orbs(1))
-!                 end if
-!             end if
-!         else
-!             orbs(1) = pick_a_orb(ilutI, src, iSpn, int_cpt(1), cum_sum(1), cum_arr)
-!         end if
-
         if (orbs(1) /= 0) then
             cc_a = ClasSCountInd(orbs(1))
             cc_b = get_paired_cc_ind(cc_a, sym_product, sum_ml, iSpn)
@@ -1209,39 +1167,6 @@ contains
             end if
 
             ASSERT((.not. (is_beta(orbs(2)) .and. .not. is_beta(orbs(1)))))
-
-!             if (t_back_spawn_flex  .and. .not. t_temp_init) then
-!                 ! in this case i have to pick the second orbital also from the
-!                 ! occupied list, but now also considering symmetries
-!                 if (loc == 2) then
-!                     ! now also mix the occ-virt with this back-spawning
-!                     ! for loc 2 always do it
-!                     ! except specified by occ_virt_level= -1
-!                     if (occ_virt_level == -1) then
-!                         orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
-!                                   cum_sum(2))
-!                     else
-!                         call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
-!                             int_cpt(2), cum_sum(2), orbs(2))
-!                     end if
-!
-!                 else if (loc == 1 .and. occ_virt_level == 2) then
-!                     call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
-!                         int_cpt(2), cum_sum(2), orbs(2))
-!
-!                 else if (loc == 0 .and. occ_virt_level == 2) then
-!                     call pick_second_occupied_orbital(nI, src, cc_b, orbs(1), ispn,&
-!                         int_cpt(2), cum_sum(2), orbs(2))
-!                 else
-!                     orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
-!                                   cum_sum(2))
-!                 end if
-!
-!             else
-!
-!                 orbs(2) = select_orb (ilutI, src, cc_b, orbs(1), int_cpt(2), &
-!                                   cum_sum(2))
-!             end if
 
         end if
 
@@ -1265,7 +1190,6 @@ contains
 
         ! only on parallel excitations.. and symmetric exciation generator is
         ! turned off for now in the back-spawning
-!         if (is_beta(orbs(1)) .eqv. is_beta(orbs(2)))  then
         if (same_spin(orbs(1), orbs(2))) then
             if (t_back_spawn_occ_virt .or. (t_back_spawn_flex .and. (&
                 (loc == 1 .and. (occ_virt_level == 0 .or. occ_virt_level == 1)) &
@@ -1273,7 +1197,6 @@ contains
                 (loc == 0 .and. occ_virt_level == 1)))) then
 
                 if (is_in_ref(orbs(2), part_type)) then
-!                 if (any(orbs(2) == projedet(:,part_type_to_run(part_type)))) then
                    ! if (b) is also in the occupied manifold i could have
                     ! picked the other way around..
                     ! with the same uniform probability:
@@ -1361,7 +1284,6 @@ contains
 
             ! i have to do some symmetry setup beforehand..
             ! or i do it by hand to avoid the unnecessary overhead..
-!             call calc_pgen_symrandexcit2(nI, ex, 2,
             ! nope.. i actually only need:
             ! although i should not land here i guess..
             ! this functionality i could actually unit-test.. damn..
