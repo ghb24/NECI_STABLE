@@ -609,7 +609,7 @@ contains
 
             ! i am only here in the guga case if i use the new way to calc
             ! the off-diagonal elements..
-            if (tGUGA) call init_csf_information(con_space(0:nifd,i))
+!             if (tGUGA) call init_csf_information(con_space(0:nifd,i))
 
             do j = 1, size(trial_vecs,2)
 
@@ -633,8 +633,10 @@ contains
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
-                        call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
-                            excitInfo, H_ij, .true., 1)
+                        call calc_guga_matrix_element(trial_space(:,j), con_space(:,i), &
+                            excitInfo, H_ij, .true., 2)
+!                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
+!                             excitInfo, H_ij, .true., 1)
                     else
                         ! maybe i need a non-hermitian keyword here..
                         ! since I am not sure if this breaks the kneci
