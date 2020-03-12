@@ -76,7 +76,7 @@ module guga_rdm
     ! the hermiticity are correct..
 
     logical :: t_diag_exchange = .false.
-    logical :: t_mimic_stochastic = .false.
+    logical :: t_mimic_stochastic = .true.
 
 contains
 
