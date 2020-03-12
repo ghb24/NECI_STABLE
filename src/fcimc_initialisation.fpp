@@ -1052,6 +1052,8 @@ contains
         AllNoNonInitWalk=0.0_dp
         AllNoExtraInitDoubs=0
         AllInitRemoved=0
+        all_n_core_non_init = 0
+        n_core_non_init = 0
         proje_iter = 0
         inits_proje_iter = 0.0_dp
         AccRat = 0

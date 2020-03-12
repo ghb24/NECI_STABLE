@@ -43,7 +43,7 @@ module fcimc_helper
                            initsPerExLvl, tAccumPopsActive
 
     use CalcData, only: NEquilSteps, tFCIMC, tTruncCAS, &
-                        InitiatorWalkNo, &
+                        InitiatorWalkNo, t_core_inits, &
                         tTruncInitiator, tTruncNopen, trunc_nopen_max, &
                         tRealCoeffByExcitLevel, tGlobalInitFlag, tInitsRDM, &
                         tSemiStochastic, tTrialWavefunction, DiagSft, &
@@ -1240,14 +1240,17 @@ contains
            ! If det. is the HF det, or it
            ! is in the deterministic space, then it must remain an initiator.
            if ( .not. (staticInit) &
-                .and. .not. test_flag(ilut, flag_deterministic) &
+                .and. .not. (test_flag(ilut, flag_deterministic) .and. t_core_inits) &
                 .and. .not. Senior &
                 .and. (.not. popInit )) then
               ! Population has fallen too low. Initiator status
               ! removed.
               initiator = .false.
               NoAddedInitiators = NoAddedInitiators - 1_int64
-           endif
+          endif
+
+          if(.not. initiator .and. test_flag(ilut, flag_deterministic)) &
+              n_core_non_init = n_core_non_init + 1
 
         end if
 
