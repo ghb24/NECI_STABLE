@@ -1454,7 +1454,7 @@ contains
             excitInfo%excitLvl = 0
             excitInfo%weight = i
         else
-            excitInfo%excitLvl = 2
+            excitInfo%excitLvl = 1
             excitInfo%weight = 0
         end if
         excitInfo%k = 0

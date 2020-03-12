@@ -28,7 +28,8 @@ module guga_rdm
                                 calcFulLStartRaising, calcFullStartL2R, &
                                 calcFullStartR2L, calcFullStartFullStopAlike, &
                                 calcFullStartFullStopMixed, &
-                                calcRemainingSwitches_excitInfo_double
+                                calcRemainingSwitches_excitInfo_double, &
+                                calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
                          excit_type, gen_type
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
@@ -39,14 +40,14 @@ module guga_rdm
     use guga_bitRepOps, only: isProperCSF_ilut, isDouble, init_csf_information
     use guga_bitRepOps, only: write_guga_list, write_det_guga, getSpatialOccupation
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
-    use guga_bitRepOps, only: calc_csf_info, add_guga_lists
+    use guga_bitRepOps, only: calc_csf_info, add_guga_lists, EncodeBitDet_guga
     use guga_bitRepOps, only: findFirstSwitch, findLastSwitch
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind, &
                               extract_1_rdm_ind, extract_2_rdm_ind, &
                               encode_rdm_ind, extract_rdm_ind
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_reps, only: nifguga
-    use FciMCData, only: projEDet, CurrentDets, TotWalkers, ilutref
+    use FciMCData, only: projEDet, CurrentDets, TotWalkers, ilutref, HFDet_True
     use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag
     use UMatCache, only: gtID
     use RotateOrbsData, only: SymLabelListInv_rot
@@ -67,7 +68,9 @@ module guga_rdm
               t_mimic_stochastic, t_diag_exchange, &
               calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
               calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga, &
-              calc_explicit_diag_2_rdm_guga, test_fill_spawn_diag
+              calc_explicit_diag_2_rdm_guga, test_fill_spawn_diag, &
+              Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
+              Add_RDM_HFConnections_GUGA, fill_spawn_rdm_diag_guga
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
@@ -76,6 +79,71 @@ module guga_rdm
     logical :: t_mimic_stochastic = .false.
 
 contains
+
+    subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, nJ, av_sign_j, &
+            av_sign_hf, excit_lvl, iter_rdm)
+        type(rdm_spawn_t), intent(inout) :: spawn
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        integer, intent(in) :: nJ(nel), excit_lvl, iter_rdm(:)
+        real(dp), intent(in) :: av_sign_j(:), av_sign_hf(:)
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "Add_RDM_HFConnections_GUGA"
+#endif
+
+        if (excit_lvl == 1 .or. excit_lvl == 2) then
+            call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, HFDet_True, nJ, &
+                av_sign_hf(2::2), iter_rdm * av_sign_j(1::2))
+            call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nJ, HFDet_True, &
+                av_sign_j(2::2), iter_rdm * av_sign_hf(1::2))
+        end if
+
+    end subroutine Add_RDM_HFConnections_GUGA
+
+    subroutine Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nI, nJ, sign_i, &
+            sign_j)
+        ! corresponding GUGA routine from function found in rdm_filling.F90
+        type(rdm_spawn_t), intent(inout) :: spawn
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        integer, intent(in) :: nI(nel), nJ(nel)
+        real(dp), intent(in) :: sign_i(:), sign_j(:)
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "Add_RDM_From_IJ_Pair_GUGA"
+#endif
+        integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        type(ExcitationInformation_t) :: excitInfo
+        HElement_t(dp) :: mat_ele
+        integer(int_rdm), allocatable :: rdm_ind(:)
+        real(dp), allocatable :: rdm_mat(:)
+        integer :: i, j, k, l, n
+        real(dp) :: full_sign(spawn%rdm_send%sign_length)
+
+        call EncodeBitDet_guga(nI, ilutI)
+        call EncodeBitDet_guga(nJ, ilutJ)
+
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
+            rdm_mat = rdm_mat)
+
+        ! i assume sign_i and sign_j are not 0 if we end up here..
+        do n = 1, size(rdm_ind)
+            if (.not. near_zero(rdm_mat(n))) then
+                if (excitInfo%excitLvl == 1) then
+                    if (RDMExcitLevel == 1) then
+                        call fill_sings_1rdm_guga(one_rdms, sign_I, sign_J, &
+                            rdm_mat(n), rdm_ind(n))
+                    else
+                        call fill_sings_2rdm_guga(spawn, ilutI, &
+                            ilutJ, sign_i, sign_j, rdm_mat(n), rdm_ind(n))
+                    end if
+                else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
+                    call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
+                    full_sign = sign_I * sign_J * rdm_mat(n)
+                    call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
+                end if
+            end if
+        end do
+
+    end subroutine Add_RDM_From_IJ_Pair_GUGA
 
     subroutine gen_exc_djs_guga(ilutI)
         integer(n_int), intent(in) :: ilutI(0:niftot)

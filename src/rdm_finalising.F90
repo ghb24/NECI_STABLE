@@ -336,6 +336,10 @@ contains
         real(dp) :: rdm_sign(two_rdms%sign_length)
         real(dp), allocatable :: temp_rdm(:,:)
         logical :: is_transition_rdm
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "calc_1rdms_from_2rdms"
+#endif
+        ASSERT(.not. tGUGA)
 
         do irdm = 1, size(one_rdms)
             one_rdms(irdm)%matrix = 0.0_dp
@@ -453,6 +457,10 @@ contains
         integer :: ielem, ij, kl, i, j, k, l
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "make_hermitian_rdm"
+#endif
+        ASSERT(.not. tGUGA)
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.
@@ -526,6 +534,10 @@ contains
         integer :: pq_legacy, rs_legacy ! spatial orbitals
         real(dp) :: rdm_sign(rdm%sign_length)
         logical :: nearly_full, finished, all_finished
+#ifdef DEBUG_
+        character(*), parameter :: this_routine = "apply_symmetries_for_output"
+#endif
+        ASSERT(.not. tGUGA)
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.
@@ -1151,8 +1163,6 @@ contains
         character(40) :: rdm_filename
 
         associate(state_labels => rdm_defs%state_labels, repeat_label => rdm_defs%repeat_label)
-
-!         call sort(rdm%elements(:,1:rdm%nelements))
 
         do iproc = 0, nProcessors-1
             if (iproc == iProcIndex) then

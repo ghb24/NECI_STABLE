@@ -52,9 +52,9 @@ contains
         allocate(est%energy_1_num(nrdms), stat=ierr)
         allocate(est%energy_2_num(nrdms), stat=ierr)
         allocate(est%energy_num(nrdms), stat=ierr)
-        allocate(est%spin_num(nrdms), stat=ierr)
+        if (.not. tGUGA)  allocate(est%spin_num(nrdms), stat=ierr)
         if (tCalcPropEst) allocate(est%property(iNumPropToEst,nrdms), stat=ierr)
-        if (tEN2) allocate(est%energy_pert(nrdms_standard), stat=ierr)
+        if (tEN2)         allocate(est%energy_pert(nrdms_standard), stat=ierr)
 
         ! "Instantaneous" estimates over the previous sampling block.
         allocate(est%trace_inst(nrdms), stat=ierr)
@@ -62,9 +62,9 @@ contains
         allocate(est%energy_1_num_inst(nrdms), stat=ierr)
         allocate(est%energy_2_num_inst(nrdms), stat=ierr)
         allocate(est%energy_num_inst(nrdms), stat=ierr)
-        allocate(est%spin_num_inst(nrdms), stat=ierr)
+        if (.not. tGUGA)  allocate(est%spin_num_inst(nrdms), stat=ierr)
         if (tCalcPropEst) allocate(est%property_inst(iNumPropToEst,nrdms), stat=ierr)
-        if (tEN2) allocate(est%energy_pert_inst(nrdms_standard), stat=ierr)
+        if (tEN2)         allocate(est%energy_pert_inst(nrdms_standard), stat=ierr)
 
         ! Hermiticity errors, for the final RDMs.
         allocate(est%max_error_herm(nrdms), stat=ierr)
@@ -75,16 +75,16 @@ contains
         est%energy_1_num = 0.0_dp
         est%energy_2_num = 0.0_dp
         est%energy_num = 0.0_dp
-        est%spin_num = 0.0_dp
+        if (.not. tGUGA)  est%spin_num = 0.0_dp
         if (tCalcPropEst) est%property = 0.0_dp
-        if (tEN2) est%energy_pert = 0.0_dp
+        if (tEN2)         est%energy_pert = 0.0_dp
 
         est%trace_inst = 0.0_dp
         est%norm_inst = 0.0_dp
         est%energy_1_num_inst = 0.0_dp
         est%energy_2_num_inst = 0.0_dp
         est%energy_num_inst = 0.0_dp
-        est%spin_num_inst = 0.0_dp
+        if (.not. tGUGA) est%spin_num_inst = 0.0_dp
         if (tCalcPropEst) est%property_inst = 0.0_dp
         if (tEN2) est%energy_pert_inst = 0.0_dp
 
@@ -235,7 +235,7 @@ contains
         est%energy_1_num_inst = est%energy_1_num
         est%energy_2_num_inst = est%energy_2_num
         est%energy_num_inst = est%energy_num
-        est%spin_num_inst = est%spin_num
+        if (.not. tGUGA)  est%spin_num_inst = est%spin_num
         if (tCalcPropEst) est%property_inst = est%property
 
         ! Calculate the new total values.
@@ -295,7 +295,7 @@ contains
         est%energy_1_num_inst = est%energy_1_num - est%energy_1_num_inst
         est%energy_2_num_inst = est%energy_2_num - est%energy_2_num_inst
         est%energy_num_inst = est%energy_num - est%energy_num_inst
-        est%spin_num_inst = est%spin_num - est%spin_num_inst
+        if (.not. tGUGA) est%spin_num_inst = est%spin_num - est%spin_num_inst
         if(tCalcPropEst) est%property_inst = est%property - est%property_inst
 
         ! For the EN Perturbation terms, we clear them at the start of
@@ -339,8 +339,12 @@ contains
             if (tRDMInstEnergy) then
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
-                        est%energy_num_inst(irdm), est%spin_num_inst(irdm)
+                    write(est%write_unit, '(3x,es20.13)', advance='no') &
+                        est%energy_num_inst(irdm)
+                    if (.not. tGUGA) then
+                        write(est%write_unit, '(3x,es20.13)', advance = 'no') &
+                            est%spin_num_inst(irdm)
+                    end if
                     if (tEN2) then
                         write(est%write_unit,'(2(3x,es20.13))', advance='no') &
                             est%energy_pert_inst(irdm), est%energy_pert_inst(irdm) + est%energy_num_inst(irdm)
@@ -366,8 +370,12 @@ contains
             else
                 write(est%write_unit, '(1x,i13)', advance='no') Iter+PreviousCycles
                 do irdm = 1, est%nrdms_standard
-                    write(est%write_unit, '(2(3x,es20.13))', advance='no') &
-                        est%energy_num(irdm), est%spin_num(irdm)
+                    write(est%write_unit, '(3x,es20.13)', advance='no') &
+                        est%energy_num(irdm)
+                    if (.not. tGUGA) then
+                        write(est%write_unit, '(3x,es20.13)', advance = 'no') &
+                            est%spin_num(irdm)
+                    end if
                     if (tEN2) then
                         write(est%write_unit,'(2(3x,es20.13))', advance='no') &
                             est%energy_pert(irdm), est%energy_pert(irdm) + est%energy_num(irdm)

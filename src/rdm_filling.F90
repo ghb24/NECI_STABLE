@@ -8,13 +8,15 @@ module rdm_filling
     use bit_rep_data, only: NIfTot, NIfDBO, test_flag
     use bit_reps, only: get_initiator_flag_by_run
     use constants
-    use SystemData, only: tGUGA
+    use SystemData, only: tGUGA, nbasis
     use guga_bitRepOps, only: getExcitation_guga
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
          tNonVariationalRDMs
     use FciMCData, only: projEDet, ilutRef
     use DetBitOps, only: DetBitEq
+    use guga_rdm, only: Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
+                        fill_spawn_rdm_diag_guga, Add_RDM_HFConnections_GUGA
 
     implicit none
 
@@ -229,23 +231,31 @@ contains
               end if
               call Add_RDM_HFConnections_HPHF(spawn, one_rdms, iLutnI, nI, av_sign, AvNoAtHF, ExcitLevelI, IterRDM_new)
 
-           else
-              ! Not using HPHFs.
-              if (any(abs(av_sign(1::2) * av_sign(2::2)) > 1.0e-10_dp)) then
-                 if (RDMExcitLevel == 1) then
-                    call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new)
-                 else
-                    full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
-                    ! in adaptive shift mode, the reference contribution is rescaled
-                    ! projEDet has to be the same on all runs
-                    call applyRDMCorrection()
-                    call fill_spawn_rdm_diag(spawn, nI, full_sign)
-                 end if
-              end if
-
-              call Add_RDM_HFConnections_Norm(spawn, one_rdms, iLutnI, nI, av_sign, AvNoAtHF, ExcitLevelI, IterRDM_new)
-           end if
-
+            else if (tGUGA) then
+                if (any(abs(av_sign(1::2) * av_sign(2::2)) > 1.0e-10_dp)) then
+                    if (RDMExcitLevel == 1) then
+                        call fill_diag_1rdm_guga(one_rdms, nI, av_sign)
+                    else
+                        full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
+                        call fill_spawn_rdm_diag_guga(spawn, nI, full_sign)
+                    end if
+                end if
+                call Add_RDM_HFConnections_GUGA(spawn, one_rdms, nI, av_sign, AvNoAtHF, ExcitLevelI, IterRDM_new)
+            else
+            ! Not using HPHFs.
+                if (any(abs(av_sign(1::2) * av_sign(2::2)) > 1.0e-10_dp)) then
+                    if (RDMExcitLevel == 1) then
+                        call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new)
+                    else
+                        full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
+                        ! in adaptive shift mode, the reference contribution is rescaled
+                        ! projEDet has to be the same on all runs
+                        call applyRDMCorrection()
+                        call fill_spawn_rdm_diag(spawn, nI, full_sign)
+                    end if
+                end if
+                call Add_RDM_HFConnections_Norm(spawn, one_rdms, iLutnI, nI, av_sign, AvNoAtHF, ExcitLevelI, IterRDM_new)
+            end if
      endif
 
      contains
@@ -331,7 +341,6 @@ contains
         ASSERT(.not. t_3_body_excits)
         if ((walkExcitLevel == 1) .or. (walkExcitLevel == 2)) then
             call Add_RDM_From_IJ_Pair(spawn, one_rdms, HFDet_True, nJ, AvSignHF(2::2), IterRDM*AvSignJ(1::2))
-
             call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, HFDet_True, AvSignJ(2::2), IterRDM*AvSignHF(1::2))
         end if
 
@@ -403,7 +412,7 @@ contains
         endif
 
         if (.not. DetBitEQ(iLutHF_True, iLutJ, NIfDBO)) then
-                call DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, &
+            call DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, &
                      realSignJ, tAllContribs)
         end if
 
@@ -542,6 +551,9 @@ contains
                     if (tHPHF) then
                         call Fill_Spin_Coupled_RDM(spawn, one_rdms, Spawned_Parents(0:NIfDBO,i), iLutJ, &
                                                    nI, nJ, input_sign_i, input_sign_j)
+                    else if (tGUGA) then
+                        call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
+                            nI, nJ, input_sign_i, input_sign_j)
                     else
                         call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, input_sign_i, input_sign_j)
                     end if
@@ -551,6 +563,9 @@ contains
                     if (tHPHF) then
                         call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutJ, Spawned_Parents(0:NIfDBO,i), &
                                                    nJ, nI, input_sign_j, input_sign_i)
+                    else if (tGUGA) then
+                        call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
+                            nJ, nI, input_sign_j, input_sign_i)
                     else
                         call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, nI, input_sign_j, input_sign_i)
                     end if
@@ -688,12 +703,7 @@ contains
 
         ! Ex(1,:) comes out as the orbital(s) excited from, i.e. i,j.
         ! Ex(2,:) comes out as the orbital(s) excited to, i.e. a,b.
-        if (tGUGA) then
-            call getExcitation_guga(nI, nJ, Ex)
-
-        else
-            call GetExcitation(nI, nJ, nel, Ex, tParity)
-        end if
+        call GetExcitation(nI, nJ, nel, Ex, tParity)
 
         full_sign = 0.0_dp
         if (tParity) then
@@ -702,10 +712,7 @@ contains
             full_sign = realSignI*realSignJ
         end if
 
-        if(any(Ex(:,1)<=0)) then
-           write(iout,*) "Error: invalid Ex", Ex, nI, nJ, nel, tParity
-           call stop_all("Debug","Got ill-posed Excitation matrix")
-        endif
+        ASSERT(all(ex(:,1) > 0) .and. all(ex(:,1) <= nbasis))
 
         if ((Ex(1,2) .eq. 0) .and. (Ex(2,2) .eq. 0)) then
 

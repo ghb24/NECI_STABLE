@@ -322,6 +322,7 @@ contains
 
             ! Finally, we need to hold onto the parents of the spawned particles.
             ! This is not necessary if we're doing completely explicit calculations.
+            ! WD: maybe I have to change this for the GUGA implementation..
             allocate(Spawned_Parents(0:(NIfDBO+3), MaxSpawned), stat=ierr)
             if (ierr /= 0) call stop_all(t_r,'Problem allocating Spawned_Parents array,')
             call LogMemAlloc('Spawned_Parents', MaxSpawned*(NIfDBO+3), size_n_int,&
@@ -383,6 +384,10 @@ contains
         end if
 
         if (tPrint1RDMsFromSpinfree) then
+            if (tGUGA) then
+                call stop_all(t_r, "check if 'print-1rdms-from-spinfree' &
+                    works with GUGA")
+            end if
             call read_spinfree_2rdm_files(rdm_definitions, two_rdm_main, two_rdm_spawn)
             call print_1rdms_from_sf2rdms_wrapper(rdm_definitions, one_rdms, two_rdm_main)
             ! now clear these objects before the main simulation.
@@ -391,6 +396,9 @@ contains
         end if
 
         if (tReadRDMs) then
+            if (tGUGA) then
+                call stop_all(t_r, "check if reading RDMs works with GUGA")
+            end if
             if (RDMExcitLevel == 1) then
                 do irdm = 1, size(one_rdms)
                     call read_1rdm(rdm_definitions, one_rdms(irdm), irdm)
@@ -763,7 +771,6 @@ contains
     end subroutine dealloc_global_rdm_data
 
     ! Some general routines used during the main simulation.
-
     subroutine extract_bit_rep_avsign_no_rdm(rdm_defs, iLutnI, j, nI, SignI, FlagsI, IterRDMStartI, AvSignI, store)
 
         ! This is just the standard extract_bit_rep routine for when we're not
@@ -842,7 +849,8 @@ contains
         associate(ind => rdm_defs%sim_labels)
 
         if (((Iter+PreviousCycles-IterRDMStart) > 0) .and. &
-            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0)) then
+            & (mod(((Iter-1)+PreviousCycles - IterRDMStart + 1), &
+            RDMEnergyIter) == 0)) then
 
             ! The previous iteration was one where we added in diagonal elements
             ! To keep things unbiased, we need to set up a new averaging block now.
