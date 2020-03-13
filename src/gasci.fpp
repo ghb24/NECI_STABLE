@@ -682,7 +682,7 @@ contains
         end if
 
         ! We could have picked the holes the other way round and have to
-        ! determine the probability of picking tgt1 upon picking tgt2 first.
+        ! determine the probability of picking tgt1 with spin m_s_1 upon picking tgt2 first.
         associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
                    src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
             ! Components default to UNKNOWN, when omitted
@@ -692,7 +692,7 @@ contains
 
                 possible_holes = get_possible_holes( &
                                         GAS_spec, intermediate_det, &
-                                        add_holes=deleted, n_particles=1, m_s=m_s_2)
+                                        add_holes=deleted, n_particles=1, m_s=m_s_1)
             end associate
 
             if (size(possible_holes) == 0) then
