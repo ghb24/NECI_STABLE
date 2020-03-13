@@ -37,7 +37,7 @@ module guga_excitations
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_replica, &
                     tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list, &
-                    excit_type, gen_type, excit_names
+                    excit_type, gen_type, excit_names, t_slow_guga_rdms
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
@@ -471,7 +471,6 @@ contains
 
             ! but here i have to calculate all the double excitation
             ! influences which can lead to the same excitation(weights etc.)
-
             call calc_single_excitation_ex(ilutJ, excitInfo, mat_ele, &
                 t_hamil, rdm_ind, rdm_mat)
 
@@ -616,6 +615,9 @@ contains
             ! below the first spin-change and above the last spin change
             call calc_fullstart_fullstop_mixed_ex(ilutI, ilutJ, excitInfo, &
                 mat_ele, t_hamil, rdm_ind, rdm_mat)
+
+        case default
+            call stop_all(this_routine, "unexpected excitation type")
 
         end select
 
@@ -1083,9 +1085,17 @@ contains
             allocate(rdm_mat(4), source = 0.0_dp)
 
             ! this does get tricky now with the rdm inds and mats..
+            ! the indices which end up here should always be intertwined..
+            ! as we always deal with an overlap range in the excitation
+            ! generation
+            ASSERT(max(ii,jj) > min(kk,ll))
 
+            ! so the first two entries correspond to the overlap version
+            ! of the generators (in the case of mixed R and L)
             rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
             rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
+            ! and the second to the non-overlap (again only in the case of
+            ! mixed generator combinations!)
             rdm_ind(3) = contract_2_rdm_ind(ii, ll, kk, jj)
             rdm_ind(4) = contract_2_rdm_ind(kk, jj, ii, ll)
 
@@ -1201,10 +1211,16 @@ contains
                  excit_type%double_R_to_L_to_R, &
                  excit_type%double_L_to_R,      &
                  excit_type%double_R_to_L       )
+
                 if (excitInfo%spin_change) then
-                    rdm_mat = temp_x1
+                    ! if we have a spin-change the non-overlap contribution
+                    ! must be 0! which is already intiated to 0 above
+                    rdm_mat(1:2) = temp_x1
                 else
-                    rdm_mat = temp_x0 + temp_x1
+                    ! if there is not spin-change the non-overlap is also
+                    ! 0, and in this case is -2 the original x0
+                    rdm_mat(1:2) = temp_x0 + temp_x1
+                    rdm_mat(3:4) = -2.0_dp * temp_x0
                 end if
             end select
         end if
@@ -1579,7 +1595,7 @@ contains
         ! set defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
+        if ((.not. t_slow_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
             ! here we still only need 2 rdm contributions, since the
@@ -1691,21 +1707,34 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (t_hamil_) then
+        if (t_hamil_ .or. (t_slow_guga_rdms .and. present(rdm_mat))) then
             if (typ == excit_type%fullstop_L_to_R) then
                 ! L -> R
                 ! what do i have to put in as the branch pgen?? does it have
                 ! an influence on the integral and matrix element calculation?
-                call calc_mixed_end_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                    temp_mat0, integral)
+                if (present(rdm_mat)) then
+                    call calc_mixed_end_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        temp_mat0, integral, rdm_ind, rdm_mat)
+                    ! need to multiply by x1
+                    rdm_mat = rdm_mat * temp_x1
+                else
+                    call calc_mixed_end_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        temp_mat0, integral)
+                end if
 
                 mat_ele = temp_x1 *((get_umat_el(en,se,st,en) + &
                             get_umat_el(se,en,en,st))/2.0_dp + integral)
 
             else if (typ == excit_type%fullstop_R_to_L) then
                 ! R -> L
-                call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                    temp_mat0, integral)
+                if (present(rdm_mat)) then
+                    call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        temp_mat0, integral, rdm_ind, rdm_mat)
+                    rdm_mat = rdm_mat * temp_x1
+                else
+                    call calc_mixed_end_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        temp_mat0, integral)
+                end if
 
                 mat_ele = temp_x1 * ((get_umat_el(en,st,se,en) + &
                             get_umat_el(st,en,en,se))/2.0_dp + integral)
@@ -1721,7 +1750,7 @@ contains
         currentB_int = temp_curr_b_int
 
         ! also no influence on coupling coefficient from generator order
-        if (present(rdm_mat)) rdm_mat = temp_x1
+        if ((.not. t_slow_guga_rdms) .and. present(rdm_mat)) rdm_mat = temp_x1
 
         end associate
 
@@ -1761,7 +1790,7 @@ contains
         associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                   ll => excitInfo%l, gen => excitInfo%lastGen, typ => excitInfo%typ)
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
+        if ((.not. t_slow_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
             ! we only have two elements here, since the switched version
@@ -1848,19 +1877,32 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (t_hamil_) then
+        if (t_hamil_ .or. (t_slow_guga_rdms .and. present(rdm_mat))) then
             if (typ == excit_type%fullstart_L_to_R) then
                 ! L -> R
-                call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                    temp_mat0, integral)
+                if (present(rdm_mat)) then
+                    call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        temp_mat0, integral, rdm_ind, rdm_mat)
+                    ! need to multiply by guga-mat:
+                    rdm_mat = rdm_mat * guga_mat
+                else
+                    call calc_mixed_start_l2r_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        temp_mat0, integral, rdm_ind, rdm_mat)
+                end if
 
                 mat_ele = guga_mat * ((get_umat_el(st,se,en,st) + &
                     get_umat_el(se,st,st,en))/2.0_dp + integral)
 
             else if (typ == excit_type%fullstart_R_to_L) then
 
-                call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
-                    temp_mat0, integral)
+                if (present(rdm_mat)) then
+                    call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        temp_mat0, integral, rdm_ind, rdm_mat)
+                    rdm_mat = rdm_mat * guga_mat
+                else
+                    call calc_mixed_start_r2l_contr(tmp_I, tmp_J, excitInfo, temp_mat1, &
+                        temp_mat0, integral)
+                end if
 
                 mat_ele = guga_mat * ((get_umat_el(st,en,se,st) + &
                     get_umat_el(en,st,st,se))/2.0_dp + integral)
@@ -1874,7 +1916,7 @@ contains
         currentB_int = temp_curr_b_int
 
         ! no influence of generator order on coupling coeff
-        if (present(rdm_mat)) rdm_mat = guga_mat
+        if ((.not. t_slow_guga_rdms) .and. present(rdm_mat)) rdm_mat = guga_mat
 
         end associate
 
@@ -1906,7 +1948,7 @@ contains
                   ll => excitInfo%l, start => excitInfo%fullstart, &
                   ende => excitInfo%fullEnd)
 
-        if (present(rdm_ind) .or. present(rdm_mat)) then
+        if ((.not. t_slow_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
             allocate(rdm_ind(2), source = 0_int_rdm)
@@ -1932,11 +1974,16 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_ilut = temp_b_real_i
 
-        if (t_hamil_) then
-            mat_ele =  calcMixedContribution(tmp_I, tmp_J, start, ende)
+        if (t_hamil_ .or. (t_slow_guga_rdms .and. present(rdm_mat))) then
+            if (present(rdm_mat)) then
+                mat_ele =  calcMixedContribution(tmp_I, tmp_J, start, ende, &
+                                rdm_ind, rdm_mat)
+            else
+                mat_ele =  calcMixedContribution(tmp_I, tmp_J, start, ende)
+            end if
         end if
 
-        if (present(rdm_mat)) then
+        if ((.not. t_slow_guga_rdms) .and. present(rdm_mat)) then
             ! no influene on the coupling coeff from order of generators
             rdm_mat(1:2) = calc_mixed_coupling_coeff(tmp_J, excitInfo)
         end if
@@ -5490,6 +5537,7 @@ contains
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
+
         character(*), parameter :: this_routine = "calc_mixed_contr_nosym"
 
         ! for now: just use old (inefficient) but already provided functions:
@@ -6229,15 +6277,30 @@ contains
 
     end function calcMixedPgenContribution
 
-    function calcMixedContribution(ilut,t,start,ende) result(integral)
+    function calcMixedContribution(ilut,t,start,ende,rdm_ind,rdm_mat) result(integral)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         integer, intent(in) :: start, ende
         HElement_t(dp) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calcMixedContribution"
 
         real(dp) :: inter, tempWeight, tempWeight_1
         HElement_t(dp) :: temp_int
         integer :: i, j, k, step1, step2, bVector(nSpatOrbs), first, last
+        logical :: rdm_flag
+        integer :: max_num_rdm, rdm_count
+        integer(int_rdm), allocatable :: tmp_rdm_ind(:)
+        real(dp), allocatable :: tmp_rdm_mat(:)
+        real(dp) :: tmp_mat
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_flag = .true.
+        else
+            rdm_flag = .false.
+        end if
         ! do it differently... since its always a mixed double overlap region
         ! and only 2 indices are involved.. just recalc all possible
         ! matrix elements in this case..
@@ -6247,6 +6310,12 @@ contains
         first = findFirstSwitch(ilut,t,start,ende)
         last = findLastSwitch(ilut,t,first,ende)
 
+        if (rdm_flag) then
+            max_num_rdm = 2 * first * (nSpatOrbs - last + 1)
+            allocate(tmp_rdm_ind(max_num_rdm), source = 0_int_rdm)
+            allocate(tmp_rdm_mat(max_num_rdm), source = 0.0_dp)
+            rdm_count = 0
+        end if
         ! calc. the intermediate matrix element..
         ! but what is the deltaB value inbetween? calculate it on the fly..
         bVector = int(calcB_vector_ilut(ilut(0:nifd)) - calcB_vector_ilut(t(0:nifd)))
@@ -6317,8 +6386,24 @@ contains
                 ! and multiply and add up all contribution elements
                 integral = integral + tempWeight * tempWeight_1 * inter * temp_int
 
+                if (rdm_flag) then
+                    tmp_mat = tempWeight * tempWeight_1 * inter
+                    if (.not. near_zero(tmp_mat)) then
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i,j,j,i)
+                        tmp_rdm_mat(rdm_count) = tmp_mat
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(j,i,i,j)
+                        tmp_rdm_mat(rdm_count) = tmp_mat
+                    end if
+                end if
             end do
         end do
+
+        if (rdm_flag) then
+            allocate(rdm_ind(rdm_count), source = tmp_rdm_ind(1:rdm_count))
+            allocate(rdm_mat(rdm_count), source = tmp_rdm_mat(1:rdm_count))
+        end if
 
     end function calcMixedContribution
 
@@ -7390,12 +7475,14 @@ contains
     end subroutine calc_mixed_end_contr_approx
 
     subroutine calc_mixed_end_l2r_contr_nosym(ilut, t, excitInfo, branch_pgen, &
-            pgen, integral)
+            pgen, integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_mixed_end_l2r_contr_nosym"
 
         integer :: st, se, e, step, sw, i, j, step2, deltaB(nSpatOrbs)
@@ -7405,6 +7492,8 @@ contains
         type(WeightObj_t) :: weights
         procedure(calc_pgen_general), pointer :: calc_pgen_yix
 
+        ASSERT(.not. present(rdm_ind))
+        ASSERT(.not. present(rdm_mat))
         unused_var(branch_pgen)
 
         st = excitInfo%fullStart
@@ -8010,12 +8099,14 @@ contains
     end subroutine setup_weight_funcs
 
     subroutine calc_mixed_end_contr_sym(ilut, t, excitInfo, branch_pgen, pgen, &
-            integral)
+            integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_mixed_end_contr_sym"
 
         integer :: st, se, en, step, sw, elecInd, holeInd, i, j
@@ -8026,6 +8117,19 @@ contains
         logical :: above_flag
         type(BranchWeightArr_t) :: weight_funcs(nSpatOrbs)
         type(WeightObj_t) :: weights
+
+        integer(int_rdm), allocatable :: tmp_rdm_ind(:)
+        real(dp), allocatable :: tmp_rdm_mat(:)
+        logical :: rdm_flag
+        integer :: rdm_count, max_num_rdm
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_flag = .true.
+        else
+            rdm_flag = .false.
+        end if
 
         ! do as much stuff as possible beforehand
         st = excitInfo%fullStart
@@ -8051,6 +8155,13 @@ contains
         step = current_stepvector(en)
 
         sw = findLastSwitch(ilut, t, se, en)
+
+        if (rdm_flag) then
+            max_num_rdm =  2 * (nSpatOrbs - sw + 1)
+            allocate(tmp_rdm_ind(max_num_rdm), source = 0_int_rdm)
+            allocate(tmp_rdm_mat(max_num_rdm), source = 0.0_dp)
+            rdm_count = 0
+        end if
 
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitches, negSwitches)
 
@@ -8145,6 +8256,17 @@ contains
                             (get_umat_el(i,holeInd,elecInd,i) +  &
                             get_umat_el(holeInd,i,i,elecInd))/2.0_dp
 
+                        if (rdm_flag) then
+                            rdm_count = rdm_count + 1
+                            tmp_rdm_ind(rdm_count) = &
+                                contract_2_rdm_ind(i, elecInd, holeInd, i)
+                            tmp_rdm_mat(rdm_count) = top_cont * end_mat * mat_ele
+                            rdm_count = rdm_count + 1
+                            tmp_rdm_ind(rdm_count) = &
+                                contract_2_rdm_ind(holeInd, i, i, elecInd)
+                            tmp_rdm_mat(rdm_count) = top_cont * end_mat * mat_ele
+                        end if
+
                         ! also only recalc. pgen if matrix element is not 0
                         excitInfo%fullEnd = i
                         excitInfo%firstEnd = i
@@ -8214,12 +8336,27 @@ contains
             end if
         end if
 
+
+        if (rdm_flag .and. sw == en) then
+            rdm_count = rdm_count + 1
+            tmp_rdm_ind(rdm_count) = &
+                contract_2_rdm_ind(sw, elecInd, holeInd, sw)
+            tmp_rdm_mat(rdm_count) = 1.0_dp
+            rdm_count = rdm_count + 1
+            tmp_rdm_ind(rdm_count) = &
+                contract_2_rdm_ind(holeInd, sw, sw, elecInd)
+            tmp_rdm_mat(rdm_count) = 1.0_dp
+        end if
+
+
         if (sw < en) then
 
             step = current_stepvector(en)
 
             ! inverse fullstop matrix element
             call getMixedFullStop(step,step,0,currentB_ilut(en),x1_element = mat_ele)
+
+            ASSERT(.not. near_zero(mat_ele))
 
             mat_ele = 1.0_dp / mat_ele
 
@@ -8254,6 +8391,7 @@ contains
                 call getMixedFullStop(step,step,0,currentB_ilut(i), x1_element = end_mat)
 
                 ! update matrix element
+                ASSERT(.not. near_zero(stay_mat))
                 mat_ele = mat_ele / stay_mat
 
                 ! dont i still have to atleast update the matrix element
@@ -8265,6 +8403,17 @@ contains
                     integral = integral + end_mat * mat_ele * &
                         (get_umat_el(i, holeInd, elecInd, i) + &
                         get_umat_el(holeInd, i, i, elecInd)) / 2.0_dp
+
+                    if (rdm_flag) then
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = &
+                            contract_2_rdm_ind(i, elecInd, holeInd, i)
+                        tmp_rdm_mat(rdm_count) = end_mat * mat_ele
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = &
+                            contract_2_rdm_ind(holeInd, i, i, elecInd)
+                        tmp_rdm_mat(rdm_count) = end_mat * mat_ele
+                    end if
 
                     ! only recalc. pgen if matrix element is not 0
                     excitInfo%fullEnd = i
@@ -8351,10 +8500,23 @@ contains
 
                 end if
 
+                ASSERT(.not. near_zero(stay_mat))
+
                 mat_ele = mat_ele * end_mat / stay_mat
 
                 integral = integral + mat_ele * (get_umat_el(sw,holeInd,elecInd,sw) + &
                     get_umat_el(holeInd,sw,sw,elecInd))/2.0_dp
+
+                if (rdm_flag) then
+                    rdm_count = rdm_count + 1
+                    tmp_rdm_ind(rdm_count) = &
+                        contract_2_rdm_ind(sw, elecInd, holeInd, sw)
+                    tmp_rdm_mat(rdm_count) = mat_ele
+                    rdm_count = rdm_count + 1
+                    tmp_rdm_ind(rdm_count) = &
+                        contract_2_rdm_ind(holeInd, sw, sw, elecInd)
+                    tmp_rdm_mat(rdm_count) = mat_ele
+                end if
 
                 ! loop to get correct pgen
                 new_pgen = 1.0_dp
@@ -8406,15 +8568,25 @@ contains
 
         if (current_stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
 
+        if (rdm_flag) then
+            allocate(rdm_ind(rdm_count), source = tmp_rdm_ind(1:rdm_count))
+            allocate(rdm_mat(rdm_count), source = tmp_rdm_mat(1:rdm_count))
+
+            deallocate(tmp_rdm_ind)
+            deallocate(tmp_rdm_mat)
+        end if
+
     end subroutine calc_mixed_end_contr_sym
 
     subroutine calc_mixed_end_r2l_contr_nosym(ilut, t, excitInfo, branch_pgen, &
-            pgen, integral)
+            pgen, integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_mixed_end_r2l_contr_nosym"
 
         integer :: st, se, en, step, sw, i, j, step2, deltaB(nSpatOrbs)
@@ -8423,6 +8595,9 @@ contains
                     plusWeight, probWeight, zeroWeight
         type(WeightObj_t) :: weights
         procedure(calc_pgen_general), pointer :: calc_pgen_yix
+
+        ASSERT(.not. present(rdm_ind))
+        ASSERT(.not. present(rdm_mat))
 
         unused_var(branch_pgen)
 
@@ -10073,12 +10248,14 @@ contains
     end subroutine calc_mixed_start_contr_approx
 
     subroutine calc_mixed_start_r2l_contr_nosym(ilut, t, excitInfo, branch_pgen, &
-            pgen, integral)
+            pgen, integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_mixed_start_r2l_contr_nosym"
 
         integer :: se, en, st, i, j, step, sw, step2
@@ -10088,6 +10265,8 @@ contains
                     zeroWeight, startWeight, tempWeight_1
         procedure(calc_pgen_general), pointer :: calc_pgen_yix_start
 
+        ASSERT(.not. present(rdm_ind))
+        ASSERT(.not. present(rdm_mat))
         st = excitInfo%fullStart
 
         ! need remaining switches over full range
@@ -10869,12 +11048,15 @@ contains
 
     end subroutine perform_crude_excitation
 
-    subroutine calc_mixed_x2x_ueg(ilut, t, excitInfo, branch_pgen, pgen, integral)
+    subroutine calc_mixed_x2x_ueg(ilut, t, excitInfo, branch_pgen, pgen, &
+            integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_mixed_x2x_ueg"
 
         pgen = 0.0_dp
@@ -10891,12 +11073,14 @@ contains
     end subroutine calc_mixed_x2x_ueg
 
     subroutine calc_mixed_start_contr_sym(ilut, t, excitInfo, branch_pgen, &
-            pgen, integral)
+            pgen, integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_mixed_start_contr_sym"
 
         integer :: sw, i, st, se, step, en, elecInd, holeInd
@@ -10905,6 +11089,18 @@ contains
             orb_pgen, start_weight, stay_weight
         type(WeightObj_t) :: weights
         logical :: below_flag
+        integer(int_rdm), allocatable :: tmp_rdm_ind(:)
+        real(dp), allocatable :: tmp_rdm_mat(:)
+        integer :: rdm_count, max_num_rdm
+        logical :: rdm_flag
+
+        if (present(rdm_ind) .or. present(rdm_mat)) then
+            ASSERT(present(rdm_ind))
+            ASSERT(present(rdm_mat))
+            rdm_flag = .true.
+        else
+            rdm_flag = .false.
+        end if
 
         ! whats different here?? what do i have to consider? and how to optimize?
         ! to make it most similar to the full-start into full-stop calc.
@@ -10929,6 +11125,13 @@ contains
         end if
 
         sw = findFirstSwitch(ilut,t, st, se)
+
+        if (rdm_flag) then
+            max_num_rdm =  2 * sw
+            allocate(tmp_rdm_ind(max_num_rdm), source = 0_int_rdm)
+            allocate(tmp_rdm_mat(max_num_rdm), source = 0.0_dp)
+            rdm_count = 0
+        end if
 
         ! what can i precalculate beforehand?
         step = current_stepvector(st)
@@ -11007,6 +11210,7 @@ contains
             end if
         end if
 
+        ASSERT(.not. near_zero(start_weight))
         ! update the pgen stumbs here to reuse start_weight variable
         new_pgen = stay_weight * branch_pgen / start_weight
 
@@ -11084,6 +11288,15 @@ contains
                     integral = integral + start_mat * mat_ele * (get_umat_el(i,holeInd,elecInd,i) &
                         + get_umat_el(holeInd,i,i,elecInd))/2.0_dp
 
+                    if (rdm_flag) then
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i,elecInd,holeInd,i)
+                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele * bot_cont
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(holeInd,i,i,elecInd)
+                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele * bot_cont
+                    end if
+
                     if (t_trunc_guga_pgen .or. &
                         (t_trunc_guga_pgen_noninits .and. .not. is_init_guga)) then
                         if (new_pgen < trunc_guga_pgen) then
@@ -11152,6 +11365,8 @@ contains
                 call getDoubleMatrixElement(step,step,0,gen_type%L,gen_type%R,currentB_ilut(i),&
                     1.0_dp, x1_element = stay_mat)
 
+                ASSERT(.not. near_zero(stay_mat))
+
                 mat_ele = mat_ele / stay_mat
 
                 ! check if orb_pgen is non-zero
@@ -11169,6 +11384,16 @@ contains
                 if (.not. near_zero(start_mat) ) then
                     integral = integral + mat_ele * start_mat *(get_umat_el(holeInd,i,i,elecInd) + &
                         get_umat_el(i,holeInd,elecInd,i))/2.0_dp
+
+                    if (rdm_flag) then
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i,elecInd,holeInd,i)
+                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(holeInd,i,i,elecInd)
+                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele
+                    end if
+
                 end if
 
                 ! and update pgens also
@@ -11205,6 +11430,18 @@ contains
                 end if
 
             end do
+
+            ! for rdms (in this current setup) I need to make a dummy
+            ! output if sw == st)
+            if (rdm_flag .and. sw == st) then
+                rdm_count = rdm_count + 1
+                tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw,elecInd,holeInd,sw)
+                tmp_rdm_mat(rdm_count) = 1.0_dp
+                rdm_count = rdm_count + 1
+                tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(holeInd,sw,sw,elecInd)
+                tmp_rdm_mat(rdm_count) = 1.0_dp
+            end if
+
 
             ! handle switch seperately (but only if switch > start)
             if (sw > st) then
@@ -11246,12 +11483,23 @@ contains
 
                     ! update inverse product
                     ! and also get starting contribution
+                    ASSERT(.not. near_zero(stay_mat))
+
                     mat_ele = mat_ele * start_mat / stay_mat
 
                     ! because the rest of the matrix element is still the same in
                     ! both cases...
                     integral = integral + mat_ele *(get_umat_el(holeInd,sw,sw,elecInd) + &
                         get_umat_el(sw,holeInd,elecInd,sw))/2.0_dp
+
+                    if (rdm_flag) then
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw,elecInd,holeInd,sw)
+                        tmp_rdm_mat(rdm_count) = mat_ele
+                        rdm_count = rdm_count + 1
+                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(holeInd,sw,sw,elecInd)
+                        tmp_rdm_mat(rdm_count) = mat_ele
+                    end if
 
                     stay_weight = 1.0_dp - calcStayingProb(zero_weight, switch_weight, &
                         currentB_ilut(sw))
@@ -11280,6 +11528,14 @@ contains
         ! and if the second electron is in a double occupied orbital I have
         ! to modify it with 2
         if (current_stepvector(elecInd) == 3) pgen = pgen * 2.0_dp
+
+        if (present(rdm_mat)) then
+            allocate(rdm_ind(rdm_count), source = tmp_rdm_ind(1:rdm_count))
+            allocate(rdm_mat(rdm_count), source = tmp_rdm_mat(1:rdm_count))
+
+            deallocate(tmp_rdm_ind)
+            deallocate(tmp_rdm_mat)
+        end if
 
     end subroutine calc_mixed_start_contr_sym
 
@@ -11462,12 +11718,14 @@ contains
     end subroutine calc_orbital_pgen_contrib_start
 
     subroutine calc_mixed_start_l2r_contr_nosym(ilut, t, excitInfo, branch_pgen, &
-            pgen, integral)
+            pgen, integral, rdm_ind, rdm_mat)
         integer(n_int), intent(in) :: ilut(0:nifguga), t(0:nifguga)
         type(ExcitationInformation_t), intent(inout) :: excitInfo
         real(dp), intent(inout) :: branch_pgen
         real(dp), intent(out) :: pgen
         HElement_t(dp), intent(out) :: integral
+        integer(int_rdm), intent(out), allocatable, optional :: rdm_ind(:)
+        real(dp), intent(out), allocatable, optional :: rdm_mat(:)
         character(*), parameter :: this_routine = "calc_mixed_start_l2r_contr_nosym"
 
         integer :: se, en, st, i, j, step, sw, step2
@@ -11477,6 +11735,8 @@ contains
                     zeroWeight, startWeight, tempWeight_1
         procedure(calc_pgen_general), pointer :: calc_pgen_yix_start
 
+        ASSERT(.not. present(rdm_ind))
+        ASSERT(.not. present(rdm_mat))
         st = excitInfo%fullStart
 
         ! need remaining switches over full range

@@ -31,7 +31,7 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double, &
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type
+                         excit_type, gen_type, t_slow_guga_rdms
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -138,6 +138,21 @@ contains
                 else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
                     call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
                     full_sign = sign_I * sign_J * rdm_mat(n)
+                    select case (excitInfo%typ)
+                    ! in this implementation right now, I have to sample
+                    ! all full-start/stop contributions for all the
+                    ! excitations.. so there is a double counting going on
+                    ! this i have to unbias here (there could be even
+                    ! more double counting, but thats to see)
+                    case(excit_type%fullstop_L_to_R, &
+                         excit_type%fullstop_R_to_L, &
+                         excit_type%fullstart_L_to_R, &
+                         excit_type%fullstart_R_to_L, &
+                         excit_type%fullstart_stop_mixed)
+
+                        full_sign = full_sign / (real(size(rdm_mat),dp) / 2.0_dp)
+                    end select
+
                     call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
                 end if
             end if

@@ -18,8 +18,9 @@ module guga_data
               funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
-              excit_type, gen_type, excit_names
+              excit_type, gen_type, excit_names, t_slow_guga_rdms
 
+    logical :: t_slow_guga_rdms = .true.
     ! ========================== type defs ===================================
 
     ! define types for the probabilistic weights functions used in the

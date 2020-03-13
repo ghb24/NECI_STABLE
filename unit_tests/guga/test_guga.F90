@@ -82,8 +82,9 @@ contains
 
         call init_guga_testsuite()
 
+        call compare_rdm_all_excits_and_mat_eles()
 !         call run_test_case(compare_fill_diag_and_explicit_diag)
-!         call stop_all("here", "now")
+        call stop_all("here", "now")
 
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
@@ -101,6 +102,278 @@ contains
         !call run_test_excit_gen_guga_S0
 
     end subroutine guga_test_driver
+
+    subroutine compare_rdm_all_excits_and_mat_eles
+
+        integer, allocatable :: nI(:)
+        integer(n_int) :: ilutI(0:nifguga), ilutJ(0:nifguga)
+        integer :: n_tot, n, m, i, j, k, l, o
+        integer(n_int), pointer :: excits(:,:)
+        integer(int_rdm) :: rdm_ind_1
+        real(dp) :: rdm_mat_1
+        type(ExcitationInformation_t) :: excitInfo
+        integer(int_rdm), allocatable :: rdm_ind(:)
+        real(dp), allocatable :: rdm_mat(:)
+        HElement_t(dp) :: mat_ele
+
+        print *, ""
+        print *, "comparing coupling coeffs from exact and from calc_guga_matrix_element"
+
+        nel = 2
+        allocate(nI(nel))
+        nI = [1,2]
+        call EncodeBitDet_guga(nI, ilutI)
+
+        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+
+        do n = 1, n_tot
+            ilutJ = excits(:,n)
+            rdm_ind_1 = extract_rdm_ind(ilutJ)
+            rdm_mat_1 = real(extract_h_element(ilutJ),dp)
+
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+                t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
+                rdm_mat = rdm_mat)
+
+            call assert_true(any(rdm_ind == rdm_ind_1))
+            do m = 1, size(rdm_ind)
+                if (rdm_ind(m) == rdm_ind_1) then
+                    call assert_equals(rdm_mat(m), rdm_mat_1)
+                end if
+            end do
+        end do
+        deallocate(nI)
+
+
+        allocate(nI(nel))
+        nI = [1,4]
+
+        call EncodeBitDet_guga(nI, ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+
+        do n = 1, n_tot
+            ilutJ = excits(:,n)
+            rdm_ind_1 = extract_rdm_ind(ilutJ)
+            rdm_mat_1 = real(extract_h_element(ilutJ),dp)
+
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+                t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
+                rdm_mat = rdm_mat)
+
+            call assert_true(any(rdm_ind == rdm_ind_1))
+
+            do m = 1, size(rdm_ind)
+                if (rdm_ind(m) == rdm_ind_1) then
+                    call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
+                end if
+            end do
+        end do
+        deallocate(nI)
+
+        nel = 4
+        allocate(nI(nel))
+
+        nI = [3,4,5,6]
+
+        call EncodeBitDet_guga(nI, ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+
+        do n = 1, n_tot
+            ilutJ = excits(:,n)
+            rdm_ind_1 = extract_rdm_ind(ilutJ)
+            rdm_mat_1 = real(extract_h_element(ilutJ),dp)
+
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+                t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
+                rdm_mat = rdm_mat)
+
+            call assert_true(any(rdm_ind == rdm_ind_1))
+
+            if (.not. any(rdm_ind == rdm_ind_1)) then
+                print *, ""
+                call write_det_guga(6, ilutI)
+                call write_det_guga(6, ilutJ)
+                call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
+                print *, "orig i,j,k,l: ", i, j, k, l
+                do m = 1, size(rdm_ind)
+                    call extract_2_rdm_ind(rdm_ind(m), i, j, k, l)
+                    print *, i, j, k, l
+                end do
+            end if
+
+            do m = 1, size(rdm_ind)
+                if (rdm_ind(m) == rdm_ind_1) then
+                    if (.not. (rdm_mat(m) .isclose. rdm_mat_1)) then
+                        print *, ""
+                        call write_det_guga(6, ilutI)
+                        call write_det_guga(6, ilutJ)
+                        print *, "orig mat and i,j,k,l:"
+                        call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
+                        print *, rdm_mat_1, i, j, k, l
+                        print *, "stored mat and i,j,k,l: "
+                        do o = 1, size(rdm_ind)
+                            call extract_2_rdm_ind(rdm_ind(o), i, j, k, l)
+                            print *, rdm_mat(m), i, j, k, l
+                            print *, ""
+                        end do
+                    end if
+                    call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
+                end if
+            end do
+        end do
+
+        nI = [1,2,7,8]
+
+        call EncodeBitDet_guga(nI, ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+
+        do n = 1, n_tot
+            ilutJ = excits(:,n)
+            rdm_ind_1 = extract_rdm_ind(ilutJ)
+            rdm_mat_1 = real(extract_h_element(ilutJ),dp)
+
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+                t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
+                rdm_mat = rdm_mat)
+
+            call assert_true(any(rdm_ind == rdm_ind_1))
+
+            if (.not. any(rdm_ind == rdm_ind_1)) then
+                print *, ""
+                call write_det_guga(6, ilutI)
+                call write_det_guga(6, ilutJ)
+                call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
+                print *, "orig i,j,k,l: ", i, j, k, l
+                do m = 1, size(rdm_ind)
+                    call extract_2_rdm_ind(rdm_ind(m), i, j, k, l)
+                    print *, i, j, k, l
+                end do
+            end if
+
+            do m = 1, size(rdm_ind)
+                if (rdm_ind(m) == rdm_ind_1) then
+                    if (.not. (rdm_mat(m) .isclose. rdm_mat_1)) then
+                        print *, ""
+                        call write_det_guga(6, ilutI)
+                        call write_det_guga(6, ilutJ)
+                        print *, "orig mat and i,j,k,l:"
+                        call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
+                        print *, rdm_mat_1, i, j, k, l
+                        print *, "stored mat and i,j,k,l: "
+                        do o = 1, size(rdm_ind)
+                            call extract_2_rdm_ind(rdm_ind(o), i, j, k, l)
+                            print *, rdm_mat(m), i, j, k, l
+                            print *, ""
+                        end do
+                    end if
+                    call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
+                end if
+            end do
+        end do
+
+        nI = [1, 4, 5, 8]
+        call EncodeBitDet_guga(nI, ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+
+        do n = 1, n_tot
+            ilutJ = excits(:,n)
+            rdm_ind_1 = extract_rdm_ind(ilutJ)
+            rdm_mat_1 = real(extract_h_element(ilutJ),dp)
+
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+                t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
+                rdm_mat = rdm_mat)
+
+            call assert_true(any(rdm_ind == rdm_ind_1))
+
+            if (.not. any(rdm_ind == rdm_ind_1)) then
+                print *, ""
+                call write_det_guga(6, ilutI)
+                call write_det_guga(6, ilutJ)
+                call print_excitInfo(excitInfo)
+                call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
+                print *, "orig mat and i,j,k,l: ", rdm_mat_1, i, j, k, l
+                print *, "number of rdms: ", size(rdm_ind)
+                do m = 1, size(rdm_ind)
+                    call extract_2_rdm_ind(rdm_ind(m), i, j, k, l)
+                    print *, rdm_mat(m), i, j, k, l
+                end do
+            end if
+
+            do m = 1, size(rdm_ind)
+                if (rdm_ind(m) == rdm_ind_1) then
+                    if (.not. (rdm_mat(m) .isclose. rdm_mat_1)) then
+                        print *, ""
+                        call write_det_guga(6, ilutI)
+                        call write_det_guga(6, ilutJ)
+                        call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
+                        print *, rdm_mat(m), rdm_mat_1, i, j, k, l
+                        print *, ""
+
+                    end if
+                    call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
+                end if
+            end do
+        end do
+
+        nI = [1, 3, 6, 8]
+        call EncodeBitDet_guga(nI, ilutI)
+        call calc_explicit_2_rdm_guga(ilutI, n_tot, excits)
+
+        do n = 1, n_tot
+            ilutJ = excits(:,n)
+            rdm_ind_1 = extract_rdm_ind(ilutJ)
+            rdm_mat_1 = real(extract_h_element(ilutJ),dp)
+
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+                t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
+                rdm_mat = rdm_mat)
+
+            call assert_true(any(rdm_ind == rdm_ind_1))
+
+            if (.not. any(rdm_ind == rdm_ind_1)) then
+                print *, ""
+                print *, " ======= indices not found! ============ "
+                call write_det_guga(6, ilutI)
+                call write_det_guga(6, ilutJ)
+                call print_excitInfo(excitInfo)
+                call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
+                print *, "orig mat and i,j,k,l: ", rdm_mat_1, i, j, k, l
+                print *, "number of rdms: ", size(rdm_ind)
+                do m = 1, size(rdm_ind)
+                    call extract_2_rdm_ind(rdm_ind(m), i, j, k, l)
+                    print *, rdm_mat(m), i, j, k, l
+                end do
+            end if
+
+            do m = 1, size(rdm_ind)
+                if (rdm_ind(m) == rdm_ind_1) then
+                    if (.not. (rdm_mat(m) .isclose. rdm_mat_1)) then
+                        print *, ""
+                        print *, "=============== matrix element differnt ==========="
+                        call write_det_guga(6, ilutI)
+                        call write_det_guga(6, ilutJ)
+                        call print_excitInfo(excitInfo)
+                        call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
+                        print *, "orig mat and i,j,k,l: ", rdm_mat_1, i, j, k, l
+                        print *, "number of rdms: ", size(rdm_ind)
+                        print *, "other rdms contribs: "
+                        do o = 1, size(rdm_ind)
+                            call extract_2_rdm_ind(rdm_ind(o), i, j, k, l)
+                            print *, rdm_mat(o), i, j, k, l
+                        end do
+
+                    end if
+                    call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
+                end if
+            end do
+        end do
+
+
+        print *, ""
+        print *, "comparing coupling coeffs from exact and from calc_guga_matrix_element. DONE"
+
+    end subroutine compare_rdm_all_excits_and_mat_eles
 
     subroutine compare_fill_diag_and_explicit_diag
 
