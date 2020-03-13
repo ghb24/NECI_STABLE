@@ -22,7 +22,7 @@
 !>  The procedures create_excitation, get_excitation, and get_bit_excitation
 !>  can be used, to create excitations from nIs, or iluts at runtime.
 module excitation_types
-    use constants, only: dp, n_int
+    use constants, only: dp, n_int, bits_n_int
     use bit_rep_data, only: nIfTot
     use SystemData, only: nEl
     use orb_idx_mod, only: SpinOrbIdx_t
@@ -165,8 +165,10 @@ module excitation_types
 !>  @param[in] det_I, A Slater determinant of SpinOrbIdx_t.
 !>  @param[in] exc, NoExc_t, SingleExc_t, or DoubleExc_t.
     interface excite
-    #:for excitation_t in ['NoExc_t', 'SingleExc_t', 'DoubleExc_t']
-        module procedure excite_${excitation_t}$
+    #:for det_type in ['Ilut_t', 'SpinOrbIdx_t']
+        #:for excitation_t in ['NoExc_t', 'SingleExc_t', 'DoubleExc_t']
+            module procedure excite_${det_type}$_${excitation_t}$
+        #:endfor
     #:endfor
     end interface
 
@@ -349,7 +351,7 @@ contains
         end function last_tgt_unknown_${excitation_t}$
     #:endfor
 
-    pure function excite_NoExc_t(det_I, exc) result(res)
+    pure function excite_SpinOrbIdx_t_NoExc_t(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(NoExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
@@ -357,7 +359,7 @@ contains
         res = det_I
     end function
 
-    DEBUG_IMPURE function excite_SingleExc_t(det_I, exc) result(res)
+    DEBUG_IMPURE function excite_SpinOrbIdx_t_SingleExc_t(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(SingleExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
@@ -373,7 +375,7 @@ contains
     end function
 
 
-    DEBUG_IMPURE function excite_DoubleExc_t(det_I, exc) result(res)
+    DEBUG_IMPURE function excite_SpinOrbIdx_t_DoubleExc_t(det_I, exc) result(res)
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(DoubleExc_t), intent(in) :: exc
         type(SpinOrbIdx_t) :: res
@@ -405,6 +407,54 @@ contains
                 b = tmp
             end subroutine
     end function
+
+
+    pure function excite_Ilut_t_NoExc_t(ilut_I, exc) result(res)
+        integer(n_int), intent(in) :: ilut_I(:)
+        type(NoExc_t), intent(in) :: exc
+        integer(n_int) :: res(size(ilut_I))
+        @:unused_var(exc)
+        res = ilut_I
+    end function
+
+    DEBUG_IMPURE function excite_Ilut_t_SingleExc_t(ilut_I, exc) result(res)
+        integer(n_int), intent(in) :: ilut_I(:)
+        type(SingleExc_t), intent(in) :: exc
+        integer(n_int) :: res(size(ilut_I))
+        character(*), parameter :: this_routine = 'excite_SingleExc_t'
+
+        associate(src => exc%val(1), tgt => exc%val(2))
+            ASSERT(defined(exc))
+            ASSERT(src /= tgt)
+            res = ilut_I
+            clr_orb(res, src)
+            set_orb(res, tgt)
+        end associate
+    end function
+
+
+    DEBUG_IMPURE function excite_Ilut_t_DoubleExc_t(ilut_I, exc) result(res)
+        integer(n_int), intent(in) :: ilut_I(:)
+        type(DoubleExc_t), intent(in) :: exc
+        integer(n_int) :: res(size(ilut_I))
+        character(*), parameter :: this_routine = 'excite_DoubleExc_t'
+
+        integer :: src(2), tgt(2), i
+
+        src = exc%val(1, :)
+        tgt = exc%val(2, :)
+        ASSERT(defined(exc))
+        do i = 1, 2
+            ASSERT(all(src(i) /= tgt))
+        end do
+        res = ilut_I
+        clr_orb(res, src(1))
+        clr_orb(res, src(2))
+        set_orb(res, tgt(1))
+        set_orb(res, tgt(2))
+    end function
+
+
 
     !> Merge C into A and remove values of B.
     !> Preconditions (not tested!):
