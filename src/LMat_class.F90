@@ -8,7 +8,7 @@ module LMat_class
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
     use constants
-    use shared_rhash, only: shared_rhash_t
+    use index_rhash, only: index_rhash_t
     use mpi
     use util_mod, only: get_free_unit, operator(.div.)
     use tc_three_body_data, only: lMatEps, tHDF5LMat
@@ -90,7 +90,7 @@ module LMat_class
         type(shared_array_real_t) :: nonzero_vals
 #endif
         ! read-only shared memory hash table
-        type(shared_rhash_t) :: htable
+        type(index_rhash_t) :: htable
     contains
         ! Element getters/setters
         procedure :: get_elem => get_elem_sparse

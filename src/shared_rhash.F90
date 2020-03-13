@@ -39,14 +39,13 @@ module shared_rhash
         logical :: t_conflicts_known = .false.
 
     contains
-        ! The hash function used for storing indices
-        procedure :: hash_func
+
         ! Allocate the memory
         procedure :: alloc
         procedure :: dealloc
         ! Fill up the indices - since this is memory critical, we allow direct write to them
-        procedure :: count_index
-        procedure :: add_index
+        procedure :: count_value
+        procedure :: add_value
         ! Set up the table. It is read-only, so this is the only way to set it up
         procedure :: finalize_setup
         ! After counting the indices, we have to get the offsets (doing so on the fly is
@@ -54,24 +53,16 @@ module shared_rhash
         procedure :: setup_offsets
 
         ! Look up an index. Returns the position in the contiguous array
-        procedure :: lookup
+        procedure :: direct_lookup
+        procedure :: callback_lookup
 
         ! Tell if the conflicts have been counted
         procedure :: known_conflicts
+        ! Check how large the hash table shall be
+        procedure :: val_range
     end type shared_rhash_t
 
 contains
-
-    !> Get the hash value for an arbitrary input value
-    !> @param index input value to get the hash value for
-    function hash_func(this, index) result(hval)
-        class(shared_rhash_t), intent(in) :: this 
-        integer(int64), intent(in) :: index
-        integer(int64) :: hval
-
-! TODO: Implement an actual hash function
-        hval = mod(index-1,this%hval_range)+1_int64
-    end function hash_func
 
     !------------------------------------------------------------------------------------------!
     ! Memory management
@@ -115,21 +106,21 @@ contains
     ! Initialisation routines
     !------------------------------------------------------------------------------------------!  
 
-    !> Log the occurence of this index in the set of indices to be stored
+    !> Log the occurence of this hash value in the set of values to be stored
     !! Does not add it, only updates the offsets
-    !> @param[in] index value to be logged
-    subroutine count_index(this, index)
+    !> @param[in] hval hash value to be logged
+    subroutine count_value(this, hval)
         class(shared_rhash_t), intent(inout) :: this
-        integer(int64), intent(in) :: index
+        integer(int64), intent(in) :: hval
 
         integer(int64) :: n_hval
 
         ! all following entries get their offset increased by one
         if(iProcIndex_intra == 0) then
-            n_hval = this%hash_func(index) + 1
+            n_hval = hval + 1
             this%hval_offsets%ptr(n_hval) = this%hval_offsets%ptr(n_hval) + 1
         endif
-    end subroutine count_index
+    end subroutine count_value
 
     !------------------------------------------------------------------------------------------!
 
@@ -153,22 +144,20 @@ contains
     !------------------------------------------------------------------------------------------!
 
     !> Add an input value to the stored values, assuming we already know the offsets
-    !> @param[in] index value to be stored
+    !> @param[in] hval value to be stored
+    !> @param[in] index index belonging to this value
     !> @param[out] pos on return, the position where this value was stored
-    subroutine add_index(this, index, pos)
+    subroutine add_value(this, hval, index, pos)
         class(shared_rhash_t), intent(inout) :: this
-        integer(int64), intent(in) :: index
+        integer(int64), intent(in) :: hval, index
         integer(int64), intent(out) :: pos
 
-        integer(int64) :: hval
-
         if(iProcIndex_intra == 0) then
-            hval = this%hash_func(index)
             pos = this%hval_offsets%ptr(hval)+this%mult(hval)
             this%indices%ptr(pos) = index
             this%mult(hval) = this%mult(hval) + 1
         end if
-    end subroutine add_index
+    end subroutine add_value
 
     !------------------------------------------------------------------------------------------!
 
@@ -186,18 +175,18 @@ contains
     !------------------------------------------------------------------------------------------!
 
     !> Look up a value in this hash table. Returns whether the value is stored and if yes, where
+    !> @param[in] hval hash value of the index to look up
     !> @param[in] index value to be looked up
     !> @param[out] pos on return, the position of index if found, else 0
     !> @param[out] t_found on return, true if and only if index was found
-    subroutine lookup(this, index, pos, t_found)
+    subroutine direct_lookup(this, hval, index, pos, t_found)
         class(shared_rhash_t), intent(in) :: this
-        integer(int64), intent(in) :: index
+        integer(int64), intent(in) :: index, hval
         integer(int64), intent(out) :: pos
         logical, intent(out) :: t_found
 
-        integer(int64) :: hval, lower, upper, i
+        integer(int64) :: lower, upper, i
         
-        hval = this%hash_func(index)
         lower = this%hval_offsets%ptr(hval) + 1
         upper = this%hval_offsets%ptr(hval+1)
 
@@ -210,7 +199,45 @@ contains
                 return
             end if
         end do
-    end subroutine lookup
+    end subroutine direct_lookup
+
+    !------------------------------------------------------------------------------------------!
+
+    !> Generic lookup routine, using an external routine for verification
+    !! DOES NOT TO THE SAME AS direct_lookup
+    !> @param[in] hval hash value of the index to look up
+    !> @param[out] pos on return, the matching entry
+    !> @param[out] t_found on return, true if and only if index was found
+    !> @param[in] verify  function to check if an entry matches    
+    subroutine callback_lookup(this, hval, pos, t_found, verify)
+        class(shared_rhash_t), intent(in) :: this
+        integer(int64), intent(in) :: hval
+        integer(int64), intent(out) :: pos
+        logical, intent(out) :: t_found
+
+        integer(int64) :: lower, upper, i
+
+        interface
+            function verify(i) result(match)
+                use constants
+                integer(int64), intent(in) :: i
+                logical :: match
+            end function verify
+        end interface
+
+        lower = this%hval_offsets%ptr(hval) + 1
+        upper = this%hval_offsets%ptr(hval+1)
+
+        t_found = .false.
+        pos = 0
+        do i = lower, upper
+            if(verify(this%indices%ptr(i))) then
+                pos = this%indices%ptr(i)
+                t_found = .true.
+                return
+            end if
+        end do
+    end subroutine callback_lookup
 
     !------------------------------------------------------------------------------------------!
 
@@ -224,5 +251,16 @@ contains
 
         t_kc = this%t_conflicts_known
     end function known_conflicts
+
+    !------------------------------------------------------------------------------------------!
+
+    !> Get the range of hash table values of this ht
+    !> @return h_range  maximum possible hash value of this ht
+    function val_range(this) result(h_range)
+        class(shared_rhash_t), intent(in) :: this
+        integer(int64) :: h_range
+
+        h_range = this%hval_range
+    end function val_range
     
 end module shared_rhash

@@ -19,6 +19,7 @@ stepsshift 1
 allrealcoeff
 realspawncutoff 0.01
 nmcyc 400
+core-inits
 semi-stochastic
 pops-core 110
 readpops

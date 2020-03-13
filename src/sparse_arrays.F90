@@ -25,7 +25,7 @@ module sparse_arrays
     use Parallel_neci, only: iProcIndex, nProcessors, MPIBarrier, MPIAllGatherV
     use SystemData, only: tHPHF, nel
     use global_det_data, only: set_det_diagH
-
+    use shared_rhash, only: shared_rhash_t
     use SystemData, only: tGUGA
     use guga_excitations, only: calc_off_diag_guga_gen, actHamiltonian, &
                                 calc_guga_matrix_element
@@ -79,10 +79,10 @@ module sparse_arrays
 
     type(trial_hashtable), allocatable, dimension(:) :: trial_ht
     type(trial_hashtable), allocatable, dimension(:) :: con_ht
-    type(core_hashtable), allocatable, dimension(:) :: core_ht
+    type(shared_rhash_t) :: core_ht
 
     ! --- For when using the determ-proj-approx-hamil option -----
-    type(core_hashtable), allocatable, dimension(:) :: var_ht
+    type(shared_rhash_t) :: var_ht
     type(sparse_matrix_real), allocatable, dimension(:) :: approx_ham
 
 contains
@@ -1003,20 +1003,22 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)
-        integer :: i, hash_val
+        integer(int64) :: hash_val
+        integer(int64) :: pos
         logical :: var_state
-
-        var_state = .false.
 
         hash_val = FindWalkerHash(nI, var_space_size_int)
 
-        do i = 1, var_ht(hash_val)%nclash
-            if (all(ilut(0:NIfDBO) == var_space(0:NIfDBO, var_ht(hash_val)%ind(i)) )) then
-                var_state = .true.
-                return
-            end if
-        end do
+        call var_ht%callback_lookup(hash_val, pos, var_state, verify)
+    contains
 
+        function verify(ind) result(match)
+            integer(int64), intent(in) :: ind
+            logical :: match
+
+            match = all(ilut(0:NIfDBO) == var_space(0:NIfDBO, ind) )
+
+        end function verify
     end function is_var_state
 
 end module sparse_arrays

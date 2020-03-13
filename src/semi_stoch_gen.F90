@@ -152,13 +152,6 @@ contains
         call LogMemAlloc('indices_of_determ_states', int(determ_sizes(iProcIndex), &
                          sizeof_int), bytes_int, t_r, IDetermTag, ierr)
 
-        ! Calculate the indices in the full vector at which the various processors take over, relative
-        ! to the first index position in the vector (i.e. the array disps in MPI routines).
-        determ_displs(0) = 0
-        do i = 1, nProcessors-1
-            determ_displs(i) = determ_displs(i-1) + determ_sizes(i-1)
-        end do
-
         ! Calculate the indices in the full vector at which the various processors end.
         determ_last(0) = determ_sizes(0)
         do i = 1, nProcessors-1
@@ -1193,7 +1186,6 @@ contains
         end if
         
         length_this_proc = min( max_size, int(source_size - nzero_dets, MPIArg))
-
 
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)

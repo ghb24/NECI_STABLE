@@ -25,7 +25,7 @@ module initiator_space_procs
     integer(MPIArg) :: initiator_space_size
     integer :: initiator_space_size_int
 
-    type(core_hashtable), allocatable :: initiator_ht(:)
+    type(shared_rhash_t) :: initiator_ht
 
 contains
 
@@ -210,20 +210,21 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
 
         integer, intent(in) :: nI(:)
-        integer :: i, hash_val
+        integer(int64) :: hash_val, pos
 
         logical :: initiator_state
 
-        initiator_state = .false.
-
         hash_val = FindWalkerHash(nI, initiator_space_size_int)
 
-        do i = 1, initiator_ht(hash_val)%nclash
-            if (all(ilut(0:NIfDBO) == initiator_space(0:NIfDBO, initiator_ht(hash_val)%ind(i)) )) then
-                initiator_state = .true.
-                return
-            end if
-        end do
+        call initiator_ht%callback_lookup(hash_val, pos, initiator_state, verify)
+
+    contains
+
+        function verify(ind) result(match)
+            integer(int64), intent(in) :: ind
+            logical :: match
+            match =  (all(ilut(0:NIfDBO) == initiator_space(0:NIfDBO, ind)))
+        end function verify
 
     end function is_in_initiator_space
 

@@ -70,6 +70,7 @@ set( SRC_FILES
     hist_data.F90
     HPHFRandExcit.F90
     hubbard.F
+	index_rhash.F90
     init_coul2D.F
     init_coul.F
     initial_trial_states.F90
