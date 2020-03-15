@@ -2731,11 +2731,12 @@ contains
 
     end subroutine init_csf_information
 
-    subroutine extract_1_rdm_ind(rdm_ind, i, a)
+    subroutine extract_1_rdm_ind(rdm_ind, i, a, excit_lvl, excit_typ)
         ! the converstion routine between the combined and explicit rdm
         ! indices for the 1-RDM
         integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(out) :: i, a
+        integer, intent(out), optional :: excit_lvl, excit_typ
         character(*), parameter :: this_routine = "extract_matrix_element"
 
         a = int(mod(rdm_ind - 1, nSpatOrbs)  + 1)
@@ -2743,10 +2744,11 @@ contains
 
     end subroutine extract_1_rdm_ind
 
-    function contract_1_rdm_ind(i,a) result(rdm_ind)
+    function contract_1_rdm_ind(i, a, excit_lvl, excit_typ) result(rdm_ind)
         ! the inverse function of the routine above, to give the combined
         ! rdm index of two explicit ones
         integer, intent(in) :: i, a
+        integer, intent(in), optional :: excit_lvl, excit_typ
         integer(int_rdm) :: rdm_ind
         character(*), parameter :: this_routine = "contract_1_rdm_ind"
 
@@ -2754,10 +2756,11 @@ contains
 
     end function contract_1_rdm_ind
 
-    function contract_2_rdm_ind(i,j,k,l) result(ijkl)
+    function contract_2_rdm_ind(i, j, k, l, excit_lvl, excit_typ) result(ijkl)
         ! since I only ever have spatial orbitals in the GUGA-RDM make
         ! the definition of the RDM-index combination differently
         integer, intent(in) :: i,j,k,l
+        integer, intent(in), optional :: excit_lvl, excit_typ
         integer(int_rdm) :: ijkl
         character(*), parameter :: this_routine = "contract_2_rdm_ind"
 
@@ -2771,13 +2774,15 @@ contains
 
     end function contract_2_rdm_ind
 
-    subroutine extract_2_rdm_ind(ijkl, i, j, k, l, ij_out, kl_out)
+    subroutine extract_2_rdm_ind(ijkl, i, j, k, l, &
+            ij_out, kl_out, excit_lvl, excit_typ)
         ! the inverse routine of the function above.
         ! it is actually practical to have ij and kl also available at
         ! times, since it can identify diagonal entries of the two-RDM
         integer(int_rdm), intent(in) :: ijkl
         integer, intent(out) :: i,j,k,l
         integer(int_rdm), intent(out), optional :: ij_out, kl_out
+        integer, intent(out), optional :: excit_lvl, excit_typ
         character(*), parameter :: this_routine = "extract_2_rdm_ind"
 
         integer(int_rdm) :: ij, kl

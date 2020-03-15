@@ -84,7 +84,16 @@ contains
 
         call compare_rdm_all_excits_and_mat_eles()
 !         call run_test_case(compare_fill_diag_and_explicit_diag)
+
+
+        call run_test_case(test_contract_extract_1_rdm_with_excitInfo, &
+            "test_contract_extract_1_rdm_with_excitInfo")
+
         call stop_all("here", "now")
+
+        call run_test_case(test_contract_extract_2_rdm_with_excitInfo, &
+            "test_contract_extract_2_rdm_with_excitInfo")
+
 
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
@@ -1843,6 +1852,8 @@ contains
         call run_test_case(test_calcOcc_vector_ilut, "test_calcOcc_vector_ilut")
         call run_test_case(test_contract_extract_1_rdm, "test_contract_extract_1_rdm")
         call run_test_case(test_contract_extract_2_rdm, "test_contract_extract_2_rdm")
+        call test_contract_extract_1_rdm_with_excitInfo()
+        call test_contract_extract_2_rdm_with_excitInfo()
 
         print *, ""
         print *, "guga_bitRepOps tests passed!"
@@ -2030,6 +2041,140 @@ contains
 
     end subroutine test_contract_extract_2_rdm
 
+    subroutine test_contract_extract_1_rdm_with_excitInfo
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, excit_lvl, excit_typ
+        character(*), parameter :: this_routine = "test_contract_extract_1_rdm_with_excitInfo"
+
+        print *, ""
+        print *, "testing: contrat and extract 1 rdm index with the additional excitInfo"
+
+        rdm_ind = contract_1_rdm_ind(1,1,0,-1)
+        call extract_1_rdm_ind(rdm_ind, i,j)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_lvl)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl, excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_lvl)
+        call assert_equals(-1, excit_typ)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(-1, excit_typ)
+
+        rdm_ind = contract_1_rdm_ind(1,1,0)
+        call extract_1_rdm_ind(rdm_ind, i,j)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_lvl)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl, excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_lvl)
+        call assert_equals(0, excit_typ)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_typ)
+
+        rdm_ind = contract_1_rdm_ind(1,1,excit_typ = -1)
+        call extract_1_rdm_ind(rdm_ind, i,j)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_lvl)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl, excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_lvl)
+        call assert_equals(-1, excit_typ)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(-1, excit_typ)
+
+        rdm_ind = contract_1_rdm_ind(1,2,1,0)
+        call extract_1_rdm_ind(rdm_ind, i,j)
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(1, excit_lvl)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl, excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(1, excit_lvl)
+        call assert_equals(0, excit_typ)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_typ)
+
+        rdm_ind = contract_1_rdm_ind(1,2,1)
+        call extract_1_rdm_ind(rdm_ind, i,j)
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(1, excit_lvl)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl, excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(1, excit_lvl)
+        call assert_equals(0, excit_typ)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_typ)
+
+        rdm_ind = contract_1_rdm_ind(1,2,excit_typ = 0)
+        call extract_1_rdm_ind(rdm_ind, i,j)
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_lvl)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl, excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_lvl)
+        call assert_equals(0, excit_typ)
+        call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(0, excit_typ)
+
+
+        print *, ""
+        print *, "testing: contrat and extract 1 rdm index with the additional excitInfo. DONE"
+
+    end subroutine test_contract_extract_1_rdm_with_excitInfo
+
+    subroutine test_contract_extract_2_rdm_with_excitInfo
+
+        print *, ""
+        print *, "testing: contract and exctract 2 rdm index with excit info"
+
+        call stop_all("here", "todo")
+
+        print *, ""
+        print *, "testing: contract and exctract 2 rdm index with excit info. DONE!"
+
+    end subroutine test_contract_extract_2_rdm_with_excitInfo
+
     subroutine test_contract_extract_1_rdm
         integer(int_rdm) :: rdm_ind
         integer :: i, j
@@ -2216,7 +2361,7 @@ contains
 
             call assert_true(excitInfo%valid)
 
-            if (excitInfo%typ /= 0) then
+            if (excitInfo%typ /= excit_type%single) then
                 call checkCompatibility(ilutG, excitInfo, valid, pos, neg)
 
                 call assert_true(valid)
@@ -6201,7 +6346,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,4,2)
 
-        call assert_true(excitInfo%typ == 13 )
+        call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, ""
@@ -6234,7 +6379,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,4,2)
 
-        call assert_true(excitInfo%typ == 13 )
+        call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6274,7 +6419,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(3,1,2,4)
 
-        call assert_true(excitInfo%typ == 12)
+        call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6308,7 +6453,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(3,1,2,4)
 
-        call assert_true(excitInfo%typ == 12)
+        call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6351,7 +6496,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,3,2 )
 
-        call assert_true(excitInfo%typ == 11)
+        call assert_true(excitInfo%typ == excit_type%double_R_to_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6382,7 +6527,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,3,2 )
 
-        call assert_true(excitInfo%typ == 11)
+        call assert_true(excitInfo%typ == excit_type%double_R_to_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6427,7 +6572,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,3)
 
-        call assert_true(excitInfo%typ == 10)
+        call assert_true(excitInfo%typ == excit_type%double_L_to_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6462,7 +6607,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,3)
 
-        call assert_true(excitInfo%typ == 10)
+        call assert_true(excitInfo%typ == excit_type%double_L_to_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6502,7 +6647,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,2,3)
 
-        call assert_true(excitInfo%typ == 9)
+        call assert_true(excitInfo%typ == excit_type%double_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6521,7 +6666,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,2,4)
 
-        call assert_true(excitInfo%typ == 9)
+        call assert_true(excitInfo%typ == excit_type%double_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
@@ -6549,7 +6694,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,2,3)
 
-        call assert_true(excitInfo%typ == 9)
+        call assert_true(excitInfo%typ == excit_type%double_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6563,7 +6708,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,2,4)
 
-        call assert_true(excitInfo%typ == 9)
+        call assert_true(excitInfo%typ == excit_type%double_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6604,7 +6749,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,3,2)
 
-        call assert_true(excitInfo%typ == 8)
+        call assert_true(excitInfo%typ == excit_type%double_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6624,7 +6769,7 @@ contains
 
         excitInfo = excitationIdentifier(3,2,4,1)
 
-        call assert_true(excitInfo%typ == 8)
+        call assert_true(excitInfo%typ == excit_type%double_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
@@ -6652,7 +6797,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,3,2)
 
-        call assert_true(excitInfo%typ == 8)
+        call assert_true(excitInfo%typ == excit_type%double_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6666,7 +6811,7 @@ contains
 
         excitInfo = excitationIdentifier(4,2,3,1)
 
-        call assert_true(excitInfo%typ == 8)
+        call assert_true(excitInfo%typ == excit_type%double_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6706,7 +6851,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,4,2  )
 
-        call assert_equals(17, excitInfo%typ)
+        call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6738,7 +6883,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,4,2)
 
-        call assert_equals(17, excitInfo%typ)
+        call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6751,7 +6896,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,3,2)
 
-        call assert_equals(17, excitInfo%typ)
+        call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6789,7 +6934,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
 
-        call assert_equals(16, excitInfo%typ)
+        call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6819,7 +6964,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
 
-        call assert_equals(16, excitInfo%typ)
+        call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6835,7 +6980,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,2,4)
 
-        call assert_equals(16, excitInfo%typ)
+        call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6873,7 +7018,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,2,4,1)
 
-        call assert_equals(21, excitInfo%typ)
+        call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6902,7 +7047,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,4,1)
 
-        call assert_equals(21, excitInfo%typ)
+        call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6916,7 +7061,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2,3,4,2)
 
-        call assert_equals(21, excitInfo%typ)
+        call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6954,7 +7099,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,2,1 )
 
-        call assert_equals(20, excitInfo%typ)
+        call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6982,7 +7127,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,3,1 )
 
-        call assert_equals(20, excitInfo%typ)
+        call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -6996,7 +7141,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 2,4,3,2 )
 
-        call assert_equals(20, excitInfo%typ)
+        call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -7033,7 +7178,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,2,4,1)
 
-        call assert_true(excitInfo%typ == 21)
+        call assert_true(excitInfo%typ == excit_type%fullstart_R_to_L)
 
         ! calc the possible switches
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
@@ -7125,7 +7270,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(2,1,1,4)
 
-        call assert_true(excitInfo%typ == 20)
+        call assert_true(excitInfo%typ == excit_type%fullstart_L_to_R)
 
         ! calc the possible switches
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
@@ -7217,7 +7362,7 @@ contains
         ! 0132
         ! is this even compatible??
 
-        call assert_true(excitInfo%typ == 16)
+        call assert_true(excitInfo%typ == excit_type%fullstop_L_to_R)
 
         ! calc the possible switches
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
@@ -7274,7 +7419,7 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,4,2 )
 
-        call assert_true(excitInfo%typ == 17)
+        call assert_true(excitInfo%typ == excit_type%fullstop_R_to_L)
 
         ! calc the possible switches
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
@@ -7326,7 +7471,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,3)
 
-        call assert_equals(7, excitInfo%typ)
+        call assert_equals(excit_type%single_overlap_R_to_L, excitInfo6%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -7355,7 +7500,7 @@ contains
 
         excitInfo = excitationIdentifier(3,1,3,4)
 
-        call assert_equals(6, excitInfo%typ)
+        call assert_equals(excit_type%single_overlap_L_to_R, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -7396,7 +7541,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,4,3)
 
-        call assert_equals(14, excitInfo%typ)
+        call assert_equals(excit_type%fullstop_lowering, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, ""
@@ -7437,7 +7582,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,3,4)
 
-        call assert_equals(15, excitInfo%typ)
+        call assert_equals(excit_type%fullstop_raising, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, ""
@@ -7478,7 +7623,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(3,1,4,1)
 
-        call assert_true(excitInfo%typ == 18)
+        call assert_true(excitInfo%typ == excit_type%fullstart_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         call assert_true(.not.compFlag)
@@ -7489,7 +7634,7 @@ contains
 
         excitInfo = excitationIdentifier(2,1,4,1)
 
-        call assert_true(excitInfo%typ == 18)
+        call assert_true(excitInfo%typ == excit_type%fullstart_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -7528,7 +7673,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,1,4)
 
-        call assert_true(excitInfo%typ == 19)
+        call assert_true(excitInfo%typ == excit_type%fullstart_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, ""
@@ -7548,7 +7693,7 @@ contains
 
         excitInfo = excitationIdentifier(2,3,2,4)
 
-        call assert_true(excitInfo%typ == 19)
+        call assert_true(excitInfo%typ == excit_type%fullstart_raising)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
@@ -7712,7 +7857,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,4,1)
 
-        call assert_true(excitInfo%typ==23)
+        call assert_true(excitInfo%typ==excit_type%fullstart_stop_mixed)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, ""
@@ -7734,7 +7879,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,4,1)
 
-        call assert_true(excitInfo%typ==23)
+        call assert_true(excitInfo%typ==excit_type%fullstart_stop_mixed)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, ""
@@ -7966,7 +8111,7 @@ contains
 !         excitInfo = pickOrbitals_single(ilut)
         excitInfo = excitationIdentifier(4,1)
 
-        call assert_true(excitInfo%typ == 0)
+        call assert_true(excitInfo%typ == excit_type%single)
         call assert_true(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
         call assert_true(excitInfo%gen1 == -1)
 
@@ -8161,7 +8306,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1)
 
-        call assert_true(excitInfo%typ == 0)
+        call assert_true(excitInfo%typ == excit_type%single)
         call assert_true(excitInfo%fullStart == 1 .and. excitInfo%fullEnd == 4)
         call assert_true(excitInfo%gen1 == -1)
 
@@ -8216,7 +8361,7 @@ contains
 
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
-            call assert_true(excitInfo%typ == 0)
+            call assert_true(excitInfo%typ == excit_type%single)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             call assert_true(excitInfo%gen1 == -1)
@@ -8225,7 +8370,7 @@ contains
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
-            call assert_true(excitInfo%typ == 0)
+            call assert_true(excitInfo%typ == excit_type%single)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             call assert_true(excitInfo%gen1 == -1)
@@ -8234,7 +8379,7 @@ contains
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
-            call assert_true(excitInfo%typ == 0)
+            call assert_true(excitInfo%typ == excit_type%single)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             call assert_true(excitInfo%gen1 == -1)
@@ -8255,7 +8400,7 @@ contains
 
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
-            call assert_true(excitInfo%typ == 0)
+            call assert_true(excitInfo%typ == excit_type%single)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             call assert_true(excitInfo%gen1 == 1)
@@ -8264,7 +8409,7 @@ contains
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
-            call assert_true(excitInfo%typ == 0)
+            call assert_true(excitInfo%typ == excit_type%single)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             call assert_true(excitInfo%gen1 == 1)
@@ -8274,7 +8419,7 @@ contains
 
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
-            call assert_true(excitInfo%typ == 0)
+            call assert_true(excitInfo%typ == excit_type%single)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
             call assert_true(excitInfo%gen1 == 1)
@@ -8294,13 +8439,13 @@ contains
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
-            call assert_true(excitInfo%typ == 0)
+            call assert_true(excitInfo%typ == excit_type%single)
         end if
 
         call pickOrbitals_single(ilut, nI, excitInfo, pgen)
         if (excitInfo%valid) then
             call assert_true(pgen > 0.0_dp)
-            call assert_true(excitInfo%typ == 0)
+            call assert_true(excitInfo%typ == excit_type%single)
         end if
 
         print *, ""
@@ -8565,7 +8710,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,1,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 22)
+        call assert_true(excitInfo%typ == excit_type%fullstart_stop_alike)
 
         print *, ""
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex)"
@@ -8593,7 +8738,7 @@ contains
         excitInfo = excitationIdentifier(4,1,4,1)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
         currentB_ilut = calcB_vector_ilut(ilut)
-        call assert_true(excitInfo%typ == 22)
+        call assert_true(excitInfo%typ == excit_type%fullstart_stop_alike)
 
         print *, ""
         print *, "testing: calcFullStartFullStopAlike(ilut, exInfo, ex)"
@@ -8632,7 +8777,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,3,1)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 20)
+        call assert_true(excitInfo%typ == excit_type%fullstart_L_to_R)
 
         print *, ""
         print *, "testing: calcFullStartL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -8675,7 +8820,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,1)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 21)
+        call assert_true(excitInfo%typ == excit_type%fullstart_R_to_L)
 
         print *, ""
         print *, "testing: calcFullStartR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -8718,7 +8863,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,1,3)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 19)
+        call assert_true(excitInfo%typ == excit_type%fullstart_raising)
 
         print *, ""
         print *, "testing: calcFullStartRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -8756,7 +8901,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,3,1)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 18)
+        call assert_true(excitInfo%typ == excit_type%fullstart_lowering)
 
         print *, ""
         print *, "testing: calcFullStartLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -8795,7 +8940,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,4,3)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 17)
+        call assert_true(excitInfo%typ == excit_type%fullstop_R_to_L)
 
         print *, ""
         print *, "testing: calcFullStopR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -8839,7 +8984,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,3,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 16)
+        call assert_true(excitInfo%typ == excit_type%fullstop_L_to_R)
 
         print *, ""
         print *, "testing: calcFullStopL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -8884,7 +9029,7 @@ contains
 
         excitInfo = excitationIdentifier(1,4,2,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 15)
+        call assert_true(excitInfo%typ == excit_type%fullstop_raising)
 
         print *, ""
         print *, "testing: calcFullStopRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -8920,7 +9065,7 @@ contains
 
         excitInfo = excitationIdentifier(4,1,4,2)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 14)
+        call assert_true(excitInfo%typ == excit_type%fullstop_lowering)
 
         print *, ""
         print *, "testing: calcFullStopLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -8956,7 +9101,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,2)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 13)
+        call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
         print *, ""
         print *, "testing: calcDoubleR2L(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -8996,7 +9141,7 @@ contains
 
         excitInfo = excitationIdentifier(3,1,2,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 12)
+        call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
         print *, ""
         print *, "testing: calcDoubleL2R(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -9033,7 +9178,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,2,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 9)
+        call assert_true(excitInfo%typ == excit_type%double_raising)
 
         print *, ""
         print *, "testing: calcDoubleRaising(ilut, exInfo, ex, num, posSwitch, negSwitch)"
@@ -9071,7 +9216,7 @@ contains
         excitInfo = excitationIdentifier(3,1,4,2)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
 
-        call assert_true(excitInfo%typ==8)
+        call assert_true(excitInfo%typ==excit_type%double_lowering)
         print *, ""
         print *, "testing: calcDoubleLowering(ilut, exInfo, ex, num, posSwitch, negSwitch)"
         print *, ""
@@ -9208,7 +9353,7 @@ contains
 
         excitInfo = excitationIdentifier(1,2,3,4)
         call calcRemainingSwitches_excitInfo_double(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 3)
+        call assert_true(excitInfo%typ == excit_type%non_overlap)
 
         print *, "testing: calcNonOverlapDouble(ilut, exInfo, exs, num, posSwitch, negSwitch"
         call calcNonOverlapDouble(ilut, excitInfo, ex, num, posSwitch, negSwitch)
@@ -9247,7 +9392,7 @@ contains
 
         excitInfo = excitationIdentifier(2,2,1,4)
         call calcRemainingSwitches_excitInfo_single(excitInfo, posSwitch, negSwitch)
-        call assert_true(excitInfo%typ == 1)
+        call assert_true(excitInfo%typ == excit_type%raising)
 
         print *, "testing: calcDoubleExcitation_withWeight(ilut, exInfo, exc, num)"
         call calcDoubleExcitation_withWeight(ilut, excitInfo, ex, num, posSwitch, &
@@ -9373,29 +9518,29 @@ contains
         call assert_true(excitInfo%j==2)
         call assert_true(excitInfo%gen1==1)
         call assert_true(excitInfo%gen2==1)
-        call assert_true(excitInfo%typ==3)
+        call assert_true(excitInfo%typ==excit_type%non_overlap)
         excitInfo = excitationIdentifier_double(1,2,2,4)
         call assert_true(excitInfo%fullStart==1)
         call assert_true(excitInfo%secondStart==2)
         call assert_true(excitInfo%firstEnd==2)
         call assert_true(excitInfo%fullEnd==4)
         call assert_true(excitInfo%currentGen==1)
-        call assert_true(excitInfo%typ==5)
+        call assert_true(excitInfo%typ==excit_type%single_overlap_raising)
 
         excitInfo = excitationIdentifier_double(3,2,3,4)
-        call assert_true(excitInfo%typ==6)
+        call assert_true(excitInfo%typ==excit_type%single_overlap_L_to_R)
         excitInfo = excitationIdentifier_double(4,2,3,1)
-        call assert_true(excitInfo%typ==8)
+        call assert_true(excitInfo%typ==excit_type%double_lowering)
         excitInfo = excitationIdentifier_double(1,1,3,4)
-        call assert_true(excitInfo%typ==1)
+        call assert_true(excitInfo%typ==excit_type%raising)
         excitInfo = excitationIdentifier_double(1,1,4,4)
-        call assert_true(excitInfo%typ==-2)
+        call assert_true(excitInfo%typ==excit_type%weight)
         excitInfo = excitationIdentifier_double(1,1,1,1)
-        call assert_true(excitInfo%typ==-2)
+        call assert_true(excitInfo%typ==excit_type%weight)
         excitInfo = excitationIdentifier_double(1,3,2,4)
-        call assert_true(excitInfo%typ==9)
+        call assert_true(excitInfo%typ==excit_type%double_raising)
         excitInfo = excitationIdentifier_double(1,4,3,2)
-        call assert_true(excitInfo%typ==11)
+        call assert_true(excitInfo%typ==excit_type%double_R_to_L_to_R)
 
         print *, "excitationIdentifier_double tests passed!"
 
@@ -9665,7 +9810,7 @@ contains
         call assert_true(excitInfo%fullEnd==4)
         call assert_true(excitInfo%currentGen == 1)
         call assert_true(excitInfo%excitLvl == 2)
-        call assert_true(excitInfo%typ == 0)
+        call assert_true(excitInfo%typ == excit_type%single)
 
         excitInfo = excitationIdentifier(1, 4)
         call assert_true(excitInfo%i==1)
@@ -9675,7 +9820,7 @@ contains
         call assert_true(excitInfo%fullEnd==4)
         call assert_true(excitInfo%currentGen == 1)
         call assert_true(excitInfo%excitLvl == 2)
-        call assert_true(excitInfo%typ == 0)
+        call assert_true(excitInfo%typ == excit_type%single)
 
         excitInfo = excitationIdentifier(2, 4)
         call assert_true(excitInfo%i==2)
@@ -9685,7 +9830,7 @@ contains
         call assert_true(excitInfo%fullEnd==4)
         call assert_true(excitInfo%currentGen == 1)
         call assert_true(excitInfo%excitLvl == 2)
-        call assert_true(excitInfo%typ == 0)
+        call assert_true(excitInfo%typ == excit_type%single)
 
         excitInfo = excitationIdentifier(3, 2)
         call assert_true(excitInfo%i==3)
@@ -9695,7 +9840,7 @@ contains
         call assert_true(excitInfo%fullEnd==3)
         call assert_true(excitInfo%currentGen == -1)
         call assert_true(excitInfo%excitLvl == 2)
-        call assert_true(excitInfo%typ == 0)
+        call assert_true(excitInfo%typ == excit_type%single)
 
         print *, "excitationIdentifier_single tests passed!"
 

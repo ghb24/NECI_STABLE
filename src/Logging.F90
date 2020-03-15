@@ -35,6 +35,8 @@ MODULE Logging
 
     use cc_amplitudes, only: t_plot_cc_amplitudes
 
+    use guga_data, only: t_slow_guga_rdms, t_fast_guga_rdms, t_mimic_slow
+
     IMPLICIT NONE
 
     logical, public :: RDMlinspace_in_inp, calcrdmonfly_in_inp
@@ -247,6 +249,15 @@ MODULE Logging
         end if
         call readu(w)
         select case(w)
+
+        case ("SLOW-GUGA-RDMS")
+            ! test flags to compare different stochastic GUGA RDMs implos.
+            ! to be removed after tests finished!
+            t_slow_guga_rdms = .true.
+        case ("FAST-GUGA-RDMS")
+            t_fast_guga_rdms = .true.
+        case ("MIMIC-SLOW")
+            t_mimic_slow = .true.
 
         case ("PRINT-FREQUENCY-HISTOGRAMS")
             ! in this case print the frequency histograms to analyze the

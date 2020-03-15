@@ -13,6 +13,7 @@ module rdm_general
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
     use SystemData, only: tGUGA
     use util_mod, only: near_zero
+    use guga_data, only: t_fast_guga_rdms
 
     implicit none
 
@@ -320,6 +321,9 @@ contains
 
         else
 
+            if (t_fast_guga_rdms) then
+                call stop_all(t_r, "I think I need a change here for fast GUGA rdms!")
+            end if
             ! Finally, we need to hold onto the parents of the spawned particles.
             ! This is not necessary if we're doing completely explicit calculations.
             ! WD: maybe I have to change this for the GUGA implementation..

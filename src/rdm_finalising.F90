@@ -1192,10 +1192,10 @@ contains
                         pqrs = rdm%elements(0,ielem)
                         if (tGUGA) then
                             ! Obtain spatial orbital labels.
-                            call extract_2_rdm_ind(pqrs, p, s, q, r)
+                            call extract_2_rdm_ind(pqrs, p, q, r, s)
                         else
                             ! Obtain spin orbital labels.
-                            call calc_separate_rdm_labels(pqrs, pq, rs, p, q, r, s)
+                            call calc_separate_rdm_labels(pqrs, pq, rs, p, s, q, r)
                         end if
                         call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
                         ! Normalise.

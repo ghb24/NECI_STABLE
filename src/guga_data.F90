@@ -6,7 +6,7 @@ module guga_data
     ! dependencies: be EXPLICIT about them!
     use SystemData, only: nBasis, tCSF, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
                           tNoBrillouin, tExactSizeSpace, tUHF, tGUGA
-    use constants, only: dp, Root2, OverR2, n_int
+    use constants, only: dp, Root2, OverR2, n_int, int_rdm
     use MemoryManager, only: TagIntType
 
     implicit none
@@ -18,9 +18,12 @@ module guga_data
               funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
-              excit_type, gen_type, excit_names, t_slow_guga_rdms
+              excit_type, gen_type, excit_names, t_slow_guga_rdms, t_fast_guga_rdms, &
+              t_mimic_slow
 
     logical :: t_slow_guga_rdms = .true.
+    logical :: t_fast_guga_rdms = .false.
+    logical :: t_mimic_slow = .false.
     ! ========================== type defs ===================================
 
     ! define types for the probabilistic weights functions used in the
@@ -41,6 +44,44 @@ module guga_data
     end type GeneratorType_Values_t
 
     type(GeneratorType_Values_t), parameter :: gen_type = GeneratorType_Values_t()
+
+    ! if I want to also encode information about the excit_type and the
+    ! excitation level in certain bits of the rdm_ind I think I need to
+    ! create bitmasks to quickly en- and decode this information from the
+    ! integer
+    ! create one general bitmask which indicates the position of the
+    ! excitation type and excitation level information
+    ! and i guess the highest bit is always for the sign..
+    ! i need 6 bits for the excit-type and 2 for the excitation level
+    ! shift 8 ones to the left (to the most significant bit, except to the
+    ! sign bit (highest bit!)
+    integer(int_rdm), parameter :: excitInfo_bitmask = &
+        ishft(int(b'11111111',int_rdm), bit_size(1_int_rdm) - 9)
+
+    integer, parameter :: excit_type_offset = bit_size(1_int_rdm) - 7
+    type :: ExcitationTypeBitmasks_t
+        ! also check if int_rdm is 32 or 64 bit (depending on compiler)
+        integer(int_rdm) :: &
+            weight = ishft(0_int_rdm, excit_type_offset), &
+            invalid = ishft(1_int_rdm, excit_type_offset) ! and so on..
+
+    end type ExcitationTypeBitmasks_t
+
+    integer, parameter :: excit_lvl_offset = bit_size(1_int_rdm) - 8
+
+    type :: ExcitationLevelBitmasks_t
+        ! also check if int_rdm is 32 or 64 bit (depending on compiler)
+        integer(int_rdm) :: &
+            weight  = ishft(int(b'00', int_rdm), excit_lvl_offset), &
+            single  = ishft(int(b'01', int_rdm), excit_lvl_offset), &
+            double  = ishft(int(b'10', int_rdm), excit_lvl_offset), &
+            invalid = ishft(int(b'11', int_rdm), excit_lvl_offset)
+    end type ExcitationLevelBitmasks_t
+
+    type(ExcitationTypeBitmasks_t), parameter :: excitType_bitmask = ExcitationTypeBitmasks_t()
+
+    type(ExcitationLevelBitmasks_t, parameter :: excitLvl_bitmask = ExcitationLevelBitmasks_t()
+
 
     ! define a type structure to store excitation information between two
     ! CSFs needed in the matrix element calculation between them

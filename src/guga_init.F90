@@ -25,7 +25,8 @@ module guga_init
 
     use bit_rep_data, only: tUseFlags
 
-    use guga_data, only: init_guga_data_procPtrs, orbitalIndex
+    use guga_data, only: init_guga_data_procPtrs, orbitalIndex, t_slow_guga_rdms, &
+                         t_fast_guga_rdms
 
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                         calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
@@ -295,6 +296,16 @@ contains
         ! is called inf checkinput() in file readinput.F90
         character(*), parameter :: this_routine = 'checkInputGUGA'
 
+
+        ! test flags: to be removed after tests pass
+        if (t_slow_guga_rdms .and. t_fast_guga_rdms) then
+            call stop_all(this_routine, "not both slow and fast GUGA RDMs!")
+        end if
+
+        if (.not. (t_slow_guga_rdms .or. t_fast_guga_rdms)) then
+            call stop_all(this_routine, "neither slow nor fast GUGA rdm implo chosen!")
+        end if
+
         ! check in certain system options have conflicts:
         if (tCSF) then
             call stop_all(this_routine, &
@@ -362,24 +373,6 @@ contains
             call stop_all(this_routine, &
                 "wrong input: tGen_4ind_reverse excitation generator chosen with GUGA! abort!")
         end if
-
-        ! probably also have to assert against all the hist and exact
-        ! calculation flags.. also rdms... and certain excitation generators
-!         if (tHistSpawn) then
-!             call stop_all(this_routine, &
-!                 "HISTSPAWN not yet compatible with GUGA!")
-!         end if
-!
-!         if (tCalcFCIMCPsi) then
-!             call stop_all(this_routine, &
-!                 "PRINTFCIMCPSI not yet compatible with GUGA!")
-!         end if
-!
-!         if (tPrintOrbOcc) then
-!             call stop_all(this_routine, &
-!                 "PRINTORBOCCS not yet implemented with GUGA!")
-!         end if
-
 
         if (.not. tNoBrillouin) then
             call stop_all(this_routine, &
