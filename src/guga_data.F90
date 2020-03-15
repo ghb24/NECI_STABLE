@@ -19,7 +19,8 @@ module guga_data
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, t_slow_guga_rdms, t_fast_guga_rdms, &
-              t_mimic_slow
+              t_mimic_slow, rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
+              n_excit_lvl_bits, n_excit_type_bits
 
     logical :: t_slow_guga_rdms = .true.
     logical :: t_fast_guga_rdms = .false.
@@ -54,34 +55,43 @@ module guga_data
     ! and i guess the highest bit is always for the sign..
     ! i need 6 bits for the excit-type and 2 for the excitation level
     ! shift 8 ones to the left (to the most significant bit, except to the
-    ! sign bit (highest bit!)
+    ! sign bit (highest bit!) change of mind: lets try using the last bit too!
+    ! and do not use bitmasks for the integers but directly encode them
+    ! and shift them by the correct number of positions in the int_rdm
+    ! and I will use the intrinsic function mvbits() and ibits() to
+    ! perform the en- and decoding
+    ! i need to encode 26 numbers, 2^5 = 32
+    integer, parameter :: n_excit_type_bits = 5
+    ! i need 4 values to the excit lvl. 2^2 = 4
+    integer, parameter :: n_excit_lvl_bits  = 2
+
+    ! the total number of bits is:
+    integer, parameter :: n_excit_info_bits = n_excit_type_bits + n_excit_lvl_bits
+
+    ! the position in the bit representation of these information is also
+    ! a helpful quantity: remember bit_size() gives me 64 for a 64bit integer e.g.
+    integer, parameter :: pos_excit_type_bits = int(bit_size(1_int_rdm)) - n_excit_type_bits
+    integer, parameter :: pos_excit_lvl_bits = int(bit_size(1_int_rdm)) - n_excit_info_bits
+
+    integer :: i_
+    ! create an integer with as many ones as needed (2**0 + 2**1 + ..) and
+    ! then shift it to the correct position (with the correct amount)
+    integer(int_rdm), parameter :: excitLvl_bitmask = &
+        ishft(int(sum([(2**i_, i_ = 0, n_excit_lvl_bits - 1)]), int_rdm), &
+            pos_excit_lvl_bits)
+
+    ! and do the same for the excit_type mask:
+    integer(int_rdm), parameter :: excitType_bitmask = &
+        ishft(int(sum([(2**i_, i_ = 0, n_excit_type_bits - 1)]), int_rdm), &
+            pos_excit_type_bits)
+
+    ! and the whole bit-mask is then the or operation of these two
     integer(int_rdm), parameter :: excitInfo_bitmask = &
-        ishft(int(b'11111111',int_rdm), bit_size(1_int_rdm) - 9)
+        ior(excitLvl_bitmask, excitType_bitmask)
 
-    integer, parameter :: excit_type_offset = bit_size(1_int_rdm) - 7
-    type :: ExcitationTypeBitmasks_t
-        ! also check if int_rdm is 32 or 64 bit (depending on compiler)
-        integer(int_rdm) :: &
-            weight = ishft(0_int_rdm, excit_type_offset), &
-            invalid = ishft(1_int_rdm, excit_type_offset) ! and so on..
-
-    end type ExcitationTypeBitmasks_t
-
-    integer, parameter :: excit_lvl_offset = bit_size(1_int_rdm) - 8
-
-    type :: ExcitationLevelBitmasks_t
-        ! also check if int_rdm is 32 or 64 bit (depending on compiler)
-        integer(int_rdm) :: &
-            weight  = ishft(int(b'00', int_rdm), excit_lvl_offset), &
-            single  = ishft(int(b'01', int_rdm), excit_lvl_offset), &
-            double  = ishft(int(b'10', int_rdm), excit_lvl_offset), &
-            invalid = ishft(int(b'11', int_rdm), excit_lvl_offset)
-    end type ExcitationLevelBitmasks_t
-
-    type(ExcitationTypeBitmasks_t), parameter :: excitType_bitmask = ExcitationTypeBitmasks_t()
-
-    type(ExcitationLevelBitmasks_t, parameter :: excitLvl_bitmask = ExcitationLevelBitmasks_t()
-
+    ! and maybe for performance also set a bit-mask of the index part of
+    ! the rdm_ind
+    integer(int_rdm), parameter :: rdm_ind_bitmask = not(excitInfo_bitmask)
 
     ! define a type structure to store excitation information between two
     ! CSFs needed in the matrix element calculation between them
@@ -89,32 +99,32 @@ module guga_data
     type :: ExcitationTypeValues_t
         ! save type of excitation encoded as integer: all different possibs:
         integer :: &
-            weight                  = -2, & ! i also need a pure weight identifier
-            invalid                 = -1, & ! -1... indicate invalid excitation
-            single                  =  0, & ! 0 ... all kind of single excitations which dont need much care
-            raising                 =  1, & ! 1 ... weight raising
-            lowering                =  2, & ! 2 ... weight lowering
-            non_overlap             =  3, & ! 3 ... non overlap
-            single_overlap_lowering =  4, & ! 4 ... single overlap 2 lowering
-            single_overlap_raising  =  5, & ! 5 ... single overlap 2 raising
-            single_overlap_L_to_R   =  6, & ! 6 ... single overlap lowering into raising
-            single_overlap_R_to_L   =  7, & ! 7 ... single overlap raising into lowering
-            double_lowering         =  8, & ! 8 ... normal double two lowering
-            double_raising          =  9, & ! 9 ... normal double two raising
-            double_L_to_R_to_L      = 10, & ! 10 .. lowering into raising into lowering
-            double_R_to_L_to_R      = 11, & ! 11 .. raising into lowering into raising
-            double_L_to_R           = 12, & ! 12 .. lowering into raising double
-            double_R_to_L           = 13, & ! 13 .. raising into lowering double
-            fullstop_lowering       = 14, & ! 14 .. full stop 2 lowering
-            fullstop_raising        = 15, & ! 15 .. full stop 2 raising
-            fullstop_L_to_R         = 16, & ! 16 .. full stop lowering into raising
-            fullstop_R_to_L         = 17, & ! 17 .. full stop raising into lowering
-            fullstart_lowering      = 18, & ! 18 .. full start 2 lowering
-            fullstart_raising       = 19, & ! 19 .. full start 2 raising
-            fullstart_L_to_R        = 20, & ! 20 .. full start lowering into raising
-            fullstart_R_to_L        = 21, & ! 21 .. full start raising into lowering
-            fullstart_stop_alike    = 22, & ! 22 .. full start into full stop alike
-            fullstart_stop_mixed    = 23    ! 23 .. full start into full stop mixed
+            invalid                 =  0, & ! 0 ... indicate invalid excitation
+            weight                  =  1, & ! 0 ... pure weight identifier
+            single                  =  2, & ! 1 ... all kind of single excitations which dont need much care
+            raising                 =  3, & ! 2 ... weight raising
+            lowering                =  4, & ! 3 ... weight lowering
+            non_overlap             =  5, & ! 4 ... non overlap
+            single_overlap_lowering =  6, & ! 5 ... single overlap 2 lowering
+            single_overlap_raising  =  7, & ! 6 ... single overlap 2 raising
+            single_overlap_L_to_R   =  8, & ! 7 ... single overlap lowering into raising
+            single_overlap_R_to_L   =  9, & ! 8 ... single overlap raising into lowering
+            double_lowering         = 10, & ! 9 ... normal double two lowering
+            double_raising          = 11, & ! 10 .. normal double two raising
+            double_L_to_R_to_L      = 12, & ! 11 .. lowering into raising into lowering
+            double_R_to_L_to_R      = 13, & ! 12 .. raising into lowering into raising
+            double_L_to_R           = 14, & ! 13 .. lowering into raising double
+            double_R_to_L           = 15, & ! 14 .. raising into lowering double
+            fullstop_lowering       = 16, & ! 15 .. full stop 2 lowering
+            fullstop_raising        = 17, & ! 16 .. full stop 2 raising
+            fullstop_L_to_R         = 18, & ! 17 .. full stop lowering into raising
+            fullstop_R_to_L         = 19, & ! 18 .. full stop raising into lowering
+            fullstart_lowering      = 20, & ! 19 .. full start 2 lowering
+            fullstart_raising       = 21, & ! 20 .. full start 2 raising
+            fullstart_L_to_R        = 22, & ! 21 .. full start lowering into raising
+            fullstart_R_to_L        = 23, & ! 22 .. full start raising into lowering
+            fullstart_stop_alike    = 24, & ! 23 .. full start into full stop alike
+            fullstart_stop_mixed    = 25    ! 24 .. full start into full stop mixed
 
     end type ExcitationTypeValues_t
 
@@ -123,7 +133,7 @@ module guga_data
 
     end type ExcitationTypeNames_t
 
-    type(ExcitationTypeNames_t), parameter :: excit_names(-2:23) = [&
+    type(ExcitationTypeNames_t), parameter :: excit_names(0:25) = [&
         ExcitationTypeNames_t('Weight'), &
         ExcitationTypeNames_t('invalid'), &
         ExcitationTypeNames_t('Single'), &
@@ -155,7 +165,7 @@ module guga_data
 
     type :: ExcitationInformation_t
 
-        integer :: typ = -1
+        integer :: typ = 25 ! 25 is the invalid indicator
         ! need the involved indices of the excitation: list of integers
         ! for now the convention is, that they are given in an ordered form
         ! and is not related to the involved generators E_{ij} (E_{kl})

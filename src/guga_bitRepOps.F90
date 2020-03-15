@@ -10,7 +10,9 @@ module guga_bitRepOps
     use SystemData, only: nEl, Stot, nSpatOrbs, &
                           current_stepvector, currentOcc_ilut, currentOcc_int, &
                           currentB_ilut, currentB_int, current_cum_list, nbasis
-    use guga_data, only: ExcitationInformation_t, excit_type, gen_type
+    use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
+                         rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
+                         n_excit_lvl_bits, n_excit_type_bits
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -2731,7 +2733,7 @@ contains
 
     end subroutine init_csf_information
 
-    subroutine extract_1_rdm_ind(rdm_ind, i, a, excit_lvl, excit_typ)
+    pure subroutine extract_1_rdm_ind(rdm_ind, i, a, excit_lvl, excit_typ)
         ! the converstion routine between the combined and explicit rdm
         ! indices for the 1-RDM
         integer(int_rdm), intent(in) :: rdm_ind
@@ -2739,12 +2741,28 @@ contains
         integer, intent(out), optional :: excit_lvl, excit_typ
         character(*), parameter :: this_routine = "extract_matrix_element"
 
-        a = int(mod(rdm_ind - 1, nSpatOrbs)  + 1)
-        i = int((rdm_ind - 1)/nSpatOrbs + 1)
+        integer(int_rdm) :: rdm_ind_
+
+        ! if we also want to use the top 7 bits of rdm_ind for information
+        ! of the excit-lvl and type we have to 0 them out before
+        ! extracting the indices
+
+        rdm_ind_ = iand(rdm_ind, rdm_ind_bitmask)
+
+        a = int(mod(rdm_ind_ - 1, nSpatOrbs)  + 1)
+        i = int((rdm_ind_ - 1)/nSpatOrbs + 1)
+
+        if (present(excit_lvl)) then
+            excit_lvl = extract_excit_lvl_rdm(rdm_ind)
+        end if
+
+        if (present(excit_typ)) then
+            excit_typ = extract_excit_type_rdm(rdm_ind)
+        end if
 
     end subroutine extract_1_rdm_ind
 
-    function contract_1_rdm_ind(i, a, excit_lvl, excit_typ) result(rdm_ind)
+    pure function contract_1_rdm_ind(i, a, excit_lvl, excit_typ) result(rdm_ind)
         ! the inverse function of the routine above, to give the combined
         ! rdm index of two explicit ones
         integer, intent(in) :: i, a
@@ -2754,7 +2772,51 @@ contains
 
         rdm_ind = nSpatOrbs * (i - 1) + a
 
+        if (present(excit_lvl)) then
+            call encode_excit_lvl_rdm(rdm_ind, excit_lvl)
+        end if
+
+        if (present(excit_typ)) then
+            call encode_excit_typ_rdm(rdm_ind, excit_typ)
+        end if
+
     end function contract_1_rdm_ind
+
+    pure function extract_excit_type_rdm(rdm_ind) result(excit_typ)
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer :: excit_typ
+
+        excit_typ = int(ibits(rdm_ind, pos_excit_type_bits, n_excit_type_bits))
+
+    end function extract_excit_type_rdm
+
+    pure function extract_excit_lvl_rdm(rdm_ind) result(excit_lvl)
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer :: excit_lvl
+
+        excit_lvl = int(ibits(rdm_ind, pos_excit_lvl_bits, n_excit_lvl_bits))
+
+    end function extract_excit_lvl_rdm
+
+    pure subroutine encode_excit_typ_rdm(rdm_ind, excit_typ)
+        integer(int_rdm), intent(inout) :: rdm_ind
+        integer, intent(in) :: excit_typ
+
+        call mvbits(int(excit_typ,int_rdm), 0, n_excit_type_bits, &
+                     rdm_ind, pos_excit_type_bits)
+
+    end subroutine encode_excit_typ_rdm
+
+    pure subroutine encode_excit_lvl_rdm(rdm_ind, excit_lvl)
+        integer(int_rdm), intent(inout) :: rdm_ind
+        integer, intent(in) :: excit_lvl
+
+        ! i need to mv the bit-rep of excit_lvl to the corresponding
+        ! position in rdm_ind
+        call mvbits(int(excit_lvl, int_rdm), 0, n_excit_lvl_bits, &
+                    rdm_ind, pos_excit_lvl_bits)
+
+    end subroutine encode_excit_lvl_rdm
 
     function contract_2_rdm_ind(i, j, k, l, excit_lvl, excit_typ) result(ijkl)
         ! since I only ever have spatial orbitals in the GUGA-RDM make
@@ -2764,13 +2826,20 @@ contains
         integer(int_rdm) :: ijkl
         character(*), parameter :: this_routine = "contract_2_rdm_ind"
 
-        integer :: ij, kl
-
+        integer(int_rdm) :: ij, kl
 
         ij = contract_1_rdm_ind(i, j)
         kl = contract_1_rdm_ind(k, l)
 
         ijkl = (ij - 1) * (nSpatOrbs**2) + kl
+
+        if (present(excit_lvl)) then
+            call encode_excit_lvl_rdm(ijkl, excit_lvl)
+        end if
+
+        if (present(excit_typ)) then
+            call encode_excit_typ_rdm(ijkl, excit_typ)
+        end if
 
     end function contract_2_rdm_ind
 
@@ -2787,14 +2856,25 @@ contains
 
         integer(int_rdm) :: ij, kl
 
-        kl = mod(ijkl - 1, int(nSpatOrbs, int_rdm)**2) + 1
-        ij = (ijkl - kl)/(nSpatOrbs ** 2) + 1
+        integer(int_rdm) :: ijkl_
+
+        ijkl_ = iand(ijkl, rdm_ind_bitmask)
+
+        kl = mod(ijkl_ - 1, int(nSpatOrbs, int_rdm)**2) + 1
+        ij = (ijkl_ - kl)/(nSpatOrbs ** 2) + 1
 
         call extract_1_rdm_ind(ij, i, j)
         call extract_1_rdm_ind(kl, k, l)
 
         if (present(ij_out)) ij_out = ij
         if (present(kl_out)) kl_out = kl
+
+        if (present(excit_lvl)) then
+            excit_lvl = extract_excit_lvl_rdm(ijkl)
+        end if
+        if (present(excit_typ)) then
+            excit_typ = extract_excit_type_rdm(ijkl)
+        end if
 
     end subroutine extract_2_rdm_ind
 

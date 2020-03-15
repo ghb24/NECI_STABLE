@@ -85,16 +85,6 @@ contains
         call compare_rdm_all_excits_and_mat_eles()
 !         call run_test_case(compare_fill_diag_and_explicit_diag)
 
-
-        call run_test_case(test_contract_extract_1_rdm_with_excitInfo, &
-            "test_contract_extract_1_rdm_with_excitInfo")
-
-        call stop_all("here", "now")
-
-        call run_test_case(test_contract_extract_2_rdm_with_excitInfo, &
-            "test_contract_extract_2_rdm_with_excitInfo")
-
-
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
         call test_guga_excitations_exact
@@ -2047,9 +2037,9 @@ contains
         character(*), parameter :: this_routine = "test_contract_extract_1_rdm_with_excitInfo"
 
         print *, ""
-        print *, "testing: contrat and extract 1 rdm index with the additional excitInfo"
+        print *, "testing: contract and extract 1 rdm index with the additional excitInfo"
 
-        rdm_ind = contract_1_rdm_ind(1,1,0,-1)
+        rdm_ind = contract_1_rdm_ind(1,1,0,excit_type%invalid)
         call extract_1_rdm_ind(rdm_ind, i,j)
         call assert_equals(1, i)
         call assert_equals(1, j)
@@ -2061,11 +2051,12 @@ contains
         call assert_equals(1, i)
         call assert_equals(1, j)
         call assert_equals(0, excit_lvl)
-        call assert_equals(-1, excit_typ)
+        call assert_equals(excit_type%invalid, excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
         call assert_equals(1, i)
         call assert_equals(1, j)
-        call assert_equals(-1, excit_typ)
+        call assert_equals(excit_type%invalid, excit_typ)
+
 
         rdm_ind = contract_1_rdm_ind(1,1,0)
         call extract_1_rdm_ind(rdm_ind, i,j)
@@ -2085,7 +2076,8 @@ contains
         call assert_equals(1, j)
         call assert_equals(0, excit_typ)
 
-        rdm_ind = contract_1_rdm_ind(1,1,excit_typ = -1)
+
+        rdm_ind = contract_1_rdm_ind(1,1,excit_typ = excit_type%invalid)
         call extract_1_rdm_ind(rdm_ind, i,j)
         call assert_equals(1, i)
         call assert_equals(1, j)
@@ -2097,29 +2089,29 @@ contains
         call assert_equals(1, i)
         call assert_equals(1, j)
         call assert_equals(0, excit_lvl)
-        call assert_equals(-1, excit_typ)
+        call assert_equals(excit_type%invalid, excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
         call assert_equals(1, i)
         call assert_equals(1, j)
-        call assert_equals(-1, excit_typ)
+        call assert_equals(excit_type%invalid, excit_typ)
 
-        rdm_ind = contract_1_rdm_ind(1,2,1,0)
+        rdm_ind = contract_1_rdm_ind(1,2,1,excit_type%single)
         call extract_1_rdm_ind(rdm_ind, i,j)
         call assert_equals(1, i)
         call assert_equals(2, j)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl)
         call assert_equals(1, i)
-        call assert_equals(1, j)
+        call assert_equals(2, j)
         call assert_equals(1, excit_lvl)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl, excit_typ)
         call assert_equals(1, i)
-        call assert_equals(1, j)
+        call assert_equals(2, j)
         call assert_equals(1, excit_lvl)
-        call assert_equals(0, excit_typ)
+        call assert_equals(excit_type%single, excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
         call assert_equals(1, i)
-        call assert_equals(1, j)
-        call assert_equals(0, excit_typ)
+        call assert_equals(2, j)
+        call assert_equals(excit_type%single, excit_typ)
 
         rdm_ind = contract_1_rdm_ind(1,2,1)
         call extract_1_rdm_ind(rdm_ind, i,j)
@@ -2127,35 +2119,35 @@ contains
         call assert_equals(2, j)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl)
         call assert_equals(1, i)
-        call assert_equals(1, j)
+        call assert_equals(2, j)
         call assert_equals(1, excit_lvl)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl, excit_typ)
         call assert_equals(1, i)
-        call assert_equals(1, j)
+        call assert_equals(2, j)
         call assert_equals(1, excit_lvl)
-        call assert_equals(0, excit_typ)
+        call assert_equals(excit_type%invalid, excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
         call assert_equals(1, i)
-        call assert_equals(1, j)
-        call assert_equals(0, excit_typ)
+        call assert_equals(2, j)
+        call assert_equals(excit_type%invalid, excit_typ)
 
-        rdm_ind = contract_1_rdm_ind(1,2,excit_typ = 0)
+        rdm_ind = contract_1_rdm_ind(1,2,excit_typ = excit_type%single)
         call extract_1_rdm_ind(rdm_ind, i,j)
         call assert_equals(1, i)
         call assert_equals(2, j)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl)
         call assert_equals(1, i)
-        call assert_equals(1, j)
+        call assert_equals(2, j)
         call assert_equals(0, excit_lvl)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_lvl, excit_typ)
         call assert_equals(1, i)
-        call assert_equals(1, j)
+        call assert_equals(2, j)
         call assert_equals(0, excit_lvl)
-        call assert_equals(0, excit_typ)
+        call assert_equals(excit_type%single, excit_typ)
         call extract_1_rdm_ind(rdm_ind, i, j, excit_typ = excit_typ)
         call assert_equals(1, i)
-        call assert_equals(1, j)
-        call assert_equals(0, excit_typ)
+        call assert_equals(2, j)
+        call assert_equals(excit_type%single, excit_typ)
 
 
         print *, ""
@@ -2165,10 +2157,65 @@ contains
 
     subroutine test_contract_extract_2_rdm_with_excitInfo
 
+        integer(int_rdm) :: rdm_ind, ij, kl
+        integer :: i, j, k, l, excit_lvl, excit_typ
         print *, ""
         print *, "testing: contract and exctract 2 rdm index with excit info"
 
-        call stop_all("here", "todo")
+        rdm_ind = contract_2_rdm_ind(1,1,1,1,0,excit_type%weight)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, ij, kl, excit_lvl, excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(1, l)
+        call assert_equals(0, excit_lvl)
+        call assert_equals(excit_typ, excit_type%weight)
+
+        rdm_ind = contract_2_rdm_ind(1,2,3,4,2,excit_type%non_overlap)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, ij, kl, excit_lvl, excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+        call assert_equals(3, k)
+        call assert_equals(4, l)
+        call assert_equals(2, excit_lvl)
+        call assert_equals(excit_typ, excit_type%non_overlap)
+
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+        call assert_equals(3, k)
+        call assert_equals(4, l)
+
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l,  excit_lvl = excit_lvl, &
+            excit_typ = excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+        call assert_equals(3, k)
+        call assert_equals(4, l)
+        call assert_equals(2, excit_lvl)
+        call assert_equals(excit_typ, excit_type%non_overlap)
+
+        rdm_ind = contract_2_rdm_ind(1,2,3,4,excit_lvl = 2)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l,  excit_lvl = excit_lvl, &
+            excit_typ = excit_typ)
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+        call assert_equals(3, k)
+        call assert_equals(4, l)
+        call assert_equals(2, excit_lvl)
+        call assert_equals(excit_typ, excit_type%invalid)
+
+        rdm_ind = contract_2_rdm_ind(1,2,3,4,excit_typ = excit_type%double_lowering)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l,  excit_lvl = excit_lvl, &
+            excit_typ = excit_typ)
+
+        call assert_equals(1, i)
+        call assert_equals(2, j)
+        call assert_equals(3, k)
+        call assert_equals(4, l)
+        call assert_equals(0, excit_lvl)
+        call assert_equals(excit_typ, excit_type%double_lowering)
+
 
         print *, ""
         print *, "testing: contract and exctract 2 rdm index with excit info. DONE!"
@@ -7471,7 +7518,7 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,3)
 
-        call assert_equals(excit_type%single_overlap_R_to_L, excitInfo6%typ)
+        call assert_equals(excit_type%single_overlap_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
