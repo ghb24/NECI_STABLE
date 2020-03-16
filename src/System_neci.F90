@@ -1516,6 +1516,8 @@ system: do
             tGASSpinRecoupling = .true.
 
         case("GAS-CI")
+            tGAS = .true.
+            tGASSpinRecoupling = .true.
             block
                 integer :: nGAS, iGAS
                 call geti(nGAS)
