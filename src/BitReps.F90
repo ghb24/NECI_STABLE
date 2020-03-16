@@ -3,13 +3,11 @@
 module bit_reps
     use FciMCData, only: WalkVecDets, MaxWalkersPart, tLogNumSpawns, blank_det
 
-    use SystemData, only: nel, tCSF, tTruncateCSF, nbasis, csf_trunc_level, &
-                        tGUGA
+    use SystemData, only: nel, nbasis, tGUGA
 
     use CalcData, only: tTruncInitiator, tUseRealCoeffs, tSemiStochastic, &
-                        tCSFCore, tTrialWavefunction, semistoch_shift_iter, &
+                        tTrialWavefunction, semistoch_shift_iter, &
                         tStartTrialLater, tPreCond, tReplicaEstimates, tStoredDets
-    use csf_data, only: csf_yama_bit, csf_test_bit
 
     use constants, only: lenof_sign, end_n_int, bits_n_int, n_int, dp,sizeof_int
 
@@ -36,11 +34,10 @@ module bit_reps
 
     ! Structure of a bit representation:
 
-    ! | 0-NIfD: Det | Yamanouchi | Sign(Re) | Sign(Im) | Flags |
+    ! | 0-NIfD: Det | Sign(Re) | Sign(Im) | Flags |
     !
     ! -------
     ! (NIfD + 1) * 64-bits              Orbital rep.
-    !  NIfY      * 32-bits              Yamanouchi symbol
     !  1         * 32-bits              Signs (Re)
     ! (1         * 32-bits if needed)   Signs (Im)
     ! (1         * 32-bits if needed)   Flags
@@ -163,29 +160,10 @@ contains
         ! This indicates the upper-bound for the determinants when expressed
         ! in bit-form. This will equal int(nBasis/32).
         ! The actual total length for a determinant in bit form will be
-        ! NoIntforDet+1 + nIfY (which is the size of the Yamanouchi Symbol
         nIfD = int(nbasis / bits_n_int)
 
-        ! Could use only 32-bits for this, except that it makes it very
-        ! tricky to do do anything like sorting, as the latter 32-bits of the
-        ! integer would contain random junk.
-        NOffY = NIfD + 1
-        if (tCSF) then
-            if (tTruncateCSF) then
-                NIfY = int(csf_trunc_level / bits_n_int) + 1
-            else
-                NIfY = int(nel / bits_n_int) + 1
-            endif
-        else
-            NIfY = 0
-        endif
-        if (NIfY > 1) &
-            call stop_all (this_routine, "CSFs with more than bits_n_int &
-                          &open-shell electrons are not supported, and are &
-                          &probably not a good idea.")
-
         ! The signs array
-        NOffSgn = NOffY + NIfY
+        NOffSgn = nIfD + 1
         NIfSgn = lenof_sign
 #ifdef PROG_NUMRUNS_
         write(6,*) 'Calculation supports multiple parallel runs'
@@ -199,7 +177,7 @@ contains
         write(6,*) 'Number of sign components in bit representation of determinant: ', NIfSgn
 
         ! The number of integers used for sorting / other bit manipulations
-        NIfDBO = NIfD + NIfY
+        NIfDBO = NIfD
 
 #ifdef PROG_NUMRUNS_
         if (lenof_sign_max /= 20) then
@@ -226,7 +204,7 @@ contains
         !      ilut_gt.
 
         ! The total number of bits_n_int-bit integers used - 1
-        NIfTot = NIfD + NIfY + NIfSgn + NIfFlag
+        NIfTot = NIfD + NIfSgn + NIfFlag
 
         WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
         WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
@@ -978,86 +956,23 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIftot)
         integer, intent(out) :: nI(:)
         integer :: nopen, i, j, k, val, elec, offset, pos
-        logical :: bIsCsf
         integer :: nel_loc
 
         nel_loc = size(nI)
 
-        ! We need to use the CSF decoding routine if CSFs are enabled, and
-        ! we are below a truncation limit if set.
-
-        bIsCsf = .false.
-        if (tCSF) then
-            if (tTruncateCSF) then
-                nopen = count_open_orbs(ilut)
-                if (nopen <= csf_trunc_level) then
-                    bIsCsf = .true.
-                endif
-            else
-                bIsCsf = .true.
-            endif
-        endif
-
         elec = 0
-        if (bIsCsf) then
-            ! ****************
-            ! Currently this just works in the old fashioned way. We aren't
-            ! really that worried about CSF efficiency atm.
-            ! ****************
-            ! Consider the closed shell electrons first
-            do i=0,NIfD
-                do j=0,bits_n_int-2,2
-                    if (btest(iLut(i),j)) then
-                        if (btest(iLut(i),j+1)) then
-                            ! An electron pair is in this spatial orbital
-                            ! (2 matched spin orbitals)
-                            elec = elec + 2
-                            nI(elec-1) = (bits_n_int*i) + (j+1)
-                            nI(elec) = (bits_n_int*i) + (j+2)
-                            if (elec == nel_loc) return
-                        endif
-                    endif
+        offset = 0
+        do i = 0, NIfD
+            do j = 0, bits_n_int - 1, 8
+                val = int(iand(ishft(ilut(i), -j), int(255,n_int)),sizeof_int)
+                do k = 1, decode_map_arr(0, val)
+                    elec = elec + 1
+                    nI(elec) = offset + decode_map_arr(k, val)
+                    if (elec == nel_loc) return ! exit
                 enddo
+                offset = offset + 8
             enddo
-
-            ! Now consider the open shell electrons
-            ! TODO: can we move in steps of two, to catch unmatched pairs?
-            nopen = 0
-            do i=0,NIfD
-                do j=0,end_n_int
-                    if (btest(iLut(i),j)) then
-                        if (.not.btest(iLut(i),ieor(j,1))) then
-                            elec = elec + 1
-                            nI(elec) = (bits_n_int*i) + (j+1)
-                            pos = NIfD + 1 + (nopen/bits_n_int)
-                            if (btest(iLut(Pos),mod(nopen,bits_n_int))) then
-                                nI(elec) = ibset(nI(elec),csf_yama_bit)
-                            endif
-                            nopen = nopen + 1
-                        endif
-                    endif
-                    if (elec==nel_loc) exit
-                enddo
-                if (elec==nel_loc) exit
-            enddo
-            ! If there are any open shell e-, set the csf bit
-            nI = ibset(nI, csf_test_bit)
-        else
-            offset = 0
-            do i = 0, NIfD
-                do j = 0, bits_n_int - 1, 8
-!                    val = iand(ishft(ilut(i), -j), Z'FF')
-                    val = int(iand(ishft(ilut(i), -j), int(255,n_int)),sizeof_int)
-                    do k = 1, decode_map_arr(0, val)
-                        elec = elec + 1
-                        nI(elec) = offset + decode_map_arr(k, val)
-                        if (elec == nel_loc) return ! exit
-                    enddo
-                    offset = offset + 8
-                enddo
-            enddo
-
-        endif
+        enddo
 
     end subroutine
 
@@ -1071,77 +986,22 @@ contains
         integer, intent(out) :: nI(:)
         integer :: i, j, elec, pos, nopen
         integer :: nel_loc
-        logical :: bIsCsf
 
         nel_loc = size(nI)
 
-        ! We need to use the CSF decoding routine if CSFs are enable, and we
-        ! are below a truncation limit if set.
-        bIsCsf = .false.
-        if (tCSF) then
-            if (tTruncateCSF) then
-                nopen = count_open_orbs(iLut)
-                if (nopen <= csf_trunc_level) then
-                    bIsCsf = .true.
-                endif
-            else
-                bIsCsf = .true.
-            endif
-        endif
-
         elec=0
-        if (bIsCsf) then
-            ! Consider the closed shell electrons first
-            do i=0,NIfD
-                do j=0,bits_n_int-2,2
-                    if (btest(iLut(i),j)) then
-                        if (btest(iLut(i),j+1)) then
-                            ! An electron pair is in this spatial orbital
-                            ! (2 matched spin orbitals)
-                            elec = elec + 2
-                            nI(elec-1) = (bits_n_int*i) + (j+1)
-                            nI(elec) = (bits_n_int*i) + (j+2)
-                            if (elec == nel_loc) return
-                        endif
-                    endif
-                enddo
+        do i=0,NIfD
+            do j=0,end_n_int
+                if(btest(iLut(i),j)) then
+                    !An electron is at this orbital
+                    elec=elec+1
+                    nI(elec)=(i*bits_n_int)+(j+1)
+                    if (elec == nel_loc) exit
+                endif
             enddo
+            if (elec == nel_loc) exit
+        enddo
 
-            ! Now consider the open shell electrons
-            ! TODO: can we move in steps of two, to catch unmatched pairs?
-            nopen = 0
-            do i=0,NIfD
-                do j=0,end_n_int
-                    if (btest(iLut(i),j)) then
-                        if (.not.btest(iLut(i),ieor(j,1))) then
-                            elec = elec + 1
-                            nI(elec) = (bits_n_int*i) + (j+1)
-                            pos = NIfD + 1 + (nopen/bits_n_int)
-                            if (btest(iLut(Pos),mod(nopen,bits_n_int))) then
-                                nI(elec) = ibset(nI(elec),csf_yama_bit)
-                            endif
-                            nopen = nopen + 1
-                        endif
-                    endif
-                    if (elec==nel_loc) exit
-                enddo
-                if (elec==nel_loc) exit
-            enddo
-            ! If there are any open shell e-, set the csf bit
-            nI = ibset(nI, csf_test_bit)
-        else
-            do i=0,NIfD
-                do j=0,end_n_int
-                    if(btest(iLut(i),j)) then
-                        !An electron is at this orbital
-                        elec=elec+1
-                        nI(elec)=(i*bits_n_int)+(j+1)
-                        if (elec == nel_loc) exit
-                    endif
-                enddo
-                if (elec == nel_loc) exit
-            enddo
-        endif
     end subroutine decode_bit_det_bitwise
 
     subroutine add_ilut_lists(ndets_1, ndets_2, sorted_lists, list_1, list_2, list_out, &

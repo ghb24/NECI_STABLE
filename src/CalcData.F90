@@ -268,7 +268,6 @@ type(subspace_in) :: ss_space_in
 
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.
-logical :: tCSFCore ! Use CSFs for the core states.
 logical :: tSparseCoreHamil ! Use a sparse representation of the core Hamiltonian.
 
 ! If this is non-zero then we turn semi-stochastic on semistoch_shift_iter

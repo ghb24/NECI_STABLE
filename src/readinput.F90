@@ -189,13 +189,12 @@ MODULE ReadInput_neci
 
         use SystemData, only: nel, tUseBrillouin, beta, tFixLz, &
                               tFindCINatOrbs, tNoRenormRandExcits, LMS, STOT,&
-                              tCSF, tSpn, tUHF, tGenHelWeighted, tHPHF, &
+                              tSpn, tUHF, tGenHelWeighted, tHPHF, &
                               tGen_4ind_weighted, tGen_4ind_reverse, &
                               tMultiReplicas, tGen_4ind_part_exact, &
                               tGUGA, tgen_guga_weighted, &
                               tGen_4ind_lin_exact, tGen_4ind_2, tNConservingGAS, &
-                              tComplexOrbs_RealInts, tLatticeGens, tHistSpinDist
-
+                              tComplexOrbs_RealInts, tLatticeGens
         use CalcData, only: I_VMAX, NPATHS, G_VMC_EXCITWEIGHT, &
                             G_VMC_EXCITWEIGHTS, EXCITFUNCS, TMCDIRECTSUM, &
                             TDIAGNODES, TSTARSTARS, TBiasing, TMoveDets, &
@@ -208,7 +207,8 @@ MODULE ReadInput_neci
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
                             tStartCAS, tUniqueHFNode, tContTimeFCIMC, &
-                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, tMultipleInitialStates, tSpinProject
+                            tContTimeFull, tFCIMC, tPreCond, tOrthogonaliseReplicas, &
+                            tMultipleInitialStates
         use Calc, only : RDMsamplingiters_in_inp
         Use Determinants, only: SpecDet, tagSpecDet, tDefinedet
         use IntegralsData, only: nFrozen, tDiscoNodes, tQuadValMax, &
@@ -228,7 +228,6 @@ MODULE ReadInput_neci
         use input_neci
         use constants
         use global_utilities
-        use spin_project, only: spin_proj_nopen_max
         use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
@@ -375,10 +374,10 @@ MODULE ReadInput_neci
         if(tMultipleInitialStates .or. tOrthogonaliseReplicas .or. &
              tPreCond) then
            if (tHistSpawn .or. &
-                (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
-                tHistSpinDist .or. tPrintOrbOcc) &
+                (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
                 call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references"&
                 ,.true.)
+           end if
         endif
 
         !.. We still need a specdet space even if we don't have a specdet.
@@ -422,24 +421,6 @@ MODULE ReadInput_neci
            LMS = -mod(nel,2)
         endif
 
-        ! Check details for spin projection
-        if (tSpinProject) then
-            if (tCSF) &
-                call stop_all (t_r, "Spin projection must not be used with &
-                                    &CSFs")
-
-            if (.not. tSpn) &
-                call stop_all (t_r, "SPIN-RESTRICT must be used with SPIN-&
-                                    &PROJECT to set the value of S, Ms")
-
-            ! Unless specified, apply spin projection to ALL determinants.
-            if (spin_proj_nopen_max == -1) &
-                spin_proj_nopen_max = nel
-
-            ! Set the value of STOT as required
-            STOT = LMS
-        endif
-
         if (tCalcInstantS2 .or. tCalcInstantS2Init) then
             if (tUHF) &
                 call stop_all (t_r, 'Cannot calculate instantaneous values of&
@@ -470,9 +451,6 @@ MODULE ReadInput_neci
             ! We want to use UMAT2D...
             tDeferred_Umat2d = .true.
 
-            if (tCSF) &
-                call stop_all (t_r, 'Integral weighted excitation generators &
-                              &not yet implemented with these keywords')
         end if
 
         if (tHPHF .and. tUHF) then

@@ -48,7 +48,7 @@ CONTAINS
         Use Determinants, only:  FDet, specdet, tSpecDet, tDefineDet, &
                                  DefDet, write_det
         Use IntegralsData, only : NFROZEN
-        use SystemData, only : tCSFOLD,lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
+        use SystemData, only : lms, lms2, nBasis, nBasisMax, nEl, SymRestrict
         use SystemData, only : Alat, arr, brr, boa, box, coa, ecore, g1,Beta
         use SystemData, only : tParity, tSpn,Symmetry,STot, NullBasisFn, tUHF,tMolpro
         use sym_mod
@@ -92,31 +92,15 @@ CONTAINS
 
 !Copied Specdet information from Calc.F, so if inspect is present, but no determinant/csf specified, it will still run.
       if(TSPECDET) then
-         if(TCSFOLD) then
-             WRITE(6,*) "TSPECDET set.  SPECDET is"
-             call write_det (6, SPECDET, .true.)
-             CALL NECI_ICOPY(NEL,SPECDET,1,FDET,1)
-             CALL GETCSFFROMDET(FDET,SPECDET,NEL,STOT,LMS)
-             WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in SPECDET is"
-             call write_det (6, SPECDET, .true.)
-         elseif(.not.associated(specdet)) then
-            !specdet not allocated. Allocate it and copy fdet
+         if(.not.associated(specdet)) then
+             !specdet not allocated. Allocate it and copy fdet
              allocate(specdet(nel))
              WRITE(6,*) "TSPECDET set, but not allocated.  using FDET"
              CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
          elseif(.not.ISVALIDDET(SPECDET,NEL)) then
              WRITE(6,*) "TSPECDET set, but invalid.  using FDET"
-!             tSpecDet=.false.
              CALL NECI_ICOPY(NEL,FDET,1,SPECDET,1)
          endif
-      ELSEIF(TCSFOLD) THEN  !No help given on generating this CSF.  Let's just get a single one out of GNCSFs
-         NDET=1
-         CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,FDET,.FALSE.,G1,TSPN,LMS2,TPARITY, &
-     &      SymRestrict,NDET,IFDET,.FALSE.,0,II,.FALSE.,0)   !II is just a dummmy to receive IC
-         WRITE(6,*) "CSF with 2S=",STOT," and 2Sz=",LMS," now in FDET is"
-         IFDET=0
-         NDET=0
-         call write_det (6, FDET, .true.)
       ENDIF
 
 
@@ -134,7 +118,6 @@ CONTAINS
                WRITE(6,*) "Using Fermi DET:"
                call write_det (6, FDET, .true.)
             ENDIF
-            IF(TCSFOLD) WRITE(6,*) "Determining CSFs."
 !C.. if we're doing a truncated CI expansion
             CALL GENEXCIT(FDET,iExcitLevel,NBASIS,NEL,0,(/0.0_dp/),NDET,1,G1,.TRUE.,NBASISMAX,.TRUE.)
             WRITE(6,*) "NDET out of GENEXCIT ",NDET
@@ -162,23 +145,6 @@ CONTAINS
      &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
             endif
             WRITE(6,*) "NBLOCKS:",NBLOCKS
-         ELSEIF(TCSFOLD) THEN
-            WRITE(6,*) "Determining CSFs."
-!C determinants.
-            WRITE(6,*) "Determining determinants and blocks."
-            IF(TPARITY) THEN
-               WRITE(6,*) "Using symmetry restriction:"
-               CALL WRITEALLSYM(6,SymRestrict,.TRUE.)
-            ENDIF
-            IF(TSPN) THEN
-               WRITE(6,*) "Using spin restriction:",LMS
-            ENDIF
-            NDET=0
-            CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.TRUE.,G1,TSPN,LMS2,TPARITY,        &
-     &         SymRestrict,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
-            NBLOCKS=1
-            II=NDET
-         ELSE
             WRITE(6,*) "Determining determinants."
             IF(TPARITY) THEN
                WRITE(6,*) "Using symmetry restriction:"
@@ -242,12 +208,6 @@ CONTAINS
                 CALL GNDTS_BLK(NEL,nBasis,BRR,NBASISMAX,NMRKS, .FALSE.,NDET,G1,II,NBLOCKSTARTS,NBLOCKS,TSPN,LMS2,TPARITY, &
      &               SymRestrict,IFDET,.NOT.TREAD,NDETTOT,BLOCKSYM)
             endif
-         ELSEIF(TCSFOLD) THEN
-            NDET=0  !This will be reset by GNCSFS
-            CALL GNCSFS(NEL,nBasis,BRR,NBASISMAX,NMRKS,.FALSE.,G1,TSPN,LMS2,TPARITY, &
-     &         SymRestrict,NDET,IFDET,.FALSE.,0,0,.FALSE.,0)
-               NBLOCKSTARTS(1)=1
-               NBLOCKSTARTS(2)=II+1
          ELSE
             if(tUHF.and.tMolpro) then
                 !When breaking spin symmetry in molpro, it is important to occupy alpha orbs preferentially
@@ -359,7 +319,6 @@ CONTAINS
       use SystemData, only : nBasis, nBasisMax,nEl,nMsh,LzTot, TSPN,LMS
       use IntegralsData, only: FCK,NMAX, UMat
       Use LoggingData, only: iLogging,tLogDets, tCalcVariationalEnergy
-      use SystemData, only  : tCSFOLD
       use Parallel_neci, only : iProcIndex
       use DetBitops, only: DetBitEQ,EncodeBitDet,FindBitExcitLevel
       use bit_rep_data, only: NIfDBO,NIfTot,NIfD
@@ -909,13 +868,7 @@ CONTAINS
       ENDIF !tFindDets
 !C..
       IF(TEnergy) THEN
-          IF(.NOT.TCSFOLD) THEN
-             CALL CFF_CHCK(NDET,NEVAL,NMRKS,NEL,G1,CK,TKE)
-          ELSE
-             DO I=1,NEVAL
-                TKE(I)=0.0_dp
-             ENDDO
-          ENDIF
+          CALL CFF_CHCK(NDET,NEVAL,NMRKS,NEL,G1,CK,TKE)
           IF(BTEST(ILOGGING,7)) CALL WRITE_PSI(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
           IF(BTEST(ILOGGING,8)) CALL WRITE_PSI_COMP(BOX,BOA,COA,NDET,NEVAL,NBASISMAX,NEL,CK,W)
           WRITE(6,*) '       ====================================================== '

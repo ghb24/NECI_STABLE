@@ -5,12 +5,10 @@ module DetBitOps
     ! A collection of useful operations to perform on the bit-representation
     ! of determinants.
 
-    use Systemdata, only: nel, tCSF, tTruncateCSF, csf_trunc_level, tOddS_HPHF, &
-                          tHPHF
+    use Systemdata, only: nel, tOddS_HPHF, tHPHF
     use CalcData, only: tTruncInitiator, tSemiStochastic
-    use bit_rep_data, only: NIfY, NIfTot, NIfD, NOffFlag, NIfFlag, &
+    use bit_rep_data, only: NIfTot, NIfD, NOffFlag, NIfFlag, &
                             test_flag, NIfDBO, NOffSgn, extract_sign
-    use csf_data, only: iscsf, csf_yama_bit, csf_orbital_mask, csf_test_bit
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
     implicit none
@@ -798,30 +796,6 @@ module DetBitOps
 
 
         iLut(:)=0_n_int
-        if (tCSF) then
-            if(iscsf (nI)) then
-                nopen = 0
-                open_shell = .false.
-                do i=1,size(nI)
-                    ! THe first non-paired orbital has yama symbol = 1
-                    if ((.not. open_shell) .and. &
-                        btest(nI(i), csf_yama_bit)) open_shell = .true.
-
-                    ! Set the bit in the bit representation
-                    det = iand(nI(i), csf_orbital_mask)
-                    iLut((det-1)/bits_n_int) = ibset(iLut((det-1)/bits_n_int),mod(det-1,bits_n_int))
-
-                    if (open_shell) then
-                        if (btest(nI(i), csf_yama_bit)) then
-                            pos = NIfD + 1 + (nopen/bits_n_int)
-                            iLut(pos) = ibset(iLut(pos), mod(nopen,bits_n_int))
-                        endif
-                        nopen = nopen + 1
-                    endif
-                enddo
-                return
-            endif
-        endif
 
         !Decode determinant
         do i=1,size(nI)
@@ -880,37 +854,26 @@ module DetBitOps
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "FindExcitBitDet"
 #endif
+        if (ic == 0) return
+
+        ASSERT(ic > 0 .and. ic <= 3)
 
         iLutnJ = iLutnI
-        if (IC == 0) then
-            if (.not.tCSF) then
-                call stop_all ("FindExcitBitDet", 'Invalid excitation level')
-            endif
-        else
-            ! Which integer and bit in ilut represent each element?
-            pos = (excitmat - 1) / bits_n_int
-            bit = mod(excitmat - 1, bits_n_int)
+        ! Which integer and bit in ilut represent each element?
+        pos = (excitmat - 1) / bits_n_int
+        bit = mod(excitmat - 1, bits_n_int)
 
-            ! [W.D.12.12.2017]:
-            ! why is this changed back to single excitations for ic=3?
-            ! has this to do with simons CSFs? i can't really find a reason..
-            ! try to change it and then lets see what happens!
-            ASSERT(ic > 0 .and. ic <= 3)
-            ic_tmp = ic
-!             if (ic==3) then
-!                 ! single excitation: only one populated column in ExcitMat
-!                 ic_tmp=1
-!             elseif (ic==4 .or. ic==5) then
-!                 ! double excitation: both columns populated in ExcitMat
-!                 ic_tmp=2
-!             endif
+        ! [W.D.12.12.2017]:
+        ! why is this changed back to single excitations for ic=3?
+        ! has this to do with simons CSFs? i can't really find a reason..
+        ! try to change it and then lets see what happens!
+        ic_tmp = ic
 
-            ! Clear bits for excitation source, and set bits for target
-            do i=1,ic_tmp
-                iLutnJ(pos(1,i)) = ibclr(iLutnJ(pos(1,i)), bit(1,i))
-                iLutnJ(pos(2,i)) = ibset(iLutnJ(pos(2,i)), bit(2,i))
-            enddo
-        endif
+        ! Clear bits for excitation source, and set bits for target
+        do i=1,ic_tmp
+            iLutnJ(pos(1,i)) = ibclr(iLutnJ(pos(1,i)), bit(1,i))
+            iLutnJ(pos(2,i)) = ibset(iLutnJ(pos(2,i)), bit(2,i))
+        enddo
 
     end subroutine FindExcitBitDet
 

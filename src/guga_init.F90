@@ -3,7 +3,7 @@
 ! a guga simulation
 module guga_init
     ! module use statements
-    use SystemData, only: tCSF, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
+    use SystemData, only: tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
         nBasis, tGUGA, tNoBrillouin, tExactSizeSpace, tUHF, tUEGNewGenerator, &
                           tPickVirtUniform, tGenHelWeighted, tGen_4ind_2, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tGen_sym_guga_ueg, tGen_sym_guga_mol, &
@@ -335,12 +335,6 @@ contains
 
         if (.not. (t_slow_guga_rdms .or. t_fast_guga_rdms)) then
             call stop_all(this_routine, "neither slow nor fast GUGA rdm implo chosen!")
-        end if
-
-        ! check in certain system options have conflicts:
-        if (tCSF) then
-            call stop_all(this_routine, &
-                "Cannot use two CSF implementations tGUGA and tCSF at the same time!")
         end if
 
         if (tSPN) then

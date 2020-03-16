@@ -9,7 +9,7 @@ MODULE HPHFRandExcitMod
 !We therefore need to find the excitation matrix between the determinant which wasn't
 !excited and the determinant which was created.
 
-    use SystemData, only: nel, tCSF, Alat, G1, nbasis, nbasismax, nmsh, arr, &
+    use SystemData, only: nel, Alat, G1, nbasis, nbasismax, nmsh, arr, &
                           tOddS_HPHF, modk_offdiag, tGen_4ind_weighted, &
                           tGen_4ind_reverse, tLatticeGens, tGen_4ind_2, tHUB, &
                           tUEG, tUEGNewGenerator, t_new_real_space_hubbard, &
@@ -785,7 +785,6 @@ MODULE HPHFRandExcitMod
 
         ! We need to consider which of the excitation generators are in use,
         ! and call the correct routine in each case.
-        ASSERT(.not. (tCSF)) ! .or. tSpinProjDets
 
         pgen = 0.0_dp
 

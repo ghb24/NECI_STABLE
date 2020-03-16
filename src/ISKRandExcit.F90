@@ -10,7 +10,7 @@ MODULE ISKRandExcit
 !therefore all excitation are connected to the determinantal excitations of just one of the constituent determinants.
 !This means that only one constituent determinant will be considered in the space.
 
-    use SystemData, only: nel, tCSF
+    use SystemData, only: nel
     use GenRandSymExcitNUMod, only: gen_rand_excit, ScratchSize
     use HPHFRandExcitMod, only: CalcNonUniPGen
     use DetBitOps, only: DetBitLT, DetBitEQ, FindExcitBitDet, &

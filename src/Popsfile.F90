@@ -2,7 +2,7 @@
 
 MODULE PopsfileMod
 
-    use SystemData, only: nel, tHPHF, tFixLz, tCSF, nBasis, tNoBrillouin, tReal, &
+    use SystemData, only: nel, tHPHF, tFixLz, nBasis, tNoBrillouin, tReal, &
                           AB_elec_pairs, par_elec_pairs, tMultiReplicas, tReltvy, &
                           t_lattice_model, t_non_hermitian, t_3_body_excits
     use CalcData, only: DiagSft, tWalkContGrow, nEquilSteps, aliasStem, tSpecifiedTau,&
@@ -118,7 +118,7 @@ contains
         character(255) :: popsfile
         !variables from header file
         logical :: tPopHPHF, tPopLz, tPop64Bit
-        integer :: iPopLenof_sign, iPopIter, PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag
+        integer :: iPopLenof_sign, iPopIter, PopNIfD, PopNIfSgn, PopNIfFlag
         integer :: PopNIfTot, PopBlockingIter, read_nnodes, Popinum_runs
         integer :: PopRandomHash(2056)
         integer(int64) :: iPopAllTotWalkers
@@ -173,11 +173,11 @@ contains
                 if(PopsVersion.eq.3) then
                     call ReadPopsHeadv3(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                        PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+                        PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot)
                 else
                     call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                         iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                        PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
+                        PopNIfD,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
                         PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, &
                         read_ptriples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
                 endif
@@ -899,7 +899,7 @@ r_loop: do while(.not.tStoreDet)
 
         integer :: iunithead, PopsVersion
         ! Variables from popsfile header...
-        integer :: iPopLenof_sign, PopNel, iPopIter, PopNIfD, PopNIfY, WalkerListSize
+        integer :: iPopLenof_sign, PopNel, iPopIter, PopNIfD, WalkerListSize
         integer :: PopNIfSgn, PopNIfFlag, PopNIfTot, PopBlockingIter, read_nnodes
         integer :: Popinum_runs
         integer :: PopRandomHash(2056)
@@ -929,7 +929,7 @@ r_loop: do while(.not.tStoreDet)
         if(PopsVersion == 4) then
             call ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                    PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
+                    PopNIfD,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot, &
                     read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
                     read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, &
                     PopBalanceBlocks)
@@ -949,7 +949,7 @@ r_loop: do while(.not.tStoreDet)
 
         call CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,PopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter, &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
+                PopNIfD,PopNIfSgn,PopNIfTot, &
                 WalkerListSize,read_tau,PopBlockingIter, read_psingles, read_pparallel, &
                 read_ptriples, perturb_ncreate, perturb_nannihilate)
 
@@ -1183,12 +1183,12 @@ r_loop: do while(.not.tStoreDet)
 
     subroutine CheckPopsParams(tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                     iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                    PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot, &
+                    PopNIfD,PopNIfSgn,PopNIfTot, &
                     WalkerListSize,read_tau,PopBlockingIter, read_psingles, &
                     read_pparallel, read_ptriples, perturb_ncreate, perturb_nann)
         use LoggingData , only : tZeroProjE
         logical, intent(in) :: tPop64Bit,tPopHPHF,tPopLz
-        integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfTot
+        integer , intent(in) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfSgn,PopNIfTot
         integer , intent(in) :: PopBlockingIter
         integer(int64) , intent(in) :: iPopAllTotWalkers
         real(dp) , intent(in) :: PopDiagSft(inum_runs),read_tau
@@ -1210,7 +1210,6 @@ r_loop: do while(.not.tStoreDet)
         if(iPopNEl+perturb_ncreate-perturb_nann.ne.NEl) call stop_all(this_routine,"The number of electrons &
             &in the POPSFILE is not consistent with the number you have asked to run with.")
         if(PopNIfD.ne.NIfD) call stop_all(this_routine,"Popsfile NIfD and calculated NIfD not same")
-        if(PopNIfY.ne.NIfY) call stop_all(this_routine,"Popsfile NIfY and calculated NIfY not same")
         if(inum_runs.eq.1) then
             !We allow these two values to be different if we're reading in a popsfile fine inum_runs=1 and we want to
             !continue the calculation with inum_runs=2
@@ -1338,10 +1337,6 @@ r_loop: do while(.not.tStoreDet)
                     ! If we have been searching for tau, we may have been searching
                     ! for psingles (it is done at the same time).
                     if (abs(read_psingles) > 1.0e-12_dp) then
-                        if (tCSF) then ! .or. tSpinProjDets) then
-                            call stop_all(this_routine, "pSingles storage not yet &
-                                &implemented for CSFs")
-                        end if
                         pSingles = read_psingles
                         if (.not. tReltvy) &
                             pDoubles = 1.0_dp - pSingles
@@ -1390,10 +1385,6 @@ r_loop: do while(.not.tStoreDet)
                     endif
                 endif
                 if (abs(read_psingles) > 1.0e-12_dp) then
-                    if (tCSF) then ! .or. tSpinProjDets) then
-                        call stop_all(this_routine, "pSingles storage not yet &
-                            &implemented for CSFs")
-                    end if
                     pSingles = read_psingles
                     if (.not. tReltvy) &
                         pDoubles = 1.0_dp - pSingles
@@ -1415,10 +1406,10 @@ r_loop: do while(.not.tStoreDet)
 !Routine for reading in from iunit the header information from a popsile v3 file.
     subroutine ReadPopsHeadv3(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot)
+                PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot)
         integer , intent(in) :: iunithead
         logical, intent(out) :: tPop64Bit, tPopLz, tPopHPHF
-        integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot
+        integer , intent(out) :: iPopLenof_sign,iPopNel,iPopIter,PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot
         integer(int64) , intent(out) :: iPopAllTotWalkers
         real(dp) , intent(out) :: PopDiagSft(inum_runs)
         real(dp) , dimension(lenof_sign/inum_runs) , intent(out) :: PopSumNoatHF
@@ -1440,7 +1431,6 @@ r_loop: do while(.not.tStoreDet)
             read(iunithead,*) PopAllSumENum(1)
             read(iunithead,*) iPopIter
             read(iunithead,*) PopNIfD
-            read(iunithead,*) PopNIfY
             read(iunithead,*) PopNIfSgn
             read(iunithead,*) PopNIfFlag
             read(iunithead,*) PopNIfTot
@@ -1457,7 +1447,6 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopAllSumENum)
         call MPIBCast(iPopIter)
         call MPIBCast(PopNIfD)
-        call MPIBCast(PopNIfY)
         call MPIBCast(PopNIfSgn)
         call MPIBCast(PopNIfFlag)
         call MPIBCast(PopNIfTot)
@@ -1467,13 +1456,13 @@ r_loop: do while(.not.tStoreDet)
     !Routine for reading in from iunit the header information from a popsile v4 file.
     subroutine ReadPopsHeadv4(iunithead,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF_out,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
+                PopNIfD,PopNIfSgn,Popinum_runs,PopNIfFlag,PopNIfTot,read_tau, &
                 PopBlockingIter, PopRandomHash, read_psingles, read_pparallel, read_ptriples, &
                 read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
         integer , intent(in) :: iunithead
         logical, intent(out) :: tPop64Bit,tPopHPHF,tPopLz
         integer, intent(out) :: iPopLenof_sign, iPopNel, iPopIter, PopNIfD
-        integer, intent(out) :: PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot
+        integer, intent(out) :: PopNIfSgn, PopNIfFlag, PopNIfTot
         integer, intent(out) :: PopBlockingIter, read_nnodes, Popinum_runs
         integer, intent(out) :: PopRandomHash(2056), PopBalanceBlocks
         integer(int64), intent(out) :: read_walkers_on_nodes(0:nProcessors-1)
@@ -1505,7 +1494,7 @@ r_loop: do while(.not.tStoreDet)
 
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
                     PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
-                    PopCyc,PopNIfD,PopNIfY,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+                    PopCyc,PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     PopTau,PopiBlockingIter,PopRandomHash,&
                     PopPSingles, PopPSing_spindiff1, PopPDoubles, PopPDoub_spindiff1, PopPDoub_spindiff2, PopPTriples, &
                     PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
@@ -1548,7 +1537,6 @@ r_loop: do while(.not.tStoreDet)
         call MPIBCast(PopSumENum)
         call MPIBCast(PopCyc)
         call MPIBCast(PopNIfD)
-        call MPIBCast(PopNIfY)
         call MPIBCast(PopNIfSgn)
         call MPIBCast(PopNIfFlag)
         call MPIBCast(PopNIfTot)
@@ -2178,9 +2166,9 @@ r_loop: do while(.not.tStoreDet)
             write(iunit, *) 'PopMultiSumENum=', AllSumENum(1:inum_runs)
         end if
 
-        write(iunit, '(a,i16,a,i2,a,i2,a,i2,a)') &
+        write(iunit, '(a,i16,a,i2,a,i2,a)') &
             'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, &
-            ',PopNIfY=', NIfY, ',PopNIfSgn=' ,NIfSgn, ','
+            ',PopNIfSgn=' ,NIfSgn, ','
         write(iunit, '(a,i2,a,i2,a,f18.12,a)') &
             'PopNIfFlag=', pops_nifflag, ',PopNIfTot=', pops_niftot, &
             ',PopTau=', Tau, ','
@@ -2674,18 +2662,14 @@ r_loop: do while(.not.tStoreDet)
         IF((PopsVersion.ne.1).and.(.not.tFixLz).and.tPopLz) THEN
             CALL Stop_All(this_routine,"Lz off, but Lz was used for creation of the POPSFILE")
         ENDIF
-        ! TODO: Add tests for CSFs here.
         IF(PopsVersion.eq.1) THEN
             tPop64BitDets=.false.
             NIfWriteOut=nBasis/32
-            IF(tCSF) NIfWriteOut=NIfWriteOut+1
         ELSE
             IF(.not.tPop64BitDets) THEN
                 NIfWriteOut=nBasis/32
-                IF(tCSF) NIfWriteOut=NIfWriteOut+1
             ELSE
                 NIfWriteOut=nBasis/64
-                IF(tCSF) NIfWriteOut=NIfWriteOut+1
             ENDIF
         ENDIF
 
@@ -3111,18 +3095,14 @@ r_loop: do while(.not.tStoreDet)
         IF((PopsVersion.ne.1).and.(.not.tFixLz).and.tPopLz) THEN
             CALL Stop_All(this_routine,"Lz off, but Lz was used for creation of the POPSFILE")
         ENDIF
-        ! TODO: Add tests for CSFs here.
         IF(PopsVersion.eq.1) THEN
             tPop64BitDets=.false.
             NIfWriteOut=nBasis/32
-            IF(tCSF) NIfWriteOut=NIfWriteOut+1
         ELSE
             IF(.not.tPop64BitDets) THEN
                 NIfWriteOut=nBasis/32
-                IF(tCSF) NIfWriteOut=NIfWriteOut+1
             ELSE
                 NIfWriteOut=nBasis/64
-                IF(tCSF) NIfWriteOut=NIfWriteOut+1
             ENDIF
         ENDIF
 

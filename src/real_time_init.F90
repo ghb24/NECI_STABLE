@@ -536,7 +536,7 @@ contains
         implicit none
 
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
-                   PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
+                   PopNIfD, PopNIfSgn, PopNIfFlag, PopNIfTot, &
                    PopBlockingIter, Popinum_runs, PopRandomHash(2056), &
                    read_nnodes, PopBalanceBlocks
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
@@ -559,7 +559,7 @@ contains
             end if
             call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
                 iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-                PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
+                PopNIfD,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
                 read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
                 read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 
@@ -587,7 +587,7 @@ contains
       implicit none
 
         integer :: iunit, popsversion, iPopLenof_Sign, iPopNel, iPopIter, &
-                   PopNIfD, PopNIfY, PopNIfSgn, PopNIfFlag, PopNIfTot, &
+                   PopNIfD, PopNIfSgn, PopNIfFlag, PopNIfTot, &
                    PopBlockingIter, Popinum_runs, PopRandomHash(2056), &
                    read_nnodes, PopBalanceBlocks
         logical :: formpops, binpops, tPop64Bit, tPopHPHF, tPopLz
@@ -620,7 +620,7 @@ contains
 
         call ReadPopsHeadv4(iunit,tPop64Bit,tPopHPHF,tPopLz,iPopLenof_Sign,iPopNel, &
              iPopAllTotWalkers,PopDiagSft,PopSumNoatHF,PopAllSumENum,iPopIter,   &
-             PopNIfD,PopNIfY,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
+             PopNIfD,PopNIfSgn,Popinum_runs, PopNIfFlag,PopNIfTot, &
              read_tau,PopBlockingIter, PopRandomHash, read_psingles, &
              read_pparallel, unused_triples, read_nnodes, read_walkers_on_nodes, PopBalanceBlocks)
 

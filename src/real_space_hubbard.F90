@@ -727,7 +727,7 @@ contains
     end subroutine init_get_helement_hubbard
 
     subroutine check_real_space_hubbard_input()
-        use SystemData, only: tCSF, tReltvy, tUEG, tUEG2, tHub, &
+        use SystemData, only: tReltvy, tUEG, tUEG2, tHub, &
                               tKPntSym, tLatticeGens, tUEGNewGenerator, &
                 tGenHelWeighted, tGen_4ind_weighted, tGen_4ind_reverse, &
                 tUEGNewGenerator, tGen_4ind_part_exact, tGen_4ind_lin_exact, &
@@ -738,7 +738,6 @@ contains
         character(*), parameter :: this_routine = "check_real_space_hubbard_input"
         ! do all the input checking here, so no wrong input is used!
 
-        if (tCSF)             call stop_all(this_routine, "tCSF set to true!")
         if (tReltvy)          call stop_all(this_routine, "tReltvy set to true!")
 
         ! what else..

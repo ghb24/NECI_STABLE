@@ -5,8 +5,7 @@ module load_balance_calcnodes
     ! Otherwise it is just part of load_balance
 
     use FciMCData, only: HFDet, hash_iter, hash_shift
-    use SystemData, only: nBasis, nel, tCSF
-    use csf_data, only: csf_orbital_mask
+    use SystemData, only: nBasis, nel
     use MemoryManager, only: TagIntType
     use CalcData, only: tUniqueHFNode
     use bit_reps, only: NIfTot
@@ -95,24 +94,17 @@ contains
            acc = 0
            do i = 1, nel_loc
                acc = (large_prime * acc) + &
-                       (RandomOrbIndex(mod(iand(nI(i), csf_orbital_mask)-1,nBasis)+1) * i)
+                       (RandomOrbIndex(mod(nI(i)-1,nBasis)+1) * i)
            enddo
            offset=ishft(abs(ishft(acc+hash_iter+iIterOffset, -hash_shift) ),-4)
         else
            offset=0
         endif
         acc = 0
-        if(tCSF) then
-            do i = 1, nel_loc
-                acc = (large_prime * acc) + &
-                        (RandomOrbIndex(mod(iand(nI(i), csf_orbital_mask)+offset-1,int(nBasis,int64))+1) * i)
-            enddo
-        else
-            do i = 1, nel_loc
-                acc = (large_prime * acc) + &
-                     (RandomOrbIndex(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
-            enddo
-        endif
+        do i = 1, nel_loc
+            acc = (large_prime * acc) + &
+                 (RandomOrbIndex(mod(nI(i)+offset-1,int(nBasis,int64))+1) * i)
+        enddo
 
         ! If the last available processor is being used for the HF det, then
         ! we can only use the the remaining (nNodes-1) processors to

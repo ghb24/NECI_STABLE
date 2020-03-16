@@ -7,7 +7,7 @@ module unit_test_helper_excitgen
   use IntegralsData, only: UMat, umat_win
   use Integrals_neci, only: IntInit, get_umat_el_normal
   use procedure_pointers, only: get_umat_el, generate_excitation
-  use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
+  use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
        tReadInt, t_pcpp_excitgen
   use sort_mod
   use System, only: SysInit, SetSysDefaults
@@ -93,7 +93,6 @@ contains
     end do
     call sort(nI)
 
-    tCSF = .false.
     call EncodeBitDet(nI,ilut)
 
     exflag = 3

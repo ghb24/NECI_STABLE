@@ -3,7 +3,7 @@ module FciMCParMod
 
     ! This module contains the main loop for FCIMC calculations, and the
     ! main per-iteration processing loop.
-    use SystemData, only: nel, tUEG2, hist_spin_dist_iter, tGen_4ind_2, &
+    use SystemData, only: nel, tUEG2, tGen_4ind_2, &
                           tGen_4ind_weighted, t_test_excit_gen, tGUGA, &
                           t_new_real_space_hubbard, t_tJ_model, t_heisenberg_model, &
                           t_k_space_hubbard, max_ex_level, t_uniform_excits, &
@@ -52,10 +52,6 @@ module FciMCParMod
                            tPopsProjE, iHDF5TruncPopsIter, iAccumPopsCounter, &
                            AccumPopsExpirePercent
 
-    use spin_project, only: spin_proj_interval, disable_spin_proj_varyshift, &
-                            spin_proj_iter_count, generate_excit_spin_proj, &
-                            get_spawn_helement_spin_proj, iter_data_spin_proj,&
-                            attempt_die_spin_proj
     use rdm_data, only: print_2rdm_est, ThisRDMIter, inits_one_rdms, two_rdm_inits_spawn, &
          two_rdm_inits, rdm_inits_defs, RDMCorrectionFactor, inits_estimates, tSetupInitsEst, &
          tApplyLC
@@ -72,7 +68,7 @@ module FciMCParMod
                                 determ_projection, average_determ_vector, &
                                 determ_projection_no_death
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
-    use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
+    use hist, only: write_zero_hist_excit_tofrom
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
                              orthogonalise_replica_pairs
     use bit_reps, only: set_flag, clr_flag, any_run_is_initiator, &
@@ -507,33 +503,8 @@ module FciMCParMod
             if (tContTimeFCIMC) then
                 call iterate_cont_time(iter_data_fciqmc)
             else
-                if (.not. (tSpinProject .and. spin_proj_interval == -1)) &
-                    call PerformFciMCycPar(iter_data_fciqmc, err)
+                call PerformFciMCycPar(iter_data_fciqmc, err)
             end if
-
-            ! Are we projecting the spin out between iterations?
-            if (tSpinProject .and. (mod(Iter, spin_proj_interval) == 0 .or. &
-                                    spin_proj_interval == -1) .and. &
-                (tSinglePartPhase(1) .or. .not. disable_spin_proj_varyshift))then
-
-                ! Set this up for a different type of iteration
-                ge_tmp => generate_excitation
-                gs_tmp => get_spawn_helement
-                ad_tmp => attempt_die
-                generate_excitation => generate_excit_spin_proj
-                get_spawn_helement => get_spawn_helement_spin_proj
-                attempt_die => attempt_die_spin_proj
-
-                do i = 1, max(spin_proj_iter_count, 1)
-                    call PerformFciMCycPar (iter_data_spin_proj, err)
-                    if(err.ne.0) exit
-                enddo
-
-                ! Return to prior config
-                generate_excitation => ge_tmp
-                get_spawn_helement => gs_tmp
-                attempt_die => ad_tmp
-            endif
 
             if(tAccumPops .and. iter+PreviousCycles>=iAccumPopsIter) then
                 if(.not. tAccumPopsActive) then
@@ -761,15 +732,6 @@ module FciMCParMod
                     call write_zero_hist_excit_tofrom()
 
             ENDIF   !Endif end of update cycle
-
-            if (tHistSpinDist .and. (mod(iter, hist_spin_dist_iter) == 0)) then
-                if (inum_runs.eq.2) then
-                    !COMPLEX
-                    call stop_all(this_routine, "Not set up to combine HistSpinDist with double runs. &
-                                    & Level of changes required to get this working: unknown.")
-                endif
-                call write_clear_hist_spin_dist (iter, hist_spin_dist_iter)
-            endif
 
             IF(TPopsFile.and.(.not.tPrintPopsDefault).and.(mod(Iter,iWritePopsEvery).eq.0)) THEN
                 ! differentiate between normal routine and the real-time
@@ -1255,11 +1217,6 @@ module FciMCParMod
         ! The processor with the HF determinant on it will have to check
         ! through each determinant until it's found. Once found, tHFFound is
         ! true, and it no longer needs to be checked.
-
-        ! This is a bit of a hack based on the fact that we mean something
-        ! different by exFlag for CSFs than in normal determinential code.
-        ! It would be nice to fix this properly
-        if (tCSF) exFlag = 7
 
         precond_fac = 1.0_dp
 

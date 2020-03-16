@@ -5,8 +5,7 @@ MODULE Logging
     use constants, only: dp, int64, nreplicas
     use input_neci
     use MemoryManager, only: LogMemAlloc, LogMemDealloc,TagIntType
-    use SystemData, only: nel, LMS, nbasis, tHistSpinDist, nI_spindist, &
-                          hist_spin_dist_iter
+    use SystemData, only: nel, LMS, nbasis
     use CalcData, only: tCheckHighestPop, semistoch_shift_iter, trial_shift_iter, &
                         tPairedReplicas, tReplicaEstimates, iSampleRDMIters, tMoveGlobalDetData
     use constants, only: n_int, size_n_int, bits_n_int
@@ -129,9 +128,7 @@ MODULE Logging
       NoDumpTruncs=0
       tWriteTransMat=.false.
       tHistInitPops=.false.
-      tHistSpinDist = .false.
       HistInitPopsIter=100000
-      hist_spin_dist_iter = 1000
       tLogDets=.false.
       tLogEXLEVELStats=.false.
       tCalcInstantS2 = .false.
@@ -421,24 +418,6 @@ MODULE Logging
 !PGI - this will be fixed at
 !some stage.  Also - QChem INTDUMP files must be used to be compatible.
             tWriteTransMat=.true.
-
-
-        case("HIST-SPIN-DIST")
-            ! Histogram the distribution of walkers within determinants of the
-            ! given spatial configuration
-            ! --> The determinant is specified using SPIN orbitals, but these
-            !     are converted to a spatial structure for use.
-
-            tHistSpinDist = .true.
-            call readi(hist_spin_dist_iter)
-            if (.not. allocated(nI_spindist)) &
-                allocate(nI_spindist(nel))
-            nI_spindist = 0
-            i = 1
-            do while (item < nitems .and. i <= nel)
-                call geti(nI_spindist(i))
-                i = i+1
-            enddo
 
          case("HIST-INTEGRALS")
             tHistLMat = .true.

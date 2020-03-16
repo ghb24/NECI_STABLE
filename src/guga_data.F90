@@ -4,7 +4,7 @@
 ! GUGA approach.
 module guga_data
     ! dependencies: be EXPLICIT about them!
-    use SystemData, only: nBasis, tCSF, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
+    use SystemData, only: nBasis, tSPN, tHPHF, lNoSymmetry, STOT, nEl, &
                           tNoBrillouin, tExactSizeSpace, tUHF, tGUGA
     use constants, only: dp, Root2, OverR2, n_int, int_rdm
     use MemoryManager, only: TagIntType

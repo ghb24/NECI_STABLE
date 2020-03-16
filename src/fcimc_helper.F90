@@ -5,7 +5,7 @@ module fcimc_helper
     use constants
     use util_mod
     use systemData, only: nel, tHPHF, tNoBrillouin, G1, tUEG, &
-                          tLatticeGens, nBasis, tHistSpinDist, tRef_Not_HF, &
+                          tLatticeGens, nBasis, tRef_Not_HF, &
                           tGUGA, ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, t_3_body_excits, t_non_hermitian, &
                           t_ueg_3_body, t_mol_3_body
@@ -30,8 +30,7 @@ module fcimc_helper
 
     use Determinants, only: get_helement, write_det
     use FciMCData
-    use hist, only: test_add_hist_spin_dist_det, add_hist_spawn, &
-                    add_hist_energies, HistMinInd
+    use hist, only: add_hist_spawn, add_hist_energies, HistMinInd
     use hist_data, only: tHistSpawn
     use hphf_integrals, only: hphf_off_diag_helement
     use LoggingData, only: OrbOccs, tPrintOrbOcc, tPrintOrbOccInit, &
@@ -77,8 +76,6 @@ module fcimc_helper
     use rdm_general, only: store_parent_with_spawned, extract_bit_rep_avsign_norm
     use Parallel_neci
     use FciMCLoggingMod, only: HistInitPopulations, WriteInitPops
-    use csf_data, only: csf_orbital_mask
-    use csf, only: iscsf
     use hphf_integrals, only: hphf_diag_helement
     use global_det_data, only: get_av_sgn_tot, set_av_sgn_tot, set_det_diagH, &
                                global_determinant_data, det_diagH, &
@@ -789,14 +786,6 @@ contains
             call add_hist_energies (ilut, RealwSign, HDiagCurr)
         endif
 
-        ! Are we doing a spin-projection histogram?
-        if (tHistSpinDist) then
-            if (tRealCoeffByExcitLevel) &
-                call stop_all(this_routine, 'Not set up to use real coeffs &
-                                            &with tHistSpindist')
-            call test_add_hist_spin_dist_det (ilut, RealwSign)
-        end if
-
         ! Maintain a list of the degree of occupation of each orbital
         if (tPrintOrbOcc .and. (iter >= StartPrintOrbOcc)) then
             if (iter == StartPrintOrbOcc .and. &
@@ -808,9 +797,8 @@ contains
             end if
             if ((tPrintOrbOccInit .and. test_flag(ilut,get_initiator_flag(1)))&
                 .or. .not. tPrintOrbOccInit) then
-                forall (i = 1:nel) OrbOccs(iand(nI(i), csf_orbital_mask)) &
-                        = OrbOccs(iand(nI(i), csf_orbital_mask)) &
-                                   + (RealwSign(1) * RealwSign(1))
+                forall (i = 1:nel) OrbOccs(nI(i)) &
+                        = OrbOccs(nI(i)) + (RealwSign(1) * RealwSign(1))
             endif
          endif
 
@@ -856,10 +844,10 @@ contains
         HElement_t(dp) :: amps(size(current_trial_amps,1))
 
         if (tHistSpawn .or. &
-            (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. &
-            tHistSpinDist .or. tPrintOrbOcc) &
+            (tCalcFCIMCPsi .and. tFCIMC) .or. tHistEnergies .or. tPrintOrbOcc) then
             call stop_all(this_routine, "Not yet supported: Turn off HISTSPAWN,&
                    & PRINTFCIMCPSI, PRINTORBOCCS, HISTPARTENERGIES, HIST-SPIN-DIST")
+        end if
 
         ! Add in the contributions to the numerator and denominator of the trial
         ! estimator, if it is being used.
@@ -1564,7 +1552,7 @@ contains
 
     LOGICAL FUNCTION TestifDETinCAS(CASDet)
         INTEGER :: k,z,CASDet(NEl), orb
-        LOGICAL :: tElecInVirt, bIsCsf
+        LOGICAL :: tElecInVirt
 
         ! CASmax is the max spin orbital number (when ordered energetically)
         ! within the chosen active space. Spin orbitals with energies larger
@@ -1581,18 +1569,10 @@ contains
         !  calculated each time).
 !        CASmin=NEl-OccCASorbs
 
-        bIsCsf = iscsf(CASDet)
-
         z=0
         tElecInVirt=.false.
         do k=1,NEl      ! running over all electrons
-            ! TODO: is it reasonable to just apply the orbital mask anyway?
-            !       it is probably faster than running iscsf...
-            if (bIsCsf) then
-                orb = iand(CASDet(k), csf_orbital_mask)
-            else
-                orb = CASDet(k)
-            endif
+            orb = CASDet(k)
 
             if (SpinInvBRR(orb).gt.CASmax) THEN
                 tElecInVirt=.true.

@@ -5,7 +5,7 @@ MODULE System
     use SystemData
 
     use CalcData, only: TAU, tTruncInitiator, InitiatorWalkNo, &
-                        occCASorbs, virtCASorbs, tPairedReplicas, tInitializeCSF, &
+                        occCASorbs, virtCASorbs, tPairedReplicas, &
                         S2Init, tDynamicAvMcEx
 
     use FciMCData, only: tGenMatHEl, t_initialized_roi
@@ -110,11 +110,6 @@ MODULE System
       tNoFailAb=.false.
       LMS=0
       TSPN=.false.
-      TCSF=.false.
-      tInitializeCSF = .false.
-      TCSFOLD = .false.
-      csf_trunc_level = 0
-      tTruncateCSF = .false.
       STOT=0
       TPARITY = .false.
       IParity(:)=0
@@ -519,30 +514,6 @@ system: do
             ! do not reorder the orbitals in the hubbard + guga implementation
             t_guga_noreorder = .true.
 
-        case("INITIAL-SPIN")
-           call getf(S2Init)
-           tInitializeCSF = .true.
-        case("CSF")
-            if(item.lt.nitems) then
-               call geti(STOT)
-            else
-               STOT=0
-            endif
-            TCSF = .true.
-        case("TRUNCATE-CSF")
-            if (item < nitems) then
-                call geti(csf_trunc_level)
-            else
-                csf_trunc_level = 0
-            endif
-            tTruncateCSF = .true.
-        case("CSF-OLD")
-            if(item.lt.nitems) then
-               call geti(STOT)
-            else
-               STOT=0
-            endif
-            TCSFOLD = .true.
         case("SYMIGNOREENERGIES")
             tSymIgnoreEnergies=.true.
         case("NOSYMMETRY")
@@ -1868,13 +1839,6 @@ system: do
       proc_timer%timer_name='SysInit   '
       call set_timer(proc_timer)
 
-      ! if a total spin was set, set the spin projection if unspecified
-      if(tInitializeCSF .and. .not. TSPN) then
-         ! S is physical spin, LMS is an integer (-2*Ms)
-         LMS = int(2 * S2Init)
-         TSPN = .true.
-         write(iout,*) 'Spin projection unspecified, assuming Ms=S'
-      end if
 
 !C ==-------------------------------------------------------------------==
 !C..Input parameters
@@ -1958,36 +1922,6 @@ system: do
       if(tStoreAsExcitations) THEN
          write(6,'(A)') "  Storing determinants as excitations from the HF determinant.  WARNING this may not work!"
          IF(nEL.lt.8) call stop_all(this_routine, '  tStoreAsExcitations requires nEl>=8.')
-      endif
-
-      ! Conditions for using old CSF routines
-      if (tCSFOld) then
-          write (6, '(A)') "************ Using Old CSF routines ************"
-          if (tSPN) then
-              write(6, '(A,I3)') "  Restricting total spin*2 to ", STOT
-              if (LMS > STOT) &
-                  call stop_all (this_routine, "Cannot have LMS>STOT")
-
-              ! Encode the symmetry for the total spin in LMS
-              LMS2 = LMS + STOT*CSF_NBSTART
-          endif
-          nBasisMax(4,7) = 1
-      endif
-
-      ! Conditions for using CSFs
-      if (tCSF) then
-          write (6, '(A)') "************ Using CSFs for calculation **********"
-
-          if (LMS > STOT) call stop_all (this_routine, "Cannot have LMS>STOT")
-
-          if (tHPHF) then
-              call stop_all (this_routine, "CSFs not compatible with HPHF")
-          endif
-
-      endif
-
-      if (tTruncateCSF .and. (.not. tCSF)) then
-          call stop_all (this_routine, "CSFs required to use truncate-csf")
       endif
 
       TwoCycleSymGens=.false.
