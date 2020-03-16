@@ -21,3 +21,19 @@ else
     ${Var_}$ = ${Val}$
 endif
 #:enddef
+
+#:def ASSERT(cond, *args)
+#ifdef DEBUG_
+    if (.not. (${cond}$)) then
+        write(6, *) "Assertion ${cond}$"
+        write(6, *) "failed in ${_FILE_}$:${_LINE_}$"
+#:if args
+        write(6, *) "Values leading to this error:"
+#:for value in args
+        write(6, *) "${value}$ = ", ${value}$
+#:endfor
+#:endif
+        call stop_all (this_routine, "Assert fail: ${cond}$")
+    end if
+#endif
+#:enddef
