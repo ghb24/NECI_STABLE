@@ -56,6 +56,9 @@ contains
         call assert_true(all(SpinOrbIdx_t([2, 3, 5]) == excite(reference, SingleExc_t(1, 5))))
         call assert_true(all(SpinOrbIdx_t([3, 4, 5]) == excite(reference, DoubleExc_t(1, 5, 2, 4))))
 
+        reference = SpinOrbIdx_t([1, 2, 3, 11, 12, 14])
+        call assert_true(all(SpinOrbIdx_t([2, 3, 5, 11, 12, 14]) == excite(reference, SingleExc_t(1, 5))))
+
     end subroutine
 
 end module test_orb_idx_mod
