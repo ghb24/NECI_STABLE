@@ -304,6 +304,14 @@ contains
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
 
+        expected = SpinOrbIdx_t([2, 3, 4])
+        calculated = get_possible_holes( &
+              GAS_spec, reference, &
+              add_particles=SpinOrbIdx_t([11]), &
+              add_holes=SpinOrbIdx_t([1, 5]))
+        call assert_true(size(expected) == size(calculated))
+        call assert_true(all(expected == calculated))
+
         GAS_spec = GASSpec_t(n_orbs=[2, 4], n_min=[0, 4], n_max=[0, 4])
         reference = SpinOrbIdx_t([5, 6, 7, 8])
         expected = SpinOrbIdx_t([integer::])
