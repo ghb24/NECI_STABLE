@@ -366,10 +366,10 @@ contains
         character(*), parameter :: this_routine = 'excite_SingleExc_t'
 
         associate(src => exc%val(1), tgt => exc%val(2))
-            ASSERT(defined(exc))
-            ASSERT(src /= tgt)
-            ASSERT(any(src == det_I%idx))
-            ASSERT(all(tgt /= det_I%idx))
+            @:ASSERT(defined(exc), exc%val)
+            @:ASSERT(src /= tgt, src, tgt)
+            @:ASSERT(any(src == det_I%idx), src, det_I%idx)
+            @:ASSERT(all(tgt /= det_I%idx), tgt, det_I%idx)
             res%idx = insert_delete_sorted(det_I%idx, [src], [tgt])
         end associate
     end function
@@ -386,11 +386,11 @@ contains
 
         src = exc%val(1, :)
         tgt = exc%val(2, :)
-        ASSERT(defined(exc))
+        @:ASSERT(defined(exc))
         do i = 1, 2
-            ASSERT(all(src(i) /= tgt))
-            ASSERT(any(src(i) == det_I%idx))
-            ASSERT(all(tgt(i) /= det_I%idx))
+            @:ASSERT(all(src(i) /= tgt))
+            @:ASSERT(any(src(i) == det_I%idx))
+            @:ASSERT(all(tgt(i) /= det_I%idx))
         end do
 
         if (src(1) > src(2)) call swap(src(1), src(2))
@@ -412,7 +412,7 @@ contains
     pure function excite_Ilut_t_NoExc_t(ilut_I, exc) result(res)
         integer(n_int), intent(in) :: ilut_I(:)
         type(NoExc_t), intent(in) :: exc
-        integer(n_int) :: res(size(ilut_I))
+        integer(n_int) :: res(0:size(ilut_I) - 1)
         @:unused_var(exc)
         res = ilut_I
     end function
@@ -420,12 +420,12 @@ contains
     DEBUG_IMPURE function excite_Ilut_t_SingleExc_t(ilut_I, exc) result(res)
         integer(n_int), intent(in) :: ilut_I(:)
         type(SingleExc_t), intent(in) :: exc
-        integer(n_int) :: res(size(ilut_I))
+        integer(n_int) :: res(0:size(ilut_I) - 1)
         character(*), parameter :: this_routine = 'excite_SingleExc_t'
 
         associate(src => exc%val(1), tgt => exc%val(2))
-            ASSERT(defined(exc))
-            ASSERT(src /= tgt)
+            @:ASSERT(defined(exc), exc%val)
+            @:ASSERT(src /= tgt, src, tgt)
             res = ilut_I
             clr_orb(res, src)
             set_orb(res, tgt)
@@ -436,16 +436,16 @@ contains
     DEBUG_IMPURE function excite_Ilut_t_DoubleExc_t(ilut_I, exc) result(res)
         integer(n_int), intent(in) :: ilut_I(:)
         type(DoubleExc_t), intent(in) :: exc
-        integer(n_int) :: res(size(ilut_I))
+        integer(n_int) :: res(0:size(ilut_I) - 1)
         character(*), parameter :: this_routine = 'excite_DoubleExc_t'
 
         integer :: src(2), tgt(2), i
 
         src = exc%val(1, :)
         tgt = exc%val(2, :)
-        ASSERT(defined(exc))
+        @:ASSERT(defined(exc), exc%val)
         do i = 1, 2
-            ASSERT(all(src(i) /= tgt))
+            @:ASSERT(all(src(i) /= tgt), src(i), tgt)
         end do
         res = ilut_I
         clr_orb(res, src(1))
@@ -456,7 +456,8 @@ contains
 
 
 
-    !> Merge C into A and remove values of B.
+    !> Merge C into A and remove values that are in B.
+    !> The result can be written with set notation as A ∪ C / B.
     !> Preconditions (not tested!):
     !>      1. B is a subset of A
     !>      2. A and C are disjoint
@@ -475,9 +476,16 @@ contains
         l = 1
         do while(l <= size(D))
             ! Only indices from C have to be added to A
+            ! We use assumption that B is a subset of A
             if (i > size(A)) then
                 D(l) = C(k)
                 k = k + 1
+                l = l + 1
+            ! Neither indices from B have to be deleted in A
+            ! nor indices from C have to be added from C to A.
+            else if (j > size(B) .and. k > size(C)) then
+                D(l) = A(i)
+                i = i + 1
                 l = l + 1
             ! No more indices from B have to be deleted in A
             else if (j > size(B)) then
@@ -500,6 +508,8 @@ contains
                     i = i + 1
                     j = j + 1
                 end if
+            ! Normal case:
+            ! Merge C sorted into A excluding values from B.
             else if (A(i) < C(k)) then
                 if (A(i) /= B(j)) then
                     D(l) = A(i)
