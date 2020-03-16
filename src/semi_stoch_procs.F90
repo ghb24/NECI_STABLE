@@ -471,16 +471,16 @@ contains
 
         hash_val = FindWalkerHash(nI, determ_space_size_int)
 
-        call core_ht%callback_lookup(hash_val, i, core_state, verify)        
+        call core_ht%callback_lookup(hash_val, i, core_state, loc_verify)        
 
     contains
 
-        function verify(ind) result(match)
+        function loc_verify(ind) result(match)
             integer(int64), intent(in) :: ind
             logical :: match
 
             match = all(ilut(0:NIfDBO) == core_space(0:NIfDBO,ind))
-        end function verify
+        end function loc_verify
 
     end subroutine core_space_ht_lookup
 

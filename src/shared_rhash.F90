@@ -209,7 +209,7 @@ contains
     !> @param[out] pos on return, the matching entry
     !> @param[out] t_found on return, true if and only if index was found
     !> @param[in] verify  function to check if an entry matches    
-    subroutine callback_lookup(this, hval, pos, t_found, verify)
+    subroutine callback_lookup(this, hval, pos, t_found, loc_verify)
         class(shared_rhash_t), intent(in) :: this
         integer(int64), intent(in) :: hval
         integer(int64), intent(out) :: pos
@@ -218,11 +218,11 @@ contains
         integer(int64) :: lower, upper, i
 
         interface
-            function verify(i) result(match)
+            function loc_verify(i) result(match)
                 use constants
                 integer(int64), intent(in) :: i
                 logical :: match
-            end function verify
+            end function loc_verify
         end interface
 
         lower = this%hval_offsets%ptr(hval) + 1
@@ -231,7 +231,7 @@ contains
         t_found = .false.
         pos = 0
         do i = lower, upper
-            if(verify(this%indices%ptr(i))) then
+            if(loc_verify(this%indices%ptr(i))) then
                 pos = this%indices%ptr(i)
                 t_found = .true.
                 return

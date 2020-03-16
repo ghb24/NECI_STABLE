@@ -216,15 +216,15 @@ contains
 
         hash_val = FindWalkerHash(nI, initiator_space_size_int)
 
-        call initiator_ht%callback_lookup(hash_val, pos, initiator_state, verify)
+        call initiator_ht%callback_lookup(hash_val, pos, initiator_state, loc_verify)
 
     contains
 
-        function verify(ind) result(match)
+        function loc_verify(ind) result(match)
             integer(int64), intent(in) :: ind
             logical :: match
             match =  (all(ilut(0:NIfDBO) == initiator_space(0:NIfDBO, ind)))
-        end function verify
+        end function loc_verify
 
     end function is_in_initiator_space
 
