@@ -12,7 +12,7 @@ module guga_bitRepOps
                           currentB_ilut, currentB_int, current_cum_list, nbasis
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-                         n_excit_lvl_bits, n_excit_type_bits
+                         n_excit_lvl_bits, n_excit_type_bits, guga_ilut_pos
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -42,9 +42,12 @@ module guga_bitRepOps
         calc_csf_info, extract_h_element, getexcitation_guga, &
         getspatialoccupation, getExcitationRangeMask, &
         contract_1_rdm_ind, contract_2_rdm_ind, extract_1_rdm_ind, &
-        extract_2_rdm_ind, encode_rdm_ind, extract_rdm_ind
-
-
+        extract_2_rdm_ind, encode_rdm_ind, extract_rdm_ind, &
+        encode_stochastic_rdm_x0, encode_stochastic_rdm_x1, &
+        encode_stochastic_rdm_ind, encode_stochastic_rdm_info, &
+        extract_stochastic_rdm_x0, extract_stochastic_rdm_x1, &
+        extract_stochastic_rdm_ind, extract_stochastic_rdm_info, &
+        init_guga_bitrep
 
 
     ! interfaces
@@ -74,6 +77,10 @@ module guga_bitRepOps
 
 contains
 
+    subroutine init_guga_bitrep
+        ! TODO
+
+    end subroutine init_guga_bitrep
     ! finally with the, after all, usable trialz, popcnt, and leadz routines
     ! (except for the PGI and NAG compilers) i can write an efficient
     ! excitation identifier between two given CSFs
@@ -2733,13 +2740,93 @@ contains
 
     end subroutine init_csf_information
 
+    pure subroutine encode_stochastic_rdm_info(ilut, rdm_ind, x0, x1)
+        integer(n_int), intent(inout) :: ilut(0:guga_ilut_pos%tot)
+        integer(int_rdm), intent(in) :: rdm_ind
+        real(dp), intent(in) :: x0, x1
+
+        ! i need to be sure that int_rdm and n_int are of the same
+        ! size otherwise this breaks..
+        call encode_stochastic_rdm_ind(ilut, rdm_ind)
+        call encode_stochastic_rdm_x0(ilut, x0)
+        call encode_stochastic_rdm_x1(ilut, x1)
+
+    end subroutine encode_stochastic_rdm_info
+
+    pure subroutine extract_stochastic_rdm_info(ilut, rdm_ind, x0, x1)
+        integer(n_int), intent(in) :: ilut(0:guga_ilut_pos%tot)
+        integer(int_rdm), intent(out) :: rdm_ind
+        real(dp), intent(out) :: x0, x1
+
+        rdm_ind = extract_stochastic_rdm_ind(ilut)
+        x0 = extract_stochastic_rdm_x0(ilut)
+        x1 = extract_stochastic_rdm_x1(ilut)
+
+    end subroutine extract_stochastic_rdm_info
+
+    pure subroutine encode_stochastic_rdm_ind(ilut, rdm_ind)
+        integer(n_int), intent(inout) :: ilut(0:guga_ilut_pos%tot)
+        integer(int_rdm), intent(in) :: rdm_ind
+
+        ilut(guga_ilut_pos%rdm_ind) = rdm_ind
+
+    end subroutine encode_stochastic_rdm_ind
+
+    pure function extract_stochastic_rdm_ind(ilut) result(rdm_ind)
+        integer(n_int), intent(in) :: ilut(0:guga_ilut_pos%tot)
+        integer(int_rdm) :: rdm_ind
+
+        rdm_ind = ilut(guga_ilut_pos%rdm_ind)
+
+    end function extract_stochastic_rdm_ind
+
+    pure subroutine encode_stochastic_rdm_x0(ilut, x0)
+        integer(n_int), intent(inout) :: ilut(0:guga_ilut_pos%tot)
+        real(dp), intent(in) :: x0
+
+        integer(n_int) :: x0_int
+
+        x0_int = transfer(x0, x0_int)
+
+        ilut(guga_ilut_pos%rdm_x0) = x0_int
+
+    end subroutine encode_stochastic_rdm_x0
+
+    pure function extract_stochastic_rdm_x0(ilut) result(x0)
+        integer(n_int), intent(in) :: ilut(0:guga_ilut_pos%tot)
+        real(dp) :: x0
+
+        x0 = transfer(ilut(guga_ilut_pos%rdm_x0), x0)
+
+    end function extract_stochastic_rdm_x0
+
+    pure subroutine encode_stochastic_rdm_x1(ilut, x1)
+        integer(n_int), intent(inout) :: ilut(0:guga_ilut_pos%tot)
+        real(dp), intent(in) :: x1
+
+        integer(n_int) :: x1_int
+
+        x1_int = transfer(x1, x1_int)
+
+        ilut(guga_ilut_pos%rdm_x1) = x1_int
+
+    end subroutine encode_stochastic_rdm_x1
+
+    pure function extract_stochastic_rdm_x1(ilut) result(x1)
+        integer(n_int), intent(in) :: ilut(0:guga_ilut_pos%tot)
+        real(dp) :: x1
+
+        x1 = transfer(ilut(guga_ilut_pos%rdm_x1), x1)
+
+    end function extract_stochastic_rdm_x1
+
     pure subroutine extract_1_rdm_ind(rdm_ind, i, a, excit_lvl, excit_typ)
         ! the converstion routine between the combined and explicit rdm
         ! indices for the 1-RDM
         integer(int_rdm), intent(in) :: rdm_ind
         integer, intent(out) :: i, a
         integer, intent(out), optional :: excit_lvl, excit_typ
-        character(*), parameter :: this_routine = "extract_matrix_element"
+        character(*), parameter :: this_routine = "extract_1_rdm_ind"
 
         integer(int_rdm) :: rdm_ind_
 

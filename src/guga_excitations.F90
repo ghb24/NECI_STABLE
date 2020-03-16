@@ -37,7 +37,8 @@ module guga_excitations
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_replica, &
                     tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list, &
-                    excit_type, gen_type, excit_names, t_slow_guga_rdms
+                    excit_type, gen_type, excit_names, t_slow_guga_rdms, &
+                    t_fast_guga_rdms
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
@@ -48,7 +49,8 @@ module guga_excitations
                         calcStepvector, find_switches, convert_ilut_toNECI, &
                         calcB_vector_int, calcOcc_vector_int, EncodeBitDet_guga, &
                         identify_excitation, init_csf_information, calc_csf_info, &
-                        extract_h_element
+                        extract_h_element, encode_stochastic_rdm_info
+
 
     use guga_matrixElements, only: calcDiagMatEleGUGA_ilut, calcDiagMatEleGuga_nI, &
                                    calc_off_diag_guga_ref_list
@@ -13240,6 +13242,18 @@ contains
         if (.not. (treal .or. t_new_real_space_hubbard .or. &
             t_heisenberg_model .or. t_tJ_model .or. t_mixed_hubbard)) then
             call calc_integral_contribution_single(exc, i, j,st, en, integral)
+        end if
+
+        if (t_fast_guga_rdms) then
+            ! if we want to do 'fast' GUGA RDMs we need to store the
+            ! rdm index and the x0 (for singles here) coupling coefficient
+            ! as part of the ilut(0:nifguga). this also necessitates
+            ! a 'longer' nifguga (+3 i think for rdm_index and x0 and x1..)
+            ! with an accompanying change to niftot.. (this could get a bit
+            ! messy in the rest of the code..)
+            call encode_stochastic_rdm_info(exc, rdm_ind = &
+                contract_1_rdm_ind(i, j, excit_lvl = 1, excit_typ = excit_type%single), &
+                x0 = extract_matrix_element(exc, 1), x1 = 0.0_dp)
         end if
 
         call encode_matrix_element(exc, 0.0_dp, 2)

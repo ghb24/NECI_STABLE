@@ -7,7 +7,6 @@ module guga_rdm
                          Root2, int64, int_rdm
     use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
     use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifdbo
-    use LoggingData, only: RDMExcitLevel
     use rdm_data, only: one_rdms, two_rdm_spawn, rdmCorrectionFactor
     use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdm_spawn_t, one_rdm_t
     use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, rdm_list_t
@@ -31,7 +30,7 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double, &
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, t_slow_guga_rdms
+                         excit_type, gen_type, t_slow_guga_rdms, guga_ilut_pos
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -48,7 +47,8 @@ module guga_rdm
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_reps, only: nifguga
     use FciMCData, only: projEDet, CurrentDets, TotWalkers, ilutref, HFDet_True
-    use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag
+    use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag, RDMExcitLevel, &
+                           tExplicitAllRDM
     use UMatCache, only: gtID
     use RotateOrbsData, only: SymLabelListInv_rot
     use CalcData, only: tAdaptiveShift
@@ -70,7 +70,8 @@ module guga_rdm
               calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga, &
               calc_explicit_diag_2_rdm_guga, test_fill_spawn_diag, &
               Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
-              Add_RDM_HFConnections_GUGA, fill_spawn_rdm_diag_guga
+              Add_RDM_HFConnections_GUGA, fill_spawn_rdm_diag_guga, &
+              init_guga_rdm
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
@@ -79,6 +80,16 @@ module guga_rdm
     logical :: t_mimic_stochastic = .true.
 
 contains
+
+    subroutine init_guga_rdm
+
+        if (.not. tExplicitAllRDM) then
+            ! setup the ilut position and total number of elements for the
+            ! stochastic RDM calculation
+            ! guga_ilut_pos%tot = 0 !todo..
+        end if
+
+    end subroutine init_guga_rdm
 
     subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, nJ, av_sign_j, &
             av_sign_hf, excit_lvl, iter_rdm)

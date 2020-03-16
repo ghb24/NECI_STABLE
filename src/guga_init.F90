@@ -21,12 +21,12 @@ module guga_init
 
     use hist_data, only: tHistSpawn
 
-    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc
+    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc, tRDMonfly
 
     use bit_rep_data, only: tUseFlags
 
     use guga_data, only: init_guga_data_procPtrs, orbitalIndex, t_slow_guga_rdms, &
-                         t_fast_guga_rdms
+                         t_fast_guga_rdms, n_excit_info_bits
 
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                         calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
@@ -52,7 +52,7 @@ module guga_init
 
     use FciMCData, only: pExcit2, pExcit4, pExcit2_same, pExcit3_same, tSearchTau
 
-    use constants, only: dp
+    use constants, only: dp, int_rdm, n_int
 
     use ParallelHelper, only: iProcIndex
 
@@ -62,6 +62,10 @@ module guga_init
                         pick_orbitals_guga_tJ
 
     use back_spawn, only: setup_virtual_mask
+
+    use guga_rdm, only: init_guga_rdm
+
+    use guga_bitRepOps, only: init_guga_bitrep
 
     ! variable declaration
     implicit none
@@ -288,7 +292,34 @@ contains
 
         end if
 
+        ! make checks for the RDM calculation
+        if (tRDMonfly) then
+            call check_rdm_guga_setup()
+            call init_guga_rdm()
+        end if
+
+        ! make a unified bit rep initializer:
+        call init_guga_bitrep()
+
     end subroutine init_guga
+
+    subroutine check_rdm_guga_setup
+        character(*), parameter :: this_routine = "check_rdm_guga_setup"
+
+
+        ! check if the integer types fit for out setup
+        if (bit_size(0_n_int) /= bit_size(0_int_rdm)) then
+            call stop_all(this_routine, "n_int and int_rdm have different size!")
+        end if
+
+        ! we use some bits in the rdm_ind for other information..
+        ! check if we still have enough space for all the indices..
+        if (nSpatOrbs ** 4 > 2 ** (bit_size(int_rdm) - n_excit_info_bits - 1) - 1) then
+            call stop_all(this_routine, "cannot store enough indices in rdm_ind!")
+        end if
+
+    end subroutine check_rdm_guga_setup
+
 
     subroutine checkInputGUGA()
         ! routine to check if all the input parameters given are consistent
