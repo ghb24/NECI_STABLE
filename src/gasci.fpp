@@ -9,7 +9,7 @@ module gasci
     use SystemData, only: tGAS, tGASSpinRecoupling, nBasis, nel
     use constants
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
-        near_zero, cumsum
+        near_zero, cumsum, operator(.isclose.)
     use sort_mod, only : sort
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
@@ -18,7 +18,7 @@ module gasci
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
-        last_tgt_unknown, set_last_tgt, excite
+        last_tgt_unknown, set_last_tgt, excite, defined
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, size, calc_spin, &
         calc_spin_raw
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
@@ -27,7 +27,7 @@ module gasci
     private
     public :: is_valid, is_connected, GAS_specification, GASSpec_t, &
         init_GAS, clear_GAS, get_nGAS, &
-!         generate_nGAS_excitation, &
+        generate_nGAS_excitation, &
         contains_det, particles_per_GAS, &
         get_possible_spaces, get_possible_holes, split_per_GAS
 
@@ -312,7 +312,6 @@ contains
         type(${orb_idx_type}$), intent(in) :: occupied
 
         type(${orb_idx_type}$), allocatable :: splitted_orbitals(:)
-!         type(${orb_idx_type}$) :: splitted_orbitals(get_nGAS(GAS_spec))
 
         integer :: iGAS, prev, i, GAS_table(size(occupied))
 
@@ -385,16 +384,9 @@ contains
 
         associate(A => particles_per_GAS(splitted_det_I))
             if (present(add_holes)) then
-                associate(splitted_holes => split_per_GAS(GAS_spec, add_holes))
-                    associate(B => particles_per_GAS(splitted_holes))
-                        cum_n_particle = cumsum(A - B)
-                    end associate
+                associate(B => particles_per_GAS(split_per_GAS(GAS_spec, add_holes)))
+                    cum_n_particle = cumsum(A - B)
                 end associate
-! TODO(Kai, Oskar):
-! If one uncomments the following statement, the gasci unit test crashes.
-! I don't understand why. :-(
-                ! cum_n_particle = cumsum(particles_per_GAS(splitted_det_I) &
-                !                         - particles_per_GAS(split_per_GAS(GAS_spec, add_holes)))
             else
                 cum_n_particle = cumsum(A)
             end if
@@ -520,6 +512,7 @@ contains
         HElement_t(dp), intent(out) :: hel
         type(excit_gen_store_type), intent(inout), target :: store
         integer, intent(in), optional :: part_type
+        character(*), parameter :: this_routine = 'generate_nGAS_excitation'
 
         type(SpinOrbIdx_t) :: det_J
         class(Excitation_t), allocatable :: exc
@@ -530,16 +523,23 @@ contains
         hel = 0.0_dp
 #endif
         ! single or double excitation?
+        @:ASSERT(0.0_dp <= pDoubles .and. pDoubles <= 1.0_dp, pDoubles)
         if (genrand_real2_dSFMT() >= pDoubles) then
             ic = 1
             associate(r => [genrand_real2_dSFMT(), genrand_real2_dSFMT()])
                 call gen_exc_single(GAS_specification, SpinOrbIdx_t(nI), ilutI, r, &
                                     nJ, ilutJ, ex_mat, par, pgen)
-                pgen = pgen * (1.0_dp - pDoubles)
             end associate
+            pgen = pgen * (1.0_dp - pDoubles)
         else
             ic = 2
+            associate(r => [genrand_real2_dSFMT(), genrand_real2_dSFMT()])
+                call gen_exc_double(GAS_specification, SpinOrbIdx_t(nI), ilutI, r, &
+                                    nJ, ilutJ, ex_mat, par, pgen)
+            end associate
+            pgen = pgen * pDoubles
         end if
+        @:ASSERT(0.0_dp <= pgen .and. pgen <= 1.0_dp, pgen)
 
     end subroutine generate_nGAS_excitation
 
@@ -561,7 +561,7 @@ contains
         integer :: i, elec
 
         ! two random numbers \in [0, 1]
-        ASSERT(all(0.0_dp <= r .and. r <= 1.0))
+        @:ASSERT(all(0.0_dp <= r .and. r <= 1.0))
 
         ! Pick any random electron
         elec = int(r(1) * nEl) + 1
@@ -575,6 +575,7 @@ contains
                 GAS_spec, det_I, add_holes=deleted, m_s=calc_spin(deleted))
         end associate
 
+
         if (size(possible_holes) == 0) then
             exc%val(2) = 0
             return
@@ -583,16 +584,16 @@ contains
         ! build the cumulative list of matrix elements <src|H|tgt>
         ! with tgt \in possible_holes
         c_sum = get_cumulative_list(det_I, exc, possible_holes)
-
         call draw_from_cum_list(c_sum, r(2), i, pgen_hole)
+        exc%val(2) = possible_holes%idx(i)
 
         if (i /= 0) then
-            call make_single(det_I%idx, nJ, elec, possible_holes%idx(i), ex_mat, par)
+            call make_single(det_I%idx, nJ, elec, exc%val(2), ex_mat, par)
             ilutJ = excite(ilutI, exc)
         else
             ilutJ = 0
-
         end if
+
         pgen = pgen_particle * pgen_hole
     end subroutine
 
@@ -625,7 +626,7 @@ contains
         logical :: tExchange
 
         ! two random numbers \in [0, 1]
-        ASSERT(all(0.0_dp <= r .and. r <= 1.0))
+        @:ASSERT(all(0.0_dp <= r .and. r <= 1.0))
 
 
         call pick_biased_elecs(det_I%idx, elecs, exc%val(1, :), &
@@ -638,11 +639,15 @@ contains
             GAS_spec, det_I, add_holes=SpinOrbIdx_t(exc%val(1, :)), &
             n_particles=2)
         if (size(possible_holes) == 0) then
+            pgen = pgen_particles
             call zeroResult()
             return
         end if
+        do i = 1, size(possible_holes)
+            @:ASSERT(all(possible_holes%idx(i) /= det_I%idx), i, possible_holes%idx, det_I%idx)
+        end do
         ! Pick randomly one hole with arbitrary spin
-        exc%val(2, 1) = possible_holes%idx(r(1) * size(possible_holes) + 1)
+        exc%val(2, 1) = possible_holes%idx(int(r(1) * size(possible_holes)) + 1)
         pgen_first_pick = 1.0_dp / real(size(possible_holes), dp)
         m_s_1 = Spin_t(calc_spin_raw(exc%val(2, 1)))
 
@@ -656,6 +661,7 @@ contains
 
         ! Get possible holes for the second particle,
         ! while fullfilling GAS- and Spin-constraints.
+        @:ASSERT(exc%val(1, 1) /= exc%val(2, 1), exc%val)
         associate(deleted => SpinOrbIdx_t([exc%val(2, 1)]), &
                   intermediate_det => excite(det_I, SingleExc_t(exc%val(:, 1))))
 
@@ -663,8 +669,13 @@ contains
                                     GAS_spec, intermediate_det, &
                                     add_holes=deleted, n_particles=1, m_s=m_s_2)
         end associate
+        @:ASSERT(all(possible_holes%idx /= exc%val(2, 1)), i, possible_holes%idx, exc%val)
+        do i = 1, size(possible_holes)
+            @:ASSERT(all(possible_holes%idx(i) /= det_I%idx), i, possible_holes%idx, det_I%idx)
+        end do
 
         if (size(possible_holes) == 0) then
+            pgen = pgen_particles * pgen_first_pick
             call zeroResult()
             return
         end if
@@ -677,6 +688,7 @@ contains
         if (i /= 0) then
             exc%val(2, 2) = possible_holes%idx(i)
         else
+            pgen = pgen_particles * pgen_first_pick
             call zeroResult()
             return
         end if
@@ -687,6 +699,7 @@ contains
                    src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
             ! Components default to UNKNOWN, when omitted
             reverted_exc = DoubleExc_t(src1=src1, tgt1=tgt2, src2=src2)
+            @:ASSERT(reverted_exc%val(1, 1) /= reverted_exc%val(2, 1), reverted_exc%val)
             associate(deleted => SpinOrbIdx_t([reverted_exc%val(2, 1)]), &
                       intermediate_det => excite(det_I, SingleExc_t(reverted_exc%val(:, 1))))
 
@@ -696,12 +709,14 @@ contains
             end associate
 
             if (size(possible_holes) == 0) then
+                pgen = pgen_particles * pgen_first_pick * pgen_second_pick(1)
                 call zeroResult()
                 return
             end if
-            ! possible_holes contains tgt2,
+            ! possible_holes contains tgt1,
             ! so we can look up its index with binary search
-            i = binary_search_first_ge(possible_holes%idx, tgt2)
+            i = binary_search_first_ge(possible_holes%idx, tgt1)
+            @:ASSERT(i /= -1, tgt1, possible_holes%idx)
 
             c_sum = get_cumulative_list(det_I, reverted_exc, possible_holes)
             if (i == 1) then
@@ -709,19 +724,25 @@ contains
             else
                 pgen_second_pick(2) = (c_sum(i) - c_sum(i - 1))
             end if
+
+            if (i /= 0) then
+                call make_double(det_I%idx, nJ, elecs(1), elecs(2), tgt1, tgt2, ex_mat, par)
+                ilutJ = excite(ilutI, exc)
+            else
+                ilutJ = 0
+            end if
         end associate
 
         pgen = pgen_particles * pgen_first_pick * sum(pgen_second_pick)
         contains
 
             subroutine zeroResult()
-!                 integer :: src_copy(2)
-!
-!                 pgen = pgen * pgen_pick1
-!                 src_copy(:) = src(:)
-!                 call sort(src_copy)
-!                 ex(1, :) = src_copy
-!                 ex(2, :) = tgt
+                integer :: src_copy(2)
+
+                src_copy(:) = exc%val(1, :)
+                call sort(src_copy)
+                ex_mat(1, :2) = src_copy
+                ex_mat(2, :2) = exc%val(2, :)
                 nJ(1) = 0
                 ilutJ = 0_n_int
             end subroutine zeroResult
@@ -731,11 +752,11 @@ contains
         real(dp), intent(in) :: c_sum(:), r
         integer, intent(out) :: idx
         real(dp), intent(out) :: pgen
+        character(*), parameter :: this_routine = 'draw_from_cum_list'
 
-        ASSERT(c_sum(0) .isclose. 0.0_dp)
-        ASSERT(c_sum(size(c_sum)) .isclose. 0.0_dp &
-          .or. c_sum(size(c_sum)) .isclose. 1.0_dp)
-        ASSERT(all(c_sum(: size(c_sum) - 1) <= c_sum(2 :)))
+        @:ASSERT((c_sum(size(c_sum)) .isclose. 0.0_dp) &
+          .or. (c_sum(size(c_sum)) .isclose. 1.0_dp))
+        @:ASSERT(all(c_sum(: size(c_sum) - 1) <= c_sum(2 :)))
 
         ! there might not be such an excitation
         if (c_sum(size(c_sum)) > 0) then
@@ -768,12 +789,14 @@ contains
         integer :: i
 
         exc = incomplete_exc
-        ASSERT(last_tgt_unknown(exc))
+        @:ASSERT(last_tgt_unknown(exc))
 
         ! build the cumulative list of matrix elements <src|H|tgt>
         previous = 0.0_dp
         do i = 1, size(possible_holes)
             call set_last_tgt(exc, possible_holes%idx(i))
+
+            @:ASSERT(defined(exc), exc%val)
             cSum(i) = abs(sltcnd_excit(det_I, exc, .false.)) + previous
             previous = cSum(i)
         end do
