@@ -8,7 +8,7 @@ program test_gasci
   use IntegralsData, only: UMat, umat_win
   use Integrals_neci, only: IntInit, get_umat_el_normal
   use procedure_pointers, only: get_umat_el
-  use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
+  use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, &
        tReadInt, tSpinConservingGAS
   use System, only: SysInit, SetSysDefaults
   use Parallel_neci, only: MPIInit
@@ -117,7 +117,6 @@ contains
        nI(i) = i
     end do
 
-    tCSF = .false.
     tSpinConservingGAS = .false.
     call EncodeBitDet(nI,ilut)
 
