@@ -20,7 +20,7 @@ module semi_stoch_gen
     use sparse_arrays
     use timing_neci
     use SystemData, only: t_non_hermitian, nBasis
-
+    use shared_rhash, only: initialise_shared_rht
     use guga_excitations, only: actHamiltonian
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: tGUGACore
@@ -180,7 +180,7 @@ contains
         ! Store every core determinant from all processors on all processors, in core_space.
         call store_whole_core_space()
         ! Create the hash table to address the core determinants.
-        call initialise_core_hash_table(core_space, determ_space_size_int, core_ht)
+        call initialise_shared_rht(core_space, determ_space_size_int, core_ht)
 
         if (tWriteCore) call write_core_space()
 
@@ -2018,7 +2018,7 @@ contains
         call MPIAllGatherV(temp_var_space(0:NIfTot, 1:var_sizes(iProcIndex)), &
                            var_space, var_sizes, var_displs)
 
-        call initialise_core_hash_table(var_space, var_space_size_int, var_ht)
+        call initialise_shared_rht(var_space, var_space_size_int, var_ht)
 
         write(6,'("Generating the approximate Hamiltonian...")'); call neci_flush(6)
         if (tHPHF) then

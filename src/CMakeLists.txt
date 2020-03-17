@@ -141,6 +141,7 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
+	shared_ragged_array.F90	
 	shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90

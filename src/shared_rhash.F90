@@ -10,7 +10,12 @@ module shared_rhash
     implicit none
 
     private
-    public :: shared_rhash_t
+    public :: shared_rhash_t, initialise_shared_rht, shared_rht_lookup
+
+    interface initialise_shared_rht
+        module procedure initialise_shared_rht_impl
+        module procedure initialise_shared_rht_expl
+    end interface initialise_shared_rht
 
     !> The shared read-only hash table stores a given number of arbitrary input values
     !! in one contiguous array and addresses this contiguous array using a hashtable
@@ -81,7 +86,7 @@ contains
         call this%indices%shared_alloc(n_elem)
         ! For each possible hash value, there will be on offset
         ! Add one additional offset at the end for easier initialization
-        call this%hval_offsets%shared_alloc(htsize+1)        
+        call this%hval_offsets%shared_alloc(this%hval_range+1)
         ! Only on node-root, the multiplicity of each hash value is counted during setup
         if(iProcIndex_intra == 0) then
             allocate(this%mult(this%hval_range))
@@ -262,5 +267,91 @@ contains
 
         h_range = this%hval_range
     end function val_range
+
+    !------------------------------------------------------------------------------------------!
+    ! Non-member function for global utility
+    !------------------------------------------------------------------------------------------!
+
+    ! Default the determinant size
+    subroutine initialise_shared_rht_impl(ilut_list, space_size, hash_table, ht_size)    
+        use SystemData, only: nel
+        integer(n_int), intent(in) :: ilut_list(0:,:)
+        integer, intent(in) :: space_size
+        type(shared_rhash_t), intent(out) :: hash_table
+        integer, intent(in), optional :: ht_size
+        integer :: ht_size_
+
+        def_default(ht_size_, ht_size, space_size)        
+
+        call initialise_shared_rht_expl(ilut_list, space_size, hash_table, nel, ht_size_)
+    end subroutine initialise_shared_rht_impl
+
+    !------------------------------------------------------------------------------------------!    
+
+    subroutine initialise_shared_rht_expl(ilut_list, space_size, hash_table, det_size, ht_size)
+        use bit_reps, only: decode_bit_det
+        use hash, only: FindWalkerHash
+
+        integer(n_int), intent(in) :: ilut_list(0:,:)
+        integer, intent(in) :: space_size
+        type(shared_rhash_t), intent(out) :: hash_table
+        integer, intent(in) :: det_size
+        ! ht_size cannot be defaulted anymore as this would be ambigious        
+        integer, intent(in) :: ht_size
+
+        integer :: nI(det_size)
+        integer :: i, ierr
+        integer(int64) :: hash_val, pos       
+        
+        call hash_table%alloc(int(space_size,int64), int(ht_size,int64))
+
+        ! Count the number of states with each hash value.
+        do i = 1, space_size
+            call decode_bit_det(nI, ilut_list(:,i))
+            hash_val = FindWalkerHash(nI, ht_size)
+            call hash_table%count_value(hash_val)
+        end do
+
+        call hash_table%setup_offsets()
+        ! Now fill in the indices of the states in the space.
+        do i = 1, space_size
+            call decode_bit_det(nI, ilut_list(:,i))
+            hash_val = FindWalkerHash(nI, ht_size)
+            call hash_table%add_value(hash_val, int(i,int64), pos)
+        end do
+
+    end subroutine initialise_shared_rht_expl
+
+    !------------------------------------------------------------------------------------------!    
+
+    subroutine shared_rht_lookup(core_ht, ilut, nI, tgt_space, i, core_state)
+        use hash, only: FindWalkerHash
+        use FciMCData, only: determ_space_size_int
+        use bit_rep_data, only: NIfTot, NIfDBO
+        type(shared_rhash_t), intent(in) :: core_ht
+        integer(n_int), intent(in) :: ilut(0:NIfTot)
+        integer, intent(in) :: nI(:)
+        integer(int64), intent(in) :: tgt_space(0:,1:)
+
+        integer, intent(out) :: i
+        logical, intent(out) :: core_state
+        integer(int64) :: hash_val, i_tmp
+
+        hash_val = FindWalkerHash(nI, int(core_ht%val_range()))
+        
+        call core_ht%callback_lookup(hash_val, i_tmp, core_state, loc_verify)
+        ! cast down to int32
+        i = int(i_tmp)
+        
+    contains
+
+        function loc_verify(ind) result(match)
+            integer(int64), intent(in) :: ind
+            logical :: match
+
+            match = all(ilut(0:NIfDBO) == tgt_space(0:NIfDBO,ind))
+        end function loc_verify
+
+    end subroutine shared_rht_lookup   
     
 end module shared_rhash

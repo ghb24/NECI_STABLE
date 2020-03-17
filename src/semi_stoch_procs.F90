@@ -54,7 +54,7 @@ module semi_stoch_procs
 
     use sparse_arrays, only: core_ht, SparseCoreHamilTags
 
-    use shared_rhash, only: shared_rhash_t
+    use shared_rhash, only: shared_rhash_t, shared_rht_lookup
 
     use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
 
@@ -434,55 +434,26 @@ contains
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)
-        integer(int64) :: i
+        integer :: i
         logical :: t_core
 
-        call core_space_ht_lookup(ilut, nI, i, t_core)
+        call shared_rht_lookup(core_ht, ilut, nI, core_space, i, t_core)
     end function is_core_state
 
     function core_space_pos(ilut, nI) result (pos)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)
-        integer(int64) :: i
         character(len=*), parameter :: t_r = "core_space_pos"
 
         integer :: pos
         logical :: t_core
 
-        call core_space_ht_lookup(ilut, nI, i, t_core)
-        pos = int(i)
+        call shared_rht_lookup(core_ht, ilut, nI, core_space, pos, t_core)
         
         if (pos == 0) then
             call stop_all(t_r, "State not found in core hash table.")
         end if
     end function core_space_pos
-
-    subroutine core_space_ht_lookup(ilut, nI, i, core_state)
-        use sparse_arrays, only: core_ht
-        use hash, only: FindWalkerHash
-        use FciMCData, only: determ_space_size_int
-        
-        integer(n_int), intent(in) :: ilut(0:NIfTot)
-        integer, intent(in) :: nI(:)
-
-        integer(int64), intent(out) :: i
-        logical, intent(out) :: core_state
-        integer(int64) :: hash_val
-
-        hash_val = FindWalkerHash(nI, determ_space_size_int)
-
-        call core_ht%callback_lookup(hash_val, i, core_state, loc_verify)        
-
-    contains
-
-        function loc_verify(ind) result(match)
-            integer(int64), intent(in) :: ind
-            logical :: match
-
-            match = all(ilut(0:NIfDBO) == core_space(0:NIfDBO,ind))
-        end function loc_verify
-
-    end subroutine core_space_ht_lookup
 
     function check_determ_flag(ilut) result (core_state)
 
@@ -679,39 +650,6 @@ contains
         deallocate(sizes_this_node)
 
     end subroutine store_whole_core_space
-
-    subroutine initialise_core_hash_table(ilut_list, space_size, hash_table)
-
-        use bit_reps, only: decode_bit_det
-        use hash, only: FindWalkerHash
-        use sparse_arrays, only: core_hashtable
-        use SystemData, only: nel
-
-        integer(n_int), intent(in) :: ilut_list(0:,:)
-        integer, intent(in) :: space_size
-        type(shared_rhash_t), intent(out) :: hash_table
-
-        integer :: nI(nel)
-        integer :: i, ierr
-        integer(int64) :: hash_val, pos
-        call hash_table%alloc(int(space_size,int64), int(space_size,int64))
-
-        ! Count the number of states with each hash value.
-        do i = 1, space_size
-            call decode_bit_det(nI, ilut_list(:,i))
-            hash_val = FindWalkerHash(nI, int(space_size,sizeof_int))
-            call hash_table%count_value(hash_val)
-        end do
-
-        call hash_table%setup_offsets()
-        ! Now fill in the indices of the states in the space.
-        do i = 1, space_size
-            call decode_bit_det(nI, ilut_list(:,i))
-            hash_val = FindWalkerHash(nI, int(space_size, sizeof_int))
-            call hash_table%add_value(hash_val, int(i,int64), pos)
-        end do
-
-    end subroutine initialise_core_hash_table
 
     subroutine remove_high_energy_orbs(ilut_list, num_states, target_num_states, tParallel)
 
@@ -1969,7 +1907,7 @@ contains
         use FciMCData, only: core_space, determ_sizes, determ_displs, HamTag
         use FciMCData, only: CoreSpaceTag
         use MemoryManager, only: LogMemDealloc
-        use sparse_arrays, only: core_connections, deallocate_core_hashtable
+        use sparse_arrays, only: core_connections
         use sparse_arrays, only: deallocate_sparse_matrix_int
 
         character(len=*), parameter :: t_r = "end_semistoch"
