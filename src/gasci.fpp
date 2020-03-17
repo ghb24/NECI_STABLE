@@ -21,7 +21,7 @@ module gasci
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
         last_tgt_unknown, set_last_tgt, excite, defined
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, size, calc_spin, &
-        calc_spin_raw
+        calc_spin_raw, spin_values
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     implicit none
 
@@ -512,8 +512,7 @@ contains
 #endif
         ! single or double excitation?
         @:ASSERT(0.0_dp <= pDoubles .and. pDoubles <= 1.0_dp, pDoubles)
-!         if (genrand_real2_dSFMT() >= pDoubles) then
-        if (.true.) then
+        if (genrand_real2_dSFMT() >= pDoubles) then
             ic = 1
             associate(r => [genrand_real2_dSFMT(), genrand_real2_dSFMT()])
                 call gen_exc_single(GAS_specification, SpinOrbIdx_t(nI), ilutI, r, &
@@ -522,6 +521,7 @@ contains
             pgen = pgen * (1.0_dp - pDoubles)
         else
             ic = 2
+            write(*, *) 'call gen_exc_double'
             associate(r => [genrand_real2_dSFMT(), genrand_real2_dSFMT()])
                 call gen_exc_double(GAS_specification, SpinOrbIdx_t(nI), ilutI, r, &
                                     nJ, ilutJ, ex_mat, par, pgen)
@@ -576,6 +576,7 @@ contains
         call draw_from_cum_list(c_sum, r(2), i, pgen_hole)
         exc%val(2) = possible_holes%idx(i)
 
+
         if (i /= 0) then
             call make_single(det_I%idx, nJ, elec, exc%val(2), ex_mat, par)
             ilutJ = excite(ilutI, exc)
@@ -584,6 +585,7 @@ contains
         end if
 
         pgen = pgen_particle * pgen_hole
+        write(*, *) 'succesful single', exc%val
     end subroutine
 
     subroutine gen_exc_double(GAS_spec, det_I, ilutI, r, nJ, ilutJ, ex_mat, par, pgen)
@@ -630,7 +632,9 @@ contains
             GAS_spec, det_I, add_holes=deleted, n_total=2)
         @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
 
+        write(*, *) 'PEW', 1
         if (size(possible_holes) == 0) then
+            write(*, *) 'ASDF', 1
             pgen = pgen_particles
             call zeroResult()
             return
@@ -640,23 +644,27 @@ contains
         exc%val(2, 1) = possible_holes%idx(int(r(1) * real(size(possible_holes), kind=dp)) + 1)
         pgen_first_pick = 1.0_dp / real(size(possible_holes), dp)
         m_s_1 = Spin_t(calc_spin_raw(exc%val(2, 1)))
+        @:ASSERT(any(m_s_1%m_s == [spin_values%alpha, spin_values%beta]))
 
 
         ! Pick second hole.
         ! The total spin projection of the created particles has to add up
         ! to the total spin projection of the deleted particles.
         m_s_2 = Spin_t(deleted_spin%m_s - m_s_1%m_s)
+        @:ASSERT(any(m_s_2%m_s == [spin_values%alpha, spin_values%beta]), m_s_2%m_s)
 
         ! Get possible holes for the second particle,
         ! while fullfilling GAS- and Spin-constraints.
         possible_holes = get_possible_holes(&
                 GAS_spec, det_I, add_holes=deleted, &
                 add_particles=SpinOrbIdx_t([exc%val(2, 1)]), &
-                n_total=2, m_s=m_s_2)
+                n_total=1, m_s=m_s_2)
         @:ASSERT(disjoint(possible_holes%idx, [exc%val(2, 1)]))
-        @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
+        @:ASSERT(disjoint(possible_holes%idx, det_I%idx), GAS_spec%n_orbs, GAS_spec%n_min, GAS_spec%n_max, det_I%idx, deleted%idx, exc%val(2, 1), m_s_2%m_s)
 
+        write(*, *) 'PEW', 2
         if (size(possible_holes) == 0) then
+            write(*, *) 'ASDF', 2
             pgen = pgen_particles * pgen_first_pick
             call zeroResult()
             return
@@ -669,6 +677,7 @@ contains
 
         if (i /= 0) then
             exc%val(2, 2) = possible_holes%idx(i)
+            write(*, *) 'found tgt2', exc%val
         else
             pgen = pgen_particles * pgen_first_pick
             call zeroResult()
@@ -715,6 +724,7 @@ contains
         end associate
 
         pgen = pgen_particles * pgen_first_pick * sum(pgen_second_pick)
+        write(*, *) 'succesfull double', exc%val
         contains
 
             subroutine zeroResult()
