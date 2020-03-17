@@ -6,7 +6,7 @@ module shared_rhash
     ! This makes hashed integrals usable in shared memory and increases their efficiency
     use constants
     use shared_array
-    use ParallelHelper, only: iProcIndex_intra
+    use ParallelHelper, only: iProcIndex_intra, mpi_comm_intra
     implicit none
 
     private
@@ -320,6 +320,8 @@ contains
             call hash_table%add_value(hash_val, int(i,int64), pos)
         end do
 
+        ! Synchronize the node afterwards to keep tasks from using the un-initialized ht
+        call MPI_Barrier(mpi_comm_intra, ierr)
     end subroutine initialise_shared_rht_expl
 
     !------------------------------------------------------------------------------------------!    

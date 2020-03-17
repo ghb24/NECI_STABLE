@@ -11,7 +11,7 @@ module shared_ragged_array
     end type auxiliary_t
 
     type :: shared_ragged_array_t
-        private
+!        private
 
         type(shared_array_int32_t) :: data_array
         type(auxiliary_t), allocatable :: ptr(:)
@@ -42,7 +42,8 @@ contains
         allocate(this%ptr(n_entries))
 
         ! Keep a local copy of sizes (fortran 2003 automatic allocation)
-        this%store_sizes = sizes
+        allocate(this%store_sizes(n_entries))
+        this%store_sizes(1:n_entries) = sizes(1:n_entries)
 
         ! Set the internal pointers
         call this%reassign_pointers()

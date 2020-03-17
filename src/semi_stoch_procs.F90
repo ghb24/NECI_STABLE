@@ -620,14 +620,15 @@ contains
             node_offsets(i) = node_offsets(i-1) + sizes_per_node(i-1)
         end do
 
-        global_offset = node_offsets(iProcIndex_inter) + proc_offset        
+        global_offset = node_offsets(iProcIndex_inter) + proc_offset
         do i = 0, node_size-1
             ! One by one, each proc on this node writes to the shared resource
             if(iProcIndex_intra == i) then
-                core_space(0:NIfTot,(global_offset+1):&
+                core_space(0:NIfD,(global_offset+1):&
                     (global_offset + determ_sizes(iProcIndex))) = &
-                    SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex))
+                    SpawnedParts(0:NIfD, 1:determ_sizes(iProcIndex))
             end if
+            call MPI_Barrier(mpi_comm_intra, ierr)
         end do
 
         ! Multiply with message width (1+NIfTot)
