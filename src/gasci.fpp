@@ -20,8 +20,9 @@ module gasci
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
         last_tgt_unknown, set_last_tgt, excite, defined
-    use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, size, calc_spin, &
-        calc_spin_raw, spin_values
+    use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, calc_spin, &
+        calc_spin_raw, alpha, beta, sum, operator(==), operator(/=), &
+        operator(+), operator(-)
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     implicit none
 
@@ -440,7 +441,7 @@ contains
         type(SpinOrbIdx_t), intent(in), optional :: add_holes
         type(SpinOrbIdx_t), intent(in), optional :: add_particles
         integer, intent(in), optional :: n_total
-        type(Spin_t), intent(in), optional :: m_s
+        type(SpinProj_t), intent(in), optional :: m_s
 
         type(SpinOrbIdx_t) :: possible_holes
 
@@ -561,7 +562,7 @@ contains
         ! while fullfilling GAS-constraints.
         associate(deleted => SpinOrbIdx_t([exc%val(1)]))
             possible_holes = get_possible_holes(&
-                GAS_spec, det_I, add_holes=deleted, m_s=calc_spin(deleted))
+                GAS_spec, det_I, add_holes=deleted, m_s=calc_spin_raw(exc%val(1)))
         end associate
 
 
@@ -602,7 +603,7 @@ contains
         type(DoubleExc_t) :: exc, reverted_exc
         type(SpinOrbIdx_t) :: possible_holes
         ! Spin of second electron
-        type(Spin_t) :: m_s_1, m_s_2
+        type(SpinProj_t) :: m_s_1, m_s_2
         real(dp) :: pgen_particles, &
             ! These are arrays, because the pgen might be different if we
             ! pick AB or BA.
@@ -624,8 +625,7 @@ contains
                                sym_product, ispn, sum_ml, pgen_particles)
         @:ASSERT(exc%val(1, 1) /= exc%val(2, 1), exc%val)
 
-        associate(deleted => SpinOrbIdx_t(exc%val(1, :)), &
-                  deleted_spin => Spin_t(sum(calc_spin_raw(exc%val(1, :)))))
+        associate(deleted => SpinOrbIdx_t(exc%val(1, :)))
         ! Get possible holes for the first particle, while fullfilling GAS-constraints.
         ! and knowing that a second particle will be created afterwards!
         possible_holes = get_possible_holes(&
@@ -643,15 +643,15 @@ contains
         ! Pick randomly one hole with arbitrary spin
         exc%val(2, 1) = possible_holes%idx(int(r(1) * real(size(possible_holes), kind=dp)) + 1)
         pgen_first_pick = 1.0_dp / real(size(possible_holes), dp)
-        m_s_1 = Spin_t(calc_spin_raw(exc%val(2, 1)))
-        @:ASSERT(any(m_s_1%m_s == [spin_values%alpha, spin_values%beta]))
+        m_s_1 = calc_spin_raw(exc%val(2, 1))
+        @:ASSERT(any(m_s_1 == [alpha, beta]))
 
 
         ! Pick second hole.
         ! The total spin projection of the created particles has to add up
         ! to the total spin projection of the deleted particles.
-        m_s_2 = Spin_t(deleted_spin%m_s - m_s_1%m_s)
-        @:ASSERT(any(m_s_2%m_s == [spin_values%alpha, spin_values%beta]), m_s_2%m_s)
+        m_s_2 = sum(calc_spin(deleted)) - m_s_1
+        @:ASSERT(any(m_s_2 == [alpha, beta]), m_s_2%val)
 
         ! Get possible holes for the second particle,
         ! while fullfilling GAS- and Spin-constraints.
@@ -660,7 +660,7 @@ contains
                 add_particles=SpinOrbIdx_t([exc%val(2, 1)]), &
                 n_total=1, m_s=m_s_2)
         @:ASSERT(disjoint(possible_holes%idx, [exc%val(2, 1)]))
-        @:ASSERT(disjoint(possible_holes%idx, det_I%idx), GAS_spec%n_orbs, GAS_spec%n_min, GAS_spec%n_max, det_I%idx, deleted%idx, exc%val(2, 1), m_s_2%m_s)
+        @:ASSERT(disjoint(possible_holes%idx, det_I%idx), GAS_spec%n_orbs, GAS_spec%n_min, GAS_spec%n_max, det_I%idx, deleted%idx, exc%val(2, 1), m_s_2%val)
 
         write(*, *) 'PEW', 2
         if (size(possible_holes) == 0) then

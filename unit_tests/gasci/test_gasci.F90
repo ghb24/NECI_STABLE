@@ -1,7 +1,7 @@
 module test_gasci_mod
     use fruit
-    use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, &
-        size, operator(==), spin => spin_values
+    use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, &
+        size, operator(==), alpha, beta
     use excitation_types, only: SingleExc_t, excite
     use util_mod, only: cumsum
     use gasci, only: GASSpec_t, get_iGAS, &
@@ -262,14 +262,14 @@ contains
         expected = SpinOrbIdx_t([7])
         calculated = get_possible_holes( &
               GAS_spec, reference, add_holes=SpinOrbIdx_t([5]), &
-              m_s = Spin_t(spin%beta))
+              m_s = beta)
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
 
         expected = SpinOrbIdx_t([8])
         calculated = get_possible_holes( &
               GAS_spec, reference, add_holes=SpinOrbIdx_t([5]), &
-              m_s = Spin_t(spin%alpha))
+              m_s = alpha)
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
 
@@ -319,6 +319,7 @@ contains
               GAS_spec, reference, add_holes=SpinOrbIdx_t([5]))
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
+
     end subroutine
 
     subroutine test_split_per_GAS

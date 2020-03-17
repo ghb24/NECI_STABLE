@@ -5,7 +5,9 @@ module orb_idx_mod
     implicit none
     private
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
-        Spin_t, calc_spin, calc_spin_raw, spin_values, operator(==)
+        SpinProj_t, calc_spin, calc_spin_raw, alpha, beta, &
+        operator(==), operator(/=), operator(+), operator(-), &
+        sum
 
     type, abstract :: OrbIdx_t
         integer, allocatable :: idx(:)
@@ -23,22 +25,14 @@ module orb_idx_mod
     type, extends(OrbIdx_t) :: SpatOrbIdx_t
     end type
 
-    type :: SpinValues_t
-        integer :: alpha = 1, beta = -1
+    type :: SpinProj_t
+        integer :: val
     end type
 
-    type(SpinValues_t), parameter :: spin_values = SpinValues_t()
-
-    type :: Spin_t
-        integer, allocatable :: m_s(:)
-    end type
-
-    interface Spin_t
-        module procedure construction_from_number_Spin_t
-    end interface
+    type(SpinProj_t), parameter :: beta = SpinProj_t(-1), alpha = SpinProj_t(1)
 
     interface size
-#:for type in OrbIdxTypes + ['Spin_t']
+#:for type in OrbIdxTypes
         module procedure size_${type}$
 #:endfor
     end interface
@@ -47,22 +41,40 @@ module orb_idx_mod
 #:for type in OrbIdxTypes
         module procedure eq_${type}$
 #:endfor
+        module procedure eq_SpinProj_t_SpinProj_t
+    end interface
+
+    interface operator(/=)
+#:for type in OrbIdxTypes
+        module procedure neq_${type}$
+#:endfor
+        module procedure neq_SpinProj_t_SpinProj_t
+    end interface
+
+    interface operator (+)
+        module procedure add_SpinProj_t_SpinProj_t
+    end interface
+
+    interface operator (-)
+        module procedure sub_SpinProj_t_SpinProj_t
+    end interface
+
+    interface sum
+        module procedure sum_SpinProj_t
     end interface
 
     contains
 
-    pure function construction_from_array_SpinOrbIdx_t(idx, spin) result(res)
+    pure function construction_from_array_SpinOrbIdx_t(idx, m_s) result(res)
         integer, intent(in) :: idx(:)
-        type(Spin_t), intent(in), optional :: spin
+        type(SpinProj_t), intent(in), optional :: m_s
 
         type(SpinOrbIdx_t) :: res
 
-        if (present(spin)) then
-            if (size(spin) == 1) then
-                res%idx = pack(idx, calc_spin_raw(idx) == spin%m_s(1))
-            else
-                res%idx = pack(idx, calc_spin_raw(idx) == spin%m_s(:))
-            end if
+        if (present(m_s)) then
+            associate(spins => calc_spin_raw(idx))
+                res%idx = pack(idx, spins%val == m_s%val)
+            end associate
         else
             res%idx = idx
         end if
@@ -84,29 +96,34 @@ module orb_idx_mod
     end function
 #:endfor
 
-    pure function SpinOrbIdx_t_from_SpatOrbIdx_t(spat_orbs, spins) result(res)
+#:for orb_idx_type in OrbIdxTypes
+    pure function neq_${orb_idx_type}$(lhs, rhs) result(res)
+        type(${orb_idx_type}$), intent(in) :: lhs, rhs
+        logical :: res(size(lhs))
+        res = lhs%idx /= rhs%idx
+    end function
+#:endfor
+
+    pure function SpinOrbIdx_t_from_SpatOrbIdx_t(spat_orbs, m_s) result(res)
         type(SpatOrbIdx_t), intent(in) :: spat_orbs
-        type(Spin_t), intent(in), optional :: spins
+        type(SpinProj_t), intent(in), optional :: m_s
         type(SpinOrbIdx_t) :: res
 
         character(*), parameter :: this_routine = 'SpinOrbIdx_t_from_SpatOrbIdx_t'
 
-        if (present(spins)) then
-            if (size(spins) == 1) then
-                res%idx = f(spat_orbs%idx(:), spins%m_s(1))
-            else
-                res%idx = f(spat_orbs%idx(:), spins%m_s(:))
-            end if
+        if (present(m_s)) then
+            res%idx = f(spat_orbs%idx(:), m_s)
         else
             allocate(res%idx(2 * size(spat_orbs)))
-            res%idx(1::2) = f(spat_orbs%idx(:), spin_values%beta)
-            res%idx(2::2) = f(spat_orbs%idx(:), spin_values%alpha)
+            res%idx(1::2) = f(spat_orbs%idx(:), beta)
+            res%idx(2::2) = f(spat_orbs%idx(:), alpha)
         end if
         contains
-            elemental function f(spat_orb_idx, spin_idx) result(spin_orb_idx)
-                integer, intent(in) :: spat_orb_idx, spin_idx
+            elemental function f(spat_orb_idx, m_s) result(spin_orb_idx)
+                integer, intent(in) :: spat_orb_idx
+                type(SpinProj_t), intent(in) :: m_s
                 integer :: spin_orb_idx
-                if (spin_idx == spin_values%alpha) then
+                if (m_s == alpha) then
                     spin_orb_idx = 2 * spat_orb_idx
                 else
                     spin_orb_idx = 2 * spat_orb_idx - 1
@@ -114,27 +131,50 @@ module orb_idx_mod
             end function
     end function
 
-    pure function construction_from_number_Spin_t(spin) result(res)
-        integer, intent(in) :: spin
-        type(Spin_t) :: res
-        res%m_s = [spin]
-    end function
-
-    pure function size_Spin_t(spins) result(res)
-        type(Spin_t), intent(in) :: spins
-        integer :: res
-        res = size(spins%m_s)
-    end function
-
     pure function calc_spin(orbs) result(res)
         type(SpinOrbIdx_t), intent(in) :: orbs
-        type(Spin_t) :: res
-        integer :: i
-        res%m_s = calc_spin_raw(orbs%idx)
+        type(SpinProj_t) :: res(size(orbs))
+        res = calc_spin_raw(orbs%idx)
     end function
 
-    integer elemental function calc_spin_raw(orb_idx)
+    elemental function add_SpinProj_t_SpinProj_t(lhs, rhs) result(res)
+        type(SpinProj_t), intent(in) :: lhs, rhs
+        type(SpinProj_t) :: res
+        res%val = lhs%val + rhs%val
+    end function
+
+    pure function sum_SpinProj_t(V) result(res)
+        type(SpinProj_t), intent(in) :: V(:)
+        type(SpinProj_t) :: res
+        type(SpinProj_t) :: tmp
+        integer :: i
+        tmp = SpinProj_t(0)
+        do i = 1, size(V)
+            res = tmp + V(i)
+        end do
+    end function
+
+    elemental function sub_SpinProj_t_SpinProj_t(lhs, rhs) result(res)
+        type(SpinProj_t), intent(in) :: lhs, rhs
+        type(SpinProj_t) :: res
+        res%val = lhs%val - rhs%val
+    end function
+
+    elemental function eq_SpinProj_t_SpinProj_t(lhs, rhs) result(res)
+        type(SpinProj_t), intent(in) :: lhs, rhs
+        logical :: res
+        res = lhs%val == rhs%val
+    end function
+
+    elemental function neq_SpinProj_t_SpinProj_t(lhs, rhs) result(res)
+        type(SpinProj_t), intent(in) :: lhs, rhs
+        logical :: res
+        res = lhs%val == rhs%val
+    end function
+
+    elemental function calc_spin_raw(orb_idx) result(res)
         integer, intent(in) :: orb_idx
-        calc_spin_raw = merge(spin_values%alpha, spin_values%beta, mod(orb_idx, 2) == 0)
+        type(SpinProj_t) :: res
+        res = merge(alpha, beta, mod(orb_idx, 2) == 0)
     end function
 end module

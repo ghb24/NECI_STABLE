@@ -1,7 +1,7 @@
 module test_orb_idx_mod
     use fruit
-    use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, Spin_t, size, &
-        calc_spin, spin => spin_values, operator(==)
+    use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, &
+        calc_spin, alpha, beta, operator(==)
     use excitation_types, only: NoExc_t, SingleExc_t, DoubleExc_t, excite
     implicit none
     private
@@ -12,12 +12,12 @@ contains
 
     subroutine test_calc_spin()
         type(SpinOrbIdx_t) :: orbs
-        type(Spin_t) :: expected, calculated
+        type(SpinProj_t), allocatable :: expected(:), calculated(:)
 
         orbs = SpinOrbIdx_t([1, 3, 4, 5, 7])
-        expected = Spin_t([spin%beta, spin%beta, spin%alpha, spin%beta, spin%beta])
+        expected = [beta, beta, alpha, beta, beta]
         calculated = calc_spin(orbs)
-        call assert_equals(expected%m_s, calculated%m_s, size(orbs))
+        call assert_equals(expected%val, calculated%val, size(orbs))
 
     end subroutine
 
@@ -31,20 +31,15 @@ contains
         call assert_true(all(expected == calculated))
 
         expected = SpinOrbIdx_t([1, 5, 7])
-        calculated = SpinOrbIdx_t(orbs, spins=Spin_t(spin%beta))
+        calculated = SpinOrbIdx_t(orbs, m_s=beta)
         call assert_true(all(expected == calculated))
 
         expected = SpinOrbIdx_t([2, 6, 8])
-        calculated = SpinOrbIdx_t(orbs, spins=Spin_t(spin%alpha))
-        call assert_true(all(expected == calculated))
-
-        expected = SpinOrbIdx_t([1, 6, 7])
-        calculated = SpinOrbIdx_t(&
-                orbs, spins=Spin_t([spin%beta, spin%alpha, spin%beta]))
+        calculated = SpinOrbIdx_t(orbs, m_s=alpha)
         call assert_true(all(expected == calculated))
 
         expected = SpinOrbIdx_t([2, 4, 6])
-        calculated = SpinOrbIdx_t([1, 2, 3, 4, 5, 6], Spin_t(spin%alpha))
+        calculated = SpinOrbIdx_t([1, 2, 3, 4, 5, 6], m_s=alpha)
         call assert_true(all(expected == calculated))
     end subroutine
 
