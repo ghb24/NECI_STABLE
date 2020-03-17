@@ -157,13 +157,13 @@ contains
             0, &
             size(get_possible_spaces(GAS_spec, splitted_det_I, &
                                 add_holes=SpinOrbIdx_t([1, 5]), &
-                                n_particles=1)))
+                                n_total=1)))
 
         call assert_equals( &
             [1, 2], &
             get_possible_spaces(GAS_spec, splitted_det_I, &
                                 add_holes=SpinOrbIdx_t([1, 5]), &
-                                n_particles=2), &
+                                n_total=2), &
             2)
 
 
@@ -171,14 +171,14 @@ contains
             [1, 1], &
             get_possible_spaces(GAS_spec, splitted_det_I, &
                                 add_holes=SpinOrbIdx_t([1, 2]), &
-                                n_particles=2), &
+                                n_total=2), &
             2)
 
         call assert_equals( &
             [2, 2], &
             get_possible_spaces(GAS_spec, splitted_det_I, &
                                 add_holes=SpinOrbIdx_t([5, 6]), &
-                                n_particles=2), &
+                                n_total=2), &
             2)
     end subroutine
 
@@ -206,13 +206,13 @@ contains
         call assert_equals(0, &
             size(get_possible_spaces(GAS_spec, splitted_det_I, &
                                 add_holes=SpatOrbIdx_t([1, 3]), &
-                                n_particles=1)))
+                                n_total=1)))
 
         call assert_equals( &
             [1, 2], &
             get_possible_spaces(GAS_spec, splitted_det_I, &
                                 add_holes=SpatOrbIdx_t([1, 3]), &
-                                n_particles=2), &
+                                n_total=2), &
             2)
 
 
@@ -220,14 +220,14 @@ contains
             [1, 1], &
             get_possible_spaces(GAS_spec, splitted_det_I, &
                                 add_holes=SpatOrbIdx_t([1, 1]), &
-                                n_particles=2), &
+                                n_total=2), &
             2)
 
         call assert_equals( &
             [2, 2], &
             get_possible_spaces(GAS_spec, splitted_det_I, &
                                 add_holes=SpatOrbIdx_t([3, 3]), &
-                                n_particles=2), &
+                                n_total=2), &
             2)
     end subroutine
 
@@ -293,7 +293,7 @@ contains
         expected = SpinOrbIdx_t([2, 3, 4, 8, 11, 12])
         calculated = get_possible_holes( &
               GAS_spec, reference, add_holes=SpinOrbIdx_t([1, 5]), &
-              n_particles=2)
+              n_total=2)
         call assert_true(size(expected) == size(calculated))
         call assert_true(all(expected == calculated))
 

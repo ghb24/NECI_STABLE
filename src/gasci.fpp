@@ -10,7 +10,8 @@ module gasci
     use constants
     use util_mod, only: get_free_unit, binary_search_first_ge, operator(.div.), &
         near_zero, cumsum, operator(.isclose.)
-    use sort_mod, only : sort
+    use sort_mod, only: sort
+    use sets_mod, only: is_sorted, complement, union, disjoint
     use bit_rep_data, only: NIfTot, NIfD
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData, only: pDoubles, excit_gen_store_type
@@ -360,17 +361,17 @@ contains
 
 
 #:for orb_idx_type in OrbIdxTypes
-    function get_possible_spaces_${orb_idx_type}$(GAS_spec, splitted_det_I, add_holes, n_particles) result(spaces)
+    function get_possible_spaces_${orb_idx_type}$(GAS_spec, splitted_det_I, add_holes, add_particles, n_total) result(spaces)
         type(GASSpec_t), intent(in) :: GAS_spec
         type(${orb_idx_type}$), intent(in) :: splitted_det_I(:)
-        type(${orb_idx_type}$), intent(in), optional :: add_holes
-        integer, intent(in), optional :: n_particles
+        type(${orb_idx_type}$), intent(in), optional :: add_holes, add_particles
+        integer, intent(in), optional :: n_total
         character(*), parameter :: this_routine = 'get_possible_spaces_${orb_idx_type}$'
         integer, allocatable :: spaces(:)
 
         !> Lower and upper bound for spaces where a particle can be created.
         !> If no particle can be created, then spaces == 0 .
-        integer :: n_particles_, i, iGAS, lower_bound, upper_bound
+        integer :: n_total_, i, iGAS, lower_bound, upper_bound
 
         integer :: &
         !> Cumulated number of particles per iGAS
@@ -380,12 +381,21 @@ contains
         !> Cumulated vacant orbitals per iGAS
             vacant(get_nGAS(GAS_spec))
 
-        @:def_default(n_particles_, n_particles, 1)
+        @:def_default(n_total_, n_total, 1)
 
         associate(A => particles_per_GAS(splitted_det_I))
-            if (present(add_holes)) then
+            if (present(add_holes) .and. present(add_particles)) then
+                associate(B => particles_per_GAS(split_per_GAS(GAS_spec, add_holes)), &
+                          C => particles_per_GAS(split_per_GAS(GAS_spec, add_particles)))
+                    cum_n_particle = cumsum(A - B + C)
+                end associate
+            else if (present(add_holes)) then
                 associate(B => particles_per_GAS(split_per_GAS(GAS_spec, add_holes)))
                     cum_n_particle = cumsum(A - B)
+                end associate
+            else if (present(add_particles)) then
+                associate(C => particles_per_GAS(split_per_GAS(GAS_spec, add_particles)))
+                    cum_n_particle = cumsum(A + C)
                 end associate
             else
                 cum_n_particle = cumsum(A)
@@ -394,14 +404,14 @@ contains
 
         deficit = GAS_spec%n_min(:) - cum_n_particle(:)
         vacant = GAS_spec%n_max(:) - cum_n_particle(:)
-        if (any(n_particles_ < deficit) .or. all(vacant < n_particles_)) then
+        if (any(n_total_ < deficit) .or. all(vacant < n_total_)) then
             spaces = [integer::]
             return
         end if
 
         ! Find the first index, where a particle has to be created.
         do iGAS = 1, get_nGAS(GAS_spec)
-            if (deficit(iGAS) == n_particles_) exit
+            if (deficit(iGAS) == n_total_) exit
         end do
         upper_bound = iGAS
 
@@ -424,27 +434,30 @@ contains
 #:endfor
 
 
-    function get_possible_holes(GAS_spec, det_I, add_holes, n_particles, m_s) result(holes)
+    function get_possible_holes(GAS_spec, det_I, add_holes, add_particles, n_total, m_s) result(possible_holes)
         type(GASSpec_t), intent(in) :: GAS_spec
         type(SpinOrbIdx_t), intent(in) :: det_I
-        ! Note, that non-present optional arguments can be passed
-        ! into optional arguments without checking!
         type(SpinOrbIdx_t), intent(in), optional :: add_holes
-        integer, intent(in), optional :: n_particles
+        type(SpinOrbIdx_t), intent(in), optional :: add_particles
+        integer, intent(in), optional :: n_total
         type(Spin_t), intent(in), optional :: m_s
 
-        type(SpinOrbIdx_t) :: holes
-        type(SpinOrbIdx_t), allocatable :: splitted_det_I(:)
+        type(SpinOrbIdx_t) :: possible_holes
 
+        type(SpinOrbIdx_t), allocatable :: splitted_det_I(:)
         integer, allocatable :: spaces(:)
 
         allocate(splitted_det_I(get_nGAS(GAS_spec)))
         splitted_det_I = split_per_GAS(GAS_spec, det_I)
+
+        ! Note, that non-present optional arguments can be passed
+        ! into optional arguments without checking!
         spaces = get_possible_spaces(&
-             GAS_spec, splitted_det_I, add_holes=add_holes, n_particles=n_particles)
+             GAS_spec, splitted_det_I, add_holes=add_holes, &
+             add_particles=add_particles, n_total=n_total)
 
         if (size(spaces) == 0) then
-            holes%idx = [integer::]
+            possible_holes%idx = [integer::]
             return
         end if
 
@@ -461,38 +474,13 @@ contains
 
             occupied = SpinOrbIdx_t([(splitted_det_I(i)%idx, i = spaces(1), spaces(2))], m_s)
             possible_values = SpinOrbIdx_t(SpatOrbIdx_t([(i, i = lower_bound, upper_bound)]), m_s)
-            holes%idx = if_not_in(possible_values%idx, occupied%idx)
+
+            if (present(add_particles)) then
+                possible_holes%idx = complement(possible_values%idx, union(occupied%idx, add_particles%idx))
+            else
+                possible_holes%idx = complement(possible_values%idx, occupied%idx)
+            end if
         end block
-
-        contains
-            !> Return all values of A that are not in B
-            !> Assume:
-            !>      1. All values of B appear in A.
-            !>      2. A and B are sorted.
-            pure function if_not_in(A, B) result(D)
-                integer, intent(in) :: A(:), B(:)
-                integer, allocatable :: D(:)
-
-                integer :: i, j, l
-
-                allocate(D(size(A) - size(B)))
-
-                i = 1; j = 1; l = 1
-                do while (l <= size(D))
-                    if (j > size(B)) then
-                        D(l) = A(i)
-                        i = i + 1
-                        l = l + 1
-                    else if (A(i) /= B(j)) then
-                        D(l) = A(i)
-                        i = i + 1
-                        l = l + 1
-                    else if (A(i) == B(j)) then
-                        i = i + 1
-                        j = j + 1
-                    end if
-                end do
-            end function
     end function
 
 
@@ -524,7 +512,8 @@ contains
 #endif
         ! single or double excitation?
         @:ASSERT(0.0_dp <= pDoubles .and. pDoubles <= 1.0_dp, pDoubles)
-        if (genrand_real2_dSFMT() >= pDoubles) then
+!         if (genrand_real2_dSFMT() >= pDoubles) then
+        if (.true.) then
             ic = 1
             associate(r => [genrand_real2_dSFMT(), genrand_real2_dSFMT()])
                 call gen_exc_single(GAS_specification, SpinOrbIdx_t(nI), ilutI, r, &
@@ -631,23 +620,24 @@ contains
 
         call pick_biased_elecs(det_I%idx, elecs, exc%val(1, :), &
                                sym_product, ispn, sum_ml, pgen_particles)
+        @:ASSERT(exc%val(1, 1) /= exc%val(2, 1), exc%val)
 
-
+        associate(deleted => SpinOrbIdx_t(exc%val(1, :)), &
+                  deleted_spin => Spin_t(sum(calc_spin_raw(exc%val(1, :)))))
         ! Get possible holes for the first particle, while fullfilling GAS-constraints.
         ! and knowing that a second particle will be created afterwards!
         possible_holes = get_possible_holes(&
-            GAS_spec, det_I, add_holes=SpinOrbIdx_t(exc%val(1, :)), &
-            n_particles=2)
+            GAS_spec, det_I, add_holes=deleted, n_total=2)
+        @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
+
         if (size(possible_holes) == 0) then
             pgen = pgen_particles
             call zeroResult()
             return
         end if
-        do i = 1, size(possible_holes)
-            @:ASSERT(all(possible_holes%idx(i) /= det_I%idx), i, possible_holes%idx, det_I%idx)
-        end do
+
         ! Pick randomly one hole with arbitrary spin
-        exc%val(2, 1) = possible_holes%idx(int(r(1) * size(possible_holes)) + 1)
+        exc%val(2, 1) = possible_holes%idx(int(r(1) * real(size(possible_holes), kind=dp)) + 1)
         pgen_first_pick = 1.0_dp / real(size(possible_holes), dp)
         m_s_1 = Spin_t(calc_spin_raw(exc%val(2, 1)))
 
@@ -655,24 +645,16 @@ contains
         ! Pick second hole.
         ! The total spin projection of the created particles has to add up
         ! to the total spin projection of the deleted particles.
-        associate(total_spin => Spin_t(sum(calc_spin_raw(exc%val(1, :)))))
-            m_s_2 = Spin_t(total_spin%m_s - m_s_1%m_s)
-        end associate
+        m_s_2 = Spin_t(deleted_spin%m_s - m_s_1%m_s)
 
         ! Get possible holes for the second particle,
         ! while fullfilling GAS- and Spin-constraints.
-        @:ASSERT(exc%val(1, 1) /= exc%val(2, 1), exc%val)
-        associate(deleted => SpinOrbIdx_t([exc%val(2, 1)]), &
-                  intermediate_det => excite(det_I, SingleExc_t(exc%val(:, 1))))
-
-            possible_holes = get_possible_holes( &
-                                    GAS_spec, intermediate_det, &
-                                    add_holes=deleted, n_particles=1, m_s=m_s_2)
-        end associate
-        @:ASSERT(all(possible_holes%idx /= exc%val(2, 1)), i, possible_holes%idx, exc%val)
-        do i = 1, size(possible_holes)
-            @:ASSERT(all(possible_holes%idx(i) /= det_I%idx), i, possible_holes%idx, det_I%idx)
-        end do
+        possible_holes = get_possible_holes(&
+                GAS_spec, det_I, add_holes=deleted, &
+                add_particles=SpinOrbIdx_t([exc%val(2, 1)]), &
+                n_total=2, m_s=m_s_2)
+        @:ASSERT(disjoint(possible_holes%idx, [exc%val(2, 1)]))
+        @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
 
         if (size(possible_holes) == 0) then
             pgen = pgen_particles * pgen_first_pick
@@ -697,27 +679,25 @@ contains
         ! determine the probability of picking tgt1 with spin m_s_1 upon picking tgt2 first.
         associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
                    src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
-            ! Components default to UNKNOWN, when omitted
-            reverted_exc = DoubleExc_t(src1=src1, tgt1=tgt2, src2=src2)
-            @:ASSERT(reverted_exc%val(1, 1) /= reverted_exc%val(2, 1), reverted_exc%val)
-            associate(deleted => SpinOrbIdx_t([reverted_exc%val(2, 1)]), &
-                      intermediate_det => excite(det_I, SingleExc_t(reverted_exc%val(:, 1))))
-
-                possible_holes = get_possible_holes( &
-                                        GAS_spec, intermediate_det, &
-                                        add_holes=deleted, n_particles=1, m_s=m_s_1)
-            end associate
+            @:ASSERT(src1 /= tgt2 .and. src2 /= tgt2, src1, tgt2, src2)
+            possible_holes = get_possible_holes(&
+                    GAS_spec, det_I, add_holes=deleted, &
+                    add_particles=SpinOrbIdx_t([tgt2]), &
+                    n_total=1, m_s=m_s_1)
+            @:ASSERT(disjoint(possible_holes%idx, [tgt2]))
+            @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
 
             if (size(possible_holes) == 0) then
                 pgen = pgen_particles * pgen_first_pick * pgen_second_pick(1)
                 call zeroResult()
                 return
             end if
-            ! possible_holes contains tgt1,
-            ! so we can look up its index with binary search
+            ! Possible_holes has to contain tgt1.
+            ! we look up its index with binary search
             i = binary_search_first_ge(possible_holes%idx, tgt1)
             @:ASSERT(i /= -1, tgt1, possible_holes%idx)
 
+            reverted_exc = DoubleExc_t(src1=src1, tgt1=tgt2, src2=src2)
             c_sum = get_cumulative_list(det_I, reverted_exc, possible_holes)
             if (i == 1) then
                 pgen_second_pick(2) = c_sum(1)
@@ -731,6 +711,7 @@ contains
             else
                 ilutJ = 0
             end if
+        end associate
         end associate
 
         pgen = pgen_particles * pgen_first_pick * sum(pgen_second_pick)
@@ -756,7 +737,7 @@ contains
 
         @:ASSERT((c_sum(size(c_sum)) .isclose. 0.0_dp) &
           .or. (c_sum(size(c_sum)) .isclose. 1.0_dp))
-        @:ASSERT(all(c_sum(: size(c_sum) - 1) <= c_sum(2 :)))
+        @:ASSERT(is_sorted(c_sum))
 
         ! there might not be such an excitation
         if (c_sum(size(c_sum)) > 0) then
