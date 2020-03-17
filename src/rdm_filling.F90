@@ -5,7 +5,7 @@ module rdm_filling
     ! This module contains routines used to perform filling of the RDM arrays,
     ! as done on-the-fly during an FCIQMC simulation.
 
-    use bit_rep_data, only: NIfTot, NIfDBO, test_flag
+    use bit_rep_data, only: NIfTot, nifd, test_flag, noffsgn
     use bit_reps, only: get_initiator_flag_by_run
     use constants
     use SystemData, only: tGUGA, nbasis
@@ -411,7 +411,7 @@ contains
            tAllContribs = .true.
         endif
 
-        if (.not. DetBitEQ(iLutHF_True, iLutJ, NIfDBO)) then
+        if (.not. DetBitEQ(iLutHF_True, iLutJ, nifd)) then
             call DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, &
                      realSignJ, tAllContribs)
         end if
@@ -453,30 +453,30 @@ contains
         ! Spawned_Parents_Index(1,Spawned_No) is therefore the start position
         ! of the list of parents (Di's) which spawned on the Dj in
         ! SpawnedParts(Spawned_No). There are Spawned_Parents_Index(2,Spawned_No)
-        ! of these parent Di's. Spawned_Parents(0:NIfDBO,x) is the determinant Di,
-        ! Spawned_Parents(NIfDBO+1,x) is the un-biased ci.
+        ! of these parent Di's. Spawned_Parents(0:nifd,x) is the determinant Di,
+        ! Spawned_Parents(nifd+1,x) is the un-biased ci.
 
         ! Run through all Di's.
 
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1
 
-            if (DetBitEQ(iLutHF_True, Spawned_Parents(0:NIfDBO,i), NIfDBO)) then
+            if (DetBitEQ(iLutHF_True, Spawned_Parents(0:nifd,i), nifd)) then
                 ! We've already added HF - S, and HF - D symmetrically.
                 ! Any connection with the HF has therefore already been added.
                 cycle
             end if
 
-            call decode_bit_det (nI, Spawned_Parents(0:NIfDBO,i))
+            call decode_bit_det (nI, Spawned_Parents(0:nifd,i))
             call decode_bit_det (nJ, iLutJ)
 
-            realSignI = transfer( Spawned_Parents(NIfDBO+1,i), realSignI )
+            realSignI = transfer( Spawned_Parents(noffsgn,i), realSignI )
             ! if the sign is 0, there is nothing to do, i.e. all contributions will be 0
             if(abs(realSignI)<eps) cycle
 
             ! The original spawning event (and the RealSignI) came from this
             ! population.
-            source_part_type = int(Spawned_Parents(NIfDBO+3,i))
+            source_part_type = int(Spawned_Parents(nifd+3,i))
 
             ! if we only sum in initiator contriubtions, check the flags here
             ! This block is entered if
@@ -490,7 +490,7 @@ contains
                     ! or the non-variational inits-only version (only require an init in the ket)
                     (tNonVariationalRDMs .and. .not. tNonInits) )) return
                 do run = 1, inum_runs
-                    if(.not. btest(Spawned_Parents(NIfDBO+2,i),&
+                    if(.not. btest(Spawned_Parents(nifd+2,i),&
                         get_initiator_flag_by_run(run))) tNonInitParent = .true.
                     ! if a non-initiator is participating, do not sum in
                     ! that contribution
@@ -549,7 +549,7 @@ contains
 
                 if (spawning_from_ket_to_bra) then
                     if (tHPHF) then
-                        call Fill_Spin_Coupled_RDM(spawn, one_rdms, Spawned_Parents(0:NIfDBO,i), iLutJ, &
+                        call Fill_Spin_Coupled_RDM(spawn, one_rdms, Spawned_Parents(0:nifd,i), iLutJ, &
                                                    nI, nJ, input_sign_i, input_sign_j)
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
@@ -561,7 +561,7 @@ contains
                     ! Spawning from the bra to the ket - swap the order of the
                     ! signs and states in the routine interface.
                     if (tHPHF) then
-                        call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutJ, Spawned_Parents(0:NIfDBO,i), &
+                        call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutJ, Spawned_Parents(0:nifd,i), &
                                                    nJ, nI, input_sign_j, input_sign_i)
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
@@ -958,7 +958,7 @@ contains
             iLutI = core_space(:,determ_displs(iProcIndex)+i)
 
             ! Connections to the HF are added in elsewhere, so skip them here.
-            if (DetBitEq(iLutI, iLutHF_True, NifDBO)) cycle
+            if (DetBitEq(iLutI, iLutHF_True, nifd)) cycle
 
             do irdm = 1, rdm_defs%nrdms
                 AvSignI(irdm) = full_determ_vecs_av(rdm_defs%sim_labels(2,irdm), determ_displs(iProcIndex)+i)
@@ -979,7 +979,7 @@ contains
                 iLutJ = core_space(:,core_connections(i)%positions(j))
 
                 ! Connections to the HF are added in elsewhere, so skip them here.
-                if (DetBitEq(iLutJ, iLutHF_True, NifDBO)) cycle
+                if (DetBitEq(iLutJ, iLutHF_True, nifd)) cycle
 
                 do irdm = 1, rdm_defs%nrdms
                     AvSignJ(irdm) = full_determ_vecs_av(rdm_defs%sim_labels(1, irdm), core_connections(i)%positions(j))

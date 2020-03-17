@@ -20,7 +20,7 @@ module fcimc_iter_utils
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
     use semi_stoch_procs, only: recalc_core_hamil_diag
-    use bit_rep_data, only: NIfD, NIfTot, NIfDBO
+    use bit_rep_data, only: NIfD, NIfTot
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
@@ -225,14 +225,14 @@ contains
                     deallocate(TempSpawnedParts)
                     log_dealloc(TempSpawnedPartsTag)
                 end if
-                allocate(TempSpawnedParts(0:NIfDBO, TempSpawnedPartsSize), &
+                allocate(TempSpawnedParts(0:nifd, TempSpawnedPartsSize), &
                          stat=ierr, source=0_n_int)
                 call LogMemAlloc('TempSpawnedParts', size(TempSpawnedParts), tbs_(TempSpawnedParts), &
                                   this_routine, TempSpawnedPartsTag, ierr)
                 write(6,"(' Allocating temporary array for walkers spawned &
                            &from a particular Di.')")
                 write(6,"(a,f14.6,a)") " This requires ", &
-                    real(((NIfDBO+1) * TempSpawnedPartsSize * size_n_int), dp)&
+                    real(((nifd+1) * TempSpawnedPartsSize * size_n_int), dp)&
                         /1048576.0_dp, " Mb/Processor"
             end if
 
@@ -1518,14 +1518,14 @@ contains
             end if
             if (tFillingStochRDMonFly) then
                 if (IsUnoccDet(newSignCurr) .and. (.not. tIsStateDeterm)) then
-                    if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, NIfDBO)) then
+                    if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, nifd)) then
                         AvNoAtHF = 0.0_dp
                         IterRDM_HF = Iter + 1
                     end if
                 end if
             end if
 
-            if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, NIfDBO)) then
+            if (DetBitEQ(CurrentDets(:,det_idx), iLutHF_True, nifd)) then
                 InstNoAtHF=newSignCurr
             end if
         end if

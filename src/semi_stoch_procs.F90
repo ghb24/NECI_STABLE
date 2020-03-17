@@ -5,7 +5,7 @@
 
 module semi_stoch_procs
 
-    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag
+    use bit_rep_data, only: flag_deterministic, NIfD, NIfTot, test_flag
 
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
 
@@ -437,7 +437,7 @@ contains
         hash_val = FindWalkerHash(nI, determ_space_size_int)
 
         do i = 1, core_ht(hash_val)%nclash
-            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash_val)%ind(i)) )) then
+            if (all(ilut(0:nifd) == core_space(0:nifd,core_ht(hash_val)%ind(i)) )) then
                 core_state = .true.
                 return
             end if
@@ -463,7 +463,7 @@ contains
         hash_val = FindWalkerHash(nI, determ_space_size_int)
 
         do i = 1, core_ht(hash_val)%nclash
-            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash_val)%ind(i)) )) then
+            if (all(ilut(0:nifd) == core_space(0:nifd,core_ht(hash_val)%ind(i)) )) then
                 pos = core_ht(hash_val)%ind(i)
                 return
             end if
@@ -903,7 +903,7 @@ contains
             open(iunit, file='CORESPACE', status='replace')
 
             do i = 1, determ_space_size
-                do k = 0, NIfDBO
+                do k = 0, nifd
                     write(iunit, '(i24)', advance='no') core_space(k,i)
                 end do
                 write(iunit, '()')
@@ -940,7 +940,7 @@ contains
                 ! If there is only one state in CurrentDets to check then BinSearchParts doesn't
                 ! return the desired value for PartInd, so do this separately...
                 if (MinInd == nwalkers) then
-                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(0:NIfTot,i), NIfDBO)
+                    comp = DetBitLT(CurrentDets(:,MinInd), SpawnedParts(0:NIfTot,i), nifd)
                     if (comp == 0) then
                         tSuccess = .true.
                         PartInd = MinInd
@@ -1056,7 +1056,7 @@ contains
             temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if ( all(SpawnedParts(0:NIfDBO, i) == CurrentDets(0:NIfDBO, temp_node%ind)) ) then
+                    if ( all(SpawnedParts(0:nifd, i) == CurrentDets(0:nifd, temp_node%ind)) ) then
                         tSuccess = .true.
                         PartInd = temp_node%ind
                         exit

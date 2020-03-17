@@ -324,10 +324,10 @@ module AnnihilationMod
                         ! If the parent determinant is null, the contribution to
                         ! the RDM is zero. No point in doing anything more with it.
 
-                        ! Why is this length nifdbo+2? What is the extra bit? RDMBias!
+                        ! Why is this length nifd+2? What is the extra bit? RDMBias!
 
-                        Spawned_Parents(0:NIfDBO+2,Parent_Array_Ind) = &
-                            SpawnedParts(nOffParent:nOffParent+nIfDBO+2, BeginningBlockDet)
+                        Spawned_Parents(0:nifd+2,Parent_Array_Ind) = &
+                            SpawnedParts(nOffParent:nOffParent+nifd+2, BeginningBlockDet)
 
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
 
@@ -336,16 +336,16 @@ module AnnihilationMod
                         ! NOTE: it is safe to compare against zero exactly here,
                         ! because all other components will have been set to zero
                         ! exactly and can't have changed at all.
-                        Spawned_Parents(NIfDBO+3,Parent_Array_Ind) = 0
+                        Spawned_Parents(nifd+3,Parent_Array_Ind) = 0
                         do part_type = 1, lenof_sign
                             if (abs(temp_sign(part_type)) > 1.0e-12_dp) then
-                                Spawned_Parents(NIfDBO+3,Parent_Array_Ind) = part_type
+                                Spawned_Parents(nifd+3,Parent_Array_Ind) = part_type
                                 exit
                             end if
                         end do
 
-                        ! The first NIfDBO of the Spawned_Parents entry is the
-                        ! parent determinant, the NIfDBO + 1 entry is the Ci.
+                        ! The first nifd of the Spawned_Parents entry is the
+                        ! parent determinant, the nifd + 1 entry is the Ci.
                         ! Parent_Array_Ind keeps track of the position in
                         ! Spawned_Parents.
                         Spawned_Parents_Index(1,VecInd) = Parent_Array_Ind
@@ -372,7 +372,7 @@ module AnnihilationMod
 
             ! Reset the cumulative determinant
             cum_det = 0_n_int
-            cum_det (0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
+            cum_det (0:nifd) = SpawnedParts(0:nifd, BeginningBlockDet)
 
             if (tPreCond .or. tReplicaEstimates) then
                 cum_det(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
@@ -522,7 +522,7 @@ module AnnihilationMod
         ! --> Should be called for real/imaginary particles seperately
 
         integer(n_int), intent(inout) :: cum_det(0:nIfTot)
-        integer(n_int), intent(in) :: new_det(0:niftot+nifdbo+3)
+        integer(n_int), intent(in) :: new_det(0:niftot+nifd+3)
         integer, intent(in) :: part_type, Spawned_No
         integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -570,11 +570,11 @@ module AnnihilationMod
         ! Obviously only add the parent determinant into the parent array if it is
         ! actually being stored - and is therefore not zero.
         if (((tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) .and. &
-            (.not. DetBitZero(new_det(NIfTot+1:NIfTot+NIfDBO+1), NIfDBO)))) then
+            (.not. DetBitZero(new_det(NIfTot+1:NIfTot+nifd+1), nifd)))) then
             if (abs(new_sgn) > 1.e-12_dp) then
                 ! Add parent (Di) stored in SpawnedParts to the parent array.
-                Spawned_Parents(0:NIfDBO+2,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+NIfDBO+3)
-                Spawned_Parents(NIfDBO+3,Parent_Array_Ind) = part_type
+                Spawned_Parents(0:nifd+2,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+nifd+3)
+                Spawned_Parents(nifd+3,Parent_Array_Ind) = part_type
                 Parent_Array_Ind = Parent_Array_Ind + 1
                 Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
             end if
@@ -677,14 +677,14 @@ module AnnihilationMod
 
             ! Reset the cumulative determinant
             cum_det = 0_n_int
-            cum_det(0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
+            cum_det(0:nifd) = SpawnedParts(0:nifd, BeginningBlockDet)
 
             ! This will only get used with the pure-initiator-space option.
             ! In this case, some spawnings to a site can be accepted, while
             ! others are rejected. The following is used to hold the rejected
             ! ones which can be used for constructing estimates later.
             cum_det_cancel = 0_n_int
-            cum_det_cancel(0:nifdbo) = SpawnedParts(0:nifdbo, BeginningBlockDet)
+            cum_det_cancel(0:nifd) = SpawnedParts(0:nifd, BeginningBlockDet)
 
             if (tPreCond .or. tReplicaEstimates) then
                 cum_det(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
@@ -794,7 +794,7 @@ module AnnihilationMod
         ! --> Should be called for real/imaginary particles seperately
 
         integer(n_int), intent(inout) :: cum_det(0:nIfTot)
-        integer(n_int), intent(in) :: new_det(0:niftot+nifdbo+2)
+        integer(n_int), intent(in) :: new_det(0:niftot+nifd+2)
         integer, intent(in) :: part_type
         !integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -944,7 +944,7 @@ module AnnihilationMod
             ! .false. (and PartInd shouldn't be accessed).
             ! Also, the hash value, DetHash, is returned by this routine.
             ! tSuccess will determine whether the particle has been found or not.
-            call hash_table_lookup(nJ, SpawnedParts(:,i), NIfDBO, HashIndex, &
+            call hash_table_lookup(nJ, SpawnedParts(:,i), nifd, HashIndex, &
                 CurrentDets, PartInd, DetHash, tSuccess)
 
             tDetermState = .false.
@@ -1592,7 +1592,7 @@ module AnnihilationMod
             if(tTruncInitiator)then
                 run = int(SpawnInfo2(SpawnRun,i))
                 call decode_bit_det(nI, SpawnedParts(:,i))
-                call hash_table_lookup(nI, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                call hash_table_lookup(nI, SpawnedParts(:,i), nifd, HashIndex, &
                                CurrentDets, PartInd, DetHash, tSuccess)
                 if (tSuccess) then
                     tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)

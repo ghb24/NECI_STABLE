@@ -12,7 +12,7 @@ module hphf_integrals
                          TestClosedShellDet, CalcOpenOrbs
     use excitation_types, only: NoExc_t, DoubleExc_t
     use sltcnd_mod, only: sltcnd, sltcnd_excit, sltcnd_knowIC, dyn_sltcnd_excit_old
-    use bit_reps, only: NIfD, NIfTot, NIfDBO, decode_bit_det
+    use bit_reps, only: NIfD, NIfTot, decode_bit_det
     use lattice_mod, only: get_helement_lattice
     implicit none
 
@@ -77,7 +77,7 @@ module hphf_integrals
 
         unused_var(nJ)
 
-        if (DetBitEQ(iLutnI, iLutnJ, NIfDBO)) then
+        if (DetBitEQ(iLutnI, iLutnJ, nifd)) then
             ! Do not allow a 'diagonal' matrix element. The problem is
             ! that the HPHF excitation generator can generate the same HPHF
             ! function. We do not want to allow spawns here.

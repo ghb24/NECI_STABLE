@@ -2,7 +2,8 @@
 
 module searching
 
-    use bit_rep_data, only: nIfDBO, NIfTot, flag_trial, flag_connected, test_flag
+    use bit_rep_data, only: nifd, NIfTot, flag_trial, flag_connected, test_flag, &
+                            noffsgn
     use bit_reps, only: decode_bit_det, set_flag
     use CalcData, only: tPairedReplicas
     use constants
@@ -28,7 +29,7 @@ contains
 
         N=MinInd
         do while(N.le.MaxInd)
-            Comp=DetBitLT(DetArray(:,N),iLut(:),NIfDBO)
+            Comp=DetBitLT(DetArray(:,N),iLut(:),nifd)
             IF(Comp.eq.1) THEN
                 N=N+1
             ELSEIF(Comp.eq.-1) THEN
@@ -59,7 +60,7 @@ contains
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),nifd)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -75,7 +76,7 @@ contains
 !            WRITE(6,*) i,j,n
 
 !Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is more or 0 if they are the same
-            Comp=DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
+            Comp=DetBitLT(CurrentDets(:,N),iLut(:),nifd)
 
             IF(Comp.eq.0) THEN
 !Praise the lord, we've found it!
@@ -93,7 +94,7 @@ contains
                 IF(i.eq.MaxInd-1) THEN
 !This deals with the case where we are interested in the final/first entry in the list. Check the final entry
 !of the list and leave.  We need to check the last index.
-                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),NIfDBO)
+                    Comp=DetBitLT(CurrentDets(:,i+1),iLut(:),nifd)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -196,9 +197,9 @@ contains
             ! Find the hash value of this state.
             hash_val = FindWalkerHash(nI, trial_space_size)
             do i = 1, trial_ht(hash_val)%nclash
-                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:NIfDBO,i))) then
+                if (DetBitEq(ilut, trial_ht(hash_val)%states(0:nifd,i))) then
                     tTrial = .true.
-                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1:,i), amp)
+                    amp = transfer(trial_ht(hash_val)%states(noffsgn:,i), amp)
                     return
                 end if
             end do
@@ -209,9 +210,9 @@ contains
             hash_val = FindWalkerHash(nI, con_space_size)
             ! Loop over all hash clashes for this hash value.
             do i = 1, con_ht(hash_val)%nclash
-                if (DetBitEq(ilut, con_ht(hash_val)%states(0:NIfDBO,i))) then
+                if (DetBitEq(ilut, con_ht(hash_val)%states(0:nifd,i))) then
                     tCon = .true.
-                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amp)
+                    amp = transfer(con_ht(hash_val)%states(noffsgn:,i), amp)
                     return
                 end if
             end do
@@ -236,8 +237,8 @@ contains
         hash_val = FindWalkerHash(nI, con_space_size)
         ! Loop over all hash clashes for this hash value.
         do i = 1, con_ht(hash_val)%nclash
-            if (all(ilut(0:NIfDBO) == con_ht(hash_val)%states(0:NIfDBO,i))) then
-                amps = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amps)
+            if (all(ilut(0:nifd) == con_ht(hash_val)%states(0:nifd,i))) then
+                amps = transfer(con_ht(hash_val)%states(noffsgn:,i), amps)
                 return
             end if
         end do
@@ -262,8 +263,8 @@ contains
         if (trial_space_size > 0) then
             hash_val = FindWalkerHash(nI, trial_space_size)
             do i = 1, trial_ht(hash_val)%nclash
-                if (DetBitEq(trial_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                    amp = transfer(trial_ht(hash_val)%states(NIfDBO+1:,i), amp)
+                if (DetBitEq(trial_ht(hash_val)%states(0:nifd,i), ilut)) then
+                    amp = transfer(trial_ht(hash_val)%states(noffsgn:,i), amp)
                     if (ntrial_excits == 1) then
                         trial_denom(ireplica) = trial_denom(ireplica) + amp(1)*RealwSign
                     else if (ntrial_excits == lenof_sign) then
@@ -278,8 +279,8 @@ contains
         if (con_space_size > 0) then
             hash_val = FindWalkerHash(nI, con_space_size)
             do i = 1, con_ht(hash_val)%nclash
-                if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                    amp = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amp)
+                if (DetBitEq(con_ht(hash_val)%states(0:nifd,i), ilut)) then
+                    amp = transfer(con_ht(hash_val)%states(noffsgn:,i), amp)
                     if (ntrial_excits == 1) then
                         trial_numerator(ireplica) = trial_numerator(ireplica) + amp(1)*RealwSign
                     else if (ntrial_excits == lenof_sign) then
@@ -307,9 +308,9 @@ contains
             if (con_space_size > 0) then
                 hash_val = FindWalkerHash(nI, con_space_size)
                 do i = 1, con_ht(hash_val)%nclash
-                    if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
+                    if (DetBitEq(con_ht(hash_val)%states(0:nifd,i), ilut)) then
                         do istate = 1, lenof_sign .div. 2
-                            amp(istate*2-1) = transfer(con_ht(hash_val)%states(NIfDBO+istate,i), amp(istate*2-1))
+                            amp(istate*2-1) = transfer(con_ht(hash_val)%states(nifd+istate,i), amp(istate*2-1))
                             amp(istate*2) = amp(istate*2-1)
                         end do
                         return
@@ -320,8 +321,8 @@ contains
             if (con_space_size > 0) then
                 hash_val = FindWalkerHash(nI, con_space_size)
                 do i = 1, con_ht(hash_val)%nclash
-                    if (DetBitEq(con_ht(hash_val)%states(0:NIfDBO,i), ilut)) then
-                        amp = transfer(con_ht(hash_val)%states(NIfDBO+1:,i), amp)
+                    if (DetBitEq(con_ht(hash_val)%states(0:nifd,i), ilut)) then
+                        amp = transfer(con_ht(hash_val)%states(noffsgn:,i), amp)
                         return
                     end if
                 end do
@@ -340,7 +341,7 @@ contains
         use DetCalcData , only : FCIDets
         use DetBitOps, only: DetBitLT
         use constants, only: n_int
-        use bit_reps, only: NIfTot,NIfDBO
+        use bit_reps, only: NIfTot,nifd
 
         IMPLICIT NONE
         INTEGER :: MinInd,MaxInd,PartInd
@@ -353,7 +354,7 @@ contains
         i=MinInd
         j=MaxInd
         IF(i-j.eq.0) THEN
-            Comp=DetBitLT(FCIDets(:,MaxInd),iLut(:),NIfDBO)
+            Comp=DetBitLT(FCIDets(:,MaxInd),iLut(:),nifd)
             IF(Comp.eq.0) THEN
                 tSuccess=.true.
                 PartInd=MaxInd
@@ -369,7 +370,7 @@ contains
 
             ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is
             ! more or 0 if they are the same
-            Comp=DetBitLT(FCIDets(:,N),iLut(:),NIfDBO)
+            Comp=DetBitLT(FCIDets(:,N),iLut(:),nifd)
 
             IF(Comp.eq.0) THEN
     !Praise the lord, we've found it!
@@ -388,7 +389,7 @@ contains
                     ! This deals with the case where we are interested in the
                     ! final/first entry in the list. Check the final entry of the
                     ! list and leave. We need to check the last index.
-                    Comp=DetBitLT(FCIDets(:,i+1),iLut(:),NIfDBO)
+                    Comp=DetBitLT(FCIDets(:,i+1),iLut(:),nifd)
                     IF(Comp.eq.0) THEN
                         tSuccess=.true.
                         PartInd=i+1
@@ -446,7 +447,7 @@ contains
         i = MinInd
         j = MaxInd
         if (i-j .eq. 0) then
-            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),NIfDBO)
+            Comp=DetBitLT(CurrentDets(:,MaxInd),iLut(:),nifd)
             if (Comp .eq. 0) then
                 tSuccess = .true.
                 PartInd = MaxInd
@@ -462,7 +463,7 @@ contains
 
             ! Comp is 1 if CyrrebtDets(N) is "less" than iLut, and -1 if it is
             ! more or 0 if they are the same
-            Comp = DetBitLT(CurrentDets(:,N),iLut(:),NIfDBO)
+            Comp = DetBitLT(CurrentDets(:,N),iLut(:),nifd)
 
             if (Comp .eq. 0) then
                 ! Praise the lord, we've found it!
@@ -482,7 +483,7 @@ contains
                     ! This deals with the case where we are interested in the
                     ! final/first entry in the list. Check the final entry of
                     ! the list and leave. We need to check the last index.
-                    Comp = DetBitLT(CurrentDets(:,i+1), iLut(:), NIfDBO)
+                    Comp = DetBitLT(CurrentDets(:,i+1), iLut(:), nifd)
                     if (Comp .eq. 0) then
                         tSuccess = .true.
                         PartInd = i + 1
@@ -540,7 +541,7 @@ contains
             do i = 2, list_size
                 ! If this state and the previous one were identical, don't add this state to the
                 ! list so that repeats aren't included.
-                if (.not. all(list(0:NIfDBO, i-1) == list(0:NIfDBO, i)) ) then
+                if (.not. all(list(0:nifd, i-1) == list(0:nifd, i)) ) then
                     counter = counter + 1
                     list(:, counter) = list(:, i)
                 end if

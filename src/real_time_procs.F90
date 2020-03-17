@@ -33,7 +33,7 @@ module real_time_procs
                         clr_flag
     use util_mod, only: get_free_unit, get_unique_filename, near_zero, &
                         operator(.isclose.)
-    use bit_rep_data, only: extract_sign, nifdbo, niftot
+    use bit_rep_data, only: extract_sign, nifd, niftot
     use FciMCData, only: CurrentDets, HashIndex, popsfile_dets, MaxWalkersPart, &
                          WalkVecDets, freeslot, spawn_ht, nhashes_spawn, MaxSpawned, &
                          iStartFreeSlot, iEndFreeSlot, ValidSpawnedList, &
@@ -150,7 +150,7 @@ contains
             ! .false. (and PartInd shouldn't be accessed).
             ! Also, the hash value, DetHash, is returned by this routine.
             ! tSuccess will determine whether the particle has been found or not.
-            call hash_table_lookup(nJ, DiagParts(:,i), NIfDBO, HashIndex, &
+            call hash_table_lookup(nJ, DiagParts(:,i), nifd, HashIndex, &
                                    CurrentDets, PartInd, DetHash, tSuccess)
 
             tDetermState = .false.
@@ -351,8 +351,8 @@ contains
             ! SpawnedParts(:,valid_diag_spawn_list(proc)). We want to store the
             ! parent (D_i) with the spawned child (D_j) so that we can add in
             ! Ci.Cj to the RDM later.
-            ! The parent is NIfDBO integers long, and stored in the second
-            ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+NIfDBO
+            ! The parent is nifd integers long, and stored in the second
+            ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+nifd
 
         end if
 
@@ -684,7 +684,7 @@ contains
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
         real(dp), intent(in) :: AvExPerWalker
-        real(dp) , intent(out) :: RDMBiasFacCurr        
+        real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         HElement_t(dp) , intent(inout) :: HElGen
         character(*), parameter :: this_routine = 'attempt_create_realtime'
@@ -695,7 +695,7 @@ contains
         integer :: TargetExcitLevel, tmp_ex(2,ic)
         logical :: tRealSpawning
         real(dp) :: rh_imag
-        HElement_t(dp) :: rh_used       
+        HElement_t(dp) :: rh_used
 
         unused_var(precond_fac)
         unused_var(AvSignCurr)
@@ -1104,7 +1104,7 @@ contains
 
               ! search for the hash table associated with the time evolved
               ! wavefunction -> is this already initialized correctly?
-              call hash_table_lookup(nI, overlap_states(iGf)%dets(:,idet), nifdbo, &
+              call hash_table_lookup(nI, overlap_states(iGf)%dets(:,idet), nifd, &
                    HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
 
               if (tDetFound) then

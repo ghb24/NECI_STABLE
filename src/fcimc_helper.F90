@@ -15,7 +15,7 @@ module fcimc_helper
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
 
     use bit_reps, only: NIfTot, test_flag, extract_flags, &
-                        encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
+                        encode_bit_rep, NIfD, set_flag_general, &
                         extract_sign, set_flag, encode_sign, &
                         flag_trial, flag_connected, flag_deterministic, &
                         extract_part_sign, encode_part_sign, decode_bit_det, &
@@ -254,8 +254,8 @@ contains
             ! SpawnedParts(:,ValidSpawnedList(proc)). We want to store the
             ! parent (D_i) with the spawned child (D_j) so that we can add in
             ! Ci.Cj to the RDM later.
-            ! The parent is NIfDBO integers long, and stored in the second
-            ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+NIfDBO
+            ! The parent is nifd integers long, and stored in the second
+            ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+nifd
             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
                                             ilutI, WalkersToSpawn, ilutJ, &
                                             proc)
@@ -307,7 +307,7 @@ contains
                                         &simple-initiator option.")
         end if
 
-        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, &
+        call hash_table_lookup(nI_child, ilut_child, nifd, spawn_ht, &
             SpawnedParts, ind, hash_val, tSuccess)
 
         if (tSuccess) then
@@ -394,7 +394,8 @@ contains
                return
             endif
 
-            call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), ilut_child(0:NIfDBO), child_sign, flags)
+            call encode_bit_rep(SpawnedParts(:, ValidSpawnedList(proc)), &
+                ilut_child(0:nifd), child_sign, flags)
 
            ! If the parent was an initiator then set the initiator flag for the
            ! child, to allow it to survive.
@@ -404,7 +405,7 @@ contains
                 ! set the initiator flag to prevent abort due to the RK reset
                 if(tTruncInitiator .and. runge_kutta_step == 2) then
                     ! check whether the target is already in CurrentDets
-                    call hash_table_lookup(nI_child, ilut_child, NIfDBO, HashIndex, &
+                    call hash_table_lookup(nI_child, ilut_child, nifd, HashIndex, &
                         CurrentDets, ind, hash_val_cd, tSuccess)
                     if(tSuccess) then
                         call extract_sign(CurrentDets(:,ind), sgn_prod)
@@ -789,7 +790,7 @@ contains
         ! Maintain a list of the degree of occupation of each orbital
         if (tPrintOrbOcc .and. (iter >= StartPrintOrbOcc)) then
             if (iter == StartPrintOrbOcc .and. &
-                 DetBitEq(ilut, ilutHF, NIfDBO)) then
+                 DetBitEq(ilut, ilutHF, nifd)) then
                 write(6,*) 'Beginning to fill the HF orbital occupation list &
                            &during iteration', iter
                 if (tPrintOrbOccInit) &
@@ -1225,7 +1226,7 @@ contains
            ! n_add (this is on by default).
 
            ! All of the references stay initiators
-           if(DetBitEQ(ilut, ilutRef(:,run),NIfDBO)) staticInit = .true.
+           if(DetBitEQ(ilut, ilutRef(:,run),nifd)) staticInit = .true.
            ! If det. is the HF det, or it
            ! is in the deterministic space, then it must remain an initiator.
            if ( .not. (staticInit) &
@@ -2107,7 +2108,7 @@ contains
             do i=1,int(TotWalkers,sizeof_int)
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
-                        (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
+                        (DetBitEQ(CurrentDets(:,i),iLutHF,nifd))) then
                     !Is allowed initiator. Add to subspace.
                     iSubspaceSize = iSubspaceSize + 1
                 endif
@@ -2121,7 +2122,7 @@ contains
             do i=1,int(TotWalkers,sizeof_int)
                 call extract_sign(CurrentDets(:,i),CurrentSign)
                 if((abs(CurrentSign(1)) > InitiatorWalkNo) .or. &
-                        (DetBitEQ(CurrentDets(:,i),iLutHF,NIfDBO))) then
+                        (DetBitEQ(CurrentDets(:,i),iLutHF,nifd))) then
                     !Is allowed initiator. Add to subspace.
                     iSubspaceSize = iSubspaceSize + 1
                     call decode_bit_det(ExpandedWalkerDets(:,iSubspaceSize),CurrentDets(:,i))
@@ -2243,7 +2244,7 @@ contains
             call decode_bit_det(nI_spawn, SpawnedParts(:,i))
 
             ! Now add in the diagonal elements
-            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), nifd, HashIndex, &
                                    CurrentDets, PartInd, DetHash, tSuccess)
 
             if (tSuccess) then
@@ -2496,7 +2497,7 @@ contains
         Type(BasisFn) :: isym
 
         iLutRef(:, run) = 0_n_int
-        iLutRef(0:NIfDBO, run) = ilut(0:NIfDBO)
+        iLutRef(0:nifd, run) = ilut(0:nifd)
         call decode_bit_det (ProjEDet(:, run), iLutRef(:, run))
         write (iout, '(a,i3,a)', advance='no') 'Changing projected &
               &energy reference determinant for run', run, &

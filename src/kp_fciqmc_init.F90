@@ -394,7 +394,7 @@ contains
         ! The number of elements required to store all replicas of all Krylov vectors.
         lenof_all_signs = lenof_sign_kp*kp%nvecs
         ! The total length of a bitstring containing all Krylov vectors.
-        NIfTotKP = NIfDBO + lenof_all_signs + NIfFlag
+        NIfTotKP = nifd + lenof_all_signs + NIfFlag
 
         ! Set up kp_ind_* arrays.
         allocate(kp_ind_1(kp%nvecs))
@@ -1050,7 +1050,7 @@ contains
             tDetFound = .false.
             ! Search the hash table to see if this determinant is in CurrentDets
             ! already.
-            call hash_table_lookup(nI, ilut, NIfDBO, HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
+            call hash_table_lookup(nI, ilut, nifd, HashIndex, CurrentDets, det_ind, hash_val, tDetFound)
             if (tDetFound) then
                 ! This determinant is already in CurrentDets. Just need to add
                 ! the sign of this new walker on and update stats.
@@ -1066,7 +1066,7 @@ contains
                 ! Add the new determinant to the hash table.
                 call add_hash_table_entry(HashIndex, det_ind, hash_val)
                 ! Copy determinant data across.
-                CurrentDets(0:NIfDBO, det_ind) = ilut(0:NIfDBO)
+                CurrentDets(0:nifd, det_ind) = ilut(0:nifd)
                 CurrentDets(NOffSgn:NOffSgn+lenof_sign_kp-1, det_ind) = int_sign
                 CurrentDets(NOffFlag, det_ind) = 0_n_int
                 TotParts = TotParts + abs(real_sign_1)

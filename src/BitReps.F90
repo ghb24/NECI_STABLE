@@ -197,7 +197,7 @@ contains
         write(6,*) 'Number of sign components in bit representation of determinant: ', NIfSgn
 
         ! The number of integers used for sorting / other bit manipulations
-        NIfDBO = NIfD
+        ! WD: this is always just nifd.. so remove nifdbo..
 
 #ifdef PROG_NUMRUNS_
         if (lenof_sign_max /= 20) then
@@ -364,11 +364,11 @@ contains
     pure subroutine encode_bit_rep (ilut, Det, real_sgn, flag)
         integer(n_int), intent(out) :: ilut(0:nIfTot)
         real(dp), intent(in) :: real_sgn(lenof_sign)
-        integer(n_int), intent(in) :: Det(0:NIfDBO)
+        integer(n_int), intent(in) :: Det(0:nifd)
         integer, intent(in) :: flag
         integer(n_int) :: sgn(lenof_sign)
 
-        iLut(0:NIfDBO) = Det
+        iLut(0:nifd) = Det
 
         sgn = transfer(real_sgn, sgn)
         iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
@@ -612,21 +612,21 @@ contains
 
         ASSERT(bit_rdm_init)
 
-        zero = all(ilut(NOffParent:NOffParent + NIfDBO) == 0)
+        zero = all(ilut(NOffParent:NOffParent + nifd) == 0)
 
     end function
 
     subroutine extract_parent(ilut, parent_ilut)
 
         integer(n_int), intent(in) :: ilut(0:nIfBCast)
-        integer(n_int), intent(out) :: parent_ilut(0:NIfDBO)
+        integer(n_int), intent(out) :: parent_ilut(0:nifd)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'extract_parent'
 #endif
 
         ASSERT(bit_rdm_init)
 
-        parent_ilut = ilut(nOffParent:nOffParent + NIfDBO)
+        parent_ilut = ilut(nOffParent:nOffParent + nifd)
 
     end subroutine
 
@@ -641,12 +641,12 @@ contains
 
         ASSERT(bit_rdm_init)
 
-        ilut(nOffParent:nOffParent + nIfDBO) = ilut_parent(0:NIfDBO)
+        ilut(nOffParent:nOffParent + nifd) = ilut_parent(0:nifd)
 
-        ilut(nOffParent + nIfDBO + 1) = &
-            transfer(RDMBiasFacCurr, ilut(nOffParent + nIfDBO + 1))
+        ilut(nOffParent + nifd + 1) = &
+            transfer(RDMBiasFacCurr, ilut(nOffParent + nifd + 1))
         ! store the flag
-        ilut(nOffParent + nIfDBO + 2) = ilut_parent(NIfTot)
+        ilut(nOffParent + nifd + 2) = ilut_parent(NIfTot)
 
     end subroutine
 
@@ -659,7 +659,7 @@ contains
 
         ASSERT(bit_rdm_init)
 
-        ilut(nOffParent:nOffParent+nIfDBO+1) = 0
+        ilut(nOffParent:nOffParent+nifd+1) = 0
 
     end subroutine
 
@@ -719,9 +719,9 @@ contains
         ! Add new det information to a packaged walker.
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
-        integer(n_int), intent(in) :: Det(0:NIfDBO)
+        integer(n_int), intent(in) :: Det(0:nifd)
 
-        iLut(0:NIfDBO) = Det
+        iLut(0:nifd) = Det
 
     end subroutine encode_det
 

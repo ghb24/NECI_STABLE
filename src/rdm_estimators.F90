@@ -631,7 +631,7 @@ contains
         ! The values ( \sum_i H_{ai} \psi_i )^2 are what is stored as the signs
         ! in the en_pert%dets objects.
 
-        use bit_rep_data, only: nIfDBO, NIfTot
+        use bit_rep_data, only: nifd, NIfTot
         use bit_reps, only: decode_bit_det
         use determinants, only: get_helement
         use FciMCData, only: Hii
@@ -657,7 +657,7 @@ contains
 
         ! Loop over all determinants.
         do idet = 1, en_pert%ndets
-            ilut(0:NIfDBO) = en_pert%dets(0:NIfDBO,idet)
+            ilut(0:nifd) = en_pert%dets(0:nifd,idet)
             call decode_bit_det(nI, ilut)
 
             if (tHPHF) then

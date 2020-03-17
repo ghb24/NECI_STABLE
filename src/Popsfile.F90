@@ -321,7 +321,7 @@ contains
                 call extract_sign(Dets(:,i),SignTemp)
 
                 CurrParts=CurrParts+abs(SignTemp)
-                if(DetBitEQ(Dets(:,i),iLutRef(:,1),NIfDBO)) then
+                if(DetBitEQ(Dets(:,i),iLutRef(:,1),nifd)) then
                     if(abs(CurrHF(1)) > 1.0e-12_dp) then
                         call stop_all(this_routine,"HF already found, but shouldn't have")
                     endif
@@ -829,18 +829,18 @@ r_loop: do while(.not.tStoreDet)
             ! All basis parameters match --> Read in directly.
             if (tRealPOPSfile) then
                 if (BinPops) then
-                    read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), sgn,&
+                    read(iunit, iostat=stat) WalkerTemp(0:nifd), sgn,&
                         flg_read, gdata_tmp
                 else
-                    read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                    read(iunit,*, iostat=stat) WalkerTemp(0:nifd), &
                         sgn, flg_read, gdata_tmp
                 end if
             else
                 if (BinPops) then
-                    read(iunit, iostat=stat) WalkerTemp(0:NIfDBO), &
+                    read(iunit, iostat=stat) WalkerTemp(0:nifd), &
                         sgn_int, flg_read, gdata_tmp
                 else
-                    read(iunit,*, iostat=stat) WalkerTemp(0:NIfDBO), &
+                    read(iunit,*, iostat=stat) WalkerTemp(0:nifd), &
                         sgn_int, flg_read, gdata_tmp
                 end if
 
@@ -2292,7 +2292,7 @@ r_loop: do while(.not.tStoreDet)
                 ! TODO: For POPSFILE V5 --> stream output.
                 write(iunit) det(0:NIfD), real_sgn, int(flg, n_int), gdata(1:gdata_size,j)
             else
-                do k = 0, NIfDBO
+                do k = 0, nifd
                     write(iunit, '(i24)', advance='no') det(k)
                 end do
                 do k = 1, lenof_sign
@@ -2709,36 +2709,40 @@ r_loop: do while(.not.tStoreDet)
             if (.not.tPop64BitDets) then
                 ! If we are using 64 bit integers, but have read in 32 bit
                 ! integers, then we need to convert them.
-                do ii=0,nBasis/32
-                    do j=0,31
-                        if(btest(iLutTemp32(ii),j)) then
-                            orb=(ii*32)+j+1
-                            pos=(orb-1)/bits_n_int
-                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                        endif
-                    enddo
-                enddo
-                iLutTemp(NIfD+1:NIfDBO) = iLutTemp64(ii:NIfWriteOut)
+                call stop_all(this_routine, &
+                    "WD: I removed nifdbo as i assumes its always = nifd.. this is a problem here")
+                ! do ii=0,nBasis/32
+                !     do j=0,31
+                !         if(btest(iLutTemp32(ii),j)) then
+                !             orb=(ii*32)+j+1
+                !             pos=(orb-1)/bits_n_int
+                !             iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                !         endif
+                !     enddo
+                ! enddo
+                ! iLutTemp(NIfD+1:NIfDBO) = iLutTemp64(ii:NIfWriteOut)
             else
-                iLutTemp(0:NIfDBO)=iLutTemp64(0:NIfDBO)
+                iLutTemp(0:nifd)=iLutTemp64(0:nifd)
             endif
 
 #else
             ! If we are using 32 bit integers, but have read in 64 bit
             ! integers, then we need to convert them.
             if (tPop64BitDets) then
-                do ii=0,nBasis/64
-                    do j=0,63
-                        if(btest(iLutTemp64(ii),j)) then
-                            orb=(ii*64)+j+1
-                            pos=(orb-1)/bits_n_int
-                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                        endif
-                    enddo
-                enddo
-                iLutTemp(NIfD+1:NIfDBO) = iLutTemp32(ii:NIfWriteOut)
+                call stop_all(this_routine, &
+                    "WD: I removed nifdbo as i assumes its always = nifd.. this is a problem here")
+                ! do ii=0,nBasis/64
+                !     do j=0,63
+                !         if(btest(iLutTemp64(ii),j)) then
+                !             orb=(ii*64)+j+1
+                !             pos=(orb-1)/bits_n_int
+                !             iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                !         endif
+                !     enddo
+                ! enddo
+                ! iLutTemp(NIfD+1:NIfDBO) = iLutTemp32(ii:NIfWriteOut)
             else
-                iLutTemp(0:NIfDBO)=iLutTemp32(0:NIfDBO)
+                iLutTemp(0:nifd)=iLutTemp32(0:nifd)
             endif
 
 #endif
@@ -2747,7 +2751,7 @@ r_loop: do while(.not.tStoreDet)
             IF((Proc.eq.iNodeIndex).and.(abs(RealTempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 !Do not need to send a flag here...
-                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0)
+                call encode_bit_rep(CurrentDets(:,CurrWalkers),iLutTemp(0:nifd),RealTempSign,0)
                 !TODO: Add flag for complex walkers to read in both
 
 !>>>"                CurrentH(1:1+2*lenof_sign,CurrWalkers)=CurrentHEntry(1:1+2*lenof_sign)
@@ -2771,7 +2775,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! Check that the bit-det comparisons agree that it is in order.
         do i=2,currwalkers
-            if(DetBitLT(CurrentDets(:,i),CurrentDets(:,i-1),NIfDBO) == 1) then
+            if(DetBitLT(CurrentDets(:,i),CurrentDets(:,i-1),nifd) == 1) then
                 print*, 'Walkers: ', i-1, i
                 print*, 'bit reps: '
                 print*, currentdets(:, i-1)
@@ -3143,36 +3147,40 @@ r_loop: do while(.not.tStoreDet)
             if (.not.tPop64BitDets) then
                 ! If we are using 64 bit integers, but have read in 32 bit
                 ! integers, then we need to convert them.
-                do ii=0,nBasis/32
-                    do j=0,31
-                        if(btest(iLutTemp32(ii),j)) then
-                            orb=(ii*32)+j+1
-                            pos=(orb-1)/bits_n_int
-                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                        endif
-                    enddo
-                enddo
-                iLutTemp(NIfD+1:NIfDBO) = iLutTemp64(ii:NIfWriteOut)
+                call stop_all(this_routine, &
+                    "WD: I removed nifdbo as i assumes its always = nifd.. this is a problem here")
+                ! do ii=0,nBasis/32
+                !     do j=0,31
+                !         if(btest(iLutTemp32(ii),j)) then
+                !             orb=(ii*32)+j+1
+                !             pos=(orb-1)/bits_n_int
+                !             iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                !         endif
+                !     enddo
+                ! enddo
+                ! iLutTemp(NIfD+1:NIfDBO) = iLutTemp64(ii:NIfWriteOut)
             else
-                iLutTemp(0:NIfDBO)=iLutTemp64(0:NIfDBO)
+                iLutTemp(0:nifd)=iLutTemp64(0:nifd)
             endif
 
 #else
             ! If we are using 32 bit integers, but have read in 64 bit
             ! integers, then we need to convert them.
             if (tPop64BitDets) then
-                do ii=0,nBasis/64
-                    do j=0,63
-                        if(btest(iLutTemp64(ii),j)) then
-                            orb=(ii*64)+j+1
-                            pos=(orb-1)/bits_n_int
-                            iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
-                        endif
-                    enddo
-                enddo
-                iLutTemp(NIfD+1:NIfDBO) = iLutTemp32(ii:NIfWriteOut)
+                call stop_all(this_routine, &
+                    "WD: I removed nifdbo as i assumes its always = nifd.. this is a problem here")
+                ! do ii=0,nBasis/64
+                !     do j=0,63
+                !         if(btest(iLutTemp64(ii),j)) then
+                !             orb=(ii*64)+j+1
+                !             pos=(orb-1)/bits_n_int
+                !             iLutTemp(pos)=ibset(iLutTemp(pos),mod(orb-1,bits_n_int))
+                !         endif
+                !     enddo
+                ! enddo
+                ! iLutTemp(NIfD+1:NIfDBO) = iLutTemp32(ii:NIfWriteOut)
             else
-                iLutTemp(0:NIfDBO)=iLutTemp32(0:NIfDBO)
+                iLutTemp(0:nifd)=iLutTemp32(0:nifd)
             endif
 
 #endif
@@ -3181,7 +3189,7 @@ r_loop: do while(.not.tStoreDet)
             IF((Proc.eq.iProcIndex).and.(abs(RealTempSign(1)).ge.iWeightPopRead)) THEN
                 CurrWalkers=CurrWalkers+1
                 !Do not need to send a flag here...
-                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:NIfDBO),RealTempSign,0)
+                call encode_bit_rep(Dets(:,CurrWalkers),iLutTemp(0:nifd),RealTempSign,0)
                 !TODO: Add flag for complex walkers to read in both
             ENDIF
 
@@ -3200,7 +3208,7 @@ r_loop: do while(.not.tStoreDet)
 
         ! Check that the bit-det comparisons agree that it is in order.
         do i=2,currwalkers
-            if(DetBitLT(Dets(:,i),Dets(:,i-1),NIfDBO) == 1) then
+            if(DetBitLT(Dets(:,i),Dets(:,i-1),nifd) == 1) then
                 print*, 'Walkers: ', i-1, i
                 print*, 'bit reps: '
                 print*, dets(:, i-1)

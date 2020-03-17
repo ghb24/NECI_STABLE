@@ -18,7 +18,7 @@ MODULE ISKRandExcit
     use FciMCData, only: pDoubles, excit_gen_store_type
     use constants, only: dp,n_int,bits_n_int, maxExcit
     use HElem
-    use bit_reps, only: NIfD, NIfDBO, NIfTot
+    use bit_reps, only: NIfD, NIfTot
     use SymExcitDataMod, only: SpinOrbSymLabel,SymTableLabels,SymInvLabel, &
                                KPntInvSymOrb
     IMPLICIT NONE
@@ -371,7 +371,7 @@ MODULE ISKRandExcit
 !        CALL EncodeBitDet(nI2,iLutnI2)
         IF(is_self_inverse(nI,iLutnI)) THEN
             call find_invsym_det(nI,nI2,iLutnI2)
-            IF(.not.DetBitEQ(iLutnI,iLutnI2,NIfDBO)) THEN
+            IF(.not.DetBitEQ(iLutnI,iLutnI2,nifd)) THEN
                 WRITE(6,*) "nI: ",nI(:)
                 WRITE(6,*) ""
                 WRITE(6,*) "nISym: ",nI2(:)
@@ -469,7 +469,7 @@ MODULE ISKRandExcit
             Unique=.true.
             do k=j-1,1,-1
 !Run backwards through the array to see if this HPHF has come before
-                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
+                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),nifd)) THEN
 !This HPHF has already been counted before...
                     Unique=.false.
                     EXIT
@@ -488,7 +488,7 @@ MODULE ISKRandExcit
 !Run though all excitations in the first array, *and* up to where we are in the second array
             Unique=.true.
             do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
+                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),nifd)) THEN
                     Unique=.false.
                     EXIT
                 ENDIF
@@ -496,7 +496,7 @@ MODULE ISKRandExcit
             IF(Unique) THEN
 !Need to search backwards through the entries we've already looked at in this array...
                 do k=j-1,1,-1
-                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j),NIfDBO)) THEN
+                    IF(DetBitEQ(ConnsBeta(0:NIfTot,k),ConnsBeta(0:NIfTot,j),nifd)) THEN
                         Unique=.false.
                         EXIT
                     ENDIF
@@ -525,7 +525,7 @@ MODULE ISKRandExcit
             Unique=.true.
             do k=j-1,1,-1
 !Run backwards through the array to see if this HPHF has come before
-                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),NIfDBO)) THEN
+                IF(DetBitEQ(ConnsAlpha(0:NIfTot,k),ConnsAlpha(0:NIfTot,j),nifd)) THEN
 !This HPHF has already been counted before...
                     Unique=.false.
                     EXIT
@@ -543,7 +543,7 @@ MODULE ISKRandExcit
 !Run though all excitations in the first array, *and* up to where we are in the second array
             Unique=.true.
             do k=1,DetConn
-                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),NIfDBO)) THEN
+                IF(DetBitEQ(ConnsAlpha(:,k),ConnsBeta(:,j),nifd)) THEN
                     Unique=.false.
                     EXIT
                 ENDIF
@@ -551,7 +551,7 @@ MODULE ISKRandExcit
             IF(Unique) THEN
 !Need to search backwards through the entries we've already looked at in this array...
                 do k=j-1,1,-1
-                    IF(DetBitEQ(ConnsBeta(:,k),ConnsBeta(:,j),NIfDBO)) THEN
+                    IF(DetBitEQ(ConnsBeta(:,k),ConnsBeta(:,j),nifd)) THEN
                         Unique=.false.
                         EXIT
                     ENDIF

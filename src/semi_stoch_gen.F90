@@ -3,7 +3,7 @@
 module semi_stoch_gen
 
     use SystemData, only: tGUGA
-    use bit_rep_data, only: nIfDBO, NIfD, NIfTot
+    use bit_rep_data, only: NIfD, NIfTot
     use bit_reps, only: decode_bit_det, nifguga
     use CalcData
     use constants
@@ -174,7 +174,7 @@ contains
         ! Do a check that no states are in the deterministic space twice. The list is sorted
         ! already so simply check states next to each other in the list.
         do i = 2, determ_sizes(iProcIndex)
-            if (all(SpawnedParts(0:NIfDBO, i-1) == SpawnedParts(0:NIfDBO, i))) then
+            if (all(SpawnedParts(0:nifd, i-1) == SpawnedParts(0:nifd, i))) then
                 call decode_bit_det(nI, SpawnedParts(:,i))
                 write(6,'("State found twice:")')
                 write(6,*) SpawnedParts(:,i)
@@ -1202,7 +1202,7 @@ contains
         ilut_tmp = 0_n_int
 
         do
-            read(iunit, *, iostat=stat) ilut(0:NIfDBO)
+            read(iunit, *, iostat=stat) ilut(0:nifd)
 
             ! If the end of the file.
             if (stat < 0) exit
@@ -1723,7 +1723,7 @@ contains
                 end if
 
                 do j = 1, space_size
-                    do k = 0, NIfDBO
+                    do k = 0, nifd
                         write(iunit, '(i24)', advance='no') SpawnedParts(k,j)
                     end do
                     write(iunit, *)

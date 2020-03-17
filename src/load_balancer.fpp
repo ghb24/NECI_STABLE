@@ -15,7 +15,7 @@ module load_balance
                                set_all_spawn_pops, reset_all_tau_ints, &
                                reset_all_shift_ints, det_diagH, store_decoding, &
                                reset_all_tot_spawns, reset_all_acc_spawns
-    use bit_rep_data, only: flag_initiator, NIfDBO, &
+    use bit_rep_data, only: flag_initiator, nifd, &
                             flag_connected, flag_trial, flag_prone, flag_removed
     use bit_reps, only: set_flag, nullify_ilut_part, &
                         encode_part_sign, nullify_ilut, clr_flag
@@ -740,7 +740,7 @@ contains
 
                 if (tFillingStochRDMonFly) then
                     if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
-                        if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) then
+                        if (DetBitEQ(CurrentDets(:,i), iLutHF_True, nifd)) then
                             ! We have to do this such that AvNoAtHF matches up with AvSign.
                             ! AvSign is extracted from CurrentH, and if the HFDet is unoccupied
                             ! at this moment during annihilation, it's CurrentH entry is removed
@@ -755,7 +755,7 @@ contains
 
                 ! This InstNoAtHF call must be placed at the END of the routine
                 ! as the value of CurrentSign can change during it!
-                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, NIfDBO)) then
+                if (DetBitEQ(CurrentDets(:,i), iLutHF_True, nifd)) then
                     InstNoAtHF=CurrentSign
                 end if
 
@@ -825,7 +825,7 @@ contains
   function need_load_balancing(lt_imb) result(t_lb)
       real(dp), intent(in) :: lt_imb
       logical :: t_lb
-      
+
       real(dp), save :: last_imb = 0.0_dp
       logical, save :: last_t_lb = .false.
 

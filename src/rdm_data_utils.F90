@@ -11,7 +11,7 @@ module rdm_data_utils
     ! rdm_list_t object, and adding to and communicating with rdm_spawn_t
     ! objects.
 
-    use bit_rep_data, only: NIfTot, NIfDBO
+    use bit_rep_data, only: NIfTot, nifd, noffsgn
     use constants
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
@@ -113,7 +113,7 @@ contains
         en_pert%nhashes = nhashes
         en_pert%ndets = 0
 
-        allocate(en_pert%dets(0:sign_length+NIfDBO, max_ndets))
+        allocate(en_pert%dets(0:sign_length+nifd, max_ndets))
         en_pert%dets = 0_n_int
 
         allocate(en_pert%hash_table(nhashes), stat=ierr)
@@ -500,7 +500,7 @@ contains
         real(dp), intent(out) :: real_sign(sign_length)
         integer(n_int) :: sign(sign_length)
 
-        sign = ilut(NIfDBO+1:NIfDBO+sign_length)
+        sign = ilut(noffsgn:nifd+sign_length)
         real_sign = transfer(sign, real_sign)
 
     end subroutine extract_sign_EN
@@ -513,7 +513,7 @@ contains
         integer(n_int) :: sign(sign_length)
 
         sign = transfer(real_sign, sign)
-        ilut(NIfDBO+1:NIfDBO+sign_length) = sign
+        ilut(noffsgn:nifd+sign_length) = sign
 
     end subroutine encode_sign_EN
 
@@ -1062,7 +1062,7 @@ contains
         ! Search to see if this determinant is already in the dets array.
         ! If it, tSuccess will be true and ind will hold the position of the
         ! entry in en_pert%dets.
-        call hash_table_lookup(nI, ilut, NIfDBO, en_pert%hash_table, en_pert%dets, ind, hash_val, tSuccess)
+        call hash_table_lookup(nI, ilut, nifd, en_pert%hash_table, en_pert%dets, ind, hash_val, tSuccess)
 
         if (tSuccess) then
             ! Extract the existing sign.
@@ -1086,7 +1086,7 @@ contains
                            &when there are no slots remaining.")'); call neci_flush(6)
             end if
 
-            en_pert%dets(0:NIfDBO, en_pert%ndets) = ilut(0:NIfDBO)
+            en_pert%dets(0:nifd, en_pert%ndets) = ilut(0:nifd)
             call encode_sign_EN(en_pert%sign_length, en_pert%dets(:, en_pert%ndets), contrib_sign)
 
             call add_hash_table_entry(en_pert%hash_table, en_pert%ndets, hash_val)

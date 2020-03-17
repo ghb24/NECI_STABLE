@@ -6,7 +6,7 @@ module guga_rdm
     use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_, &
                          Root2, int64, int_rdm
     use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
-    use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifdbo
+    use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifd
     use rdm_data, only: one_rdms, two_rdm_spawn, rdmCorrectionFactor
     use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdm_spawn_t, one_rdm_t
     use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, rdm_list_t
@@ -30,7 +30,7 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double, &
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, t_slow_guga_rdms, GugaBit
+                         excit_type, gen_type, t_slow_guga_rdms, GugaBits
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -86,7 +86,7 @@ contains
         if (.not. tExplicitAllRDM) then
             ! setup the ilut position and total number of elements for the
             ! stochastic RDM calculation
-            ! GugaBit%tot = 0 !todo..
+            ! GugaBits%tot = 0 !todo..
         end if
 
     end subroutine init_guga_rdm
@@ -781,7 +781,7 @@ contains
         ! mimic the stochastic processes for the explicit excitation
         ! generation
 
-        if (DetBitEQ(ilutI, ilutJ, nifdbo)) return
+        if (DetBitEQ(ilutI, ilutJ, nifd)) return
 
         ! for the explicit code, I first need to recalculate the type
         ! of excitation.. I am not sure how the indices will be encoded..
@@ -1849,7 +1849,7 @@ contains
                             ! diagonal contribution routine
 #ifdef DEBUG_
                             if (n_excits > 0) then
-                                if (.not. DetBitEQ(ilut, temp_excits(:,1), nifdbo)) then
+                                if (.not. DetBitEQ(ilut, temp_excits(:,1), nifd)) then
                                     print *, "not equal!"
                                 end if
                             end if

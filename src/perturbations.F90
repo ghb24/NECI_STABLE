@@ -116,7 +116,7 @@ contains
         ! determinants. It will overwrite whatever is in SpawnedParts.
 
         use AnnihilationMod, only: SendProcNewParts
-        use bit_rep_data, only: NIfTot, NIfDBO, extract_sign
+        use bit_rep_data, only: NIfTot, nifd, extract_sign
         use bit_reps, only: encode_sign, decode_bit_det
         use DetBitOps, only: ilut_lt, ilut_gt
         use load_balance_calcnodes, only: DetermineDetNode
@@ -153,7 +153,7 @@ contains
             ilut = dets_in(:,i)
             call perturb_det(ilut, perturb)
 
-            if (all(ilut(0:NIfDBO) == 0_n_int)) then
+            if (all(ilut(0:nifd) == 0_n_int)) then
                 nremoved = nremoved + 1
             else
                 call decode_bit_det(nI, ilut)
@@ -218,7 +218,7 @@ contains
         ! orbital for the i'th annihilation operator, and similarly for
         ! c_bits and c_elems for creation operators.
 
-        use bit_rep_data, only: NIfTot, NIfDBO, NIfD, extract_sign
+        use bit_rep_data, only: NIfTot, nifd, NIfD, extract_sign
         use bit_reps, only: encode_sign
         use DetBitOps, only: CountBits
 
@@ -243,7 +243,7 @@ contains
 
             do i = 1, perturb%nannihilate
                if ( .not. btest(ilut(a_elems(i)), a_bits(i)) ) then
-                    ilut(0:NIfDBO) = 0_n_int
+                    ilut(0:nifd) = 0_n_int
                     return
                 end if
                 ilut(a_elems(i)) = ibclr(ilut(a_elems(i)), a_bits(i))
@@ -251,7 +251,7 @@ contains
 
             do i = 1, perturb%ncreate
                 if ( btest(ilut(c_elems(i)), c_bits(i)) ) then
-                    ilut(0:NIfDBO) = 0_n_int
+                    ilut(0:nifd) = 0_n_int
                     return
                 end if
                 ilut(c_elems(i)) = ibset(ilut(c_elems(i)), c_bits(i))

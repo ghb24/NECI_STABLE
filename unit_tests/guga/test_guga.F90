@@ -115,7 +115,7 @@ contains
 
     subroutine test_encode_extract_stochastic_rdm_ind
 
-        integer(n_int) :: ilut(0:guga_ilut_pos%tot)
+        integer(n_int) :: ilut(0:GugaBits%tot)
         integer(int_rdm) :: rdm_ind
 
         print *, ""
@@ -136,7 +136,7 @@ contains
 
     subroutine test_encode_extract_stochastic_rdm_x0
 
-        integer(n_int) :: ilut(0:guga_ilut_pos%tot)
+        integer(n_int) :: ilut(0:GugaBits%tot)
         real(dp) :: x0
 
         print *, ""
@@ -161,7 +161,7 @@ contains
 
     subroutine test_encode_extract_stochastic_rdm_x1
 
-        integer(n_int) :: ilut(0:guga_ilut_pos%tot)
+        integer(n_int) :: ilut(0:GugaBits%tot)
         real(dp) :: x1
         print *, ""
         print *, "testing: encode and extract stochastic rmd x1"
@@ -184,7 +184,7 @@ contains
 
     subroutine test_encode_extract_stochastic_rdm_info
 
-        integer(n_int) :: ilut(0:guga_ilut_pos%tot)
+        integer(n_int) :: ilut(0:GugaBits%tot)
         integer(int_rdm) :: rdm_ind
         real(dp) :: x0, x1
 

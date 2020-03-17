@@ -19,8 +19,6 @@ module bit_rep_data
     integer :: nIfTot  ! Upper bound of bit representation. In form 0:NIfTot
     integer :: nIfD    ! Final byte representing spatial/spin orbitals
 
-    integer :: nIfDBO  ! Size used for bit operations (e.g. sorting)
-
     integer :: nOffFlag   ! Offset of flags. in bytes
     integer :: nIfFlag    ! Number of bytes to contain flags.
 

@@ -2,7 +2,7 @@
 
 module fast_determ_hamil
 
-    use bit_rep_data, only: NIfTot, NIfDBO, NIfD
+    use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: decode_bit_det
     use constants
     use DetBitOps, only: CountBits, TestClosedShellDet, CalcOpenOrbs

@@ -2,7 +2,7 @@
 
 module trial_wf_gen
 
-    use bit_rep_data, only: NIfTot, NIfDBO, flag_trial, flag_connected
+    use bit_rep_data, only: NIfTot, nifd, flag_trial, flag_connected, noffsgn
     use CalcData
     use Parallel_neci
     use semi_stoch_gen
@@ -137,9 +137,9 @@ contains
 
         ! set the size of the entries in con_ht
 #ifdef CMPLX_
-        NConEntry = NIfDBO + 2*nexcit_keep
+        NConEntry = nifd + 2*nexcit_keep
 #else
-        NConEntry = NIfDBO + nexcit_keep
+        NConEntry = nifd + nexcit_keep
 #endif
 
         if (num_elem > 0) then
@@ -342,7 +342,7 @@ contains
             ! functions.
             call decode_bit_det(nI, trial_dets(0:NIfTot,idet))
             ! Search the hash table for this determinant.
-            call hash_table_lookup(nI, trial_dets(:,idet), NIfDBO, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
+            call hash_table_lookup(nI, trial_dets(:,idet), nifd, ilut_ht, ilut_list, det_ind, hash_val, tDetFound)
             if (tDetFound) then
                 call extract_sign(ilut_list(:,det_ind), all_fciqmc_amps)
 #ifdef CMPLX_
@@ -558,7 +558,7 @@ contains
 
             do i = 1, size(con_vecs,2)
 
-                if (all(con_space(0:NIfDBO,i) == trial_space(0:NIfDBO,j))) then
+                if (all(con_space(0:nifd,i) == trial_space(0:nifd,j))) then
                     H_ij = calcDiagMatEleGuga_nI(nJ)
 
                 else
@@ -615,7 +615,7 @@ contains
 
                 call decode_bit_det(nJ, trial_space(0:NIfTot, j))
 
-                if (all(con_space(0:NIfDBO, i) == trial_space(0:NIfDBO, j))) then
+                if (all(con_space(0:nifd, i) == trial_space(0:nifd, j))) then
                     if ( tHPHF) then
                         H_ij = hphf_diag_helement(nI, trial_space(:,j))
                     else if (tGUGA) then
@@ -710,7 +710,7 @@ contains
                 end if
 
                 do j = 1, trial_space_size
-                    do k = 0, NIfDBO
+                    do k = 0, nifd
                         write(iunit, '(i24)', advance = 'no') trial_space(k,j)
                     end do
                     write(iunit, *)
@@ -828,7 +828,7 @@ contains
             temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if ( all(trial_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
+                    if ( all(trial_space(0:nifd,i) == CurrentDets(0:nifd,temp_node%ind)) ) then
                         call set_flag(CurrentDets(:,temp_node%ind), flag_trial)
                         current_trial_amps(:,temp_node%ind) = trial_wfs(:,i)
                         exit
@@ -845,7 +845,7 @@ contains
             temp_node => HashIndex(hash_val)
             if (temp_node%ind /= 0) then
                 do while (associated(temp_node))
-                    if ( all(con_space(0:NIfDBO,i) == CurrentDets(0:NIfDBO,temp_node%ind)) ) then
+                    if ( all(con_space(0:nifd,i) == CurrentDets(0:nifd,temp_node%ind)) ) then
                         ! If not also in the trial space. If it is, then we
                         ! don't want the connected flag to be set, or the
                         ! connected vector amplitude to be used.
@@ -904,8 +904,8 @@ contains
                 else
                     nclash = trial_ht(hash_val)%nclash + 1
                     trial_ht(hash_val)%nclash = nclash
-                    trial_ht(hash_val)%states(0:NIfDBO,nclash) = trial_space(0:NIfDBO,i)
-                    trial_ht(hash_val)%states(NIfDBO+1:,nclash) = transfer(trial_wfs(:,i), temp)
+                    trial_ht(hash_val)%states(0:nifd,nclash) = trial_space(0:nifd,i)
+                    trial_ht(hash_val)%states(noffsgn:,nclash) = transfer(trial_wfs(:,i), temp)
                 end if
             end do
 
@@ -952,8 +952,8 @@ contains
                 else
                     nclash = con_ht(hash_val)%nclash + 1
                     con_ht(hash_val)%nclash = nclash
-                    con_ht(hash_val)%states(0:NIfDBO,nclash) = con_space(0:NIfDBO,i)
-                    con_ht(hash_val)%states(NIfDBO+1:,nclash) = transfer(con_space_vecs(:,i), temp)
+                    con_ht(hash_val)%states(0:nifd,nclash) = con_space(0:nifd,i)
+                    con_ht(hash_val)%states(noffsgn:,nclash) = transfer(con_space_vecs(:,i), temp)
                 end if
             end do
 

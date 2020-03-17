@@ -652,7 +652,7 @@ contains
             ! Check the QMC hash table to see if this state exists in the
             ! QMC list.
             call decode_bit_det(nI, trial_iluts(:,i))
-            call hash_table_lookup(nI, trial_iluts(:,i), NIfDBO, qmc_ht, &
+            call hash_table_lookup(nI, trial_iluts(:,i), nifd, qmc_ht, &
                                    qmc_iluts, ind, hash_val, found)
             if (found) then
                 call extract_sign(qmc_iluts(:,ind), qmc_sign)
@@ -742,7 +742,7 @@ contains
         ! Now copy the amplitudes across to the CurrentDets array:
         ! First, get the correct states in CurrentDets.
         CurrentDets(0:NIfTot, 1:ndets_this_proc) = 0_n_int
-        CurrentDets(0:NIfDBO, 1:ndets_this_proc) = trial_iluts(0:NIfDBO, 1:ndets_this_proc)
+        CurrentDets(0:nifd, 1:ndets_this_proc) = trial_iluts(0:nifd, 1:ndets_this_proc)
 
         ! Set signs.
         do i = 1, ndets_this_proc

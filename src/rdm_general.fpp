@@ -3,7 +3,7 @@
 
 module rdm_general
 
-    use bit_rep_data, only: NIfTot, NIfDBO, nifguga
+    use bit_rep_data, only: NIfTot, nifd, nifguga
     use constants
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
@@ -327,9 +327,9 @@ contains
             ! Finally, we need to hold onto the parents of the spawned particles.
             ! This is not necessary if we're doing completely explicit calculations.
             ! WD: maybe I have to change this for the GUGA implementation..
-            allocate(Spawned_Parents(0:(NIfDBO+3), MaxSpawned), stat=ierr)
+            allocate(Spawned_Parents(0:(nifd+3), MaxSpawned), stat=ierr)
             if (ierr /= 0) call stop_all(t_r,'Problem allocating Spawned_Parents array,')
-            call LogMemAlloc('Spawned_Parents', MaxSpawned*(NIfDBO+3), size_n_int,&
+            call LogMemAlloc('Spawned_Parents', MaxSpawned*(nifd+3), size_n_int,&
                                                 t_r,Spawned_ParentsTag, ierr)
             allocate(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Spawned_Parents_Index array,')
@@ -622,7 +622,7 @@ contains
         NIfBCast_old = NIfBCast
         NOffParent = NIfBCast + 1
 
-        NIfBCast = NIfBCast + NIfDBO + 3
+        NIfBCast = NIfBCast + nifd + 3
 
         allocate(SpawnVec(0:NIfBCast, MaxSpawned), stat=ierr)
         @:log_alloc(SpawnVec, SpawnVecTag, ierr)
@@ -1084,9 +1084,9 @@ contains
 
         ! We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         ! This routine stores the parent (D_i) with the spawned child (D_j) so
-        ! that we can add in Ci.Cj to the RDM later on. The parent is NIfDBO
+        ! that we can add in Ci.Cj to the RDM later on. The parent is nifd
         ! integers long, and stored in the second part of the SpawnedParts array
-        ! from NIfTot+1 -> NIfTot+1 + NIfDBO.
+        ! from NIfTot+1 -> NIfTot+1 + nifd.
 
         use DetBitOps, only: DetBitEQ
         use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, TempSpawnedPartsInd
@@ -1122,7 +1122,7 @@ contains
             ! just wont run over anything.
 
             do j = 1, TempSpawnedPartsInd
-                if (DetBitEQ(iLutJ(0:NIfDBO), TempSpawnedParts(0:NIfDBO,j), NIfDBO)) then
+                if (DetBitEQ(iLutJ(0:nifd), TempSpawnedParts(0:nifd,j), nifd)) then
                     ! If this Dj is found, we do not want to store the parent with this spawned walker.
                     tRDMStoreParent = .false.
                     exit
@@ -1136,7 +1136,7 @@ contains
                     ! Don't bother storing these if we're on the last walker, or if we only have one
                     ! walker on Di.
                     TempSpawnedPartsInd = TempSpawnedPartsInd + 1
-                    TempSpawnedParts(0:NIfDBO,TempSpawnedPartsInd) = iLutJ(0:NIfDBO)
+                    TempSpawnedParts(0:nifd,TempSpawnedPartsInd) = iLutJ(0:nifd)
                 end if
 
                 ! We also want to make sure the parent Di is stored with this Dj.

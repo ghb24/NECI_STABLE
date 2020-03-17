@@ -321,7 +321,7 @@ CONTAINS
       Use LoggingData, only: iLogging,tLogDets, tCalcVariationalEnergy
       use Parallel_neci, only : iProcIndex
       use DetBitops, only: DetBitEQ,EncodeBitDet,FindBitExcitLevel
-      use bit_rep_data, only: NIfDBO,NIfTot,NIfD
+      use bit_rep_data, only: nifd,NIfTot,NIfD
       use legacy_data, only: irat
       use bit_reps, only: decode_bit_det
       use sym_mod
@@ -584,7 +584,7 @@ CONTAINS
           !Set this flag, otherwise hfindex will be overwritten
           tCalcHFIndex = .false.
           davidsonCalc%super%hfindex=0
-          CALL EncodeBitDet(FDet,iLut(0:NIfDBO))
+          CALL EncodeBitDet(FDet,iLut(0:nifd))
           do i=1,davidson_size
             if(DetBitEq(davidson_ilut(:,i),ilut))then
                 davidsonCalc%super%hfindex=i
@@ -741,8 +741,8 @@ CONTAINS
             ENDIF
 
 !Test that HF determinant is the first determinant
-            CALL EncodeBitDet(FDet,iLut(0:NIfDBO))
-            do i=0,NIfDBO
+            CALL EncodeBitDet(FDet,iLut(0:nifd))
+            do i=0,nifd
                 IF(iLut(i).ne.FCIDets(i,1)) THEN
                     CALL Stop_All("DetCalc","Problem with ordering the determinants by excitation level")
                 ENDIF
@@ -788,7 +788,7 @@ CONTAINS
 
                     do i=1,Det
                         WRITE(iunit,"(2I17)",advance='no') i,temp(i)
-                        do j=0,NIfDBO
+                        do j=0,nifd
                            WRITE(iunit,"(I17)",advance='no') FCIDets(j,i)
                         enddo
                         WRITE(iunit,"(A,G25.16,A)",advance='no') " ",FCIGS(i),"  "
@@ -805,7 +805,7 @@ CONTAINS
                     WRITE(iunit,*) "***"
                     do i=1,Det
                         WRITE(iunit,"(2I13)",advance='no') i,temp(i)
-                        do j=0,NIfDBO
+                        do j=0,nifd
                            WRITE(iunit,"(I13)",advance='no') FCIDets(j,i)
                         enddo
                         WRITE(iunit,"(A)",advance='no') " "

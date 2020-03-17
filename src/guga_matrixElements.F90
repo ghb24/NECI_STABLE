@@ -11,7 +11,7 @@ module guga_matrixElements
     use guga_bitRepOps, only: isDouble, calcB_vector_nI, isProperCSF_nI
     use util_mod, only: binary_search, operator(.isclose.)
     use guga_data, only: projE_replica
-    use bit_rep_data, only: nifdbo, niftot, nifd
+    use bit_rep_data, only: niftot, nifd
     use ParallelHelper, only: iprocindex
 
     ! variable declarations:

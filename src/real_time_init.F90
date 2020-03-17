@@ -61,7 +61,7 @@ module real_time_init
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
     use replica_data, only: allocate_iter_data, set_initial_global_data
-    use bit_rep_data, only: nifbcast, niftot, extract_sign, nifdbo
+    use bit_rep_data, only: nifbcast, niftot, extract_sign, nifd
     use bit_reps, only: decode_bit_det
     use adi_references, only: setup_reference_space
 
@@ -877,7 +877,7 @@ contains
          if(.not. check_determ_flag(CurrentDets(:,i))) then
             call nullify_ilut(CurrentDets(:,i))
             call decode_bit_det(nI,CurrentDets(:,i))
-            call hash_table_lookup(nI,CurrentDets(:,i),nifdbo,HashIndex,CurrentDets,&
+            call hash_table_lookup(nI,CurrentDets(:,i),nifd,HashIndex,CurrentDets,&
                  PartInd,DetHash,tSuccess)
             if(tSuccess) call remove_hash_table_entry(HashIndex,nI,PartInd)
          endif
@@ -899,7 +899,7 @@ contains
          ! For each gf, truncate the corresponding overlap state
          do i = 1, overlap_states(iGf)%ndets
             call decode_bit_det(nI,overlap_states(iGf)%dets(:,i))
-            call hash_table_lookup(nI,overlap_states(iGf)%dets(:,i),nifdbo,HashIndex,&
+            call hash_table_lookup(nI,overlap_states(iGf)%dets(:,i),nifd,HashIndex,&
                  CurrentDets,PartInd,DetHash,tSuccess)
             if(tSuccess) then
                ! In principle, there are no non-core determinants left when this
@@ -930,7 +930,7 @@ contains
       ! For each core-state, we check if it is in the CurrentDets (which should
       ! always be the case in the initialization
       call decode_bit_det(nI,core_space(:,i))
-      call hash_table_lookup(nI,core_space(:,i),nifdbo,HashIndex,CurrentDets,PartInd,&
+      call hash_table_lookup(nI,core_space(:,i),nifd,HashIndex,CurrentDets,PartInd,&
            DetHash, tSuccess)
       if(tSuccess) then
          ! And then we set the deterministic flag

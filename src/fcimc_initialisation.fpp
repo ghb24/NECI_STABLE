@@ -96,7 +96,7 @@ module fcimc_initialisation
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
 
-    use bit_rep_data, only: NIfTot, NIfD, NIfDBO, NIfBCast, flag_initiator, &
+    use bit_rep_data, only: NIfTot, NIfD, NIfBCast, flag_initiator, &
                             flag_deterministic, extract_sign
 
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
@@ -2403,7 +2403,7 @@ contains
          ! reset the reference?
       end do
 
-      call hash_table_lookup(HFDet,ilutHF,NIfDBO,HashIndex,CurrentDets,i,DetHash,tSuccess)
+      call hash_table_lookup(HFDet,ilutHF,nifd,HashIndex,CurrentDets,i,DetHash,tSuccess)
       if(tSuccess) then
          call extract_sign(CurrentDets(:,i),tmpSgn)
          do i = 1, inum_runs
@@ -3294,7 +3294,7 @@ contains
 
                 if (abs(NoWalkers) > 1.0e-12_dp) then
                     call EncodeBitDet(CASFullDets(:,i),iLutnJ)
-                    if(DetBitEQ(iLutnJ, iLutRef(:,1), NIfDBO)) then
+                    if(DetBitEQ(iLutnJ, iLutRef(:,1), nifd)) then
                         !Check if this determinant is reference determinant, so we can count number on hf.
                         do run=1,inum_runs
                             NoatHF(run) = NoWalkers

@@ -20,7 +20,7 @@ module guga_data
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, t_slow_guga_rdms, t_fast_guga_rdms, &
               t_mimic_slow, rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-              n_excit_lvl_bits, n_excit_type_bits, GugaBit, n_excit_info_bits, &
+              n_excit_lvl_bits, n_excit_type_bits, GugaBits, n_excit_info_bits, &
               GugaIlutPos_t
 
     logical :: t_slow_guga_rdms = .true.
@@ -41,7 +41,7 @@ module guga_data
         integer :: r_x1       ! the index of the x1 coupling coeff contrib
     end type GugaIlutPos_t
 
-    type(GugaIlutPos_t) :: GugaBit
+    type(GugaIlutPos_t) :: GugaBits
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations

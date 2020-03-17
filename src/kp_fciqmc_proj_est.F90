@@ -2,7 +2,7 @@
 
 module kp_fciqmc_proj_est
 
-    use bit_rep_data, only: NIfTot, NIfDBO
+    use bit_rep_data, only: NIfTot, nifd, noffsgn
     use constants
     use kp_fciqmc_data_mod, only: lenof_all_signs, kp_ind_1, kp_ind_2
 
@@ -62,7 +62,7 @@ contains
 
         h_matrix(:,:) = 0.0_dp
         ilut_parent = 0_n_int
-        flag_ind = NIfDBO + lenof_all_signs + 1
+        flag_ind = nifd + lenof_all_signs + 1
         ValidSpawnedList = InitialSpawnedSlots
         call clear_hash_table(spawn_ht)
         tNearlyFull = .false.
@@ -80,7 +80,7 @@ contains
         do idet = 1, ndets
 
             ! The 'parent' determinant from which spawning is to be attempted.
-            ilut_parent(0:NIfDBO) = krylov_array(0:NIfDBO,idet)
+            ilut_parent(0:nifd) = krylov_array(0:nifd,idet)
             ilut_parent(NOffFlag) = krylov_array(flag_ind,idet)
 
             ! Indicate that the scratch storage used for excitation generation from the
@@ -89,7 +89,7 @@ contains
             fcimc_excit_gen_store%tFilled = .false.
 
             call decode_bit_det(nI_parent, ilut_parent)
-            int_sign = krylov_array(NIfDBO+1:NIfDBO+lenof_all_signs, idet)
+            int_sign = krylov_array(noffsgn:noffsgn+lenof_all_signs-1, idet)
             parent_sign = transfer(int_sign, parent_sign)
             tot_pop = sum(abs(parent_sign))
 
@@ -299,7 +299,7 @@ contains
         do idet = 1, ndets
 
             ! The 'parent' determinant to consider 'spawning' from.
-            ilut_parent(0:NIfDBO) = krylov_array(0:NIfDBO,idet)
+            ilut_parent(0:nifd) = krylov_array(0:nifd,idet)
 
             ! Get the real walker amplitudes.
             int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
@@ -447,7 +447,7 @@ contains
         integer :: proc, ind, hash_val
         logical :: tSuccess
 
-        call hash_table_lookup(nI_child, ilut_child, NIfDBO, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
+        call hash_table_lookup(nI_child, ilut_child, nifd, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
 
         if (tSuccess) then
             ! If this determinant is already in the spawned array.
@@ -462,7 +462,7 @@ contains
             ! If this determinant is a new entry to the spawned array.
             proc = DetermineDetNode(nel, nI_child, 0)
 
-            SpawnedParts(0:NIfDBO, ValidSpawnedList(proc)) = ilut_child(0:NIfDBO)
+            SpawnedParts(0:nifd, ValidSpawnedList(proc)) = ilut_child(0:nifd)
             int_sign = transfer(child_sign, int_sign)
             SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ValidSpawnedList(proc)) = int_sign
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
@@ -547,7 +547,7 @@ contains
 
         do idet = 1, nspawns_this_proc
 
-            ilut_spawn(0:NIfDBO) = SpawnedParts(0:NIfDBO, idet)
+            ilut_spawn(0:nifd) = SpawnedParts(0:nifd, idet)
             int_sign = SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
@@ -561,7 +561,7 @@ contains
             else
                 tDetFound = .false.
                 do while (associated(temp_node))
-                    if ( all(ilut_spawn(0:NIfDBO) == krylov_array(0:NIfDBO,temp_node%ind)) ) then
+                    if ( all(ilut_spawn(0:nifd) == krylov_array(0:nifd,temp_node%ind)) ) then
                         ! If this CurrentDets determinant has been found in krylov_array.
                         det_ind = temp_node%ind
                         tDetFound = .true.

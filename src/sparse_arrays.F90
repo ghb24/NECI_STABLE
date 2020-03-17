@@ -11,7 +11,7 @@
 
 module sparse_arrays
 
-    use bit_rep_data, only: NIfTot, NIfDBO, NIfD
+    use bit_rep_data, only: NIfTot, NIfD
     use bit_reps, only: decode_bit_det, nifguga
     use CalcData, only: tReadPops, t_guga_mat_eles
     use constants
@@ -391,7 +391,7 @@ contains
 
                 do j = 1, num_states_tot
 
-                    if (DetBitEq(ilut_list(:,i), temp_store(:,j), nifdbo)) then
+                    if (DetBitEq(ilut_list(:,i), temp_store(:,j), nifd)) then
 
                         hamiltonian_row(j) = get_helement(nI, nI, 0)
 
@@ -421,7 +421,7 @@ contains
                 call decode_bit_det(nJ, temp_store(:,j))
 
                 ! If on the diagonal of the Hamiltonian.
-                if (DetBitEq(ilut_list(:,i), temp_store(:,j), NIfDBO)) then
+                if (DetBitEq(ilut_list(:,i), temp_store(:,j), nifd)) then
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_diag_helement(nI, ilut_list(:,i))
                     else if (tGUGA) then
@@ -553,7 +553,7 @@ contains
                 ! then loop over j
                 do j = 1, determ_space_size
 
-                    if (all(SpawnedParts(0:nifdbo,i) == temp_store(0:nifdbo,j))) then
+                    if (all(SpawnedParts(0:nifd,i) == temp_store(0:nifd,j))) then
 
                         ! thats the diagonal case
                         hamiltonian_row(j) = get_helement(nI, nI, 0) - Hii
@@ -589,7 +589,7 @@ contains
                     nJ = temp_store_nI(:,j)
 
                     ! If on the diagonal of the Hamiltonian.
-                    if (all( SpawnedParts(0:NIfDBO, i) == temp_store(0:NIfDBO, j) )) then
+                    if (all( SpawnedParts(0:nifd, i) == temp_store(0:nifd, j) )) then
                         if (tHPHF) then
                             hamiltonian_row(j) = hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
                         else
@@ -1011,7 +1011,7 @@ contains
         hash_val = FindWalkerHash(nI, var_space_size_int)
 
         do i = 1, var_ht(hash_val)%nclash
-            if (all(ilut(0:NIfDBO) == var_space(0:NIfDBO, var_ht(hash_val)%ind(i)) )) then
+            if (all(ilut(0:nifd) == var_space(0:nifd, var_ht(hash_val)%ind(i)) )) then
                 var_state = .true.
                 return
             end if

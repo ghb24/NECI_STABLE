@@ -1440,7 +1440,7 @@ module FciMCParMod
 
             IFDEBUGTHEN(FCIMCDebug,1)
                 if(j.gt.1) then
-                    if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),NIfDBO)) then
+                    if(DetBitEQ(CurrentDets(:,j-1),CurrentDets(:,j),nifd)) then
                         call stop_all(this_routine,"Shouldn't have the same determinant twice")
                     endif
                 endif

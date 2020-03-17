@@ -27,8 +27,6 @@ module guga_excitations
     use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
                         extract_part_sign, nifguga, nifd
 
-    use bit_rep_data, only: nifdbo
-
     use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ
 
     use guga_data, only: ExcitationInformation_t, getSingleMatrixElement, &

@@ -8,7 +8,7 @@ module DetBitOps
     use Systemdata, only: nel, tOddS_HPHF, tHPHF
     use CalcData, only: tTruncInitiator, tSemiStochastic
     use bit_rep_data, only: NIfTot, NIfD, NOffFlag, NIfFlag, &
-                            test_flag, NIfDBO, NOffSgn, extract_sign
+                            test_flag, NOffSgn, extract_sign
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
     implicit none
@@ -423,7 +423,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = nIfDBO
+                lnLast = nifd
             end if
 
             if (.not. (all(ilutI(0:lnLast) == ilutJ(0:lnLast)) .or. &
@@ -440,7 +440,7 @@ module DetBitOps
                 if (present(nLast)) then
                     lnLast = nLast
                 else
-                    lnLast = NIfDBO
+                    lnLast = nifd
                 endif
 
                 do i=1,lnLast
@@ -488,7 +488,7 @@ module DetBitOps
         iLutBeta(:)=0_n_int
 
         ! this is taken from HPHFRandExcitMod
-        do i=0,NIfDBO
+        do i=0,nifd
             !Seperate the alpha and beta bit strings
             iLutAlpha(i)=IAND(ilut_in(i),MaskAlpha)
             iLutBeta(i)=IAND(ilut_in(i),MaskBeta)
@@ -574,11 +574,11 @@ module DetBitOps
         integer :: i
         logical :: bLt
 
-        do i = 0, NIfDBO
+        do i = 0, nifd
             if (iLutI(i) /= iLutJ(i)) exit
         enddo
 
-        if (i > NIfDBO) then
+        if (i > nifd) then
             bLt = .false.
         else
             bLt = ilutI(i) < ilutJ(i)
@@ -596,11 +596,11 @@ module DetBitOps
         integer :: i
         logical :: bGt
 
-        do i = 0, NIfDBO
+        do i = 0, nifd
             if (ilutI(i) /= iLutJ(i)) exit
         enddo
 
-        if (i > NIfDBO) then
+        if (i > nifd) then
             bGt = .false.
         else
             bGt = ilutI(i) > ilutJ(i)
@@ -650,7 +650,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIfDBO
+                lnLast = nifd
             endif
             do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
@@ -693,7 +693,7 @@ module DetBitOps
             if (present(nLast)) then
                 lnLast = nLast
             else
-                lnLast = NIfDBO
+                lnLast = nifd
             endif
             do i=1,lnLast
                 IF(iLutI(i).lt.iLutJ(i)) THEN
@@ -764,7 +764,7 @@ module DetBitOps
                 if (present(nLast)) then
                     lnLast = nLast
                 else
-                    lnLast = NIfDBO
+                    lnLast = nifd
                 endif
                 do i=1,lnLast
                     IF(iLutI(i).lt.iLutJ(i)) THEN
