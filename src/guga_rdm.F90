@@ -30,7 +30,7 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double, &
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, t_slow_guga_rdms, guga_ilut_pos
+                         excit_type, gen_type, t_slow_guga_rdms, GugaBit
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -86,7 +86,7 @@ contains
         if (.not. tExplicitAllRDM) then
             ! setup the ilut position and total number of elements for the
             ! stochastic RDM calculation
-            ! guga_ilut_pos%tot = 0 !todo..
+            ! GugaBit%tot = 0 !todo..
         end if
 
     end subroutine init_guga_rdm

@@ -30,6 +30,8 @@ module bit_reps
 
     use global_det_data, only: get_determinant
 
+    use guga_bitRepOps, only: init_guga_bitrep
+
     implicit none
 
     ! Structure of a bit representation:
@@ -41,6 +43,24 @@ module bit_reps
     !  1         * 32-bits              Signs (Re)
     ! (1         * 32-bits if needed)   Signs (Im)
     ! (1         * 32-bits if needed)   Flags
+
+    ! save all the bit rep indices and lenghts in one data structure for
+    ! a more clear representation
+    type :: BitRep_t
+        integer :: nifd             = -1
+        integer :: nOffSgn          = -1
+        integer :: NIfSgn           = -1
+        integer :: NIfFlag          = -1
+        integer :: NOffFlag         = -1
+        integer :: niftot           = -1
+        integer :: nOffParent       = -1
+        integer :: nIfBCast         = -1
+        integer :: nSpawnOffset     = -1
+        integer :: nOffSpawnHDiag   = -1
+    end type BitRep_t
+
+    type(BitRep_t) :: bit_rep_bits
+
 
 
     interface set_flag
@@ -214,8 +234,8 @@ contains
             ! calculate excitations for a given GUGA CSF
 
             ! Structure of a bit representation:
-
-            ! | 0-NIfD: Det | x0 | x1 | deltaB |
+            ! the parenthesis is for the stochastic GUGA rdm implementation
+            ! | 0-NIfD: Det | x0 | x1 | deltaB | (rdm_ind | rdm_x0 | rdm_x1)
             !
             ! -------
             ! (NIfD + 1) * 64-bits              Orbital rep.
@@ -223,8 +243,15 @@ contains
             !  1         * 64-bits              x1 matrix element
             !  1         * 32-bits              deltaB value
 
-            nIfGUGA = nIfD + 3
+            call init_guga_bitrep(nifd)
             write(6,"(A,I6)") "For GUGA calculation set up a integer list of length: ", nIfGUGA + 1
+
+            ! if we use fast guga rdms we also need space in the
+            ! 'normal' ilut to store the rdm_ind and x0 and x1..
+            ! for communication or? yes.. and also the parent stuff below
+            ! need to be adapted..
+            ! but this gets changed in rdm_general.. so do the GUGA
+            ! changes there!
 
         end if
 
@@ -236,12 +263,7 @@ contains
         ! information to be used.
         ! TODO: We may not always need the flags array. Test that...
 
-        ! Create space for broadcasting the parent particle coefficient?
-        ! ghb removed this ability on 14/4/16
-        nOffParentCoeff = NIfTot + 1
-        nIfParentCoeff = 0
-
-        NIfBCast = NIfTot + nIfParentCoeff
+        NIfBCast = NIfTot
 
         ! sometimes, we also need to store the number of spawn events
         ! in this iteration
@@ -249,7 +271,6 @@ contains
         if(tLogNumSpawns) then
             ! then, there is an extra integer in spawnedparts just behind
             ! the ilut noting the number of spawn events
-            nOffParentCoeff = nOffParentCoeff + 1
             NIfBCast = NIfBCast + 1
         end if
 
@@ -259,6 +280,20 @@ contains
             NOffSpawnHDiag = NIfBCast + 1
             NIfBCast = NIfBCast + 1
         end if
+
+        ! slowly adapt the code to use the bitrep data structure
+        bit_rep_bits = BitRep_t(&
+            nifd            = nifd, &
+            nOffSgn         = nOffSgn, &
+            NIfSgn          = NIfSgn, &
+            NIfFlag         = NIfFlag, &
+            NOffFlag        = NOffFlag, &
+            niftot          = niftot, &
+            nOffParent      = nOffParent, &
+            nIfBCast        = nIfBCast, &
+            nSpawnOffset    = nSpawnOffset, &
+            nOffSpawnHDiag  = NOffSpawnHDiag)
+
 
     end subroutine
 
@@ -628,40 +663,6 @@ contains
 
     end subroutine
 
-    subroutine set_parent_coeff(ilut, coeff)
-
-        ! Store the coefficient of the parent walker of a spawn for more
-        ! complex initiator logic. This option was removed by ghb on 14/4/16.
-        ! so this routine should never be called
-
-        integer(n_int), intent(inout) :: ilut(0:nIfBCast)
-        real(dp), intent(in) :: coeff
-        character(*), parameter :: this_routine = 'set_parent_coeff'
-
-        call stop_all(this_routine,'Routine deprecated')
-
-        ASSERT(nIfParentCoeff == 1)
-        ilut(nOffParentCoeff) = transfer(coeff, ilut(nOffParentCoeff))
-
-    end subroutine
-
-    function extract_parent_coeff(ilut) result(coeff)
-
-        ! Obtain the coefficient of the parent walker of a spawn for more
-        ! complex initiator logic. This option was deprecated by ghb on 14/4/16.
-
-        integer(n_int), intent(in) :: ilut(0:nIfBCast)
-        real(dp) :: coeff
-        character(*), parameter :: this_routine = 'extract_parent_coeff'
-
-        call stop_all(this_routine,'Routine deprecated by ghb on 14/4/16')
-
-        ASSERT(nIfParentCoeff == 1)
-
-        coeff = transfer(ilut(nOffParentCoeff), coeff)
-
-    end function
-
     subroutine encode_spawn_hdiag(ilut, hel)
 
         integer(n_int), intent(inout) :: ilut(0:NIfBCast)
@@ -708,7 +709,6 @@ contains
       nSpawn = int(ilut(nSpawnOffset))
 
     end function get_num_spawns
-
 
 
     ! function test_flag is in bit_rep_data

@@ -17,13 +17,13 @@ module guga_init
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         t_guga_mat_eles, t_hist_tau_search, tSpinProject, &
-                        tReplicaEstimates
+                        tReplicaEstimates, tPreCond
 
     use hist_data, only: tHistSpawn
 
     use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc, tRDMonfly
 
-    use bit_rep_data, only: tUseFlags
+    use bit_rep_data, only: tUseFlags, nifd
 
     use guga_data, only: init_guga_data_procPtrs, orbitalIndex, t_slow_guga_rdms, &
                          t_fast_guga_rdms, n_excit_info_bits
@@ -299,7 +299,7 @@ contains
         end if
 
         ! make a unified bit rep initializer:
-        call init_guga_bitrep()
+        call init_guga_bitrep(nifd)
 
     end subroutine init_guga
 
@@ -441,6 +441,11 @@ contains
         if (tReplicaEstimates) then
             call stop_all(this_routine, &
                 "'replica-estimates' not yet implemented with GUGA")
+        end if
+
+        if (tPreCond) then
+            call stop_all(this_routine, &
+                "'precond' not yet implemented with GUGA. mostly because of communication")
         end if
         ! assert that tUseFlags is set, to be able to encode deltaB values
         ! in the ilut representation for excitation generation

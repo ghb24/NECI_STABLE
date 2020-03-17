@@ -36,10 +36,6 @@ module bit_rep_data
     logical :: bit_rdm_init
     integer :: nOffParent
 
-    ! Somewhere to store the spawning parent coefficient (for funky
-    ! initiator thresholds).
-    integer :: nOffParentCoeff, nIfParentCoeff
-
     ! position of the number of spawns in the broadcast
     integer :: nSpawnOffset
 
