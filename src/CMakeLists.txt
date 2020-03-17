@@ -221,6 +221,7 @@ set( FYPP_SRC_FILES
     rdm_general.fpp
     hist.fpp
     lib/util_mod.fpp
+    sets_mod.fpp
 )
 
 set( TEMPLATED_SRC_FILES
