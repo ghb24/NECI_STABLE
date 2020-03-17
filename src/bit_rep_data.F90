@@ -41,9 +41,15 @@ module bit_rep_data
         ! the excit-level and excit-type)
         integer :: ind_rdm_ind  = -1
         ! the index of the x0 coupling coefficient contribution
-        integer :: ind_x0       = -1
+        integer :: ind_rdm_x0       = -1
         ! the index of the x1 coupling coefficient contribution
-        integer :: ind_x1       = -1
+        integer :: ind_rdm_x1       = -1
+        ! the x0 element (in the hamiltonian matrix element calc.)
+        integer :: ind_x0       = -1
+        ! the x1 element -||-
+        integer :: ind_x1           = -1
+        ! the delta b element in the stochastic excit-gen
+        integer :: ind_b            = -10
 
         ! RDM specific entries:
         ! the index of the rdm biasing factor
@@ -59,7 +65,9 @@ module bit_rep_data
 
     ! make global data structure for the bit-rep indices
     ! also initialize them to -1 so we can easily spot uninitialized stuff
-    type(BitRep_t) :: IlutBits = BitRep_t(), IlutBitsParent = BitRep_t()
+    type(BitRep_t) :: IlutBits = BitRep_t(), &
+                      IlutBitsParent = BitRep_t(), &
+                      GugaBits = BitRep_t()
 
     integer :: nIfTot  ! Upper bound of bit representation. In form 0:NIfTot
     integer :: nIfD    ! Final byte representing spatial/spin orbitals

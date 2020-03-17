@@ -82,19 +82,9 @@ contains
 
         call init_guga_testsuite()
 
+
         call compare_rdm_all_excits_and_mat_eles()
 !         call run_test_case(compare_fill_diag_and_explicit_diag)
-
-        call run_test_case(test_encode_extract_stochastic_rdm_ind, &
-            "test_encode_extract_stochastic_rdm_ind")
-        call run_test_case(test_encode_extract_stochastic_rdm_x0, &
-            "test_encode_extract_stochastic_rdm_x0")
-        call run_test_case(test_encode_extract_stochastic_rdm_x1, &
-            "test_encode_extract_stochastic_rdm_x1")
-        call run_test_case(test_encode_extract_stochastic_rdm_info, &
-            "test_encode_extract_stochastic_rdm_info")
-
-        call stop_all("here", "now")
 
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
@@ -113,21 +103,85 @@ contains
 
     end subroutine guga_test_driver
 
+    subroutine test_transfer_stochastic_rdm_info
+        integer(n_int) :: ilutG(0:GugaBits%len_tot), ilutG2(0:GugaBits%len_tot)
+        integer(n_int) :: ilutN(0:IlutBits%len_tot), ilutN2(0:IlutBits%len_tot)
+        integer(n_int) :: ilutP(0:IlutBitsParent%len_tot), ilutP2(0:IlutBitsParent%len_tot)
+        integer(int_rdm) :: rdm_ind
+        real(dp) :: x0, x1
+
+
+        print *, ""
+        print *, "testing: transfer_stochastic_rdm_info"
+
+        call encode_stochastic_rdm_info(GugaBits, ilutG, &
+            rdm_ind = 1_n_int, x0 = -1.0_dp, x1 = 1.0_dp)
+
+        call transfer_stochastic_rdm_info(ilutG, ilutg2, BitIndex_to = GugaBits)
+        call extract_stochastic_rdm_info(GugaBits, ilutg2, rdm_ind, x0, x1)
+        call assert_equals(1_n_int, rdm_ind)
+        call assert_equals(-1.0_dp, x0)
+        call assert_equals(1.0_dp, x1)
+
+        call transfer_stochastic_rdm_info(ilutG, ilutN)
+        call extract_stochastic_rdm_info(IlutBits, ilutN, rdm_ind, x0, x1)
+        call assert_equals(1_n_int, rdm_ind)
+        call assert_equals(-1.0_dp, x0)
+        call assert_equals(1.0_dp, x1)
+
+        call transfer_stochastic_rdm_info(ilutN, ilutN2, BitIndex_from = IlutBits)
+        call extract_stochastic_rdm_info(IlutBits, ilutN2, rdm_ind, x0, x1)
+        call assert_equals(1_n_int, rdm_ind)
+        call assert_equals(-1.0_dp, x0)
+        call assert_equals(1.0_dp, x1)
+
+        call transfer_stochastic_rdm_info(ilutN, ilutP, &
+            BitIndex_from = IlutBits, BitIndex_to = IlutBitsParent)
+        call extract_stochastic_rdm_info(IlutBitsParent, ilutP, rdm_ind, x0, x1)
+        call assert_equals(1_n_int, rdm_ind)
+        call assert_equals(-1.0_dp, x0)
+        call assert_equals(1.0_dp, x1)
+
+        print *, ""
+        print *, "testing: transfer_stochastic_rdm_info. DONE!"
+
+    end subroutine test_transfer_stochastic_rdm_info
+
     subroutine test_encode_extract_stochastic_rdm_ind
 
-        integer(n_int) :: ilut(0:GugaBits%tot)
+        integer(n_int) :: ilut(0:GugaBits%len_tot)
+        integer(n_int) :: ilutN(0:IlutBits%len_tot)
+        integer(n_int) :: ilutP(0:IlutBitsParent%len_tot)
         integer(int_rdm) :: rdm_ind
 
         print *, ""
         print *, "testing: encode and extract stochastic rdm ind"
 
-        call encode_stochastic_rdm_ind(ilut, 2_int_rdm)
-        rdm_ind = extract_stochastic_rdm_ind(ilut)
+        call encode_stochastic_rdm_ind(GugaBits, ilut, 2_int_rdm)
+        rdm_ind = extract_stochastic_rdm_ind(GugaBits, ilut)
         call assert_equals(2_int_rdm, rdm_ind)
 
-        call encode_stochastic_rdm_ind(ilut, -1_int_rdm)
-        rdm_ind = extract_stochastic_rdm_ind(ilut)
+        call encode_stochastic_rdm_ind(GugaBits, ilut, -1_int_rdm)
+        rdm_ind = extract_stochastic_rdm_ind(GugaBits, ilut)
         call assert_equals(-1_int_rdm, rdm_ind)
+
+        call encode_stochastic_rdm_ind(IlutBits, IlutN, 2_int_rdm)
+        rdm_ind = extract_stochastic_rdm_ind(IlutBits, IlutN)
+        call assert_equals(2_int_rdm, rdm_ind)
+
+        call encode_stochastic_rdm_ind(IlutBits, IlutN, -1_int_rdm)
+        rdm_ind = extract_stochastic_rdm_ind(IlutBits, IlutN)
+        call assert_equals(-1_int_rdm, rdm_ind)
+
+        call encode_stochastic_rdm_ind(IlutBitsParent, IlutP, 2_int_rdm)
+        rdm_ind = extract_stochastic_rdm_ind(IlutBitsParent, IlutP)
+        call assert_equals(2_int_rdm, rdm_ind)
+
+        call encode_stochastic_rdm_ind(IlutBitsParent, IlutP, -1_int_rdm)
+        rdm_ind = extract_stochastic_rdm_ind(IlutBitsParent, IlutP)
+        call assert_equals(-1_int_rdm, rdm_ind)
+
+
 
         print *, ""
         print *, "testing: encode and extract stochastic rdm ind. DONE"
@@ -136,23 +190,51 @@ contains
 
     subroutine test_encode_extract_stochastic_rdm_x0
 
-        integer(n_int) :: ilut(0:GugaBits%tot)
+        integer(n_int) :: ilut(0:GugaBits%len_tot)
+        integer(n_int) :: ilutN(0:IlutBits%len_tot)
+        integer(n_int) :: ilutP(0:IlutBitsParent%len_tot)
         real(dp) :: x0
 
         print *, ""
         print *, "testing: encode and extract stochastic rdm x0"
 
-        call encode_stochastic_rdm_x0(ilut, 0.0_dp)
-        x0 = extract_stochastic_rdm_x0(ilut)
+        call encode_stochastic_rdm_x0(GugaBits, ilut, 0.0_dp)
+        x0 = extract_stochastic_rdm_x0(GugaBits, ilut)
         call assert_equals(0.0_dp, x0)
 
-        call encode_stochastic_rdm_x0(ilut, 1.0_dp)
-        x0 = extract_stochastic_rdm_x0(ilut)
+        call encode_stochastic_rdm_x0(GugaBits, ilut, 1.0_dp)
+        x0 = extract_stochastic_rdm_x0(GugaBits, ilut)
         call assert_equals(1.0_dp, x0)
 
-        call encode_stochastic_rdm_x0(ilut, -1.0_dp)
-        x0 = extract_stochastic_rdm_x0(ilut)
+        call encode_stochastic_rdm_x0(GugaBits, ilut, -1.0_dp)
+        x0 = extract_stochastic_rdm_x0(GugaBits, ilut)
         call assert_equals(-1.0_dp, x0)
+
+        call encode_stochastic_rdm_x0(IlutBits, ilutN, 0.0_dp)
+        x0 = extract_stochastic_rdm_x0(IlutBits, ilutN)
+        call assert_equals(0.0_dp, x0)
+
+        call encode_stochastic_rdm_x0(IlutBits, ilutN, 1.0_dp)
+        x0 = extract_stochastic_rdm_x0(IlutBits, ilutN)
+        call assert_equals(1.0_dp, x0)
+
+        call encode_stochastic_rdm_x0(IlutBits, ilutN, -1.0_dp)
+        x0 = extract_stochastic_rdm_x0(IlutBits, ilutN)
+        call assert_equals(-1.0_dp, x0)
+
+        call encode_stochastic_rdm_x0(IlutBitsParent, ilutP, 0.0_dp)
+        x0 = extract_stochastic_rdm_x0(IlutBitsParent, ilutP)
+        call assert_equals(0.0_dp, x0)
+
+        call encode_stochastic_rdm_x0(IlutBitsParent, ilutP, 1.0_dp)
+        x0 = extract_stochastic_rdm_x0(IlutBitsParent, ilutP)
+        call assert_equals(1.0_dp, x0)
+
+        call encode_stochastic_rdm_x0(IlutBitsParent, ilutP, -1.0_dp)
+        x0 = extract_stochastic_rdm_x0(IlutBitsParent, ilutP)
+        call assert_equals(-1.0_dp, x0)
+
+
 
         print *, ""
         print *, "testing: encode and extract stochastic rdm x0. DONE!"
@@ -161,22 +243,49 @@ contains
 
     subroutine test_encode_extract_stochastic_rdm_x1
 
-        integer(n_int) :: ilut(0:GugaBits%tot)
+        integer(n_int) :: ilut(0:GugaBits%len_tot)
+        integer(n_int) :: ilutN(0:IlutBits%len_tot)
+        integer(n_int) :: ilutP(0:IlutBitsParent%len_tot)
         real(dp) :: x1
         print *, ""
         print *, "testing: encode and extract stochastic rmd x1"
 
-        call encode_stochastic_rdm_x1(ilut, 0.0_dp)
-        x1 = extract_stochastic_rdm_x1(ilut)
+        call encode_stochastic_rdm_x1(GugaBits, ilut, 0.0_dp)
+        x1 = extract_stochastic_rdm_x1(GugaBits, ilut)
         call assert_equals(0.0_dp, x1)
 
-        call encode_stochastic_rdm_x1(ilut, 1.0_dp)
-        x1 = extract_stochastic_rdm_x1(ilut)
+        call encode_stochastic_rdm_x1(GugaBits, ilut, 1.0_dp)
+        x1 = extract_stochastic_rdm_x1(GugaBits, ilut)
         call assert_equals(1.0_dp, x1)
 
-        call encode_stochastic_rdm_x1(ilut, -1.0_dp)
-        x1 = extract_stochastic_rdm_x1(ilut)
+        call encode_stochastic_rdm_x1(GugaBits, ilut, -1.0_dp)
+        x1 = extract_stochastic_rdm_x1(GugaBits, ilut)
         call assert_equals(-1.0_dp, x1)
+
+        call encode_stochastic_rdm_x1(IlutBits, ilutN, 0.0_dp)
+        x1 = extract_stochastic_rdm_x1(IlutBits, ilutN)
+        call assert_equals(0.0_dp, x1)
+
+        call encode_stochastic_rdm_x1(IlutBits, ilutN, 1.0_dp)
+        x1 = extract_stochastic_rdm_x1(IlutBits, ilutN)
+        call assert_equals(1.0_dp, x1)
+
+        call encode_stochastic_rdm_x1(IlutBits, ilutN, -1.0_dp)
+        x1 = extract_stochastic_rdm_x1(IlutBits, ilutN)
+        call assert_equals(-1.0_dp, x1)
+
+        call encode_stochastic_rdm_x1(IlutBitsParent, ilutP, 0.0_dp)
+        x1 = extract_stochastic_rdm_x1(IlutBitsParent, ilutP)
+        call assert_equals(0.0_dp, x1)
+
+        call encode_stochastic_rdm_x1(IlutBitsParent, ilutP, 1.0_dp)
+        x1 = extract_stochastic_rdm_x1(IlutBitsParent, ilutP)
+        call assert_equals(1.0_dp, x1)
+
+        call encode_stochastic_rdm_x1(IlutBitsParent, ilutP, -1.0_dp)
+        x1 = extract_stochastic_rdm_x1(IlutBitsParent, ilutP)
+        call assert_equals(-1.0_dp, x1)
+
         print *, ""
         print *, "testing: encode and extract stochastic rmd x1. DONE!"
 
@@ -184,24 +293,51 @@ contains
 
     subroutine test_encode_extract_stochastic_rdm_info
 
-        integer(n_int) :: ilut(0:GugaBits%tot)
+        integer(n_int) :: ilut(0:GugaBits%len_tot)
+        integer(n_int) :: ilutN(0:IlutBits%len_tot)
+        integer(n_int) :: ilutP(0:IlutBitsParent%len_tot)
         integer(int_rdm) :: rdm_ind
         real(dp) :: x0, x1
 
         print *, ""
         print *, "testing: encode and extract stochastic rdm info"
 
-        call encode_stochastic_rdm_info(ilut, 0_int_rdm, 0.0_dp, 0.0_dp)
-        call extract_stochastic_rdm_info(ilut, rdm_ind, x0, x1)
+        call encode_stochastic_rdm_info(GugaBits, ilut, 0_int_rdm, 0.0_dp, 0.0_dp)
+        call extract_stochastic_rdm_info(GugaBits, ilut, rdm_ind, x0, x1)
         call assert_equals(0_int_rdm, rdm_ind)
         call assert_equals(0.0_dp, x0)
         call assert_equals(0.0_dp, x1)
 
-        call encode_stochastic_rdm_info(ilut, 1_int_rdm, -1.0_dp, 10.0_dp)
-        call extract_stochastic_rdm_info(ilut, rdm_ind, x0, x1)
-        call assert_equals(-1_int_rdm, rdm_ind)
+        call encode_stochastic_rdm_info(GugaBits, ilut, 1_int_rdm, -1.0_dp, 10.0_dp)
+        call extract_stochastic_rdm_info(GugaBits, ilut, rdm_ind, x0, x1)
+        call assert_equals(1_int_rdm, rdm_ind)
         call assert_equals(-1.0_dp, x0)
         call assert_equals(10.0_dp, x1)
+
+        call encode_stochastic_rdm_info(IlutBits, ilutN, 0_int_rdm, 0.0_dp, 0.0_dp)
+        call extract_stochastic_rdm_info(IlutBits, ilutN, rdm_ind, x0, x1)
+        call assert_equals(0_int_rdm, rdm_ind)
+        call assert_equals(0.0_dp, x0)
+        call assert_equals(0.0_dp, x1)
+
+        call encode_stochastic_rdm_info(IlutBits, ilutN, 1_int_rdm, -1.0_dp, 10.0_dp)
+        call extract_stochastic_rdm_info(IlutBits, ilutN, rdm_ind, x0, x1)
+        call assert_equals(1_int_rdm, rdm_ind)
+        call assert_equals(-1.0_dp, x0)
+        call assert_equals(10.0_dp, x1)
+
+        call encode_stochastic_rdm_info(IlutBitsParent, ilutP, 0_int_rdm, 0.0_dp, 0.0_dp)
+        call extract_stochastic_rdm_info(IlutBitsParent, ilutP, rdm_ind, x0, x1)
+        call assert_equals(0_int_rdm, rdm_ind)
+        call assert_equals(0.0_dp, x0)
+        call assert_equals(0.0_dp, x1)
+
+        call encode_stochastic_rdm_info(IlutBitsParent, ilutP, 1_int_rdm, -1.0_dp, 10.0_dp)
+        call extract_stochastic_rdm_info(IlutBitsParent, ilutP, rdm_ind, x0, x1)
+        call assert_equals(1_int_rdm, rdm_ind)
+        call assert_equals(-1.0_dp, x0)
+        call assert_equals(10.0_dp, x1)
+
 
         print *, ""
         print *, "testing: encode and extract stochastic rdm info. DONE"
@@ -972,6 +1108,8 @@ contains
         lms = 0
         tGUGA = .true.
 
+        t_fast_guga_rdms = .true.
+        tRDMonfly = .true.
         call init_bit_rep()
         t_full_guga_tests = .true.
 
@@ -981,8 +1119,6 @@ contains
         tumat2d = .false.
 
         t_guga_mat_eles = .true.
-        t_fast_guga_rdms = .true.
-        tRDMonfly = .true.
         ! set this to false before the init to setup all the ilut variables
         tExplicitAllRDM = .false.
 
@@ -1964,6 +2100,8 @@ contains
             "test_encode_extract_stochastic_rdm_x1")
         call run_test_case(test_encode_extract_stochastic_rdm_info, &
             "test_encode_extract_stochastic_rdm_info")
+        call run_test_case(test_transfer_stochastic_rdm_info, &
+            "test_transfer_stochastic_rdm_info")
 
 
         print *, ""
@@ -5936,6 +6074,7 @@ contains
         HElement_t(dp) :: HElGen
         type(excit_gen_store_type), target :: store
         integer(n_int), pointer :: ex(:,:)
+        integer(int_rdm) :: rdm_ind
 
         exFlag = 1
         ! make this store element ...
@@ -5970,6 +6109,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -5997,6 +6149,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6024,6 +6189,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6051,6 +6229,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6078,6 +6269,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6105,6 +6309,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6133,6 +6350,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6160,6 +6390,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6187,6 +6430,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6214,6 +6470,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6241,6 +6510,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6268,6 +6550,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6295,6 +6590,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6322,6 +6630,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6349,6 +6670,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6376,6 +6710,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6403,6 +6750,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6430,6 +6790,19 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6457,6 +6830,20 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
+
         else
             print *, "no valid excitation created!"
         end if
@@ -6484,6 +6871,20 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilutGi, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
+            call assert_true(pos > 0)
+
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+
+
         else
             print *, "no valid excitation created!"
         end if
@@ -8629,6 +9030,8 @@ contains
         integer :: nI(4), pos, nex
         HElement_t(dp) :: HElGen
         integer(n_int), pointer :: ex(:,:)
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j
 
         nI = [1,2,3,4]
 
@@ -8651,11 +9054,21 @@ contains
             call write_det_guga(6,t,.true.)
             print *, "exact excitations for this ilut:"
             call actHamiltonian(ilut, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
+
+            rdm_ind = extract_rdm_ind(t)
 
             pos = binary_search(ex(0:nifd,1:nex),t(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(extract_matrix_element(t,1) - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+            call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
+            call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
+
+            call calc_explicit_1_rdm_guga(ilut, nEx, ex)
+            pos = binary_search(ex(0:nifd,1:nex),t(0:nifd), nifd)
+            call assert_true(pos > 0)
+            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_matrix_element(ex(:,pos),1), &
+                                extract_stochastic_rdm_x0(GugaBits, t))
 
         else
             print *, "no valid excitation created!"

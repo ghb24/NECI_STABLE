@@ -30,7 +30,7 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double, &
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, t_slow_guga_rdms, GugaBits
+                         excit_type, gen_type, t_slow_guga_rdms
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -45,7 +45,7 @@ module guga_rdm
                               extract_1_rdm_ind, extract_2_rdm_ind, &
                               encode_rdm_ind, extract_rdm_ind
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
-    use bit_reps, only: nifguga
+    use bit_rep_data, only: nifguga, GugaBits
     use FciMCData, only: projEDet, CurrentDets, TotWalkers, ilutref, HFDet_True
     use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag, RDMExcitLevel, &
                            tExplicitAllRDM
@@ -59,6 +59,7 @@ module guga_rdm
     use procedure_pointers, only: get_umat_el
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
     use util_mod, only: operator(.div.), near_zero
+    use sort_mod, only: sort
 
     implicit none
 
@@ -1959,6 +1960,8 @@ contains
         ! hm to log that does not make so much sense.. since it gets called
         ! more than once and is only a temporary array..
         call LogMemAlloc('excitations',n_tot,8,this_routine,tag_excitations)
+
+        call sort(excitations)
 
         deallocate(tmp_all_excits)
         call LogMemDealloc(this_routine, tag_tmp_excits)

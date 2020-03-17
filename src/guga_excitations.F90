@@ -24,8 +24,10 @@ module guga_excitations
     use constants, only: dp, n_int, bits_n_int, lenof_sign, Root2, THIRD, HEl_zero, &
                          EPS, bni_, bn2_, iout, int64, inum_runs, maxExcit, int_rdm
 
-    use bit_reps, only: niftot, decode_bit_det, encode_det, encode_part_sign, &
-                        extract_part_sign, nifguga, nifd
+    use bit_reps, only: decode_bit_det, encode_det, encode_part_sign, &
+                        extract_part_sign
+
+    use bit_rep_data, only: GugaBits, niftot, nifguga, nifd
 
     use DetBitOps, only: EncodeBitDet, count_open_orbs, ilut_lt, ilut_gt, DetBitEQ
 
@@ -13249,7 +13251,7 @@ contains
             ! a 'longer' nifguga (+3 i think for rdm_index and x0 and x1..)
             ! with an accompanying change to niftot.. (this could get a bit
             ! messy in the rest of the code..)
-            call encode_stochastic_rdm_info(exc, rdm_ind = &
+            call encode_stochastic_rdm_info(GugaBits, exc, rdm_ind = &
                 contract_1_rdm_ind(i, j, excit_lvl = 1, excit_typ = excit_type%single), &
                 x0 = extract_matrix_element(exc, 1), x1 = 0.0_dp)
         end if

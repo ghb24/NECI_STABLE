@@ -34,6 +34,8 @@ module bit_reps
 
     use guga_data, only: t_fast_guga_rdms
 
+    use LoggingData, only: tRDMOnfly
+
     implicit none
 
     ! Structure of a bit representation:
@@ -244,13 +246,13 @@ contains
             ! and I think I just need to store it within niftot!
             ! I do not even need and additional entry in the parent
             ! atleast in the communication within spawnedparts!
-            if (t_fast_guga_rdms) then
+            if (tRDMOnfly .and. t_fast_guga_rdms) then
                 IlutBits%ind_rdm_ind = niftot + 1
-                IlutBits%ind_x0 = IlutBits%ind_rdm_ind + 1
-                IlutBits%ind_x1 = IlutBits%ind_x0 + 1
+                IlutBits%ind_rdm_x0 = IlutBits%ind_rdm_ind + 1
+                IlutBits%ind_rdm_x1 = IlutBits%ind_rdm_x0 + 1
 
-                niftot = IlutBits%ind_x1
-                IlutBits%len_tot = IlutBits%ind_x1
+                niftot = IlutBits%ind_rdm_x1
+                IlutBits%len_tot = IlutBits%ind_rdm_x1
             end if
         end if
 
@@ -290,12 +292,12 @@ contains
         IlutBitsParent%len_tot = IlutBitsParent%ind_source
 
         ! and if we use GUGA we have to enlarge this array by 3 entries
-        if (tGUGA .and. t_fast_guga_rdms) then
+        if (tRDMOnfly .and. tGUGA .and. t_fast_guga_rdms) then
             IlutBitsParent%ind_rdm_ind = IlutBitsParent%ind_source + 1
-            IlutBitsParent%ind_x0 = IlutBitsParent%ind_rdm_ind + 1
-            IlutBitsParent%ind_x1 = IlutBitsParent%ind_x0
+            IlutBitsParent%ind_rdm_x0 = IlutBitsParent%ind_rdm_ind + 1
+            IlutBitsParent%ind_rdm_x1 = IlutBitsParent%ind_rdm_x0 + 1
 
-            IlutBitsParent%len_tot = IlutBitsParent%ind_x1
+            IlutBitsParent%len_tot = IlutBitsParent%ind_rdm_x1
         end if
 
     end subroutine

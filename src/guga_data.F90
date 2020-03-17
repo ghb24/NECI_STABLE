@@ -8,6 +8,7 @@ module guga_data
                           tNoBrillouin, tExactSizeSpace, tUHF, tGUGA
     use constants, only: dp, Root2, OverR2, n_int, int_rdm
     use MemoryManager, only: TagIntType
+    use bit_rep_data, only: BitRep_t
 
     implicit none
 
@@ -20,28 +21,12 @@ module guga_data
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, t_slow_guga_rdms, t_fast_guga_rdms, &
               t_mimic_slow, rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-              n_excit_lvl_bits, n_excit_type_bits, GugaBits, n_excit_info_bits, &
-              GugaIlutPos_t
+              n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits
 
     logical :: t_slow_guga_rdms = .true.
     logical :: t_fast_guga_rdms = .false.
     logical :: t_mimic_slow = .false.
     ! ========================== type defs ===================================
-
-    ! finally define a type containing all the sizes and positions within
-    ! a 'GUGA ilut'
-    type :: GugaIlutPos_t
-        integer :: tot          ! total number of elements - 1 (since 0:tot)
-        integer :: orb    ! number of integers necessary for spatial orbitals
-        integer :: x0           ! the x0 element (in the hamiltonian matrix element calc.)
-        integer :: x1           ! the x1 element -||-
-        integer :: b      ! the delta b element in the stochastic excit-gen
-        integer :: r_ind      ! the index of the rdm index (if used)
-        integer :: r_x0       ! the index of the x0 coupling cofff contrib
-        integer :: r_x1       ! the index of the x1 coupling coeff contrib
-    end type GugaIlutPos_t
-
-    type(GugaIlutPos_t) :: GugaBits
 
     ! define types for the probabilistic weights functions used in the
     ! stochastic excitations generations

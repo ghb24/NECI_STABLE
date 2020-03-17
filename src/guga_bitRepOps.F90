@@ -12,14 +12,15 @@ module guga_bitRepOps
                           currentB_ilut, currentB_int, current_cum_list, nbasis
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-                         n_excit_lvl_bits, n_excit_type_bits, GugaBits, &
-                         t_fast_guga_rdms, GugaIlutPos_t
+                         n_excit_lvl_bits, n_excit_type_bits, &
+                         t_fast_guga_rdms
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
                     CountBits, DetBitEQ
-    use bit_rep_data, only: test_flag, flag_deltaB_single, &
-        flag_deltaB_double, flag_deltaB_sign, niftot, nIfGUGA, nIfd
+    use bit_rep_data, only: test_flag, flag_deltaB_single, IlutBits, &
+                            flag_deltaB_double, flag_deltaB_sign, niftot, &
+                            nIfGUGA, nIfd, BitRep_t, GugaBits
     use util_mod, only: binary_search, binary_search_custom, operator(.div.), &
                         near_zero
     use sort_mod, only: sort
@@ -50,7 +51,9 @@ module guga_bitRepOps
         encode_stochastic_rdm_ind, encode_stochastic_rdm_info, &
         extract_stochastic_rdm_x0, extract_stochastic_rdm_x1, &
         extract_stochastic_rdm_ind, extract_stochastic_rdm_info, &
-        init_guga_bitrep
+        init_guga_bitrep, transfer_stochastic_rdm_info, &
+        extract_excit_lvl_rdm, extract_excit_type_rdm
+
 
 
     ! interfaces
@@ -119,15 +122,15 @@ contains
         end if
 
         ! and also use a global data structure for more overview
-        GugaBits = GugaIlutPos_t(&
-            tot   = nIfGUGA, &
-            orb   = n_spatial_bits, &
-            x0    = x0_pos, &
-            x1    = x1_pos, &
-            b     = deltaB_pos, &
-            r_ind = rdm_ind_pos, &
-            r_x0  = rdm_x0_pos, &
-            r_x1  = rdm_x1_pos)
+        GugaBits = BitRep_t(&
+            len_tot   = nIfGUGA, &
+            len_orb   = n_spatial_bits, &
+            ind_x0    = x0_pos, &
+            ind_x1    = x1_pos, &
+            ind_b     = deltaB_pos, &
+            ind_rdm_ind = rdm_ind_pos, &
+            ind_rdm_x0  = rdm_x0_pos, &
+            ind_rdm_x1  = rdm_x1_pos)
 
 
     end subroutine init_guga_bitrep
@@ -1645,7 +1648,7 @@ contains
     subroutine find_switches_ilut(ilut, ind, lower, upper)
         ! for single excitations this checks for available switches around an
         ! already chosen index
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: ind
         integer, intent(out) :: lower, upper
         character(*), parameter :: this_routine = "find_switches_ilut"
@@ -1728,7 +1731,7 @@ contains
         ! write a scratch implementation to find the first change in
         ! stepvector for two given CSFs. do it inefficiently for now
         ! improve later on
-        integer(n_int), intent(in) :: iI(0:GugaBits%tot), iJ(0:GugaBits%tot)
+        integer(n_int), intent(in) :: iI(0:GugaBits%len_tot), iJ(0:GugaBits%len_tot)
         integer, intent(in) :: start, semi
         integer :: orb, a, b
         character(*), parameter :: this_routine = "findFirstSwitch"
@@ -1773,7 +1776,7 @@ contains
 
     function findLastSwitch(ilutI, ilutJ, semi, ende) result(orb)
         ! function to find last switch in a mixed fullstop excitation
-        integer(n_int), intent(in) :: ilutI(0:GugaBits%tot), ilutJ(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
         integer, intent(in) :: ende, semi
         integer :: orb, a, b
         character(*), parameter :: this_routine = "findLastSwitch"
@@ -1897,16 +1900,17 @@ contains
 
     subroutine write_det_guga(nunit, ilut, flag)
         ! subroutine which prints the stepvector representation of an ilut
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: nunit
         logical, intent(in), optional :: flag
 
         integer :: step(nSpatOrbs), i
         logical :: flag_
+        integer(int_rdm) :: rdm_ind
 
         def_default(flag_, flag, .true.)
 
-        step = calcStepvector(ilut(0:GugaBits%orb))
+        step = calcStepvector(ilut(0:GugaBits%len_orb))
 
         write(nunit,'("(")', advance='no')
 
@@ -1925,19 +1929,26 @@ contains
 
         ! if we have more entries due to RDMs, print it here
         if (t_fast_guga_rdms) then
-            write(nunit, "(A,i8)", advance = 'no') ") ", ilut(GugaBits%b)
-            write(nunit, "(A,i8)", advance = 'no') "| ", ilut(GugaBits%r_ind)
-            write(nunit, "(f16.7)", advance = 'no') ilut(GugaBits%r_x0)
+            rdm_ind = extract_rdm_ind(ilut)
+            write(nunit, "(A,i8)", advance = 'no') ") ", getDeltaB(ilut)
+            write(nunit, "(A,3i8,A)", advance = 'no') " | ( ", &
+                extract_excit_lvl_rdm(rdm_ind), &
+                extract_excit_type_rdm(rdm_ind), &
+                int(iand(rdm_ind, rdm_ind_bitmask)), ' ) '
+            write(nunit, "(f16.7)", advance = 'no') &
+                extract_stochastic_rdm_x0(GugaBits, ilut)
             if (flag_) then
-                write(nunit, "(f16.7)", advance = 'yes') ilut(GugaBits%r_x1)
+                write(nunit, "(f16.7)", advance = 'yes') &
+                    extract_stochastic_rdm_x1(GugaBits, ilut)
             else
-                write(nunit, "(f16.7)", advance = 'no') ilut(GugaBits%r_x1)
+                write(nunit, "(f16.7)", advance = 'no')  &
+                    extract_stochastic_rdm_x1(GugaBits, ilut)
             end if
         else
             if (flag) then
-                write(nunit, "(A,i8)", advance = 'yes') ") ", ilut(GugaBits%b)
+                write(nunit, "(A,i8)", advance = 'yes') ") ", getDeltaB(ilut)
             else
-                write(nunit, "(A,i8)", advance = 'no') ") ", ilut(GugaBits%b)
+                write(nunit, "(A,i8)", advance = 'no') ") ", getDeltaB(ilut)
             end if
         end if
 
@@ -1948,7 +1959,7 @@ contains
         ! creation.
         ! mat_ele   ... x0 or x1 matrix element
         ! mat_type  ... 1...x0, 2...x1
-        integer(n_int), intent(inout) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         real(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
         character(*), parameter :: this_routine = "encode_matrix_element_real"
@@ -1959,7 +1970,7 @@ contains
 
         mat_int = transfer(mat_ele, mat_int)
 
-        ilut(GugaBits%orb + mat_type) = mat_int
+        ilut(GugaBits%len_orb + mat_type) = mat_int
 
     end subroutine encode_matrix_element_real
 
@@ -1968,7 +1979,7 @@ contains
         ! this is specific for complex matrix elements.. here
         ! i can use the two storage slots for x0 and x1 to encode
         ! both the real and imaginary parts of the Hamiltonian matrix elements
-        integer(n_int), intent(inout) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         complex(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
         character(*), parameter :: this_routine = "encode_matrix_element_cmplx"
@@ -1981,30 +1992,30 @@ contains
         ASSERT(near_zero(extract_matrix_element(ilut, 2)))
 
         mat_int = transfer(real(real(mat_ele),dp), mat_int)
-        ilut(GugaBits%orb + 1) = mat_int
+        ilut(GugaBits%ind_x0) = mat_int
 
         mat_int = transfer(real(aimag(mat_ele),dp), mat_int)
-        ilut(GugaBits%orb + 2) = mat_int
+        ilut(GugaBits%ind_x1) = mat_int
 
     end subroutine encode_matrix_element_cmplx
 #endif
 
     function extract_matrix_element(ilut, mat_type) result(mat_ele)
         ! function to extract matrix element of a GUGA ilut
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer, intent(in) :: mat_type
         real(dp) :: mat_ele
         character(*), parameter :: this_routine = "extract_matrix_element"
 
         ASSERT(mat_type == 1 .or. mat_type == 2)
 
-        mat_ele = transfer(ilut(GugaBits%orb + mat_type), mat_ele)
+        mat_ele = transfer(ilut(GugaBits%len_orb + mat_type), mat_ele)
 
     end function extract_matrix_element
 
     subroutine update_matrix_element_real(ilut, mat_ele, mat_type)
         ! function to update already encoded matrix element multiplicative
-        integer(n_int), intent(inout) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         real(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
         character(*), parameter :: this_routine = "update_matrix_element_real"
@@ -2014,18 +2025,18 @@ contains
 
         ASSERT(mat_type == 1 .or. mat_type == 2)
 
-        temp_ele = transfer(ilut(GugaBits%orb + mat_type), temp_ele)
+        temp_ele = transfer(ilut(GugaBits%len_orb + mat_type), temp_ele)
 
         mat_int = transfer(temp_ele * mat_ele, mat_int)
 
-        ilut(GugaBits%orb + mat_type) = mat_int
+        ilut(GugaBits%len_orb + mat_type) = mat_int
 
     end subroutine update_matrix_element_real
 
 #ifdef CMPLX_
     subroutine update_matrix_element_cmplx(ilut, mat_ele, mat_type)
         ! specific function if we need to update with a complex integral
-        integer(n_int), intent(inout) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         complex(dp), intent(in) :: mat_ele
         integer, intent(in) :: mat_type
         character(*), parameter :: this_routine = "update_matrix_element_cmplx"
@@ -2041,13 +2052,13 @@ contains
         ASSERT(near_zero(extract_matrix_element(ilut,2)))
 
         ! and now we want to store the real and imag part in x0 and x1..
-        temp_ele = transfer(ilut(GugaBits%orb + 1), temp_ele)
+        temp_ele = transfer(ilut(GugaBits%ind_x0), temp_ele)
         mat_int = transfer(temp_ele * real(real(mat_ele),dp), mat_int)
 
-        ilut(GugaBits%orb + 1) = mat_int
+        ilut(GugaBits%ind_x0) = mat_int
 
         mat_int = transfer(temp_ele * real(aimag(mat_ele),dp), mat_int)
-        ilut(GugaBits%orb + 2) = mat_int
+        ilut(GugaBits%ind_x1) = mat_int
 
     end subroutine update_matrix_element_cmplx
 #endif
@@ -2055,13 +2066,13 @@ contains
     function count_beta_orbs_ij(ilut, i, j) result(nOpen)
         ! function to count the number of 1s in a CSF det between spatial
         ! orbitals i and j
-        integer(n_int), intent(in) :: ilut(0:GugaBits%orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: i, j
         integer :: nOpen
         character(*), parameter :: this_routine = "count_beta_orbs_ij"
 
-        integer(n_int) :: mask(0:GugaBits%orb), &
-            beta(0:GugaBits%orb), alpha(0:GugaBits%orb)
+        integer(n_int) :: mask(0:GugaBits%len_orb), &
+            beta(0:GugaBits%len_orb), alpha(0:GugaBits%len_orb)
         integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2083,13 +2094,13 @@ contains
     function count_alpha_orbs_ij(ilut, i, j) result(nOpen)
         ! function to count the number of 2s in a CSF det between spatial
         ! orbitals i and j
-        integer(n_int), intent(in) :: ilut(0:GugaBits%orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: i, j
         integer :: nOpen
         character(*), parameter :: this_routine = "count_alpha_orbs_ij"
 
-        integer(n_int) :: mask(0:GugaBits%orb), alpha(0:GugaBits%orb), &
-                          beta(0:GugaBits%orb)
+        integer(n_int) :: mask(0:GugaBits%len_orb), alpha(0:GugaBits%len_orb), &
+                          beta(0:GugaBits%len_orb)
         integer :: k
 
         ASSERT(i > 0 .and. i <= nSpatOrbs)
@@ -2111,7 +2122,7 @@ contains
         ! function to calculate the number of open orbitals between spatial
         ! orbitals i and j in ilut. i and j have to be given ordered i<j
         integer, intent(in) :: i, j
-        integer(n_int), intent(in), optional :: L(0:GugaBits%orb)
+        integer(n_int), intent(in), optional :: L(0:GugaBits%len_orb)
         integer :: nOpen
         character(*), parameter :: this_routine = "count_open_orbs_ij"
 
@@ -2183,32 +2194,32 @@ contains
         ! and if necessary
         ! flag_deltaB_double ... 6
         integer, intent(in) :: deltaB
-        integer(n_int), intent(inout) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(inout) :: ilut(0:GugaBits%len_tot)
         character(*), parameter :: this_routine = "setDeltaB"
 
 
         ASSERT(deltaB <= 2 .and. deltaB >= -2)
 
         ! should no just be:
-        ilut(GugaBits%b) = deltaB
+        ilut(GugaBits%ind_b) = deltaB
 
     end subroutine setDeltaB
 
     function getDeltaB(ilut) result(deltaB)
         ! function to get the deltaB value encoded in the flag-byte in ilut
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         integer :: deltaB
         character(*), parameter :: this_routine = "getDeltaB"
 
         ! check if flags are correctly set
 
         ! and this should now jsut be:
-        deltaB = int(ilut(GugaBits%b))
+        deltaB = int(ilut(GugaBits%ind_b))
 
     end function getDeltaB
 
     function extract_h_element(ilutG) result(HElement)
-        integer(n_int), intent(in) :: ilutG(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
         HElement_t(dp) :: HElement
 
 #ifdef CMPLX_
@@ -2221,7 +2232,7 @@ contains
     end function extract_h_element
 
     subroutine convert_ilut_toNECI(ilutG, ilutN, HElement)
-        integer(n_int), intent(in) :: ilutG(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
         integer(n_int), intent(inout) :: ilutN(0:niftot)
         HElement_t(dp), intent(out), optional :: HElement
         character(*), parameter :: this_routine = "convert_ilut_toNECI"
@@ -2230,8 +2241,9 @@ contains
 
         ASSERT(isProperCSF_ilut(ilutG))
 
+        ilutN = 0_n_int
         ! i think i just need to copy over the det part again
-        ilutN(0:GugaBits%orb) = ilutG(0:GugaBits%orb)
+        ilutN(0:GugaBits%len_orb) = ilutG(0:GugaBits%len_orb)
 
         ! and then extract the matrix element
         ! here i need to check what type of matrix element is necessary
@@ -2241,17 +2253,48 @@ contains
             HElement = extract_h_element(ilutG)
         end if
 
+        if (t_fast_guga_rdms) then
+            ! in this case I need to transfer the rdm_ind and x0,x1 info to
+            ! the 'neci ilut'
+            call transfer_stochastic_rdm_info(ilutG, ilutN)
+        end if
+
     end subroutine convert_ilut_toNECI
+
+    pure subroutine transfer_stochastic_rdm_info(ilutG, ilutN, &
+            BitIndex_from, BitIndex_to)
+        ! I need to keep this general with BitIndex unfortunately because
+        ! i have to perform this on ilut with niftot and on parent arrays..
+        integer(n_int), intent(in) :: ilutG(0:)
+        integer(n_int), intent(inout) :: ilutN(0:)
+        type(BitRep_t), intent(in), optional :: BitIndex_from, BitIndex_to
+
+        type(BitRep_t) :: from, to
+
+        def_default(from, BitIndex_from, GugaBits)
+        def_default(to, BitIndex_to, IlutBits)
+
+        ! here i now I get a GUGA ilut, but could be that I have to
+        ! transfer to Parent array? I dont think so..
+
+        call encode_stochastic_rdm_info(to, ilutN, &
+            rdm_ind  = extract_stochastic_rdm_ind(from, ilutG), &
+            x0       = extract_stochastic_rdm_x0(from, ilutG), &
+            x1       = extract_stochastic_rdm_x1(from, ilutG))
+
+    end subroutine transfer_stochastic_rdm_info
 
     subroutine convert_ilut_toGUGA(ilutN, ilutG, HElement, delta_b)
         integer(n_int), intent(in) :: ilutN(0:niftot)
-        integer(n_int), intent(out) :: ilutG(0:GugaBits%tot)
+        integer(n_int), intent(out) :: ilutG(0:GugaBits%len_tot)
         HElement_t(dp), intent(in), optional :: HElement
         integer, intent(in), optional :: delta_b
         character(*), parameter :: this_routine = "convert_ilut_toGUGA"
 
+        ilutG = 0_n_int
+
         ! need only the det part essentially..
-        ilutG(0:GugaBits%orb) = ilutN(0:GugaBits%orb)
+        ilutG(0:GugaBits%len_orb) = ilutN(0:GugaBits%len_orb)
 
         if (present(HElement)) then
             call encode_matrix_element(ilutG, 0.0_dp, 2)
@@ -2294,20 +2337,20 @@ contains
     end function isProperCSF_nI
 
     function isProperCSF_b(ilut) result(flag)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         logical :: flag
 
         flag = .true.
 
         ! check if b value drops below zero
-        if (any(calcB_vector_int(ilut(0:GugaBits%orb)) < 0)) flag = .false.
+        if (any(calcB_vector_int(ilut(0:GugaBits%len_orb)) < 0)) flag = .false.
 
     end function isProperCSF_b
 
     function isProperCSF_sys(ilut, sysFlag, t_print_in) result(flag)
         ! function to check if provided CSF in ilut format is a proper CSF
         ! checks b vector positivity and is total S is correct
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         logical, intent(in):: sysFlag
         logical, intent(in), optional :: t_print_in
         logical :: flag
@@ -2324,7 +2367,7 @@ contains
         flag = .true.
 
         ! check if b value drops below zero
-        if (any(calcB_vector_int(ilut(0:GugaBits%orb)) < 0)) flag = .false.
+        if (any(calcB_vector_int(ilut(0:GugaBits%len_orb)) < 0)) flag = .false.
 
         ! check if total spin is same as input, cant avoid loop here i think..
         !calcS = 0
@@ -2334,7 +2377,7 @@ contains
         !end do
 
         tmp_ilut = 0_n_int
-        tmp_ilut(0:GugaBits%orb) = ilut(0:GugaBits%orb)
+        tmp_ilut(0:GugaBits%len_orb) = ilut(0:GugaBits%len_orb)
 
         ! if system flag is also given as input also check if the CSF fits
         ! concerning total S and the number of electrons
@@ -2349,13 +2392,13 @@ contains
                 flag = .false.
             end if
 
-            if (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%orb)))) /= nEl) then
+            if (int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb)))) /= nEl) then
                 if (t_print) then
                     print *, "CSF does not have right number of electrons!:"
                     call write_det_guga(6,ilut)
                     print *, "System electrons: ", nEl
                     print *, "CSF electrons: ", &
-                        int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%orb))))
+                        int(sum(calcOcc_vector_ilut(ilut(0:GugaBits%len_orb))))
                 end if
                 flag = .false.
             end if
@@ -2436,7 +2479,7 @@ contains
         ! often within a function.
         ! there is probably a very efficient way of programming that!
         !TODO ask simon for improvements.
-        integer(n_int), intent(in) :: ilut(0:GugaBits%orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer :: stepVector(nSpatOrbs)
         integer :: iOrb
 
@@ -2449,7 +2492,7 @@ contains
     function calcOcc_vector_ilut(ilut) result(occVector)
         ! probably more efficiently implemented by simon already...
         ! but for now do it in this stupid way todo -> ask simon
-        integer(n_int), intent(in) :: ilut(0:GugaBits%orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         real(dp) :: occVector(nSpatOrbs)
 
         integer :: iOrb
@@ -2462,7 +2505,7 @@ contains
 
     function calcOcc_vector_int(ilut) result(occVector)
         ! function which gives the occupation vector in integer form
-        integer(n_int), intent(in) :: ilut(0:GugaBits%orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer :: occVector(nSpatOrbs)
 
         integer :: i
@@ -2489,7 +2532,7 @@ contains
         ! ahead. and never the first entry otherwise. and that would cause
         ! problems when accessing b vector at the end of an excitaiton if
         ! that is the last orbital..
-        integer(n_int), intent(in) :: ilut(0:GugaBits%orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         real(dp) :: bVector(nSpatOrbs)        ! b-vector stored in bVector
         integer :: i
         real(dp) :: bValue
@@ -2517,7 +2560,7 @@ contains
 
     function calcB_vector_int(ilut) result(bVector)
         ! function to calculate the bvector in integer form
-        integer(n_int), intent(in) :: ilut(0:GugaBits%orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer :: bVector(nSpatOrbs)
 
         integer :: i, bValue
@@ -2546,7 +2589,7 @@ contains
         ! function to get stepvector value of a given spatial orbital
         ! sOrb -> has to later be included in "macros.h" for efficiency
 
-        integer(n_int), intent(in) :: ilut(0:GugaBits%orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: sOrb     ! spatial orbital
         integer :: stepValue            ! resulting stepvector value
         ! if the number of orbitals is too large, multiple integers
@@ -2581,7 +2624,7 @@ contains
         ! special function to encode bit dets for the use in the guga
         ! excitation generation
         integer, intent(in) :: nI(nEl)
-        integer(n_int), intent(out) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(out) :: ilut(0:GugaBits%len_tot)
 
         integer :: i, pos
         integer(n_int) :: zero_int
@@ -2597,7 +2640,7 @@ contains
 
     function getSpatialOccupation(iLut, s) result(nOcc)
 
-        integer(n_int), intent(in) :: ilut(0:GugaBits%orb)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_orb)
         integer, intent(in) :: s
         real(dp) :: nOcc
 
@@ -2717,7 +2760,7 @@ contains
         ! place
         ! and combine all the necessary calcs. into one loop instead of
         ! the seperate ones..
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilut(0:GugaBits%len_tot)
         character(*), parameter :: this_routine = "init_csf_information"
 
         integer :: i, ierr, step, b_int
@@ -2799,83 +2842,93 @@ contains
 
     end subroutine init_csf_information
 
-    pure subroutine encode_stochastic_rdm_info(ilut, rdm_ind, x0, x1)
-        integer(n_int), intent(inout) :: ilut(0:GugaBits%tot)
+    pure subroutine encode_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
+        ! make these function general by also providing the
+        ! bit-rep index data-structure!
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
         integer(int_rdm), intent(in) :: rdm_ind
         real(dp), intent(in) :: x0, x1
 
         ! i need to be sure that int_rdm and n_int are of the same
         ! size otherwise this breaks..
-        call encode_stochastic_rdm_ind(ilut, rdm_ind)
-        call encode_stochastic_rdm_x0(ilut, x0)
-        call encode_stochastic_rdm_x1(ilut, x1)
+        call encode_stochastic_rdm_ind(BitIndex, ilut, rdm_ind)
+        call encode_stochastic_rdm_x0(BitIndex, ilut, x0)
+        call encode_stochastic_rdm_x1(BitIndex, ilut, x1)
 
     end subroutine encode_stochastic_rdm_info
 
-    pure subroutine extract_stochastic_rdm_info(ilut, rdm_ind, x0, x1)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+    pure subroutine extract_stochastic_rdm_info(BitIndex, ilut, rdm_ind, x0, x1)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
         integer(int_rdm), intent(out) :: rdm_ind
         real(dp), intent(out) :: x0, x1
 
-        rdm_ind = extract_stochastic_rdm_ind(ilut)
-        x0 = extract_stochastic_rdm_x0(ilut)
-        x1 = extract_stochastic_rdm_x1(ilut)
+        rdm_ind = extract_stochastic_rdm_ind(BitIndex, ilut)
+        x0 = extract_stochastic_rdm_x0(BitIndex, ilut)
+        x1 = extract_stochastic_rdm_x1(BitIndex, ilut)
 
     end subroutine extract_stochastic_rdm_info
 
-    pure subroutine encode_stochastic_rdm_ind(ilut, rdm_ind)
-        integer(n_int), intent(inout) :: ilut(0:GugaBits%tot)
+    pure subroutine encode_stochastic_rdm_ind(BitIndex, ilut, rdm_ind)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
         integer(int_rdm), intent(in) :: rdm_ind
 
-        ilut(GugaBits%r_ind) = rdm_ind
+        ilut(BitIndex%ind_rdm_ind) = rdm_ind
 
     end subroutine encode_stochastic_rdm_ind
 
-    pure function extract_stochastic_rdm_ind(ilut) result(rdm_ind)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+    pure function extract_stochastic_rdm_ind(BitIndex, ilut) result(rdm_ind)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
         integer(int_rdm) :: rdm_ind
 
-        rdm_ind = ilut(GugaBits%r_ind)
+        rdm_ind = ilut(BitIndex%ind_rdm_ind)
 
     end function extract_stochastic_rdm_ind
 
-    pure subroutine encode_stochastic_rdm_x0(ilut, x0)
-        integer(n_int), intent(inout) :: ilut(0:GugaBits%tot)
+    pure subroutine encode_stochastic_rdm_x0(BitIndex, ilut, x0)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
         real(dp), intent(in) :: x0
 
         integer(n_int) :: x0_int
 
         x0_int = transfer(x0, x0_int)
 
-        ilut(GugaBits%r_x0) = x0_int
+        ilut(BitIndex%ind_rdm_x0) = x0_int
 
     end subroutine encode_stochastic_rdm_x0
 
-    pure function extract_stochastic_rdm_x0(ilut) result(x0)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+    pure function extract_stochastic_rdm_x0(BitIndex, ilut) result(x0)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
         real(dp) :: x0
 
-        x0 = transfer(ilut(GugaBits%r_x0), x0)
+        x0 = transfer(ilut(BitIndex%ind_rdm_x0), x0)
 
     end function extract_stochastic_rdm_x0
 
-    pure subroutine encode_stochastic_rdm_x1(ilut, x1)
-        integer(n_int), intent(inout) :: ilut(0:GugaBits%tot)
+    pure subroutine encode_stochastic_rdm_x1(BitIndex, ilut, x1)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(inout) :: ilut(0:BitIndex%len_tot)
         real(dp), intent(in) :: x1
 
         integer(n_int) :: x1_int
 
         x1_int = transfer(x1, x1_int)
 
-        ilut(GugaBits%r_x1) = x1_int
+        ilut(BitIndex%ind_rdm_x1) = x1_int
 
     end subroutine encode_stochastic_rdm_x1
 
-    pure function extract_stochastic_rdm_x1(ilut) result(x1)
-        integer(n_int), intent(in) :: ilut(0:GugaBits%tot)
+    pure function extract_stochastic_rdm_x1(BitIndex, ilut) result(x1)
+        type(BitRep_t), intent(in) :: BitIndex
+        integer(n_int), intent(in) :: ilut(0:BitIndex%len_tot)
         real(dp) :: x1
 
-        x1 = transfer(ilut(GugaBits%r_x1), x1)
+        x1 = transfer(ilut(BitIndex%ind_rdm_x1), x1)
 
     end function extract_stochastic_rdm_x1
 
@@ -3025,18 +3078,18 @@ contains
     end subroutine extract_2_rdm_ind
 
     pure function extract_rdm_ind(ilutG) result(rdm_ind)
-        integer(n_int), intent(in) :: ilutG(0:GugaBits%tot)
+        integer(n_int), intent(in) :: ilutG(0:GugaBits%len_tot)
         integer(int_rdm) :: rdm_ind
 
-        rdm_ind = ilutG(nIfGUGA)
+        rdm_ind = ilutG(GugaBits%ind_rdm_ind)
 
     end function extract_rdm_ind
 
     pure subroutine encode_rdm_ind(ilutG, rdm_ind)
-        integer(n_int), intent(inout) :: ilutG(0:GugaBits%tot)
+        integer(n_int), intent(inout) :: ilutG(0:GugaBits%len_tot)
         integer(int_rdm), intent(in) :: rdm_ind
 
-        ilutG(nIfGUGA) = rdm_ind
+        ilutG(GugaBits%ind_rdm_ind) = rdm_ind
 
     end subroutine encode_rdm_ind
 
