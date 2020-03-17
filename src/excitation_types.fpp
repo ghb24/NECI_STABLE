@@ -26,6 +26,7 @@ module excitation_types
     use bit_rep_data, only: nIfTot
     use SystemData, only: nEl
     use orb_idx_mod, only: SpinOrbIdx_t
+    use sets_mod, only: disjoint, subset, is_sorted, special_union_complement
     implicit none
     private
     public :: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
@@ -365,12 +366,12 @@ contains
         type(SpinOrbIdx_t) :: res
         character(*), parameter :: this_routine = 'excite_SingleExc_t'
 
+        @:ASSERT(defined(exc))
         associate(src => exc%val(1), tgt => exc%val(2))
-            @:ASSERT(defined(exc), exc%val)
-            @:ASSERT(src /= tgt, src, tgt)
-            @:ASSERT(any(src == det_I%idx), src, det_I%idx)
-            @:ASSERT(all(tgt /= det_I%idx), tgt, det_I%idx)
-            res%idx = insert_delete_sorted(det_I%idx, [src], [tgt])
+            @:ASSERT(src /= tgt)
+            @:ASSERT(disjoint([tgt], det_I%idx))
+            @:ASSERT(subset([src], det_I%idx))
+            res%idx = special_union_complement(det_I%idx, [tgt], [src])
         end associate
     end function
 
@@ -383,20 +384,18 @@ contains
 
         integer :: src(2), tgt(2), i
 
-
+        @:ASSERT(defined(exc))
         src = exc%val(1, :)
         tgt = exc%val(2, :)
-        @:ASSERT(defined(exc))
-        do i = 1, 2
-            @:ASSERT(all(src(i) /= tgt))
-            @:ASSERT(any(src(i) == det_I%idx))
-            @:ASSERT(all(tgt(i) /= det_I%idx))
-        end do
-
         if (src(1) > src(2)) call swap(src(1), src(2))
         if (tgt(1) > tgt(2)) call swap(tgt(1), tgt(2))
+        @:ASSERT(is_sorted(src))
+        @:ASSERT(is_sorted(tgt))
+        @:ASSERT(disjoint(src, tgt))
+        @:ASSERT(disjoint(tgt, det_I%idx))
+        @:ASSERT(subset(src, det_I%idx))
 
-        res%idx = insert_delete_sorted(det_I%idx, src, tgt)
+        res%idx = special_union_complement(det_I%idx, tgt, src)
 
         contains
             pure subroutine swap(a, b)
@@ -455,84 +454,5 @@ contains
     end function
 
 
-
-    !> Merge C into A and remove values that are in B.
-    !> The result can be written with set notation as A ∪ C / B.
-    !> Preconditions (not tested!):
-    !>      1. B is a subset of A
-    !>      2. A and C are disjoint
-    !>      3. B and C are disjoint
-    !>      4. B and C have the same size.
-    !>      5. A, B, and C are sorted.
-    pure function insert_delete_sorted(A, B, C) result(D)
-        integer, intent(in) :: A(:), B(:), C(:)
-        integer :: D(size(A))
-
-        integer :: i, j, k, l
-
-        i = 1
-        j = 1
-        k = 1
-        l = 1
-        do while(l <= size(D))
-            ! Only indices from C have to be added to A
-            ! We use assumption that B is a subset of A
-            if (i > size(A)) then
-                D(l) = C(k)
-                k = k + 1
-                l = l + 1
-            ! Neither indices from B have to be deleted in A
-            ! nor indices from C have to be added from C to A.
-            else if (j > size(B) .and. k > size(C)) then
-                D(l) = A(i)
-                i = i + 1
-                l = l + 1
-            ! No more indices from B have to be deleted in A
-            else if (j > size(B)) then
-                if (A(i) < C(k)) then
-                    D(l) = A(i)
-                    i = i + 1
-                    l = l + 1
-                else if (A(i) > C(k)) then
-                    D(l) = C(k)
-                    k = k + 1
-                    l = l + 1
-                end if
-            ! No more indices have to be added from C to A
-            else if (k > size(C)) then
-                if (A(i) /= B(j)) then
-                    D(l) = A(i)
-                    i = i + 1
-                    l = l + 1
-                else
-                    i = i + 1
-                    j = j + 1
-                end if
-            ! Normal case:
-            ! Merge C sorted into A excluding values from B.
-            else if (A(i) < C(k)) then
-                if (A(i) /= B(j)) then
-                    D(l) = A(i)
-                    i = i + 1
-                    l = l + 1
-                else
-                    i = i + 1
-                    j = j + 1
-                end if
-            else if (A(i) > C(k)) then
-                if (A(i) /= B(j)) then
-                    D(l) = C(k)
-                    k = k + 1
-                    l = l + 1
-                else
-                    D(l) = C(k)
-                    i = i + 1
-                    j = j + 1
-                    k = k + 1
-                    l = l + 1
-                end if
-            end if
-        end do
-    end function
 
 end module
