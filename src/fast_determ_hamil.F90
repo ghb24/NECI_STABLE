@@ -22,7 +22,7 @@ module fast_determ_hamil
     use shared_array
     use shared_memory_mpi
     use shared_rhash, only: shared_rhash_t, initialise_shared_rht, shared_rht_lookup
-
+    use buffer_1d, only: buffer_hel_t, buffer_int32_t
     implicit none
 
     type auxiliary_array
@@ -858,9 +858,8 @@ contains
         integer :: nI(nel), nJ(nel), nK(nel)
 
         HElement_t(dp) :: hel
-        HElement_t(dp), allocatable :: hamil_row(:)
-        integer, allocatable :: hamil_pos(:)
-        integer, allocatable :: num_conns(:)
+        type(buffer_hel_t) :: hamil_row
+        type(buffer_int32_t) :: hamil_pos
 
         type(timer), save :: aux_time
         type(timer), save :: sort_aux_time
@@ -1283,14 +1282,11 @@ contains
 
         allocate(intersec_inds(nbeta), stat=ierr)
 
-        allocate(hamil_row(determ_space_size), stat=ierr)
-        allocate(hamil_pos(determ_space_size), stat=ierr)
+        call hamil_row%init(int(determ_sizes(iProcIndex),int64))
+        call hamil_pos%init(int(determ_sizes(iProcIndex),int64))
 
         allocate(sparse_core_ham(determ_sizes(iProcIndex)), stat=ierr)
         allocate(core_ham_diag(determ_sizes(iProcIndex)), stat=ierr)
-
-        allocate(num_conns(determ_space_size), stat=ierr)
-        num_conns = 0
 
         if (ierr == 0) then
             write(6,'("Arrays for Hamiltonian successfully allocated...")'); call neci_flush(6)
@@ -1320,9 +1316,8 @@ contains
                     call decode_bit_det(nJ, core_space(:,ind_j))
                     hel = get_helement(nI, nJ, IC, core_space(:,i_full), core_space(:,ind_j))
                     if (abs(hel) > 0.0_dp) then
-                        num_conns(i) = num_conns(i) + 1
-                        hamil_pos(num_conns(i)) = ind_j
-                        hamil_row(num_conns(i)) = hel
+                        call hamil_pos%add_val(ind_j)
+                        call hamil_row%add_val(hel)
                     end if
                 end if
             end do
@@ -1341,9 +1336,8 @@ contains
                     call decode_bit_det(nJ, core_space(:,ind_j))
                     hel = get_helement(nI, nJ, IC, core_space(:,i_full), core_space(:,ind_j))
                     if (abs(hel) > 0.0_dp) then
-                        num_conns(i) = num_conns(i) + 1
-                        hamil_pos(num_conns(i)) = ind_j
-                        hamil_row(num_conns(i)) = hel
+                        call hamil_pos%add_val(ind_j)
+                        call hamil_row%add_val(hel)
                     end if
                 end if
             end do
@@ -1362,26 +1356,23 @@ contains
                     call decode_bit_det(nK, core_space(:,ind_k))
                     hel = get_helement(nI, nK, core_space(:,i_full), core_space(:,ind_k))
                     if (abs(hel) > 0.0_dp) then
-                        num_conns(i) = num_conns(i) + 1
-                        hamil_pos(num_conns(i)) = ind_k
-                        hamil_row(num_conns(i)) = hel
+                        call hamil_pos%add_val(ind_k)
+                        call hamil_row%add_val(hel)
                     end if
                 end do
             end do
 
             ! Calculate and add the diagonal element
             hel = get_helement(nI, nI, 0) - Hii
-            num_conns(i) = num_conns(i) + 1
-            hamil_pos(num_conns(i)) = i_full
-            hamil_row(num_conns(i)) = hel
+            call hamil_pos%add_val(i_full)
+            call hamil_row%add_val(hel)
 
             ! Now finally allocate and fill in the actual deterministic
             ! Hamiltonian row for this determinant
-            allocate(sparse_core_ham(i)%elements(num_conns(i)), stat=ierr)
-            allocate(sparse_core_ham(i)%positions(num_conns(i)), stat=ierr)
-            sparse_core_ham(i)%num_elements = num_conns(i)
-            sparse_core_ham(i)%elements(1:num_conns(i)) = hamil_row(1:num_conns(i))
-            sparse_core_ham(i)%positions(1:num_conns(i)) = hamil_pos(1:num_conns(i))
+            sparse_core_ham(i)%num_elements = hamil_row%num_elements()
+            ! Dumping the buffer transfers its content and reset the buffer
+            call hamil_row%dump(sparse_core_ham(i)%elements)
+            call hamil_pos%dump(sparse_core_ham(i)%positions)
 
             ! Fill the array of diagonal elements
             core_ham_diag(i) = hel
@@ -1413,8 +1404,6 @@ contains
         call beta_dets%shared_dealloc()
         call alpha_dets%shared_dealloc()
 
-        deallocate(num_conns)
-
         call shared_deallocate_mpi(beta_list_win, beta_list_ptr)
         call shared_deallocate_mpi(alpha_list_win, alpha_list_ptr)
 
@@ -1425,12 +1414,12 @@ contains
         call nalpha_alpha%shared_dealloc()
 
         deallocate(intersec_inds)
-        deallocate(hamil_row)
-        deallocate(hamil_pos)
+        call hamil_row%finalize()
+        call hamil_pos%finalize()
 
         call MPIBarrier(ierr, tTimeIn=.false.)
 
-    end subroutine calc_determ_hamil_opt    
+    end subroutine calc_determ_hamil_opt
 
     pure subroutine find_intersec( nelem_in_1, nelem_in_2, arr_1, arr_2, intersec, nelem_out )
 
