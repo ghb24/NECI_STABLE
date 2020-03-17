@@ -10,7 +10,7 @@ module verlet_aux
 
   use hash, only: clear_hash_table, hash_table_lookup, add_hash_table_entry
 
-  use bit_rep_data, only: niftot, nifd, extract_sign, nOffFlag
+  use bit_rep_data, only: niftot, nifd, extract_sign, IlutBits
 
   use bit_reps, only: decode_bit_det, set_flag, get_initiator_flag_by_run, encode_sign, &
        add_ilut_lists, extract_bit_rep, test_flag, encode_bit_rep
@@ -278,7 +278,7 @@ module verlet_aux
 
             if(.not. IsNullDet(nI_child)) then
                call encode_child(ilut_parent, ilut_child, ic, ex)
-               ilut_child(nOffFlag) = 0_n_int
+               ilut_child(IlutBits%ind_flag) = 0_n_int
 
                ! treating semi-stochastic space
                ! note that diagonal event either are not in the core space at all

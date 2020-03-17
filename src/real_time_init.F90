@@ -61,7 +61,7 @@ module real_time_init
     use LoggingData, only: tZeroProjE, tFCIMCStats2
     use fcimc_output, only: write_fcimcstats2, WriteFciMCStatsHeader
     use replica_data, only: allocate_iter_data, set_initial_global_data
-    use bit_rep_data, only: nifbcast, niftot, extract_sign, nifd
+    use bit_rep_data, only: IlutBits, niftot, extract_sign, nifd
     use bit_reps, only: decode_bit_det
     use adi_references, only: setup_reference_space
 
@@ -248,8 +248,8 @@ contains
 
         ! also intitialize the 2nd spawning array to deal with the
         ! diagonal death step in the 2nd rt-fciqmc loop
-        allocate(DiagVec(0:nifbcast, MaxWalkersPart), stat = ierr)
-        call LogMemAlloc('DiagVec',MaxWalkersPart*(1+nifbcast),size_n_int,&
+        allocate(DiagVec(0:IlutBits%len_bcast, MaxWalkersPart), stat = ierr)
+        call LogMemAlloc('DiagVec',MaxWalkersPart*(1+IlutBits%len_bcast),size_n_int,&
              this_routine,DiagVecTag,ierr)
 
         DiagVec = 0

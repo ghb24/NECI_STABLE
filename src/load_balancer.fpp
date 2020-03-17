@@ -639,7 +639,7 @@ contains
         use hphf_integrals, only: hphf_off_diag_helement
         use FciMCData, only: ProjEDet, CurrentDets, n_prone_dets
         use LoggingData, only: FCIMCDebug
-        use bit_rep_data, only: NOffSgn
+        use bit_rep_data, only: IlutBits
 
         integer, intent(inout) :: TotWalkersNew
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -770,7 +770,9 @@ contains
             write(iout,"(A,I12)") "Walker list length: ",TotWalkersNew
             write(iout,"(A)") "TW: Walker  Det"
             do j = 1, int(TotWalkersNew,sizeof_int)
-                CurrentSign = transfer(CurrentDets(NOffSgn:NOffSgn+lenof_sign-1,j),CurrentSign)
+                CurrentSign = &
+                    transfer(CurrentDets(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign-1,j), &
+                    CurrentSign)
                 write(iout, "(A,I10,a)", advance='no') 'TW:', j, '['
                 do part_type = 1, lenof_sign
                     write(iout, "(f16.3)", advance='no') CurrentSign(part_type)

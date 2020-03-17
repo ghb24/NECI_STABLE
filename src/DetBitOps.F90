@@ -7,8 +7,8 @@ module DetBitOps
 
     use Systemdata, only: nel, tOddS_HPHF, tHPHF
     use CalcData, only: tTruncInitiator, tSemiStochastic
-    use bit_rep_data, only: NIfTot, NIfD, NOffFlag, NIfFlag, &
-                            test_flag, NOffSgn, extract_sign
+    use bit_rep_data, only: NIfTot, NIfD, &
+                            test_flag, extract_sign
     use constants, only: n_int,bits_n_int,end_n_int,dp,lenof_sign,sizeof_int
 
     implicit none

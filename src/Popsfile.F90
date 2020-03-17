@@ -29,7 +29,7 @@ MODULE PopsfileMod
     use Determinants, only: get_helement, write_det
     use hphf_integrals, only: hphf_diag_helement, hphf_off_diag_helement
     USE dSFMT_interface, only: genrand_real2_dSFMT
-    use bit_rep_data, only: extract_sign, NOffSgn
+    use bit_rep_data, only: extract_sign
     use bit_reps
     use constants
     use Parallel_neci
@@ -1216,23 +1216,18 @@ r_loop: do while(.not.tStoreDet)
             ! also allow these values to differ for a real-time fciqmc calc.
             ! started from a converged groundstate, which is assumed to be
             ! real valued only
-            if(iPopLenof_sign.ne.lenof_sign) call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
-            if(PopNIfSgn.ne.NIfSgn) call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
+            if(iPopLenof_sign.ne.lenof_sign) then
+                call stop_all(this_routine,"Popsfile lenof_sign and input lenof_sign not same")
+            end if
+            if(PopNIfSgn.ne.IlutBits%len_pop) then
+                call stop_all(this_routine,"Popsfile NIfSgn and calculated NIfSgn not same")
+            end if
         endif
 
-        ! This test is no longer needed. NIfFlag depends on how we represent
-        ! the flags in memory, PopsNIfFlag depends on tUseFlags. The are
-        ! allowed to differ.
-!        if(PopNIfFlag.ne.NIfFlag) call stop_all(this_routine,"Popsfile NIfFlag and calculated NIfFlag not same")
         if (inum_runs.eq.1 .and. .not. t_real_time_fciqmc) then
-            if (NIfFlag == 0) then
-                if (PopNIFTot /= NIfTot + 1) &
-                    call stop_all(this_routine, "Popsfile NIfTot and &
-                                 &calculated NIfTot don't match.")
-            else
-                if (PopNIfTot /= NIfTot) &
-                    call stop_all(this_routine,"Popsfile NIfTot and calculated&
-                                               & NIfTot not same")
+            if (PopNIfTot /= NIfTot) then
+                call stop_all(this_routine, &
+                "Popsfile NIfTot and calculated NIfTot not same")
             end if
         endif
 
@@ -2142,11 +2137,7 @@ r_loop: do while(.not.tStoreDet)
         ! representation of flags in memory, then the representation in
         ! the popsfile is one unit longer than in memory.
         pops_niftot = NIfTot
-        pops_nifflag = NIfFlag
-        if (NIfFlag == 0) then
-            pops_niftot = pops_niftot + 1
-            pops_nifflag = 1
-        end if
+        pops_nifflag = 1
 
         write(iunit, '(a)') '# POPSFILE VERSION 4'
         write(iunit, '("&POPSHEAD Pop64Bit=",l1)') build_64bit
@@ -2168,7 +2159,7 @@ r_loop: do while(.not.tStoreDet)
 
         write(iunit, '(a,i16,a,i2,a,i2,a)') &
             'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, &
-            ',PopNIfSgn=' ,NIfSgn, ','
+            ',PopNIfSgn=' ,IlutBits%len_pop, ','
         write(iunit, '(a,i2,a,i2,a,f18.12,a)') &
             'PopNIfFlag=', pops_nifflag, ',PopNIfTot=', pops_niftot, &
             ',PopTau=', Tau, ','

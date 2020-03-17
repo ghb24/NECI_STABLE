@@ -2,7 +2,7 @@
 
 module trial_wf_gen
 
-    use bit_rep_data, only: NIfTot, nifd, flag_trial, flag_connected, noffsgn
+    use bit_rep_data, only: NIfTot, nifd, flag_trial, flag_connected, IlutBits
     use CalcData
     use Parallel_neci
     use semi_stoch_gen
@@ -905,7 +905,8 @@ contains
                     nclash = trial_ht(hash_val)%nclash + 1
                     trial_ht(hash_val)%nclash = nclash
                     trial_ht(hash_val)%states(0:nifd,nclash) = trial_space(0:nifd,i)
-                    trial_ht(hash_val)%states(noffsgn:,nclash) = transfer(trial_wfs(:,i), temp)
+                    trial_ht(hash_val)%states(IlutBits%ind_pop:,nclash) = &
+                        transfer(trial_wfs(:,i), temp)
                 end if
             end do
 
@@ -953,7 +954,8 @@ contains
                     nclash = con_ht(hash_val)%nclash + 1
                     con_ht(hash_val)%nclash = nclash
                     con_ht(hash_val)%states(0:nifd,nclash) = con_space(0:nifd,i)
-                    con_ht(hash_val)%states(noffsgn:,nclash) = transfer(con_space_vecs(:,i), temp)
+                    con_ht(hash_val)%states(IlutBits%ind_pop:,nclash) &
+                        = transfer(con_space_vecs(:,i), temp)
                 end if
             end do
 

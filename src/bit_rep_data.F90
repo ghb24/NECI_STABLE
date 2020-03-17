@@ -8,7 +8,7 @@ module bit_rep_data
 
     ! Structure of a bit representation:
 
-    ! | 0-NIfD: Det | Yamanouchi | Sign(Re) | Sign(Im) | Flags |
+    ! | 0-NIfD: Det | Sign(Re) | Sign(Im) | Flags |
     !
     ! -------
     ! (NIfD + 1) * 64-bits              Orbital rep.
@@ -16,29 +16,60 @@ module bit_rep_data
     ! (1         * 32-bits if needed)   Signs (Im)
     ! (1         * 32-bits if needed)   Flags
 
+    ! save all the bit rep indices and lenghts in one data structure for
+    ! a more clear representation
+    type :: BitRep_t
+        ! number of integers (-1) to store the orbital occupation
+        integer :: len_orb      = -1
+        ! position of the first entry for walker population
+        integer :: ind_pop      =  -1
+        ! length necessar to store the population (for complex and mneci..)
+        integer :: len_pop      = -1
+        ! the index where the flag is stored
+        integer :: ind_flag     = -1
+        ! the total length of the bit-representation
+        integer :: len_tot      = -1
+        ! the length how much of the bit-rep is broadcasted
+        integer :: len_bcast    = -1
+        ! the index for truncated spawning events
+        integer :: ind_spawn    = -1
+        ! the index for hdiag in some implementation
+        integer :: ind_hdiag    = -1
+
+        ! GUGA specific entries:
+        ! the index of the communicated rdm-index (containing info about
+        ! the excit-level and excit-type)
+        integer :: ind_rdm_ind  = -1
+        ! the index of the x0 coupling coefficient contribution
+        integer :: ind_x0       = -1
+        ! the index of the x1 coupling coefficient contribution
+        integer :: ind_x1       = -1
+
+        ! RDM specific entries:
+        ! the index of the rdm biasing factor
+        integer :: ind_rdm_fac      = -1
+        ! the flags (initiator) of the parent
+        integer :: ind_parent_flag  = -1
+        ! the index where the information where the spawn came from is stored
+        integer :: ind_source       = -1
+        ! the index of the parent ci coeff ( in the enlarged SpawnedParts!)
+        integer :: ind_parent   = -1
+
+    end type BitRep_t
+
+    ! make global data structure for the bit-rep indices
+    ! also initialize them to -1 so we can easily spot uninitialized stuff
+    type(BitRep_t) :: IlutBits = BitRep_t(), IlutBitsParent = BitRep_t()
+
     integer :: nIfTot  ! Upper bound of bit representation. In form 0:NIfTot
     integer :: nIfD    ! Final byte representing spatial/spin orbitals
 
-    integer :: nOffFlag   ! Offset of flags. in bytes
-    integer :: nIfFlag    ! Number of bytes to contain flags.
-
-    integer :: nOffSgn  ! Offset of signs in integers
-    integer :: nIfSgn   ! Number of integers used for signs
     integer :: nIfTotKP ! Upper bound of krylov_vecs.
 
     integer :: nIfGUGA ! number of integers needed for the GUGA CSFs and flags
 
-    integer :: nIfBCast ! Size of data to use in annihilation broadcast
-
     ! Has the RDM component of the bit representation (For bcast) been inited.
     logical :: bit_rdm_init
-    integer :: nOffParent
-
-    ! position of the number of spawns in the broadcast
-    integer :: nSpawnOffset
-
-    ! position of the diagonal Hamiltonian element  of the spawning
-    integer :: NOffSpawnHDiag
 
     ! Flags which we can store
     integer :: flag_counter
@@ -92,13 +123,7 @@ contains
         integer, intent(in) :: flg
         logical :: bSet
 
-        !Commented out code is for when we need multiple integers for storing flags (unlikely!)
-!        ind = NOffFlag + flg / bits_n_int
-!        off = mod(flg, bits_n_int)
-
-!        bSet = btest(ilut(ind), off)
-
-        bSet = btest(ilut(NOffFlag), flg)
+        bSet = btest(ilut(IlutBits%ind_flag), flg)
 
     end function test_flag
 
@@ -107,7 +132,7 @@ contains
         real(dp), intent(out) :: real_sgn(lenof_sign)
         integer(n_int) :: sgn(lenof_sign)
 
-        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        sgn = iLut(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign-1)
         ! transfer operates elementwise
         real_sgn = transfer(sgn, real_sgn)
 

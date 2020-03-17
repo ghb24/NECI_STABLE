@@ -11,7 +11,7 @@ module rdm_data_utils
     ! rdm_list_t object, and adding to and communicating with rdm_spawn_t
     ! objects.
 
-    use bit_rep_data, only: NIfTot, nifd, noffsgn
+    use bit_rep_data, only: NIfTot, nifd, IlutBits
     use constants
     use Parallel_neci, only: iProcIndex, nProcessors
     use rdm_data, only: rdm_list_t, rdm_spawn_t, one_rdm_t, en_pert_t
@@ -500,7 +500,7 @@ contains
         real(dp), intent(out) :: real_sign(sign_length)
         integer(n_int) :: sign(sign_length)
 
-        sign = ilut(noffsgn:nifd+sign_length)
+        sign = ilut(IlutBits%ind_pop:IlutBits%ind_pop+sign_length-1)
         real_sign = transfer(sign, real_sign)
 
     end subroutine extract_sign_EN
@@ -513,7 +513,7 @@ contains
         integer(n_int) :: sign(sign_length)
 
         sign = transfer(real_sign, sign)
-        ilut(noffsgn:nifd+sign_length) = sign
+        ilut(IlutBits%ind_pop:IlutBits%ind_pop+sign_length-1) = sign
 
     end subroutine encode_sign_EN
 

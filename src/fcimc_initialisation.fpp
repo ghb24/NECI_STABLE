@@ -96,7 +96,7 @@ module fcimc_initialisation
     use IntegralsData, only: tPartFreezeCore, nHolesFrozen, tPartFreezeVirt, &
                              nVirtPartFrozen, nPartFrozen, nelVirtFrozen
 
-    use bit_rep_data, only: NIfTot, NIfD, NIfBCast, flag_initiator, &
+    use bit_rep_data, only: NIfTot, NIfD, IlutBits, flag_initiator, &
                             flag_deterministic, extract_sign
 
     use bit_reps, only: encode_det, clear_all_flags, set_flag, encode_sign, &
@@ -1571,12 +1571,14 @@ contains
 
             write(iout,"(A,I12,A)") "Spawning vectors allowing for a total of ",MaxSpawned, &
                     " particles to be spawned in any one iteration per core."
-            write(iout,*) "Memory requirement ", NIfBcast*8.0_dp*( &
+            write(iout,*) "Memory requirement ", IlutBits%len_bcast*8.0_dp*( &
                  MaxSpawned/1048576.0_dp), "MB"
 
-            allocate(SpawnVec(0:NIfBCast, MaxSpawned), stat=ierr, source=0_n_int)
+            allocate(SpawnVec(0:IlutBits%len_bcast, MaxSpawned), &
+                stat=ierr, source=0_n_int)
             @:log_alloc(SpawnVec, SpawnVecTag, ierr)
-            allocate(SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr, source=0_n_int)
+            allocate(SpawnVec2(0:IlutBits%len_bcast, MaxSpawned), &
+                stat=ierr, source=0_n_int)
             @:log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
             if (use_spawn_hash_table) then

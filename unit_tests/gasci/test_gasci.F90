@@ -14,7 +14,7 @@ program test_gasci
   use Parallel_neci, only: MPIInit
   use UMatCache, only: GetUMatSize, tTransGTID
   use OneEInts, only: Tmat2D
-  use bit_rep_data, only: NIfTot, nifd, NOffSgn, NIfSgn, extract_sign
+  use bit_rep_data, only: NIfTot, nifd, IlutBits, extract_sign
   use bit_reps, only: encode_sign, decode_bit_det
   use DetBitOps, only: EncodeBitDet, DetBitEq
   use SymExcit3, only: countExcitations3, GenExcitations3
@@ -43,8 +43,8 @@ contains
     umatsize = 0
     nel = 5
     nifd = 0
-    NOffSgn = 1
-    NIfSgn = 1
+    IlutBits%ind_pop = 1
+    IlutBits%len_pop = 1
     NIfTot = 2
 
     fcidump_name = "FCIDUMP"

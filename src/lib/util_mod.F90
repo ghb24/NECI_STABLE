@@ -594,8 +594,7 @@ contains
     ! NOTE: This can only be used for binary searching determinant bit
     !       strings now. We can template it if it wants to be more general
     !       in the future if needed.
-    function binary_search (arr, val, cf_len) &
-                                 result(pos)
+    function binary_search (arr, val, cf_len) result(pos)
         use constants, only: n_int
 
         integer(kind=n_int), intent(in) :: arr(:,:)

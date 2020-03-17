@@ -32,6 +32,8 @@ module bit_reps
 
     use guga_bitRepOps, only: init_guga_bitrep
 
+    use guga_data, only: t_fast_guga_rdms
+
     implicit none
 
     ! Structure of a bit representation:
@@ -43,23 +45,6 @@ module bit_reps
     !  1         * 32-bits              Signs (Re)
     ! (1         * 32-bits if needed)   Signs (Im)
     ! (1         * 32-bits if needed)   Flags
-
-    ! save all the bit rep indices and lenghts in one data structure for
-    ! a more clear representation
-    type :: BitRep_t
-        integer :: nifd             = -1
-        integer :: nOffSgn          = -1
-        integer :: NIfSgn           = -1
-        integer :: NIfFlag          = -1
-        integer :: NOffFlag         = -1
-        integer :: niftot           = -1
-        integer :: nOffParent       = -1
-        integer :: nIfBCast         = -1
-        integer :: nSpawnOffset     = -1
-        integer :: nOffSpawnHDiag   = -1
-    end type BitRep_t
-
-    type(BitRep_t) :: bit_rep_bits
 
 
 
@@ -181,10 +166,11 @@ contains
         ! in bit-form. This will equal int(nBasis/32).
         ! The actual total length for a determinant in bit form will be
         nIfD = int(nbasis / bits_n_int)
+        IlutBits%len_orb = nifd
 
         ! The signs array
-        NOffSgn = nIfD + 1
-        NIfSgn = lenof_sign
+        IlutBits%ind_pop = IlutBits%len_orb + 1
+        IlutBits%len_pop = lenof_sign
 #ifdef PROG_NUMRUNS_
         write(6,*) 'Calculation supports multiple parallel runs'
 #elif defined(DOUBLERUN_)
@@ -194,7 +180,8 @@ contains
         WRITE(6,*) "Complex walkers in use."
 #endif
         write(6,*) 'Number of simultaneous walker distributions: ',inum_runs
-        write(6,*) 'Number of sign components in bit representation of determinant: ', NIfSgn
+        write(6,*) 'Number of sign components in bit representation of determinant: ', &
+            IlutBits%len_pop
 
         ! The number of integers used for sorting / other bit manipulations
         ! WD: this is always just nifd.. so remove nifdbo..
@@ -211,23 +198,21 @@ contains
 ! integers for the flags, as the number of initiator/parent flags increases
 ! dramatically!
 
-        ! K.G. 24.08.18
-        ! Flags are being used in basically every calculation,
-        ! considering recent developments, the possibility not to
-        ! use flags is obsolete
-        NIfFlag = 1
-
-        NOffFlag = NOffSgn + NIfSgn
+        IlutBits%ind_flag = IlutBits%ind_pop + IlutBits%len_pop
 
         ! N.B. Flags MUST be last!!!!!
         !      If we change this bit, then we need to adjust ilut_lt and
         !      ilut_gt.
 
         ! The total number of bits_n_int-bit integers used - 1
-        NIfTot = NIfD + NIfSgn + NIfFlag
+        ! WD: the +1 is for the always used flag entry now
+        NIfTot = IlutBits%len_orb + IlutBits%len_pop + 1
+        IlutBits%len_tot = IlutBits%len_orb + IlutBits%len_pop + 1
 
-        WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", NIfTot + 1
-        WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", bits_n_int
+        WRITE(6,"(A,I6)") "Setting integer length of determinants as bit-strings to: ", &
+            IlutBits%len_tot + 1
+        WRITE(6,"(A,I6)") "Setting integer bit-length of determinants as bit-strings to: ", &
+            bits_n_int
 
         if (tGUGA) then
             ! set up a nIfGUGA variable to use a similar integer list to
@@ -244,7 +229,8 @@ contains
             !  1         * 32-bits              deltaB value
 
             call init_guga_bitrep(nifd)
-            write(6,"(A,I6)") "For GUGA calculation set up a integer list of length: ", nIfGUGA + 1
+            write(6,"(A,I6)") "For GUGA calculation set up a integer list of length: ", &
+                nIfGUGA + 1
 
             ! if we use fast guga rdms we also need space in the
             ! 'normal' ilut to store the rdm_ind and x0 and x1..
@@ -252,7 +238,20 @@ contains
             ! need to be adapted..
             ! but this gets changed in rdm_general.. so do the GUGA
             ! changes there!
+            ! no.. I also need to change niftot to be able to hold
+            ! rdm_ind, x0 and x1 from the excitation generation step..
+            ! so I also need to adapt this here!
+            ! and I think I just need to store it within niftot!
+            ! I do not even need and additional entry in the parent
+            ! atleast in the communication within spawnedparts!
+            if (t_fast_guga_rdms) then
+                IlutBits%ind_rdm_ind = niftot + 1
+                IlutBits%ind_x0 = IlutBits%ind_rdm_ind + 1
+                IlutBits%ind_x1 = IlutBits%ind_x0 + 1
 
+                niftot = IlutBits%ind_x1
+                IlutBits%len_tot = IlutBits%ind_x1
+            end if
         end if
 
         ! By default we DO NOT initialise RDM parts of the bit rep now
@@ -262,38 +261,42 @@ contains
         ! The broadcasted information, used in annihilation, may require more
         ! information to be used.
         ! TODO: We may not always need the flags array. Test that...
-
-        NIfBCast = NIfTot
+        IlutBits%len_bcast = IlutBits%len_tot
 
         ! sometimes, we also need to store the number of spawn events
         ! in this iteration
-        NSpawnOffset = NIfTot + 1
+        IlutBits%ind_spawn = IlutBits%len_tot + 1
+
         if(tLogNumSpawns) then
             ! then, there is an extra integer in spawnedparts just behind
             ! the ilut noting the number of spawn events
-            NIfBCast = NIfBCast + 1
+            IlutBits%len_bcast = IlutBits%len_bcast + 1
         end if
 
         ! If we need to communicate the diagonal Hamiltonian element
         ! for the spawning
         if (tPreCond .or. tReplicaEstimates) then
-            NOffSpawnHDiag = NIfBCast + 1
-            NIfBCast = NIfBCast + 1
+            IlutBits%ind_hdiag = IlutBits%len_bcast + 1
+            IlutBits%len_bcast = IlutBits%len_bcast + 1
         end if
 
-        ! slowly adapt the code to use the bitrep data structure
-        bit_rep_bits = BitRep_t(&
-            nifd            = nifd, &
-            nOffSgn         = nOffSgn, &
-            NIfSgn          = NIfSgn, &
-            NIfFlag         = NIfFlag, &
-            NOffFlag        = NOffFlag, &
-            niftot          = niftot, &
-            nOffParent      = nOffParent, &
-            nIfBCast        = nIfBCast, &
-            nSpawnOffset    = nSpawnOffset, &
-            nOffSpawnHDiag  = NOffSpawnHDiag)
+        ! also store the information for the spawned_parents in the
+        ! RDM calculation in this data-stucture! for a nicer overview!
+        IlutBitsParent%len_orb = IlutBits%len_orb
+        IlutBitsParent%ind_pop = IlutBitsParent%len_orb + 1
+        IlutBitsParent%ind_flag = IlutBitsParent%ind_pop + 1
+        IlutBitsParent%ind_source  = IlutBitsParent%ind_flag + 1
 
+        IlutBitsParent%len_tot = IlutBitsParent%ind_source
+
+        ! and if we use GUGA we have to enlarge this array by 3 entries
+        if (tGUGA .and. t_fast_guga_rdms) then
+            IlutBitsParent%ind_rdm_ind = IlutBitsParent%ind_source + 1
+            IlutBitsParent%ind_x0 = IlutBitsParent%ind_rdm_ind + 1
+            IlutBitsParent%ind_x1 = IlutBitsParent%ind_x0
+
+            IlutBitsParent%len_tot = IlutBitsParent%ind_x1
+        end if
 
     end subroutine
 
@@ -320,10 +323,10 @@ contains
             call decode_bit_det (nI, ilut)
         endif
 
-        sgn = iLut(NOffSgn:NOffSgn+lenof_sign-1)
+        sgn = iLut(IlutBits%ind_pop:IlutBits%ind_pop+lenof_sign-1)
         real_sgn = transfer(sgn, real_sgn)
 
-        flags = int(iLut(NOffFlag), sizeof_int)
+        flags = int(iLut(IlutBits%ind_flag), sizeof_int)
 
     end subroutine extract_bit_rep
 
@@ -332,7 +335,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:nIfTot)
         integer :: flags
 
-        flags = int(ilut(NOffFlag), sizeof_int)
+        flags = int(ilut(IlutBits%ind_flag), sizeof_int)
 
     end function extract_flags
 
@@ -341,7 +344,7 @@ contains
         integer(n_int), intent(in) :: ilut(0:niftot)
         integer, intent(in) :: part_type
         real(dp) :: real_sgn
-        real_sgn = transfer( ilut(nOffSgn + part_type - 1), real_sgn)
+        real_sgn = transfer( ilut(IlutBits%ind_pop + part_type - 1), real_sgn)
     end function
 
     pure function extract_run_sign(ilut, run) result(sgn)
@@ -364,16 +367,16 @@ contains
     pure subroutine encode_bit_rep (ilut, Det, real_sgn, flag)
         integer(n_int), intent(out) :: ilut(0:nIfTot)
         real(dp), intent(in) :: real_sgn(lenof_sign)
-        integer(n_int), intent(in) :: Det(0:nifd)
+        integer(n_int), intent(in) :: Det(0:IlutBits%len_orb)
         integer, intent(in) :: flag
         integer(n_int) :: sgn(lenof_sign)
 
-        iLut(0:nifd) = Det
+        iLut(0:IlutBits%len_orb) = Det
 
         sgn = transfer(real_sgn, sgn)
-        iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+        iLut(IlutBits%ind_pop:IlutBits%ind_pop+IlutBits%len_pop-1) = sgn
 
-        ilut(NOffFlag) = int(flag,n_int)
+        ilut(IlutBits%ind_flag) = int(flag,n_int)
 
     end subroutine encode_bit_rep
 
@@ -384,7 +387,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flag
 
-        iLut(NOffFlag) = int(flag, n_int)
+        iLut(IlutBits%ind_flag) = int(flag, n_int)
 
     end subroutine encode_flags
 
@@ -440,7 +443,7 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:niftot)
 
-        ilut(NOffFlag) = 0_n_int
+        ilut(IlutBits%ind_flag) = 0_n_int
 
     end subroutine clear_all_flags
 
@@ -455,7 +458,7 @@ contains
         integer(n_int) :: sgn(lenof_sign)
 
         sgn = transfer(real_sgn, sgn)
-        iLut(NOffSgn:NOffSgn+NIfSgn-1) = sgn
+        iLut(IlutBits%ind_pop:IlutBits%ind_pop+IlutBits%len_pop-1) = sgn
 
     end subroutine encode_sign
 
@@ -498,7 +501,7 @@ contains
         integer(n_int) :: sgn
 
         sgn = transfer(real_sgn, sgn)
-        iLut(NOffSgn+part_type-1) = sgn
+        iLut(IlutBits%ind_pop+part_type-1) = sgn
 
     end subroutine encode_part_sign
 
@@ -507,7 +510,8 @@ contains
         ! Sets the sign of a determinant to equal zero.
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
 
-        iLut(NOffSgn:NOffSgn+NIfSgn-1) = transfer(0.0_dp, 0_n_int)
+        iLut(IlutBits%ind_pop:IlutBits%ind_pop+IlutBits%len_pop-1) &
+            = transfer(0.0_dp, 0_n_int)
 
     end subroutine
 
@@ -518,7 +522,7 @@ contains
         integer(n_int), intent(inout) :: ilut(0:NIfTot)
         integer, intent(in) :: part_type
 
-        iLut(NOffSgn+part_type-1) = transfer(0.0_dp, 0_n_int)
+        iLut(IlutBits%ind_pop+part_type-1) = transfer(0.0_dp, 0_n_int)
 
     end subroutine
 
@@ -552,15 +556,10 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
-!        integer :: off, ind
-
-!        ind = NOffFlag + flg / bits_n_int
-!        off = mod(flg, bits_n_int)
-!        ilut(ind) = ibset(ilut(ind), off)
 
         ! This now assumes that we do not have more flags than bits in an
         ! integer.
-        ilut(NOffFlag) = ibset(ilut(NOffFlag), flg)
+        ilut(IlutBits%ind_flag) = ibset(ilut(IlutBits%ind_flag), flg)
 
     end subroutine set_flag_single
 
@@ -588,14 +587,9 @@ contains
 
         integer(n_int), intent(inout) :: ilut(0:nIfTot)
         integer, intent(in) :: flg
-!        integer :: off, ind
-
-!        ind = NOffFlag + flg / bits_n_int
-!        off = mod(flg, bits_n_int)
-!        ilut(ind) = ibclr(ilut(ind), off)
 
 !This now assumes that we do not have more flags than bits in an integer.
-        ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg)
+        ilut(IlutBits%ind_flag) = ibclr(ilut(IlutBits%ind_flag), flg)
 
     end subroutine clr_flag
 
@@ -604,7 +598,7 @@ contains
         ! Used by the RDM functions
         ! Is the communicated parent zero?
 
-        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+        integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
         logical :: zero
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'bit_parent_zero'
@@ -612,27 +606,27 @@ contains
 
         ASSERT(bit_rdm_init)
 
-        zero = all(ilut(NOffParent:NOffParent + nifd) == 0)
+        zero = all(ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb) == 0)
 
     end function
 
     subroutine extract_parent(ilut, parent_ilut)
 
-        integer(n_int), intent(in) :: ilut(0:nIfBCast)
-        integer(n_int), intent(out) :: parent_ilut(0:nifd)
+        integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
+        integer(n_int), intent(out) :: parent_ilut(0:IlutBits%len_orb)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'extract_parent'
 #endif
 
         ASSERT(bit_rdm_init)
 
-        parent_ilut = ilut(nOffParent:nOffParent + nifd)
+        parent_ilut = ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb)
 
     end subroutine
 
     subroutine encode_parent(ilut, ilut_parent, RDMBiasFacCurr)
 
-        integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+        integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
         integer(n_int), intent(in) :: ilut_parent(0:NIfTot)
         real(dp), intent(in) :: RDMBiasFacCurr
 #ifdef DEBUG_
@@ -641,44 +635,46 @@ contains
 
         ASSERT(bit_rdm_init)
 
-        ilut(nOffParent:nOffParent + nifd) = ilut_parent(0:nifd)
+        ilut(IlutBits%ind_parent:IlutBits%ind_parent + IlutBits%len_orb) &
+            = ilut_parent(0:IlutBits%len_orb)
 
-        ilut(nOffParent + nifd + 1) = &
-            transfer(RDMBiasFacCurr, ilut(nOffParent + nifd + 1))
+        ilut(IlutBits%ind_rdm_fac) = &
+            transfer(RDMBiasFacCurr, ilut(IlutBits%ind_rdm_fac))
         ! store the flag
-        ilut(nOffParent + nifd + 2) = ilut_parent(NIfTot)
+        ilut(IlutBits%ind_parent_flag) = ilut_parent(IlutBits%ind_flag)
 
     end subroutine
 
     subroutine zero_parent(ilut)
 
-        integer(n_int), intent(inout) :: ilut(0:nIfBCast)
+        integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'zero_parent'
 #endif
 
         ASSERT(bit_rdm_init)
 
-        ilut(nOffParent:nOffParent+nifd+1) = 0
+        ! is it intentional that the flag does not get zeroed?
+        ilut(IlutBits%ind_parent:IlutBits%ind_rdm_fac) = 0_n_int
 
     end subroutine
 
     subroutine encode_spawn_hdiag(ilut, hel)
 
-        integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+        integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
         HElement_t(dp), intent(in) :: hel
 
-        ilut(nOffSpawnHDiag) = transfer(hel, ilut(nOffSpawnHDiag))
+        ilut(IlutBits%ind_hdiag) = transfer(hel, ilut(IlutBits%ind_hdiag))
 
     end subroutine encode_spawn_hdiag
 
     function extract_spawn_hdiag(ilut) result(hel)
 
-        integer(n_int), intent(in) :: ilut(0:nIfBCast)
+        integer(n_int), intent(in) :: ilut(0:IlutBits%len_bcast)
 
         HElement_t(dp) :: hel
 
-        hel = transfer(ilut(nOffSpawnHDiag), hel)
+        hel = transfer(ilut(IlutBits%ind_hdiag), hel)
 
     end function extract_spawn_hdiag
 
@@ -686,27 +682,27 @@ contains
 
       ! set the spawn counter to 1
       implicit none
-      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+      integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
 
-      ilut(NSpawnOffset) = 1
+      ilut(IlutBits%ind_spawn) = 1
     end subroutine log_spawn
 
     subroutine increase_spawn_counter(ilut)
       ! increase the spawn counter by 1
       implicit none
-      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+      integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
 
-      ilut(NSPawnOffset) = ilut(NSpawnOffset) + 1
+      ilut(IlutBits%ind_spawn) = ilut(IlutBits%ind_spawn) + 1
 
     end subroutine increase_spawn_counter
 
     function get_num_spawns(ilut) result(nSpawn)
       ! read the number of spawns to this det so far
       implicit none
-      integer(n_int), intent(inout) :: ilut(0:NIfBCast)
+      integer(n_int), intent(inout) :: ilut(0:IlutBits%len_bcast)
       integer :: nSpawn
 
-      nSpawn = int(ilut(nSpawnOffset))
+      nSpawn = int(ilut(IlutBits%ind_spawn))
 
     end function get_num_spawns
 

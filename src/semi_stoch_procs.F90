@@ -601,7 +601,7 @@ contains
         core_space = 0_n_int
 
         ! Give explicit limits for SpawnedParts slice, as NIfTot is not nesc.
-        ! equal to NIfBCast. (It may be longer)
+        ! equal to IlutBits%len_bcast. (It may be longer)
         call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex)),&
                            core_space, determ_sizes, determ_displs)
 

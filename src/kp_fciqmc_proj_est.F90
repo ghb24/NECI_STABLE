@@ -2,7 +2,7 @@
 
 module kp_fciqmc_proj_est
 
-    use bit_rep_data, only: NIfTot, nifd, noffsgn
+    use bit_rep_data, only: NIfTot, nifd, IlutBits
     use constants
     use kp_fciqmc_data_mod, only: lenof_all_signs, kp_ind_1, kp_ind_2
 
@@ -12,7 +12,7 @@ contains
 
     subroutine calc_projected_hamil(nvecs, krylov_array, krylov_ht, ndets, h_matrix, partial_vecs, full_vecs, h_diag)
 
-        use bit_rep_data, only: NOffFlag
+        use bit_rep_data, only: IlutBits
         use bit_reps, only: decode_bit_det
         use CalcData, only: ss_space_in, tDetermHFSpawning
         use constants
@@ -81,7 +81,7 @@ contains
 
             ! The 'parent' determinant from which spawning is to be attempted.
             ilut_parent(0:nifd) = krylov_array(0:nifd,idet)
-            ilut_parent(NOffFlag) = krylov_array(flag_ind,idet)
+            ilut_parent(IlutBits%ind_flag) = krylov_array(flag_ind,idet)
 
             ! Indicate that the scratch storage used for excitation generation from the
             ! same walker has not been filled (it is filled when we excite from the first
@@ -89,7 +89,7 @@ contains
             fcimc_excit_gen_store%tFilled = .false.
 
             call decode_bit_det(nI_parent, ilut_parent)
-            int_sign = krylov_array(noffsgn:noffsgn+lenof_all_signs-1, idet)
+            int_sign = krylov_array(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, idet)
             parent_sign = transfer(int_sign, parent_sign)
             tot_pop = sum(abs(parent_sign))
 
@@ -250,7 +250,7 @@ contains
 
     subroutine calc_projected_spin(nvecs, krylov_array, krylov_ht, ndets, spin_matrix)
 
-        use bit_rep_data, only: NOffSgn
+        use bit_rep_data, only: IlutBits
         use bit_reps, only: decode_bit_det
         use DetBitOps, only: EncodeBitDet
         use FciMCData, only: spawn_ht, SpawnVecKP, SpawnVecKP2, SpawnVec, SpawnVec2
@@ -302,7 +302,7 @@ contains
             ilut_parent(0:nifd) = krylov_array(0:nifd,idet)
 
             ! Get the real walker amplitudes.
-            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
+            int_sign = krylov_array(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, idet)
             parent_sign = transfer(int_sign, parent_sign)
 
             call decode_bit_det(nI_parent, ilut_parent)
@@ -430,7 +430,7 @@ contains
 
     subroutine create_particle_kp_estimates (nI_child, ilut_child, child_sign, tNearlyFull)
 
-        use bit_rep_data, only: NOffSgn
+        use bit_rep_data, only: IlutBits
         use load_balance_calcnodes, only: DetermineDetNode
         use hash, only: hash_table_lookup, add_hash_table_entry
         use FciMCData, only: ValidSpawnedList, InitialSpawnedSlots, SpawnedParts, spawn_ht
@@ -447,24 +447,28 @@ contains
         integer :: proc, ind, hash_val
         logical :: tSuccess
 
-        call hash_table_lookup(nI_child, ilut_child, nifd, spawn_ht, SpawnedParts, ind, hash_val, tSuccess)
+        call hash_table_lookup(nI_child, ilut_child, nifd, spawn_ht, &
+            SpawnedParts, ind, hash_val, tSuccess)
 
         if (tSuccess) then
             ! If this determinant is already in the spawned array.
             ! Extract the old sign.
-            real_sign = transfer(SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ind), real_sign)
+            real_sign = &
+                transfer(SpawnedParts(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, ind), &
+                real_sign)
             ! Find the total new sign.
             real_sign = real_sign + child_sign
             ! Encode the new sign.
             int_sign = transfer(real_sign, int_sign)
-            SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ind) = int_sign
+            SpawnedParts(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, ind) = int_sign
         else
             ! If this determinant is a new entry to the spawned array.
             proc = DetermineDetNode(nel, nI_child, 0)
 
             SpawnedParts(0:nifd, ValidSpawnedList(proc)) = ilut_child(0:nifd)
             int_sign = transfer(child_sign, int_sign)
-            SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, ValidSpawnedList(proc)) = int_sign
+            SpawnedParts(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, &
+                ValidSpawnedList(proc)) = int_sign
             call add_hash_table_entry(spawn_ht, ValidSpawnedList(proc), hash_val)
 
             ValidSpawnedList(proc) = ValidSpawnedList(proc) + 1
@@ -522,7 +526,7 @@ contains
 
     subroutine calc_contribs_spawn(nvecs, krylov_array, krylov_ht, nspawns_this_proc, fac, est_matrix)
 
-        use bit_rep_data, only: NOffSgn
+        use bit_rep_data, only: IlutBits
         use bit_reps, only: decode_bit_det
         use FciMCData, only: SpawnedParts, ll_node
         use hash, only: FindWalkerHash
@@ -548,7 +552,7 @@ contains
         do idet = 1, nspawns_this_proc
 
             ilut_spawn(0:nifd) = SpawnedParts(0:nifd, idet)
-            int_sign = SpawnedParts(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
+            int_sign = SpawnedParts(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, idet)
             real_sign_1 = transfer(int_sign, real_sign_1)
             call decode_bit_det(nI_spawn, ilut_spawn)
             det_hash = FindWalkerHash(nI_spawn, size(krylov_ht))
@@ -571,7 +575,9 @@ contains
                     temp_node => temp_node%next
                 end do
                 if (tDetFound) then
-                    int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, det_ind)
+                    int_sign = &
+                        krylov_array(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, &
+                        det_ind)
                     real_sign_2 = transfer(int_sign, real_sign_1)
                     if (IsUnoccDet(real_sign_2)) cycle
 
@@ -591,7 +597,7 @@ contains
 
     subroutine calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
 
-        use bit_rep_data, only: NOffSgn
+        use bit_rep_data, only: IlutBits
         use FciMCData, only: determ_sizes, Hii
         use global_det_data, only: det_diagH
         use kp_fciqmc_data_mod, only: tSemiStochasticKPHamil
@@ -621,7 +627,7 @@ contains
         end if
 
         do idet = min_idet, ndets
-            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
+            int_sign = krylov_array(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, idet)
             real_sign = transfer(int_sign, real_sign)
             if (present(h_diag)) then
                 h_diag_elem = h_diag(idet) + Hii
@@ -644,7 +650,7 @@ contains
 
     subroutine calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix, partial_vecs)
 
-        use bit_rep_data, only: NOffSgn
+        use bit_rep_data, only: IlutBits
         use FciMCData, only: determ_sizes
         use Parallel_neci, only: iProcIndex
         use SystemData, only: nel
@@ -660,7 +666,7 @@ contains
         real(dp) :: real_sign(lenof_all_signs)
 
         do idet = 1, determ_sizes(iProcIndex)
-            int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
+            int_sign = krylov_array(IlutBits%ind_pop:IlutBits%ind_pop+lenof_all_signs-1, idet)
             real_sign = transfer(int_sign, real_sign)
 
             do i = 1, nvecs

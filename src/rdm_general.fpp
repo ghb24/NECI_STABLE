@@ -3,7 +3,7 @@
 
 module rdm_general
 
-    use bit_rep_data, only: NIfTot, nifd, nifguga
+    use bit_rep_data, only: NIfTot, nifd, nifguga, IlutBits, IlutBitsParent
     use constants
     use SystemData, only: nel, nbasis
     use rdm_data, only: InstRDMCorrectionFactor, RDMCorrectionFactor, ThisRDMIter, &
@@ -321,20 +321,17 @@ contains
 
         else
 
-            if (t_fast_guga_rdms) then
-                call stop_all(t_r, "I think I need a change here for fast GUGA rdms!")
-            end if
             ! Finally, we need to hold onto the parents of the spawned particles.
             ! This is not necessary if we're doing completely explicit calculations.
             ! WD: maybe I have to change this for the GUGA implementation..
-            allocate(Spawned_Parents(0:(nifd+3), MaxSpawned), stat=ierr)
+            allocate(Spawned_Parents(0:IlutBitsParent%len_tot, MaxSpawned), stat=ierr)
             if (ierr /= 0) call stop_all(t_r,'Problem allocating Spawned_Parents array,')
-            call LogMemAlloc('Spawned_Parents', MaxSpawned*(nifd+3), size_n_int,&
-                                                t_r,Spawned_ParentsTag, ierr)
+            call LogMemAlloc('Spawned_Parents', MaxSpawned*IlutBitsParent%len_tot,&
+                size_n_int,t_r,Spawned_ParentsTag, ierr)
             allocate(Spawned_Parents_Index(2,MaxSpawned),stat=ierr)
             if (ierr /= 0) call stop_all(t_r, 'Problem allocating Spawned_Parents_Index array,')
             call LogMemAlloc('Spawned_Parents_Index', MaxSpawned*2,4, t_r,&
-                                                        Spawned_Parents_IndexTag, ierr)
+                Spawned_Parents_IndexTag, ierr)
 
             memory_alloc = memory_alloc + ( (NIfTot + 3) * MaxSpawned * size_n_int )
             memory_alloc = memory_alloc + ( 2 * MaxSpawned * 4 )
@@ -601,7 +598,7 @@ contains
         ! When we start calculating the RDMs this routine is called and the
         ! SpawnedParts array is made larger to accommodate the parents.
 
-        use bit_rep_data, only: nifbcast, NOffParent, bit_rdm_init
+        use bit_rep_data, only: bit_rdm_init
         use FciMCData, only: MaxSpawned, SpawnVec, SpawnVec2, SpawnVecTag, SpawnVec2Tag
         use FciMCData, only: SpawnedParts, SpawnedParts2
         use MemoryManager, only: LogMemAlloc, LogMemDealloc
@@ -619,14 +616,19 @@ contains
         call LogMemDealloc(this_routine, SpawnVec2Tag)
 
         ! Resize the RDM arrays
-        NIfBCast_old = NIfBCast
-        NOffParent = NIfBCast + 1
+        NIfBCast_old = IlutBits%len_bcast
+        IlutBits%ind_parent = IlutBits%len_bcast + 1
 
-        NIfBCast = NIfBCast + nifd + 3
+        IlutBits%ind_rdm_fac = IlutBits%ind_parent + IlutBits%len_orb +1
 
-        allocate(SpawnVec(0:NIfBCast, MaxSpawned), stat=ierr)
+        IlutBits%ind_parent_flag = IlutBits%ind_rdm_fac + 1
+
+        IlutBits%len_bcast = IlutBits%ind_parent_flag
+        ! IlutBits%len_bcast = IlutBits%len_bcast + nifd + 3
+
+        allocate(SpawnVec(0:IlutBits%len_bcast, MaxSpawned), stat=ierr)
         @:log_alloc(SpawnVec, SpawnVecTag, ierr)
-        allocate(SpawnVec2(0:NIfBCast, MaxSpawned), stat=ierr)
+        allocate(SpawnVec2(0:IlutBits%len_bcast, MaxSpawned), stat=ierr)
         @:log_alloc(SpawnVec2, SpawnVec2Tag, ierr)
 
         ! Point at correct spawning arrays
@@ -637,7 +639,7 @@ contains
             'Memory requirement for spawned arrays increased from ',&
             real(((NIfBCast_old+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
             ' to ', &
-            real(((NIfBCast+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
+            real(((IlutBits%len_bcast+1)*MaxSpawned*2*size_n_int),dp)/1048576.0_dp, &
             ' Mb/Processor'
 
         ! And we are done

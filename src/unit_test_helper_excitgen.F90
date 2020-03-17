@@ -14,7 +14,7 @@ module unit_test_helper_excitgen
   use Parallel_neci, only: MPIInit, MPIEnd
   use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
   use OneEInts, only: Tmat2D
-  use bit_rep_data, only: NIfTot, nifd, NOffSgn, NIfSgn, extract_sign
+  use bit_rep_data, only: NIfTot, nifd, extract_sign, IlutBits
   use bit_reps, only: encode_sign, decode_bit_det
   use DetBitOps, only: EncodeBitDet, DetBitEq
   use SymExcit3, only: countExcitations3, GenExcitations3
@@ -226,9 +226,13 @@ contains
     real(dp) :: ecore
     umatsize = 0
     nel = nelBase
+
+    IlutBits%len_orb = 0
+    IlutBits%ind_pop = 1
+    IlutBits%len_pop = 1
+    IlutBits%len_tot = 2
+
     nifd = 0
-    NOffSgn = 1
-    NIfSgn = 1
     NIfTot = 2
 
     fcidump_name = "FCIDUMP"

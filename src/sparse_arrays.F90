@@ -521,7 +521,7 @@ contains
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
-        ! n.b. Explicitly use 0:NIfTot, as NIfTot may not equal NIfBCast
+        ! n.b. Explicitly use 0:NIfTot, as NIfTot may not equal IlutBits%len_bcast
         call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex)),&
                            temp_store, determ_sizes, determ_displs)
 
@@ -690,7 +690,7 @@ contains
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
-        ! n.b. Explicitly use 0:NIfTot, as NIfTot may not equal NIfBCast
+        ! n.b. Explicitly use 0:NIfTot, as NIfTot may not equal IlutBits%len_bcast
         call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex)),&
                            temp_store, determ_sizes, determ_displs)
 

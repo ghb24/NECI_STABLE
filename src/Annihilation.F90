@@ -229,7 +229,7 @@ module AnnihilationMod
         integer :: EndBlockDet, part_type, Parent_Array_Ind
         integer :: No_Spawned_Parents
         integer(kind=n_int), pointer :: PointTemp(:,:)
-        integer(n_int) :: cum_det(0:nifbcast), temp_det(0:nifbcast)
+        integer(n_int) :: cum_det(0:IlutBits%len_bcast), temp_det(0:IlutBits%len_bcast)
         character(len=*), parameter :: t_r = 'CompressSpawnedList'
         type(timer), save :: Sort_time
         integer :: run
@@ -246,7 +246,7 @@ module AnnihilationMod
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time, 20)
 
-        call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
+        call sort(SpawnedParts(0:IlutBits%len_bcast,1:ValidSpawned), ilut_lt, ilut_gt)
 
 
         call halt_timer(Sort_time)
@@ -324,10 +324,8 @@ module AnnihilationMod
                         ! If the parent determinant is null, the contribution to
                         ! the RDM is zero. No point in doing anything more with it.
 
-                        ! Why is this length nifd+2? What is the extra bit? RDMBias!
-
-                        Spawned_Parents(0:nifd+2,Parent_Array_Ind) = &
-                            SpawnedParts(nOffParent:nOffParent+nifd+2, BeginningBlockDet)
+                        Spawned_Parents(0:IlutBitsParent%ind_flag,Parent_Array_Ind) = &
+                            SpawnedParts(IlutBits%ind_parent:IlutBits%ind_parent_flag, BeginningBlockDet)
 
                         call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
 
@@ -336,10 +334,11 @@ module AnnihilationMod
                         ! NOTE: it is safe to compare against zero exactly here,
                         ! because all other components will have been set to zero
                         ! exactly and can't have changed at all.
-                        Spawned_Parents(nifd+3,Parent_Array_Ind) = 0
+                        Spawned_Parents(IlutBitsParent%ind_source,Parent_Array_Ind) = 0
                         do part_type = 1, lenof_sign
                             if (abs(temp_sign(part_type)) > 1.0e-12_dp) then
-                                Spawned_Parents(nifd+3,Parent_Array_Ind) = part_type
+                                Spawned_Parents(IlutBitsParent%ind_source,Parent_Array_Ind) &
+                                    = part_type
                                 exit
                             end if
                         end do
@@ -375,7 +374,7 @@ module AnnihilationMod
             cum_det (0:nifd) = SpawnedParts(0:nifd, BeginningBlockDet)
 
             if (tPreCond .or. tReplicaEstimates) then
-                cum_det(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
+                cum_det(IlutBits%ind_hdiag) = SpawnedParts(IlutBits%ind_hdiag, BeginningBlockDet)
             end if
 
             if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
@@ -394,8 +393,8 @@ module AnnihilationMod
             do i = BeginningBlockDet, EndBlockDet
                 ! if logged, accumulate the number of spawn events
                 if(tLogNumSpawns) then
-                   cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
-                        SpawnedParts(nSpawnOffset,i)
+                   cum_det(IlutBits%ind_spawn) = cum_det(IlutBits%ind_spawn) + &
+                        SpawnedParts(IlutBits%ind_spawn,i)
                 end if
                 ! Annihilate in this block seperately for walkers of different types.
                 do part_type = 1, lenof_sign
@@ -428,7 +427,7 @@ module AnnihilationMod
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
 
                 if (tPreCond .or. tReplicaEstimates) then
-                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
+                    SpawnedParts2(IlutBits%ind_hdiag, VecInd) = cum_det(IlutBits%ind_hdiag)
                 end if
 
                 VecInd = VecInd + 1
@@ -573,8 +572,9 @@ module AnnihilationMod
             (.not. DetBitZero(new_det(NIfTot+1:NIfTot+nifd+1), nifd)))) then
             if (abs(new_sgn) > 1.e-12_dp) then
                 ! Add parent (Di) stored in SpawnedParts to the parent array.
-                Spawned_Parents(0:nifd+2,Parent_Array_Ind) = new_det(NIfTot+1:NIfTot+nifd+3)
-                Spawned_Parents(nifd+3,Parent_Array_Ind) = part_type
+                Spawned_Parents(0:IlutBitsParent%ind_flag,Parent_Array_Ind) = &
+                    new_det(NIfTot+1:NIfTot+nifd+3)
+                Spawned_Parents(IlutBitsParent%ind_source,Parent_Array_Ind) = part_type
                 Parent_Array_Ind = Parent_Array_Ind + 1
                 Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
             end if
@@ -594,7 +594,7 @@ module AnnihilationMod
         integer :: EndBlockDet, part_type, Parent_Array_Ind
         integer :: No_Spawned_Parents
         integer(n_int), pointer :: PointTemp(:,:)
-        integer(n_int) :: cum_det(0:nifbcast), cum_det_cancel(0:nifbcast)
+        integer(n_int) :: cum_det(0:IlutBits%len_bcast), cum_det_cancel(0:IlutBits%len_bcast)
         logical :: any_allow, any_cancel
         character(len=*), parameter :: t_r = 'CompressSpawnedList_simple'
         type(timer), save :: Sort_time
@@ -604,7 +604,7 @@ module AnnihilationMod
         Sort_time%timer_name='Compress Sort interface'
         call set_timer(Sort_time, 20)
 
-        call sort(SpawnedParts(0:NIfBCast,1:ValidSpawned), ilut_lt, ilut_gt)
+        call sort(SpawnedParts(0:IlutBits%len_bcast,1:ValidSpawned), ilut_lt, ilut_gt)
 
         call halt_timer(Sort_time)
 
@@ -687,15 +687,17 @@ module AnnihilationMod
             cum_det_cancel(0:nifd) = SpawnedParts(0:nifd, BeginningBlockDet)
 
             if (tPreCond .or. tReplicaEstimates) then
-                cum_det(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
-                cum_det_cancel(nOffSpawnHDiag) = SpawnedParts(nOffSpawnHDiag, BeginningBlockDet)
+                cum_det(IlutBits%ind_hdiag) &
+                    = SpawnedParts(IlutBits%ind_hdiag, BeginningBlockDet)
+                cum_det_cancel(IlutBits%ind_hdiag) &
+                    = SpawnedParts(IlutBits%ind_hdiag, BeginningBlockDet)
             end if
 
             do i = BeginningBlockDet, EndBlockDet
                 ! if logged, accumulate the number of spawn events
                 if(tLogNumSpawns) then
-                   cum_det(nSpawnOffset) = cum_det(nSpawnOffset) + &
-                        SpawnedParts(nSpawnOffset,i)
+                   cum_det(IlutBits%ind_spawn) = cum_det(IlutBits%ind_spawn) + &
+                        SpawnedParts(IlutBits%ind_spawn,i)
                 end if
                 ! Annihilate in this block seperately for walkers of different types.
                 do part_type = 1, lenof_sign
@@ -710,9 +712,11 @@ module AnnihilationMod
                     ! the normal initiator approach. Here, check if this
                     ! particular spawning needs to be rejected.
                     if (test_flag(SpawnedParts(:,i), get_initiator_flag(part_type))) then
-                        call FindResidualParticle_simple(cum_det, SpawnedParts(:,i), part_type, iter_data)
+                        call FindResidualParticle_simple(cum_det, &
+                            SpawnedParts(:,i), part_type, iter_data)
                     else
-                        call FindResidualParticle_simple(cum_det_cancel, SpawnedParts(:,i), part_type, iter_data)
+                        call FindResidualParticle_simple(cum_det_cancel, &
+                            SpawnedParts(:,i), part_type, iter_data)
                     end if
                 end do ! Over all spawns to the same determinant
 
@@ -729,8 +733,10 @@ module AnnihilationMod
                 SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
                 SpawnedParts2(0:NIfTot, VecInd+1) = cum_det_cancel(0:NIfTot)
                 if (tPreCond .or. tReplicaEstimates) then
-                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
-                    SpawnedParts2(nOffSpawnHDiag, VecInd+1) = cum_det_cancel(nOffSpawnHDiag)
+                    SpawnedParts2(IlutBits%ind_hdiag, VecInd) &
+                        = cum_det(IlutBits%ind_hdiag)
+                    SpawnedParts2(IlutBits%ind_hdiag, VecInd+1) &
+                        = cum_det_cancel(IlutBits%ind_hdiag)
                 end if
 
                 VecInd = VecInd + 2
@@ -738,7 +744,8 @@ module AnnihilationMod
             else if ( any_allow .and. (.not. any_cancel) ) then
                 SpawnedParts2(0:NIfTot, VecInd) = cum_det(0:NIfTot)
                 if (tPreCond .or. tReplicaEstimates) then
-                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det(nOffSpawnHDiag)
+                    SpawnedParts2(IlutBits%ind_hdiag, VecInd) &
+                        = cum_det(IlutBits%ind_hdiag)
                 end if
 
                 VecInd = VecInd + 1
@@ -746,7 +753,8 @@ module AnnihilationMod
             else if ( (.not. any_allow) .and. any_cancel ) then
                 SpawnedParts2(0:NIfTot, VecInd) = cum_det_cancel(0:NIfTot)
                 if (tPreCond .or. tReplicaEstimates) then
-                    SpawnedParts2(nOffSpawnHDiag, VecInd) = cum_det_cancel(nOffSpawnHDiag)
+                    SpawnedParts2(IlutBits%ind_hdiag, VecInd) &
+                        = cum_det_cancel(IlutBits%ind_hdiag)
                 end if
 
                 VecInd = VecInd + 1
@@ -1394,7 +1402,7 @@ module AnnihilationMod
         ! (1.0 - alpha(ilut_spwn, part_type)), which can be artibrarily
         ! complicated.
 
-        integer(n_int), intent(in) :: ilut_spwn(0:nIfBCast)
+        integer(n_int), intent(in) :: ilut_spwn(0:IlutBits%len_bcast)
         integer, intent(in) :: part_type
         logical :: abort
         integer :: maxExLvl, nopen

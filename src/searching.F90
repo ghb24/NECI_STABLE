@@ -3,7 +3,7 @@
 module searching
 
     use bit_rep_data, only: nifd, NIfTot, flag_trial, flag_connected, test_flag, &
-                            noffsgn
+                            IlutBits
     use bit_reps, only: decode_bit_det, set_flag
     use CalcData, only: tPairedReplicas
     use constants
@@ -199,7 +199,7 @@ contains
             do i = 1, trial_ht(hash_val)%nclash
                 if (DetBitEq(ilut, trial_ht(hash_val)%states(0:nifd,i))) then
                     tTrial = .true.
-                    amp = transfer(trial_ht(hash_val)%states(noffsgn:,i), amp)
+                    amp = transfer(trial_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
                     return
                 end if
             end do
@@ -212,7 +212,7 @@ contains
             do i = 1, con_ht(hash_val)%nclash
                 if (DetBitEq(ilut, con_ht(hash_val)%states(0:nifd,i))) then
                     tCon = .true.
-                    amp = transfer(con_ht(hash_val)%states(noffsgn:,i), amp)
+                    amp = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
                     return
                 end if
             end do
@@ -238,7 +238,7 @@ contains
         ! Loop over all hash clashes for this hash value.
         do i = 1, con_ht(hash_val)%nclash
             if (all(ilut(0:nifd) == con_ht(hash_val)%states(0:nifd,i))) then
-                amps = transfer(con_ht(hash_val)%states(noffsgn:,i), amps)
+                amps = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:,i), amps)
                 return
             end if
         end do
@@ -264,7 +264,7 @@ contains
             hash_val = FindWalkerHash(nI, trial_space_size)
             do i = 1, trial_ht(hash_val)%nclash
                 if (DetBitEq(trial_ht(hash_val)%states(0:nifd,i), ilut)) then
-                    amp = transfer(trial_ht(hash_val)%states(noffsgn:,i), amp)
+                    amp = transfer(trial_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
                     if (ntrial_excits == 1) then
                         trial_denom(ireplica) = trial_denom(ireplica) + amp(1)*RealwSign
                     else if (ntrial_excits == lenof_sign) then
@@ -280,7 +280,7 @@ contains
             hash_val = FindWalkerHash(nI, con_space_size)
             do i = 1, con_ht(hash_val)%nclash
                 if (DetBitEq(con_ht(hash_val)%states(0:nifd,i), ilut)) then
-                    amp = transfer(con_ht(hash_val)%states(noffsgn:,i), amp)
+                    amp = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
                     if (ntrial_excits == 1) then
                         trial_numerator(ireplica) = trial_numerator(ireplica) + amp(1)*RealwSign
                     else if (ntrial_excits == lenof_sign) then
@@ -322,7 +322,7 @@ contains
                 hash_val = FindWalkerHash(nI, con_space_size)
                 do i = 1, con_ht(hash_val)%nclash
                     if (DetBitEq(con_ht(hash_val)%states(0:nifd,i), ilut)) then
-                        amp = transfer(con_ht(hash_val)%states(noffsgn:,i), amp)
+                        amp = transfer(con_ht(hash_val)%states(IlutBits%ind_pop:,i), amp)
                         return
                     end if
                 end do

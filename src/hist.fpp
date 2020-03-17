@@ -19,7 +19,7 @@ module hist
     use hphf_integrals, only: hphf_sign
     use constants, only: n_int, bits_n_int, size_n_int, lenof_sign
     use bit_rep_data, only: NIfTot, NIfD, extract_sign
-    use bit_reps, only: encode_sign, extract_bit_rep, NOffSgn, &
+    use bit_reps, only: encode_sign, extract_bit_rep, &
                         decode_bit_det, flag_initiator, test_flag, &
                         get_initiator_flag, &
                         any_run_is_initiator
@@ -188,9 +188,6 @@ contains
         logical, intent(in) :: only_init
         type(timer), save :: s2_timer
 
-        ! TODO: Deal with HPHF. Should be fairly easy.
-!        write(6,*) 'totwalkers', totwalkers
-!        write(6,*) 'dets', currentdets(noffsgn, 1:totwalkers)
         s2_timer%timer_name = 'S2 local'
         call set_timer (s2_timer)
 

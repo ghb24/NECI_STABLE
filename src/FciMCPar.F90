@@ -77,7 +77,7 @@ module FciMCParMod
         need_load_balancing, loadBalanceInterval
     use exact_diag, only: perform_exact_diag_all_symmetry
     use spectral_lanczos, only: perform_spectral_lanczos
-    use bit_rep_data, only: nOffFlag, flag_determ_parent, test_flag, flag_prone
+    use bit_rep_data, only: IlutBits, flag_determ_parent, test_flag, flag_prone
     use errors, only: standalone_errors, error_analysis
     use PopsFileMod, only: WriteToPopsFileParOneArr
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns, &
@@ -1616,7 +1616,7 @@ module FciMCParMod
                             ! Temporary fix: FindExcitBitDet copies the flags of the parent onto the
                             ! child, which causes semi-stochastic simulations to crash. Should it copy
                             ! these flags? There are comments questioning this in create_particle, too.
-                            iLutnJ(nOffFlag) = 0_n_int
+                            iLutnJ(IlutBits%ind_flag) = 0_n_int
 
                             ! If the parent state in the core space.
                             if (test_flag(CurrentDets(:,j), flag_deterministic)) then

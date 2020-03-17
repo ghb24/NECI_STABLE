@@ -7,7 +7,7 @@ module kp_fciqmc
     use kp_fciqmc_procs
 
     use AnnihilationMod, only: DirectAnnihilation, communicate_and_merge_spawns
-    use bit_rep_data, only: NIfTot, NOffFlag, test_flag
+    use bit_rep_data, only: NIfTot, IlutBits, test_flag
     use bit_reps, only: flag_deterministic, flag_determ_parent, set_flag
     use bit_reps, only: extract_bit_rep
     use CalcData, only: AvMCExcits, tSemiStochastic, tTruncInitiator, StepsSft
@@ -236,7 +236,7 @@ contains
                                         if (.not. IsNullDet(nI_child)) then
 
                                             call encode_child (ilut_parent, ilut_child, ic, ex)
-                                            ilut_child(nOffFlag) = 0_n_int
+                                            ilut_child(IlutBits%ind_flag) = 0_n_int
 
                                             if (tSemiStochastic) then
                                                 tChildIsDeterm = is_core_state(ilut_child, nI_child)
@@ -594,7 +594,7 @@ contains
                                 if (.not. IsNullDet(nI_child)) then
 
                                     call encode_child(ilut_parent, ilut_child, ic, ex)
-                                    ilut_child(nOffFlag) = 0_n_int
+                                    ilut_child(IlutBits%ind_flag) = 0_n_int
 
                                     if (tSemiStochastic) then
                                         tChildIsDeterm = is_core_state(ilut_child, nI_child)
