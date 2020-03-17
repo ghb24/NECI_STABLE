@@ -23,6 +23,7 @@ module shared_ragged_array
         procedure :: pos_1d
         procedure :: pos_2d
         generic :: sub => pos_1d, pos_2d
+        procedure :: set_val
     end type shared_ragged_array_t
 
 contains
@@ -73,14 +74,24 @@ contains
         end do
     end subroutine reassign_pointers
 
-    !------------------------------------------------------------------------------------------!    
+    !------------------------------------------------------------------------------------------!
+
+    subroutine set_val(this, i, j, val)
+        class(shared_ragged_array_t), intent(inout) :: this        
+        integer, intent(in) :: i, j
+        integer, intent(in) :: val
+
+        this%ptr(i)%res(j) = val
+    end subroutine set_val
+
+    !------------------------------------------------------------------------------------------!        
 
     function pos_2d(this, i, j) result(val)
-        class(shared_ragged_array_t), intent(in) :: this        
+        class(shared_ragged_array_t), intent(inout) :: this        
         integer, intent(in) :: i, j
-        integer, pointer :: val
+        integer :: val
 
-        val => this%ptr(i)%res(j)
+        val = this%ptr(i)%res(j)
     end function pos_2d
 
     !------------------------------------------------------------------------------------------!    

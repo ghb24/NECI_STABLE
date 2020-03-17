@@ -1082,13 +1082,13 @@ contains
                 ! Now add this determinant to the list of determinants with this
                 ! beta string.
                 nbeta_dets%ptr(ind_beta) = nbeta_dets%ptr(ind_beta) + 1
-                beta_dets%sub(ind_beta, nbeta_dets%ptr(ind_beta)) = i
+                call beta_dets%set_val(ind_beta, nbeta_dets%ptr(ind_beta), i)
 
                 ! Now add this determinant to the list of determinants with this
                 ! alpha string.
                 nalpha_dets%ptr(ind_alpha) = nalpha_dets%ptr(ind_alpha) + 1
-                alpha_dets%sub(ind_alpha, nalpha_dets%ptr(ind_alpha)) = i
-                beta_with_alpha%sub(ind_alpha, nalpha_dets%ptr(ind_alpha)) = ind_beta
+                call alpha_dets%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), i)
+                call beta_with_alpha%set_val(ind_alpha, nalpha_dets%ptr(ind_alpha), ind_beta)
             end do
 
             do i = 1, nbeta
@@ -1173,10 +1173,10 @@ contains
                 do j = 1, nbeta_m1_contribs(i)
                     do k = j+1, nbeta_m1_contribs(i)
                         nbeta_beta%ptr( beta_m1_contribs(i)%pos(j) ) = nbeta_beta%ptr( beta_m1_contribs(i)%pos(j) ) + 1
-                        beta_beta%sub( beta_m1_contribs(i)%pos(j), nbeta_beta%ptr( beta_m1_contribs(i)%pos(j) )) = beta_m1_contribs(i)%pos(k)
+                        call beta_beta%set_val( beta_m1_contribs(i)%pos(j), nbeta_beta%ptr( beta_m1_contribs(i)%pos(j) ), beta_m1_contribs(i)%pos(k))
 
                         nbeta_beta%ptr( beta_m1_contribs(i)%pos(k) ) = nbeta_beta%ptr( beta_m1_contribs(i)%pos(k) ) + 1
-                        beta_beta%sub( beta_m1_contribs(i)%pos(k), nbeta_beta%ptr( beta_m1_contribs(i)%pos(k) )) = beta_m1_contribs(i)%pos(j)
+                        call beta_beta%set_val( beta_m1_contribs(i)%pos(k), nbeta_beta%ptr( beta_m1_contribs(i)%pos(k) ), beta_m1_contribs(i)%pos(j))
                     end do
                 end do
             end do
@@ -1200,10 +1200,10 @@ contains
                 do j = 1, nalpha_m1_contribs(i)
                     do k = j+1, nalpha_m1_contribs(i)
                         nalpha_alpha%ptr( alpha_m1_contribs(i)%pos(j) ) = nalpha_alpha%ptr( alpha_m1_contribs(i)%pos(j) ) + 1
-                        alpha_alpha%sub( alpha_m1_contribs(i)%pos(j) ,nalpha_alpha%ptr( alpha_m1_contribs(i)%pos(j) )) = alpha_m1_contribs(i)%pos(k)
+                        call alpha_alpha%set_val( alpha_m1_contribs(i)%pos(j) ,nalpha_alpha%ptr( alpha_m1_contribs(i)%pos(j) ), alpha_m1_contribs(i)%pos(k))
 
                         nalpha_alpha%ptr( alpha_m1_contribs(i)%pos(k) ) = nalpha_alpha%ptr( alpha_m1_contribs(i)%pos(k) ) + 1
-                        alpha_alpha%sub( alpha_m1_contribs(i)%pos(k) , nalpha_alpha%ptr( alpha_m1_contribs(i)%pos(k) )) = alpha_m1_contribs(i)%pos(j)
+                        call alpha_alpha%set_val( alpha_m1_contribs(i)%pos(k) , nalpha_alpha%ptr( alpha_m1_contribs(i)%pos(k) ), alpha_m1_contribs(i)%pos(j))
                     end do
                 end do
             end do
