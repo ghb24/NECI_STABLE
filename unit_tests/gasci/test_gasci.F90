@@ -418,17 +418,17 @@ program test_gasci_program
 contains
 
     subroutine test_gasci_driver()
-!         call run_test_case(test_is_valid, "test_is_valid")
-!         call run_test_case(test_is_connected, "test_is_connected")
-!         call run_test_case(test_igas_from_spatorb, "test_igas_from_spatorb")
-!         call run_test_case(test_igas_from_spinorb, "test_igas_from_spinorb")
-!         call run_test_case(test_split_per_GAS, "test_split_per_GAS")
-!         call run_test_case(test_contains_det_spinorb, "test_contains_det_spinorb")
-!         call run_test_case(test_contains_det_spatorb, "test_contains_det_spatorb")
-!         call run_test_case(test_particles_per_GAS_spatorb, "test_particles_per_GAS_spatorb")
-!         call run_test_case(test_particles_per_GAS_spinorb, "test_particles_per_GAS_spinorb")
-!         call run_test_case(test_get_possible_spaces_spinorb, "test_get_possible_spaces_spinorb")
-!         call run_test_case(test_get_possible_spaces_spatorb, "test_get_possible_spaces_spatorb")
+        call run_test_case(test_is_valid, "test_is_valid")
+        call run_test_case(test_is_connected, "test_is_connected")
+        call run_test_case(test_igas_from_spatorb, "test_igas_from_spatorb")
+        call run_test_case(test_igas_from_spinorb, "test_igas_from_spinorb")
+        call run_test_case(test_split_per_GAS, "test_split_per_GAS")
+        call run_test_case(test_contains_det_spinorb, "test_contains_det_spinorb")
+        call run_test_case(test_contains_det_spatorb, "test_contains_det_spatorb")
+        call run_test_case(test_particles_per_GAS_spatorb, "test_particles_per_GAS_spatorb")
+        call run_test_case(test_particles_per_GAS_spinorb, "test_particles_per_GAS_spinorb")
+        call run_test_case(test_get_possible_spaces_spinorb, "test_get_possible_spaces_spinorb")
+        call run_test_case(test_get_possible_spaces_spatorb, "test_get_possible_spaces_spatorb")
         call run_test_case(test_possible_holes, "test_possible_holes")
     end subroutine
 end program test_gasci_program

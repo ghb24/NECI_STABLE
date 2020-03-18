@@ -589,15 +589,18 @@ contains
         ! with tgt \in possible_holes
         c_sum = get_cumulative_list(det_I, exc, possible_holes)
         call draw_from_cum_list(c_sum, r(2), i, pgen_hole)
+        @:ASSERT(i == 0 .neqv. 0.0_dp < pgen_hole .and. pgen_hole <= 1.0_dp, c_sum, r, i, pgen_hole)
         if (i /= 0) then
             exc%val(2) = possible_holes%idx(i)
             call make_single(det_I%idx, nJ, elec, exc%val(2), ex_mat, par)
             ilutJ = excite(ilutI, exc)
         else
+            nJ = 0
             ilutJ = 0
         end if
 
         pgen = pgen_particle * pgen_hole
+        @:ASSERT(all(nJ == 0) .neqv. 0.0_dp < pgen .and. pgen <= 1.0_dp, pgen, pgen_particle, pgen_hole)
     end subroutine
 
     subroutine gen_exc_double(GAS_spec, det_I, ilutI, r, nJ, ilutJ, ex_mat, par, pgen)
@@ -732,6 +735,7 @@ contains
         end associate
 
         pgen = pgen_particles * pgen_first_pick * sum(pgen_second_pick)
+        @:ASSERT(0.0_dp < pgen .and. pgen <= 1.0_dp, pgen, pgen_particles, pgen_first_pick, pgen_second_pick)
         contains
 
             subroutine zeroResult()

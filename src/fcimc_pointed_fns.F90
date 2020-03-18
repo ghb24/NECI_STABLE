@@ -120,7 +120,7 @@ module fcimc_pointed_fns
         real(dp), intent(inout) :: prob
         real(dp), dimension(lenof_sign) :: child
         real(dp) , dimension(lenof_sign), intent(in) :: AvSignCurr
-        real(dp), intent(in) :: AvExPerWalker        
+        real(dp), intent(in) :: AvExPerWalker
         real(dp) , intent(out) :: RDMBiasFacCurr
         real(dp), intent(in) :: precond_fac
         logical :: tAllowForEN2Calc
@@ -208,7 +208,7 @@ module fcimc_pointed_fns
 
         rh = get_spawn_helement (nJ, DetCurr, ilutnJ, iLutCurr,  ic, temp_ex, &
             tParity, HElGen)
-        
+
         ! assign the matrix element
         HElGen = abs(rh)
         ! [W.D.]
@@ -340,6 +340,7 @@ module fcimc_pointed_fns
             end if
 #endif
 
+!             ASSERT(prob /= 0.0_dp)
             nSpawn = - tau * MatEl * walkerweight / prob
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
 !            write(66,*) part_type, nspawn, RealSpawnCutoff, RealSpawnCutoff, stochastic_round (nSpawn / RealSpawnCutoff)
@@ -425,7 +426,7 @@ module fcimc_pointed_fns
         endif
 
         ! Avoid compiler warnings
-        iUnused = walkExcitLevel        
+        iUnused = walkExcitLevel
     end function
 
     !

@@ -209,7 +209,7 @@ module fcimc_initialisation
 
     use back_spawn_excit_gen, only: gen_excit_back_spawn, gen_excit_back_spawn_ueg, &
                                     gen_excit_back_spawn_hubbard, gen_excit_back_spawn_ueg_new
-    use disconnected_gasci, only: generate_nGAS_excitation, clearGAS
+    use gasci, only: generate_nGAS_excitation
 
     use tj_model, only: init_get_helement_tj, init_get_helement_heisenberg
 
@@ -1897,6 +1897,7 @@ contains
         if (tHPHF) then
             generate_excitation => gen_hphf_excit
         elseif(tGAS) then
+            write(*, *) 'generate_nGAS_excitation chosen'
             generate_excitation => generate_nGAS_excitation
         elseif(t_3_body_excits.and..not.(t_mol_3_body.or.t_ueg_3_body)) then
             if (t_uniform_excits) then
@@ -2248,7 +2249,7 @@ contains
         ! Cleanup adi caches
         call clean_adi()
 
-        call clearGAS()
+!         call clearGAS()
 
         ! Cleanup excitation generator
         if(t_pcpp_excitgen) call finalize_pcpp_excitgen()

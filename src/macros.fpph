@@ -25,6 +25,7 @@ endif
 #:def ASSERT(cond, *args)
 #ifdef DEBUG_
     if (.not. (${cond}$)) then
+        write(6, *) ""
         write(6, *) "Assertion ${cond}$"
         write(6, *) "failed in ${_FILE_}$:${_LINE_}$"
 #:if args
