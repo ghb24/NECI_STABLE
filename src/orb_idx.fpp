@@ -151,11 +151,10 @@ module orb_idx_mod
     pure function sum_SpinProj_t(V) result(res)
         type(SpinProj_t), intent(in) :: V(:)
         type(SpinProj_t) :: res
-        type(SpinProj_t) :: tmp
         integer :: i
-        tmp = SpinProj_t(0)
+        res = SpinProj_t(0)
         do i = 1, size(V)
-            res = tmp + V(i)
+            res = res + V(i)
         end do
     end function
 

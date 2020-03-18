@@ -416,7 +416,7 @@ contains
         end do
         upper_bound = iGAS
 
-        ! We assume that at it is possible to create a particle at least in
+        ! We assume that it is possible to create a particle at least in
         ! the last GAS space.
         ! Search from behind the first occurence where it is not possible
         ! anymore to create a particle.
@@ -472,7 +472,7 @@ contains
 
         block
             integer :: i, lower_bound, upper_bound
-            type(SpinOrbIdx_t) :: possible_values, occupied
+            type(SpinOrbIdx_t) :: possible_values
             type(SpinProj_t), allocatable :: m_s
 
             if (spaces(1) == 1) then
@@ -488,13 +488,12 @@ contains
                     m_s%val = -(excess%val / abs(excess%val))
                 end if
             end if
-            occupied = SpinOrbIdx_t([(splitted_det_I(i)%idx, i = spaces(1), spaces(2))], m_s)
             possible_values = SpinOrbIdx_t(SpatOrbIdx_t([(i, i = lower_bound, upper_bound)]), m_s)
 
             if (present(add_particles)) then
-                possible_holes%idx = complement(possible_values%idx, union(occupied%idx, add_particles%idx))
+                possible_holes%idx = complement(possible_values%idx, union(det_I%idx, add_particles%idx))
             else
-                possible_holes%idx = complement(possible_values%idx, occupied%idx)
+                possible_holes%idx = complement(possible_values%idx, det_I%idx)
             end if
         end block
     end function
@@ -567,6 +566,7 @@ contains
         ! two random numbers \in [0, 1]
         @:ASSERT(all(0.0_dp <= r .and. r <= 1.0))
 
+
         ! Pick any random electron
         elec = int(r(1) * nEl) + 1
         exc%val(1) = det_I%idx(elec)
@@ -589,10 +589,8 @@ contains
         ! with tgt \in possible_holes
         c_sum = get_cumulative_list(det_I, exc, possible_holes)
         call draw_from_cum_list(c_sum, r(2), i, pgen_hole)
-        exc%val(2) = possible_holes%idx(i)
-
-
         if (i /= 0) then
+            exc%val(2) = possible_holes%idx(i)
             call make_single(det_I%idx, nJ, elec, exc%val(2), ex_mat, par)
             ilutJ = excite(ilutI, exc)
         else
@@ -757,11 +755,14 @@ contains
         @:ASSERT((c_sum(size(c_sum)) .isclose. 0.0_dp) &
           .or. (c_sum(size(c_sum)) .isclose. 1.0_dp))
         @:ASSERT(is_sorted(c_sum))
+        @:ASSERT(0.0_dp <= r .and. r <= 1.0_dp, r)
 
         ! there might not be such an excitation
         if (c_sum(size(c_sum)) > 0) then
             ! find the index of the target hole in the cumulative list
+!             @:ASSERT(c_sum(1) <= r .and. r <= c_sum(size(c_sum)), r, c_sum)
             idx = binary_search_first_ge(c_sum, r)
+            @:ASSERT(1 <= idx .and. idx <= size(c_sum))
 
             ! adjust pgen with the probability for picking tgt from the cumulative list
             if (idx == 1) then
