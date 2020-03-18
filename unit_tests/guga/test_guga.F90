@@ -23,7 +23,8 @@ program test_guga
     use guga_rdm, only: calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
                         calc_all_excits_guga_rdm_doubles, t_mimic_stochastic, &
                         calc_explicit_diag_2_rdm_guga, calc_explicit_2_rdm_guga, &
-                        test_fill_spawn_diag, t_diag_exchange
+                        test_fill_spawn_diag, t_diag_exchange, combine_x0_x1, &
+                        pure_rdm_ind, generator_sign, create_all_rdm_contribs
     use constants
     use DetBitOps
     use Determinants
@@ -102,6 +103,135 @@ contains
         !call run_test_excit_gen_guga_S0
 
     end subroutine guga_test_driver
+
+    subroutine test_create_all_rdm_contribs
+
+        integer(int_rdm), allocatable :: rdm_inds(:), rdm_ind_ex(:)
+        real(dp), allocatable :: rdm_mats(:), rdm_mat_ex(:)
+        integer(int_rdm) :: rdm_ind, rdm_ex
+        real(dp) :: x0, x1
+        integer(n_int) :: ilut(0:GugaBits%len_tot), t(0:GugaBits%len_tot), &
+                          ilutJ(0:GugaBits%len_tot)
+        real(dp) :: pgen, mat_ex
+        integer :: nI(4), nex, pos, dummy(2), i, j, cnt
+        HElement_t(dp) :: mat_ele
+        integer(n_int), pointer :: ex(:,:)
+        type(ExcitationInformation_t) :: excitInfo
+        real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        logical :: compFlag
+
+        print *, ""
+        print *, "testing: create_all_rdm_contribs"
+
+        nI = [1,2,3,4]
+        call EncodeBitDet_guga(nI, ilut)
+
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
+        ! to test it fully, create a stochastic excitation and then use
+        ! the obtained rdm_ind, x0 and x1 and then compare this to the
+        ! calc_guga_matrix_element and calc_explicit_1/2_rdm_guga routines!!
+
+        call createStochasticExcitation_single(ilut, nI, t, pgen)
+
+        if (pgen > EPS) then
+            call extract_stochastic_rdm_info(GugaBits, t, rdm_ind, x0, x1)
+            call create_all_rdm_contribs(rdm_ind, x0, x1, rdm_inds, rdm_mats)
+
+            call assert_equals(1, size(rdm_inds))
+            call assert_equals(rdm_ind, rdm_inds(1))
+            call assert_equals(x0, rdm_mats(1))
+
+            call calc_explicit_1_rdm_guga(ilut, nEx, ex)
+            do i = 1, nex
+                if (DetBitEq(t(0:nifd), ex(0:nifd,i), nifd)) then
+                    pos = i
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutJ = ex(:,pos)
+            call assert_equals(extract_rdm_ind(ilutJ), pure_rdm_ind(rdm_inds(1)))
+            call assert_equals(extract_matrix_element(ilutJ,1), rdm_mats(1))
+
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilut, t, excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_ex, &
+                rdm_mat = rdm_mat_ex)
+            x0 = extract_stochastic_rdm_x0(GugaBits, t)
+            call assert_equals(1, size(rdm_ind_ex))
+            call assert_equals(rdm_ind_ex(1),pure_rdm_ind(rdm_inds(1)))
+            call assert_equals(rdm_mat_ex(1), rdm_mats(1))
+
+        end if
+
+        nI = [1,2,3,6]
+        call EncodeBitDet_guga(nI, ilut)
+
+        currentB_ilut = calcB_vector_ilut(ilut)
+        currentOcc_ilut = calcOcc_vector_ilut(ilut)
+        currentOcc_int = calcOcc_vector_int(ilut)
+        current_stepvector = calcStepVector(ilut)
+        currentB_int = calcB_vector_int(ilut)
+        currentB_ilut = calcB_vector_ilut(ilut)
+
+        excitInfo = excitationIdentifier(4,1,2,3)
+        call assert_true(excitInfo%typ == excit_type%double_L_to_R_to_L)
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+        call calcDoubleL2R2L_stochastic(ilut,excitInfo,t,pgen,posSwitches,negSwitches)
+        ! call createStochasticExcitation_double(ilut, nI, t, pgen, dummy)
+        call assert_true(compFlag)
+        call assert_true(all(calcStepVector(t) == [1,3,0,2]))
+
+        call extract_stochastic_rdm_info(GugaBits, t, rdm_ind, x0, x1)
+        call create_all_rdm_contribs(rdm_ind, x0, x1, rdm_inds, rdm_mats)
+
+        call assert_true(size(rdm_inds) > 0)
+        call assert_equals(rdm_ind, rdm_inds(1))
+
+        call calc_explicit_2_rdm_guga(ilut, nEx, ex)
+
+        cnt = 0
+        do i = 1, nex
+            if (DetBitEq(t(0:nifd), ex(0:nifd,i))) then
+                rdm_ex = extract_rdm_ind(ex(:,i))
+                mat_ex = extract_matrix_element(ex(:,i),1)
+                do j = 1, size(rdm_inds)
+                    if (pure_rdm_ind(rdm_inds(j)) == rdm_ex) then
+                        cnt = cnt + 1
+                        call assert_equals(rdm_mats(j), mat_ex, 1e-10_dp)
+                    end if
+                end do
+            end if
+        end do
+        call assert_true(cnt > 0)
+
+        ! also test with matrix element calculator!
+        call calc_guga_matrix_element(ilut, t, excitInfo, &
+            mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_ex, &
+            rdm_mat = rdm_mat_ex)
+
+        cnt = 0
+        do i = 1, size(rdm_inds)
+            do j = 1, size(rdm_ind_ex)
+                if (pure_rdm_ind(rdm_inds(i)) == rdm_ind_ex(j)) then
+                    call assert_equals(rdm_mat_ex(j), rdm_mats(i))
+                    cnt = cnt + 1
+                end if
+            end do
+        end do
+        call assert_true(cnt > 0)
+
+        call stop_all("h","h")
+        print *, ""
+        print *, "testing: create_all_rdm_contribs. DONE"
+
+    end subroutine test_create_all_rdm_contribs
 
     subroutine test_transfer_stochastic_rdm_info
         integer(n_int) :: ilutG(0:GugaBits%len_tot), ilutG2(0:GugaBits%len_tot)
@@ -642,7 +772,6 @@ contains
         t_diag_exchange = .true.
 
         call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-        call write_guga_list(6, excits)
 
         t_mimic_stochastic = .true.
         call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
@@ -650,12 +779,10 @@ contains
         call assert_equals(n_tot, n_contribs)
         call sort(ind_list, mat_list)
 
-        print *, "mats and ind: "
         do i = 1, n_contribs
             call assert_equals(real(extract_h_element(excits(:,i)),dp), &
                 mat_list(i), 1e-12_dp)
             call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-            print *, mat_list(i), ind_list(i)
         end do
 
         deallocate(nI); deallocate(nJ)
@@ -671,7 +798,6 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
 
-        call write_guga_list(6, all_excits)
 
         do j = 1, n_all
 
@@ -706,7 +832,6 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
 
-        call write_guga_list(6, all_excits)
 
         do j = 1, n_all
 
@@ -739,7 +864,6 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
 
-        call write_guga_list(6, all_excits)
 
         do j = 1, n_all
 
@@ -772,7 +896,6 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
 
-        call write_guga_list(6, all_excits)
 
         do j = 1, n_all
 
@@ -806,7 +929,6 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
 
-        call write_guga_list(6, all_excits)
 
         do j = 1, n_all
 
@@ -839,7 +961,6 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
 
-        call write_guga_list(6, all_excits)
 
         do j = 1, n_all
 
@@ -872,7 +993,6 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
 
-        call write_guga_list(6, all_excits)
 
         do j = 1, n_all
 
@@ -905,7 +1025,6 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
 
-        call write_guga_list(6, all_excits)
 
         do j = 1, n_all
 
@@ -1177,11 +1296,35 @@ contains
             "test_calc_all_excits_guga_rdm_doubles")
         call run_test_case(test_calc_explicit_2_rdm_guga, "test_calc_explicit_2_rdm_guga")
 
-        call test_compare_RDM_indexing
+        call run_test_case(test_compare_RDM_indexing, "test_compare_RDM_indexing")
+
+        call run_test_case(test_create_all_rdm_contribs, &
+            "test_create_all_rdm_contribs")
+        call run_test_case(test_generator_sign, "test_generator_sign")
         print *, ""
         print *, "explicit RDM routines passed!"
         print *, ""
     end subroutine test_guga_explicit_rdms
+
+    subroutine test_generator_sign
+
+        print *, ""
+        print *, "testing: generator_sign"
+
+        call assert_equals(1.0_dp, generator_sign(0,0,0,0))
+        call assert_equals(1.0_dp, generator_sign(1,1,1,1))
+        call assert_equals(1.0_dp, generator_sign(1,1,2,2))
+        call assert_equals(1.0_dp, generator_sign(1,2,3,4))
+        call assert_equals(1.0_dp, generator_sign(1,3,2,4))
+        call assert_equals(1.0_dp, generator_sign(4,2,1,3))
+        call assert_equals(-1.0_dp, generator_sign(2,3,1,4))
+        call assert_equals(-1.0_dp, generator_sign(1,4,2,3))
+        call assert_equals(1.0_dp, generator_sign(4,1,2,3))
+        call assert_equals(-1.0_dp, generator_sign(4,1,3,2))
+        print *, ""
+        print *, "testing: generator_sign. DONE"
+
+    end subroutine test_generator_sign
 
     subroutine test_compare_RDM_indexing
 
@@ -1430,11 +1573,9 @@ contains
 
         t_mimic_stochastic = .true.
         call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-        call write_guga_list(6, excits)
 
         t_mimic_stochastic = .false.
         call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-        call write_guga_list(6, excits)
 
 
         print *, ""
@@ -1615,9 +1756,6 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
 
-        print *, "n_tot", n_tot
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,excits)
 
         cnt = 0
         do n = 1, n_tot
@@ -1640,13 +1778,9 @@ contains
             if (DetBitEQ(ilut, excits(:,n)))  cnt = cnt + 1
         end do
 
-        print *, "cnt: ", cnt
 
         call assert_equals(0, cnt)
 
-        print *, "n_tot", n_tot
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,excits)
 
         print *, ""
         print *, "testing: calc_explicit_2_rdm_guga DONE"
@@ -2103,6 +2237,8 @@ contains
         call run_test_case(test_transfer_stochastic_rdm_info, &
             "test_transfer_stochastic_rdm_info")
 
+        call run_test_case(test_pure_rdm_ind, "test_pure_rdm_ind")
+
 
         print *, ""
         print *, "guga_bitRepOps tests passed!"
@@ -2245,6 +2381,34 @@ contains
         print *, ""
 
     end subroutine test_guga_data
+
+    subroutine test_pure_rdm_ind
+        integer(int_rdm) :: rdm_ind, rdm_ind_orig
+
+        print *, ""
+        print *, "testing: pure_rdm_ind"
+
+        rdm_ind_orig = contract_1_rdm_ind(1,2)
+        call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind_orig))
+
+        rdm_ind = contract_1_rdm_ind(1,2,1)
+        call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind))
+
+        rdm_ind = contract_1_rdm_ind(1,2,1,2)
+        call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind))
+
+        rdm_ind_orig = contract_2_rdm_ind(1,2,3,4)
+        call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind_orig))
+
+        rdm_ind = contract_2_rdm_ind(1,2,3,4,2)
+        call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind))
+
+        rdm_ind = contract_2_rdm_ind(1,2,3,4,2,10)
+        call assert_equals(rdm_ind_orig, pure_rdm_ind(rdm_ind))
+
+        print *, ""
+        print *, "testing: pure_rdm_ind. DONE."
+    end subroutine test_pure_rdm_ind
 
     subroutine test_contract_extract_2_rdm
         integer(int_rdm) :: ijkl
@@ -2656,7 +2820,6 @@ contains
         print *, "Testing matrix elements for nEx excitations of: ", nEx
         print *, ""
         call write_det_guga(6,ilutG,.true.)
-        call write_guga_list(6,ex(:,1:nex))
 
         print *, ""
         print *, "Do the tests on only connected determinants:"
@@ -3190,7 +3353,6 @@ contains
         print *, ""
         print *, "running tests on nExcits: ", nTest
         print *, ""
-        call write_guga_list(6, ex(:,1:nEx))
         call test_excit_gen_guga(ilut, n_guga_excit_gen)
         ! then loop over the excitations and check the excitation generator
 
@@ -3450,8 +3612,6 @@ contains
         call assert_true(nout == 4)
 
         l3(:,2) = l6(:,2)
-        call write_guga_list(6,l3(:,1:2))
-        call write_guga_list(6,l6(:,1:4))
 
         call add_guga_lists(nOut,2,l6,l3)
 
@@ -5466,9 +5626,15 @@ contains
         integer(n_int) :: ilutGi(0:nifguga), ilutGj(0:nifguga)
         logical :: tParity
         real(dp) :: pgen
-        HElement_t(dp) :: HElGen
+        HElement_t(dp) :: HElGen, mat_ele
         type(excit_gen_store_type), target :: store
         integer(n_int), pointer :: ex(:,:)
+        integer(int_rdm) :: rdm_ind, rdm_ind_, rdm_ind_1
+        real(dp) :: x0, x1, rdm_mat_ex, rdm_comb
+        integer(int_rdm), allocatable :: rdm_ind_v(:)
+        real(dp), allocatable :: rdm_mat(:)
+        type(ExcitationInformation_t) :: excitInfo
+        integer :: i, j, k, l
 
         exFlag = 1
         ! make only double excitations:
@@ -5476,7 +5642,7 @@ contains
         pDoubles = 1.0_dp - pSingles
 
         print *, ""
-        print *, "testing generate_excitation_guga:"
+        print *, "testing generate_excitation_guga for doubles"
         print *, ""
         ! 3300:
         nI = [1,2,3,4]; ilutI = 0_n_int
@@ -5484,37 +5650,59 @@ contains
 
         call init_csf_information(ilutI)
 
-        print *, ""
-        print *, "random double excitation for :"
-        print *, ""
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, ""
-        print *, "pgen: ", pgen, "matEle: ", HElGen
-        print *, ""
 
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, ""
-            print *, "exact excitations for this ilut:"
-            print *, ""
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
 
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
-            call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+            call assert_equals(helgen, extract_matrix_element(ex(:,pos),1))
 
-        else
-            print *, ""
-            print *, "no valid excitation created!"
-            print *, ""
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+
+            call assert_true(pos > 0)
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
         end if
+
 
         ! 3030
         nI = [1,2,5,6]
@@ -5524,25 +5712,52 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
         end if
 
         ! 3003
@@ -5553,22 +5768,53 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > EPS) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
 
         end if
 
@@ -5580,21 +5826,52 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > EPS) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
+
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
 
 
         end if
@@ -5607,22 +5884,53 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > EPS) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
 
         end if
 
@@ -5634,22 +5942,53 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > EPS) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
 
         end if
 
@@ -5659,28 +5998,57 @@ contains
 
         call init_csf_information(ilutI)
 
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
 
-        else
-            print *, "no valid excitation created!"
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
         end if
 
         ! 3102
@@ -5691,25 +6059,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
+
         end if
 
         ! 3120
@@ -5720,25 +6117,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
+
         end if
 
         ! 3012
@@ -5747,27 +6173,56 @@ contains
 
         call init_csf_information(ilutI)
 
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-               print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
+
         end if
 
         ! 0312
@@ -5778,25 +6233,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
+
         end if
 
         ! 1230
@@ -5807,25 +6291,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
+
         end if
 
         ! 1203
@@ -5836,25 +6349,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
+
         end if
 
         ! 1320
@@ -5865,25 +6407,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
+
         end if
 
         ! 1302
@@ -5894,25 +6465,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
 
-        else
-            print *, "no valid excitation created!"
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
         end if
 
         ! 1032
@@ -5923,25 +6523,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
+
         end if
 
         ! 0132
@@ -5952,25 +6581,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
 
-        else
-            print *, "no valid excitation created!"
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
         end if
 
         ! 0123
@@ -5981,25 +6639,55 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                    call assert_equals(rdm_mat(i), rdm_mat_ex)
+                end if
+            end do
+
         end if
 
         ! 1122
@@ -6010,25 +6698,55 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                    call assert_equals(rdm_mat(i), rdm_mat_ex)
+                end if
+            end do
+
+
         end if
 
         ! 1212
@@ -6039,25 +6757,54 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random double excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
+            call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
 
-        else
-            print *, "no valid excitation created!"
+            call calc_explicit_2_rdm_guga(ilutGi, nex, ex)
+
+            do i = 1, nex
+                if (DetBitEQ(ex(0:nifd,i), ilutJ(0:nifd))) then
+                    rdm_ind_1 = extract_rdm_ind(ex(:,i))
+                    if (rdm_ind_1 == rdm_ind_) then
+                        pos = i
+                    end if
+                end if
+            end do
+            call assert_true(pos > 0)
+
+            ilutGj = ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutGj)
+
+            rdm_mat_ex = extract_matrix_element(ilutGj,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
+
+
         end if
         print *, "generate_excitation_guga tests passed!"
 
@@ -6071,10 +6818,14 @@ contains
         integer(n_int) :: ilutGj(0:nifguga)
         logical :: tParity
         real(dp) :: pgen
-        HElement_t(dp) :: HElGen
+        HElement_t(dp) :: HElGen, mat_ele
         type(excit_gen_store_type), target :: store
         integer(n_int), pointer :: ex(:,:)
-        integer(int_rdm) :: rdm_ind
+        integer(int_rdm) :: rdm_ind, rdm_ind_
+        integer(int_rdm), allocatable :: rdm_ind_v(:)
+        real(dp), allocatable :: rdm_mat(:)
+        real(dp) :: x0
+        type(ExcitationInformation_t) :: excitInfo
 
         exFlag = 1
         ! make this store element ...
@@ -6091,26 +6842,23 @@ contains
 
         call init_csf_information(ilutI)
 
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
 
             rdm_ind = extract_stochastic_rdm_ind(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
             call assert_equals(1, extract_excit_lvl_rdm(rdm_ind))
             call assert_equals(excit_type%single, extract_excit_type_rdm(rdm_ind))
 
@@ -6118,12 +6866,20 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
-            call assert_equals(extract_matrix_element(ex(:,pos),1), &
-                extract_stochastic_rdm_x0(IlutBits, ilutJ))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), rdm_ind_)
+            call assert_equals(extract_matrix_element(ex(:,pos),1), x0)
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
         end if
 
         ! 3030
@@ -6134,18 +6890,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6158,12 +6908,21 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
         end if
 
         ! 3003
@@ -6174,18 +6933,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6198,12 +6951,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 0330
@@ -6214,18 +6977,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6238,12 +6995,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 0303
@@ -6254,18 +7021,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6278,12 +7039,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 0033
@@ -6294,18 +7065,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6318,12 +7083,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 1023
@@ -6332,21 +7107,15 @@ contains
 
         call init_csf_information(ilutI)
 
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6359,12 +7128,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 3102
@@ -6375,18 +7154,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6399,12 +7172,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 3120
@@ -6415,18 +7198,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6439,12 +7216,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 3012
@@ -6455,18 +7242,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6479,12 +7260,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 0312
@@ -6495,18 +7286,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6519,12 +7304,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 1230
@@ -6535,18 +7330,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6559,12 +7348,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 1203
@@ -6575,18 +7374,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6599,12 +7392,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 1320
@@ -6615,18 +7418,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6639,12 +7436,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 1302
@@ -6655,18 +7462,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6679,12 +7480,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 1032
@@ -6695,18 +7506,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6719,12 +7524,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 0132
@@ -6735,18 +7550,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6759,12 +7568,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 0123
@@ -6775,18 +7594,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6799,12 +7612,22 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 1122
@@ -6815,18 +7638,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6839,13 +7656,23 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         ! 1212
@@ -6856,18 +7683,12 @@ contains
 
         call generate_excitation_guga(nI,ilutI,nJ,ilutJ,exFlag,IC,excitMat,&
             tParity,pgen,HElGen,store)
-        print *, "random single excitation for :"
         call convert_ilut_toGUGA(ilutI, ilutGi)
-        call write_det_guga(6, ilutGi)
 
-        print *, "pgen: ", pgen, "matEle: ", HElGen
         call convert_ilut_toGUGA(ilutJ, ilutGj)
-        call write_det_guga(6, ilutGj)
 
         if (pgen > 0.0_dp) then
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilutI, ex, nEx)
-            call write_guga_list(6, ex(:,1:nEx))
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
             call assert_true(abs(helgen - extract_matrix_element(ex(:,pos),1)) < 1.0e-10_dp)
@@ -6880,13 +7701,23 @@ contains
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
 
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                 extract_stochastic_rdm_x0(IlutBits, ilutJ))
 
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilutI, ex(:,pos), excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(IlutBits, ilutJ)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, helgen)
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         print *, ""
@@ -6903,6 +7734,10 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
+
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
@@ -6915,12 +7750,12 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,4,2)
 
-        call assert_true(excitInfo%typ == excit_type%double_R_to_L)
-
-        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, ""
         print *, "testing calcDoubleR2L_stochastic(ilut,exinfo,ex,pgen):"
         print *, ""
+        call assert_true(excitInfo%typ == excit_type%double_R_to_L)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! 1212
@@ -6931,6 +7766,15 @@ contains
         call assert_true(all(calcStepVector(ex) == [3,0,0,3]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) - 1.0_dp) < EPS)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(4, k)
+        call assert_equals(2, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_R_to_L, ex_typ)
 
         ! mixed: -1
         ! nonover: +2 -> +2
@@ -6946,7 +7790,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
-        excitInfo = excitationIdentifier(1,3,4,2)
+        excitInfo = excitationIdentifier(4,2,1,3)
 
         call assert_true(excitInfo%typ == excit_type%double_R_to_L)
 
@@ -6959,6 +7803,40 @@ contains
         call assert_true(all(calcStepVector(ex) == [1,0,2,3]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + 1.0_dp) < 1.0e-10_dp)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(4, i)
+        call assert_equals(2, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_R_to_L, ex_typ)
+
+
+        ! set up correct excitation information
+        excitInfo = excitationIdentifier(4,2,1,3)
+
+        call assert_true(excitInfo%typ == excit_type%double_R_to_L)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
+        call calcDoubleR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
+
+        call assert_true(compFlag)
+        call assert_true(pgen .isclose. 1.0_dp)
+        call assert_true(all(calcStepVector(ex) == [1,0,2,3]))
+        call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
+        call assert_true(abs(extract_matrix_element(ex,1) + 1.0_dp) < 1.0e-10_dp)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(4, i)
+        call assert_equals(2, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_R_to_L, ex_typ)
 
         ! nonoverlap : -2
         ! mixed: +1 -> -1
@@ -6976,6 +7854,10 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
+
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
@@ -6988,13 +7870,13 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(3,1,2,4)
 
+        print *, ""
+        print *, "testing calcDoubleL2R_stochastic(ilut,exinfo,ex,pgen):"
+        print *, ""
         call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
-        print *, ""
-        print *, "testing calcDoubleL2R_stochastic(ilut,exinfo,ex,pgen):"
-        print *, ""
         call calcDoubleL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! 1212
@@ -7005,6 +7887,16 @@ contains
         call assert_true(all(calcStepVector(ex) == [0,3,3,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
+
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(3, i)
+        call assert_equals(1, j)
+        call assert_equals(2, k)
+        call assert_equals(4, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_L_to_R, ex_typ)
 
         ! mixed matele: -1
         ! nonover: 2 -> +1
@@ -7020,7 +7912,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
-        excitInfo = excitationIdentifier(3,1,2,4)
+        excitInfo = excitationIdentifier(2,4,3,1)
 
         call assert_true(excitInfo%typ == excit_type%double_L_to_R)
 
@@ -7033,6 +7925,15 @@ contains
         call assert_true(all(calcStepVector(ex) == [1,3,2,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + 1.0_dp) < 1.0e-10_dp)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(2, i)
+        call assert_equals(4, j)
+        call assert_equals(3, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_L_to_R, ex_typ)
 
         ! mixed: -2
         ! nonover: +1 -> -1
@@ -7052,6 +7953,10 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
+
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
@@ -7065,13 +7970,13 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,3,2 )
 
+        print *, ""
+        print *, "testing calcDoubleR2L2R_stochastic(ilut,exinfo,ex,pgen):"
+        print *, ""
         call assert_true(excitInfo%typ == excit_type%double_R_to_L_to_R)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
-        print *, ""
-        print *, "testing calcDoubleR2L2R_stochastic(ilut,exinfo,ex,pgen):"
-        print *, ""
         call calcDoubleR2L2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! 1212
@@ -7081,6 +7986,15 @@ contains
         call assert_true(all(calcStepVector(ex) == [3,0,3,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) - 1.0_dp) < EPS)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(3, k)
+        call assert_equals(2, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_R_to_L_to_R, ex_typ)
 
         ! 0123
         ! 1032
@@ -7094,7 +8008,7 @@ contains
         currentB_int = calcB_vector_int(ilut)
 
         ! set up correct excitation information
-        excitInfo = excitationIdentifier(1,4,3,2 )
+        excitInfo = excitationIdentifier(3,2,1,4 )
 
         call assert_true(excitInfo%typ == excit_type%double_R_to_L_to_R)
 
@@ -7109,6 +8023,15 @@ contains
         call assert_true(abs(extract_matrix_element(ex,1) + 1.0_dp) < EPS)
         ! mixed ele: -1/2 - 3/2 = -2
         ! nonover: 1 -> -1
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(3, i)
+        call assert_equals(2, j)
+        call assert_equals(1, k)
+        call assert_equals(4, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_R_to_L_to_R, ex_typ)
 
 
 
@@ -7129,6 +8052,10 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
+
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
@@ -7141,13 +8068,13 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,3)
 
+        print *, ""
+        print *, "testing calcDoubleL2R2L_stochastic(ilut,exinfo,ex,pgen):"
+        print *, ""
         call assert_true(excitInfo%typ == excit_type%double_L_to_R_to_L)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
-        print *, ""
-        print *, "testing calcDoubleL2R2L_stochastic(ilut,exinfo,ex,pgen):"
-        print *, ""
         call calcDoubleL2R2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! 1212
@@ -7163,6 +8090,16 @@ contains
         call assert_true(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
 
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(4, i)
+        call assert_equals(1, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_L_to_R_to_L, ex_typ)
+
+
         ! 1032
         ! 0123
         call EncodeBitDet_guga([1,5,6,8], ilut)
@@ -7174,7 +8111,7 @@ contains
         current_stepvector = calcStepVector(ilut)
         currentB_int = calcB_vector_int(ilut)
         ! set up correct excitation information
-        excitInfo = excitationIdentifier(4,1,2,3)
+        excitInfo = excitationIdentifier(2,3,4,1)
 
         call assert_true(excitInfo%typ == excit_type%double_L_to_R_to_L)
 
@@ -7190,6 +8127,15 @@ contains
         ! the non-overlap: + 1 -> so -1 in total!
         call assert_true(abs(extract_matrix_element(ex,1) + 1.0_dp) < 1.0e-10_dp)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(2, i)
+        call assert_equals(3, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_L_to_R_to_L, ex_typ)
+
         print *, ""
         print *, "calcDoubleL2R2L_stochastic tests passed!"
         print *, ""
@@ -7204,6 +8150,10 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
+
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
@@ -7216,13 +8166,13 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,4,2,3)
 
-        call assert_true(excitInfo%typ == excit_type%double_raising)
-
-        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
-
         print *, ""
         print *, "testing calcDoubleRaisingStochastic(ilut,exinfo,ex,pgen):"
         print *, ""
+        call assert_true(excitInfo%typ == excit_type%double_raising)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
+
         call calcDoubleRaisingStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! 1212
@@ -7233,7 +8183,16 @@ contains
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + 2.0_dp) < EPS)
 
-        excitInfo = excitationIdentifier(1,3,2,4)
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_raising, ex_typ)
+
+        excitInfo = excitationIdentifier(2,4,1,3)
 
         call assert_true(excitInfo%typ == excit_type%double_raising)
 
@@ -7247,6 +8206,15 @@ contains
         call assert_true(all(calcStepVector(ex) == [3,3,0,0]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + 2.0_dp) < EPS)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(2, i)
+        call assert_equals(4, j)
+        call assert_equals(1, k)
+        call assert_equals(3, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_raising, ex_typ)
 
         ! 0132
         ! 1320
@@ -7275,6 +8243,15 @@ contains
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_raising, ex_typ)
+
         excitInfo = excitationIdentifier(1,3,2,4)
 
         call assert_true(excitInfo%typ == excit_type%double_raising)
@@ -7289,6 +8266,15 @@ contains
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) - 1.0_dp) < 1.0e-10_dp)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(2, k)
+        call assert_equals(4, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_raising, ex_typ)
+
         print *, ""
         print *, "calcDoubleRaisingStochastic tests passed!"
         print *, ""
@@ -7302,6 +8288,10 @@ contains
         real(dp) :: pgen
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
 
         ! encode det
         ! 1212
@@ -7318,13 +8308,13 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,3,2)
 
+        print *, ""
+        print *, "testing calcDoubleLoweringStochastic(ilut,exinfo,ex,pgen):"
+        print *, ""
         call assert_true(excitInfo%typ == excit_type%double_lowering)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
-        print *, ""
-        print *, "testing calcDoubleLoweringStochastic(ilut,exinfo,ex,pgen):"
-        print *, ""
         call calcDoubleLoweringStochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! 1212
@@ -7335,6 +8325,16 @@ contains
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         ! have to think about the other index comb too!
         call assert_true(abs(extract_matrix_element(ex,1) + 2.0_dp) < 1.0e-10_dp)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(4, i)
+        call assert_equals(1, j)
+        call assert_equals(3, k)
+        call assert_equals(2, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_lowering, ex_typ)
+
 
         excitInfo = excitationIdentifier(3,2,4,1)
 
@@ -7350,6 +8350,15 @@ contains
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         ! have to think about the other index comb too!
         call assert_true(abs(extract_matrix_element(ex,1) + 2.0_dp) < 1.0e-10_dp)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(3, i)
+        call assert_equals(2, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_lowering, ex_typ)
 
         ! 3120
         ! 1032
@@ -7378,7 +8387,16 @@ contains
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + 1.0_dp) < EPS)
 
-        excitInfo = excitationIdentifier(4,2,3,1)
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(4, i)
+        call assert_equals(1, j)
+        call assert_equals(3, k)
+        call assert_equals(2, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_lowering, ex_typ)
+
+        excitInfo = excitationIdentifier(3,1,4,2)
 
         call assert_true(excitInfo%typ == excit_type%double_lowering)
 
@@ -7391,6 +8409,15 @@ contains
         call assert_true(all(calcStepVector(ex) == [1,0,3,2]))
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + 1.0_dp) < EPS)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(3, i)
+        call assert_equals(1, j)
+        call assert_equals(4, k)
+        call assert_equals(2, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%double_lowering, ex_typ)
 
 
         print *, ""
@@ -7407,6 +8434,10 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
+
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
@@ -7420,13 +8451,13 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,4,2  )
 
+        print *, ""
+        print *, "testing calcFullStopR2L_stochastic(ilut,exinfo,ex,pgen):"
+        print *, ""
         call assert_equals(excit_type%fullstop_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
-        print *, ""
-        print *, "testing calcFullStopR2L_stochastic(ilut,exinfo,ex,pgen):"
-        print *, ""
         call calcFullStopR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! 1212
@@ -7462,6 +8493,17 @@ contains
         call assert_true(pgen > EPS)
         call assert_equals(calcStepVector(ex), [3,0,1,2], 4)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(4, k)
+        call assert_equals(2, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstop_R_to_L, ex_typ)
+        call assert_equals(0.0_dp, x0)
+
+
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,3,3,2)
 
@@ -7474,6 +8516,17 @@ contains
         call assert_true(compFlag)
         call assert_true(pgen > EPS)
         call assert_equals(calcStepVector(ex), [3,0,1,2], 4)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(3, k)
+        call assert_equals(2, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstop_R_to_L, ex_typ)
+        call assert_equals(0.0_dp, x0)
+
 
         print *, ""
         print *, "calcFullStopR2L_stochastic tests passed!"
@@ -7490,6 +8543,9 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
@@ -7503,13 +8559,13 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(4,1,2,4 )
 
+        print *, ""
+        print *, "testing calcFullStopL2R_stochastic(ilut,exInfo,ex,pgen)"
+        print *, ""
         call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
-        print *, ""
-        print *, "testing calcFullStopL2R_stochastic(ilut,exInfo,ex,pgen)"
-        print *, ""
         call calcFullStopL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! 1212
@@ -7547,7 +8603,19 @@ contains
         call assert_true(pgen > EPS)
         call assert_equals(calcStepVector(ex), [0,3,1,2], 4)
 
-        excitInfo = excitationIdentifier(4,1,2,4)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(4, i)
+        call assert_equals(1, j)
+        call assert_equals(2, k)
+        call assert_equals(4, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstop_L_to_R, ex_typ)
+        call assert_equals(0.0_dp, x0)
+
+
+        excitInfo = excitationIdentifier(2,4,4,1)
 
         call assert_equals(excit_type%fullstop_L_to_R, excitInfo%typ)
 
@@ -7559,6 +8627,17 @@ contains
         call assert_true(excitInfo%valid)
         call assert_true(pgen > EPS)
         call assert_equals(calcStepVector(ex), [0,3,1,2], 4)
+
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(2, i)
+        call assert_equals(4, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstop_L_to_R, ex_typ)
+        call assert_equals(0.0_dp, x0)
 
         print *, ""
         print *, "calcFullStopL2R_stochastic tests passed!"
@@ -7574,6 +8653,9 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
         ! encode det
         call EncodeBitDet_guga([1,4,5,8], ilut)
 
@@ -7587,13 +8669,13 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier(1,2,4,1)
 
+        print *, ""
+        print *, "testing calcFullStartR2L_stochastic(ilut,exInfo,ex,pgen):"
+        print *, ""
         call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
-        print *, ""
-        print *, "testing calcFullStartR2L_stochastic(ilut,exInfo,ex,pgen):"
-        print *, ""
         call calcFullStartR2L_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! also should not yield a valid excitation
@@ -7627,8 +8709,18 @@ contains
         call assert_true(pgen > EPS)
         call assert_equals(calcStepVector(ex), [1,2,0,3], 4)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstart_R_to_L, ex_typ)
+        call assert_equals(0.0_dp, x0)
+
         ! set up correct excitation information
-        excitInfo = excitationIdentifier(2,3,4,2)
+        excitInfo = excitationIdentifier(4,2,2,3)
 
         call assert_equals(excit_type%fullstart_R_to_L, excitInfo%typ)
 
@@ -7640,6 +8732,16 @@ contains
         call assert_true(excitInfo%valid)
         call assert_true(pgen > EPS)
         call assert_equals(calcStepVector(ex), [1,2,0,3], 4)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(4, i)
+        call assert_equals(2, j)
+        call assert_equals(2, k)
+        call assert_equals(3, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstart_R_to_L, ex_typ)
+        call assert_equals(0.0_dp, x0)
 
         print *, ""
         print *, "calcFullStartR2L_stochastic tests passed!"
@@ -7655,6 +8757,9 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
         ! encode det
         call EncodeBitDet_guga([1,4,5,8 ], ilut)
 
@@ -7668,13 +8773,13 @@ contains
         ! set up correct excitation information
         excitInfo = excitationIdentifier( 1,4,2,1 )
 
+        print *, ""
+        print *, "testing calcFullStartL2R_stochastic(ilut, exInfo, ex, pgen)"
+        print *, ""
         call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
-        print *, ""
-        print *, "testing calcFullStartL2R_stochastic(ilut, exInfo, ex, pgen)"
-        print *, ""
         call calcFullStartL2R_stochastic(ilut,excitInfo,ex,pgen,posSwitches,negSwitches)
 
         ! 1212
@@ -7707,8 +8812,18 @@ contains
         call assert_equals(calcStepVector(ex), [1,2,3,0],4)
         call assert_true(pgen > EPS)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(3, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstart_L_to_R, ex_typ)
+        call assert_equals(0.0_dp, x0)
+
         ! set up correct excitation information
-        excitInfo = excitationIdentifier( 2,4,3,2 )
+        excitInfo = excitationIdentifier( 3,2,2,4 )
 
         call assert_equals(excit_type%fullstart_L_to_R, excitInfo%typ)
 
@@ -7720,6 +8835,16 @@ contains
         call assert_true(excitInfo%valid)
         call assert_equals(calcStepVector(ex), [1,2,3,0],4)
         call assert_true(pgen > EPS)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(3, i)
+        call assert_equals(2, j)
+        call assert_equals(2, k)
+        call assert_equals(4, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstart_L_to_R, ex_typ)
+        call assert_equals(0.0_dp, x0)
 
         print *, ""
         print *, "calcFullStartL2R_stochastic tests passed!"
@@ -8029,6 +9154,10 @@ contains
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
 
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
+
         ! 0330
         call EncodeBitDet_guga([3,4,5,6],ilut)
 
@@ -8040,13 +9169,13 @@ contains
 
         excitInfo = excitationIdentifier(1,3,4,3)
 
+        print *, ""
+        print *, "testing calcSingleOverlapMixedStochastic(ilut, exInfo, ex, pgen):"
+        print *, ""
         call assert_equals(excit_type%single_overlap_R_to_L, excitInfo%typ)
 
         call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
 
-        print *, ""
-        print *, "testing calcSingleOverlapMixedStochastic(ilut, exInfo, ex, pgen):"
-        print *, ""
         call calcSingleOverlapMixedStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
 
         ! 0330
@@ -8057,6 +9186,19 @@ contains
         call assert_equals(1.0_dp, pgen)
         call assert_equals(0.0_dp, abs(extract_matrix_element(ex,2)))
         call assert_equals(-Root2, extract_matrix_element(ex,1))
+
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(4, k)
+        call assert_equals(3, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%single_overlap_R_to_L, ex_typ)
+        call assert_equals(0.0_dp, x1)
+        call assert_equals(-Root2, x0)
+
 
         ! 3003
         call EncodeBitDet_guga([1,2,7,8],ilut)
@@ -8084,6 +9226,17 @@ contains
         call assert_equals(0.0_dp, abs(extract_matrix_element(ex,2)))
         call assert_equals(Root2, extract_matrix_element(ex,1),1e-10_dp)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(3, i)
+        call assert_equals(1, j)
+        call assert_equals(3, k)
+        call assert_equals(4, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%single_overlap_L_to_R, ex_typ)
+        call assert_equals(0.0_dp, x1)
+        call assert_equals(Root2, x0,1e-12_dp)
+
         print *, ""
         print *, "calcSingleOverlapMixedStochastic tests passed!"
         print *, ""
@@ -8098,6 +9251,9 @@ contains
         real(dp) :: pgen
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
 
         ! 3030
         call EncodeBitDet_guga([1,2,5,6],ilut)
@@ -8110,22 +9266,32 @@ contains
 
         excitInfo = excitationIdentifier(4,1,4,3)
 
-        call assert_equals(excit_type%fullstop_lowering, excitInfo%typ)
-
-        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, ""
         print *, "testing calcFullStopLoweringStochastic(ilut, exInfo, ex, pgen):"
         print *, ""
+        call assert_equals(excit_type%fullstop_lowering, excitInfo%typ)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         call calcFullStopLoweringStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
         ! 3030
         ! 1023
-        call print_excitInfo(excitInfo)
         call assert_true(compFlag)
         call assert_true(excitInfo%valid)
         call assert_equals(calcStepVector(ex), [1,0,2,3],4)
         call assert_equals(1.0_dp, pgen)
         call assert_equals(0.0_dp, abs(extract_matrix_element(ex,2)))
         call assert_equals(-Root2, extract_matrix_element(ex,1))
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(4, i)
+        call assert_equals(1, j)
+        call assert_equals(4, k)
+        call assert_equals(3, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstop_lowering, ex_typ)
+        call assert_equals(0.0_dp, x1)
+        call assert_equals(-Root2, x0)
 
         print *, ""
         print *, "calcFullStopLoweringStochastic tests passed!"
@@ -8140,6 +9306,9 @@ contains
         real(dp) :: pgen
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
 
         ! 0303
         call EncodeBitDet_guga([3,4,7,8],ilut)
@@ -8151,12 +9320,12 @@ contains
         currentB_int = calcB_vector_int(ilut)
         excitInfo = excitationIdentifier(1,4,3,4)
 
-        call assert_equals(excit_type%fullstop_raising, excitInfo%typ)
-
-        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         print *, ""
         print *, "testing calcFullStopRaisingStochastic(ilut, exInfo, ex, pgen):"
         print *, ""
+        call assert_equals(excit_type%fullstop_raising, excitInfo%typ)
+
+        call checkCompatibility(ilut,excitInfo,compFlag,posSwitches,negSwitches)
         call calcFullStopRaisingStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
 
         ! 0303
@@ -8166,6 +9335,18 @@ contains
         call assert_equals(1.0_dp, pgen)
         call assert_equals(0.0_dp, (extract_matrix_element(ex,2)))
         call assert_equals(-Root2, extract_matrix_element(ex,1))
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(4, j)
+        call assert_equals(3, k)
+        call assert_equals(4, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstop_raising, ex_typ)
+        call assert_equals(0.0_dp, x1)
+        call assert_equals(-Root2, x0)
+
 
         print *, ""
         print *, "calcFullStopRaisingStochastic tests passed!"
@@ -8181,6 +9362,9 @@ contains
         real(dp) :: pgen
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
 
         ! 3030
         call EncodeBitDet_guga([1,2,5,6],ilut)
@@ -8201,6 +9385,16 @@ contains
         print *, ""
         call calcFullStartLoweringStochastic(ilut, excitInfo, ex, pgen,posSwitches,negSwitches)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(3, i)
+        call assert_equals(1, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstart_lowering, ex_typ)
+        call assert_equals(0.0_dp, x1)
+
         excitInfo = excitationIdentifier(2,1,4,1)
 
         call assert_true(excitInfo%typ == excit_type%fullstart_lowering)
@@ -8217,6 +9411,17 @@ contains
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(2, i)
+        call assert_equals(1, j)
+        call assert_equals(4, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstart_lowering, ex_typ)
+        call assert_equals(0.0_dp, x1)
+
+
         print *, ""
         print *, "calcFullStartLoweringStochastic tests passed!"
         print *, ""
@@ -8231,6 +9436,9 @@ contains
         real(dp) :: pgen
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        integer(int_rdm) :: rdm_ind
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        real(dp) :: x0, x1
 
         ! 0033
         call EncodeBitDet_guga([5,6,7,8],ilut)
@@ -8260,6 +9468,17 @@ contains
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
 
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(1, i)
+        call assert_equals(3, j)
+        call assert_equals(1, k)
+        call assert_equals(4, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstart_raising, ex_typ)
+        call assert_equals(0.0_dp, x1)
+        call assert_equals(-Root2, x0)
+
         excitInfo = excitationIdentifier(2,3,2,4)
 
         call assert_true(excitInfo%typ == excit_type%fullstart_raising)
@@ -8275,6 +9494,17 @@ contains
         ! umat is also stored in there.. so i hope i get it right
         call assert_true(abs(extract_matrix_element(ex,2)) < EPS)
         call assert_true(abs(extract_matrix_element(ex,1) + Root2) < 1.0e-10_dp)
+
+        call extract_stochastic_rdm_info(GugaBits, ex, rdm_ind, x0, x1)
+        call extract_2_rdm_ind(rdm_ind, i, j, k, l, excit_lvl = ex_lvl, excit_typ = ex_typ)
+        call assert_equals(2, i)
+        call assert_equals(3, j)
+        call assert_equals(2, k)
+        call assert_equals(4, l)
+        call assert_equals(2, ex_lvl)
+        call assert_equals(excit_type%fullstart_raising, ex_typ)
+        call assert_equals(0.0_dp, x1)
+        call assert_equals(-Root2, x0)
 
         print *, ""
         print *, "calcFullStartRaisingStochastic tests passed!"
@@ -8415,6 +9645,9 @@ contains
         real(dp) :: pgen
         logical :: compFlag
         real(dp) :: posSwitches(nSpatOrbs), negSwitches(nSpatOrbs)
+        integer :: i, j, k, l, ex_lvl, ex_typ
+        integer(int_rdm) :: rdm_ind
+
 
         ! set up determinant and excitaiton information
         call EncodeBitDet_guga([1,4,5,8],ilut)
@@ -8498,7 +9731,6 @@ contains
         if (excitInfo%valid) then
             ! what can i test here?
             ! only lowerings possible..
-            call print_excitInfo(excitInfo)
             call assert_true(pgen > EPS)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
@@ -8511,7 +9743,6 @@ contains
         if (excitInfo%valid) then
             ! what can i test here?
             ! only lowerings possible..
-            call print_excitInfo(excitInfo)
             call assert_true(pgen > EPS)
             call assert_true(excitInfo%fullstart == 1 .or. excitInfo%fullstart == 2)
             call assert_true(excitInfo%fullEnd == 3 .or. excitInfo%fullEnd == 4)
@@ -8532,7 +9763,6 @@ contains
         call pickOrbitals_double(ilut, nI, excitInfo, pgen)
 
         if (excitInfo%valid) then
-            call print_excitInfo(excitInfo)
             ! what can i test here?
             ! only lowerings possible..
             call assert_true(pgen > EPS)
@@ -8545,7 +9775,6 @@ contains
         call pickOrbitals_double(ilut, nI, excitInfo, pgen)
 
         if (excitInfo%valid) then
-            call print_excitInfo(excitInfo)
             ! what can i test here?
             ! only lowerings possible..
             call assert_true(pgen > EPS)
@@ -8576,10 +9805,17 @@ contains
 
     subroutine test_createStochasticExcitation_double
         character(*), parameter :: this_routine = "test_createStochasticExcitation_double"
-        integer(n_int) :: ilut(0:nifguga), ex(0:nifguga)
+        integer(n_int) :: ilut(0:GugaBits%len_tot), ex(0:GugaBits%len_tot), &
+                          ilutJ(0:GugaBits%len_tot)
         real(dp) :: pgen
-        integer :: dummy(2), nI(4), pos, nex
+        integer :: dummy(2), nI(4), pos, nex, i
         integer(n_int), pointer :: all_ex(:,:)
+        HElement_t(dp) :: helgen, mat_ele, mat_exact
+        integer(int_rdm) :: rdm_ind, rdm_ind_, rdm_ind_1
+        integer(int_rdm), allocatable :: rdm_ind_v(:)
+        real(dp), allocatable :: rdm_mat(:)
+        type(ExcitationInformation_t) :: excitInfo
+        real(dp) :: x0, x1, rdm_mat_ex, rdm_comb
 
         nI = [1,5,6,8]
 
@@ -8597,14 +9833,50 @@ contains
 
         ! what should i test here?
         if (pgen > EPS) then
-            call actHamiltonian(ilut,all_ex,nex)
+            HElGen = extract_matrix_element(ex,1)
+            rdm_ind = extract_rdm_ind(ex)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            x0 = extract_stochastic_rdm_x0(GugaBits, ex)
+            x1 = extract_stochastic_rdm_x1(GugaBits, ex)
 
+            call actHamiltonian(ilut,all_ex,nex)
             pos = binary_search(all_ex(0:nifd,1:nex),ex(0:nifd))
+            call assert_true(pos > 0)
+            ilutJ = all_ex(:,pos)
+            mat_exact = extract_matrix_element(ilutJ,1)
 
             call assert_true(pos > 0)
-            call assert_true(abs(extract_matrix_element(all_ex(:,pos),1) - extract_matrix_element(ex,1)) < 1.0e-10_dp)
+            call assert_equals(HElGen, mat_exact)
+
+            call calc_explicit_2_rdm_guga(ilut, nex, all_ex)
+
+            pos = binary_search(all_ex(0:nifd,1:nex),ex(0:nifd))
+            call assert_true(pos > 0)
+
+            ilutJ = all_ex(:,pos)
+            rdm_ind_1 = extract_rdm_ind(ilutJ)
+
+            rdm_mat_ex = extract_matrix_element(ilutJ,1)
+
+            call assert_equals(rdm_ind_1, rdm_ind_)
+            rdm_comb = combine_x0_x1(rdm_ind, x0, x1)
+            call assert_equals(rdm_mat_ex, rdm_comb)
+
+            call calc_guga_matrix_element(ilut, ex, excitInfo, mat_ele, &
+                t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+
+            call assert_equals(mat_ele, HElGen)
+            call assert_true(any(rdm_ind_ == rdm_ind_v))
+
+            do i = 1, size(rdm_ind_v)
+                if (rdm_ind_ == rdm_ind_v(i)) then
+                    call assert_equals(rdm_mat(i), rdm_comb)
+                end if
+            end do
 
         end if
+
 
         print *, ""
         print *, "createStochasticExcitation_double tests passed!"
@@ -9032,6 +10304,12 @@ contains
         integer(n_int), pointer :: ex(:,:)
         integer(int_rdm) :: rdm_ind
         integer :: i, j
+        HElement_t(dp) :: mat_ele
+        integer(int_rdm), allocatable :: rdm_ind_v(:)
+        real(dp), allocatable :: rdm_mat(:)
+        real(dp) :: x0
+        integer(int_rdm) :: rdm_ind_
+        type(ExcitationInformation_t) :: excitInfo
 
         nI = [1,2,3,4]
 
@@ -9050,9 +10328,6 @@ contains
         call createStochasticExcitation_single(ilut, nI, t, pgen)
 
         if (pgen > 0.0_dp) then
-            print *, "stochastic excitation: "
-            call write_det_guga(6,t,.true.)
-            print *, "exact excitations for this ilut:"
             call actHamiltonian(ilut, ex, nEx)
 
             rdm_ind = extract_rdm_ind(t)
@@ -9066,12 +10341,22 @@ contains
             call calc_explicit_1_rdm_guga(ilut, nEx, ex)
             pos = binary_search(ex(0:nifd,1:nex),t(0:nifd), nifd)
             call assert_true(pos > 0)
-            call assert_equals(extract_rdm_ind(ex(:,pos)), iand(rdm_ind, rdm_ind_bitmask))
+            call assert_equals(extract_rdm_ind(ex(:,pos)), pure_rdm_ind(rdm_ind))
             call assert_equals(extract_matrix_element(ex(:,pos),1), &
                                 extract_stochastic_rdm_x0(GugaBits, t))
 
-        else
-            print *, "no valid excitation created!"
+            ! also test with matrix element calculator!
+            call calc_guga_matrix_element(ilut, t, excitInfo, &
+                mat_ele, t_hamil = .true., calc_type = 2, rdm_ind = rdm_ind_v, &
+                rdm_mat = rdm_mat)
+            x0 = extract_stochastic_rdm_x0(GugaBits, t)
+            rdm_ind_ = pure_rdm_ind(rdm_ind)
+            call assert_equals(1, size(rdm_ind_v))
+            call assert_equals(rdm_ind_v(1), rdm_ind_)
+            call assert_equals(mat_ele, extract_matrix_element(t,1))
+            call assert_equals(rdm_mat(1), x0)
+
+
         end if
 
         print *, "createStochasticExcitation_single tests passed!"
@@ -9095,142 +10380,102 @@ contains
         call EncodeBitDet_guga([1,2,3,4], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(13, nEx)
         ! 0330
         call EncodeBitDet_guga([3,4,5,6],ilut)
         call actHamiltonian(ilut,ex,nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(14, nEx)
          ! 0303
         call EncodeBitDet_guga([3,4,7,8],ilut)
         call actHamiltonian(ilut,ex,nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(14, nEx)
         ! 0033
         call EncodeBitDet_guga([5,6,7,8],ilut)
         call actHamiltonian(ilut,ex,nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(13, nEx)
        ! 1023
         call EncodeBitDet_guga([1,6,7,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(17, nEx)
        ! 3102
         call EncodeBitDet_guga([1,2,3,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(17, nEx)
        ! 3120
         call EncodeBitDet_guga([1,2,3,6], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(17, nEx)
 
         ! 3030
         call EncodeBitDet_guga([1,2,5,6], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(14, nEx)
         ! 3003:
         call EncodeBitDet_guga([1,2,7,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(14, nEx)
         ! 3012
         call EncodeBitDet_guga([1,2,5,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(16, nEx)
         ! 0312
         call EncodeBitDet_guga([3,4,5,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(16, nEx)
         ! 1230
         call EncodeBitDet_guga([1,4,5,6], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(16, nEx)
         ! 1203
         call EncodeBitDet_guga([1,4,7,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(16, nEx)
         ! 1320
         call EncodeBitDet_guga([1,3,4,6], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(17, nEx)
         ! 1302
         call EncodeBitDet_guga([1,3,4,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(17, nEx)
         ! 1032
         call EncodeBitDet_guga([1,5,6,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(17, nEx)
         ! 0132
         call EncodeBitDet_guga([3,5,6,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(17, nEx)
         ! 0123
         call EncodeBitDet_guga([3,6,7,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(17, nEx)
               ! 1122
         call EncodeBitDet_guga([1,3,6,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(12,nEx)
         ! 1212
         call EncodeBitDet_guga([1,4,5,8], ilut)
         call actHamiltonian(ilut, ex, nEx)
         print *, "number of excitations for: ", nEx
-        call write_det_guga(6,ilut)
-        call write_guga_list(6,ex(:,1:nEx))
         call assert_equals(18, nEx)
 
         print *, ""

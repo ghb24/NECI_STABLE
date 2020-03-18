@@ -21,7 +21,7 @@ module guga_init
 
     use hist_data, only: tHistSpawn
 
-    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc, tRDMonfly
+    use LoggingData, only: tCalcFCIMCPsi, tPrintOrbOcc, tRDMonfly, tExplicitAllRDM
 
     use bit_rep_data, only: tUseFlags, nifd
 
@@ -329,12 +329,13 @@ contains
 
 
         ! test flags: to be removed after tests pass
-        if (t_slow_guga_rdms .and. t_fast_guga_rdms) then
-            call stop_all(this_routine, "not both slow and fast GUGA RDMs!")
-        end if
-
-        if (.not. (t_slow_guga_rdms .or. t_fast_guga_rdms)) then
-            call stop_all(this_routine, "neither slow nor fast GUGA rdm implo chosen!")
+        if (tRDMonfly .and. .not. tExplicitAllRDM) then
+            if (t_slow_guga_rdms .and. t_fast_guga_rdms) then
+                call stop_all(this_routine, "not both slow and fast GUGA RDMs!")
+            end if
+            if (.not. (t_slow_guga_rdms .or. t_fast_guga_rdms)) then
+                call stop_all(this_routine, "neither slow nor fast GUGA rdm implo chosen!")
+            end if
         end if
 
         if (tSPN) then

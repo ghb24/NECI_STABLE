@@ -13,7 +13,6 @@ module rdm_general
     use CalcData, only: tInitsRDM, tOutputInitsRDM, tInitsRDMRef
     use SystemData, only: tGUGA
     use util_mod, only: near_zero
-    use guga_data, only: t_fast_guga_rdms
 
     implicit none
 

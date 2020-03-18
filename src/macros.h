@@ -262,3 +262,9 @@ endif
 #endif
 
 #define check_abort_excit(pgen,x) if (near_zero(pgen)) then; x = 0_n_int; return; endif
+
+#ifdef DEBUG_
+#define debug_function_name(name) character(*), parameter :: this_routine = name
+#else
+#define debug_function_name(name)
+#endif

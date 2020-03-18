@@ -107,7 +107,7 @@ contains
         x1_pos = x0_pos + 1
         deltaB_pos = x1_pos + 1
 
-        if (tRDMonfly .and. t_fast_guga_rdms) then
+        if (tRDMonfly) then
             rdm_ind_pos = deltaB_pos + 1
             rdm_x0_pos = rdm_ind_pos + 1
             rdm_x1_pos = rdm_x0_pos  + 1
@@ -1928,7 +1928,7 @@ contains
         end do
 
         ! if we have more entries due to RDMs, print it here
-        if (t_fast_guga_rdms) then
+        if (tRDMonfly) then
             rdm_ind = extract_rdm_ind(ilut)
             write(nunit, "(A,i8)", advance = 'no') ") ", getDeltaB(ilut)
             write(nunit, "(A,3i8,A)", advance = 'no') " | ( ", &

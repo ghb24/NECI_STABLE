@@ -246,7 +246,7 @@ contains
             ! and I think I just need to store it within niftot!
             ! I do not even need and additional entry in the parent
             ! atleast in the communication within spawnedparts!
-            if (tRDMOnfly .and. t_fast_guga_rdms) then
+            if (tRDMOnfly) then
                 IlutBits%ind_rdm_ind = niftot + 1
                 IlutBits%ind_rdm_x0 = IlutBits%ind_rdm_ind + 1
                 IlutBits%ind_rdm_x1 = IlutBits%ind_rdm_x0 + 1
@@ -292,7 +292,7 @@ contains
         IlutBitsParent%len_tot = IlutBitsParent%ind_source
 
         ! and if we use GUGA we have to enlarge this array by 3 entries
-        if (tRDMOnfly .and. tGUGA .and. t_fast_guga_rdms) then
+        if (tRDMOnfly .and. tGUGA) then
             IlutBitsParent%ind_rdm_ind = IlutBitsParent%ind_source + 1
             IlutBitsParent%ind_rdm_x0 = IlutBitsParent%ind_rdm_ind + 1
             IlutBitsParent%ind_rdm_x1 = IlutBitsParent%ind_rdm_x0 + 1

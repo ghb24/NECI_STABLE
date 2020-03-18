@@ -103,6 +103,8 @@ module guga_excitations
 
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
 
+    use LoggingData, only: tRDMonfly
+
     ! variables
     implicit none
 
@@ -5057,7 +5059,8 @@ contains
         ! described by a single excitation, should arrive here.
         select case (excitInfo%typ)
 
-        case (excit_type%single_overlap_L_to_R) ! single overlap lowering into raising
+        case (excit_type%single_overlap_L_to_R)
+            ! single overlap lowering into raising
             ! similar to a single excitation except the (predetermined)
             ! single overlap site.
             call calcSingleOverlapMixedStochastic(ilut, excitInfo, excitation, &
@@ -5507,6 +5510,16 @@ contains
             return
         end if
 
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        ! and I need to do it before the routines below since excitInfo
+        ! gets changed there
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), x0 = 0.0_dp, &
+                x1 = extract_matrix_element(t,2))
+        end if
+
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
 
             if (getDeltaB(t) == 0) then
@@ -5528,6 +5541,7 @@ contains
             pgen = 0.0_dp
             return
         end if
+
 
         call encode_matrix_element(t, 0.0_dp, 2)
         call encode_matrix_element(t, integral, 1)
@@ -6501,6 +6515,15 @@ contains
         ! and finally to end step
         call singleStochasticEnd(excitInfo, t)
 
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), &
+                x0 = extract_matrix_element(t,1), &
+                x1 = extract_matrix_element(t,2))
+        end if
+
         ! for the additional contributing integrals:
         ! i have to consider that there might be a non-overlap excitation,
         ! which leads to the same excitation if there is no change in the
@@ -6658,6 +6681,15 @@ contains
         ! and finally to end step
         call singleStochasticEnd(excitInfo, t)
 
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), &
+                x0 = extract_matrix_element(t,1), &
+                x1 = extract_matrix_element(t,2))
+        end if
+
         ! for the additional contributing integrals:
         ! i have to consider that there might be a non-overlap excitation,
         ! which leads to the same excitation if there is no change in the
@@ -6791,6 +6823,15 @@ contains
 
         ! and finally to end step
         call singleStochasticEnd(excitInfo, t)
+
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), &
+                x0 = extract_matrix_element(t,1), &
+                x1 = extract_matrix_element(t,2))
+        end if
 
         ! todo: think about the additional integral contributions and the
         ! relative sign of different order influences...
@@ -6949,6 +6990,15 @@ contains
         ! and finally to end step
         call singleStochasticEnd(excitInfo, t)
 
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), &
+                x0 = extract_matrix_element(t,1), &
+                x1 = extract_matrix_element(t,2))
+        end if
+
         ! todo: think about the additional integral contributions and the
         ! relative sign of different order influences...
         ! and not sure yet if in this case i can use this function generally
@@ -7068,6 +7118,15 @@ contains
 
         ! and finally to end step
         call singleStochasticEnd(excitInfo, t)
+
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), &
+                x0 = extract_matrix_element(t,1), &
+                x1 = extract_matrix_element(t,2))
+        end if
 
         ! todo: think about the additional integral contributions and the
         ! relative sign of different order influences...
@@ -7209,6 +7268,15 @@ contains
         ! and finally to end step
         call singleStochasticEnd(excitInfo, t)
 
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), &
+                x0 = extract_matrix_element(t,1), &
+                x1 = extract_matrix_element(t,2))
+        end if
+
         ! todo: think about the additional integral contributions and the
         ! relative sign of different order influences...
         ! and not sure yet if in this case i can use this function generally
@@ -7344,6 +7412,16 @@ contains
             branch_pgen = 0.0_dp
             t = 0_n_int
             return
+        end if
+
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        ! and I need to do it before the routines below since excitInfo
+        ! gets changed there
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), x0 = 0.0_dp, &
+                x1 = extract_matrix_element(t,2))
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t,2), 1)
@@ -7960,7 +8038,6 @@ contains
             t = 0_n_int
             return
         end if
-
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
             ! make it crude for now, that we only check if the delta B value
             ! is non-zero at the end, otherwise abort this spawn..
@@ -7974,6 +8051,17 @@ contains
             t = 0_n_int
             return
         end if
+
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        ! and I need to do it before the routines below since excitInfo
+        ! gets changed there
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), x0 = 0.0_dp, &
+                x1 = extract_matrix_element(t,2))
+        end if
+
 
         ! the x1-element is still encoded in the second entry..
         ! move it to the first elemen
@@ -10130,6 +10218,17 @@ contains
 
         call singleStochasticEnd(excitInfo, t)
 
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        ! and I need to do it before the routines below since excitInfo
+        ! gets changed there
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), &
+                x0 = extract_matrix_element(t,1), &
+                x1 = extract_matrix_element(t,2))
+        end if
+
         call encode_matrix_element(t, extract_matrix_element(t,1) + &
             extract_matrix_element(t,2), 1)
         call encode_matrix_element(t, 0.0_dp, 2)
@@ -10778,6 +10877,18 @@ contains
         end do
 
         call singleStochasticEnd(excitInfo, t)
+
+        ! if we do RDMs also store the x0 and x1 coupling coeffs
+        ! and I need to do it before the routines below since excitInfo
+        ! gets changed there
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), &
+                x0 = extract_matrix_element(t,1), &
+                x1 = extract_matrix_element(t,2))
+        end if
+
 
         ! put everything in first entry
         call encode_matrix_element(t, extract_matrix_element(t,1) + &
@@ -12424,6 +12535,13 @@ contains
 
         call singleStochasticEnd(excitInfo, t)
 
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
+                x0 = extract_matrix_element(t,1) * tempWeight)
+        end if
+
         ! for efficiency only encode umat here
         call encode_matrix_element(t, 0.0_dp, 2)
         call update_matrix_element(t, tempWeight * umat, 1)
@@ -12561,9 +12679,18 @@ contains
         clr_orb(t, 2*iOrb)
         clr_orb(t, 2*iOrb - 1)
 
+        call update_matrix_element(t, tempWeight * nOpen * Root2, 1)
+
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
+                x0 = extract_matrix_element(t,1))
+        end if
+
         ! also just encode all matrix element contributions here
         call encode_matrix_element(t, 0.0_dp, 2)
-        call update_matrix_element(t, umat * tempWeight * nOpen * Root2, 1)
+        call update_matrix_element(t, umat, 1)
 
     end subroutine calcFullstopRaisingStochastic
 
@@ -12698,9 +12825,18 @@ contains
         set_orb(t, 2*iOrb)
         set_orb(t, 2*iOrb - 1)
 
+        call update_matrix_element(t, tempWeight * nOpen * Root2, 1)
+
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
+                x0 = extract_matrix_element(t,1))
+        end if
+
         ! update all matrix element contributions at once
         call encode_matrix_element(t, 0.0_dp, 2)
-        call update_matrix_element(t, umat * tempWeight * nOpen * Root2, 1)
+        call update_matrix_element(t, umat, 1)
 
     end subroutine calcFullstopLoweringStochastic
 
@@ -12854,7 +12990,7 @@ contains
         end select
 
         call encode_matrix_element(t, 0.0_dp, 2)
-        call encode_matrix_element(t, Root2 * tempWeight * umat * (-1.0_dp)**nOpen, 1)
+        call encode_matrix_element(t, Root2 * tempWeight * (-1.0_dp)**nOpen, 1)
 
         ! and then we have to do just a regular single excitation
         do iOrb = semi + 1, ende - 1
@@ -12866,6 +13002,15 @@ contains
         end do
 
         call singleStochasticEnd(excitInfo, t)
+
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
+                x0 = extract_matrix_element(t, 1))
+        end if
+
+        call update_matrix_element(t, umat, 1)
 
     end subroutine calcFullStartLoweringStochastic
 
@@ -13027,7 +13172,7 @@ contains
         end select
 
         call encode_matrix_element(t, 0.0_dp, 2)
-        call encode_matrix_element(t, Root2 * tempWeight * umat * (-1.0_dp)**nOpen, 1)
+        call encode_matrix_element(t, Root2 * tempWeight * (-1.0_dp)**nOpen, 1)
 
         ! x0 matrix elements cant be 0 at a RR semistop
         ! and then we have to do just a regular single excitation
@@ -13044,6 +13189,15 @@ contains
         end do
 
         call singleStochasticEnd(excitInfo, t)
+
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
+                x0 = extract_matrix_element(t, 1))
+        end if
+
+        call update_matrix_element(t, umat, 1)
 
     end subroutine calcFullStartRaisingStochastic
 
@@ -14521,7 +14675,7 @@ contains
 
     end function getPlus_overlapLowering
 
-    subroutine actHamiltonian(ilut, excitations, nTot, t_singles_only)
+    subroutine actHamiltonian(ilut, excitations, nTot, t_singles_only, t_print_time)
         ! subroutine to calculate the action of the full Hamiltonian on a
         ! a single CSF given in ilut bit representation and outputs a list
         ! of excitations also in ilut format, where the exact matrix element
@@ -14530,21 +14684,24 @@ contains
         integer(n_int), intent(in) :: ilut(0:nifguga)
         integer(n_int), intent(out), pointer :: excitations(:,:)
         integer, intent(out) :: nTot
-        logical, intent(in), optional :: t_singles_only
+        logical, intent(in), optional :: t_singles_only, t_print_time
         character(*), parameter :: this_routine = "actHamiltonian"
         type(timer), save :: proc_timer
 
         integer(n_int), pointer :: tmp_all_excits(:,:)
         integer :: i, j, k, l, nExcits, nMax, ierr
         integer(n_int), pointer :: tempExcits(:,:)
-        logical :: t_temp_singles
+        logical :: t_singles_only_, t_print_time_
         integer :: n
         real(dp) :: cmp
 
+        def_default(t_singles_only_, t_singles_only, .false.)
+        def_default(t_print_time_, t_print_time, .false.)
+
         if (.not. present(t_singles_only)) then
-            t_temp_singles = .false.
+            t_singles_only_ = .false.
         else
-            t_temp_singles = t_singles_only
+            t_singles_only_ = t_singles_only
         end if
 
         ASSERT(isProperCSF_ilut(ilut))
@@ -14624,7 +14781,7 @@ contains
 
         ! double excitations
         ! do it really primitive for now. -> make it more elaborate later
-        if (.not. t_temp_singles) then
+        if (.not. t_singles_only_) then
         if (.not. (thub .and. treal)) then
         do i = 1, nSpatOrbs
             do j = 1, nSpatOrbs
@@ -14728,10 +14885,11 @@ contains
         ! is way bigger then nTot..
 
         call halt_timer(proc_timer)
-        ! should i also print out the elapsed time?
-        write(iout,*) " Exact Hamiltonian application done! "
-        write(iout,*) " Elapsed time: ", get_total_time(proc_timer)
-        call neci_flush(iout)
+        if (t_print_time_) then
+            write(iout,*) " Exact Hamiltonian application done! "
+            write(iout,*) " Elapsed time: ", get_total_time(proc_timer)
+            call neci_flush(iout)
+        end if
 
     end subroutine actHamiltonian
 
@@ -16794,6 +16952,14 @@ contains
 
         call encode_matrix_element(t, 0.0_dp, 2)
         call encode_matrix_element(t, 2.0_dp * (-1.0_dp)**nOpen, 1)
+
+        if (tRDMonfly) then
+            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
+                excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
+                x0 = extract_matrix_element(t,1))
+        end if
+
 
         excitations(:,1) = t
 
