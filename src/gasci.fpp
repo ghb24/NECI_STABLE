@@ -453,7 +453,7 @@ contains
         @:def_default(n_total_, n_total, 1)
         @:ASSERT(1 <= n_total_)
         if (present(excess)) then
-            @:ASSERT(abs(excess%val) <= n_total_)
+            @:ASSERT(abs(excess%val) <= n_total_, excess, n_total_)
         end if
 
         allocate(splitted_det_I(get_nGAS(GAS_spec)))
@@ -485,7 +485,7 @@ contains
             if (present(excess)) then
                 if (abs(excess%val) == n_total_) then
                     allocate(m_s)
-                    m_s%val = excess%val / abs(excess%val)
+                    m_s%val = -(excess%val / abs(excess%val))
                 end if
             end if
             occupied = SpinOrbIdx_t([(splitted_det_I(i)%idx, i = spaces(1), spaces(2))], m_s)
@@ -537,7 +537,6 @@ contains
             pgen = pgen * (1.0_dp - pDoubles)
         else
             ic = 2
-            write(*, *) 'call gen_exc_double'
             associate(r => [genrand_real2_dSFMT(), genrand_real2_dSFMT()])
                 call gen_exc_double(GAS_specification, SpinOrbIdx_t(nI), ilutI, r, &
                                     nJ, ilutJ, ex_mat, par, pgen)
@@ -601,7 +600,6 @@ contains
         end if
 
         pgen = pgen_particle * pgen_hole
-        write(*, *) 'succesful single', exc%val
     end subroutine
 
     subroutine gen_exc_double(GAS_spec, det_I, ilutI, r, nJ, ilutJ, ex_mat, par, pgen)
@@ -641,15 +639,13 @@ contains
         @:ASSERT(exc%val(1, 1) /= exc%val(2, 1), exc%val)
 
         associate(deleted => SpinOrbIdx_t(exc%val(1, :)))
-        ! Get possible holes for the first particle, while fullfilling GAS-constraints.
+        ! Get possible holes for the first particle, while fullfilling and spin- and GAS-constraints.
         ! and knowing that a second particle will be created afterwards!
         possible_holes = get_possible_holes(&
             GAS_spec, det_I, add_holes=deleted, n_total=2, excess=-sum(calc_spin(deleted)))
         @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
 
-        write(*, *) 'PEW', 1
         if (size(possible_holes) == 0) then
-            write(*, *) 'ASDF', 1
             pgen = pgen_particles
             call zeroResult()
             return
@@ -665,21 +661,21 @@ contains
         ! Pick second hole.
         ! The total spin projection of the created particles has to add up
         ! to the total spin projection of the deleted particles.
-!         m_s_2 = sum(calc_spin(deleted)) - m_s_1
-!         @:ASSERT(any(m_s_2 == [alpha, beta]), m_s_2, calc_spin(deleted), sum(calc_spin(deleted)), m_s_1, sum(calc_spin(deleted)) - m_s_1)
-
         ! Get possible holes for the second particle,
         ! while fullfilling GAS- and Spin-constraints.
-        possible_holes = get_possible_holes(&
-                GAS_spec, det_I, add_holes=deleted, &
-                add_particles=SpinOrbIdx_t([exc%val(2, 1)]), &
-                n_total=1, excess=m_s_1 - sum(calc_spin(deleted)))
-        @:ASSERT(disjoint(possible_holes%idx, [exc%val(2, 1)]))
-        @:ASSERT(disjoint(possible_holes%idx, det_I%idx), GAS_spec%n_orbs, GAS_spec%n_min, GAS_spec%n_max, det_I%idx, deleted%idx, exc%val(2, 1), m_s_2%val)
+        associate(excess => m_s_1 - sum(calc_spin(deleted)))
+            @:ASSERT(abs(excess%val) <= 1)
 
-        write(*, *) 'PEW', 2
+            possible_holes = get_possible_holes(&
+                    GAS_spec, det_I, add_holes=deleted, &
+                    add_particles=SpinOrbIdx_t([exc%val(2, 1)]), &
+                    n_total=1, excess=excess)
+        end associate
+
+        @:ASSERT(disjoint(possible_holes%idx, [exc%val(2, 1)]))
+        @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
+
         if (size(possible_holes) == 0) then
-            write(*, *) 'ASDF', 2
             pgen = pgen_particles * pgen_first_pick
             call zeroResult()
             return
@@ -692,7 +688,6 @@ contains
 
         if (i /= 0) then
             exc%val(2, 2) = possible_holes%idx(i)
-            write(*, *) 'found tgt2', exc%val
         else
             pgen = pgen_particles * pgen_first_pick
             call zeroResult()
@@ -739,7 +734,6 @@ contains
         end associate
 
         pgen = pgen_particles * pgen_first_pick * sum(pgen_second_pick)
-        write(*, *) 'succesfull double', exc%val
         contains
 
             subroutine zeroResult()
