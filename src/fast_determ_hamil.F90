@@ -795,7 +795,7 @@ contains
             ! Hamiltonian row for this determinant
             ! Now finally allocate and fill in the actual deterministic
             ! Hamiltonian row for this determinant
-            sparse_core_ham(i)%num_elements = hamil_row%num_elements()
+            sparse_core_ham(i)%num_elements = int(hamil_row%num_elements())
             ! Dumping the buffer transfers its content and reset the buffer
             call hamil_row%dump(sparse_core_ham(i)%elements)
             call hamil_pos%dump(sparse_core_ham(i)%positions)
@@ -1416,7 +1416,7 @@ contains
 
             ! Now finally allocate and fill in the actual deterministic
             ! Hamiltonian row for this determinant
-            sparse_core_ham(i)%num_elements = hamil_row%num_elements()
+            sparse_core_ham(i)%num_elements = int(hamil_row%num_elements())
             ! Dumping the buffer transfers its content and reset the buffer
             call hamil_row%dump(sparse_core_ham(i)%elements)
             call hamil_pos%dump(sparse_core_ham(i)%positions)
