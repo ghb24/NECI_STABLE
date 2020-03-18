@@ -50,6 +50,7 @@ module AnnihilationMod
     use fcimc_helper, only: CheckAllowedTruncSpawn
 
     use initiator_space_procs, only: set_conn_init_space_flags_slow
+    use guga_bitRepOps, only: transfer_stochastic_rdm_info
 
     implicit none
 
@@ -343,6 +344,15 @@ module AnnihilationMod
                             end if
                         end do
 
+                        ! in the guga case we also need to transfer the rdm information
+                        if (tGUGA) then
+                            call transfer_stochastic_rdm_info(&
+                                SpawnedParts(:, BeginningBlockDet), &
+                                Spawned_Parents(:, Parent_Array_Ind), &
+                                BitIndex_from = IlutBits, &
+                                BitIndex_to = IlutBitsParent)
+                        end if
+
                         ! The first nifd of the Spawned_Parents entry is the
                         ! parent determinant, the nifd + 1 entry is the Ci.
                         ! Parent_Array_Ind keeps track of the position in
@@ -577,6 +587,13 @@ module AnnihilationMod
                 Spawned_Parents(IlutBitsParent%ind_source,Parent_Array_Ind) = part_type
                 Parent_Array_Ind = Parent_Array_Ind + 1
                 Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
+
+                ! in the guga implementation we also need to transfer rdm information
+                if (tGUGA) then
+                    call transfer_stochastic_rdm_info(new_det, &
+                        Spawned_Parents(:,Parent_Array_Ind), &
+                        BitIndex_from = IlutBitsParent, BitIndex_to = IlutBitsParent)
+                end if
             end if
         end if
 

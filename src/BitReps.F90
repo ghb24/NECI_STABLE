@@ -36,6 +36,8 @@ module bit_reps
 
     use LoggingData, only: tRDMOnfly
 
+    use guga_bitRepOps, only: transfer_stochastic_rdm_info
+
     implicit none
 
     ! Structure of a bit representation:
@@ -644,6 +646,14 @@ contains
             transfer(RDMBiasFacCurr, ilut(IlutBits%ind_rdm_fac))
         ! store the flag
         ilut(IlutBits%ind_parent_flag) = ilut_parent(IlutBits%ind_flag)
+
+        ! in GUGA we also need to encode the rdm information
+        ! BUT be careful here! the encoding should actually be done with
+        ! IlutBits here, as the input ilut is of len_bcast length
+        if (tGUGA) then
+            call transfer_stochastic_rdm_info(ilut_parent, ilut, &
+                BitIndex_from = IlutBits, BitIndex_to = IlutBits)
+        end if
 
     end subroutine
 

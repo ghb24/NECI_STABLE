@@ -58,7 +58,6 @@ module real_time_procs
     use tau_search, only: log_spawn_magnitude
     use rdm_general, only: calc_rdmbiasfac
     use global_det_data, only: global_determinant_data
-    use rdm_filling, only: det_removed_fill_diag_rdm, check_fillRDM_DiDj
 ! RT_M_Merge: Disabled rdms
 !    use rdm_data, only: nrdms, rdms
     use hash, only: remove_hash_table_entry

@@ -23,7 +23,7 @@ module guga_data
               t_mimic_slow, rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits
 
-    logical :: t_slow_guga_rdms = .true.
+    logical :: t_slow_guga_rdms = .false.
     logical :: t_fast_guga_rdms = .false.
     logical :: t_mimic_slow = .false.
     ! ========================== type defs ===================================

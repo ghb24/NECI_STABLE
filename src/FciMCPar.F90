@@ -680,13 +680,6 @@ module FciMCParMod
                     NMCyc=Iter+StepsSft
                     tSoftExitFound = .false.
 
-                    !TIncrement=.false.
-                    !! The diagonal elements of the RDM will not have been calculated (as we didn't know
-                    !! it was the last iteration), so this must be done now.
-                    !It's problematic trying to det the core space off-diags done here too, hence my change
-                    !to the way softexit is handled.
-                    !if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
-                    !EXIT
                 ENDIF
                 IF(tTimeExit.and.(TotalTime8.ge.MaxTimeExit)) THEN
                     !Is it time to exit yet?
@@ -694,9 +687,6 @@ module FciMCParMod
                     NMCyc=Iter+StepsSft
                     ! Set this to false so that this if statement won't be entered next time.
                     tTimeExit = .false.
-                    !tIncrement=.false.
-                    !if(tFillingStochRDMonFly) call fill_rdm_softexit(TotWalkers)
-                    !EXIT
                 ENDIF
                 IF(iExitWalkers /= -1_int64 .and. sum(AllTotParts) > iExitWalkers) THEN
                     !Exit criterion based on total walker number met.

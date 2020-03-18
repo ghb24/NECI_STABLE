@@ -30,7 +30,8 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double, &
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, t_slow_guga_rdms, rdm_ind_bitmask
+                         excit_type, gen_type, t_slow_guga_rdms, rdm_ind_bitmask, &
+                         t_fast_guga_rdms
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -45,9 +46,10 @@ module guga_rdm
                               extract_1_rdm_ind, extract_2_rdm_ind, &
                               encode_rdm_ind, extract_rdm_ind, &
                               encode_stochastic_rdm_info, &
-                              extract_excit_type_rdm, extract_excit_lvl_rdm
+                              extract_excit_type_rdm, extract_excit_lvl_rdm, &
+                              transfer_stochastic_rdm_info
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
-    use bit_rep_data, only: GugaBits
+    use bit_rep_data, only: GugaBits, IlutBits
     use FciMCData, only: projEDet, CurrentDets, TotWalkers, ilutref, HFDet_True
     use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag, RDMExcitLevel, &
                            tExplicitAllRDM
@@ -339,6 +341,10 @@ contains
         character(*), parameter :: this_routine = "Add_RDM_HFConnections_GUGA"
 #endif
 
+        ! damn.. here we need to do the 'slow' implementation i guess..
+        ! since NJ does not come from a spawning event but is
+        ! done deterministically for the HF connections..
+        ! there should be a clever way to do this..
         if (excit_lvl == 1 .or. excit_lvl == 2) then
             call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, HFDet_True, nJ, &
                 av_sign_hf(2::2), iter_rdm * av_sign_j(1::2))
@@ -349,63 +355,95 @@ contains
     end subroutine Add_RDM_HFConnections_GUGA
 
     subroutine Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nI, nJ, sign_i, &
-            sign_j)
+            sign_j, ilutI, ilutJ)
         ! corresponding GUGA routine from function found in rdm_filling.F90
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer, intent(in) :: nI(nel), nJ(nel)
+        integer(n_int), intent(in), optional :: IlutI(0:IlutBits%len_tot), &
+                                                IlutJ(0:IlutBits%len_tot)
         real(dp), intent(in) :: sign_i(:), sign_j(:)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_From_IJ_Pair_GUGA"
 #endif
-        integer(n_int) :: ilutI(0:GugaBits%len_tot), ilutJ(0:GugaBits%len_tot)
         type(ExcitationInformation_t) :: excitInfo
         HElement_t(dp) :: mat_ele
         integer(int_rdm), allocatable :: rdm_ind(:)
         real(dp), allocatable :: rdm_mat(:)
         integer :: i, j, k, l, n
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
+        integer(n_int) :: ilutGi(0:GugaBits%len_tot), ilutGj(0:GugaBits%len_tot)
 
-        call EncodeBitDet_guga(nI, ilutI)
-        call EncodeBitDet_guga(nJ, ilutJ)
 
-        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
-            rdm_mat = rdm_mat)
+        if (t_fast_guga_rdms) then
 
-        ! i assume sign_i and sign_j are not 0 if we end up here..
-        do n = 1, size(rdm_ind)
-            if (.not. near_zero(rdm_mat(n))) then
-                if (excitInfo%excitLvl == 1) then
-                    if (RDMExcitLevel == 1) then
-                        call fill_sings_1rdm_guga(one_rdms, sign_I, sign_J, &
-                            rdm_mat(n), rdm_ind(n))
-                    else
-                        call fill_sings_2rdm_guga(spawn, ilutI, &
-                            ilutJ, sign_i, sign_j, rdm_mat(n), rdm_ind(n))
+            ! in the 'fast' GUGA RDM implementation we should have
+            ! everything already in the iluts passed in..
+            ! but my problem now is that I do not know in which ilut
+            ! this information is stored.. since this function gets called
+            ! in the conjugated sense too :D
+            ! so I think I should write another function or pass an
+            ! addtional variable to specify which ilut holds the
+            ! rdm information..
+
+            ASSERT(present(IlutI) .and. present(IlutJ))
+
+            call convert_ilut_toGUGA(ilutI, ilutGi)
+            call transfer_stochastic_rdm_info(ilutI, ilutGi, &
+                BitIndex_from = IlutBits, BitIndex_to = GugaBits)
+
+            call convert_ilut_toGUGA(ilutJ, ilutGj)
+            call transfer_stochastic_rdm_info(ilutJ, ilutGj, &
+                BitIndex_from = IlutBits, BitIndex_to = GugaBits)
+
+            call write_det_guga(6, IlutGi)
+            call write_det_guga(6, IlutGj)
+
+            call stop_all("here", "now")
+
+        else
+
+            call EncodeBitDet_guga(nI, ilutGi)
+            call EncodeBitDet_guga(nJ, ilutGj)
+
+            call calc_guga_matrix_element(IlutGi, ilutGj, excitInfo, mat_ele, &
+                t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
+                rdm_mat = rdm_mat)
+
+            ! i assume sign_i and sign_j are not 0 if we end up here..
+            do n = 1, size(rdm_ind)
+                if (.not. near_zero(rdm_mat(n))) then
+                    if (excitInfo%excitLvl == 1) then
+                        if (RDMExcitLevel == 1) then
+                            call fill_sings_1rdm_guga(one_rdms, sign_I, sign_J, &
+                                rdm_mat(n), rdm_ind(n))
+                        else
+                            call fill_sings_2rdm_guga(spawn, IlutGi, &
+                                ilutGj, sign_i, sign_j, rdm_mat(n), rdm_ind(n))
+                        end if
+                    else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
+                        call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
+                        full_sign = sign_I * sign_J * rdm_mat(n)
+                        select case (excitInfo%typ)
+                        ! in this implementation right now, I have to sample
+                        ! all full-start/stop contributions for all the
+                        ! excitations.. so there is a double counting going on
+                        ! this i have to unbias here (there could be even
+                        ! more double counting, but thats to see)
+                        case(excit_type%fullstop_L_to_R, &
+                             excit_type%fullstop_R_to_L, &
+                             excit_type%fullstart_L_to_R, &
+                             excit_type%fullstart_R_to_L, &
+                             excit_type%fullstart_stop_mixed)
+
+                            full_sign = full_sign / (real(size(rdm_mat),dp) / 2.0_dp)
+                        end select
+
+                        call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
                     end if
-                else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
-                    call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
-                    full_sign = sign_I * sign_J * rdm_mat(n)
-                    select case (excitInfo%typ)
-                    ! in this implementation right now, I have to sample
-                    ! all full-start/stop contributions for all the
-                    ! excitations.. so there is a double counting going on
-                    ! this i have to unbias here (there could be even
-                    ! more double counting, but thats to see)
-                    case(excit_type%fullstop_L_to_R, &
-                         excit_type%fullstop_R_to_L, &
-                         excit_type%fullstart_L_to_R, &
-                         excit_type%fullstart_R_to_L, &
-                         excit_type%fullstart_stop_mixed)
-
-                        full_sign = full_sign / (real(size(rdm_mat),dp) / 2.0_dp)
-                    end select
-
-                    call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
                 end if
-            end if
-        end do
+            end do
+        end if
 
     end subroutine Add_RDM_From_IJ_Pair_GUGA
 

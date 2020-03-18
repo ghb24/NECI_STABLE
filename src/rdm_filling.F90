@@ -9,7 +9,7 @@ module rdm_filling
     use bit_reps, only: get_initiator_flag_by_run
     use constants
     use SystemData, only: tGUGA, nbasis
-    use guga_bitRepOps, only: getExcitation_guga
+    use guga_bitRepOps, only: transfer_stochastic_rdm_info
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
          tNonVariationalRDMs
@@ -17,6 +17,7 @@ module rdm_filling
     use DetBitOps, only: DetBitEq
     use guga_rdm, only: Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
                         fill_spawn_rdm_diag_guga, Add_RDM_HFConnections_GUGA
+
 
     implicit none
 
@@ -446,6 +447,7 @@ contains
         integer :: dest_part_type, source_part_type, run
         integer(n_int) :: source_flags
         logical :: spawning_from_ket_to_bra, tNonInitParent
+        integer(n_int) :: ilutI(0:IlutBits%len_tot)
 
         ! Spawning from multiple parents, to iLutJ, which has SignJ.
 
@@ -552,14 +554,30 @@ contains
                 ! which is clearly as it should be if the determinant we are
                 ! spawning from (nI) is the bra of the RDM.
 
+                if (tGUGA) then
+                    ! for ease of use tranfer the rdm info from the
+                    ! parent ilut to a 'regular' niftot ilut
+                    ! otherwise I would need to pass the bitindex to the
+                    ! add_ij pair functions..
+                    IlutI = 0_n_int
+                    ilutI(0:IlutBits%len_orb) = &
+                        Spawned_Parents(0:IlutBitsParent%len_orb,i)
+
+                    call transfer_stochastic_rdm_info(Spawned_Parents(:,i), &
+                        ilutI, BitIndex_from = IlutBitsParent, &
+                        BitIndex_to = IlutBits)
+                end if
+
                 if (spawning_from_ket_to_bra) then
                     if (tHPHF) then
                         call Fill_Spin_Coupled_RDM(spawn, one_rdms, &
                             Spawned_Parents(0:IlutBitsParent%len_orb,i), &
                             iLutJ, nI, nJ, input_sign_i, input_sign_j)
+
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
-                            nI, nJ, input_sign_i, input_sign_j)
+                            nI, nJ, input_sign_i, input_sign_j, ilutI, ilutJ)
+
                     else
                         call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, input_sign_i, input_sign_j)
                     end if
@@ -570,9 +588,11 @@ contains
                         call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutJ, &
                             Spawned_Parents(0:IlutBitsParent%len_orb,i), &
                             nJ, nI, input_sign_j, input_sign_i)
+
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
-                            nJ, nI, input_sign_j, input_sign_i)
+                            nJ, nI, input_sign_j, input_sign_i, ilutJ, ilutI)
+
                     else
                         call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, nI, &
                             input_sign_j, input_sign_i)
@@ -947,6 +967,8 @@ contains
         integer :: nI(nel), nJ(nel), IC
         integer :: IterRDM, connect_elem
 
+        character(*), parameter :: this_routine = "fill_rdm_offdiag_deterministic"
+
         ! IterRDM will be the number of iterations that the contributions are
         ! ech weighted by.
         if (mod((iter + PreviousCycles - IterRDMStart + 1), RDMEnergyIter) == 0) then
@@ -1008,6 +1030,10 @@ contains
                 if (tHPHF) then
                     call decode_bit_det(nJ, iLutJ)
                     call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ)
+
+                else if (tGUGA) then
+                    call stop_all(this_routine, "TODO in GUGA")
+
                 else
                     if (IC == 1) then
                         ! Single excitation - contributes to 1- and 2-RDM

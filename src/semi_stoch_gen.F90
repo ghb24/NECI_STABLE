@@ -48,7 +48,6 @@ contains
         use FciMCData, only: SemiStoch_Davidson_Time, determ_last, s_first_ind, s_last_ind
         use FciMCData, only: SemiStoch_nonhermit_Time
         use FciMCData, only: NoInitDets, AllNoInitDets
-        use FciMCData, only: tFillingStochRdmOnFly
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
