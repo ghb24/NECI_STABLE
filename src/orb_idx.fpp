@@ -1,4 +1,5 @@
 #include "macros.h"
+#:include "macros.fpph"
 #:set OrbIdxTypes = ['SpinOrbIdx_t', 'SpatOrbIdx_t']
 
 module orb_idx_mod
@@ -57,6 +58,7 @@ module orb_idx_mod
 
     interface operator (-)
         module procedure sub_SpinProj_t_SpinProj_t
+        module procedure neg_SpinProj_t
     end interface
 
     interface sum
@@ -65,13 +67,14 @@ module orb_idx_mod
 
     contains
 
-    pure function construction_from_array_SpinOrbIdx_t(idx, m_s) result(res)
+    DEBUG_IMPURE function construction_from_array_SpinOrbIdx_t(idx, m_s) result(res)
         integer, intent(in) :: idx(:)
         type(SpinProj_t), intent(in), optional :: m_s
-
         type(SpinOrbIdx_t) :: res
+        character(*), parameter :: this_routine = 'construction_from_array_SpinOrbIdx_t'
 
         if (present(m_s)) then
+            @:ASSERT(any(m_s == [alpha, beta]))
             associate(spins => calc_spin_raw(idx))
                 res%idx = pack(idx, spins%val == m_s%val)
             end associate
@@ -104,14 +107,16 @@ module orb_idx_mod
     end function
 #:endfor
 
-    pure function SpinOrbIdx_t_from_SpatOrbIdx_t(spat_orbs, m_s) result(res)
+    DEBUG_IMPURE function SpinOrbIdx_t_from_SpatOrbIdx_t(spat_orbs, m_s) result(res)
         type(SpatOrbIdx_t), intent(in) :: spat_orbs
         type(SpinProj_t), intent(in), optional :: m_s
         type(SpinOrbIdx_t) :: res
 
         character(*), parameter :: this_routine = 'SpinOrbIdx_t_from_SpatOrbIdx_t'
 
+
         if (present(m_s)) then
+            @:ASSERT(any(m_s == [alpha, beta]))
             res%idx = f(spat_orbs%idx(:), m_s)
         else
             allocate(res%idx(2 * size(spat_orbs)))
@@ -158,6 +163,12 @@ module orb_idx_mod
         type(SpinProj_t), intent(in) :: lhs, rhs
         type(SpinProj_t) :: res
         res%val = lhs%val - rhs%val
+    end function
+
+    elemental function neg_SpinProj_t(m_s) result(res)
+        type(SpinProj_t), intent(in) :: m_s
+        type(SpinProj_t) :: res
+        res%val = -m_s%val
     end function
 
     elemental function eq_SpinProj_t_SpinProj_t(lhs, rhs) result(res)

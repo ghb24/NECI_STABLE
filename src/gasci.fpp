@@ -435,18 +435,26 @@ contains
 #:endfor
 
 
-    function get_possible_holes(GAS_spec, det_I, add_holes, add_particles, n_total, m_s) result(possible_holes)
+    function get_possible_holes(GAS_spec, det_I, add_holes, add_particles, n_total, excess) result(possible_holes)
         type(GASSpec_t), intent(in) :: GAS_spec
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(SpinOrbIdx_t), intent(in), optional :: add_holes
         type(SpinOrbIdx_t), intent(in), optional :: add_particles
         integer, intent(in), optional :: n_total
-        type(SpinProj_t), intent(in), optional :: m_s
+        type(SpinProj_t), intent(in), optional :: excess
+        character(*), parameter :: this_routine = 'get_possible_holes'
 
         type(SpinOrbIdx_t) :: possible_holes
 
         type(SpinOrbIdx_t), allocatable :: splitted_det_I(:)
         integer, allocatable :: spaces(:)
+        integer :: n_total_
+
+        @:def_default(n_total_, n_total, 1)
+        @:ASSERT(1 <= n_total_)
+        if (present(excess)) then
+            @:ASSERT(abs(excess%val) <= n_total_)
+        end if
 
         allocate(splitted_det_I(get_nGAS(GAS_spec)))
         splitted_det_I = split_per_GAS(GAS_spec, det_I)
@@ -455,7 +463,7 @@ contains
         ! into optional arguments without checking!
         spaces = get_possible_spaces(&
              GAS_spec, splitted_det_I, add_holes=add_holes, &
-             add_particles=add_particles, n_total=n_total)
+             add_particles=add_particles, n_total=n_total_)
 
         if (size(spaces) == 0) then
             possible_holes%idx = [integer::]
@@ -465,6 +473,7 @@ contains
         block
             integer :: i, lower_bound, upper_bound
             type(SpinOrbIdx_t) :: possible_values, occupied
+            type(SpinProj_t), allocatable :: m_s
 
             if (spaces(1) == 1) then
                 lower_bound = 1
@@ -473,6 +482,12 @@ contains
             end if
             upper_bound = GAS_spec%n_orbs(spaces(2))
 
+            if (present(excess)) then
+                if (abs(excess%val) == n_total_) then
+                    allocate(m_s)
+                    m_s%val = excess%val / abs(excess%val)
+                end if
+            end if
             occupied = SpinOrbIdx_t([(splitted_det_I(i)%idx, i = spaces(1), spaces(2))], m_s)
             possible_values = SpinOrbIdx_t(SpatOrbIdx_t([(i, i = lower_bound, upper_bound)]), m_s)
 
@@ -562,7 +577,7 @@ contains
         ! while fullfilling GAS-constraints.
         associate(deleted => SpinOrbIdx_t([exc%val(1)]))
             possible_holes = get_possible_holes(&
-                GAS_spec, det_I, add_holes=deleted, m_s=calc_spin_raw(exc%val(1)))
+                GAS_spec, det_I, add_holes=deleted, excess=-calc_spin_raw(exc%val(1)))
         end associate
 
 
@@ -629,7 +644,7 @@ contains
         ! Get possible holes for the first particle, while fullfilling GAS-constraints.
         ! and knowing that a second particle will be created afterwards!
         possible_holes = get_possible_holes(&
-            GAS_spec, det_I, add_holes=deleted, n_total=2)
+            GAS_spec, det_I, add_holes=deleted, n_total=2, excess=-sum(calc_spin(deleted)))
         @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
 
         write(*, *) 'PEW', 1
@@ -650,15 +665,15 @@ contains
         ! Pick second hole.
         ! The total spin projection of the created particles has to add up
         ! to the total spin projection of the deleted particles.
-        m_s_2 = sum(calc_spin(deleted)) - m_s_1
-        @:ASSERT(any(m_s_2 == [alpha, beta]), m_s_2%val)
+!         m_s_2 = sum(calc_spin(deleted)) - m_s_1
+!         @:ASSERT(any(m_s_2 == [alpha, beta]), m_s_2, calc_spin(deleted), sum(calc_spin(deleted)), m_s_1, sum(calc_spin(deleted)) - m_s_1)
 
         ! Get possible holes for the second particle,
         ! while fullfilling GAS- and Spin-constraints.
         possible_holes = get_possible_holes(&
                 GAS_spec, det_I, add_holes=deleted, &
                 add_particles=SpinOrbIdx_t([exc%val(2, 1)]), &
-                n_total=1, m_s=m_s_2)
+                n_total=1, excess=m_s_1 - sum(calc_spin(deleted)))
         @:ASSERT(disjoint(possible_holes%idx, [exc%val(2, 1)]))
         @:ASSERT(disjoint(possible_holes%idx, det_I%idx), GAS_spec%n_orbs, GAS_spec%n_min, GAS_spec%n_max, det_I%idx, deleted%idx, exc%val(2, 1), m_s_2%val)
 
@@ -692,7 +707,7 @@ contains
             possible_holes = get_possible_holes(&
                     GAS_spec, det_I, add_holes=deleted, &
                     add_particles=SpinOrbIdx_t([tgt2]), &
-                    n_total=1, m_s=m_s_1)
+                    n_total=1, excess=calc_spin_raw(tgt2) - sum(calc_spin(deleted)))
             @:ASSERT(disjoint(possible_holes%idx, [tgt2]))
             @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
 

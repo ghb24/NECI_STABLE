@@ -17,7 +17,8 @@ contains
         orbs = SpinOrbIdx_t([1, 3, 4, 5, 7])
         expected = [beta, beta, alpha, beta, beta]
         calculated = calc_spin(orbs)
-        call assert_equals(expected%val, calculated%val, size(orbs))
+        call assert_true(all(expected == calculated))
+        call assert_true(size(expected) == size(calculated))
 
     end subroutine
 
@@ -30,16 +31,16 @@ contains
         calculated = SpinOrbIdx_t(orbs)
         call assert_true(all(expected == calculated))
 
-        expected = SpinOrbIdx_t([1, 5, 7])
-        calculated = SpinOrbIdx_t(orbs, m_s=beta)
+        expected = spinorbidx_t([1, 5, 7])
+        calculated = spinorbidx_t(orbs, m_s=beta)
         call assert_true(all(expected == calculated))
 
-        expected = SpinOrbIdx_t([2, 6, 8])
-        calculated = SpinOrbIdx_t(orbs, m_s=alpha)
+        expected = spinorbidx_t([2, 6, 8])
+        calculated = spinorbidx_t(orbs, m_s=alpha)
         call assert_true(all(expected == calculated))
 
-        expected = SpinOrbIdx_t([2, 4, 6])
-        calculated = SpinOrbIdx_t([1, 2, 3, 4, 5, 6], m_s=alpha)
+        expected = spinorbidx_t([2, 4, 6])
+        calculated = spinorbidx_t([1, 2, 3, 4, 5, 6], m_s=alpha)
         call assert_true(all(expected == calculated))
     end subroutine
 
