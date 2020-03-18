@@ -10,6 +10,8 @@
       use hphf_integrals, only: hphf_diag_helement
       use hphf_integrals, only: hphf_off_diag_helement
       use DetBitOps, only: EncodeBitDet
+      use orb_idx_mod, only: SpinOrbIdx_t
+      use gasci, only: GAS_spec=>GAS_specification,operator(.contains.)
       use disconnected_gasci, only: isValidExcit
       use lattice_mod, only: get_helement_lattice
       use util_mod, only: near_zero
@@ -92,7 +94,14 @@ C..   Now we need to match up any two determinants
 C            CALL SLTCND(NEL,NBASISMAX,NHG,
 C     &     FCK,NMAX,ALAT,UMAT,TOTSUM)
             if(tGAS) then
-               if(.not. isValidExcit(ilutI,ilutJ)) totsum = 0.0_dp
+!                if(.not. isValidExcit(ilutI,ilutJ)) totsum = 0.0_dp
+                associate(det_I => SpinOrbIdx_t(NMRKS(:, KI)),
+     &                    det_J => SpinOrbIdx_t(NMRKS(:, KJ)))
+                    if (.not. ((GAS_spec .contains. det_I)
+     &                         .and. (GAS_spec .contains. det_J))) then
+                        totsum = 0.0_dp
+                    end if
+                end associate
             endif
             IF(ABS(TOTSUM).LT.1.0e-10_dp) TOTSUM=0.0_dp
             IF(.not. near_zero(TOTSUM) .OR. KI == KJ) THEN
