@@ -976,6 +976,27 @@ system: do
                 call getf(twisted_bc(2))
             end if
 
+
+        case ("ANTI-PERIODIC-BC")
+            if (item < nitems) then
+                call readu(w)
+
+                select case (w)
+                case ("X")
+                    t_anti_periodic(1) = .true.
+
+                case ("Y")
+                    t_anti_periodic(2) = .true.
+
+                case ("XY","YX")
+                    t_anti_periodic(1:2) = .true.
+
+                end select
+            else
+                t_anti_periodic(1:2) = .true.
+            end if
+
+
         case("REAL")
             TREAL = .true.
             ! i think for the real-space i have to specifically turn off

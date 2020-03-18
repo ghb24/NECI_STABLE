@@ -6,6 +6,14 @@ nprocs = 2
 min_nprocs = 2
 max_nprocs = 2
 
+
+[kneci/real-space*/]
+program = kneci
+nprocs = 2
+min_nprocs = 2
+max_nprocs = 2
+
+
 [kneci/Se_2_mag_semi_trial_pops/]
 program = kneci
 nprocs = 2

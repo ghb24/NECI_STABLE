@@ -436,6 +436,9 @@ logical :: t_olle_hubbard = .false.
 logical :: t_test_double = .false., t_test_single = .false.
 integer :: test_i, test_j, test_k, test_l
 
+! flag for anti-periodic BCs in the real-space Hubbard implementation
+logical :: t_anti_periodic(2) = .false.
+
 ! Operators for type(symmetry)
 interface assignment (=)
     module procedure SymAssign

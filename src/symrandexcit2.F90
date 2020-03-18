@@ -32,7 +32,8 @@ MODULE GenRandSymExcitNUMod
                           nOccAlpha, nOccBeta, ElecPairs, MaxABPairs, &
                           tKPntSym, lzTot, tNoBrillouin, tUseBrillouin, &
                           tUEG2, kvec, tAllSymSectors, NMAXX, NMAXY, NMAXZ, &
-                          tOrbECutoff, OrbECutoff, tGUGA, t_pcpp_excitgen
+                          tOrbECutoff, OrbECutoff, tGUGA, t_pcpp_excitgen, &
+                          t_new_real_space_hubbard
     use CalcData, only: tSpinProject
     use FciMCData, only: pDoubles, psingles, iter, excit_gen_store_type, iluthf
     use Parallel_neci
@@ -1362,14 +1363,7 @@ MODULE GenRandSymExcitNUMod
             IF(tNoSymGenRandExcits) THEN
                 nOrbs=nBasis/2
             ELSE
-!                nOrbs=SymLabelCounts(2,ElecSym+1)
-!                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
                 nOrbs=OrbClassCount(SymIndex)
-
-!                !!REMOVE THIS TEST ONCE WORKING!!
-!                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
-!                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
-!                ENDIF
             ENDIF
 
             z=0     !z is the counter for the number of allowed unoccupied orbitals we have gone through
@@ -1378,8 +1372,6 @@ MODULE GenRandSymExcitNUMod
                 IF(tNoSymGenRandExcits) THEN
                     Orb=(2*(i+1))-(iSpn-1)
                 ELSE
-!                    Orb=(2*SymLabelList(SymLabelCounts(1,ElecSym+1)+i))-(iSpn-1)
-!                    Orb=SymLabelList2(iSpn,SymLabelCounts2(iSpn,1,ElecSym+1)+i)
                     Orb=SymLabelList2(SymLabelCounts2(1,SymIndex)+i)
                 ENDIF
 
@@ -1409,12 +1401,6 @@ MODULE GenRandSymExcitNUMod
                 nOrbs=nBasis/2
             ELSE
                 nOrbs=OrbClassCount(SymIndex)
-
-!                !!REMOVE THIS TEST ONCE WORKING!!
-!                IF(nOrbs.ne.SymLabelCounts2(2,SymIndex)) THEN
-!                    CALL Stop_All("GetSingleExcit","Error in symmetry arrays")
-!                ENDIF
-!                nOrbs=SymLabelCounts2(iSpn,2,ElecSym+1)
             ENDIF
             Attempts=0
             do while(.true.)
@@ -1468,17 +1454,7 @@ MODULE GenRandSymExcitNUMod
 
 !Now we need to find the probability of creating this excitation.
 !This is: P_single x P(i) x P(a|i) x N/(N-ElecsWNoExcits)
-!        pGen=(1.0_dp-pDoubNew)*(1.0_dp/real(NEl,dp))*(1.0_dp/real(NExcit,dp))*((real(NEl,dp))/(real((NEl-ElecsWNoExcits),dp)))
         pGen=(1-pDoubNew)/(REAL((NExcit*(NEl-ElecsWNoExcits)),dp))
-!         print *, "nI: ", nI
-!         print *, "elec: ", nI(eleci)
-!         print *, "orb: ", orb
-!         print *, "nexcit: ", nExcit
-!         print *, "ElecsWNoExcits: ", ElecsWNoExcits
-!         print *, "pgen: ", pgen
-!         print *, "ClassCountUnocc2:" , ClassCountUnocc2
-
-!        WRITE(6,*) "ElecsWNoExcits: ",ElecsWNoExcits
 
     END SUBROUTINE CreateSingleExcit
 
@@ -1498,7 +1474,7 @@ MODULE GenRandSymExcitNUMod
         CCOcc = 0
         CCUnocc = OrbClassCount
 
-        if (tNoSymGenRandExcits) then
+        if (tNoSymGenRandExcits .or. t_new_real_space_hubbard) then
             ind_alpha = ClassCountInd(1,0,0)
             ind_beta = ClassCountInd(2,0,0)
             CCOcc(ind_alpha) = nOccAlpha
@@ -3221,12 +3197,6 @@ SUBROUTINE SpinOrbSymSetup()
     ScratchSize1 = ScratchSize
     ScratchSize2 = ScratchSize
 
-!    WRITE(6,*) "SCRATCHSIZE: ",ScratchSize,tNoSymGenRandExcits,tUEG
-
-!    write(6,*) "SymClasses:"
-!    write(6,*) SymClasses(:)
-
-!     if (t_k_space_hubbard) return
     !Create SpinOrbSymLabel array.
     !This array will return a number between 0 and nSymLabels-1.
     !For molecular systems, this IS the character of the irrep
