@@ -1081,7 +1081,8 @@ contains
 
     end subroutine calc_rdmbiasfac
 
-    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, DetSpawningAttempts, iLutJ, procJ)
+    subroutine store_parent_with_spawned(RDMBiasFacCurr, WalkerNumber, iLutI, &
+            DetSpawningAttempts, iLutJ, procJ)
 
         ! We are spawning from iLutI to SpawnedParts(:,ValidSpawnedList(proc)).
         ! This routine stores the parent (D_i) with the spawned child (D_j) so
@@ -1090,7 +1091,8 @@ contains
         ! from NIfTot+1 -> NIfTot+1 + nifd.
 
         use DetBitOps, only: DetBitEQ
-        use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, TempSpawnedPartsInd
+        use FciMCData, only: SpawnedParts, ValidSpawnedList, TempSpawnedParts, &
+                             TempSpawnedPartsInd
         use bit_reps, only: zero_parent, encode_parent, all_runs_are_initiator
         use CalcData, only: tNonInitsForRDMs
 
@@ -1102,12 +1104,16 @@ contains
         integer :: j
 
         if (abs(RDMBiasFacCurr) < 1.0e-12_dp) then
-            ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj will be zero
-            ! so it is not worth carrying on.
+            ! If RDMBiasFacCurr is exactly zero, any contribution from Ci.Cj
+            ! will be zero so it is not worth carrying on.
             call zero_parent(SpawnedParts(:, ValidSpawnedList(procJ)))
-        ! in the case of non-variational rdms, we also require the parent to be an initiator,
-        ! -> only take non-initiators when the init-agnostic rdms are requested (tNonInitsForRDMs)
-        else if(tNonInitsForRDMs .or. all_runs_are_initiator(ilutI)) then
+            ! in the case of non-variational rdms, we also require the parent
+            ! to be an initiator -> only take non-initiators when the
+            ! init-agnostic rdms are requested (tNonInitsForRDMs)
+            return
+        end if
+
+        if(tNonInitsForRDMs .or. all_runs_are_initiator(ilutI)) then
 
             ! First we want to check if this Di.Dj pair has already been accounted for.
             ! This means searching the Dj's that have already been spawned from this Di, to make sure

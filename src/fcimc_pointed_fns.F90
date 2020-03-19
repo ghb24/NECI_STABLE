@@ -73,10 +73,9 @@ module fcimc_pointed_fns
 
     contains
 
-    function attempt_create_trunc_spawn (DetCurr,&
-                                         iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, &
-                                         ic, ex, tparity, walkExcitLevel, part_type, &
-                                         AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
+    function attempt_create_trunc_spawn (DetCurr, iLutCurr, RealwSign, nJ, &
+            iLutnJ, prob, HElGen,ic, ex, tparity, walkExcitLevel, part_type, &
+            AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel), part_type
         integer(kind=n_int), intent(in) :: iLutCurr(0:NIfTot)
@@ -103,18 +102,16 @@ module fcimc_pointed_fns
 
         if (.not. tAllowForEN2Calc) then
             if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
-                child = attempt_create_normal (DetCurr, &
-                                   iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                                   tParity, walkExcitLevel, part_type, AvSignCurr, &
-                                   AvExPerWalker, RDMBiasFacCurr, precond_fac)
+                child = attempt_create_normal (DetCurr, iLutCurr, RealwSign, &
+                    nJ, iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, &
+                    part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
             else
                 child = 0
             endif
         else
-            child = attempt_create_normal (DetCurr, &
-                               iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type, AvSignCurr, &
-                               AvExPerWalker, RDMBiasFacCurr, precond_fac)
+            child = attempt_create_normal (DetCurr, iLutCurr, RealwSign, nJ, &
+                iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, &
+                AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
         end if
     end function
 
@@ -165,25 +162,22 @@ module fcimc_pointed_fns
 
         if (.not. tAllowForEN2Calc) then
             if (CheckAllowedTruncSpawn (walkExcitLevel, nJ, iLutnJ, IC)) then
-                child = attempt_create_normal (DetCurr, &
-                                   iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                                   tParity, walkExcitLevel, part_type, AvSignCurr, &
-                                   AvExPerWalker, RDMBiasFacCurr, precond_fac)
+                child = attempt_create_normal (DetCurr, iLutCurr, RealwSign, &
+                    nJ, iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, &
+                    part_type, AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
             else
                 child = 0
             endif
         else
-            child = attempt_create_normal (DetCurr, &
-                               iLutCurr, RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, &
-                               tParity, walkExcitLevel, part_type, AvSignCurr, &
-                               AvExPerWalker, RDMBiasFacCurr, precond_fac)
+            child = attempt_create_normal (DetCurr, iLutCurr, RealwSign, nJ, &
+                iLutnJ, prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, &
+                AvSignCurr, AvExPerWalker, RDMBiasFacCurr, precond_fac)
         end if
     end function
 
-    function attempt_create_normal (DetCurr, iLutCurr, &
-                                    RealwSign, nJ, iLutnJ, prob, HElGen, ic, ex, tParity, &
-                                    walkExcitLevel, part_type, AvSignCurr, AvExPerWalker, &
-                                    RDMBiasFacCurr, precond_fac) result(child)
+    function attempt_create_normal (DetCurr, iLutCurr, RealwSign, nJ, iLutnJ, &
+            prob, HElGen, ic, ex, tParity, walkExcitLevel, part_type, AvSignCurr, &
+            AvExPerWalker, RDMBiasFacCurr, precond_fac) result(child)
 
         integer, intent(in) :: DetCurr(nel), nJ(nel)
         integer, intent(in) :: part_type    ! odd = Real parent particle, even = Imag parent particle
@@ -217,6 +211,8 @@ module fcimc_pointed_fns
         integer :: temp_ex(2,ic)
 
         unused_var(AvSignCurr)
+        unused_var(WalkExcitLevel)
+
         ! Just in case
         child = 0.0_dp
 
@@ -271,9 +267,6 @@ module fcimc_pointed_fns
                         call fill_frequency_histogram_nosym_nodiff(abs(rh_used / precond_fac), &
                             prob , ic, ex(1,1))
                     end if
-
-!                 else if (tGen_sym_guga_mol .or. (tgen_guga_crude .and. .not. t_new_real_space_hubbard)) then
-!                     call fill_frequency_histogram_sd(abs(rh_used / precond_fac), prob , ic)
 
                 else
                     ! for any other excitation generator just use one histogram
@@ -495,8 +488,6 @@ module fcimc_pointed_fns
             RDMBiasFacCurr = 0.0_dp
         endif
 
-        ! Avoid compiler warnings
-        iUnused = walkExcitLevel
     end function
 
     !
@@ -509,13 +500,8 @@ module fcimc_pointed_fns
         integer, intent(in) :: ex(2,ic)
         integer(kind=n_int), intent(inout) :: ilutj(0:niftot)
 
-        ! Avoid compiler warnings
-        integer :: iUnused
-        integer(n_int) :: iUnused2
-        integer :: iUnused3(2,ic)
-        iLutJ(0) = iLutJ(0); iUnused = IC
-        iUnused2 = iLutI(0)
-        iUnused3 = ex
+        unused_var(ilutI); unused_var(ilutJ); unused_var(ic); unused_var(ex)
+
     end subroutine
 
     subroutine new_child_stats_hist_hamil (iter_data, iLutI, nJ, iLutJ, ic, &

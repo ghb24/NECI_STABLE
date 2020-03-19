@@ -927,7 +927,6 @@ contains
                 else
                     ! Update count
                     virt(ind) = virt(ind) + 1
-        !            write(iout,*) "filling virt"
                     ! Store orbital in list of unocc. orbs.
                     store%virt_list(virt(ind), ind) = orb
                 endif

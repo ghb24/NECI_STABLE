@@ -1622,18 +1622,17 @@ module FciMCParMod
                         end if
 
                         if (tPreCond .or. tReplicaEstimates) then
-                            hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
+                            hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, &
+                                iLutnJ, ic, ex, hdiag_bare)
 
                             if (tPreCond) then
                                 precond_fac = hdiag_spawn - proj_e_for_precond(part_type) - &
                                                proje_ref_energy_offsets(part_type) - Hii
                             end if
                         end if
-                        child = attempt_create (DetCurr, &
-                                            CurrentDets(:,j), SignCurr, &
-                                            nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel, part_type, &
-                                            AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac)
+                        child = attempt_create (DetCurr, CurrentDets(:,j), SignCurr, &
+                            nJ,iLutnJ, Prob, HElGen, IC, ex, tParity, walkExcitLevel, &
+                            part_type, AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac)
                                             ! Note these last two, AvSignCurr and
                                             ! RDMBiasFacCurr are not used unless we're
                                             ! doing an RDM calculation.
@@ -1654,7 +1653,9 @@ module FciMCParMod
                     if (.not. all(near_zero(child))) then
 
                         ! Encode child if not done already.
-                        if(.not. (tSemiStochastic)) call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+                        if(.not. tSemiStochastic) then
+                            call encode_child (CurrentDets(:,j), iLutnJ, ic, ex)
+                        end if
                         ! FindExcitBitDet copies the parent flags so that unwanted flags must be unset.
                         ! Should it really do this?
                         if (tTrialWavefunction) then

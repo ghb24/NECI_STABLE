@@ -9,7 +9,7 @@ module rdm_filling
     use bit_reps, only: get_initiator_flag_by_run
     use constants
     use SystemData, only: tGUGA, nbasis
-    use guga_bitRepOps, only: transfer_stochastic_rdm_info
+    use guga_bitRepOps, only: extract_stochastic_rdm_info
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
          tNonVariationalRDMs
@@ -17,7 +17,6 @@ module rdm_filling
     use DetBitOps, only: DetBitEq
     use guga_rdm, only: Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
                         fill_spawn_rdm_diag_guga, Add_RDM_HFConnections_GUGA
-
 
     implicit none
 
@@ -48,20 +47,10 @@ contains
         integer :: idet, irdm, av_ind_1, av_ind_2
         real(dp) :: curr_sign(lenof_sign), adapted_sign(len_av_sgn_tot)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
-        logical :: tAllContribs
-        logical :: tLC
+        logical :: tAllContribs, tLC
 
-        if(present(tNonInit)) then
-           tAllContribs = tNonInit
-        else
-           tAllContribs = .true.
-        endif
-
-        if(present(tLagrCorr)) then
-           tLC = tLagrCorr
-        else
-           tLC = .true.
-        endif
+        def_default(tAllContribs, tNonInit, .true.)
+        def_default(tLC, tLagrCorr, .true.)
 
         associate(ind => rdm_defs%sim_labels)
 
@@ -413,8 +402,8 @@ contains
         endif
 
         if (.not. DetBitEQ(iLutHF_True, iLutJ, nifd)) then
-            call DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, iLutJ, &
-                     realSignJ, tAllContribs)
+            call DiDj_Found_FillRDM(rdm_defs, spawn, one_rdms, Spawned_No, &
+                iLutJ, realSignJ, tAllContribs)
         end if
 
     end subroutine check_fillRDM_DiDj
@@ -447,7 +436,8 @@ contains
         integer :: dest_part_type, source_part_type, run
         integer(n_int) :: source_flags
         logical :: spawning_from_ket_to_bra, tNonInitParent
-        integer(n_int) :: ilutI(0:IlutBits%len_tot)
+        integer(int_rdm) :: guga_rdm_ind
+        real(dp) :: x0, x1
 
         ! Spawning from multiple parents, to iLutJ, which has SignJ.
 
@@ -478,6 +468,7 @@ contains
             call decode_bit_det (nJ, iLutJ)
 
             realSignI = transfer( Spawned_Parents(IlutBits%ind_pop,i), realSignI )
+
             ! if the sign is 0, there is nothing to do, i.e. all contributions will be 0
             if(abs(realSignI)<eps) cycle
 
@@ -555,17 +546,8 @@ contains
                 ! spawning from (nI) is the bra of the RDM.
 
                 if (tGUGA) then
-                    ! for ease of use tranfer the rdm info from the
-                    ! parent ilut to a 'regular' niftot ilut
-                    ! otherwise I would need to pass the bitindex to the
-                    ! add_ij pair functions..
-                    IlutI = 0_n_int
-                    ilutI(0:IlutBits%len_orb) = &
-                        Spawned_Parents(0:IlutBitsParent%len_orb,i)
-
-                    call transfer_stochastic_rdm_info(Spawned_Parents(:,i), &
-                        ilutI, BitIndex_from = IlutBitsParent, &
-                        BitIndex_to = IlutBits)
+                    call extract_stochastic_rdm_info(IlutBitsParent, &
+                        Spawned_Parents(:,i), guga_rdm_ind, x0, x1)
                 end if
 
                 if (spawning_from_ket_to_bra) then
@@ -576,10 +558,12 @@ contains
 
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
-                            nI, nJ, input_sign_i, input_sign_j, ilutI, ilutJ)
+                            nI, nJ, input_sign_i, input_sign_j,  spawning_from_ket_to_bra, &
+                            rdm_ind_in = guga_rdm_ind, x0 = x0, x1 = x1)
 
                     else
-                        call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, input_sign_i, input_sign_j)
+                        call Add_RDM_From_IJ_Pair(spawn, one_rdms, nI, nJ, &
+                            input_sign_i, input_sign_j)
                     end if
                 else
                     ! Spawning from the bra to the ket - swap the order of the
@@ -591,7 +575,8 @@ contains
 
                     else if (tGUGA) then
                         call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, &
-                            nJ, nI, input_sign_j, input_sign_i, ilutJ, ilutI)
+                            nJ, nI, input_sign_j, input_sign_i, spawning_from_ket_to_bra, &
+                            rdm_ind_in = guga_rdm_ind, x0 = x0, x1 = x1)
 
                     else
                         call Add_RDM_From_IJ_Pair(spawn, one_rdms, nJ, nI, &

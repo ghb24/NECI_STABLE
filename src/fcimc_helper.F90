@@ -14,6 +14,8 @@ module fcimc_helper
 
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
 
+    use bit_rep_data, only: IlutBits
+
     use bit_reps, only: NIfTot, test_flag, extract_flags, &
                         encode_bit_rep, NIfD, set_flag_general, &
                         extract_sign, set_flag, encode_sign, &
@@ -86,7 +88,8 @@ module fcimc_helper
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_excitations, only: create_projE_list
     use guga_matrixElements, only: calc_off_diag_guga_ref_list
-    use guga_bitrepops, only: write_det_guga, calc_csf_info
+    use guga_bitrepops, only: write_det_guga, calc_csf_info, &
+                              transfer_stochastic_rdm_info
 
     use real_time_data, only: t_complex_ints, runge_kutta_step, tVerletSweep,&
         t_rotated_time, t_real_time_fciqmc
@@ -96,6 +99,7 @@ module fcimc_helper
     use fortran_strings, only: str
 
     use initiator_space_procs, only: is_in_initiator_space
+
 
     implicit none
 
@@ -229,8 +233,10 @@ contains
             end if
 
             !Enocde weight, which is real, as an integer
-            SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
-            SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
+            SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)) = &
+                transfer(weight_acc, SpawnInfo(SpawnWeightAcc, ValidSpawnedList(proc)))
+            SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)) = &
+                transfer(weight_rej, SpawnInfo(SpawnWeightRej, ValidSpawnedList(proc)))
 
         end if
 
@@ -241,9 +247,11 @@ contains
         ! rejected by the initiator criterion, so set the initiator
         ! flag now if not done already.
         if (tPureInitiatorSpace) then
-            if ( .not. test_flag(SpawnedParts(:, ValidSpawnedList(proc)), get_initiator_flag(part_type)) ) then
+            if ( .not. test_flag(SpawnedParts(:, ValidSpawnedList(proc)), &
+                get_initiator_flag(part_type)) ) then
                 if (is_in_initiator_space(SpawnedParts(:, ValidSpawnedList(proc)), nJ)) then
-                    call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), get_initiator_flag(part_type))
+                    call set_flag(SpawnedParts(:,ValidSpawnedList(proc)), &
+                        get_initiator_flag(part_type))
                 end if
             end if
         end if
@@ -257,8 +265,15 @@ contains
             ! The parent is nifd integers long, and stored in the second
             ! part of the SpawnedParts array from NIfTot+1 --> NIfTot+1+nifd
             call store_parent_with_spawned (RDMBiasFacCurr, WalkerNo, &
-                                            ilutI, WalkersToSpawn, ilutJ, &
-                                            proc)
+                ilutI, WalkersToSpawn, ilutJ, proc)
+
+            ! in the GUGA case I also need to store the rdm info in the
+            ! spawned parts arrays here
+            if (tGUGA) then
+                call transfer_stochastic_rdm_info(ilutJ, &
+                    SpawnedParts(:,ValidSpawnedList(proc)), &
+                    BitIndex_from = IlutBits, BitIndex_to = IlutBits)
+            end if
         end if
 
         if (tPreCond .or. tReplicaEstimates) then
@@ -272,7 +287,8 @@ contains
         ! element which has changed.
         ! rmneci_setup: clarified dependence of run on part_type
         run = part_type_to_run(part_type)
-        acceptances(run) = acceptances(run) + sum(abs(child(min_part_type(run):max_part_type(run))))
+        acceptances(run) = acceptances(run) + &
+            sum(abs(child(min_part_type(run):max_part_type(run))))
 
     end subroutine create_particle
 
@@ -1618,9 +1634,6 @@ contains
         real(dp) :: HighPopInNeg(2),HighPopInPos(2),HighPopoutNeg(2),HighPopoutPos(2)
         real(dp) :: TempSign(lenof_sign)
 
-!        WRITE(6,*) 'HighPopPos',HighPopPos
-!        WRITE(6,*) 'CurrentSign(HighPopPos)',CurrentSign(HighPopPos)
-
         IF(TotWalkersNew.gt.0) THEN
             call extract_sign(CurrentDets(:,HighPopNeg),TempSign)
         ELSE
@@ -1628,9 +1641,6 @@ contains
         ENDIF
 
         HighPopInNeg(1) = TempSign(1)
-        ! [W.D. 15.5.2017:]
-        ! why cast to int32?? and not real(dp)
-!         HighPopInNeg(2)= int(iProcIndex,int32)
         HighPopInNeg(2)= real(iProcIndex,dp)
 
         CALL MPIAllReduceDatatype(HighPopinNeg,1,MPI_MINLOC,MPI_2DOUBLE_PRECISION,HighPopoutNeg)
@@ -1642,9 +1652,6 @@ contains
         ENDIF
 
         HighPopInPos(1) = TempSign(1)
-        ! [W.D. 15.5.2017:]
-        ! why cast to int32?? and not real(dp)
-!         HighPopInPos(2)=int(iProcIndex,int32)
         HighPopInPos(2)=real(iProcIndex,dp)
 
         CALL MPIAllReduceDatatype(HighPopinPos,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,HighPopoutPos)

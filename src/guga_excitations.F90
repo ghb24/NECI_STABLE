@@ -38,7 +38,7 @@ module guga_excitations
                     funA_2_0_overR2, getDoubleContribution, projE_replica, &
                     tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list, &
                     excit_type, gen_type, excit_names, t_slow_guga_rdms, &
-                    t_fast_guga_rdms
+                    t_fast_guga_rdms, t_mimic_slow
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
@@ -1599,7 +1599,8 @@ contains
         ! set defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
 
-        if ((.not. t_slow_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
+        if ((t_fast_guga_rdms .and. .not. t_mimic_slow) &
+            .and. (present(rdm_ind) .or. present(rdm_mat))) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
             ! here we still only need 2 rdm contributions, since the
@@ -1711,7 +1712,7 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (t_hamil_ .or. (t_slow_guga_rdms .and. present(rdm_mat))) then
+        if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
             if (typ == excit_type%fullstop_L_to_R) then
                 ! L -> R
                 ! what do i have to put in as the branch pgen?? does it have
@@ -1754,7 +1755,9 @@ contains
         currentB_int = temp_curr_b_int
 
         ! also no influence on coupling coefficient from generator order
-        if ((.not. t_slow_guga_rdms) .and. present(rdm_mat)) rdm_mat = temp_x1
+        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) then
+            rdm_mat = temp_x1
+        end if
 
         end associate
 
@@ -1794,7 +1797,7 @@ contains
         associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                   ll => excitInfo%l, gen => excitInfo%lastGen, typ => excitInfo%typ)
 
-        if ((.not. t_slow_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
+        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
             ! we only have two elements here, since the switched version
@@ -1881,7 +1884,7 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (t_hamil_ .or. (t_slow_guga_rdms .and. present(rdm_mat))) then
+        if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
             if (typ == excit_type%fullstart_L_to_R) then
                 ! L -> R
                 if (present(rdm_mat)) then
@@ -1920,7 +1923,7 @@ contains
         currentB_int = temp_curr_b_int
 
         ! no influence of generator order on coupling coeff
-        if ((.not. t_slow_guga_rdms) .and. present(rdm_mat)) rdm_mat = guga_mat
+        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) rdm_mat = guga_mat
 
         end associate
 
@@ -1952,7 +1955,7 @@ contains
                   ll => excitInfo%l, start => excitInfo%fullstart, &
                   ende => excitInfo%fullEnd)
 
-        if ((.not. t_slow_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
+        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
             allocate(rdm_ind(2), source = 0_int_rdm)
@@ -1978,7 +1981,7 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_ilut = temp_b_real_i
 
-        if (t_hamil_ .or. (t_slow_guga_rdms .and. present(rdm_mat))) then
+        if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
             if (present(rdm_mat)) then
                 mat_ele =  calcMixedContribution(tmp_I, tmp_J, start, ende, &
                                 rdm_ind, rdm_mat)
@@ -1987,7 +1990,7 @@ contains
             end if
         end if
 
-        if ((.not. t_slow_guga_rdms) .and. present(rdm_mat)) then
+        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) then
             ! no influene on the coupling coeff from order of generators
             rdm_mat(1:2) = calc_mixed_coupling_coeff(tmp_J, excitInfo)
         end if
@@ -13398,7 +13401,7 @@ contains
             call calc_integral_contribution_single(exc, i, j,st, en, integral)
         end if
 
-        if (t_fast_guga_rdms) then
+        if (tRDMonfly) then
             ! if we want to do 'fast' GUGA RDMs we need to store the
             ! rdm index and the x0 (for singles here) coupling coefficient
             ! as part of the ilut(0:nifguga). this also necessitates

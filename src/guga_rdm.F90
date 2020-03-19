@@ -6,7 +6,8 @@ module guga_rdm
     use constants, only: n_int, dp, lenof_sign, EPS, sizeof_int, int_rdm, bn2_, &
                          Root2, int64, int_rdm
     use SystemData, only: nel, nSpatOrbs, current_stepvector, currentB_ilut
-    use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifd
+    use bit_reps, only: extract_bit_rep, decode_bit_det, niftot, nifd, &
+                        any_run_is_initiator, all_runs_are_initiator
     use rdm_data, only: one_rdms, two_rdm_spawn, rdmCorrectionFactor
     use rdm_data, only: Sing_ExcDjs, Doub_ExcDjs, rdm_spawn_t, one_rdm_t
     use rdm_data, only: Sing_ExcDjs2, Doub_ExcDjs2, rdm_list_t
@@ -30,8 +31,8 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double, &
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, t_slow_guga_rdms, rdm_ind_bitmask, &
-                         t_fast_guga_rdms
+                         excit_type, gen_type, rdm_ind_bitmask, &
+                         t_fast_guga_rdms, t_mimic_slow
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -47,7 +48,8 @@ module guga_rdm
                               encode_rdm_ind, extract_rdm_ind, &
                               encode_stochastic_rdm_info, &
                               extract_excit_type_rdm, extract_excit_lvl_rdm, &
-                              transfer_stochastic_rdm_info
+                              transfer_stochastic_rdm_info, &
+                              extract_stochastic_rdm_info
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_rep_data, only: GugaBits, IlutBits
     use FciMCData, only: projEDet, CurrentDets, TotWalkers, ilutref, HFDet_True
@@ -62,7 +64,7 @@ module guga_rdm
     use OneEInts, only: GetTMatEl
     use procedure_pointers, only: get_umat_el
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
-    use util_mod, only: operator(.div.), near_zero
+    use util_mod, only: operator(.div.), near_zero, operator(.isclose.)
     use sort_mod, only: sort
 
     implicit none
@@ -86,6 +88,37 @@ module guga_rdm
     logical :: t_mimic_stochastic = .true.
 
 contains
+
+    subroutine print_rdm_ind(rdm_ind, typ, t_newline)
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer, intent(in) :: typ
+        logical, intent(in), optional :: t_newline
+
+        logical :: t_newline_
+        integer :: i, j, k, l
+        character(3) :: adv
+
+        def_default(t_newline_, t_newline, .true.)
+
+        if (t_newline_) then
+            adv = 'yes'
+        else
+            adv = 'no'
+        end if
+
+        if (typ == 1) then
+            call extract_1_rdm_ind(rdm_ind, i, j)
+
+            write(6, '(2i3)', advance = adv) i, j
+
+        else if (typ == 2) then
+            call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+
+            write(6, '(4i3)', advance = adv) i, j, k, l
+        end if
+
+
+    end subroutine print_rdm_ind
 
     elemental function pure_rdm_ind(rdm_ind) result(pure_ind)
         ! return 'just' the rdm index without the excit-level and type info
@@ -347,22 +380,24 @@ contains
         ! there should be a clever way to do this..
         if (excit_lvl == 1 .or. excit_lvl == 2) then
             call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, HFDet_True, nJ, &
-                av_sign_hf(2::2), iter_rdm * av_sign_j(1::2))
+                av_sign_hf(2::2), iter_rdm * av_sign_j(1::2), .true., t_fast = .false.)
             call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nJ, HFDet_True, &
-                av_sign_j(2::2), iter_rdm * av_sign_hf(1::2))
+                av_sign_j(2::2), iter_rdm * av_sign_hf(1::2), .false., t_fast = .false.)
         end if
 
     end subroutine Add_RDM_HFConnections_GUGA
 
     subroutine Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nI, nJ, sign_i, &
-            sign_j, ilutI, ilutJ)
+            sign_j, t_bra_to_ket, t_fast, rdm_ind_in, x0, x1)
         ! corresponding GUGA routine from function found in rdm_filling.F90
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
         integer, intent(in) :: nI(nel), nJ(nel)
-        integer(n_int), intent(in), optional :: IlutI(0:IlutBits%len_tot), &
-                                                IlutJ(0:IlutBits%len_tot)
         real(dp), intent(in) :: sign_i(:), sign_j(:)
+        logical, intent(in) :: t_bra_to_ket
+        logical, intent(in), optional :: t_fast
+        integer(int_rdm), intent(in), optional :: rdm_ind_in
+        real(dp), intent(in), optional :: x0, x1
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_From_IJ_Pair_GUGA"
 #endif
@@ -370,41 +405,131 @@ contains
         HElement_t(dp) :: mat_ele
         integer(int_rdm), allocatable :: rdm_ind(:)
         real(dp), allocatable :: rdm_mat(:)
-        integer :: i, j, k, l, n
+        integer :: i, j, k, l, n, ex_lvl, ex_typ
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         integer(n_int) :: ilutGi(0:GugaBits%len_tot), ilutGj(0:GugaBits%len_tot)
+        integer(int_rdm) :: pure_ind
+        logical :: t_fast_
+
+        def_default(t_fast_, t_fast, t_fast_guga_rdms)
+
+        if (t_fast_) then
+
+            ASSERT(present(rdm_ind_in))
+            ASSERT(present(x0))
+            ASSERT(present(x1))
+            ASSERT(rdm_ind_in /= 0_int_rdm)
+
+            ex_lvl = extract_excit_lvl_rdm(rdm_ind_in)
+            ex_typ = extract_excit_type_rdm(rdm_ind_in)
+
+            ASSERT(ex_lvl == 1 .or. ex_lvl == 2)
+
+            pure_ind = pure_rdm_ind(rdm_ind_in)
+
+            if (ex_lvl == 1) then
+
+                if (RDMExcitLevel == 1) then
+                    call fill_sings_1rdm_guga(one_rdms, sign_I, sign_J, &
+                        x0, pure_ind)
+
+                else
+                    if (t_bra_to_ket) then
+                        call EncodeBitDet_guga(nI, ilutGi)
+                        call EncodeBitDet_guga(nJ, ilutGj)
+                    else
+                        call EncodeBitDet_guga(nI, ilutGJ)
+                        call EncodeBitDet_guga(nJ, ilutGi)
+                    end if
+
+                    call fill_sings_2rdm_guga(spawn, IlutGi, &
+                        ilutGj, sign_i, sign_j, x0, pure_ind)
+
+                end if
+
+            else if (ex_lvl == 2 .and. RDMExcitLevel /= 1) then
+
+                if (t_bra_to_ket) then
+                    call EncodeBitDet_guga(nI, ilutGi)
+                    call EncodeBitDet_guga(nJ, ilutGj)
+                else
+                    call EncodeBitDet_guga(nI, ilutGJ)
+                    call EncodeBitDet_guga(nJ, ilutGi)
+                end if
+
+                if (t_mimic_slow) then
+                    select case (ex_typ)
+                    case(excit_type%fullstop_L_to_R, &
+                         excit_type%fullstop_R_to_L, &
+                         excit_type%fullstart_L_to_R, &
+                         excit_type%fullstart_R_to_L, &
+                         excit_type%fullstart_stop_mixed)
+
+                        ! if we want to 'mimic' the slow implementation
+                        ! we have to recalc the rdm entries for these
+                        ! excitations!
 
 
-        if (t_fast_guga_rdms) then
+                        call calc_guga_matrix_element(IlutGi, ilutGj, excitInfo, mat_ele, &
+                            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
+                            rdm_mat = rdm_mat)
 
-            ! in the 'fast' GUGA RDM implementation we should have
-            ! everything already in the iluts passed in..
-            ! but my problem now is that I do not know in which ilut
-            ! this information is stored.. since this function gets called
-            ! in the conjugated sense too :D
-            ! so I think I should write another function or pass an
-            ! addtional variable to specify which ilut holds the
-            ! rdm information..
+                        do n = 1, size(rdm_ind)
+                            if (.not. near_zero(rdm_mat(n))) then
+                                call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
+                                full_sign = sign_I * sign_J * rdm_mat(n)
+                                full_sign = full_sign / (real(size(rdm_mat),dp) / 2.0_dp)
+                                call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
+                            end if
+                        end do
 
-            ASSERT(present(IlutI) .and. present(IlutJ))
+                    case default
 
-            call convert_ilut_toGUGA(ilutI, ilutGi)
-            call transfer_stochastic_rdm_info(ilutI, ilutGi, &
-                BitIndex_from = IlutBits, BitIndex_to = GugaBits)
+                        call create_all_rdm_contribs(rdm_ind_in, x0, x1, rdm_ind, rdm_mat)
 
-            call convert_ilut_toGUGA(ilutJ, ilutGj)
-            call transfer_stochastic_rdm_info(ilutJ, ilutGj, &
-                BitIndex_from = IlutBits, BitIndex_to = GugaBits)
+                        do n = 1, size(rdm_ind)
+                            if (.not. near_zero(rdm_mat(n))) then
+                                call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
 
-            call write_det_guga(6, IlutGi)
-            call write_det_guga(6, IlutGj)
+                                full_sign = sign_I * sign_J * rdm_mat(n)
 
-            call stop_all("here", "now")
+                                call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
+                                ! to mimic the slow implementation I have to
+                                ! count the 'conjugated' element here
+                                call add_to_rdm_spawn_t(spawn, k, l, i, j, full_sign, .true.)
 
+                            end if
+                        end do
+
+                    end select
+
+                else
+                    call create_all_rdm_contribs(rdm_ind_in, x0, x1, rdm_ind, rdm_mat)
+
+                    do n = 1, size(rdm_ind)
+                        if (.not. near_zero(rdm_mat(n))) then
+                            call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
+
+                            full_sign = sign_I * sign_J * rdm_mat(n)
+
+                            call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
+
+                            ! maybe i should not even fill the symmetric k,l,i,j
+                            ! for hermiticity check purposes! TODO
+                        end if
+                    end do
+                end if
+            end if
         else
 
-            call EncodeBitDet_guga(nI, ilutGi)
-            call EncodeBitDet_guga(nJ, ilutGj)
+            if (t_bra_to_ket) then
+                call EncodeBitDet_guga(nI, ilutGi)
+                call EncodeBitDet_guga(nJ, ilutGj)
+            else
+                call EncodeBitDet_guga(nI, ilutGJ)
+                call EncodeBitDet_guga(nJ, ilutGi)
+            end if
+
 
             call calc_guga_matrix_element(IlutGi, ilutGj, excitInfo, mat_ele, &
                 t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
@@ -424,6 +549,8 @@ contains
                     else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
                         call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
                         full_sign = sign_I * sign_J * rdm_mat(n)
+
+
                         select case (excitInfo%typ)
                         ! in this implementation right now, I have to sample
                         ! all full-start/stop contributions for all the

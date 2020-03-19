@@ -50,7 +50,7 @@ module AnnihilationMod
     use fcimc_helper, only: CheckAllowedTruncSpawn
 
     use initiator_space_procs, only: set_conn_init_space_flags_slow
-    use guga_bitRepOps, only: transfer_stochastic_rdm_info
+    use guga_bitRepOps, only: transfer_stochastic_rdm_info, extract_stochastic_rdm_ind
 
     implicit none
 
@@ -249,7 +249,6 @@ module AnnihilationMod
 
         call sort(SpawnedParts(0:IlutBits%len_bcast,1:ValidSpawned), ilut_lt, ilut_gt)
 
-
         call halt_timer(Sort_time)
 
         if (tHistSpawn) HistMinInd2(1:NEl)=FCIDetIndex(1:NEl)
@@ -297,7 +296,8 @@ module AnnihilationMod
                 ! If this one entry has no amplitude then don't add it to the
                 ! compressed list, but just cycle.
                 call extract_sign (SpawnedParts(:, BeginningBlockDet), temp_sign)
-                if ( (sum(abs(temp_sign)) < 1.e-12_dp) .and. (.not. (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib))) ) then
+                if ( (sum(abs(temp_sign)) < 1.e-12_dp) .and. &
+                    (.not. (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib))) ) then
                     DetsMerged = DetsMerged + 1
                     BeginningBlockDet = CurrentBlockDet
                     cycle
@@ -410,12 +410,16 @@ module AnnihilationMod
                 do part_type = 1, lenof_sign
                     if (tHistSpawn) then
                         call extract_sign (SpawnedParts(:,i), SpawnedSign)
-                        call extract_sign (SpawnedParts(:,BeginningBlockDet), temp_sign)
-                        call HistAnnihilEvent (SpawnedParts, SpawnedSign, temp_sign, part_type)
+                        call extract_sign (SpawnedParts(:,BeginningBlockDet), &
+                            temp_sign)
+                        call HistAnnihilEvent (SpawnedParts, SpawnedSign, &
+                            temp_sign, part_type)
                     end if
 
-                    call FindResidualParticle (cum_det, SpawnedParts(:,i), part_type, iter_data, &
-                                                    VecInd, Parent_Array_Ind)
+
+                    call FindResidualParticle (cum_det, SpawnedParts(:,i), &
+                        part_type, iter_data, VecInd, Parent_Array_Ind)
+
                end do
             end do ! Loop over particle type.
 
@@ -434,6 +438,10 @@ module AnnihilationMod
                 ! the sign here.  Also getting rid of them here would make the
                 ! biased sign of Ci slightly wrong.
 
+
+                ! for the stochastic GUGA RDMs we lose the information about
+                ! the RDMs here in the SpawnedParts array
+                ! So we have to use the Spawned_Parents array..
                 SpawnedParts2(0:NIfTot,VecInd) = cum_det(0:NIfTot)
 
                 if (tPreCond .or. tReplicaEstimates) then
@@ -520,7 +528,8 @@ module AnnihilationMod
 
     end subroutine HistAnnihilEvent
 
-    subroutine FindResidualParticle (cum_det, new_det, part_type, iter_data, Spawned_No, Parent_Array_Ind)
+    subroutine FindResidualParticle (cum_det, new_det, part_type, iter_data, &
+            Spawned_No, Parent_Array_Ind)
 
         ! This routine is called whilst compressing the spawned list during
         ! annihilation. It considers the sign and flags from two particles
@@ -531,7 +540,7 @@ module AnnihilationMod
         ! --> Should be called for real/imaginary particles seperately
 
         integer(n_int), intent(inout) :: cum_det(0:nIfTot)
-        integer(n_int), intent(in) :: new_det(0:niftot+nifd+3)
+        integer(n_int), intent(in) :: new_det(0:IlutBits%len_bcast)
         integer, intent(in) :: part_type, Spawned_No
         integer, intent(inout) :: Parent_Array_Ind
         type(fcimc_iter_data), intent(inout) :: iter_data
@@ -578,21 +587,26 @@ module AnnihilationMod
 
         ! Obviously only add the parent determinant into the parent array if it is
         ! actually being stored - and is therefore not zero.
-        if (((tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) .and. &
-            (.not. DetBitZero(new_det(NIfTot+1:NIfTot+nifd+1), nifd)))) then
-            if (abs(new_sgn) > 1.e-12_dp) then
-                ! Add parent (Di) stored in SpawnedParts to the parent array.
-                Spawned_Parents(0:IlutBitsParent%ind_flag,Parent_Array_Ind) = &
-                    new_det(NIfTot+1:NIfTot+nifd+3)
-                Spawned_Parents(IlutBitsParent%ind_source,Parent_Array_Ind) = part_type
-                Parent_Array_Ind = Parent_Array_Ind + 1
-                Spawned_Parents_Index(2,Spawned_No) = Spawned_Parents_Index(2,Spawned_No) + 1
+        if (tFillingStochRDMonFly .and. (.not. tNoNewRDMContrib)) then
+            if (.not. DetBitZero(&
+                new_det(IlutBits%ind_parent:IlutBits%ind_parent+IlutBits%len_orb))) then
+                if (abs(new_sgn) > 1.e-12_dp) then
+                    ! Add parent (Di) stored in SpawnedParts to the parent array.
+                    Spawned_Parents(0:IlutBitsParent%ind_flag,Parent_Array_Ind) = &
+                        new_det(IlutBits%ind_parent:IlutBits%ind_parent_flag)
+                    Spawned_Parents(IlutBitsParent%ind_source,Parent_Array_Ind) = &
+                        part_type
 
-                ! in the guga implementation we also need to transfer rdm information
-                if (tGUGA) then
-                    call transfer_stochastic_rdm_info(new_det, &
-                        Spawned_Parents(:,Parent_Array_Ind), &
-                        BitIndex_from = IlutBitsParent, BitIndex_to = IlutBitsParent)
+                    ! in the guga implementation we also need to transfer rdm information
+                    if (tGUGA) then
+                        call transfer_stochastic_rdm_info(new_det, &
+                            Spawned_Parents(:,Parent_Array_Ind), &
+                            BitIndex_from = IlutBits, BitIndex_to = IlutBitsParent)
+                    end if
+
+                    Parent_Array_Ind = Parent_Array_Ind + 1
+                    Spawned_Parents_Index(2,Spawned_No) = &
+                        Spawned_Parents_Index(2,Spawned_No) + 1
                 end if
             end if
         end if
@@ -966,6 +980,7 @@ module AnnihilationMod
             ! nJ and SpawnedParts(:,i). If it is found, tSuccess will be
             ! returned .true. and PartInd will hold the position of the
             ! determinant in CurrentDets. Else, tSuccess will be returned
+
             ! .false. (and PartInd shouldn't be accessed).
             ! Also, the hash value, DetHash, is returned by this routine.
             ! tSuccess will determine whether the particle has been found or not.
@@ -1121,7 +1136,9 @@ module AnnihilationMod
                             ! away. Remove it from the hash index array so that
                             ! no others find it (it is impossible to have another
                             ! spawned walker yet to find this determinant).
-                            if(.not. tAccumEmptyDet(CurrentDets(:,PartInd))) call RemoveHashDet(HashIndex, nJ, PartInd)
+                            if(.not. tAccumEmptyDet(CurrentDets(:,PartInd))) then
+                                call RemoveHashDet(HashIndex, nJ, PartInd)
+                            end if
                         end if
                     endif
                 endif
@@ -1135,12 +1152,13 @@ module AnnihilationMod
                     ! we're effectively taking the instantaneous value from the
                     ! next iter. This is fine as it's from the other population,
                     ! and the Di and Dj signs are already strictly uncorrelated.
+
                     if(tInitsRDM) then
                         call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
                             inits_one_rdms, i, CurrentDets(:, PartInd), TempCurrentSign, .false.)
                     end if
                     call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, &
-                    CurrentDets(:,PartInd), TempCurrentSign)
+                        CurrentDets(:,PartInd), TempCurrentSign)
                 end if
             else
                 ! Determinant in newly spawned list is not found in CurrentDets.
@@ -1273,13 +1291,14 @@ module AnnihilationMod
                     ! Here, one side was unoccupied -> not an initiator -> only matters
                     ! if non-inits are counted
                     if(tNonInitsForRDMs) then
-                        call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, one_rdms, i, SpawnedParts(0:NifTot,i), SpawnedSign)
+                        call check_fillRDM_DiDj(rdm_definitions, two_rdm_spawn, &
+                            one_rdms, i, SpawnedParts(:,i), SpawnedSign)
                     end if
                     ! Same argument, this only matters in the non-variational case, where one
                     ! side does not have to be an initiator
                     if(tInitsRDM .and. tNonVariationalRDMs) then
                         call check_fillRDM_DiDj(rdm_inits_defs, two_rdm_inits_spawn, &
-                        inits_one_rdms, i, SpawnedParts(0:NIfTot,i), SpawnedSign,.false.)
+                        inits_one_rdms, i, SpawnedParts(:,i), SpawnedSign,.false.)
                     end if
                 end if
             end if
