@@ -427,6 +427,12 @@ contains
 
     end subroutine average_determ_vector
 
+    !> Check whether an ilut belongs to the core space
+    !> @param[in] ilut  ilut we want to check
+    !> @param[in] nI  determinant corresponding to this ilut. Redundant, but is passed
+    !!                for performance reasons (decoding is expensive and we likely
+    !!                already know nI at this point)
+    !> @return t_core  true if and only if ilut is in the core space
     function is_core_state(ilut, nI) result (t_core)
 
         use FciMCData, only: determ_space_size_int
@@ -440,6 +446,12 @@ contains
         call shared_rht_lookup(core_ht, ilut, nI, core_space, i, t_core)
     end function is_core_state
 
+    !> Check where an ilut is in the core space
+    !> @param[in] ilut  ilut we want to check
+    !> @param[in] nI  determinant corresponding to this ilut. Redundant, but is passed
+    !!                for performance reasons (decoding is expensive and we likely
+    !!                already know nI at this point)
+    !> @return pos  position of ilut in the core space, 0 if ilut is not in the core space
     function core_space_pos(ilut, nI) result (pos)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)

@@ -285,7 +285,14 @@ contains
     ! Non-member function for global utility
     !------------------------------------------------------------------------------------------!
 
-    ! Default the determinant size
+    !> Default initializer for shared read-only hash-tables, that defaults the
+    !! determinant size to the number of electrons. This sets up a hash table
+    !! storing the position of iluts in a given list, such that lookup is done with the
+    !! shared_rht_lookup function that supports iluts
+    !> @param[in] ilut_list  list of iluts to be indexed by the hash table
+    !> @param[in] space_size  size of the index space
+    !> @param[out] hash_table  shared read-only hashtable to index the ilut_list
+    !> @param[out] ht_size  optional, the size of the hash table. Defaults to space_size
     subroutine initialise_shared_rht_impl(ilut_list, space_size, hash_table, ht_size)    
         use SystemData, only: nel
         integer(n_int), intent(in) :: ilut_list(0:,:)
@@ -301,6 +308,13 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Explicit initializer for shared read-only hash-tables that allows to set the
+    !> determinant size
+    !> @param[in] ilut_list  list of iluts to be indexed by the hash table
+    !> @param[in] space_size  size of the index space
+    !> @param[out] hash_table  shared read-only hashtable to index the ilut_list
+    !> @param[in] det_size  size of the determinants encoded in ilut_list (for convenience)
+    !> @param[out] ht_size  the size of the hash table, has to be specified herer!
     subroutine initialise_shared_rht_expl(ilut_list, space_size, hash_table, det_size, ht_size)
         use bit_reps, only: decode_bit_det
         use hash, only: FindWalkerHash
@@ -339,6 +353,16 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Lookup a value in a shared-read-only hashtable. Returns the position of a given ilut
+    !! in the target space used for setting up this hash table
+    !> @param[in] core_ht  hashtable used for the lookup
+    !> @param[in] ilut the ilut for which we want to get the position in tgt_space
+    !> @param[in] nI  decoded determinant corresponding to ilut (usually already available, so
+    !!                no need to decode again
+    !> @param[in] tgt_space  ilut_list used to initialise core_ht, this is where we want to search for
+    !!                       the given ilut
+    !> @param[out] i  on return, position of ilut in tgt_space if found, 0 else
+    !> @param[out] core_state  on return, true if ilut is found, false else
     subroutine shared_rht_lookup(core_ht, ilut, nI, tgt_space, i, core_state)
         use hash, only: FindWalkerHash
         use FciMCData, only: determ_space_size_int

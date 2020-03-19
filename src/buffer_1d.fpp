@@ -9,6 +9,8 @@ module buffer_1d
 #:for data_type, data_name in data_types    
     public :: buffer_${data_name}$_t
 
+    !> Re-sizeable array type that can be filled elementwise to build up a contiguous data chunk
+    !! that can then be dumped to an allocatable
     type buffer_${data_name}$_t
         private
 
@@ -31,7 +33,11 @@ module buffer_1d
 #:endfor
 contains
 
-#:for data_type, data_name in data_types    
+#:for data_type, data_name in data_types
+
+    !> Set up the re-sizeable array (buffer) with a fixed blocksize
+    !> @param[in] block_size_  size of the blocks in which the buffer is allocated. Also the
+    !!                         initial size
     subroutine init_${data_name}$(this, block_size_)
         class(buffer_${data_name}$_t), intent(inout) :: this
         integer(int64) :: block_size_
@@ -47,6 +53,8 @@ contains
 
     !------------------------------------------------------------------------------------------!
 
+    !> Deallocate the resource. This is automatically called when dumping the buffer, with a
+    !! following re-initialization
     subroutine finalize_${data_name}$(this)
         class(buffer_${data_name}$_t), intent(inout) :: this
 
@@ -55,6 +63,8 @@ contains
 
     !------------------------------------------------------------------------------------------!    
 
+    !> Append a value to the buffer, expanding it by a block when necessary
+    !> @param[in] val  Value to be added
     subroutine add_val_${data_name}$(this, val)
         class(buffer_${data_name}$_t), intent(inout) :: this
         ${data_type}$, intent(in) :: val
@@ -87,6 +97,8 @@ contains
     
     !------------------------------------------------------------------------------------------!
 
+    !> Returns the number of already stored elements in the buffer
+    !> @return n_els  number of elements already added to the buffer
     function num_elements_${data_name}$(this) result(n_els)
         class(buffer_${data_name}$_t), intent(in) :: this
         integer(int64) :: n_els
@@ -97,6 +109,8 @@ contains
     !------------------------------------------------------------------------------------------!
 
     !> Dump the buffer to an allocatable array, deleting it afterwards
+    !> @param[out] tgt  Allocatable array (reset upon entry), contains the stored elements of
+    !!                  the buffer on return. The buffer is reset on return
     subroutine dump_${data_name}$(this, tgt)
         class(buffer_${data_name}$_t), intent(inout) :: this
         ${data_type}$, intent(out), allocatable :: tgt(:)
