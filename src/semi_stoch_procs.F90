@@ -583,7 +583,7 @@ contains
         integer :: i
         integer(MPIArg) :: node_size, num_nodes
         integer(MPIArg) :: global_offset
-
+        
         call mpi_comm_size(mpi_comm_intra, node_size, ierr)
         call mpi_comm_size(mpi_comm_inter, num_nodes, ierr)
 
@@ -611,6 +611,7 @@ contains
 
         ! Sum the size on this node
         total_size_this_node = sum(sizes_this_node)
+
         call MPI_AllGather(total_size_this_node, 1, MPI_INTEGER4, sizes_per_node, 1, MPI_INTEGER4, &
             mpi_comm_inter, ierr)
 
@@ -621,15 +622,12 @@ contains
         end do
 
         global_offset = node_offsets(iProcIndex_inter) + proc_offset
-        do i = 0, node_size-1
-            ! One by one, each proc on this node writes to the shared resource
-            if(iProcIndex_intra == i) then
-                core_space(0:NIfD,(global_offset+1):&
-                    (global_offset + determ_sizes(iProcIndex))) = &
-                    SpawnedParts(0:NIfD, 1:determ_sizes(iProcIndex))
-            end if
-            call MPI_Barrier(mpi_comm_intra, ierr)
-        end do
+
+        call MPI_Win_fence(0, core_space_win, ierr)
+        core_space(0:NIfTot,(global_offset+1):&
+            (global_offset + determ_sizes(iProcIndex))) = &
+            SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex))
+        call MPI_Win_fence(0, core_space_win, ierr)
 
         ! Multiply with message width (1+NIfTot)
         core_width = int(size(core_space, dim = 1), MPIArg)
@@ -642,6 +640,8 @@ contains
         call MPI_AllGatherV(MPI_IN_PLACE,total_size_this_node,MPI_INTEGER8, core_space, &
             sizes_per_node, node_offsets, MPI_INTEGER8, mpi_comm_inter, ierr)
 
+        ! And sync the shared window
+        call MPI_Win_fence(0, core_space_win, ierr)
         ! Communicate the indices in the full vector at which the various processors take over, relative
         ! to the first index position in the vector (i.e. the array disps in MPI routines).
         call MPIAllGather(global_offset, determ_displs, ierr)

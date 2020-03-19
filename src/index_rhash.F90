@@ -30,7 +30,10 @@ module index_rhash
         procedure :: lookup
 
         ! Tell if the conflicts have been counted
-        procedure :: known_conflicts        
+        procedure :: known_conflicts
+
+        ! Synchronize the table between tasks
+        procedure :: sync
     end type index_rhash_t
 
 contains
@@ -155,5 +158,14 @@ contains
 
         t_kc = this%shared_ht%known_conflicts()
     end function known_conflicts
+
+    !------------------------------------------------------------------------------------------!
+
+    !> For a MPI-3 shared memory array, synchronization is required after/before each read/write epoch
+    subroutine sync(this)
+        class(index_rhash_t), intent(in) :: this
+
+        call this%shared_ht%sync()
+    end subroutine sync
 
 end module index_rhash

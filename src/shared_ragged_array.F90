@@ -19,6 +19,7 @@ module shared_ragged_array
     contains
         procedure :: shared_alloc
         procedure :: shared_dealloc
+        procedure :: sync
         procedure :: reassign_pointers
         procedure :: pos_1d
         procedure :: pos_2d
@@ -84,6 +85,14 @@ contains
 
         this%ptr(i)%res(j) = val
     end subroutine set_val
+    
+    !------------------------------------------------------------------------------------------!        
+
+    subroutine sync(this)
+        class(shared_ragged_array_t), intent(inout) :: this
+
+        call this%data_array%sync()
+    end subroutine sync
 
     !------------------------------------------------------------------------------------------!        
 

@@ -65,6 +65,9 @@ module shared_rhash
         procedure :: known_conflicts
         ! Check how large the hash table shall be
         procedure :: val_range
+
+        ! Synchronize between tasks
+        procedure :: sync
     end type shared_rhash_t
 
 contains
@@ -268,6 +271,16 @@ contains
         h_range = this%hval_range
     end function val_range
 
+    !------------------------------------------------------------------------------------------!    
+
+    !> Synchronize the shared resource
+    subroutine sync(this)
+        class(shared_rhash_t), intent(in) :: this
+
+        call this%indices%sync()
+        call this%hval_offsets%sync()
+    end subroutine sync
+
     !------------------------------------------------------------------------------------------!
     ! Non-member function for global utility
     !------------------------------------------------------------------------------------------!
@@ -321,7 +334,7 @@ contains
         end do
 
         ! Synchronize the node afterwards to keep tasks from using the un-initialized ht
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call hash_table%sync()
     end subroutine initialise_shared_rht_expl
 
     !------------------------------------------------------------------------------------------!    

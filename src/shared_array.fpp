@@ -22,7 +22,8 @@ module shared_array
     contains
         ! allocation and deallocation routines
         procedure :: shared_alloc => safe_shared_memory_alloc_${data_name}$
-        procedure :: shared_dealloc => safe_shared_memory_dealloc_${data_name}$  
+        procedure :: shared_dealloc => safe_shared_memory_dealloc_${data_name}$
+        procedure :: sync => sync_${data_name}$
     end type shared_array_${data_name}$_t
 #:endfor
 contains
@@ -72,6 +73,16 @@ contains
         ! First, check if we have to log the deallocation
         if(this%tag /= 0) call LogMemDealloc(t_r, this%tag)
     end subroutine safe_shared_memory_dealloc_${data_name}$
+
+    !> callls MPI_Fence on the array's shared memory window to sync rma
+    subroutine sync_${data_name}$(this)
+        implicit none
+        class(shared_array_${data_name}$_t) :: this
+        integer :: ierr
+        
+        call MPI_Win_Fence(0, this%win, ierr)
+        
+    end subroutine sync_${data_name}$
 #:endfor
     
 end module shared_array

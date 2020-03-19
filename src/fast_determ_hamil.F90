@@ -304,7 +304,12 @@ contains
         call MPI_Bcast(nbeta_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
         call MPI_Bcast(nalpha_unpaired, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
         call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)       
+        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
+
+        ! Sync nbeta_dets / nalpha_dets / cs
+        call nbeta_dets%sync()
+        call nalpha_dets%sync()
+        call cs%sync()
         
         ! Allocate the shared resource used
         call beta_dets%shared_alloc(nbeta_dets%ptr(1:nbeta_unpaired))
@@ -430,7 +435,7 @@ contains
         endif
 
         ! Allocate the beta_beta array...
-        call MPI_Barrier(mpi_comm_intra, ierr)        
+        call nbeta_beta%sync()
         call beta_beta%shared_alloc(nbeta_beta%ptr(1:nbeta))
         ! Wait until allocation is complete before overwriting nbeta_beta
         call MPI_Barrier(mpi_comm_intra, ierr)                
@@ -467,7 +472,7 @@ contains
         endif
 
         ! Allocate the alpha_alpha array...
-        call MPI_Barrier(mpi_comm_intra, ierr)        
+        call nalpha_alpha%sync()
         call alpha_alpha%shared_alloc(nalpha_alpha%ptr(1:nalpha))
         ! Wait until allocation is complete before overwriting nalpha_alpha
         call MPI_Barrier(mpi_comm_intra, ierr)                        
@@ -529,6 +534,10 @@ contains
         call beta_with_alpha%reassign_pointers()
         call alpha_dets%reassign_pointers()
 
+        call alpha_dets%sync()
+        call alpha_alpha%sync()
+        call beta_with_alpha%sync()
+        call beta_beta%sync()
 
         if(iProcIndex_intra == 0) then
 
@@ -559,7 +568,10 @@ contains
 
         write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
 
-        ! Create the node shared read-only hashtables
+        ! Sync the ilut lists
+        call MPI_Win_Fence(0, beta_list_win, ierr)
+        call MPI_Win_Fence(0, alpha_list_win, ierr)
+        ! Create the node shared read-only hashtables        
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)        
 
@@ -1089,7 +1101,10 @@ contains
         ! Continue the allocation of auxiliary arrays, these are shared now
         ! Internally broadcast the size of the arrays
         call MPI_Bcast(nbeta, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
-        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)       
+        call MPI_Bcast(nalpha, 1, MPI_INTEGER4, 0, mpi_comm_intra, ierr)
+
+        call nbeta_dets%sync()
+        call nalpha_dets%sync()
         
         ! Allocate the shared resource used
         call beta_dets%shared_alloc(nbeta_dets%ptr(1:nbeta))
@@ -1201,7 +1216,7 @@ contains
         endif
 
         ! Wait until nbeta_beta is computed on node root
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        call nbeta_beta%sync()
         call beta_beta%shared_alloc(nbeta_beta%ptr(1:nbeta))
         ! Wait unti all tasks allocated before overwriting nbeta_beta
         call MPI_Barrier(mpi_comm_intra, ierr)
@@ -1231,7 +1246,8 @@ contains
             end do
         endif
 
-        call MPI_Barrier(mpi_comm_intra, ierr)
+        ! Allocate the alpha_alpha array...
+        call nalpha_alpha%sync()        
         call alpha_alpha%shared_alloc(nalpha_alpha%ptr(1:nalpha))
         ! Wait unti all tasks allocated before overwriting nalpha_alpha
         call MPI_Barrier(mpi_comm_intra, ierr)
@@ -1290,6 +1306,11 @@ contains
         call alpha_alpha%reassign_pointers()
         call beta_with_alpha%reassign_pointers()
         call alpha_dets%reassign_pointers()
+
+        call alpha_dets%sync()
+        call alpha_alpha%sync()
+        call beta_with_alpha%sync()
+        call beta_beta%sync()        
         
         if(iProcIndex_intra == 0) then
 
@@ -1319,7 +1340,9 @@ contains
 
             write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
         endif
-        call MPI_Barrier(mpi_comm_intra, ierr)        
+        ! Sync the ilut lists
+        call MPI_Win_Fence(0, beta_list_win, ierr)
+        call MPI_Win_Fence(0, alpha_list_win, ierr)        
         ! Create the node shared read-only hashtables
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
