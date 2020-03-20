@@ -1203,7 +1203,7 @@ contains
 
                         if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
                             if (p >= q .and. p >= r .and. p >= s) then
-                                write(iunit,"(4I5, F28.20)") p, q, s, r, rdm_sign(irdm)
+                                write(iunit,"(4I5, F28.20)") p, q, r, s, rdm_sign(irdm)
                             end if
                         end if
                     end do

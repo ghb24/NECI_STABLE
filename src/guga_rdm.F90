@@ -518,6 +518,9 @@ contains
 
                             ! maybe i should not even fill the symmetric k,l,i,j
                             ! for hermiticity check purposes! TODO
+                            if (.not. ex_typ == excit_type%fullstart_stop_alike) then
+                                call add_to_rdm_spawn_t(spawn, k, l, i, j, full_sign, .true.)
+                            end if
                         end if
                     end do
                 end if
