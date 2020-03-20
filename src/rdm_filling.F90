@@ -1017,7 +1017,16 @@ contains
                     call Fill_Spin_Coupled_RDM(spawn, one_rdms, iLutI, iLutJ, nI, nJ, AvSignI*IterRDM, AvSignJ)
 
                 else if (tGUGA) then
-                    call stop_all(this_routine, "TODO in GUGA")
+
+                    ! here I have to do the slow implementaion.. since I
+                    ! have no way of knowing the rdm info..
+                    ! except if I would additionally store this in the
+                    ! semi-stochastic space setup! TODO
+                    call decode_bit_det(nJ, iLutJ)
+                    call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nI, nJ, &
+                        AvSignI * IterRDM, AvSignJ, t_bra_to_ket = .true., &
+                        t_fast = .false.)
+
 
                 else
                     if (IC == 1) then
