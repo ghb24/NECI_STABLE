@@ -1206,8 +1206,11 @@ contains
                     ASSERT(jj > ll)
                 end if
 #endif
-                ! the first two should have the 'original' sign
-                ! and the last two the opposite
+                ! be sure with the rdm_sign function:
+
+                ! rdm_mat(1:2) = temp_x0 + generator_sign(ii,jj,kk,ll) * temp_x1
+                ! rdm_mat(3:4) = temp_x0 + generator_sign(ii,ll,kk,jj) * temp_x1
+
                 rdm_mat(1:2) = temp_x0 + temp_x1
                 rdm_mat(3:4) = temp_x0 - temp_x1
 
@@ -7041,20 +7044,21 @@ contains
         type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcDoubleR2L2R_stochastic"
 
-        integer :: iOrb, start2, ende1, ende2, start1, switch
+        integer :: iOrb, switch
         type(WeightObj_t) :: weights
         real(dp) :: temp_pgen
         HElement_t(dp) :: integral
 
-        ASSERT(.not.isThree(ilut,excitInfo%fullStart))
-        ASSERT(.not.isZero(ilut,excitInfo%secondStart))
-        ASSERT(.not.isThree(ilut,excitInfo%firstEnd))
-        ASSERT(.not.isZero(ilut,excitInfo%fullEnd))
 
-        start1 = excitInfo%fullStart
-        start2 = excitInfo%secondStart
-        ende1 = excitInfo%firstEnd
-        ende2 = excitInfo%fullEnd
+        associate(i => excitInfo%i, j => excitInfo%j, k => excitInfo%k, &
+                  l => excitInfo%l, start1 => excitInfo%fullstart, &
+                  start2 => excitInfo%secondStart, ende1 => excitInfo%firstEnd, &
+                  ende2 => excitInfo%fullEnd, typ => excitInfo%typ)
+
+        ASSERT(.not.isThree(ilut,start1))
+        ASSERT(.not.isZero(ilut,start2))
+        ASSERT(.not.isThree(ilut,ende1))
+        ASSERT(.not.isZero(ilut,ende2))
 
         if (present(opt_weight)) then
             weights = opt_weight
@@ -7125,8 +7129,7 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         if (tRDMonfly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
-                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                excit_lvl = 2, excit_typ = excitInfo%typ), &
+                contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, excit_typ = typ), &
                 x0 = extract_matrix_element(t,1), &
                 x1 = extract_matrix_element(t,2))
         end if
@@ -7172,6 +7175,8 @@ contains
                 call encode_matrix_element(t, integral, 1)
             end if
         end if
+
+        end associate
 
     end subroutine calcDoubleR2L2R_stochastic
 
@@ -23912,13 +23917,13 @@ contains
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_R_to_L_to_R, &
                                     gen_type%L,gen_type%R,gen_type%R,gen_type%R,gen_type%R,&
-                                    st,j,i,en,st,i,en,j,0,4,1.0_dp,1.0_dp)
+                                    st,j,en,i,st,i,en,j,0,4,1.0_dp,1.0_dp)
                             else
                                 ! _L(i) > _RL(min) > ^LR(max) > ^R(j)
                                 excitInfo = assign_excitInfo_values_double(&
                                     excit_type%double_L_to_R, &
                                     gen_type%L,gen_type%R,gen_type%L,gen_type%L,gen_type%R,&
-                                    i,en,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
+                                    en,i,st,j,i,st,en,j,0,4,1.0_dp,1.0_dp)
                             end if
                         end if
                      end if

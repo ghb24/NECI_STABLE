@@ -32,7 +32,7 @@ module guga_rdm
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
                          excit_type, gen_type, rdm_ind_bitmask, &
-                         t_fast_guga_rdms, t_mimic_slow
+                         t_fast_guga_rdms, t_mimic_slow, excit_names
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -403,9 +403,9 @@ contains
 #endif
         type(ExcitationInformation_t) :: excitInfo
         HElement_t(dp) :: mat_ele
-        integer(int_rdm), allocatable :: rdm_ind(:)
-        real(dp), allocatable :: rdm_mat(:)
-        integer :: i, j, k, l, n, ex_lvl, ex_typ
+        integer(int_rdm), allocatable :: rdm_ind(:), rdm_ind_2(:)
+        real(dp), allocatable :: rdm_mat(:), rdm_mat_2(:)
+        integer :: i, j, k, l, n, ex_lvl, ex_typ, m
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         integer(n_int) :: ilutGi(0:GugaBits%len_tot), ilutGj(0:GugaBits%len_tot)
         integer(int_rdm) :: pure_ind
@@ -496,7 +496,9 @@ contains
                                 call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
                                 ! to mimic the slow implementation I have to
                                 ! count the 'conjugated' element here
-                                call add_to_rdm_spawn_t(spawn, k, l, i, j, full_sign, .true.)
+                                if (.not. ex_typ == excit_type%fullstart_stop_alike) then
+                                    call add_to_rdm_spawn_t(spawn, k, l, i, j, full_sign, .true.)
+                                end if
 
                             end if
                         end do
