@@ -23,6 +23,7 @@ readpops
 walkcontgrow
 semi-stochastic
 pops-core 100
+core-inits
 trial-wavefunction
 pops-trial 10
 allrealcoeff

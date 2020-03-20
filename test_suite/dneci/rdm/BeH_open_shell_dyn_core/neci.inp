@@ -29,6 +29,7 @@ nmcyc 15000
 semi-stochastic 100
 pops-core 500
 dynamic-core 300
+core-inits
 stochastic-hf-spawning
 allrealcoeff
 realspawncutoff 0.5

@@ -25,6 +25,7 @@ realspawncutoff 0.01
 nmcyc 100
 semi-stochastic 50
 pops-core 110
+core-inits
 dynamic-core 20
 (readpops
 truncinitiator
