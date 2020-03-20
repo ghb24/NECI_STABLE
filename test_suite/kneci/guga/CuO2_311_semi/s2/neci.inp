@@ -32,7 +32,7 @@ maxwalkerbloom 1
 memoryfacspawn 25.0
 memoryfacpart 5.0
 time 1200.0
-nmcyc 2100
+nmcyc 4000
 load-balance-interval 1000
 endcalc
 

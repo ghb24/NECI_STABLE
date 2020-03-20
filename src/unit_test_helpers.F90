@@ -24,6 +24,8 @@ module unit_test_helpers
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
                          count_open_orbs
 
+    use GenRandSymExcitNUMod, only: init_excit_gen_store, clean_excit_gen_store
+
     use sort_mod
 
     use ras, only: sort_orbitals
@@ -815,7 +817,8 @@ contains
         real(dp) :: pgen, contrib
         HElement_t(dp) :: hel
         integer(n_int), allocatable :: det_list(:,:)
-        real(dp), allocatable :: contrib_list(:)
+        real(dp), allocatable :: contrib_list(:), pgen_list(:)
+        HElement_t(dp), allocatable :: mat_ele_list(:)
         logical, allocatable :: generated_list(:)
         integer :: n_dets, n_generated, pos
 
@@ -824,6 +827,7 @@ contains
         ASSERT(nbasis > 0)
         ASSERT(nel <= nbasis)
 
+        call init_excit_gen_store(store)
         ! use some default values if not provided:
         ! nel must be set!
         if (present(opt_nI)) then
@@ -883,10 +887,10 @@ contains
         print *, "for starting determinant: ", nI
 
         ! Lists to keep track of things
-        allocate(generated_list(n_excits))
-        allocate(contrib_list(n_excits))
-        generated_list = .false.
-        contrib_list = 0
+        allocate(generated_list(n_excits), source = .false.)
+        allocate(contrib_list(n_excits), source = 0.0_dp)
+        allocate(pgen_list(n_excits), source = 0.0_dp)
+        allocate(mat_ele_list(n_excits), source = h_cast(0.0_dp))
 
         n_generated = 0
         contrib = 0.0_dp
@@ -905,10 +909,12 @@ contains
             if (pos < 0) then
                 print *, "nJ: ", nJ
                 print *, "ilutJ:", tgt_ilut
-                print *, "hel: ", get_helement_lattice(nI,nJ)
+                print *, "hel: ", get_helement(nI,nJ)
                 call stop_all(this_routine, 'Unexpected determinant generated')
             else
                 generated_list(pos) = .true.
+                mat_ele_list(pos) = get_helement(nJ, nI)
+                pgen_list(pos) = pgen
                 n_generated = n_generated + 1
 
                 contrib = contrib + 1.0_dp / pgen
@@ -920,18 +926,24 @@ contains
         print *, 100.0_dp * (n_iters - n_generated) / real(n_iters,dp), "% abortion rate"
         print *, "Averaged contribution: ", contrib / real(n_excits*n_iters,dp)
 
-        ! check all dets are generated:
-        ASSERT(all(generated_list))
 
         print *, "=================================="
-        print *, "Contribution List: "
+        print *, "Contribution List for det: "
+        call writebitdet(6, ilut, .true.)
+        print *, " det | contrib | pgen | mat-ele | ic "
+        print *, "=================================="
         do i = 1, n_excits
             ic = findbitexcitlevel(ilut, det_list(:,i))
             call writebitdet(6, det_list(:,i), .false.)
-            print *, contrib_list(i)/real(n_iters,dp), "|", ic
+            print *, contrib_list(i)/real(n_iters,dp), "|", pgen_list(i), "|", &
+                        mat_ele_list(i), "|", ic
         end do
+        ! check all dets are generated:
+        ASSERT(all(generated_list))
         ! and check the uniformity of the excitation generation
 !         ASSERT(all(abs(contrib_list / n_iters - 1.0_dp) < 0.01_dp))
+
+        call clean_excit_gen_store(store)
 
     end subroutine run_excit_gen_tester
 
