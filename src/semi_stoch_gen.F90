@@ -219,8 +219,9 @@ contains
                     gs_energy = e_values(1)
                 end if
             else
-                root_print "semi-stochastic space GS energy: ", gs_energy
+                call diagonalize_core(gs_energy, gs_vector)
             end if
+            root_print "semi-stochastic space GS energy: ", gs_energy
         end if
 #endif
 

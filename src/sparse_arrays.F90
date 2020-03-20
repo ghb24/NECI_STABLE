@@ -221,8 +221,6 @@ contains
             ! the diagonal have been counted (as the Hamiltonian is symmetric).
             sparse_diag_positions(i) = sparse_row_sizes(i)
 
-            if (t_guga_mat_eles .and. tGUGA) call init_csf_information(ilut_list(0:nifd,i))
-
             if (tGUGA .and. (.not. t_guga_mat_eles)) then
 
                 call convert_ilut_toGUGA(ilut_list(:,i), ilutG)
@@ -276,8 +274,8 @@ contains
                             hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:, i), &
                                                                                ilut_list(:, j))
                         else if (tGUGA) then
-                            call calc_guga_matrix_element(ilut_list(:,i), ilut_list(:,j), &
-                                    excitInfo, hamiltonian_row(j), .true., 1)
+                            call calc_guga_matrix_element(ilut_list(:,j), ilut_list(:,i), &
+                                    excitInfo, hamiltonian_row(j), .true., 2)
                         else
                             hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:, i), &
                                                                      ilut_list(:, j))
@@ -382,8 +380,6 @@ contains
             row_size = 0
             hamiltonian_row = 0.0_dp
 
-            if (tGUGA .and. t_guga_mat_eles) call init_csf_information(ilut_list(0:nifd,i))
-
             if (tGUGA .and. (.not. t_guga_mat_eles)) then
                 call convert_ilut_toGUGA(ilut_list(:,i), ilutG)
 
@@ -436,8 +432,8 @@ contains
                     if (tHPHF) then
                         hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, ilut_list(:,i), temp_store(:,j))
                     else if (tGUGA) then
-                        call calc_guga_matrix_element(ilut_list(:,i), temp_store(:,j), &
-                            excitInfo, hamiltonian_row(j), .true., 1)
+                        call calc_guga_matrix_element(temp_store(:,j), ilut_list(:,i), &
+                            excitInfo, hamiltonian_row(j), .true., 2)
                     else
                         hamiltonian_row(j) = get_helement(nI, nJ, ilut_list(:,i), temp_store(:,j))
                     end if
@@ -543,7 +539,6 @@ contains
             ! other deterministic states are connected to nI
             ! make this optional, dependent on how i want to calculate the
             ! off-diagoanal elements for the guga case
-            if (t_guga_mat_eles .and. tGUGA) call init_csf_information(SpawnedParts(0:nifd,i))
 
             if (tGUGA .and. (.not. t_guga_mat_eles)) then
                 call convert_ilut_toGUGA(SpawnedParts(:,i), ilutG)
@@ -613,8 +608,8 @@ contains
                             ! but this is a waste.. i do not have to do that for
                             ! every nJ i could just check the list generated
                             ! by H|nI>..
-                            call calc_guga_matrix_element(SpawnedParts(:,i), temp_store(:,j), &
-                                excitInfo, hamiltonian_row(j), .true., 1)
+                            call calc_guga_matrix_element(temp_store(:,j), SpawnedParts(:,i), &
+                                excitInfo, hamiltonian_row(j), .true., 2)
                         else
                             tmp = ieor(SpawnedParts(0:NIfD,i), temp_store(0:NIfD,j))
                             tmp = iand(SpawnedParts(0:NIfD,i), tmp)

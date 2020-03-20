@@ -1631,7 +1631,7 @@ contains
         call neci_flush(6)
 
         call DestroyDavidsonCalc(davidsonCalc)
-        call LogMemDealloc(t_r, DavidsonTag, ierr)
+        ! call LogMemDealloc(t_r, DavidsonTag, ierr)
         deallocate(hamil_diag, stat=ierr)
         call LogMemDealloc(t_r, HDiagTag, ierr)
         call deallocate_sparse_ham(sparse_ham, SparseHamilTags)
@@ -1668,11 +1668,6 @@ contains
         integer i, nI(nel),space_size
 
        root_print "The determinants are"
-
-      do i=1, determ_space_size
-       call decode_bit_det(nI, core_space(:,i))
-       root_print i, nI(1:nel)
-      enddo
 
         ! if the Hamiltonian is non-hermitian we cannot use the
         ! standard Lanzcos or Davidson routines. so:
