@@ -1159,6 +1159,7 @@ contains
         integer(int_rdm) :: pqrs
         integer :: ielem, irdm, iunit, iproc, ierr
         integer :: pq, rs, p, q, r, s ! spatial orbitals
+        integer(n_int) :: pq_, rs_
         real(dp) :: rdm_sign(rdm%sign_length)
         character(40) :: rdm_filename
 
@@ -1192,7 +1193,9 @@ contains
                         pqrs = rdm%elements(0,ielem)
                         if (tGUGA) then
                             ! Obtain spatial orbital labels.
-                            call extract_2_rdm_ind(pqrs, p, q, r, s)
+                            call extract_2_rdm_ind(pqrs, p, q, r, s, pq_, rs_)
+                            pq = int(pq_)
+                            rs = int(rs_)
                         else
                             ! Obtain spin orbital labels.
                             call calc_separate_rdm_labels(pqrs, pq, rs, p, s, q, r)
@@ -1202,8 +1205,8 @@ contains
                         rdm_sign = rdm_sign/rdm_trace
 
                         if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
-                            if (p >= q .and. p >= r .and. p >= s) then
-                                write(iunit,"(4I5, F28.20)") p, q, r, s, rdm_sign(irdm)
+                            if (p >= q .and. pq >= rs .and. p >= r .and. p >= s) then
+                                write(iunit,"(1X,4I5, F28.20)") p, q, r, s, rdm_sign(irdm)
                             end if
                         end if
                     end do

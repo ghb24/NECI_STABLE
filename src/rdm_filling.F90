@@ -17,7 +17,7 @@ module rdm_filling
     use DetBitOps, only: DetBitEq
     use guga_rdm, only: Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
                         fill_spawn_rdm_diag_guga, Add_RDM_HFConnections_GUGA
-
+    use util_mod, only: near_zero
     implicit none
 
 contains
@@ -454,6 +454,10 @@ contains
 
         ! Run through all Di's.
 
+        ! in the GUGA RDMs it somehow can happen that a all 0 real_sign_j_all
+        ! gets in here.. to abort if that happens
+        if (all(near_zero(real_sign_j_all))) return
+
         do i = Spawned_Parents_Index(1,Spawned_No), &
                 Spawned_Parents_Index(1,Spawned_No) + Spawned_Parents_Index(2,Spawned_No) - 1
 
@@ -476,6 +480,11 @@ contains
             ! population.
             source_part_type = int(Spawned_Parents(IlutBitsParent%ind_source,i))
 
+            ! WD: due to some weird convention in Annihilation (TODO check that!)
+            ! it can happen that a source_part_type = 0 can end up here..
+            ! so cycle if that happens
+            if (source_part_type == 0) cycle
+
             ! if we only sum in initiator contriubtions, check the flags here
             ! This block is entered if
             ! a) tNonInits == .false. -> we are looking at the inits-rdms
@@ -495,6 +504,13 @@ contains
                 end do
                 if(tNonInitParent) cycle
             endif
+
+            if (source_part_type == 0) then
+                print *, "nI: ", nI
+                print *, "nJ: ", nJ
+                print *, "sign_I: ", realSignI
+                print *, "sign_J: ", real_sign_j_all
+            end if
 
             ! Loop over all RDMs to which the simulation with label
             ! source_part_type contributes to.
