@@ -666,8 +666,9 @@ contains
             ! reference_list all the time for non-zero excitLvl..
             ! since atleast excitLvl = 0 gets determined correctly
             if (ExcitLevel_local == 0) then
-                if (iter > NEquilSteps) &
+                if (iter > NEquilSteps) then
                     SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+                end if
                 NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
                 ! Number at HF * sign over course of update cycle
                 HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
@@ -692,65 +693,66 @@ contains
             end if
         else
 
-        if (ExcitLevel_local == 0) then
+            if (ExcitLevel_local == 0) then
 
 
-            ! for the real-time i have to distinguish between the first and
-            ! second RK step, if i want to keep track of the statistics
-            ! seperately: in the first loop i analyze the the wavefunction
-            ! from on step behind.. so store it in the "normal" noathf var
+                ! for the real-time i have to distinguish between the first and
+                ! second RK step, if i want to keep track of the statistics
+                ! seperately: in the first loop i analyze the the wavefunction
+                ! from on step behind.. so store it in the "normal" noathf var
 
-            if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
-                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
-                HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
-                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
-                if (iter > NEquilSteps) &
-                    SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
-            endif
+                if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                    HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+                    HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
+                    NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+                    if (iter > NEquilSteps) &
+                        SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+                endif
 
-        elseif (ExcitLevel_local == 2 .or. &
-                (ExcitLevel_local == 1 .and. tNoBrillouin)) then
+            elseif (ExcitLevel_local == 2 .or. &
+                    (ExcitLevel_local == 1 .and. tNoBrillouin)) then
 
-            ! For the real-space Hubbard model, determinants are only
-            ! connected to excitations one level away, and Brillouins
-            ! theorem cannot hold.
-            !
-            ! For Rotated orbitals, Brillouins theorem also cannot hold,
-            ! and energy contributions from walkers on singly excited
-            ! determinants must also be included in the energy values
-            ! along with the doubles
-            ! RT_M_Merge: Adjusted to kmneci
-            ! rmneci_setup: Added multirun functionality for real-time
+                ! For the real-space Hubbard model, determinants are only
+                ! connected to excitations one level away, and Brillouins
+                ! theorem cannot hold.
+                !
+                ! For Rotated orbitals, Brillouins theorem also cannot hold,
+                ! and energy contributions from walkers on singly excited
+                ! determinants must also be included in the energy values
+                ! along with the doubles
+                ! RT_M_Merge: Adjusted to kmneci
+                ! rmneci_setup: Added multirun functionality for real-time
 
-            if (ExcitLevel_local == 2) then
-                do run = 1, inum_runs
-                    if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                if (ExcitLevel_local == 2) then
+                    do run = 1, inum_runs
+                        if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
 #if defined(CMPLX_)
-                        NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign &
-                            (min_part_type(run):max_part_type(run))))
+                            NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign &
+                                (min_part_type(run):max_part_type(run))))
 #else
-                        NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
+                            NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
 #endif
-                    endif
-                enddo
-            end if
-            ! Obtain off-diagonal element
-            if (tHPHF) then
-                HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
-                                                                iLutRef(:,1), ilut)
+                        endif
+                    enddo
+                end if
+                ! Obtain off-diagonal element
+                if (tHPHF) then
+                    HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
+                                                                    iLutRef(:,1), ilut)
 
-            else
-                HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
-                                                      ExcitLevel, ilutRef(:,1), ilut)
-            endif
+                else
+                    HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
+                                                          ExcitLevel, ilutRef(:,1), ilut)
+                endif
 
-        else if (ExcitLevel_local == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
-            ! the new 3-body terms in the transcorrelated momentum space hubbard
-            ! hphf not yet implemented!
-            ASSERT(.not. tHPHF)
-            HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut)
+            else if (ExcitLevel_local == 3 .and. &
+                (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
+                ! the new 3-body terms in the transcorrelated momentum space hubbard
+                ! hphf not yet implemented!
+                ASSERT(.not. tHPHF)
+                HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut)
 
-        endif ! ExcitLevel_local == 1, 2, 3
+            endif ! ExcitLevel_local == 1, 2, 3
         endif ! GUGA
 
         ! L_{0,1,2} norms of walker weights by excitation level.

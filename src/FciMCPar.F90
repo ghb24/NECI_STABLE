@@ -1424,8 +1424,6 @@ module FciMCParMod
                 call neci_flush(iout)
             ENDIFDEBUG
 
-!            call test_sym_excit3 (DetCurr, 1000000, pDoubles, 3)
-
             if(walkExcitLevel_toHF.eq.0) HFInd = j
 
             IFDEBUGTHEN(FCIMCDebug,1)

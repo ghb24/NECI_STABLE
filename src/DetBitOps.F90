@@ -222,15 +222,7 @@ module DetBitOps
         tmp = ieor(iLutnI, iLutnJ)
         tmp = iand(iLutnI, tmp)
 
-        ! Then count them
-        ! Since our CountBits routines don't actually make a saving
-        ! for counting smaller numbers of bits, no point in even testing
-        ! for a maxExLevel!
-!        if (present(maxExLevel)) then
-!            IC = CountBits(tmp, NIfD, maxExLevel)
-!        else
-            IC = CountBits(tmp, NIfD)
-!        endif
+        IC = CountBits(tmp, NIfD)
 
     end function FindBitExcitLevel
 
