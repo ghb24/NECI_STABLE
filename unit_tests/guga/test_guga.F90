@@ -5662,7 +5662,7 @@ contains
 
             pos = binary_search(ex(0:nifd,1:nex),ilutJ(0:nifd))
             call assert_true(pos > 0)
-            call assert_equals(helgen, extract_matrix_element(ex(:,pos),1))
+            call assert_equals(helgen, extract_h_element(ex(:,pos)))
 
             call extract_stochastic_rdm_info(IlutBits, ilutJ, rdm_ind, x0, x1)
             rdm_ind_ = pure_rdm_ind(rdm_ind)
@@ -10353,7 +10353,7 @@ contains
             rdm_ind_ = pure_rdm_ind(rdm_ind)
             call assert_equals(1, size(rdm_ind_v))
             call assert_equals(rdm_ind_v(1), rdm_ind_)
-            call assert_equals(mat_ele, extract_matrix_element(t,1))
+            call assert_equals(mat_ele, extract_h_element(t))
             call assert_equals(rdm_mat(1), x0)
 
 
