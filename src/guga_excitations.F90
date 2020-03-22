@@ -11179,6 +11179,13 @@ contains
         pgen = 0.0_dp
         integral = 0.0_dp
 
+        if (present(rdm_ind)) then
+            allocate(rdm_ind(0), source = 0_int_rdm)
+        end if
+        if (present(rdm_mat)) then
+            allocate(rdm_mat(0), source = 0.0_dp)
+        end if
+
         call stop_all(this_routine,&
             "in Hubbard/UEG calculations with full k-point symmetry, this excitation shouldnt be reached!")
 

@@ -386,7 +386,7 @@ contains
         if (tPrint1RDMsFromSpinfree) then
             if (tGUGA) then
                 call stop_all(t_r, "check if 'print-1rdms-from-spinfree' &
-                    works with GUGA")
+                   & works with GUGA")
             end if
             call read_spinfree_2rdm_files(rdm_definitions, two_rdm_main, two_rdm_spawn)
             call print_1rdms_from_sf2rdms_wrapper(rdm_definitions, one_rdms, two_rdm_main)

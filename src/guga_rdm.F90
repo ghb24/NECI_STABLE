@@ -1948,7 +1948,7 @@ contains
 
             ! exchange contribution:
             ! wtf is this b_i == 0 check? that does not make any sense..
-            if (step_i(iO) == 3 .or. (occ_i(iO) == 1 .and. b_i(iO) == 0)) then
+            if (step_i(iO) == 3 .or. ((occ_i(iO) .isclose. 1.0_dp) .and. b_i(iO) == 0)) then
                 ! then it is easy:
                 ! just figure out correct indices
                 call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
