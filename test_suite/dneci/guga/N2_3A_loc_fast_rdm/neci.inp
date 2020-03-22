@@ -28,13 +28,9 @@ addtoinitiator 2
 maxwalkerbloom 1
 memoryfacspawn 20.0
 memoryfacpart 10.0
-(semi-stochastic 500
-(pops-core 100
-(trial-wavefunction 1000
-(pops-trial 10
 allrealcoeff
 time 2700
-(nmcyc 41500
+nmcyc 20000
 
 seed 1
 endcalc
@@ -42,8 +38,7 @@ endcalc
 logging
 calcrdmonfly          3    1000 100
 popsfile -1
-slow-guga-rdms
-highlypopwrite 100
+fast-guga-rdms
 endlog
 end
 
