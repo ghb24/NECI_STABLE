@@ -15,7 +15,7 @@ method vertex fcimc
 endmethods
 seed 100
 load-balance-interval 1000
-nmcyc 300
+nmcyc 1000
 totalwalkers 2000
 startsinglepart 10
 shiftdamp 0.5
@@ -26,17 +26,12 @@ memoryfacspawn 10.0
 allrealcoeff
 realspawncutoff 0.5
 orthogonalise-replicas
-semi-stochastic 100
-pops-core 1000
-num-trial-states-calc 2
-trial-wavefunction 100
-doubles-trial
 dont-print-overlaps
-doubles-init
 tau 0.02 search
 truncinitiator
 addtoinitiator 3
 definedet 1 2 3 4 5 6 23 24 33 34
+replica-single-det-start
 endcalc
 
 integral
