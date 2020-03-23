@@ -182,7 +182,8 @@ contains
         ! communication! Then at least we can read the RDM back in...
         if (tWrite_RDMs_to_read) call print_rdm_popsfile(rdm)
 
-        call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, est%max_error_herm, est%sum_error_herm)
+        call calc_hermitian_errors(rdm, rdm_recv, spawn, est%norm, &
+            est%max_error_herm, est%sum_error_herm)
 
         if (tGUGA) then
             call print_spinfree_2rdm(rdm_defs, rdm, est%norm)
@@ -460,7 +461,7 @@ contains
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "make_hermitian_rdm"
 #endif
-        ASSERT(.not. tGUGA)
+        integer(int_rdm) :: ij_, kl_
 
         ! If we're about to fill up the spawn list, perform a communication.
         nearly_full = .false.
@@ -476,8 +477,15 @@ contains
             end if
 
             ijkl = rdm%elements(0,ielem)
-            ! Obtain spin orbital labels and the RDM element.
-            call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            if (tGUGA) then
+                call extract_2_rdm_ind(ijkl, i, j, k, l, ij_, kl_)
+                ij = int(ij_)
+                kl = int(kl_)
+            else
+                ! Obtain spin orbital labels and the RDM element.
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+            end if
+
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
             ! Set sign for transition RDMs to 0.
             rdm_sign(nrdms_standard+1:) = 0.0_dp

@@ -823,10 +823,9 @@ contains
             ! i am not sure yet if I will use symmetries in the RDM
             ! calculation (some are also left out in the SD based implo..
             ! so for now sample both combinations
-            allocate(rdm_ind(2), source = 0_int_rdm)
-            allocate(rdm_mat(2), source = 0.0_dp)
+            allocate(rdm_ind(1), source = 0_int_rdm)
+            allocate(rdm_mat(1), source = 0.0_dp)
             rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
 
         if (any(abs(temp_delta_b) > 1)) return
@@ -945,17 +944,13 @@ contains
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            allocate(rdm_ind(4), source = 0_int_rdm)
-            allocate(rdm_mat(4), source = 0.0_dp)
+            allocate(rdm_ind(2), source = 0_int_rdm)
+            allocate(rdm_mat(2), source = 0.0_dp)
 
             rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
-            ! and this is also a valid combination in this case:
-            rdm_ind(3) = contract_2_rdm_ind(ii, ll, kk, jj)
-            rdm_ind(4) = contract_2_rdm_ind(kk, jj, ii, ll)
+            rdm_ind(2) = contract_2_rdm_ind(ii, ll, kk, jj)
         end if
 
-!         gen = excitInfo%firstgen
         guga_mat = 1.0_dp
         ! to the single part:
         do i = start1, start2 - 1
@@ -1081,8 +1076,8 @@ contains
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            allocate(rdm_ind(4), source = 0_int_rdm)
-            allocate(rdm_mat(4), source = 0.0_dp)
+            allocate(rdm_ind(2), source = 0_int_rdm)
+            allocate(rdm_mat(2), source = 0.0_dp)
 
             ! this does get tricky now with the rdm inds and mats..
             ! the indices which end up here should always be intertwined..
@@ -1093,11 +1088,9 @@ contains
             ! so the first two entries correspond to the overlap version
             ! of the generators (in the case of mixed R and L)
             rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
             ! and the second to the non-overlap (again only in the case of
             ! mixed generator combinations!)
-            rdm_ind(3) = contract_2_rdm_ind(ii, ll, kk, jj)
-            rdm_ind(4) = contract_2_rdm_ind(kk, jj, ii, ll)
+            rdm_ind(2) = contract_2_rdm_ind(ii, ll, kk, jj)
 
         end if
 
@@ -1204,11 +1197,11 @@ contains
 #endif
                 ! be sure with the rdm_sign function:
 
-                ! rdm_mat(1:2) = temp_x0 + generator_sign(ii,jj,kk,ll) * temp_x1
-                ! rdm_mat(3:4) = temp_x0 + generator_sign(ii,ll,kk,jj) * temp_x1
+                ! rdm_mat(1) = temp_x0 + generator_sign(ii,jj,kk,ll) * temp_x1
+                ! rdm_mat(2) = temp_x0 + generator_sign(ii,ll,kk,jj) * temp_x1
 
-                rdm_mat(1:2) = temp_x0 + temp_x1
-                rdm_mat(3:4) = temp_x0 - temp_x1
+                rdm_mat(1) = temp_x0 + temp_x1
+                rdm_mat(2) = temp_x0 - temp_x1
 
             case(excit_type%double_L_to_R_to_L, &
                  excit_type%double_R_to_L_to_R, &
@@ -1218,12 +1211,12 @@ contains
                 if (excitInfo%spin_change) then
                     ! if we have a spin-change the non-overlap contribution
                     ! must be 0! which is already intiated to 0 above
-                    rdm_mat(1:2) = temp_x1
+                    rdm_mat(1) = temp_x1
                 else
                     ! if there is not spin-change the non-overlap is also
                     ! 0, and in this case is -2 the original x0
-                    rdm_mat(1:2) = temp_x0 + temp_x1
-                    rdm_mat(3:4) = -2.0_dp * temp_x0
+                    rdm_mat(1) = temp_x0 + temp_x1
+                    rdm_mat(2) = -2.0_dp * temp_x0
                 end if
             end select
         end if
@@ -1340,11 +1333,9 @@ contains
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            allocate(rdm_ind(2), source = 0_int_rdm)
-            allocate(rdm_mat(2), source = 0.0_dp)
-
+            allocate(rdm_ind(1), source = 0_int_rdm)
+            allocate(rdm_mat(1), source = 0.0_dp)
             rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
 
         ! can i exclude every deltaB > 1, since only db = 0 allowed in
@@ -1446,10 +1437,9 @@ contains
         if (present(rdm_ind) .or. present(rdm_mat)) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            allocate(rdm_ind(2), source = 0_int_rdm)
-            allocate(rdm_mat(2), source = 0.0_dp)
+            allocate(rdm_ind(1), source = 0_int_rdm)
+            allocate(rdm_mat(1), source = 0.0_dp)
             rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
 
         ! i think i can exclude every deltaB > 1 sinve only dB = 0 branch
@@ -1606,11 +1596,9 @@ contains
             ! flipped version corresponds to a single excitation with
             ! a weight generator, which should be handled in the single
             ! excitation step already!
-            allocate(rdm_ind(2), source = 0_int_rdm)
-            allocate(rdm_mat(2), source = 0.0_dp)
-
+            allocate(rdm_ind(1), source = 0_int_rdm)
+            allocate(rdm_mat(1), source = 0.0_dp)
             rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
 
         if (any(abs(temp_delta_b(st:se-1)) > 1) .or. &
@@ -1802,10 +1790,9 @@ contains
             ! we only have two elements here, since the switched version
             ! corresponds to a single excitation + weight, which is dealt
             ! with in the single excit case
-            allocate(rdm_ind(2), source = 0_int_rdm)
-            allocate(rdm_mat(2), source = 0.0_dp)
+            allocate(rdm_ind(1), source = 0_int_rdm)
+            allocate(rdm_mat(1), source = 0.0_dp)
             rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
 
         if (any(abs(temp_delta_b(st:se-1)) > 2) .or. &
@@ -1957,10 +1944,9 @@ contains
         if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
             ASSERT(present(rdm_ind))
             ASSERT(present(rdm_mat))
-            allocate(rdm_ind(2), source = 0_int_rdm)
-            allocate(rdm_mat(2), source = 0.0_dp)
+            allocate(rdm_ind(1), source = 0_int_rdm)
+            allocate(rdm_mat(1), source = 0.0_dp)
             rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-            rdm_ind(2) = contract_2_rdm_ind(kk, ll, ii, jj)
         end if
         ! the most involved one.. but i think i can reuse a lot of the
         ! stochastic stuff here, since i already needed it there..
@@ -1991,7 +1977,7 @@ contains
 
         if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) then
             ! no influene on the coupling coeff from order of generators
-            rdm_mat(1:2) = calc_mixed_coupling_coeff(tmp_J, excitInfo)
+            rdm_mat(1) = calc_mixed_coupling_coeff(tmp_J, excitInfo)
         end if
 
         current_stepvector = temp_curr_step
@@ -6329,7 +6315,7 @@ contains
         last = findLastSwitch(ilut,t,first,ende)
 
         if (rdm_flag) then
-            max_num_rdm = 2 * first * (nSpatOrbs - last + 1)
+            max_num_rdm = first * (nSpatOrbs - last + 1)
             allocate(tmp_rdm_ind(max_num_rdm), source = 0_int_rdm)
             allocate(tmp_rdm_mat(max_num_rdm), source = 0.0_dp)
             rdm_count = 0
@@ -6409,9 +6395,6 @@ contains
                     if (.not. near_zero(tmp_mat)) then
                         rdm_count = rdm_count + 1
                         tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i,j,j,i)
-                        tmp_rdm_mat(rdm_count) = tmp_mat
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(j,i,i,j)
                         tmp_rdm_mat(rdm_count) = tmp_mat
                     end if
                 end if
@@ -8251,7 +8234,7 @@ contains
         sw = findLastSwitch(ilut, t, se, en)
 
         if (rdm_flag) then
-            max_num_rdm =  2 * (nSpatOrbs - sw + 1)
+            max_num_rdm =  (nSpatOrbs - sw + 1)
             allocate(tmp_rdm_ind(max_num_rdm), source = 0_int_rdm)
             allocate(tmp_rdm_mat(max_num_rdm), source = 0.0_dp)
             rdm_count = 0
@@ -8355,10 +8338,6 @@ contains
                             tmp_rdm_ind(rdm_count) = &
                                 contract_2_rdm_ind(i, elecInd, holeInd, i)
                             tmp_rdm_mat(rdm_count) = top_cont * end_mat * mat_ele
-                            rdm_count = rdm_count + 1
-                            tmp_rdm_ind(rdm_count) = &
-                                contract_2_rdm_ind(holeInd, i, i, elecInd)
-                            tmp_rdm_mat(rdm_count) = top_cont * end_mat * mat_ele
                         end if
 
                         ! also only recalc. pgen if matrix element is not 0
@@ -8436,10 +8415,6 @@ contains
             tmp_rdm_ind(rdm_count) = &
                 contract_2_rdm_ind(sw, elecInd, holeInd, sw)
             tmp_rdm_mat(rdm_count) = 1.0_dp
-            rdm_count = rdm_count + 1
-            tmp_rdm_ind(rdm_count) = &
-                contract_2_rdm_ind(holeInd, sw, sw, elecInd)
-            tmp_rdm_mat(rdm_count) = 1.0_dp
         end if
 
 
@@ -8502,10 +8477,6 @@ contains
                         rdm_count = rdm_count + 1
                         tmp_rdm_ind(rdm_count) = &
                             contract_2_rdm_ind(i, elecInd, holeInd, i)
-                        tmp_rdm_mat(rdm_count) = end_mat * mat_ele
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = &
-                            contract_2_rdm_ind(holeInd, i, i, elecInd)
                         tmp_rdm_mat(rdm_count) = end_mat * mat_ele
                     end if
 
@@ -8605,10 +8576,6 @@ contains
                     rdm_count = rdm_count + 1
                     tmp_rdm_ind(rdm_count) = &
                         contract_2_rdm_ind(sw, elecInd, holeInd, sw)
-                    tmp_rdm_mat(rdm_count) = mat_ele
-                    rdm_count = rdm_count + 1
-                    tmp_rdm_ind(rdm_count) = &
-                        contract_2_rdm_ind(holeInd, sw, sw, elecInd)
                     tmp_rdm_mat(rdm_count) = mat_ele
                 end if
 
@@ -11251,7 +11218,7 @@ contains
         sw = findFirstSwitch(ilut,t, st, se)
 
         if (rdm_flag) then
-            max_num_rdm =  2 * sw
+            max_num_rdm =  sw
             allocate(tmp_rdm_ind(max_num_rdm), source = 0_int_rdm)
             allocate(tmp_rdm_mat(max_num_rdm), source = 0.0_dp)
             rdm_count = 0
@@ -11416,9 +11383,6 @@ contains
                         rdm_count = rdm_count + 1
                         tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i,elecInd,holeInd,i)
                         tmp_rdm_mat(rdm_count) = start_mat * mat_ele * bot_cont
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(holeInd,i,i,elecInd)
-                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele * bot_cont
                     end if
 
                     if (t_trunc_guga_pgen .or. &
@@ -11513,9 +11477,6 @@ contains
                         rdm_count = rdm_count + 1
                         tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(i,elecInd,holeInd,i)
                         tmp_rdm_mat(rdm_count) = start_mat * mat_ele
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(holeInd,i,i,elecInd)
-                        tmp_rdm_mat(rdm_count) = start_mat * mat_ele
                     end if
 
                 end if
@@ -11560,9 +11521,6 @@ contains
             if (rdm_flag .and. sw == st) then
                 rdm_count = rdm_count + 1
                 tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw,elecInd,holeInd,sw)
-                tmp_rdm_mat(rdm_count) = 1.0_dp
-                rdm_count = rdm_count + 1
-                tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(holeInd,sw,sw,elecInd)
                 tmp_rdm_mat(rdm_count) = 1.0_dp
             end if
 
@@ -11619,9 +11577,6 @@ contains
                     if (rdm_flag) then
                         rdm_count = rdm_count + 1
                         tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(sw,elecInd,holeInd,sw)
-                        tmp_rdm_mat(rdm_count) = mat_ele
-                        rdm_count = rdm_count + 1
-                        tmp_rdm_ind(rdm_count) = contract_2_rdm_ind(holeInd,sw,sw,elecInd)
                         tmp_rdm_mat(rdm_count) = mat_ele
                     end if
 

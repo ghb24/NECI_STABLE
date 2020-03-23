@@ -21,11 +21,13 @@ module guga_data
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, t_slow_guga_rdms, t_fast_guga_rdms, &
               t_mimic_slow, rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-              n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits
+              n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, t_fill_symmetric
 
     logical :: t_slow_guga_rdms = .false.
     logical :: t_fast_guga_rdms = .false.
     logical :: t_mimic_slow = .false.
+    logical :: t_fill_symmetric = .false.
+
     ! ========================== type defs ===================================
 
     ! define types for the probabilistic weights functions used in the

@@ -63,8 +63,6 @@ module guga_init
 
     use back_spawn, only: setup_virtual_mask
 
-    use guga_rdm, only: init_guga_rdm
-
     use guga_bitRepOps, only: init_guga_bitrep
 
     ! variable declaration
@@ -295,7 +293,6 @@ contains
         ! make checks for the RDM calculation
         if (tRDMonfly) then
             call check_rdm_guga_setup()
-            call init_guga_rdm()
         end if
 
         ! make a unified bit rep initializer:

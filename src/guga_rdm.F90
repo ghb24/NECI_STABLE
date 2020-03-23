@@ -32,7 +32,8 @@ module guga_rdm
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
                          excit_type, gen_type, rdm_ind_bitmask, &
-                         t_fast_guga_rdms, t_mimic_slow, excit_names
+                         t_fast_guga_rdms, t_mimic_slow, excit_names, &
+                         t_fill_symmetric
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -78,7 +79,7 @@ module guga_rdm
               calc_explicit_diag_2_rdm_guga, test_fill_spawn_diag, &
               Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
               Add_RDM_HFConnections_GUGA, fill_spawn_rdm_diag_guga, &
-              init_guga_rdm, combine_x0_x1, pure_rdm_ind, generator_sign, &
+              combine_x0_x1, pure_rdm_ind, generator_sign, &
               create_all_rdm_contribs
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
@@ -354,16 +355,6 @@ contains
 
     end function generator_sign
 
-    subroutine init_guga_rdm
-
-        if (.not. tExplicitAllRDM) then
-            ! setup the ilut position and total number of elements for the
-            ! stochastic RDM calculation
-            ! GugaBits%tot = 0 !todo..
-        end if
-
-    end subroutine init_guga_rdm
-
     subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, nJ, av_sign_j, &
             av_sign_hf, excit_lvl, iter_rdm)
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -468,24 +459,34 @@ contains
                         ! if we want to 'mimic' the slow implementation
                         ! we have to recalc the rdm entries for these
                         ! excitations!
-
-
-                        call calc_guga_matrix_element(IlutGi, ilutGj, excitInfo, mat_ele, &
-                            t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
-                            rdm_mat = rdm_mat)
+                        call calc_guga_matrix_element(IlutGi, ilutGj, excitInfo, &
+                            mat_ele, t_hamil = .false., calc_type = 2, &
+                            rdm_ind = rdm_ind, rdm_mat = rdm_mat)
 
                         do n = 1, size(rdm_ind)
                             if (.not. near_zero(rdm_mat(n))) then
                                 call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
                                 full_sign = sign_I * sign_J * rdm_mat(n)
-                                full_sign = full_sign / (real(size(rdm_mat),dp) / 2.0_dp)
-                                call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
+                                full_sign = full_sign / real(size(rdm_mat),dp)
+
+                                if (t_fill_symmetric) then
+                                    call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                                        full_sign, .true.)
+                                    call add_to_rdm_spawn_t(spawn, k, l, i, j, &
+                                        full_sign, .true.)
+
+                                else
+                                    call add_to_rdm_spawn_t(spawn, i, j, k, l,&
+                                        2.0_dp * full_sign, .true.)
+                                end if
+
                             end if
                         end do
 
                     case default
 
-                        call create_all_rdm_contribs(rdm_ind_in, x0, x1, rdm_ind, rdm_mat)
+                        call create_all_rdm_contribs(rdm_ind_in, x0, x1, &
+                            rdm_ind, rdm_mat)
 
                         do n = 1, size(rdm_ind)
                             if (.not. near_zero(rdm_mat(n))) then
@@ -493,13 +494,23 @@ contains
 
                                 full_sign = sign_I * sign_J * rdm_mat(n)
 
-                                call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
-                                ! to mimic the slow implementation I have to
-                                ! count the 'conjugated' element here
-                                if (.not. ex_typ == excit_type%fullstart_stop_alike) then
-                                    call add_to_rdm_spawn_t(spawn, k, l, i, j, full_sign, .true.)
-                                end if
+                                if (t_fill_symmetric) then
+                                    call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                                        full_sign, .true.)
+                                    if (.not. &
+                                        (ex_typ == excit_type%fullstart_stop_alike)) then
+                                        call add_to_rdm_spawn_t(spawn, k, l, i, j, &
+                                            full_sign, .true.)
+                                    end if
 
+                                else
+                                    if (.not. &
+                                        (ex_typ == excit_type%fullstart_stop_alike)) then
+                                        full_sign = 2.0_dp * full_sign
+                                    end if
+                                    call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                                        full_sign, .true.)
+                                end if
                             end if
                         end do
 
@@ -514,12 +525,21 @@ contains
 
                             full_sign = sign_I * sign_J * rdm_mat(n)
 
-                            call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
-
-                            ! maybe i should not even fill the symmetric k,l,i,j
-                            ! for hermiticity check purposes! TODO
-                            if (.not. ex_typ == excit_type%fullstart_stop_alike) then
-                                call add_to_rdm_spawn_t(spawn, k, l, i, j, full_sign, .true.)
+                            if (t_fill_symmetric) then
+                                    call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                                        full_sign, .true.)
+                                if (.not. &
+                                    (ex_typ == excit_type%fullstart_stop_alike)) then
+                                    call add_to_rdm_spawn_t(spawn, k, l, i, j, &
+                                        full_sign, .true.)
+                                end if
+                            else
+                                if (.not. &
+                                    (ex_typ == excit_type%fullstart_stop_alike)) then
+                                    full_sign = 2.0_dp * full_sign
+                                end if
+                                call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                                    full_sign, .true.)
                             end if
                         end if
                     end do
@@ -568,10 +588,27 @@ contains
                              excit_type%fullstart_R_to_L, &
                              excit_type%fullstart_stop_mixed)
 
-                            full_sign = full_sign / (real(size(rdm_mat),dp) / 2.0_dp)
+                            full_sign = full_sign / real(size(rdm_mat),dp)
                         end select
 
-                        call add_to_rdm_spawn_t(spawn, i, j, k, l, full_sign, .true.)
+
+                        if (t_fill_symmetric) then
+                            call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                                full_sign, .true.)
+
+                            if (.not. &
+                                (excitInfo%typ == excit_type%fullstart_stop_alike)) then
+                                call add_to_rdm_spawn_t(spawn, k, l, i, j, &
+                                    full_sign, .true.)
+                            end if
+                        else
+                            if (.not. &
+                                (excitInfo%typ == excit_type%fullstart_stop_alike)) then
+                                full_sign = 2.0_dp * full_sign
+                            end if
+                            call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                                full_sign, .true.)
+                        end if
                     end if
                 end if
             end do
