@@ -75,6 +75,8 @@ contains
     end subroutine safe_shared_memory_dealloc_${data_name}$
 
     !> callls MPI_Fence on the array's shared memory window to sync rma
+    !! This has to be called between read/write epochs to ensure all tasks of a node are
+    !! looking at the same shared data
     subroutine sync_${data_name}$(this)
         implicit none
         class(shared_array_${data_name}$_t) :: this
