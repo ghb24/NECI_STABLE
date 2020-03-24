@@ -648,14 +648,16 @@ contains
         ! second RK step, if i want to keep track of the statistics
         ! seperately: in the first loop i analyze the the wavefunction
         ! from on step behind.. so store it in the "normal" noathf var
-        if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
-            HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
-            HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
-            NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
-            if (iter > NEquilSteps) then
-                SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
-            end if
-        endif
+        if (ExcitLevel_local == 0) then
+            if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+                HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
+                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+                if (iter > NEquilSteps) then
+                    SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+                end if
+            endif
+        end if
 
         ! Perform normal projection onto reference determinant
         if (tGUGA) then
