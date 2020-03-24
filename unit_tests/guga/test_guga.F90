@@ -24,7 +24,9 @@ program test_guga
                         calc_all_excits_guga_rdm_doubles, t_mimic_stochastic, &
                         calc_explicit_diag_2_rdm_guga, calc_explicit_2_rdm_guga, &
                         test_fill_spawn_diag, t_diag_exchange, combine_x0_x1, &
-                        pure_rdm_ind, generator_sign, create_all_rdm_contribs
+                        pure_rdm_ind, generator_sign, create_all_rdm_contribs, &
+                        extract_molcas_1_rdm_index, contract_molcas_1_rdm_index, &
+                        extract_molcas_2_rdm_index, contract_molcas_2_rdm_index
     use constants
     use DetBitOps
     use Determinants
@@ -83,6 +85,12 @@ contains
 
         call init_guga_testsuite()
 
+        call run_test_case(test_contract_extract_1_rdm_molcas, &
+            "test_contract_extract_1_rdm_molcas")
+        call run_test_case(test_contract_extract_2_rdm_molcas, &
+            "test_contract_extract_2_rdm_molcas")
+
+        call stop_all("2","2")
 
         call compare_rdm_all_excits_and_mat_eles()
 !         call run_test_case(compare_fill_diag_and_explicit_diag)
@@ -103,6 +111,122 @@ contains
         !call run_test_excit_gen_guga_S0
 
     end subroutine guga_test_driver
+
+    subroutine test_contract_extract_1_rdm_molcas
+
+        integer :: i, j, ij, ij_
+        print *, ""
+        print *, "testing: contract/extract 1-RDM molcas style rdm index"
+
+        ij = contract_molcas_1_rdm_index(1,1)
+        call extract_molcas_1_rdm_index(ij,i,j)
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+
+        ij = contract_1_rdm_ind(1,2)
+        call extract_molcas_1_rdm_index(ij,i,j)
+        call assert_equals(2,i)
+        call assert_equals(1,j)
+        ij_ = contract_molcas_1_rdm_index(2,1)
+
+        call extract_molcas_1_rdm_index(ij_,i,j)
+        call assert_equals(2,i)
+        call assert_equals(1,j)
+        call assert_equals(ij, ij_)
+
+        print *, ""
+        print *, "testing: contract/extract 1-RDM molcas style rdm index. DONE!"
+    end subroutine test_contract_extract_1_rdm_molcas
+
+    subroutine test_contract_extract_2_rdm_molcas
+
+        integer :: i, j, k, l, ij, kl, ij_, kl_, ijkl, ijkl_
+
+        print *, ""
+        print *, "testing: contract/extract 2-RDM molcas style rdm index"
+        ijkl = contract_molcas_2_rdm_index(1,1,1,1)
+        call extract_molcas_2_rdm_index(ijkl, i, j, k, l, ij, kl)
+
+        call assert_equals(1, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(1, l)
+        call assert_equals(1, ij)
+        call assert_equals(1, kl)
+
+        ijkl = contract_molcas_2_rdm_index(2,1,1,1)
+        call extract_molcas_2_rdm_index(ijkl, i, j, k, l, ij, kl)
+
+        call assert_equals(2, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ij)
+        call assert_equals(1, kl)
+
+        ijkl = contract_molcas_2_rdm_index(1,1,1,2)
+        call extract_molcas_2_rdm_index(ijkl, i, j, k, l, ij, kl)
+
+        call assert_equals(2, i)
+        call assert_equals(1, j)
+        call assert_equals(1, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ij)
+        call assert_equals(1, kl)
+
+        ijkl = contract_molcas_2_rdm_index(1,2,2,1)
+        call extract_molcas_2_rdm_index(ijkl, i, j, k, l, ij, kl)
+
+        call assert_equals(2, i)
+        call assert_equals(1, j)
+        call assert_equals(2, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ij)
+        call assert_equals(2, kl)
+
+        ijkl = contract_molcas_2_rdm_index(2,1,2,1)
+        call extract_molcas_2_rdm_index(ijkl, i, j, k, l, ij, kl)
+
+        call assert_equals(2, i)
+        call assert_equals(1, j)
+        call assert_equals(2, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ij)
+        call assert_equals(2, kl)
+
+        ijkl = contract_molcas_2_rdm_index(2,1,1,2)
+        call extract_molcas_2_rdm_index(ijkl, i, j, k, l, ij, kl)
+
+        call assert_equals(2, i)
+        call assert_equals(1, j)
+        call assert_equals(2, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ij)
+        call assert_equals(2, kl)
+
+
+        ijkl = contract_molcas_2_rdm_index(2,1,2,1)
+        call extract_molcas_2_rdm_index(ijkl, i, j, k, l, ij, kl)
+
+        call assert_equals(2, i)
+        call assert_equals(1, j)
+        call assert_equals(2, k)
+        call assert_equals(1, l)
+        call assert_equals(2, ij)
+        call assert_equals(2, kl)
+
+        ijkl = contract_molcas_2_rdm_index(5,1,4,5)
+        call extract_molcas_2_rdm_index(ijkl, i, j, k, l, ij, kl)
+
+        call assert_equals(5, i)
+        call assert_equals(4, j)
+        call assert_equals(5, k)
+        call assert_equals(1, l)
+
+        print *, ""
+        print *, "testing: contract/extract 2-RDM molcas style rdm index. DONE!"
+
+    end subroutine test_contract_extract_2_rdm_molcas
 
     subroutine test_create_all_rdm_contribs
 
@@ -2238,6 +2362,10 @@ contains
             "test_transfer_stochastic_rdm_info")
 
         call run_test_case(test_pure_rdm_ind, "test_pure_rdm_ind")
+        call run_test_case(test_contract_extract_1_rdm_molcas, &
+            "test_contract_extract_1_rdm_molcas")
+        call run_test_case(test_contract_extract_2_rdm_molcas, &
+            "test_contract_extract_2_rdm_molcas")
 
 
         print *, ""

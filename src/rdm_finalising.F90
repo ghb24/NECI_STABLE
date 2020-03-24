@@ -15,9 +15,10 @@ module rdm_finalising
     use CalcData, only: tAdaptiveShift
     use RotateOrbsMod, only: FourIndInts
     use SystemData, only: tGUGA, nSpatorbs
-    use LoggingData, only: tWriteSpinFreeRDM
+    use LoggingData, only: tWriteSpinFreeRDM, t_print_molcas_rdms
     use unit_test_helpers, only: print_matrix
     use guga_bitRepOps, only: extract_2_rdm_ind
+    use guga_rdm, only: output_molcas_rdms
 
     implicit none
 
@@ -187,6 +188,9 @@ contains
 
         if (tGUGA) then
             call print_spinfree_2rdm(rdm_defs, rdm, est%norm)
+            if (t_print_molcas_rdms) then
+                call output_molcas_rdms(rdm_defs, rdm, est%norm)
+            end if
         else
             if (tWriteSpinFreeRDM) &
                 call print_spinfree_2rdm_wrapper(rdm_defs, rdm, rdm_recv, spawn, est%norm)
@@ -1214,7 +1218,7 @@ contains
 
                         if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
                             if (p >= q .and. pq >= rs .and. p >= r .and. p >= s) then
-                                write(iunit,"(1X,4I5, F28.20)") p, q, r, s, rdm_sign(irdm)
+                                write(iunit,"(4I5, F28.20)") p, q, r, s, rdm_sign(irdm)
                             end if
                         end if
                     end do

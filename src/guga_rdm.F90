@@ -59,7 +59,8 @@ module guga_rdm
     use UMatCache, only: gtID
     use RotateOrbsData, only: SymLabelListInv_rot
     use CalcData, only: tAdaptiveShift
-    use Parallel_neci, only: nProcessors, MPIArg, MPIAlltoAll, MPIAlltoAllv
+    use Parallel_neci, only: nProcessors, MPIArg, MPIAlltoAll, MPIAlltoAllv, &
+                             iProcIndex
     use searching, only: BinSearchParts_rdm
     use rdm_data_utils, only: add_to_rdm_spawn_t, extract_sign_rdm
     use OneEInts, only: GetTMatEl
@@ -67,6 +68,8 @@ module guga_rdm
     use guga_matrixElements, only: calcDiagExchangeGUGA_nI
     use util_mod, only: operator(.div.), near_zero, operator(.isclose.)
     use sort_mod, only: sort
+    use rdm_data, only: rdm_list_t, rdm_definitions_t
+    use util_mod, only: get_free_unit
 
     implicit none
 
@@ -80,7 +83,9 @@ module guga_rdm
               Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
               Add_RDM_HFConnections_GUGA, fill_spawn_rdm_diag_guga, &
               combine_x0_x1, pure_rdm_ind, generator_sign, &
-              create_all_rdm_contribs
+              create_all_rdm_contribs, contract_molcas_1_rdm_index, &
+              extract_molcas_1_rdm_index, contract_molcas_2_rdm_index, &
+              extract_molcas_2_rdm_index, output_molcas_rdms
 
     ! test the symmetric filling of the GUGA-RDM, if the assumptions about
     ! the hermiticity are correct..
@@ -89,6 +94,230 @@ module guga_rdm
     logical :: t_mimic_stochastic = .true.
 
 contains
+
+    pure function contract_molcas_1_rdm_index(i, j) result(ij)
+        ! function which uses the molcas RDM index convention
+        integer, intent(in) :: i, j
+        integer :: ij
+
+        integer :: p, q
+
+        p = max(i, j)
+        q = min(i, j)
+
+        ij = q + p * (p - 1) / 2
+
+    end function contract_molcas_1_rdm_index
+
+    pure subroutine extract_molcas_1_rdm_index(pq, p, q)
+        ! function which extracts the orbital indices following molcas
+        ! convention
+        integer, intent(in) :: pq
+        integer, intent(out) :: p, q
+
+        p = int(ceiling(-0.5 + sqrt(2.0 * pq)))
+        q = pq - p * (p - 1) / 2
+
+    end subroutine extract_molcas_1_rdm_index
+
+    pure function contract_molcas_2_rdm_index(p, q, r, s) result(pqrs)
+        ! function using the molcas rdm index convention
+        integer, intent(in) :: p, q, r, s
+        integer :: pqrs
+
+        integer :: pq, rs, ij, kl
+
+        pq = contract_molcas_1_rdm_index(p, q)
+        rs = contract_molcas_1_rdm_index(r, s)
+
+        ij = max(pq, rs)
+        kl = min(pq, rs)
+
+        pqrs = kl + ij * (ij - 1) / 2
+
+    end function contract_molcas_2_rdm_index
+
+    pure subroutine extract_molcas_2_rdm_index(pqrs, p, q, r, s, pq_out, rs_out)
+        ! function using the molcas 2 rdm index convention
+        integer, intent(in) :: pqrs
+        integer, intent(out) :: p, q, r, s
+        integer, intent(out), optional :: pq_out, rs_out
+
+        integer :: pq, rs
+
+        call extract_molcas_1_rdm_index(pqrs, pq, rs)
+
+        call extract_molcas_1_rdm_index(pq, p, q)
+        call extract_molcas_1_rdm_index(rs, r, s)
+
+        if (present(pq_out)) pq_out = pq
+        if (present(rs_out)) rs_out = rs
+
+    end subroutine extract_molcas_2_rdm_index
+
+    subroutine output_molcas_rdms(rdm_defs, rdm, rdm_trace)
+        ! routine which prints spin-free GUGA RDMs directly in molcas format
+        type(rdm_definitions_t), intent(in) :: rdm_defs
+        type(rdm_list_t), intent(in) :: rdm
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        character(*), parameter :: this_routine = "output_molcas_rdms"
+
+        real(dp), allocatable :: psmat(:), pamat(:), dmat(:)
+        integer :: iunit_psmat, iunit_pamat, iunit_dmat, i
+        integer :: p, q, r, s, pq, rs
+
+        ! first fill the molcas rdms
+        call fill_molcas_rdms(rdm_defs, rdm, rdm_trace, psmat, pamat, dmat)
+
+        ! then print them
+        ! Open the file to be written to.
+        iunit_psmat = get_free_unit()
+        iunit_pamat = get_free_unit()
+        iunit_dmat  = get_free_unit()
+
+        open(iunit_psmat, file = 'PSMAT', status = 'replace')
+        do i = 1, size(psmat)
+            if (abs(psmat(i)) > 1e-10) then
+                call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
+                write(iunit_psmat, '(4I6,A,2I6,A,I6,A,1G25.17)') &
+                    p, q, r, s, " | ", pq, rs, " | ",  i, " | ", psmat(i)
+            end if
+        end do
+        close(iunit_psmat)
+
+        open(iunit_pamat, file = 'PAMAT', status = 'replace')
+        do i = 1, size(pamat)
+            if (abs(pamat(i)) > 1e-10) then
+                call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
+                write(iunit_pamat, '(4I6,A,2I6,A,I6,A,1G25.17)') &
+                    p, q, r, s, " | ", pq, rs, " | ",  i, " | ", pamat(i)
+            end if
+        end do
+        close(iunit_pamat)
+
+
+        open(iunit_dmat, file = 'DMAT', status = 'replace')
+        do i = 1, size(dmat)
+            write(iunit_dmat, '(I5, G25.17)') i, dmat(i)
+        end do
+        close(iunit_dmat)
+
+    end subroutine output_molcas_rdms
+
+
+    subroutine fill_molcas_rdms(rdm_defs, rdm, rdm_trace, &
+                                psmat, pamat, dmat)
+        type(rdm_definitions_t), intent(in) :: rdm_defs
+        type(rdm_list_t), intent(in) :: rdm
+        real(dp), intent(in) :: rdm_trace(rdm%sign_length)
+        real(dp), intent(out), allocatable :: psmat(:), pamat(:), dmat(:)
+        character(*), parameter :: this_routine = "fill_molcas_rdms"
+
+        integer :: n_one_rdm, n_two_rdm, iproc, irdm, ielem
+        integer(int_rdm) :: pqrs, pq_, rs_
+        integer :: pq, rs, pqrs_m, pq_m, rs_m, p, q, r, s, p_m, q_m, r_m, s_m
+        real(dp) :: rdm_sign(rdm%sign_length), rdm_sign_
+
+        n_one_rdm = nSpatorbs * (nSpatorbs + 1) / 2
+        n_two_rdm = n_one_rdm * (n_one_rdm + 1) / 2
+
+        allocate(dmat(n_one_rdm), source = 0.0_dp)
+        allocate(psmat(n_two_rdm), source = 0.0_dp)
+        allocate(pamat(n_two_rdm), source = 0.0_dp)
+
+        ! first
+        do iproc = 0, nProcessors-1
+            if (iproc == iProcIndex) then
+                ! Loop over all RDMs beings sampled.
+                do irdm = 1, rdm_defs%nrdms
+                    do ielem = 1, rdm%nelements
+                        pqrs = rdm%elements(0,ielem)
+                        call extract_2_rdm_ind(pqrs, p, q, r, s, pq_, rs_)
+                        pq = int(pq_)
+                        rs = int(rs_)
+                        pqrs_m = contract_molcas_2_rdm_index(p,q,r,s)
+                        call extract_molcas_2_rdm_index(pqrs_m, &
+                            p_m, q_m, r_m, s_m, pq_m, rs_m)
+
+                        call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                        rdm_sign_ = rdm_sign(1)
+                        ! now make the fill logic
+                        ! the molcas rdm elements are given by
+                        ! if r /= s (and probably here p /= q)
+                        ! psmat(pqrs) = (two_rdm(pqrs) + two_rdm(pqsr)) / 2
+                        ! pamat(pqrs) = (two_rdm(pqrs) - two_rdm(pqsr)) / 2
+                        ! if r == s (and probably .or. p == q)
+                        ! psmat(pqrs) = 2 * two_rdm(pqrs)
+                        ! es geht eigentlich nur drum wann das element
+                        ! negativ zur anti-symmetrischen beiträgt..
+                        ! und wenn es nur zur diagonalen beiträgt..
+
+                        ! i think 8 entries contribute to the same molcas element..
+
+                        if (pq_m == rs_m) then
+                            if (p_m == q_m) then
+                                psmat(pqrs_m) = psmat(pqrs_m) + rdm_sign_ / 2.0_dp
+                            else
+                                psmat(pqrs_m) = psmat(pqrs_m) + rdm_sign_ / 4.0_dp
+                                pamat(pqrs_m) = pamat(pqrs_m) + &
+                                    molcas_sign(p,q,r,s) * rdm_sign_ / 4.0_dp
+                            end if
+                        else
+                            if (p_m == q_m) then
+                                psmat(pqrs_m) = psmat(pqrs_m) + rdm_sign_ / 4.0_dp
+                            else
+                                psmat(pqrs_m) = psmat(pqrs_m) + rdm_sign_ / 8.0_dp
+                                if (r_m /= s_m) then
+                                    pamat(pqrs_m) = pamat(pqrs_m) + &
+                                        molcas_sign(p,q,r,s) * rdm_sign_ / 8.0_dp
+                                end if
+                            end if
+                        end if
+
+                        ! convert to 1-RDM
+                        if (r == s) then
+                            if (p == q) then
+                                dmat(pq_m) = dmat(pq_m) + rdm_sign_
+                            else
+                                dmat(pq_m) = dmat(pq_m) + rdm_sign_ / 4.0_dp
+                            end if
+                        else if (p == q) then
+                            if (r == s) then
+                                dmat(rs_m) = dmat(rs_m) + rdm_sign_
+                            else
+                                dmat(rs_m) = dmat(rs_m) + rdm_sign_ / 4.0_dp
+                            end if
+                        end if
+                    end do
+                end do
+            end if
+        end do
+
+        psmat = psmat / rdm_trace(1)
+        pamat = pamat / rdm_trace(1)
+        dmat = dmat / (rdm_trace(1) * real(nel - 1, dp))
+
+    end subroutine fill_molcas_rdms
+
+    pure function molcas_sign(p, q, r, s) result(sgn)
+        ! gives me the sign to fill the anti-symmetric molcas RDM with
+        integer, intent(in) :: p, q, r, s
+        real(dp) :: sgn
+
+        sgn = 1.0_dp
+
+        ! i know p /= q and r /= s when coming here
+
+        if (p < q) sgn = -sgn
+        if (r < s) sgn = -sgn
+
+    end function molcas_sign
+
+    ! function get_rdm_hash_entry()
+    !     ! make a function to easily extract the rdm element stored in the
+    !     ! hash table
+    !
+    ! end function get_rdm_hash_entry
 
     subroutine print_rdm_ind(rdm_ind, typ, t_newline)
         integer(int_rdm), intent(in) :: rdm_ind

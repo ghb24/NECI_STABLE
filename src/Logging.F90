@@ -262,6 +262,11 @@ MODULE Logging
             ! of density matrices
             t_fill_symmetric = .true.
 
+        case ("PRINT-MOLCAS-RDMS")
+            ! output density matrices also in Molcas format in the GUGA RDM
+            ! implementation
+            t_print_molcas_rdms = .true.
+
         case ("PRINT-FREQUENCY-HISTOGRAMS")
             ! in this case print the frequency histograms to analyze the
             ! matrix element vs. pgen ratios
