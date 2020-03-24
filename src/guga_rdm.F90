@@ -177,7 +177,7 @@ contains
 
         open(iunit_psmat, file = 'PSMAT', status = 'replace')
         do i = 1, size(psmat)
-            if (abs(psmat(i)) > 1e-10) then
+            if (abs(psmat(i)) > 1e-12_dp) then
                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
                 write(iunit_psmat, '(4I6,A,2I6,A,I6,A,1G25.17)') &
                     p, q, r, s, " | ", pq, rs, " | ",  i, " | ", psmat(i)
@@ -187,7 +187,7 @@ contains
 
         open(iunit_pamat, file = 'PAMAT', status = 'replace')
         do i = 1, size(pamat)
-            if (abs(pamat(i)) > 1e-10) then
+            if (abs(pamat(i)) > 1e-12_dp) then
                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
                 write(iunit_pamat, '(4I6,A,2I6,A,I6,A,1G25.17)') &
                     p, q, r, s, " | ", pq, rs, " | ",  i, " | ", pamat(i)
@@ -195,10 +195,11 @@ contains
         end do
         close(iunit_pamat)
 
-
         open(iunit_dmat, file = 'DMAT', status = 'replace')
         do i = 1, size(dmat)
-            write(iunit_dmat, '(I5, G25.17)') i, dmat(i)
+            if (abs(dmat(i)) > 1e-12_dp) then
+                write(iunit_dmat, '(I5, G25.17)') i, dmat(i)
+            end if
         end do
         close(iunit_dmat)
 
@@ -252,8 +253,6 @@ contains
                         ! negativ zur anti-symmetrischen beiträgt..
                         ! und wenn es nur zur diagonalen beiträgt..
 
-                        ! i think 8 entries contribute to the same molcas element..
-
                         if (pq_m == rs_m) then
                             if (p_m == q_m) then
                                 psmat(pqrs_m) = psmat(pqrs_m) + rdm_sign_ / 2.0_dp
@@ -274,6 +273,8 @@ contains
                             end if
                         end if
 
+                        pq_m = contract_molcas_1_rdm_index(p,q)
+                        rs_m = contract_molcas_1_rdm_index(r,s)
                         ! convert to 1-RDM
                         if (r == s) then
                             if (p == q) then
