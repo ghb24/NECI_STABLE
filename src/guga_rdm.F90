@@ -179,8 +179,7 @@ contains
         do i = 1, size(psmat)
             if (abs(psmat(i)) > 1e-12_dp) then
                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
-                write(iunit_psmat, '(4I6,A,2I6,A,I6,A,1G25.17)') &
-                    p, q, r, s, " | ", pq, rs, " | ",  i, " | ", psmat(i)
+                write(iunit_psmat, '(I6,G25.17)') i, psmat(i)
             end if
         end do
         close(iunit_psmat)
@@ -189,8 +188,7 @@ contains
         do i = 1, size(pamat)
             if (abs(pamat(i)) > 1e-12_dp) then
                 call extract_molcas_2_rdm_index(i, p, q, r, s, pq, rs)
-                write(iunit_pamat, '(4I6,A,2I6,A,I6,A,1G25.17)') &
-                    p, q, r, s, " | ", pq, rs, " | ",  i, " | ", pamat(i)
+                write(iunit_psmat, '(I6,G25.17)') i, pamat(i)
             end if
         end do
         close(iunit_pamat)
