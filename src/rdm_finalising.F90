@@ -170,6 +170,7 @@ contains
         use LoggingData, only: tWrite_normalised_RDMs, tWrite_RDMs_to_read
         use rdm_data, only: rdm_definitions_t, rdm_estimates_t, rdm_list_t, rdm_spawn_t, tOpenShell
         use rdm_estimators, only: calc_hermitian_errors
+        use hash, only: clear_hash_table
 
         type(rdm_definitions_t), intent(in) :: rdm_defs
         type(rdm_estimates_t), intent(inout) :: est
@@ -187,6 +188,9 @@ contains
             est%max_error_herm, est%sum_error_herm)
 
         if (tGUGA) then
+            ! spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+            ! call clear_hash_table(spawn%rdm_send%hash_table)
+            ! call make_hermitian_rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
             call print_spinfree_2rdm(rdm_defs, rdm, est%norm)
             if (t_print_molcas_rdms) then
                 call output_molcas_rdms(rdm_defs, rdm, est%norm)
