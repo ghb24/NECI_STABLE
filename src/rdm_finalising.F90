@@ -19,6 +19,7 @@ module rdm_finalising
     use unit_test_helpers, only: print_matrix
     use guga_bitRepOps, only: extract_2_rdm_ind
     use guga_rdm, only: output_molcas_rdms
+    use guga_data, only: t_fill_symmetric
 
     implicit none
 
@@ -188,12 +189,22 @@ contains
             est%max_error_herm, est%sum_error_herm)
 
         if (tGUGA) then
-            ! spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
-            ! call clear_hash_table(spawn%rdm_send%hash_table)
-            ! call make_hermitian_rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
-            call print_spinfree_2rdm(rdm_defs, rdm, est%norm)
-            if (t_print_molcas_rdms) then
-                call output_molcas_rdms(rdm_defs, rdm, est%norm)
+            if (t_fill_symmetric) then
+                ! if we have filled the RDMs symetrically we do not need
+                ! to do anything
+                call print_spinfree_2rdm(rdm_defs, rdm, est%norm)
+                if (t_print_molcas_rdms) then
+                    call output_molcas_rdms(rdm_defs, rdm, est%norm)
+                end if
+            else
+                ! otherwise we need to make them hermitian
+                spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+                call clear_hash_table(spawn%rdm_send%hash_table)
+                call make_hermitian_rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
+                call print_spinfree_2rdm(rdm_defs, rdm_recv, est%norm)
+                if (t_print_molcas_rdms) then
+                    call output_molcas_rdms(rdm_defs, rdm_recv, est%norm)
+                end if
             end if
         else
             if (tWriteSpinFreeRDM) &
@@ -485,29 +496,37 @@ contains
             end if
 
             ijkl = rdm%elements(0,ielem)
-            if (tGUGA) then
-                call extract_2_rdm_ind(ijkl, i, j, k, l, ij_, kl_)
-                ij = int(ij_)
-                kl = int(kl_)
-            else
-                ! Obtain spin orbital labels and the RDM element.
-                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
-            end if
 
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
             ! Set sign for transition RDMs to 0.
             rdm_sign(nrdms_standard+1:) = 0.0_dp
 
-            ! Factor of a half to account for prevent double-counting, and
-            ! instead average elements from above and below the diagonal.
-            if (ij /= kl) rdm_sign = 0.5_dp*rdm_sign
+            if (tGUGA) then
+                call extract_2_rdm_ind(ijkl, i, j, k, l, ij_, kl_)
+                ij = int(ij_)
+                kl = int(kl_)
 
-            ! If in the lower half of the RDM, reflect to the upper half.
-            if (ij > kl) then
-                call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .false., nearly_full)
+                rdm_sign = rdm_sign / 2.0_dp
+                call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .true., nearly_full)
+                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .true., nearly_full)
+
             else
-                call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
+                ! Obtain spin orbital labels and the RDM element.
+                call calc_separate_rdm_labels(ijkl, ij, kl, i, j, k, l)
+
+                ! Factor of a half to account for prevent double-counting, and
+                ! instead average elements from above and below the diagonal.
+                if (ij /= kl) rdm_sign = 0.5_dp*rdm_sign
+
+                ! If in the lower half of the RDM, reflect to the upper half.
+                if (ij > kl) then
+                    call add_to_rdm_spawn_t(spawn, k, l, i, j, rdm_sign, .false., nearly_full)
+                else
+                    call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .false., nearly_full)
+                end if
             end if
+
+
         end do
 
         finished = .true.
@@ -1207,6 +1226,9 @@ contains
 
                     do ielem = 1, rdm%nelements
                         pqrs = rdm%elements(0,ielem)
+                        call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
+                        ! Normalise.
+                        rdm_sign = rdm_sign/rdm_trace
                         if (tGUGA) then
                             ! Obtain spatial orbital labels.
                             call extract_2_rdm_ind(pqrs, p, q, r, s, pq_, rs_)
@@ -1216,13 +1238,10 @@ contains
                             ! Obtain spin orbital labels.
                             call calc_separate_rdm_labels(pqrs, pq, rs, p, s, q, r)
                         end if
-                        call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
-                        ! Normalise.
-                        rdm_sign = rdm_sign/rdm_trace
 
                         if (abs(rdm_sign(irdm)) > 1.e-12_dp) then
                             if (p >= q .and. pq >= rs .and. p >= r .and. p >= s) then
-                                write(iunit,"(4I5, F28.20)") p, q, r, s, rdm_sign(irdm)
+                                write(iunit,"(4I6, G25.17)") p, q, r, s, rdm_sign(irdm)
                             end if
                         end if
                     end do

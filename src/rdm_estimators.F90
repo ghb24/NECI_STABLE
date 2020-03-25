@@ -11,6 +11,8 @@ module rdm_estimators
     use SystemData, only: tGUGA
     use guga_rdm, only: calc_rdm_energy_guga
     use guga_bitRepOps, only: extract_2_rdm_ind
+    use util_mod, only: near_zero
+    use guga_data, only: t_fill_symmetric
 
     implicit none
 
@@ -739,7 +741,6 @@ contains
             ! Obtain RDM element sign
             call extract_sign_rdm(rdm%elements(:,ielem), rdm_sign)
 
-
             if (tGUGA) then
                 call extract_2_rdm_ind(ijkl, i, j, k, l, ij_, kl_)
                 call add_to_rdm_spawn_t(spawn, i, j, k, l, rdm_sign, .true., nearly_full)
@@ -782,9 +783,15 @@ contains
         max_error_herm = max_error_herm/rdm_norm
         sum_error_herm = sum_error_herm/rdm_norm
 
-       ! Find the largest error and sum of errors across all processors.
-       call MPIAllReduce(max_error_herm, MPI_MAX, max_error_herm_all)
-       call MPIAllReduce(sum_error_herm, MPI_SUM, sum_error_herm_all)
+        if (tGUGA .and. t_fill_symmetric) then
+            if (any(.not. near_zero(max_error_herm))) then
+                call stop_all(this_routine, &
+                    "hermiticity errors albeit symmetric filling!")
+            end if
+        end if
+        ! Find the largest error and sum of errors across all processors.
+        call MPIAllReduce(max_error_herm, MPI_MAX, max_error_herm_all)
+        call MPIAllReduce(sum_error_herm, MPI_SUM, sum_error_herm_all)
 
     end subroutine calc_hermitian_errors
 

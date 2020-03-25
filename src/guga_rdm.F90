@@ -196,7 +196,8 @@ contains
         open(iunit_dmat, file = 'DMAT', status = 'replace')
         do i = 1, size(dmat)
             if (abs(dmat(i)) > 1e-12_dp) then
-                write(iunit_dmat, '(I5, G25.17)') i, dmat(i)
+                call extract_molcas_1_rdm_index(i, p, q)
+                write(iunit_dmat, '(I6, G25.17,2I6)') i, dmat(i), p, q
             end if
         end do
         close(iunit_dmat)
