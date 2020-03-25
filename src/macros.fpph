@@ -23,7 +23,6 @@ endif
 #:enddef
 
 #:def ASSERT(cond, *args)
-#ifdef DEBUG_
     if (.not. (${cond}$)) then
         write(6, *) ""
         write(6, *) "Assertion ${cond}$"
@@ -36,5 +35,4 @@ endif
 #:endif
         call stop_all (this_routine, "Assert fail: ${cond}$")
     end if
-#endif
 #:enddef

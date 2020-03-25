@@ -1,5 +1,8 @@
 module test_gasci_mod
     use fruit
+    use constants, only: dp
+    use util_mod, only: operator(.div.)
+    use procedure_pointers, only: generate_excitation
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, &
         size, operator(==), alpha, beta
     use excitation_types, only: SingleExc_t, excite
@@ -7,7 +10,9 @@ module test_gasci_mod
     use gasci, only: GASSpec_t, get_iGAS, &
         contains_det, get_nGAS, particles_per_GAS, operator(.contains.), &
         is_valid, is_connected, get_possible_spaces, get_possible_holes, &
-        split_per_GAS
+        split_per_GAS, generate_nGAS_excitation, GAS_spec => GAS_specification
+    use unit_test_helper_excitgen, only: nelBase, nBasisBase, test_excitation_generator, &
+        init_excitgen_test, finalize_excitgen_test
     implicit none
     private
     public :: test_igas_from_spatorb, test_igas_from_spinorb, &
@@ -15,7 +20,7 @@ module test_gasci_mod
         test_particles_per_GAS_spatorb, test_particles_per_GAS_spinorb, &
         test_is_valid, test_is_connected, &
         test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb, &
-        test_possible_holes, test_split_per_GAS
+        test_possible_holes, test_split_per_GAS, test_pgens
 
 
 
@@ -129,6 +134,38 @@ contains
 
         call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4])))
         call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 5], n_max=[3, 5])))
+    end subroutine
+
+    subroutine test_pgens()
+        real(dp) :: pTot, pNull
+        integer :: numEx, nFound
+        integer, parameter :: nSamples = 200000
+        type(SpinOrbIdx_t) :: start_det
+
+        ! prepare everything for testing the excitgen
+        call init_excitgen_test()
+
+        ! set the excitation we want to test
+        generate_excitation => generate_nGAS_excitation
+        GAS_spec = GASSpec_t(&
+            n_orbs=[nBasisBase .div. 4, nBasisBase .div. 2], &
+            n_min=[nelBase .div. 2, nelBase], &
+            n_max=[nelBase .div. 2, nelBase])
+        start_det = SpinOrbIdx_t([1, 2, 7, 8, 9])
+
+        call assert_true(is_valid(GAS_spec))
+        call assert_true(GAS_spec .contains. start_det)
+        call assert_true(size(start_det) == nelBase)
+        call assert_true(GAS_spec%n_orbs(get_nGAS(GAS_spec)) == (nBasisBase .div. 2))
+
+!         run the excitgen test: do nSamples excitations, and compare them with all possible excits
+        call test_excitation_generator(nSamples,pTot,pNull,numEx,nFound,.false., start_nI=start_det%idx)
+        ! make sure all excitations are found
+        call assert_equals(numEx,nFound)
+!         ! make sure the probability is normalized - we don't require pNull to match exactly (that would mean generating all possible null excitations)
+!         ! so the threshold is rather loose
+!         ! for in-depth insight, study the output and consider the ratio of pGen and the number of occurences per excitation (should fluctuate around 1)
+!         call assert_true(abs(1.0-pTot)<0.01)
     end subroutine
 
 
@@ -393,7 +430,7 @@ program test_gasci_program
         test_particles_per_GAS_spatorb, test_particles_per_GAS_spinorb, &
         test_is_valid, test_is_connected, &
         test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb, &
-        test_possible_holes, test_split_per_GAS
+        test_possible_holes, test_split_per_GAS, test_pgens
 
 
     implicit none
@@ -430,5 +467,6 @@ contains
         call run_test_case(test_get_possible_spaces_spinorb, "test_get_possible_spaces_spinorb")
         call run_test_case(test_get_possible_spaces_spatorb, "test_get_possible_spaces_spatorb")
         call run_test_case(test_possible_holes, "test_possible_holes")
+        call run_test_case(test_pgens, "test_pgens")
     end subroutine
 end program test_gasci_program

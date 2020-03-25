@@ -51,7 +51,7 @@ module unit_test_helper_excitgen
 
 contains
 
-  subroutine test_excitation_generator(sampleSize, pTot, pNull, numEx, nFound, t_calc_pgen)
+  subroutine test_excitation_generator(sampleSize, pTot, pNull, numEx, nFound, t_calc_pgen, start_nI)
     ! Test an excitation generator by creating a large number of excitations and
     ! compare the generated excits with a precomputed list of all excitations
     ! We thus make sure that
@@ -62,6 +62,7 @@ contains
     real(dp), intent(out) :: pTot, pNull
     integer, intent(out) :: numEx, nFound
     logical, intent(in) :: t_calc_pgen
+    integer, intent(in), optional :: start_nI(nEl)
     integer :: nI(nel), nJ(nel)
     integer :: i, ex(2,maxExcit), exflag
     integer(n_int) :: ilut(0:NIfTot), ilutJ(0:NIfTot)
@@ -82,14 +83,18 @@ contains
 
     ! some starting det - do NOT use the reference for the pcpp test, that would
     ! defeat the purpose
-    do i = 1, nel
-       if(2*i < nBasis) then
-          nI(i) = 2*i-mod(i,2)
-       else
-          nI(i) = i
-       endif
-    end do
-    call sort(nI)
+    if (present(start_nI)) then
+        nI = start_nI
+    else
+        do i = 1, nel
+           if(2*i < nBasis) then
+              nI(i) = 2*i-mod(i,2)
+           else
+              nI(i) = i
+           endif
+        end do
+        call sort(nI)
+    end if
 
     tCSF = .false.
     call EncodeBitDet(nI,ilut)

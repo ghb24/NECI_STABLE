@@ -85,7 +85,7 @@ endif
 #define IFDEBUGEQTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define IFDEBUGTHEN(PrintLevel,ThisLevel) if(.false.) then
 #define ENDIFDEBUG endif
-#define DEBUG_IMPURE pure
+#define DEBUG_IMPURE
 #endif
 
 ! define a precompiler setup for the warning workaround

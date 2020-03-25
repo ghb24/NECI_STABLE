@@ -19,7 +19,7 @@ module gasci
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
-        last_tgt_unknown, set_last_tgt, excite, defined
+        last_tgt_unknown, set_last_tgt, excite, defined, UNKNOWN
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, calc_spin, &
         calc_spin_raw, alpha, beta, sum, operator(==), operator(/=), &
         operator(+), operator(-)
@@ -540,10 +540,32 @@ contains
                 call gen_exc_double(GAS_specification, SpinOrbIdx_t(nI), ilutI, r, &
                                     nJ, ilutJ, ex_mat, par, pgen)
             end associate
+            @:ASSERT(all(ex_mat(:, :ic) /= UNKNOWN) .or. nJ(1) == 0, nJ, ic, ex_mat(:, :ic), UNKNOWN)
             pgen = pgen * pDoubles
         end if
         @:ASSERT(0.0_dp <= pgen .and. pgen <= 1.0_dp, pgen)
 
+        associate (src1 => ex_mat(1, 1), tgt1 => ex_mat(2, 1), &
+                   src2 => ex_mat(1, 2), tgt2 => ex_mat(2, 2))
+            select case (ic)
+            case(1)
+                if (src1 == tgt1) then
+                    call stop_all(this_routine, 'Single excitation is trivial')
+                end if
+            case(2)
+                block
+                    integer :: ex_mat_copy(2, maxExcit)
+                    ex_mat_copy = ex_mat
+                    call sort(ex_mat_copy(:, 1))
+                    call sort(ex_mat_copy(:, 2))
+                    if (src1 == src2 .or. tgt1 == tgt2 .or. .not. disjoint(ex_mat_copy(:, 1), ex_mat_copy(:, 2))) then
+                        call stop_all(this_routine, 'DoubleExcitation is trivial')
+                    end if
+                end block
+            end select
+        end associate
+
+        @:ASSERT(all(ex_mat(:, :ic) /= UNKNOWN) .or. nJ(1) == 0, ic, ex_mat(:, :ic), UNKNOWN)
     end subroutine generate_nGAS_excitation
 
     subroutine gen_exc_single(GAS_spec, det_I, ilutI, r, nJ, ilutJ, ex_mat, par, pgen)
@@ -694,6 +716,7 @@ contains
             call zeroResult()
             return
         end if
+        @:ASSERT(defined(exc))
 
         ! We could have picked the holes the other way round and have to
         ! determine the probability of picking tgt1 with spin m_s_1 upon picking tgt2 first.
@@ -736,6 +759,7 @@ contains
 
         pgen = pgen_particles * pgen_first_pick * sum(pgen_second_pick)
         @:ASSERT(0.0_dp < pgen .and. pgen <= 1.0_dp, pgen, pgen_particles, pgen_first_pick, pgen_second_pick)
+        @:ASSERT(all(ex_mat(:, :2) /= UNKNOWN), ex_mat(:, :2), UNKNOWN)
         contains
 
             subroutine zeroResult()
