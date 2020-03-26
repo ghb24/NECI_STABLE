@@ -77,7 +77,6 @@ module guga_rdm
     private
     public :: calc_rdm_energy_guga, gen_exc_djs_guga, &
               send_proc_ex_djs, &
-              t_mimic_stochastic, t_diag_exchange, &
               calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
               calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga, &
               calc_explicit_diag_2_rdm_guga, test_fill_spawn_diag, &
@@ -87,12 +86,6 @@ module guga_rdm
               create_all_rdm_contribs, contract_molcas_1_rdm_index, &
               extract_molcas_1_rdm_index, contract_molcas_2_rdm_index, &
               extract_molcas_2_rdm_index, output_molcas_rdms
-
-    ! test the symmetric filling of the GUGA-RDM, if the assumptions about
-    ! the hermiticity are correct..
-
-    logical :: t_diag_exchange = .false.
-    logical :: t_mimic_stochastic = .true.
 
 contains
 
@@ -800,36 +793,6 @@ contains
                 t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
                 rdm_mat = rdm_mat)
 
-            ! select case (excitInfo%typ)
-            ! ! in this implementation right now, I have to sample
-            ! ! all full-start/stop contributions for all the
-            ! ! excitations.. so there is a double counting going on
-            ! ! this i have to unbias here (there could be even
-            ! ! more double counting, but thats to see)
-            ! case(excit_type%fullstop_L_to_R, &
-            !      excit_type%fullstop_R_to_L, &
-            !      excit_type%fullstart_L_to_R, &
-            !      excit_type%fullstart_R_to_L, &
-            !      excit_type%fullstart_stop_mixed)
-            !
-            !     ! quick test:
-            !     ! try to pick one randomly
-            !
-            !     call extract_2_rdm_ind(rdm_ind(pick), i, j, k, l)
-            !
-            !     if (t_fill_symmetric) then
-            !         call add_to_rdm_spawn_t(spawn, i, j, k, l, &
-            !             full_sign, .true.)
-            !         call add_to_rdm_spawn_t(spawn, k, l, i, j, &
-            !             full_sign, .true.)
-            !     else
-            !         call add_to_rdm_spawn_t(spawn, i, j, k, l, &
-            !             2.0 * full_sign, .true.)
-            !     end if
-            !
-            !     ! full_sign = full_sign / real(size(rdm_mat),dp)
-            !     ! add option to average again! TODO
-            ! case default
             ! i assume sign_i and sign_j are not 0 if we end up here..
             do n = 1, size(rdm_ind)
                 if (.not. near_zero(rdm_mat(n))) then
@@ -866,7 +829,6 @@ contains
                     end if
                 end if
             end do
-            ! end select
         end if
 
     end subroutine Add_RDM_From_IJ_Pair_GUGA
@@ -909,19 +871,16 @@ contains
         ! now to double excitations if requsted:
         if (RDMExcitLevel /= 1) then
 
-            if (t_mimic_stochastic ) then
-                ! if i want to mimic stochastic RDM sampling I also
-                ! have to explicitly create single excitations, but
-                ! store them in the according 2-RDM entries
-                call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
+            ! if i want to mimic stochastic RDM sampling I also
+            ! have to explicitly create single excitations, but
+            ! store them in the according 2-RDM entries
+            call calc_explicit_1_rdm_guga(ilutG, n_singles, excits)
 
-                ! and then sort them correctly in the communicated array
-                call assign_excits_to_proc_guga(n_singles, excits, 1)
+            ! and then sort them correctly in the communicated array
+            call assign_excits_to_proc_guga(n_singles, excits, 1)
 
-                deallocate(excits)
-                call LogMemDealloc(this_routine, tag_excitations)
-            end if
-
+            deallocate(excits)
+            call LogMemDealloc(this_routine, tag_excitations)
 
             call calc_explicit_2_rdm_guga(ilutG, n_doubles, excits)
 
@@ -1113,36 +1072,34 @@ contains
                 ! but for open-shell to open-shell exchange excitations
                 ! I have to calculate the correct x1 matrix element..
 
-                if (t_mimic_stochastic) then
-                    ! x0 matrix element is easy
-                    x0 = -occ_i * occ_j / 2.0_dp
+                ! x0 matrix element is easy
+                x0 = -occ_i * occ_j / 2.0_dp
 
-                    if (inc_i == 1 .and. inc_j == 1) then
-                        ! if we have open-shell to open chell
-                        x1 = calcDiagExchangeGUGA_nI(i, j, nI) / 2.0_dp
+                if (inc_i == 1 .and. inc_j == 1) then
+                    ! if we have open-shell to open chell
+                    x1 = calcDiagExchangeGUGA_nI(i, j, nI) / 2.0_dp
 
-                        if (t_fill_symmetric) then
-                            call add_to_rdm_spawn_t(spawn, s, p, p, s, &
-                               (x0 - x1) * full_sign, .true.)
-                            call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                               (x0 - x1) * full_sign, .true.)
-                       else
-                            call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                               2.0_dp * (x0 - x1) * full_sign, .true.)
-                       end if
+                    if (t_fill_symmetric) then
+                        call add_to_rdm_spawn_t(spawn, s, p, p, s, &
+                           (x0 - x1) * full_sign, .true.)
+                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                           (x0 - x1) * full_sign, .true.)
+                   else
+                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                           2.0_dp * (x0 - x1) * full_sign, .true.)
+                   end if
 
 
+                else
+                    if (t_fill_symmetric) then
+                        call add_to_rdm_spawn_t(spawn, s, p, p, s, &
+                            x0 * full_sign, .true.)
+                        ! and the symmetric version:
+                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                            x0 * full_sign, .true.)
                     else
-                        if (t_fill_symmetric) then
-                            call add_to_rdm_spawn_t(spawn, s, p, p, s, &
-                                x0 * full_sign, .true.)
-                            ! and the symmetric version:
-                            call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                                x0 * full_sign, .true.)
-                        else
-                            call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                                2.0_dp * x0 * full_sign, .true.)
-                        end if
+                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                            2.0_dp * x0 * full_sign, .true.)
                     end if
                 end if
 
@@ -1238,7 +1195,7 @@ contains
         integer(MPIArg) :: sing_recvdisps(nProcessors)
         integer(MPIArg) :: doub_recvcounts(nProcessors),doub_recvdisps(nProcessors)
 
-        if (RDMExcitLevel == 1 .or. (t_mimic_stochastic .and. RDMExcitLevel == 3)) then
+        if (RDMExcitLevel == 1 .or. RDMExcitLevel == 3) then
             do i = 0, nProcessors - 1
                 sendcounts(i+1) = int(Sing_ExcList(i)-(nint(OneEl_Gap*i)+1), MPIArg)
                 disps(i+1) = nint(OneEl_Gap*i, MPIArg)
@@ -1336,9 +1293,7 @@ contains
         integer(int_rdm) :: rdm_ind
         integer(n_int) :: ilutJ(0:GugaBits%len_tot), ilutI(0:GugaBits%len_tot)
         real(dp) :: mat_ele, sign_i(lenof_sign), sign_j(lenof_sign)
-        logical :: tDetFound, t_equal
-
-        t_equal = .false.
+        logical :: tDetFound
 
         do i = 1, nProcessors
 
@@ -1353,28 +1308,11 @@ contains
 
                 do j = StartDets + 1, (NoDets + StartDets - 1)
 
-                    t_equal = .false.
                     ilutJ = Doub_ExcDjs2(:,j)
-
-                    if ((.not. t_mimic_stochastic) .and.DetBitEQ(ilutI, ilutJ)) then
-                        t_equal = .true.
-                    end if
 
                     call BinSearchParts_rdm(ilutJ, 1, int(TotWalkers, sizeof_int), &
                         PartInd, tDetFound)
 
-                    ! I need to count diagonal terms, which I calculate
-                    ! before annihilation if we mimick the stochastic implementation
-                    if (t_equal .and. .not. tDetFound) then
-
-                        mat_ele = extract_matrix_element(ilutJ,1)
-                        rdm_ind = extract_rdm_ind(ilutJ)
-                        call extract_2_rdm_ind(rdm_ind, a, b, c, d)
-
-                        call add_to_rdm_spawn_t(two_rdm_spawn, a, b, c, d, &
-                            sign_i * sign_i * mat_ele, .true.)
-
-                    end if
                     if (tDetFound) then
 
                         call extract_bit_rep(CurrentDets(:,PartInd), nJ, sign_j, FlagsDj)
@@ -1447,7 +1385,7 @@ contains
                             call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
                                 mat_ele, rdm_ind)
 
-                        else if (t_mimic_stochastic .and. RDMExcitLevel == 3) then
+                        else if (RDMExcitLevel == 3) then
                             call fill_sings_2rdm_guga(two_rdm_spawn, ilutI, &
                                 ilutJ, sign_i, sign_j, mat_ele, rdm_ind)
 
@@ -2526,24 +2464,11 @@ contains
                 end do
 #endif
 
-                if (t_diag_exchange) then
-                    if (.not. t_mimic_stochastic) then
-                        if (DetBitEQ(ilut, temp_excits(:,1))) then
-                            call add_guga_lists_rdm(n_tot, 1, tmp_all_excits, temp_excits)
-                        end if
-                    end if
-                else
-                    if (t_mimic_stochastic) then
-                        if (n_excits > 1) then
-                            call add_guga_lists_rdm(n_tot, n_excits-1, &
-                                tmp_all_excits, temp_excits(:,2:))
-                        end if
-                    else
-                        if (n_excits > 0) then
-                            call add_guga_lists_rdm(n_tot, n_excits, tmp_all_excits, temp_excits)
-                        end if
-                    end if
+                if (n_excits > 1) then
+                    call add_guga_lists_rdm(n_tot, n_excits-1, &
+                        tmp_all_excits, temp_excits(:,2:))
                 end if
+
                 deallocate(temp_excits)
             end do
         end do
@@ -2612,7 +2537,7 @@ contains
                             ASSERT(isProperCSF_ilut(temp_excits(:,n), .true.))
                         end do
 #endif
-                        if (t_mimic_stochastic .and. (i == l .and. j == k)) then
+                        if (i == l .and. j == k) then
                             ! exclude the diagonal exchange here,
                             ! as it is already accounted for in the
                             ! diagonal contribution routine
@@ -2784,35 +2709,26 @@ contains
         ! account..
         ! and also the the full-starts are maybe correct already..
         ! so it was just the full-start into full-stop mixed!
-        if (.not. t_mimic_stochastic) then
-            if (.not.compFlag .and. .not. excitInfo%typ == excit_type%fullstart_stop_mixed) then
-                allocate(excits(0,0), stat = ierr)
-                return
-            end if
-        else
-            if (.not.compFlag) then
-                allocate(excits(0,0), stat = ierr)
-                return
-            end if
+        if (.not.compFlag) then
+            allocate(excits(0,0), stat = ierr)
+            return
         end if
 
-        if (t_mimic_stochastic) then
-            select case(excitInfo%typ)
+        select case(excitInfo%typ)
 
-            case(excit_type%raising,                 &
-                 excit_type%lowering,                &
-                 excit_type%single_overlap_lowering, &
-                 excit_type%single_overlap_raising   )
+        case(excit_type%raising,                 &
+             excit_type%lowering,                &
+             excit_type%single_overlap_lowering, &
+             excit_type%single_overlap_raising   )
 
-                ! in the case of mimicking stochasitic
-                ! excitation generation, we should abort here for
-                ! these type of excitations!
-                allocate(excits(0,0), stat = ierr)
-                n_excits = 0
-                return
+            ! in the case of mimicking stochasitic
+            ! excitation generation, we should abort here for
+            ! these type of excitations!
+            allocate(excits(0,0), stat = ierr)
+            n_excits = 0
+            return
 
-            end select
-        end if
+        end select
 
         select case(excitInfo%typ)
         case(excit_type%single)
@@ -2920,7 +2836,7 @@ contains
 
         case (excit_type%fullstop_L_to_R) ! full stop lowering into raising
             call calcFullStopL2R(ilut, excitInfo, excits, n_excits, &
-                posSwitches, negSwitches, t_mimic_stochastic)
+                posSwitches, negSwitches, t_no_singles_opt = .true.)
 
             ! in this case there is also the possibility for one single-like
             ! excitation if there is no change in the double overlap region!
@@ -2939,7 +2855,7 @@ contains
 
         case (excit_type%fullstop_R_to_L) ! full stop raising into lowering
             call calcFullStopR2L(ilut, excitInfo, excits, n_excits, &
-                posSwitches, negSwitches, t_mimic_stochastic)
+                posSwitches, negSwitches, t_no_singles_opt = .true.)
 
             ! same as for 16
             exlevel = 2
@@ -2958,14 +2874,14 @@ contains
 
         case (excit_type%fullstart_L_to_R) ! full start lowering into raising
             call calcFullStartL2R(ilut, excitInfo, excits, n_excits, &
-                posSwitches, negSwitches, t_mimic_stochastic)
+                posSwitches, negSwitches, t_no_singles_opt = .true.)
 
             ! same as for 16
             exlevel = 2
 
         case (excit_type%fullstart_R_to_L) ! full start raising into lowering
             call calcFullStartR2L(ilut, excitInfo, excits, n_excits, &
-                posSwitches, negSwitches, t_mimic_stochastic)
+                posSwitches, negSwitches, t_no_singles_opt = .true.)
 
             ! same as for 16
             exlevel = 2

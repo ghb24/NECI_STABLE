@@ -30,8 +30,6 @@ MODULE Logging
                            t_pop_symmetry_states, symmetry_states, &
                            symmetry_weights, symmetry_states_ilut
 
-    use guga_rdm, only: t_mimic_stochastic, t_diag_exchange
-
     use cc_amplitudes, only: t_plot_cc_amplitudes
 
     use guga_data, only: t_slow_guga_rdms, t_fast_guga_rdms, t_mimic_slow, &
@@ -271,13 +269,6 @@ MODULE Logging
             ! in this case print the frequency histograms to analyze the
             ! matrix element vs. pgen ratios
             t_print_frq_histograms = .true.
-
-        case ("MIMIC-STOCHASTIC")
-            t_mimic_stochastic = .true.
-            ! if we mimic we HAVE to do direct exchange too!
-
-        case ("DIAG-EXCHANGE")
-            t_diag_exchange = .true.
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)
