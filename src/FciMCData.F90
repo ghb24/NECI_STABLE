@@ -101,6 +101,8 @@ MODULE FciMCData
     real(dp),allocatable :: AllNoInitWalk(:), AllNoNonInitWalk(:)
     integer(int64), allocatable :: AllNoExtraInitDoubs(:), AllInitRemoved(:)
     integer(int64), allocatable :: AllGrowRateAbort(:)
+    integer :: n_core_non_init = 0
+    integer :: all_n_core_non_init = 0
 
     integer :: doubleSpawns = 0
     integer :: allDoubleSpawns
@@ -502,7 +504,9 @@ MODULE FciMCData
       real(dp), allocatable, dimension(:) :: core_ham_diag
 
       ! This stores the entire core space from all processes, on each process.
-      integer(n_int), allocatable, dimension(:,:) :: core_space
+      integer(n_int), pointer, dimension(:,:) :: core_space => null()
+      integer(n_int), pointer, dimension(:,:) :: core_space_direct => null()
+      integer(MPIArg) :: core_space_win
 
       ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
       ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector

@@ -20,7 +20,7 @@ module semi_stoch_gen
     use sparse_arrays
     use timing_neci
     use SystemData, only: t_non_hermitian, nBasis
-
+    use shared_rhash, only: initialise_shared_rht
     use guga_excitations, only: actHamiltonian
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: tGUGACore
@@ -152,13 +152,6 @@ contains
         call LogMemAlloc('indices_of_determ_states', int(determ_sizes(iProcIndex), &
                          sizeof_int), bytes_int, t_r, IDetermTag, ierr)
 
-        ! Calculate the indices in the full vector at which the various processors take over, relative
-        ! to the first index position in the vector (i.e. the array disps in MPI routines).
-        determ_displs(0) = 0
-        do i = 1, nProcessors-1
-            determ_displs(i) = determ_displs(i-1) + determ_sizes(i-1)
-        end do
-
         ! Calculate the indices in the full vector at which the various processors end.
         determ_last(0) = determ_sizes(0)
         do i = 1, nProcessors-1
@@ -187,7 +180,7 @@ contains
         ! Store every core determinant from all processors on all processors, in core_space.
         call store_whole_core_space()
         ! Create the hash table to address the core determinants.
-        call initialise_core_hash_table(core_space, determ_space_size_int, core_ht)
+        call initialise_shared_rht(core_space, determ_space_size_int, core_ht)
 
         if (tWriteCore) call write_core_space()
 
@@ -306,7 +299,7 @@ contains
         if (core_in%tHF) call add_state_to_space(ilutHF, SpawnedParts, space_size)
         if (core_in%tPops) call generate_space_most_populated(core_in%npops, &
                                     core_in%tApproxSpace, core_in%nApproxSpace, &
-                                    SpawnedParts, space_size)
+                                    SpawnedParts, space_size, t_opt_fast_core = t_fast_pops_core)
         if (core_in%tRead) call generate_space_from_file(core_in%read_filename, SpawnedParts, space_size)
         if (.not. (tCSFCore .or. tGUGACore)) then
            if (core_in%tDoubles) call generate_sing_doub_determinants(SpawnedParts, space_size, core_in%tHFConn)
@@ -1107,7 +1100,7 @@ contains
     end subroutine generate_optimised_space
 
     subroutine generate_space_most_populated(target_space_size, tApproxSpace, &
-            nApproxSpace, ilut_list, space_size, opt_source, opt_source_size)
+            nApproxSpace, ilut_list, space_size, opt_source, opt_source_size, t_opt_fast_core)
 
         ! In: target_space_size - The number of determinants to attempt to keep
         !         from if less determinants are present then use all of them.
@@ -1129,19 +1122,20 @@ contains
         !             generated plus what space_size was on input.
 
         use bit_reps, only: extract_sign
-
+        use Parallel_neci, only: MPISum
         integer, intent(in) :: target_space_size, nApproxSpace
         integer(n_int), intent(in), optional :: opt_source_size
         integer(n_int), intent(in), optional :: opt_source(0:,:)
         logical, intent(in) :: tApproxSpace
         integer(n_int), intent(inout) :: ilut_list(0:,:)
         integer, intent(inout) :: space_size
-
+        logical, intent(in), optional :: t_opt_fast_core
         real(dp), allocatable, dimension(:) :: amps_this_proc, amps_all_procs
         real(dp) :: real_sign(lenof_sign)
         integer(MPIArg) :: length_this_proc, total_length
         integer(MPIArg) :: lengths(0:nProcessors-1), disps(0:nProcessors-1)
         integer(n_int) :: temp_ilut(0:NIfTot)
+        real(dp) :: core_sum, all_core_sum
         integer(n_int), dimension(:,:), allocatable :: largest_states
         integer, allocatable, dimension(:) :: indices_to_keep
         integer :: j, ierr, ind, n_pops_keep, min_ind, max_ind, n_states_this_proc
@@ -1149,9 +1143,11 @@ contains
         integer(TagIntType) :: TagA, TagB, TagC, TagD
         character (len=*), parameter :: this_routine = "generate_space_most_populated"
         integer :: nzero_dets
-
+        real(dp) :: max_vals(0:nProcessors-1), min_vals(0:nProcessors-1), max_sign, min_sign
         integer(int64) :: source_size
         integer(n_int), pointer :: loc_source(:,:)
+        integer(MPIARg) :: max_size
+        logical :: t_use_fast_pops_core
 
         if (present(opt_source)) then
             ASSERT(present(opt_source_size))
@@ -1168,6 +1164,8 @@ contains
 !             loc_source => CurrentDets
         end if
 
+        def_default(t_use_fast_pops_core, t_opt_fast_core, .false.)
+
         n_pops_keep = target_space_size
 
         ! Quickly loop through and find the number of determinants with
@@ -1183,12 +1181,12 @@ contains
             ! this process. This is done instead of sending the best
             ! target_space_size states to all processes, which is often
             ! overkill and uses up too much memory.
-            length_this_proc = min( ceiling(real(nApproxSpace*n_pops_keep)/real(nProcessors), MPIArg), &
-                                   int(source_size-nzero_dets,MPIArg) )
+            max_size = ceiling(real(nApproxSpace*n_pops_keep)/real(nProcessors), MPIArg)
         else
-            length_this_proc = min( int(n_pops_keep, MPIArg), int(source_size-nzero_dets,MPIArg) )
+            max_size = int(n_pops_keep, MPIArg)
         end if
-
+        
+        length_this_proc = min( max_size, int(source_size - nzero_dets, MPIArg))
 
         call MPIAllGather(length_this_proc, lengths, ierr)
         total_length = sum(lengths)
@@ -1219,49 +1217,67 @@ contains
 
         ! Return the most populated states in source on *this* processor.
         call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states, &
-             loc_source, int(source_size))
+            loc_source, int(source_size))
 
-        ! Store the amplitudes in their real form.
         do i = 1, length_this_proc
+            ! Store the real amplitudes in their real form.            
             call extract_sign(largest_states(:,i), real_sign)
             ! We are interested in the absolute values of the ampltiudes.
             amps_this_proc(i) = sum(abs(real_sign))
         end do
+        
+        if(t_use_fast_pops_core) then
+            min_sign = amps_this_proc(1)
+            max_sign = amps_this_proc(ubound(amps_this_proc, dim=1))
 
-        ! Now we want to combine all the most populated states from each processor to find
-        ! how many states to keep from each processor.
-        ! Take the top length_this_proc states from each processor.
-        call MPIAllGatherV(amps_this_proc(1:length_this_proc), amps_all_procs(1:total_length), lengths, disps)
-        ! This routine returns indices_to_keep, which will store the indices in amps_all_procs
-        ! of those amplitudes which are among the n_pops_keep largest (but not sorted).
-        call return_largest_indices(n_pops_keep, int(total_length, sizeof_int), amps_all_procs, indices_to_keep)
+            ! Make the max/min values available on all procs
+            call MPIAllGather(min_sign, min_vals, ierr)
+            call MPIAllGather(max_sign, max_vals, ierr)
 
-        n_states_this_proc = 0
-        do i = 1, n_pops_keep
+            call return_proc_share(n_pops_keep, min_vals, max_vals, lengths, &
+                amps_this_proc, n_states_this_proc)
+        else
 
-            ind = indices_to_keep(i)
+            ! Now we want to combine all the most populated states from each processor to find
+            ! how many states to keep from each processor.
+            ! Take the top length_this_proc states from each processor.
+            call MPIAllGatherV(amps_this_proc(1:length_this_proc), amps_all_procs(1:total_length), lengths, disps)
+            ! This routine returns indices_to_keep, which will store the indices in amps_all_procs
+            ! of those amplitudes which are among the n_pops_keep largest (but not sorted).
+            call return_largest_indices(n_pops_keep, int(total_length, sizeof_int), amps_all_procs, indices_to_keep)
 
-            ! Find the processor label for this state. The states of the ampltidues in
-            ! amps_all_procs are together in blocks, in order of the corresponding processor
-            ! label. Hence, if a state has index <= lengths(0) then it is on processor 0.
-            do j = 0, nProcessors-1
-                ind = ind - lengths(j)
-                if (ind <= 0) then
-                    ! j now gives the processor label. If the state is on *this* processor,
-                    ! update n_states_this_proc.
-                    if (j == iProcIndex) n_states_this_proc = n_states_this_proc + 1
-                    exit
-                end if
+            n_states_this_proc = 0
+            do i = 1, n_pops_keep
+
+                ind = indices_to_keep(i)
+
+                ! Find the processor label for this state. The states of the ampltidues in
+                ! amps_all_procs are together in blocks, in order of the corresponding processor
+                ! label. Hence, if a state has index <= lengths(0) then it is on processor 0.
+                do j = 0, nProcessors-1
+                    ind = ind - lengths(j)
+                    if (ind <= 0) then
+                        ! j now gives the processor label. If the state is on *this* processor,
+                        ! update n_states_this_proc.
+                        if (j == iProcIndex) n_states_this_proc = n_states_this_proc + 1
+                        exit
+                    end if
+                end do
+
             end do
-
-        end do
+        end if
+        
         ! Add the states to the ilut_list array.
         temp_ilut = 0_n_int
+        core_sum = 0.0_dp
         do i = 1, n_states_this_proc
             ! The states in largest_states are sorted from smallest to largest.
             temp_ilut(0:NIfTot) = largest_states(0:NIfTot, length_this_proc-i+1)
             call add_state_to_space(temp_ilut, ilut_list, space_size)
+            core_sum = core_sum + amps_this_proc(length_this_proc - i + 1)
         end do
+        call MPISum(core_sum, all_core_sum)
+        write(iout,*) "Total core population", all_core_sum
         deallocate(amps_this_proc)
         call LogMemDealloc(this_routine, TagA, ierr)
         deallocate(amps_all_procs)
@@ -2003,7 +2019,7 @@ contains
         call MPIAllGatherV(temp_var_space(0:NIfTot, 1:var_sizes(iProcIndex)), &
                            var_space, var_sizes, var_displs)
 
-        call initialise_core_hash_table(var_space, var_space_size_int, var_ht)
+        call initialise_shared_rht(var_space, var_space_size_int, var_ht)
 
         write(6,'("Generating the approximate Hamiltonian...")'); call neci_flush(6)
         if (tHPHF) then

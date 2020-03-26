@@ -14,8 +14,9 @@ module semi_stoch_procs
     use constants
 
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
-                         SpawnedParts, TotWalkers, CurrentDets, core_space, &
-                         MaxSpawned,indices_of_determ_states, ilutRef, determ_last
+                         SpawnedParts, TotWalkers, CurrentDets, core_space, core_space_win, &
+                         MaxSpawned,indices_of_determ_states, ilutRef, determ_last, &
+                         core_space_direct
 
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
 
@@ -53,6 +54,8 @@ module semi_stoch_procs
 
     use sparse_arrays, only: core_ht, SparseCoreHamilTags
 
+    use shared_rhash, only: shared_rhash_t, shared_rht_lookup
+
     use sparse_arrays, only: SparseHamilTags, allocate_sparse_ham_row
 
     use unit_test_helpers, only: print_matrix
@@ -65,6 +68,8 @@ module semi_stoch_procs
     use gdata_io, only: gdata_io_t
 
     use LoggingData, only: t_print_core_info
+
+    use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
 
     implicit none
 
@@ -422,57 +427,44 @@ contains
 
     end subroutine average_determ_vector
 
-    function is_core_state(ilut, nI) result (core_state)
+    !> Check whether an ilut belongs to the core space
+    !> @param[in] ilut  ilut we want to check
+    !> @param[in] nI  determinant corresponding to this ilut. Redundant, but is passed
+    !!                for performance reasons (decoding is expensive and we likely
+    !!                already know nI at this point)
+    !> @return t_core  true if and only if ilut is in the core space
+    function is_core_state(ilut, nI) result (t_core)
 
         use FciMCData, only: determ_space_size_int
         use hash, only: FindWalkerHash
 
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)
-        integer :: i, hash_val
-        logical :: core_state
+        integer :: i
+        logical :: t_core
 
-        core_state = .false.
-
-        hash_val = FindWalkerHash(nI, determ_space_size_int)
-
-        do i = 1, core_ht(hash_val)%nclash
-            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash_val)%ind(i)) )) then
-                core_state = .true.
-                return
-            end if
-        end do
-
+        call shared_rht_lookup(core_ht, ilut, nI, core_space, i, t_core)
     end function is_core_state
 
+    !> Check where an ilut is in the core space
+    !> @param[in] ilut  ilut we want to check
+    !> @param[in] nI  determinant corresponding to this ilut. Redundant, but is passed
+    !!                for performance reasons (decoding is expensive and we likely
+    !!                already know nI at this point)
+    !> @return pos  position of ilut in the core space, 0 if ilut is not in the core space
     function core_space_pos(ilut, nI) result (pos)
-
-        use FciMCData, only: ll_node, determ_space_size_int
-        use hash, only: FindWalkerHash
-        use sparse_arrays, only: core_ht
-
         integer(n_int), intent(in) :: ilut(0:NIfTot)
         integer, intent(in) :: nI(:)
-        integer :: i, hash_val
         character(len=*), parameter :: t_r = "core_space_pos"
 
         integer :: pos
+        logical :: t_core
 
-        pos = 0
-
-        hash_val = FindWalkerHash(nI, determ_space_size_int)
-
-        do i = 1, core_ht(hash_val)%nclash
-            if (all(ilut(0:NIfDBO) == core_space(0:NIfDBO,core_ht(hash_val)%ind(i)) )) then
-                pos = core_ht(hash_val)%ind(i)
-                return
-            end if
-        end do
-
+        call shared_rht_lookup(core_ht, ilut, nI, core_space, pos, t_core)
+        
         if (pos == 0) then
             call stop_all(t_r, "State not found in core hash table.")
         end if
-
     end function core_space_pos
 
     function check_determ_flag(ilut) result (core_state)
@@ -590,66 +582,87 @@ contains
 
         use FciMCData, only: CoreSpaceTag
         use MemoryManager, only: LogMemAlloc
-        use Parallel_neci, only: MPIAllGatherV
+        use Parallel_neci, only: MPIAllGatherV, iProcIndex_inter, iProcIndex_intra, &
+            mpi_comm_inter, mpi_comm_intra, nNodes, NodeLengths, iNodeIndex, MPIAllGather
 
         integer :: ierr
         character(len=*), parameter :: t_r = "store_whole_core_space"
+        integer(MPIArg), allocatable :: sizes_this_node(:)
+        integer(MPIArg) :: total_size_this_node
+        integer(MPIArg), allocatable :: node_offsets(:), sizes_per_node(:)
+        integer(MPIArg) :: proc_offset
+        integer(MPIArg) :: core_width
+        integer :: i
+        integer(MPIArg) :: node_size, num_nodes
+        integer(MPIArg) :: global_offset
+        
+        call mpi_comm_size(mpi_comm_intra, node_size, ierr)
+        call mpi_comm_size(mpi_comm_inter, num_nodes, ierr)
 
-        allocate(core_space(0:NIfTot, determ_space_size), stat=ierr)
+        allocate(sizes_this_node(0:node_size-1))
+        allocate(node_offsets(0:num_nodes-1))
+        allocate(sizes_per_node(0:num_nodes-1))
+
+        call shared_allocate_mpi(core_space_win, core_space_direct, &
+            (/int(1+NIfTot,int64), int(determ_space_size,int64)/))
+        ! Convert from 1-based first dimension to 0-based first dimension as used in iluts
+        core_space(0:,1:) => core_space_direct(1:,1:)
         call LogMemAlloc('core_space', maxval(determ_sizes)*(NIfTot+1), 8, t_r, &
-                         CoreSpaceTag, ierr)
-        core_space = 0_n_int
+            CoreSpaceTag, ierr)
+        if(iProcIndex_intra == 0) core_space = 0_n_int
 
+        ! Write the core-space on this node into core_space
+        call MPI_AllGather(determ_sizes(iProcIndex), 1, MPI_INTEGER4, &
+            sizes_this_node, 1, MPI_INTEGER4, mpi_comm_intra, ierr)
+
+        ! Get the intra-node offset
+        proc_offset = 0
+        do i = 1, iProcIndex_intra
+            proc_offset = proc_offset + sizes_this_node(i-1)
+        end do
+
+        ! Sum the size on this node
+        total_size_this_node = sum(sizes_this_node)
+
+        call MPI_AllGather(total_size_this_node, 1, MPI_INTEGER4, sizes_per_node, 1, MPI_INTEGER4, &
+            mpi_comm_inter, ierr)
+
+        ! Get the inter-node offset
+        node_offsets(0) = 0
+        do i = 1, num_nodes-1
+            node_offsets(i) = node_offsets(i-1) + sizes_per_node(i-1)
+        end do
+
+        global_offset = node_offsets(iProcIndex_inter) + proc_offset
+
+        call MPI_Win_fence(0, core_space_win, ierr)
+        core_space(0:NIfTot,(global_offset+1):&
+            (global_offset + determ_sizes(iProcIndex))) = &
+            SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex))
+        call MPI_Win_fence(0, core_space_win, ierr)
+
+        ! Multiply with message width (1+NIfTot)
+        core_width = int(size(core_space, dim = 1), MPIArg)
+        node_offsets = node_offsets * core_width
+        total_size_this_node = total_size_this_node * core_width
+        sizes_per_node = sizes_per_node * core_width
+        
         ! Give explicit limits for SpawnedParts slice, as NIfTot is not nesc.
         ! equal to NIfBCast. (It may be longer)
-        call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:determ_sizes(iProcIndex)),&
-                           core_space, determ_sizes, determ_displs)
+        call MPI_AllGatherV(MPI_IN_PLACE,total_size_this_node,MPI_INTEGER8, core_space, &
+            sizes_per_node, node_offsets, MPI_INTEGER8, mpi_comm_inter, ierr)
+
+        ! And sync the shared window
+        call MPI_Win_fence(0, core_space_win, ierr)
+        ! Communicate the indices in the full vector at which the various processors take over, relative
+        ! to the first index position in the vector (i.e. the array disps in MPI routines).
+        call MPIAllGather(global_offset, determ_displs, ierr)
+
+        deallocate(sizes_per_node)        
+        deallocate(node_offsets)
+        deallocate(sizes_this_node)
 
     end subroutine store_whole_core_space
-
-    subroutine initialise_core_hash_table(ilut_list, space_size, hash_table)
-
-        use bit_reps, only: decode_bit_det
-        use hash, only: FindWalkerHash
-        use sparse_arrays, only: core_hashtable
-        use SystemData, only: nel
-
-        integer(n_int), intent(in) :: ilut_list(0:,:)
-        integer, intent(in) :: space_size
-        type(core_hashtable), allocatable, intent(out) :: hash_table(:)
-
-        integer :: nI(nel)
-        integer :: i, ierr, hash_val
-
-        allocate(hash_table(space_size), stat=ierr)
-
-        do i = 1, space_size
-            hash_table(i)%nclash = 0
-        end do
-
-        ! Count the number of states with each hash value.
-        do i = 1, space_size
-            call decode_bit_det(nI, ilut_list(:,i))
-            hash_val = FindWalkerHash(nI, int(space_size,sizeof_int))
-            hash_table(hash_val)%nclash = hash_table(hash_val)%nclash + 1
-        end do
-
-        do i = 1, space_size
-            allocate(hash_table(i)%ind(hash_table(i)%nclash), stat=ierr)
-            hash_table(i)%ind = 0
-            ! Reset this for now.
-            hash_table(i)%nclash = 0
-        end do
-
-        ! Now fill in the indices of the states in the space.
-        do i = 1, space_size
-            call decode_bit_det(nI, ilut_list(:,i))
-            hash_val = FindWalkerHash(nI, int(space_size, sizeof_int))
-            hash_table(hash_val)%nclash = hash_table(hash_val)%nclash + 1
-            hash_table(hash_val)%ind(hash_table(hash_val)%nclash) = i
-        end do
-
-    end subroutine initialise_core_hash_table
 
     subroutine remove_high_energy_orbs(ilut_list, num_states, target_num_states, tParallel)
 
@@ -961,7 +974,7 @@ contains
 
             if (tSuccess) then
                 call set_flag(CurrentDets(:,PartInd), flag_deterministic)
-                if (tTruncInitiator) then
+                if (tTruncInitiator .and. t_core_inits) then
                     do run = 1, inum_runs
                         call set_flag(CurrentDets(:,PartInd), get_initiator_flag_by_run(run))
                     end do
@@ -1241,6 +1254,125 @@ contains
         call sort(largest_walkers(:,1:n_keep), sign_lt, sign_gt)
 
     end subroutine return_most_populated_states
+
+    !> Specialized routine that returns the number of determinants that are going into 
+    !! the core-space on this processor. Once the leading determinants have been obtained on each
+    !! processor, this function requires the minimal and maximal populations among these for all
+    !! processors (requires previous MPI_Gather), then the procedure to determine the core-space
+    !! size on this processor is as follows:
+    !! 1) Get the minimum of the maximal populations, then count the number of determinants
+    !!    above this population. This count is then broadcasted to the other procs, and the
+    !!    total number of determinants above the smallest maximum is determined. If it is smaller
+    !!    than the core-space size, these determinants are put into the core-space, else
+    !!    we repeat with the second smallest of the maximal populations, and so on.
+    !! 2) Get the maximum of the minimal populations, then count the number of determinants below
+    !!    this population. This count is then broadcasted to the other procs, and the total number
+    !!    of determinants below the largest minimum is determined. If the number of determinants
+    !!    that are remaining (i.e. larger than the largest minimum and smaller than the smallest
+    !!    maximum) is sufficient to fill up the core-space (in particular, the smallest maximum
+    !!    has to be bigger than the largest minimum), the small determinants are discarded. Else,
+    !!    we repeat this with the second largest minimum, and so on.
+    !! 3) From the remaining determinants, each processor contributes a share that equals to the
+    !!    ratio of the remaining determinants on this proc to the total remaining determinants
+    !> @param[in] n_keep  core-space size
+    !> @param[in] min_vals  minimal population of the canditates per processor
+    !> @param[in] max_vals  maximal population of the canditates per processor
+    !> @param[in] lengths  number of candidates per processor
+    !> @param[in] list  candidates on this processor
+    !> @param[out] n_dets_this_proc  number of core-space determinants on this processor
+    subroutine return_proc_share(n_keep, min_vals, max_vals, lengths, list, n_dets_this_proc)
+        use util_mod, only: binary_search_first_ge
+        real(dp), intent(inout) :: max_vals(0:nProcessors-1), min_vals(0:nProcessors-1)
+        real(dp), intent(in) :: list(:)
+        integer, intent(in) :: n_keep, lengths(0:nProcessors-1)
+        integer, intent(out) :: n_dets_this_proc
+
+        integer :: sum_max, sum_min
+        real(dp) :: min_max, max_min
+        integer :: dets_left, pool_left
+        real(dp) :: total_pool, ip_ratio
+        integer :: n_max(0:nProcessors-1), n_min(0:nProcessors-1)
+        integer :: missing, n_full, i
+
+        dets_left = -1
+        ! Increase the cutoff until our selection is small enough
+        do while ( dets_left < 0 )
+            call get_pp_ex(min_max, n_max, sum_max, max_vals)
+            ! Number of determinants left when keeping the maximal ones
+            dets_left = n_keep - sum_max
+        end do
+
+        ! Definitely take these determinants
+        n_dets_this_proc = n_max(iProcIndex)
+        
+        max_min = min_max + 1
+        total_pool = -1
+        ! Reduce the cutoff until we are below the min_max
+        do while ( max_min > min_max .or. total_pool < dets_left)
+            call get_pp_ex(max_min, n_min, sum_min, min_vals, t_max = .true.)
+            ! Size of the pool left when not keeping the minimal ones ( has to be at least
+            ! big enough to fill the core-space)
+            total_pool = sum(lengths) - sum_max - sum_min                    
+        end do
+
+        ! If the corespace consists of all chosen determinants, the remaining pool might be 0
+        ! -> no further action, take all determinants
+        if( total_pool > 0) then
+            ! Number of available dets on this proc after removing min/max
+            pool_left = lengths(iProcIndex) - n_max(iProcIndex) - n_min(iProcIndex)
+            ! Ratio of available dets on this proc vs. in totap
+            ip_ratio = pool_left / real(total_pool,dp)
+            ! If any further dets have to be picked, get them from all procs weighted with the pool sizes
+            n_dets_this_proc = n_dets_this_proc + int(ip_ratio * dets_left)
+        endif
+
+        
+    contains
+
+        subroutine get_pp_ex(ex, n_ex, sum_ex, vals, t_max)
+            use Parallel_neci, only: MPIAllGather
+            real(dp), intent(out) :: ex
+            integer, intent(out) :: n_ex(0:nProcessors-1), sum_ex
+            real(dp), intent(inout) :: vals(0:nProcessors-1)
+            logical, intent(in), optional :: t_max
+            integer :: ex_ind, n_ex_loc
+            integer :: ierr
+            real(dp) :: pre
+            logical :: t_max_
+
+            def_default(t_max_, t_max, .false.)
+
+            if(t_max_) then
+                pre = -1.0
+            else
+                pre = 1.0
+            endif
+            ! Get the smallest value of the per-proc max
+            ex_ind = minloc(pre*vals, dim = 1) - 1
+            ex = vals(ex_ind)
+            ! Invalidate this value, such that the next call finds the second smallest value and so on
+            vals(ex_ind) = pre*sum(vals)
+
+            ! Now, get the location of the first element above the extremum
+            n_ex_loc = binary_search_first_ge(list, ex)
+            ! If no such element exists, return 0 on this proc
+            if(n_ex_loc < 0) then
+                n_ex_loc = 0
+            else if(t_max_) then
+                ! From the position, get the number of elements below the extremum (for max_min)
+                n_ex_loc = n_ex_loc - 1
+            else
+                ! Or above the extremum (for min_max)
+                n_ex_loc = lengths(iProcIndex) - n_ex_loc + 1
+            endif
+
+            call MPIAllGather(n_ex_loc, n_ex, ierr)
+            ! Check if the maximum pop is already sufficient
+            sum_ex = sum(n_ex)
+
+        end subroutine get_pp_ex
+
+    end subroutine return_proc_share
 
     subroutine return_largest_indices(n_keep, list_size, list, largest_indices)
 
@@ -1783,7 +1915,7 @@ contains
         use FciMCData, only: core_space, determ_sizes, determ_displs, HamTag
         use FciMCData, only: CoreSpaceTag
         use MemoryManager, only: LogMemDealloc
-        use sparse_arrays, only: core_connections, deallocate_core_hashtable
+        use sparse_arrays, only: core_connections
         use sparse_arrays, only: deallocate_sparse_matrix_int
 
         character(len=*), parameter :: t_r = "end_semistoch"
@@ -1791,7 +1923,7 @@ contains
 
         call deallocate_sparse_ham(sparse_core_ham, SparseCoreHamilTags)
 
-        call deallocate_core_hashtable(core_ht)
+        call core_ht%dealloc()
 
         call deallocate_sparse_matrix_int(core_connections)
 
@@ -1815,8 +1947,9 @@ contains
             deallocate(core_ham_diag, stat=ierr)
 !            call LogMemDealloc(t_r, IDetermTag, ierr)
         end if
-        if (allocated(core_space)) then
-            deallocate(core_space, stat=ierr)
+        if (associated(core_space)) then
+            core_space => null()
+            call shared_deallocate_mpi(core_space_win, core_space_direct)
             call LogMemDealloc(t_r, CoreSpaceTag, ierr)
         end if
         if (allocated(hamiltonian)) then
