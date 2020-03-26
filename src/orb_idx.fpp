@@ -3,12 +3,15 @@
 #:set OrbIdxTypes = ['SpinOrbIdx_t', 'SpatOrbIdx_t']
 
 module orb_idx_mod
+    use constants, only: n_int
+    use bit_rep_data, only: nIfTot
+    use DetBitOps, only: EncodeBitDet
     implicit none
     private
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
         SpinProj_t, calc_spin, calc_spin_raw, alpha, beta, &
         operator(==), operator(/=), operator(+), operator(-), &
-        sum
+        sum, to_ilut
 
     type, abstract :: OrbIdx_t
         integer, allocatable :: idx(:)
@@ -134,6 +137,12 @@ module orb_idx_mod
                     spin_orb_idx = 2 * spat_orb_idx - 1
                 end if
             end function
+    end function
+
+    pure function to_ilut(det_I) result(ilut)
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        integer(kind=n_int) :: iLut(0:NIfTot)
+        call EncodeBitDet(det_I%idx, ilut)
     end function
 
     pure function calc_spin(orbs) result(res)

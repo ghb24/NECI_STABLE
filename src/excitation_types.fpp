@@ -366,7 +366,7 @@ contains
         type(SpinOrbIdx_t) :: res
         character(*), parameter :: this_routine = 'excite_SingleExc_t'
 
-        @:ASSERT(defined(exc))
+        @:ASSERT(defined(exc), exc%val)
         associate(src => exc%val(1), tgt => exc%val(2))
             @:ASSERT(src /= tgt)
             @:ASSERT(disjoint([tgt], det_I%idx))
@@ -384,7 +384,7 @@ contains
 
         integer :: src(2), tgt(2), i
 
-        @:ASSERT(defined(exc))
+        @:ASSERT(defined(exc), exc%val)
         src = exc%val(1, :)
         tgt = exc%val(2, :)
         if (src(1) > src(2)) call swap(src(1), src(2))

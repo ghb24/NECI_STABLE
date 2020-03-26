@@ -1,18 +1,27 @@
 module test_gasci_mod
     use fruit
-    use constants, only: dp
+    use constants, only: dp, n_int
+    use bit_rep_data, only: NIfTot
+    use SystemData, only: nEl
+    use sets_mod, only: disjoint
     use util_mod, only: operator(.div.)
+    use sort_mod, only: sort
     use procedure_pointers, only: generate_excitation
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, &
-        size, operator(==), alpha, beta
-    use excitation_types, only: SingleExc_t, excite
+        size, operator(==), alpha, beta, sum, calc_spin, calc_spin_raw, &
+        operator(-), to_ilut
+    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
     use util_mod, only: cumsum
     use gasci, only: GASSpec_t, get_iGAS, &
         contains_det, get_nGAS, particles_per_GAS, operator(.contains.), &
         is_valid, is_connected, get_possible_spaces, get_possible_holes, &
-        split_per_GAS, generate_nGAS_excitation, GAS_spec => GAS_specification
+        split_per_GAS, generate_nGAS_excitation, GAS_spec => GAS_specification, &
+        get_available_singles, get_available_doubles
+    use FciMCData, only: pSingles, pDoubles, pParallel
     use unit_test_helper_excitgen, only: nelBase, nBasisBase, test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test
+    use unit_test_helpers, only: run_excit_gen_tester
+    use DetBitOps, only: ilut_lt, ilut_gt
     implicit none
     private
     public :: test_igas_from_spatorb, test_igas_from_spinorb, &
@@ -20,7 +29,7 @@ module test_gasci_mod
         test_particles_per_GAS_spatorb, test_particles_per_GAS_spinorb, &
         test_is_valid, test_is_connected, &
         test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb, &
-        test_possible_holes, test_split_per_GAS, test_pgens
+        test_possible_holes, test_split_per_GAS, test_available, test_pgen
 
 
 
@@ -136,36 +145,158 @@ contains
         call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 5], n_max=[3, 5])))
     end subroutine
 
-    subroutine test_pgens()
-        real(dp) :: pTot, pNull
-        integer :: numEx, nFound
-        integer, parameter :: nSamples = 200000
-        type(SpinOrbIdx_t) :: start_det
+    subroutine test_available()
+        type(SpinOrbIdx_t), allocatable :: expect_singles(:), expect_doubles(:)
+        type(SpinOrbIdx_t) :: det_I
+        type(GASSpec_t) :: GAS_spec
+        integer :: i
 
+        GAS_spec = GASSpec_t(&
+            n_orbs=[2, 4], &
+            n_min=[2, 4], &
+            n_max=[2, 4])
+        det_I = SpinOrbIdx_t([1, 2, 5, 6])
+        call assert_true(is_valid(GAS_spec))
+        call assert_true(GAS_spec .contains. det_I)
+
+        expect_singles = [&
+           SpinOrbIdx_t([2, 3, 5, 6]), SpinOrbIdx_t([1, 4, 5, 6]), &
+           SpinOrbIdx_t([1, 2, 6, 7]), SpinOrbIdx_t([1, 2, 5, 8])]
+
+
+        expect_doubles = [&
+           SpinOrbIdx_t([3, 4, 5, 6]), SpinOrbIdx_t([3, 4, 5, 6]), &
+           SpinOrbIdx_t([2, 3, 6, 7]), SpinOrbIdx_t([2, 3, 6, 7]), &
+           SpinOrbIdx_t([2, 3, 5, 8]), SpinOrbIdx_t([2, 4, 5, 7]), &
+           SpinOrbIdx_t([2, 4, 5, 7]), SpinOrbIdx_t([2, 3, 5, 8]), &
+           SpinOrbIdx_t([1, 3, 6, 8]), SpinOrbIdx_t([1, 4, 6, 7]), &
+           SpinOrbIdx_t([1, 4, 6, 7]), SpinOrbIdx_t([1, 3, 6, 8]), &
+           SpinOrbIdx_t([1, 4, 5, 8]), SpinOrbIdx_t([1, 4, 5, 8]), &
+           SpinOrbIdx_t([1, 2, 7, 8]), SpinOrbIdx_t([1, 2, 7, 8])]
+
+
+        associate(singles_exc_list => get_available_singles(GAS_spec, det_I), &
+                  doubles_exc_list => get_available_doubles(GAS_spec, det_I))
+            call assert_true(size(expect_singles) == size(singles_exc_list))
+            do i = 1, size(expect_singles)
+                call assert_true(all(expect_singles(i) == singles_exc_list(i)))
+            end do
+
+            call assert_true(size(expect_doubles) == size(doubles_exc_list))
+            do i = 1, size(expect_doubles)
+                call assert_true(all(expect_doubles(i) == doubles_exc_list(i)))
+            end do
+        end associate
+
+
+        GAS_spec = GASSpec_t(&
+            n_orbs=[2, 4], &
+            n_min=[0, 4], &
+            n_max=[4, 4])
+        det_I = SpinOrbIdx_t([1, 2, 5, 6])
+        call assert_true(is_valid(GAS_spec))
+        call assert_true(GAS_spec .contains. det_I)
+
+        expect_singles = [&
+                SpinOrbIdx_t([2, 3, 5, 6]), SpinOrbIdx_t([2, 5, 6, 7]), &
+                SpinOrbIdx_t([1, 4, 5, 6]), SpinOrbIdx_t([1, 5, 6, 8]), &
+                SpinOrbIdx_t([1, 2, 3, 6]), SpinOrbIdx_t([1, 2, 6, 7]), &
+                SpinOrbIdx_t([1, 2, 4, 5]), SpinOrbIdx_t([1, 2, 5, 8])]
+
+
+        expect_doubles = [&
+               SpinOrbIdx_t([3, 4, 5, 6]), SpinOrbIdx_t([3, 5, 6, 8]), &
+               SpinOrbIdx_t([3, 5, 6, 8]), SpinOrbIdx_t([5, 6, 7, 8]), &
+               SpinOrbIdx_t([4, 5, 6, 7]), SpinOrbIdx_t([5, 6, 7, 8]), &
+               SpinOrbIdx_t([3, 5, 6, 8]), SpinOrbIdx_t([5, 6, 7, 8]), &
+               SpinOrbIdx_t([2, 3, 6, 7]), SpinOrbIdx_t([2, 3, 6, 7]), &
+               SpinOrbIdx_t([2, 3, 4, 5]), SpinOrbIdx_t([2, 3, 5, 8]), &
+               SpinOrbIdx_t([2, 3, 5, 8]), SpinOrbIdx_t([2, 5, 7, 8]), &
+               SpinOrbIdx_t([2, 4, 5, 7]), SpinOrbIdx_t([2, 5, 7, 8]), &
+               SpinOrbIdx_t([2, 3, 5, 8]), SpinOrbIdx_t([2, 5, 7, 8]), &
+               SpinOrbIdx_t([1, 3, 4, 6]), SpinOrbIdx_t([1, 3, 6, 8]), &
+               SpinOrbIdx_t([1, 3, 6, 8]), SpinOrbIdx_t([1, 6, 7, 8]), &
+               SpinOrbIdx_t([1, 4, 6, 7]), SpinOrbIdx_t([1, 6, 7, 8]), &
+               SpinOrbIdx_t([1, 3, 6, 8]), SpinOrbIdx_t([1, 6, 7, 8]), &
+               SpinOrbIdx_t([1, 4, 5, 8]), SpinOrbIdx_t([1, 4, 5, 8]), &
+               SpinOrbIdx_t([1, 2, 3, 4]), SpinOrbIdx_t([1, 2, 3, 8]), &
+               SpinOrbIdx_t([1, 2, 3, 8]), SpinOrbIdx_t([1, 2, 7, 8]), &
+               SpinOrbIdx_t([1, 2, 4, 7]), SpinOrbIdx_t([1, 2, 7, 8]), &
+               SpinOrbIdx_t([1, 2, 3, 8]), SpinOrbIdx_t([1, 2, 7, 8])]
+
+        associate(singles_exc_list => get_available_singles(GAS_spec, det_I), &
+                  doubles_exc_list => get_available_doubles(GAS_spec, det_I))
+            call assert_true(size(expect_singles) == size(singles_exc_list))
+            do i = 1, size(expect_singles)
+                call assert_true(all(expect_singles(i) == singles_exc_list(i)))
+            end do
+
+            call assert_true(size(expect_doubles) == size(doubles_exc_list))
+            do i = 1, size(expect_doubles)
+                call assert_true(all(expect_doubles(i) == doubles_exc_list(i)))
+            end do
+        end associate
+    end subroutine
+
+
+    subroutine test_pgen()
+
+        use FciMCData, only: pDoubles
+        type(SpinOrbIdx_t) :: det_I
         ! prepare everything for testing the excitgen
+
         call init_excitgen_test()
+        pParallel = 0.5_dp
+        pSingles = 0.1_dp
+        pDoubles = 1.0_dp - pSingles
 
         ! set the excitation we want to test
-        generate_excitation => generate_nGAS_excitation
         GAS_spec = GASSpec_t(&
-            n_orbs=[nBasisBase .div. 4, nBasisBase .div. 2], &
+            n_orbs=[nBasisBase .div. 2, nBasisBase], &
             n_min=[nelBase .div. 2, nelBase], &
             n_max=[nelBase .div. 2, nelBase])
-        start_det = SpinOrbIdx_t([1, 2, 7, 8, 9])
+        det_I = SpinOrbIdx_t([1, 2, 13, 14, 15])
 
         call assert_true(is_valid(GAS_spec))
-        call assert_true(GAS_spec .contains. start_det)
-        call assert_true(size(start_det) == nelBase)
-        call assert_true(GAS_spec%n_orbs(get_nGAS(GAS_spec)) == (nBasisBase .div. 2))
+        call assert_true(GAS_spec .contains. det_I)
+        call assert_true(size(det_I) == nelBase)
+        call assert_true(GAS_spec%n_orbs(get_nGAS(GAS_spec)) == nBasisBase)
 
-!         run the excitgen test: do nSamples excitations, and compare them with all possible excits
-        call test_excitation_generator(nSamples,pTot,pNull,numEx,nFound,.false., start_nI=start_det%idx)
-        ! make sure all excitations are found
-        call assert_equals(numEx,nFound)
-!         ! make sure the probability is normalized - we don't require pNull to match exactly (that would mean generating all possible null excitations)
-!         ! so the threshold is rather loose
-!         ! for in-depth insight, study the output and consider the ratio of pGen and the number of occurences per excitation (should fluctuate around 1)
-!         call assert_true(abs(1.0-pTot)<0.01)
+        call run_excit_gen_tester( &
+            generate_nGAS_excitation, 'generate_nGAS_excitation', &
+            opt_nI=det_I%idx, opt_n_iters=10**6, &
+            gen_all_excits=gen_all_excits)
+
+        call finalize_excitgen_test()
+        contains
+
+            subroutine gen_all_excits(nI, n_excits, det_list)
+                integer, intent(in) :: nI(nel)
+                integer, intent(out) :: n_excits
+                integer(n_int), intent(out), allocatable :: det_list(:,:)
+
+                type(SpinOrbIdx_t) :: det_I
+                integer :: i, j, k
+
+                det_I = SpinOrbIdx_t(nI)
+
+                associate(singles => get_available_singles(GAS_spec, det_I), &
+                          doubles => get_available_doubles(GAS_spec, det_I))
+                    n_excits = size(singles) + size(doubles)
+                    allocate(det_list(0:niftot, n_excits))
+                    j = 1
+                    do i = 1, size(singles)
+                        det_list(:, j) = to_ilut(singles(i))
+                        j = j + 1
+                    end do
+                    do i = 1, size(doubles)
+                        det_list(:, j) = to_ilut(doubles(i))
+                        j = j + 1
+                    end do
+                end associate
+
+                call sort(det_list, ilut_lt, ilut_gt)
+            end subroutine gen_all_excits
     end subroutine
 
 
@@ -430,7 +561,7 @@ program test_gasci_program
         test_particles_per_GAS_spatorb, test_particles_per_GAS_spinorb, &
         test_is_valid, test_is_connected, &
         test_get_possible_spaces_spinorb, test_get_possible_spaces_spatorb, &
-        test_possible_holes, test_split_per_GAS, test_pgens
+        test_possible_holes, test_split_per_GAS, test_available, test_pgen
 
 
     implicit none
@@ -467,6 +598,7 @@ contains
         call run_test_case(test_get_possible_spaces_spinorb, "test_get_possible_spaces_spinorb")
         call run_test_case(test_get_possible_spaces_spatorb, "test_get_possible_spaces_spatorb")
         call run_test_case(test_possible_holes, "test_possible_holes")
-        call run_test_case(test_pgens, "test_pgens")
+        call run_test_case(test_available, "test_available")
+        call run_test_case(test_pgen, "test_pgen")
     end subroutine
 end program test_gasci_program

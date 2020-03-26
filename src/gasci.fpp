@@ -31,7 +31,9 @@ module gasci
         init_GAS, clear_GAS, get_nGAS, &
         generate_nGAS_excitation, &
         contains_det, particles_per_GAS, &
-        get_possible_spaces, get_possible_holes, split_per_GAS
+        get_possible_spaces, get_possible_holes, split_per_GAS, &
+        get_available_singles, get_available_doubles
+
 
     public :: get_iGAS, operator(.contains.)
 
@@ -804,6 +806,105 @@ contains
         end if
     end subroutine
 
+    DEBUG_IMPURE function get_available_singles(GAS_spec, det_I) result(singles_exc_list)
+        type(GASSpec_t), intent(in) :: GAS_spec
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        type(SpinOrbIdx_t), allocatable :: singles_exc_list(:)
+        character(*), parameter :: this_routine = 'get_available_singles'
+
+        type(SpinOrbIdx_t) :: possible_holes
+        type(SpinOrbIdx_t), allocatable :: tmp_buffer(:)
+        integer :: i, j, i_buffer, src1, tgt1
+        type(SpinProj_t) :: m_s_1
+
+        @:ASSERT(GAS_spec .contains. det_I)
+
+        i_buffer = 0
+        do i = 1, size(det_I%idx)
+            src1 = det_I%idx(i)
+            m_s_1 = calc_spin_raw(src1)
+            possible_holes = get_possible_holes(&
+                        GAS_spec, det_I, add_holes=SpinOrbIdx_t([src1]), &
+                        excess=-m_s_1)
+            do j = 1, size(possible_holes)
+                tgt1 = possible_holes%idx(j)
+                i_buffer = i_buffer + 1
+                call grow_assign(tmp_buffer, i_buffer, &
+                                 excite(det_I, SingleExc_t(src1, tgt1)))
+            end do
+        end do
+        singles_exc_list = tmp_buffer(:i_buffer)
+    end function
+
+    DEBUG_IMPURE function get_available_doubles(GAS_spec, det_I) result(doubles_exc_list)
+        type(GASSpec_t), intent(in) :: GAS_spec
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        type(SpinOrbIdx_t), allocatable :: doubles_exc_list(:)
+        character(*), parameter :: this_routine = 'get_available_doubles'
+
+        type(SpinOrbIdx_t) :: possible_holes(2)
+        type(SpinOrbIdx_t), allocatable :: tmp_buffer(:)
+        integer :: i, j, k, l, i_buffer, src1, src2, tgt1, tgt2
+        type(SpinProj_t) :: m_s_1
+
+        @:ASSERT(GAS_spec .contains. det_I)
+
+        i_buffer = 0
+        do i = 1, size(det_I%idx)
+            do j = i + 1, size(det_I)
+                src1 = det_I%idx(i)
+                src2 = det_I%idx(j)
+                associate(deleted => SpinOrbIdx_t([src1, src2]))
+                    possible_holes(1) = get_possible_holes(GAS_spec, det_I, &
+                                            add_holes=deleted, excess=-sum(calc_spin(deleted)), &
+                                            n_total=2)
+                    @:ASSERT(disjoint(possible_holes(1)%idx, det_I%idx))
+                    do k = 1, size(possible_holes(1))
+                        tgt1 = possible_holes(1)%idx(k)
+                        m_s_1 = calc_spin_raw(tgt1)
+                        @:ASSERT(any(m_s_1 == [alpha, beta]))
+
+                        possible_holes(2) = get_possible_holes(&
+                                GAS_spec, det_I, add_holes=deleted, &
+                                add_particles=SpinOrbIdx_t([tgt1]), &
+                                n_total=1, excess=m_s_1 - sum(calc_spin(deleted)))
+
+                        @:ASSERT(disjoint(possible_holes(2)%idx, [tgt1]))
+                        @:ASSERT(disjoint(possible_holes(2)%idx, det_I%idx))
+
+                        do l = 1, size(possible_holes(2))
+                            tgt2 = possible_holes(2)%idx(l)
+                            i_buffer = i_buffer + 1
+                            call grow_assign(tmp_buffer, i_buffer, excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
+                        end do
+                    end do
+                end associate
+            end do
+        end do
+
+        doubles_exc_list = tmp_buffer(:i_buffer)
+    end function
+
+    subroutine grow_assign(lhs, i, rhs)
+        type(SpinOrbIdx_t), intent(inout), allocatable :: lhs(:)
+        integer, intent(in) :: i
+        type(SpinOrbIdx_t), intent(in) :: rhs
+
+        type(SpinOrbIdx_t), allocatable :: buffer(:)
+        integer :: n
+        real(dp), parameter :: grow_factor = 2.0_dp
+        integer, parameter :: start_n = 10
+
+        if (.not. allocated(lhs)) allocate(lhs(start_n))
+
+        if (i > size(lhs)) then
+            buffer = lhs(:)
+            deallocate(lhs)
+            allocate(lhs(int(i * grow_factor)))
+            lhs(: size(buffer)) = buffer
+        end if
+        lhs(i) = rhs
+    end subroutine
 
 #:for excitation_t in ExcitationTypes
     function get_cumulative_list_${excitation_t}$(det_I, incomplete_exc, possible_holes) result(cSum)
