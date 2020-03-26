@@ -32,8 +32,6 @@ MODULE Logging
 
     use cc_amplitudes, only: t_plot_cc_amplitudes
 
-    use guga_data, only: t_fill_symmetric
-
     IMPLICIT NONE
 
     logical, public :: RDMlinspace_in_inp, calcrdmonfly_in_inp
@@ -244,11 +242,6 @@ MODULE Logging
         end if
         call readu(w)
         select case(w)
-
-        case ("FILL-SYMMETRIC")
-            ! for add an option to switch between symmetric and non filling
-            ! of density matrices
-            t_fill_symmetric = .true.
 
         case ("PRINT-MOLCAS-RDMS")
             ! output density matrices also in Molcas format in the GUGA RDM

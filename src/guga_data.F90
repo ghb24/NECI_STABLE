@@ -21,9 +21,7 @@ module guga_data
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, &
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-              n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, t_fill_symmetric
-
-    logical :: t_fill_symmetric = .false.
+              n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits
 
     ! ========================== type defs ===================================
 

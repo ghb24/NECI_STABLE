@@ -31,9 +31,7 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double, &
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, rdm_ind_bitmask, &
-                         excit_names, &
-                         t_fill_symmetric
+                         excit_type, gen_type, rdm_ind_bitmask, excit_names
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -669,29 +667,17 @@ contains
                 end if
                 call create_all_rdm_contribs(rdm_ind_in, x0, x1, rdm_ind, rdm_mat)
 
-
                 do n = 1, size(rdm_ind)
                     if (.not. near_zero(rdm_mat(n))) then
                         call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
 
                         full_sign = sign_I * sign_J * rdm_mat(n)
-
-                        if (t_fill_symmetric) then
-                                call add_to_rdm_spawn_t(spawn, i, j, k, l, &
-                                    full_sign, .true.)
-                            if (.not. &
-                                (ex_typ == excit_type%fullstart_stop_alike)) then
-                                call add_to_rdm_spawn_t(spawn, k, l, i, j, &
-                                    full_sign, .true.)
-                            end if
-                        else
-                            if (.not. &
-                                (ex_typ == excit_type%fullstart_stop_alike)) then
-                                full_sign = 2.0_dp * full_sign
-                            end if
-                            call add_to_rdm_spawn_t(spawn, i, j, k, l, &
-                                full_sign, .true.)
+                        if (.not. &
+                            (ex_typ == excit_type%fullstart_stop_alike)) then
+                            full_sign = 2.0_dp * full_sign
                         end if
+                        call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                            full_sign, .true.)
                     end if
                 end do
             end if
@@ -725,21 +711,17 @@ contains
                         full_sign = sign_I * sign_J * rdm_mat(n)
 
 
-                        if (t_fill_symmetric) then
-                            call add_to_rdm_spawn_t(spawn, i, j, k, l, &
-                                full_sign, .true.)
+                        ! here in the 'exact' filling (coming from HF or
+                        ! within the semistochastic space I think it makes
+                        ! sense to fill symmetrically.. since here no
+                        ! stochastic spawning is happening and this does not
+                        ! give us information about the hermiticity error!
+                        call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                            full_sign, .true.)
 
-                            if (.not. &
-                                (excitInfo%typ == excit_type%fullstart_stop_alike)) then
-                                call add_to_rdm_spawn_t(spawn, k, l, i, j, &
-                                    full_sign, .true.)
-                            end if
-                        else
-                            if (.not. &
-                                (excitInfo%typ == excit_type%fullstart_stop_alike)) then
-                                full_sign = 2.0_dp * full_sign
-                            end if
-                            call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+                        if (.not. &
+                            (excitInfo%typ == excit_type%fullstart_stop_alike)) then
+                            call add_to_rdm_spawn_t(spawn, k, l, i, j, &
                                 full_sign, .true.)
                         end if
                     end if
@@ -941,11 +923,7 @@ contains
                 ! put with the spatial orbital s
                 ! but maybe I have to also add the 'switched' indices
                 ! contribution.. which would mean a factor of 2..
-                if (t_fill_symmetric) then
-                    call add_to_rdm_spawn_t(spawn, s, s, s, s, occ_i * full_sign, .true.)
-                else
-                    call add_to_rdm_spawn_t(spawn, s, s, s, s, occ_i * full_sign, .true.)
-                end if
+                call add_to_rdm_spawn_t(spawn, s, s, s, s, occ_i * full_sign, .true.)
 
             else
                 occ_i = 1.0_dp
@@ -971,15 +949,13 @@ contains
                 ! get strored in the same D_{ij,ij} RDM element!
                 ! but for now I decided to fill in all disting 2-RDM
                 ! elements
-                if (t_fill_symmetric) then
-                    call add_to_rdm_spawn_t(spawn, s, s, p, p, &
-                        occ_i * occ_j * full_sign, .true.)
-                    call add_to_rdm_spawn_t(spawn, p, p, s, s, &
-                        occ_i * occ_j * full_sign, .true.)
-                else
-                    call add_to_rdm_spawn_t(spawn, p, p, s, s, &
-                        2.0_dp * occ_i * occ_j * full_sign, .true.)
-                end if
+                ! since here we do not have spawning this should also
+                ! get stored symmetrically! as otherwise this will
+                ! junk up the hermiticity error calculation!
+                call add_to_rdm_spawn_t(spawn, s, s, p, p, &
+                    occ_i * occ_j * full_sign, .true.)
+                call add_to_rdm_spawn_t(spawn, p, p, s, s, &
+                    occ_i * occ_j * full_sign, .true.)
 
                 ! i can also add the fully diagonal exchange contributions
                 ! here. this is also necessary to do, if I want to use
@@ -995,28 +971,18 @@ contains
                     ! if we have open-shell to open chell
                     x1 = calcDiagExchangeGUGA_nI(i, j, nI) / 2.0_dp
 
-                    if (t_fill_symmetric) then
-                        call add_to_rdm_spawn_t(spawn, s, p, p, s, &
-                           (x0 - x1) * full_sign, .true.)
-                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                           (x0 - x1) * full_sign, .true.)
-                   else
-                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                           2.0_dp * (x0 - x1) * full_sign, .true.)
-                   end if
+                    call add_to_rdm_spawn_t(spawn, s, p, p, s, &
+                       (x0 - x1) * full_sign, .true.)
+                    call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                       (x0 - x1) * full_sign, .true.)
 
 
                 else
-                    if (t_fill_symmetric) then
-                        call add_to_rdm_spawn_t(spawn, s, p, p, s, &
-                            x0 * full_sign, .true.)
-                        ! and the symmetric version:
-                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                            x0 * full_sign, .true.)
-                    else
-                        call add_to_rdm_spawn_t(spawn, p, s, s, p, &
-                            2.0_dp * x0 * full_sign, .true.)
-                    end if
+                    call add_to_rdm_spawn_t(spawn, s, p, p, s, &
+                        x0 * full_sign, .true.)
+                    ! and the symmetric version:
+                    call add_to_rdm_spawn_t(spawn, p, s, s, p, &
+                        x0 * full_sign, .true.)
                 end if
 
                 j = j + inc_j
@@ -2102,17 +2068,14 @@ contains
             ! else it gets a contrbution weighted with orbital occupation
             ! first easy part:
 
-            if (t_fill_symmetric) then
-                ! W + R/L contribution
-                call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
-                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+            ! i think also singles I should store symmetrically! as
+            ! the conjugated element will of course never be stored!
+            ! W + R/L contribution
+            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
-                call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
-                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-            else
-                call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
-                    2.0_dp * occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-            end if
+            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
 
             ! exchange contribution:
@@ -2120,16 +2083,10 @@ contains
             if (step_i(iO) == 3 .or. ((occ_i(iO) .isclose. 1.0_dp) .and. b_i(iO) == 0)) then
                 ! then it is easy:
                 ! just figure out correct indices
-                if (t_fill_symmetric) then
-                    call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
-                        -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
-                    call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                        -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
-                else
-                    call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                        -occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-                end if
-
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
+                    -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
+                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                    -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
 
             else
                 ! otherwise i have to recalc the x1 element
@@ -2150,45 +2107,29 @@ contains
                 end do
                 prod = prod * botCont
 
-                if (t_fill_symmetric) then
-                    call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
-                        (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
-                    call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                        (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
-                else
-                    call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                        2.0 * (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
-                end if
-
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
+                    (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
+                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                    (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
             end if
         end do
 
         ! start segment: only W + R/L
         ! but this depends on the type of excitation here.. or?
-        if (t_fill_symmetric) then
-            call add_to_rdm_spawn_t(spawn, st, st, i, a, &
-                StartCont * sign_i * sign_j * mat_ele, .true.)
-            call add_to_rdm_spawn_t(spawn, i, a, st, st, &
-                StartCont * sign_i * sign_j * mat_ele, .true.)
-        else
-            call add_to_rdm_spawn_t(spawn, i, a, st, st, &
-                2.0_dp * StartCont * sign_i * sign_j * mat_ele, .true.)
-        end if
+        call add_to_rdm_spawn_t(spawn, st, st, i, a, &
+            StartCont * sign_i * sign_j * mat_ele, .true.)
+        call add_to_rdm_spawn_t(spawn, i, a, st, st, &
+            StartCont * sign_i * sign_j * mat_ele, .true.)
 
         ! loop over excitation range:
 
         do iO = st + 1, en - 1
 
             ! W + R/L
-            if (t_fill_symmetric) then
-                call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
-                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-                call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
-                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-            else
-                call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
-                    2.0_dp * occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-            end if
+            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
             ! exchange type:
             ! oh damn I need the delta-B value here..
@@ -2198,29 +2139,17 @@ contains
 
             prod = getDoubleContribution(d_j, d_i, delta, gen, real(b_i(iO),dp))
 
-            if (t_fill_symmetric) then
-                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
-                    prod * sign_i * sign_j * mat_ele, .true.)
-                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                    prod * sign_i * sign_j * mat_ele, .true.)
-            else
-                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                    2.0_dp * prod * sign_i * sign_j * mat_ele, .true.)
-            end if
-
+            call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
+                prod * sign_i * sign_j * mat_ele, .true.)
+            call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                prod * sign_i * sign_j * mat_ele, .true.)
         end do
 
         ! end contribution
-        if (t_fill_symmetric) then
-            call add_to_rdm_spawn_t(spawn, en, en, i, a, &
-                EndCont * sign_i * sign_j * mat_ele, .true.)
-            call add_to_rdm_spawn_t(spawn, i, a, en, en, &
-                EndCont * sign_i * sign_j * mat_ele, .true.)
-        else
-            call add_to_rdm_spawn_t(spawn, i, a, en, en, &
-                2.0_dp * EndCont * sign_i * sign_j * mat_ele, .true.)
-        end if
-
+        call add_to_rdm_spawn_t(spawn, en, en, i, a, &
+            EndCont * sign_i * sign_j * mat_ele, .true.)
+        call add_to_rdm_spawn_t(spawn, i, a, en, en, &
+            EndCont * sign_i * sign_j * mat_ele, .true.)
 
         ! loop above:
         do iO = en + 1, nSpatOrbs
@@ -2228,30 +2157,20 @@ contains
             if (step_i(iO) == 0) cycle
 
             ! W + R/L contribution
-            if (t_fill_symmetric) then
-                call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
-                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-                call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
-                    occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-            else
-                call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
-                    2.0_dp * occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-            end if
+            call add_to_rdm_spawn_t(spawn, iO, iO, i, a, &
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
+            call add_to_rdm_spawn_t(spawn, i, a, iO, iO, &
+                occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
 
             ! exchange
             if (step_i(iO) == 3 .or. (b_i(iO) == 1 .and. step_i(iO) == 1)) then
                 ! only x0 contribution
                 ! then it is easy:
                 ! just figure out correct indices
-                if (t_fill_symmetric) then
-                    call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
-                        -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
-                    call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                        -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
-                else
-                    call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                        -occ_i(iO) * sign_i * sign_j * mat_ele, .true.)
-                end if
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
+                    -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
+                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                    -occ_i(iO)/2.0 * sign_i * sign_j * mat_ele, .true.)
 
             else
 
@@ -2277,16 +2196,10 @@ contains
 
                 prod = prod * topCont
 
-                if (t_fill_symmetric) then
-                    call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
-                        (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
-                    call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                        (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
-                else
-                    call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
-                        2.0*(prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
-                end if
-
+                call add_to_rdm_spawn_t(spawn, i, iO, iO, a, &
+                    (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
+                call add_to_rdm_spawn_t(spawn, iO, a, i, iO, &
+                    (prod - occ_i(iO)/2.0) * sign_i * sign_j * mat_ele, .true.)
             end if
         end do
 

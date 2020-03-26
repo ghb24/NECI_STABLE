@@ -19,7 +19,6 @@ module rdm_finalising
     use unit_test_helpers, only: print_matrix
     use guga_bitRepOps, only: extract_2_rdm_ind
     use guga_rdm, only: output_molcas_rdms
-    use guga_data, only: t_fill_symmetric
 
     implicit none
 
@@ -189,22 +188,12 @@ contains
             est%max_error_herm, est%sum_error_herm)
 
         if (tGUGA) then
-            if (t_fill_symmetric) then
-                ! if we have filled the RDMs symetrically we do not need
-                ! to do anything
-                call print_spinfree_2rdm(rdm_defs, rdm, est%norm)
-                if (t_print_molcas_rdms) then
-                    call output_molcas_rdms(rdm_defs, rdm, est%norm)
-                end if
-            else
-                ! otherwise we need to make them hermitian
-                spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
-                call clear_hash_table(spawn%rdm_send%hash_table)
-                call make_hermitian_rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
-                call print_spinfree_2rdm(rdm_defs, rdm_recv, est%norm)
-                if (t_print_molcas_rdms) then
-                    call output_molcas_rdms(rdm_defs, rdm_recv, est%norm)
-                end if
+            spawn%free_slots = spawn%init_free_slots(0:nProcessors-1)
+            call clear_hash_table(spawn%rdm_send%hash_table)
+            call make_hermitian_rdm(rdm, rdm_defs%nrdms_standard, spawn, rdm_recv)
+            call print_spinfree_2rdm(rdm_defs, rdm_recv, est%norm)
+            if (t_print_molcas_rdms) then
+                call output_molcas_rdms(rdm_defs, rdm_recv, est%norm)
             end if
         else
             if (tWriteSpinFreeRDM) &
