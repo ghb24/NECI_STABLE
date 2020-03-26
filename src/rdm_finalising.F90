@@ -1246,12 +1246,6 @@ contains
                         end if
                     end do
 
-                    ! The following final line is required by (I assume!) MPQC.
-                    ! Let the last process print it.
-                    if (iProcIndex == nProcessors-1) then
-                        write(iunit, "(4I15, F30.20)") -1, -1, -1, -1, -1.0_dp
-                    end if
-
                     close(iunit)
                 end do
             end if

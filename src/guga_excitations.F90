@@ -1587,19 +1587,19 @@ contains
 
         ! set defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
-
-        if ((t_fast_guga_rdms .and. .not. t_mimic_slow) &
-            .and. (present(rdm_ind) .or. present(rdm_mat))) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            ! here we still only need 2 rdm contributions, since the
-            ! flipped version corresponds to a single excitation with
-            ! a weight generator, which should be handled in the single
-            ! excitation step already!
-            allocate(rdm_ind(1), source = 0_int_rdm)
-            allocate(rdm_mat(1), source = 0.0_dp)
-            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-        end if
+        !
+        ! if ((t_fast_guga_rdms .and. .not. t_mimic_slow) &
+        !     .and. (present(rdm_ind) .or. present(rdm_mat))) then
+        !     ASSERT(present(rdm_ind))
+        !     ASSERT(present(rdm_mat))
+        !     ! here we still only need 2 rdm contributions, since the
+        !     ! flipped version corresponds to a single excitation with
+        !     ! a weight generator, which should be handled in the single
+        !     ! excitation step already!
+        !     allocate(rdm_ind(1), source = 0_int_rdm)
+        !     allocate(rdm_mat(1), source = 0.0_dp)
+        !     rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+        ! end if
 
         if (any(abs(temp_delta_b(st:se-1)) > 1) .or. &
             any(abs(temp_delta_b(se:en)) > 2)) return
@@ -1699,7 +1699,8 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
+        ! if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
+        if (t_hamil_ .or. (tRDMonfly .and. present(rdm_mat))) then
             if (typ == excit_type%fullstop_L_to_R) then
                 ! L -> R
                 ! what do i have to put in as the branch pgen?? does it have
@@ -1741,10 +1742,10 @@ contains
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
 
-        ! also no influence on coupling coefficient from generator order
-        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) then
-            rdm_mat = temp_x1
-        end if
+        ! ! also no influence on coupling coefficient from generator order
+        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) then
+        !     rdm_mat = temp_x1
+        ! end if
 
         end associate
 
@@ -1784,16 +1785,16 @@ contains
         associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                   ll => excitInfo%l, gen => excitInfo%lastGen, typ => excitInfo%typ)
 
-        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            ! we only have two elements here, since the switched version
-            ! corresponds to a single excitation + weight, which is dealt
-            ! with in the single excit case
-            allocate(rdm_ind(1), source = 0_int_rdm)
-            allocate(rdm_mat(1), source = 0.0_dp)
-            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-        end if
+        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
+        !     ASSERT(present(rdm_ind))
+        !     ASSERT(present(rdm_mat))
+        !     ! we only have two elements here, since the switched version
+        !     ! corresponds to a single excitation + weight, which is dealt
+        !     ! with in the single excit case
+        !     allocate(rdm_ind(1), source = 0_int_rdm)
+        !     allocate(rdm_mat(1), source = 0.0_dp)
+        !     rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+        ! end if
 
         if (any(abs(temp_delta_b(st:se-1)) > 2) .or. &
             any(abs(temp_delta_b(se:en)) > 1)) return
@@ -1870,7 +1871,8 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
+        ! if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
+        if (t_hamil .or. (tRDMonfly .and. present(rdm_mat))) then
             if (typ == excit_type%fullstart_L_to_R) then
                 ! L -> R
                 if (present(rdm_mat)) then
@@ -1909,7 +1911,7 @@ contains
         currentB_int = temp_curr_b_int
 
         ! no influence of generator order on coupling coeff
-        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) rdm_mat = guga_mat
+        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) rdm_mat = guga_mat
 
         end associate
 
@@ -1941,13 +1943,13 @@ contains
                   ll => excitInfo%l, start => excitInfo%fullstart, &
                   ende => excitInfo%fullEnd)
 
-        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
-            ASSERT(present(rdm_ind))
-            ASSERT(present(rdm_mat))
-            allocate(rdm_ind(1), source = 0_int_rdm)
-            allocate(rdm_mat(1), source = 0.0_dp)
-            rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-        end if
+        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
+        !     ASSERT(present(rdm_ind))
+        !     ASSERT(present(rdm_mat))
+        !     allocate(rdm_ind(1), source = 0_int_rdm)
+        !     allocate(rdm_mat(1), source = 0.0_dp)
+        !     rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
+        ! end if
         ! the most involved one.. but i think i can reuse a lot of the
         ! stochastic stuff here, since i already needed it there..
 
@@ -1966,7 +1968,8 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_ilut = temp_b_real_i
 
-        if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
+        ! if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
+        if (t_hamil_ .or. (tRDMonfly .and. present(rdm_mat))) then
             if (present(rdm_mat)) then
                 mat_ele =  calcMixedContribution(tmp_I, tmp_J, start, ende, &
                                 rdm_ind, rdm_mat)
@@ -1975,10 +1978,10 @@ contains
             end if
         end if
 
-        if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) then
-            ! no influene on the coupling coeff from order of generators
-            rdm_mat(1) = calc_mixed_coupling_coeff(tmp_J, excitInfo)
-        end if
+        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) then
+        !     ! no influene on the coupling coeff from order of generators
+        !     rdm_mat(1) = calc_mixed_coupling_coeff(tmp_J, excitInfo)
+        ! end if
 
         current_stepvector = temp_curr_step
         currentOcc_int = temp_curr_occ_int
@@ -5435,9 +5438,9 @@ contains
         character(*), parameter :: this_routine = "calcFullStartFullStopMixedStochastic"
 
         type(WeightObj_t) :: weights
-        real(dp) ::  branch_pgen, temp_pgen
+        real(dp) ::  branch_pgen, temp_pgen, above_cpt, below_cpt, rdm_mat, p_orig
         HElement_t(dp) :: integral
-        integer :: iOrb
+        integer :: iOrb, i, j, k, l, typ
 
         ASSERT(.not.isZero(ilut,excitInfo%fullStart))
         ASSERT(.not.isThree(ilut,excitInfo%fullStart))
@@ -5502,10 +5505,18 @@ contains
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
         if (tRDMonfly) then
-            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
-                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                excit_lvl = 2, excit_typ = excitInfo%typ), x0 = 0.0_dp, &
-                x1 = extract_matrix_element(t,2))
+            ! i need to unbias against the total pgen later on in the
+            ! RDM sampling otherwise the rdm-bias factor is not correct!
+            ! encode the necessary information in the rdm-matele!
+            i = excitInfo%i
+            j = excitInfo%j
+            k = excitInfo%k
+            l = excitInfo%l
+            typ = excitInfo%typ
+            rdm_mat = extract_matrix_element(t,2)
+            call calc_orbital_pgen_contr(ilut, [2*i, 2*j], above_cpt, &
+                below_cpt)
+            p_orig = (above_cpt + below_cpt) * branch_pgen / real(ElecPairs, dp)
         end if
 
         if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
@@ -5530,6 +5541,14 @@ contains
             return
         end if
 
+        if (tRDMonfly) then
+            if (.not. near_zero(p_orig)) then
+                call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                    contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
+                    excit_typ = typ), x0 = 0.0_dp, &
+                    x1 = rdm_mat * pgen / p_orig)
+            end if
+        end if
 
         call encode_matrix_element(t, 0.0_dp, 2)
         call encode_matrix_element(t, integral, 1)
@@ -5588,8 +5607,9 @@ contains
 
         ! chanve that routine now, to use the general pre-generated cum-list
         ! for the current CSF
-        i = gtID(occ_orbs(1))
-        j = gtID(occ_orbs(2))
+        i = gtID(minval(occ_orbs))
+        j = gtID(maxval(occ_orbs))
+
 
         cum_sum = 0.0_dp
 
@@ -7308,16 +7328,16 @@ contains
         character(*), parameter :: this_routine = "calcFullStopL2R_stochastic"
 
         type(WeightObj_t) :: weights
-        integer :: st, se, e, i, j, step, sw, step2
+        integer :: st, se, en, i, j, k, l, step, sw, step2, elecInd, holeInd
         real(dp) ::  topCont, tempWeight, tempWeight_1, deltaB(nSpatOrbs), &
             minusWeight, plusWeight, zeroWeight, switchWeight, branch_pgen, &
-            temp_pgen, probWeight
+            temp_pgen, probWeight, rdm_mat, p_orig, orb_pgen
         HElement_t(dp) :: integral
         logical :: switchFlag
 
         st = excitInfo%fullStart
         se = excitInfo%secondStart
-        e = excitInfo%fullEnd
+        en = excitInfo%fullEnd
 
         ! init weights
         if (present(opt_weight)) then
@@ -7326,11 +7346,11 @@ contains
             if (t_approx_exchange .or. (t_approx_exchange_noninits .and. (.not. is_init_guga))) then
                 ! the weights should be the only necessary change to force
                 ! a switch at the end, as the other branches get 0 weight..
-                weights = init_forced_end_semistart_weight(ilut, se, e, negSwitches(se), &
+                weights = init_forced_end_semistart_weight(ilut, se, en, negSwitches(se), &
                     posSwitches(se), currentB_ilut(se))
 
             else
-                weights = init_semiStartWeight(ilut, se, e, negSwitches(se), &
+                weights = init_semiStartWeight(ilut, se, en, negSwitches(se), &
                     posSwitches(se), currentB_ilut(se))
             end if
         end if
@@ -7368,7 +7388,7 @@ contains
         ! although switch can also happen at end only...
         ! actually that would be, in the full-stop case, temporary measure...
         ! but would unjust favor certain types of excitations..
-        do i = se + 1, e -1
+        do i = se + 1, en -1
             call doubleUpdateStochastic(ilut, i, excitInfo, &
                 weights, negSwitches, posSwitches, t, branch_pgen)
 
@@ -7405,10 +7425,20 @@ contains
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
         if (tRDMonfly) then
-            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
-                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                excit_lvl = 2, excit_typ = excitInfo%typ), x0 = 0.0_dp, &
-                x1 = extract_matrix_element(t,2))
+            ! i need to unbias against the total pgen later on in the
+            ! RDM sampling otherwise the rdm-bias factor is not correct!
+            ! encode the necessary information in the rdm-matele!
+            i = excitInfo%i
+            j = excitInfo%j
+            k = excitInfo%k
+            l = excitInfo%l
+            elecInd = st
+            holeInd = se
+            rdm_mat = extract_matrix_element(t,2)
+            call calc_orbital_pgen_contrib_end([2*elecInd, 2*en], &
+                holeInd, orb_pgen)
+            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
+            if (current_stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t,2), 1)
@@ -7429,9 +7459,18 @@ contains
                 integral)
         end if
 
+        if (tRDMonfly) then
+            if (.not. near_zero(p_orig)) then
+                call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                    contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
+                    excit_typ = excitInfo%typ), x0 = 0.0_dp, &
+                    x1 = rdm_mat * pgen / p_orig)
+            end if
+        end if
+
         call encode_matrix_element(t, 0.0_dp, 2)
-        call update_matrix_element(t, (get_umat_el(e,se,st,e) + &
-            get_umat_el(se,e,e,st))/2.0_dp + integral, 1)
+        call update_matrix_element(t, (get_umat_el(en,se,st,en) + &
+            get_umat_el(se,en,en,st))/2.0_dp + integral, 1)
 
     end subroutine calcFullStopL2R_stochastic
 
@@ -7951,11 +7990,11 @@ contains
         character(*), parameter :: this_routine = "calcFullStopR2L_stochastic"
 
         type(WeightObj_t) :: weights
-        integer :: st, se, en, i, j, step, sw, step2
+        integer :: st, se, en, i, j, step, sw, step2, k, l, elecInd, holeInd
         real(dp) ::  topCont, &
             tempWeight, tempWeight_1, deltaB(nSpatOrbs), minusWeight, &
             plusWeight, zeroWeight, switchWeight, probWeight, branch_pgen, &
-            temp_pgen
+            temp_pgen, p_orig, rdm_mat, orb_pgen
         HElement_t(dp) :: integral
         logical :: switchFlag
 
@@ -8043,10 +8082,21 @@ contains
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
         if (tRDMonfly) then
-            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
-                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                excit_lvl = 2, excit_typ = excitInfo%typ), x0 = 0.0_dp, &
-                x1 = extract_matrix_element(t,2))
+            ! i need to unbias against the total pgen later on in the
+            ! RDM sampling otherwise the rdm-bias factor is not correct!
+            ! encode the necessary information in the rdm-matele!
+            i = excitInfo%i
+            j = excitInfo%j
+            k = excitInfo%k
+            l = excitInfo%l
+            elecInd = se
+            holeInd = st
+            rdm_mat = extract_matrix_element(t,2)
+            call calc_orbital_pgen_contrib_end([2*elecInd, 2*en], &
+                holeInd, orb_pgen)
+            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
+            if (current_stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
+
         end if
 
 
@@ -8061,6 +8111,15 @@ contains
 
         else
             call calc_mixed_end_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+        end if
+
+        if (tRDMonfly) then
+            if (.not. near_zero(p_orig)) then
+                call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                    contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
+                    excit_typ = excitInfo%typ), x0 = 0.0_dp, &
+                    x1 = rdm_mat * pgen / p_orig)
+            end if
         end if
 
         call encode_matrix_element(t, 0.0_dp, 2)
@@ -10098,11 +10157,12 @@ contains
         type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartR2L_stochastic"
 
-        integer :: i, st, en, se, gen, j, step, sw, step2
+        integer :: i, st, en, se, gen, j, step, sw, step2, k, l, holeInd, elecInd
         type(WeightObj_t) :: weights
         real(dp) :: botCont, tempWeight, tempWeight_1, &
                     zeroWeight, orbitalProb, origWeight, startProb, &
-                    startWeight, switchWeight, branch_pgen, temp_pgen, temp
+                    startWeight, switchWeight, branch_pgen, temp_pgen, temp, &
+                    p_orig, rdm_mat, orb_pgen
         HElement_t(dp) :: integral
         logical :: switchFlag
         procedure(calc_pgen_general), pointer :: calc_pgen_yix_start
@@ -10193,11 +10253,20 @@ contains
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
         if (tRDMonfly) then
-            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
-                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                excit_lvl = 2, excit_typ = excitInfo%typ), &
-                x0 = extract_matrix_element(t,1), &
-                x1 = extract_matrix_element(t,2))
+            ! i need to unbias against the total pgen later on in the
+            ! RDM sampling otherwise the rdm-bias factor is not correct!
+            ! encode the necessary information in the rdm-matele!
+            i = excitInfo%i
+            j = excitInfo%j
+            k = excitInfo%k
+            l = excitInfo%l
+            elecInd = se
+            holeInd = en
+            rdm_mat = extract_matrix_element(t,2)
+            call calc_orbital_pgen_contrib_start([2*st, 2*elecInd], &
+                holeInd, orb_pgen)
+            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
+            if (current_stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
         end if
 
         call encode_matrix_element(t, extract_matrix_element(t,1) + &
@@ -10218,6 +10287,15 @@ contains
         else
             call calc_mixed_start_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen,&
                 integral)
+        end if
+
+        if (tRDMonfly) then
+            if (.not. near_zero(p_orig)) then
+                call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                    contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
+                    excit_typ = excitInfo%typ), x0 = 0.0_dp, &
+                    x1 = rdm_mat * pgen / p_orig)
+            end if
         end if
 
         ! and finally update the matrix element with all contributions
@@ -10742,11 +10820,11 @@ contains
         type(WeightObj_t), intent(in), optional :: opt_weight
         character(*), parameter :: this_routine = "calcFullStartL2R_stochastic"
 
-        integer :: i, st, en, se, gen, j, step, sw, step2
+        integer :: i, st, en, se, gen, j, step, sw, step2, k, l, elecInd, holeInd
         type(WeightObj_t) :: weights
         real(dp) :: botCont, tempWeight, tempWeight_1, &
                     zeroWeight, orbitalProb, origWeight, startProb, startWeight, &
-                    switchWeight, branch_pgen, temp_pgen
+                    switchWeight, branch_pgen, temp_pgen, p_orig, orb_pgen, rdm_mat
         HElement_t(dp) :: integral
         logical :: switchFlag
         procedure(calc_pgen_general), pointer :: calc_pgen_yix_start
@@ -10853,11 +10931,20 @@ contains
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
         if (tRDMonfly) then
-            call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
-                contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
-                excit_lvl = 2, excit_typ = excitInfo%typ), &
-                x0 = extract_matrix_element(t,1), &
-                x1 = extract_matrix_element(t,2))
+            ! i need to unbias against the total pgen later on in the
+            ! RDM sampling otherwise the rdm-bias factor is not correct!
+            ! encode the necessary information in the rdm-matele!
+            i = excitInfo%i
+            j = excitInfo%j
+            k = excitInfo%k
+            l = excitInfo%l
+            elecInd = en
+            holeInd = se
+            rdm_mat = extract_matrix_element(t,2)
+            call calc_orbital_pgen_contrib_start([2*st, 2*elecInd], &
+                holeInd, orb_pgen)
+            p_orig = orb_pgen * branch_pgen / real(ElecPairs, dp)
+            if (current_stepvector(elecInd) == 3) p_orig = p_orig * 2.0_dp
         end if
 
 
@@ -10889,6 +10976,15 @@ contains
             pgen = branch_pgen
         else
             call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
+        end if
+
+        if (tRDMonfly) then
+            if (.not. near_zero(p_orig)) then
+                call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
+                    contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
+                    excit_typ = excitInfo%typ), x0 = 0.0_dp, &
+                    x1 = rdm_mat * pgen / p_orig)
+            end if
         end if
 
         ! and finally update the matrix element with all contributions
@@ -11603,7 +11699,6 @@ contains
 
         ! i also need to consider the electron pair picking probability..
         pgen = pgen / real(ElecPairs, dp)
-
         ! and if the second electron is in a double occupied orbital I have
         ! to modify it with 2
         if (current_stepvector(elecInd) == 3) pgen = pgen * 2.0_dp

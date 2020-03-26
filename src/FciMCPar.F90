@@ -1185,9 +1185,6 @@ module FciMCParMod
         HighPopPos=1
         FlagsCurr=0
 
-        ! Synchronise processors
-!        CALL MPIBarrier(error)
-
         ! Reset iteration variables
         ! Next free position in newly spawned list.
         ValidSpawnedList = InitialSpawnedSlots

@@ -444,7 +444,7 @@ module fcimc_pointed_fns
                     p_spawn_rdmfac=1.0_dp !The acceptance probability of some kind of child was equal to 1
                endif
             else
-                if(abs(nSpawn).ge.1) then
+                if(abs(nSpawn) >= 1.0) then
                     p_spawn_rdmfac=1.0_dp !We were certain to create a child here.
                     ! This is the special case whereby if P_spawn(j | i) > 1,
                     ! then we will definitely spawn from i->j.

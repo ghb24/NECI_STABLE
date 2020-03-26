@@ -230,7 +230,11 @@ contains
                         call fill_spawn_rdm_diag_guga(spawn, nI, full_sign)
                     end if
                 end if
-                call Add_RDM_HFConnections_GUGA(spawn, one_rdms, nI, av_sign, AvNoAtHF, ExcitLevelI, IterRDM_new)
+                if (any(.not. near_zero(AvNoAtHF)) .and. &
+                    (any(abs(av_sign(1::2) * av_sign(2::2)) > 1.0e-10_dp))) then
+                    call Add_RDM_HFConnections_GUGA(spawn, one_rdms, nI, av_sign, &
+                        AvNoAtHF, ExcitLevelI, IterRDM_new)
+                end if
             else
             ! Not using HPHFs.
                 if (any(abs(av_sign(1::2) * av_sign(2::2)) > 1.0e-10_dp)) then
@@ -504,13 +508,6 @@ contains
                 end do
                 if(tNonInitParent) cycle
             endif
-
-            if (source_part_type == 0) then
-                print *, "nI: ", nI
-                print *, "nJ: ", nJ
-                print *, "sign_I: ", realSignI
-                print *, "sign_J: ", real_sign_j_all
-            end if
 
             ! Loop over all RDMs to which the simulation with label
             ! source_part_type contributes to.

@@ -30,7 +30,7 @@ MODULE Logging
                            t_pop_symmetry_states, symmetry_states, &
                            symmetry_weights, symmetry_states_ilut
 
-    use guga_rdm, only: t_mimic_stochastic
+    use guga_rdm, only: t_mimic_stochastic, t_diag_exchange
 
     use cc_amplitudes, only: t_plot_cc_amplitudes
 
@@ -275,6 +275,9 @@ MODULE Logging
         case ("MIMIC-STOCHASTIC")
             t_mimic_stochastic = .true.
             ! if we mimic we HAVE to do direct exchange too!
+
+        case ("DIAG-EXCHANGE")
+            t_diag_exchange = .true.
 
         case("REBLOCKSHIFT")
             !Abort all other calculations, and just block data again with given equilibration time (in iterations)

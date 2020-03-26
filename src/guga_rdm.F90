@@ -70,6 +70,7 @@ module guga_rdm
     use sort_mod, only: sort
     use rdm_data, only: rdm_list_t, rdm_definitions_t
     use util_mod, only: get_free_unit
+    use dSFMT_interface, only: genrand_real2_dSFMT
 
     implicit none
 
@@ -622,7 +623,7 @@ contains
         HElement_t(dp) :: mat_ele
         integer(int_rdm), allocatable :: rdm_ind(:), rdm_ind_2(:)
         real(dp), allocatable :: rdm_mat(:), rdm_mat_2(:)
-        integer :: i, j, k, l, n, ex_lvl, ex_typ, m
+        integer :: i, j, k, l, n, ex_lvl, ex_typ, pick, m
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         integer(n_int) :: ilutGi(0:GugaBits%len_tot), ilutGj(0:GugaBits%len_tot)
         integer(int_rdm) :: pure_ind
@@ -744,6 +745,21 @@ contains
                 else
                     call create_all_rdm_contribs(rdm_ind_in, x0, x1, rdm_ind, rdm_mat)
 
+                    ! if (ex_typ == excit_type%fullstart_stop_mixed) then
+                    !     call extract_2_rdm_ind(rdm_ind(1), i, j, k, l)
+                    !     if ((i == 5 .and. j == 1) .or. (i == 1 .and. j == 5)) then
+                    !         print *, "****"
+                    !         call write_det_guga(6, ilutGi)
+                    !         call write_det_guga(6, ilutGj)
+                    !         print *, "rdm_ind: ", pure_rdm_ind(rdm_ind)
+                    !         print *, "rdm_mat: ", rdm_mat
+                    !         do n = 1, size(rdm_ind)
+                    !             call print_rdm_ind(rdm_ind(n),2)
+                    !         end do
+                    !     end if
+                    ! end if
+
+
                     do n = 1, size(rdm_ind)
                         if (.not. near_zero(rdm_mat(n))) then
                             call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
@@ -780,11 +796,40 @@ contains
                 call EncodeBitDet_guga(nJ, ilutGi)
             end if
 
-
             call calc_guga_matrix_element(IlutGi, ilutGj, excitInfo, mat_ele, &
                 t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
                 rdm_mat = rdm_mat)
 
+            ! select case (excitInfo%typ)
+            ! ! in this implementation right now, I have to sample
+            ! ! all full-start/stop contributions for all the
+            ! ! excitations.. so there is a double counting going on
+            ! ! this i have to unbias here (there could be even
+            ! ! more double counting, but thats to see)
+            ! case(excit_type%fullstop_L_to_R, &
+            !      excit_type%fullstop_R_to_L, &
+            !      excit_type%fullstart_L_to_R, &
+            !      excit_type%fullstart_R_to_L, &
+            !      excit_type%fullstart_stop_mixed)
+            !
+            !     ! quick test:
+            !     ! try to pick one randomly
+            !
+            !     call extract_2_rdm_ind(rdm_ind(pick), i, j, k, l)
+            !
+            !     if (t_fill_symmetric) then
+            !         call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+            !             full_sign, .true.)
+            !         call add_to_rdm_spawn_t(spawn, k, l, i, j, &
+            !             full_sign, .true.)
+            !     else
+            !         call add_to_rdm_spawn_t(spawn, i, j, k, l, &
+            !             2.0 * full_sign, .true.)
+            !     end if
+            !
+            !     ! full_sign = full_sign / real(size(rdm_mat),dp)
+            !     ! add option to average again! TODO
+            ! case default
             ! i assume sign_i and sign_j are not 0 if we end up here..
             do n = 1, size(rdm_ind)
                 if (.not. near_zero(rdm_mat(n))) then
@@ -799,22 +844,6 @@ contains
                     else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
                         call extract_2_rdm_ind(rdm_ind(n), i, j, k, l)
                         full_sign = sign_I * sign_J * rdm_mat(n)
-
-
-                        select case (excitInfo%typ)
-                        ! in this implementation right now, I have to sample
-                        ! all full-start/stop contributions for all the
-                        ! excitations.. so there is a double counting going on
-                        ! this i have to unbias here (there could be even
-                        ! more double counting, but thats to see)
-                        case(excit_type%fullstop_L_to_R, &
-                             excit_type%fullstop_R_to_L, &
-                             excit_type%fullstart_L_to_R, &
-                             excit_type%fullstart_R_to_L, &
-                             excit_type%fullstart_stop_mixed)
-
-                            full_sign = full_sign / real(size(rdm_mat),dp)
-                        end select
 
 
                         if (t_fill_symmetric) then
@@ -837,6 +866,7 @@ contains
                     end if
                 end if
             end do
+            ! end select
         end if
 
     end subroutine Add_RDM_From_IJ_Pair_GUGA
