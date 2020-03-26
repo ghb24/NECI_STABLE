@@ -1,7 +1,7 @@
 #include "macros.h"
 
 ! fpp types
-#:set data_types = [['real(dp)', 'real'], ['integer(int64)', 'int64'], ['integer','int32'], ['complex(dp)','cmplx'], ['logical','bool']]
+#:set data_types = [['real(dp)', 'real'], ['integer(int64)', 'int64'], ['integer(int32)','int32'], ['complex(dp)','cmplx'], ['logical','bool']]
 module shared_array
     use constants
     use shared_memory_mpi
