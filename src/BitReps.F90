@@ -32,8 +32,6 @@ module bit_reps
 
     use guga_bitRepOps, only: init_guga_bitrep
 
-    use guga_data, only: t_fast_guga_rdms
-
     use LoggingData, only: tRDMOnfly
 
     use guga_bitRepOps, only: transfer_stochastic_rdm_info

@@ -25,8 +25,8 @@ module guga_init
 
     use bit_rep_data, only: tUseFlags, nifd
 
-    use guga_data, only: init_guga_data_procPtrs, orbitalIndex, t_slow_guga_rdms, &
-                         t_fast_guga_rdms, n_excit_info_bits
+    use guga_data, only: init_guga_data_procPtrs, orbitalIndex, &
+                         n_excit_info_bits
 
     use guga_procedure_pointers, only: pickOrbitals_single, pickOrbitals_double, &
                         calc_orbital_pgen_contr, calc_mixed_contr, calc_mixed_start_l2r_contr, &
@@ -324,16 +324,6 @@ contains
         ! is called inf checkinput() in file readinput.F90
         character(*), parameter :: this_routine = 'checkInputGUGA'
 
-
-        ! test flags: to be removed after tests pass
-        if (tRDMonfly .and. .not. tExplicitAllRDM) then
-            if (t_slow_guga_rdms .and. t_fast_guga_rdms) then
-                call stop_all(this_routine, "not both slow and fast GUGA RDMs!")
-            end if
-            if (.not. (t_slow_guga_rdms .or. t_fast_guga_rdms)) then
-                call stop_all(this_routine, "neither slow nor fast GUGA rdm implo chosen!")
-            end if
-        end if
 
         if (tSPN) then
             call stop_all(this_routine, &

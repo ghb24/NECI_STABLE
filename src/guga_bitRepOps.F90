@@ -12,8 +12,7 @@ module guga_bitRepOps
                           currentB_ilut, currentB_int, current_cum_list, nbasis
     use guga_data, only: ExcitationInformation_t, excit_type, gen_type, &
                          rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-                         n_excit_lvl_bits, n_excit_type_bits, &
-                         t_fast_guga_rdms
+                         n_excit_lvl_bits, n_excit_type_bits
     use constants, only: dp, n_int, bits_n_int, bni_, bn2_, int_rdm
     use DetBitOps, only: return_ms, count_set_bits, MaskAlpha, &
                     count_open_orbs, ilut_lt, ilut_gt, MaskAlpha, MaskBeta, &
@@ -26,6 +25,8 @@ module guga_bitRepOps
     use sort_mod, only: sort
 
     use LoggingData, only: tRDMonfly
+
+    use Fcimcdata, only: tFillingStochRDMonfly
 
     implicit none
 
@@ -2253,7 +2254,7 @@ contains
             HElement = extract_h_element(ilutG)
         end if
 
-        if (t_fast_guga_rdms) then
+        if (tFillingStochRDMonfly) then
             ! in this case I need to transfer the rdm_ind and x0,x1 info to
             ! the 'neci ilut'
             call transfer_stochastic_rdm_info(ilutG, ilutN)

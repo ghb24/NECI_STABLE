@@ -37,8 +37,7 @@ module guga_excitations
                     funA_m1_1_overR2, funA_3_1_overR2, minFunA_0_2_overR2, &
                     funA_2_0_overR2, getDoubleContribution, projE_replica, &
                     tNewDet, tag_excitations, tag_tmp_excits, tag_proje_list, &
-                    excit_type, gen_type, excit_names, t_slow_guga_rdms, &
-                    t_fast_guga_rdms, t_mimic_slow
+                    excit_type, gen_type, excit_names
 
     use guga_bitRepOps, only: isProperCSF_ilut, calcB_vector_ilut, getDeltaB, &
                         setDeltaB, count_open_orbs_ij, calcOcc_vector_ilut, &
@@ -1587,19 +1586,6 @@ contains
 
         ! set defaults in case of early exit
         mat_ele = h_cast(0.0_dp)
-        !
-        ! if ((t_fast_guga_rdms .and. .not. t_mimic_slow) &
-        !     .and. (present(rdm_ind) .or. present(rdm_mat))) then
-        !     ASSERT(present(rdm_ind))
-        !     ASSERT(present(rdm_mat))
-        !     ! here we still only need 2 rdm contributions, since the
-        !     ! flipped version corresponds to a single excitation with
-        !     ! a weight generator, which should be handled in the single
-        !     ! excitation step already!
-        !     allocate(rdm_ind(1), source = 0_int_rdm)
-        !     allocate(rdm_mat(1), source = 0.0_dp)
-        !     rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-        ! end if
 
         if (any(abs(temp_delta_b(st:se-1)) > 1) .or. &
             any(abs(temp_delta_b(se:en)) > 2)) return
@@ -1699,7 +1685,6 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        ! if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
         if (t_hamil_ .or. (tRDMonfly .and. present(rdm_mat))) then
             if (typ == excit_type%fullstop_L_to_R) then
                 ! L -> R
@@ -1742,11 +1727,6 @@ contains
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
 
-        ! ! also no influence on coupling coefficient from generator order
-        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) then
-        !     rdm_mat = temp_x1
-        ! end if
-
         end associate
 
     end subroutine calc_fullstop_mixed_ex
@@ -1784,17 +1764,6 @@ contains
 
         associate(ii => excitInfo%i, jj => excitInfo%j, kk => excitInfo%k, &
                   ll => excitInfo%l, gen => excitInfo%lastGen, typ => excitInfo%typ)
-
-        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
-        !     ASSERT(present(rdm_ind))
-        !     ASSERT(present(rdm_mat))
-        !     ! we only have two elements here, since the switched version
-        !     ! corresponds to a single excitation + weight, which is dealt
-        !     ! with in the single excit case
-        !     allocate(rdm_ind(1), source = 0_int_rdm)
-        !     allocate(rdm_mat(1), source = 0.0_dp)
-        !     rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-        ! end if
 
         if (any(abs(temp_delta_b(st:se-1)) > 2) .or. &
             any(abs(temp_delta_b(se:en)) > 1)) return
@@ -1871,7 +1840,6 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        ! if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
         if (t_hamil .or. (tRDMonfly .and. present(rdm_mat))) then
             if (typ == excit_type%fullstart_L_to_R) then
                 ! L -> R
@@ -1910,9 +1878,6 @@ contains
         currentOcc_int = temp_curr_occ_int
         currentB_int = temp_curr_b_int
 
-        ! no influence of generator order on coupling coeff
-        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) rdm_mat = guga_mat
-
         end associate
 
     end subroutine calc_fullstart_mixed_ex
@@ -1943,18 +1908,6 @@ contains
                   ll => excitInfo%l, start => excitInfo%fullstart, &
                   ende => excitInfo%fullEnd)
 
-        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. (present(rdm_ind) .or. present(rdm_mat))) then
-        !     ASSERT(present(rdm_ind))
-        !     ASSERT(present(rdm_mat))
-        !     allocate(rdm_ind(1), source = 0_int_rdm)
-        !     allocate(rdm_mat(1), source = 0.0_dp)
-        !     rdm_ind(1) = contract_2_rdm_ind(ii, jj, kk, ll)
-        ! end if
-        ! the most involved one.. but i think i can reuse a lot of the
-        ! stochastic stuff here, since i already needed it there..
-
-        ! phew.. i think i can just use calcMixedContribution.. and thats it..
-
         if (any(abs(temp_delta_b) > 2)) return
 
         call convert_ilut_toGUGA(ilutI, tmp_I)
@@ -1968,7 +1921,6 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_ilut = temp_b_real_i
 
-        ! if (t_hamil_ .or. ((t_slow_guga_rdms .or. t_mimic_slow) .and. present(rdm_mat))) then
         if (t_hamil_ .or. (tRDMonfly .and. present(rdm_mat))) then
             if (present(rdm_mat)) then
                 mat_ele =  calcMixedContribution(tmp_I, tmp_J, start, ende, &
@@ -1977,11 +1929,6 @@ contains
                 mat_ele =  calcMixedContribution(tmp_I, tmp_J, start, ende)
             end if
         end if
-
-        ! if ((.not. t_mimic_slow .and. t_fast_guga_rdms) .and. present(rdm_mat)) then
-        !     ! no influene on the coupling coeff from order of generators
-        !     rdm_mat(1) = calc_mixed_coupling_coeff(tmp_J, excitInfo)
-        ! end if
 
         current_stepvector = temp_curr_step
         currentOcc_int = temp_curr_occ_int

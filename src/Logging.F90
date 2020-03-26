@@ -32,8 +32,7 @@ MODULE Logging
 
     use cc_amplitudes, only: t_plot_cc_amplitudes
 
-    use guga_data, only: t_slow_guga_rdms, t_fast_guga_rdms, t_mimic_slow, &
-                         t_fill_symmetric
+    use guga_data, only: t_fill_symmetric
 
     IMPLICIT NONE
 
@@ -245,15 +244,6 @@ MODULE Logging
         end if
         call readu(w)
         select case(w)
-
-        case ("SLOW-GUGA-RDMS")
-            ! test flags to compare different stochastic GUGA RDMs implos.
-            ! to be removed after tests finished!
-            t_slow_guga_rdms = .true.
-        case ("FAST-GUGA-RDMS")
-            t_fast_guga_rdms = .true.
-        case ("MIMIC-SLOW")
-            t_mimic_slow = .true.
 
         case ("FILL-SYMMETRIC")
             ! for add an option to switch between symmetric and non filling

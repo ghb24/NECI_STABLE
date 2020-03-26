@@ -19,13 +19,10 @@ module guga_data
               funa_2_0_overr2, getdoublecontribution, tnewdet, tag_excitations, &
               tag_tmp_excits, tag_proje_list, funa_3_1_overr2, minfuna_0_2_overr2, &
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
-              excit_type, gen_type, excit_names, t_slow_guga_rdms, t_fast_guga_rdms, &
-              t_mimic_slow, rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
+              excit_type, gen_type, excit_names, &
+              rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
               n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, t_fill_symmetric
 
-    logical :: t_slow_guga_rdms = .false.
-    logical :: t_fast_guga_rdms = .false.
-    logical :: t_mimic_slow = .false.
     logical :: t_fill_symmetric = .false.
 
     ! ========================== type defs ===================================
