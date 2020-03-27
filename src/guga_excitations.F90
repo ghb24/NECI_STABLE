@@ -16380,7 +16380,7 @@ contains
             call update_matrix_element(excitations(:,n), umat/2.0_dp, 1)
             ! and also use the deltaB value for finished excitations to
             ! indicate the level of excitation IC for the remaining NECI code
-            excitations(nifguga,n) = exlevel
+            call setDeltaB(exlevel, excitations(:,n))
 
         end do
 

@@ -52,7 +52,8 @@ module guga_rdm
                               extract_stochastic_rdm_info
     use MemoryManager, only: LogMemAlloc, LogMemDealloc
     use bit_rep_data, only: GugaBits, IlutBits
-    use FciMCData, only: projEDet, CurrentDets, TotWalkers, ilutref, HFDet_True
+    use FciMCData, only: projEDet, CurrentDets, TotWalkers, ilutref, HFDet_True, &
+                         iLutHF_True
     use LoggingData, only: ThreshOccRDM, tThreshOccRDMDiag, RDMExcitLevel, &
                            tExplicitAllRDM
     use UMatCache, only: gtID
@@ -86,7 +87,7 @@ module guga_rdm
               extract_molcas_1_rdm_index, contract_molcas_2_rdm_index, &
               extract_molcas_2_rdm_index, output_molcas_rdms, &
               create_hf_rdm_connections_guga, fill_sings_1rdm_guga, &
-              fill_sings_2rdm_guga
+              fill_sings_2rdm_guga, add_rdm_from_ij_pair_guga_exact
 
 contains
 
@@ -607,11 +608,12 @@ contains
 
     end subroutine create_hf_rdm_connections_guga
 
-    subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, nJ, av_sign_j, &
+    subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, ilutJ, av_sign_j, &
             av_sign_hf, excit_lvl, iter_rdm)
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
-        integer, intent(in) :: nJ(nel), excit_lvl, iter_rdm(:)
+        integer(n_int), intent(in) :: ilutJ(0:IlutBits%len_tot)
+        integer, intent(in) :: excit_lvl, iter_rdm(:)
         real(dp), intent(in) :: av_sign_j(:), av_sign_hf(:)
 #ifdef DEBUG_
         character(*), parameter :: this_routine = "Add_RDM_HFConnections_GUGA"
@@ -621,30 +623,79 @@ contains
         ! since NJ does not come from a spawning event but is
         ! done deterministically for the HF connections..
         ! there should be a clever way to do this..
-        if ((excit_lvl == 1 .or. excit_lvl == 2) .and. &
-            ((.not. all(near_zero(av_sign_hf))) .and. &
-            (.not. all(near_zero(av_sign_j))))) then
-            call fill_hf_rdm_connections_guga(spawn, one_rdms, nJ, av_sign_j, &
-                av_sign_hf, iter_rdm)
+        ! nah.. not for now.. otherwise i have to check everywhere also
+        ! if i sampled this already.. for leave it at that and be done with
+        ! it!
+        if (excit_lvl == 1 .or. excit_lvl == 2) then
+            ! for HF -> nJ we do not have csf info intialized so use calc_type = 2
+            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, iLutHF_True, &
+                ilutJ, av_sign_hf(2::2), iter_rdm * av_sign_j(1::2), calc_type = 2)
+
+            ! for nJ we have the csf info initialized (or maybe not..)
+            call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutJ, &
+                iLutHF_True, av_sign_j(2::2), iter_rdm * av_sign_hf(1::2), calc_type = 2)
         end if
-        ! if (excit_lvl == 1 .or. excit_lvl == 2) then
-        !     call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, HFDet_True, nJ, &
-        !         av_sign_hf(2::2), iter_rdm * av_sign_j(1::2), .true., t_fast = .false.)
-        !     call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nJ, HFDet_True, &
-        !         av_sign_j(2::2), iter_rdm * av_sign_hf(1::2), .false., t_fast = .false.)
-        ! end if
 
     end subroutine Add_RDM_HFConnections_GUGA
 
-    subroutine fill_hf_rdm_connections_guga(spawn, one_rdms, nJ, sign_j, &
-            sign_hf, iter_rdm)
+    subroutine add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, ilutI, ilutJ, &
+            sign_i, sign_j, calc_type)
+        ! this routine is called for RDM sampling within the semi-stochastic
+        ! space or for the connection to the 'true' HF det!
+        ! i also need the calc-type input, as in the semi-stochastic space
+        ! we initialize the csf info of nI, while for the HF connections we dont
         type(rdm_spawn_t), intent(inout) :: spawn
         type(one_rdm_t), intent(inout) :: one_rdms(:)
-        integer, intent(in) :: nJ(nel), iter_rdm(:)
-        real(dp), intent(in) :: sign_hf(:), sign_j(:)
-        character(*), parameter :: this_routine = "fill_hf_rdm_connections_guga"
+        integer(n_int), intent(in) :: ilutI(0:IlutBits%len_tot), &
+                                      ilutJ(0:IlutBits%len_tot)
+        real(dp), intent(in) :: sign_i(:), sign_j(:)
+        integer, intent(in) :: calc_type
+        character(*), parameter :: this_routine = "add_rdm_from_ij_pair_guga_exact"
+        integer(int_rdm), allocatable :: rdm_ind(:)
+        real(dp), allocatable :: rdm_mat(:)
+        type(ExcitationInformation_t) :: excitInfo
+        HElement_t(dp) :: mat_ele
+        integer :: p, q, r, s, n
+        real(dp) :: full_sign(spawn%rdm_send%sign_length)
 
-    end subroutine fill_hf_rdm_connections_guga
+        call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+            t_hamil = .false., calc_type = calc_type, rdm_ind = rdm_ind, &
+            rdm_mat = rdm_mat)
+
+        ! i assume sign_i and sign_j are not 0 if we end up here..
+        do n = 1, size(rdm_ind)
+            if (.not. near_zero(rdm_mat(n))) then
+                if (excitInfo%excitLvl == 1) then
+                    if (RDMExcitLevel == 1) then
+                        call fill_sings_1rdm_guga(one_rdms, sign_i, sign_j, &
+                            rdm_mat(n), rdm_ind(n))
+                    else
+                        call fill_sings_2rdm_guga(spawn, ilutI, &
+                            ilutJ, sign_i, sign_j, rdm_mat(n), rdm_ind(n))
+                    end if
+                else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
+                    call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
+                    full_sign = sign_i * sign_j * rdm_mat(n)
+
+                    ! here in the 'exact' filling (coming from HF or
+                    ! within the semistochastic space I think it makes
+                    ! sense to fill symmetrically.. since here no
+                    ! stochastic spawning is happening and this does not
+                    ! give us information about the hermiticity error!
+                    call add_to_rdm_spawn_t(spawn, p, q, r, s, &
+                        full_sign, .true.)
+
+                    if (.not. &
+                        (excitInfo%typ == excit_type%fullstart_stop_alike)) then
+                        call add_to_rdm_spawn_t(spawn, r, s, p, q, &
+                            full_sign, .true.)
+                    end if
+                end if
+            end if
+        end do
+
+    end subroutine add_rdm_from_ij_pair_guga_exact
+
 
     subroutine Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nI, nJ, sign_i, &
             sign_j, t_bra_to_ket, t_fast, rdm_ind_in, x0, x1)

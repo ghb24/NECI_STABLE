@@ -912,7 +912,7 @@ r_loop: do while(.not.tStoreDet)
         HElement_t(dp) :: PopAllSumENum(inum_runs)
         integer :: perturb_ncreate, perturb_nannihilate, PopBalanceBlocks
 
-        character(len=*), parameter :: t_r = "read_popsfile_wrapper"
+        character(len=*), parameter :: this_routine = "read_popsfile_wrapper"
 
         read_psingles = 0.0_dp
         read_ptriples = 0.0_dp
@@ -933,7 +933,7 @@ r_loop: do while(.not.tStoreDet)
                     read_pparallel, read_ptriples, read_nnodes, read_walkers_on_nodes, &
                     PopBalanceBlocks)
         else
-            call stop_all(t_r, "Only version 4 popsfile are supported with kp-fciqmc.")
+            call stop_all(this_routine, "Only version 4 popsfile are supported with kp-fciqmc.")
         endif
 
         ! Check the number of electrons created and annihilated by the
@@ -1481,7 +1481,7 @@ r_loop: do while(.not.tStoreDet)
         real(dp) :: PopGammaSing_spindiff1, PopGammaDoub_spindiff1, PopGammaDoub_spindiff2
         logical :: PopPreviousHistTau
         integer :: PopAccumPopsCounter
-        character(*), parameter :: t_r = 'ReadPopsHeadv4'
+        character(*), parameter :: this_routine = 'ReadPopsHeadv4'
         ! need dummy read-in variable, since we start from a converged real
         ! calculation usually! atleast thats the default for now!
         HElement_t(dp) :: PopSumENum
@@ -1556,7 +1556,7 @@ r_loop: do while(.not.tStoreDet)
             ! What is the maximum number of nodes currently supported. We might
             ! need to update this...
             if (PopNNodes > max_nodes) &
-                call stop_all(t_r, "Too many processors in POPSFILE. Update &
+                call stop_all(this_routine, "Too many processors in POPSFILE. Update &
                                    &max_nodes")
 
             call MPIBCast(PopWalkersOnNodes(1:PopNNodes))
@@ -2251,6 +2251,7 @@ r_loop: do while(.not.tStoreDet)
         logical :: bWritten, is_init, is_init_tmp
         integer :: gdata_size
         character(12) :: format_string
+        character(*), parameter :: this_routine = "write_pops_det"
 
         bWritten = .false.
 

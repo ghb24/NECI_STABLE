@@ -85,11 +85,6 @@ contains
     subroutine guga_test_driver
 
         call init_guga_testsuite()
-
-        call run_test_cast(test_create_hf_rdm_connections_guga, &
-            "test_create_hf_rdm_connections_guga")
-        call stop_all("2","2")
-
         call compare_rdm_all_excits_and_mat_eles()
 !         call run_test_case(compare_fill_diag_and_explicit_diag)
 
@@ -110,17 +105,6 @@ contains
         !call run_test_excit_gen_guga_S0
 
     end subroutine guga_test_driver
-
-    subroutine test_create_hf_rdm_connections_guga
-
-        print *, ""
-        print *, "testing: create_hf_rdm_connections_guga"
-
-        call assert_true(.false.)
-        print *, ""
-        print *, "testing: create_hf_rdm_connections_guga. DONE"
-
-    end subroutine test_create_hf_rdm_connections_guga
 
     subroutine test_contract_extract_1_rdm_molcas
 

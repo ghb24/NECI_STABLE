@@ -57,7 +57,7 @@ contains
         integer(MPIArg) :: rcvcnts
         integer, allocatable :: evec_abs(:)
         HElement_t(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
-        character(len=*), parameter :: t_r = "calc_trial_states_lanczos"
+        character(len=*), parameter :: this_routine = "calc_trial_states_lanczos"
 
         type(LanczosCalcType) :: lanczosCalc
 
@@ -66,7 +66,7 @@ contains
 
         ! do some GUGA checks to abort non-supported trial wavefunctions
         if (tGUGA .and. (space_in%tCAS .or. space_in%tRAS .or. space_in%tFCI)) then
-            call stop_all(t_r, "non-supported trial space for GUGA!")
+            call stop_all(this_routine, "non-supported trial space for GUGA!")
         end if
 
         write(6,*) " Initialising wavefunctions by the Lanczos algorithm"
@@ -98,7 +98,7 @@ contains
 
         if (.not. (space_in%tPops .or. space_in%tRead .or. space_in%tDoubles .or. space_in%tCAS .or. &
                    space_in%tRAS .or. space_in%tOptimised .or. space_in%tMP1 .or. space_in%tFCI)) then
-            call stop_all(t_r, "A space for the trial functions was not chosen.")
+            call stop_all(this_routine, "A space for the trial functions was not chosen.")
         end if
 
         ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
@@ -112,7 +112,7 @@ contains
             return
         endif
 
-        if (ndets_all_procs < nexcit) call stop_all(t_r, "The number of excited states that you have asked &
+        if (ndets_all_procs < nexcit) call stop_all(this_routine, "The number of excited states that you have asked &
             &for is larger than the size of the trial space used to create the excited states. Since this &
             &routine generates trial states that are orthogonal, this is not possible.")
 
@@ -150,17 +150,17 @@ contains
             deallocate(ilut_list)
 
             allocate(evecs(ndets_all_procs, nexcit), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvectors array.")
+            if (ierr /= 0) call stop_all(this_routine, "Error allocating eigenvectors array.")
             evecs = 0.0_dp
 
             allocate(evec_abs(ndets_all_procs), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
+            if (ierr /= 0) call stop_all(this_routine, "Error allocating evec_abs array.")
             evec_abs = 0
         endif
 
         ! Perform the Lanczos procedure in parallel.
         if (t_non_hermitian) then
-            call stop_all(t_r, &
+            call stop_all(this_routine, &
                 "perform_lanczos not implemented for non-hermitian Hamiltonians!")
         end if
 
@@ -202,7 +202,7 @@ contains
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
             safe_malloc_e(evecs_transpose, (nexcit, ndets_all_procs), ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
+            if (ierr /= 0) call stop_all(this_routine, "Error allocating transposed eigenvectors array.")
             evecs_transpose = transpose(evecs)
         else
             safe_free(ilut_list)
@@ -221,7 +221,7 @@ contains
         ! array as temporary space.
         allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
         call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
+        if (ierr /= 0) call stop_all(this_routine, "Error in MPIScatterV call.")
 
         ! Clean up.
         if (iProcIndex == root) deallocate(evecs)
@@ -271,7 +271,7 @@ contains
         HElement_t(dp), allocatable :: evecs(:,:), evecs_transpose(:,:)
         HElement_t(dp), allocatable :: work(:)
         real(dp), allocatable :: evals_all(:), rwork(:)
-        character(len=*), parameter :: t_r = "calc_trial_states_direct"
+        character(len=*), parameter :: this_routine = "calc_trial_states_direct"
         type(ExcitationInformation_t) :: excitInfo
 
         ndets_this_proc = 0
@@ -304,14 +304,14 @@ contains
 
         if (.not. (space_in%tPops .or. space_in%tRead .or. space_in%tDoubles .or. space_in%tCAS .or. &
                    space_in%tRAS .or. space_in%tOptimised .or. space_in%tMP1 .or. space_in%tFCI)) then
-            call stop_all(t_r, "A space for the trial functions was not chosen.")
+            call stop_all(this_routine, "A space for the trial functions was not chosen.")
         end if
 
         ndets_this_proc_mpi = int(ndets_this_proc, MPIArg)
         call MPIAllGather(ndets_this_proc_mpi, space_sizes, ierr)
         ndets_all_procs = sum(space_sizes)
 
-        if (ndets_all_procs < nexcit) call stop_all(t_r, "The number of excited states that you have asked &
+        if (ndets_all_procs < nexcit) call stop_all(this_routine, "The number of excited states that you have asked &
             &for is larger than the size of the trial space used to create the excited states. Since this &
             &routine generates trial states that are orthogonal, this is not possible.")
 
@@ -351,11 +351,11 @@ contains
 
 
             allocate(evecs(ndets_all_procs, nexcit), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating eigenvectors array.")
+            if (ierr /= 0) call stop_all(this_routine, "Error allocating eigenvectors array.")
             evecs = 0.0_dp
 
             allocate(evec_abs(ndets_all_procs), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating evec_abs array.")
+            if (ierr /= 0) call stop_all(this_routine, "Error allocating evec_abs array.")
             evec_abs = 0
 
 
@@ -373,7 +373,7 @@ contains
             ! First to build the Hamiltonian matrix
             ndets_int=int(ndets_all_procs,sizeof_int)
             allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating H_tmp array")
+            if (ierr /= 0) call stop_all(this_routine, "Error allocating H_tmp array")
             H_tmp = 0.0_dp
 
             do i = 1, ndets_all_procs
@@ -425,7 +425,7 @@ contains
                 ASSERT(.not. tGUGA)
                 ndets_int=int(ndets_all_procs,sizeof_int)
                 allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
-                if (ierr /= 0) call stop_all(t_r, "Error allocating H_tmp array")
+                if (ierr /= 0) call stop_all(this_routine, "Error allocating H_tmp array")
                 H_tmp = 0.0_dp
 
                 do i = 1, ndets_all_procs
@@ -504,7 +504,7 @@ contains
             ! Unfortunately to perform the MPIScatterV call we need the transpose
             ! of the eigenvector array.
             allocate(evecs_transpose(nexcit, ndets_all_procs), stat=ierr)
-            if (ierr /= 0) call stop_all(t_r, "Error allocating transposed eigenvectors array.")
+            if (ierr /= 0) call stop_all(this_routine, "Error allocating transposed eigenvectors array.")
             evecs_transpose = transpose(evecs)
         else
             deallocate(ilut_list)
@@ -525,7 +525,7 @@ contains
 
         allocate(evecs_this_proc(nexcit, ndets_this_proc), stat=ierr)
         call MPIScatterV(evecs_transpose, sndcnts, displs, evecs_this_proc, rcvcnts, ierr)
-        if (ierr /= 0) call stop_all(t_r, "Error in MPIScatterV call.")
+        if (ierr /= 0) call stop_all(this_routine, "Error in MPIScatterV call.")
 
         ! Clean up.
         if (iProcIndex == root) deallocate(evecs)

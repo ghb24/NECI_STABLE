@@ -18,7 +18,8 @@ module rdm_filling
     use DetBitOps, only: DetBitEq
     use guga_rdm, only: Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
                         fill_spawn_rdm_diag_guga, Add_RDM_HFConnections_GUGA, &
-                        fill_sings_1rdm_guga, fill_sings_2rdm_guga
+                        fill_sings_1rdm_guga, fill_sings_2rdm_guga, &
+                        add_rdm_from_ij_pair_guga_exact
     use util_mod, only: near_zero
     use guga_data, only: excit_type, ExcitationInformation_t
     use guga_excitations, only: calc_guga_matrix_element
@@ -216,7 +217,8 @@ contains
 
                  ! HPHFs on, but determinant closed shell.
                  if (RDMExcitLevel == 1) then
-                    call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, IterRDM_new, tLC)
+                    call fill_diag_1rdm(one_rdms, nI, av_sign, tCoreSpaceDet, &
+                        IterRDM_new, tLC)
                  else
                     full_sign = IterRDM_new*av_sign(1::2)*av_sign(2::2)
                     call applyRDMCorrection()
@@ -224,7 +226,8 @@ contains
                  end if
 
               end if
-              call Add_RDM_HFConnections_HPHF(spawn, one_rdms, iLutnI, nI, av_sign, AvNoAtHF, ExcitLevelI, IterRDM_new)
+              call Add_RDM_HFConnections_HPHF(spawn, one_rdms, iLutnI, nI, &
+                  av_sign, AvNoAtHF, ExcitLevelI, IterRDM_new)
 
             else if (tGUGA) then
                 if (any(abs(av_sign(1::2) * av_sign(2::2)) > 1.0e-10_dp)) then
@@ -235,9 +238,10 @@ contains
                         call fill_spawn_rdm_diag_guga(spawn, nI, full_sign)
                     end if
                 end if
-                if (any(.not. near_zero(AvNoAtHF)) .and. &
-                    (any(abs(av_sign(1::2) * av_sign(2::2)) > 1.0e-10_dp))) then
-                    call Add_RDM_HFConnections_GUGA(spawn, one_rdms, nI, av_sign, &
+
+                if ((.not. all(near_zero(AvNoatHF))) .and. &
+                    (.not. all(near_zero(av_sign)))) then
+                    call Add_RDM_HFConnections_GUGA(spawn, one_rdms, ilutnI, av_sign, &
                         AvNoAtHF, ExcitLevelI, IterRDM_new)
                 end if
             else
@@ -967,12 +971,8 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer :: nI(nel), nJ(nel), IC, n, p, q, r, s
+        integer :: nI(nel), nJ(nel), IC, n
         integer :: IterRDM, connect_elem
-        integer(int_rdm), allocatable :: rdm_ind(:)
-        real(dp), allocatable :: rdm_mat(:)
-        type(ExcitationInformation_t) :: excitInfo
-        HElement_t(dp) :: mat_ele
         character(*), parameter :: this_routine = "fill_rdm_offdiag_deterministic"
 
         ! IterRDM will be the number of iterations that the contributions are
@@ -1041,52 +1041,8 @@ contains
 
                 else if (tGUGA) then
 
-                    ! here I have to do the slow implementaion.. since I
-                    ! have no way of knowing the rdm info..
-                    ! except if I would additionally store this in the
-                    ! semi-stochastic space setup! TODO
-                    ! call decode_bit_det(nJ, iLutJ)
-                    ! call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nI, nJ, &
-                    !     AvSignI * IterRDM, AvSignJ, t_bra_to_ket = .true., &
-                    !     t_fast = .false.)
-
-                    call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
-                        t_hamil = .false., calc_type = 1, rdm_ind = rdm_ind, &
-                        rdm_mat = rdm_mat)
-
-                    ! i assume sign_i and sign_j are not 0 if we end up here..
-                    do n = 1, size(rdm_ind)
-                        if (.not. near_zero(rdm_mat(n))) then
-                            if (excitInfo%excitLvl == 1) then
-                                if (RDMExcitLevel == 1) then
-                                    call fill_sings_1rdm_guga(one_rdms, &
-                                        AvSignI * IterRDM, AvSignJ, &
-                                        rdm_mat(n), rdm_ind(n))
-                                else
-                                    call fill_sings_2rdm_guga(spawn, ilutI, &
-                                        ilutJ, AvSignI * IterRDM, AvSignJ, rdm_mat(n), rdm_ind(n))
-                                end if
-                            else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
-                                call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
-                                full_sign = AvSignI * IterRDM * AvSignJ * rdm_mat(n)
-
-
-                                ! here in the 'exact' filling (coming from HF or
-                                ! within the semistochastic space I think it makes
-                                ! sense to fill symmetrically.. since here no
-                                ! stochastic spawning is happening and this does not
-                                ! give us information about the hermiticity error!
-                                call add_to_rdm_spawn_t(spawn, p, q, r, s, &
-                                    full_sign, .true.)
-
-                                if (.not. &
-                                    (excitInfo%typ == excit_type%fullstart_stop_alike)) then
-                                    call add_to_rdm_spawn_t(spawn, r, s, p, q, &
-                                        full_sign, .true.)
-                                end if
-                            end if
-                        end if
-                    end do
+                    call add_rdm_from_ij_pair_guga_exact(spawn, one_rdms, &
+                        ilutI, ilutJ, AvSignI * IterRDM, AvSignJ, calc_type = 1)
 
                 else
                     if (IC == 1) then
