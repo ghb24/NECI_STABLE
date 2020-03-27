@@ -567,7 +567,7 @@ contains
                         ! H_ij = hphf_off_diag_helement(nI, nJ, con_space(:,i), trial_space(:,j))
                     else if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
-                        call calc_guga_matrix_element(trial_space(:,j), con_space(:,i), &
+                        call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
                             excitInfo, H_ij, .true., 2)
 !                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
 !                             excitInfo, H_ij, .true., 1)

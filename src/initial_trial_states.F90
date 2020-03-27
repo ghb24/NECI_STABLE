@@ -384,13 +384,14 @@ contains
                  H_tmp(i,i) = get_helement(det_list(:,i),det_list(:,i),0)
               end if
               ! off diagonal elements
+              if (tGUGA) call init_csf_information(ilut_list(0:nifd,i))
               do j = 1,i-1
                 if (tHPHF) then
                    H_tmp(i,j) = hphf_off_diag_helement(det_list(:,i),det_list(:,j),ilut_list(:,i), &
                                 ilut_list(:,j))
                 else if (tGUGA) then
                     call calc_guga_matrix_element(ilut_list(:,i), &
-                            ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 2)
+                            ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 1)
                 else
                    H_tmp(i,j) = get_helement(det_list(:,i),det_list(:,j),ilut_list(:,i),ilut_list(:,j))
                 end if
@@ -421,6 +422,7 @@ contains
 
             ! should we switch here, if it is not hermitian?
             if (t_non_hermitian) then
+                ASSERT(.not. tGUGA)
                 ndets_int=int(ndets_all_procs,sizeof_int)
                 allocate(H_tmp(ndets_all_procs,ndets_all_procs), stat=ierr)
                 if (ierr /= 0) call stop_all(t_r, "Error allocating H_tmp array")
@@ -440,9 +442,6 @@ contains
                         if (tHPHF) then
                             H_tmp(j,i) = hphf_off_diag_helement(det_list(:,i), &
                                 det_list(:,j),ilut_list(:,i), ilut_list(:,j))
-                        else if (tGUGA) then
-                            call calc_guga_matrix_element(ilut_list(:,i), &
-                                ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 2)
                         else
                             H_tmp(j,i) = get_helement(det_list(:,i), &
                                 det_list(:,j),ilut_list(:,i),ilut_list(:,j))

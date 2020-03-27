@@ -94,7 +94,6 @@ C..   Now we need to match up any two determinants
               if (KI == KJ) then
                   totsum = calcDiagMatEleGuga_nI(NMRKS(:,KI))
               else
-!                   totsum = calc_off_diag_guga_gen(ilutI, ilutJ)
                   call calc_guga_matrix_element(ilutI,ilutJ,excitInfo,
      &              totsum, .true., 1)
               end if

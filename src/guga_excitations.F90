@@ -246,7 +246,7 @@ contains
             tmp_ilut = ilutRef(0:niftot,1)
         end if
 
-        call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 2)
+        call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 1)
 
         if (present(exlevel)) then
 
@@ -2414,6 +2414,7 @@ contains
         allocate(excitLvl(nexcit), source = -1)
         allocate(excit_mat(nexcit,4), source = 0)
 
+        call init_csf_information(ilutG(0:nifd))
         do i = 1, nexcit
             call convert_ilut_toNECI(excitations(:,i), det_list(:,i), helgen)
 
@@ -2426,7 +2427,7 @@ contains
             exact_helements(i) = helgen
             excitLvl(i) = getDeltaB(excitations(:,i))
             call calc_guga_matrix_element(ilut, det_list(:,i), excitInfo, &
-                temp_mat, .true., 2)
+                temp_mat, .true., 1)
 
             excit_mat(i,:) = [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l]
 

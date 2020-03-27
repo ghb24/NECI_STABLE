@@ -268,10 +268,8 @@ contains
         call decode_bit_det(nHF, iLutHF)
         do i = 1, n_ex
             call convert_ilut_toNECI(excitations(:,i), ilutJ, helgen)
-!             call calc_guga_matrix_element(ilutHF, excitaitons(:,i), excitInfo, &
-!                 hel, .true., 2)
             call calc_guga_matrix_element(ilutHF, ilutJ, excitInfo, &
-                hel, .true., 2)
+                hel, .true., 1)
 
             if (abs(helgen - hel) > EPS) then
                 call stop_all(this_routine, "something wrong with mat-eles!")

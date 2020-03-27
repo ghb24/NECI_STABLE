@@ -61,9 +61,8 @@ MODULE PopsfileMod
      use lattice_mod, only: get_helement_lattice
 
     use SystemData, only: tGUGA
-    use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-    use guga_excitations, only: calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t
+    use guga_procedure_pointers, only: calc_off_diag_guga_ref
 
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &
                               TotWalkers_orig
@@ -1997,9 +1996,6 @@ r_loop: do while(.not.tStoreDet)
             do j = 1, int(ndets, sizeof_int)
                 ! Count the number of written particles
                 if (write_pops_det (iunit, iunit_2, Dets(:,j), j, gdata)) then
-                    !if(tRDMonFly.and.(.not.tExplicitAllRDM)) then
-                    !    write(iunit_3) CurrentH(1:1+2*lenof_sign,j)
-                    !endif
                     write_count = write_count + 1
                 end if
             end do
@@ -2255,7 +2251,6 @@ r_loop: do while(.not.tStoreDet)
         logical :: bWritten, is_init, is_init_tmp
         integer :: gdata_size
         character(12) :: format_string
-        type(ExcitationInformation_t) :: excitInfo
 
         bWritten = .false.
 
@@ -2306,43 +2301,48 @@ r_loop: do while(.not.tStoreDet)
                enddo
                if(is_init) then
                   call decode_bit_det(nI, det)
-                  ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)
                   nopen = count_open_orbs(det)
+
                   hf_helemt = 0.0_dp
                   hf_helemt_trans = 0.0_dp
-                  if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then
-                      if (tHPHF) then
-                          hf_helemt = hphf_off_diag_helement(ProjEDet(:,1), &
-                              nI, iLutRef(:,1), det)
 
-                          if (t_non_hermitian) then
-                              hf_helemt_trans = hphf_off_diag_helement(nI, &
-                                  ProjEDet(:,1), det, iLutRef(:,1))
+                  if (tGUGA) then
+                      ASSERT(.not. t_non_hermitian)
+                      hf_helemt = calc_off_diag_guga_ref(det, 1, ex_level)
+                  else
+                      ex_level = FindBitExcitLevel(ilutRef(:,1), det, nel, .true.)
+                      if (ex_level <= 2 .or. (ex_level == 3 .and. t_3_body_excits)) then
+                          if (tHPHF) then
+                              hf_helemt = hphf_off_diag_helement(ProjEDet(:,1), &
+                                  nI, iLutRef(:,1), det)
 
-                          end if
-                      else if (tGUGA) then
-
-                          call calc_guga_matrix_element(det, ilutRef(:,1), &
-                              excitInfo, hf_helemt, .true., 2)
-                      else
-                          if (t_lattice_model) then
-                              hf_helemt = get_helement_lattice(ProjEDet(:,1), &
-                                  nI, ex_level)
                               if (t_non_hermitian) then
-                                  hf_helemt_trans = get_helement_lattice(nI, &
-                                      ProjEDet(:,1), ex_level)
+                                  hf_helemt_trans = hphf_off_diag_helement(nI, &
+                                      ProjEDet(:,1), det, iLutRef(:,1))
+
                               end if
                           else
-                              hf_helemt = get_helement(ProjEDet(:,1), nI, &
-                                  ex_level, iLutRef(:,1), det)
-                              if (t_non_hermitian) then
-                                  hf_helemt_trans = get_helement(nI, ProjEDet(:,1), &
-                                      ex_level, det, iLutRef(:,1))
+                              if (t_lattice_model) then
+                                  hf_helemt = get_helement_lattice(ProjEDet(:,1), &
+                                      nI, ex_level)
+                                  if (t_non_hermitian) then
+                                      hf_helemt_trans = get_helement_lattice(nI, &
+                                          ProjEDet(:,1), ex_level)
+                                  end if
+                              else
+                                  hf_helemt = get_helement(ProjEDet(:,1), nI, &
+                                      ex_level, iLutRef(:,1), det)
+                                  if (t_non_hermitian) then
+                                      hf_helemt_trans = get_helement(nI, ProjEDet(:,1), &
+                                          ex_level, det, iLutRef(:,1))
+                                  end if
                               end if
                           end if
                       end if
                   end if
+
                   ! for singles and doubles also include the excitation matrix
+                  ! for GUGA this does not make really sense..
                   ex = 0
                   if (ex_level <= 2) then
                       call get_bit_excitmat(ilutRef(:,1), det, ex, ex_level)

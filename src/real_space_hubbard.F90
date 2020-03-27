@@ -2073,7 +2073,7 @@ contains
 
             end if
 
-            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 2)
+            call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, hel, .true., 1)
 
             if (abs(hel) < EPS) then
                 nJ(1) = 0
@@ -2166,7 +2166,6 @@ contains
                     ! change the order of determinants to reflect
                     ! non-hermiticity correctly
                     ! old implo:
-                    ! elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
                     ex(2) = neighbors(i)
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_offdiag_helement_rs_hub(nJ,ex2,.false.))
@@ -2187,7 +2186,6 @@ contains
                 elem = 0.0_dp
                 ASSERT(is_beta(src) .eqv. is_beta(neighbors(i)))
                 if (IsNotOcc(ilutI,neighbors(i))) then
-                    ! elem = abs(get_offdiag_helement_rs_hub(nI,[src,neighbors(i)],.false.))
                     ex(2) = neighbors(i)
                     call swap_excitations(nI, ex, nJ, ex2)
                     elem = abs(get_offdiag_helement_rs_hub(nJ,ex2,.false.))
