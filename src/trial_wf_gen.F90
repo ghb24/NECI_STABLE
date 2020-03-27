@@ -252,11 +252,7 @@ contains
         write(6,'("Generating the vector \sum_j H_{ij} \psi^T_j...")'); call neci_flush(6)
         allocate(con_space_vecs(nexcit_keep, con_space_size), stat=ierr)
         call LogMemAlloc('con_space_vecs', con_space_size, 8, t_r, ConVecTag, ierr)
-        if (tGUGA .and. (.not. t_guga_mat_eles)) then
-            call generate_connected_space_vector_guga(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
-        else
-            call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
-        end if
+        call generate_connected_space_vector(SpawnedParts, trial_wfs_all_procs, con_space, con_space_vecs)
 
         call MPIBarrier(ierr)
 
@@ -516,68 +512,6 @@ contains
      list_2_size = counter
 
     end subroutine remove_list1_states_from_list2
-
-    subroutine generate_connected_space_vector_guga(trial_space, trial_vecs, con_space, con_vecs)
-        ! need a specific routine for the guga case, to do it more efficiently
-        ! although i realise by now, that i probably could do it way more
-        ! efficient if i rewrite everything from scratch for the guga case..
-
-        use MemoryManager, only: LogMemAlloc, LogMemDealloc
-        use guga_bitrepops, only: convert_ilut_toGUGA, extract_h_element
-        use guga_excitations, only: actHamiltonian
-        use guga_matrixelements, only: calcDiagMatEleGuga_nI
-        use guga_data, only: tag_excitations
-        use util_mod, only: binary_search
-        use bit_reps, only: nifguga
-
-
-        integer(n_int), intent(in) :: trial_space(0:,:)
-        HElement_t(dp), intent(in) :: trial_vecs(:,:)
-        integer(n_int), intent(in) :: con_space(0:,:)
-        HElement_t(dp), intent(out) :: con_vecs(:,:)
-
-        integer :: i, j, nJ(nel), pos, nexcits
-        integer(n_int) :: ilutG(0:nifguga)
-        HElement_t(dp) :: H_ij
-        integer(n_int), pointer :: excitations(:,:)
-        character(*), parameter :: this_routine = "generate_connected_space_vector_guga"
-
-        con_vecs = 0.0_dp
-
-        ! in the guga case it is more efficient i guess to loop over the
-        ! smaller trial space, act the hamiltonian on it and get the specific
-        ! matrix element for the connected space
-
-        do j = 1, size(trial_vecs,2)
-
-            call decode_bit_det(nJ, trial_space(0:niftot, j))
-
-            call convert_ilut_toGUGA(trial_space(0:niftot,j), ilutG)
-
-            call actHamiltonian(ilutG, excitations, nexcits)
-
-            do i = 1, size(con_vecs,2)
-
-                if (all(con_space(0:nifd,i) == trial_space(0:nifd,j))) then
-                    H_ij = calcDiagMatEleGuga_nI(nJ)
-
-                else
-
-                    pos = binary_search(excitations(0:nifd,1:nexcits), con_space(0:nifd,i))
-
-                    if (pos > 0) then
-                        H_ij = extract_h_element(excitations(:,pos))
-                    else
-                        H_ij = HEl_zero
-                    end if
-                end if
-                con_vecs(:,i) = con_vecs(:,i) + H_ij * trial_vecs(:,j)
-            end do
-            deallocate(excitations)
-            call LogMemDealloc(this_routine, tag_excitations)
-        end do
-
-    end subroutine generate_connected_space_vector_guga
 
     subroutine generate_connected_space_vector(trial_space, trial_vecs, con_space, con_vecs)
 

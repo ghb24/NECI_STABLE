@@ -1784,10 +1784,9 @@ contains
         use Determinants, only: GetH0Element3, GetH0Element4
         use FciMCData, only: ilutHF, HFDet, Fii
         use SystemData, only: tUEG
-        use CalcData, only: t_guga_mat_eles
         use SystemData, only: tGUGA
         use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-        use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
+        use guga_excitations, only: calc_guga_matrix_element
         use guga_data, only: ExcitationInformation_t
         integer, intent(in) :: nI(nel)
         integer(n_int), intent(in) :: ilut(0:NIfTot)
@@ -1813,14 +1812,10 @@ contains
             ! fock energies, so can consider either.
             hel = hphf_off_diag_helement(HFDet, nI, iLutHF, ilut)
         else if (tGUGA) then
-            if (t_guga_mat_eles) then
-                ! i am not sure if the ref_stepvector thingies are set up for
-                ! the ilutHF in this case..
-                call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
-                    .true., 2)
-            else
-                hel = calc_off_diag_guga_gen(ilut, ilutHF)
-            end if
+            ! i am not sure if the ref_stepvector thingies are set up for
+            ! the ilutHF in this case..
+            call calc_guga_matrix_element(ilut, ilutHF, excitInfo, hel, &
+                .true., 2)
         else
             hel = get_helement(HFDet, nI, ic, ex, tParity)
         end if

@@ -26,7 +26,7 @@ module FciMCParMod
                         t_back_spawn_option, tDynamicCoreSpace, coreSpaceUpdateCycle, &
                         DiagSft, tDynamicTrial, trialSpaceUpdateCycle, semistochStartIter, &
                         tSkipRef, tTrialShift, tSpinProject, t_activate_decay, &
-                        t_guga_mat_eles, t_trunc_guga_pgen_noninits, &
+                        t_direct_guga_ref, t_trunc_guga_pgen_noninits, &
                         tLogAverageSpawns, tActivateLAS, &
                         t_guga_back_spawn, tEN2Init, tEN2Rigorous, tDeathBeforeComms, &
                         tDetermProjApproxHamil, tCoreAdaptiveShift, &
@@ -871,7 +871,7 @@ module FciMCParMod
         end if
 
         if (tGUGA) then
-            if (.not. t_guga_mat_eles) call deallocate_projE_list()
+            if (.not. t_direct_guga_ref) call deallocate_projE_list()
         end if
 
         if (t_cc_amplitudes .and. t_plot_cc_amplitudes) then

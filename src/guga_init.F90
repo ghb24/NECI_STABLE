@@ -16,7 +16,7 @@ module guga_init
                           t_tJ_model
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
-                        t_guga_mat_eles, t_hist_tau_search, tSpinProject, &
+                        t_direct_guga_ref, t_hist_tau_search, tSpinProject, &
                         tReplicaEstimates, tPreCond
 
     use hist_data, only: tHistSpawn
@@ -280,7 +280,7 @@ contains
 
         ! for now (time/iteration comparison) reasons, decide which
         ! reference energy calculation method we use
-        if (t_guga_mat_eles) then
+        if (t_direct_guga_ref) then
             ! use the new "direct" calculation method
             calc_off_diag_guga_ref => calc_off_diag_guga_ref_direct
 

@@ -3,7 +3,7 @@
 ! contains as much excitation related functionality as possible
 module guga_excitations
     ! modules
-    use CalcData, only: t_guga_mat_eles, t_trunc_guga_pgen, t_trunc_guga_matel, &
+    use CalcData, only: t_trunc_guga_pgen, t_trunc_guga_matel, &
                         trunc_guga_pgen, trunc_guga_matel, t_trunc_guga_pgen_noninits, &
                         t_guga_back_spawn, n_guga_back_spawn_lvl, t_guga_back_spawn_trunc, &
                         t_matele_cutoff, matele_cutoff
@@ -111,7 +111,7 @@ module guga_excitations
     public :: calc_guga_matrix_element, global_excitinfo, print_excitinfo, &
               generate_excitation_guga, generate_excitation_guga_crude, &
               assign_excitinfo_values_double, assign_excitinfo_values_single, &
-              actHamiltonian, calc_off_diag_guga_gen, calcdoubleexcitation_withweight, &
+              actHamiltonian, calcdoubleexcitation_withweight, &
               calcnonoverlapdouble, calcsingleoverlaplowering, calcsingleoverlapraising, &
               calcsingleoverlapmixed, calcdoublelowering, calcdoubleraising, &
               calcdoublel2r, calcdoubler2l, calcfullstoplowering, calcfullstopraising, &
@@ -121,7 +121,7 @@ module guga_excitations
               calcremainingswitches_excitinfo_double, checkcompatibility, &
               createsinglestart, singleupdate, singleend, init_singleweight, &
               calcremainingswitches_excitinfo_single, excitationIdentifier, &
-              create_proje_list, calc_pgen_mol_guga, detham_guga, &
+              create_proje_list, calc_pgen_mol_guga, &
               pickorbs_sym_uniform_ueg_single, pickorbs_sym_uniform_ueg_double, &
               pickorbs_sym_uniform_mol_single, pickorbs_sym_uniform_mol_double, &
               pickorbitals_nosym_single, pickorbitals_nosym_double, &
@@ -1994,123 +1994,6 @@ contains
 
     end function calc_mixed_coupling_coeff
 
-    subroutine Detham_guga(ndets, det_list, hamil, ind, n_row, n_elements, ic_max)
-        ! create a routine which mimicks the functioniality of Detham for
-        ! GUGA csfs. to increase the performance in the Lanczos diagonalisation
-        ! procedure
-        use global_utilities, only: timer, set_timer, halt_timer
-        integer, intent(in) :: ndets
-        integer, intent(in) :: det_list(nel,ndets)
-        HElement_t(dp), intent(out), allocatable :: hamil(:)
-        integer, intent(out), allocatable :: ind(:)
-        integer, intent(out) :: n_row(ndets), n_elements
-        integer, intent(out), optional :: ic_max
-        character(*), parameter :: this_routine = "Detham_guga"
-
-        type(timer), save :: proc_timer
-        integer :: i, j, nExcits, cum_rows, pos, i_max
-        integer, allocatable :: temp_ind(:)
-        HElement_t(dp), allocatable :: temp_hamil(:)
-        HElement_t(dp) :: hel
-        integer(n_int), pointer :: excitations(:,:)
-        integer(n_int) :: ilutG(0:nifguga), ilutJ(0:niftot)
-        ! have to figure out how exactly the Detham routine works..
-        ! probably also use timer..
-        proc_timer%timer_name = this_routine
-        call set_timer(proc_timer)
-
-        ! essentially it calculates all the matrix elements between the
-        ! states in the list det_list and stores in in a linear form of
-        ! the matrix
-
-        n_elements = 0
-        n_row = 0
-        cum_rows = 0
-        ! hm i cant allocate hamil, and ind, which is the index list
-        ! before knowing the amount of non-zero elements..
-        ! maybe i also have to count the number of non-zero excitations
-        ! first
-
-        ! if i only calculate the upper triangular part of the hermitian
-        ! H matrix i know the maximum number of elements..
-        ! so allocated for that a temporary array and then do the real ones.
-        allocate(temp_ind(ndets**2 / 2))
-        allocate(temp_hamil(ndets**2 / 2))
-
-        temp_hamil = h_cast(0.0_dp)
-        temp_ind = 0
-
-        do i = 1, ndets
-
-            call EncodeBitDet_guga(det_list(:,i), ilutG)
-
-            call actHamiltonian(ilutG, excitations, nExcits)
-
-            ! in detham they loop inly from i on until the end.., to not
-            ! double calculate.. i have to somehow integrate that in the
-            ! binary_search criteria or?
-
-            do j = i, ndets
-
-                if (i == j) then
-                    hel = calcDiagMatEleGuga_nI(det_list(:,i))
-
-                    n_elements = n_elements + 1
-
-                    n_row(i) = n_row(i) + 1
-
-                    ! and fill the temporary array
-                    temp_ind(cum_rows + n_row(i)) = j
-                    temp_hamil(cum_rows + n_row(i)) = hel
-
-                else
-                    ! here i have to binary_search in the excitation
-
-                    call EncodeBitDet(det_list(:,j), ilutJ)
-
-                    pos = binary_search(excitations(0:nifd,1:nExcits),ilutJ)
-
-                    if (pos > 0) then
-                        hel = extract_h_element(excitations(:,pos))
-
-                        n_elements = n_elements + 1
-
-                        n_row(i) = n_row(i) + 1
-
-                        temp_ind(cum_rows + n_row(i)) = j
-                        temp_hamil(cum_rows + n_row(i)) = hel
-
-                    end if
-                end if
-            end do
-
-            cum_rows = cum_rows + n_row(i)
-
-            deallocate(excitations)
-            call LogMemDealloc(this_routine, tag_excitations)
-        end do
-
-        ! and then make the actual output variables
-        allocate(ind(n_elements))
-        allocate(hamil(n_elements))
-
-        ind = temp_ind(1:n_elements)
-        hamil = temp_hamil(1:n_elements)
-
-        ! use the Lapack! routine idamax, like in detham.F
-!         i_max = maxloc(n_row)
-        ! I also need this output to be conform with the SD based implementation
-        ic_max = n_row(maxloc(n_row,1))
-
-        deallocate(temp_ind)
-        deallocate(temp_hamil)
-
-        ! and halt the timer
-        call halt_timer(proc_timer)
-
-    end subroutine Detham_guga
-
-
     function plus_start_single(weights, bVal, negSwitches, posSwitches) result (prob)
         type(WeightObj_t), intent(in) :: weights
         real(dp), intent(in) :: bVal, negSwitches, posSwitches
@@ -2377,52 +2260,6 @@ contains
 
     end function probability_one
 
-    function calc_off_diag_guga_gen(ilutI, ilutJ, excitLvl) result(hel)
-        ! calculate the off-diagonal matrix element between ilutI and ilutJ
-        ! by acting with the hamiltonian on ilutJ and search if ilutI is in
-        ! the list of conncected determinant
-        integer(n_int), intent(in) :: ilutI(0:niftot), ilutJ(0:niftot)
-        integer, intent(in), optional :: excitLvl
-        HElement_t(dp) :: hel
-        character(*), parameter :: this_routine = "calc_off_diag_guga_gen"
-
-        integer :: pos, nExcit
-        integer(n_int) :: ilutG(0:nifguga)
-        integer(n_int), pointer :: excitations(:,:)
-        type(timer), save :: proc_timer
-
-        unused_var(excitLvl)
-
-        proc_timer%timer_name = this_routine
-        call set_timer(proc_timer)
-
-
-        ! act the hamiltonian on ilutJ:
-        ! first convert to guga type representation
-        call convert_ilut_toGUGA(ilutJ, ilutG)
-
-        call actHamiltonian(ilutG, excitations, nExcit)
-
-        ! then binary search ilutI in the excitattions
-
-        ! convert ilutI to a guga representation
-
-        ! and the search in excitations
-        pos = binary_search(excitations(0:nifd,1:nExcit), ilutI(0:nifd))
-
-        if ( pos > 0 ) then
-            hel = extract_h_element(excitations(:,pos))
-        else
-            hel = HEl_zero
-        end if
-
-        deallocate(excitations)
-        call LogMemDealloc(this_routine, tag_excitations)
-
-        call halt_timer(proc_timer)
-
-    end function calc_off_diag_guga_gen
-
     subroutine create_projE_list(run, ilutN)
         ! creates a list of determinants and matrix elements connnected to
         ! the determinant ilutRef
@@ -2588,23 +2425,21 @@ contains
             ! acthamiltonian..
             exact_helements(i) = helgen
             excitLvl(i) = getDeltaB(excitations(:,i))
-            if (t_guga_mat_eles) then
-                call calc_guga_matrix_element(ilut, det_list(:,i), excitInfo, &
-                    temp_mat, .true., 2)
+            call calc_guga_matrix_element(ilut, det_list(:,i), excitInfo, &
+                temp_mat, .true., 2)
 
-                excit_mat(i,:) = [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l]
+            excit_mat(i,:) = [excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l]
 
-                diff = abs(helgen - temp_mat)
+            diff = abs(helgen - temp_mat)
 
-                if (diff < 1.0e-10_dp) diff = 0.0_dp
+            if (diff < 1.0e-10_dp) diff = 0.0_dp
 
-                if (.not. near_zero(diff)) then
-                    print *, "different matrix elements for CSFs: "
-                    call write_det_guga(6,ilut)
-                    call write_det_guga(6,excitations(:,i))
-                    print *, "actHamiltonian result: ", helgen
-                    print *, "calc_guga_matrix_element result: ", temp_mat
-                end if
+            if (.not. near_zero(diff)) then
+                print *, "different matrix elements for CSFs: "
+                call write_det_guga(6,ilut)
+                call write_det_guga(6,excitations(:,i))
+                print *, "actHamiltonian result: ", helgen
+                print *, "calc_guga_matrix_element result: ", temp_mat
             end if
         end do
 

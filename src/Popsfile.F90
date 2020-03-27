@@ -62,7 +62,7 @@ MODULE PopsfileMod
 
     use SystemData, only: tGUGA
     use guga_matrixElements, only: calcDiagMatEleGUGA_nI
-    use guga_excitations, only: calc_off_diag_guga_gen, calc_guga_matrix_element
+    use guga_excitations, only: calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t
 
     use real_time_data, only: t_real_time_fciqmc, phase_factors, t_kspace_operators, &

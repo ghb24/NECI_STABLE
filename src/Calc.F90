@@ -1269,17 +1269,10 @@ contains
                 ! keyword
                 t_read_probs = .false.
 
-            case ("GUGA-MATELES")
-                ! turn on the new guga-matrix element calculation for stuff
-                ! like the projected energy, semi-stochastic initialization
-                ! and trail-wavefunction creation
-                t_guga_mat_eles = .true.
-
-            case ("NO-GUGA-MATELES")
-                ! changed the default setting to always use the new direct
-                ! way to calculate the guga matrix elements. This keyword
-                ! changes the behavior back to the old way
-                t_guga_mat_eles = .false.
+            case ("DIRECT-GUGA-REF")
+                ! option to calculate the reference energy directly and not
+                ! via a pre-computed list
+                t_direct_guga_ref = .true.
 
             case('TRUNC-GUGA-PGEN')
                 ! truncate GUGA excitation with a pgen below a chosen

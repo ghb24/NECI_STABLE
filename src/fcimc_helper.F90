@@ -55,7 +55,7 @@ module fcimc_helper
                         tSeniorInitiators, SeniorityAge, tInitCoherentRule, &
                         tLogAverageSpawns, &
                         spawnSgnThresh, minInitSpawns, &
-                        t_trunc_nopen_diff, trunc_nopen_diff, t_guga_mat_eles,&
+                        t_trunc_nopen_diff, trunc_nopen_diff, t_direct_guga_ref,&
                         tAutoAdaptiveShift, tAAS_MatEle, tAAS_MatEle2, &
                         tAAS_MatEle3, tAAS_MatEle4, AAS_DenCut, &
                         tSimpleInit, &
@@ -2531,7 +2531,7 @@ contains
 
             ref_b_vector_real = real(ref_b_vector_int,dp)
 
-            if (.not. t_guga_mat_eles)  call create_projE_list(run)
+            if (.not. t_direct_guga_ref)  call create_projE_list(run)
 
         end if
 

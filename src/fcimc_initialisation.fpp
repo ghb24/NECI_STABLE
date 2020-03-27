@@ -50,7 +50,7 @@ module fcimc_initialisation
                         initial_refs, trial_init_reorder, tStartTrialLater, tTrialInit, &
                         ntrial_ex_calc, tPairedReplicas, tMultiRefShift, tPreCond, &
                         tMultipleInitialStates, initial_states, t_hist_tau_search, &
-                        t_guga_mat_eles, &
+                        t_direct_guga_ref, &
                         t_previous_hist_tau, t_fill_frequency_hists, t_back_spawn, &
                         t_trunc_nopen_diff, t_guga_back_spawn, tExpAdaptiveShift, &
                         t_back_spawn_option, t_back_spawn_flex_option, &
@@ -496,7 +496,7 @@ contains
             ! only initialize that if we use the old way to calc the
             ! reference energy!
             ! for testing purposes initiaize both
-            if (.not. t_guga_mat_eles) then
+            if (.not. t_direct_guga_ref) then
                 do run = 1, inum_runs
                     call create_projE_list(run)
                 end do
