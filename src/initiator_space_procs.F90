@@ -14,6 +14,7 @@ module initiator_space_procs
     use semi_stoch_procs
     use sparse_arrays
     use timing_neci
+    use shared_rhash, only: initialise_shared_rht
 
     implicit none
 
@@ -25,7 +26,7 @@ module initiator_space_procs
     integer(MPIArg) :: initiator_space_size
     integer :: initiator_space_size_int
 
-    type(core_hashtable), allocatable :: initiator_ht(:)
+    type(shared_rhash_t) :: initiator_ht
 
 contains
 
@@ -102,7 +103,7 @@ contains
         ! Store every determinant from all processors on all processors, in initiator_space.
         call store_whole_initiator_space()
         ! Create the hash table to address the initiator determinants.
-        call initialise_core_hash_table(initiator_space, initiator_space_size_int, initiator_ht)
+        call initialise_shared_rht(initiator_space, initiator_space_size_int, initiator_ht)
 
         call set_initiator_space_flags()
 
@@ -210,20 +211,21 @@ contains
         integer(n_int), intent(in) :: ilut(0:NIfTot)
 
         integer, intent(in) :: nI(:)
-        integer :: i, hash_val
+        integer(int64) :: hash_val, pos
 
         logical :: initiator_state
 
-        initiator_state = .false.
-
         hash_val = FindWalkerHash(nI, initiator_space_size_int)
 
-        do i = 1, initiator_ht(hash_val)%nclash
-            if (all(ilut(0:nifd) == initiator_space(0:nifd, initiator_ht(hash_val)%ind(i)) )) then
-                initiator_state = .true.
-                return
-            end if
-        end do
+        call initiator_ht%callback_lookup(hash_val, pos, initiator_state, loc_verify)
+
+    contains
+
+        function loc_verify(ind) result(match)
+            integer(int64), intent(in) :: ind
+            logical :: match
+            match =  (all(ilut(0:nifd) == initiator_space(0:nifd, ind)))
+        end function loc_verify
 
     end function is_in_initiator_space
 

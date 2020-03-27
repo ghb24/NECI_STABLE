@@ -115,6 +115,8 @@ LOGICAL :: tCheckHighestPop,tRestartHighPop,tChangeProjEDet
 LOGICAL :: tRotoAnnihil,tSpawnAsDet
 LOGICAL :: tTruncCAS ! Truncation of the FCIMC excitation space by a CAS
 logical :: tTruncInitiator, tAddtoInitiator, tInitCoherentRule, tGlobalInitFlag
+! Are all core-space determinants initiators?
+logical :: t_core_inits = .false.
 logical :: tEN2, tEN2Init, tEN2Truncated, tEN2Started, tEN2Rigorous
 
 LOGICAL :: tSeniorInitiators !If a det. has lived long enough (called a senior det.), it is added to the initiator space.
@@ -265,6 +267,9 @@ logical :: tDynamicCoreSpace, tStaticCore, tIntervalSet ! update the corespace
 integer :: coreSpaceUpdateCycle, semistochStartIter
 ! Input type describing which space(s) type to use.
 type(subspace_in) :: ss_space_in
+
+! For testing purposes
+logical :: t_fast_pops_core = .true.
 
 ! Options regarding splitting the space into core and non-core elements. Needed, for example when performing a
 ! semi-stochastic simulation, to specify the deterministic space.

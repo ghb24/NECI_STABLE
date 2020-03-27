@@ -34,6 +34,7 @@ stepsshift 1
 load-balance-blocks off
 tau 0.0005 search
 semi-stochastic
+core-inits
 en2-initiator
 mp1-core 100
 endcalc

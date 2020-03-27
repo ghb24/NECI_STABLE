@@ -1818,10 +1818,6 @@ contains
 
       ! Prepare the store_whole_core_space communication routine
       allocate(determ_displs(0:nProcessors-1))
-      determ_displs(0) = 0
-      do i = 1, nProcessors-1
-         determ_displs(i) = sum(determ_sizes(:i-1))
-      enddo
 
       ! Communciate the newly built corespace and output it
       call store_whole_core_space()

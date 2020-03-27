@@ -2,6 +2,13 @@
 # Scalar values
 #####################
 
+[bool]
+dim=:
+rank=1
+type1=logical
+mpitype=MPI_LOGICAL
+sizeb=4
+
 [int]
 dim=:
 rank=1

@@ -29,6 +29,7 @@ trial-wavefunction
 pops-trial 20
 semi-stochastic
 pops-core 500
+core-inits
 readpops
 load-balance-blocks off
 endcalc

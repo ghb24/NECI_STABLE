@@ -70,6 +70,7 @@ set( SRC_FILES
     hist_data.F90
     HPHFRandExcit.F90
     hubbard.F
+	index_rhash.F90
     init_coul2D.F
     init_coul.F
     initial_trial_states.F90
@@ -140,6 +141,7 @@ set( SRC_FILES
     searching.F90
     semi_stoch_gen.F90
     semi_stoch_procs.F90
+	shared_ragged_array.F90	
 	shared_rhash.F90
     sparse_arrays.F90
     spectral_data.F90
@@ -230,6 +232,7 @@ set( SRC_FILES
 )
 
 set( FYPP_SRC_FILES
+    buffer_1d.fpp
     fcimc_initialisation.fpp
     HPHFIntegrals.fpp
     sltcnd.fpp

@@ -514,13 +514,14 @@ contains
            sizes(39) = size(HFOut)
            sizes(40) = size(Acceptances)
            sizes(41) = size(SumWalkersOut)
+           sizes(42) = 1
        endif
 
        if(t_real_time_fciqmc) then
-           sizes(42) = size(popSnapShot)
-           NoArrs = 42
+           sizes(43) = size(popSnapShot)
+           NoArrs = 43
        else
-           NoArrs = 41
+           NoArrs = 42
        endif
 
         send_arr = 0.0_dp
@@ -592,8 +593,9 @@ contains
            low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = HFOut
            low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = Acceptances
            low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = SumWalkersOut
+           low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = n_core_non_init           
            if(t_real_time_fciqmc) then
-               low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = popSnapShot;
+               low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = popSnapShot;
            endif
         endif
 
@@ -666,8 +668,9 @@ contains
            low = upp + 1; upp = low + sizes(39) - 1; RealAllHFOut = recv_arr(low:upp)
            low = upp + 1; upp = low + sizes(40) - 1; AllAcceptances = recv_arr(low:upp)
            low = upp + 1; upp = low + sizes(41) - 1; AllSumWalkersOut = recv_arr(low:upp)
+           low = upp + 1; upp = low + sizes(42) - 1; all_n_core_non_init = nint(recv_arr(low))
            if(t_real_time_fciqmc) then
-               low = upp + 1; upp = low + sizes(57) - 1; allPopSnapShot = recv_arr(low:upp);
+               low = upp + 1; upp = low + sizes(43) - 1; allPopSnapShot = recv_arr(low:upp);
            endif
         endif
         ! Communicate HElement_t variables:
@@ -1257,6 +1260,9 @@ contains
         ! and the number of excits
         nInvalidExcits = 0
         nValidExcits = 0
+
+        ! the number of non-inititators in the core-space
+        n_core_non_init = 0
       end subroutine rezero_output_stats
 
     subroutine rezero_iter_stats_update_cycle (iter_data, tot_parts_new_all)

@@ -19,7 +19,7 @@ start-neel-state
 allrealcoeff
 semi-stochastic 10
 pops-core 10
-
+core-inits
 tau 0.001
 
 seed 1

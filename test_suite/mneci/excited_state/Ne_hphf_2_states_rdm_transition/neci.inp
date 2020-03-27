@@ -29,6 +29,7 @@ realspawncutoff 0.5
 orthogonalise-replicas
 semi-stochastic 500
 pops-core 10000
+core-inits
 num-trial-states-calc 10
 trial-wavefunction 500
 doubles-trial

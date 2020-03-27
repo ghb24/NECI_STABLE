@@ -27,6 +27,7 @@ allrealcoeff
 realspawncutoff 0.01
 semi-stochastic
 mp1-core 50
+core-inits
 trial-wavefunction
 mp1-trial 20
 load-balance-blocks off

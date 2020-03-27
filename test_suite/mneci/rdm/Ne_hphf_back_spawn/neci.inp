@@ -24,6 +24,7 @@ allrealcoeff
 realspawncutoff 0.05
 semi-stochastic 150
 pops-core 2000
+core-inits
 trial-wavefunction 150
 pops-trial 100
 load-balance-blocks off

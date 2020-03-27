@@ -23,6 +23,7 @@ addtoinitiator 3
 walkcontgrow
 semi-stochastic 100
 pops-core 100
+core-inits
 allrealcoeff
 realspawncutoff 0.02
 jump-shift
