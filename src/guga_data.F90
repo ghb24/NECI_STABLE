@@ -21,7 +21,8 @@ module guga_data
               tGUGACore, bvectorref_ilut, bvectorref_ni, init_guga_data_procptrs, &
               excit_type, gen_type, excit_names, &
               rdm_ind_bitmask, pos_excit_lvl_bits, pos_excit_type_bits, &
-              n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits
+              n_excit_lvl_bits, n_excit_type_bits, n_excit_info_bits, &
+              RdmContribList_t
 
     ! ========================== type defs ===================================
 
@@ -445,9 +446,24 @@ module guga_data
 
     type(ProjE_t), allocatable :: projE_replica(:)
 
+    type RdmContribList_t
+        integer(n_int), allocatable :: ilut_list(:,:)
+        real(dp), allocatable :: rdm_contrib(:)
+        integer(int_rdm), allocatable :: rdm_ind(:)
+        integer, allocatable :: repeat_count(:)
+    end type RdmContribList_t
+
     ! also make a global integer list of orbital indices, so i do not have to
     ! remake them in every random orbital picker!
     integer, allocatable :: orbitalIndex(:)
+
+    ! make a global RDM to HF Contribution list for faster calculation of
+    ! those contributions
+    type(RdmContribList_t), allocatable :: HF_rdm_contribs(:)
+
+    ! and if the reference is different than the 'true HF' maybe also make
+    ! a list for these contribs! if they are the same we can use the above
+    type(RdmContribList_t), allocatable :: ref_rdm_contribs(:)
 
     ! use a global flag to indicate a switch to a new determinant in the
     ! main routine to avoid recalculating b vector occupation and

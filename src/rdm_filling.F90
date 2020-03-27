@@ -9,15 +9,20 @@ module rdm_filling
     use bit_reps, only: get_initiator_flag_by_run
     use constants
     use SystemData, only: tGUGA, nbasis
-    use guga_bitRepOps, only: extract_stochastic_rdm_info
+    use guga_bitRepOps, only: extract_stochastic_rdm_info, extract_2_rdm_ind, &
+                              init_csf_information
     use rdm_data, only: rdm_spawn_t, rdmCorrectionFactor
     use CalcData, only: tAdaptiveShift, tNonInitsForRDMs, tInitsRDMRef, &
          tNonVariationalRDMs
     use FciMCData, only: projEDet, ilutRef
     use DetBitOps, only: DetBitEq
     use guga_rdm, only: Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
-                        fill_spawn_rdm_diag_guga, Add_RDM_HFConnections_GUGA
+                        fill_spawn_rdm_diag_guga, Add_RDM_HFConnections_GUGA, &
+                        fill_sings_1rdm_guga, fill_sings_2rdm_guga
     use util_mod, only: near_zero
+    use guga_data, only: excit_type, ExcitationInformation_t
+    use guga_excitations, only: calc_guga_matrix_element
+
     implicit none
 
 contains
@@ -962,9 +967,12 @@ contains
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         logical :: tParity
         integer(n_int) :: iLutI(0:niftot), iLutJ(0:niftot)
-        integer :: nI(nel), nJ(nel), IC
+        integer :: nI(nel), nJ(nel), IC, n, p, q, r, s
         integer :: IterRDM, connect_elem
-
+        integer(int_rdm), allocatable :: rdm_ind(:)
+        real(dp), allocatable :: rdm_mat(:)
+        type(ExcitationInformation_t) :: excitInfo
+        HElement_t(dp) :: mat_ele
         character(*), parameter :: this_routine = "fill_rdm_offdiag_deterministic"
 
         ! IterRDM will be the number of iterations that the contributions are
@@ -993,6 +1001,8 @@ contains
             end do
 
             call decode_bit_det(nI,iLutI)
+
+            if (tGUGA) call init_csf_information(ilutI(0:nifd))
 
             do j = 1, sparse_core_ham(i)%num_elements-1
                 ! Running over all non-zero off-diag matrix elements
@@ -1035,11 +1045,48 @@ contains
                     ! have no way of knowing the rdm info..
                     ! except if I would additionally store this in the
                     ! semi-stochastic space setup! TODO
-                    call decode_bit_det(nJ, iLutJ)
-                    call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nI, nJ, &
-                        AvSignI * IterRDM, AvSignJ, t_bra_to_ket = .true., &
-                        t_fast = .false.)
+                    ! call decode_bit_det(nJ, iLutJ)
+                    ! call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nI, nJ, &
+                    !     AvSignI * IterRDM, AvSignJ, t_bra_to_ket = .true., &
+                    !     t_fast = .false.)
 
+                    call calc_guga_matrix_element(ilutI, ilutJ, excitInfo, mat_ele, &
+                        t_hamil = .false., calc_type = 1, rdm_ind = rdm_ind, &
+                        rdm_mat = rdm_mat)
+
+                    ! i assume sign_i and sign_j are not 0 if we end up here..
+                    do n = 1, size(rdm_ind)
+                        if (.not. near_zero(rdm_mat(n))) then
+                            if (excitInfo%excitLvl == 1) then
+                                if (RDMExcitLevel == 1) then
+                                    call fill_sings_1rdm_guga(one_rdms, &
+                                        AvSignI * IterRDM, AvSignJ, &
+                                        rdm_mat(n), rdm_ind(n))
+                                else
+                                    call fill_sings_2rdm_guga(spawn, ilutI, &
+                                        ilutJ, AvSignI * IterRDM, AvSignJ, rdm_mat(n), rdm_ind(n))
+                                end if
+                            else if (excitInfo%excitLvl == 2 .and. RDMExcitLevel /= 1) then
+                                call extract_2_rdm_ind(rdm_ind(n), p, q, r, s)
+                                full_sign = AvSignI * IterRDM * AvSignJ * rdm_mat(n)
+
+
+                                ! here in the 'exact' filling (coming from HF or
+                                ! within the semistochastic space I think it makes
+                                ! sense to fill symmetrically.. since here no
+                                ! stochastic spawning is happening and this does not
+                                ! give us information about the hermiticity error!
+                                call add_to_rdm_spawn_t(spawn, p, q, r, s, &
+                                    full_sign, .true.)
+
+                                if (.not. &
+                                    (excitInfo%typ == excit_type%fullstart_stop_alike)) then
+                                    call add_to_rdm_spawn_t(spawn, r, s, p, q, &
+                                        full_sign, .true.)
+                                end if
+                            end if
+                        end if
+                    end do
 
                 else
                     if (IC == 1) then

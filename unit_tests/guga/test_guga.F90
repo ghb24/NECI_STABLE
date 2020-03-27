@@ -26,7 +26,8 @@ program test_guga
                         test_fill_spawn_diag, t_diag_exchange, combine_x0_x1, &
                         pure_rdm_ind, generator_sign, create_all_rdm_contribs, &
                         extract_molcas_1_rdm_index, contract_molcas_1_rdm_index, &
-                        extract_molcas_2_rdm_index, contract_molcas_2_rdm_index
+                        extract_molcas_2_rdm_index, contract_molcas_2_rdm_index, &
+                        create_hf_rdm_connections_guga
     use constants
     use DetBitOps
     use Determinants
@@ -85,11 +86,8 @@ contains
 
         call init_guga_testsuite()
 
-        call run_test_case(test_contract_extract_1_rdm_molcas, &
-            "test_contract_extract_1_rdm_molcas")
-        call run_test_case(test_contract_extract_2_rdm_molcas, &
-            "test_contract_extract_2_rdm_molcas")
-
+        call run_test_cast(test_create_hf_rdm_connections_guga, &
+            "test_create_hf_rdm_connections_guga")
         call stop_all("2","2")
 
         call compare_rdm_all_excits_and_mat_eles()
@@ -105,12 +103,24 @@ contains
         call run_test_case(test_excitationIdentifier, "test_excitationIdentifier")
         call run_test_case(test_bitChecks, "test_bitChecks")
         call run_test_case(test_identify_excitation, "test_identify_excitation")
-        call run_test_case(test_identify_excitation_and_matrix_element, "test_identify_excitation_and_matrix_element")
+        call run_test_case(test_identify_excitation_and_matrix_element, &
+            "test_identify_excitation_and_matrix_element")
 
         !TODO maybe run the excit-gen test also!
         !call run_test_excit_gen_guga_S0
 
     end subroutine guga_test_driver
+
+    subroutine test_create_hf_rdm_connections_guga
+
+        print *, ""
+        print *, "testing: create_hf_rdm_connections_guga"
+
+        call assert_true(.false.)
+        print *, ""
+        print *, "testing: create_hf_rdm_connections_guga. DONE"
+
+    end subroutine test_create_hf_rdm_connections_guga
 
     subroutine test_contract_extract_1_rdm_molcas
 
@@ -2366,7 +2376,8 @@ contains
             "test_contract_extract_1_rdm_molcas")
         call run_test_case(test_contract_extract_2_rdm_molcas, &
             "test_contract_extract_2_rdm_molcas")
-
+        call run_test_cast(test_create_hf_rdm_connections_guga, &
+            "test_create_hf_rdm_connections_guga")
 
         print *, ""
         print *, "guga_bitRepOps tests passed!"

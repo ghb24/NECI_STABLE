@@ -31,7 +31,8 @@ module guga_rdm
                                 calcRemainingSwitches_excitInfo_double, &
                                 calc_guga_matrix_element
     use guga_data, only: ExcitationInformation_t, tag_tmp_excits, tag_excitations, &
-                         excit_type, gen_type, rdm_ind_bitmask, excit_names
+                         excit_type, gen_type, rdm_ind_bitmask, excit_names, &
+                         RdmContribList_t
     use guga_data, only: getDoubleMatrixElement, funA_0_2overR2, funA_m1_1_overR2, &
                          funA_3_1_overR2, funA_2_0_overR2, minFunA_2_0_overR2, &
                          minFunA_0_2_overR2, getDoubleContribution, getMixedFullStop
@@ -83,7 +84,9 @@ module guga_rdm
               combine_x0_x1, pure_rdm_ind, generator_sign, &
               create_all_rdm_contribs, contract_molcas_1_rdm_index, &
               extract_molcas_1_rdm_index, contract_molcas_2_rdm_index, &
-              extract_molcas_2_rdm_index, output_molcas_rdms
+              extract_molcas_2_rdm_index, output_molcas_rdms, &
+              create_hf_rdm_connections_guga, fill_sings_1rdm_guga, &
+              fill_sings_2rdm_guga
 
 contains
 
@@ -573,6 +576,37 @@ contains
 
     end function generator_sign
 
+    subroutine create_hf_rdm_connections_guga(connections, ref_det, run)
+        type(RdmContribList_t), allocatable, intent(out) :: connections(:)
+        integer, intent(in), optional :: ref_det(nel)
+        integer, intent(in), optional :: run
+        character(*), parameter :: this_routine = "create_hf_rdm_connections_guga"
+        integer(n_int) :: ilutG(0:GugaBits%len_tot)
+        integer :: nI(nel), ind, n_singles, n_doubles, n_tot
+        integer(n_int), pointer :: singles(:,:), doubles(:,:), total(:,:)
+
+        def_default(ind, run, 1)
+        def_default(nI, ref_det, projEDet(:,ind))
+
+        call EncodeBitDet_guga(nI, ilutG)
+        ! create singles
+        call calc_explicit_1_rdm_guga(ilutG, n_singles, singles)
+
+        ! create doubles
+        call calc_explicit_2_rdm_guga(ilutG, n_doubles, doubles)
+
+        ! allocate..
+        allocate(total(0:GugaBits%len_tot, n_singles + n_doubles), &
+            source = 0_n_int)
+
+        n_tot = 0
+        call add_guga_lists_rdm(n_tot, n_singles, total, singles)
+        call add_guga_lists_rdm(n_tot, n_doubles, total, doubles)
+
+        call sort(total(:,1:n_tot), ilut_lt, ilut_gt)
+
+    end subroutine create_hf_rdm_connections_guga
+
     subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, nJ, av_sign_j, &
             av_sign_hf, excit_lvl, iter_rdm)
         type(rdm_spawn_t), intent(inout) :: spawn
@@ -587,14 +621,30 @@ contains
         ! since NJ does not come from a spawning event but is
         ! done deterministically for the HF connections..
         ! there should be a clever way to do this..
-        if (excit_lvl == 1 .or. excit_lvl == 2) then
-            call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, HFDet_True, nJ, &
-                av_sign_hf(2::2), iter_rdm * av_sign_j(1::2), .true., t_fast = .false.)
-            call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nJ, HFDet_True, &
-                av_sign_j(2::2), iter_rdm * av_sign_hf(1::2), .false., t_fast = .false.)
+        if ((excit_lvl == 1 .or. excit_lvl == 2) .and. &
+            ((.not. all(near_zero(av_sign_hf))) .and. &
+            (.not. all(near_zero(av_sign_j))))) then
+            call fill_hf_rdm_connections_guga(spawn, one_rdms, nJ, av_sign_j, &
+                av_sign_hf, iter_rdm)
         end if
+        ! if (excit_lvl == 1 .or. excit_lvl == 2) then
+        !     call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, HFDet_True, nJ, &
+        !         av_sign_hf(2::2), iter_rdm * av_sign_j(1::2), .true., t_fast = .false.)
+        !     call Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nJ, HFDet_True, &
+        !         av_sign_j(2::2), iter_rdm * av_sign_hf(1::2), .false., t_fast = .false.)
+        ! end if
 
     end subroutine Add_RDM_HFConnections_GUGA
+
+    subroutine fill_hf_rdm_connections_guga(spawn, one_rdms, nJ, sign_j, &
+            sign_hf, iter_rdm)
+        type(rdm_spawn_t), intent(inout) :: spawn
+        type(one_rdm_t), intent(inout) :: one_rdms(:)
+        integer, intent(in) :: nJ(nel), iter_rdm(:)
+        real(dp), intent(in) :: sign_hf(:), sign_j(:)
+        character(*), parameter :: this_routine = "fill_hf_rdm_connections_guga"
+
+    end subroutine fill_hf_rdm_connections_guga
 
     subroutine Add_RDM_From_IJ_Pair_GUGA(spawn, one_rdms, nI, nJ, sign_i, &
             sign_j, t_bra_to_ket, t_fast, rdm_ind_in, x0, x1)
@@ -612,8 +662,8 @@ contains
 #endif
         type(ExcitationInformation_t) :: excitInfo
         HElement_t(dp) :: mat_ele
-        integer(int_rdm), allocatable :: rdm_ind(:), rdm_ind_2(:)
-        real(dp), allocatable :: rdm_mat(:), rdm_mat_2(:)
+        integer(int_rdm), allocatable :: rdm_ind(:)
+        real(dp), allocatable :: rdm_mat(:)
         integer :: i, j, k, l, n, ex_lvl, ex_typ, pick, m
         real(dp) :: full_sign(spawn%rdm_send%sign_length)
         integer(n_int) :: ilutGi(0:GugaBits%len_tot), ilutGj(0:GugaBits%len_tot)
