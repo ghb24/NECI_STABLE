@@ -26,7 +26,7 @@ program test_guga
                         pure_rdm_ind, generator_sign, create_all_rdm_contribs, &
                         extract_molcas_1_rdm_index, contract_molcas_1_rdm_index, &
                         extract_molcas_2_rdm_index, contract_molcas_2_rdm_index, &
-                        create_hf_rdm_connections_guga, calc_all_excits_guga_rdm_doubles, &
+                        calc_all_excits_guga_rdm_doubles, &
                         conjugate_rdm_ind
     use constants
     use DetBitOps
