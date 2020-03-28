@@ -32,6 +32,8 @@ MODULE Logging
 
     use cc_amplitudes, only: t_plot_cc_amplitudes
 
+    use fcimcdata, only: tFillingStochRDMonFly
+
     IMPLICIT NONE
 
     logical, public :: RDMlinspace_in_inp, calcrdmonfly_in_inp
@@ -134,6 +136,7 @@ MODULE Logging
       iNumPropToEst=0
       instant_s2_multiplier = 1
       tRDMonFly=.false.
+      tFillingStochRDMonFly = .false.
       tChangeVarsRDM = .false.
       RDMEnergyIter=100
       tDiagRDM=.false.

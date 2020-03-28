@@ -1793,8 +1793,6 @@ contains
             & calculation.  Ordering of orbitals is incorrect.  This may be fixed if needed.")
         endif
 
-        ! This keyword (tRDMonFly) is on from the beginning if we eventually
-
         if (tRDMonFly) then
             call init_rdms(nrdms_standard, nrdms_transition)
             !If the iteration specified to start filling the RDM has already been, want to

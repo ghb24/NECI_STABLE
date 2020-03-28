@@ -79,7 +79,7 @@ module guga_rdm
               send_proc_ex_djs, &
               calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
               calc_all_excits_guga_rdm_doubles, calc_explicit_2_rdm_guga, &
-              calc_explicit_diag_2_rdm_guga, test_fill_spawn_diag, &
+              calc_explicit_diag_2_rdm_guga, &
               Add_RDM_From_IJ_Pair_GUGA, fill_diag_1rdm_guga, &
               Add_RDM_HFConnections_GUGA, fill_spawn_rdm_diag_guga, &
               combine_x0_x1, pure_rdm_ind, generator_sign, &
@@ -87,9 +87,57 @@ module guga_rdm
               extract_molcas_1_rdm_index, contract_molcas_2_rdm_index, &
               extract_molcas_2_rdm_index, output_molcas_rdms, &
               create_hf_rdm_connections_guga, fill_sings_1rdm_guga, &
-              fill_sings_2rdm_guga, add_rdm_from_ij_pair_guga_exact
+              fill_sings_2rdm_guga, add_rdm_from_ij_pair_guga_exact, &
+              conjugate_rdm_ind
+
+
+    interface conjugate_rdm_ind
+        module procedure conjugate_rdm_ind_vec
+        module procedure conjugate_rdm_ind_scalar
+    end interface conjugate_rdm_ind
 
 contains
+
+    pure function conjugate_rdm_ind_vec(rdm_ind, order) result(conj_rdm_ind)
+        integer(int_rdm), intent(in) :: rdm_ind(:)
+        integer, intent(in) :: order
+        integer(int_rdm), allocatable :: conj_rdm_ind(:)
+
+        integer :: i, j, k, l, m
+
+        allocate(conj_rdm_ind(size(rdm_ind)), source = 0_int_rdm)
+
+        if (order == 1) then
+
+            do m = 1, size(rdm_ind)
+                call extract_1_rdm_ind(rdm_ind(m), i, j)
+                conj_rdm_ind(m) = contract_1_rdm_ind(j, i)
+            end do
+        else if (order == 2) then
+            do m  = 1, size(rdm_ind)
+                call extract_2_rdm_ind(rdm_ind(m), i, j, k, l)
+                conj_rdm_ind(m) = contract_2_rdm_ind(k, l, i, j)
+            end do
+        end if
+
+    end function conjugate_rdm_ind_vec
+
+    pure function conjugate_rdm_ind_scalar(rdm_ind, order) result(conj_rdm_ind)
+        integer(int_rdm), intent(in) :: rdm_ind
+        integer, intent(in) :: order
+        integer(int_rdm) :: conj_rdm_ind
+
+        integer :: i, j, k, l, m
+
+        if (order == 1) then
+            call extract_1_rdm_ind(rdm_ind, i, j)
+            conj_rdm_ind = contract_1_rdm_ind(j, i)
+        else if (order == 2) then
+            call extract_2_rdm_ind(rdm_ind, i, j, k, l)
+            conj_rdm_ind = contract_2_rdm_ind(k, l, i, j)
+        end if
+
+    end function conjugate_rdm_ind_scalar
 
     pure function contract_molcas_1_rdm_index(i, j) result(ij)
         ! function which uses the molcas RDM index convention
@@ -890,94 +938,6 @@ contains
         end if
 
     end subroutine gen_exc_djs_guga
-
-    subroutine test_fill_spawn_diag(nI, mat_list, ind_list, n_contrib)
-        integer, intent(in) :: nI(nel)
-        real(dp), intent(out), allocatable :: mat_list(:)
-        integer(int_rdm), intent(out), allocatable :: ind_list(:)
-        integer, intent(out) :: n_contrib
-
-        integer :: i, s_orbs(nel), s, j, inc_i, inc_j, p, n
-        real(dp) :: occ_i, occ_j, x0, x1
-        real(dp), allocatable :: tmp_mat(:)
-        integer(int_rdm), allocatable :: tmp_ind(:)
-
-        allocate(tmp_mat(nSpatOrbs**2), source = 0.0_dp)
-        allocate(tmp_ind(nSpatOrbs**2), source = 0_int_rdm)
-
-        n_contrib = 0
-        n = 0
-
-        i = 1
-        s_orbs = gtID(nI)
-
-        do while (i <= nel)
-
-            s = s_orbs(i)
-
-            if (isDouble(nI,i)) then
-                occ_i = 2.0_dp
-                inc_i = 2
-            else
-                occ_i = 1.0_dp
-                inc_i = 1
-            end if
-
-            j = i + inc_i
-
-            do while (j <= nel)
-
-                p = s_orbs(j)
-
-                if (isDouble(nI,j)) then
-                    occ_j = 2.0_dp
-                    inc_j = 2
-                else
-                    occ_j = 1.0_dp
-                    inc_j = 1
-                end if
-
-                ! x0 matrix element is easy
-                x0 = -occ_i * occ_j / 2.0_dp
-
-                if (inc_i == 1 .and. inc_j == 1) then
-                    ! if we have open-shell to open chell
-                    x1 = calcDiagExchangeGUGA_nI(i, j, nI) / 2.0_dp
-
-                    n = n + 1
-                    tmp_mat(n) = x0 - x1
-                    tmp_ind(n) = contract_2_rdm_ind(s, p, p, s)
-
-                    n = n + 1
-                    tmp_mat(n) = x0 - x1
-                    tmp_ind(n) = contract_2_rdm_ind(p, s, s, p)
-
-                else
-
-                    n = n + 1
-                    tmp_mat(n) = x0
-                    tmp_ind(n) = contract_2_rdm_ind(s, p, p, s)
-
-                    n = n + 1
-                    tmp_mat(n) = x0
-                    tmp_ind(n) = contract_2_rdm_ind(p, s, s, p)
-
-                end if
-
-                j = j + inc_j
-            end do
-            i = i + inc_i
-        end do
-
-        n_contrib = n
-        allocate(mat_list(n_contrib), source = tmp_mat(1:n_contrib))
-        allocate(ind_list(n_contrib), source = tmp_ind(1:n_contrib))
-
-        deallocate(tmp_mat)
-        deallocate(tmp_ind)
-
-
-    end subroutine test_fill_spawn_diag
 
 
     subroutine fill_spawn_rdm_diag_guga(spawn, nI, full_sign)

@@ -71,7 +71,8 @@ MODULE FciMCData
       INTEGER :: Spawned_ParentsTag, Spawned_Parents_IndexTag
       REAL(dp) :: SumSigns, SumSpawns
       real(dp), allocatable :: AvNoatHF(:)
-      LOGICAL :: tFillingStochRDMonFly, tFillingExplicRDMonFly
+      LOGICAL :: tFillingStochRDMonFly = .false., &
+                 tFillingExplicRDMonFly = .false.
       logical :: tTransitionRDMsStarted = .false.
       logical :: tFill_RDM
       integer :: IterLastRDMFill

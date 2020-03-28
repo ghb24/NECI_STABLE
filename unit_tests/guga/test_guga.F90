@@ -22,11 +22,12 @@ program test_guga
     use guga_procedure_pointers
     use guga_rdm, only: calc_all_excits_guga_rdm_singles, calc_explicit_1_rdm_guga, &
                         calc_explicit_diag_2_rdm_guga, calc_explicit_2_rdm_guga, &
-                        test_fill_spawn_diag, combine_x0_x1, &
+                        combine_x0_x1, &
                         pure_rdm_ind, generator_sign, create_all_rdm_contribs, &
                         extract_molcas_1_rdm_index, contract_molcas_1_rdm_index, &
                         extract_molcas_2_rdm_index, contract_molcas_2_rdm_index, &
-                        create_hf_rdm_connections_guga, calc_all_excits_guga_rdm_doubles
+                        create_hf_rdm_connections_guga, calc_all_excits_guga_rdm_doubles, &
+                        conjugate_rdm_ind
     use constants
     use DetBitOps
     use Determinants
@@ -83,8 +84,8 @@ contains
     subroutine guga_test_driver
 
         call init_guga_testsuite()
-        call compare_rdm_all_excits_and_mat_eles()
-!         call run_test_case(compare_fill_diag_and_explicit_diag)
+        call run_test_case(compare_rdm_all_excits_and_mat_eles, &
+            "compare_rdm_all_excits_and_mat_eles")
 
         call test_guga_bitRepOps
         call test_guga_excitations_stochastic
@@ -286,6 +287,7 @@ contains
 
         end if
 
+
         nI = [1,2,3,6]
         call EncodeBitDet_guga(nI, ilut)
 
@@ -335,7 +337,8 @@ contains
         cnt = 0
         do i = 1, size(rdm_inds)
             do j = 1, size(rdm_ind_ex)
-                if (pure_rdm_ind(rdm_inds(i)) == rdm_ind_ex(j)) then
+                if (pure_rdm_ind(rdm_inds(i)) == rdm_ind_ex(j) .or. &
+                    pure_rdm_ind(rdm_inds(i)) == conjugate_rdm_ind(rdm_ind_ex(j),2)) then
                     call assert_equals(rdm_mat_ex(j), rdm_mats(i))
                     cnt = cnt + 1
                 end if
@@ -343,7 +346,6 @@ contains
         end do
         call assert_true(cnt > 0)
 
-        call stop_all("h","h")
         print *, ""
         print *, "testing: create_all_rdm_contribs. DONE"
 
@@ -622,14 +624,18 @@ contains
                 t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
                 rdm_mat = rdm_mat)
 
-            call assert_true(any(rdm_ind == rdm_ind_1))
+            call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
+                any(pure_rdm_ind(conjugate_rdm_ind(rdm_ind,2)) == rdm_ind_1))
+
             do m = 1, size(rdm_ind)
-                if (rdm_ind(m) == rdm_ind_1) then
+                if (rdm_ind(m) == rdm_ind_1 .or. &
+                    conjugate_rdm_ind(rdm_ind(m),2) == rdm_ind_1) then
                     call assert_equals(rdm_mat(m), rdm_mat_1)
                 end if
             end do
         end do
         deallocate(nI)
+
 
 
         allocate(nI(nel))
@@ -647,10 +653,12 @@ contains
                 t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
                 rdm_mat = rdm_mat)
 
-            call assert_true(any(rdm_ind == rdm_ind_1))
+            call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
+                any(pure_rdm_ind(conjugate_rdm_ind(rdm_ind,2)) == rdm_ind_1))
 
             do m = 1, size(rdm_ind)
-                if (rdm_ind(m) == rdm_ind_1) then
+                if (rdm_ind(m) == rdm_ind_1 .or. &
+                    conjugate_rdm_ind(rdm_ind(m),2) == rdm_ind_1) then
                     call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
                 end if
             end do
@@ -674,37 +682,13 @@ contains
                 t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
                 rdm_mat = rdm_mat)
 
-            call assert_true(any(rdm_ind == rdm_ind_1))
-
-            if (.not. any(rdm_ind == rdm_ind_1)) then
-                print *, ""
-                call write_det_guga(6, ilutI)
-                call write_det_guga(6, ilutJ)
-                call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
-                print *, "orig i,j,k,l: ", i, j, k, l
-                do m = 1, size(rdm_ind)
-                    call extract_2_rdm_ind(rdm_ind(m), i, j, k, l)
-                    print *, i, j, k, l
-                end do
-            end if
+            call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
+                any(pure_rdm_ind(conjugate_rdm_ind(rdm_ind,2)) == rdm_ind_1))
 
             do m = 1, size(rdm_ind)
-                if (rdm_ind(m) == rdm_ind_1) then
-                    if (.not. (rdm_mat(m) .isclose. rdm_mat_1)) then
-                        print *, ""
-                        call write_det_guga(6, ilutI)
-                        call write_det_guga(6, ilutJ)
-                        print *, "orig mat and i,j,k,l:"
-                        call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
-                        print *, rdm_mat_1, i, j, k, l
-                        print *, "stored mat and i,j,k,l: "
-                        do o = 1, size(rdm_ind)
-                            call extract_2_rdm_ind(rdm_ind(o), i, j, k, l)
-                            print *, rdm_mat(m), i, j, k, l
-                            print *, ""
-                        end do
-                    end if
-                    call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
+                if (rdm_ind(m) == rdm_ind_1 .or. &
+                    conjugate_rdm_ind(rdm_ind(m),2) == rdm_ind_1) then
+                     call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
                 end if
             end do
         end do
@@ -723,36 +707,13 @@ contains
                 t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
                 rdm_mat = rdm_mat)
 
-            call assert_true(any(rdm_ind == rdm_ind_1))
 
-            if (.not. any(rdm_ind == rdm_ind_1)) then
-                print *, ""
-                call write_det_guga(6, ilutI)
-                call write_det_guga(6, ilutJ)
-                call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
-                print *, "orig i,j,k,l: ", i, j, k, l
-                do m = 1, size(rdm_ind)
-                    call extract_2_rdm_ind(rdm_ind(m), i, j, k, l)
-                    print *, i, j, k, l
-                end do
-            end if
+            call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
+                any(pure_rdm_ind(conjugate_rdm_ind(rdm_ind,2)) == rdm_ind_1))
 
             do m = 1, size(rdm_ind)
-                if (rdm_ind(m) == rdm_ind_1) then
-                    if (.not. (rdm_mat(m) .isclose. rdm_mat_1)) then
-                        print *, ""
-                        call write_det_guga(6, ilutI)
-                        call write_det_guga(6, ilutJ)
-                        print *, "orig mat and i,j,k,l:"
-                        call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
-                        print *, rdm_mat_1, i, j, k, l
-                        print *, "stored mat and i,j,k,l: "
-                        do o = 1, size(rdm_ind)
-                            call extract_2_rdm_ind(rdm_ind(o), i, j, k, l)
-                            print *, rdm_mat(m), i, j, k, l
-                            print *, ""
-                        end do
-                    end if
+                if (rdm_ind(m) == rdm_ind_1 .or. &
+                    conjugate_rdm_ind(rdm_ind(m),2) == rdm_ind_1) then
                     call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
                 end if
             end do
@@ -771,33 +732,12 @@ contains
                 t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
                 rdm_mat = rdm_mat)
 
-            call assert_true(any(rdm_ind == rdm_ind_1))
-
-            if (.not. any(rdm_ind == rdm_ind_1)) then
-                print *, ""
-                call write_det_guga(6, ilutI)
-                call write_det_guga(6, ilutJ)
-                call print_excitInfo(excitInfo)
-                call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
-                print *, "orig mat and i,j,k,l: ", rdm_mat_1, i, j, k, l
-                print *, "number of rdms: ", size(rdm_ind)
-                do m = 1, size(rdm_ind)
-                    call extract_2_rdm_ind(rdm_ind(m), i, j, k, l)
-                    print *, rdm_mat(m), i, j, k, l
-                end do
-            end if
+            call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
+                any(pure_rdm_ind(conjugate_rdm_ind(rdm_ind,2)) == rdm_ind_1))
 
             do m = 1, size(rdm_ind)
-                if (rdm_ind(m) == rdm_ind_1) then
-                    if (.not. (rdm_mat(m) .isclose. rdm_mat_1)) then
-                        print *, ""
-                        call write_det_guga(6, ilutI)
-                        call write_det_guga(6, ilutJ)
-                        call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
-                        print *, rdm_mat(m), rdm_mat_1, i, j, k, l
-                        print *, ""
-
-                    end if
+                if (rdm_ind(m) == rdm_ind_1 .or. &
+                    conjugate_rdm_ind(rdm_ind(m),2) == rdm_ind_1) then
                     call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
                 end if
             end do
@@ -816,41 +756,12 @@ contains
                 t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, &
                 rdm_mat = rdm_mat)
 
-            call assert_true(any(rdm_ind == rdm_ind_1))
-
-            if (.not. any(rdm_ind == rdm_ind_1)) then
-                print *, ""
-                print *, " ======= indices not found! ============ "
-                call write_det_guga(6, ilutI)
-                call write_det_guga(6, ilutJ)
-                call print_excitInfo(excitInfo)
-                call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
-                print *, "orig mat and i,j,k,l: ", rdm_mat_1, i, j, k, l
-                print *, "number of rdms: ", size(rdm_ind)
-                do m = 1, size(rdm_ind)
-                    call extract_2_rdm_ind(rdm_ind(m), i, j, k, l)
-                    print *, rdm_mat(m), i, j, k, l
-                end do
-            end if
+            call assert_true(any(pure_rdm_ind(rdm_ind) == rdm_ind_1) .or. &
+                any(pure_rdm_ind(conjugate_rdm_ind(rdm_ind,2)) == rdm_ind_1))
 
             do m = 1, size(rdm_ind)
-                if (rdm_ind(m) == rdm_ind_1) then
-                    if (.not. (rdm_mat(m) .isclose. rdm_mat_1)) then
-                        print *, ""
-                        print *, "=============== matrix element differnt ==========="
-                        call write_det_guga(6, ilutI)
-                        call write_det_guga(6, ilutJ)
-                        call print_excitInfo(excitInfo)
-                        call extract_2_rdm_ind(rdm_ind_1, i, j, k, l)
-                        print *, "orig mat and i,j,k,l: ", rdm_mat_1, i, j, k, l
-                        print *, "number of rdms: ", size(rdm_ind)
-                        print *, "other rdms contribs: "
-                        do o = 1, size(rdm_ind)
-                            call extract_2_rdm_ind(rdm_ind(o), i, j, k, l)
-                            print *, rdm_mat(o), i, j, k, l
-                        end do
-
-                    end if
+                if (rdm_ind(m) == rdm_ind_1 .or. &
+                    conjugate_rdm_ind(rdm_ind(m),2) == rdm_ind_1) then
                     call assert_equals(rdm_mat(m), rdm_mat_1, 1e-12_dp)
                 end if
             end do
@@ -861,431 +772,6 @@ contains
         print *, "comparing coupling coeffs from exact and from calc_guga_matrix_element. DONE"
 
     end subroutine compare_rdm_all_excits_and_mat_eles
-
-    subroutine compare_fill_diag_and_explicit_diag
-
-        real(dp), allocatable :: mat_list(:)
-        integer(int_rdm), allocatable :: ind_list(:)
-        integer :: n_contribs
-
-        integer(n_int) :: ilut(0:nifguga)
-        integer(n_int), pointer :: excits(:,:), all_excits(:,:)
-        integer :: n_tot, i, n_all, j
-        integer, allocatable :: nI(:), nJ(:)
-
-
-
-        print *, ""
-        print *, "comparing: test_fill_spawn_diag and calc_explicit_diag_2_rdm_guga"
-
-        nel = 5
-        nSpatOrbs = 8
-        allocate(nI(nel)); allocate(nJ(nel))
-        nI = [1,2,3,5,8]
-        call EncodeBitDet_guga(nI, ilut)
-
-
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-
-        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
-
-        call assert_equals(n_tot, n_contribs)
-        call sort(ind_list, mat_list)
-
-        do i = 1, n_contribs
-            call assert_equals(real(extract_h_element(excits(:,i)),dp), &
-                mat_list(i), 1e-12_dp)
-            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-        end do
-
-        deallocate(nI); deallocate(nJ)
-
-
-        nel = 5
-        allocate(nI(nel)); allocate(nJ(nel))
-
-        nI = [1,2,3,5,8]
-        call EncodeBitDet_guga(nI, ilut)
-
-
-        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
-
-
-        do j = 1, n_all
-
-
-            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
-
-            call decode_bit_det(nJ, all_excits(:,j))
-            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
-
-            call assert_equals(n_tot, n_contribs)
-            call sort(ind_list, mat_list)
-
-            do i = 1, n_tot
-                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
-                    mat_list(i), 1e-12_dp)
-                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-            end do
-        end do
-
-        deallocate(nI); deallocate(nJ)
-
-        call stop_all("here", "now")
-        nel = 4
-        allocate(nI(nel)); allocate(nJ(nel))
-
-        nI = [1,3,5,8]
-        call EncodeBitDet_guga(nI, ilut)
-
-
-        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
-
-
-        do j = 1, n_all
-
-
-            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
-
-            call decode_bit_det(nJ, all_excits(:,j))
-            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
-
-            call assert_equals(n_tot, n_contribs)
-            call sort(ind_list, mat_list)
-
-            do i = 1, n_tot
-                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
-                    mat_list(i), 1e-12_dp)
-                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-            end do
-        end do
-
-        deallocate(nI); deallocate(nJ)
-
-        nel = 3
-        allocate(nI(nel)); allocate(nJ(nel))
-        nI = [1,2,3]
-        call EncodeBitDet_guga(nI, ilut)
-
-
-        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
-
-
-        do j = 1, n_all
-
-
-            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
-
-            call decode_bit_det(nJ, all_excits(:,j))
-            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
-
-            call assert_equals(n_tot, n_contribs)
-            call sort(ind_list, mat_list)
-
-            do i = 1, n_tot
-                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
-                    mat_list(i), 1e-12_dp)
-                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-            end do
-        end do
-
-        deallocate(nI); deallocate(nJ)
-
-        nel = 3
-        allocate(nI(nel)); allocate(nJ(nel))
-        nI = [1,3,5]
-        call EncodeBitDet_guga(nI, ilut)
-
-
-        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
-
-
-        do j = 1, n_all
-
-
-            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
-
-            call decode_bit_det(nJ, all_excits(:,j))
-            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
-
-            call assert_equals(n_tot, n_contribs)
-            call sort(ind_list, mat_list)
-
-            do i = 1, n_tot
-                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
-                    mat_list(i), 1e-12_dp)
-                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-            end do
-        end do
-
-        deallocate(nI); deallocate(nJ)
-
-
-        nel = 2
-        allocate(nI(nel)); allocate(nJ(nel))
-        nI = [1,2]
-        call EncodeBitDet_guga(nI, ilut)
-
-
-        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
-
-
-        do j = 1, n_all
-
-
-            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
-
-            call decode_bit_det(nJ, all_excits(:,j))
-            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
-
-            call assert_equals(n_tot, n_contribs)
-            call sort(ind_list, mat_list)
-
-            do i = 1, n_tot
-                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
-                    mat_list(i), 1e-12_dp)
-                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-            end do
-        end do
-
-        deallocate(nI); deallocate(nJ)
-
-        nel = 2
-        allocate(nI(nel)); allocate(nJ(nel))
-        nI = [1,3]
-        call EncodeBitDet_guga(nI, ilut)
-
-
-        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
-
-
-        do j = 1, n_all
-
-
-            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
-
-            call decode_bit_det(nJ, all_excits(:,j))
-            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
-
-            call assert_equals(n_tot, n_contribs)
-            call sort(ind_list, mat_list)
-
-            do i = 1, n_tot
-                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
-                    mat_list(i), 1e-12_dp)
-                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-            end do
-        end do
-
-        deallocate(nI); deallocate(nJ)
-
-        nel = 5
-        allocate(nI(nel)); allocate(nJ(nel))
-        nI = [1,2,3,5,8]
-        call EncodeBitDet_guga(nI, ilut)
-
-
-        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
-
-
-        do j = 1, n_all
-
-
-            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
-
-            call decode_bit_det(nJ, all_excits(:,j))
-            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
-
-            call assert_equals(n_tot, n_contribs)
-            call sort(ind_list, mat_list)
-
-            do i = 1, n_tot
-                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
-                    mat_list(i), 1e-12_dp)
-                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-            end do
-        end do
-
-        deallocate(nI); deallocate(nJ)
-
-        nel = 5
-        allocate(nI(nel)); allocate(nJ(nel))
-        nI = [1,2,3,5,7]
-        call EncodeBitDet_guga(nI, ilut)
-
-
-        call calc_explicit_2_rdm_guga(ilut, n_all, all_excits)
-
-
-        do j = 1, n_all
-
-
-            call calc_explicit_diag_2_rdm_guga(all_excits(:,j), n_tot, excits)
-
-            call decode_bit_det(nJ, all_excits(:,j))
-            call test_fill_spawn_diag(nJ, mat_list, ind_list, n_contribs)
-
-            call assert_equals(n_tot, n_contribs)
-            call sort(ind_list, mat_list)
-
-            do i = 1, n_tot
-                call assert_equals(real(extract_h_element(excits(:,i)),dp), &
-                    mat_list(i), 1e-12_dp)
-                call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-            end do
-        end do
-
-        deallocate(nI); deallocate(nJ)
-        call stop_all("here", "now")
-
-
-
-        ! automatize!
-
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-
-
-        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
-
-        call sort(ind_list, mat_list)
-
-        call assert_equals(n_tot, n_contribs)
-
-        do i = 1, n_tot
-            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
-            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-        end do
-
-        nI = [1,3,6,8]
-        call EncodeBitDet_guga(nI, ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-
-
-        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
-
-        call sort(ind_list, mat_list)
-
-        call assert_equals(n_tot, n_contribs)
-
-        do i = 1, n_tot
-            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
-            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-        end do
-
-        nI = [1,3,5,8]
-        call EncodeBitDet_guga(nI, ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-
-
-        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
-
-        call sort(ind_list, mat_list)
-
-        call assert_equals(n_tot, n_contribs)
-
-        do i = 1, n_tot
-            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
-            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-        end do
-
-        nI = [1,3,5,7]
-        call EncodeBitDet_guga(nI, ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-
-
-        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
-
-        call sort(ind_list, mat_list)
-
-        call assert_equals(n_tot, n_contribs)
-
-        do i = 1, n_tot
-            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
-            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-        end do
-
-        deallocate(nI)
-
-        nel = 5
-        allocate(nI(nel))
-        nI = [1,2,3,6,8]
-        call EncodeBitDet_guga(nI, ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-
-
-        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
-
-        call sort(ind_list, mat_list)
-
-        call assert_equals(n_tot, n_contribs)
-
-        do i = 1, n_tot
-            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
-            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-        end do
-
-        nI = [1,2,3,5,8]
-        call EncodeBitDet_guga(nI, ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-
-
-        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
-
-        call sort(ind_list, mat_list)
-
-        call assert_equals(n_tot, n_contribs)
-
-        do i = 1, n_tot
-            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
-            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-        end do
-
-
-        nI = [1,2,3,5,7]
-        call EncodeBitDet_guga(nI, ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-
-
-        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
-
-        call sort(ind_list, mat_list)
-
-        call assert_equals(n_tot, n_contribs)
-
-        do i = 1, n_tot
-            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
-            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-        end do
-
-        nI = [1,3,4,5,7]
-        call EncodeBitDet_guga(nI, ilut)
-
-        call calc_explicit_diag_2_rdm_guga(ilut, n_tot, excits)
-
-
-        call test_fill_spawn_diag(nI, mat_list, ind_list, n_contribs)
-
-        call sort(ind_list, mat_list)
-
-        call assert_equals(n_tot, n_contribs)
-
-        do i = 1, n_tot
-            call assert_equals(real(extract_h_element(excits(:,i)),dp), mat_list(i), 1e-12_dp)
-            call assert_equals(extract_rdm_ind(excits(:,i)), ind_list(i))
-        end do
-
-
-
-        print *, ""
-        print *, "comparing: test_fill_spawn_diag and calc_explicit_diag_2_rdm_guga DONE"
-
-    end subroutine compare_fill_diag_and_explicit_diag
 
     subroutine init_guga_testsuite
 
@@ -1302,6 +788,7 @@ contains
         tGUGA = .true.
 
         tRDMonfly = .true.
+        tFillingStochRDMOnFly = .true.
         call init_bit_rep()
         t_full_guga_tests = .true.
 
@@ -1676,7 +1163,8 @@ contains
 
         call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
 
-        call assert_equals(15, n_tot)
+        call assert_equals(9, n_tot)
+
         !  1 3 - 1 3
         rdm_ind = extract_rdm_ind(excits(:,1))
         call extract_2_rdm_ind(rdm_ind, i, j, k, l)
@@ -1695,127 +1183,68 @@ contains
         call assert_equals(3, l)
         call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,2)), dp), 1e-12_dp)
 
-        ! 1 3 - 3 3
+        ! 1 3 - 4 3
         rdm_ind = extract_rdm_ind(excits(:,3))
         call extract_2_rdm_ind(rdm_ind, i, j, k, l)
         call assert_equals(1, i)
         call assert_equals(3, j)
-        call assert_equals(3, k)
+        call assert_equals(4, k)
         call assert_equals(3, l)
         call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,3)), dp), 1e-12_dp)
 
-        ! 1 3 - 4 3
+        ! 2 3 - 1 3
         rdm_ind = extract_rdm_ind(excits(:,4))
         call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-        call assert_equals(1, i)
+        call assert_equals(2, i)
         call assert_equals(3, j)
-        call assert_equals(4, k)
+        call assert_equals(1, k)
         call assert_equals(3, l)
         call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,4)), dp), 1e-12_dp)
 
-        ! 2 3 - 1 3
+        ! 2 3 - 2 3
         rdm_ind = extract_rdm_ind(excits(:,5))
         call extract_2_rdm_ind(rdm_ind, i, j, k, l)
         call assert_equals(2, i)
         call assert_equals(3, j)
-        call assert_equals(1, k)
+        call assert_equals(2, k)
         call assert_equals(3, l)
-        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,5)), dp), 1e-12_dp)
+        call assert_equals(2.0_dp, real(extract_h_element(excits(:,5)), dp), 1e-12_dp)
 
-        ! 2 3 - 2 3
+        ! 2 3 - 4 3
         rdm_ind = extract_rdm_ind(excits(:,6))
         call extract_2_rdm_ind(rdm_ind, i, j, k, l)
         call assert_equals(2, i)
         call assert_equals(3, j)
-        call assert_equals(2, k)
+        call assert_equals(4, k)
         call assert_equals(3, l)
-        call assert_equals(2.0_dp, real(extract_h_element(excits(:,6)), dp), 1e-12_dp)
+        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,6)), dp), 1e-12_dp)
 
-        ! 2 3 - 3 3
+        ! 4 3 - 1 3
         rdm_ind = extract_rdm_ind(excits(:,7))
         call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-        call assert_equals(2, i)
+        call assert_equals(4, i)
         call assert_equals(3, j)
-        call assert_equals(3, k)
+        call assert_equals(1, k)
         call assert_equals(3, l)
         call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,7)), dp), 1e-12_dp)
 
-        ! 2 3 - 4 3
+        ! 4 3 - 2 3
         rdm_ind = extract_rdm_ind(excits(:,8))
         call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-        call assert_equals(2, i)
+        call assert_equals(4, i)
         call assert_equals(3, j)
-        call assert_equals(4, k)
+        call assert_equals(2, k)
         call assert_equals(3, l)
         call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,8)), dp), 1e-12_dp)
 
-        ! 3 3 - 1 3
+        ! 4 3 - 4 3
         rdm_ind = extract_rdm_ind(excits(:,9))
         call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-        call assert_equals(3, i)
-        call assert_equals(3, j)
-        call assert_equals(1, k)
-        call assert_equals(3, l)
-        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,9)), dp), 1e-12_dp)
-
-        ! 3 3 - 2 3
-        rdm_ind = extract_rdm_ind(excits(:,10))
-        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-        call assert_equals(3, i)
-        call assert_equals(3, j)
-        call assert_equals(2, k)
-        call assert_equals(3, l)
-        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,10)), dp), 1e-12_dp)
-
-        ! 3 3 - 4 3
-        rdm_ind = extract_rdm_ind(excits(:,11))
-        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-        call assert_equals(3, i)
-        call assert_equals(3, j)
-        call assert_equals(4, k)
-        call assert_equals(3, l)
-        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,11)), dp), 1e-12_dp)
-
-        ! 4 3 - 1 3
-        rdm_ind = extract_rdm_ind(excits(:,12))
-        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-        call assert_equals(4, i)
-        call assert_equals(3, j)
-        call assert_equals(1, k)
-        call assert_equals(3, l)
-        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,12)), dp), 1e-12_dp)
-
-        ! 4 3 - 2 3
-        rdm_ind = extract_rdm_ind(excits(:,13))
-        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-        call assert_equals(4, i)
-        call assert_equals(3, j)
-        call assert_equals(2, k)
-        call assert_equals(3, l)
-        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,13)), dp), 1e-12_dp)
-
-        ! 4 3 - 3 3
-        rdm_ind = extract_rdm_ind(excits(:,14))
-        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-        call assert_equals(4, i)
-        call assert_equals(3, j)
-        call assert_equals(3, k)
-        call assert_equals(3, l)
-        call assert_equals(sqrt(2.0_dp), real(extract_h_element(excits(:,14)), dp), 1e-12_dp)
-
-        ! 4 3 - 4 3
-        rdm_ind = extract_rdm_ind(excits(:,15))
-        call extract_2_rdm_ind(rdm_ind, i, j, k, l)
         call assert_equals(4, i)
         call assert_equals(3, j)
         call assert_equals(4, k)
         call assert_equals(3, l)
-        call assert_equals(2.0_dp, real(extract_h_element(excits(:,15)), dp), 1e-12_dp)
-
-
-        call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
-        call assert_equals(9, n_tot)
-
+        call assert_equals(2.0_dp, real(extract_h_element(excits(:,9)), dp), 1e-12_dp)
 
         nel = 4
 
@@ -1826,27 +1255,9 @@ contains
 
         cnt = 0
         do n = 1, n_tot
-            if (DetBitEQ(ilut, excits(:,n))) then
-                rdm_ind = extract_rdm_ind(excits(:,n))
-                call extract_2_rdm_ind(rdm_ind, i, j, k, l)
-                call assert_equals(i, l)
-                call assert_equals(j, k)
-                cnt = cnt + 1
-            end if
-        end do
-
-        call assert_equals(12, cnt)
-
-        call calc_explicit_2_rdm_guga(ilut, n_tot, excits)
-
-        cnt = 0
-        do n = 1, n_tot
             if (DetBitEQ(ilut, excits(:,n)))  cnt = cnt + 1
         end do
-
-
         call assert_equals(0, cnt)
-
 
         print *, ""
         print *, "testing: calc_explicit_2_rdm_guga DONE"
@@ -1999,26 +1410,6 @@ contains
 
         call EncodeBitDet_guga([1,5,6], ilut)
         call init_csf_information(ilut)
-
-        call calc_all_excits_guga_rdm_doubles(ilut, 3, 1, 2, 3, excits, n_excits)
-
-        call assert_equals(1, n_excits)
-        deallocate(nJ)
-        allocate(nJ(nel))
-
-        call decode_bit_det(nJ, excits(:,1))
-
-        call assert_equals([3,5,6], nJ, 2)
-        rdm_mat = real(extract_h_element(excits(:,1)), dp)
-        call assert_equals(-1.0_dp, rdm_mat)
-
-        rdm_ind = extract_rdm_ind(excits(:,1))
-        call extract_2_rdm_ind(rdm_ind, i = i, j = j, k = k, l = l)
-        call assert_equals(3, i)
-        call assert_equals(1, j)
-        call assert_equals(2, k)
-        call assert_equals(3, l)
-
 
         call calc_all_excits_guga_rdm_doubles(ilut, 3, 1, 2, 3, excits, n_excits)
         call assert_equals(0, n_excits)
@@ -3178,19 +2569,13 @@ contains
             t_hamil = .false., calc_type = 2, rdm_ind = rdm_ind, rdm_mat = rdm_mat)
         call assert_equals(h_cast(sqrt(2.0_dp)), mat_ele)
         call assert_equals(sqrt(2.0_dp), rdm_mat(1))
-        call assert_equals(sqrt(2.0_dp), rdm_mat(2))
         call extract_2_rdm_ind(rdm_ind(1), i = i, j = j, k = k, l = l)
         call assert_equals(3,i)
         call assert_equals(1,j)
         call assert_equals(2,k)
         call assert_equals(1,l)
-        call extract_2_rdm_ind(rdm_ind(2), i = i, j = j, k = k, l = l)
-        call assert_equals(2,i)
-        call assert_equals(1,j)
-        call assert_equals(3,k)
-        call assert_equals(1,l)
-        call assert_equals(2, size(rdm_mat))
-        call assert_equals(2, size(rdm_ind))
+        call assert_equals(1, size(rdm_mat))
+        call assert_equals(1, size(rdm_ind))
 
         nel = 4
 !
@@ -5816,10 +5201,12 @@ contains
                 rdm_mat = rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
-            call assert_true(any(rdm_ind_ == rdm_ind_v))
+            call assert_true(any(rdm_ind_ == rdm_ind_v) .or. &
+                    any(rdm_ind_ == conjugate_rdm_ind(rdm_ind_v, ic)))
 
             do i = 1, size(rdm_ind_v)
-                if (rdm_ind_ == rdm_ind_v(i)) then
+                if (rdm_ind_ == rdm_ind_v(i) .or. &
+                    rdm_ind_ == conjugate_rdm_ind(rdm_ind_v(i),ic)) then
                     call assert_equals(rdm_mat(i), rdm_comb)
                 end if
             end do
@@ -6057,6 +5444,7 @@ contains
 
         end if
 
+
         ! 1023
         nI = [1,6,7,8]
         call EncodeBitDet(nI,ilutI)
@@ -6279,10 +5667,12 @@ contains
                 rdm_mat = rdm_mat)
 
             call assert_equals(mat_ele, HElGen)
-            call assert_true(any(rdm_ind_ == rdm_ind_v))
+            call assert_true(any(rdm_ind_ == rdm_ind_v) .or. &
+                any(rdm_ind_ == conjugate_rdm_ind(rdm_ind_v, ic)))
 
             do i = 1, size(rdm_ind_v)
-                if (rdm_ind_ == rdm_ind_v(i)) then
+                if (rdm_ind_ == rdm_ind_v(i) .or. &
+                    rdm_ind_ == conjugate_rdm_ind(rdm_ind_v(i),ic)) then
                     call assert_equals(rdm_mat(i), rdm_comb)
                 end if
             end do
@@ -6871,6 +6261,7 @@ contains
 
 
         end if
+        print *, ""
         print *, "generate_excitation_guga tests passed!"
 
 

@@ -61,7 +61,8 @@ module guga_excitations
     use dSFMT_interface, only: genrand_real2_dSFMT
 
     use FciMCData, only: excit_gen_store_type, pSingles, pDoubles, ilutRef, &
-                         pExcit4, pExcit2, pExcit2_same, pExcit3_same, ilutHF
+                         pExcit4, pExcit2, pExcit2_same, pExcit3_same, ilutHF, &
+                         tFillingStochRDMOnFly
 
     use util_mod, only: get_free_unit, binary_search, get_unique_filename, &
                         binary_search_first_ge, abs_l1, operator(.isclose.), &
@@ -101,8 +102,6 @@ module guga_excitations
         check_electron_location_spatial, check_orbital_location_spatial
 
     use guga_bitRepOps, only: contract_1_rdm_ind, contract_2_rdm_ind
-
-    use LoggingData, only: tRDMonfly
 
     ! variables
     implicit none
@@ -1685,7 +1684,7 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (t_hamil_ .or. (tRDMonfly .and. present(rdm_mat))) then
+        if (t_hamil_ .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
             if (typ == excit_type%fullstop_L_to_R) then
                 ! L -> R
                 ! what do i have to put in as the branch pgen?? does it have
@@ -1840,7 +1839,7 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_int = int(temp_b_real_i)
 
-        if (t_hamil .or. (tRDMonfly .and. present(rdm_mat))) then
+        if (t_hamil .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
             if (typ == excit_type%fullstart_L_to_R) then
                 ! L -> R
                 if (present(rdm_mat)) then
@@ -1921,7 +1920,7 @@ contains
         currentOcc_int = int(temp_occ_i)
         currentB_ilut = temp_b_real_i
 
-        if (t_hamil_ .or. (tRDMonfly .and. present(rdm_mat))) then
+        if (t_hamil_ .or. (tFillingStochRDMOnFly .and. present(rdm_mat))) then
             if (present(rdm_mat)) then
                 mat_ele =  calcMixedContribution(tmp_I, tmp_J, start, ende, &
                                 rdm_ind, rdm_mat)
@@ -5287,7 +5286,7 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             ! i need to unbias against the total pgen later on in the
             ! RDM sampling otherwise the rdm-bias factor is not correct!
             ! encode the necessary information in the rdm-matele!
@@ -5324,7 +5323,7 @@ contains
             return
         end if
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                     contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
@@ -6304,7 +6303,7 @@ contains
         call singleStochasticEnd(excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), &
@@ -6470,7 +6469,7 @@ contains
         call singleStochasticEnd(excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), &
@@ -6613,7 +6612,7 @@ contains
         call singleStochasticEnd(excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), &
@@ -6779,7 +6778,7 @@ contains
         call singleStochasticEnd(excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), &
@@ -6909,7 +6908,7 @@ contains
         call singleStochasticEnd(excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, excit_typ = typ), &
                 x0 = extract_matrix_element(t,1), &
@@ -7059,7 +7058,7 @@ contains
         call singleStochasticEnd(excitInfo, t)
 
         ! if we do RDMs also store the x0 and x1 coupling coeffs
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), &
@@ -7207,7 +7206,7 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             ! i need to unbias against the total pgen later on in the
             ! RDM sampling otherwise the rdm-bias factor is not correct!
             ! encode the necessary information in the rdm-matele!
@@ -7242,7 +7241,7 @@ contains
                 integral)
         end if
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                     contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
@@ -7864,7 +7863,7 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             ! i need to unbias against the total pgen later on in the
             ! RDM sampling otherwise the rdm-bias factor is not correct!
             ! encode the necessary information in the rdm-matele!
@@ -7896,7 +7895,7 @@ contains
             call calc_mixed_end_r2l_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                     contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
@@ -10035,7 +10034,7 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             ! i need to unbias against the total pgen later on in the
             ! RDM sampling otherwise the rdm-bias factor is not correct!
             ! encode the necessary information in the rdm-matele!
@@ -10072,7 +10071,7 @@ contains
                 integral)
         end if
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                     contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
@@ -10713,7 +10712,7 @@ contains
         ! if we do RDMs also store the x0 and x1 coupling coeffs
         ! and I need to do it before the routines below since excitInfo
         ! gets changed there
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             ! i need to unbias against the total pgen later on in the
             ! RDM sampling otherwise the rdm-bias factor is not correct!
             ! encode the necessary information in the rdm-matele!
@@ -10761,7 +10760,7 @@ contains
             call calc_mixed_start_l2r_contr(ilut, t, excitInfo, branch_pgen, pgen, integral)
         end if
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             if (.not. near_zero(p_orig)) then
                 call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                     contract_2_rdm_ind(i, j, k, l, excit_lvl = 2, &
@@ -12379,7 +12378,7 @@ contains
 
         call singleStochasticEnd(excitInfo, t)
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
@@ -12525,7 +12524,7 @@ contains
 
         call update_matrix_element(t, tempWeight * nOpen * Root2, 1)
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
@@ -12671,7 +12670,7 @@ contains
 
         call update_matrix_element(t, tempWeight * nOpen * Root2, 1)
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
@@ -12847,7 +12846,7 @@ contains
 
         call singleStochasticEnd(excitInfo, t)
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
@@ -13034,7 +13033,7 @@ contains
 
         call singleStochasticEnd(excitInfo, t)
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &
@@ -13242,7 +13241,7 @@ contains
             call calc_integral_contribution_single(exc, i, j,st, en, integral)
         end if
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             ! if we want to do 'fast' GUGA RDMs we need to store the
             ! rdm index and the x0 (for singles here) coupling coefficient
             ! as part of the ilut(0:nifguga). this also necessitates
@@ -16797,7 +16796,7 @@ contains
         call encode_matrix_element(t, 0.0_dp, 2)
         call encode_matrix_element(t, 2.0_dp * (-1.0_dp)**nOpen, 1)
 
-        if (tRDMonfly) then
+        if (tFillingStochRDMOnFly) then
             call encode_stochastic_rdm_info(GugaBits, t, rdm_ind = &
                 contract_2_rdm_ind(excitInfo%i, excitInfo%j, excitInfo%k, excitInfo%l, &
                 excit_lvl = 2, excit_typ = excitInfo%typ), x1 = 0.0_dp, &

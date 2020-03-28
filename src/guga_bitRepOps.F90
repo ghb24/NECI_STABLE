@@ -3018,7 +3018,7 @@ contains
 
     end subroutine encode_excit_lvl_rdm
 
-    function contract_2_rdm_ind(i, j, k, l, excit_lvl, excit_typ) result(ijkl)
+    pure function contract_2_rdm_ind(i, j, k, l, excit_lvl, excit_typ) result(ijkl)
         ! since I only ever have spatial orbitals in the GUGA-RDM make
         ! the definition of the RDM-index combination differently
         integer, intent(in) :: i,j,k,l
@@ -3043,7 +3043,7 @@ contains
 
     end function contract_2_rdm_ind
 
-    subroutine extract_2_rdm_ind(ijkl, i, j, k, l, &
+    pure subroutine extract_2_rdm_ind(ijkl, i, j, k, l, &
             ij_out, kl_out, excit_lvl, excit_typ)
         ! the inverse routine of the function above.
         ! it is actually practical to have ij and kl also available at
