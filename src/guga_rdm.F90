@@ -86,7 +86,7 @@ module guga_rdm
               create_all_rdm_contribs, contract_molcas_1_rdm_index, &
               extract_molcas_1_rdm_index, contract_molcas_2_rdm_index, &
               extract_molcas_2_rdm_index, output_molcas_rdms, &
-              create_hf_rdm_connections_guga, fill_sings_1rdm_guga, &
+              fill_sings_1rdm_guga, &
               fill_sings_2rdm_guga, add_rdm_from_ij_pair_guga_exact, &
               conjugate_rdm_ind
 
@@ -625,36 +625,37 @@ contains
 
     end function generator_sign
 
-    subroutine create_hf_rdm_connections_guga(connections, ref_det, run)
-        type(RdmContribList_t), allocatable, intent(out) :: connections(:)
-        integer, intent(in), optional :: ref_det(nel)
-        integer, intent(in), optional :: run
-        character(*), parameter :: this_routine = "create_hf_rdm_connections_guga"
-        integer(n_int) :: ilutG(0:GugaBits%len_tot)
-        integer :: nI(nel), ind, n_singles, n_doubles, n_tot
-        integer(n_int), pointer :: singles(:,:), doubles(:,:), total(:,:)
-
-        def_default(ind, run, 1)
-        def_default(nI, ref_det, projEDet(:,ind))
-
-        call EncodeBitDet_guga(nI, ilutG)
-        ! create singles
-        call calc_explicit_1_rdm_guga(ilutG, n_singles, singles)
-
-        ! create doubles
-        call calc_explicit_2_rdm_guga(ilutG, n_doubles, doubles)
-
-        ! allocate..
-        allocate(total(0:GugaBits%len_tot, n_singles + n_doubles), &
-            source = 0_n_int)
-
-        n_tot = 0
-        call add_guga_lists_rdm(n_tot, n_singles, total, singles)
-        call add_guga_lists_rdm(n_tot, n_doubles, total, doubles)
-
-        call sort(total(:,1:n_tot), ilut_lt, ilut_gt)
-
-    end subroutine create_hf_rdm_connections_guga
+    ! maybe sometimes:
+    ! subroutine create_hf_rdm_connections_guga(connections, ref_det, run)
+    !     type(RdmContribList_t), allocatable, intent(out) :: connections(:)
+    !     integer, intent(in), optional :: ref_det(nel)
+    !     integer, intent(in), optional :: run
+    !     character(*), parameter :: this_routine = "create_hf_rdm_connections_guga"
+    !     integer(n_int) :: ilutG(0:GugaBits%len_tot)
+    !     integer :: nI(nel), ind, n_singles, n_doubles, n_tot
+    !     integer(n_int), pointer :: singles(:,:), doubles(:,:), total(:,:)
+    !
+    !     def_default(ind, run, 1)
+    !     def_default(nI, ref_det, projEDet(:,ind))
+    !
+    !     call EncodeBitDet_guga(nI, ilutG)
+    !     ! create singles
+    !     call calc_explicit_1_rdm_guga(ilutG, n_singles, singles)
+    !
+    !     ! create doubles
+    !     call calc_explicit_2_rdm_guga(ilutG, n_doubles, doubles)
+    !
+    !     ! allocate..
+    !     allocate(total(0:GugaBits%len_tot, n_singles + n_doubles), &
+    !         source = 0_n_int)
+    !
+    !     n_tot = 0
+    !     call add_guga_lists_rdm(n_tot, n_singles, total, singles)
+    !     call add_guga_lists_rdm(n_tot, n_doubles, total, doubles)
+    !
+    !     call sort(total(:,1:n_tot), ilut_lt, ilut_gt)
+    !
+    ! end subroutine create_hf_rdm_connections_guga
 
     subroutine Add_RDM_HFConnections_GUGA(spawn, one_rdms, ilutJ, av_sign_j, &
             av_sign_hf, excit_lvl, iter_rdm)
