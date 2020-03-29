@@ -124,7 +124,7 @@ macro( neci_add_library )
         file( MAKE_DIRECTORY ${_fypp_dir} )
 
         set(_fypp_options)
-        list( APPEND _fypp_options -m itertools)
+        list( APPEND _fypp_options -m itertools -m functools)
 
 
         foreach(_fypp_file ${_p_FYPP_SOURCES})
