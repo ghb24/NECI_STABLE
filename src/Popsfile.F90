@@ -2156,7 +2156,7 @@ r_loop: do while(.not.tStoreDet)
             write(iunit, *) 'PopMultiSumENum=', AllSumENum(1:inum_runs)
         end if
 
-        write(iunit, '(a,i16,a,i2,a,i2,a)') &
+        write(iunit, '(a,i16,a,i2,a,i2,a,i2,a)') &
             'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, ',PopNifY=',0,&
             ',PopNIfSgn=' ,IlutBits%len_pop, ','
         write(iunit, '(a,i2,a,i2,a,f18.12,a)') &
