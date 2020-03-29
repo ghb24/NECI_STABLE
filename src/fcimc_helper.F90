@@ -87,7 +87,6 @@ module fcimc_helper
 
     use guga_procedure_pointers, only: calc_off_diag_guga_ref
     use guga_excitations, only: create_projE_list
-    use guga_matrixElements, only: calc_off_diag_guga_ref_list
     use guga_bitrepops, only: write_det_guga, calc_csf_info, &
                               transfer_stochastic_rdm_info
 
@@ -515,6 +514,7 @@ contains
 
         use CalcData, only: qmc_trial_wf
         use searching, only: get_con_amp_trial_space
+        use guga_excitations, only: calc_off_diag_guga_ref_direct
 
         integer, intent(in) :: nI(nel), ExcitLevel
         real(dp), intent(in) :: RealwSign(lenof_sign)

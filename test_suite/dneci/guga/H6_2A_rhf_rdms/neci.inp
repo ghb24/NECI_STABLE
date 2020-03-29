@@ -1,9 +1,9 @@
 Title
 
 System read
-electrons  5
+electrons  6
 nonuniformrandexcits mol_guga_weighted
-guga 1
+guga 0
 endsys
 
 calc
@@ -16,15 +16,9 @@ tau 0.01
 totalwalkers   100
 load-balance-blocks off
 
-definedet 1 2 3 5 8
-
-nmcyc 1270
-
-seed 1
+(definedet 1 4 5 8 9 12
 
 startsinglepart 10
-
-core-inits
 
 shiftdamp 0.02
 stepsshift 10
@@ -33,17 +27,20 @@ addtoinitiator 2
 maxwalkerbloom 1
 memoryfacspawn 20.0
 memoryfacpart 10.0
-semi-stochastic 100
-pops-core 1000
+(semi-stochastic 100
+(pops-core 100
+(trial-wavefunction 1000
+(pops-trial 10
 allrealcoeff
 time 2700
+nmcyc 3000
+
+seed 1
 endcalc
 
 logging
-printonerdm
 calcrdmonfly          3    100 10
-explicitallrdm
 popsfile -1
-highlypopwrite 100
 endlog
 end
+

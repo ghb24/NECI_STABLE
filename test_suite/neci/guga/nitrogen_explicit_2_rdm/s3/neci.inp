@@ -24,6 +24,7 @@ seed 1
 
 startsinglepart 10
 
+core-inits
 shiftdamp 0.02
 stepsshift 10
 truncinitiator

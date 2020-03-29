@@ -21,6 +21,7 @@ definedet 1 2 3 5 7
 seed 1
 
 nmcyc 2000
+core-inits
 
 startsinglepart 100
 shiftdamp 0.02

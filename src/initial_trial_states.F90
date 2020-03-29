@@ -392,6 +392,8 @@ contains
                 else if (tGUGA) then
                     call calc_guga_matrix_element(ilut_list(:,i), &
                             ilut_list(:,j), excitInfo, H_tmp(j,i), .true., 1)
+
+!                     H_tmp(j,i) = conjg(H_tmp(j,i))
                 else
                    H_tmp(i,j) = get_helement(det_list(:,i),det_list(:,j),ilut_list(:,i),ilut_list(:,j))
                 end if

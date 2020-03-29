@@ -543,7 +543,7 @@ contains
 
             ! i am only here in the guga case if i use the new way to calc
             ! the off-diagonal elements..
-!             if (tGUGA) call init_csf_information(con_space(0:nifd,i))
+            if (tGUGA) call init_csf_information(con_space(0:nifd,i))
 
             do j = 1, size(trial_vecs,2)
 
@@ -568,7 +568,10 @@ contains
                     else if (tGUGA) then
                         ASSERT(.not. t_non_hermitian)
                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
-                            excitInfo, H_ij, .true., 2)
+                            excitInfo, H_ij, .true., 1)
+#ifdef CMPLX_
+                        H_ij = conjg(H_ij)
+#endif
 !                         call calc_guga_matrix_element(con_space(:,i), trial_space(:,j), &
 !                             excitInfo, H_ij, .true., 1)
                     else

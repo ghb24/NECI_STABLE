@@ -68,6 +68,11 @@ contains
             end if
         end if
 
+#ifdef CMPLX_
+        hel = conjg(hel)
+#endif
+
+
     end function calc_off_diag_guga_ref_list
 
     function calcDiagMatEleGuga_nI(nI) result(hel_ret)

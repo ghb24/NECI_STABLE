@@ -149,6 +149,9 @@ contains
                     else if (tGUGA) then
                         call calc_guga_matrix_element(ilut_list(:,i),ilut_list(:,j), &
                             excitInfo, local_hamil(i,j), .true., 1)
+! #ifdef CMPLX_
+!                         local_hamil(i,j) = conjg(local_hamil(i,j))
+! #endif
                     else
                         local_hamil(i,j) = get_helement(nI, nJ, ilut_list(:,i), ilut_list(:,j))
                     end if

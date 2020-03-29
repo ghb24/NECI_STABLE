@@ -96,6 +96,9 @@ C..   Now we need to match up any two determinants
               else
                   call calc_guga_matrix_element(ilutI,ilutJ,excitInfo,
      &              totsum, .true., 1)
+! #ifdef CMPLX_
+!                     totsum = conjg(totsum)
+! #endif
               end if
 
             else if (t_lattice_model) then

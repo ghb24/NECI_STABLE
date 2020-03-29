@@ -71,6 +71,8 @@ module semi_stoch_procs
 
     use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
 
+    use guga_bitrepops, only: init_csf_information
+
     implicit none
 
 contains
@@ -1717,6 +1719,8 @@ contains
         do i = 1, determ_space_size
             call decode_bit_det(nI, core_space(:,i))
 
+            call init_csf_information(core_space(0:nifd,i))
+
             if (tHPHF) then
                 hamil(i,i) = hphf_diag_helement(nI,core_space(:,i))
             else
@@ -1734,7 +1738,10 @@ contains
                         core_space(:,i), core_space(:,j))
                 else if (tGUGA) then
                     call calc_guga_matrix_element(core_space(:,i), core_space(:,j), &
-                        excitInfo, hamil(i,j), .true., 2)
+                        excitInfo, hamil(i,j), .true., 1)
+! #ifdef CMPLX_
+!                     hamil(i,j) = conjg(hamil(i,j))
+! #endif
                 else
                     hamil(i,j) = get_helement(nI, nJ, core_space(:,i), core_space(:,j))
                 end if

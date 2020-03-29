@@ -14701,7 +14701,7 @@ contains
         end if
 
         do i = 1, nTot
-            if (abs(extract_matrix_element(tmp_all_excits(:,i),1)) < cmp) cycle
+            if (abs(extract_h_element(tmp_all_excits(:,i))) < cmp) cycle
 
             tmp_all_excits(:,j) = tmp_all_excits(:,i)
 

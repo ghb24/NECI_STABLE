@@ -1410,6 +1410,7 @@ r_loop: do while(.not.tStoreDet)
         HElement_t(dp), intent(out) :: PopAllSumENum(inum_runs)
         character(len=24) :: junk,junk2,junk3,junk4,junk5
         integer :: PopsVersion
+        integer :: PopNifY
 
         PopsVersion=FindPopsfileVersion(iunithead)
         if(PopsVersion.ne.3) call stop_all("ReadPopsfileHeadv3","Wrong popsfile version for this routine.")
@@ -1425,6 +1426,7 @@ r_loop: do while(.not.tStoreDet)
             read(iunithead,*) PopAllSumENum(1)
             read(iunithead,*) iPopIter
             read(iunithead,*) PopNIfD
+            read(iunithead,*) PopNifY
             read(iunithead,*) PopNIfSgn
             read(iunithead,*) PopNIfFlag
             read(iunithead,*) PopNIfTot
@@ -1485,10 +1487,11 @@ r_loop: do while(.not.tStoreDet)
         ! need dummy read-in variable, since we start from a converged real
         ! calculation usually! atleast thats the default for now!
         HElement_t(dp) :: PopSumENum
+        integer :: PopNifY
 
         namelist /POPSHEAD/ Pop64Bit,PopHPHF,PopLz,PopLensign,PopNEl, &
                     PopTotwalk,PopSft,PopSft2,PopSumNoatHF,PopSumENum, &
-                    PopCyc,PopNIfD,PopNIfSgn,PopNIfFlag,PopNIfTot, &
+                    PopCyc,PopNIfD,PopNifY, PopNIfSgn,PopNIfFlag,PopNIfTot, &
                     PopTau,PopiBlockingIter,PopRandomHash,&
                     PopPSingles, PopPSing_spindiff1, PopPDoubles, PopPDoub_spindiff1, PopPDoub_spindiff2, PopPTriples, &
                     PopPParallel, PopNNodes, PopWalkersOnNodes, PopGammaSing, &
@@ -2154,7 +2157,7 @@ r_loop: do while(.not.tStoreDet)
         end if
 
         write(iunit, '(a,i16,a,i2,a,i2,a)') &
-            'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, &
+            'PopCyc=', Iter+PreviousCycles, ',PopNIfD=', NIfD, ',PopNifY=',0,&
             ',PopNIfSgn=' ,IlutBits%len_pop, ','
         write(iunit, '(a,i2,a,i2,a,f18.12,a)') &
             'PopNIfFlag=', pops_nifflag, ',PopNIfTot=', pops_niftot, &

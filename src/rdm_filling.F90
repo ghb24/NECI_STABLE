@@ -22,7 +22,6 @@ module rdm_filling
                         add_rdm_from_ij_pair_guga_exact
     use util_mod, only: near_zero
     use guga_data, only: excit_type, ExcitationInformation_t
-    use guga_excitations, only: calc_guga_matrix_element
 
     implicit none
 

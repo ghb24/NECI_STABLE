@@ -243,7 +243,10 @@ contains
                                                                            ilut_list(:, j))
                     else if (tGUGA) then
                         call calc_guga_matrix_element(ilut_list(:,i), ilut_list(:,j), &
-                                excitInfo, hamiltonian_row(j), .true., 2)
+                                excitInfo, hamiltonian_row(j), .true., 1)
+#ifdef CMPLX_
+                        hamiltonian_row(j) = conjg(hamiltonian_row(j))
+#endif
                         ! call calc_guga_matrix_element(ilut_list(:,j), ilut_list(:,i), &
                         !         excitInfo, hamiltonian_row(j), .true., 2)
                     else
@@ -374,6 +377,9 @@ contains
                     else if (tGUGA) then
                         call calc_guga_matrix_element(ilut_list(:,i), temp_store(:,j), &
                             excitInfo, hamiltonian_row(j), .true., 1)
+#ifdef CMPLX_
+                        hamiltonian_row(j) = conjg(hamiltonian_row(j))
+#endif
                         ! call calc_guga_matrix_element(temp_store(:,j), ilut_list(:,i), &
                         !     excitInfo, hamiltonian_row(j), .true., 2)
                     else
@@ -515,6 +521,9 @@ contains
                         ! by H|nI>..
                         call calc_guga_matrix_element(SpawnedParts(:,i), temp_store(:,j), &
                             excitInfo, hamiltonian_row(j), .true., 1)
+#ifdef CMPLX_
+                        hamiltonian_row(j) = conjg(hamiltonian_row(j))
+#endif
                         ! call calc_guga_matrix_element(temp_store(:,j), SpawnedParts(:,i), &
                         !     excitInfo, hamiltonian_row(j), .true., 2)
                     else
