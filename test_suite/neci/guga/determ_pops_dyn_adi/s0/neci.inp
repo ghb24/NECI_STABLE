@@ -24,6 +24,7 @@ realspawncutoff 0.01
 nmcyc 150
 semi-stochastic
 pops-core 110
+core-inits
 dynamic-core 50
 superinitiators 25
 superinitiator-population-threshold 10

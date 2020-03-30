@@ -8,7 +8,7 @@ module LMat_class
     use Parallel_neci
     use procedure_pointers, only: lMatInd_t
     use constants
-    use shared_rhash, only: shared_rhash_t
+    use index_rhash, only: index_rhash_t
     use mpi
     use util_mod, only: get_free_unit, operator(.div.)
     use tc_three_body_data, only: lMatEps, tHDF5LMat
@@ -90,7 +90,7 @@ module LMat_class
         type(shared_array_real_t) :: nonzero_vals
 #endif
         ! read-only shared memory hash table
-        type(shared_rhash_t) :: htable
+        type(index_rhash_t) :: htable
     contains
         ! Element getters/setters
         procedure :: get_elem => get_elem_sparse
@@ -240,7 +240,7 @@ contains
         call this%lmat_vals%shared_alloc(size, "LMat")
         if(iProcIndex_intra == 0) then
             this%lmat_vals%ptr = 0.0_dp
-        end if        
+        end if
     end subroutine alloc_dense
 
     !------------------------------------------------------------------------------------------!    
@@ -333,6 +333,9 @@ contains
             endif
             call MPIBcast(counter)
         end if
+
+        ! Synchronize the shared resource
+        call this%lMat_vals%sync()
     end subroutine read_dense
 
     !------------------------------------------------------------------------------------------!    
@@ -489,6 +492,8 @@ contains
         if(len(filename) /= 0) continue
         call stop_all(t_r, "Sparse 6-index integrals are only available for hdf5 format")
 #endif
+        call this%nonzero_vals%sync()
+        call this%htable%sync()
     end subroutine read_sparse
 
     !------------------------------------------------------------------------------------------!

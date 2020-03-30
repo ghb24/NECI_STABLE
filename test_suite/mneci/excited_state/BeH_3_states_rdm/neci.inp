@@ -29,6 +29,7 @@ shiftdamp 0.1
 nmcyc 10000
 semi-stochastic
 pops-core 200
+core-inits
 allrealcoeff
 realspawncutoff 0.5
 orthogonalise-replicas

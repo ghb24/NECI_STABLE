@@ -101,6 +101,7 @@ contains
 !       Calc defaults
           iSampleRDMIters = -1
           tStartCoreGroundState = .true.
+          t_core_inits = .false.
           HashLengthFrac = 0.7_dp
           nWalkerHashes=0
           tTrialHash=.true.
@@ -361,6 +362,7 @@ contains
           ! Semi-stochastic and trial wavefunction options.
           tSemiStochastic = .false.
           tCSFCore = .false.
+          t_fast_pops_core = .true.
 
           tDynamicCoreSpace = .false.
           tIntervalSet = .false.
@@ -1533,6 +1535,10 @@ contains
                 ! By default this value is 0.7 (see above)
                 call getf(HashLengthFrac)
 
+            case("OLD-POPS-CORE")
+                ! Use the old way of creating a pops-core space
+                t_fast_pops_core = .false.
+
             case("SEMI-STOCHASTIC")
                 tSemiStochastic = .true.
                 ! If there is ane extra item, it should specify that we turn
@@ -1608,9 +1614,11 @@ contains
             case("POPS-CORE")
                 ss_space_in%tPops = .true.
                 call geti(ss_space_in%npops)
+                t_fast_pops_core = .false.
                 if (ss_space_in%npops * nProcessors > 1000000) then
                     if (.not. tForceFullPops) then
                         ss_space_in%tApproxSpace = .true.
+                        t_fast_pops_core = .true.
                     end if
                 end if
             case("POPS-CORE-AUTO")
@@ -1850,7 +1858,9 @@ contains
             !    tTrialInit = .true.
             case("START-FROM-HF")
                 tStartCoreGroundState = .false.
-
+            case("CORE-INITS")
+                ! Make all determinants in the core-space initiators
+                t_core_inits = .true.
             case("INITIATOR-SPACE")
                 tTruncInitiator=.true.
                 tInitiatorSpace = .true.
