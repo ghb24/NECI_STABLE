@@ -31,7 +31,7 @@ memoryfacpart 10.0
 semi-stochastic 10
 pops-core 10
 trial-wavefunction 10
-pops-trial 5
+pops-trial 2
 allrealcoeff
 time 2700
 nmcyc 10000
