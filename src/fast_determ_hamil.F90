@@ -524,6 +524,8 @@ contains
             end block
 
             call halt_timer(sort_aux_time)
+
+            write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)           
         endif
 
         ! On procs which are not node-root, we need to reassign the internal pointers
@@ -565,8 +567,6 @@ contains
             nullify(alpha_ht)
 
         endif
-
-        write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
 
         ! Sync the ilut lists
         call MPI_Win_Fence(0, beta_list_win, ierr)
@@ -820,24 +820,12 @@ contains
 
         write(6,'("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
 
-        ! Optional: sort the Hamiltonian? This could speed up subsequent
-        ! multiplications, as we don't jump about in memory so much
-        call set_timer(sort_ham_time)
-        !do i = 1, determ_sizes(iProcIndex)
-        !    call sort(sparse_core_ham(i)%positions, sparse_core_ham(i)%elements)
-        !    write(6,*) "i:", i
-        !    do j = 1, sparse_core_ham(i)%num_elements
-        !        write(6,*) "pos:", sparse_core_ham(i)%positions(j), "elem:", sparse_core_ham(i)%elements(j)
-        !    end do
-        !end do
-        call halt_timer(sort_ham_time)
-        !write(6,'("Time to sort the Hamiltonian:", f9.3)') get_total_time(sort_ham_time); call neci_flush(6)
-
-        total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + &
-                      get_total_time(ham_time) + get_total_time(sort_ham_time)
-
-        total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
-        write(6,'("total_time:", f9.3)') total_time; call neci_flush(6)
+        ! The total time is only given on node root, the other tasks do not need to
+        ! know about some of the contributions
+        if(iProcIndex_intra == 0) then
+            total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
+            write(6,'("total_time:", f9.3)') total_time; call neci_flush(6)
+        endif
 
         ! --- Deallocate all auxiliary arrays -------------
 
@@ -1297,6 +1285,7 @@ contains
             end block
 
             call halt_timer(sort_aux_time)
+            write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)            
         endif
 
         ! On procs which are not node-root, we need to reassign the internal pointers
@@ -1336,9 +1325,6 @@ contains
             call clear_hash_table(alpha_ht)
             deallocate(alpha_ht, stat=ierr)
             nullify(alpha_ht)
-            
-
-            write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
         endif
         ! Sync the ilut lists
         call MPI_Win_Fence(0, beta_list_win, ierr)
@@ -1451,20 +1437,13 @@ contains
         call halt_timer(ham_time)
 
         write(6,'("Time to create the Hamiltonian:", f9.3)') get_total_time(ham_time); call neci_flush(6)
-        ! Optional: sort the Hamiltonian? This could speed up subsequent
-        ! multiplications, as we don't jump about in memory so much
-        !call set_timer(sort_ham_time)
-        !do i = 1, determ_sizes(iProcIndex)
-        !    call sort(sparse_core_ham(i)%positions, sparse_core_ham(i)%elements)
-        !end do
-        !call halt_timer(sort_ham_time)
-        !write(6,'("Time to sort the Hamiltonian:", f9.3)') get_total_time(sort_ham_time); call neci_flush(6)
 
-        !total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + &
-        !              get_total_time(ham_time) + get_total_time(sort_ham_time)
-
-        total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
-        write(6,'("total_time:", f9.3)') total_time; call neci_flush(6)
+        ! The total time is only given on node root, the other tasks do not need to
+        ! know about some of the contributions
+        if(iProcIndex_intra == 0) then
+            total_time = get_total_time(aux_time) + get_total_time(sort_aux_time) + get_total_time(ham_time)
+            write(6,'("total_time:", f9.3)') total_time; call neci_flush(6)
+        endif
 
         ! --- Deallocate all auxiliary arrays -------------
 
