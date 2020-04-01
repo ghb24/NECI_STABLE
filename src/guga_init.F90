@@ -128,7 +128,6 @@ contains
             end if
 
         else if (t_heisenberg_model) then
-!             pickOrbitals_single => pickOrbs_sym_uniform_ueg_single
             pickOrbitals_double => pick_orbitals_guga_heisenberg
             calc_orbital_pgen_contr => calc_orbital_pgen_contr_heisenberg
             calc_mixed_contr => calc_mixed_contr_sym

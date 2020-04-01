@@ -248,23 +248,17 @@ contains
         call calc_guga_matrix_element(ilut, tmp_ilut, excitInfo, hel, .true., 1)
 
         if (present(exlevel)) then
-
             if (excitInfo%valid) then
-
                 if (excitInfo%typ == excit_type%single) then
                     ! singles:
                     exlevel = 1
-
                 else
                     ! doubles
                     exlevel = 2
-
                 end if
-
             else
                 ! non-valid > 3 excit
                 exlevel = -1
-
             end if
         end if
 
