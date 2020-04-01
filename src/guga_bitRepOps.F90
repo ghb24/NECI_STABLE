@@ -2598,7 +2598,8 @@ contains
         ! have to figure out this access to the iluts
         ! determinants are stores as a list of integer in form of iluts
         ! first have to figure out which integer to take:
-        integer :: indInt, offset, mask
+        integer :: indInt, offset
+        integer(n_int) :: mask
 
         ! integer division to get the necessary ilut entry, remember
         ! the occupation of the spatial orbitals are asked for
