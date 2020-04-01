@@ -644,6 +644,21 @@ contains
         ! this is the first important change to make the triples run!!
         ! consider the matrix elements of triples!
 
+        ! for the real-time i have to distinguish between the first and
+        ! second RK step, if i want to keep track of the statistics
+        ! seperately: in the first loop i analyze the the wavefunction
+        ! from on step behind.. so store it in the "normal" noathf var
+        if (ExcitLevel_local == 0) then
+            if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
+                HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
+                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
+                if (iter > NEquilSteps) then
+                    SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
+                end if
+            endif
+        end if
+
         ! Perform normal projection onto reference determinant
         if (tGUGA) then
             ! for guga csfs its quite hard to determine the excitation to a
@@ -651,13 +666,7 @@ contains
             ! of stepvector differences -> just brute force search in the
             ! reference_list all the time for non-zero excitLvl..
             ! since atleast excitLvl = 0 gets determined correctly
-            if (ExcitLevel_local == 0) then
-                if (iter > NEquilSteps) &
-                    SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
-                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
-                ! Number at HF * sign over course of update cycle
-                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
-            else
+            if (ExcitLevel_local /= 0) then
                 ! also the NoAtDoubs is probably not correct in guga for now
                 ! so jsut ignore it
                 ! only calc. it to the reference det here
@@ -665,79 +674,51 @@ contains
                 ! that does not make so much sense or... ?
                 HOffDiag(1:inum_runs) = &
                     calc_off_diag_guga_ref(ilut, exlevel = ExcitLevel_local)
-
-                ! check if my guga-matrix element calculator works all the
-                ! time.. but i guess it does.. since the energy is the same
-                ! for two runs with and without the key-word on..
-                if (ExcitLevel_local == 2) then
-                    do run = 1, inum_runs
-                        NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
-                    end do
-                end if
-
             end if
         else
+            if (ExcitLevel_local == 2 .or. &
+                    (ExcitLevel_local == 1 .and. tNoBrillouin)) then
+                ! Obtain off-diagonal element
+                if (tHPHF) then
+                    HOffDiag(1:inum_runs) = &
+                        hphf_off_diag_helement (ProjEDet(:,1), nI, iLutRef(:,1), ilut)
 
-        if (ExcitLevel_local == 0) then
+                else
+                    HOffDiag(1:inum_runs) = &
+                        get_helement (ProjEDet(:,1), nI, ExcitLevel, ilutRef(:,1), ilut)
+                endif
 
-
-            ! for the real-time i have to distinguish between the first and
-            ! second RK step, if i want to keep track of the statistics
-            ! seperately: in the first loop i analyze the the wavefunction
-            ! from on step behind.. so store it in the "normal" noathf var
-
-            if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
-                HFCyc(1:lenof_sign) = HFCyc(1:lenof_sign) + RealwSign
-                HFOut(1:lenof_sign) = HFOut(1:lenof_sign) + RealwSign
-                NoatHF(1:lenof_sign) = NoatHF(1:lenof_sign) + RealwSign
-                if (iter > NEquilSteps) &
-                    SumNoatHF(1:lenof_sign) = SumNoatHF(1:lenof_sign) + RealwSign
-            endif
-
-        elseif (ExcitLevel_local == 2 .or. &
-                (ExcitLevel_local == 1 .and. tNoBrillouin)) then
-
-            ! For the real-space Hubbard model, determinants are only
-            ! connected to excitations one level away, and Brillouins
-            ! theorem cannot hold.
-            !
-            ! For Rotated orbitals, Brillouins theorem also cannot hold,
-            ! and energy contributions from walkers on singly excited
-            ! determinants must also be included in the energy values
-            ! along with the doubles
-            ! RT_M_Merge: Adjusted to kmneci
-            ! rmneci_setup: Added multirun functionality for real-time
-
-            if (ExcitLevel_local == 2) then
-                do run = 1, inum_runs
-                    if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
-#if defined(CMPLX_)
-                        NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign &
-                            (min_part_type(run):max_part_type(run))))
-#else
-                        NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
-#endif
-                    endif
-                enddo
-            end if
-            ! Obtain off-diagonal element
-            if (tHPHF) then
-                HOffDiag(1:inum_runs) = hphf_off_diag_helement (ProjEDet(:,1), nI, &
-                                                                iLutRef(:,1), ilut)
-
-            else
-                HOffDiag(1:inum_runs) = get_helement (ProjEDet(:,1), nI, &
-                                                      ExcitLevel, ilutRef(:,1), ilut)
-            endif
-
-        else if (ExcitLevel_local == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
-            ! the new 3-body terms in the transcorrelated momentum space hubbard
-            ! hphf not yet implemented!
-            ASSERT(.not. tHPHF)
-            HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut)
-
-        endif ! ExcitLevel_local == 1, 2, 3
+            else if (ExcitLevel_local == 3 .and. &
+                (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body)) then
+                ! the new 3-body terms in the transcorrelated momentum space hubbard
+                ! hphf not yet implemented!
+                ASSERT(.not. tHPHF)
+                HOffDiag(1:inum_runs) = get_helement( ProjEDet(:,1), nI, ilutRef(:,1), ilut)
+            endif ! ExcitLevel_local == 1, 2, 3
         endif ! GUGA
+
+        ! For the real-space Hubbard model, determinants are only
+        ! connected to excitations one level away, and Brillouins
+        ! theorem cannot hold.
+        !
+        ! For Rotated orbitals, Brillouins theorem also cannot hold,
+        ! and energy contributions from walkers on singly excited
+        ! determinants must also be included in the energy values
+        ! along with the doubles
+        ! RT_M_Merge: Adjusted to kmneci
+        ! rmneci_setup: Added multirun functionality for real-time
+        if (ExcitLevel_local == 2) then
+            do run = 1, inum_runs
+                if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+#if defined(CMPLX_)
+                    NoatDoubs(run) = NoatDoubs(run) + sum(abs(RealwSign &
+                        (min_part_type(run):max_part_type(run))))
+#else
+                    NoatDoubs(run) = NoatDoubs(run) + abs(RealwSign(run))
+#endif
+                endif
+            enddo
+        end if
 
         ! L_{0,1,2} norms of walker weights by excitation level.
         if (tLogEXLEVELStats) then
@@ -765,15 +746,15 @@ contains
 
         ! Sum in energy contribution
         do run=1, inum_runs
-
-           if (iter > NEquilSteps) &
+            if (iter > NEquilSteps) then
                 SumENum(run) = SumENum(run) + enum_contrib()
-
-           ENumCyc(run) = ENumCyc(run) + enum_contrib()
-           ENumOut(run) = ENumOut(run) + enum_contrib()
-           ENumCycAbs(run) = ENumCycAbs(run) + abs(enum_contrib() )
-           if(test_flag(ilut, get_initiator_flag_by_run(run))) &
+            end if
+            ENumCyc(run) = ENumCyc(run) + enum_contrib()
+            ENumOut(run) = ENumOut(run) + enum_contrib()
+            ENumCycAbs(run) = ENumCycAbs(run) + abs(enum_contrib() )
+            if(test_flag(ilut, get_initiator_flag_by_run(run))) then
                 InitsENumCyc(run) = InitsENumCyc(run) + enum_contrib()
+            end if
         end do
 
         ! -----------------------------------
@@ -812,17 +793,15 @@ contains
                         = OrbOccs(iand(nI(i), csf_orbital_mask)) &
                                    + (RealwSign(1) * RealwSign(1))
             endif
-         endif
+        endif
 
-       contains
+        contains
+            function enum_contrib() result(dE)
+                implicit none
+                HElement_t(dp) :: dE
 
-         function enum_contrib() result(dE)
-           implicit none
-           HElement_t(dp) :: dE
-
-           dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
-         end function enum_contrib
-
+                dE = (HOffDiag(run) * ARR_RE_OR_CPLX(RealwSign,run)) / dProbFin
+            end function enum_contrib
     end subroutine SumEContrib
 
 
@@ -950,7 +929,6 @@ contains
             end if
         end if
 
-
         ! This is the normal projected energy calculation, but split over
         ! multiple runs, rather than done in one go.
         do run = 1, inum_runs
@@ -972,45 +950,44 @@ contains
 
             hoffdiag = 0.0_dp
 
-            if (exlevel == 0) then
-
-               if (iter > nEquilSteps) then
+            if (exlevel == 0 .and. (iter > nEquilSteps)) then
                   call add_sign_on_run(SumNoatHF)
                   call add_sign_on_run(NoatHF)
                   call add_sign_on_run(HFCyc)
                   call add_sign_on_run(HFOut)
-                endif
+            endif
 
-            else if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
-
-                if (exlevel == 2) then
-                    NoatDoubs(run) = NoatDoubs(run) + mag_of_run(sgn, run)
-                endif
-
-
-                ! Obtain the off-diagonal elements
-                if (tHPHF) then
-                    hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
-                                                      iLutRef(:,run), ilut)
-                else if (tGUGA) then
+            if (tGUGA) then
+                if (exLevel /= 0) then
                     hoffdiag = calc_off_diag_guga_ref(ilut, run, exlevel)
+                end if
+            else
+                if (exlevel == 2 .or. (exlevel == 1 .and. tNoBrillouin)) then
+                    ! Obtain the off-diagonal elements
+                    if (tHPHF) then
+                        hoffdiag = hphf_off_diag_helement(ProjEDet(:,run), nI, &
+                            iLutRef(:,run), ilut)
+                    else
+                        hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
+                            ilutRef(:,run), ilut)
+                    endif
 
-                else
-                    hoffdiag = get_helement (ProjEDet(:,run), nI, exlevel, &
-                                             ilutRef(:,run), ilut)
-                endif
-
-            else if (exlevel == 3 .and. (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body) ) then
-                ASSERT(.not. tHPHF)
-                hoffdiag = get_helement(ProjEDet(:,run), nI, exlevel, &
-                    iLutRef(:,run), ilut)
-
+                else if (exlevel == 3 .and. &
+                    (t_3_body_excits .or. t_ueg_3_body .or. t_mol_3_body) ) then
+                    ASSERT(.not. tHPHF)
+                    hoffdiag = get_helement(ProjEDet(:,run), nI, exlevel, &
+                        iLutRef(:,run), ilut)
+                end if
             end if
 
+            if (exlevel == 2) then
+                NoatDoubs(run) = NoatDoubs(run) + mag_of_run(sgn, run)
+            endif
 
             ! Sum in energy contributions
-            if (iter > nEquilSteps) &
+            if (iter > nEquilSteps) then
                 SumENum(run) = SumENum(run) + enum_contrib()
+            end if
             ENumCyc(run) = ENumCyc(run) + enum_contrib()
             ENumOut(run) = ENumOut(run) + enum_contrib()
             ENumCycAbs(run) = ENumCycAbs(run) + abs(enum_contrib() )
