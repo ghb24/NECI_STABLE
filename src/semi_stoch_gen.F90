@@ -209,7 +209,7 @@ contains
         if (t_print_core_info) then
             ! i think i also want information, like the energy and the
             ! eigenvectors of the core-space
-               root_print "I am before the diagonalization step with", t_non_hermitian
+            root_print "I am before the diagonalization step with", t_non_hermitian
             if (t_non_hermitian) then
                 call diagonalize_core_non_hermitian(e_values, e_vectors)
                 if (t_choose_trial_state) then
@@ -1079,7 +1079,7 @@ contains
         else
             max_size = int(n_pops_keep, MPIArg)
         end if
-        
+
         length_this_proc = min( max_size, int(source_size - nzero_dets, MPIArg))
 
         call MPIAllGather(length_this_proc, lengths, ierr)
@@ -1114,12 +1114,12 @@ contains
             loc_source, int(source_size))
 
         do i = 1, length_this_proc
-            ! Store the real amplitudes in their real form.            
+            ! Store the real amplitudes in their real form.
             call extract_sign(largest_states(:,i), real_sign)
             ! We are interested in the absolute values of the ampltiudes.
             amps_this_proc(i) = sum(abs(real_sign))
         end do
-        
+
         if(t_use_fast_pops_core) then
             min_sign = amps_this_proc(1)
             max_sign = amps_this_proc(ubound(amps_this_proc, dim=1))
@@ -1160,7 +1160,7 @@ contains
 
             end do
         end if
-        
+
         ! Add the states to the ilut_list array.
         temp_ilut = 0_n_int
         core_sum = 0.0_dp

@@ -47,6 +47,5 @@ endcalc
 logging
 highlypopwrite 100
 binarypops
-print-core-info
 endlog
 end

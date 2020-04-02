@@ -1669,7 +1669,6 @@ contains
         HElement_t(dp), allocatable :: full_H(:,:)
         integer i, nI(nel),space_size
 
-       root_print "The determinants are"
 
         ! if the Hamiltonian is non-hermitian we cannot use the
         ! standard Lanzcos or Davidson routines. so:
@@ -1677,6 +1676,7 @@ contains
         call calc_determin_hamil_full(full_H)
 
         if (t_print_core_info) then
+            root_print "The determinants are"
             root_print "semistochastic basis:"
             if_root
                 do i = 1, determ_space_size
