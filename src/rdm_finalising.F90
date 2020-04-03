@@ -1170,7 +1170,6 @@ contains
         ! 2-RDMs.
 
         use Parallel_neci, only: MPIBarrier
-        use ParallelHelper, only: root
         use rdm_data, only: rdm_definitions_t
         use sort_mod, only: sort
         use util_mod, only: get_free_unit
