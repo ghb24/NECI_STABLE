@@ -88,16 +88,16 @@ subroutine warning_neci(sub_name,error_msg)
 != In:
 !=    sub_name:  calling subroutine name.
 !=    error_msg: error message.
-
+use, intrinsic :: iso_fortran_env, only: stderr => error_unit
 implicit none
 character(*), intent(in) :: sub_name,error_msg
 
 #ifdef DEBUG_
-write (6,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-write (6,'(a/)') adjustl(error_msg)
+write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
+write (stderr,'(a/)') adjustl(error_msg)
 #else
-write (6,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
-write (6,'(a/)') adjustl(error_msg)
+write (stderr,'(/a)') 'WARNING.  Error in '//adjustl(sub_name)
+write (stderr,'(a/)') adjustl(error_msg)
 #endif
 
 return
