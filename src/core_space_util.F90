@@ -9,7 +9,7 @@ module core_space_util
 
     private
     public :: core_space_t, cs_replicas, sparse_matrix_real, sparse_matrix_int, &
-        min_pt, max_pt, num_core_runs
+        min_pt, max_pt, num_core_runs, deallocate_sparse_ham
 
     integer, parameter :: min_pt = 1
     integer, parameter :: max_pt = rep_size

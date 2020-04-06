@@ -17,7 +17,7 @@ module semi_stoch_procs
                          MaxSpawned, ilutRef, t_global_core_space, core_run
 
     use core_space_util, only: core_space_t, cs_replicas, min_pt, max_pt, &
-        num_core_runs
+        num_core_runs, deallocate_sparse_ham
 
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
 
@@ -51,7 +51,7 @@ module semi_stoch_procs
 
     use ParallelHelper, only: root
 
-    use sparse_arrays, only: deallocate_sparse_ham, sparse_ham, hamil_diag, HDiagTag
+    use sparse_arrays, only: sparse_ham, hamil_diag, HDiagTag
 
     use shared_rhash, only: shared_rhash_t, shared_rht_lookup
 

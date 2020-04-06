@@ -25,7 +25,7 @@ module semi_stoch_gen
     use guga_bitRepOps, only: convert_ilut_toGUGA, convert_ilut_toNECI
     use guga_data, only: tGUGACore
     use util_mod, only: near_zero
-    use core_space_util, only: core_space_t, cs_replicas
+    use core_space_util, only: core_space_t, cs_replicas, deallocate_sparse_ham
     
     implicit none
 
@@ -50,7 +50,7 @@ contains
         use load_balance, only: adjust_load_balance
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use sort_mod, only: sort
-        use sparse_arrays, only: deallocate_sparse_ham, HDiagTag
+        use sparse_arrays, only: HDiagTag
         use sparse_arrays, only: SparseHamilTags
         use LoggingData, only: t_print_core_info
         use SystemData, only: nel, tAllSymSectors, tReltvy, nOccAlpha, nOccBeta
