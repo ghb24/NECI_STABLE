@@ -882,56 +882,6 @@ contains
 
     end subroutine allocate_sparse_ham_row
 
-    subroutine deallocate_sparse_ham(sparse_matrix, sparse_tags)
-
-        ! Deallocate the whole array, and remove all rows from the memory manager.
-
-        type(sparse_matrix_real), intent(inout), allocatable :: sparse_matrix(:)
-        integer(TagIntType), intent(inout), allocatable :: sparse_tags(:,:)
-        integer :: sparse_matrix_size, i, ierr
-        character(len=*), parameter :: t_r = "deallocate_sparse_ham"
-
-        sparse_matrix_size = size(sparse_matrix)
-
-        do i = sparse_matrix_size, 1, -1
-
-            deallocate(sparse_matrix(i)%elements, stat=ierr)
-            !call LogMemDealloc(t_r, sparse_tags(1,i), ierr)
-
-            deallocate(sparse_matrix(i)%positions, stat=ierr)
-            !call LogMemDealloc(t_r, sparse_tags(2,i), ierr)
-
-        end do
-
-        if (allocated(sparse_tags)) deallocate(sparse_tags)
-        if (allocated(sparse_matrix)) deallocate(sparse_matrix)
-
-    end subroutine deallocate_sparse_ham
-
-    subroutine deallocate_sparse_matrix_int(sparse_mat)
-
-        type(sparse_matrix_int), intent(inout), allocatable :: sparse_mat(:)
-
-        integer :: i, ierr
-
-        if (allocated(sparse_mat)) then
-            do i = 1, size(sparse_mat)
-                if (allocated(sparse_mat(i)%elements)) then
-                    deallocate(sparse_mat(i)%elements, stat=ierr)
-                    if (ierr /= 0) write(6,'("Error when deallocating sparse matrix elements array:",1X,i8)') ierr
-                end if
-                if (allocated(sparse_mat(i)%positions)) then
-                    deallocate(sparse_mat(i)%positions, stat=ierr)
-                    if (ierr /= 0) write(6,'("Error when deallocating sparse matrix positions array:",1X,i8)') ierr
-                end if
-            end do
-
-            deallocate(sparse_mat, stat=ierr)
-            if (ierr /= 0) write(6,'("Error when deallocating sparse matrix array:",1X,i8)') ierr
-        end if
-
-    end subroutine deallocate_sparse_matrix_int
-
     subroutine deallocate_core_hashtable(ht)
 
         type(core_hashtable), intent(inout), allocatable :: ht(:)
