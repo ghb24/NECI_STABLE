@@ -18,8 +18,8 @@ module kp_fciqmc
     use FciMCData, only: fcimc_excit_gen_store, FreeSlot, iEndFreeSlot
     use FciMCData, only: TotWalkers, CurrentDets, iLutRef, max_calc_ex_level
     use FciMCData, only: iter_data_fciqmc, TotParts, exFlag, iter
-    use FciMCData, only: indices_of_determ_states, partial_determ_vecs
-    use FciMCData, only: full_determ_vecs, walker_time, annihil_time
+    use core_space_util, only: cs_replicas
+    use FciMCData, only: walker_time, annihil_time
     use FciMCData, only: Stats_Comms_Time, iLutHF_True
     use fcimc_initialisation, only: CalcApproxpDoubles
     use fcimc_helper, only: SumEContrib, end_iter_stats, create_particle_with_hash_table, &
@@ -169,16 +169,18 @@ contains
                                 ex_level_to_hf = ex_level_to_ref
                             endif
 
-                            tParentIsDeterm = check_determ_flag(ilut_parent)
+                            tParentIsDeterm = check_determ_flag(ilut_parent, core_run)
                             tParentUnoccupied = IsUnoccDet(parent_sign)
 
                             ! If this determinant is in the deterministic space then store the relevant
                             ! data in arrays for later use.
                             if (tParentIsDeterm) then
                                 ! Store the index of this state, for use in annihilation later.
-                                indices_of_determ_states(determ_ind) = idet
-                                ! Add the amplitude to the deterministic vector.
-                                partial_determ_vecs(:,determ_ind) = parent_sign
+                                associate( rep => cs_replicas(core_run))
+                                  rep%indices_of_determ_states(determ_ind) = idet
+                                  ! Add the amplitude to the deterministic vector.
+                                  rep%partial_determ_vecs(:,determ_ind) = parent_sign
+                                end associate
                                 determ_ind = determ_ind + 1
 
                                 ! The deterministic states are always kept in CurrentDets, even when
@@ -247,7 +249,7 @@ contains
                                                     if (tChildIsDeterm) cycle
                                                     call set_flag(ilut_child, flag_determ_parent)
                                                 else
-                                                    if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+                                                    if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic(core_run))
                                                 end if
                                             end if
 
@@ -451,8 +453,10 @@ contains
                     call calc_hamil_exact(kp%nvecs, CurrentDets, int(TotWalkers, sizeof_int), hamil_matrix)
                 else
                     if (tSemiStochastic) then
-                        call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
-                                                  hamil_matrix, partial_determ_vecs, full_determ_vecs)
+                        associate( rep => cs_replicas(core_run)) 
+                          call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
+                              hamil_matrix, rep%partial_determ_vecs, rep%full_determ_vecs)
+                        end associate
                     else
                         call calc_projected_hamil(kp%nvecs, CurrentDets, HashIndex, int(TotWalkers, sizeof_int), &
                                                   hamil_matrix)
@@ -537,16 +541,18 @@ contains
                             ex_level_to_hf = ex_level_to_ref
                         endif
 
-                        tParentIsDeterm = check_determ_flag(ilut_parent)
+                        tParentIsDeterm = check_determ_flag(ilut_parent, core_run)
                         tParentUnoccupied = IsUnoccDet(parent_sign)
 
                         ! If this determinant is in the deterministic space then store the relevant
                         ! data in arrays for later use.
                         if (tParentIsDeterm) then
                             ! Store the index of this state, for use in annihilation later.
-                            indices_of_determ_states(determ_ind) = idet
-                            ! Add the amplitude to the deterministic vector.
-                            partial_determ_vecs(:,determ_ind) = parent_sign
+                            associate( rep => cs_replicas(core_run)) 
+                              rep%indices_of_determ_states(determ_ind) = idet
+                              ! Add the amplitude to the deterministic vector.
+                              rep%partial_determ_vecs(:,determ_ind) = parent_sign
+                            end associate
                             determ_ind = determ_ind + 1
 
                             ! The deterministic states are always kept in CurrentDets, even when
@@ -605,7 +611,7 @@ contains
                                             if (tChildIsDeterm) cycle
                                             call set_flag(ilut_child, flag_determ_parent)
                                         else
-                                            if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+                                            if (tChildIsDeterm) call set_flag(ilut_child, flag_deterministic(core_run))
                                         end if
                                     end if
 

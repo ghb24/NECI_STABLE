@@ -365,7 +365,6 @@ contains
     !> @param[out] core_state  on return, true if ilut is found, false else
     subroutine shared_rht_lookup(core_ht, ilut, nI, tgt_space, i, core_state)
         use hash, only: FindWalkerHash
-        use FciMCData, only: determ_space_size_int
         use bit_rep_data, only: NIfTot, NIfDBO
         type(shared_rhash_t), intent(in) :: core_ht
         integer(n_int), intent(in) :: ilut(0:NIfTot)

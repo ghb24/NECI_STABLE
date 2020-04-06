@@ -33,7 +33,7 @@ MODULE Calc
                          tStartCoreGroundState, pParallel, pops_pert, &
                          alloc_popsfile_dets, tSearchTauOption, tZeroRef, &
                          sFAlpha, tEScaleWalkers, sFBeta, sFTag, tLogNumSpawns, &
-                         tAllAdaptiveShift, cAllAdaptiveShift
+                         tAllAdaptiveShift, cAllAdaptiveShift, t_global_core_space
 
     use adi_data, only: maxNRefs, nRefs, tAllDoubsInitiators, tDelayGetRefs, &
          tDelayAllDoubsInits, tSetDelayAllDoubsInits, &
@@ -363,7 +363,7 @@ contains
           tSemiStochastic = .false.
           tCSFCore = .false.
           t_fast_pops_core = .true.
-
+          t_global_core_space = .true.
           tDynamicCoreSpace = .false.
           tIntervalSet = .false.
           tStaticCore = .true.
@@ -2993,6 +2993,8 @@ contains
                 if (item < nitems) then
                     call readi(orthogonalise_iter)
                 endif
+                ! With orthogonalisation, each replica needs its own core space
+                t_global_core_space = .false.
 
                 ! Don't start all replicas from the deterministic ground state
                 ! when using this option.

@@ -1195,7 +1195,7 @@ module FciMCParMod
         integer(kind=n_int) :: iLutnJ(0:niftot)
         integer :: IC, walkExcitLevel, walkExcitLevel_toHF, ex(2,3), TotWalkersNew, part_type, run
         integer(int64) :: tot_parts_tmp(lenof_sign)
-        logical :: tParity, tSuccess, tCoreDet
+        logical :: tParity, tSuccess, tCoreDet(inum_runs), tGlobalCoreDet
         real(dp) :: prob, HDiagCurr, EnergyCurr, hdiag_bare, TempTotParts, Di_Sign_Temp
         real(dp) :: RDMBiasFacCurr
         real(dp) :: lstart
@@ -1204,7 +1204,7 @@ module FciMCParMod
         HElement_t(dp) :: HDiagTemp, HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar'
         HElement_t(dp), dimension(inum_runs) :: delta
-        integer :: proc, pos, determ_index, irdm
+        integer :: proc, pos, determ_index(inum_runs), irdm
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
@@ -1325,7 +1325,10 @@ module FciMCParMod
             ! (AvSignCurr).
 
             ! Is this state is in the deterministic space?
-            tCoreDet = check_determ_flag(CurrentDets(:,j))
+            do run = 1, inum_runs
+                tCoreDet(run) = check_determ_flag(CurrentDets(:,j), run)
+            end do
+            tGlobalCoreDet = all(tCoreDet)
 
             call extract_bit_rep_avsign(rdm_definitions, CurrentDets(:,j), j, DetCurr, SignCurr, FlagsCurr, &
                                         IterRDMStartCurr, AvSignCurr, fcimc_excit_gen_store)
@@ -1382,47 +1385,48 @@ module FciMCParMod
                     if(tInitsRDM .and. all_runs_are_initiator(CurrentDets(:,j))) &
                          call fill_rdm_diag_currdet(two_rdm_inits_spawn, inits_one_rdms, &
                          CurrentDets(:,j), DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, &
-                         tCoreDet,.false.)
+                         tGlobalCoreDet,.false.)
                     call fill_rdm_diag_currdet(two_rdm_spawn, one_rdms, CurrentDets(:,j), &
-                         DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, tCoreDet, tApplyLC)
+                         DetCurr, walkExcitLevel_toHF, av_sign, iter_occ, tGlobalCoreDet, tApplyLC)
                 endif
             endif
 
             ! This if-statement is only entered when using semi-stochastic and
             ! only if this determinant is in the core space.
-            if (tCoreDet) then
-                ! Store the index of this state, for use in annihilation later.
-                indices_of_determ_states(determ_index) = j
+            do run = 1, inum_runs
+                associate( rep => cs_replicas(run))
+                if (tCoreDet(run)) then
+                    ! Store the index of this state, for use in annihilation later.
+                    rep%indices_of_determ_states(determ_index(run)) = j
 
-                ! Add this amplitude to the deterministic vector.
-                partial_determ_vecs(:,determ_index) = SignCurr
+                    ! Add this amplitude to the deterministic vector.
+                    rep%partial_determ_vecs(:,determ_index(run)) = SignCurr
 
-                determ_index = determ_index + 1
+                    determ_index(run) = determ_index(run) + 1
+                end if
+              end associate
+          end do
+          
+          ! As the main list (which is storing a hash table) no longer needs
+          ! to be contiguous, we need to skip sites that are empty.
+          if(IsUnoccDet(SignCurr)) then
+              ! The deterministic states are always kept in CurrentDets, even when
+              ! the amplitude is zero. Hence we must check if the amplitude is zero,
+              ! and if so, skip the state.                
+              if(any(tCoreDet) .or. tAccumEmptyDet(CurrentDets(:,j))) cycle
 
-                ! The deterministic states are always kept in CurrentDets, even when
-                ! the amplitude is zero. Hence we must check if the amplitude is zero,
-                ! and if so, skip the state.
-                if (IsUnoccDet(SignCurr)) cycle
-            end if
+              !It has been removed from the hash table already
+              !Just add to the "freeslot" list
+              iEndFreeSlot=iEndFreeSlot+1
+              FreeSlot(iEndFreeSlot)=j
+              cycle
 
-            ! As the main list (which is storing a hash table) no longer needs
-            ! to be contiguous, we need to skip sites that are empty.
-            if(IsUnoccDet(SignCurr)) then
-
-               if(tAccumEmptyDet(CurrentDets(:,j))) cycle
-
-               !It has been removed from the hash table already
-               !Just add to the "freeslot" list
-               iEndFreeSlot=iEndFreeSlot+1
-               FreeSlot(iEndFreeSlot)=j
-               cycle
-
-            endif
+          endif
 
             ! sum in (fmu-1)*cmu^2 for the purpose of RDMs
             if(tAdaptiveShift .and. all(.not. tSinglePartPhase) .and. tFillingStochRDMOnFly) then
                ! Only add the contribution from the corespace if it is explicitly demanded
-               if((.not. tCoreDet) .or. tCoreAdaptiveShift) &
+               if((.not. tGlobalCoreDet) .or. tCoreAdaptiveShift) &
                     call SumCorrectionContrib(SignCurr,j)
             endif
 
@@ -1545,7 +1549,7 @@ module FciMCParMod
 
                 else if (t_guga_mixed_semi) then
                     if (tSemiStochastic) then
-                        flag_mixed = tCoreDet
+                        flag_mixed = tGlobalCoreDet
                     else
                         flag_mixed = any_run_is_initiator(CurrentDets(:,j))
                     end if
@@ -1662,9 +1666,9 @@ module FciMCParMod
                             iLutnJ(nOffFlag) = 0_n_int
 
                             ! If the parent state in the core space.
-                            if (test_flag(CurrentDets(:,j), flag_deterministic)) then
+                            if (test_flag(CurrentDets(:,j), flag_deterministic(run))) then
                                 ! Is the spawned state in the core space?
-                                tInDetermSpace = is_core_state(iLutnJ, nJ)
+                                tInDetermSpace = is_core_state(iLutnJ, nJ, run)
                                 ! If spawning is from and to the core space, cancel it.
                                 if (tInDetermSpace) cycle
                                 ! Set the flag to specify that the spawning is occuring
@@ -1753,7 +1757,7 @@ module FciMCParMod
             ! deterministically later. Otherwise, perform the death step now.
             ! If using a preconditioner, then death is done in the annihilation
             ! routine, after the energy has been calculated.
-            if (tDeathBeforeComms .and. (.not. tCoreDet)) then
+            if (tDeathBeforeComms .and. .not. tGlobalCoreDet) then
                 call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
                                    HDiagCurr, SignCurr, j, WalkExcitLevel)
             end if

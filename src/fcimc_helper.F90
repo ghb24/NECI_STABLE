@@ -9,7 +9,7 @@ module fcimc_helper
                           tGUGA, ref_stepvector, ref_b_vector_int, ref_occ_vector, &
                           ref_b_vector_real, t_3_body_excits, t_non_hermitian, &
                           t_ueg_3_body, t_mol_3_body
-
+    use core_space_util, only: cs_replicas
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
     use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
@@ -1096,7 +1096,9 @@ contains
         ! We don't want the deterministic flag to be set in parent_flags, as
         ! that would set the same flag in the child in create_particle, which
         ! we don't want in general.
-        parent_flags = ibclr(parent_flags, flag_deterministic)
+        do run = 1, inum_runs
+            parent_flags = ibclr(parent_flags, flag_deterministic(run))
+        end do
 
         ! We don't want the child to have trial or connected flags.
         parent_flags = ibclr(parent_flags, flag_trial)
@@ -1163,7 +1165,8 @@ contains
         staticInit = check_static_init(ilut, nI, sgn, exLvl, run)
 
         if (tInitiatorSpace) then
-            staticInit = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic)
+            staticInit = test_flag(ilut, flag_static_init(run)) &
+                .or. test_flag(ilut, flag_deterministic(run))
             if (.not. staticInit) then
                 if (is_in_initiator_space(ilut, nI)) then
                     staticInit = .true.
@@ -1218,7 +1221,7 @@ contains
            ! If det. is the HF det, or it
            ! is in the deterministic space, then it must remain an initiator.
            if ( .not. (staticInit) &
-                .and. .not. (test_flag(ilut, flag_deterministic) .and. t_core_inits) &
+                .and. .not. (test_flag(ilut, flag_deterministic(run)) .and. t_core_inits) &
                 .and. .not. Senior &
                 .and. (.not. popInit )) then
               ! Population has fallen too low. Initiator status
@@ -1227,7 +1230,7 @@ contains
               NoAddedInitiators = NoAddedInitiators - 1_int64
           endif
 
-          if(.not. initiator .and. test_flag(ilut, flag_deterministic)) &
+          if(.not. initiator .and. test_flag(ilut, flag_deterministic(run))) &
               n_core_non_init = n_core_non_init + 1
 
         end if
@@ -1243,7 +1246,7 @@ contains
           logical :: initiator
 
           ! Has this already been marked as a determinant in the static space?
-          initiator = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic)
+          initiator = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic(run))
 
           ! If not, then it may be new, so check.
           ! Deterministic states are always in CurrentDets, so don't need to
@@ -2195,14 +2198,18 @@ contains
         real(dp), intent(in) :: proj_energy(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
 
-        integer :: i
+        integer :: i, run
         real(dp) :: spwnsign(lenof_sign), hdiag
 
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
-            do i = 1, determ_sizes(iProcIndex)
-                partial_determ_vecs(:,i) = partial_determ_vecs(:,i) / &
-                  (core_ham_diag(i) - proj_energy - proje_ref_energy_offsets)
+            do run = 1, inum_runs
+                associate( rep => cs_replicas(run))
+                  do i = 1, rep%determ_sizes(iProcIndex)
+                      rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) / &
+                          (rep%core_ham_diag(i) - proj_energy - proje_ref_energy_offsets)
+                  end do
+                end associate
             end do
         end if
 
@@ -2305,16 +2312,21 @@ contains
         integer, intent(in) :: DetPosition
         type(fcimc_iter_data), intent(inout) :: iter_data
 
-        real(dp) :: iDie(lenof_sign), CopySign(lenof_sign)
+        real(dp) :: iDie(lenof_sign), iDie_tmp(lenof_sign), CopySign(lenof_sign)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         integer, intent(in) :: walkExcitLevel
         integer :: i, irdm, run
-        logical :: tCoreDet
+        logical :: tCoreDet(inum_runs)
         character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
-        iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition)
+        do run = 1, inum_runs
+            tCoreDet(run) = check_determ_flag(iLutCurr, run)
+        end do
+        iDie_tmp = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition)
+        iDie = 0.0_dp
+        where(.not. tCoreDet) iDie = iDie_tmp
 
         IFDEBUG(FCIMCDebug,3) then
             if (sum(abs(iDie)) > 1.0e-10_dp) then
@@ -2366,9 +2378,8 @@ contains
             end do
         end if
 
-        tCoreDet = check_determ_flag(iLutCurr)
 
-        if (any(abs(CopySign) > 1.0e-12_dp) .or. tCoreDet) then
+        if (any(abs(CopySign) > 1.0e-12_dp) .or. any(tCoreDet)) then
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
             call encode_sign (CurrentDets(:, DetPosition), CopySign)
@@ -2753,20 +2764,23 @@ contains
 
     end subroutine
 
-    function check_semistoch_flags(ilut_child, nI_child, tCoreDet) result(break)
+    function check_semistoch_flags(ilut_child, nI_child, run, tCoreDet) result(break)
         use bit_rep_data, only: flag_determ_parent
       integer(n_int), intent(inout) :: ilut_child(0:niftot)
       integer, intent(in) :: nI_child(nel)
+      integer, intent(in) :: run      
       logical, intent(in) :: tCoreDet
       logical :: tChildIsDeterm
       logical :: break
       break = .false.
-      tChildIsDeterm = is_core_state(ilut_child, nI_child)
+
+      
+      tChildIsDeterm = is_core_state(ilut_child, nI_child, run)
       if(tCoreDet) then
          if(tChildIsDeterm) break = .true.
          call set_flag(ilut_child, flag_determ_parent)
       else
-         if(tChildIsDeterm) call set_flag(ilut_child, flag_deterministic)
+         if(tChildIsDeterm) call set_flag(ilut_child, flag_deterministic(run))
       endif
     end function check_semistoch_flags
 end module

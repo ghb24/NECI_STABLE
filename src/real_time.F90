@@ -38,7 +38,7 @@ module real_time
                          spawn_ht, FreeSlot, iStartFreeSlot, iEndFreeSlot,  &
                          fcimc_iter_data, InitialSpawnedSlots, iter_data_fciqmc, &
                          TotWalkers, fcimc_excit_gen_store, ilutRef, max_calc_ex_level, &
-                         iLutHF_true, indices_of_determ_states, partial_determ_vecs, &
+                         iLutHF_true, core_run, &
                          exFlag, CurrentDets, TotParts, ilutHF, SumWalkersCyc, IterTime, &
                          HFCyc, norm_psi, NoatHF, NoDied, tTimeExit, maxTimeExit, &
                          Annihilated, NoBorn, tSinglePartPhase, AllSumNoatHF, AllTotParts
@@ -79,7 +79,7 @@ module real_time
     use ParallelHelper, only: MPI_SUM, iProcIndex, root
     use adi_references, only: setup_reference_space
     use adi_data, only: allDoubsInitsDelay, nRefs, tDelayGetRefs
-
+    use core_space_util, only: cs_replicas
     implicit none
 
 ! main module file for the real-time implementation of the FCIQMC algorithm
@@ -661,12 +661,14 @@ contains
                 ex_level_to_hf = ex_level_to_ref
             endif
 
-            tParentIsDeterm = check_determ_flag(CurrentDets(:,idet))
+            tParentIsDeterm = check_determ_flag(CurrentDets(:,idet), core_run)
             tParentUnoccupied = IsUnoccDet(parent_sign)
 
             if(tParentIsDeterm) then
-               indices_of_determ_states(determ_index) = idet
-               partial_determ_vecs(:,determ_index) = parent_sign
+                associate(rep => cs_replicas(core_run))
+                  rep%indices_of_determ_states(determ_index) = idet
+                  rep%partial_determ_vecs(:,determ_index) = parent_sign
+                end associate
                determ_index = determ_index + 1
                if(IsUnoccDet(parent_sign)) cycle
             endif
@@ -722,7 +724,7 @@ contains
                         ilut_child(nOffFlag) = 0_n_int
 
                         if (tSemiStochastic) then
-                           break = check_semistoch_flags(ilut_child, nI_child, tParentIsDeterm)
+                           break = check_semistoch_flags(ilut_child, nI_child, part_type_to_run(ireplica), tParentIsDeterm)
                            if(break) cycle
                         endif
 
@@ -830,12 +832,14 @@ contains
                 ex_level_to_hf = ex_level_to_ref
             endif
 
-            tParentIsDeterm = check_determ_flag(CurrentDets(:,idet))
+            tParentIsDeterm = check_determ_flag(CurrentDets(:,idet), core_run)
             tParentUnoccupied = IsUnoccDet(parent_sign)
 
             if(tParentIsDeterm) then
-               indices_of_determ_states(determ_index) = idet
-               partial_determ_vecs(:,determ_index) = parent_sign
+                associate(rep => cs_replicas(core_run))
+                  rep%indices_of_determ_states(determ_index) = idet
+                  rep%partial_determ_vecs(:,determ_index) = parent_sign
+                end associate
                determ_index = determ_index + 1
                if(tParentUnoccupied) cycle
             endif
@@ -893,7 +897,7 @@ contains
                         ilut_child(nOffFlag) = 0_n_int
 
                         if (tSemiStochastic) then
-                           break = check_semistoch_flags(ilut_child, nI_child, tParentIsDeterm)
+                           break = check_semistoch_flags(ilut_child, nI_child, part_type_to_run(ireplica), tParentIsDeterm)
                            if(break) cycle
                         endif
 

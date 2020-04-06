@@ -18,11 +18,12 @@ module load_balance
     use bit_rep_data, only: flag_initiator, NIfDBO, &
                             flag_connected, flag_trial, flag_prone, flag_removed
     use bit_reps, only: set_flag, nullify_ilut_part, &
-                        encode_part_sign, nullify_ilut, clr_flag
+                        encode_part_sign, nullify_ilut
     use FciMCData, only: HashIndex, FreeSlot, CurrentDets, iter_data_fciqmc, &
-                         tFillingStochRDMOnFly, full_determ_vecs, ntrial_excits, &
+                         tFillingStochRDMOnFly, ntrial_excits, &
                          con_space_size, NConEntry, con_send_buf, sFAlpha, sFBeta, &
                          n_prone_dets
+    use core_space_util, only: cs_replicas
     use SystemData, only: tHPHF
     use procedure_pointers, only: scaleFunction
     use searching, only: hash_search_trial, bin_search_trial
@@ -174,7 +175,7 @@ contains
         ! TODO: What happens if we move reference sites around?
         ! Actually, we can call this with tSemiStochastic=.true. if we haven't yet
         ! set up the deterministic space.
-        if(allocated(full_determ_vecs)) then
+        if(allocated(cs_replicas)) then
             call stop_all(this_routine, &
                 'Should not be dynamically load-balancing with fixed deterministic space')
         endif
@@ -667,7 +668,7 @@ contains
             do i=1,TotWalkersNew
 
                 call extract_sign(CurrentDets(:,i),CurrentSign)
-                if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,i), flag_deterministic)
+                if (tSemiStochastic) tIsStateDeterm = test_flag_multi(CurrentDets(:,i), flag_deterministic)
 
                 if (IsUnoccDet(CurrentSign) .and. (.not. tIsStateDeterm)) then
                     if(.not. tAccumEmptyDet(CurrentDets(:,i))) AnnihilatedDet = AnnihilatedDet + 1

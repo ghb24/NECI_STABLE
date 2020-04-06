@@ -5,7 +5,7 @@ module kp_fciqmc_proj_est
     use bit_rep_data, only: NIfTot, NIfDBO
     use constants
     use kp_fciqmc_data_mod, only: lenof_all_signs, kp_ind_1, kp_ind_2
-
+    use FciMCData, only: core_run
     implicit none
 
 contains
@@ -20,7 +20,8 @@ contains
         use enumerate_excitations, only: generate_connection_normal, generate_connection_kpnt
         use enumerate_excitations, only: init_generate_connected_space
         use FciMCData, only: fcimc_excit_gen_store, exFlag, SpawnVecKP, SpawnVecKP2
-        use FciMCData, only: SpawnVec, SpawnVec2, determ_sizes, determ_displs, SpawnedParts
+        use FciMCData, only: SpawnVec, SpawnVec2, SpawnedParts
+        use core_space_util, only: cs_replicas
         use FciMCData, only: SpawnedParts2, InitialSpawnedSlots, ValidSpawnedList, ll_node
         use FciMCData, only: spawn_ht, subspace_hamil_time, iLutHF_True, max_calc_ex_level
         use FCIMCData, only: HFConn, Hii
@@ -226,7 +227,9 @@ contains
         call calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
 
         if (tSemiStochasticKPHamil) then
-            call determ_projection_kp_hamil(partial_vecs, full_vecs, determ_sizes, determ_displs)
+            associate( rep => cs_replicas(core_run)) 
+              call determ_projection_kp_hamil(partial_vecs, full_vecs, rep)
+            end associate
             call calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix, partial_vecs)
         end if
 
@@ -592,7 +595,8 @@ contains
     subroutine calc_hamil_contribs_diag(nvecs, krylov_array, ndets, h_matrix, h_diag)
 
         use bit_rep_data, only: NOffSgn
-        use FciMCData, only: determ_sizes, Hii
+        use FciMCData, only: Hii
+        use core_space_util, only: cs_replicas
         use global_det_data, only: det_diagH
         use kp_fciqmc_data_mod, only: tSemiStochasticKPHamil
         use Parallel_neci, only: iProcIndex
@@ -615,7 +619,7 @@ contains
         ! Core determinants are always kept at the top of the list, so they're simple
         ! to skip.
         if (tSemiStochasticKPHamil) then
-            min_idet = determ_sizes(iProcIndex) + 1
+            min_idet = cs_replicas(1)%determ_sizes(iProcIndex) + 1
         else
             min_idet = 1
         end if
@@ -645,7 +649,7 @@ contains
     subroutine calc_hamil_contribs_semistoch(nvecs, krylov_array, h_matrix, partial_vecs)
 
         use bit_rep_data, only: NOffSgn
-        use FciMCData, only: determ_sizes
+        use core_space_util, only: cs_replicas
         use Parallel_neci, only: iProcIndex
         use SystemData, only: nel
 
@@ -659,7 +663,7 @@ contains
         integer(n_int) :: int_sign(lenof_all_signs)
         real(dp) :: real_sign(lenof_all_signs)
 
-        do idet = 1, determ_sizes(iProcIndex)
+        do idet = 1, cs_replicas(1)%determ_sizes(iProcIndex)
             int_sign = krylov_array(NOffSgn:NOffSgn+lenof_all_signs-1, idet)
             real_sign = transfer(int_sign, real_sign)
 
