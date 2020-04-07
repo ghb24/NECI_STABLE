@@ -19,8 +19,7 @@ module determ_proj
     use FciMCData, only: HFDet, ilutHF, iRefProc, CurrentDets, &
                          TotWalkers, core_run
     use Parallel_neci, only: iProcIndex, MPIAllGatherV, MPISum
-    use semi_stoch_procs, only: determ_projection, determ_proj_approx, &
-        determ_projection_run
+    use semi_stoch_procs, only: determ_projection, determ_proj_approx
     use core_space_util, only: cs_replicas
     implicit none
 
@@ -200,7 +199,7 @@ contains
             wavefunction_old = wavefunction
             rep%partial_determ_vecs(1,:) = wavefunction
 
-            call determ_projection_run(core_run)
+            call determ_projection()
             ham_times_wf = -rep%partial_determ_vecs(1,:) / tau + (DiagSft(1) * wavefunction)
 
             wavefunction = wavefunction + rep%partial_determ_vecs(1,:)

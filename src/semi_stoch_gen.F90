@@ -272,7 +272,7 @@ contains
 
         ! A wrapper to call the correct generating routine.
 
-        use bit_rep_data, only: flag_deterministic, flag_initiator, flag_static_init
+        use bit_rep_data, only: flag_deterministic, flag_static_init
         use bit_reps, only: set_flag, encode_sign
         use FciMCData, only: SpawnedParts, var_size_this_proc, temp_var_space
         use searching, only: remove_repeated_states
@@ -280,7 +280,7 @@ contains
 
         type(subspace_in) :: core_in
         integer, intent(in) :: run
-        integer :: space_size, i, ierr, tgt_run
+        integer :: space_size, i, ierr
         real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
 
@@ -373,13 +373,11 @@ contains
         zero_sign = 0.0_dp
         do i = 1, space_size
             call encode_sign(SpawnedParts(:,i), zero_sign)
-            do tgt_run = rep%first_run(), rep%last_run()
-                call set_flag(SpawnedParts(:,i), flag_deterministic(tgt_run))
-                if (tTruncInitiator) then
-                    call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(tgt_run))
-                    call set_flag(CurrentDets(:,i), flag_static_init(tgt_run))
-                end if
-            end do
+            call set_flag(SpawnedParts(:,i), flag_deterministic(run))
+            if (tTruncInitiator) then
+                call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(run))
+                call set_flag(CurrentDets(:,i), flag_static_init(run))
+            end if
         end do
 
           ! Set the deterministic space size for this process.

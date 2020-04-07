@@ -1644,8 +1644,8 @@ module FciMCParMod
                     else
                         ! Generate a (random) excitation
                         call generate_excitation(DetCurr, CurrentDets(:,j), nJ, &
-                                        ilutnJ, exFlag, IC, ex, tParity, prob, &
-                                        HElGen, fcimc_excit_gen_store, part_type)
+                            ilutnJ, exFlag, IC, ex, tParity, prob, &
+                            HElGen, fcimc_excit_gen_store, part_type)
                     end if
 
                     !If we are fixing the population of reference det, skip spawing into it.
@@ -1666,7 +1666,7 @@ module FciMCParMod
                             iLutnJ(nOffFlag) = 0_n_int
 
                             ! If the parent state in the core space.
-                            if (test_flag(CurrentDets(:,j), flag_deterministic(run))) then
+                            if (check_determ_flag(CurrentDets(:,j), run)) then
                                 ! Is the spawned state in the core space?
                                 tInDetermSpace = is_core_state(iLutnJ, nJ, run)
                                 ! If spawning is from and to the core space, cancel it.
@@ -1683,17 +1683,17 @@ module FciMCParMod
 
                             if (tPreCond) then
                                 precond_fac = hdiag_spawn - proj_e_for_precond(part_type) - &
-                                               proje_ref_energy_offsets(part_type) - Hii
+                                    proje_ref_energy_offsets(part_type) - Hii
                             end if
                         end if
                         child = attempt_create (DetCurr, &
-                                            CurrentDets(:,j), SignCurr, &
-                                            nJ,iLutnJ, Prob, HElGen, IC, ex, &
-                                            tParity, walkExcitLevel, part_type, &
-                                            AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac)
-                                            ! Note these last two, AvSignCurr and
-                                            ! RDMBiasFacCurr are not used unless we're
-                                            ! doing an RDM calculation.
+                            CurrentDets(:,j), SignCurr, &
+                            nJ,iLutnJ, Prob, HElGen, IC, ex, &
+                            tParity, walkExcitLevel, part_type, &
+                            AvSignCurr, AvMCExcitsLoc, RDMBiasFacCurr, precond_fac)
+                        ! Note these last two, AvSignCurr and
+                        ! RDMBiasFacCurr are not used unless we're
+                        ! doing an RDM calculation.
                     endif
 
                     IFDEBUG(FCIMCDebug, 3) then

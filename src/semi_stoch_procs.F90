@@ -5,7 +5,7 @@
 
 module semi_stoch_procs
 
-    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, NOffSgn
+    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, NOffSgn, NOffFlag
 
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
 
@@ -72,266 +72,138 @@ module semi_stoch_procs
 
     implicit none
 
-    interface determ_projection
-        module procedure determ_projection_all
-    end interface determ_projection
-
     ! Distinguishing value for 'use all runs' 
     integer, parameter :: GLOBAL_RUN = -45    
 
 contains
 
-    subroutine determ_projection_all()
-        
+    subroutine determ_projection()
+
+        ! This subroutine gathers together partial_determ_vecs from each processor so
+        ! that the full vector for the whole deterministic space is stored on each processor.
+        ! It then performs the deterministic multiplication of the projector on this full vector.
+
+        use FciMCData, only: SemiStoch_Comms_Time
+        use FciMCData, only: SemiStoch_Multiply_Time
+        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
+        use DetBitOps, only: DetBitEQ
         integer :: run
-
-        if(t_global_core_space) then
-            call determ_projection_global()
-        else
-            do run = 1, inum_runs
-                call determ_projection_run(run)
-            end do
-        endif
-    end subroutine determ_projection_all
-
-    subroutine determ_projection_global()
-
-        ! This subroutine gathers together partial_determ_vecs from each processor so
-        ! that the full vector for the whole deterministic space is stored on each processor.
-        ! It then performs the deterministic multiplication of the projector on this full vector.
-
-        use FciMCData, only: SemiStoch_Comms_Time
-        use FciMCData, only: SemiStoch_Multiply_Time
-        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
-        use DetBitOps, only: DetBitEQ
-
-        integer :: i, j, ierr, run, part_type
-        real(dp) :: scaledDiagSft(inum_runs)
-
-        associate( rep => cs_replicas(core_run))
-
-        call MPIBarrier(ierr)
-
-        call set_timer(SemiStoch_Comms_Time)
-
-        call MPIAllGatherV(rep%partial_determ_vecs, rep%full_determ_vecs, &
-                            rep%determ_sizes, rep%determ_displs)
-
-        call halt_timer(SemiStoch_Comms_Time)
-
-        call set_timer(SemiStoch_Multiply_Time)
-
-        if (rep%determ_sizes(iProcIndex) >= 1) then
-
-            ! For the moment, we're only adding in these contributions when we need the energy
-            ! This will need refinement if we want to continue with the option of inst vs true full RDMs
-            ! (as in another CMO branch).
-
-            ! Perform the multiplication.
-
-            rep%partial_determ_vecs = 0.0_dp
-
-#ifdef CMPLX_
-            do i = 1, rep%determ_sizes(iProcIndex)
-                do j = 1, sparse_core_ham(i)%num_elements
-                    do run = 1, inum_runs
-                        rep%partial_determ_vecs(min_part_type(run),i) = rep%partial_determ_vecs(min_part_type(run),i) - &
-                            Real(sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) +&
-                            Aimag(sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
-                        rep%partial_determ_vecs(max_part_type(run),i) = rep%partial_determ_vecs(max_part_type(run),i) - &
-                            Aimag(sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(min_part_type(run),sparse_core_ham(i)%positions(j)) -&
-                            Real(sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(max_part_type(run),sparse_core_ham(i)%positions(j))
-                    end do
-                end do
-            end do
-#else
-
-            do i = 1, rep%determ_sizes(iProcIndex)
-                do j = 1, rep%sparse_core_ham(i)%num_elements
-                    rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) - &
-                        rep%sparse_core_ham(i)%elements(j)*rep%full_determ_vecs(:,rep%sparse_core_ham(i)%positions(j))
-                end do
-            end do
-#endif
-
-            ! Now add shift*rep%full_determ_vecs to account for the shift, not stored in
-            ! sparse_core_ham.
-#ifdef CMPLX_
-            do i = 1, rep%determ_sizes(iProcIndex)
-               ! Only scale the shift for the corespace when the option is set
-               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
-                  do part_type = 1, inum_runs
-                     ! scale the shift using the abs of this run's complex coefficient
-                     scaledDiagSft(part_type) = &
-                     shiftFactorFunction(&
-                          rep%indices_of_determ_states(i), part_type,&
-                          sqrt(rep%full_determ_vecs(min_part_type(part_type),&
-                          i+rep%determ_displs(iProcIndex))**2 + &
-                          rep%full_determ_vecs(max_part_type(part_type),&
-                          i+rep%determ_displs(iProcIndex))**2)) *  DiagSft(part_type)
-                  end do
-               else
-                  scaledDiagSft = DiagSft
-               endif
-
-               do part_type  = 1, lenof_sign
-                  rep%partial_determ_vecs(part_type,i) = rep%partial_determ_vecs(part_type,i) + &
-                       scaledDiagSft(part_type_to_run(part_type)) * rep%full_determ_vecs(part_type,i+rep%determ_displs(iProcIndex))
-               enddo
-            end do
-#else
-            do i = 1, rep%determ_sizes(iProcIndex)
-               ! Only scale the shift for the corespace when the option is set
-               if(tCoreAdaptiveShift .and. tAdaptiveShift) then
-                  ! get the re-scaled shift accounting for undersampling error
-                  do  part_type = 1, inum_runs
-                     scaledDiagSft(part_type) = DiagSft(part_type) * shiftFactorFunction(&
-                          rep%indices_of_determ_states(i), part_type,&
-                          abs(rep%full_determ_vecs(part_type,i+rep%determ_displs(iProcIndex))))
-                  end do
-               else
-                  scaledDiagSft = DiagSft
-               endif
-               rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) + &
-                    scaledDiagSft * rep%full_determ_vecs(:,i+rep%determ_displs(iProcIndex))
-            end do
-#endif
-
-            ! Now multiply the vector by tau to get the final projected vector.
-            rep%partial_determ_vecs = rep%partial_determ_vecs * tau
-
-            do i = 1, rep%determ_sizes(iProcIndex)
-                do part_type  = 1, lenof_sign
-                    run = part_type_to_run(part_type)
-                    if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,rep%indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
-                        rep%partial_determ_vecs(part_type, i) = 0.0_dp
-                    end if
-                end do
-            end do
-        end if
-
-        call halt_timer(SemiStoch_Multiply_Time)
-      end associate
-
-    end subroutine determ_projection_global    
-
-    subroutine determ_projection_run(run)
-
-        ! This subroutine gathers together partial_determ_vecs from each processor so
-        ! that the full vector for the whole deterministic space is stored on each processor.
-        ! It then performs the deterministic multiplication of the projector on this full vector.
-
-        use FciMCData, only: SemiStoch_Comms_Time
-        use FciMCData, only: SemiStoch_Multiply_Time
-        use Parallel_neci, only: MPIBarrier, MPIAllGatherV
-        use DetBitOps, only: DetBitEQ
-        integer, intent(in) :: run
         integer :: i, j, ierr, part_type, c_run
         real(dp) :: scaledDiagSft(inum_runs)
 
-        call MPIBarrier(ierr)
+        
+        do run = 1, size(cs_replicas) 
+            associate( rep => cs_replicas(run)) 
+              call MPIBarrier(ierr)
 
-        if(t_global_core_space) then
-            c_run = core_run
-        else
-            c_run = run
-        endif
+              call set_timer(SemiStoch_Comms_Time)
 
-        associate( rep => cs_replicas(c_run)) 
+              call MPIAllGatherV(rep%partial_determ_vecs, rep%full_determ_vecs, &
+                  rep%determ_sizes, rep%determ_displs)
 
-          call set_timer(SemiStoch_Comms_Time)
+              call halt_timer(SemiStoch_Comms_Time)
 
-          call MPIAllGatherV(rep%partial_determ_vecs, rep%full_determ_vecs, &
-              rep%determ_sizes, rep%determ_displs)
+              call set_timer(SemiStoch_Multiply_Time)
 
-          call halt_timer(SemiStoch_Comms_Time)
+              if (rep%determ_sizes(iProcIndex) >= 1) then
 
-          call set_timer(SemiStoch_Multiply_Time)
+                  ! For the moment, we're only adding in these contributions when we need the energy
+                  ! This will need refinement if we want to continue with the option of inst vs true full RDMs
+                  ! (as in another CMO branch).
 
-          if (rep%determ_sizes(iProcIndex) >= 1) then
+                  ! Perform the multiplication.
 
-              ! For the moment, we're only adding in these contributions when we need the energy
-              ! This will need refinement if we want to continue with the option of inst vs true full RDMs
-              ! (as in another CMO branch).
-
-              ! Perform the multiplication.
-
-              rep%partial_determ_vecs = 0.0_dp
+                  rep%partial_determ_vecs = 0.0_dp
 
 #ifdef CMPLX_
-              do i = 1, rep%determ_sizes(iProcIndex)
-                  do j = 1, rep%sparse_core_ham(i)%num_elements
-                      rep%partial_determ_vecs(min_pt,i) = rep%partial_determ_vecs(min_pt,i) - &
-                          Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(min_pt,rep%sparse_core_ham(i)%positions(j)) +&
-                          Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(max_pt,rep%sparse_core_ham(i)%positions(j))
-                      rep%partial_determ_vecs(max_pt,i) = rep%partial_determ_vecs(max_pt,i) - &
-                          Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(min_pt,rep%sparse_core_ham(i)%positions(j)) -&
-                          Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(max_pt,rep%sparse_core_ham(i)%positions(j))
-                  end do
-              end do
+                  block
+                    integer :: r_pt, i_pt
+                    do i = 1, rep%determ_sizes(iProcIndex)
+                        do j = 1, rep%sparse_core_ham(i)%num_elements
+                            do r_pt = rep%min_part(), rep%max_part(), 2
+                                i_pt = r_pt + 1
+                                rep%partial_determ_vecs(r_pt,i) = rep%partial_determ_vecs(r_pt,i) - &
+                                    Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(r_pt,rep%sparse_core_ham(i)%positions(j)) +&
+                                    Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(i_pt,rep%sparse_core_ham(i)%positions(j))
+                                rep%partial_determ_vecs(i_pt,i) = rep%partial_determ_vecs(i_pt,i) - &
+                                    Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(r_pt,rep%sparse_core_ham(i)%positions(j)) -&
+                                    Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(i_pt,rep%sparse_core_ham(i)%positions(j))
+                            end do
+                        end do
+                    end do
+                  end block
 #else
 
-              do i = 1, rep%determ_sizes(iProcIndex)
-                  do j = 1, rep%sparse_core_ham(i)%num_elements
-                      rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) - &
-                          rep%sparse_core_ham(i)%elements(j)*rep%full_determ_vecs(:,rep%sparse_core_ham(i)%positions(j))
+                  do i = 1, rep%determ_sizes(iProcIndex)
+                      do j = 1, rep%sparse_core_ham(i)%num_elements
+                          rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) - &
+                              rep%sparse_core_ham(i)%elements(j)*rep%full_determ_vecs(:,rep%sparse_core_ham(i)%positions(j))
+                      end do
                   end do
-              end do
 #endif
 
-              ! Now add shift*full_determ_vecs to account for the shift, not stored in
-              ! sparse_core_ham.
+                  ! Now add shift*full_determ_vecs to account for the shift, not stored in
+                  ! sparse_core_ham.
 #ifdef CMPLX_
-              do i = 1, rep%determ_sizes(iProcIndex)
-                  ! Only scale the shift for the corespace when the option is set
-                  if(tCoreAdaptiveShift .and. tAdaptiveShift) then
-                      ! scale the shift using the abs of this run's complex coefficient
-                      scaledDiagSft(run) = &
-                          shiftFactorFunction(&
-                          rep%indices_of_determ_states(i), run,&
-                          sqrt(rep%full_determ_vecs(min_pt,&
-                          i+rep%determ_displs(iProcIndex))**2 + &
-                          rep%full_determ_vecs(max_pt,&
-                          i+rep%determ_displs(iProcIndex))**2)) *  DiagSft(run)
-                  else
-                      scaledDiagSft = DiagSft
-                  endif
+                  do i = 1, rep%determ_sizes(iProcIndex)
+                      ! Only scale the shift for the corespace when the option is set
+                      if(tCoreAdaptiveShift .and. tAdaptiveShift) then
+                          ! scale the shift using the abs of this run's complex coefficient
+                          scaledDiagSft(run) = &
+                              shiftFactorFunction(&
+                              rep%indices_of_determ_states(i), run,&
+                              sqrt(rep%full_determ_vecs(min_pt,&
+                              i+rep%determ_displs(iProcIndex))**2 + &
+                              rep%full_determ_vecs(max_pt,&
+                              i+rep%determ_displs(iProcIndex))**2)) *  DiagSft(run)
+                      else
+                          scaledDiagSft = DiagSft
+                      endif
 
-                  do part_type  = min_pt, max_pt
-                      rep%partial_determ_vecs(part_type,i) = rep%partial_determ_vecs(part_type,i) + &
-                          scaledDiagSft(run) * rep%full_determ_vecs(part_type,i+rep%determ_displs(iProcIndex))
-                  enddo
-              end do
+                      do part_type  = 1, size(rep%partial_determ_vecs, dim = 1)
+                          ! Convert the index along partial_determ_vecs into a part_type
+                          rep%partial_determ_vecs(part_type,i) = rep%partial_determ_vecs(part_type,i) + &
+                              scaledDiagSft(part_type_to_run(rep%min_part()+part_type - 1)) &
+                              * rep%full_determ_vecs(part_type,i+rep%determ_displs(iProcIndex))
+                      enddo
+                  end do
 #else
-              do i = 1, rep%determ_sizes(iProcIndex)
-                  ! Only scale the shift for the corespace when the option is set
-                  if(tCoreAdaptiveShift .and. tAdaptiveShift) then
-                      ! get the re-scaled shift accounting for undersampling error
-                      scaledDiagSft(run) = DiagSft(run) * shiftFactorFunction(&
-                          rep%indices_of_determ_states(i), run,&
-                          abs(rep%full_determ_vecs(min_pt,i+rep%determ_displs(iProcIndex))))
-                  else
-                      scaledDiagSft = DiagSft
-                  endif
-                  rep%partial_determ_vecs(min_pt,i) = rep%partial_determ_vecs(min_pt,i) + &
-                      scaledDiagSft(run) * rep%full_determ_vecs(max_pt,i+rep%determ_displs(iProcIndex))
-              end do
+                  do i = 1, rep%determ_sizes(iProcIndex)
+                      ! Only scale the shift for the corespace when the option is set
+                      if(tCoreAdaptiveShift .and. tAdaptiveShift) then
+                          ! Here, translate between positins in the full_determ_vecs
+                          ! and replicas
+                          if(rep%t_global) then
+                              c_run = run
+                          else
+                              c_run = 1
+                          end if
+                          ! get the re-scaled shift accounting for undersampling error
+                          scaledDiagSft(run) = DiagSft(run) * shiftFactorFunction(&
+                              rep%indices_of_determ_states(i), run,&
+                              abs(rep%full_determ_vecs(c_run,i+rep%determ_displs(iProcIndex))))
+                      else
+                          scaledDiagSft = DiagSft
+                      endif
+                      rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) + &
+                          scaledDiagSft(run) * rep%full_determ_vecs(:,i+rep%determ_displs(iProcIndex))
+                  end do
 #endif
 
-              ! Now multiply the vector by tau to get the final projected vector.
-              rep%partial_determ_vecs = rep%partial_determ_vecs * tau
+                  ! Now multiply the vector by tau to get the final projected vector.
+                  rep%partial_determ_vecs = rep%partial_determ_vecs * tau
 
-              do i = 1, rep%determ_sizes(iProcIndex)
-                  if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,rep%indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
-                      rep%partial_determ_vecs(:, i) = 0.0_dp
-                  end if
-              end do
-          end if
-        end associate
+                  do i = 1, rep%determ_sizes(iProcIndex)
+                      if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,rep%indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                          rep%partial_determ_vecs(:, i) = 0.0_dp
+                      end if
+                  end do
+              end if
+            end associate
 
-        call halt_timer(SemiStoch_Multiply_Time)
-
-    end subroutine determ_projection_run
+            call halt_timer(SemiStoch_Multiply_Time)
+        end do
+    end subroutine determ_projection
 
     subroutine determ_projection_kp_hamil(partial_vecs, full_vecs, rep)
 
@@ -634,7 +506,8 @@ contains
         logical :: core_state
         integer :: run
 
-        def_default(run, run_, 1)
+        def_default(run, run_, core_run)
+        if(t_global_core_space) run = core_run
         if (tSemiStochastic) then
             core_state = test_flag(ilut, flag_deterministic(run))
         else
@@ -1097,7 +970,6 @@ contains
         ! And if the state is already present, simply set its flag.
         ! Also sort the states afterwards.
 
-        use bit_rep_data, only: flag_initiator
         use bit_reps, only: set_flag
         use DetBitOps, only: ilut_lt, ilut_gt, DetBitLT
         use searching, only: BinSearchParts
@@ -1249,6 +1121,9 @@ contains
                   ! Copy the amplitude of the state across to SpawnedParts.
                   call extract_sign(CurrentDets(:,PartInd), walker_sign)
                   call encode_sign(SpawnedParts(:,i), walker_sign)
+                  ! Copyt the flags across (this includes the
+                  ! newly set deterministic flag
+                  SpawnedParts(NOffFlag, i) = CurrentDets(NOffFlag, PartInd)
                   ! Cache the accumulated global det data
                   call reorder_handler%write_gdata(gdata_buf, 1, PartInd, i)
               else
@@ -1263,7 +1138,7 @@ contains
           ! core state slot in SpawnedParts.
           i_non_core = rep%determ_sizes(iProcIndex)
           do i = 1, int(TotWalkers,sizeof_int)
-              if (.not. test_flag(CurrentDets(:,i), flag_deterministic(run))) then
+              if (.not. check_determ_flag(CurrentDets(:,i), run)) then
                   i_non_core = i_non_core + 1
 
                   ! Add a quick test in, to ensure that we don't overflow the
@@ -1300,7 +1175,7 @@ contains
               call extract_sign(CurrentDets(:,i), walker_sign)
               ! Don't add the determinant to the hash table if its unoccupied and not
               ! in the core space and not accumulated.
-              if (IsUnoccDet(walker_sign) .and. (.not. test_flag(CurrentDets(:,i), flag_deterministic(run))) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
+              if (IsUnoccDet(walker_sign) .and. (.not. check_determ_flag(CurrentDets(:,i), run)) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
               call decode_bit_det(nI, CurrentDets(:,i))
               hash_val = FindWalkerHash(nI,nWalkerHashes)
               temp_node => HashIndex(hash_val)
@@ -1688,7 +1563,7 @@ contains
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0
         do i = 1, int(TotWalkers, sizeof_int)
-            if (test_flag(CurrentDets(:,i), flag_deterministic(run))) then
+            if (check_determ_flag(CurrentDets(:,i), run)) then
                 counter = counter + 1
                 pop_sign = dc%davidson_eigenvector(counter)
                 call decode_bit_det(nI, CurrentDets(:,i))
@@ -1753,7 +1628,7 @@ contains
               counter=counter+rep%determ_sizes(i-1)
           enddo
           do i = 1, rep%determ_space_size !int(TotWalkers, sizeof_int)
-              if (test_flag(CurrentDets(:,i), flag_deterministic(run))) then
+              if (check_determ_flag(CurrentDets(:,i), run)) then
                   counter = counter + 1
                   pop_sign = e_vectors(counter,1)
                   tmp = transfer(pop_sign(min_pt:max_pt), tmp)

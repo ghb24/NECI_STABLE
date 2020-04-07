@@ -12,7 +12,7 @@ module fcimc_helper
     use core_space_util, only: cs_replicas
     use HPHFRandExcitMod, only: ReturnAlphaOpenDet
 
-    use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state
+    use semi_stoch_procs, only: recalc_core_hamil_diag, is_core_state, check_determ_flag
 
     use bit_reps, only: NIfTot, test_flag, extract_flags, &
                         encode_bit_rep, NIfD, set_flag_general, NIfDBO, &
@@ -1166,7 +1166,7 @@ contains
 
         if (tInitiatorSpace) then
             staticInit = test_flag(ilut, flag_static_init(run)) &
-                .or. test_flag(ilut, flag_deterministic(run))
+                .or. check_determ_flag(ilut, run)
             if (.not. staticInit) then
                 if (is_in_initiator_space(ilut, nI)) then
                     staticInit = .true.
@@ -1221,7 +1221,7 @@ contains
            ! If det. is the HF det, or it
            ! is in the deterministic space, then it must remain an initiator.
            if ( .not. (staticInit) &
-                .and. .not. (test_flag(ilut, flag_deterministic(run)) .and. t_core_inits) &
+                .and. .not. (check_determ_flag(ilut, run) .and. t_core_inits) &
                 .and. .not. Senior &
                 .and. (.not. popInit )) then
               ! Population has fallen too low. Initiator status
@@ -1230,7 +1230,7 @@ contains
               NoAddedInitiators = NoAddedInitiators - 1_int64
           endif
 
-          if(.not. initiator .and. test_flag(ilut, flag_deterministic(run))) &
+          if(.not. initiator .and. check_determ_flag(ilut, run)) &
               n_core_non_init = n_core_non_init + 1
 
         end if
@@ -1246,7 +1246,7 @@ contains
           logical :: initiator
 
           ! Has this already been marked as a determinant in the static space?
-          initiator = test_flag(ilut, flag_static_init(run)) .or. test_flag(ilut, flag_deterministic(run))
+          initiator = test_flag(ilut, flag_static_init(run)) .or. (check_determ_flag(ilut, run) .and. t_core_inits)
 
           ! If not, then it may be new, so check.
           ! Deterministic states are always in CurrentDets, so don't need to

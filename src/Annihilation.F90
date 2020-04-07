@@ -17,7 +17,8 @@ module AnnihilationMod
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
-                         ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
+        ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
+    use semi_stoch_procs, only: check_determ_flag
     use sort_mod
     use core_space_util, only: cs_replicas
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
@@ -1601,7 +1602,7 @@ module AnnihilationMod
                 call hash_table_lookup(nI, SpawnedParts(:,i), NIfDBO, HashIndex, &
                                CurrentDets, PartInd, DetHash, tSuccess)
                 if (tSuccess) then
-                    tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic(run))
+                    tDetermState = check_determ_flag(CurrentDets(:,PartInd), run)
                     call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                     tUnocc = is_run_unnocc(CurrentSign,run)
                     tToEmptyDet =  tUnocc .and. (.not. tDetermState)
