@@ -2296,7 +2296,7 @@ contains
     end subroutine perform_death_all_walkers
 
     subroutine walker_death (iter_data, DetCurr, iLutCurr, Kii, RealwSign, &
-                             DetPosition, walkExcitLevel)
+                             DetPosition, walkExcitLevel, t_core_die_)
 
         use global_det_data, only: get_iter_occ_tot, get_av_sgn_tot, &
                                    set_iter_occ_tot, set_av_sgn_tot
@@ -2311,12 +2311,13 @@ contains
         real(dp), intent(in) :: Kii
         integer, intent(in) :: DetPosition
         type(fcimc_iter_data), intent(inout) :: iter_data
+        logical, intent(in), optional :: t_core_die_
 
-        real(dp) :: iDie(lenof_sign), iDie_tmp(lenof_sign), CopySign(lenof_sign)
+        real(dp) :: iDie(lenof_sign), CopySign(lenof_sign)
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         integer, intent(in) :: walkExcitLevel
         integer :: i, irdm, run
-        logical :: tCoreDet(inum_runs)
+        logical :: tCoreDet(inum_runs), t_core_die
         character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
@@ -2324,9 +2325,11 @@ contains
         do run = 1, inum_runs
             tCoreDet(run) = check_determ_flag(iLutCurr, run)
         end do
-        iDie_tmp = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition)
-        iDie = 0.0_dp
-        where(.not. tCoreDet) iDie = iDie_tmp
+        iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition)
+        def_default(t_core_die, t_core_die_, .true.)
+        if(.not. t_core_die) then
+            where(tCoredet) iDie = 0.0_dp
+        end if
 
         IFDEBUG(FCIMCDebug,3) then
             if (sum(abs(iDie)) > 1.0e-10_dp) then
@@ -2378,12 +2381,10 @@ contains
             end do
         end if
 
-
         if (any(abs(CopySign) > 1.0e-12_dp) .or. any(tCoreDet)) then
             ! For the hashed walker main list, the particles don't move.
             ! Therefore just adjust the weight.
             call encode_sign (CurrentDets(:, DetPosition), CopySign)
-
         else
             ! All walkers died.
             if (tFillingStochRDMonFly) then

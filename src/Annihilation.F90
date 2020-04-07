@@ -19,7 +19,7 @@ module AnnihilationMod
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
                          ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
     use sort_mod
-    use core_space_util, only: cs_replicas, min_pt, max_pt
+    use core_space_util, only: cs_replicas
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
     use bit_reps, only: decode_bit_det, &
@@ -873,20 +873,23 @@ module AnnihilationMod
     subroutine deterministic_annihilation(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: i, j, run
+        integer :: i, j, run, pt
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
 
         ! Copy across the weights from partial_determ_vecs (the result of the deterministic projection)
         ! to CurrentDets:
-        do run = 1, inum_runs
+        do run = 1, size(cs_replicas)
+
             associate( rep => cs_replicas(run)) 
               
               do i = 1, rep%determ_sizes(iProcIndex)
                   call extract_sign(CurrentDets(:, rep%indices_of_determ_states(i)), CurrentSign)
                   ! Update the sign of this replica only
                   SpawnedSign = 0.0_dp
-                  SpawnedSign(min_part_type(run):max_part_type(run)) = rep%partial_determ_vecs(min_pt:max_pt,i)
-                  call encode_sign(CurrentDets(:, rep%indices_of_determ_states(i)), SpawnedSign + CurrentSign)
+                  SpawnedSign(rep%min_part():rep%max_part()) = rep%partial_determ_vecs(:,i)
+                  do pt = rep%min_part(), rep%max_part()
+                      call encode_part_sign(CurrentDets(:, rep%indices_of_determ_states(i)), SpawnedSign(pt) + CurrentSign(pt), pt)
+                  end do
 
                   ! Update stats:
                   ! Number born:

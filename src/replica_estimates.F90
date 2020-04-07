@@ -98,7 +98,7 @@ module replica_estimates
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
             do run = 1, lenof_sign
-                associate( rep => cs_replicas(part_type_to_run(run)))
+                associate( rep => cs_replicas(core_run))
                 do i = 1, rep%determ_sizes(iProcIndex)
                     if (DetBitEQ(rep%core_space(0:NIfDBO, rep%determ_displs(iProcIndex)+i), iLutRef(:,run), NIfDBO)) then
                         ! This might need adjustment for the complex case

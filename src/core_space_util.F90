@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module core_space_util
     use mpi
     use constants
@@ -9,7 +11,7 @@ module core_space_util
 
     private
     public :: core_space_t, cs_replicas, sparse_matrix_real, sparse_matrix_int, &
-        min_pt, max_pt, num_core_runs, deallocate_sparse_ham
+        num_core_runs, deallocate_sparse_ham, min_pt, max_pt
 
     integer, parameter :: min_pt = 1
     integer, parameter :: max_pt = rep_size
@@ -71,9 +73,22 @@ module core_space_util
 
         ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
         real(dp), allocatable, dimension(:) :: core_ham_diag
+
+        ! ilut Sign range in which this core space operates
+        integer :: max_run, min_run
+
+        ! Is this a global core space?
+        logical :: t_global
     contains        
         procedure :: alloc_wf
+        procedure :: associate_run
         procedure :: dealloc
+
+        procedure :: max_part
+        procedure :: min_part
+
+        procedure :: first_run
+        procedure :: last_run
     end type core_space_t
 
     ! Each replica has its own core space information
@@ -84,26 +99,70 @@ contains
     ! Interface function giving access to the core space replicas: This serves to
     ! switch between models with one core space per replica or one shared core space
     ! efficiently
-    function max_replica() result(ir)
+    pure function max_part(this) result(ir)
+        class(core_space_t), intent(in) :: this
         integer :: ir
 
-        ir = inum_runs
-    end function max_replica
+        ir = max_part_type(this%max_run)
+    end function max_part
+
+    pure function min_part(this) result(ir)
+        class(core_space_t), intent(in) :: this
+        integer :: ir
+
+        ir = min_part_type(this%min_run)
+    end function min_part
 
 !------------------------------------------------------------------------------------------!    
 
-    subroutine alloc_wf(this, t_global)
-        class(core_space_t), intent(out) :: this
+    pure function last_run(this) result(ir)
+        class(core_space_t), intent(in) :: this
+        integer :: ir
+
+        ir = this%max_run
+    end function last_run
+
+    pure function first_run(this) result(ir)
+        class(core_space_t), intent(in) :: this
+        integer :: ir
+
+        ir = this%min_run
+    end function first_run
+
+    !------------------------------------------------------------------------------------------!
+
+    ! Associate this core space with a replica
+    subroutine associate_run(this, t_global, run)
+        class(core_space_t), intent(inout) :: this
         logical, intent(in) :: t_global
+        integer, intent(in) :: run
+
+        this%t_global = t_global
+        if(this%t_global) then
+            this%min_run = 1
+            this%max_run = inum_runs
+        else
+            this%min_run = run
+            this%max_run = run
+        end if        
+    end subroutine associate_run
+
+    !------------------------------------------------------------------------------------------!
+
+    
+    subroutine alloc_wf(this)
+        class(core_space_t), intent(inout) :: this        
         integer :: vec_size
         integer :: ierr
         character(*), parameter :: t_r = "core_space_t%alloc_wf"
-        
-        if(t_global) then
+
+        ! Store the operating range of this core space        
+        if(this%t_global) then
             vec_size = lenof_sign
         else
             vec_size = rep_size
         end if
+
         ! Allocate the vectors to store the walker amplitudes and the deterministic Hamiltonian.       
         allocate(this%full_determ_vecs(vec_size,this%determ_space_size), stat=ierr)
         call LogMemAlloc('full_determ_vecs', this%determ_space_size_int*lenof_sign, &

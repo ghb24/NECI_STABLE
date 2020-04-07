@@ -226,12 +226,18 @@ contains
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
         use DetBitOps, only: DetBitEQ
         integer, intent(in) :: run
-        integer :: i, j, ierr, part_type
+        integer :: i, j, ierr, part_type, c_run
         real(dp) :: scaledDiagSft(inum_runs)
 
         call MPIBarrier(ierr)
 
-        associate( rep => cs_replicas(run)) 
+        if(t_global_core_space) then
+            c_run = core_run
+        else
+            c_run = run
+        endif
+
+        associate( rep => cs_replicas(c_run)) 
 
           call set_timer(SemiStoch_Comms_Time)
 
@@ -382,7 +388,7 @@ contains
 
         integer :: i, j, ierr, run, part_type
 
-        do run = 1, inum_runs
+        do run = 1, size(cs_replicas)
             associate( rep => cs_replicas(run))
               call MPIBarrier(ierr)
 
@@ -404,12 +410,14 @@ contains
 #ifdef CMPLX_
                   do i = 1, rep%determ_sizes(iProcIndex)
                       do j = 1, rep%sparse_core_ham(i)%num_elements
-                              rep%partial_determ_vecs(min_pt,i) = rep%partial_determ_vecs(min_pt,i) - &
-                                  Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(min_pt,rep%sparse_core_ham(i)%positions(j)) +&
-                                  Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(max_pt,rep%sparse_core_ham(i)%positions(j))
-                              rep%partial_determ_vecs(max_pt,i) = rep%partial_determ_vecs(max_pt,i) - &
-                                  Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(min_pt,rep%sparse_core_ham(i)%positions(j)) -&
-                                  Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(max_pt,rep%sparse_core_ham(i)%positions(j))
+                          do r_pt = rep%min_part(), rep%max_part(), 2
+                              i_pt = r_pt + 1
+                              rep%partial_determ_vecs(r_pt,i) = rep%partial_determ_vecs(r_pt,i) - &
+                                  Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(r_pt,rep%sparse_core_ham(i)%positions(j)) +&
+                                  Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(i_pt,rep%sparse_core_ham(i)%positions(j))
+                              rep%partial_determ_vecs(i_pt,i) = rep%partial_determ_vecs(i_pt,i) - &
+                                  Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(r_pt,rep%sparse_core_ham(i)%positions(j)) -&
+                                  Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(i_pt,rep%sparse_core_ham(i)%positions(j))
                       end do
                   end do
 #else
@@ -429,14 +437,13 @@ contains
                   end do
 
                   ! Now multiply the vector by tau to get the final projected vector.
-                  rep%partial_determ_vecs = rep%partial_determ_vecs * tau
+                  rep%partial_determ_vecs =&
+                      rep%partial_determ_vecs * tau
 
                   do i = 1, rep%determ_sizes(iProcIndex)
-                      do part_type  = 1, rep_size
-                          if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,rep%indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
-                              rep%partial_determ_vecs(part_type, i) = 0.0_dp
-                          end if
-                      end do
+                      if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,rep%indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                          rep%partial_determ_vecs(:, i) = 0.0_dp
+                      end if
                   end do
 
               end if
@@ -458,82 +465,84 @@ contains
         use Parallel_neci, only: MPIBarrier, MPIAllGatherV
         use DetBitOps, only: DetBitEQ
 
-        integer :: i, j, ierr, run, part_type
+        integer :: i, j, ierr, run, part_type, c_run
+        character(*), parameter :: t_r  = "determ_proj_approx"
 
-        do run = 1, inum_runs
-            associate( rep => cs_replicas(run))
-              call MPIBarrier(ierr)
+        if(.not. t_global_core_space) then
+            call stop_all(t_r, "Cannot do approximate projection with core-space replicas")
+        end if
+        associate( rep => cs_replicas(core_run))
+          call MPIBarrier(ierr)
 
-              call set_timer(SemiStoch_Comms_Time)
+          call set_timer(SemiStoch_Comms_Time)
 
-              call MPIAllGatherV(rep%partial_determ_vecs, rep%full_determ_vecs, &
-                  rep%determ_sizes, rep%determ_displs)
+          call MPIAllGatherV(rep%partial_determ_vecs, rep%full_determ_vecs, &
+              rep%determ_sizes, rep%determ_displs)
 
-              call halt_timer(SemiStoch_Comms_Time)
+          call halt_timer(SemiStoch_Comms_Time)
 
-              call set_timer(SemiStoch_Multiply_Time)
+          call set_timer(SemiStoch_Multiply_Time)
 
-              if (rep%determ_sizes(iProcIndex) >= 1) then
+          if (rep%determ_sizes(iProcIndex) >= 1) then
 
-                  ! For the moment, we're only adding in these contributions when we need the energy
-                  ! This will need refinement if we want to continue with the option of inst vs true full RDMs
-                  ! (as in another CMO branch).
+              ! For the moment, we're only adding in these contributions when we need the energy
+              ! This will need refinement if we want to continue with the option of inst vs true full RDMs
+              ! (as in another CMO branch).
 
-                  ! Perform the multiplication.
+              ! Perform the multiplication.
 
-                  rep%partial_determ_vecs = 0.0_dp
+              rep%partial_determ_vecs = 0.0_dp
 
 #ifdef CMPLX_
-                  do i = 1, rep%determ_sizes(iProcIndex)
-                      do j = 1, approx_ham(i)%num_elements
-                          rep%partial_determ_vecs(min_pt,i) = rep%partial_determ_vecs(min_pt,i) - &
-                              Real(approx_ham(i)%elements(j))*rep%full_determ_vecs(min_pt,approx_ham(i)%positions(j)) +&
-                              Aimag(approx_ham(i)%elements(j))*rep%full_determ_vecs(max_pt,approx_ham(i)%positions(j))
-                          rep%partial_determ_vecs(max_pt,i) = rep%partial_determ_vecs(max_pt,i) - &
-                              Aimag(approx_ham(i)%elements(j))*rep%full_determ_vecs(min_pt,approx_ham(i)%positions(j)) -&
-                              Real(approx_ham(i)%elements(j))*rep%full_determ_vecs(max_pt,approx_ham(i)%positions(j))
-                      end do
+              do i = 1, rep%determ_sizes(iProcIndex)
+                  do j = 1, approx_ham(i)%num_elements
+                      rep%partial_determ_vecs(min_pt,i) = rep%partial_determ_vecs(min_pt,i) - &
+                          Real(approx_ham(i)%elements(j))*rep%full_determ_vecs(min_pt,approx_ham(i)%positions(j)) +&
+                          Aimag(approx_ham(i)%elements(j))*rep%full_determ_vecs(max_pt,approx_ham(i)%positions(j))
+                      rep%partial_determ_vecs(max_pt,i) = rep%partial_determ_vecs(max_pt,i) - &
+                          Aimag(approx_ham(i)%elements(j))*rep%full_determ_vecs(min_pt,approx_ham(i)%positions(j)) -&
+                          Real(approx_ham(i)%elements(j))*rep%full_determ_vecs(max_pt,approx_ham(i)%positions(j))
                   end do
+              end do
 #else
-                  do i = 1, rep%determ_sizes(iProcIndex)
-                      do j = 1, approx_ham(i)%num_elements
-                          rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) - &
-                              approx_ham(i)%elements(j)*rep%full_determ_vecs(:,approx_ham(i)%positions(j))
-                      end do
+              do i = 1, rep%determ_sizes(iProcIndex)
+                  do j = 1, approx_ham(i)%num_elements
+                      rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) - &
+                          approx_ham(i)%elements(j)*rep%full_determ_vecs(:,approx_ham(i)%positions(j))
                   end do
+              end do
 #endif
 
-                  ! Now add shift*full_determ_vecs to account for the shift, not stored in
-                  ! approx_ham.
+              ! Now add shift*full_determ_vecs to account for the shift, not stored in
+              ! approx_ham.
 #ifdef CMPLX_
-                  do i = 1, rep%determ_sizes(iProcIndex)
-                      do part_type  = 1, lenof_sign
-                          rep%partial_determ_vecs(part_type,i) = rep%partial_determ_vecs(part_type,i) + &
-                              DiagSft(run) * rep%full_determ_vecs(part_type,i+rep%determ_displs(iProcIndex))
-                      enddo
-                  end do
+              do i = 1, rep%determ_sizes(iProcIndex)
+                  do part_type  = 1, lenof_sign
+                      rep%partial_determ_vecs(part_type,i) = rep%partial_determ_vecs(part_type,i) + &
+                          DiagSft(run) * rep%full_determ_vecs(part_type,i+rep%determ_displs(iProcIndex))
+                  enddo
+              end do
 #else
-                  do i = 1, rep%determ_sizes(iProcIndex)
-                      rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) + &
-                          DiagSft * rep%full_determ_vecs(:,i+rep%determ_displs(iProcIndex))
-                  end do
+              do i = 1, rep%determ_sizes(iProcIndex)
+                  rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) + &
+                      DiagSft * rep%full_determ_vecs(:,i+rep%determ_displs(iProcIndex))
+              end do
 #endif
 
-                  ! Now multiply the vector by tau to get the final projected vector.
-                  rep%partial_determ_vecs = rep%partial_determ_vecs * tau
+              ! Now multiply the vector by tau to get the final projected vector.
+              rep%partial_determ_vecs = rep%partial_determ_vecs * tau
 
-                  do i = 1, rep%determ_sizes(iProcIndex)
-                      do part_type  = 1, rep_size
-                          if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,rep%indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
-                              rep%partial_determ_vecs(part_type, i) = 0.0_dp
-                          end if
-                      end do
+              do i = 1, rep%determ_sizes(iProcIndex)
+                  do part_type  = 1, rep_size
+                      if(tSkipRef(run) .and. DetBitEQ(CurrentDets(:,rep%indices_of_determ_states(i)),iLutRef(:,run),nIfD)) then
+                          rep%partial_determ_vecs(part_type, i) = 0.0_dp
+                      end if
                   end do
-              end if
+              end do
+          end if
 
-              call halt_timer(SemiStoch_Multiply_Time)
-            end associate
-        end do
+          call halt_timer(SemiStoch_Multiply_Time)
+        end associate
 
     end subroutine determ_proj_approx
 
@@ -549,7 +558,7 @@ contains
         ! previous iteration. We now want to start a new averaging block so
         ! that the same contributions aren't added in again later.
         if (mod(Iter+PreviousCycles-IterRDMStart, RDMEnergyIter) == 0) then
-            do run = 1, inum_runs
+            do run = 1, size(cs_replicas)
                 cs_replicas(run)%full_determ_vecs_av = 0.0_dp
             end do
             write(6,*) "Reset fdv av at iteration ", iter
@@ -561,7 +570,7 @@ contains
         iter_start_av = real(RDMEnergyIter*((Iter+PreviousCycles - IterRDMStart)/RDMEnergyIter) + IterRDMStart, dp)
 
         ! Add in the current deterministic vector to the running average.
-        do run = 1, inum_runs
+        do run = 1, size(cs_replicas)
             associate( rep => cs_replicas(run))
             rep%full_determ_vecs_av = (((iter_curr - iter_start_av)*rep%full_determ_vecs_av) + rep%full_determ_vecs)/&
                 (iter_curr - iter_start_av + 1.0_dp)
@@ -585,9 +594,10 @@ contains
         integer :: i, run
         logical :: t_core
 
-        def_default(run, run_, 1)
+        def_default(run, run_, core_run)
+        if(t_global_core_space) run = core_run
 
-        associate(rep => cs_replicas(run_)) 
+        associate(rep => cs_replicas(run))
           call shared_rht_lookup(rep%core_ht, ilut, nI, rep%core_space, i, t_core)
         end associate
     end function is_core_state
@@ -607,7 +617,8 @@ contains
         integer :: pos, run
         logical :: t_core
 
-        def_default(run, run_, 1)
+        def_default(run, run_, core_run)
+        if(t_global_core_space) run = core_run
         associate(rep => cs_replicas(run))
           call shared_rht_lookup(rep%core_ht, ilut, nI, rep%core_space, pos, t_core)
         end associate
@@ -1396,13 +1407,49 @@ contains
 
         end do
 
-        call sort(largest_walkers(:,1:n_keep), sign_lt, sign_gt)
+        call sort(largest_walkers(:,1:n_keep), sign_lt_run, sign_gt_run)
+
+    contains
+
+        pure function sign_lt_run (ilutI, ilutJ) result (bLt)
+
+            ! This is a comparison function between two bit strings of length
+            ! 0:NIfTot, and will return true if absolute value of the sign of
+            ! ilutI is less than ilutJ
+
+            integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+            logical :: bLt
+            real(dp) :: SignI(lenof_sign), SignJ(lenof_sign)
+
+            call extract_sign(ilutI, SignI)
+            call extract_sign(ilutJ, SignJ)
+
+            bLt = core_space_weight(signI, run) < core_space_weight(signJ, run)
+
+        end function sign_lt_run
+
+        pure function sign_gt_run (ilutI, ilutJ) result (bGt)
+
+            ! This is a comparison function between two bit strings of length
+            ! 0:NIfTot, and will return true if the abs sign of ilutI is greater
+            ! than ilutJ
+
+            integer(n_int), intent(in) :: iLutI(0:), iLutJ(0:)
+            logical :: bGt
+            real(dp) :: SignI(lenof_sign), SignJ(lenof_sign)
+
+            call extract_sign(ilutI, SignI)
+            call extract_sign(ilutJ, SignJ)
+
+            bGt = core_space_weight(signI, run) > core_space_weight(signJ, run)
+
+        end function sign_gt_run
 
     end subroutine return_most_populated_states
 
     !> Weight function for picking the most populated states. Trivial in
     !! single run mode, but multiple options exist in mneci   
-    function core_space_weight(sign_curr, run) result(sign_curr_real)
+    pure function core_space_weight(sign_curr, run) result(sign_curr_real)
         real(dp), intent(in) :: sign_curr(lenof_sign)
         integer, intent(in) :: run
         real(dp) :: sign_curr_real
@@ -1630,7 +1677,6 @@ contains
           else
               dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
           end if
-        end associate
 
 #ifdef DEBUG_
         write(6,*)'davidson eigenvec'
@@ -1646,10 +1692,11 @@ contains
                 counter = counter + 1
                 pop_sign = dc%davidson_eigenvector(counter)
                 call decode_bit_det(nI, CurrentDets(:,i))
-                tmp = transfer(pop_sign(min_pt:max_pt), tmp)
-                CurrentDets(NOffSgn+min_part_type(run)-1:NOffSgn+max_part_type(run)-1, i) = tmp
+                tmp = transfer(pop_sign(rep%min_part():rep%max_part()), tmp)
+                CurrentDets(NOffSgn+rep%min_part()-1:NOffSgn+rep%max_part()-1, i) = tmp
             end if
         end do
+        end associate
 
         call destroy_davidson_ss(dc)
 
@@ -2033,7 +2080,7 @@ contains
         integer :: ierr
         integer :: run
 
-        do run = 1, inum_runs
+        do run = 1, size(cs_replicas)
             call cs_replicas(run)%dealloc()
         end do
         deallocate(cs_replicas)

@@ -92,6 +92,7 @@ contains
               allocate(rep%determ_sizes(0:nProcessors-1))
               allocate(rep%determ_displs(0:nProcessors-1))
               allocate(rep%determ_last(0:nProcessors-1))
+              call rep%associate_run(t_global_core_space, run)
               rep%determ_sizes = 0_MPIArg
               rep%determ_last = 0_MPIArg
 
@@ -138,7 +139,7 @@ contains
               write(6,'("Size of deterministic space on this processor:",1X,i8)') rep%determ_sizes(iProcIndex)
               call neci_flush(6)
 
-              call rep%alloc_wf(t_global_core_space)
+              call rep%alloc_wf()
 
               ! This array will hold the positions of the deterministic states in CurrentDets.
               allocate(rep%indices_of_determ_states(rep%determ_sizes(iProcIndex)), stat=ierr)
@@ -279,7 +280,7 @@ contains
 
         type(subspace_in) :: core_in
         integer, intent(in) :: run
-        integer :: space_size, i, ierr
+        integer :: space_size, i, ierr, tgt_run
         real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
 
@@ -368,18 +369,19 @@ contains
             call generate_all_conn_space(SpawnedParts, space_size)
             call remove_repeated_states(SpawnedParts, space_size)
         end if
-
+        associate( rep => cs_replicas(run))
         zero_sign = 0.0_dp
         do i = 1, space_size
             call encode_sign(SpawnedParts(:,i), zero_sign)
-
-            call set_flag(SpawnedParts(:,i), flag_deterministic(run))
-            if (tTruncInitiator) then
-                call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(run))
-                call set_flag(CurrentDets(:,i), flag_static_init(run))
-            end if
+            do tgt_run = rep%first_run(), rep%last_run()
+                call set_flag(SpawnedParts(:,i), flag_deterministic(tgt_run))
+                if (tTruncInitiator) then
+                    call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(tgt_run))
+                    call set_flag(CurrentDets(:,i), flag_static_init(tgt_run))
+                end if
+            end do
         end do
-        associate( rep => cs_replicas(run)) 
+
           ! Set the deterministic space size for this process.
           rep%determ_sizes(iProcIndex) = int(space_size, MPIArg)
 

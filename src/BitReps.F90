@@ -202,7 +202,7 @@ contains
         NIfDBO = NIfD + NIfY
 
 #ifdef PROG_NUMRUNS_
-        if (lenof_sign_max /= 20) then
+        if (lenof_sign_max /= 14) then
             call stop_all(this_routine, "Invalid build configuration. Update &
                          &flags to account for new lenof_sign_max, then &
                          &update this message")

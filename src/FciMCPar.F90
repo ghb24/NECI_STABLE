@@ -1393,14 +1393,14 @@ module FciMCParMod
 
             ! This if-statement is only entered when using semi-stochastic and
             ! only if this determinant is in the core space.
-            do run = 1, inum_runs
-                associate( rep => cs_replicas(run))
-                if (tCoreDet(run)) then
+            do run = 1, size(cs_replicas)
+                associate( rep => cs_replicas(run)) 
+                  if (tCoreDet(run)) then
                     ! Store the index of this state, for use in annihilation later.
                     rep%indices_of_determ_states(determ_index(run)) = j
 
                     ! Add this amplitude to the deterministic vector.
-                    rep%partial_determ_vecs(:,determ_index(run)) = SignCurr
+                    rep%partial_determ_vecs(:,determ_index(run)) = SignCurr(rep%min_part():rep%max_part())
 
                     determ_index(run) = determ_index(run) + 1
                 end if
@@ -1757,9 +1757,10 @@ module FciMCParMod
             ! deterministically later. Otherwise, perform the death step now.
             ! If using a preconditioner, then death is done in the annihilation
             ! routine, after the energy has been calculated.
-            if (tDeathBeforeComms .and. .not. tGlobalCoreDet) then
+            if (tDeathBeforeComms) then
                 call walker_death (iter_data, DetCurr, CurrentDets(:,j), &
-                                   HDiagCurr, SignCurr, j, WalkExcitLevel)
+                    HDiagCurr, SignCurr, j, WalkExcitLevel, &
+                    t_core_die_ = .false.)
             end if
 
          enddo ! Loop over determinants.

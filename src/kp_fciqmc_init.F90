@@ -1090,7 +1090,7 @@ contains
             ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
             ! These routines will do this.
             call copy_core_dets_to_spawnedparts(rep)
-            call add_core_states_currentdet_hash(1)
+            call add_core_states_currentdet_hash(core_run)
         else
             ! Some determinants may have become occupied and then unoccupied in
             ! the course of the above. We need to remove the entries for these

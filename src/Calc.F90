@@ -3012,6 +3012,7 @@ contains
                 ! Don't start all replicas from the deterministic ground state
                 ! when using this option.
                 tStartCoreGroundState = .false.
+                t_global_core_space = .false.
 
             case("TEST-NON-ORTHOGONALITY")
                 ! for the non-hermitian eigenstates the shift gives a
@@ -3039,6 +3040,10 @@ contains
                 ! Don't print overlaps between replicas when using the
                 ! orthogonalise-replicas option.
                 tPrintReplicaOverlaps = .false.
+
+            case("CORE-SPACE-REPLICAS")
+                ! Use one core space per replica (implicit for orthogonalise-replicas)
+                t_global_core_space = .false.
 
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.
