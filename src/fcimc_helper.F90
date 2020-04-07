@@ -168,7 +168,6 @@ contains
         !parent
         run = part_type_to_run(part_type)
         ASSERT(sum(abs(child))-sum(abs(child(min_part_type(run):max_part_type(run)))) < 1.0e-12_dp)
-
         ! Determine which processor the particle should end up on in the
         ! DirectAnnihilation algorithm.
         proc = DetermineDetNode(nel,nJ,0)    ! (0 -> nNodes-1)

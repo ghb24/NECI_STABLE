@@ -643,7 +643,7 @@ contains
         ! Convert from 1-based first dimension to 0-based first dimension as used in iluts
         rep%core_space(0:,1:) => rep%core_space_direct(1:,1:)
         call LogMemAlloc('core_space', maxval(rep%determ_sizes)*(NIfTot+1), 8, t_r, &
-            CoreSpaceTag, ierr)
+            rep%CoreSpaceTag, ierr)
         if(iProcIndex_intra == 0) rep%core_space = 0_n_int
 
         ! Write the core-space on this node into core_space
@@ -1121,9 +1121,9 @@ contains
                   ! Copy the amplitude of the state across to SpawnedParts.
                   call extract_sign(CurrentDets(:,PartInd), walker_sign)
                   call encode_sign(SpawnedParts(:,i), walker_sign)
-                  ! Copyt the flags across (this includes the
-                  ! newly set deterministic flag
-                  SpawnedParts(NOffFlag, i) = CurrentDets(NOffFlag, PartInd)
+                  ! Add up the already set flags to those to be set
+                  SpawnedParts(NOffFlag, i) = ior(CurrentDets(NOffFlag, PartInd), &
+                      SpawnedParts(NOffFlag, i))
                   ! Cache the accumulated global det data
                   call reorder_handler%write_gdata(gdata_buf, 1, PartInd, i)
               else
@@ -1552,13 +1552,6 @@ contains
           else
               dc%davidson_eigenvector = dc%davidson_eigenvector*InitWalkers/eigenvec_pop_tot
           end if
-
-#ifdef DEBUG_
-        write(6,*)'davidson eigenvec'
-        do i = 1, cs_replicas(run)%determ_sizes(iProcIndex)
-            print*,  dc%davidson_eigenvector(i)
-        end do
-#endif
 
         ! Then copy these amplitudes across to the corresponding states in CurrentDets.
         counter = 0

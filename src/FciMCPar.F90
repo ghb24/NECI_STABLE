@@ -1465,7 +1465,6 @@ module FciMCParMod
                     end if
                 end do
             end if
-
             if (tTruncInitiator) then
                 call CalcParentFlag (j, DetCurr, WalkExcitLevel, parent_flags)
             end if
@@ -1677,7 +1676,7 @@ module FciMCParMod
                             end if
 
                         end if
-
+                        
                         if (tPreCond .or. tReplicaEstimates) then
                             hdiag_spawn = get_hdiag_from_excit(DetCurr, nJ, iLutnJ, ic, ex, hdiag_bare)
 
@@ -1717,7 +1716,7 @@ module FciMCParMod
                         if (tTrialWavefunction) then
                             call clr_flag(iLutnJ, flag_trial)
                             call clr_flag(iLutnJ, flag_connected)
-                         end if
+                        end if
 
                         ! If using a preconditioner, update the child weight for statistics
                         ! (mainly for blooms and hence updating the time step).

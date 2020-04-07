@@ -280,7 +280,7 @@ contains
 
         type(subspace_in) :: core_in
         integer, intent(in) :: run
-        integer :: space_size, i, ierr
+        integer :: space_size, i, ierr, c_run
         real(dp) :: zero_sign(lenof_sign)
         character (len=*), parameter :: t_r = "generate_space"
 
@@ -374,9 +374,11 @@ contains
         do i = 1, space_size
             call encode_sign(SpawnedParts(:,i), zero_sign)
             call set_flag(SpawnedParts(:,i), flag_deterministic(run))
-            if (tTruncInitiator) then
-                call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(run))
-                call set_flag(CurrentDets(:,i), flag_static_init(run))
+            if (tTruncInitiator .and. t_core_inits) then
+                do c_run = rep%first_run(), rep%last_run()
+                    call set_flag(SpawnedParts(:,i), get_initiator_flag_by_run(c_run))
+                    call set_flag(CurrentDets(:,i), flag_static_init(c_run))
+                end do
             end if
         end do
 

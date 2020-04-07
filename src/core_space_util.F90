@@ -67,7 +67,7 @@ module core_space_util
         real(dp), allocatable, dimension(:,:) :: partial_determ_vecs
         real(dp), allocatable, dimension(:,:) :: full_determ_vecs
         real(dp), allocatable, dimension(:,:) :: full_determ_vecs_av
-        integer(TagIntType) :: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag
+        integer(TagIntType) :: FDetermTag, FDetermAvTag, PDetermTag, IDetermTag, CoreSpaceTag
         ! Stores the parities for all connected pairs of states in the core space.
         type(sparse_matrix_int), allocatable, dimension(:) :: core_connections        
 
@@ -194,6 +194,7 @@ contains
         if (associated(this%core_space)) then
             this%core_space => null()
             call shared_deallocate_mpi(this%core_space_win, this%core_space_direct)
+            call LogMemDealloc(t_r, this%CoreSpaceTag, ierr)
         end if
 
         if (allocated(this%determ_sizes)) then
