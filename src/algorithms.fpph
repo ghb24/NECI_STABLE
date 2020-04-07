@@ -27,7 +27,7 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
 #:if tmp
         associate(tmp => ${tmp}$)
 #:else
-        @{get_decl(${type}$, ${kind}$, ${rank}$, ${int(rank) >= 1}$)}@ :: tmp
+            @{get_decl(${type}$, ${kind}$, ${rank}$, ${int(rank) >= 1}$)}@ :: tmp
 #:endif
             tmp = ${a}$
             ${a}$ = ${b}$
@@ -107,8 +107,10 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
 #:def sort(type, var, comp='<=', kind=None, rank=1, along=None, method='merge_sort')
 #:if method == 'merge_sort'
     ${_merge_sort(type, var, comp, kind, rank, along)}$
+#:elif method == 'bubble_sort'
+    ${_bubble_sort(type, var, comp, kind, rank, along)}$
 #:else
-#:stop "Currently only method='merge_sort' supported"
+    #:stop "Currently only methods 'merge_sort' and 'bubble_sort' supported"
 #:endif
 #:enddef
 
@@ -124,34 +126,44 @@ $:  var+'('+', '.join(idx if i == int(along) else ':' for i in range(1, int(rank
             @{get_decl(${type}$, ${kind}$, ${rank}$, True)}@ :: tmp
             integer :: i, current_size, left, mid, right
             integer, parameter :: along = ${along}$, &
-                ! HAS TO BE A POWER OF 2 !!!!!!!!
-                bubblesort_size = 2**4
+                bubblesort_size = 12
 
-        associate(X => ${var}$)
+            associate(X => ${var}$)
+                ! Determine good number of starting splits
+                block
+                    integer :: n_splits
+                    n_splits = 1
+                    do while (size(X, along) / n_splits + merge(0, 1, mod(size(X, along), n_splits) == 0) > bubblesort_size)
+                        n_splits = n_splits + 1
+                    end do
+                    current_size = size(X, along) / n_splits + merge(0, 1, mod(size(X, along), n_splits) == 0)
+                end block
 
-            ! Reuse this variable as tmp for swap in bubble_sort
-            ! and for merge in merge_sort.
-            allocate(tmp(@{shape_like_except_along(${rank}$, ${along}$, X, size(X) / 2 + 1 )}@))
+                ! Reuse this variable as tmp for swap in bubble_sort
+                ! and for merge in merge_sort.
+                block
+                    integer :: max_buffer_size, n_merges
+                    n_merges = ceiling(log(real(size(X, along)) / real(current_size)) / log(2.0))
+                    max_buffer_size = current_size * merge(2**(n_merges - 1), 1, n_merges >= 1)
+                    allocate(tmp(@{shape_like_except_along(${rank}$, ${along}$, X, max_buffer_size)}@))
+                end block
 
-            left = lbound(X, along)
-            do i = 1, (size(X, along) - 1) / bubblesort_size + 1
-                right = min(left + bubblesort_size - 1, ubound(X, along))
-                ${_bubble_sort(type, select('X', 'left : right'), comp, kind, rank, along, tmp=select('tmp', '1'))}$
-            end do
-
-            current_size = bubblesort_size
-            do while (current_size < size(X))
-                left = lbound(X, along)
-                do while (left < ubound(X, along))
-                    mid = left + current_size - 1
-                    right = min(left + 2 * current_size - 1, ubound(X, along))
-                    @{select(tmp, : mid - left + 1)}@ = @{select(X, left : mid)}@
-                    ${merge(type, select('tmp', ': mid - left + 1'), select('X', 'mid + 1 : right'), select('X', 'left : right'), comp, kind, rank, along)}$
-                    left = left + 2 * current_size
+                ! Bubble sort bins of size `bubblesort_size`.
+                do left = lbound(X, along), ubound(X, along), current_size
+                    right = min(left + bubblesort_size - 1, ubound(X, along))
+                    ${_bubble_sort(type, select('X', 'left : right'), comp, kind, rank, along, tmp=select('tmp', '1'))}$
                 end do
-                current_size = 2 * current_size
-            end do
-        end associate
+
+                do while (current_size < size(X, along))
+                    do left = lbound(X, along), ubound(X, along), 2 * current_size
+                        right = min(left + 2 * current_size - 1, ubound(X, along))
+                        mid = min(left + current_size, right) - 1
+                        @{select(tmp, : mid - left + 1)}@ = @{select(X, left : mid)}@
+                        ${merge(type, select('tmp', ': mid - left + 1'), select('X', 'mid + 1 : right'), select('X', 'left : right'), comp, kind, rank, along)}$
+                    end do
+                    current_size = 2 * current_size
+                end do
+            end associate
         end block
 #:enddef
 #:endmute
