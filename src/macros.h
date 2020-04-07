@@ -64,14 +64,18 @@
 #define clr_orb(ilut, orb) ilut(ilut_int(orb))=ibclr(ilut(ilut_int(orb)),ilut_off(orb))
 
 ! Useful for fixing things. Requires this_routine to be defined
+! It would be nice print __FILE__ and __LINE__ in the ASSERT macro,
+! especially it would be nice to print the failed condition with `#x`.
+! Unfortunately this is not possible (without substantial work).
+! https://stackoverflow.com/questions/31649691/stringify-macro-with-gnu-gfortran
 #ifdef DEBUG_
 #define ASSERT(x) \
 if (.not. (x)) then; \
- call stop_all (this_routine, "Assert fail in "//AT//": "//#x); \
+ call stop_all (this_routine, "Assert fail in "//__FILE__); \
 endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
- call stop_all (this_routine, "Assert fail in "//AT//": "//#x); \
+ call stop_all (this_routine, "Assert fail in "//__FILE__); \
 endif
 ! Do some debugging if X>=Y
 #define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)
