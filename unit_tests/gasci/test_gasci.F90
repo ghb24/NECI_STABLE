@@ -9,7 +9,7 @@ module test_gasci_mod
     use procedure_pointers, only: generate_excitation
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, &
         size, operator(==), alpha, beta, sum, calc_spin, calc_spin_raw, &
-        operator(-), to_ilut, sort, lex_leq
+        operator(-), to_ilut
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite
     use util_mod, only: cumsum
     use gasci, only: GASSpec_t, get_iGAS, &

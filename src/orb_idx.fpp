@@ -1,5 +1,7 @@
 #include "macros.h"
 #:include "macros.fpph"
+#:include "algorithms.fpph"
+
 #:set OrbIdxTypes = ['SpinOrbIdx_t', 'SpatOrbIdx_t']
 
 module orb_idx_mod
@@ -11,7 +13,7 @@ module orb_idx_mod
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
         SpinProj_t, calc_spin, calc_spin_raw, alpha, beta, &
         operator(==), operator(/=), operator(+), operator(-), &
-        sum, to_ilut
+        sum, to_ilut, lex_leq, lex_geq
 
     type, abstract :: OrbIdx_t
         integer, allocatable :: idx(:)
@@ -64,6 +66,16 @@ module orb_idx_mod
         module procedure neg_SpinProj_t
     end interface
 
+#:for type in OrbIdxTypes
+    interface lex_leq
+        module procedure lex_leq_${type}$
+    end interface
+
+    interface lex_geq
+        module procedure lex_geq_${type}$
+    end interface
+#:endfor
+
     interface sum
         module procedure sum_SpinProj_t
     end interface
@@ -74,13 +86,13 @@ module orb_idx_mod
         integer, intent(in) :: idx(:)
         type(SpinProj_t), intent(in), optional :: m_s
         type(SpinOrbIdx_t) :: res
+        type(SpinProj_t) :: spins(size(idx))
         character(*), parameter :: this_routine = 'construction_from_array_SpinOrbIdx_t'
 
         if (present(m_s)) then
             @:ASSERT(any(m_s == [alpha, beta]))
-            associate(spins => calc_spin_raw(idx))
-                res%idx = pack(idx, spins%val == m_s%val)
-            end associate
+            spins = calc_spin_raw(idx)
+            res%idx = pack(idx, spins == m_s)
         else
             res%idx = idx
         end if
@@ -196,4 +208,48 @@ module orb_idx_mod
         type(SpinProj_t) :: res
         res = merge(alpha, beta, mod(orb_idx, 2) == 0)
     end function
+
+#:for type in OrbIdxTypes
+    DEBUG_IMPURE function lex_leq_${type}$(lhs, rhs) result(res)
+        type(${type}$), intent(in) :: lhs, rhs
+        integer :: i
+        logical :: res
+        character(*), parameter :: this_routine = 'lex_lt_${type}$'
+
+        @:ASSERT(size(lhs) == size(rhs))
+
+        res = .true.
+        do i = 1, size(lhs)
+            if (lhs%idx(i) == rhs%idx(i)) then
+                cycle
+            else if (lhs%idx(i) < rhs%idx(i)) then
+                return
+            else if (lhs%idx(i) > rhs%idx(i)) then
+                res = .false.
+                return
+            end if
+        end do
+    end function
+
+    DEBUG_IMPURE function lex_geq_${type}$(lhs, rhs) result(res)
+        type(${type}$), intent(in) :: lhs, rhs
+        integer :: i
+        logical :: res
+        character(*), parameter :: this_routine = 'lex_gt_${type}$'
+
+        @:ASSERT(size(lhs) == size(rhs))
+
+        res = .true.
+        do i = 1, size(lhs)
+            if (lhs%idx(i) == rhs%idx(i)) then
+                cycle
+            else if (lhs%idx(i) > rhs%idx(i)) then
+                return
+            else if (lhs%idx(i) < rhs%idx(i)) then
+                res = .false.
+                return
+            end if
+        end do
+    end function
+#:endfor
 end module
