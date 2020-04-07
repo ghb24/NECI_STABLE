@@ -91,18 +91,23 @@ module replica_estimates
         real(dp) :: SignTemp(lenof_sign), ref_pop(lenof_sign)
         logical :: ref_found(lenof_sign), tSuccess
         integer :: PartInd, DetHash
+        character(*), parameter :: t_r = "get_proj_e_for_preconditioner"
 
         proj_energy = 0.0_dp
         ref_found = .false.
 
+        if(.not. cs_replicas(core_run)%t_global) then
+            call stop_all(t_r, "Invalid core space for preconditioning. Global core space required")
+        end if
+
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
             do run = 1, lenof_sign
-                associate( rep => cs_replicas(core_run))
+                associate( rep => cs_replicas(core_run))                
                 do i = 1, rep%determ_sizes(iProcIndex)
                     if (DetBitEQ(rep%core_space(0:NIfDBO, rep%determ_displs(iProcIndex)+i), iLutRef(:,run), NIfDBO)) then
                         ! This might need adjustment for the complex case
-                        proj_energy(run) = -rep%partial_determ_vecs(min_pt,i)
+                        proj_energy(run) = -rep%partial_determ_vecs(run,i)
                         ref_found(run) = .true.
                     end if
                 end do
