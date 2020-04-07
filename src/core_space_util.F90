@@ -103,6 +103,7 @@ contains
         class(core_space_t), intent(in) :: this
         integer :: ir
 
+        unused_var(this)
         ir = max_part_type(this%max_run)
     end function max_part
 
@@ -110,6 +111,7 @@ contains
         class(core_space_t), intent(in) :: this
         integer :: ir
 
+        unused_var(this)
         ir = min_part_type(this%min_run)
     end function min_part
 
