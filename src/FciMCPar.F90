@@ -1393,19 +1393,21 @@ module FciMCParMod
 
             ! This if-statement is only entered when using semi-stochastic and
             ! only if this determinant is in the core space.
-            do run = 1, size(cs_replicas)
-                associate( rep => cs_replicas(run)) 
-                  if (tCoreDet(run)) then
-                    ! Store the index of this state, for use in annihilation later.
-                    rep%indices_of_determ_states(determ_index(run)) = j
+            if(allocated(cs_replicas)) then
+                do run = 1, size(cs_replicas)
+                    associate( rep => cs_replicas(run)) 
+                      if (tCoreDet(run)) then
+                          ! Store the index of this state, for use in annihilation later.
+                          rep%indices_of_determ_states(determ_index(run)) = j
 
-                    ! Add this amplitude to the deterministic vector.
-                    rep%partial_determ_vecs(:,determ_index(run)) = SignCurr(rep%min_part():rep%max_part())
+                          ! Add this amplitude to the deterministic vector.
+                          rep%partial_determ_vecs(:,determ_index(run)) = SignCurr(rep%min_part():rep%max_part())
 
-                    determ_index(run) = determ_index(run) + 1
-                end if
-              end associate
-          end do
+                          determ_index(run) = determ_index(run) + 1
+                      end if
+                    end associate
+                end do
+            endif
           
           ! As the main list (which is storing a hash table) no longer needs
           ! to be contiguous, we need to skip sites that are empty.
