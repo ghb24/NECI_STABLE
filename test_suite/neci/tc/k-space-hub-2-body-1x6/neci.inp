@@ -19,6 +19,8 @@ totalwalkers   1000
 
 tau 0.05
 
+load-balance-blocks off
+
 semi-stochastic 10
 pops-core 20
 

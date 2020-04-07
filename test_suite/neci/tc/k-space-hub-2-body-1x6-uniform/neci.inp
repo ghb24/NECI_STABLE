@@ -22,6 +22,8 @@ tau 0.05
 semi-stochastic 10
 pops-core 20
 
+load-balance-blocks off
+
 trial-wavefunction 10
 pops-trial 5
 
