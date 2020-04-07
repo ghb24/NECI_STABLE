@@ -5,7 +5,8 @@
 
 module semi_stoch_procs
 
-    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, NOffSgn, NOffFlag
+    use bit_rep_data, only: flag_deterministic, nIfDBO, NIfD, NIfTot, test_flag, NOffSgn, &
+        NOffFlag, test_flag_multi
 
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
 
@@ -280,18 +281,22 @@ contains
                   rep%partial_determ_vecs = 0.0_dp
 
 #ifdef CMPLX_
-                  do i = 1, rep%determ_sizes(iProcIndex)
-                      do j = 1, rep%sparse_core_ham(i)%num_elements
-                          do r_pt = rep%min_part(), rep%max_part(), 2
-                              i_pt = r_pt + 1
-                              rep%partial_determ_vecs(r_pt,i) = rep%partial_determ_vecs(r_pt,i) - &
-                                  Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(r_pt,rep%sparse_core_ham(i)%positions(j)) +&
-                                  Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(i_pt,rep%sparse_core_ham(i)%positions(j))
-                              rep%partial_determ_vecs(i_pt,i) = rep%partial_determ_vecs(i_pt,i) - &
-                                  Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(r_pt,rep%sparse_core_ham(i)%positions(j)) -&
-                                  Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(i_pt,rep%sparse_core_ham(i)%positions(j))
-                      end do
-                  end do
+                  block
+                    integer :: r_pt, i_pt
+                    do i = 1, rep%determ_sizes(iProcIndex)
+                        do j = 1, rep%sparse_core_ham(i)%num_elements
+                            do r_pt = rep%min_part(), rep%max_part(), 2
+                                i_pt = r_pt + 1
+                                rep%partial_determ_vecs(r_pt,i) = rep%partial_determ_vecs(r_pt,i) - &
+                                    Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(r_pt,rep%sparse_core_ham(i)%positions(j)) +&
+                                    Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(i_pt,rep%sparse_core_ham(i)%positions(j))
+                                rep%partial_determ_vecs(i_pt,i) = rep%partial_determ_vecs(i_pt,i) - &
+                                    Aimag(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(r_pt,rep%sparse_core_ham(i)%positions(j)) -&
+                                    Real(rep%sparse_core_ham(i)%elements(j))*rep%full_determ_vecs(i_pt,rep%sparse_core_ham(i)%positions(j))
+                            end do
+                        end do
+                    end do
+                  end block
 #else
                   do i = 1, rep%determ_sizes(iProcIndex)
                       do j = 1, rep%sparse_core_ham(i)%num_elements
@@ -506,10 +511,14 @@ contains
         logical :: core_state
         integer :: run
 
-        def_default(run, run_, core_run)
+        def_default(run, run_, GLOBAL_RUN)
         if(t_global_core_space) run = core_run
         if (tSemiStochastic) then
-            core_state = test_flag(ilut, flag_deterministic(run))
+            if(run == GLOBAL_RUN) then
+                core_state = test_flag_multi(ilut, flag_deterministic)
+            else
+                core_state = test_flag(ilut, flag_deterministic(run))
+            end if
         else
             core_state = .false.
         end if

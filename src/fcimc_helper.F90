@@ -2316,13 +2316,13 @@ contains
         real(dp) :: av_sign(len_av_sgn_tot), iter_occ(len_iter_occ_tot)
         integer, intent(in) :: walkExcitLevel
         integer :: i, irdm, run
-        logical :: tCoreDet(inum_runs), t_core_die
+        logical :: tCoreDet(lenof_sign), t_core_die
         character(len=*), parameter :: t_r = "walker_death"
 
         ! Do particles on determinant die? iDie can be both +ve (deaths), or
         ! -ve (births, if shift > 0)
         do run = 1, inum_runs
-            tCoreDet(run) = check_determ_flag(iLutCurr, run)
+            tCoreDet(min_part_type(run):max_part_type(run)) = check_determ_flag(iLutCurr, run)
         end do
         iDie = attempt_die (DetCurr, Kii, realwSign, WalkExcitLevel, DetPosition)
         def_default(t_core_die, t_core_die_, .true.)
