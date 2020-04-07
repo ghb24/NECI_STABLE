@@ -1,6 +1,10 @@
 #ifndef MACROS_INCLUDEGUARD_
 #define MACROS_INCLUDEGUARD_
 
+#define DELEGATED_STR(x) #x
+#define STR(x) DELEGATED_STR(x)
+#define AT __FILE__//":"//STR(__LINE__)
+
 #define LogAlloc(ERR,NAME,LEN,SIZE,TAG) CALL LogMemAlloc(NAME,LEN,SIZE,this_routine,TAG)
 #define LogDealloc(TAG) CALL LogMemDealloc(this_routine,TAG)
 #define log_dealloc(tag) LogDealloc(tag)
@@ -63,11 +67,11 @@
 #ifdef DEBUG_
 #define ASSERT(x) \
 if (.not. (x)) then; \
- call stop_all (this_routine, "Assert fail: "//"x"); \
+ call stop_all (this_routine, "Assert fail in "//AT//": "//#x); \
 endif
 #define ASSERTROOT(x) \
 if ((iProcIndex.eq.Root).and.(.not. (x))) then; \
- call stop_all (this_routine, "Assert fail: "//"x"); \
+ call stop_all (this_routine, "Assert fail in "//AT//": "//#x); \
 endif
 ! Do some debugging if X>=Y
 #define IFDEBUG(PrintLevel,ThisLevel) if (PrintLevel>=ThisLevel)
