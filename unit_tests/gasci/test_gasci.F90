@@ -9,7 +9,7 @@ module test_gasci_mod
     use procedure_pointers, only: generate_excitation
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, &
         size, operator(==), alpha, beta, sum, calc_spin, calc_spin_raw, &
-        operator(-), to_ilut
+        operator(-), to_ilut, sort, lex_leq
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite
     use util_mod, only: cumsum
     use gasci, only: GASSpec_t, get_iGAS, &
@@ -160,23 +160,22 @@ contains
         call assert_true(GAS_spec .contains. det_I)
 
         expect_singles = [&
-           SpinOrbIdx_t([2, 3, 5, 6]), SpinOrbIdx_t([1, 4, 5, 6]), &
-           SpinOrbIdx_t([1, 2, 6, 7]), SpinOrbIdx_t([1, 2, 5, 8])]
-
+           SpinOrbIdx_t([1, 2, 5, 8]), SpinOrbIdx_t([1, 2, 6, 7]), &
+           SpinOrbIdx_t([1, 4, 5, 6]), SpinOrbIdx_t([2, 3, 5, 6])]
 
         expect_doubles = [&
-           SpinOrbIdx_t([3, 4, 5, 6]), SpinOrbIdx_t([3, 4, 5, 6]), &
-           SpinOrbIdx_t([2, 3, 6, 7]), SpinOrbIdx_t([2, 3, 6, 7]), &
-           SpinOrbIdx_t([2, 3, 5, 8]), SpinOrbIdx_t([2, 4, 5, 7]), &
-           SpinOrbIdx_t([2, 4, 5, 7]), SpinOrbIdx_t([2, 3, 5, 8]), &
-           SpinOrbIdx_t([1, 3, 6, 8]), SpinOrbIdx_t([1, 4, 6, 7]), &
-           SpinOrbIdx_t([1, 4, 6, 7]), SpinOrbIdx_t([1, 3, 6, 8]), &
-           SpinOrbIdx_t([1, 4, 5, 8]), SpinOrbIdx_t([1, 4, 5, 8]), &
-           SpinOrbIdx_t([1, 2, 7, 8]), SpinOrbIdx_t([1, 2, 7, 8])]
+           SpinOrbIdx_t([1, 2, 7, 8]), SpinOrbIdx_t([1, 3, 6, 8]), &
+           SpinOrbIdx_t([1, 4, 5, 8]), SpinOrbIdx_t([1, 4, 6, 7]), &
+           SpinOrbIdx_t([2, 3, 5, 8]), SpinOrbIdx_t([2, 3, 6, 7]), &
+           SpinOrbIdx_t([2, 4, 5, 7]), SpinOrbIdx_t([3, 4, 5, 6])]
+
+        block
+            type(SpinOrbIdx_t), allocatable :: singles_exc_list(:), doubles_exc_list(:)
+
+            singles_exc_list = get_available_singles(GAS_spec, det_I)
+            doubles_exc_list = get_available_doubles(GAS_spec, det_I)
 
 
-        associate(singles_exc_list => get_available_singles(GAS_spec, det_I), &
-                  doubles_exc_list => get_available_doubles(GAS_spec, det_I))
             call assert_true(size(expect_singles) == size(singles_exc_list))
             do i = 1, size(expect_singles)
                 call assert_true(all(expect_singles(i) == singles_exc_list(i)))
@@ -186,7 +185,7 @@ contains
             do i = 1, size(expect_doubles)
                 call assert_true(all(expect_doubles(i) == doubles_exc_list(i)))
             end do
-        end associate
+        end block
 
 
         GAS_spec = GASSpec_t(&
@@ -198,44 +197,40 @@ contains
         call assert_true(GAS_spec .contains. det_I)
 
         expect_singles = [&
-                SpinOrbIdx_t([2, 3, 5, 6]), SpinOrbIdx_t([2, 5, 6, 7]), &
-                SpinOrbIdx_t([1, 4, 5, 6]), SpinOrbIdx_t([1, 5, 6, 8]), &
-                SpinOrbIdx_t([1, 2, 3, 6]), SpinOrbIdx_t([1, 2, 6, 7]), &
-                SpinOrbIdx_t([1, 2, 4, 5]), SpinOrbIdx_t([1, 2, 5, 8])]
-
+               SpinOrbIdx_t([1, 2, 3, 6]), SpinOrbIdx_t([1, 2, 4, 5]), &
+               SpinOrbIdx_t([1, 2, 5, 8]), SpinOrbIdx_t([1, 2, 6, 7]), &
+               SpinOrbIdx_t([1, 4, 5, 6]), SpinOrbIdx_t([1, 5, 6, 8]), &
+               SpinOrbIdx_t([2, 3, 5, 6]), SpinOrbIdx_t([2, 5, 6, 7])]
 
         expect_doubles = [&
-               SpinOrbIdx_t([3, 4, 5, 6]), SpinOrbIdx_t([3, 5, 6, 8]), &
-               SpinOrbIdx_t([3, 5, 6, 8]), SpinOrbIdx_t([5, 6, 7, 8]), &
-               SpinOrbIdx_t([4, 5, 6, 7]), SpinOrbIdx_t([5, 6, 7, 8]), &
-               SpinOrbIdx_t([3, 5, 6, 8]), SpinOrbIdx_t([5, 6, 7, 8]), &
-               SpinOrbIdx_t([2, 3, 6, 7]), SpinOrbIdx_t([2, 3, 6, 7]), &
-               SpinOrbIdx_t([2, 3, 4, 5]), SpinOrbIdx_t([2, 3, 5, 8]), &
-               SpinOrbIdx_t([2, 3, 5, 8]), SpinOrbIdx_t([2, 5, 7, 8]), &
-               SpinOrbIdx_t([2, 4, 5, 7]), SpinOrbIdx_t([2, 5, 7, 8]), &
-               SpinOrbIdx_t([2, 3, 5, 8]), SpinOrbIdx_t([2, 5, 7, 8]), &
-               SpinOrbIdx_t([1, 3, 4, 6]), SpinOrbIdx_t([1, 3, 6, 8]), &
-               SpinOrbIdx_t([1, 3, 6, 8]), SpinOrbIdx_t([1, 6, 7, 8]), &
-               SpinOrbIdx_t([1, 4, 6, 7]), SpinOrbIdx_t([1, 6, 7, 8]), &
-               SpinOrbIdx_t([1, 3, 6, 8]), SpinOrbIdx_t([1, 6, 7, 8]), &
-               SpinOrbIdx_t([1, 4, 5, 8]), SpinOrbIdx_t([1, 4, 5, 8]), &
                SpinOrbIdx_t([1, 2, 3, 4]), SpinOrbIdx_t([1, 2, 3, 8]), &
-               SpinOrbIdx_t([1, 2, 3, 8]), SpinOrbIdx_t([1, 2, 7, 8]), &
                SpinOrbIdx_t([1, 2, 4, 7]), SpinOrbIdx_t([1, 2, 7, 8]), &
-               SpinOrbIdx_t([1, 2, 3, 8]), SpinOrbIdx_t([1, 2, 7, 8])]
+               SpinOrbIdx_t([1, 3, 4, 6]), SpinOrbIdx_t([1, 3, 6, 8]), &
+               SpinOrbIdx_t([1, 4, 5, 8]), SpinOrbIdx_t([1, 4, 6, 7]), &
+               SpinOrbIdx_t([1, 6, 7, 8]), SpinOrbIdx_t([2, 3, 4, 5]), &
+               SpinOrbIdx_t([2, 3, 5, 8]), SpinOrbIdx_t([2, 3, 6, 7]), &
+               SpinOrbIdx_t([2, 4, 5, 7]), SpinOrbIdx_t([2, 5, 7, 8]), &
+               SpinOrbIdx_t([3, 4, 5, 6]), SpinOrbIdx_t([3, 5, 6, 8]), &
+               SpinOrbIdx_t([4, 5, 6, 7]), SpinOrbIdx_t([5, 6, 7, 8])]
 
-        associate(singles_exc_list => get_available_singles(GAS_spec, det_I), &
-                  doubles_exc_list => get_available_doubles(GAS_spec, det_I))
+
+        block
+            type(SpinOrbIdx_t), allocatable :: singles_exc_list(:), doubles_exc_list(:)
+
+            singles_exc_list = get_available_singles(GAS_spec, det_I)
+            doubles_exc_list = get_available_doubles(GAS_spec, det_I)
+
             call assert_true(size(expect_singles) == size(singles_exc_list))
             do i = 1, size(expect_singles)
                 call assert_true(all(expect_singles(i) == singles_exc_list(i)))
             end do
 
+
             call assert_true(size(expect_doubles) == size(doubles_exc_list))
             do i = 1, size(expect_doubles)
                 call assert_true(all(expect_doubles(i) == doubles_exc_list(i)))
             end do
-        end associate
+        end block
     end subroutine
 
 
@@ -244,6 +239,7 @@ contains
         use FciMCData, only: pDoubles
         type(SpinOrbIdx_t) :: det_I
         ! prepare everything for testing the excitgen
+
 
         call init_excitgen_test()
         pParallel = 0.5_dp
@@ -264,7 +260,7 @@ contains
 
         call run_excit_gen_tester( &
             generate_nGAS_excitation, 'generate_nGAS_excitation', &
-            opt_nI=det_I%idx, opt_n_iters=10**6, &
+            opt_nI=det_I%idx, opt_n_iters=10**7, &
             gen_all_excits=gen_all_excits)
 
         call finalize_excitgen_test()
@@ -276,24 +272,26 @@ contains
                 integer(n_int), intent(out), allocatable :: det_list(:,:)
 
                 type(SpinOrbIdx_t) :: det_I
+                type(SpinOrbIdx_t), allocatable :: singles(:), doubles(:)
                 integer :: i, j, k
 
                 det_I = SpinOrbIdx_t(nI)
 
-                associate(singles => get_available_singles(GAS_spec, det_I), &
-                          doubles => get_available_doubles(GAS_spec, det_I))
-                    n_excits = size(singles) + size(doubles)
-                    allocate(det_list(0:niftot, n_excits))
-                    j = 1
-                    do i = 1, size(singles)
-                        det_list(:, j) = to_ilut(singles(i))
-                        j = j + 1
-                    end do
-                    do i = 1, size(doubles)
-                        det_list(:, j) = to_ilut(doubles(i))
-                        j = j + 1
-                    end do
-                end associate
+                singles = get_available_singles(GAS_spec, det_I)
+                doubles = get_available_doubles(GAS_spec, det_I)
+
+                n_excits = size(singles) + size(doubles)
+                allocate(det_list(0:niftot, n_excits))
+                j = 1
+                do i = 1, size(singles)
+                    det_list(:, j) = to_ilut(singles(i))
+                    j = j + 1
+                end do
+
+                do i = 1, size(doubles)
+                    det_list(:, j) = to_ilut(doubles(i))
+                    j = j + 1
+                end do
 
                 call sort(det_list, ilut_lt, ilut_gt)
             end subroutine gen_all_excits
@@ -568,20 +566,22 @@ program test_gasci_program
     integer :: failed_count, err
 
     integer :: n
+    block
 
-    call mpi_init(err)
+        call mpi_init(err)
 
-    call init_fruit()
+        call init_fruit()
 
-    call test_gasci_driver()
+        call test_gasci_driver()
 
-    call fruit_summary()
-    call fruit_finalize()
-    call get_failed_count(failed_count)
+        call fruit_summary()
+        call fruit_finalize()
+        call get_failed_count(failed_count)
 
-    if (failed_count /= 0) call stop_all('test_gasci_program', 'failed_tests')
+        if (failed_count /= 0) call stop_all('test_gasci_program', 'failed_tests')
 
-    call mpi_finalize(err)
+        call mpi_finalize(err)
+    end block
 
 contains
 

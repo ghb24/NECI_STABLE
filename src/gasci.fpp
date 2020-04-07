@@ -1,5 +1,6 @@
 #include "macros.h"
 #:include "macros.fpph"
+#:include "algorithms.fpph"
 
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 #:set OrbIdxTypes = ['SpinOrbIdx_t', 'SpatOrbIdx_t']
@@ -22,7 +23,7 @@ module gasci
         last_tgt_unknown, set_last_tgt, excite, defined, UNKNOWN
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, size, calc_spin, &
         calc_spin_raw, alpha, beta, sum, operator(==), operator(/=), &
-        operator(+), operator(-)
+        operator(+), operator(-), lex_leq
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     implicit none
 
@@ -527,6 +528,7 @@ contains
 #ifdef WARNING_WORKAROUND_
         hel = 0.0_dp
 #endif
+
         ! single or double excitation?
         @:ASSERT(0.0_dp <= pDoubles .and. pDoubles <= 1.0_dp, pDoubles)
         if (genrand_real2_dSFMT() >= pDoubles) then
@@ -598,10 +600,12 @@ contains
 
         ! Get a hole with the same spin projection
         ! while fullfilling GAS-constraints.
-        associate(deleted => SpinOrbIdx_t([exc%val(1)]))
+        block
+            type(SpinOrbIdx_t) :: deleted
+            deleted = SpinOrbIdx_t([exc%val(1)])
             possible_holes = get_possible_holes(&
                 GAS_spec, det_I, add_holes=deleted, excess=-calc_spin_raw(exc%val(1)))
-        end associate
+        end block
 
 
         if (size(possible_holes) == 0) then
@@ -639,7 +643,7 @@ contains
         character(*), parameter :: this_routine = 'gen_exc_double'
 
         type(DoubleExc_t) :: exc, reverted_exc
-        type(SpinOrbIdx_t) :: possible_holes
+        type(SpinOrbIdx_t) :: possible_holes, deleted
         ! Spin of second electron
         type(SpinProj_t) :: m_s_1, m_s_2
         real(dp) :: pgen_particles, &
@@ -658,12 +662,11 @@ contains
         ! two random numbers \in [0, 1]
         @:ASSERT(all(0.0_dp <= r .and. r <= 1.0))
 
-
         call pick_biased_elecs(det_I%idx, elecs, exc%val(1, :), &
                                sym_product, ispn, sum_ml, pgen_particles)
         @:ASSERT(exc%val(1, 1) /= exc%val(2, 1), exc%val)
 
-        associate(deleted => SpinOrbIdx_t(exc%val(1, :)))
+        deleted = SpinOrbIdx_t(exc%val(1, :))
         ! Get possible holes for the first particle, while fullfilling and spin- and GAS-constraints.
         ! and knowing that a second particle will be created afterwards!
         possible_holes = get_possible_holes(&
@@ -688,14 +691,18 @@ contains
         ! to the total spin projection of the deleted particles.
         ! Get possible holes for the second particle,
         ! while fullfilling GAS- and Spin-constraints.
-        associate(excess => m_s_1 - sum(calc_spin(deleted)))
+        block
+            type(SpinProj_t) :: excess
+
+            excess = m_s_1 - sum(calc_spin(deleted))
+
             @:ASSERT(abs(excess%val) <= 1)
 
             possible_holes = get_possible_holes(&
                     GAS_spec, det_I, add_holes=deleted, &
                     add_particles=SpinOrbIdx_t([exc%val(2, 1)]), &
                     n_total=1, excess=excess)
-        end associate
+        end block
 
         @:ASSERT(disjoint(possible_holes%idx, [exc%val(2, 1)]))
         @:ASSERT(disjoint(possible_holes%idx, det_I%idx))
@@ -757,7 +764,6 @@ contains
                 ilutJ = 0
             end if
         end associate
-        end associate
 
         pgen = pgen_particles * pgen_first_pick * sum(pgen_second_pick)
         @:ASSERT(0.0_dp < pgen .and. pgen <= 1.0_dp, pgen, pgen_particles, pgen_first_pick, pgen_second_pick)
@@ -790,7 +796,7 @@ contains
         ! there might not be such an excitation
         if (c_sum(size(c_sum)) > 0) then
             ! find the index of the target hole in the cumulative list
-!             @:ASSERT(c_sum(1) <= r .and. r <= c_sum(size(c_sum)), r, c_sum)
+            @:ASSERT(0.0_dp <= r .and. r <= c_sum(size(c_sum)), r, c_sum)
             idx = binary_search_first_ge(c_sum, r)
             @:ASSERT(1 <= idx .and. idx <= size(c_sum))
 
@@ -834,6 +840,8 @@ contains
             end do
         end do
         singles_exc_list = tmp_buffer(:i_buffer)
+
+        @:sort(SpinOrbIdx_t, singles_exc_list, lex_leq)
     end function
 
     DEBUG_IMPURE function get_available_doubles(GAS_spec, det_I) result(doubles_exc_list)
@@ -842,7 +850,7 @@ contains
         type(SpinOrbIdx_t), allocatable :: doubles_exc_list(:)
         character(*), parameter :: this_routine = 'get_available_doubles'
 
-        type(SpinOrbIdx_t) :: possible_holes(2)
+        type(SpinOrbIdx_t) :: possible_holes(2), deleted
         type(SpinOrbIdx_t), allocatable :: tmp_buffer(:)
         integer :: i, j, k, l, i_buffer, src1, src2, tgt1, tgt2
         type(SpinProj_t) :: m_s_1
@@ -850,39 +858,51 @@ contains
         @:ASSERT(GAS_spec .contains. det_I)
 
         i_buffer = 0
-        do i = 1, size(det_I%idx)
+        do i = 1, size(det_I)
             do j = i + 1, size(det_I)
                 src1 = det_I%idx(i)
                 src2 = det_I%idx(j)
-                associate(deleted => SpinOrbIdx_t([src1, src2]))
-                    possible_holes(1) = get_possible_holes(GAS_spec, det_I, &
-                                            add_holes=deleted, excess=-sum(calc_spin(deleted)), &
-                                            n_total=2)
-                    @:ASSERT(disjoint(possible_holes(1)%idx, det_I%idx))
-                    do k = 1, size(possible_holes(1))
-                        tgt1 = possible_holes(1)%idx(k)
-                        m_s_1 = calc_spin_raw(tgt1)
-                        @:ASSERT(any(m_s_1 == [alpha, beta]))
+                deleted = SpinOrbIdx_t([src1, src2])
+                possible_holes(1) = get_possible_holes(GAS_spec, det_I, &
+                                        add_holes=deleted, excess=-sum(calc_spin(deleted)), &
+                                        n_total=2)
+                @:ASSERT(disjoint(possible_holes(1)%idx, det_I%idx))
+                do k = 1, size(possible_holes(1))
+                    tgt1 = possible_holes(1)%idx(k)
+                    m_s_1 = calc_spin_raw(tgt1)
+                    @:ASSERT(any(m_s_1 == [alpha, beta]))
 
-                        possible_holes(2) = get_possible_holes(&
-                                GAS_spec, det_I, add_holes=deleted, &
-                                add_particles=SpinOrbIdx_t([tgt1]), &
-                                n_total=1, excess=m_s_1 - sum(calc_spin(deleted)))
+                    possible_holes(2) = get_possible_holes(&
+                            GAS_spec, det_I, add_holes=deleted, &
+                            add_particles=SpinOrbIdx_t([tgt1]), &
+                            n_total=1, excess=m_s_1 - sum(calc_spin(deleted)))
 
-                        @:ASSERT(disjoint(possible_holes(2)%idx, [tgt1]))
-                        @:ASSERT(disjoint(possible_holes(2)%idx, det_I%idx))
+                    @:ASSERT(disjoint(possible_holes(2)%idx, [tgt1]))
+                    @:ASSERT(disjoint(possible_holes(2)%idx, det_I%idx))
 
-                        do l = 1, size(possible_holes(2))
-                            tgt2 = possible_holes(2)%idx(l)
-                            i_buffer = i_buffer + 1
-                            call grow_assign(tmp_buffer, i_buffer, excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
-                        end do
+                    do l = 1, size(possible_holes(2))
+                        tgt2 = possible_holes(2)%idx(l)
+                        i_buffer = i_buffer + 1
+                        call grow_assign(tmp_buffer, i_buffer, excite(det_I, DoubleExc_t(src1, tgt1, src2, tgt2)))
                     end do
-                end associate
+                end do
             end do
         end do
 
         doubles_exc_list = tmp_buffer(:i_buffer)
+
+        @:sort(SpinOrbIdx_t, doubles_exc_list, lex_leq)
+
+        ! Remove double appearances
+        j = 1
+        tmp_buffer(j) = doubles_exc_list(1)
+        do i = 2, size(doubles_exc_list)
+            if (any(doubles_exc_list(i - 1) /= doubles_exc_list(i))) then
+                j = j + 1
+                tmp_buffer(j) = doubles_exc_list(i)
+            end if
+        end do
+        doubles_exc_list = tmp_buffer(: j)
     end function
 
     subroutine grow_assign(lhs, i, rhs)
