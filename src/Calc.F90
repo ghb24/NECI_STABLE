@@ -3045,6 +3045,10 @@ contains
                 ! Use one core space per replica (implicit for orthogonalise-replicas)
                 t_global_core_space = .false.
 
+            case("GLOBAL-CORE-SPACE")
+                ! Use only one single core-spae for multiple replicas
+                t_global_core_space = .true.
+
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.
 

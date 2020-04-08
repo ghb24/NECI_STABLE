@@ -1165,7 +1165,8 @@ contains
         nzero_dets = 0
         do i = 1, source_size
             call extract_sign(loc_source(:,i), real_sign)
-            if (sum(abs(real_sign)) < 1.e-8_dp) nzero_dets = nzero_dets + 1
+            if (core_space_weight(real_sign, run) < 1.e-8_dp) &
+                nzero_dets = nzero_dets + 1
         end do
 
         if (tApproxSpace .and. nProcessors > nApproxSpace) then
