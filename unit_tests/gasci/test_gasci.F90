@@ -15,9 +15,8 @@ module test_gasci_mod
     use gasci, only: GASSpec_t, get_iGAS, &
         contains_det, get_nGAS, particles_per_GAS, operator(.contains.), &
         is_valid, is_connected, get_possible_spaces, get_possible_holes, &
-        split_per_GAS, generate_nGAS_excitation, GAS_spec => GAS_specification, &
+        split_per_GAS, generate_nGAS_excitation, &
         get_available_singles, get_available_doubles
-    use FciMCData, only: pSingles, pDoubles, pParallel
     use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test
     use unit_test_helpers, only: run_excit_gen_tester
@@ -235,37 +234,51 @@ contains
 
 
     subroutine test_pgen()
-
-        use FciMCData, only: pDoubles
+        use gasci, only: global_GAS_spec => GAS_specification
+        use FciMCData, only: pSingles, pDoubles, pParallel
+        type(GASSpec_t) :: GAS_spec
         type(SpinOrbIdx_t) :: det_I
+        integer, parameter :: n_spat_orbs = 12, n_iters=10**6
 
-        integer, parameter :: n_el = 5, n_spat_orbs = 12
 
-        GAS_spec = GASSpec_t(&
-            n_orbs=[n_spat_orbs .div. 2, n_spat_orbs], &
-            n_min=[n_el .div. 2, n_el], &
-            n_max=[n_el .div. 2, n_el])
-
-        det_I = SpinOrbIdx_t([1, 2, 13, 14, 15])
-
-        ! prepare everything for testing the excitgen
-        call init_excitgen_test(n_el, n_spat_orbs, 1.0_dp, 1.0_dp, sum(calc_spin(det_I)))
+        det_I = SpinOrbIdx_t([1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18])
+        call init_excitgen_test(size(det_I), n_spat_orbs, &
+                                1.0_dp, 1.0_dp, sum(calc_spin(det_I)))
         pParallel = 0.5_dp
         pSingles = 0.1_dp
         pDoubles = 1.0_dp - pSingles
 
 
+        ! two benzenes stacked: disconnected spaces
+        GAS_spec = GASSpec_t(&
+            n_orbs=[6, 12], &
+            n_min=[6, size(det_I)], &
+            n_max=[6, size(det_I)])
         call assert_true(is_valid(GAS_spec))
         call assert_true(GAS_spec .contains. det_I)
-        call assert_true(size(det_I) == n_el)
-        call assert_true(GAS_spec%n_orbs(get_nGAS(GAS_spec)) == n_spat_orbs)
-
+        global_GAS_spec = GAS_spec
         call run_excit_gen_tester( &
             generate_nGAS_excitation, 'generate_nGAS_excitation', &
-            opt_nI=det_I%idx, opt_n_iters=10**7, &
+            opt_nI=det_I%idx, opt_n_iters=n_iters, &
+            gen_all_excits=gen_all_excits)
+
+!         two benzenes stacked: 1exc in both directions
+        GAS_spec = GASSpec_t(&
+            n_orbs=[6, 12], &
+            n_min=[5, size(det_I)], &
+            n_max=[7, size(det_I)])
+        call assert_true(is_valid(GAS_spec))
+        call assert_true(GAS_spec .contains. det_I)
+        global_GAS_spec = GAS_spec
+        call run_excit_gen_tester( &
+            generate_nGAS_excitation, 'generate_nGAS_excitation', &
+            opt_nI=det_I%idx, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits)
 
         call finalize_excitgen_test()
+
+
+
         contains
 
             subroutine gen_all_excits(nI, n_excits, det_list)

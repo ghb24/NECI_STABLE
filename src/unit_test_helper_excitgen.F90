@@ -230,6 +230,7 @@ contains
     integer :: nBasisMax(n_el, 3), lms
     integer(int64) :: umatsize
     real(dp) :: ecore
+    character(*), parameter :: this_routine = 'init_excitgen_test'
     nel = n_el
     NIfDBO = 0
     NOffSgn = 1
@@ -242,7 +243,7 @@ contains
     tTransGTID = .false.
     tReadFreeFormat = .true.
 
-    call MPIInit(.false.)
+    call MPIInit(.true.)
 
     call dSFMT_init(25)
 
@@ -286,7 +287,7 @@ contains
   subroutine finalize_excitgen_test()
     deallocate(TMat2D)
     call shared_deallocate_mpi(umat_win, UMat)
-    call MPIEnd(.false.)
+    call MPIEnd(.true.)
   end subroutine finalize_excitgen_test
 
   !------------------------------------------------------------------------------------------!
