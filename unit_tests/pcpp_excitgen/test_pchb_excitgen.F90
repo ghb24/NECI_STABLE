@@ -3,6 +3,7 @@ program test_pcpp_excitgen
   use fruit
   use pchb_excitgen
   use unit_test_helper_excitgen
+  use orb_idx_mod, only: beta
   use procedure_pointers, only: generate_excitation
   implicit none
 
@@ -24,8 +25,9 @@ contains
     ! set the excitation generator to pchb
     generate_excitation => gen_rand_excit_pchb
     calc_pgen => calc_pgen_pchb
+
     ! prepare an excitation generator test
-    call init_excitgen_test()
+    call init_excitgen_test(n_el=5, n_spat_orbs=12, sparse=0.9_dp, sparseT=0.1_dp, total_ms=beta)
 
     ! prepare the pchb excitgen: set the weights/map-table
     call set_ref()

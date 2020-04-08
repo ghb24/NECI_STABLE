@@ -1,3 +1,5 @@
+#include "macros.h"
+
 module unit_test_helper_excitgen
   use constants
   use read_fci, only: readfciint, initfromfcid, fcidump_name
@@ -24,11 +26,8 @@ module unit_test_helper_excitgen
   use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
   use Determinants, only: DetInit, DetPreFreezeInit, get_helement
   use util_mod, only: get_free_unit
+  use orb_idx_mod, only: SpinProj_t
   implicit none
-
-  integer, parameter :: nelBase = 5
-  integer, parameter :: nBasisBase = 12
-  integer, parameter :: lmsBase = -1
 
   abstract interface
      function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
@@ -221,19 +220,21 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine init_excitgen_test()
+  subroutine init_excitgen_test(n_el, n_spat_orbs, sparse, sparseT, total_ms)
     ! mimick the initialization of an FCIQMC calculation to the point where we can generate
     ! excitations with a weighted excitgen
     ! This requires setup of the basis, the symmetries and the integrals
-    integer :: nBasisMax(5,3), lms
+    integer, intent(in) :: n_el, n_spat_orbs
+    real(dp), intent(in) :: sparse, sparseT
+    type(SpinProj_t), intent(in) :: total_ms
+    integer :: nBasisMax(n_el, 3), lms
     integer(int64) :: umatsize
     real(dp) :: ecore
-    umatsize = 0
-    nel = nelBase
+    nel = n_el
     NIfDBO = 0
     NOffSgn = 1
     NIfSgn = 1
-    NIfTot = 2
+    NIfTot = NIfDBO + NOffSgn + NIfSgn
 
     fcidump_name = "FCIDUMP"
     UMatEps = 1.0e-8
@@ -249,17 +250,18 @@ contains
     call SetSysDefaults()
     tReadInt = .true.
 
-    call generate_random_integrals()
+    call generate_random_integrals(n_el, n_spat_orbs, sparse, sparseT, total_ms)
 
     get_umat_el => get_umat_el_normal
 
     call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
-    lms = lmsBase
+    ASSERT(lms == total_ms%val)
+
     call GetUMatSize(nBasis, umatsize)
 
     allocate(TMat2d(nBasis,nBasis))
 
-    call shared_allocate_mpi(umat_win, umat, (/umatsize/))
+    call shared_allocate_mpi(umat_win, umat, [umatsize])
 
     call readfciint(UMat,umat_win,nBasis,ecore,.false.)
 
@@ -290,18 +292,19 @@ contains
   !------------------------------------------------------------------------------------------!
 
   ! generate an FCIDUMP file with random numbers with a given sparsity
-  subroutine generate_random_integrals()
-    real(dp), parameter :: sparse = 0.9
-    real(dp), parameter :: sparseT = 0.1
+  subroutine generate_random_integrals(n_el, n_spat_orb, sparse, sparseT, total_ms)
+    integer, intent(in) :: n_el, n_spat_orb
+    real(dp), intent(in) :: sparse, sparseT
+    type(SpinProj_t), intent(in) :: total_ms
     integer :: i,j,k,l, iunit
     real(dp) :: r, matel
     ! we get random matrix elements from the cauchy-schwartz inequalities, so
     ! only <ij|ij> are random -> random 2d matrix
-    real(dp) :: umatRand(nBasisBase,nBasisBase)
+    real(dp) :: umatRand(n_spat_orb, n_spat_orb)
 
     umatRand = 0.0_dp
-    do i = 1, nBasisBase
-       do j = 1, nBasisBase
+    do i = 1, n_spat_orb
+       do j = 1, n_spat_orb
           r = genrand_real2_dSFMT()
           if(r < sparse) &
                umatRand(i,j) = r*r
@@ -311,18 +314,18 @@ contains
     ! write the canonical FCIDUMP header
     iunit = get_free_unit()
     open(iunit,file="FCIDUMP")
-    write(iunit,*) "&FCI NORB=",nBasisBase,",NELEC=",nelBase,"MS2=",lmsBase,","
+    write(iunit,*) "&FCI NORB=",n_spat_orb,",NELEC=",n_el,"MS2=",total_ms%val,","
     write(iunit,"(A)",advance="no") "ORBSYM="
-    do i = 1, nBasisBase
+    do i = 1, n_spat_orb
        write(iunit,"(A)",advance="no") "1,"
     end do
     write(iunit,*)
     write(iunit,*) "ISYM=1,"
     write(iunit,*) "&END"
     ! generate random 4-index integrals with a given sparsity
-    do i = 1, nBasisBase
+    do i = 1, n_spat_orb
        do j = 1, i
-          do k = i, nBasisBase
+          do k = i, n_spat_orb
              do l = 1, k
                 matel = sqrt(umatRand(i,j)*umatRand(k,l))
                 if(matel > eps) write(iunit, *) matel,i,j,k,l
@@ -331,7 +334,7 @@ contains
        end do
     end do
     ! generate random 2-index integrals with a given sparsity
-    do i = 1, nBasisBase
+    do i = 1, n_spat_orb
        do j = 1, i
           r = genrand_real2_dSFMT()
           if(r < sparseT) then

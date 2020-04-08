@@ -18,7 +18,7 @@ module test_gasci_mod
         split_per_GAS, generate_nGAS_excitation, GAS_spec => GAS_specification, &
         get_available_singles, get_available_doubles
     use FciMCData, only: pSingles, pDoubles, pParallel
-    use unit_test_helper_excitgen, only: nelBase, nBasisBase, test_excitation_generator, &
+    use unit_test_helper_excitgen, only: test_excitation_generator, &
         init_excitgen_test, finalize_excitgen_test
     use unit_test_helpers, only: run_excit_gen_tester
     use DetBitOps, only: ilut_lt, ilut_gt
@@ -238,25 +238,27 @@ contains
 
         use FciMCData, only: pDoubles
         type(SpinOrbIdx_t) :: det_I
+
+        integer, parameter :: n_el = 5, n_spat_orbs = 12
+
+        GAS_spec = GASSpec_t(&
+            n_orbs=[n_spat_orbs .div. 2, n_spat_orbs], &
+            n_min=[n_el .div. 2, n_el], &
+            n_max=[n_el .div. 2, n_el])
+
+        det_I = SpinOrbIdx_t([1, 2, 13, 14, 15])
+
         ! prepare everything for testing the excitgen
-
-
-        call init_excitgen_test()
+        call init_excitgen_test(n_el, n_spat_orbs, 1.0_dp, 1.0_dp, sum(calc_spin(det_I)))
         pParallel = 0.5_dp
         pSingles = 0.1_dp
         pDoubles = 1.0_dp - pSingles
 
-        ! set the excitation we want to test
-        GAS_spec = GASSpec_t(&
-            n_orbs=[nBasisBase .div. 2, nBasisBase], &
-            n_min=[nelBase .div. 2, nelBase], &
-            n_max=[nelBase .div. 2, nelBase])
-        det_I = SpinOrbIdx_t([1, 2, 13, 14, 15])
 
         call assert_true(is_valid(GAS_spec))
         call assert_true(GAS_spec .contains. det_I)
-        call assert_true(size(det_I) == nelBase)
-        call assert_true(GAS_spec%n_orbs(get_nGAS(GAS_spec)) == nBasisBase)
+        call assert_true(size(det_I) == n_el)
+        call assert_true(GAS_spec%n_orbs(get_nGAS(GAS_spec)) == n_spat_orbs)
 
         call run_excit_gen_tester( &
             generate_nGAS_excitation, 'generate_nGAS_excitation', &

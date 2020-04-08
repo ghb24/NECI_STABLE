@@ -3,6 +3,7 @@ program test_pcpp_excitgen
   use fruit
   use pcpp_excitgen
   use unit_test_helper_excitgen
+  use orb_idx_mod, only: beta
   use procedure_pointers, only: generate_excitation
   use FciMCData, only: projEDet
   implicit none
@@ -25,7 +26,7 @@ contains
     ! set the excitation we want to test
     generate_excitation => gen_rand_excit_pcpp
     ! prepare everything for testing the excitgen
-    call init_excitgen_test()
+    call init_excitgen_test(n_el=5, n_spat_orbs=12, sparse=0.9_dp, sparseT=0.1_dp, total_ms=beta)
 
     ! prepare the pcpp excitation generator: get the precomputed weights
 
