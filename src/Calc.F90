@@ -529,12 +529,12 @@ contains
           integer :: npops_pert, npert_spectral_left, npert_spectral_right
           real(dp) :: InputDiagSftSingle
           integer(n_int) :: def_ilut(0:niftot), def_ilut_sym(0:niftot)
-
+          logical :: t_force_global_core
           ! Allocate and set this default here, because we don't have inum_runs
           ! set when the other defaults are set.
           if(.not.allocated(InputDiagSft)) allocate(InputDiagSft(inum_runs))
           InputDiagSft=0.0_dp
-
+          t_force_global_core = .false.
           calc: do
             call read_line(eof)
             if (eof) then
@@ -2994,8 +2994,8 @@ contains
                     call readi(orthogonalise_iter)
                 endif
                 ! With orthogonalisation, each replica needs its own core space
-                t_global_core_space = .false.
-
+                if(.not. t_force_global_core) t_global_core_space = .false.
+                
                 ! Don't start all replicas from the deterministic ground state
                 ! when using this option.
                 tStartCoreGroundState = .false.
@@ -3012,7 +3012,7 @@ contains
                 ! Don't start all replicas from the deterministic ground state
                 ! when using this option.
                 tStartCoreGroundState = .false.
-                t_global_core_space = .false.
+                if(.not. t_force_global_core) t_global_core_space = .false.
 
             case("TEST-NON-ORTHOGONALITY")
                 ! for the non-hermitian eigenstates the shift gives a
@@ -3048,6 +3048,7 @@ contains
             case("GLOBAL-CORE-SPACE")
                 ! Use only one single core-spae for multiple replicas
                 t_global_core_space = .true.
+                t_force_global_core = .true.
 
             case("USE-SPAWN-HASH-TABLE")
                 use_spawn_hash_table = .true.

@@ -524,6 +524,7 @@ contains
             end block
 
             call halt_timer(sort_aux_time)
+            write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)                   
         endif
 
         ! On procs which are not node-root, we need to reassign the internal pointers
@@ -565,8 +566,6 @@ contains
             nullify(alpha_ht)
 
         endif
-
-        write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
 
         ! Sync the ilut lists
         call MPI_Win_Fence(0, beta_list_win, ierr)

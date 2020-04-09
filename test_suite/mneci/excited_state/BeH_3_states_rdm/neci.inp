@@ -30,6 +30,7 @@ nmcyc 10000
 semi-stochastic
 pops-core 200
 core-inits
+global-core-space
 allrealcoeff
 realspawncutoff 0.5
 orthogonalise-replicas
