@@ -405,7 +405,7 @@ contains
           tOrthogonaliseSymmetric = .false.
           orthogonalise_iter = 0
           tReplicaSingleDetStart = .false.
-          tSignedRepAv = .false.
+          tSignedRepAv = .false.         
           use_spawn_hash_table = .false.
 
           ! Continuous time FCIQMC control
