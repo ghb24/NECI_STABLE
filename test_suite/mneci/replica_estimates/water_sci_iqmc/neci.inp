@@ -30,7 +30,6 @@ realspawncutoff 0.0
 averagemcexcits 10.0
 en2-initiator
 tau 0.1 search
-max-tau 0.1
 semi-stochastic
 read-core
 pure-initiator-space

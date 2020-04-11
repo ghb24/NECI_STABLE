@@ -150,6 +150,10 @@ tolerance = (5.01e-8, None, 'overlap_sum'), (3.01e-7, None, 'hamil_sum')
 program = mneci
 tolerance = (5e-8, None, 'sum_error_rdm_2'), (5e-8, None, 'sum_diff_trdm_1_2(1)'), (5e-8, None, 'sum_diff_trdm_1_2(2)'), (1e-9, None, 'max_diff_trdm_1_2(2)')
 
+[mneci/guga/Ne_2_states/]
+program = mneci
+tolerance = (1e-9, None, 'final_energy_2')
+
 [kmneci/Rn_lanczos_dci_init/]
 program = kmneci
 tolerance = (1e-7, None, 'final_energy_2')
@@ -165,6 +169,10 @@ tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
 [mneci/rdm/Ne_hphf_back_spawn/]
 program = mneci
 tolerance = (1e-9, None, 'final_energy_1'), (1e-9, None, 'final_energy_2')
+
+[neci/tc/real-space-hub-hopping-tc-1x6-uniform/]
+program = neci
+tolerance = (4e-9, None, 'final_energy_1')
 
 [neci/parallel/HeHe_SS_Doubles/]
 program = neci
