@@ -2197,13 +2197,18 @@ contains
         real(dp), intent(in) :: proj_energy(lenof_sign)
         type(fcimc_iter_data), intent(inout) :: iter_data
 
-        integer :: i, run
+        integer :: i, run, c_run
         real(dp) :: spwnsign(lenof_sign), hdiag
 
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
             do run = 1, inum_runs
-                associate( rep => cs_replicas(run))
+                if(t_global_core_space) then
+                    c_run = 1
+                else
+                    c_run = run
+                endif
+                associate( rep => cs_replicas(c_run))
                   do i = 1, rep%determ_sizes(iProcIndex)
                       rep%partial_determ_vecs(:,i) = rep%partial_determ_vecs(:,i) / &
                           (rep%core_ham_diag(i) - proj_energy - proje_ref_energy_offsets)
