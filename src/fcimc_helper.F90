@@ -458,6 +458,7 @@ contains
         implicit none
         logical :: list_full
         integer, intent(in) :: proc
+        logical :: new_warning = .true.
         list_full = .false.
         if (proc == nNodes - 1) then
             if (ValidSpawnedList(proc) > MaxSpawned) list_full = .true.
@@ -465,7 +466,9 @@ contains
             if (ValidSpawnedList(proc) >= InitialSpawnedSlots(proc+1)) &
                 list_full=.true.
         end if
-        if (list_full) then
+        if (list_full .and. new_warning) then
+            ! Only ever print this warning once
+            new_warning = .false.
 #ifdef DEBUG_
             write(6,*) "Attempting to spawn particle onto processor: ", proc
             write(6,*) "No memory slots available for this spawn."

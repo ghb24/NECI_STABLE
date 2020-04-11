@@ -96,12 +96,12 @@ module replica_estimates
         proj_energy = 0.0_dp
         ref_found = .false.
 
-        if(.not. cs_replicas(core_run)%t_global) then
-            call stop_all(t_r, "Invalid core space for preconditioning. Global core space required")
-        end if
-
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
+            if(.not. cs_replicas(core_run)%t_global) then
+                call stop_all(t_r, "Invalid core space for preconditioning. Global core space required")
+            end if
+            
             do run = 1, lenof_sign
                 associate( rep => cs_replicas(core_run))                
                 do i = 1, rep%determ_sizes(iProcIndex)
