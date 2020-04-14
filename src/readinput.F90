@@ -227,7 +227,7 @@ MODULE ReadInput_neci
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
-        use gasci, only: GAS_specification, is_connected, is_valid
+        use gasci, only: GAS_specification, is_connected, is_valid, GAS_exc_gen, possible_GAS_exc_gen, operator(==)
 
         implicit none
 
@@ -603,6 +603,9 @@ MODULE ReadInput_neci
             end if
             if (is_connected(GAS_specification) .and. .not. tGASSpinRecoupling) then
                 call stop_all(t_r, "Running GAS without spin-recoupling requires disconnected spaces.")
+            end if
+            if (GAS_exc_gen == possible_GAS_exc_gen%DISCONNECTED .and. is_connected(GAS_specification)) then
+                call stop_all(t_r, "Running GAS-CI = ONLY_DISCONNECTED requires disconnected spaces.")
             end if
         end if
 

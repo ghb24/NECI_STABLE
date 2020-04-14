@@ -17,7 +17,7 @@ MODULE System
     use k_space_hubbard, only: setup_symmetry_table
     use breathing_Hub, only: setupMomIndexTable, setupBreathingCont
     use tc_three_body_data, only: LMatEps, tSparseLMat
-    use gasci, only: GAS_specification, is_valid
+    use gasci, only: GAS_specification, is_valid, GAS_exc_gen, possible_GAS_exc_gen
     use ParallelHelper, only: iprocindex, root
 
     IMPLICIT NONE
@@ -1402,7 +1402,7 @@ system: do
                     case default
                         call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
                 end select
-            enddo
+            end do
 
         case("PCHB-WEIGHTED-SINGLES")
             ! Enable using weighted single excitations with the pchb excitation generator
@@ -1507,15 +1507,7 @@ system: do
             ! Looks nice, but it currently breaks lots of other stuff!
             tGiovannisBrokenInit = .true.
 
-        case("SPIN-CONSERVING-GAS")
-            tGAS = .true.
-            tGASSpinRecoupling = .false.
-
-        case("PART-CONSERVING-GAS")
-            tGAS = .true.
-            tGASSpinRecoupling = .true.
-
-        case("GAS-CI")
+        case("GAS-SPEC")
             tGAS = .true.
             tGASSpinRecoupling = .true.
             block
@@ -1530,6 +1522,19 @@ system: do
                     call geti(GAS_specification%n_max(iGAS))
                 end do
             end block
+
+        case("GAS-CI")
+            do while (item < nitems)
+                call readu(w)
+                select case(w)
+                case('ONLY_DISCONNECTED')
+                    GAS_exc_gen = possible_GAS_exc_gen%DISCONNECTED
+                case('GENERAL')
+                    GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+                case default
+                    call Stop_All("ReadSysInp",trim(w)//" not a valid keyword")
+                end select
+            end do
 
         case("GAS-NO-SPIN-RECOUPLING")
             tGASSpinRecoupling = .false.

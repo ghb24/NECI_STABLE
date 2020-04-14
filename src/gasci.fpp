@@ -4,7 +4,6 @@
 
 #:set ExcitationTypes = ['SingleExc_t', 'DoubleExc_t']
 #:set OrbIdxTypes = ['SpinOrbIdx_t', 'SpatOrbIdx_t']
-#:set excitation_t = 'ASDF'
 
 module gasci
     use SystemData, only: tGAS, tGASSpinRecoupling, nBasis, nel
@@ -28,18 +27,19 @@ module gasci
     implicit none
 
     private
-    public :: is_valid, is_connected, GAS_specification, GASSpec_t, &
+    public :: &
+        possible_GAS_exc_gen, GAS_exc_gen, &
+        is_valid, is_connected, GAS_specification, GASSpec_t, &
         init_GAS, clear_GAS, get_nGAS, &
         generate_nGAS_excitation, &
         contains_det, particles_per_GAS, &
         get_possible_spaces, get_possible_holes, split_per_GAS, &
-        get_available_singles, get_available_doubles
+        get_available_singles, get_available_doubles, operator(==), &
+        operator(/=)
 
 
     public :: get_iGAS, operator(.contains.)
 
-
-    integer, parameter :: idx_alpha = 1, idx_beta = 2
 
     !> Speficies the GAS spaces.
     !> It is assumed, that the GAS spaces are contigous.
@@ -59,7 +59,27 @@ module gasci
 
     type(GASSpec_t) :: GAS_specification
 
-    integer, parameter :: EMPTY_BOUNDS = -1
+    type :: GAS_exc_gen_t
+        integer :: val
+    end type
+
+    type :: possible_GAS_exc_gen_t
+        type(GAS_exc_gen_t) :: &
+            DISCONNECTED = GAS_exc_gen_t(1), &
+            GENERAL = GAS_exc_gen_t(2)
+    end type
+
+    type(possible_GAS_exc_gen_t), parameter :: possible_GAS_exc_gen = possible_GAS_exc_gen_t()
+
+    type(GAS_exc_gen_t) :: GAS_exc_gen = possible_GAS_exc_gen%GENERAL
+
+    interface operator(==)
+        module procedure eq_GAS_exc_gen_t
+    end interface
+
+    interface operator(/=)
+        module procedure neq_GAS_exc_gen_t
+    end interface
 
     !>  @brief
     !>      Return the GAS spaces, where one particle can be created.
@@ -253,7 +273,7 @@ contains
     pure function is_connected(GAS_spec) result(res)
         type(GASSpec_t), intent(in) :: GAS_spec
         logical :: res
-        res = all(GAS_spec%n_min(:) == GAS_spec%n_max(:))
+        res = any(GAS_spec%n_min(:) /= GAS_spec%n_max(:))
     end function
 
     subroutine init_GAS()
@@ -959,4 +979,15 @@ contains
         end if
     end function get_cumulative_list_${excitation_t}$
 #:endfor
+
+    logical pure function eq_GAS_exc_gen_t(lhs, rhs)
+        type(GAS_exc_gen_t), intent(in) :: lhs, rhs
+        eq_GAS_exc_gen_t = lhs%val == rhs%val
+    end function
+
+    logical pure function neq_GAS_exc_gen_t(lhs, rhs)
+        type(GAS_exc_gen_t), intent(in) :: lhs, rhs
+        neq_GAS_exc_gen_t = lhs%val /= rhs%val
+    end function
+
 end module gasci

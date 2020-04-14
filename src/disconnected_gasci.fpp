@@ -18,10 +18,11 @@ module disconnected_gasci
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
         last_tgt_unknown, set_last_tgt
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
+    use gasci, only: GASSpec_t, get_nGAS
     implicit none
 
     private
-    public :: isValidExcit, loadGAS, generate_nGAS_excitation, clearGAS
+    public :: isValidExcit, init_disconnected_GAS, generate_nGAS_excitation, clearGAS, oddBits
 
 
     #:for function_name in ['get_cumulative_list', 'get_mat_element', 'pick_weighted_hole']
@@ -65,15 +66,16 @@ module disconnected_gasci
 
 contains
 
-    subroutine loadGAS()
-        integer :: GAS_unit, iOrb, nOrbs, GAS(nBasis .div. 2), iGAS
+    subroutine init_GAS(iGAS_per_spatorb)
+        integer, intent(in) :: iGAS_per_spatorb(:)
 
-        nOrbs = nBasis .div. 2
-        GAS_unit = get_free_unit()
-        open(GAS_unit, file="GASOrbs", status='old')
-            read(GAS_unit,  * ) GAS(1:nOrbs)
-        close(GAS_unit)
+        integer :: nOrbs, iOrb, iGAS
+
+        associate(GAS => iGAS_per_spatorb)
+
+        nOrbs = size(GAS)
         nGAS = maxval(GAS)
+
         allocate(GAS_orbs(0:NIfD, nGAS))
         GAS_orbs(:, :) = 0_n_int
         do iOrb = 1, nOrbs
@@ -111,6 +113,8 @@ contains
                 & sum(popCnt(GAS_orbs(:, iGAS)))
         end do
 
+        end associate
+
     contains
 
         ! One cannot use the macro here because of Fortran syntax rules.
@@ -123,7 +127,33 @@ contains
             pos = (orb - 1) .div. bits_n_int
             ilut(pos) = ibset(ilut(pos), mod(orb - 1, bits_n_int))
         end subroutine setOrb
-    end subroutine loadGAS
+    end subroutine
+
+    subroutine init_from_file()
+        integer :: GAS_unit, nOrbs, GAS(nBasis .div. 2)
+
+        nOrbs = nBasis .div. 2
+        GAS_unit = get_free_unit()
+        open(GAS_unit, file="GASOrbs", status='old')
+            read(GAS_unit,  * ) GAS(1:nOrbs)
+        close(GAS_unit)
+
+        call init_GAS(GAS)
+    end subroutine init_from_file
+
+    subroutine init_disconnected_GAS(GAS_spec)
+        type(GASSpec_t), intent(in) :: GAS_spec
+
+        integer :: iGAS, a, GAS(nBasis .div. 2)
+
+        a = 1
+        do iGAS = 1, get_nGAS(GAS_spec)
+            GAS(a : GAS_spec%n_orbs(iGAS)) = iGAS
+            a = GAS_spec%n_orbs(iGAS) + 1
+        end do
+
+        call init_GAS(GAS)
+    end subroutine
 
 !----------------------------------------------------------------------------!
 

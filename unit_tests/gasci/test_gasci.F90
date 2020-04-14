@@ -12,6 +12,9 @@ module test_gasci_mod
         operator(-), to_ilut, write_det
     use excitation_types, only: SingleExc_t, DoubleExc_t, excite
     use util_mod, only: cumsum
+    use disconnected_gasci, only: init_disconnected_GAS, &
+        gen_disconnected => generate_nGAS_excitation, clearGAS
+
     use gasci, only: GASSpec_t, get_iGAS, &
         contains_det, get_nGAS, particles_per_GAS, operator(.contains.), &
         is_valid, is_connected, get_possible_spaces, get_possible_holes, &
@@ -137,11 +140,11 @@ contains
 
 
     subroutine test_is_connected()
-        call assert_true(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])))
-        call assert_true(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[2, 5], n_max=[2, 5])))
+        call assert_true(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4])))
+        call assert_true(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 5], n_max=[3, 5])))
 
-        call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 4], n_max=[3, 4])))
-        call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[1, 5], n_max=[3, 5])))
+        call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[2, 4], n_max=[2, 4])))
+        call assert_false(is_connected(GASSpec_t(n_orbs=[2, 4], n_min=[2, 5], n_max=[2, 5])))
     end subroutine
 
     subroutine test_available()
@@ -979,11 +982,13 @@ contains
 
     subroutine test_pgen()
         use gasci, only: global_GAS_spec => GAS_specification
+        use SystemData, only: tGASSpinRecoupling
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GASSpec_t) :: GAS_spec
         type(SpinOrbIdx_t) :: det_I
-        integer, parameter :: n_spat_orbs = 12, n_iters=10**6
+        integer, parameter :: n_spat_orbs = 12, n_iters=10**7
 
+        call assert_true(tGASSpinRecoupling)
 
         det_I = SpinOrbIdx_t([1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18])
         call init_excitgen_test(size(det_I), n_spat_orbs, &
@@ -1002,9 +1007,26 @@ contains
         call assert_true(GAS_spec .contains. det_I)
         global_GAS_spec = GAS_spec
         call run_excit_gen_tester( &
-            generate_nGAS_excitation, 'generate_nGAS_excitation', &
+            generate_nGAS_excitation, 'general, disconnected', &
             opt_nI=det_I%idx, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits)
+
+
+        ! two benzenes stacked: disconnected spaces
+        ! old implementation
+        GAS_spec = GASSpec_t(&
+            n_orbs=[6, 12], &
+            n_min=[6, size(det_I)], &
+            n_max=[6, size(det_I)])
+        call assert_true(is_valid(GAS_spec))
+        call assert_true(GAS_spec .contains. det_I)
+        global_GAS_spec = GAS_spec
+        call init_disconnected_GAS(GAS_spec)
+        call run_excit_gen_tester( &
+            gen_disconnected, 'disconnected_gasci', &
+            opt_nI=det_I%idx, opt_n_iters=n_iters, &
+            gen_all_excits=gen_all_excits)
+        call clearGAS()
 
 !         two benzenes stacked: 1exc in both directions
         GAS_spec = GASSpec_t(&
@@ -1015,45 +1037,42 @@ contains
         call assert_true(GAS_spec .contains. det_I)
         global_GAS_spec = GAS_spec
         call run_excit_gen_tester( &
-            generate_nGAS_excitation, 'generate_nGAS_excitation', &
+            generate_nGAS_excitation, 'general, connected', &
             opt_nI=det_I%idx, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits)
 
         call finalize_excitgen_test()
 
+    contains
+        subroutine gen_all_excits(nI, n_excits, det_list)
+            integer, intent(in) :: nI(nel)
+            integer, intent(out) :: n_excits
+            integer(n_int), intent(out), allocatable :: det_list(:,:)
 
+            type(SpinOrbIdx_t) :: det_I
+            type(SpinOrbIdx_t), allocatable :: singles(:), doubles(:)
+            integer :: i, j, k
 
-        contains
+            det_I = SpinOrbIdx_t(nI)
 
-            subroutine gen_all_excits(nI, n_excits, det_list)
-                integer, intent(in) :: nI(nel)
-                integer, intent(out) :: n_excits
-                integer(n_int), intent(out), allocatable :: det_list(:,:)
+            singles = get_available_singles(GAS_spec, det_I)
+            doubles = get_available_doubles(GAS_spec, det_I)
 
-                type(SpinOrbIdx_t) :: det_I
-                type(SpinOrbIdx_t), allocatable :: singles(:), doubles(:)
-                integer :: i, j, k
+            n_excits = size(singles) + size(doubles)
+            allocate(det_list(0:niftot, n_excits))
+            j = 1
+            do i = 1, size(singles)
+                det_list(:, j) = to_ilut(singles(i))
+                j = j + 1
+            end do
 
-                det_I = SpinOrbIdx_t(nI)
+            do i = 1, size(doubles)
+                det_list(:, j) = to_ilut(doubles(i))
+                j = j + 1
+            end do
 
-                singles = get_available_singles(GAS_spec, det_I)
-                doubles = get_available_doubles(GAS_spec, det_I)
-
-                n_excits = size(singles) + size(doubles)
-                allocate(det_list(0:niftot, n_excits))
-                j = 1
-                do i = 1, size(singles)
-                    det_list(:, j) = to_ilut(singles(i))
-                    j = j + 1
-                end do
-
-                do i = 1, size(doubles)
-                    det_list(:, j) = to_ilut(doubles(i))
-                    j = j + 1
-                end do
-
-                call sort(det_list, ilut_lt, ilut_gt)
-            end subroutine gen_all_excits
+            call sort(det_list, ilut_lt, ilut_gt)
+        end subroutine gen_all_excits
     end subroutine
 
 
