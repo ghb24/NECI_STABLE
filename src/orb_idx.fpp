@@ -13,7 +13,7 @@ module orb_idx_mod
     public :: OrbIdx_t, SpinOrbIdx_t, SpatOrbIdx_t, size, &
         SpinProj_t, calc_spin, calc_spin_raw, alpha, beta, &
         operator(==), operator(/=), operator(+), operator(-), &
-        sum, to_ilut, lex_leq, lex_geq
+        sum, to_ilut, lex_leq, lex_geq, write_det
 
     type, abstract :: OrbIdx_t
         integer, allocatable :: idx(:)
@@ -40,6 +40,12 @@ module orb_idx_mod
     interface size
 #:for type in OrbIdxTypes
         module procedure size_${type}$
+#:endfor
+    end interface
+
+    interface write_det
+#:for type in OrbIdxTypes
+        module procedure write_det_${type}$
 #:endfor
     end interface
 
@@ -251,5 +257,20 @@ module orb_idx_mod
             end if
         end do
     end function
+#:endfor
+
+#:for type in OrbIdxTypes
+    subroutine write_det_${type}$(det_I, i_unit)
+        type(${type}$), intent(in) :: det_I
+        integer, intent(in) :: i_unit
+
+        integer :: i
+
+        write(i_unit, "(a)", advance='no') '${type}$(['
+        do i = 1, size(det_I) - 1
+            write(i_unit, "(I0, a)", advance='no') det_I%idx(i), ', '
+        end do
+        write(i_unit, "(I0, a)") det_I%idx(size(det_I)), '])'
+    end subroutine
 #:endfor
 end module

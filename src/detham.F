@@ -12,7 +12,7 @@
       use DetBitOps, only: EncodeBitDet
       use orb_idx_mod, only: SpinOrbIdx_t
       use gasci, only: GAS_spec=>GAS_specification,operator(.contains.)
-      use disconnected_gasci, only: isValidExcit
+!       use disconnected_gasci, only: isValidExcit
       use lattice_mod, only: get_helement_lattice
       use util_mod, only: near_zero
       IMPLICIT NONE
