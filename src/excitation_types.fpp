@@ -29,7 +29,7 @@ module excitation_types
     use sets_mod, only: disjoint, subset, is_sorted, special_union_complement
     implicit none
     private
-    public :: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
+    public :: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
         FurtherExc_t, UNKNOWN, defined, last_tgt_unknown, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation, excite
 
@@ -39,19 +39,19 @@ module excitation_types
 
 !>  @brief
 !>      Abstract base class for excitations.
-    type, abstract :: excitation_t
+    type, abstract :: Excitation_t
     end type
 
 !>  @brief
 !>      Represents a No-Op excitation.
-    type, extends(excitation_t) :: NoExc_t
+    type, extends(Excitation_t) :: NoExc_t
     end type
 
 !>  @brief
 !>      Represents the orbital indices of a single excitation.
 !>      The array is sorted like:
 !>      [src1, tgt2]
-    type, extends(excitation_t) :: SingleExc_t
+    type, extends(Excitation_t) :: SingleExc_t
         integer :: val(2) = UNKNOWN
     end type
 
@@ -60,7 +60,7 @@ module excitation_types
 !>      The array is sorted like:
 !>      [[src1, src2],
 !>      [tgt1, tgt2]]
-    type, extends(excitation_t) :: DoubleExc_t
+    type, extends(Excitation_t) :: DoubleExc_t
         integer :: val(2, 2) = UNKNOWN
     end type
 
@@ -68,16 +68,16 @@ module excitation_types
 !> The array is sorted like:
 !> [[src1, src2, src3],
 !>  [tgt1, tgt2, tgt3]]
-    type, extends(excitation_t) :: TripleExc_t
+    type, extends(Excitation_t) :: TripleExc_t
         integer :: val(2, 3) = UNKNOWN
     end type
 
 !> Represents an excitation with so many differing indices,
 !> that it is for sure zero.
-    type, extends(excitation_t) :: FurtherExc_t
+    type, extends(Excitation_t) :: FurtherExc_t
     end type
 
-    #:for excitation_t in non_trivial_excitations
+    #:for Excitation_t in non_trivial_excitations
 !>  @brief
 !>      Additional constructors for the excitation types from integers instead
 !>      of an integer array.
@@ -102,8 +102,8 @@ module excitation_types
 !>
 !>  @param[in] src_i
 !>  @param[in] tgt_i
-    interface ${excitation_t}$
-        module procedure from_integer_${excitation_t}$
+    interface ${Excitation_t}$
+        module procedure from_integer_${Excitation_t}$
     end interface
     #:endfor
 
@@ -116,8 +116,8 @@ module excitation_types
 !>
 !>  @param[in] exc, A non_trivial_excitation.
     interface defined
-    #:for excitation_t in non_trivial_excitations
-        module procedure defined_${excitation_t}$
+    #:for Excitation_t in non_trivial_excitations
+        module procedure defined_${Excitation_t}$
     #:endfor
     end interface
 
@@ -131,8 +131,8 @@ module excitation_types
 !>
 !>  @param[in] exc, A non_trivial_excitation.
     interface last_tgt_unknown
-    #:for excitation_t in non_trivial_excitations
-        module procedure last_tgt_unknown_${excitation_t}$
+    #:for Excitation_t in non_trivial_excitations
+        module procedure last_tgt_unknown_${Excitation_t}$
     #:endfor
     end interface
 
@@ -147,8 +147,8 @@ module excitation_types
 !>  @param[in] exc, A non_trivial_excitation.
 !>  @param[in] tgt, Index of target.
     interface set_last_tgt
-    #:for excitation_t in non_trivial_excitations
-        module procedure set_last_tgt_${excitation_t}$
+    #:for Excitation_t in non_trivial_excitations
+        module procedure set_last_tgt_${Excitation_t}$
     #:endfor
     end interface
 
@@ -167,8 +167,8 @@ module excitation_types
 !>  @param[in] exc, NoExc_t, SingleExc_t, or DoubleExc_t.
     interface excite
     #:for det_type in ['Ilut_t', 'SpinOrbIdx_t']
-        #:for excitation_t in ['NoExc_t', 'SingleExc_t', 'DoubleExc_t']
-            module procedure excite_${det_type}$_${excitation_t}$
+        #:for Excitation_t in ['NoExc_t', 'SingleExc_t', 'DoubleExc_t']
+            module procedure excite_${det_type}$_${Excitation_t}$
         #:endfor
     #:endfor
     end interface
@@ -176,9 +176,9 @@ module excitation_types
 
 contains
 
-    #:for excitation_t in non_trivial_excitations
-        elemental function defined_${excitation_t}$(exc) result(res)
-            type(${excitation_t}$), intent(in) :: exc
+    #:for Excitation_t in non_trivial_excitations
+        elemental function defined_${Excitation_t}$(exc) result(res)
+            type(${Excitation_t}$), intent(in) :: exc
             logical :: res
 
             res = all(exc%val /= UNKNOWN)
@@ -230,7 +230,7 @@ contains
     subroutine create_excitation(exc, ic, ex)
         integer, intent(in) :: IC
         integer, intent(in), optional :: ex(2, ic)
-        class(excitation_t), allocatable, intent(out) :: exc
+        class(Excitation_t), allocatable, intent(out) :: exc
 #ifdef DEBUG_
         character(*), parameter :: this_routine = 'create_excitation'
 #endif
@@ -277,7 +277,7 @@ contains
 !>  @param[out] tParity, The parity of the excitation.
     subroutine get_excitation(nI, nJ, IC, exc, tParity)
         integer, intent(in) :: nI(nEl), nJ(nEl), IC
-        class(excitation_t), allocatable, intent(out) :: exc
+        class(Excitation_t), allocatable, intent(out) :: exc
         logical, intent(out) :: tParity
 
         call create_excitation(exc, IC)
@@ -285,10 +285,13 @@ contains
         ! The compiler has to statically know, what the type of exc is.
         select type (exc)
         type is (SingleExc_t)
+            exc%val(1) = 1
             call GetExcitation(nI, nJ, nel, exc%val, tParity)
         type is (DoubleExc_t)
+            exc%val(1, 1) = 2
             call GetExcitation(nI, nJ, nel, exc%val, tParity)
         type is (TripleExc_t)
+            exc%val(1, 1) = 3
             call GetExcitation(nI, nJ, nel, exc%val, tParity)
         end select
     end subroutine get_excitation
@@ -307,7 +310,7 @@ contains
     subroutine get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)
         integer(kind=n_int), intent(in) :: iLutI(0:NIfTot), iLutJ(0:NIfTot)
         integer, intent(in) :: IC
-        class(excitation_t), allocatable, intent(out) :: exc
+        class(Excitation_t), allocatable, intent(out) :: exc
         logical, intent(out) :: tParity
 
         call create_excitation(exc, IC)
@@ -332,24 +335,24 @@ contains
         exc%val(2) = tgt
     end subroutine set_last_tgt_SingleExc_t
 
-    #:for excitation_t in ['DoubleExc_t', 'TripleExc_t']
-        pure subroutine set_last_tgt_${excitation_t}$(exc, tgt)
-            type(${excitation_t}$), intent(inout) :: exc
+    #:for Excitation_t in ['DoubleExc_t', 'TripleExc_t']
+        pure subroutine set_last_tgt_${Excitation_t}$(exc, tgt)
+            type(${Excitation_t}$), intent(inout) :: exc
             integer, intent(in) :: tgt
             exc%val(2, size(exc%val, 2)) = tgt
-        end subroutine set_last_tgt_${excitation_t}$
+        end subroutine set_last_tgt_${Excitation_t}$
     #:endfor
 
 
-    #:for excitation_t in non_trivial_excitations
-        pure function last_tgt_unknown_${excitation_t}$(exc) result(res)
-            type(${excitation_t}$), intent(in) :: exc
+    #:for Excitation_t in non_trivial_excitations
+        pure function last_tgt_unknown_${Excitation_t}$(exc) result(res)
+            type(${Excitation_t}$), intent(in) :: exc
             logical :: res
             integer :: flattened(size(exc%val))
             flattened(:) = pack(exc%val, .true.)
             res = (all(flattened(: size(flattened) - 1) /= UNKNOWN) &
                    .and.  flattened(size(flattened)) == UNKNOWN)
-        end function last_tgt_unknown_${excitation_t}$
+        end function last_tgt_unknown_${Excitation_t}$
     #:endfor
 
     pure function excite_SpinOrbIdx_t_NoExc_t(det_I, exc) result(res)

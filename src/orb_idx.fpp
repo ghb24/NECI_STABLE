@@ -7,6 +7,7 @@
 module orb_idx_mod
     use constants, only: n_int
     use bit_rep_data, only: nIfTot
+    use bit_reps, only: decode_bit_det
     use DetBitOps, only: EncodeBitDet
     implicit none
     private
@@ -21,6 +22,8 @@ module orb_idx_mod
 
     !> We assume order [beta_1, alpha_1, beta_2, alpha_2, ...]
     type, extends(OrbIdx_t) :: SpinOrbIdx_t
+    contains
+        procedure, nopass :: from_ilut => from_ilut_SpinOrbIdx_t
     end type
 
     interface SpinOrbIdx_t
@@ -260,17 +263,39 @@ module orb_idx_mod
 #:endfor
 
 #:for type in OrbIdxTypes
-    subroutine write_det_${type}$(det_I, i_unit)
+    subroutine write_det_${type}$(det_I, i_unit, advance)
         type(${type}$), intent(in) :: det_I
         integer, intent(in) :: i_unit
+        logical, optional, intent(in) :: advance
 
         integer :: i
+        character(:), allocatable :: advance_str
+
+        if (present(advance)) then
+            if (advance) then
+                advance_str = 'yes'
+            else
+                advance_str = 'no'
+            end if
+        else
+            advance_str = 'yes'
+        end if
+
 
         write(i_unit, "(a)", advance='no') '${type}$(['
         do i = 1, size(det_I) - 1
-            write(i_unit, "(I0, a)", advance='no') det_I%idx(i), ', '
+            write(i_unit, "(I3, a)", advance='no') det_I%idx(i), ','
         end do
-        write(i_unit, "(I0, a)") det_I%idx(size(det_I)), '])'
+        write(i_unit, "(I2, a)", advance=advance_str) det_I%idx(size(det_I)), '])'
     end subroutine
 #:endfor
+
+    pure function from_ilut_SpinOrbIdx_t(ilut) result(res)
+        integer(n_int), intent(in) :: ilut(0:NIftot)
+        type(SpinOrbIdx_t) :: res
+        integer :: n_el
+        n_el = sum(popCnt(ilut))
+        allocate(res%idx(n_el))
+        call decode_bit_det(res%idx, ilut)
+    end function
 end module

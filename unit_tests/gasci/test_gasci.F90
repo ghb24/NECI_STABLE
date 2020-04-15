@@ -9,11 +9,13 @@ module test_gasci_mod
     use procedure_pointers, only: generate_excitation
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, &
         size, operator(==), alpha, beta, sum, calc_spin, calc_spin_raw, &
-        operator(-), to_ilut, write_det
-    use excitation_types, only: SingleExc_t, DoubleExc_t, excite
+        operator(-), to_ilut, write_det, operator(/=)
+    use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, excite
     use util_mod, only: cumsum
     use disconnected_gasci, only: init_disconnected_GAS, &
-        gen_disconnected => generate_nGAS_excitation, clearGAS
+        gen_disconnected => generate_nGAS_excitation, clearGAS, &
+        dyn_calc_pgen
+
 
     use gasci, only: GASSpec_t, get_iGAS, &
         contains_det, get_nGAS, particles_per_GAS, operator(.contains.), &
@@ -999,18 +1001,18 @@ contains
 
 
         ! two benzenes stacked: disconnected spaces
-        GAS_spec = GASSpec_t(&
-            n_orbs=[6, 12], &
-            n_min=[6, size(det_I)], &
-            n_max=[6, size(det_I)])
-        call assert_true(is_valid(GAS_spec))
-        call assert_true(GAS_spec .contains. det_I)
-        global_GAS_spec = GAS_spec
-        call run_excit_gen_tester( &
-            generate_nGAS_excitation, 'general, disconnected', &
-            opt_nI=det_I%idx, opt_n_iters=n_iters, &
-            gen_all_excits=gen_all_excits)
-
+!         GAS_spec = GASSpec_t(&
+!             n_orbs=[6, 12], &
+!             n_min=[6, size(det_I)], &
+!             n_max=[6, size(det_I)])
+!         call assert_true(is_valid(GAS_spec))
+!         call assert_true(GAS_spec .contains. det_I)
+!         global_GAS_spec = GAS_spec
+!         call run_excit_gen_tester( &
+!             generate_nGAS_excitation, 'general, disconnected', &
+!             opt_nI=det_I%idx, opt_n_iters=n_iters, &
+!             gen_all_excits=gen_all_excits)
+!
 
         ! two benzenes stacked: disconnected spaces
         ! old implementation
@@ -1022,25 +1024,35 @@ contains
         call assert_true(GAS_spec .contains. det_I)
         global_GAS_spec = GAS_spec
         call init_disconnected_GAS(GAS_spec)
+
         call run_excit_gen_tester( &
-            gen_disconnected, 'disconnected_gasci', &
+            gen_disconnected, 'problematic or recoupling', &
             opt_nI=det_I%idx, opt_n_iters=n_iters, &
-            gen_all_excits=gen_all_excits)
+            gen_all_excits=gen_all_excits, &
+            calc_pgen=dyn_calc_pgen, &
+            print_predicate=predicate_recouple)
+
+        call run_excit_gen_tester( &
+            gen_disconnected, 'problematic or not recoupling', &
+            opt_nI=det_I%idx, opt_n_iters=n_iters, &
+            gen_all_excits=gen_all_excits, &
+            calc_pgen=dyn_calc_pgen, &
+            print_predicate=predicate_no_recouple)
         call clearGAS()
 
 !         two benzenes stacked: 1exc in both directions
-        GAS_spec = GASSpec_t(&
-            n_orbs=[6, 12], &
-            n_min=[5, size(det_I)], &
-            n_max=[7, size(det_I)])
-        call assert_true(is_valid(GAS_spec))
-        call assert_true(GAS_spec .contains. det_I)
-        global_GAS_spec = GAS_spec
-        call run_excit_gen_tester( &
-            generate_nGAS_excitation, 'general, connected', &
-            opt_nI=det_I%idx, opt_n_iters=n_iters, &
-            gen_all_excits=gen_all_excits)
-
+!         GAS_spec = GASSpec_t(&
+!             n_orbs=[6, 12], &
+!             n_min=[5, size(det_I)], &
+!             n_max=[7, size(det_I)])
+!         call assert_true(is_valid(GAS_spec))
+!         call assert_true(GAS_spec .contains. det_I)
+!         global_GAS_spec = GAS_spec
+!         call run_excit_gen_tester( &
+!             generate_nGAS_excitation, 'general, connected', &
+!             opt_nI=det_I%idx, opt_n_iters=n_iters, &
+!             gen_all_excits=gen_all_excits)
+!
         call finalize_excitgen_test()
 
     contains
@@ -1073,6 +1085,78 @@ contains
 
             call sort(det_list, ilut_lt, ilut_gt)
         end subroutine gen_all_excits
+
+        pure function predicate_recouple(det_I, exc, pgen_diagnostic) result(res)
+            type(SpinOrbIdx_t), intent(in) :: det_I
+            class(Excitation_t), intent(in) :: exc
+            real(dp), intent(in) :: pgen_diagnostic
+
+            logical :: res
+
+            logical :: diagnostic
+
+            diagnostic = pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic
+
+            select type(exc)
+            type is(SingleExc_t)
+                res = diagnostic
+            type is(DoubleExc_t)
+            associate(src1 => exc%val(1, 1), src2 => exc%val(1, 2))
+            block
+                logical :: interspace_spin_flip
+                type(SpinOrbIdx_t), allocatable :: splitted_det_I(:), splitted_det_J(:)
+                integer :: iGAS
+
+                splitted_det_I = split_per_GAS(GAS_spec, det_I)
+                splitted_det_J = split_per_GAS(GAS_spec, excite(det_I, exc))
+
+                interspace_spin_flip = .false.
+                do iGAS = 1, size(splitted_det_I)
+                    if (sum(calc_spin(splitted_det_I(iGAS))) /= sum(calc_spin(splitted_det_J(iGAS)))) then
+                        interspace_spin_flip = .true.
+                        exit
+                    end if
+                end do
+                res = diagnostic .or. interspace_spin_flip
+            end block
+            end associate
+            end select
+
+        end function
+
+        pure function predicate_no_recouple(det_I, exc, pgen_diagnostic) result(res)
+            type(SpinOrbIdx_t), intent(in) :: det_I
+            class(Excitation_t), intent(in) :: exc
+            real(dp), intent(in) :: pgen_diagnostic
+
+            logical :: res
+
+            logical :: diagnostic
+
+            diagnostic = pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic
+
+            select type(exc)
+            type is(SingleExc_t)
+                res = diagnostic
+            type is(DoubleExc_t)
+            associate(src1 => exc%val(1, 1), src2 => exc%val(1, 2))
+            block
+                logical :: interspace_spin_flip
+
+                interspace_spin_flip = .false.
+                do iGAS = 1, size(splitted_det_I)
+                    if (sum(calc_spin(splitted_det_I(iGAS))) /= sum(calc_spin(splitted_det_J(iGAS)))) then
+                        interspace_spin_flip = .true.
+                        exit
+                    end if
+                end do
+
+                res = diagnostic .or. .not. interspace_spin_flip
+            end block
+            end associate
+            end select
+
+        end function
     end subroutine
 
 

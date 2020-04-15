@@ -10,7 +10,7 @@ MODULE Determinants
     use IntegralsData, only: UMat, FCK, NMAX
     use csf, only: det_to_random_csf, iscsf, csf_orbital_mask, &
                    csf_yama_bit, CSFGetHelement
-    use excitation_types, only: excitation_t, DoubleExc_t, get_excitation
+    use excitation_types, only: Excitation_t, DoubleExc_t, get_excitation
     use sltcnd_mod, only: sltcnd, dyn_sltcnd_excit_old, sltcnd_compat, &
                           sltcnd_excit, sltcnd_knowIC, SumFock, CalcFockOrbEnergy
     use global_utilities

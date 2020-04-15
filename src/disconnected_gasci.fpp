@@ -18,17 +18,19 @@ module disconnected_gasci
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
         last_tgt_unknown, set_last_tgt
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
+    use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t, operator(==)
     use gasci, only: GASSpec_t, get_nGAS
     implicit none
 
     private
-    public :: isValidExcit, init_disconnected_GAS, generate_nGAS_excitation, clearGAS, oddBits
+    public :: isValidExcit, init_disconnected_GAS, generate_nGAS_excitation, &
+        clearGAS, oddBits, calc_pgen, dyn_calc_pgen
 
 
-    #:for function_name in ['get_cumulative_list', 'get_mat_element', 'pick_weighted_hole']
+    #:for function_name in ['get_cumulative_list', 'get_mat_element', 'pick_weighted_hole', 'calc_pgen']
     interface ${function_name}$
-        #:for excitation_t in ExcitationTypes
-            module procedure ${function_name}$_${excitation_t}$
+        #:for Excitation_t in ExcitationTypes
+            module procedure ${function_name}$_${Excitation_t}$
         #:endfor
     end interface
     #:endfor
@@ -355,7 +357,7 @@ contains
             nJBase = nI
             nJBase(elecs(1)) = tgt(2)
             pgen_pick2 = get_pgen_pick_weighted_hole(&
-                                nI, DoubleExc_t(src(1), tgt(1), src(2), tgt(2))) &
+                                nI, DoubleExc_t(src(1), tgt(2), src(2), tgt(1))) &
                          * get_pgen_pick_hole_from_active_space(&
                                 ilutI, srcGAS(2), get_spin(tgt(2)))
             pgen = pgen * (pgen_pick1 + pgen_pick2)
@@ -438,15 +440,15 @@ contains
 
 !----------------------------------------------------------------------------!
 
-    #:for excitation_t in ExcitationTypes
-        function get_cumulative_list_${excitation_t}$(GAS_list, nI, incomplete_exc) result(cSum)
+    #:for Excitation_t in ExcitationTypes
+        function get_cumulative_list_${Excitation_t}$(GAS_list, nI, incomplete_exc) result(cSum)
             integer, intent(in) :: GAS_list(:), nI(nel)
-            type(${excitation_t}$), intent(in) :: incomplete_exc
+            type(${Excitation_t}$), intent(in) :: incomplete_exc
             real(dp) :: cSum(size(GAS_list))
-            character(*), parameter :: this_routine = 'get_cumulative_list_${excitation_t}$'
+            character(*), parameter :: this_routine = 'get_cumulative_list_${Excitation_t}$'
 
             real(dp) :: previous
-            type(${excitation_t}$) :: exc
+            type(${Excitation_t}$) :: exc
             integer :: i, nOrbs
 
             nOrbs = size(GAS_list)
@@ -468,7 +470,7 @@ contains
             else
                 cSum(:) = cSum(:) / cSum(nOrbs)
             end if
-        end function get_cumulative_list_${excitation_t}$
+        end function get_cumulative_list_${Excitation_t}$
     #:endfor
 
     function get_mat_element_SingleExc_t(nI, exc) result(res)
@@ -502,17 +504,17 @@ contains
     end function get_mat_element_DoubleExc_t
 
 !----------------------------------------------------------------------------!
-    #:for excitation_t in ExcitationTypes
-        function pick_weighted_hole_${excitation_t}$(nI, exc, spin_idx, iGAS, pgen) result(tgt)
+    #:for Excitation_t in ExcitationTypes
+        function pick_weighted_hole_${Excitation_t}$(nI, exc, spin_idx, iGAS, pgen) result(tgt)
             ! pick a hole of nI with spin ms from the active space with index
             ! srcGASInd the random number is to be supplied as r
             ! nI is the source determinant, nJBase the one from which we obtain
             ! the ket of the matrix element by single excitation
             integer, intent(in) :: nI(nel)
-            type(${excitation_t}$), intent(in) :: exc
+            type(${Excitation_t}$), intent(in) :: exc
             integer, intent(in) :: spin_idx, iGAS
             real(dp), intent(inout) :: pgen
-            character(*), parameter :: this_routine = 'pick_weighted_hole_${excitation_t}$'
+            character(*), parameter :: this_routine = 'pick_weighted_hole_${Excitation_t}$'
 
             integer :: tgt, nOrbs, GAS_list(GAS_size(iGAS))
             real(dp) :: r, cSum(GAS_size(iGAS))
@@ -546,7 +548,7 @@ contains
                 tgt = 0
             end if
 
-        end function pick_weighted_hole_${excitation_t}$
+        end function pick_weighted_hole_${Excitation_t}$
     #:endfor
 
 !----------------------------------------------------------------------------!
@@ -602,5 +604,110 @@ contains
             end do
         end function
     end function pick_hole_from_active_space
+
+    function calc_pgen_SingleExc_t(det_I, exc) result(pgen)
+        use FciMCData, only: pSingles
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        type(SingleExc_t), intent(in) :: exc
+
+        real(dp) :: pgen
+
+        real(dp) :: pgen_pick_elec, pgen_pick_weighted_hole
+
+        pgen_pick_elec = 1.0_dp / nel
+
+        associate(src1 => exc%val(1), tgt1 => exc%val(2))
+        block
+            real(dp) :: cSum(GAS_size(GAS_table(tgt1)))
+            integer :: gasList(GAS_size(GAS_table(tgt1))), nOrbs
+            integer :: j
+
+            nOrbs = GAS_size(GAS_table(tgt1))
+            gasList = GAS_spin_orb_list(1:nOrbs, GAS_table(tgt1), get_spin(tgt1))
+            ! We know, that gasList contains tgt1
+            j = binary_search_first_ge(gasList, tgt1)
+
+            cSum = get_cumulative_list(gasList, det_I%idx, SingleExc_t(src1))
+
+            if (j == 1) then
+                pgen_pick_weighted_hole = cSum(1)
+            else
+                pgen_pick_weighted_hole = (cSum(j) - cSum(j - 1))
+            end if
+        end block
+        end associate
+
+        pgen = pSingles * pgen_pick_elec * pgen_pick_weighted_hole
+    end function
+
+    function calc_pgen_DoubleExc_t(det_I, exc) result(pgen)
+        use FciMCData, only: pDoubles, pParallel
+        use SystemData, only: par_elec_pairs, AB_elec_pairs
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        type(DoubleExc_t), intent(in) :: exc
+
+        real(dp) :: pgen
+        real(dp) :: pgen_pick_elec, &
+            ! These are arrays, because the pgen might be different if we
+            ! pick AB or BA.
+            ! pgen_first_pick == p(A) == p(B)
+            ! pgen_second_pick == [p(B | A), p(A | B)]
+            pgen_first_pick, pgen_second_pick(2)
+
+        associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
+                   src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
+        block
+            real(dp) :: cSum(GAS_size(GAS_table(tgt1)))
+            integer :: gasList(GAS_size(GAS_table(tgt1))), nOrbs
+            integer :: j, iGAS, nEmpty
+            logical :: parallel_spin, tExchange
+
+            parallel_spin = calc_spin_raw(src1) == calc_spin_raw(src2)
+            if (parallel_spin) then
+                pgen_pick_elec = pParallel / real(par_elec_pairs, dp)
+            else
+                pgen_pick_elec = (1.0_dp - pParallel) / real(AB_elec_pairs, dp)
+            end if
+
+            tExchange = .not. parallel_spin &
+                        .and. (tGASSpinRecoupling .or. GAS_table(src1) == GAS_table(src2))
+
+            iGAS = GAS_table(src1)
+            nEmpty = GAS_size(iGAS) - count(GAS_table(det_I%idx) == iGAS)
+            if (nEmpty == 0) then
+                pgen_first_pick = 1.0_dp
+            else
+                ! adjust pgen
+                pgen_first_pick = &
+                    merge(0.5_dp, 1.0_dp, tExchange) / real(nEmpty, dp)
+            end if
+
+            pgen_second_pick(1) = get_pgen_pick_weighted_hole(&
+                    det_I%idx, DoubleExc_t(src1, tgt1, src2, tgt2))
+            if (GAS_table(src1) == GAS_table(src2)) then
+                pgen_second_pick(2) = get_pgen_pick_weighted_hole(&
+                    det_I%idx, DoubleExc_t(src1, tgt2, src2, tgt1))
+            else
+                pgen_second_pick(2) = 0.0_dp
+            end if
+        end block
+        end associate
+
+        pgen = pDoubles * pgen_pick_elec * pgen_first_pick * sum(pgen_second_pick)
+    end function
+
+    function dyn_calc_pgen(det_I, exc) result(pgen)
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        class(Excitation_t), intent(in) :: exc
+
+        real(dp) :: pgen
+
+        select type(exc)
+        type is(SingleExc_t)
+            pgen = calc_pgen(det_I, exc)
+        type is(DoubleExc_t)
+            pgen = calc_pgen(det_I, exc)
+        end select
+    end function
 
 end module disconnected_gasci

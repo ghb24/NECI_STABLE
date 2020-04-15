@@ -32,7 +32,7 @@ module sltcnd_mod
     use IntegralsData, only: UMAT
     use OneEInts, only: GetTMatEl, TMat2D
     use procedure_pointers, only: get_umat_el
-    use excitation_types, only: excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
+    use excitation_types, only: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, &
         TripleExc_t, FurtherExc_t, &
         UNKNOWN, get_excitation, get_bit_excitation, create_excitation
     use orb_idx_mod, only: SpinOrbIdx_t
@@ -80,8 +80,8 @@ module sltcnd_mod
 !>
 !>  @param[in] exc, An excitation of a subtype of excitation_t.
     interface sltcnd_excit
-    #:for excitation_t in excitations
-        module procedure sltcnd_excit_${excitation_t}$
+    #:for Excitation_t in excitations
+        module procedure sltcnd_excit_${Excitation_t}$
     #:endfor
         module procedure sltcnd_excit_SpinOrbIdx_t_SingleExc_t
         module procedure sltcnd_excit_SpinOrbIdx_t_DoubleExc_t
@@ -179,7 +179,7 @@ contains
 !>  @param[in] tParity, The parity of the excitation.
     function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
         integer, intent(in) :: ref(nel)
-        class(excitation_t), intent(in) :: exc
+        class(Excitation_t), intent(in) :: exc
         logical, intent(in) :: tParity
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
@@ -218,7 +218,7 @@ contains
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'sltcnd_excit_old'
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
 
         if (IC /= 0 .and. .not. (present(ex) .and. present(tParity))) &
             call stop_all(this_routine, "ex and tParity must be provided to &
@@ -232,7 +232,7 @@ contains
         integer, intent(in) :: nI(nel), nJ(nel), IC
         HElement_t(dp) :: hel
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
         logical :: tParity
 
         call get_excitation(nI, nJ, IC, exc, tParity)
@@ -256,7 +256,7 @@ contains
 
         HElement_t(dp) :: hel
 
-        class(excitation_t), allocatable :: exc
+        class(Excitation_t), allocatable :: exc
         logical :: tParity
 
         call get_bit_excitation(ilutI, ilutJ, IC, exc, tParity)

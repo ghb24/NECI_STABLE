@@ -7,7 +7,7 @@ module unit_test_helpers
 
     use lattice_mod, only: get_helement_lattice, lattice
 
-    use Determinants, only: get_helement
+    use Determinants, only: get_helement, write_det
 
     use SystemData, only: t_lattice_model, nOccAlpha, nOccBeta, &
                           trans_corr_param_2body, omega, nel, nBasis, &
@@ -24,6 +24,10 @@ module unit_test_helpers
     use DetBitOps, only: ilut_lt, ilut_gt, EncodeBitDet, findbitexcitlevel, &
                          count_open_orbs
 
+    use orb_idx_mod, only: SpinOrbIdx_t
+
+    use excitation_types, only: Excitation_t, get_excitation
+
     use sort_mod
 
     use ras, only: sort_orbitals
@@ -38,6 +42,19 @@ module unit_test_helpers
             integer, intent(out) :: n_excits
             integer(n_int), intent(out), allocatable :: det_list(:,:)
         end subroutine generate_all_excits_t
+
+        real(dp) function calc_pgen_t(det_I, exc)
+            import :: dp, SpinOrbIdx_t, Excitation_t
+            type(SpinOrbIdx_t), intent(in) :: det_I
+            class(Excitation_t), intent(in) :: exc
+        end function calc_pgen_t
+
+        logical pure function print_predicate_t(det_I, exc, pgen_diagnostic)
+            import :: dp, SpinOrbIdx_t, Excitation_t
+            type(SpinOrbIdx_t), intent(in) :: det_I
+            class(Excitation_t), intent(in) :: exc
+            real(dp), intent(in) :: pgen_diagnostic
+        end function
     end interface
 
 !     interface is_in_list
@@ -779,13 +796,15 @@ contains
     end function matrix_inverse
 
     subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, &
-            gen_all_excits)
+            gen_all_excits, calc_pgen, print_predicate)
         use procedure_pointers, only: generate_excitation_t
         use util_mod, only: binary_search
 
         procedure(generate_excitation_t) :: excit_gen
         integer, intent(in), optional :: opt_nI(nel), opt_n_iters
         procedure(generate_all_excits_t), optional :: gen_all_excits
+        procedure(calc_pgen_t), optional :: calc_pgen
+        procedure(print_predicate_t), optional :: print_predicate
         character(*), intent(in) :: excit_gen_name
         character(*), parameter :: this_routine = "run_excit_gen_tester"
 
@@ -804,10 +823,18 @@ contains
         logical, allocatable :: generated_list(:)
         integer :: n_dets, n_generated, pos
 
+        procedure(print_predicate_t), pointer :: print_predicate_
+
         ASSERT(nel > 0)
         ! and also nbasis and stuff..
         ASSERT(nbasis > 0)
         ASSERT(nel <= nbasis)
+
+        if (present(print_predicate)) then
+            print_predicate_ => print_predicate
+        else
+            print_predicate_ => default_predicate
+        end if
 
         ! use some default values if not provided:
         ! nel must be set!
@@ -908,17 +935,45 @@ contains
         print *, "Averaged contribution: ", contrib / real(n_excits*n_iters,dp)
 
         ! check all dets are generated:
-        ASSERT(all(generated_list))
+!         ASSERT(all(generated_list))
 
-        print *, "=================================="
-        print *, "Contribution List: "
-        do i = 1, n_excits
-            ic = findbitexcitlevel(ilut, det_list(:,i))
-            call writebitdet(6, det_list(:,i), .false.)
-            print *, contrib_list(i)/real(n_iters,dp), "|", ic
-        end do
-        ! and check the uniformity of the excitation generation
-!         ASSERT(all(abs(contrib_list / n_iters - 1.0_dp) < 0.01_dp))
+        block
+            type(SpinOrbIdx_t) :: det_I
+            real(dp) :: pgen_diagnostic
+            class(Excitation_t), allocatable :: exc
+            integer :: nJ(nEl)
+            logical :: tParity
+
+
+            print *, "=================================="
+            print *, "Problematic contribution List: "
+            write(6, '("| Determinant   |   Sum{1 / pgen} / n_iter |  ic  |    <psi_I H psi_J >        |")', advance='no')
+            if (present(calc_pgen)) write(6, '("pgen |")', advance='no')
+            write(6, *)
+
+            do i = 1, n_excits
+                pgen_diagnostic = contrib_list(i) / real(n_iters, dp)
+                ic = findbitexcitlevel(ilut, det_list(:, i))
+                call decode_bit_det(nJ, det_list(:, i))
+                call get_excitation(nI, nJ, ic, exc, tParity)
+
+                if (.not. print_predicate_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) cycle
+                call write_det (6, nJ, .false.)
+                write(6, '("|"F10.5"|"I2"|"F10.5"|")', advance='no') pgen_diagnostic, ic, get_helement(nI, nJ)
+                if (present(calc_pgen)) write(6, '(F15.10"|")', advance='no') calc_pgen(SpinOrbIdx_t(nI), exc)
+                write(6, *)
+            end do
+        end block
+
+        contains
+
+        logical pure function default_predicate(det_I, exc, pgen_diagnostic)
+            type(SpinOrbIdx_t), intent(in) :: det_I
+            class(Excitation_t), intent(in) :: exc
+            real(dp), intent(in) :: pgen_diagnostic
+            default_predicate = &
+                pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic
+        end function
 
     end subroutine run_excit_gen_tester
 
@@ -1076,5 +1131,3 @@ contains
 
 
 end module unit_test_helpers
-
-
