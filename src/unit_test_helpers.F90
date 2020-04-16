@@ -906,7 +906,7 @@ contains
         block
             integer(int64) :: i
             do i = 1, int(n_iters, kind=int64)
-                if (mod(i, 1000) == 0) then
+                if (mod(i, 100000) == 0) then
                     print *, i, "/" ,n_iters, " - ", contrib / real(int(n_excits, kind=int64) * i, dp)
                 end if
                 call excit_gen(nI, ilut, nJ, tgt_ilut, ex_flag, ic, ex, tpar, pgen, &
@@ -957,11 +957,12 @@ contains
                 call decode_bit_det(nJ, det_list(:, i))
                 call get_excitation(nI, nJ, ic, exc, tParity)
 
-                if (.not. print_predicate_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) cycle
-                call write_det (6, nJ, .false.)
-                write(6, '("|"F10.5"|"I2"|"F10.5"|")', advance='no') pgen_diagnostic, ic, get_helement(nI, nJ)
-                if (present(calc_pgen)) write(6, '(F15.10"|")', advance='no') calc_pgen(SpinOrbIdx_t(nI), exc)
-                write(6, *)
+                if (print_predicate_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) then
+                    call write_det (6, nJ, .false.)
+                    write(6, '("|"F10.5"|"I2"|"F10.5"|")', advance='no') pgen_diagnostic, ic, get_helement(nI, nJ)
+                    if (present(calc_pgen)) write(6, '(F15.10"|")', advance='no') calc_pgen(SpinOrbIdx_t(nI), exc)
+                    write(6, *)
+                end if
             end do
         end block
 

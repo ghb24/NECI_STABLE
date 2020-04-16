@@ -988,7 +988,7 @@ contains
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GASSpec_t) :: GAS_spec
         type(SpinOrbIdx_t) :: det_I
-        integer, parameter :: n_spat_orbs = 12, n_iters=10**7
+        integer, parameter :: n_spat_orbs = 12, n_iters=10**8
 
         call assert_true(tGASSpinRecoupling)
 
@@ -1001,21 +1001,22 @@ contains
 
 
         ! two benzenes stacked: disconnected spaces
-!         GAS_spec = GASSpec_t(&
-!             n_orbs=[6, 12], &
-!             n_min=[6, size(det_I)], &
-!             n_max=[6, size(det_I)])
-!         call assert_true(is_valid(GAS_spec))
-!         call assert_true(GAS_spec .contains. det_I)
-!         global_GAS_spec = GAS_spec
-!         call run_excit_gen_tester( &
-!             generate_nGAS_excitation, 'general, disconnected', &
-!             opt_nI=det_I%idx, opt_n_iters=n_iters, &
-!             gen_all_excits=gen_all_excits)
-!
+        GAS_spec = GASSpec_t(&
+            n_orbs=[6, 12], &
+            n_min=[6, size(det_I)], &
+            n_max=[6, size(det_I)])
+        call assert_true(is_valid(GAS_spec))
+        call assert_true(GAS_spec .contains. det_I)
+        global_GAS_spec = GAS_spec
+        call run_excit_gen_tester( &
+            generate_nGAS_excitation, 'general, disconnected', &
+            opt_nI=det_I%idx, opt_n_iters=n_iters, &
+            gen_all_excits=gen_all_excits)
+
 
         ! two benzenes stacked: disconnected spaces
         ! old implementation
+        tGASSpinRecoupling = .true.
         GAS_spec = GASSpec_t(&
             n_orbs=[6, 12], &
             n_min=[6, size(det_I)], &
@@ -1024,23 +1025,14 @@ contains
         call assert_true(GAS_spec .contains. det_I)
         global_GAS_spec = GAS_spec
         call init_disconnected_GAS(GAS_spec)
-
         call run_excit_gen_tester( &
-            gen_disconnected, 'problematic or recoupling', &
+            gen_disconnected, 'old implementation, disconnected', &
             opt_nI=det_I%idx, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits, &
-            calc_pgen=dyn_calc_pgen, &
-            print_predicate=predicate_recouple)
-
-        call run_excit_gen_tester( &
-            gen_disconnected, 'problematic or not recoupling', &
-            opt_nI=det_I%idx, opt_n_iters=n_iters, &
-            gen_all_excits=gen_all_excits, &
-            calc_pgen=dyn_calc_pgen, &
-            print_predicate=predicate_no_recouple)
+            calc_pgen=dyn_calc_pgen)
         call clearGAS()
 
-!         two benzenes stacked: 1exc in both directions
+!         ! two benzenes stacked: 1exc in both directions
 !         GAS_spec = GASSpec_t(&
 !             n_orbs=[6, 12], &
 !             n_min=[5, size(det_I)], &
@@ -1052,7 +1044,7 @@ contains
 !             generate_nGAS_excitation, 'general, connected', &
 !             opt_nI=det_I%idx, opt_n_iters=n_iters, &
 !             gen_all_excits=gen_all_excits)
-!
+
         call finalize_excitgen_test()
 
     contains
@@ -1117,7 +1109,7 @@ contains
                         exit
                     end if
                 end do
-                res = diagnostic .or. interspace_spin_flip
+                res = .not. interspace_spin_flip
             end block
             end associate
             end select
@@ -1142,6 +1134,11 @@ contains
             associate(src1 => exc%val(1, 1), src2 => exc%val(1, 2))
             block
                 logical :: interspace_spin_flip
+                type(SpinOrbIdx_t), allocatable :: splitted_det_I(:), splitted_det_J(:)
+                integer :: iGAS
+
+                splitted_det_I = split_per_GAS(GAS_spec, det_I)
+                splitted_det_J = split_per_GAS(GAS_spec, excite(det_I, exc))
 
                 interspace_spin_flip = .false.
                 do iGAS = 1, size(splitted_det_I)
@@ -1150,12 +1147,10 @@ contains
                         exit
                     end if
                 end do
-
-                res = diagnostic .or. .not. interspace_spin_flip
+                res = interspace_spin_flip
             end block
             end associate
             end select
-
         end function
     end subroutine
 
