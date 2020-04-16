@@ -209,7 +209,7 @@ module orb_idx_mod
     elemental function neq_SpinProj_t_SpinProj_t(lhs, rhs) result(res)
         type(SpinProj_t), intent(in) :: lhs, rhs
         logical :: res
-        res = lhs%val == rhs%val
+        res = lhs%val /= rhs%val
     end function
 
     elemental function calc_spin_raw(orb_idx) result(res)
