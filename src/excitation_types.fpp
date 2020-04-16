@@ -30,7 +30,7 @@ module excitation_types
     implicit none
     private
     public :: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
-        FurtherExc_t, UNKNOWN, defined, last_tgt_unknown, set_last_tgt, &
+        FurtherExc_t, UNKNOWN, defined, dyn_defined, last_tgt_unknown, set_last_tgt, &
         create_excitation, get_excitation, get_bit_excitation, excite
 
 
@@ -116,7 +116,7 @@ module excitation_types
 !>
 !>  @param[in] exc, A non_trivial_excitation.
     interface defined
-    #:for Excitation_t in non_trivial_excitations
+    #:for Excitation_t in non_trivial_excitations + ['NoExc_t']
         module procedure defined_${Excitation_t}$
     #:endfor
     end interface
@@ -184,6 +184,28 @@ contains
             res = all(exc%val /= UNKNOWN)
         end function
     #:endfor
+    elemental function defined_NoExc_t(exc) result(res)
+        type(NoExc_t), intent(in) :: exc
+        logical :: res
+        res = .true.
+    end function
+
+    elemental function dyn_defined(exc) result(res)
+        class(Excitation_t), intent(in) :: exc
+        logical :: res
+
+        select type(exc)
+        type is(NoExc_t)
+            res = defined(exc)
+        type is(SingleExc_t)
+            res = defined(exc)
+        type is(DoubleExc_t)
+            res = defined(exc)
+        type is(TripleExc_t)
+            res = defined(exc)
+        end select
+    end function
+
 
     pure function from_integer_SingleExc_t(src, tgt) result(res)
         integer, intent(in), optional :: src, tgt
