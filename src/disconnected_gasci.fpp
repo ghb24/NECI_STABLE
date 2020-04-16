@@ -16,7 +16,7 @@ module disconnected_gasci
     use Determinants, only: get_helement
     use excit_gens_int_weighted, only: pick_biased_elecs, pgen_select_orb
     use excitation_types, only: Excitation_t, SingleExc_t, DoubleExc_t, &
-        last_tgt_unknown, set_last_tgt
+        last_tgt_unknown, set_last_tgt, defined, dyn_defined
     use sltcnd_mod, only: sltcnd_excit, dyn_sltcnd_excit
     use orb_idx_mod, only: SpinOrbIdx_t, calc_spin_raw, SpinProj_t, operator(==)
     use gasci, only: GASSpec_t, get_nGAS
@@ -393,8 +393,11 @@ contains
     function get_pgen_pick_weighted_hole(nI, exc) result(pgenVal)
         integer, intent(in) :: nI(nel)
         type(DoubleExc_t), intent(in) :: exc
+        character(*), parameter :: this_routine = 'get_pgen_pick_weighted_hole'
 
         real(dp) :: pgenVal
+
+        @:ASSERT(defined(exc))
 
         associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
                    src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
@@ -609,10 +612,13 @@ contains
         use FciMCData, only: pSingles
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(SingleExc_t), intent(in) :: exc
+        character(*), parameter :: this_routine = 'get_pgen_pick_weighted_hole'
 
         real(dp) :: pgen
 
         real(dp) :: pgen_pick_elec, pgen_pick_weighted_hole
+
+        @:ASSERT(defined(exc))
 
         pgen_pick_elec = 1.0_dp / nel
 
@@ -645,6 +651,7 @@ contains
         use SystemData, only: par_elec_pairs, AB_elec_pairs
         type(SpinOrbIdx_t), intent(in) :: det_I
         type(DoubleExc_t), intent(in) :: exc
+        character(*), parameter :: this_routine = 'calc_pgen_DoubleExc_t'
 
         real(dp) :: pgen
         real(dp) :: pgen_pick_elec, &
@@ -653,6 +660,8 @@ contains
             ! pgen_first_pick == p(A) == p(B)
             ! pgen_second_pick == [p(B | A), p(A | B)]
             pgen_first_pick, pgen_second_pick(2)
+
+        @:ASSERT(defined(exc))
 
         associate (src1 => exc%val(1, 1), tgt1 => exc%val(2, 1), &
                    src2 => exc%val(1, 2), tgt2 => exc%val(2, 2))
@@ -699,8 +708,11 @@ contains
     function dyn_calc_pgen(det_I, exc) result(pgen)
         type(SpinOrbIdx_t), intent(in) :: det_I
         class(Excitation_t), intent(in) :: exc
+        character(*), parameter :: this_routine = 'dyn_calc_pgen'
 
         real(dp) :: pgen
+
+        @:ASSERT(dyn_defined(exc))
 
         select type(exc)
         type is(SingleExc_t)
