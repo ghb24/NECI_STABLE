@@ -59,7 +59,7 @@ contains
         type(subspace_in) :: core_in
         logical, intent(out) :: tStartedFromCoreGround
 
-        integer :: i, j, ierr, run
+        integer :: i, j, ierr, run, num_core_runs
         integer :: nI(nel)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_semi_stochastic"
@@ -87,7 +87,7 @@ contains
         allocate(cs_replicas(num_core_runs))
         
         write(6,'(/,12("="),1x,a30,1x,12("="))') "Semi-stochastic initialisation"; call neci_flush(6)
-        do run = 1, num_core_runs
+        do run = 1, size(cs_replicas)
             associate(rep => cs_replicas(run))
               allocate(rep%determ_sizes(0:nProcessors-1))
               allocate(rep%determ_displs(0:nProcessors-1))

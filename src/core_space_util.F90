@@ -11,13 +11,10 @@ module core_space_util
 
     private
     public :: core_space_t, cs_replicas, sparse_matrix_real, sparse_matrix_int, &
-        num_core_runs, deallocate_sparse_ham, min_pt, max_pt
+        deallocate_sparse_ham, min_pt, max_pt
 
     integer, parameter :: min_pt = 1
     integer, parameter :: max_pt = rep_size
-
-    ! Number of different core spaces
-    integer :: num_core_runs
 
     type sparse_matrix_real
         HElement_t(dp), allocatable, dimension(:) :: elements

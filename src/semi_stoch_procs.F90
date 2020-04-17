@@ -18,7 +18,7 @@ module semi_stoch_procs
                          MaxSpawned, ilutRef, t_global_core_space, core_run
 
     use core_space_util, only: core_space_t, cs_replicas, min_pt, max_pt, &
-        num_core_runs, deallocate_sparse_ham
+        deallocate_sparse_ham
 
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg
 
@@ -533,7 +533,7 @@ contains
 
         ! Only attempt this if we have already performed the semi-stochastic
         ! initialisation, in which case determ_sizes will have been allocated.
-        do run = 1, num_core_runs
+        do run = 1, size(cs_replicas)
             associate( rep => cs_replicas(run))
               if (allocated(rep%determ_sizes)) then
                   write(6,'(a56)') "Recalculating diagonal elements of the core Hamiltonian."
