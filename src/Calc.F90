@@ -2222,7 +2222,7 @@ contains
                 endif
 
             case("FORCE-FULL-POPS")
-                tForceFullPops = .false.
+                tForceFullPops = .true.
                 ss_space_in%tApproxSpace = .false.
                 trial_space_in%tApproxSpace = .false.
 

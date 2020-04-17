@@ -17,7 +17,8 @@ module guga_init
 
     use CalcData, only: tUseRealCoeffs, tRealCoeffByExcitLevel, RealCoeffExcitThresh, &
                         t_direct_guga_ref, t_hist_tau_search, tSpinProject, &
-                        tReplicaEstimates, tPreCond
+                        tReplicaEstimates, tPreCond, ss_space_in, trial_space_in, &
+                        t_fast_pops_core, t_core_inits
 
     use hist_data, only: tHistSpawn
 
@@ -296,6 +297,12 @@ contains
 
         ! make a unified bit rep initializer:
         call init_guga_bitrep(nifd)
+
+        ! set some defaults for non-working things:
+        t_fast_pops_core = .false.
+        ss_space_in%tApproxSpace = .false.
+        trial_space_in%tApproxSpace = .false.
+        t_core_inits = .true.
 
     end subroutine init_guga
 

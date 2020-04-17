@@ -111,7 +111,6 @@ contains
             ! Perform the multiplication.
 
             partial_determ_vecs = 0.0_dp
-
 #ifdef CMPLX_
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
@@ -126,7 +125,6 @@ contains
                 end do
             end do
 #else
-
             do i = 1, determ_sizes(iProcIndex)
                 do j = 1, sparse_core_ham(i)%num_elements
                     partial_determ_vecs(:,i) = partial_determ_vecs(:,i) - &
