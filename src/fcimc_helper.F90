@@ -2609,7 +2609,7 @@ contains
                 endif
                 call set_det_diagH(i, real(h_tmp, dp) - Hii)
             enddo
-            if (tSemiStochastic) &
+            if (allocated(cs_replicas)) &
                 call recalc_core_hamil_diag(old_Hii, Hii)
 
             if (tReplicaReferencesDiffer) then
