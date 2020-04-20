@@ -203,7 +203,7 @@ MODULE ReadInput_neci
                             MemoryFacPart, tSemiStochastic, &
                             tSpatialOnlyHash, InitWalkers, tUniqueHFNode, &
                             tCheckHighestPop, &
-                            tKP_FCIQMC, &
+                            tKP_FCIQMC, tReplicaEstimates, &
                             tRealCoeffByExcitLevel, &
                             tAllRealCoeff, tUseRealCoeffs, tChangeProjEDet, &
                             tOrthogonaliseReplicas, tReadPops, tStartMP1, &
@@ -223,13 +223,14 @@ MODULE ReadInput_neci
                            tHDF5PopsRead, tHDF5PopsWrite, tCalcFcimcPsi, &
                            tHistEnergies, tPrintOrbOcc
         use Logging, only : calcrdmonfly_in_inp, RDMlinspace_in_inp
+        use real_time_data, only: t_real_time_fciqmc
         use DetCalc, only: tEnergy, tCalcHMat, tFindDets, tCompressDets
         use load_balance_calcnodes, only: tLoadBalanceBlocks
         use input_neci
         use constants
         use global_utilities
         use spin_project, only: spin_proj_nopen_max
-        use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft
+        use FciMCData, only: nWalkerHashes, HashLengthFrac, InputDiagSft, t_global_core_space
         use hist_data, only: tHistSpawn
         use Parallel_neci, only: nNodes,nProcessors
         use UMatCache, only: tDeferred_Umat2d
@@ -379,7 +380,13 @@ MODULE ReadInput_neci
                 tHistSpinDist .or. tPrintOrbOcc) &
                 call report("HistSpawn and PrintOrbOcc not yet supported for multi-replica with different references"&
                 ,.true.)
-        endif
+       endif
+
+       if(.not. t_global_core_space) then
+           if(t_real_time_fciqmc) call report("Real-time FCIQMC requires a global core space")
+           if(tKP_FCIQMC) call report("KP-FCIQMC requires a global core space")
+           if(tReplicaEstimates) call report("Replica estimates require a global core space")
+       end if
 
         !.. We still need a specdet space even if we don't have a specdet.
         if (.not. associated(SPECDET)) then

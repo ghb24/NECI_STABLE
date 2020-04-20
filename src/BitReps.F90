@@ -202,7 +202,7 @@ contains
         NIfDBO = NIfD + NIfY
 
 #ifdef PROG_NUMRUNS_
-        if (lenof_sign_max /= 20) then
+        if (lenof_sign_max /= 14) then
             call stop_all(this_routine, "Invalid build configuration. Update &
                          &flags to account for new lenof_sign_max, then &
                          &update this message")
@@ -565,7 +565,6 @@ contains
 
     end subroutine
 
-
     subroutine clr_flag (ilut, flg)
 
         ! Clear the specified flag (0 indexed) in the bit representation
@@ -585,6 +584,24 @@ contains
         ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg)
 
     end subroutine clr_flag
+
+    subroutine clr_flag_multi (ilut, flg)
+
+        ! Clear the specified flag (0 indexed) in the bit representation
+        !
+        ! In:    flg  - Integer index of flag to clear
+        ! InOut: ilut - Bit representation of determinant
+
+        integer(n_int), intent(inout) :: ilut(0:nIfTot)
+        integer, intent(in) :: flg(:)
+
+        integer :: i
+        
+        do i = 1, size(flg)
+            ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg(i))
+        end do
+
+    end subroutine clr_flag_multi
 
     function bit_parent_zero(ilut) result(zero)
 

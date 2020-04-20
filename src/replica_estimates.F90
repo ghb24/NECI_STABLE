@@ -13,7 +13,7 @@ module replica_estimates
     use searching
     use sort_mod
     use SystemData, only: NEl
-
+    use core_space_util, only: cs_replicas, min_pt
     implicit none
 
     contains
@@ -91,19 +91,27 @@ module replica_estimates
         real(dp) :: SignTemp(lenof_sign), ref_pop(lenof_sign)
         logical :: ref_found(lenof_sign), tSuccess
         integer :: PartInd, DetHash
+        character(*), parameter :: t_r = "get_proj_e_for_preconditioner"
 
         proj_energy = 0.0_dp
         ref_found = .false.
 
         ! Find the weight spawned on the Hartree--Fock determinant.
         if (tSemiStochastic) then
+            if(.not. cs_replicas(core_run)%t_global) then
+                call stop_all(t_r, "Invalid core space for preconditioning. Global core space required")
+            end if
+            
             do run = 1, lenof_sign
-                do i = 1, determ_sizes(iProcIndex)
-                    if (DetBitEQ(core_space(0:NIfDBO, determ_displs(iProcIndex)+i), iLutRef(:,run), NIfDBO)) then
-                        proj_energy(run) = -partial_determ_vecs(run,i)
+                associate( rep => cs_replicas(core_run))                
+                do i = 1, rep%determ_sizes(iProcIndex)
+                    if (DetBitEQ(rep%core_space(0:NIfDBO, rep%determ_displs(iProcIndex)+i), iLutRef(:,run), NIfDBO)) then
+                        ! This might need adjustment for the complex case
+                        proj_energy(run) = -rep%partial_determ_vecs(run,i)
                         ref_found(run) = .true.
                     end if
                 end do
+              end associate
             end do
         end if
 
@@ -208,7 +216,7 @@ module replica_estimates
         abort = .false.
 
         tDetermSpawnedTo = .false.
-
+        associate( rep => cs_replicas(core_run))
         ! Contributions from diagonal where necessary
         do i = 1, int(TotWalkers, sizeof_int)
             hdiag = det_diagH(i) + Hii
@@ -244,11 +252,11 @@ module replica_estimates
                 hdiag = det_diagH(PartInd) + Hii
 
                 if (tSemiStochastic) then
-                    tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
+                    tCoreDet = check_determ_flag(CurrentDets(:,PartInd), core_run)
                     if (tCoreDet) then
-                        determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
+                        determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - rep%determ_displs(iProcIndex)
                         tDetermSpawnedTo(determ_pos) = .true.
-                        spwnsign = spwnsign + partial_determ_vecs(:, determ_pos)
+                        spwnsign = spwnsign + rep%partial_determ_vecs(:, determ_pos)
                     end if
                 end if
 
@@ -298,37 +306,37 @@ module replica_estimates
 
         ! Contribution from deterministic states that were not spawned to
         if (tSemiStochastic) then
-            do i = 1, determ_sizes(iProcIndex)
+            do i = 1, rep%determ_sizes(iProcIndex)
                 if (.not. tDetermSpawnedTo(i)) then
-                    call extract_sign(CurrentDets(:, indices_of_determ_states(i)), cursign)
+                    call extract_sign(CurrentDets(:, rep%indices_of_determ_states(i)), cursign)
 
                     do j = 1, replica_est_len
                         ! Variational energy terms
                         var_e_num(j) = var_e_num(j) - &
-                            (partial_determ_vecs(2*j-1, i) * cursign(2*j) + &
-                             partial_determ_vecs(2*j, i) * cursign(2*j-1)) / (2.0_dp * tau)
+                            (rep%partial_determ_vecs(2*j-1, i) * cursign(2*j) + &
+                             rep%partial_determ_vecs(2*j, i) * cursign(2*j-1)) / (2.0_dp * tau)
 
                         ! Preconditioned estimator
                         precond_e_num(j) = precond_e_num(j) + &
-                          partial_determ_vecs(2*j-1, i) * partial_determ_vecs(2*j, i) / &
-                            (tau * (mean_energy(j) - core_ham_diag(i) - Hii))
+                          rep%partial_determ_vecs(2*j-1, i) * rep%partial_determ_vecs(2*j, i) / &
+                            (tau * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
                         precond_e_num(j) = precond_e_num(j) - &
-                          (partial_determ_vecs(2*j-1, i) * (core_ham_diag(i) + Hii) * cursign(2*j) + &
-                           partial_determ_vecs(2*j, i) * (core_ham_diag(i) + Hii) * cursign(2*j-1)) / &
-                            (2.0_dp*(mean_energy(j) - core_ham_diag(i) - Hii))
+                          (rep%partial_determ_vecs(2*j-1, i) * (rep%core_ham_diag(i) + Hii) * cursign(2*j) + &
+                           rep%partial_determ_vecs(2*j, i) * (rep%core_ham_diag(i) + Hii) * cursign(2*j-1)) / &
+                            (2.0_dp*(mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
                         precond_denom(j) = precond_denom(j) - &
-                          (partial_determ_vecs(2*j-1, i) * cursign(2*j) + partial_determ_vecs(2*j, i) * cursign(2*j-1)) / &
-                            (2.0_dp*(mean_energy(j) - core_ham_diag(i) - Hii))
+                          (rep%partial_determ_vecs(2*j-1, i) * cursign(2*j) + rep%partial_determ_vecs(2*j, i) * cursign(2*j-1)) / &
+                            (2.0_dp*(mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
                         ! E squared terms
                         e_squared_num(j) = e_squared_num(j) + &
-                          partial_determ_vecs(2*j-1, i) * partial_determ_vecs(2*j, i) / (tau**2)
+                          rep%partial_determ_vecs(2*j-1, i) * rep%partial_determ_vecs(2*j, i) / (tau**2)
 
                         e_squared_num(j) = e_squared_num(j) - &
-                         (partial_determ_vecs(2*j-1, i) * (core_ham_diag(i) + Hii) * cursign(2*j) + &
-                          partial_determ_vecs(2*j, i) * (core_ham_diag(i) + Hii) * cursign(2*j-1)) / tau
+                         (rep%partial_determ_vecs(2*j-1, i) * (rep%core_ham_diag(i) + Hii) * cursign(2*j) + &
+                          rep%partial_determ_vecs(2*j, i) * (rep%core_ham_diag(i) + Hii) * cursign(2*j-1)) / tau
                     end do
 
                 end if
@@ -378,11 +386,11 @@ module replica_estimates
                                        CurrentDets, PartInd, DetHash, tSuccess)
 
                 if (tSuccess .and. tSemiStochastic) then
-                    tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
+                    tCoreDet = check_determ_flag(CurrentDets(:,PartInd), core_run)
                     if (tCoreDet) then
-                        determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
+                        determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - rep%determ_displs(iProcIndex)
                         tDetermSpawnedTo(determ_pos) = .true.
-                        spwnsign = spwnsign + partial_determ_vecs(:, determ_pos)
+                        spwnsign = spwnsign + rep%partial_determ_vecs(:, determ_pos)
                     end if
                 end if
 
@@ -397,13 +405,13 @@ module replica_estimates
             end do
 
             if (tSemiStochastic) then
-                do i = 1, determ_sizes(iProcIndex)
+                do i = 1, rep%determ_sizes(iProcIndex)
                     if (.not. tDetermSpawnedTo(i)) then
 
                         do j = 1, replica_est_len
                             en2_new(j) = en2_new(j) + &
-                              partial_determ_vecs(2*j-1, i) * partial_determ_vecs(2*j, i) / &
-                                ((tau)**2 * (mean_energy(j) - core_ham_diag(i) - Hii))
+                              rep%partial_determ_vecs(2*j-1, i) * rep%partial_determ_vecs(2*j, i) / &
+                                ((tau)**2 * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
                         end do
 
                     end if
@@ -429,6 +437,7 @@ module replica_estimates
             end do
             write(replica_est_unit,'()')
         end if
+      end associate
 
     end subroutine calc_ests_and_set_init_flags
 
@@ -486,299 +495,300 @@ module replica_estimates
         abort = .false.
 
         tDetermSpawnedTo = .false.
-
+        associate( rep => cs_replicas(core_run)) 
         ! Contributions from diagonal where necessary
-        do i = 1, int(TotWalkers, sizeof_int)
-            hdiag = det_diagH(i) + Hii
-            call extract_sign(CurrentDets(:, i), cursign)
-            do j = 1, replica_est_len
-                rep_est_overlap(j) = rep_est_overlap(j) + cursign(2*j-1) * cursign(2*j)
-                var_e_num(j) = var_e_num(j) + hdiag * cursign(2*j-1) * cursign(2*j)
-                e_squared_num(j) = e_squared_num(j) + (hdiag**2) * cursign(2*j-1) * cursign(2*j)
-            end do
-        end do
+          do i = 1, int(TotWalkers, sizeof_int)
+              hdiag = det_diagH(i) + Hii
+              call extract_sign(CurrentDets(:, i), cursign)
+              do j = 1, replica_est_len
+                  rep_est_overlap(j) = rep_est_overlap(j) + cursign(2*j-1) * cursign(2*j)
+                  var_e_num(j) = var_e_num(j) + hdiag * cursign(2*j-1) * cursign(2*j)
+                  e_squared_num(j) = e_squared_num(j) + (hdiag**2) * cursign(2*j-1) * cursign(2*j)
+              end do
+          end do
 
-        i = 1
-        do
-            call decode_bit_det(nI_spawn, SpawnedParts(:,i))
+          i = 1
+          do
+              call decode_bit_det(nI_spawn, SpawnedParts(:,i))
 
-            ! How many times is this particular determinant repeated in the
-            ! spawning array (either 0 or 1)?
-            nrepeats = 0
-            spwnsign_init = 0.0_dp
-            spwnsign_non = 0.0_dp
+              ! How many times is this particular determinant repeated in the
+              ! spawning array (either 0 or 1)?
+              nrepeats = 0
+              spwnsign_init = 0.0_dp
+              spwnsign_non = 0.0_dp
 
-            ! Only need to check initiator status for one replica - if
-            ! one is an initiator then they all are, when using the simple
-            ! initiator approximation.
-            if (test_flag(SpawnedParts(:,i), get_initiator_flag(1))) then
-                ! This is an initiator
-                call extract_sign(SpawnedParts(:,i), spwnsign_init)
-                if (i+1 <= ValidSpawned) then
-                    if (DetBitEq(SpawnedParts(:,i), SpawnedParts(:,i+1), NIfDBO)) then
-                        ! This next state is a different state, and so will
-                        ! be a non-initiator
-                        call extract_sign(SpawnedParts(:,i+1), spwnsign_non)
-                        nrepeats = 1
-                    end if
-                end if
-            else
-                call extract_sign(SpawnedParts(:,i), spwnsign_non)
-            end if
+              ! Only need to check initiator status for one replica - if
+              ! one is an initiator then they all are, when using the simple
+              ! initiator approximation.
+              if (test_flag(SpawnedParts(:,i), get_initiator_flag(1))) then
+                  ! This is an initiator
+                  call extract_sign(SpawnedParts(:,i), spwnsign_init)
+                  if (i+1 <= ValidSpawned) then
+                      if (DetBitEq(SpawnedParts(:,i), SpawnedParts(:,i+1), NIfDBO)) then
+                          ! This next state is a different state, and so will
+                          ! be a non-initiator
+                          call extract_sign(SpawnedParts(:,i+1), spwnsign_non)
+                          nrepeats = 1
+                      end if
+                  end if
+              else
+                  call extract_sign(SpawnedParts(:,i), spwnsign_non)
+              end if
 
-            spwnsign = spwnsign_init + spwnsign_non
+              spwnsign = spwnsign_init + spwnsign_non
 
-            ! Now add in the diagonal elements
-            call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
-                                   CurrentDets, PartInd, DetHash, tSuccess)
+              ! Now add in the diagonal elements
+              call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                  CurrentDets, PartInd, DetHash, tSuccess)
 
-            if (tSuccess) then
-                call extract_sign(CurrentDets(:,PartInd), cursign)
+              if (tSuccess) then
+                  call extract_sign(CurrentDets(:,PartInd), cursign)
 
-                hdiag = det_diagH(PartInd) + Hii
+                  hdiag = det_diagH(PartInd) + Hii
 
-                if (tSemiStochastic) then
-                    tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
-                    if (tCoreDet) then
-                        determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
-                        tDetermSpawnedTo(determ_pos) = .true.
-                        spwnsign = spwnsign + partial_determ_vecs(:, determ_pos)
-                    end if
-                end if
+                  if (tSemiStochastic) then
+                      tCoreDet = check_determ_flag(CurrentDets(:,PartInd), core_run)
+                      if (tCoreDet) then
+                          determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - rep%determ_displs(iProcIndex)
+                          tDetermSpawnedTo(determ_pos) = .true.
+                          spwnsign = spwnsign + rep%partial_determ_vecs(:, determ_pos)
+                      end if
+                  end if
 
-                do j = 1, replica_est_len
-                    var_e_num(j) = var_e_num(j) - &
-                     (spwnsign(2*j-1)*cursign(2*j) + spwnsign(2*j)*cursign(2*j-1)) / (2.0_dp*tau)
+                  do j = 1, replica_est_len
+                      var_e_num(j) = var_e_num(j) - &
+                          (spwnsign(2*j-1)*cursign(2*j) + spwnsign(2*j)*cursign(2*j-1)) / (2.0_dp*tau)
 
-                    precond_e_num(j) = precond_e_num(j) - &
-                     (spwnsign(2*j-1)*hdiag*cursign(2*j) + spwnsign(2*j)*hdiag*cursign(2*j-1)) / &
-                      (2.0_dp*(mean_energy(j) - hdiag))
+                      precond_e_num(j) = precond_e_num(j) - &
+                          (spwnsign(2*j-1)*hdiag*cursign(2*j) + spwnsign(2*j)*hdiag*cursign(2*j-1)) / &
+                          (2.0_dp*(mean_energy(j) - hdiag))
 
-                    precond_denom(j) = precond_denom(j) - &
-                     (spwnsign(2*j-1)*cursign(2*j) + spwnsign(2*j) * cursign(2*j-1)) / (2.0_dp*(mean_energy(j) - hdiag))
+                      precond_denom(j) = precond_denom(j) - &
+                          (spwnsign(2*j-1)*cursign(2*j) + spwnsign(2*j) * cursign(2*j-1)) / (2.0_dp*(mean_energy(j) - hdiag))
 
-                    e_squared_num(j) = e_squared_num(j) - &
-                     (spwnsign(2*j-1)*hdiag*cursign(2*j) + spwnsign(2*j)*hdiag*cursign(2*j-1)) / tau
+                      e_squared_num(j) = e_squared_num(j) - &
+                          (spwnsign(2*j-1)*hdiag*cursign(2*j) + spwnsign(2*j)*hdiag*cursign(2*j-1)) / tau
 
-                    !if (tEN2Init) then
-                    !    en2_pert(j) = en2_pert(j) - &
-                    !      (spwnsign_non(2*j-1)*cursign(2*j) + spwnsign_non(2*j)*cursign(2*j-1)) / (2.0_dp*tau)
-                    !end if
-                end do
-            end if
+                      !if (tEN2Init) then
+                      !    en2_pert(j) = en2_pert(j) - &
+                      !      (spwnsign_non(2*j-1)*cursign(2*j) + spwnsign_non(2*j)*cursign(2*j-1)) / (2.0_dp*tau)
+                      !end if
+                  end do
+              end if
 
-            ! Add in the contributions corresponding to off-diagonal
-            ! elements of the Hamiltonian
-            do j = 1, replica_est_len
-                hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
+              ! Add in the contributions corresponding to off-diagonal
+              ! elements of the Hamiltonian
+              do j = 1, replica_est_len
+                  hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
 
-                precond_e_num(j) = precond_e_num(j) + &
-                  spwnsign(2*j-1) * spwnsign(2*j) / (tau*(mean_energy(j) - hdiag))
+                  precond_e_num(j) = precond_e_num(j) + &
+                      spwnsign(2*j-1) * spwnsign(2*j) / (tau*(mean_energy(j) - hdiag))
 
-                e_squared_num(j) = e_squared_num(j) + spwnsign(2*j-1) * spwnsign(2*j) / (tau**2)
+                  e_squared_num(j) = e_squared_num(j) + spwnsign(2*j-1) * spwnsign(2*j) / (tau**2)
 
-                ! Only get EN2 contribution if we're due to cancel this
-                ! spawning on both replicas
-                if (tEN2Init) then
-                    en2_pert(j) = en2_pert(j) + &
-                      spwnsign_non(2*j-1)*spwnsign_non(2*j) / ( (tau**2) * (mean_energy(j) - hdiag ) )
-                end if
-            end do
+                  ! Only get EN2 contribution if we're due to cancel this
+                  ! spawning on both replicas
+                  if (tEN2Init) then
+                      en2_pert(j) = en2_pert(j) + &
+                          spwnsign_non(2*j-1)*spwnsign_non(2*j) / ( (tau**2) * (mean_energy(j) - hdiag ) )
+                  end if
+              end do
 
-            i = i + 1 + nrepeats
-            if (i > ValidSpawned + 1) call stop_all(t_r, "The spawning array index is larger than it should be.")
-            if (i == ValidSpawned + 1) exit
-        end do
+              i = i + 1 + nrepeats
+              if (i > ValidSpawned + 1) call stop_all(t_r, "The spawning array index is larger than it should be.")
+              if (i == ValidSpawned + 1) exit
+          end do
 
-        ! Contribution from deterministic states that were not spawned to
-        if (tSemiStochastic) then
-            do i = 1, determ_sizes(iProcIndex)
-                if (.not. tDetermSpawnedTo(i)) then
-                    call extract_sign(CurrentDets(:, indices_of_determ_states(i)), cursign)
+          ! Contribution from deterministic states that were not spawned to
+          if (tSemiStochastic) then
+              do i = 1, rep%determ_sizes(iProcIndex)
+                  if (.not. tDetermSpawnedTo(i)) then
+                      call extract_sign(CurrentDets(:, rep%indices_of_determ_states(i)), cursign)
 
-                    do j = 1, replica_est_len
-                        ! Variational energy terms
-                        var_e_num(j) = var_e_num(j) - &
-                            (partial_determ_vecs(2*j-1, i) * cursign(2*j) + &
-                             partial_determ_vecs(2*j, i) * cursign(2*j-1)) / (2.0_dp * tau)
+                      do j = 1, replica_est_len
+                          ! Variational energy terms
+                          var_e_num(j) = var_e_num(j) - &
+                              (rep%partial_determ_vecs(2*j-1, i) * cursign(2*j) + &
+                              rep%partial_determ_vecs(2*j, i) * cursign(2*j-1)) / (2.0_dp * tau)
 
-                        ! Preconditioned estimator
-                        precond_e_num(j) = precond_e_num(j) + &
-                          partial_determ_vecs(2*j-1, i) * partial_determ_vecs(2*j, i) / &
-                            (tau * (mean_energy(j) - core_ham_diag(i) - Hii))
+                          ! Preconditioned estimator
+                          precond_e_num(j) = precond_e_num(j) + &
+                              rep%partial_determ_vecs(2*j-1, i) * rep%partial_determ_vecs(2*j, i) / &
+                              (tau * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
-                        precond_e_num(j) = precond_e_num(j) - &
-                          (partial_determ_vecs(2*j-1, i) * (core_ham_diag(i) + Hii) * cursign(2*j) + &
-                           partial_determ_vecs(2*j, i) * (core_ham_diag(i) + Hii) * cursign(2*j-1)) / &
-                            (2.0_dp*(mean_energy(j) - core_ham_diag(i) - Hii))
+                          precond_e_num(j) = precond_e_num(j) - &
+                              (rep%partial_determ_vecs(2*j-1, i) * (rep%core_ham_diag(i) + Hii) * cursign(2*j) + &
+                              rep%partial_determ_vecs(2*j, i) * (rep%core_ham_diag(i) + Hii) * cursign(2*j-1)) / &
+                              (2.0_dp*(mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
-                        precond_denom(j) = precond_denom(j) - &
-                          (partial_determ_vecs(2*j-1, i) * cursign(2*j) + partial_determ_vecs(2*j, i) * cursign(2*j-1)) / &
-                            (2.0_dp*(mean_energy(j) - core_ham_diag(i) - Hii))
+                          precond_denom(j) = precond_denom(j) - &
+                              (rep%partial_determ_vecs(2*j-1, i) * cursign(2*j) + rep%partial_determ_vecs(2*j, i) * cursign(2*j-1)) / &
+                              (2.0_dp*(mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
-                        ! E squared terms
-                        e_squared_num(j) = e_squared_num(j) + &
-                          partial_determ_vecs(2*j-1, i) * partial_determ_vecs(2*j, i) / (tau**2)
+                          ! E squared terms
+                          e_squared_num(j) = e_squared_num(j) + &
+                              rep%partial_determ_vecs(2*j-1, i) * rep%partial_determ_vecs(2*j, i) / (tau**2)
 
-                        e_squared_num(j) = e_squared_num(j) - &
-                         (partial_determ_vecs(2*j-1, i) * (core_ham_diag(i) + Hii) * cursign(2*j) + &
-                          partial_determ_vecs(2*j, i) * (core_ham_diag(i) + Hii) * cursign(2*j-1)) / tau
-                    end do
+                          e_squared_num(j) = e_squared_num(j) - &
+                              (rep%partial_determ_vecs(2*j-1, i) * (rep%core_ham_diag(i) + Hii) * cursign(2*j) + &
+                              rep%partial_determ_vecs(2*j, i) * (rep%core_ham_diag(i) + Hii) * cursign(2*j-1)) / tau
+                      end do
 
-                end if
-            end do
-        end if
+                  end if
+              end do
+          end if
 
-        ! ---- MPI communication --------------------------------
-        send_arr(0*replica_est_len+1:1*replica_est_len) = var_e_num
-        send_arr(1*replica_est_len+1:2*replica_est_len) = rep_est_overlap
-        send_arr(2*replica_est_len+1:3*replica_est_len) = en2_pert
-        send_arr(3*replica_est_len+1:4*replica_est_len) = precond_e_num
-        send_arr(4*replica_est_len+1:5*replica_est_len) = precond_denom
-        send_arr(5*replica_est_len+1:6*replica_est_len) = e_squared_num
+          ! ---- MPI communication --------------------------------
+          send_arr(0*replica_est_len+1:1*replica_est_len) = var_e_num
+          send_arr(1*replica_est_len+1:2*replica_est_len) = rep_est_overlap
+          send_arr(2*replica_est_len+1:3*replica_est_len) = en2_pert
+          send_arr(3*replica_est_len+1:4*replica_est_len) = precond_e_num
+          send_arr(4*replica_est_len+1:5*replica_est_len) = precond_denom
+          send_arr(5*replica_est_len+1:6*replica_est_len) = e_squared_num
 
-        call MPIBarrier(ierr)
-        call MPISumAll(send_arr, recv_arr)
+          call MPIBarrier(ierr)
+          call MPISumAll(send_arr, recv_arr)
 
-        var_e_num_all       = recv_arr(0*replica_est_len+1:1*replica_est_len)
-        rep_est_overlap_all = recv_arr(1*replica_est_len+1:2*replica_est_len)
-        en2_pert_all        = recv_arr(2*replica_est_len+1:3*replica_est_len)
-        precond_e_num_all   = recv_arr(3*replica_est_len+1:4*replica_est_len)
-        precond_denom_all   = recv_arr(4*replica_est_len+1:5*replica_est_len)
-        e_squared_num_all   = recv_arr(5*replica_est_len+1:6*replica_est_len)
-        ! -------------------------------------------------------
+          var_e_num_all       = recv_arr(0*replica_est_len+1:1*replica_est_len)
+          rep_est_overlap_all = recv_arr(1*replica_est_len+1:2*replica_est_len)
+          en2_pert_all        = recv_arr(2*replica_est_len+1:3*replica_est_len)
+          precond_e_num_all   = recv_arr(3*replica_est_len+1:4*replica_est_len)
+          precond_denom_all   = recv_arr(4*replica_est_len+1:5*replica_est_len)
+          e_squared_num_all   = recv_arr(5*replica_est_len+1:6*replica_est_len)
+          ! -------------------------------------------------------
 
-        ! Use a slightly more rigorous expression for the variational plus
-        ! EN2 energy.
-        if (tEN2Rigorous) then
-            en2_new = 0.0_dp
-            en2_new_all = 0.0_dp
-            b_term = 0.0_dp
-            b_term_all = 0.0_dp
-            c_term = 0.0_dp
-            c_term_all = 0.0_dp
+          ! Use a slightly more rigorous expression for the variational plus
+          ! EN2 energy.
+          if (tEN2Rigorous) then
+              en2_new = 0.0_dp
+              en2_new_all = 0.0_dp
+              b_term = 0.0_dp
+              b_term_all = 0.0_dp
+              c_term = 0.0_dp
+              c_term_all = 0.0_dp
 
-            mean_energy = var_e_num_all / rep_est_overlap_all
+              mean_energy = var_e_num_all / rep_est_overlap_all
 
-            do i = 1, int(TotWalkers, sizeof_int)
-                hdiag = det_diagH(i) + Hii
-                call extract_sign(CurrentDets(:, i), cursign)
-                do j = 1, replica_est_len
-                    en2_new(j) = en2_new(j) + hdiag * cursign(2*j-1) * cursign(2*j)
-                    b_term(j)  = b_term(j)  + cursign(2*j-1) * cursign(2*j)
-                    c_term(j)  = c_term(j)  - cursign(2*j-1) * cursign(2*j) / (mean_energy(j) - hdiag)
-                end do
-            end do
+              do i = 1, int(TotWalkers, sizeof_int)
+                  hdiag = det_diagH(i) + Hii
+                  call extract_sign(CurrentDets(:, i), cursign)
+                  do j = 1, replica_est_len
+                      en2_new(j) = en2_new(j) + hdiag * cursign(2*j-1) * cursign(2*j)
+                      b_term(j)  = b_term(j)  + cursign(2*j-1) * cursign(2*j)
+                      c_term(j)  = c_term(j)  - cursign(2*j-1) * cursign(2*j) / (mean_energy(j) - hdiag)
+                  end do
+              end do
 
-            i = 1
-            do
-                call decode_bit_det(nI_spawn, SpawnedParts(:,i))
+              i = 1
+              do
+                  call decode_bit_det(nI_spawn, SpawnedParts(:,i))
 
-                ! How many times is this particular determinant repeated in the
-                ! spawning array (either 0 or 1)?
-                nrepeats = 0
-                spwnsign_init = 0.0_dp
-                spwnsign_non = 0.0_dp
+                  ! How many times is this particular determinant repeated in the
+                  ! spawning array (either 0 or 1)?
+                  nrepeats = 0
+                  spwnsign_init = 0.0_dp
+                  spwnsign_non = 0.0_dp
 
-                ! Only need to check initiator status for one replica - if
-                ! one is an initiator then they all are, when using the simple
-                ! initiator approximation.
-                if (test_flag(SpawnedParts(:,i), get_initiator_flag(1))) then
-                    ! This is an initiator
-                    call extract_sign(SpawnedParts(:,i), spwnsign_init)
-                    if (i+1 <= ValidSpawned) then
-                        if (DetBitEq(SpawnedParts(:,i), SpawnedParts(:,i+1), NIfDBO)) then
-                            ! This next state is a different state, and so will
-                            ! be a non-initiator
-                            call extract_sign(SpawnedParts(:,i+1), spwnsign_non)
-                            nrepeats = 1
-                        end if
-                    end if
-                else
-                    call extract_sign(SpawnedParts(:,i), spwnsign_non)
-                end if
+                  ! Only need to check initiator status for one replica - if
+                  ! one is an initiator then they all are, when using the simple
+                  ! initiator approximation.
+                  if (test_flag(SpawnedParts(:,i), get_initiator_flag(1))) then
+                      ! This is an initiator
+                      call extract_sign(SpawnedParts(:,i), spwnsign_init)
+                      if (i+1 <= ValidSpawned) then
+                          if (DetBitEq(SpawnedParts(:,i), SpawnedParts(:,i+1), NIfDBO)) then
+                              ! This next state is a different state, and so will
+                              ! be a non-initiator
+                              call extract_sign(SpawnedParts(:,i+1), spwnsign_non)
+                              nrepeats = 1
+                          end if
+                      end if
+                  else
+                      call extract_sign(SpawnedParts(:,i), spwnsign_non)
+                  end if
 
-                spwnsign = spwnsign_init + spwnsign_non
+                  spwnsign = spwnsign_init + spwnsign_non
 
-                ! Now add in the diagonal elements
-                call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
-                                       CurrentDets, PartInd, DetHash, tSuccess)
+                  ! Now add in the diagonal elements
+                  call hash_table_lookup(nI_spawn, SpawnedParts(:,i), NIfDBO, HashIndex, &
+                      CurrentDets, PartInd, DetHash, tSuccess)
 
-                if (tSuccess) then
-                    call extract_sign(CurrentDets(:,PartInd), cursign)
+                  if (tSuccess) then
+                      call extract_sign(CurrentDets(:,PartInd), cursign)
 
-                    hdiag = det_diagH(PartInd) + Hii
+                      hdiag = det_diagH(PartInd) + Hii
 
-                    if (tSemiStochastic) then
-                        tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
-                        if (tCoreDet) then
-                            determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - determ_displs(iProcIndex)
-                            tDetermSpawnedTo(determ_pos) = .true.
-                            spwnsign = spwnsign + partial_determ_vecs(:, determ_pos)
-                        end if
-                    end if
+                      if (tSemiStochastic) then
+                          tCoreDet = check_determ_flag(CurrentDets(:,PartInd))
+                          if (tCoreDet) then
+                              determ_pos = core_space_pos(SpawnedParts(:,i), nI_spawn) - rep%determ_displs(iProcIndex)
+                              tDetermSpawnedTo(determ_pos) = .true.
+                              spwnsign = spwnsign + rep%partial_determ_vecs(:, determ_pos)
+                          end if
+                      end if
 
-                    do j = 1, replica_est_len
-                        b_term(j) = b_term(j) + &
-                         (spwnsign(2*j-1)*cursign(2*j) + spwnsign(2*j)*cursign(2*j-1)) / (2.0_dp*tau*(mean_energy(j) - hdiag))
-                    end do
-                end if
+                      do j = 1, replica_est_len
+                          b_term(j) = b_term(j) + &
+                              (spwnsign(2*j-1)*cursign(2*j) + spwnsign(2*j)*cursign(2*j-1)) / (2.0_dp*tau*(mean_energy(j) - hdiag))
+                      end do
+                  end if
 
-                do j = 1, replica_est_len
-                    hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
+                  do j = 1, replica_est_len
+                      hdiag = extract_spawn_hdiag(SpawnedParts(:,i))
 
-                    en2_new(j) = en2_new(j) + &
-                      spwnsign(2*j-1) * spwnsign(2*j) / ((tau**2)*(mean_energy(j) - hdiag))
-                end do
+                      en2_new(j) = en2_new(j) + &
+                          spwnsign(2*j-1) * spwnsign(2*j) / ((tau**2)*(mean_energy(j) - hdiag))
+                  end do
 
-                i = i + 1 + nrepeats
-                if (i > ValidSpawned + 1) call stop_all(t_r, "The spawning array index is larger than it should be.")
-                if (i == ValidSpawned + 1) exit
-            end do
+                  i = i + 1 + nrepeats
+                  if (i > ValidSpawned + 1) call stop_all(t_r, "The spawning array index is larger than it should be.")
+                  if (i == ValidSpawned + 1) exit
+              end do
 
-            if (tSemiStochastic) then
-                do i = 1, determ_sizes(iProcIndex)
-                    if (.not. tDetermSpawnedTo(i)) then
-                        call extract_sign(CurrentDets(:, indices_of_determ_states(i)), cursign)
+              if (tSemiStochastic) then
+                  do i = 1, rep%determ_sizes(iProcIndex)
+                      if (.not. tDetermSpawnedTo(i)) then
+                          call extract_sign(CurrentDets(:, rep%indices_of_determ_states(i)), cursign)
 
-                        do j = 1, replica_est_len
-                            en2_new(j) = en2_new(j) + &
-                              partial_determ_vecs(2*j-1, i) * partial_determ_vecs(2*j, i) / &
-                                ((tau)**2 * (mean_energy(j) - core_ham_diag(i) - Hii))
+                          do j = 1, replica_est_len
+                              en2_new(j) = en2_new(j) + &
+                                  rep%partial_determ_vecs(2*j-1, i) * rep%partial_determ_vecs(2*j, i) / &
+                                  ((tau)**2 * (mean_energy(j) - rep%core_ham_diag(i) - Hii))
 
-                            b_term(j) = b_term(j) + &
-                              (partial_determ_vecs(2*j-1, i) * cursign(2*j) + partial_determ_vecs(2*j, i) * cursign(2*j-1)) / &
-                                (2.0_dp*tau*(mean_energy(j) - core_ham_diag(i) - Hii))
-                        end do
+                              b_term(j) = b_term(j) + &
+                                  (rep%partial_determ_vecs(2*j-1, i) * cursign(2*j) + rep%partial_determ_vecs(2*j, i) * cursign(2*j-1)) / &
+                                  (2.0_dp*tau*(mean_energy(j) - rep%core_ham_diag(i) - Hii))
+                          end do
 
-                    end if
-                end do
-            end if
+                      end if
+                  end do
+              end if
 
-            call MPISumAll(en2_new, en2_new_all)
-            call MPISumAll(b_term,  b_term_all)
-            call MPISumAll(c_term,  c_term_all)
-        end if
+              call MPISumAll(en2_new, en2_new_all)
+              call MPISumAll(b_term,  b_term_all)
+              call MPISumAll(c_term,  c_term_all)
+          end if
 
-        if (iProcIndex == 0) then
-            write(replica_est_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
+          if (iProcIndex == 0) then
+              write(replica_est_unit, '(1x,i13)', advance='no') Iter + PreviousCycles
 
-            do j = 1, replica_est_len
-                write(replica_est_unit, '(2(3x,es20.13))', advance='no') var_e_num_all(j), e_squared_num_all(j)
-                if (tEN2Init) then
-                    write(replica_est_unit, '(2(3x,es20.13))', advance='no') en2_pert_all(j), var_e_num_all(j)+en2_pert_all(j)
-                end if
-                if (tEN2Rigorous) then
-                    write(replica_est_unit, '(1(3x,es20.13))', advance='no') en2_new_all(j)
-                end if
-                write(replica_est_unit, '(1(3x,es20.13))', advance='no') rep_est_overlap_all(j)
-                if (tEN2Rigorous) then
-                    write(replica_est_unit, '(2(3x,es20.13))', advance='no') b_term_all(j), c_term_all(j)
-                end if
-                write(replica_est_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(j), precond_denom_all(j)
-            end do
-            write(replica_est_unit,'()')
-        end if
+              do j = 1, replica_est_len
+                  write(replica_est_unit, '(2(3x,es20.13))', advance='no') var_e_num_all(j), e_squared_num_all(j)
+                  if (tEN2Init) then
+                      write(replica_est_unit, '(2(3x,es20.13))', advance='no') en2_pert_all(j), var_e_num_all(j)+en2_pert_all(j)
+                  end if
+                  if (tEN2Rigorous) then
+                      write(replica_est_unit, '(1(3x,es20.13))', advance='no') en2_new_all(j)
+                  end if
+                  write(replica_est_unit, '(1(3x,es20.13))', advance='no') rep_est_overlap_all(j)
+                  if (tEN2Rigorous) then
+                      write(replica_est_unit, '(2(3x,es20.13))', advance='no') b_term_all(j), c_term_all(j)
+                  end if
+                  write(replica_est_unit, '(2(3x,es20.13))', advance='no') precond_e_num_all(j), precond_denom_all(j)
+              end do
+              write(replica_est_unit,'()')
+          end if
+        end associate
 
     end subroutine calc_ests_simple_initiator
 

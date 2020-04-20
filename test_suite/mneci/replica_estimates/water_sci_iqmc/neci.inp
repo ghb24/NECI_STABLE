@@ -32,6 +32,7 @@ en2-initiator
 tau 0.1 search
 semi-stochastic
 read-core
+global-core-space
 pure-initiator-space
 read-initiator
 precond 50000

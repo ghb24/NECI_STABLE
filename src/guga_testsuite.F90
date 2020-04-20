@@ -28,7 +28,7 @@ module guga_testsuite
     use Determinants
     use bit_reps
     use FciMCData
-    use semi_stoch_procs, only: return_most_populated_states
+    use semi_stoch_procs, only: return_most_populated_states, GLOBAL_RUN
     use dsfmt_interface, only: dsfmt_init
     use genrandsymexcitnumod, only: testgenrandsymexcitnu
     use symrandexcit3, only: test_sym_excit3
@@ -707,7 +707,7 @@ contains
             integer :: i
 
             allocate(ilut(0:nIfTot, n_most_populated))
-            call return_most_populated_states(n_most_populated, ilut)
+            call return_most_populated_states(n_most_populated, GLOBAL_RUN, ilut)
             do i = 1, size(ilut, 2)
                 call convert_ilut_toGUGA(ilut(:, i), ilutG(:, i))
             end do

@@ -26,6 +26,7 @@ orthogonalise-replicas
 doubles-init
 semi-stochastic
 doubles-core
+global-core-space
 trial-wavefunction 1000
 pops-trial 200
 load-balance-blocks off

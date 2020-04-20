@@ -8,7 +8,8 @@ module kp_fciqmc_init
     use Parallel_neci, only: iProcIndex, MPISum, MPISumAll, nProcessors
     use kp_fciqmc_data_mod
     use util_mod, only: near_zero
-
+    use FciMCData, only: core_run
+    use core_space_util, only: cs_replicas    
     implicit none
 
 contains
@@ -321,7 +322,7 @@ contains
         use CalcData, only: tSemiStochastic, tUseRealCoeffs, AvMCExcits, tPairedReplicas
         use fcimc_initialisation, only: SetupParameters, InitFCIMCCalcPar, init_fcimc_fn_pointers
         use FciMCData, only: tPopsAlreadyRead, nWalkerHashes, SpawnVecKP
-        use FciMCData, only: SpawnVecKP2, MaxSpawned, determ_space_size, determ_sizes
+        use FciMCData, only: SpawnVecKP2, MaxSpawned
         use FciMCData, only: SpawnedPartsKP, SpawnedPartsKP2, MaxWalkersUncorrected
         use FciMCData, only: iter_data_fciqmc, spawn_ht, nhashes_spawn, tReplicaReferencesDiffer
         use FciMCParMod, only: WriteFciMCStatsHeader, write_fcimcstats2, tSinglePartPhase
@@ -478,8 +479,10 @@ contains
             SpawnedPartsKP2 => SpawnVecKP2
 
             if (tSemiStochastic) then
-                allocate(partial_determ_vecs_kp(lenof_all_signs,determ_sizes(iProcIndex)), stat=ierr)
-                allocate(full_determ_vecs_kp(lenof_all_signs,determ_space_size), stat=ierr)
+                associate( rep => cs_replicas(core_run))
+                  allocate(partial_determ_vecs_kp(lenof_all_signs,rep%determ_sizes(iProcIndex)), stat=ierr)
+                  allocate(full_determ_vecs_kp(lenof_all_signs,rep%determ_space_size), stat=ierr)
+                end associate
                 partial_determ_vecs_kp = 0.0_dp
                 full_determ_vecs_kp = 0.0_dp
             end if
@@ -754,12 +757,12 @@ contains
                 if (tSemiStochastic) then
                     ! core_space stores all core determinants from all processors. Move those on this
                     ! processor to SpawnedParts, which add_core_states_currentdet_hash uses.
-                    call copy_core_dets_to_spawnedparts()
+                    call copy_core_dets_to_spawnedparts(cs_replicas(core_run))
                     ! Any core space determinants which are not already in CurrentDets will be added
                     ! by this routine.
-                    call add_core_states_currentdet_hash()
+                    call add_core_states_currentdet_hash(core_run)
                     if (tStartCoreGroundState .and. (.not. tReadPops)) &
-                        call start_walkers_from_core_ground(tPrintInfo = .false.)
+                        call start_walkers_from_core_ground(tPrintInfo = .false., run = core_run)
                 end if
 
             else if (tFiniteTemp) then
@@ -964,8 +967,8 @@ contains
         if (tSemiStochastic) then
             ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
             ! These routines will do this.
-            call copy_core_dets_to_spawnedparts()
-            call add_core_states_currentdet_hash()
+            call copy_core_dets_to_spawnedparts(cs_replicas(core_run))
+            call add_core_states_currentdet_hash(core_run)
         end if
 
         ValidSpawnedList = InitialSpawnedSlots
@@ -983,8 +986,9 @@ contains
 
         use CalcData, only: tSemiStochastic
         use dSFMT_interface, only: genrand_real2_dSFMT
-        use FciMCData, only: HashIndex, determ_sizes, determ_displs, TotWalkers, CurrentDets, HFDet
-        use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, core_space, ilutHF
+        use FciMCData, only: HashIndex, TotWalkers, CurrentDets, HFDet
+        use FciMCData, only: TotParts, TotPartsOld, AllTotParts, AllTotPartsOld, ilutHF
+        use core_space_util, only: cs_replicas
         use load_balance_calcnodes, only: DetermineDetNode
         use hash, only: rm_unocc_dets_from_hash_table, hash_table_lookup
         use hash, only: add_hash_table_entry
@@ -1010,7 +1014,7 @@ contains
 
         ideterm = 0
         tDetermAllOccupied = .false.
-
+        associate( rep => cs_replicas(1))
         do
             ! If using the tOccupyDetermSpace option then we want to put walkers
             ! on states in the deterministic space first.
@@ -1018,10 +1022,10 @@ contains
             ! randomly and uniformly.
             if (tOccupyDetermSpace .and. (.not. tDetermAllOccupied)) then
                 ideterm = ideterm + 1
-                ilut = core_space(:,ideterm + determ_displs(iProcIndex))
+                ilut = rep%core_space(:,ideterm + rep%determ_displs(iProcIndex))
                 call decode_bit_det(nI, ilut)
                 ! If we have now occupied all deterministic states.
-                if (ideterm == determ_sizes(iProcIndex)) tDetermAllOccupied = .true.
+                if (ideterm == rep%determ_sizes(iProcIndex)) tDetermAllOccupied = .true.
             else
                 ! Generate a random determinant (returned in ilut).
                 if (tAllSymSectors) then
@@ -1085,8 +1089,8 @@ contains
         if (tSemiStochastic) then
             ! Always need the core determinants to be at the top of CurrentDets, even when unoccupied.
             ! These routines will do this.
-            call copy_core_dets_to_spawnedparts()
-            call add_core_states_currentdet_hash()
+            call copy_core_dets_to_spawnedparts(rep)
+            call add_core_states_currentdet_hash(core_run)
         else
             ! Some determinants may have become occupied and then unoccupied in
             ! the course of the above. We need to remove the entries for these
@@ -1094,6 +1098,7 @@ contains
             ! this is done in add_core_states_currentdet_hash.
             call rm_unocc_dets_from_hash_table(HashIndex, CurrentDets, ndets)
         end if
+      end associate
 
     end subroutine generate_init_config_this_proc
 
