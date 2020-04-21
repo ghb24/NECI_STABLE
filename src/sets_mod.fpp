@@ -5,10 +5,11 @@
 
 module sets_mod
     use constants, only: int32, int64, sp, dp
+    use util_mod, only: binary_search_first_ge
     implicit none
     private
     public :: subset, is_sorted, special_union_complement, disjoint, &
-        union, intersect, complement
+        union, intersect, complement, operator(.in.)
 
     !> Check if V is sorted.
     interface is_sorted
@@ -57,6 +58,14 @@ module sets_mod
     #:for T, kinds in countable_types.items()
     #:for kind in kinds
         module procedure complement_${T}$_${kind}$
+    #:endfor
+    #:endfor
+    end interface
+
+    interface operator(.in.)
+    #:for T, kinds in countable_types.items()
+    #:for kind in kinds
+        module procedure test_in_${T}$_${kind}$
     #:endfor
     #:endfor
     end interface
@@ -413,6 +422,19 @@ module sets_mod
         end associate
         @:ASSERT(is_sorted(D))
     end function complement_${T}$_${kind}$
+    #:endfor
+    #:endfor
+
+
+    #:for T, kinds in countable_types.items()
+    #:for kind in kinds
+    DEBUG_IMPURE function test_in_${T}$_${kind}$(element, set) result(res)
+        ${T}$(${kind}$), intent(in) :: element, set(:)
+        character(*), parameter :: this_routine = 'test_in_${T}$_${kind}$'
+        logical :: res
+        @:ASSERT(is_sorted(set))
+        res = binary_search_first_ge(set, element) /= -1
+    end function
     #:endfor
     #:endfor
 
