@@ -974,8 +974,8 @@ contains
             write(iout, *) "=================================="
             write(iout, *) "Problematic contribution List: "
             write(iout, *) "=================================="
-            write(iout, '("| Determinant   |   Sum{1 / pgen} / n_iter |  ic |    <psi_I H psi_J >        |    pgen    |")', advance='no')
-            if (present(calc_pgen)) write(iout, '("cal_pgen |")', advance='no')
+            write(iout, '("|       Determinant         |   Sum{1 / pgen} / n_iter |  ic |    <psi_I H psi_J >        |    pgen    |")', advance='no')
+            if (present(calc_pgen)) write(iout, '("   calc_pgen |")', advance='no')
             write(iout, *) ! linebreak
 
             do i = 1, n_excits
