@@ -3,7 +3,7 @@
 ! a small module with functions needed for the unit-tests
 module unit_test_helpers
 
-    use constants, only: dp, EPS, n_int, bits_n_int, maxExcit, int64
+    use constants, only: dp, EPS, n_int, bits_n_int, maxExcit, int64, iout
 
     use lattice_mod, only: get_helement_lattice, lattice
 
@@ -15,7 +15,7 @@ module unit_test_helpers
 
     use fcimcdata, only: excit_gen_store_type
 
-    use util_mod, only: binary_search, choose
+    use util_mod, only: binary_search, choose, operator(.div.)
 
     use bit_reps, only: decode_bit_det
 
@@ -43,9 +43,10 @@ module unit_test_helpers
             integer(n_int), intent(out), allocatable :: det_list(:,:)
         end subroutine generate_all_excits_t
 
-        real(dp) function calc_pgen_t(det_I, exc)
-            import :: dp, SpinOrbIdx_t, Excitation_t
+        real(dp) function calc_pgen_t(det_I, ilutI, exc)
+            import :: dp, SpinOrbIdx_t, Excitation_t, n_int, NifTot
             type(SpinOrbIdx_t), intent(in) :: det_I
+            integer(n_int), intent(in) :: ilutI(0:NIfTot)
             class(Excitation_t), intent(in) :: exc
         end function calc_pgen_t
 
@@ -795,6 +796,33 @@ contains
 
     end function matrix_inverse
 
+!>  @brief
+!>      Test if an excitation generator generates all and only expected states
+!>      with the correct pgen.
+!>
+!>  @author Werner Dobrautz, Oskar Weser
+!>
+!>  @details
+!>  The pgen_diagnostic is given by
+!>    \f[\sum_i \frac{1}{p_i N}\f]
+!>  and should be roughly one.
+!>  All problematic states with respect to that diagnostic are
+!>  printed in the end with their pgen_diagnostic,
+!>  excitation type (ic), matrix element, and pgen.
+!>  @param[in] excit_gen, An excitation generator.
+!>  @param[in] excit_gen_name, The name of the excitation generator.
+!>  @param[in] opt_nI, An optional reference state.
+!>  @param[in] opt_n_iters, An optional number of iterations. Defaults to 100000.
+!>  @param[in] gen_all_excits, An optional subroutine to generate all states
+!>      that can be reached from the reference state.
+!>  @param[in] calc_pgen, An optional function that calculates the pgen
+!>      for a given reference an excitation. If a state is never generated,
+!>      the pgen cannot be taken from the excitation generator.
+!>      Adds an additional column to the output table.
+!>  @param[in] print_predicate, An optional predicate function.
+!>      If it returns true, an entry in the final table is printed.
+!>      By default all states with a pgen_diagnostic that deviates with more than 5\,\%
+!>      are printed.
     subroutine run_excit_gen_tester(excit_gen, excit_gen_name, opt_nI, opt_n_iters, &
             gen_all_excits, calc_pgen, print_predicate)
         use procedure_pointers, only: generate_excitation_t
@@ -817,6 +845,7 @@ contains
         type(excit_gen_store_type) :: store
         logical :: tPar, found_all
         real(dp) :: pgen, contrib
+        real(dp), allocatable :: pgen_list(:)
         HElement_t(dp) :: hel
         integer(n_int), allocatable :: det_list(:,:)
         real(dp), allocatable :: contrib_list(:)
@@ -874,14 +903,13 @@ contains
             call gen_all_excits_default(nI, n_excits, det_list)
         end if
 
-        print *, "total possible excitations: ", n_excits
-        do i = 1, n_excits
-            call writebitdet(6, det_list(:,i),.true.)
-        end do
+        ! Lists to keep track of things
+        allocate(generated_list(n_excits), source=.false.)
+        allocate(contrib_list(n_excits), source=0.0_dp)
+        allocate(pgen_list(n_excits), source=0.0_dp)
 
-        ! call this below now for the number of specified determinants
-        ! (also use excitations of the first inputted, to be really
-        !   consistent)
+        n_generated = 0
+        contrib = 0.0_dp
 
         n_dets = min(n_dets, n_excits)
 
@@ -891,23 +919,22 @@ contains
         print *, " and ", n_iters, " iterations "
 
         call EncodeBitDet(nI, ilut)
-
         print *, "for starting determinant: ", nI
 
-        ! Lists to keep track of things
-        allocate(generated_list(n_excits))
-        allocate(contrib_list(n_excits))
-        generated_list = .false.
-        contrib_list = 0
+        write(iout, *) ! linebreak
+        write(iout, '(A)') 'Progressbar'
 
-        n_generated = 0
-        contrib = 0.0_dp
+        ! call this below now for the number of specified determinants
+        ! (also use excitations of the first inputted, to be really
+        !   consistent)
 
         block
-            integer(int64) :: i
+            integer(int64) :: i, L
+            L = n_iters .div. 100
             do i = 1, int(n_iters, kind=int64)
-                if (mod(i, 100000) == 0) then
-                    print *, i, "/" ,n_iters, " - ", contrib / real(int(n_excits, kind=int64) * i, dp)
+                if (mod(i, L) == 0_int64) then
+                    write(iout, '(A)', advance='no') '#'
+                    flush(iout)
                 end if
                 call excit_gen(nI, ilut, nJ, tgt_ilut, ex_flag, ic, ex, tpar, pgen, &
                             hel, store)
@@ -925,17 +952,16 @@ contains
 
                     contrib = contrib + 1.0_dp / pgen
                     contrib_list(pos) = contrib_list(pos) + 1.0_dp / pgen
+                    pgen_list(pos) = pgen
                 end if
             end do
+            write(iout, *) ! linebreak
         end block
 
 
         print *, n_generated, " dets generated in ", n_iters, " iterations "
         print *, 100.0_dp * (n_iters - n_generated) / real(n_iters,dp), "% abortion rate"
         print *, "Averaged contribution: ", contrib / real(n_excits*n_iters,dp)
-
-        ! check all dets are generated:
-!         ASSERT(all(generated_list))
 
         block
             type(SpinOrbIdx_t) :: det_I
@@ -945,11 +971,12 @@ contains
             logical :: tParity
 
 
-            print *, "=================================="
-            print *, "Problematic contribution List: "
-            write(6, '("| Determinant   |   Sum{1 / pgen} / n_iter |  ic  |    <psi_I H psi_J >        |")', advance='no')
-            if (present(calc_pgen)) write(6, '("pgen |")', advance='no')
-            write(6, *)
+            write(iout, *) "=================================="
+            write(iout, *) "Problematic contribution List: "
+            write(iout, *) "=================================="
+            write(iout, '("| Determinant   |   Sum{1 / pgen} / n_iter |  ic |    <psi_I H psi_J >        |    pgen    |")', advance='no')
+            if (present(calc_pgen)) write(iout, '("cal_pgen |")', advance='no')
+            write(iout, *) ! linebreak
 
             do i = 1, n_excits
                 pgen_diagnostic = contrib_list(i) / real(n_iters, dp)
@@ -958,12 +985,18 @@ contains
                 call get_excitation(nI, nJ, ic, exc, tParity)
 
                 if (print_predicate_(SpinOrbIdx_t(nI), exc, pgen_diagnostic)) then
-                    call write_det (6, nJ, .false.)
-                    write(6, '("|"F10.5"|"I2"|"F10.5"|")', advance='no') pgen_diagnostic, ic, get_helement(nI, nJ)
-                    if (present(calc_pgen)) write(6, '(F15.10"|")', advance='no') calc_pgen(SpinOrbIdx_t(nI), exc)
-                    write(6, *)
+                    call write_det (iout, nJ, .false.)
+                    write(iout, '("|"F10.5"|"I2"|"F10.5"|"F15.10"|")', advance='no') &
+                        pgen_diagnostic, ic, get_helement(nI, nJ),  pgen_list(i)
+                    if (present(calc_pgen)) then
+                        write(iout, '(F15.10"|")', advance='no') &
+                            calc_pgen(SpinOrbIdx_t(nI), det_list(:, i), exc)
+                    end if
+                    write(iout, *)
                 end if
             end do
+            write(iout, *) "=================================="
+            write(iout, *) ! linebreak
         end block
 
         contains
