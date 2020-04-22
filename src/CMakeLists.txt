@@ -17,6 +17,7 @@ set( SRC_FILES
     compiler_issues.txt
     cont_time_fcimc.F90
     cont_time_rates.F90
+	core_space_util.F90
     CPMDData.F90
     cpmdinit.F
     cpmdstub.F

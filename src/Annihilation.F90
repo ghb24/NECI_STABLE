@@ -17,8 +17,10 @@ module AnnihilationMod
     use dSFMT_interface, only: genrand_real2_dSFMT
     use FciMCData
     use DetBitOps, only: DetBitEQ, FindBitExcitLevel, ilut_lt, &
-                         ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
+        ilut_gt, DetBitZero, count_open_orbs, tAccumEmptyDet
+    use semi_stoch_procs, only: check_determ_flag
     use sort_mod
+    use core_space_util, only: cs_replicas
     use constants, only: n_int, lenof_sign, null_part, sizeof_int
     use bit_rep_data
     use bit_reps, only: decode_bit_det, &
@@ -911,27 +913,36 @@ module AnnihilationMod
     subroutine deterministic_annihilation(iter_data)
 
         type(fcimc_iter_data), intent(inout) :: iter_data
-        integer :: i, j
+        integer :: i, j, run, pt
         real(dp), dimension(lenof_sign) :: SpawnedSign, CurrentSign, SignProd
 
         ! Copy across the weights from partial_determ_vecs (the result of the deterministic projection)
         ! to CurrentDets:
-        do i = 1, determ_sizes(iProcIndex)
-            call extract_sign(CurrentDets(:, indices_of_determ_states(i)), CurrentSign)
-            SpawnedSign = partial_determ_vecs(:,i)
-            call encode_sign(CurrentDets(:, indices_of_determ_states(i)), SpawnedSign + CurrentSign)
+        do run = 1, size(cs_replicas)
 
-            ! Update stats:
-            ! Number born:
-            iter_data%nborn = iter_data%nborn + abs(SpawnedSign)
-            ! Number annihilated:
-            SignProd = CurrentSign*SpawnedSign
-            do j = 1, lenof_sign
-                if (SignProd(j) < 0.0_dp) iter_data%nannihil(j) = iter_data%nannihil(j) + &
-                    2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
-            end do
+            associate( rep => cs_replicas(run))
+
+              do i = 1, rep%determ_sizes(iProcIndex)
+                  call extract_sign(CurrentDets(:, rep%indices_of_determ_states(i)), CurrentSign)
+                  ! Update the sign of this replica only
+                  SpawnedSign = 0.0_dp
+                  SpawnedSign(rep%min_part():rep%max_part()) = rep%partial_determ_vecs(:,i)
+                  do pt = rep%min_part(), rep%max_part()
+                      call encode_part_sign(CurrentDets(:, rep%indices_of_determ_states(i)), SpawnedSign(pt) + CurrentSign(pt), pt)
+                  end do
+
+                  ! Update stats:
+                  ! Number born:
+                  iter_data%nborn = iter_data%nborn + abs(SpawnedSign)
+                  ! Number annihilated:
+                  SignProd = CurrentSign*SpawnedSign
+                  do j = 1, lenof_sign
+                      if (SignProd(j) < 0.0_dp) iter_data%nannihil(j) = iter_data%nannihil(j) + &
+                          2*(min(abs(CurrentSign(j)), abs(SpawnedSign(j))))
+                  end do
+              end do
+            end associate
         end do
-
     end subroutine deterministic_annihilation
 
     subroutine AnnihilateSpawnedParts(ValidSpawned, TotWalkersNew, iter_data, err)
@@ -1014,59 +1025,59 @@ module AnnihilationMod
                                 print *, " spawn unto an OCCUPIED CSF above Threshold!"
                                 print *, " Parent was initiator?: ",  &
                                   any_run_is_initiator(SpawnedParts(:,i))
-                                print *, " Parent was in deterministic space?: ",  &
-                                  test_flag(SpawnedParts(:,i), flag_deterministic)
-                                print *, " Current det is initiator?: ", &
+                              print *, " Parent was in deterministic space?: ",  &
+                                  test_flag_multi(SpawnedParts(:,i), flag_deterministic)
+                              print *, " Current det is initiator?: ", &
                                   any_run_is_initiator(CurrentDets(:,PartInd))
                                 print *, " Current det is in deterministic space?: ", &
                                   tDetermState
-                                print *, " ------------"
-                            end if
+                              print *, " ------------"
+                         end if
 #endif
-                        end do
-                    end if
-                else
-                    ! truncate if requested
-                    if(t_truncate_this_det .and. .not. t_truncate_unocc) then
-                        scFVal = scaleFunction(det_diagH(PartInd))
-                        do j = 1, lenof_sign
-                            call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
-                        enddo
-                    endif
-                end if
+                     end do
+                 end if
 
-                tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
-                ! Transfer new sign across.
 
-                if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
+              else
+                  ! truncate if requested
+                  if(t_truncate_this_det .and. .not. t_truncate_unocc) then
+                     scFVal = scaleFunction(det_diagH(PartInd))
+                     do j = 1, lenof_sign
+                        call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
+                     enddo
+                  endif
+              end if
 
-                    ! If the sign changed, the adi check has to be redone
-                    if(any(real(SignProd,dp) < 0.0_dp)) then
-                        call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
-                    end if
+              tDetermState = test_flag_multi(CurrentDets(:,PartInd), flag_deterministic)
+              ! Transfer new sign across.
 
-                    ! this det is not prone anymore
-                    if(t_prone_walkers) call clr_flag(CurrentDets(:,PartInd), flag_prone)
+              if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
 
-                    do j = 1, lenof_sign
-                        run = part_type_to_run(j)
+                 ! If the sign changed, the adi check has to be redone
+                 if(any(real(SignProd,dp) < 0.0_dp)) &
+                      call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
 
-                        if (is_run_unnocc(CurrentSign,run)) then
-                            ! This determinant is actually *unoccupied* for the
-                            ! run we're considering. We need to
-                            ! decide whether to abort it or not.
-                            if (tTruncInitiator .and. .not. tAllowSpawnEmpty) then
-                                if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
-                                    .not. tDetermState) then
-                                    ! Walkers came from outside initiator space.
-                                    ! have to also keep track which RK step
-                                    if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
-                                        NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
-                                    endif
-                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                                    call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
-                                    SpawnedSign(j) = 0.0_dp
-                                end if
+                 ! this det is not prone anymore
+                 if(t_prone_walkers) call clr_flag(CurrentDets(:,PartInd), flag_prone)
+
+                 do j = 1, lenof_sign
+                    run = part_type_to_run(j)
+
+                    if (is_run_unnocc(CurrentSign,run)) then
+                       ! This determinant is actually *unoccupied* for the
+                       ! run we're considering. We need to
+                       ! decide whether to abort it or not.
+                       if (tTruncInitiator .and. .not. tAllowSpawnEmpty) then
+                           if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
+                                .not. tDetermState) then
+                                ! Walkers came from outside initiator space.
+                                ! have to also keep track which RK step
+                                if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                                endif
+                                iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                                call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
+                                SpawnedSign(j) = 0.0_dp
                             end if
                         end if
 
@@ -1368,7 +1379,7 @@ module AnnihilationMod
                 print *, " Parent was initiator?: ",  &
                     any_run_is_initiator(SpawnedParts(:,i))
                 print *, " Parent was in deterministic space?: ",  &
-                    test_flag(SpawnedParts(:,i), flag_deterministic)
+                    test_flag_multi(SpawnedParts(:,i), flag_deterministic)
                 print *, " ------------"
 #endif
 
@@ -1639,7 +1650,7 @@ module AnnihilationMod
                 call hash_table_lookup(nI, SpawnedParts(:,i), nifd, HashIndex, &
                                CurrentDets, PartInd, DetHash, tSuccess)
                 if (tSuccess) then
-                    tDetermState = test_flag(CurrentDets(:,PartInd), flag_deterministic)
+                    tDetermState = check_determ_flag(CurrentDets(:,PartInd), run)
                     call extract_sign(CurrentDets(:,PartInd),CurrentSign)
                     tUnocc = is_run_unnocc(CurrentSign,run)
                     tToEmptyDet =  tUnocc .and. (.not. tDetermState)

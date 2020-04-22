@@ -12,7 +12,7 @@ module analyse_wf_symmetry
 
     use fcimcdata, only: CurrentDets, TotWalkers
 
-    use semi_stoch_procs, only: return_most_populated_states
+    use semi_stoch_procs, only: return_most_populated_states, GLOBAL_RUN
 
     use lattice_mod, only: lat
 
@@ -945,7 +945,7 @@ contains
 #endif
         real(dp) :: norm
 
-        call return_most_populated_states(n_symmetry_states, &
+        call return_most_populated_states(n_symmetry_states, GLOBAL_RUN, &
             largest_dets, norm = norm)
 
         if (present(all_norm)) then

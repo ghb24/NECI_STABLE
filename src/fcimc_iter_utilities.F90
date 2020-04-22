@@ -20,7 +20,7 @@ module fcimc_iter_utils
     use cont_time_rates, only: cont_spawn_success, cont_spawn_attempts
     use LoggingData, only: tPrintDataTables, tLogEXLEVELStats, t_spin_measurements
     use semi_stoch_procs, only: recalc_core_hamil_diag
-    use bit_rep_data, only: NIfD, NIfTot
+    use bit_rep_data, only: NIfD, NIfTot, test_flag, test_flag_multi
     use hphf_integrals, only: hphf_diag_helement
     use Determinants, only: get_helement
     use LoggingData, only: tFCIMCStats2, t_calc_double_occ, t_calc_double_occ_av, &
@@ -593,7 +593,7 @@ contains
            low = upp + 1; upp = low + sizes(39) - 1; send_arr(low:upp) = HFOut
            low = upp + 1; upp = low + sizes(40) - 1; send_arr(low:upp) = Acceptances
            low = upp + 1; upp = low + sizes(41) - 1; send_arr(low:upp) = SumWalkersOut
-           low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = n_core_non_init           
+           low = upp + 1; upp = low + sizes(42) - 1; send_arr(low:upp) = n_core_non_init
            if(t_real_time_fciqmc) then
                low = upp + 1; upp = low + sizes(43) - 1; send_arr(low:upp) = popSnapShot;
            endif
@@ -1507,7 +1507,7 @@ contains
             TotParts = TotParts + abs(newSignCurr) - abs(SignCurr)
 
             tIsStateDeterm = .False.
-            if (tSemiStochastic) tIsStateDeterm = test_flag(CurrentDets(:,det_idx), flag_deterministic)
+            if (tSemiStochastic) tIsStateDeterm = test_flag_multi(CurrentDets(:,det_idx), flag_deterministic)
 
             norm_psi_squared = norm_psi_squared + (newSignCurr)**2 - SignCurr**2
             if (tIsStateDeterm) norm_semistoch_squared = norm_semistoch_squared + (newSignCurr)**2 - SignCurr**2

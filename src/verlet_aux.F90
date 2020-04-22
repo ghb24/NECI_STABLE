@@ -26,10 +26,10 @@ module verlet_aux
   use FciMCData, only: CurrentDets, HashIndex, maxSpawned, iStartFreeSlot, iEndFreeSlot, &
                         inum_runs, SpawnedParts, TotWalkers, spawn_ht, iter_data_fciqmc, &
                         InitialSpawnedSlots, ValidSpawnedList, fcimc_excit_gen_store, &
-                        indices_of_determ_states, partial_determ_vecs, FreeSlot, ll_node, &
+                        FreeSlot, ll_node, &
                         popsfile_dets, WalkVecDets, exFlag, max_calc_ex_level, ilutRef, Hii, &
-                        fcimc_iter_data, determ_sizes, partial_determ_vecs
-
+                        fcimc_iter_data, core_run
+  use core_space_util, only: cs_replicas
   use CalcData, only: tTruncInitiator, tau, AvMCExcits, tPairedReplicas, &
        tSemiStochastic, tInitCoherentRule
 
@@ -237,8 +237,10 @@ module verlet_aux
          tCoreDet = check_determ_flag(population(:,idet))
 
          if(tCoreDet) then
-            indices_of_determ_states(determ_index) = idet
-            partial_determ_vecs(:,determ_index) = parent_sign
+             associate( rep => cs_replicas(core_run))
+               rep%indices_of_determ_states(determ_index) = idet
+               rep%partial_determ_vecs(:,determ_index) = parent_sign
+             end associate
             determ_index = determ_index + 1
             if(IsUnoccDet(parent_sign)) cycle
          endif
@@ -285,7 +287,8 @@ module verlet_aux
                ! or from the core space to the core space, i.e. they are covered fully
                ! by this branching
                if(tSemiStochastic) then
-                  break = check_semistoch_flags(ilut_child, nI_child, tCoreDet)
+                   break = check_semistoch_flags(ilut_child, nI_child, &
+                       part_type_to_run(part), tCoredet)
                   if(break) cycle
                endif
 
@@ -412,27 +415,29 @@ module verlet_aux
       logical :: tSuccess
       character(*), parameter :: this_routine = "add_semistoch_spawns"
 
-      do i = 1, determ_sizes(iProcIndex)
+      associate( rep => cs_replicas(core_run))
+      do i = 1, rep%determ_sizes(iProcIndex)
          ! check if the core-space determinant was already spawned upon
-         call decode_bit_det(nI, sourcePopulation(:,indices_of_determ_states(i)))
-         call hash_table_lookup(nI, sourcePopulation(:,indices_of_determ_states(i)), nifd, &
+         call decode_bit_det(nI, sourcePopulation(:,rep%indices_of_determ_states(i)))
+         call hash_table_lookup(nI, sourcePopulation(:,rep%indices_of_determ_states(i)), nifd, &
               hashTable, population, ilutindex, hashValue, tSuccess)
 
          if(tSuccess) then
             ! if it is found, add the signs
             call extract_sign(population(:,ilutIndex),sign)
-            call encode_sign(population(:,ilutIndex),sign+partial_determ_vecs(:,i))
+            call encode_sign(population(:,ilutIndex),sign+rep%partial_determ_vecs(:,i))
          else
             ! the spawn is new, add it to population
             populationSize = populationSize + 1
             if(populationSize > maxSize) call stop_all(this_routine, &
                  "Out of memory for adding semistochastic spawns")
-            population(:,populationSize) = sourcePopulation(:,indices_of_determ_states(i))
-            call encode_sign(population(:,populationSize), partial_determ_vecs(:,i))
+            population(:,populationSize) = sourcePopulation(:,rep%indices_of_determ_states(i))
+            call encode_sign(population(:,populationSize), rep%partial_determ_vecs(:,i))
             ! add the hash table entry for the new determinant
             call add_hash_table_entry(hashTable,populationSize,hashValue)
          end if
-      end do
+     end do
+   end associate
 
     end subroutine add_semistoch_spawns
 

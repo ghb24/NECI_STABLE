@@ -84,7 +84,7 @@ module bit_rep_data
 
     logical :: tuseflags = .true.
 
-    integer, parameter :: flag_deterministic = 0, &
+    integer, parameter :: flag_removed = 0, &
                           flag_determ_parent = 1, &
                           flag_trial = 2, &
                           flag_connected = 3, &
@@ -102,19 +102,21 @@ module bit_rep_data
 #ifdef PROG_NUMRUNS_
     integer, parameter :: flag_initiator(lenof_sign_max) &
                             = (/ 13, 14, 15, 16, 17, 18, 19, &
-                                20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31, 32/), &
-                          flag_adi_checked = 33, &
+                                20, 21, 22, 23, 24, 25, 26/), &
                           flag_static_init(lenof_sign_max) &
-                            = (/34, 35, 36, 37, 38, 39, 40, 41, 42, 43, 44, &
-                                45, 46, 47, 48, 49, 50, 51, 52, 53/), &
-                          flag_removed = 54, &
-                          num_flags = 55
+                          = (/27, 28, 29, 30, 31, 32, 33, &
+                          34, 35, 36, 37, 38, 39, 40/), &
+                          flag_deterministic(lenof_sign_max) &
+                          = (/41, 42, 43, 44, 45, 46, 47, &
+                          48, 49, 50, 51, 52, 53, 54/), &
+                          flag_adi_checked = 56, &                          
+                          num_flags = 57
 #else
     integer, parameter :: flag_initiator(2) = (/ 13, 14/), &
                           flag_adi_checked = 15, &
                           flag_static_init(2) = (/16, 17/), &
-                          flag_removed = 18, &
-                          num_flags = 19
+                          flag_deterministic(2) = (/19,20/), &
+                          num_flags = 21
 #endif
 
 contains
@@ -134,6 +136,19 @@ contains
         bSet = btest(ilut(IlutBits%ind_flag), flg)
 
     end function test_flag
+
+    pure function test_flag_multi(ilut, flg) result(bSet)
+        integer(n_int), intent(in) :: ilut(0:nIfTot)
+        integer, intent(in) :: flg(:)
+        logical :: bSet
+
+        integer :: i
+
+        bSet = .false.
+        do i = 1, inum_runs
+            bSet = bSet .or. test_flag(ilut, flg(i))
+        end do
+    end function test_flag_multi
 
     pure subroutine extract_sign (ilut, real_sgn)
         integer(n_int), intent(in) :: ilut(0:nIfTot)

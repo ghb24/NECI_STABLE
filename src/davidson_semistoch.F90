@@ -6,15 +6,15 @@ module davidson_semistoch
     ! http://web.mit.edu/bolin/www/Project-Report-18.335J.pdf
 
     use constants
-    use FciMCData, only: core_ham_diag, DavidsonTag
+    use FciMCData, only: DavidsonTag
     use SystemData, only: t_non_hermitian
     use MemoryManager, only: TagIntType
     use Parallel_neci, only: iProcIndex, nProcessors, MPIArg, MPIBarrier
     use Parallel_neci, only: MPIBCast, MPIGatherV, MPIAllGather, MPISumAll
     use Parallel_neci, only: MPIAllGatherV
     use ParallelHelper, only: root
-    use sparse_arrays, only: sparse_core_ham, HDiagTag
-
+    use sparse_arrays, only: HDiagTag
+    use core_space_util, only: cs_replicas
     implicit none
 
     integer, parameter :: max_num_davidson_iters = 25
@@ -60,6 +60,9 @@ module davidson_semistoch
         ! Temporary space vector which has the same dimension as the *entire* space, rather
         ! than just the space belonging to this process.
         real(dp), allocatable :: full_vector(:)
+
+        ! On which replica is the semi-stochastic space operating?
+        integer :: run
     end type davidson_ss
 
     interface multiply_hamil_and_vector_ss
@@ -68,9 +71,10 @@ module davidson_semistoch
 
     contains
 
-    subroutine perform_davidson_ss(this, print_info_in)
+    subroutine perform_davidson_ss(this, print_info_in, run)
 
         logical, intent(in) :: print_info_in
+        integer, intent(in) :: run
         logical :: print_info
         integer :: i
         real(dp) :: start_time, end_time
@@ -79,7 +83,7 @@ module davidson_semistoch
         ! Only let the root processor print information.
         print_info = print_info_in .and. (iProcIndex == root)
 
-        call init_davidson_ss(this, print_info)
+        call init_davidson_ss(this, print_info, run)
 
         if (print_info) write(6,'(1X,"Iteration",4X,"Residual norm",12X,"Energy",7X,"Time")'); call neci_flush(6)
 
@@ -112,7 +116,7 @@ module davidson_semistoch
 
     end subroutine perform_davidson_ss
 
-    subroutine init_davidson_ss(this, print_info)
+    subroutine init_davidson_ss(this, print_info, run)
 
         ! This subroutine initialises the Davdison method by allocating the necessary arrays,
         ! defining the initial basis vector and projected Hamiltonian, and setting an initial
@@ -124,20 +128,22 @@ module davidson_semistoch
         type(davidson_ss), intent(inout) :: this
 
         logical, intent(in) :: print_info
-
+        integer, intent(in) :: run
         integer :: i, hfindex, hf_proc, mem_reqd, mem_reqd_full, ierr
         real(dp) :: hf_elem, hf_elem_this_proc, hf_elem_all_procs(0:nProcessors-1)
         logical :: skip_calc, skip_calc_all(0:nProcessors-1)
         integer(MPIArg) :: mpi_temp
         character (len=*), parameter :: t_r = "init_davidson_ss"
 
+        this%run = run
         associate( &
             davidson_eigenvalue => this%davidson_eigenvalue, &
             space_size => this%space_size, &
-            space_size_this_proc => this%space_size_this_proc &
+            space_size_this_proc => this%space_size_this_proc, &
+            rep => cs_replicas(this%run) &
         )
 
-        space_size_this_proc = size(core_ham_diag)
+        space_size_this_proc = size(rep%core_ham_diag)
 
         allocate(this%displs(0:nProcessors-1))
         allocate(this%sizes(0:nProcessors-1))
@@ -195,7 +201,7 @@ module davidson_semistoch
         safe_calloc(this%projected_hamil, (max_num_davidson_iters, max_num_davidson_iters), 0.0_dp)
         safe_calloc(this%projected_hamil_work, (max_num_davidson_iters, max_num_davidson_iters), 0.0_dp)
 
-        hf_elem_this_proc = maxval(-core_ham_diag)
+        hf_elem_this_proc = maxval(-rep%core_ham_diag)
         call MPIAllGather(hf_elem_this_proc, hf_elem_all_procs, ierr)
 
         ! Find the processor on which the HF determinant lives:
@@ -213,7 +219,7 @@ module davidson_semistoch
 
         ! If the HF determinant is on this process:
         if (hf_proc == iProcIndex) then
-            hfindex = maxloc((-core_ham_diag),1)
+            hfindex = maxloc((-rep%core_ham_diag),1)
 
             ! for the initial basis vector, choose the hartree-fock state:
             !this%super%basis_vectors(hfindex, 1) = 1.0_dp
@@ -243,7 +249,8 @@ module davidson_semistoch
         skip_calc = .false.
 
         call multiply_hamil_and_vector_ss(this%davidson_eigenvector, this%multiplied_basis_vectors(:,1), &
-                                          this%full_vector, this%sizes, this%displs)
+            this%full_vector, this%sizes, this%displs, &
+            this%run)
 
         if (space_size_this_proc > 0) then
             if (all(abs(this%multiplied_basis_vectors(:,1)-hf_elem*this%davidson_eigenvector) < 1.0e-12_dp)) then
@@ -279,7 +286,7 @@ module davidson_semistoch
         ! calculated, I is the identity matrix and r is the residual.
 
         do i = 1, this%space_size_this_proc
-            this%basis_vectors(i, basis_index) = this%residual(i)/(core_ham_diag(i) - this%davidson_eigenvalue)
+            this%basis_vectors(i, basis_index) = this%residual(i)/(cs_replicas(this%run)%core_ham_diag(i) - this%davidson_eigenvalue)
         end do
 
         ! This step then maskes the new basis vector orthogonal to all other basis vectors, by doing
@@ -442,7 +449,7 @@ module davidson_semistoch
         ! Multiply the new basis_vector by the hamiltonian and store the result in
         ! multiplied_basis_vectors.
         call multiply_hamil_and_vector_ss(real(this%basis_vectors(:,basis_index), dp), &
-            this%multiplied_basis_vectors(:,basis_index), this%full_vector, this%sizes, this%displs)
+            this%multiplied_basis_vectors(:,basis_index), this%full_vector, this%sizes, this%displs, this%run)
 
         ! Now multiply U^T by (H U) to find projected_hamil. The projected Hamiltonian will
         ! only differ in the new final column and row. Also, projected_hamil is symmetric.
@@ -468,12 +475,13 @@ module davidson_semistoch
 
     end subroutine project_hamiltonian_ss
 
-    subroutine mult_ham_vector_real_ss(input_vector, output_vector, full_vector, sizes, displs)
+    subroutine mult_ham_vector_real_ss(input_vector, output_vector, full_vector, sizes, displs, run)
 
         real(dp), intent(in) :: input_vector(:)
         real(dp), intent(out) :: output_vector(:)
         real(dp), intent(out) :: full_vector(:)
         integer(MPIArg), intent(in) :: sizes(0:), displs(0:)
+        integer, intent(in) :: run
 
         integer :: i, j, ierr
 
@@ -481,13 +489,13 @@ module davidson_semistoch
         call MPIAllGatherV(input_vector, full_vector, sizes, displs)
 
         output_vector = 0.0_dp
-
-        do i = 1, sizes(iProcIndex)
-            do j = 1, sparse_core_ham(i)%num_elements
-                output_vector(i) = output_vector(i) + sparse_core_ham(i)%elements(j)*full_vector(sparse_core_ham(i)%positions(j))
-            end do
-        end do
-
+        associate( rep => cs_replicas(run))
+          do i = 1, sizes(iProcIndex)
+              do j = 1, rep%sparse_core_ham(i)%num_elements
+                  output_vector(i) = output_vector(i) + rep%sparse_core_ham(i)%elements(j)*full_vector(rep%sparse_core_ham(i)%positions(j))
+              end do
+          end do
+        end associate
     end subroutine mult_ham_vector_real_ss
 
     subroutine calculate_residual_ss(this, basis_index)

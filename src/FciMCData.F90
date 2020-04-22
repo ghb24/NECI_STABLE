@@ -498,45 +498,7 @@ MODULE FciMCData
       HElement_t(dp), allocatable, dimension(:,:) :: hamiltonian
 
       integer(TagIntType) :: HamTag, DavidsonTag, LanczosTag
-
-      ! Semi-stochastic data.
-
-      ! The diagonal elements of the core-space Hamiltonian (with Hii taken away).
-      real(dp), allocatable, dimension(:) :: core_ham_diag
-
-      ! This stores the entire core space from all processes, on each process.
-      integer(n_int), pointer, dimension(:,:) :: core_space => null()
-      integer(n_int), pointer, dimension(:,:) :: core_space_direct => null()
-      integer(MPIArg) :: core_space_win
-
-      ! This stores all the amplitudes of the walkers in the deterministic space. This vector has the size of the part
-      ! of the deterministic space stored on *this* processor only. It is therefore used to store the deterministic vector
-      ! on this processor, before it is combined to give the whole vector, which is stored in full_determ_vecs.
-      ! Later in the iteration, it is also used to store the result of the multiplication by the core Hamiltonian on
-      ! full_determ_vecs.
-      real(dp), allocatable, dimension(:,:) :: partial_determ_vecs
-      real(dp), allocatable, dimension(:,:) :: full_determ_vecs
-      real(dp), allocatable, dimension(:,:) :: full_determ_vecs_av
-
-      ! determ_sizes(i) holds the core space size on processor i.
-      integer(MPIArg), allocatable, dimension(:) :: determ_sizes
-      ! determ_displs(i) holds sum(determ_sizes(i-1)), that is, the
-      ! total number of core states on all processors up to processor i.
-      ! (determ_displs(1) == 0).
-      integer(MPIArg), allocatable, dimension(:) :: determ_displs
-      ! determ_last(i) holds the final index belonging process i.
-      integer(MPIArg), allocatable, dimension(:) :: determ_last
-      ! The first and last indices on this process.
-      integer :: s_first_ind, s_last_ind
-      ! The total size of the core space on all processors.
-      integer(MPIArg) :: determ_space_size
-      ! determ_space_size_int is identical to determ_space_size, but converted
-      ! to the default integer kind.
-      integer :: determ_space_size_int
-
-      ! This vector will store the indicies of the deterministic states in CurrentDets. This is worked out in the main loop.
-      integer, allocatable, dimension(:) :: indices_of_determ_states
-
+          
       ! If true (as is the case by default) then semi-stochastic calculations
       ! will start from the ground state of the core space
       logical :: tStartCoreGroundState
@@ -701,5 +663,10 @@ MODULE FciMCData
 
       ! Guard flag to monitor if the random orbital mapping indices have been initialized
       logical :: t_initialized_roi = .false.
+
+      ! Default core space
+      integer, parameter :: core_run = 1
+
+      logical :: t_global_core_space = .true.
 
 end module FciMCData

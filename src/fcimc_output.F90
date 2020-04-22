@@ -39,7 +39,7 @@ module fcimc_output
 
     use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
 
-    use semi_stoch_procs, only: return_most_populated_states
+    use semi_stoch_procs, only: return_most_populated_states, GLOBAL_RUN
 
     use bit_rep_data, only: niftot, nifd, flag_initiator
 
@@ -1511,7 +1511,8 @@ contains
         if(ierr.ne.0) call stop_all(t_r,"error allocating here")
 
         ! Return the most populated states in CurrentDets on *this* processor only.
-        call return_most_populated_states(iHighPopWrite, LargestWalkers, norm = norm)
+        call return_most_populated_states(iHighPopWrite, GLOBAL_RUN, &
+            LargestWalkers, norm = norm)
 
         call MpiSum(norm,allnorm)
         if(iProcIndex.eq.Root) norm=sqrt(allnorm)

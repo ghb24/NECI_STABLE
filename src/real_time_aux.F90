@@ -5,7 +5,7 @@ module real_time_aux
   use bit_rep_data, only: extract_sign, niftot, nifd
   use bit_reps, only: decode_bit_det, flag_deterministic
   use FciMCData, only: SpawnedParts, ValidSpawnedList, MaxSpawned, InitialSpawnedSlots, &
-       core_space, determ_sizes, determ_space_size, CurrentDets, hashindex
+       CurrentDets, hashindex
   use SystemData, only: nel
   use constants, only: dp, lenof_sign, n_int, iout
   use ParallelHelper, only: iProcIndex, nNodes, MPIBarrier

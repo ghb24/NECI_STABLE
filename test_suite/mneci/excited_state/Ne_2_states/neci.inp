@@ -26,7 +26,7 @@ memoryfacspawn 10.0
 allrealcoeff
 realspawncutoff 0.5
 orthogonalise-replicas
-semi-stochastic 400
+semi-stochastic 1
 pops-core 10000
 num-trial-states-calc 10
 trial-wavefunction 400

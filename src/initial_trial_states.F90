@@ -1,11 +1,13 @@
 #include "macros.h"
 
 module initial_trial_states
-
+    use semi_stoch_procs, only: GLOBAL_RUN
     use bit_rep_data
     use constants
     use kp_fciqmc_data_mod
     use SystemData, only: t_non_hermitian
+    use core_space_util, only: cs_replicas
+    use FciMCData, only: core_run
 #ifndef CMPLX_
     use unit_test_helpers, only: eig, print_matrix
 #endif
@@ -74,7 +76,7 @@ contains
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
-                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, GLOBAL_RUN)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) then
             if (tGUGA) then
@@ -280,7 +282,7 @@ contains
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
-                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, GLOBAL_RUN)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) then
             if (tGUGA) then
@@ -575,7 +577,7 @@ contains
         ! Choose the correct generating routine.
         if (space_in%tHF) call add_state_to_space(ilutHF, trial_iluts, ndets_this_proc)
         if (space_in%tPops) call generate_space_most_populated(space_in%npops, &
-                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc)
+                                    space_in%tApproxSpace, space_in%nApproxSpace, trial_iluts, ndets_this_proc, GLOBAL_RUN)
         if (space_in%tRead) call generate_space_from_file(space_in%read_filename, trial_iluts, ndets_this_proc)
         if (space_in%tDoubles) then
             if (tGUGA) then
@@ -770,10 +772,10 @@ contains
         if (tSemiStochastic .and. semistoch_started) then
             ! core_space stores all core determinants from all processors. Move those on this
             ! processor to trial_iluts, which add_core_states_currentdet_hash uses.
-            call copy_core_dets_to_spawnedparts()
+            call copy_core_dets_to_spawnedparts(cs_replicas(core_run))
             ! Any core space determinants which are not already in CurrentDets will be added
             ! by this routine.
-            call add_core_states_currentdet_hash()
+            call add_core_states_currentdet_hash(core_run)
         end if
 
         if (tTrialWavefunction) call reinit_current_trial_amps()

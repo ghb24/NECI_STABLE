@@ -1,7 +1,7 @@
 #include "macros.h"
 module adi_references
 use Parallel_neci
-use FciMCData, only: ilutRef, TotWalkers, CurrentDets
+use FciMCData, only: ilutRef, TotWalkers, CurrentDets, core_run
 use adi_data, only: ilutRefAdi, nRefs, nIRef, signsRef, &
      tAdiActive, tSetupSIs, NoTypeN, tSetupSIs, &
      tReferenceChanged, SIThreshold, tUseCaches, nIRef, signsRef, exLvlRef, tSuppressSIOutput, &
@@ -84,6 +84,7 @@ contains
 
   subroutine fixed_number_SI_generation()
       use semi_stoch_gen, only: generate_space_most_populated
+      use semi_stoch_procs, only: GLOBAL_RUN
       use LoggingData, only: ref_filename, tWriteRefs
       implicit none
       integer(MPIArg) :: mpi_refs_found
@@ -98,7 +99,7 @@ contains
          ! Get the nRefs most populated determinants
          refs_found = 0
          call generate_space_most_populated(maxNRefs, .false., 1, ref_buf, refs_found, &
-              CurrentDets(0:NifTot,:), TotWalkers)
+              GLOBAL_RUN, CurrentDets(0:NifTot,:), TotWalkers)
          ! Communicate the refs_found info
          mpi_refs_found = int(refs_found,MPIArg)
          call MPIAllGather(mpi_refs_found, refs_found_per_proc, ierr)
