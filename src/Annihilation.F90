@@ -1024,60 +1024,59 @@ module AnnihilationMod
                                 print *, " ------------"
                                 print *, " spawn unto an OCCUPIED CSF above Threshold!"
                                 print *, " Parent was initiator?: ",  &
-                                  any_run_is_initiator(SpawnedParts(:,i))
-                              print *, " Parent was in deterministic space?: ",  &
-                                  test_flag_multi(SpawnedParts(:,i), flag_deterministic)
-                              print *, " Current det is initiator?: ", &
-                                  any_run_is_initiator(CurrentDets(:,PartInd))
+                                    any_run_is_initiator(SpawnedParts(:,i))
+                                print *, " Parent was in deterministic space?: ",  &
+                                    test_flag_multi(SpawnedParts(:,i), flag_deterministic)
+                                print *, " Current det is initiator?: ", &
+                                    any_run_is_initiator(CurrentDets(:,PartInd))
                                 print *, " Current det is in deterministic space?: ", &
-                                  tDetermState
-                              print *, " ------------"
-                         end if
+                                    tDetermState
+                                print *, " ------------"
+                            end if
 #endif
-                     end do
-                 end if
+                        end do
+                    end if
+                else
+                    ! truncate if requested
+                    if(t_truncate_this_det .and. .not. t_truncate_unocc) then
+                        scFVal = scaleFunction(det_diagH(PartInd))
+                        do j = 1, lenof_sign
+                            call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
+                        enddo
+                    endif
+                end if
 
+                tDetermState = test_flag_multi(CurrentDets(:,PartInd), flag_deterministic)
+                ! Transfer new sign across.
 
-              else
-                  ! truncate if requested
-                  if(t_truncate_this_det .and. .not. t_truncate_unocc) then
-                     scFVal = scaleFunction(det_diagH(PartInd))
-                     do j = 1, lenof_sign
-                        call truncateSpawn(iter_data, SpawnedSign, i, j, scFVal, SignProd(j))
-                     enddo
-                  endif
-              end if
+                if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
 
-              tDetermState = test_flag_multi(CurrentDets(:,PartInd), flag_deterministic)
-              ! Transfer new sign across.
+                    ! If the sign changed, the adi check has to be redone
+                    if(any(real(SignProd,dp) < 0.0_dp)) &
+                         call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
 
-              if (sum(abs(CurrentSign)) >= 1.e-12_dp .or. tDetermState) then
+                    ! this det is not prone anymore
+                    if(t_prone_walkers) call clr_flag(CurrentDets(:,PartInd), flag_prone)
 
-                 ! If the sign changed, the adi check has to be redone
-                 if(any(real(SignProd,dp) < 0.0_dp)) &
-                      call clr_flag(CurrentDets(:,PartInd), flag_adi_checked)
+                    do j = 1, lenof_sign
+                        run = part_type_to_run(j)
 
-                 ! this det is not prone anymore
-                 if(t_prone_walkers) call clr_flag(CurrentDets(:,PartInd), flag_prone)
-
-                 do j = 1, lenof_sign
-                    run = part_type_to_run(j)
-
-                    if (is_run_unnocc(CurrentSign,run)) then
-                       ! This determinant is actually *unoccupied* for the
-                       ! run we're considering. We need to
-                       ! decide whether to abort it or not.
-                       if (tTruncInitiator .and. .not. tAllowSpawnEmpty) then
-                           if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
-                                .not. tDetermState) then
-                                ! Walkers came from outside initiator space.
-                                ! have to also keep track which RK step
-                                if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
-                                    NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
-                                endif
-                                iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
-                                call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
-                                SpawnedSign(j) = 0.0_dp
+                        if (is_run_unnocc(CurrentSign,run)) then
+                            ! This determinant is actually *unoccupied* for the
+                            ! run we're considering. We need to
+                            ! decide whether to abort it or not.
+                            if (tTruncInitiator .and. .not. tAllowSpawnEmpty) then
+                                if (.not. test_flag (SpawnedParts(:,i), get_initiator_flag(j)) .and. &
+                                    .not. tDetermState) then
+                                    ! Walkers came from outside initiator space.
+                                    ! have to also keep track which RK step
+                                    if(.not. t_real_time_fciqmc .or. runge_kutta_step == 2) then
+                                        NoAborted(j) = NoAborted(j) + abs(SpawnedSign(j))
+                                    endif
+                                    iter_data%naborted(j) = iter_data%naborted(j) + abs(SpawnedSign(j))
+                                    call encode_part_sign (SpawnedParts(:,i), 0.0_dp, j)
+                                    SpawnedSign(j) = 0.0_dp
+                                end if
                             end if
                         end if
 
@@ -1152,7 +1151,7 @@ module AnnihilationMod
                             end if
                         end if
                     endif
-                endif
+                end if
 
                 if (tFillingStochRDMonFly .and. (.not.tNoNewRDMContrib)) then
                     call extract_sign(CurrentDets(:,PartInd), TempCurrentSign)

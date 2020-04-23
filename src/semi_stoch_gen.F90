@@ -156,7 +156,7 @@ contains
               ! Do a check that no states are in the deterministic space twice. The list is sorted
               ! already so simply check states next to each other in the list.
               do i = 2, rep%determ_sizes(iProcIndex)
-                  if (all(SpawnedParts(0:NIfDBO, i-1) == SpawnedParts(0:NIfDBO, i))) then
+                  if (all(SpawnedParts(0:nifd, i-1) == SpawnedParts(0:nifd, i))) then
                       call decode_bit_det(nI, SpawnedParts(:,i))
                       write(6,'("State found twice:")')
                       write(6,*) SpawnedParts(:,i)

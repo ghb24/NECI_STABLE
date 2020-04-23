@@ -32,7 +32,7 @@ module sparse_arrays
                                 calc_guga_matrix_element
     use guga_bitRepOps, only: convert_ilut_toGUGA, extract_h_element, &
                               init_csf_information
-    use util_mod, only: binary_search
+    use util_mod, only: binary_search, near_zero
     use guga_data, only: tag_excitations, ExcitationInformation_t
     use guga_matrixElements, only: calcDiagMatEleGuga_nI
 
@@ -422,7 +422,7 @@ contains
         integer :: i, j, row_size, counter, ierr
         integer :: nI(nel), nJ(nel)
         integer(n_int), allocatable, dimension(:,:) :: temp_store
-        integer, allocatable :: temp_store_nI(:,:)
+!         integer, allocatable :: temp_store_nI(:,:)
         integer(TagIntType) :: HRTag, TempStoreTag
         HElement_t(dp), allocatable, dimension(:) :: hamiltonian_row
 
@@ -431,51 +431,56 @@ contains
         integer(n_int), pointer :: excitations(:,:)
         type(ExcitationInformation_t) :: excitInfo
 
-        character(len=*), parameter :: t_r = "calc_determ_hamil_sparse"
+        character(len=*), parameter :: this_routine = "calc_determ_hamil_sparse"
 
         integer(n_int) :: tmp(0:NIfD)
         integer :: IC
+        integer(n_int) :: ilutI(0:niftot), ilutJ(0:niftot)
+        HElement_t(dp) :: tmp_mat, tmp_mat_2
 
         allocate(rep%sparse_core_ham(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(rep%SparseCoreHamilTags(2, rep%determ_sizes(iProcIndex)))
         allocate(hamiltonian_row(rep%determ_space_size), stat=ierr)
-        call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size,sizeof_int), 8, t_r, HRTag, ierr)
+        call LogMemAlloc('hamiltonian_row', int(rep%determ_space_size,sizeof_int), 8, this_routine, HRTag, ierr)
         allocate(rep%core_ham_diag(rep%determ_sizes(iProcIndex)), stat=ierr)
         allocate(temp_store(0:NIfTot, rep%determ_space_size), stat=ierr)
-        call LogMemAlloc('temp_store', rep%determ_space_size*(NIfTot+1), 8, t_r, TempStoreTag, ierr)
-        safe_realloc_e(temp_store_nI, (nel, rep%determ_space_size), ierr)
+        call LogMemAlloc('temp_store', rep%determ_space_size*(NIfTot+1), 8, this_routine, TempStoreTag, ierr)
+!         safe_realloc_e(temp_store_nI, (nel, rep%determ_space_size), ierr)
 
         ! Stick together the deterministic states from all processors, on
         ! all processors.
         ! n.b. Explicitly use 0:NIfTot, as NIfTot may not equal NIfBCast
         call MPIAllGatherV(SpawnedParts(0:NIfTot, 1:rep%determ_sizes(iProcIndex)),&
-                           temp_store, rep%determ_sizes, rep%determ_displs)
+                           temp_store(0:niftot,1:), rep%determ_sizes, rep%determ_displs)
 
-        do i = 1, rep%determ_space_size
-            call decode_bit_det(temp_store_nI(:,i), temp_store(:,i))
-        end do
+!         do i = 1, rep%determ_space_size
+!             call decode_bit_det(temp_store_nI(:,i), temp_store(:,i))
+!         end do
 
         ! Loop over all deterministic states on this processor.
         do i = 1, rep%determ_sizes(iProcIndex)
 
-            !call decode_bit_det(nI, SpawnedParts(:, i))
-            nI = temp_store_nI(:, i + rep%determ_displs(iProcIndex))
+            ilutI = SpawnedParts(:,i)
+            call decode_bit_det(nI, IlutI)
+!             nI = temp_store_nI(:, i + rep%determ_displs(iProcIndex))
 
             row_size = 0
             hamiltonian_row = 0.0_dp
 
-            if (tGUGA) call init_csf_information(SpawnedParts(0:nifd,i))
+            if (tGUGA) call init_csf_information(ilutI(0:nifd))
 
             ! Loop over all deterministic states.
             do j = 1, rep%determ_space_size
 
-                !call decode_bit_det(nJ, temp_store(:,j))
-                nJ = temp_store_nI(:,j)
+                ilutJ = temp_store(:,j)
+                call decode_bit_det(nJ, ilutJ)
+!                 nJ = temp_store_nI(:,j)
 
                 ! If on the diagonal of the Hamiltonian.
-                if (all( SpawnedParts(0:NIfDBO, i) == temp_store(0:NIfDBO, j) )) then
+!                 if (all(SpawnedParts(0:nifd, i) == temp_store(0:nifd, j) )) then
+                if (DetBitEq(IlutI, ilutJ, nifd)) then
                     if (tHPHF) then
-                        hamiltonian_row(j) = hphf_diag_helement(nI, SpawnedParts(:,i)) - Hii
+                        hamiltonian_row(j) = hphf_diag_helement(nI, IlutI) - Hii
                     else
                         ! for guga: the diagonal is fine, since i overwrite
                         ! that within get_helement
@@ -490,26 +495,41 @@ contains
                     row_size = row_size + 1
                 else
                     if (tHPHF) then
-                        hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, SpawnedParts(:,i), temp_store(:,j))
+                        hamiltonian_row(j) = hphf_off_diag_helement(nI, nJ, IlutI, IlutJ)
                     else if (tGUGA) then
                         ! for the off-diagonal elements i have to call the GUGA
                         ! specific function
                         ! but this is a waste.. i do not have to do that for
                         ! every nJ i could just check the list generated
                         ! by H|nI>..
-                        call calc_guga_matrix_element(SpawnedParts(:,i), temp_store(:,j), &
-                            excitInfo, hamiltonian_row(j), .true., 1)
+                        call calc_guga_matrix_element(IlutI, IlutJ, &
+                            excitInfo, tmp_mat, .true., 1)
+#ifdef DEBUG_
+                        call calc_guga_matrix_element(IlutI, IlutJ, &
+                            excitInfo, tmp_mat_2, .true., 2)
+                        if (.not. near_zero(tmp_mat - tmp_mat_2)) then
+                            call stop_all(this_routine, "type 1 and 2 do not agree!")
+                        end if
+                        call calc_guga_matrix_element(IlutJ, IlutI, &
+                            excitInfo, tmp_mat_2, .true., 2)
+                        if (.not. near_zero(tmp_mat - tmp_mat_2)) then
+                            call stop_all(this_routine, "not hermititan!")
+                        end if
+#endif
+
 #ifdef CMPLX_
-                            hamiltonian_row(j) = conjg(hamiltonian_row(j))
+                            hamiltonian_row(j) = conjg(tmp_mat)
+#else
+                            hamiltonian_row(j) = tmp_mat
 #endif
                     else
 
-                        tmp = ieor(SpawnedParts(0:NIfD,i), temp_store(0:NIfD,j))
-                        tmp = iand(SpawnedParts(0:NIfD,i), tmp)
+                        tmp = ieor(IlutI(0:NIfD), IlutJ(0:NIfD))
+                        tmp = iand(IlutI(0:NIfD), tmp)
                         IC = CountBits(tmp, NIfD)
 
                         if (IC <= maxExcit) then
-                            hamiltonian_row(j) = get_helement(nI, nJ, IC, SpawnedParts(:, i), temp_store(:, j))
+                            hamiltonian_row(j) = get_helement(nI, nJ, IC, ilutI, IlutJ)
                         end if
                     end if
                     if (abs(hamiltonian_row(j)) > 0.0_dp) row_size = row_size + 1
@@ -541,10 +561,10 @@ contains
         call MPIBarrier(ierr, tTimeIn=.false.)
 
         deallocate(temp_store, stat=ierr)
-        call LogMemDealloc(t_r, TempStoreTag, ierr)
+        call LogMemDealloc(this_routine, TempStoreTag, ierr)
         deallocate(hamiltonian_row, stat=ierr)
-        call LogMemDealloc(t_r, HRTag, ierr)
-        deallocate(temp_store_nI, stat=ierr)
+        call LogMemDealloc(this_routine, HRTag, ierr)
+!         deallocate(temp_store_nI, stat=ierr)
 
     end subroutine calc_determ_hamil_sparse
 

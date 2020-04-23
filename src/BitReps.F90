@@ -605,9 +605,9 @@ contains
         integer, intent(in) :: flg(:)
 
         integer :: i
-        
+
         do i = 1, size(flg)
-            ilut(NOffFlag) = ibclr(ilut(NOffFlag), flg(i))
+            ilut(IlutBits%ind_flag) = ibclr(ilut(IlutBits%ind_flag), flg(i))
         end do
 
     end subroutine clr_flag_multi

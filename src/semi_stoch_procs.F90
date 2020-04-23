@@ -6,7 +6,7 @@
 module semi_stoch_procs
 
     use bit_rep_data, only: flag_deterministic, NIfD, NIfTot, test_flag, &
-                            test_flag_multi
+                            test_flag_multi, IlutBits
 
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
 

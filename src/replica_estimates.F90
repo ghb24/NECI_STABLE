@@ -583,7 +583,6 @@ module replica_estimates
 
                   precond_e_num(j) = precond_e_num(j) + &
                       spwnsign(2*j-1) * spwnsign(2*j) / (tau*(mean_energy(j) - hdiag))
->>>>>>> origin/devel
 
                   e_squared_num(j) = e_squared_num(j) + spwnsign(2*j-1) * spwnsign(2*j) / (tau**2)
 
