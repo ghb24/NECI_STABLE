@@ -679,11 +679,14 @@ contains
 
         global_offset = node_offsets(iProcIndex_inter) + proc_offset
 
-        call MPI_Win_fence(0, rep%core_space_win, ierr)
+        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
         rep%core_space(0:NIfTot,(global_offset+1):&
             (global_offset + rep%determ_sizes(iProcIndex))) = &
             SpawnedParts(0:NIfTot, 1:rep%determ_sizes(iProcIndex))
-        call MPI_Win_fence(0, rep%core_space_win, ierr)
+        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(rep%core_space_win, ierr)
 
         ! Multiply with message width (1+NIfTot)
         core_width = int(size(rep%core_space, dim = 1), MPIArg)
@@ -697,7 +700,8 @@ contains
             sizes_per_node, node_offsets, MPI_INTEGER8, mpi_comm_inter, ierr)
 
         ! And sync the shared window
-        call MPI_Win_fence(0, rep%core_space_win, ierr)
+        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
         ! Communicate the indices in the full vector at which the various processors take over, relative
         ! to the first index position in the vector (i.e. the array displs in MPI routines).
         call MPIAllGather(global_offset, rep%determ_displs, ierr)

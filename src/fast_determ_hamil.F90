@@ -568,8 +568,9 @@ contains
         endif
 
         ! Sync the ilut lists
-        call MPI_Win_Fence(0, beta_list_win, ierr)
-        call MPI_Win_Fence(0, alpha_list_win, ierr)
+        call MPI_Win_Sync(beta_list_win, ierr)
+        call MPI_Win_Sync(alpha_list_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
         ! Create the node shared read-only hashtables        
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)        
@@ -1337,8 +1338,9 @@ contains
             write(6,'("Time to sort auxiliary arrays:", f9.3)') get_total_time(sort_aux_time); call neci_flush(6)
         endif
         ! Sync the ilut lists
-        call MPI_Win_Fence(0, beta_list_win, ierr)
-        call MPI_Win_Fence(0, alpha_list_win, ierr)        
+        call MPI_Win_Sync(beta_list_win, ierr)
+        call MPI_Win_Sync(alpha_list_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
         ! Create the node shared read-only hashtables
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
