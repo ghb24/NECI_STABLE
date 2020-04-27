@@ -50,18 +50,13 @@ module unit_test_helpers
             class(Excitation_t), intent(in) :: exc
         end function calc_pgen_t
 
-        logical pure function print_predicate_t(det_I, exc, pgen_diagnostic)
+        logical function print_predicate_t(det_I, exc, pgen_diagnostic)
             import :: dp, SpinOrbIdx_t, Excitation_t
             type(SpinOrbIdx_t), intent(in) :: det_I
             class(Excitation_t), intent(in) :: exc
             real(dp), intent(in) :: pgen_diagnostic
         end function
     end interface
-
-!     interface is_in_list
-!         module procedure is_in_list_ilut
-!     end interface is_in_list
-
 contains
 
     subroutine setup_arr_brr(in_lat)
@@ -1001,7 +996,7 @@ contains
 
         contains
 
-        logical pure function default_predicate(det_I, exc, pgen_diagnostic)
+        logical function default_predicate(det_I, exc, pgen_diagnostic)
             type(SpinOrbIdx_t), intent(in) :: det_I
             class(Excitation_t), intent(in) :: exc
             real(dp), intent(in) :: pgen_diagnostic

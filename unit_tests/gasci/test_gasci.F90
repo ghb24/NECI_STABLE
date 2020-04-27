@@ -4,7 +4,7 @@ module test_gasci_mod
     use bit_rep_data, only: NIfTot
     use SystemData, only: nEl
     use sets_mod, only: disjoint
-    use util_mod, only: operator(.div.)
+    use util_mod, only: operator(.div.), operator(.isclose.)
     use sort_mod, only: sort
     use procedure_pointers, only: generate_excitation
     use orb_idx_mod, only: SpinOrbIdx_t, SpatOrbIdx_t, SpinProj_t, &
@@ -22,8 +22,11 @@ module test_gasci_mod
         is_valid, is_connected, get_possible_spaces, get_possible_holes, &
         split_per_GAS, generate_nGAS_excitation, &
         get_available_singles, get_available_doubles
+
+    use sltcnd_mod, only: dyn_sltcnd_excit
     use unit_test_helper_excitgen, only: test_excitation_generator, &
-        init_excitgen_test, finalize_excitgen_test
+        init_excitgen_test, finalize_excitgen_test, generate_random_integrals, &
+        FciDumpWriter_t
     use unit_test_helpers, only: run_excit_gen_tester
     use DetBitOps, only: ilut_lt, ilut_gt
     implicit none
@@ -1007,65 +1010,42 @@ contains
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GASSpec_t) :: GAS_spec
         type(SpinOrbIdx_t) :: det_I
-        integer, parameter :: n_spat_orbs = 12, n_iters=5 * 10**6
+        integer, parameter :: n_spat_orbs = 12, n_iters=10**6
 
-        call assert_true(tGASSpinRecoupling)
-
-        det_I = SpinOrbIdx_t([1, 2, 3, 4, 5, 6, 13, 14, 15, 16, 17, 18])
-        call init_excitgen_test(size(det_I), n_spat_orbs, &
-                                1.0_dp, 1.0_dp, sum(calc_spin(det_I)))
         pParallel = 0.5_dp
         pSingles = 0.1_dp
         pDoubles = 1.0_dp - pSingles
 
+        call assert_true(tGASSpinRecoupling)
+        det_I = SpinOrbIdx_t([1, 2, 3, 7, 8, 10])
 
         ! two benzenes stacked: disconnected spaces
         GAS_spec = GASSpec_t(&
-            n_orbs=[6, 12], &
-            n_min=[6, size(det_I)], &
-            n_max=[6, size(det_I)])
+            n_orbs=[3, 6], &
+            n_min=[3, size(det_I)], &
+            n_max=[3, size(det_I)])
         call assert_true(is_valid(GAS_spec))
         call assert_true(GAS_spec .contains. det_I)
         global_GAS_spec = GAS_spec
+
+        call init_excitgen_test(size(det_I), n_spat_orbs, FciDumpWriter_t(write_Li2_FCIDUMP, 'FCIDUMP'))
         call run_excit_gen_tester( &
             generate_nGAS_excitation, 'general, disconnected', &
             opt_nI=det_I%idx, &
             opt_n_iters=n_iters, &
-!             print_predicate=predicate_recouple, &
-            gen_all_excits=gen_all_excits)
+            gen_all_excits=gen_all_excits,&
+            print_predicate=print_all)
+        call finalize_excitgen_test()
 
-
-
-        ! two benzenes stacked: disconnected spaces
-        ! old implementation
-        tGASSpinRecoupling = .true.
-        GAS_spec = GASSpec_t(&
-            n_orbs=[6, 12], &
-            n_min=[6, size(det_I)], &
-            n_max=[6, size(det_I)])
-        call assert_true(is_valid(GAS_spec))
-        call assert_true(GAS_spec .contains. det_I)
-        global_GAS_spec = GAS_spec
+        call init_excitgen_test(size(det_I), n_spat_orbs, FciDumpWriter_t(write_Li2_FCIDUMP, 'FCIDUMP'))
         call init_disconnected_GAS(GAS_spec)
         call run_excit_gen_tester( &
             gen_disconnected, 'old implementation, disconnected', &
             opt_nI=det_I%idx, opt_n_iters=n_iters, &
             gen_all_excits=gen_all_excits, &
-            calc_pgen=dyn_calc_pgen)
+            calc_pgen=dyn_calc_pgen, &
+            print_predicate=print_all)
         call clearGAS()
-
-        ! two benzenes stacked: 1exc in both directions
-        GAS_spec = GASSpec_t(&
-            n_orbs=[6, 12], &
-            n_min=[5, size(det_I)], &
-            n_max=[7, size(det_I)])
-        call assert_true(is_valid(GAS_spec))
-        call assert_true(GAS_spec .contains. det_I)
-        global_GAS_spec = GAS_spec
-        call run_excit_gen_tester( &
-            generate_nGAS_excitation, 'general, connected', &
-            opt_nI=det_I%idx, opt_n_iters=n_iters, &
-            gen_all_excits=gen_all_excits)
 
         call finalize_excitgen_test()
 
@@ -1100,7 +1080,190 @@ contains
             call sort(det_list, ilut_lt, ilut_gt)
         end subroutine gen_all_excits
 
-    end subroutine
+        subroutine random_fcidump(iunit)
+            integer, intent(in) :: iunit
+            call generate_random_integrals(&
+                iunit, n_el=size(det_I), n_spat_orb=n_spat_orbs, &
+                sparse=1.0_dp, sparseT=1.0_dp, total_ms=sum(calc_spin(det_I)))
+        end subroutine
+
+        function pgen_wrong_or_zero_helement(det_I, exc, pgen_diagnostic) result(res)
+            type(SpinOrbIdx_t), intent(in) :: det_I
+            class(Excitation_t), intent(in) :: exc
+            real(dp), intent(in) :: pgen_diagnostic
+
+            logical :: res
+
+            res = (pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic) &
+                  .or. (dyn_sltcnd_excit(det_I, exc) .isclose. 0.0_dp)
+        end function
+
+
+        function print_all(det_I, exc, pgen_diagnostic) result(res)
+            type(SpinOrbIdx_t), intent(in) :: det_I
+            class(Excitation_t), intent(in) :: exc
+            real(dp), intent(in) :: pgen_diagnostic
+            logical :: res
+            res = .true.
+        end function
+
+
+
+        subroutine write_Li2_FCIDUMP(unit_id)
+            integer, intent(in) :: unit_id
+            write(unit_id, '(A)') '  &FCI NORB=  6,NELEC=  6,MS2=  0,'
+            write(unit_id, '(A)') '  ORBSYM= 1, 1, 1, 1, 1, 1,'
+            write(unit_id, '(A)') '  ISYM=0'
+            write(unit_id, '(A)') ' &END'
+            write(unit_id, '(A)') '     1.6327627870        1    1    1    1'
+            write(unit_id, '(A)') '   -0.13816660653        2    1    1    1'
+            write(unit_id, '(A)') '    0.17265361682E-01    2    1    2    1'
+            write(unit_id, '(A)') '    0.34397810102        2    2    1    1'
+            write(unit_id, '(A)') '   -0.53019371999E-02    2    2    2    1'
+            write(unit_id, '(A)') '    0.25068860113        2    2    2    2'
+            write(unit_id, '(A)') '    0.42029080786E-02    3    1    3    1'
+            write(unit_id, '(A)') '    0.63322371809E-02    3    2    3    1'
+            write(unit_id, '(A)') '    0.50916769052E-01    3    2    3    2'
+            write(unit_id, '(A)') '    0.29004307384        3    3    1    1'
+            write(unit_id, '(A)') '   -0.35754113716E-02    3    3    2    1'
+            write(unit_id, '(A)') '    0.22795394153        3    3    2    2'
+            write(unit_id, '(A)') '    0.22612217356        3    3    3    3'
+            write(unit_id, '(A)') '    0.75043896954E-02    4    1    1    1'
+            write(unit_id, '(A)') '   -0.10585776208E-02    4    1    2    1'
+            write(unit_id, '(A)') '    0.19681432522E-03    4    1    2    2'
+            write(unit_id, '(A)') '    0.12946913459E-03    4    1    3    3'
+            write(unit_id, '(A)') '    0.19848698782E-03    4    1    4    1'
+            write(unit_id, '(A)') '   -0.97992463811E-02    4    2    1    1'
+            write(unit_id, '(A)') '    0.41363792273E-03    4    2    2    1'
+            write(unit_id, '(A)') '   -0.41124456245E-02    4    2    2    2'
+            write(unit_id, '(A)') '   -0.40070999477E-02    4    2    3    3'
+            write(unit_id, '(A)')  '0.58481893008E-03    4    2    4    1'
+            write(unit_id, '(A)') '    0.44589483716E-02    4    2    4    2'
+            write(unit_id, '(A)') '   -0.32605732421E-03    4    3    3    1'
+            write(unit_id, '(A)') '   -0.23156361648E-02    4    3    3    2'
+            write(unit_id, '(A)') '    0.32058144665E-03    4    3    4    3'
+            write(unit_id, '(A)') '    0.20051849601        4    4    1    1'
+            write(unit_id, '(A)') '    0.41735324022E-02    4    4    2    1'
+            write(unit_id, '(A)') '    0.18878583186        4    4    2    2'
+            write(unit_id, '(A)') '    0.15749127301        4    4    3    3'
+            write(unit_id, '(A)') '    0.75043896954E-02    4    4    4    1'
+            write(unit_id, '(A)') '    0.66793041000E-01    4    4    4    2'
+            write(unit_id, '(A)') '     1.6327627870        4    4    4    4'
+            write(unit_id, '(A)') '    0.66793041000E-01    5    1    1    1'
+            write(unit_id, '(A)') '   -0.71513328264E-02    5    1    2    1'
+            write(unit_id, '(A)') '    0.65121751160E-02    5    1    2    2'
+            write(unit_id, '(A)') '    0.53241021228E-02    5    1    3    3'
+            write(unit_id, '(A)') '    0.58481893008E-03    5    1    4    1'
+            write(unit_id, '(A)') '   -0.53514496182E-03    5    1    4    2'
+            write(unit_id, '(A)') '   -0.97992463811E-02    5    1    4    4'
+            write(unit_id, '(A)') '    0.44589483716E-02    5    1    5    1'
+            write(unit_id, '(A)') '   -0.24959346753E-01    5    2    1    1'
+            write(unit_id, '(A)') '    0.79717594725E-03    5    2    2    1'
+            write(unit_id, '(A)') '   -0.10346561190E-01    5    2    2    2'
+            write(unit_id, '(A)') '   -0.78447694255E-02    5    2    3    3'
+            write(unit_id, '(A)') '    0.21941615579E-04    5    2    4    1'
+            write(unit_id, '(A)') '    0.28662672467E-04    5    2    4    2'
+            write(unit_id, '(A)') '   -0.24959346753E-01    5    2    4    4'
+            write(unit_id, '(A)') '    0.28662672467E-04    5    2    5    1'
+            write(unit_id, '(A)') '    0.32376065304E-02    5    2    5    2'
+            write(unit_id, '(A)') '   -0.21173245038E-03    5    3    3    1'
+            write(unit_id, '(A)') '    0.38589709967E-03    5    3    3    2'
+            write(unit_id, '(A)') '    0.16799583491E-03    5    3    4    3'
+            write(unit_id, '(A)') '    0.12651804505E-02    5    3    5    3'
+            write(unit_id, '(A)') '    0.41735324022E-02    5    4    1    1'
+            write(unit_id, '(A)') '   -0.36901184632E-03    5    4    2    1'
+            write(unit_id, '(A)') '    0.91458714190E-03    5    4    2    2'
+            write(unit_id, '(A)') '    0.15869063848E-02    5    4    3    3'
+            write(unit_id, '(A)') '   -0.10585776208E-02    5    4    4    1'
+            write(unit_id, '(A)') '   -0.71513328264E-02    5    4    4    2'
+            write(unit_id, '(A)') '   -0.13816660653        5    4    4    4'
+            write(unit_id, '(A)') '    0.41363792273E-03    5    4    5    1'
+            write(unit_id, '(A)') '    0.79717594725E-03    5    4    5    2'
+            write(unit_id, '(A)') '    0.17265361682E-01    5    4    5    4'
+            write(unit_id, '(A)') '    0.18878583186        5    5    1    1'
+            write(unit_id, '(A)') '    0.91458714190E-03    5    5    2    1'
+            write(unit_id, '(A)') '    0.16743661593        5    5    2    2'
+            write(unit_id, '(A)') '    0.14955029106        5    5    3    3'
+            write(unit_id, '(A)') '    0.19681432522E-03    5    5    4    1'
+            write(unit_id, '(A)') '    0.65121751160E-02    5    5    4    2'
+            write(unit_id, '(A)') '    0.34397810102        5    5    4    4'
+            write(unit_id, '(A)') '   -0.41124456245E-02    5    5    5    1'
+            write(unit_id, '(A)') '   -0.10346561190E-01    5    5    5    2'
+            write(unit_id, '(A)') '   -0.53019371999E-02    5    5    5    4'
+            write(unit_id, '(A)') '    0.25068860113        5    5    5    5'
+            write(unit_id, '(A)') '   -0.82333190944E-03    6    1    3    1'
+            write(unit_id, '(A)') '   -0.18412795676E-02    6    1    3    2'
+            write(unit_id, '(A)') '    0.14623348073E-03    6    1    4    3'
+            write(unit_id, '(A)') '   -0.88597661874E-04    6    1    5    3'
+            write(unit_id, '(A)') '    0.32058144665E-03    6    1    6    1'
+            write(unit_id, '(A)') '   -0.35618532176E-03    6    2    3    1'
+            write(unit_id, '(A)') '   -0.75979938319E-03    6    2    3    2'
+            write(unit_id, '(A)') '   -0.88597661874E-04    6    2    4    3'
+            write(unit_id, '(A)') '    0.74379496651E-04    6    2    5    3'
+            write(unit_id, '(A)') '    0.16799583491E-03    6    2    6    1'
+            write(unit_id, '(A)') '    0.12651804505E-02    6    2    6    2'
+            write(unit_id, '(A)') '   -0.79810529730E-02    6    3    1    1'
+            write(unit_id, '(A)') '    0.40240805622E-03    6    3    2    1'
+            write(unit_id, '(A)') '   -0.17890067998E-02    6    3    2    2'
+            write(unit_id, '(A)') '   -0.10096059220E-02    6    3    3    3'
+            write(unit_id, '(A)') '   -0.14350926511E-03    6    3    4    1'
+            write(unit_id, '(A)') '   -0.77434722556E-03    6    3    4    2'
+            write(unit_id, '(A)') '   -0.79810529730E-02    6    3    4    4'
+            write(unit_id, '(A)') '   -0.77434722556E-03    6    3    5    1'
+            write(unit_id, '(A)') '   -0.32701342776E-03    6    3    5    2'
+            write(unit_id, '(A)') '    0.40240805622E-03    6    3    5    4'
+            write(unit_id, '(A)') '   -0.17890067998E-02    6    3    5    5'
+            write(unit_id, '(A)') '    0.26045402532E-02    6    3    6    3'
+            write(unit_id, '(A)') '    0.52578962662E-04    6    4    3    1'
+            write(unit_id, '(A)') '    0.61941348667E-03    6    4    3    2'
+            write(unit_id, '(A)') '   -0.82333190944E-03    6    4    4    3'
+            write(unit_id, '(A)') '   -0.35618532176E-03    6    4    5    3'
+            write(unit_id, '(A)') '   -0.32605732421E-03    6    4    6    1'
+            write(unit_id, '(A)') '   -0.21173245038E-03    6    4    6    2'
+            write(unit_id, '(A)') '    0.42029080786E-02    6    4    6    4'
+            write(unit_id, '(A)') '    0.61941348667E-03    6    5    3    1'
+            write(unit_id, '(A)') '    0.12480416371E-01    6    5    3    2'
+            write(unit_id, '(A)') '   -0.18412795676E-02    6    5    4    3'
+            write(unit_id, '(A)') '   -0.75979938319E-03    6    5    5    3'
+            write(unit_id, '(A)') '   -0.23156361648E-02    6    5    6    1'
+            write(unit_id, '(A)') '    0.38589709967E-03    6    5    6    2'
+            write(unit_id, '(A)') '    0.63322371809E-02    6    5    6    4'
+            write(unit_id, '(A)') '    0.50916769052E-01    6    5    6    5'
+            write(unit_id, '(A)') '    0.15749127301        6    6    1    1'
+            write(unit_id, '(A)') '    0.15869063848E-02    6    6    2    1'
+            write(unit_id, '(A)') '    0.14955029106        6    6    2    2'
+            write(unit_id, '(A)') '    0.13770968110        6    6    3    3'
+            write(unit_id, '(A)') '    0.12946913459E-03    6    6    4    1'
+            write(unit_id, '(A)') '    0.53241021228E-02    6    6    4    2'
+            write(unit_id, '(A)') '    0.29004307384        6    6    4    4'
+            write(unit_id, '(A)') '   -0.40070999477E-02    6    6    5    1'
+            write(unit_id, '(A)') '   -0.78447694255E-02    6    6    5    2'
+            write(unit_id, '(A)') '   -0.35754113716E-02    6    6    5    4'
+            write(unit_id, '(A)') '    0.22795394153        6    6    5    5'
+            write(unit_id, '(A)') '   -0.10096059220E-02    6    6    6    3'
+            write(unit_id, '(A)') '    0.22612217356        6    6    6    6'
+            write(unit_id, '(A)') '    -5.0104776095        1    1    0    0'
+            write(unit_id, '(A)') '    0.16825602123        2    1    0    0'
+            write(unit_id, '(A)') '    -1.3444694987        2    2    0    0'
+            write(unit_id, '(A)') '    -1.1641813794        3    3    0    0'
+            write(unit_id, '(A)') '   -0.21959082572E-01    4    1    0    0'
+            write(unit_id, '(A)') '   -0.17000642444        4    2    0    0'
+            write(unit_id, '(A)') '    -5.0104776095        4    4    0    0'
+            write(unit_id, '(A)') '   -0.17000642444        5    1    0    0'
+            write(unit_id, '(A)') '    0.83304412852E-02    5    2    0    0'
+            write(unit_id, '(A)') '    0.16825602123        5    4    0    0'
+            write(unit_id, '(A)') '    -1.3444694987        5    5    0    0'
+            write(unit_id, '(A)') '   -0.50817865497E-02    6    3    0    0'
+            write(unit_id, '(A)') '    -1.1641813794        6    6    0    0'
+            write(unit_id, '(A)') '    -2.4825000000        1    0    0    0'
+            write(unit_id, '(A)') '    -2.4750000000        2    0    0    0'
+            write(unit_id, '(A)') '   -0.30682000000        3    0    0    0'
+            write(unit_id, '(A)') '   -0.84108000000E-01    4    0    0    0'
+            write(unit_id, '(A)') '     3.1292000000        5    0    0    0'
+            write(unit_id, '(A)') '     3.1292000000        6    0    0    0'
+            write(unit_id, '(A)') '     1.7817547824        0    0    0    0'
+        end subroutine write_Li2_FCIDUMP
+    end subroutine test_pgen
 
 
     subroutine test_get_possible_spaces_spinorb()
@@ -1359,6 +1522,7 @@ program test_gasci_program
 
     use mpi
     use fruit
+    use Parallel_neci, only: MPIInit, MPIEnd
     use test_gasci_mod, only: test_igas_from_spatorb, test_igas_from_spinorb, &
         test_contains_det_spinorb, test_contains_det_spatorb, &
         test_particles_per_GAS_spatorb, test_particles_per_GAS_spinorb, &
@@ -1373,7 +1537,7 @@ program test_gasci_program
     integer :: n
     block
 
-        call mpi_init(err)
+        call MPIInit(.false.)
 
         call init_fruit()
 
@@ -1385,7 +1549,7 @@ program test_gasci_program
 
         if (failed_count /= 0) call stop_all('test_gasci_program', 'failed_tests')
 
-        call mpi_finalize(err)
+        call MPIEnd(.false.)
     end block
 
 contains

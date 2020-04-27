@@ -1,35 +1,35 @@
 #include "macros.h"
 
 module unit_test_helper_excitgen
-  use constants
-  use read_fci, only: readfciint, initfromfcid, fcidump_name
-  use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
-  use IntegralsData, only: UMat, umat_win
-  use Integrals_neci, only: IntInit, get_umat_el_normal
-  use procedure_pointers, only: get_umat_el, generate_excitation
-  use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
+    use constants
+    use read_fci, only: readfciint, initfromfcid, fcidump_name
+    use shared_memory_mpi, only: shared_allocate_mpi, shared_deallocate_mpi
+    use IntegralsData, only: UMat, umat_win
+    use Integrals_neci, only: IntInit, get_umat_el_normal
+    use procedure_pointers, only: get_umat_el, generate_excitation
+    use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
        tReadInt, t_pcpp_excitgen
-  use sort_mod
-  use System, only: SysInit, SetSysDefaults, SysCleanup
-  use Parallel_neci, only: MPIInit, MPIEnd
-  use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
-  use OneEInts, only: Tmat2D
-  use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
-  use bit_reps, only: encode_sign, decode_bit_det
-  use DetBitOps, only: EncodeBitDet, DetBitEq
-  use SymExcit3, only: countExcitations3, GenExcitations3
-  use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet, &
+    use sort_mod
+    use System, only: SysInit, SetSysDefaults, SysCleanup
+    use Parallel_neci, only: MPIInit, MPIEnd
+    use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
+    use OneEInts, only: Tmat2D
+    use bit_rep_data, only: NIfTot, NIfDBO, NOffSgn, NIfSgn, extract_sign
+    use bit_reps, only: encode_sign, decode_bit_det
+    use DetBitOps, only: EncodeBitDet, DetBitEq
+    use SymExcit3, only: countExcitations3, GenExcitations3
+    use FciMCData, only: pSingles, pDoubles, pParallel, ilutRef, projEDet, &
        fcimc_excit_gen_store
-  use SymExcitDataMod, only: excit_gen_store_type, scratchSize
-  use GenRandSymExcitNUMod, only: init_excit_gen_store, construct_class_counts
-  use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
-  use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
-  use Determinants, only: DetInit, DetPreFreezeInit, get_helement
-  use util_mod, only: get_free_unit
-  use orb_idx_mod, only: SpinProj_t
-  implicit none
+    use SymExcitDataMod, only: excit_gen_store_type, scratchSize
+    use GenRandSymExcitNUMod, only: init_excit_gen_store, construct_class_counts
+    use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
+    use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
+    use Determinants, only: DetInit, DetPreFreezeInit, get_helement
+    use util_mod, only: get_free_unit
+    use orb_idx_mod, only: SpinProj_t
+    implicit none
 
-  abstract interface
+    abstract interface
      function calc_pgen_t(nI, ilutI, ex, ic, ClassCount2, ClassCountUnocc2) result(pgen)
        use constants
        use SymExcitDataMod, only: scratchSize
@@ -44,9 +44,30 @@ module unit_test_helper_excitgen
        real(dp) :: pgen
 
      end function calc_pgen_t
- end interface
+    end interface
 
- procedure(calc_pgen_t), pointer :: calc_pgen
+    procedure(calc_pgen_t), pointer :: calc_pgen
+
+    abstract interface
+        subroutine to_unit_writer_t(iunit)
+            integer, intent(in) :: iunit
+        end subroutine
+    end interface
+
+    type, abstract :: Writer_t
+        procedure(to_unit_writer_t), pointer, nopass :: write
+        ! I would like it to be:
+        ! character(:), allocatable :: filepath
+        ! but for gfortran <= 4.8.5 it has to be
+        character(512) :: filepath
+    end type
+
+    type, extends(Writer_t) :: FciDumpWriter_t
+    end type
+
+    type, extends(Writer_t) :: InputWriter_t
+    end type
+
 
 contains
 
@@ -220,13 +241,12 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  subroutine init_excitgen_test(n_el, n_spat_orbs, sparse, sparseT, total_ms)
+  subroutine init_excitgen_test(n_el, n_spat_orbs, fcidump_writer)
     ! mimick the initialization of an FCIQMC calculation to the point where we can generate
     ! excitations with a weighted excitgen
     ! This requires setup of the basis, the symmetries and the integrals
     integer, intent(in) :: n_el, n_spat_orbs
-    real(dp), intent(in) :: sparse, sparseT
-    type(SpinProj_t), intent(in) :: total_ms
+    type(FciDumpWriter_t), intent(in) :: fcidump_writer
     integer :: nBasisMax(n_el, 3), lms
     integer(int64) :: umatsize
     real(dp) :: ecore
@@ -249,12 +269,11 @@ contains
     call SetSysDefaults()
     tReadInt = .true.
 
-    call generate_random_integrals(n_el, n_spat_orbs, sparse, sparseT, total_ms)
+    call write_file(fcidump_writer)
 
     get_umat_el => get_umat_el_normal
 
     call initfromfcid(nel,nbasismax,nBasis,lms,.false.)
-    ASSERT(lms == total_ms%val)
 
     call GetUMatSize(nBasis, umatsize)
 
@@ -291,12 +310,12 @@ contains
 
   !------------------------------------------------------------------------------------------!
 
-  ! generate an FCIDUMP file with random numbers with a given sparsity
-  subroutine generate_random_integrals(n_el, n_spat_orb, sparse, sparseT, total_ms)
-    integer, intent(in) :: n_el, n_spat_orb
+  ! generate an FCIDUMP file with random numbers with a given sparsity and write to iunit
+  subroutine generate_random_integrals(iunit, n_el, n_spat_orb, sparse, sparseT, total_ms)
+    integer, intent(in) :: iunit, n_el, n_spat_orb
     real(dp), intent(in) :: sparse, sparseT
     type(SpinProj_t), intent(in) :: total_ms
-    integer :: i,j,k,l, iunit
+    integer :: i,j,k,l
     real(dp) :: r, matel
     ! we get random matrix elements from the cauchy-schwartz inequalities, so
     ! only <ij|ij> are random -> random 2d matrix
@@ -312,8 +331,6 @@ contains
     end do
 
     ! write the canonical FCIDUMP header
-    iunit = get_free_unit()
-    open(iunit,file="FCIDUMP")
     write(iunit,*) "&FCI NORB=",n_spat_orb,",NELEC=",n_el,"MS2=",total_ms%val,","
     write(iunit,"(A)",advance="no") "ORBSYM="
     do i = 1, n_spat_orb
@@ -342,8 +359,6 @@ contains
           endif
        end do
     end do
-    close(iunit)
-
   end subroutine generate_random_integrals
 
   !------------------------------------------------------------------------------------------!
@@ -364,4 +379,23 @@ contains
     deallocate(projEDet)
   end subroutine free_ref
 
+
+  subroutine delete_file(path)
+      character(*), intent(in) :: path
+      integer :: file_id
+
+      file_id = get_free_unit()
+      open(file_id, file=path, status='old')
+      close(file_id, status='delete')
+  end subroutine
+
+  subroutine write_file(writer)
+      class(Writer_t), intent(in) :: writer
+      integer :: file_id
+
+      file_id = get_free_unit()
+      open(file_id, file=writer%filepath)
+          call writer%write(file_id)
+      close(file_id)
+  end subroutine
 end module unit_test_helper_excitgen

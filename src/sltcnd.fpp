@@ -87,6 +87,23 @@ module sltcnd_mod
         module procedure sltcnd_excit_SpinOrbIdx_t_DoubleExc_t
     end interface
 
+!>  @brief
+!>      Evaluate Matrix Element for different excitations
+!>      using the Slater-Condon rules.
+!>
+!>  @details
+!>  This generic function uses run time dispatch.
+!>  This means that exc can be any subtype of class(excitation_t).
+!>  For performance reason it is advised to use sltcnd_excit,
+!>  if the actual type is known at compile time.
+!>
+!>  @param[in] ref, The reference determinant as array of occupied orbital indices.
+!>  @param[in] exc, An excitation of type excitation_t.
+!>  @param[in] tParity, The parity of the excitation.
+    interface dyn_sltcnd_excit
+        module procedure dyn_sltcnd_excit_integer, dyn_sltcnd_excit_SpinOrbIdx_t
+    end interface
+
     abstract interface
         function sltcnd_0_t(nI, exc) result(hel)
             import :: dp, nel, NoExc_t
@@ -164,42 +181,42 @@ contains
     end subroutine initSltCndPtr
 
 
-!>  @brief
-!>      Evaluate Matrix Element for different excitations
-!>      using the Slater-Condon rules.
-!>
-!>  @details
-!>  This generic function uses run time dispatch.
-!>  This means that exc can be any subtype of class(excitation_t).
-!>  For performance reason it is advised to use sltcnd_excit,
-!>  if the actual type is known at compile time.
-!>
-!>  @param[in] ref, The reference determinant as array of occupied orbital indices.
-!>  @param[in] exc, An excitation of type excitation_t.
-!>  @param[in] tParity, The parity of the excitation.
-    function dyn_sltcnd_excit(ref, exc, tParity) result(hel)
+    function dyn_sltcnd_excit_integer(ref, exc, tParity) result(hel)
         integer, intent(in) :: ref(nel)
         class(Excitation_t), intent(in) :: exc
-        logical, intent(in) :: tParity
+        logical, intent(in), optional :: tParity
+        logical :: tParity_
         HElement_t(dp) :: hel
         character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
+
+        @:def_default(tParity_, tParity, .false.)
 
         ! The compiler has to statically know, of what type exc is.
         select type(exc)
         type is (NoExc_t)
             hel = sltcnd_excit(ref, exc)
         type is (SingleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
+            hel = sltcnd_excit(ref, exc, tParity_)
         type is (DoubleExc_t)
-            hel = sltcnd_excit(ref, exc, tParity)
+            hel = sltcnd_excit(ref, exc, tParity_)
         type is (TripleExc_t)
-            hel = sltcnd_excit(exc, tParity)
+            hel = sltcnd_excit(exc, tParity_)
         type is (FurtherExc_t)
             hel = sltcnd_excit(exc)
         class default
             call stop_all(this_routine, "Error in downcast.")
         end select
     end function
+
+    function dyn_sltcnd_excit_SpinOrbIdx_t(ref, exc, tParity) result(hel)
+        type(SpinOrbIdx_t), intent(in) :: ref
+        class(Excitation_t), intent(in) :: exc
+        logical, intent(in), optional :: tParity
+        HElement_t(dp) :: hel
+        character(*), parameter :: this_routine = 'dyn_sltcnd_excit'
+        hel = dyn_sltcnd_excit(ref%idx, exc, tParity)
+    end function
+
 
     function dyn_sltcnd_excit_old(nI, IC, ex, tParity) result(hel)
 

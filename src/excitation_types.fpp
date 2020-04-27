@@ -35,7 +35,7 @@ module excitation_types
 
 
 !> Arbitrary non occuring (?!) orbital index.
-    integer, parameter :: UNKNOWN = 0
+    integer, parameter :: UNKNOWN = -20
 
 !>  @brief
 !>      Abstract base class for excitations.
