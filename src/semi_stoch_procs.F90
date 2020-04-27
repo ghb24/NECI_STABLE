@@ -1188,7 +1188,7 @@ contains
               call extract_sign(CurrentDets(:,i), walker_sign)
               ! Don't add the determinant to the hash table if its unoccupied and not
               ! in the core space and not accumulated.
-              if (IsUnoccDet(walker_sign) .and. (.not. check_determ_flag(CurrentDets(:,i), run)) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
+              if (IsUnoccDet(walker_sign) .and. (.not. check_determ_flag(CurrentDets(:,i))) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
               call decode_bit_det(nI, CurrentDets(:,i))
               hash_val = FindWalkerHash(nI,nWalkerHashes)
               temp_node => HashIndex(hash_val)
@@ -1271,20 +1271,12 @@ contains
                 ! Instead of resorting, just find new smallest sign and position.
                 call extract_sign(largest_walkers(:,1),low_sign)
 
-#ifdef CMPLX_
-                smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
-#else
-                smallest_sign = sum(real(abs(low_sign),dp))
-#endif
+                smallest_sign = core_space_weight(low_sign, run)
 
                 smallest_pos = 1
                 do j = 2, n_keep
                     call extract_sign(largest_walkers(:,j), low_sign)
-#ifdef CMPLX_
-                    sign_curr_real = sqrt(sum(real(low_sign**2,dp)))
-#else
-                    sign_curr_real = sum(real(abs(low_sign),dp))
-#endif
+                    sign_curr_real = core_space_weight(low_sign, run)
                     if (sign_curr_real < smallest_sign .or. all(largest_walkers(:,j) == 0_n_int)) then
                         smallest_pos = j
                         smallest_sign = sign_curr_real

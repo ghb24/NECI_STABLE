@@ -70,7 +70,7 @@ module FciMCParMod
          refresh_semistochastic_space
     use semi_stoch_procs, only: is_core_state, check_determ_flag, &
                                 determ_projection, average_determ_vector, &
-                                determ_projection_no_death
+                                determ_projection_no_death, core_space_pos
     use trial_wf_gen, only: update_compare_trial_file, init_trial_wf, refresh_trial_wf
     use hist, only: write_zero_hist_excit_tofrom, write_clear_hist_spin_dist
     use orthogonalise, only: orthogonalise_replicas, calc_replica_overlaps, &
@@ -1204,7 +1204,7 @@ module FciMCParMod
         HElement_t(dp) :: HDiagTemp, HElGen
         character(*), parameter :: this_routine = 'PerformFCIMCycPar'
         HElement_t(dp), dimension(inum_runs) :: delta
-        integer :: proc, pos, determ_index(inum_runs), irdm
+        integer :: proc, pos, determ_index, irdm
         real(dp) :: r, sgn(lenof_sign), prob_extra_walker
         integer :: DetHash, FinalVal, clash, PartInd, k, y, MaxIndex
         type(ll_node), pointer :: TempNode
@@ -1247,7 +1247,7 @@ module FciMCParMod
         if (use_spawn_hash_table) call clear_hash_table(spawn_ht)
 
         ! Index for counting deterministic states.
-        determ_index = 1
+        determ_index = 0
 
         call rezero_iter_stats_each_iter(iter_data, rdm_definitions)
 
@@ -1393,17 +1393,28 @@ module FciMCParMod
 
             ! This if-statement is only entered when using semi-stochastic and
             ! only if this determinant is in the core space.
+            ! Potential optimization: This list does not change between iterations, only set it up once
             if(allocated(cs_replicas)) then
                 do run = 1, size(cs_replicas)
                     associate( rep => cs_replicas(run)) 
                       if (tCoreDet(run)) then
                           ! Store the index of this state, for use in annihilation later.
-                          rep%indices_of_determ_states(determ_index(run)) = j
+
+                          ! A global core-space is ordered in the same fashion
+                          ! in currentdets as internally in the core_space
+                          if(t_global_core_space) then
+                              determ_index = determ_index + 1
+                          else
+                              ! In general, that is not true however, the
+                              ! core-space index has to be looked up
+                              determ_index = core_space_pos(CurrentDets(:,j), DetCurr, &
+                                  run) - rep%determ_displs(iProcIndex)
+                          endif
+
+                          rep%indices_of_determ_states(determ_index) = j
 
                           ! Add this amplitude to the deterministic vector.
-                          rep%partial_determ_vecs(:,determ_index(run)) = SignCurr(rep%min_part():rep%max_part())
-
-                          determ_index(run) = determ_index(run) + 1
+                          rep%partial_determ_vecs(:,determ_index) = SignCurr(rep%min_part():rep%max_part())
                       end if
                     end associate
                 end do
