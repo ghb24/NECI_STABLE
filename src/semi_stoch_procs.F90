@@ -679,18 +679,14 @@ contains
 
         global_offset = node_offsets(iProcIndex_inter) + proc_offset
 
-        do i = 0, node_size-1
-            if(i == iProcIndex_intra) then
-                call MPI_Win_Sync(rep%core_space_win, ierr)
-                call MPI_Barrier(mpi_comm_intra, ierr)
-                rep%core_space(0:NIfTot,(global_offset+1):&
-                    (global_offset + rep%determ_sizes(iProcIndex))) = &
-                    SpawnedParts(0:NIfTot, 1:rep%determ_sizes(iProcIndex))
-                call MPI_Win_Sync(rep%core_space_win, ierr)
-                call MPI_Barrier(mpi_comm_intra, ierr)
-                call MPI_Win_Sync(rep%core_space_win, ierr)
-            endif
-        end do
+        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
+        rep%core_space(0:NIfTot,(global_offset+1):&
+            (global_offset + rep%determ_sizes(iProcIndex))) = &
+            SpawnedParts(0:NIfTot, 1:rep%determ_sizes(iProcIndex))
+        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(rep%core_space_win, ierr)
 
         ! Multiply with message width (1+NIfTot)
         core_width = int(size(rep%core_space, dim = 1), MPIArg)
