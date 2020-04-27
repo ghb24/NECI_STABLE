@@ -10,7 +10,7 @@ module unit_test_helper_excitgen
   use SystemData, only: nel, nBasis, UMatEps, tStoreSpinOrbs, tReadFreeFormat, tCSF, &
        tReadInt, t_pcpp_excitgen
   use sort_mod
-  use System, only: SysInit, SetSysDefaults
+  use System, only: SysInit, SetSysDefaults, SysCleanup
   use Parallel_neci, only: MPIInit, MPIEnd
   use UMatCache, only: GetUMatSize, tTransGTID, setupUMat2d_dense
   use OneEInts, only: Tmat2D
@@ -22,7 +22,7 @@ module unit_test_helper_excitgen
        fcimc_excit_gen_store
   use SymExcitDataMod, only: excit_gen_store_type, scratchSize
   use GenRandSymExcitNUMod, only: init_excit_gen_store, construct_class_counts
-  use Calc, only: CalcInit, SetCalcDefaults
+  use Calc, only: CalcInit, CalcCleanup, SetCalcDefaults
   use dSFMT_interface, only: dSFMT_init, genrand_real2_dSFMT
   use Determinants, only: DetInit, DetPreFreezeInit, get_helement
   use util_mod, only: get_free_unit
@@ -243,8 +243,6 @@ contains
     tTransGTID = .false.
     tReadFreeFormat = .true.
 
-    call MPIInit(.true.)
-
     call dSFMT_init(25)
 
     call SetCalcDefaults()
@@ -287,7 +285,8 @@ contains
   subroutine finalize_excitgen_test()
     deallocate(TMat2D)
     call shared_deallocate_mpi(umat_win, UMat)
-    call MPIEnd(.true.)
+    call CalcCleanup()
+    call SysCleanup()
   end subroutine finalize_excitgen_test
 
   !------------------------------------------------------------------------------------------!
