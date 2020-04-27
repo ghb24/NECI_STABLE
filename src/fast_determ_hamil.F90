@@ -105,10 +105,10 @@ contains
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt_hphf"
 
         call shared_allocate_mpi(beta_list_win, beta_list_ptr, &
-            (/int(1+NifD, int64), int(rep%determ_space_size, int64)/))
+            (/int(1+NifD, int64), 2*int(rep%determ_space_size, int64)/))
         beta_list(0:,1:) => beta_list_ptr(1:,1:)
         call shared_allocate_mpi(alpha_list_win, alpha_list_ptr, &
-            (/int(1+NifD, int64), int(rep%determ_space_size, int64)/))
+            (/int(1+NifD, int64), 2*int(rep%determ_space_size, int64)/))
         alpha_list(0:,1:) => alpha_list_ptr(1:,1:)
 
         call nbeta_dets%shared_alloc(int(rep%determ_space_size, int64))
