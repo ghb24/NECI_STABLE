@@ -1223,7 +1223,7 @@ contains
         use sort_mod, only: sort
 
         integer, intent(in), optional :: opt_source_size
-        integer(n_int), intent(in), optional, pointer :: opt_source(:,:)
+        integer(n_int), intent(in), optional :: opt_source(:,:)
         integer, intent(in) :: n_keep, run
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm        
@@ -1232,7 +1232,7 @@ contains
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
         character(*), parameter :: this_routine = "return_most_populated_states"
 
-        integer(n_int), pointer :: loc_source(:,:)
+        integer(n_int), allocatable :: loc_source(:,:)
         integer(int64) :: source_size
 
         if (present(opt_source)) then
