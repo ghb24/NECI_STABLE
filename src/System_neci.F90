@@ -206,7 +206,7 @@ MODULE System
       tMultiReplicas = .false.
       tGiovannisBrokenInit = .false.
       ! GAS options
-      tGASSpinRecoupling = .false.
+      tGASSpinRecoupling = .true.
       tGAS = .false.
 
 #ifdef PROG_NUMRUNS_

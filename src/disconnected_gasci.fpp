@@ -304,6 +304,7 @@ contains
         integer :: ms, nJBase(nel)
         real(dp) :: r, pgen_pick1, pgen_pick2
         logical :: tExchange
+        character(*), parameter :: this_routine = 'generate_nGAS_double'
         ! assuming that there are possible excitations within each active space,
         ! pick two random electrons (we would not include a full / empty space, so
         ! the assumption is very mild)
@@ -311,6 +312,8 @@ contains
 
         ! active spaces we consider
         srcGAS = GAS_table(src)
+
+        @:ASSERT(tGASSpinRecoupling)
 
         tExchange = (ispn == 2) &
             .and. (tGASSpinRecoupling .or. srcGAS(1) == srcGAS(2))
@@ -333,7 +336,7 @@ contains
         end if
         tgt = 0
         ! the first hole is chosen randomly from the first active space
-        tgt(1) = pick_hole_from_active_space(ilutI, nI, srcGAS(1), ms, r, pgen_pick1)
+        tgt(1) = pick_hole_from_active_space(ilutI, nI, srcGAS(1), ms, genrand_real2_dSFMT(), pgen_pick1)
         if (tgt(1) == 0) then
             call zeroResult()
             return
