@@ -31,7 +31,7 @@ module excitation_types
     private
     public :: Excitation_t, NoExc_t, SingleExc_t, DoubleExc_t, TripleExc_t, &
         FurtherExc_t, UNKNOWN, defined, dyn_defined, last_tgt_unknown, set_last_tgt, &
-        create_excitation, get_excitation, get_bit_excitation, excite
+        create_excitation, get_excitation, get_bit_excitation, excite, dyn_excite
 
 
 !> Arbitrary non occuring (?!) orbital index.
@@ -172,7 +172,6 @@ module excitation_types
         #:endfor
     #:endfor
     end interface
-
 
 contains
 
@@ -478,6 +477,22 @@ contains
         set_orb(res, tgt(2))
     end function
 
+
+    DEBUG_IMPURE function dyn_excite(det_I, exc) result(res)
+        type(SpinOrbIdx_t), intent(in) :: det_I
+        class(Excitation_t), intent(in) :: exc
+        character(*), parameter :: this_routine = 'dyn_excite'
+        type(SpinOrbIdx_t) :: res
+
+        select type (exc)
+        type is (NoExc_t)
+            res = excite(det_I, exc)
+        type is (SingleExc_t)
+            res = excite(det_I, exc)
+        type is (DoubleExc_t)
+            res = excite(det_I, exc)
+        end select
+    end function
 
 
 end module
