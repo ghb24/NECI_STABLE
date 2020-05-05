@@ -105,10 +105,10 @@ contains
         character(len=*), parameter :: t_r = "calc_determ_hamil_opt_hphf"
 
         call shared_allocate_mpi(beta_list_win, beta_list_ptr, &
-            (/int(1+NifD, int64), int(rep%determ_space_size, int64)/))
+            (/int(1+NifD, int64), 2*int(rep%determ_space_size, int64)/))
         beta_list(0:,1:) => beta_list_ptr(1:,1:)
         call shared_allocate_mpi(alpha_list_win, alpha_list_ptr, &
-            (/int(1+NifD, int64), int(rep%determ_space_size, int64)/))
+            (/int(1+NifD, int64), 2*int(rep%determ_space_size, int64)/))
         alpha_list(0:,1:) => alpha_list_ptr(1:,1:)
 
         call nbeta_dets%shared_alloc(int(rep%determ_space_size, int64))
@@ -568,8 +568,9 @@ contains
         endif
 
         ! Sync the ilut lists
-        call MPI_Win_Fence(0, beta_list_win, ierr)
-        call MPI_Win_Fence(0, alpha_list_win, ierr)
+        call MPI_Win_Sync(beta_list_win, ierr)
+        call MPI_Win_Sync(alpha_list_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
         ! Create the node shared read-only hashtables
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)
@@ -1328,8 +1329,9 @@ contains
             nullify(alpha_ht)
         endif
         ! Sync the ilut lists
-        call MPI_Win_Fence(0, beta_list_win, ierr)
-        call MPI_Win_Fence(0, alpha_list_win, ierr)
+        call MPI_Win_Sync(beta_list_win, ierr)
+        call MPI_Win_Sync(alpha_list_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
         ! Create the node shared read-only hashtables
         call initialise_shared_rht(beta_list, nbeta, beta_rht, nOccBeta, hash_size_1)
         call initialise_shared_rht(alpha_list, nalpha, alpha_rht, nOccAlpha, hash_size_1)

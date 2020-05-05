@@ -681,11 +681,14 @@ contains
 
         global_offset = node_offsets(iProcIndex_inter) + proc_offset
 
-        call MPI_Win_fence(0, rep%core_space_win, ierr)
+        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
         rep%core_space(0:NIfTot,(global_offset+1):&
             (global_offset + rep%determ_sizes(iProcIndex))) = &
             SpawnedParts(0:NIfTot, 1:rep%determ_sizes(iProcIndex))
-        call MPI_Win_fence(0, rep%core_space_win, ierr)
+        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
+        call MPI_Win_Sync(rep%core_space_win, ierr)
 
         ! Multiply with message width (1+NIfTot)
         core_width = int(size(rep%core_space, dim = 1), MPIArg)
@@ -699,7 +702,8 @@ contains
             sizes_per_node, node_offsets, MPI_INTEGER8, mpi_comm_inter, ierr)
 
         ! And sync the shared window
-        call MPI_Win_fence(0, rep%core_space_win, ierr)
+        call MPI_Win_Sync(rep%core_space_win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
         ! Communicate the indices in the full vector at which the various processors take over, relative
         ! to the first index position in the vector (i.e. the array displs in MPI routines).
         call MPIAllGather(global_offset, rep%determ_displs, ierr)
@@ -1186,7 +1190,7 @@ contains
               call extract_sign(CurrentDets(:,i), walker_sign)
               ! Don't add the determinant to the hash table if its unoccupied and not
               ! in the core space and not accumulated.
-              if (IsUnoccDet(walker_sign) .and. (.not. check_determ_flag(CurrentDets(:,i), run)) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
+              if (IsUnoccDet(walker_sign) .and. (.not. check_determ_flag(CurrentDets(:,i))) .and. .not. tAccumEmptyDet(CurrentDets(:,i))) cycle
               call decode_bit_det(nI, CurrentDets(:,i))
               hash_val = FindWalkerHash(nI,nWalkerHashes)
               temp_node => HashIndex(hash_val)
@@ -1221,7 +1225,7 @@ contains
         use sort_mod, only: sort
 
         integer, intent(in), optional :: opt_source_size
-        integer(n_int), intent(in), optional, pointer :: opt_source(:,:)
+        integer(n_int), intent(in), optional :: opt_source(0:,1:)
         integer, intent(in) :: n_keep, run
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm
@@ -1230,7 +1234,7 @@ contains
         real(dp), dimension(lenof_sign) :: sign_curr, low_sign
         character(*), parameter :: this_routine = "return_most_populated_states"
 
-        integer(n_int), pointer :: loc_source(:,:)
+        integer(n_int), allocatable :: loc_source(:,:)
         integer(int64) :: source_size
 
         if (present(opt_source)) then
@@ -1269,20 +1273,12 @@ contains
                 ! Instead of resorting, just find new smallest sign and position.
                 call extract_sign(largest_walkers(:,1),low_sign)
 
-#ifdef CMPLX_
-                smallest_sign = sqrt(real(low_sign(1),dp)**2+real(low_sign(lenof_sign),dp)**2)
-#else
-                smallest_sign = sum(real(abs(low_sign),dp))
-#endif
+                smallest_sign = core_space_weight(low_sign, run)
 
                 smallest_pos = 1
                 do j = 2, n_keep
                     call extract_sign(largest_walkers(:,j), low_sign)
-#ifdef CMPLX_
-                    sign_curr_real = sqrt(sum(real(low_sign**2,dp)))
-#else
-                    sign_curr_real = sum(real(abs(low_sign),dp))
-#endif
+                    sign_curr_real = core_space_weight(low_sign, run)
                     if (sign_curr_real < smallest_sign .or. all(largest_walkers(:,j) == 0_n_int)) then
                         smallest_pos = j
                         smallest_sign = sign_curr_real

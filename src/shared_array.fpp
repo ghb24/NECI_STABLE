@@ -74,15 +74,16 @@ contains
         if(this%tag /= 0) call LogMemDealloc(t_r, this%tag)
     end subroutine safe_shared_memory_dealloc_${data_name}$
 
-    !> callls MPI_Fence on the array's shared memory window to sync rma
+    !> callls MPI_Win_Sync on the array's shared memory window to sync rma
     !! This has to be called between read/write epochs to ensure all tasks of a node are
     !! looking at the same shared data
     subroutine sync_${data_name}$(this)
         implicit none
         class(shared_array_${data_name}$_t) :: this
         integer :: ierr
-        
-        call MPI_Win_Fence(0, this%win, ierr)
+
+        call MPI_Win_Sync(this%win, ierr)
+        call MPI_Barrier(mpi_comm_intra, ierr)
         
     end subroutine sync_${data_name}$
 #:endfor

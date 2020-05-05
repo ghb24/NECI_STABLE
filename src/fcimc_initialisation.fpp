@@ -4560,6 +4560,8 @@ contains
 #endif
 
       old_norm_psi = norm_psi
+
+      all_norms = all_norm_psi_squared
     end subroutine init_norm
 
 !------------------------------------------------------------------------------------------!
