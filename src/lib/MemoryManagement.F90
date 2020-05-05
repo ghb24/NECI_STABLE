@@ -212,7 +212,7 @@ contains
     integer, intent(inout), optional :: nCalls
 
     integer :: ObjectSizeBytes,ismallloc(1)
-
+    external :: warning_neci
     if (present(nCalls)) nCalls=nCalls+1
 
     if (.not. initialised) then
@@ -291,7 +291,7 @@ contains
     integer, intent(in), optional :: err
     integer :: i,ismallloc(1)
     character(len=25) :: ObjectName
-
+    external :: stop_all
     if (.not.initialised) then
         if (err_output) write (6,*) 'Memory manager not initialised. Cannot log deallocation.'
         return

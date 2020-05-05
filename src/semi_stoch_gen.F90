@@ -1137,7 +1137,7 @@ contains
         integer :: nzero_dets
         real(dp) :: max_vals(0:nProcessors-1), min_vals(0:nProcessors-1), max_sign, min_sign
         integer(int64) :: source_size
-        integer(n_int), pointer :: loc_source(:,:)
+        integer(n_int), allocatable :: loc_source(:,:)
         integer(MPIARg) :: max_size
         logical :: t_use_fast_pops_core
 
