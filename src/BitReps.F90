@@ -202,10 +202,9 @@ contains
         NIfDBO = NIfD + NIfY
 
 #ifdef PROG_NUMRUNS_
-        if (lenof_sign_max /= 14) then
-            call stop_all(this_routine, "Invalid build configuration. Update &
-                         &flags to account for new lenof_sign_max, then &
-                         &update this message")
+        if (inum_runs > inum_runs_max) then
+            write(iout,*) "Maximally", inum_runs_max, "replicas are allowed"
+            call stop_all(this_routine, "Requesting more than the maximum number of replicas")
         end if
 #endif
 
