@@ -1,16 +1,19 @@
 program test_pcpp_excitgen
   use constants
   use fruit
+  use Parallel_neci, only: MPIInit, MPIEnd
   use pchb_excitgen
   use unit_test_helper_excitgen
   use orb_idx_mod, only: beta
   use procedure_pointers, only: generate_excitation
   implicit none
 
+  call MPIInit(.false.)
   call init_fruit()
   call pchb_test_driver()
   call fruit_summary()
   call fruit_finalize()
+  call MPIEnd(.false.)
 
 contains
 
@@ -27,7 +30,7 @@ contains
     calc_pgen => calc_pgen_pchb
 
     ! prepare an excitation generator test
-    call init_excitgen_test(n_el=5, n_spat_orbs=12, sparse=0.9_dp, sparseT=0.1_dp, total_ms=beta)
+    call init_excitgen_test(n_el=5, n_spat_orbs=12, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
     ! prepare the pchb excitgen: set the weights/map-table
     call set_ref()
@@ -45,4 +48,9 @@ contains
     call finalize_excitgen_test()
   end subroutine pchb_test_driver
 
+  subroutine random_fcidump(iunit)
+    integer, intent(in) :: iunit
+    call generate_random_integrals(&
+      iunit, n_el=5, n_spat_orb=12, sparse=0.9_dp, sparseT=0.1_dp, total_ms=beta)
+  end subroutine
 end program test_pcpp_excitgen

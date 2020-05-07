@@ -1,5 +1,6 @@
 program test_pcpp_excitgen
   use constants
+  use Parallel_neci, only: MPIInit, MPIEnd
   use fruit
   use pcpp_excitgen
   use unit_test_helper_excitgen
@@ -8,10 +9,12 @@ program test_pcpp_excitgen
   use FciMCData, only: projEDet
   implicit none
 
+  call MPIInit(.false.)
   call init_fruit()
   call pcpp_test_driver()
   call fruit_summary()
   call fruit_finalize()
+  call MPIEnd(.false.)
 
 contains
 
@@ -26,7 +29,7 @@ contains
     ! set the excitation we want to test
     generate_excitation => gen_rand_excit_pcpp
     ! prepare everything for testing the excitgen
-    call init_excitgen_test(n_el=5, n_spat_orbs=12, sparse=0.9_dp, sparseT=0.1_dp, total_ms=beta)
+    call init_excitgen_test(n_el=5, n_spat_orbs=12, fcidump_writer=FciDumpWriter_t(random_fcidump, 'FCIDUMP'))
 
     ! prepare the pcpp excitation generator: get the precomputed weights
 
@@ -73,5 +76,11 @@ contains
     call assert_equals(9,elec_map(5))
 
   end subroutine test_elec_mapping
+
+  subroutine random_fcidump(iunit)
+    integer, intent(in) :: iunit
+    call generate_random_integrals(&
+      iunit, n_el=5, n_spat_orb=12, sparse=0.9_dp, sparseT=0.1_dp, total_ms=beta)
+  end subroutine
 
 end program test_pcpp_excitgen
