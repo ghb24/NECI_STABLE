@@ -611,8 +611,8 @@ contains
         real(dp), allocatable :: c_sum(:)
         integer :: i, elec
 
-        ! two random numbers \in [0, 1]
-        @:ASSERT(all(0.0_dp <= r .and. r <= 1.0))
+        ! two random numbers \in [0, 1)
+        @:ASSERT(all(0.0_dp <= r .and. r < 1.0))
 
 
         ! Pick any random electron
@@ -639,7 +639,7 @@ contains
         ! with tgt \in possible_holes
         c_sum = get_cumulative_list(det_I, exc, possible_holes)
         call draw_from_cum_list(c_sum, r(2), i, pgen_hole)
-        @:ASSERT(i == 0 .neqv. 0.0_dp < pgen_hole .and. pgen_hole <= 1.0_dp, c_sum, r, i, pgen_hole)
+        @:ASSERT(i == 0 .neqv. (0.0_dp < pgen_hole .and. pgen_hole <= 1.0_dp), c_sum, r, i, pgen_hole)
         if (i /= 0) then
             exc%val(2) = possible_holes%idx(i)
             call make_single(det_I%idx, nJ, elec, exc%val(2), ex_mat, par)

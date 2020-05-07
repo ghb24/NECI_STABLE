@@ -15,7 +15,9 @@ module unit_test_helpers
 
     use fcimcdata, only: excit_gen_store_type
 
-    use util_mod, only: binary_search, choose, operator(.div.)
+    use util_mod, only: binary_search, choose, operator(.div.), operator(.isclose.)
+
+    use sltcnd_mod, only: dyn_sltcnd_excit
 
     use bit_reps, only: decode_bit_det
 
@@ -1001,7 +1003,8 @@ contains
             class(Excitation_t), intent(in) :: exc
             real(dp), intent(in) :: pgen_diagnostic
             default_predicate = &
-                pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic
+                pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic &
+                .and. .not. (dyn_sltcnd_excit(det_I, exc) .isclose. 0.0_dp)
         end function
 
     end subroutine run_excit_gen_tester

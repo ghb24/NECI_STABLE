@@ -991,10 +991,10 @@ contains
         use FciMCData, only: pSingles, pDoubles, pParallel
         type(GASSpec_t) :: GAS_spec
         type(SpinOrbIdx_t) :: det_I
-        integer, parameter :: n_iters=10**6
+        integer, parameter :: n_iters=10**7
 
-        pParallel = 0.5_dp
-        pSingles = 0.1_dp
+        pParallel = 0.05_dp
+        pSingles = 0.3_dp
         pDoubles = 1.0_dp - pSingles
 
 !         call assert_true(tGASSpinRecoupling)
@@ -1033,10 +1033,14 @@ contains
 
         det_I = SpinOrbIdx_t([1, 2, 3, 11, 12, 14])
 
+!         GAS_spec = GASSpec_t(&
+!             n_orbs=[5, 10], &
+!             n_min=[3, size(det_I)], &
+!             n_max=[3, size(det_I)])
         GAS_spec = GASSpec_t(&
-            n_orbs=[5, 10], &
-            n_min=[3, size(det_I)], &
-            n_max=[3, size(det_I)])
+            n_orbs=[10], &
+            n_min=[size(det_I)], &
+            n_max=[size(det_I)])
         call assert_true(is_valid(GAS_spec))
         call assert_true(GAS_spec .contains. det_I)
         global_GAS_spec = GAS_spec
@@ -1106,7 +1110,7 @@ contains
             class(Excitation_t), intent(in) :: exc
             real(dp), intent(in) :: pgen_diagnostic
             logical :: res
-            res = .true.
+            res = .not. (dyn_sltcnd_excit(det_I, exc) .isclose. 0.0_dp)
         end function
 
         function is_spin_flip(det_I, exc, pgen_diagnostic) result(res)
