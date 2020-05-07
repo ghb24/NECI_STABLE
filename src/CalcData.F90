@@ -94,6 +94,11 @@ type subspace_in
     character(255) :: read_filename
 end type subspace_in
 
+type :: PgenUnitTestSpec_t
+    integer :: n_iter = 1 * 10**4
+    integer :: n_most_populated = 100
+end type
+
 LOGICAL :: TSTAR,TTROT,TGrowInitGraph
 LOGICAL :: TNEWEXCITATIONS,TVARCALC(0:10),TBIN,TVVDISALLOW
 LOGICAL :: TMCDIRECTSUM,TMPTHEORY,TMODMPTHEORY,TUPOWER,tMP2Standalone
@@ -167,6 +172,11 @@ logical :: tInitsRDMRef, tInitsRDM
 ! Base hash values only on spatial orbitals
 ! --> All dets with same spatial structure on the same processor.
 logical :: tSpatialOnlyHash
+!> Do a unit test of the pgens by summing up `1 / pgen` n_iter times from the n most populated determinants.
+!> Requires a read pops.
+!> The information if to do a pgen test is encoded in the allocation status.
+type(PgenUnitTestSpec_t), allocatable :: pgen_unit_test_spec
+
 
 ! if all determinants are stored to prevent the need for conversion each iteration
 logical :: tStoredDets
@@ -286,10 +296,10 @@ logical :: tTrialWavefunction
 ! trial wave functions estimates
 integer :: ntrial_ex_calc = 0
 
-! if we want to choose a specific excited states as the trial wf, if we 
-! have a reasonable estimate. this must be done for all replicas if 
-! multiple are used 
-logical :: t_choose_trial_state = .false. 
+! if we want to choose a specific excited states as the trial wf, if we
+! have a reasonable estimate. this must be done for all replicas if
+! multiple are used
+logical :: t_choose_trial_state = .false.
 integer, allocatable :: trial_excit_choice(:)
 
 ! Input type describing which space(s) type to use.
@@ -426,13 +436,13 @@ real(dp) :: min_tau_global = 1.0e-7_dp
 ! fixed to the values obtained from the POPSFILE
 logical :: t_keep_tau_fixed = .false.
 
-! for the transcorrelated hubbard make it possible to use input-dependent 
-! pDoubles and pParallel values 
+! for the transcorrelated hubbard make it possible to use input-dependent
+! pDoubles and pParallel values
 real(dp) :: p_doubles_input = 0.8_dp
 
 logical :: tPopsAlias = .false.
 character(255) :: aliasStem
-! new tau-search using HISTOGRAMS: 
+! new tau-search using HISTOGRAMS:
 logical :: t_hist_tau_search = .false., t_hist_tau_search_option = .false.
 logical :: t_fill_frequency_hists = .false.
 
@@ -446,13 +456,13 @@ logical :: t_previous_hist_tau = .false.
 ! keyword in case the tau-search is not converged enough
 logical :: t_restart_hist_tau = .false.
 
-! use a global variable for this control: 
+! use a global variable for this control:
 logical :: t_consider_par_bias = .false.
 
-! quickly implement a control parameter to test the order of matrix element 
-! calculation in the transcorrelated approach 
+! quickly implement a control parameter to test the order of matrix element
+! calculation in the transcorrelated approach
 logical :: t_test_order = .false.
-! also introduce an integer, to delay the actual changing of the time-step 
+! also introduce an integer, to delay the actual changing of the time-step
 ! for a set amount of iterations
 ! (in the restart case for now!)
 integer :: hist_search_delay = 0
@@ -529,7 +539,7 @@ logical :: t_back_spawn_flex = .false., t_back_spawn_flex_option = .false.
 ! 1 -> maybe I should rename this than so that minus indicates de-excitation?!
 integer :: occ_virt_level = 0
 
-! move tSpinProject here to avoid circular dependencies 
+! move tSpinProject here to avoid circular dependencies
 logical :: tSpinProject
 ! Use a Jacobi preconditioner in evolution equation
 logical :: tPreCond

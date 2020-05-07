@@ -32,9 +32,14 @@ module unit_test_helpers
 
     use sort_mod
 
+    use CalcData, only: PgenUnitTestSpec_t
+
     use ras, only: sort_orbitals
 
     implicit none
+
+    private
+    public :: eig, print_matrix, run_excit_gen_tester, batch_run_excit_gen_tester
 
     abstract interface
         subroutine generate_all_excits_t(nI, n_excits, det_list)
@@ -1004,10 +1009,23 @@ contains
             real(dp), intent(in) :: pgen_diagnostic
             default_predicate = &
                 pgen_diagnostic <= 0.95_dp .or. 1.05_dp <= pgen_diagnostic &
-                .and. .not. (dyn_sltcnd_excit(det_I, exc) .isclose. 0.0_dp)
+                .and. .not. (abs(dyn_sltcnd_excit(det_I, exc)) .isclose. 0.0_dp)
         end function
 
     end subroutine run_excit_gen_tester
+
+    subroutine batch_run_excit_gen_tester(pgen_unit_test_spec)
+        type(PgenUnitTestSpec_t), intent(in) :: pgen_unit_test_spec
+
+        write(*, *) 'test pgen', pgen_unit_test_spec
+
+        ! get n most populated determinants
+
+        ! run_excit_gen_test on them
+            ! write into separate file
+
+
+    end subroutine
 
     subroutine create_hilbert_space(nI, n_states, state_list_ni, state_list_ilut, &
             gen_all_excits_opt)
