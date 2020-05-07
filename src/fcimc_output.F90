@@ -22,7 +22,7 @@ module fcimc_output
                              nel_pre_freezing
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
     use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
-    use semi_stoch_procs, only: return_most_populated_states
+    use semi_stoch_procs, only: proc_most_populated_states
     use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
@@ -1375,7 +1375,7 @@ contains
         if(ierr.ne.0) call stop_all(t_r,"error allocating here")
 
         ! Return the most populated states in CurrentDets on *this* processor only.
-        call return_most_populated_states(iHighPopWrite, LargestWalkers, CurrentDets, &
+        call proc_most_populated_states(iHighPopWrite, LargestWalkers, CurrentDets, &
              TotWalkers, norm)
 
         call MpiSum(norm,allnorm)
@@ -1671,12 +1671,12 @@ contains
             hist_unit = get_free_unit()
             open(hist_unit, file = filename, status = 'unknown')
             write(hist_unit,"(A, A)") "# Boundaries of the bins of the first (vertical) dimension - ", label1
-            
+
             do j = 1, size(bins1)
                write(hist_unit, '(G17.5)', advance = 'no') bins1(j)
             end do
             write(hist_unit, '()', advance = 'yes')
-            
+
             write(hist_unit, "(A, A)") "# Boundaries of the bins of the second (horizontal) dimension - ", label2
 
             do j = 1, size(bins2)
@@ -1780,7 +1780,7 @@ contains
             ind = ceiling((val - minVal) / windowSize)
         endif
     end function getHistIndex
-    
+
     !> Create the data written out in the histogram of shift factor over energy.
     !! The generated data can be passed to print_2d_hist. This is a synchronizing routine.
     !> @param[out] hist  on return, histogram data of this proc only
@@ -1885,7 +1885,7 @@ contains
         do i = 1, int(TotWalkers)
             call extract_sign(CurrentDets(:,i), sgn)
             do run = 1, inum_runs
-                pop = mag_of_run(sgn,run) 
+                pop = mag_of_run(sgn,run)
                 if(pop > locMaxPop) locMaxPop = pop
                 totSpawn = get_tot_spawns(i,run)
                 if(abs(totSpawn) > eps) then

@@ -9,6 +9,7 @@ module semi_stoch_procs
     use bit_reps, only: decode_bit_det, get_initiator_flag_by_run
     use CalcData
     use constants
+    use orb_idx_mod, only: SpinOrbIdx_t
     use FciMCData, only: determ_sizes, determ_displs, determ_space_size, &
                          SpawnedParts, TotWalkers, CurrentDets, core_space, &
                          MaxSpawned,indices_of_determ_states, ilutRef, determ_last
@@ -1117,7 +1118,7 @@ contains
         TotWalkers = int(nwalkers, int64)
     end subroutine add_core_states_currentdet_hash
 
-    subroutine return_most_populated_states(n_keep,&
+    subroutine proc_most_populated_states(n_keep,&
          largest_walkers, source, source_size, norm)
 
         ! Return the most populated states in CurrentDets on *this* processor only.
@@ -1190,7 +1191,122 @@ contains
 
         call sort(largest_walkers(:,1:n_keep), sign_lt, sign_gt)
 
-    end subroutine return_most_populated_states
+    end subroutine proc_most_populated_states
+
+!>  @brief
+!>      Return the most populated states over all processors.
+!>
+!>  @author Oskar Weser
+!>
+!>  @details
+!>  Reducing version of `proc_most_populated_states`, which works per process.
+!>  Return as many states as the size of largest_walkers.
+!>  Returns the norm as well, if requested.
+!>  @param[out] largest_walkers, Array of most `n_keep` most populated states.
+    subroutine global_most_populated_states_ilut(n_keep, largest_walkers, norm)
+
+        use Parallel_neci, only: MPISumAll, MPIAllReduceDatatype, MPIBCast
+        use bit_reps, only: extract_sign
+        use adi_data, only: tAdiActive
+        ! TODO(@Oskar): Implement back in
+!         use adi_references, only: update_ref_signs
+
+        integer, intent(in) :: n_keep
+        integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
+        real(dp), intent(out), optional :: norm
+        character(*), parameter :: this_routine = 'global_most_populated_states'
+
+        integer(n_int), allocatable :: proc_largest_walkers(:, :)
+        integer, allocatable :: rank_of_largest(:)
+
+        allocate(proc_largest_walkers(0:NIfTot, n_keep), source=0_n_int)
+
+        block
+            real(dp) :: proc_norm, all_norm
+
+            call proc_most_populated_states(&
+                n_keep, proc_largest_walkers, CurrentDets, TotWalkers, proc_norm)
+
+            if (present(norm)) then
+                call MpiSumAll(proc_norm, all_norm)
+                norm = sqrt(all_norm)
+            end if
+        end block
+
+        allocate(rank_of_largest(n_keep))
+
+        block
+            real(dp) :: high_sign, curr_sign(lenof_sign)
+            integer :: high_pos
+            integer(n_int) :: HighestDet(0:NIfTot)
+            integer :: i, j
+
+            fill_largest_walkers: do i = 1, n_keep
+                high_sign = 0.0_dp
+                high_pos = 1
+                find_largest_sign_per_proc: do j = n_keep, 1, -1
+                    call extract_sign(proc_largest_walkers(:, j), curr_sign)
+                    if (any(proc_largest_walkers(:, j) /= 0)) then
+                        high_pos = j
+#ifdef CMPLX_
+                        high_sign = sqrt(sum(abs(curr_sign(1::2)))**2 &
+                                         + sum(abs(curr_sign(2::2)))**2)
+#else
+                        high_sign = sum(real(abs(curr_sign), dp))
+#endif
+                        exit find_largest_sign_per_proc
+                    end if
+                end do find_largest_sign_per_proc
+
+                block
+                    real(dp) :: reduce_in(2), reduce_out(2)
+                    reduce_in = [high_sign, real(iProcIndex, dp)]
+                    call MPIAllReduceDatatype(&
+                            reduce_in, 1, MPI_MAXLOC, MPI_2DOUBLE_PRECISION, reduce_out)
+                    ! Now, reduce_out(2) has the process of the largest weighted determinant
+                    rank_of_largest(i) = nint(reduce_out(2))
+                end block
+
+                if (iProcIndex == rank_of_largest(i)) then
+                    HighestDet(0:NIfTot) = proc_largest_walkers(:, high_pos)
+                endif
+
+                call MPIBCast(HighestDet(:), rank_of_largest(i))
+
+                largest_walkers(0:NIfTot, i) = HighestDet(:)
+
+                if (iProcIndex == rank_of_largest(i)) then
+                    ! Zeroing essentially deletes the element
+                    ! because we search for first nonzero from the end.
+                    ! Also no resorting is required.
+                    proc_largest_walkers(:, high_pos) = 0_n_int
+                endif
+            end do fill_largest_walkers
+        end block
+
+!         if (tAdiActive) call update_ref_signs()
+
+    end subroutine
+
+    subroutine global_most_populated_states_SpinOrbIdx(largest_walkers, norm)
+        type(SpinOrbIdx_t), intent(inout) :: largest_walkers(:)
+        real(dp), intent(out), optional :: norm
+
+
+        integer(n_int), allocatable :: ilut_largest_walkers(:, :)
+        integer :: i, n_keep
+
+        allocate(ilut_largest_walkers(0:NIfTot, size(largest_walkers)), source=0_n_int)
+
+        call global_most_populated_states_ilut(&
+            size(largest_walkers), ilut_largest_walkers, norm)
+
+        convert_iluts: do i = 1, size(largest_walkers)
+            ! Unfortunately there are no class methods, that can be called
+            ! from the type.
+            largest_walkers(i) = largest_walkers(1)%from_ilut(ilut_largest_walkers(:, i))
+        end do convert_iluts
+    end subroutine
 
     subroutine return_largest_indices(n_keep, list_size, list, largest_indices)
 

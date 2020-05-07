@@ -209,11 +209,11 @@ contains
             end if
         end if
 
-        if (t_print_core_info) then 
-            ! i think i also want information, like the energy and the 
+        if (t_print_core_info) then
+            ! i think i also want information, like the energy and the
             ! eigenvectors of the core-space
                root_print "I am before the diagonalization step with", t_non_hermitian
-            if (t_non_hermitian) then 
+            if (t_non_hermitian) then
                 call diagonalize_core_non_hermitian(e_values, e_vectors)
                 if (t_choose_trial_state) then
                     gs_energy = e_values(trial_excit_choice(1))
@@ -500,7 +500,7 @@ contains
       end subroutine generate_sing_doub_determinants
 
 !------------------------------------------------------------------------------------------!
-      
+
       subroutine generate_trip_determinants(ilut_list, space_size, only_keep_conn)
         use lattice_models_utils, only: make_ilutJ
         use sym_general_mod, only: IsSymAllowedExcitMat
@@ -561,7 +561,7 @@ contains
       end subroutine generate_trip_determinants
 
 !------------------------------------------------------------------------------------------!
-      
+
     subroutine generate_sing_doub_csfs(ilut_list, space_size)
 
         ! In/Out: ilut_list - List of determinants generated.
@@ -934,7 +934,7 @@ contains
                 write(6,'(a27)') "Constructing Hamiltonian..."
                 call neci_flush(6)
 
-                if (t_non_hermitian) then 
+                if (t_non_hermitian) then
                     call calculate_sparse_hamiltonian_non_hermitian(new_num_states, ilut_store(:,1:new_num_states))
                 else
                     call calculate_sparse_hamiltonian(new_num_states, ilut_store(:,1:new_num_states))
@@ -944,7 +944,7 @@ contains
                 call neci_flush(6)
 
                 ! Now that the Hamiltonian is generated, we can finally find the ground state of it:
-                if (t_non_hermitian) then 
+                if (t_non_hermitian) then
                     call stop_all(t_r, &
                         "perform_davidson not adapted for non-hermitian Hamiltonians!")
                 end if
@@ -1126,7 +1126,7 @@ contains
 
 
         ! Return the most populated states in source on *this* processor.
-        call return_most_populated_states(int(length_this_proc,sizeof_int), largest_states, &
+        call proc_most_populated_states(int(length_this_proc,sizeof_int), largest_states, &
              source, source_size)
 
         ! Store the amplitudes in their real form.
