@@ -5,7 +5,7 @@
 #:set OrbIdxTypes = ['SpinOrbIdx_t', 'SpatOrbIdx_t']
 
 module orb_idx_mod
-    use constants, only: n_int
+    use constants, only: n_int, iout
     use bit_rep_data, only: nIfTot
     use bit_reps, only: decode_bit_det
     use DetBitOps, only: EncodeBitDet
@@ -265,11 +265,13 @@ module orb_idx_mod
 #:for type in OrbIdxTypes
     subroutine write_det_${type}$(det_I, i_unit, advance)
         type(${type}$), intent(in) :: det_I
-        integer, intent(in) :: i_unit
-        logical, optional, intent(in) :: advance
+        integer, intent(in), optional :: i_unit
+        logical, intent(in), optional :: advance
 
-        integer :: i
+        integer :: i, i_unit_
         character(:), allocatable :: advance_str
+
+        @:def_default(i_unit_, i_unit, iout)
 
         if (present(advance)) then
             if (advance) then
@@ -282,11 +284,11 @@ module orb_idx_mod
         end if
 
 
-        write(i_unit, "(a)", advance='no') '${type}$(['
+        write(i_unit_, "(a)", advance='no') '${type}$(['
         do i = 1, size(det_I) - 1
-            write(i_unit, "(I3, a)", advance='no') det_I%idx(i), ','
+            write(i_unit_, "(I3, a)", advance='no') det_I%idx(i), ','
         end do
-        write(i_unit, "(I2, a)", advance=advance_str) det_I%idx(size(det_I)), '])'
+        write(i_unit_, "(I2, a)", advance=advance_str) det_I%idx(size(det_I)), '])'
     end subroutine
 #:endfor
 
