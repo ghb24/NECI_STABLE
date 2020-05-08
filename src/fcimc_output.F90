@@ -1352,13 +1352,11 @@ contains
     SUBROUTINE PrintHighPops()
       use adi_references, only: update_ref_signs, print_reference_notification, nRefs
       use adi_data, only: tSetupSIs
-        real(dp), dimension(lenof_sign) :: SignCurr, LowSign
-        integer :: ierr,i,j,counter,ExcitLev,SmallestPos,HighPos,nopen
+        real(dp), dimension(lenof_sign) :: SignCurr
+        integer :: ierr,i,j,counter,ExcitLev,nopen
         integer :: full_orb, run
-        real(dp) :: HighSign,reduce_in(1:2),reduce_out(1:2),Norm,AllNorm
-        integer(n_int) , allocatable :: LargestWalkers(:,:)
-        integer(n_int) , allocatable :: GlobalLargestWalkers(:,:)
-        integer(n_int) :: HighestDet(0:NIfTot)
+        real(dp) :: HighSign, norm
+        integer(n_int) , allocatable :: GlobalLargestWalkers(:, :)
         integer, allocatable :: GlobalProc(:), tmp_ni(:)
         character(100) :: bufEnd, bufStart
         integer :: lenEnd, lenStart
@@ -1370,79 +1368,14 @@ contains
         character(13), allocatable :: amplitude_string(:)
         character(9), allocatable :: init_string(:)
 
-        !Allocate memory to hold highest iHighPopWrite determinants
-        allocate(LargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
-        if(ierr.ne.0) call stop_all(t_r,"error allocating here")
 
-        ! Return the most populated states in CurrentDets on *this* processor only.
-        call proc_most_populated_states(iHighPopWrite, LargestWalkers, CurrentDets, &
-             TotWalkers, norm)
+        allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
+        allocate(GlobalProc(iHighPopWrite), source=0)
 
-        call MpiSum(norm,allnorm)
-        if(iProcIndex.eq.Root) norm=sqrt(allnorm)
-
-!        write(iout,*) "Highest weighted dets on this process:"
-!        do i=1,iHighPopWrite
-!            write(iout,*) LargestWalkers(:,i)
-!        enddo
-
-        !Now have sorted list of the iHighPopWrite largest weighted determinants on the process
-        allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
-        if(ierr.ne.0) call stop_all(t_r,"error allocating here")
-        GlobalLargestWalkers(:,:)=0
-        if(iProcIndex.eq.Root) then
-            allocate(GlobalProc(iHighPopWrite),stat=ierr)
-            if(ierr.ne.0) call stop_all(t_r,"error allocating here")
-            GlobalProc(:)=0
-        endif
-
-        do i=1,iHighPopWrite
-
-            ! Find highest sign on each processor. Since all lists are
-            ! sorted, this is just the first nonzero value.
-           HighSign = 0.0_dp
-           HighPos = 1
-            do j=iHighPopWrite,1,-1
-                call extract_sign (LargestWalkers(:,j), SignCurr)
-                if (any(LargestWalkers(:,j) /= 0)) then
-
-#ifdef CMPLX_
-                    HighSign = sqrt(sum(abs(SignCurr(1::2)))**2 + sum(abs(SignCurr(2::2)))**2)
-#else
-                    HighSign = sum(real(abs(SignCurr),dp))
-#endif
-
-                    ! We have the largest sign
-                    HighPos = j
-                    exit
-                end if
-            end do
-            reduce_in=(/ HighSign,real(iProcIndex,dp) /)
-            call MPIAllReduceDatatype(reduce_in,1,MPI_MAXLOC,MPI_2DOUBLE_PRECISION,reduce_out)
-            !Now, reduce_out(2) has the process of the largest weighted determinant - broadcast it!
-            if(iProcIndex.eq.nint(reduce_out(2))) then
-                HighestDet(0:NIfTot) = LargestWalkers(:,HighPos)
-            else
-                HighestDet(0:NIfTot) = 0
-            endif
-            call MPIBCast(HighestDet(:),NIfTot+1,nint(reduce_out(2)))
-            if(iProcIndex.eq.Root) then
-                GlobalLargestWalkers(0:NIfTot,i) = HighestDet(:)
-                GlobalProc(i) = nint(reduce_out(2))
-            endif
-
-            !Now delete this highest determinant from the list on the corresponding processor
-            if(iProcIndex.eq.nint(reduce_out(2))) then
-                LargestWalkers(:,HighPos) = 0
-                !No need to resort any more
-!                call sort(LargestWalkers(:,1:iHighPopWrite), sign_lt, sign_gt)
-            endif
-        enddo
-
+        call global_most_populated_states_ilut(iHighPopWrite, GlobalLargestWalkers, norm, rank_of_largest=GlobalProc)
         ! This has to be done by all procs
         if(tAdiActive) call update_ref_signs()
 
-        call global_most_populated_states_ilut(iHighPopWrite, GlobalLargestWalkers, norm)
 
         if(iProcIndex.eq.Root) then
             !Now print out the info contained in GlobalLargestWalkers and GlobalProc
@@ -1599,8 +1532,6 @@ contains
             deallocate(GlobalLargestWalkers,GlobalProc)
             write(iout,*) ""
         endif
-
-        deallocate(LargestWalkers)
 
         contains
 

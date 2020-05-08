@@ -1203,7 +1203,7 @@ contains
 !>  Return as many states as the size of largest_walkers.
 !>  Returns the norm as well, if requested.
 !>  @param[out] largest_walkers, Array of most `n_keep` most populated states.
-    subroutine global_most_populated_states_ilut(n_keep, largest_walkers, norm)
+    subroutine global_most_populated_states_ilut(n_keep, largest_walkers, norm, rank_of_largest)
 
         use Parallel_neci, only: MPISumAll, MPIAllReduceDatatype, MPIBCast
         use bit_reps, only: extract_sign
@@ -1214,32 +1214,27 @@ contains
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
         real(dp), intent(out), optional :: norm
+        integer, intent(out), optional :: rank_of_largest(n_keep)
         character(*), parameter :: this_routine = 'global_most_populated_states'
 
         integer(n_int), allocatable :: proc_largest_walkers(:, :)
-        integer, allocatable :: rank_of_largest(:)
+        integer, allocatable :: rank_of_largest_(:)
 
         allocate(proc_largest_walkers(0:NIfTot, n_keep), source=0_n_int)
-        largest_walkers = 0_n_int
-
         block
             real(dp) :: proc_norm, all_norm
-
             call proc_most_populated_states(&
                 n_keep, proc_largest_walkers, CurrentDets, TotWalkers, proc_norm)
-
             if (present(norm)) then
                 call MpiSumAll(proc_norm, all_norm)
                 norm = sqrt(all_norm)
             end if
         end block
 
-        allocate(rank_of_largest(n_keep))
-
+        allocate(rank_of_largest_(n_keep))
         block
             real(dp) :: high_sign, curr_sign(lenof_sign)
             integer :: high_pos
-            integer(n_int) :: HighestDet(0:NIfTot)
             integer :: i, j
 
             fill_largest_walkers: do i = 1, n_keep
@@ -1265,27 +1260,27 @@ contains
                     call MPIAllReduceDatatype(&
                             reduce_in, size(reduce_in, 2), MPI_MAXLOC, MPI_2DOUBLE_PRECISION, reduce_out)
                     ! Now, reduce_out(2, :) has the rank of the largest weighted determinant
-                    rank_of_largest(i) = nint(reduce_out(2, 1))
+                    rank_of_largest_(i) = nint(reduce_out(2, 1))
                 end block
 
-                if (iProcIndex == rank_of_largest(i)) then
-                    HighestDet(0:NIfTot) = proc_largest_walkers(:, high_pos)
-                endif
+                block
+                    integer(n_int) :: HighestDet(0:NIfTot)
+                    if (iProcIndex == rank_of_largest_(i)) then
+                        HighestDet(0:NIfTot) = proc_largest_walkers(:, high_pos)
+                    endif
+                    call MPIBCast(HighestDet(0:NIfTot), size(HighestDet), rank_of_largest_(i))
+                    largest_walkers(0:NIfTot, i) = HighestDet(:)
+                end block
 
-!                 call MPIBCast(HighestDet(0:NIfTot), size(HighestDet), rank_of_largest(i))
-                call MPIBCast(HighestDet(0:NIfTot), rank_of_largest(i))
-
-
-                largest_walkers(0:NIfTot, i) = HighestDet(:)
-
-                if (iProcIndex == rank_of_largest(i)) then
-                    ! Zeroing essentially deletes the element
-                    ! because we search for first nonzero from the end.
-                    ! Also no resorting is required.
+                ! Zeroing essentially deletes the element because we search
+                ! for first nonzero from the end. Also no resorting is required.
+                if (iProcIndex == rank_of_largest_(i)) then
                     proc_largest_walkers(:, high_pos) = 0_n_int
                 endif
             end do fill_largest_walkers
         end block
+
+        rank_of_largest = rank_of_largest_
 
 !         if (tAdiActive) call update_ref_signs()
 
