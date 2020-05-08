@@ -31,8 +31,8 @@ mpitype=MPI_DOUBLE_COMPLEX
 type1=integer(int32), dimension(:)
 mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1)
-mpilen=(ubound(v,1)-lbound(v,1)+1)
-mpilen2=(ubound(ret,1)-lbound(ret,1)+1)
+mpilen=(size(v))
+mpilen2=(size(ret))
 ndim=1
 arr_shp=, (/1/)
 conditional_enable = !defined(SX)
@@ -56,8 +56,8 @@ mpitype=MPI_DOUBLE_COMPLEX
 type1=integer(int32), dimension(:,:)
 mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2)
-mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1))
-mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1))
+mpilen=(size(v))
+mpilen2=(size(ret))
 ndim=2
 arr_shp=, (/1,1/)
 conditional_enable = !defined(SX)
@@ -81,10 +81,8 @@ mpitype=MPI_DOUBLE_COMPLEX
 type1=integer(int32), dimension(:,:,:)
 mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2),ubound(v,3),lbound(v,3)
-mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*&
- (ubound(v,3)-lbound(v,3)+1))
-mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1)*&
- (ubound(ret,3)-lbound(ret,3)+1))
+mpilen=(size(v))
+mpilen2=(size(ret))
 ndim=3
 arr_shp=, (/1,1,1/)
 
@@ -104,10 +102,8 @@ type1=integer(int32), dimension(:,:,:,:)
 mpitype=MPI_INTEGER4
 mpiprt=ubound(v,1),lbound(v,1),ubound(v,2),lbound(v,2),ubound(v,3),&
  lbound(v,3),ubound(v,4),lbound(v,4)
-mpilen=((ubound(v,1)-lbound(v,1)+1)*(ubound(v,2)-lbound(v,2)+1)*&
- (ubound(v,3)-lbound(v,3)+1)*(ubound(v,4)-lbound(v,4)+1))
-mpilen2=((ubound(ret,1)-lbound(ret,1)+1)*(ubound(ret,2)-lbound(ret,2)+1)*&
- (ubound(ret,3)-lbound(ret,3)+1)*(ubound(ret,4)-lbound(ret,4)+1))
+mpilen=(size(v))
+mpilen2=(size(ret))
 ndim=4
 arr_shp=, (/1,1,1,1/)
 conditional_enable = !defined(SX)
@@ -507,7 +503,7 @@ contains
             write(6,*) 'Opp', itype
             write(6,*) 'ierr', ierr
             call mpi_error_class(ierr, errorclass, jerr)
-            call mpi_error_string(errorclass,string, length, jerr)            
+            call mpi_error_string(errorclass,string, length, jerr)
             call stop_all (t_r, string)
         end if
 #else
