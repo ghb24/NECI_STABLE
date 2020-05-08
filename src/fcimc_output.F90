@@ -22,7 +22,7 @@ module fcimc_output
                              nel_pre_freezing
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
     use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
-    use semi_stoch_procs, only: proc_most_populated_states
+    use semi_stoch_procs, only: proc_most_populated_states, global_most_populated_states_ilut
     use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
@@ -1387,10 +1387,10 @@ contains
 !        enddo
 
         !Now have sorted list of the iHighPopWrite largest weighted determinants on the process
+        allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
+        if(ierr.ne.0) call stop_all(t_r,"error allocating here")
+        GlobalLargestWalkers(:,:)=0
         if(iProcIndex.eq.Root) then
-            allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite),stat=ierr)
-            if(ierr.ne.0) call stop_all(t_r,"error allocating here")
-            GlobalLargestWalkers(:,:)=0
             allocate(GlobalProc(iHighPopWrite),stat=ierr)
             if(ierr.ne.0) call stop_all(t_r,"error allocating here")
             GlobalProc(:)=0
@@ -1441,6 +1441,9 @@ contains
 
         ! This has to be done by all procs
         if(tAdiActive) call update_ref_signs()
+
+        call global_most_populated_states_ilut(iHighPopWrite, GlobalLargestWalkers, norm)
+
         if(iProcIndex.eq.Root) then
             !Now print out the info contained in GlobalLargestWalkers and GlobalProc
 

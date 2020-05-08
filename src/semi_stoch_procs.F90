@@ -1220,6 +1220,7 @@ contains
         integer, allocatable :: rank_of_largest(:)
 
         allocate(proc_largest_walkers(0:NIfTot, n_keep), source=0_n_int)
+        largest_walkers = 0_n_int
 
         block
             real(dp) :: proc_norm, all_norm
@@ -1245,8 +1246,8 @@ contains
                 high_sign = 0.0_dp
                 high_pos = 1
                 find_largest_sign_per_proc: do j = n_keep, 1, -1
-                    call extract_sign(proc_largest_walkers(:, j), curr_sign)
                     if (any(proc_largest_walkers(:, j) /= 0)) then
+                        call extract_sign(proc_largest_walkers(:, j), curr_sign)
                         high_pos = j
 #ifdef CMPLX_
                         high_sign = sqrt(sum(abs(curr_sign(1::2)))**2 &
@@ -1259,19 +1260,21 @@ contains
                 end do find_largest_sign_per_proc
 
                 block
-                    real(dp) :: reduce_in(2), reduce_out(2)
-                    reduce_in = [high_sign, real(iProcIndex, dp)]
+                    real(dp) :: reduce_in(2, 1), reduce_out(2, 1)
+                    reduce_in = reshape([high_sign, real(iProcIndex, dp)], shape(reduce_in))
                     call MPIAllReduceDatatype(&
-                            reduce_in, 1, MPI_MAXLOC, MPI_2DOUBLE_PRECISION, reduce_out)
-                    ! Now, reduce_out(2) has the process of the largest weighted determinant
-                    rank_of_largest(i) = nint(reduce_out(2))
+                            reduce_in, size(reduce_in, 2), MPI_MAXLOC, MPI_2DOUBLE_PRECISION, reduce_out)
+                    ! Now, reduce_out(2, :) has the rank of the largest weighted determinant
+                    rank_of_largest(i) = nint(reduce_out(2, 1))
                 end block
 
                 if (iProcIndex == rank_of_largest(i)) then
                     HighestDet(0:NIfTot) = proc_largest_walkers(:, high_pos)
                 endif
 
-                call MPIBCast(HighestDet(:), rank_of_largest(i))
+!                 call MPIBCast(HighestDet(0:NIfTot), size(HighestDet), rank_of_largest(i))
+                call MPIBCast(HighestDet(0:NIfTot), rank_of_largest(i))
+
 
                 largest_walkers(0:NIfTot, i) = HighestDet(:)
 
