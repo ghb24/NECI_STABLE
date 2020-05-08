@@ -22,7 +22,7 @@ module fcimc_output
                              nel_pre_freezing
     use DetCalcData, only: det, fcidets, ReIndex, NDet, NRow, HAMIL, LAB
     use bit_reps, only: decode_bit_det, test_flag, extract_sign, get_initiator_flag
-    use semi_stoch_procs, only: proc_most_populated_states, global_most_populated_states_ilut
+    use semi_stoch_procs, only: global_most_populated_states
     use bit_rep_data, only: niftot, nifd, flag_initiator
     use hist, only: calc_s_squared_star, calc_s_squared
     use fcimc_helper, only: LanczosFindGroundE
@@ -1372,7 +1372,8 @@ contains
         allocate(GlobalLargestWalkers(0:NIfTot,iHighPopWrite), source=0_n_int)
         allocate(GlobalProc(iHighPopWrite), source=0)
 
-        call global_most_populated_states_ilut(iHighPopWrite, GlobalLargestWalkers, norm, rank_of_largest=GlobalProc)
+        call global_most_populated_states(iHighPopWrite, GlobalLargestWalkers, norm, rank_of_largest=GlobalProc)
+
         ! This has to be done by all procs
         if(tAdiActive) call update_ref_signs()
 

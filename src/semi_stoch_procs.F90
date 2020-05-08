@@ -39,6 +39,12 @@ module semi_stoch_procs
 
     implicit none
 
+    interface global_most_populated_states
+        module procedure &
+            global_most_populated_states_ilut, &
+            global_most_populated_states_SpinOrbIdx
+    end interface
+
 contains
 
     subroutine determ_projection()
@@ -1204,12 +1210,8 @@ contains
 !>  Returns the norm as well, if requested.
 !>  @param[out] largest_walkers, Array of most `n_keep` most populated states.
     subroutine global_most_populated_states_ilut(n_keep, largest_walkers, norm, rank_of_largest)
-
         use Parallel_neci, only: MPISumAll, MPIAllReduceDatatype, MPIBCast
         use bit_reps, only: extract_sign
-        use adi_data, only: tAdiActive
-        ! TODO(@Oskar): Implement back in
-!         use adi_references, only: update_ref_signs
 
         integer, intent(in) :: n_keep
         integer(n_int), intent(out) :: largest_walkers(0:NIfTot, n_keep)
@@ -1282,13 +1284,12 @@ contains
 
         rank_of_largest = rank_of_largest_
 
-!         if (tAdiActive) call update_ref_signs()
-
     end subroutine
 
-    subroutine global_most_populated_states_SpinOrbIdx(largest_walkers, norm)
+    subroutine global_most_populated_states_SpinOrbIdx(largest_walkers, norm, rank_of_largest)
         type(SpinOrbIdx_t), intent(inout) :: largest_walkers(:)
         real(dp), intent(out), optional :: norm
+        integer, intent(out), optional :: rank_of_largest(size(largest_walkers))
 
 
         integer(n_int), allocatable :: ilut_largest_walkers(:, :)
@@ -1297,11 +1298,10 @@ contains
         allocate(ilut_largest_walkers(0:NIfTot, size(largest_walkers)), source=0_n_int)
 
         call global_most_populated_states_ilut(&
-            size(largest_walkers), ilut_largest_walkers, norm)
+            size(largest_walkers), ilut_largest_walkers, norm, rank_of_largest)
 
         convert_iluts: do i = 1, size(largest_walkers)
-            ! Unfortunately there are no class methods, that can be called
-            ! from the type.
+            ! Unfortunately there are no class methods, that can be called from the type.
             largest_walkers(i) = largest_walkers(1)%from_ilut(ilut_largest_walkers(:, i))
         end do convert_iluts
     end subroutine
